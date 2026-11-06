@@ -26,6 +26,14 @@ type BriefingRef = { eventId: string };
 type BillingStatementRef = { id: string; eventId: string; status: string; number: string };
 type CloseoutResponseRef = { eventId: string };
 export type ClientChangeRequestRef = ClientChangeRequestSource & { eventId: string };
+export type ClientAddendumActionRef = {
+  id: string;
+  eventId: string;
+  versionNumber: number;
+  title: string;
+  issuedAt: Date;
+  conformeExecution: { status: string } | null;
+};
 
 const DOCUMENT_ACTION_STATUSES = ['needs_update', 'pending', 'rejected'];
 const FLOORPLAN_DRAFT_ACTION_STATUSES = ['submitted', 'in_review'];
@@ -104,6 +112,7 @@ export function collectClientActionItems(input: {
   postEventDocuments: OpsPostEventDocument[];
   closeoutResponses?: CloseoutResponseRef[];
   changeRequests?: ClientChangeRequestRef[];
+  addenda?: ClientAddendumActionRef[];
   now?: Date;
 }): PrismClientActionItem[] {
   const now = input.now ?? new Date();
@@ -117,6 +126,7 @@ export function collectClientActionItems(input: {
     ...collectClientClosureActionItems(input.postEventDocuments, input.visibleEvents),
     ...collectClientFeedbackActionItems(input.visibleEvents, new Set((input.closeoutResponses ?? []).map((row) => row.eventId))),
     ...collectClientChangeRequestItems(input.changeRequests ?? [], input.visibleEvents, now),
+    ...collectClientAddendumActionItems(input.addenda ?? [], input.visibleEvents),
   ];
   items.sort((left, right) => {
     const priority = priorityRank(left.priority) - priorityRank(right.priority);
@@ -125,6 +135,27 @@ export function collectClientActionItems(input: {
     if (due !== 0) return due;
     return left.id.localeCompare(right.id);
   });
+  return items;
+}
+
+function collectClientAddendumActionItems(addenda: ClientAddendumActionRef[], events: ClientEventRef[]) {
+  const items: PrismClientActionItem[] = [];
+  for (const addendum of addenda) {
+    if (addendum.conformeExecution?.status !== 'awaiting_client') continue;
+    const event = eventById(events, addendum.eventId);
+    if (!event || event.archived) continue;
+    items.push({
+      id: `addendum:${addendum.id}`,
+      kind: 'addendum',
+      priority: 'attention',
+      label: `Acknowledge addendum: ${addendum.title}`,
+      description: `Version ${addendum.versionNumber} is waiting for your acknowledgment.`,
+      status: 'awaiting_client',
+      eventId: event.id,
+      eventName: event.eventName,
+      href: `/dashboard/events/${event.id}/overview#client-addendum-${encodeURIComponent(addendum.id)}`,
+    });
+  }
   return items;
 }
 

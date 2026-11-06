@@ -120,6 +120,7 @@ export const money = new Intl.NumberFormat("en-PH", {
 export function clientActionIcon(kind: PrismClientActionItem["kind"]): LucideIcon {
   if (kind === "billing") return ReceiptText;
   if (kind === "document" || kind === "closure") return FileText;
+  if (kind === "addendum") return FileText;
   if (kind === "floorplan") return MapPinned;
   if (kind === "approval") return BadgeCheck;
   if (kind === "feedback") return MessageSquareText;
@@ -128,6 +129,7 @@ export function clientActionIcon(kind: PrismClientActionItem["kind"]): LucideIco
 }
 
 export function clientActionTarget(kind: PrismClientActionItem["kind"]): DetailTab {
+  if (kind === "addendum") return "overview";
   if (kind === "billing") return "billing";
   if (kind === "document" || kind === "closure") return "documents";
   if (kind === "floorplan") return "floorplan";
@@ -176,6 +178,7 @@ function clientActionNextActor(item: PrismClientActionItem): "you" | "pmcm" | "u
 }
 
 function clientActionLabel(item: PrismClientActionItem): string {
+  if (item.kind === "addendum") return "Review and acknowledge";
   if (item.kind === "billing") return "Review payment";
   if (item.kind === "briefing") return "Complete briefing";
   if (item.kind === "feedback") return "Share feedback";

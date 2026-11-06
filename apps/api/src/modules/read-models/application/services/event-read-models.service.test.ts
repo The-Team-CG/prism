@@ -228,6 +228,7 @@ function createPmcmReadModelService() {
     opsEventDayTask: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsUrgentIssue: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsClientCloseoutResponse: { findMany: vi.fn(async (): Promise<Array<{ id: string; eventId: string }>> => []) },
+    opsAddendum: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsEventFreezeException: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsApprovalRequest: { count: vi.fn(async () => 2) },
     opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', eventId: 'evt_visible' }]) },
