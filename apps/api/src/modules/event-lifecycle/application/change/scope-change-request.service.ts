@@ -216,6 +216,7 @@ export class ScopeChangeRequestService {
       status: 'rejected', decisionReason: input.decisionReason.trim(), clientResponse: input.clientResponse?.trim() || null, decidedBy: actor.name, decidedAt: now, reviewedBy: actor.name,
     });
     await this.recordReviewAudit(tx, eventId, actor, requestId, 'Rejected scope change request', 'reject', { previousStatus: existing.status, decisionReason: input.decisionReason.trim() });
+    await this.notifyClientDecision(tx, eventId, requestId, existing.title, 'not approved', input.clientResponse);
   }
 
   /** Read-only checks run before the single-use consumption so a refused approval leaves the exception unused. */
@@ -240,6 +241,14 @@ export class ScopeChangeRequestService {
       reviewedBy: actor.name,
     });
     await this.recordReviewAudit(tx, eventId, actor, requestId, 'Approved scope change request', 'approve', { previousStatus: existing.status, impacts: input.impacts, freezeExceptionId, addendumId });
+    await this.notifyClientDecision(tx, eventId, requestId, existing.title, 'approved', input.clientResponse);
+  }
+
+  private notifyClientDecision(tx: Prisma.TransactionClient, eventId: string, requestId: string, title: string, outcome: 'approved' | 'not approved', clientResponse?: string) {
+    const idempotencyKey = `scope-change-decision:${requestId}:${outcome === 'approved' ? 'approved' : 'rejected'}`;
+    const response = clientResponse?.trim();
+    const message = `Your scope change request “${title}” was ${outcome}.${response ? ` PMCM response: ${response}` : ''}`;
+    return writeNotification(this.notifications, eventId, 'Client', message, undefined, { idempotencyKey }, { prisma: tx, correlationId: requestId });
   }
 
   private async requireTransition(tx: Prisma.TransactionClient, where: Prisma.OpsScopeChangeRequestWhereInput & { id: string; eventId: string }, data: Prisma.OpsScopeChangeRequestUncheckedUpdateManyInput) {

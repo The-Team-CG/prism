@@ -10,6 +10,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Clients now see a version-specific action-center item for addenda awaiting their acknowledgment, linked to the addendum row.
 - File-requirement reminder sweeps now keyset-page through every eligible event while retaining stable idempotency keys.
 - Suppliers now see due and overdue file requirements for selected bookings, with links to the booking actions and uploaded files.
+- PMCM scope-change approvals and rejections now queue idempotent, event-scoped client notices with only client-safe wording and responses; the client view labels withdrawal explicitly.
 - Clients can review an issued proposal before a billing statement exists, see it in their action list, and wait for a newer issued version after requesting revision. Proposal loading failures are reported instead of appearing as an unprepared proposal.
 - Client closeout links lead to delivered items awaiting acknowledgement, rather than Messages or unfinished PMCM records. Wrap-up acknowledgement no longer waits on a completion state that itself needs acknowledgement; separately recorded PMCM acknowledgements are shown without offering a rejected duplicate action. Change requests under review are identified as PMCM's next action.
 - Supplier readiness and contract controls explain and enforce the existing assignment-confirmation prerequisite. Creative deliverables can use a saved progress note after returning to the booking.
