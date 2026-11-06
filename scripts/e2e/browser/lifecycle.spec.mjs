@@ -100,9 +100,12 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.goto(path('billing'));
       await pmcm.page.getByRole('tab', { name: 'Billing sources', exact: true }).click();
       const billing = pmcm.page.getByRole('region', { name: 'Billing source', exact: true });
-      await billing.getByLabel('Amount (PHP)', { exact: true }).fill('100000');
+      await billing.getByLabel('Amount (PHP)', { exact: true }).fill('105000');
       await billing.getByLabel('Proposal evidence', { exact: true }).selectOption({ index: 1 });
+      const sourceCreation = pmcm.page.waitForResponse(response => response.url().endsWith(`/events/${eventId}/billing-source`) && response.request().method() === 'POST');
       await billing.getByRole('button', { name: 'Create billing source', exact: true }).click();
+      const createdSource = await sourceCreation;
+      expect(createdSource.ok(), `Billing source creation returned HTTP ${createdSource.status()}.`).toBe(true);
       await billing.getByRole('button', { name: 'Approve source', exact: true }).click();
       await billing.getByRole('button', { name: 'Generate statement', exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Send to client', exact: true }).first().click();
