@@ -71,7 +71,16 @@ export function MessagesPage({ session, selectedRequests, readinessBoard }: { se
           onSend={() => void vm.send()}
           onLoadOlder={() => void vm.loadOlder()}
           composerPlaceholder={() => "Reply to PMCM"}
-          empty={{ title: "No messages yet", body: "PMCM will message you here about clarifications, revisions and event-day coordination." }}
+          compose={{
+            open: vm.composing,
+            onStart: () => vm.setComposing(true),
+            onCancel: () => vm.setComposing(false),
+            contextLabel: event.eventName,
+            recipient: "PMCM team",
+            subject: vm.subject,
+            onSubjectChange: vm.setSubject,
+            onCreate: () => void vm.createThread(),
+          }}
         />
       )}
     </div>

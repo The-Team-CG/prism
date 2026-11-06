@@ -16,15 +16,15 @@
         "assets": [
           {
             "include": "kernel/database/db-connection-config.cjs",
-            "outDir": "dist/apps/api/src"
+            "outDir": "dist/apps/api"
           },
           {
             "include": "kernel/database/migration-ledger-compatibility.cjs",
-            "outDir": "dist/apps/api/src"
+            "outDir": "dist/apps/api"
           },
           {
             "include": "modules/identity-access/application/auth/password-hash.cjs",
-            "outDir": "dist/apps/api/src"
+            "outDir": "dist/apps/api"
           }
         ]
       }

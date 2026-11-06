@@ -18,6 +18,7 @@ import { OpsEventComplianceController } from './api/compliance/event-compliance.
 import { COMPLIANCE_COMMANDS, COMPLIANCE_READER } from './contracts/compliance-ops.tokens';
 import { ComplianceWorkflowService } from './application/compliance/compliance-workflow.service';
 import { ComplianceReevaluationScheduler } from './application/compliance/compliance-reevaluation.scheduler';
+import { EventAutoFreezeScheduler } from './application/change/event-auto-freeze.scheduler';
 import { CLOSURE_COMMANDS, CLOSURE_READINESS_READER } from './contracts/closure-ops.tokens';
 import { EventClosureService } from './application/closure/event-closure.service';
 import { EventWrapUpReminderScheduler } from './application/closure/event-wrap-up-reminder.scheduler';
@@ -139,6 +140,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     { provide: CLIENT_ONBOARDING_COMMANDS, useExisting: ClientOnboardingWorkflowService },
     ComplianceWorkflowService,
     ComplianceReevaluationScheduler,
+    EventAutoFreezeScheduler,
     { provide: COMPLIANCE_COMMANDS, useExisting: ComplianceWorkflowService },
     { provide: COMPLIANCE_READER, useExisting: ComplianceWorkflowService },
     EventClosureService,

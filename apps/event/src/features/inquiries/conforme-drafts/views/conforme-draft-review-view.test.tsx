@@ -98,7 +98,7 @@ describe('ConformeDraftReviewView', () => {
         lastConformeReminderAt: null,
         reminderWindowBaseAt: inquiry.conformeSentAt!,
         requestId: 'req_1',
-        modelVersion: 'mock',
+        modelVersion: 'claude-sonnet-5-5',
       },
       subject: 'Subject',
       body: 'Body',
@@ -123,7 +123,7 @@ describe('ConformeDraftReviewView', () => {
       draft: {
         draftId: 'aia_1', inquiryId: 'inq_1', draft: { subject: 'Subject', body: 'Body' },
         status: 'approved', source: 'ai', requestedAt: priorWindow, reviewedBy: 'PMCM', reviewedAt: priorWindow,
-        lastConformeReminderAt: priorWindow, reminderWindowBaseAt: priorWindow, requestId: 'req_1', modelVersion: 'mock',
+        lastConformeReminderAt: priorWindow, reminderWindowBaseAt: priorWindow, requestId: 'req_1', modelVersion: 'claude-sonnet-5-5',
       },
     });
     render(<ConformeDraftReviewView inquiries={[{

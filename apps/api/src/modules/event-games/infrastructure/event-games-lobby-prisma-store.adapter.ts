@@ -1,6 +1,6 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { prismEventGameBrandThemeSchema, prismEventGameKindSchema } from '@prism/types';
-import { z } from 'zod';
+import { prismJsonRecordSchema as jsonRecordSchema } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type {
   CreateIndependentGameSessionRecord,
@@ -9,8 +9,6 @@ import type {
   IndependentGameSessionRecord,
   PublicIndependentGameRecord,
 } from '../contracts/game-lobby-store.port';
-
-const jsonRecordSchema = z.record(z.string(), z.unknown());
 
 interface LobbySlugRow { event_id: string; lobby_slug: string }
 interface PublicGameRow {

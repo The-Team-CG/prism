@@ -7,28 +7,16 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { RouteLink, useListFilter } from "@/features/pmcm-kit";
 import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
-
-const INACTIVE_ASSIGNMENT_STATUSES = ["cancelled", "replaced", "declined"];
-
-type UpcomingAssignment = { assignment: PrismCoordinatorAssignment; event: PrismEvent };
+import {
+  coordinatorAvailabilityState,
+  coordinatorBookingsByCoordinator,
+  type CoordinatorAvailabilityState,
+  type CoordinatorBooking,
+  type CoordinatorBookings,
+} from "../../model/coordinator-bookings";
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase()).join("") || "?";
-}
-
-/** Live assignments on events that haven't happened yet, soonest first, grouped by coordinator. */
-function upcomingAssignmentsByCoordinator(assignments: PrismCoordinatorAssignment[], events: PrismEvent[]) {
-  const today = manilaDateKey();
-  const eventsById = new Map(events.map((event) => [event.id, event]));
-  const byCoordinator = new Map<string, UpcomingAssignment[]>();
-  for (const assignment of assignments) {
-    const event = eventsById.get(assignment.eventId);
-    if (!assignment.coordinatorId || !event || event.archived || INACTIVE_ASSIGNMENT_STATUSES.includes(assignment.status)) continue;
-    if (String(event.eventDate).slice(0, 10) < today) continue;
-    byCoordinator.set(assignment.coordinatorId, [...(byCoordinator.get(assignment.coordinatorId) ?? []), { assignment, event }]);
-  }
-  for (const list of byCoordinator.values()) list.sort((left, right) => String(left.event.eventDate).localeCompare(String(right.event.eventDate)));
-  return byCoordinator;
 }
 
 const ROW_GRID = "sm:grid sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_minmax(0,1.4fr)] sm:items-center sm:gap-6";
@@ -51,12 +39,12 @@ export function CoordinatorRoster({
 }) {
   const [query, setQuery] = useListFilter("q");
   const needle = query.trim().toLowerCase();
-  const upcoming = upcomingAssignmentsByCoordinator(assignments, events);
-  const nextDate = (coordinator: PrismCoordinator) => String(upcoming.get(coordinator.id)?.[0]?.event.eventDate ?? "9999");
+  const bookings = coordinatorBookingsByCoordinator(assignments, events, manilaDateKey());
+  const nextDate = (coordinator: PrismCoordinator) => String(bookings.get(coordinator.id)?.upcoming[0]?.event.eventDate ?? "9999");
   const rows = coordinators
     .filter((coordinator) => [coordinator.name, coordinator.email, ...coordinator.roleTags, ...coordinator.skillsTags].join(" ").toLowerCase().includes(needle))
     .sort((left, right) => Number(right.active) - Number(left.active) || nextDate(left).localeCompare(nextDate(right)) || left.name.localeCompare(right.name));
-  const booked = coordinators.filter((coordinator) => upcoming.has(coordinator.id)).length;
+  const booked = coordinators.filter((coordinator) => (bookings.get(coordinator.id)?.upcoming.length ?? 0) > 0).length;
 
   return (
     <section aria-labelledby="coordinator-roster-title" className="grid gap-4">
@@ -97,7 +85,12 @@ export function CoordinatorRoster({
             </div>
             <ul className="divide-y divide-border">
               {rows.map((coordinator) => (
-                <CoordinatorRow key={coordinator.id} coordinator={coordinator} upcoming={upcoming.get(coordinator.id) ?? []} onOpenEvent={onOpenEvent} />
+                <CoordinatorRow
+                  key={coordinator.id}
+                  coordinator={coordinator}
+                  bookings={bookings.get(coordinator.id)}
+                  onOpenEvent={onOpenEvent}
+                />
               ))}
             </ul>
           </>
@@ -107,9 +100,74 @@ export function CoordinatorRoster({
   );
 }
 
-function CoordinatorRow({ coordinator, upcoming, onOpenEvent }: { coordinator: PrismCoordinator; upcoming: UpcomingAssignment[]; onOpenEvent: (eventId: string) => void }) {
-  const next = upcoming[0];
+function BookingLink({ booking, onOpenEvent }: { booking: CoordinatorBooking; onOpenEvent: (eventId: string) => void }) {
+  return (
+    <RouteLink
+      href={eventWorkspaceHref(booking.event.id, "coordinators")}
+      onNavigate={() => onOpenEvent(booking.event.id)}
+      className="block truncate font-medium text-foreground hover:text-primary"
+    >
+      {booking.event.eventName}
+    </RouteLink>
+  );
+}
+
+function BookingSummary({ state, onOpenEvent }: { state: CoordinatorAvailabilityState; onOpenEvent: (eventId: string) => void }) {
+  switch (state.kind) {
+    case "upcoming":
+      return (
+        <>
+          <BookingLink booking={state.next} onOpenEvent={onOpenEvent} />
+          <p className="truncate text-xs text-muted-foreground">
+            {formatPortalDate(state.next.event.eventDate)} · {state.next.assignment.role}
+            {state.more > 0 ? ` · +${state.more} more` : ""}
+          </p>
+        </>
+      );
+    case "past":
+      return (
+        <>
+          <p className="text-muted-foreground">No upcoming bookings</p>
+          <p className="truncate text-xs text-muted-foreground">
+            Last: {state.last.event.eventName} · {formatPortalDate(state.last.event.eventDate)} · {state.last.assignment.role}
+          </p>
+        </>
+      );
+    case "unassigned":
+      return <p className="text-muted-foreground">Available, not assigned to an event yet</p>;
+    case "inactive":
+      return <p className="text-muted-foreground">Not available for bookings</p>;
+  }
+}
+
+function AssignmentHistory({ bookings, onOpenEvent }: { bookings: CoordinatorBookings; onOpenEvent: (eventId: string) => void }) {
+  const all = [...bookings.upcoming, ...bookings.past];
+  return (
+    <details className="group mt-2 text-xs">
+      <summary className="cursor-pointer select-none font-medium text-primary">All assignments ({all.length})</summary>
+      <ul className="mt-2 grid gap-1.5">
+        {all.map((booking) => (
+          <li key={booking.assignment.id} className="flex flex-wrap items-baseline gap-x-2 text-muted-foreground">
+            <BookingLink booking={booking} onOpenEvent={onOpenEvent} />
+            <span>{formatPortalDate(booking.event.eventDate)} · {booking.assignment.role} · {booking.assignment.status}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function CoordinatorRow({
+  coordinator,
+  bookings,
+  onOpenEvent,
+}: {
+  coordinator: PrismCoordinator;
+  bookings: CoordinatorBookings | undefined;
+  onOpenEvent: (eventId: string) => void;
+}) {
   const roles = coordinator.roleTags.length ? coordinator.roleTags : ["General coordinator"];
+  const state = coordinatorAvailabilityState(coordinator, bookings);
   return (
     <li className={`grid gap-3 px-4 py-3.5 ${ROW_GRID} ${coordinator.active ? "" : "bg-muted/40"}`}>
       <div className="flex min-w-0 items-center gap-3">
@@ -143,23 +201,8 @@ function CoordinatorRow({ coordinator, upcoming, onOpenEvent }: { coordinator: P
       </div>
 
       <div className="min-w-0 pl-12 text-sm sm:pl-0">
-        {next ? (
-          <>
-            <RouteLink
-              href={eventWorkspaceHref(next.event.id, "coordinators")}
-              onNavigate={() => onOpenEvent(next.event.id)}
-              className="block truncate font-medium text-foreground hover:text-primary"
-            >
-              {next.event.eventName}
-            </RouteLink>
-            <p className="truncate text-xs text-muted-foreground">
-              {formatPortalDate(next.event.eventDate)} · {next.assignment.role}
-              {upcoming.length > 1 ? ` · +${upcoming.length - 1} more` : ""}
-            </p>
-          </>
-        ) : (
-          <p className="text-muted-foreground">{coordinator.active ? "Free, no upcoming bookings" : "Not available for bookings"}</p>
-        )}
+        <BookingSummary state={state} onOpenEvent={onOpenEvent} />
+        {bookings && bookings.upcoming.length + bookings.past.length > 0 ? <AssignmentHistory bookings={bookings} onOpenEvent={onOpenEvent} /> : null}
       </div>
     </li>
   );

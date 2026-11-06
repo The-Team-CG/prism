@@ -1,10 +1,8 @@
-import { z } from 'zod';
+import { resendEmailAcceptedSchema as resendAcceptedSchema } from '@prism/types';
 import type { MailMessage, MailSendResult, MailTransport } from './mail-transport.port';
 
 export const RESEND_EMAILS_URL = 'https://api.resend.com/emails';
 const REQUEST_TIMEOUT_MS = 10_000;
-
-const resendAcceptedSchema = z.object({ id: z.string().trim().min(1) });
 
 /**
  * Resend over its HTTP API (no SDK). The Idempotency-Key header carries the message key, so a retry

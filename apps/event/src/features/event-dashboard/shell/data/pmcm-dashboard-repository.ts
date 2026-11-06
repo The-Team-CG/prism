@@ -1,4 +1,4 @@
-import type { PrismCoordinatorWorkspace, PrismPmcmDashboardWorkspace } from "@prism/types";
+import type { PrismCoordinatorWorkspace, PrismPmcmReference } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { eventApi } from "@/lib/prism-api";
 
@@ -6,8 +6,8 @@ type TimedCache<T> = { value: T; loadedAt: number };
 
 const EVENT_DASHBOARD_CACHE_MS = 30_000;
 
-let pmcmStateCache: TimedCache<PrismPmcmDashboardWorkspace> | null = null;
-let pmcmStateRequest: Promise<PrismPmcmDashboardWorkspace> | null = null;
+let pmcmReferenceCache: TimedCache<PrismPmcmReference> | null = null;
+let pmcmReferenceRequest: Promise<PrismPmcmReference> | null = null;
 const coordinatorWorkspaceCache = new Map<string, TimedCache<PrismCoordinatorWorkspace>>();
 const coordinatorWorkspaceRequests = new Map<string, Promise<PrismCoordinatorWorkspace>>();
 
@@ -22,27 +22,28 @@ function sessionCacheKey(session: Pick<EventSession, "email" | "role">) {
 export const pmcmDashboardRepository = {
   isFresh,
 
-  getCachedPmcmState() {
-    return pmcmStateCache;
+  getCachedPmcmReference() {
+    return pmcmReferenceCache;
   },
 
-  loadPmcmState(force = false): Promise<PrismPmcmDashboardWorkspace> {
-    if (!force && pmcmStateCache && isFresh(pmcmStateCache.loadedAt)) {
-      return Promise.resolve(pmcmStateCache.value);
+  /** The event switcher, inquiries, directories and rules event pages need, without the whole-system dashboard. */
+  loadPmcmReference(force = false): Promise<PrismPmcmReference> {
+    if (!force && pmcmReferenceCache && isFresh(pmcmReferenceCache.loadedAt)) {
+      return Promise.resolve(pmcmReferenceCache.value);
     }
-    if (!force && pmcmStateRequest) return pmcmStateRequest;
+    if (!force && pmcmReferenceRequest) return pmcmReferenceRequest;
 
-    pmcmStateRequest = eventApi.pmcmDashboard
-      .detail()
+    pmcmReferenceRequest = eventApi.pmcm
+      .reference()
       .then((next) => {
-        pmcmStateCache = { value: next, loadedAt: Date.now() };
+        pmcmReferenceCache = { value: next, loadedAt: Date.now() };
         return next;
       })
       .finally(() => {
-        pmcmStateRequest = null;
+        pmcmReferenceRequest = null;
       });
 
-    return pmcmStateRequest;
+    return pmcmReferenceRequest;
   },
 
   getCachedCoordinatorWorkspace(session: EventSession) {

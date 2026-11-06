@@ -32,7 +32,7 @@ describe("editor-time architecture lint", () => {
     assert.deepEqual(
       await messages(
         "apps/api/src/modules/commercial/application/example.service.ts",
-        'import { PublicPort } from "@prism/contexts/platform-ops";\nimport { ClaimPort } from "@prism/contexts/event-lifecycle/conforme-reminder-window";\nimport { AuditService } from "@prism/contexts/platform-ops/application/trust/audit.service";',
+        'import { PublicPort } from "@prism/contexts/platform-ops";\nimport { ClaimPort } from "@prism/contexts/event-lifecycle/conforme-reminder-window";\nimport { ParticipantFacts } from "@prism/contexts/read-models/participant-facts";\nimport { AccountContacts } from "@prism/contexts/read-models/account-contacts";\nimport { References } from "@prism/contexts/operations/live-ops-reference";\nimport { AuditService } from "@prism/contexts/platform-ops/application/trust/audit.service";',
       ),
       [
         {

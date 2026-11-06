@@ -1,6 +1,4 @@
 import type { PrismCursorPage } from "./event-ops.js";
-import type { z } from "zod";
-import { joinedMultiplayerGameSessionSchema } from "./schemas/event-games-inputs.js";
 import type {
   PrismEventGameBrandTheme,
   PrismEventGameKind,
@@ -154,7 +152,7 @@ export interface PrismIndependentGameSessionStart {
 }
 
 /** Minimal Active (Multiplayer) PIN join result; no host configuration is returned. */
-export type PrismJoinedMultiplayerGameSession = z.infer<typeof joinedMultiplayerGameSessionSchema>;
+export type { PrismJoinedMultiplayerGameSession } from "./schemas/event-games-inputs.js";
 
 export type PrismJoinActiveMultiplayerGameInput = PrismJoinActiveMultiplayerGameSessionInput;
 

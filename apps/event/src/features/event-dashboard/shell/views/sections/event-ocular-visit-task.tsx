@@ -3,12 +3,13 @@ import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
+import { ChevronRight } from "lucide-react";
 import type {
   PrismPmcmOcularVisit,
   ScheduleOcularVisitInput,
   WaiveOcularVisitInput,
 } from "@prism/types";
-import { Card, CardBody, CardHeader } from "./shell-ui";
+import { Card, CardBody } from "./shell-ui";
 
 function formatScheduledAt(scheduledAt: string | null) {
   return formatPortalDateTime(scheduledAt, "Date pending");
@@ -38,6 +39,12 @@ function OcularVisitDetails({
           Scheduled for {formatScheduledAt(visit.scheduledAt)}.
         </p>
       ) : null}
+      {visit?.scheduleNote ? (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground">Note for the client</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{visit.scheduleNote}</p>
+        </div>
+      ) : null}
       {visit?.status === "completed" ? (
         <p className="text-sm text-muted-foreground">
           Completed {visit.completedAt ? formatScheduledAt(visit.completedAt) : "with no timestamp"}.
@@ -51,36 +58,158 @@ function OcularVisitDetails({
       ) : null}
       {!visit ? (
         <p className="text-sm text-muted-foreground">
-          No client request is on file. An Admin may record a waiver if the venue does not require a visit.
+          No client request is on file. Schedule a visit directly, or record a waiver if the venue does not require one.
         </p>
       ) : null}
     </>
   );
 }
 
+function OcularVisitScheduleForm({
+  busy,
+  scheduledAtLocal,
+  setScheduledAtLocal,
+  note,
+  setNote,
+  onSubmit,
+  onCancel,
+}: {
+  busy: boolean;
+  scheduledAtLocal: string;
+  setScheduledAtLocal: (value: string) => void;
+  note: string;
+  setNote: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+  onCancel: () => void;
+}) {
+  return (
+    <form className="space-y-3" onSubmit={onSubmit}>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-56 flex-1">
+          <label htmlFor="ocular-visit-scheduled-at" className="mb-1 block text-sm font-medium text-foreground">
+            Scheduled date and time
+          </label>
+          <DateTimePicker value={scheduledAtLocal} onValueChange={(next) => setScheduledAtLocal(next)} id="ocular-visit-scheduled-at" required disabled={busy} />
+        </div>
+      </div>
+      <div className="space-y-1">
+        <label htmlFor="ocular-visit-schedule-note" className="block text-sm font-medium text-foreground">
+          Note for the client <span className="font-normal text-muted-foreground">(optional)</span>
+        </label>
+        <textarea
+          id="ocular-visit-schedule-note"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          rows={2}
+          disabled={busy}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="submit"
+          disabled={busy || !scheduledAtLocal}
+          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {busy ? "Saving…" : "Save schedule"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={busy}
+          className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** "Schedule visit" opens the date, time and notes form; the form closes again once the visit is saved or cancelled. */
+function OcularVisitScheduleControl({
+  label,
+  busy,
+  scheduling,
+  scheduledAtLocal,
+  setScheduledAtLocal,
+  note,
+  setNote,
+  onOpen,
+  onCancel,
+  onSubmit,
+}: {
+  label: string;
+  busy: boolean;
+  scheduling: boolean;
+  scheduledAtLocal: string;
+  setScheduledAtLocal: (value: string) => void;
+  note: string;
+  setNote: (value: string) => void;
+  onOpen: () => void;
+  onCancel: () => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>;
+}) {
+  if (!scheduling) {
+    return (
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={busy}
+        className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {label}
+      </button>
+    );
+  }
+  return (
+    <OcularVisitScheduleForm
+      busy={busy}
+      scheduledAtLocal={scheduledAtLocal}
+      setScheduledAtLocal={setScheduledAtLocal}
+      note={note}
+      setNote={setNote}
+      onSubmit={onSubmit}
+      onCancel={onCancel}
+    />
+  );
+}
+
 function OcularVisitActions({
   busy,
   canSchedule,
+  scheduleLabel,
   canComplete,
   canWaive,
   formError,
+  scheduling,
   scheduledAtLocal,
   setScheduledAtLocal,
+  scheduleNote,
+  setScheduleNote,
   waiverReason,
   setWaiverReason,
+  onOpenSchedule,
+  onCancelSchedule,
   onSchedule,
   onComplete,
   onWaive,
 }: {
   busy: boolean;
   canSchedule: boolean;
+  scheduleLabel: string;
   canComplete: boolean;
   canWaive: boolean;
   formError: string | null;
+  scheduling: boolean;
   scheduledAtLocal: string;
   setScheduledAtLocal: (value: string) => void;
+  scheduleNote: string;
+  setScheduleNote: (value: string) => void;
   waiverReason: string;
   setWaiverReason: (value: string) => void;
+  onOpenSchedule: () => void;
+  onCancelSchedule: () => void;
   onSchedule: (event: FormEvent<HTMLFormElement>) => Promise<void>;
   onComplete: () => Promise<void>;
   onWaive: (event: FormEvent<HTMLFormElement>) => Promise<void>;
@@ -90,21 +219,18 @@ function OcularVisitActions({
       {formError ? <p role="alert" className="text-sm text-destructive">{formError}</p> : null}
 
       {canSchedule ? (
-        <form className="flex flex-wrap items-end gap-3" onSubmit={onSchedule}>
-          <div className="min-w-56 flex-1">
-            <label htmlFor="ocular-visit-scheduled-at" className="mb-1 block text-sm font-medium text-foreground">
-              Scheduled date and time
-            </label>
-            <DateTimePicker value={scheduledAtLocal} onValueChange={(next) => setScheduledAtLocal(next)} id="ocular-visit-scheduled-at" required disabled={busy} />
-          </div>
-          <button
-            type="submit"
-            disabled={busy || !scheduledAtLocal}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {busy ? "Saving…" : "Schedule visit"}
-          </button>
-        </form>
+        <OcularVisitScheduleControl
+          label={scheduleLabel}
+          busy={busy}
+          scheduling={scheduling}
+          scheduledAtLocal={scheduledAtLocal}
+          setScheduledAtLocal={setScheduledAtLocal}
+          note={scheduleNote}
+          setNote={setScheduleNote}
+          onOpen={onOpenSchedule}
+          onCancel={onCancelSchedule}
+          onSubmit={onSchedule}
+        />
       ) : null}
 
       {canComplete ? (
@@ -145,6 +271,22 @@ function OcularVisitActions({
   );
 }
 
+/** The status row's one control: it opens the schedule, completion and waiver controls only when PMCM can act. */
+function OcularVisitToggle({ expanded, canAct, onToggle }: { expanded: boolean; canAct: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-expanded={expanded}
+      aria-controls="ocular-visit-details"
+      onClick={onToggle}
+      className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-3 text-sm font-semibold text-foreground"
+    >
+      {expanded ? "Hide" : canAct ? "Manage visit" : "View details"}
+      <ChevronRight className={"size-4 transition-transform " + (expanded ? "rotate-90" : "")} aria-hidden />
+    </button>
+  );
+}
+
 export function EventOcularVisitTask({
   eventName,
   visit,
@@ -163,12 +305,18 @@ export function EventOcularVisitTask({
   onWaive: (input: WaiveOcularVisitInput) => Promise<void>;
 }) {
   const [scheduledAtLocal, setScheduledAtLocal] = useState("");
+  const [scheduleNote, setScheduleNote] = useState("");
+  const [scheduling, setScheduling] = useState(false);
   const [waiverReason, setWaiverReason] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
   const terminal = visit?.status === "completed" || visit?.status === "waived";
-  const canSchedule = isAdmin && visit?.status === "requested";
+  // PMCM can book a visit with no client request on file, act on a client's requested visit, or move a scheduled one.
+  const canSchedule = isAdmin && !terminal;
+  const scheduleLabel = visit?.status === "scheduled" ? "Reschedule visit" : "Schedule visit";
   const canComplete = isAdmin && visit?.status === "scheduled";
   const canWaive = isAdmin && !terminal;
+  const canAct = canSchedule || canComplete || canWaive;
 
   async function schedule(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -178,7 +326,10 @@ export function EventOcularVisitTask({
       return;
     }
     setFormError(null);
-    await onSchedule({ scheduledAt: date.toISOString() });
+    const note = scheduleNote.trim();
+    await onSchedule({ scheduledAt: date.toISOString(), ...(note ? { note } : {}) });
+    setScheduling(false);
+    setScheduleNote("");
   }
 
   async function waive(event: FormEvent<HTMLFormElement>) {
@@ -194,33 +345,45 @@ export function EventOcularVisitTask({
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-black text-foreground">Ocular visit task</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{eventName}</p>
-          </div>
-          <span className="rounded-full bg-muted px-3 py-1 text-xs font-semibold text-foreground" aria-label="Ocular visit status">
-            {statusLabel(visit)}
-          </span>
-        </div>
-      </CardHeader>
       <CardBody className="space-y-4">
-        <OcularVisitDetails visit={visit} />
-        <OcularVisitActions
-          busy={busy}
-          canSchedule={canSchedule}
-          canComplete={canComplete}
-          canWaive={canWaive}
-          formError={formError}
-          scheduledAtLocal={scheduledAtLocal}
-          setScheduledAtLocal={setScheduledAtLocal}
-          waiverReason={waiverReason}
-          setWaiverReason={setWaiverReason}
-          onSchedule={schedule}
-          onComplete={onComplete}
-          onWaive={waive}
-        />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-foreground">
+            <span className="font-semibold">Ocular visit</span>
+            <span className="mx-2 text-muted-foreground" aria-hidden>·</span>
+            <span aria-label="Ocular visit status" className="font-semibold">{statusLabel(visit)}</span>
+          </p>
+          <OcularVisitToggle expanded={expanded} canAct={canAct} onToggle={() => setExpanded((open) => !open)} />
+        </div>
+        {expanded ? (
+          <div id="ocular-visit-details" className="space-y-4 border-t border-border pt-4">
+            <p className="text-xs text-muted-foreground">{eventName}</p>
+            <OcularVisitDetails visit={visit} />
+            <OcularVisitActions
+              busy={busy}
+              canSchedule={canSchedule}
+              scheduleLabel={scheduleLabel}
+              canComplete={canComplete}
+              canWaive={canWaive}
+              formError={formError}
+              scheduling={scheduling}
+              scheduledAtLocal={scheduledAtLocal}
+              setScheduledAtLocal={setScheduledAtLocal}
+              scheduleNote={scheduleNote}
+              setScheduleNote={setScheduleNote}
+              waiverReason={waiverReason}
+              setWaiverReason={setWaiverReason}
+              onOpenSchedule={() => setScheduling(true)}
+              onCancelSchedule={() => {
+                setScheduling(false);
+                setScheduleNote("");
+                setFormError(null);
+              }}
+              onSchedule={schedule}
+              onComplete={onComplete}
+              onWaive={waive}
+            />
+          </div>
+        ) : null}
       </CardBody>
     </Card>
   );

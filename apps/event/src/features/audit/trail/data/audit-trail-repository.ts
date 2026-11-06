@@ -10,7 +10,7 @@ import type {
   PrismIdentityAccountSummary,
   PrismLoginHistory,
   PrismPrivacyInventory,
-  PrismPmcmDashboardWorkspace,
+  PrismPmcmReference,
   PrismPrivacyRequestPage,
   PrismSecurityAlert,
   PrismUser,
@@ -34,7 +34,7 @@ export type AuditTrailCommands = {
   auditLogs(filters: AuditLogFilters): Promise<PrismAuditLog[]>;
   exportAuditLogs(filters: AuditLogFilters): Promise<PrismAuditExport>;
   loginHistory(userId: string): Promise<PrismLoginHistory[]>;
-  pmcmState(): Promise<PrismPmcmDashboardWorkspace>;
+  pmcmReference(): Promise<PrismPmcmReference>;
   privacyInventory(eventId?: string): Promise<PrismPrivacyInventory>;
   privacyRequestQueue(eventId?: string): Promise<PrismPrivacyRequestPage>;
   securityAlerts(): Promise<PrismSecurityAlert[]>;
@@ -62,7 +62,7 @@ const auditTrailCommands = {
   exportAuditLogs: (filters: AuditLogFilters) =>
     eventApiRequest<PrismAuditExport>("/api/audit/export", { method: "POST", body: filters }),
   loginHistory: (userId: string) => eventApiRequest<PrismLoginHistory[]>(`/api/auth/users/${userId}/login-history`),
-  pmcmState: () => eventApi.pmcmDashboard.detail(),
+  pmcmReference: () => eventApi.pmcm.reference(),
   privacyInventory: (eventId?: string) => eventApiRequest<PrismPrivacyInventory>(`/api/privacy/inventory${eventScope(eventId)}`),
   // Only the total is used here; the privacy console owns the full paged queue.
   privacyRequestQueue: (eventId?: string) => {
@@ -80,7 +80,7 @@ const auditTrailCommands = {
 export function createAuditTrailRepository(commands: AuditTrailCommands = auditTrailCommands) {
   return {
     loadContext(): Promise<{ events: PrismEvent[]; users: PrismUser[] }> {
-      return commands.pmcmState().then(({ events, users }) => ({ events, users }));
+      return commands.pmcmReference().then(({ events, users }) => ({ events, users }));
     },
 
     load(filters: AuditLogFilters, userId: string, eventId: string): Promise<AuditTrailData> {

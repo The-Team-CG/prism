@@ -1,3 +1,4 @@
+import { publicContextSeams } from "./prism-public-context-seams.mjs";
 import { readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,13 +15,6 @@ const contexts = [
   "platform-ops",
   "read-models",
 ];
-const publicContextSubpaths = new Set([
-  "read-models/closeout",
-  "read-models/event-scope",
-  "read-models/file-evidence",
-  "event-lifecycle/conforme-reminder-window",
-]);
-
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const canonicalSchemaTypes = new Set();
 const schemaDirectory = resolve(repoRoot, "packages/types/src/schemas");
@@ -92,7 +86,7 @@ const noCrossPortalImports = {
     schema: [],
   },
   create(context) {
-    const filename = context.getFilename();
+    const filename = context.filename;
     const role = roleFromPath(filename);
     if (!role) return {};
 
@@ -112,7 +106,7 @@ const noPrivateContextImports = {
     schema: [],
   },
   create(context) {
-    const normalized = normalizedRelative(context.getFilename());
+    const normalized = normalizedRelative(context.filename);
     if (!normalized.startsWith("apps/api/src/modules/")) return {};
 
     const owner = normalized.match(/^apps\/api\/src\/modules\/([^/]+)\//)?.[1];
@@ -121,7 +115,7 @@ const noPrivateContextImports = {
       if (typeof source !== "string") return;
 
       const contextAlias = source.match(/^@prism\/contexts\/([^/]+)(?:\/(.*))?$/);
-      if (contextAlias?.[2] && !publicContextSubpaths.has(`${contextAlias[1]}/${contextAlias[2]}`)) {
+      if (contextAlias?.[2] && !publicContextSeams.has(source)) {
         reportImport(currentContext, node, "Import bounded-context capabilities through its public entrypoint, not a private implementation.");
         return;
       }
@@ -132,7 +126,7 @@ const noPrivateContextImports = {
         return;
       }
 
-      const resolved = resolveRelativeSource(context.getFilename(), source);
+      const resolved = resolveRelativeSource(context.filename, source);
       if (resolved?.startsWith("apps/api/src/modules/")) {
         if (normalized.endsWith(".module.ts") || normalized.endsWith(".module.tsx") || resolved.includes("/contracts/") || resolved.includes("/read-models/")) {
           return;
@@ -156,8 +150,8 @@ const noLocalContractDefinitions = {
     schema: [],
   },
   create(context) {
-    const normalized = normalizedRelative(context.getFilename());
-    const role = roleFromPath(context.getFilename());
+    const normalized = normalizedRelative(context.filename);
+    const role = roleFromPath(context.filename);
     if (!role || !normalized.includes("/src/lib/") || normalized.endsWith("/src/lib/prism-api.ts")) return {};
 
     function checkDeclaration(node) {
@@ -184,7 +178,7 @@ const noInlineZod = {
     schema: [],
   },
   create(context) {
-    const normalized = normalizedRelative(context.getFilename());
+    const normalized = normalizedRelative(context.filename);
     const canonical = normalized.startsWith("packages/types/src/schemas/");
     const zodValidationPipe = normalized === "apps/api/src/kernel/shared/zod-validation.pipe.ts";
     // The API process env schema is app-internal runtime config, not a shared contract.
@@ -206,7 +200,7 @@ const noProductionAny = {
     schema: [],
   },
   create(context) {
-    const normalized = normalizedRelative(context.getFilename());
+    const normalized = normalizedRelative(context.filename);
     if (
       !normalized.startsWith("apps/api/src/") ||
       normalized.startsWith("apps/api/src/fixtures/") ||

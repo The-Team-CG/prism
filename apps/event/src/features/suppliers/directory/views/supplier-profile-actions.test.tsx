@@ -27,6 +27,24 @@ const engagements = {
 } as never;
 
 describe("SupplierProfileActions", () => {
+  it("saves the capacity rating with the profile, and sends null when it is set back to not rated", async () => {
+    const onSubmit = vi.fn(async (_action: SupplierActionDraft) => ({ saved: true as const, refreshFailed: false, message: "Saved" }));
+    render(<SupplierProfileActions profile={profile} categories={[]} engagements={engagements} actionSaving={false} actionResult={null} onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByText("Edit supplier profile"));
+    const rating = screen.getByLabelText("Capacity or scale rating") as HTMLSelectElement;
+    expect(rating.value).toBe("");
+    fireEvent.change(rating, { target: { value: "large" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ kind: "update", supplierId: "supplier-1", input: { capacityRating: "large" } });
+
+    fireEvent.change(rating, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
+    expect(onSubmit.mock.calls[1]?.[0]).toMatchObject({ input: { capacityRating: null } });
+  });
+
   it("keeps a failed review draft and idempotency key tied to the explicitly chosen event", async () => {
     const onSubmit = vi.fn(async (_action: SupplierActionDraft) => ({ saved: false as const, message: "Server refused stale eligibility" }));
     render(<SupplierProfileActions profile={profile} categories={[]} engagements={engagements} actionSaving={false} actionResult={null} onSubmit={onSubmit} />);

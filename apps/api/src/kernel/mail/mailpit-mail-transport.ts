@@ -1,7 +1,5 @@
-import { z } from 'zod';
+import { mailpitEmailAcceptedSchema as acceptedSchema } from '@prism/types';
 import type { MailMessage, MailSendResult, MailTransport } from './mail-transport.port';
-
-const acceptedSchema = z.object({ ID: z.string().min(1) });
 
 export class MailpitMailTransport implements MailTransport {
   constructor(private readonly url: string) {}
