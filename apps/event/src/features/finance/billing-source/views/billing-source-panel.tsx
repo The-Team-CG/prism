@@ -6,6 +6,7 @@ import { createBillingSourceSchema, type CreateBillingSourceInput, type PrismBil
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { label, money } from "@/features/pmcm-kit";
+import { DEFAULT_MILESTONES, MAX_PAYMENT_MILESTONES, MIN_DOWNPAYMENT_PERCENT, checkPaymentTerms, type MilestoneDraft, type PaymentTermsCheck } from "../model/payment-terms-form";
 
 const fieldClass = "h-10 rounded-md border border-border bg-white px-3 text-sm font-normal text-foreground";
 const labelClass = "grid gap-1 text-xs font-semibold text-muted-foreground";
@@ -25,6 +26,109 @@ function NoBillingSource({ statements }: { statements: PrismBillingStatement[] }
 function CreateHint({ canCreate, busy }: { canCreate: boolean; busy: boolean }) {
   if (canCreate || busy) return null;
   return <p className="text-xs text-muted-foreground">Add a source name, a line item, an amount and a proposal to continue.</p>;
+}
+
+interface BillingSourceDraft {
+  sourceLabel: string;
+  lineLabel: string;
+  lineAmount: string;
+  sourceDocumentId: string;
+  evidenceOverrideReason: string;
+  totalOverrideReason: string;
+  termsOverrideReason: string;
+}
+
+/** Blank optional fields are left out; an empty amount is sent as NaN so the schema reports it as missing. */
+function parseBillingSourceDraft(draft: BillingSourceDraft, terms: PaymentTermsCheck) {
+  return createBillingSourceSchema.safeParse({
+    sourceLabel: draft.sourceLabel.trim(),
+    lineItems: [{ label: draft.lineLabel.trim(), amount: draft.lineAmount.trim() === "" ? Number.NaN : Number(draft.lineAmount) }],
+    paymentSchedule: terms.schedule,
+    paymentTermsPolicy: terms.needsOverride ? "repeat_client_override" : undefined,
+    paymentTermsOverrideReason: terms.needsOverride ? draft.termsOverrideReason.trim() || undefined : undefined,
+    sourceDocumentId: draft.sourceDocumentId || undefined,
+    evidenceOverrideReason: draft.evidenceOverrideReason.trim() || undefined,
+    totalOverrideReason: draft.totalOverrideReason.trim() || undefined,
+  });
+}
+
+function PaymentTermsFields({
+  milestones,
+  onChange,
+  terms,
+  overrideReason,
+  onOverrideReasonChange,
+}: {
+  milestones: MilestoneDraft[];
+  onChange: (update: (current: MilestoneDraft[]) => MilestoneDraft[]) => void;
+  terms: PaymentTermsCheck;
+  overrideReason: string;
+  onOverrideReasonChange: (value: string) => void;
+}) {
+  function updateMilestone(index: number, patch: Partial<MilestoneDraft>) {
+    onChange((current) => current.map((row, position) => (position === index ? { ...row, ...patch } : row)));
+  }
+
+  return (
+    <fieldset className="grid gap-2 rounded-md border border-border bg-background px-3 py-2">
+      <legend className="px-1 text-sm font-semibold text-foreground">Payment terms</legend>
+      <p className="text-xs text-muted-foreground">Up to {MAX_PAYMENT_MILESTONES} milestones totalling 100%. The first is at least {MIN_DOWNPAYMENT_PERCENT}% unless this is a repeat client.</p>
+      {milestones.map((row, index) => (
+        <div key={index} className="grid grid-cols-[minmax(0,1fr)_110px_auto] items-end gap-2">
+          <label className={labelClass}>
+            {"Milestone " + (index + 1) + " name"}
+            <input value={row.label} onChange={(event) => updateMilestone(index, { label: event.target.value })} className={fieldClass} />
+          </label>
+          <label className={labelClass}>
+            {"Milestone " + (index + 1) + " percent"}
+            <input value={row.percentage} onChange={(event) => updateMilestone(index, { percentage: event.target.value })} inputMode="decimal" className={fieldClass} />
+          </label>
+          <Button type="button" variant="outline" size="sm" disabled={milestones.length <= 1} onClick={() => onChange((current) => current.filter((_, position) => position !== index))} aria-label={"Remove milestone " + (index + 1)}>Remove</Button>
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="button" variant="outline" size="sm" disabled={milestones.length >= MAX_PAYMENT_MILESTONES} onClick={() => onChange((current) => [...current, { label: "", percentage: "" }])}>Add milestone</Button>
+        <p role="status" className={"text-xs " + (terms.problem ? "text-danger" : "text-muted-foreground")}>{terms.problem ?? "Terms total 100%."}</p>
+      </div>
+      {terms.needsOverride ? (
+        <label className={labelClass}>
+          Repeat-client reason for a downpayment under {MIN_DOWNPAYMENT_PERCENT}%
+          <input value={overrideReason} onChange={(event) => onOverrideReasonChange(event.target.value)} className={fieldClass} />
+        </label>
+      ) : null}
+    </fieldset>
+  );
+}
+
+function BillingSourceItem({
+  source,
+  busy,
+  onApprove,
+  onGenerate,
+}: {
+  source: PrismBillingSource;
+  busy: boolean;
+  onApprove: (sourceId: string) => Promise<void>;
+  onGenerate: (sourceId: string) => Promise<void>;
+}) {
+  return (
+    <li aria-label={`Billing source ${source.sourceLabel}`} className="rounded-md border border-border bg-background p-4 text-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="font-black">{source.sourceLabel}</p>
+          <p className="mt-1 text-muted-foreground">{money.format(source.totalAmount)} · {source.lineItems.length} line item(s)</p>
+        </div>
+        <StatusBadge status={source.status} label={label(source.status)} />
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {source.status === "approved" ? (
+          <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void onGenerate(source.id)}>Generate statement</Button>
+        ) : (
+          <Button type="button" size="sm" disabled={busy} onClick={() => void onApprove(source.id)}>Approve source</Button>
+        )}
+      </div>
+    </li>
+  );
 }
 
 export function BillingSourcePanel({
@@ -54,19 +158,15 @@ export function BillingSourcePanel({
   const [sourceDocumentId, setSourceDocumentId] = useState("");
   const [evidenceOverrideReason, setEvidenceOverrideReason] = useState("");
   const [totalOverrideReason, setTotalOverrideReason] = useState("");
+  const [milestones, setMilestones] = useState<MilestoneDraft[]>(DEFAULT_MILESTONES);
+  const [termsOverrideReason, setTermsOverrideReason] = useState("");
+  const terms = checkPaymentTerms(milestones);
   const evidenceId = useId();
-  const parsed = createBillingSourceSchema.safeParse({
-    sourceLabel: sourceLabel.trim(),
-    lineItems: [{ label: lineLabel.trim(), amount: lineAmount.trim() === "" ? Number.NaN : Number(lineAmount) }],
-    paymentSchedule: [
-      { label: "Downpayment", percentage: 50 },
-      { label: "Balance", percentage: 50 },
-    ],
-    sourceDocumentId: sourceDocumentId || undefined,
-    evidenceOverrideReason: evidenceOverrideReason.trim() || undefined,
-    totalOverrideReason: totalOverrideReason.trim() || undefined,
-  });
-  const canCreate = !busy && parsed.success;
+  const parsed = parseBillingSourceDraft(
+    { sourceLabel, lineLabel, lineAmount, sourceDocumentId, evidenceOverrideReason, totalOverrideReason, termsOverrideReason },
+    terms,
+  );
+  const canCreate = !busy && parsed.success && terms.problem === null;
   const amountInvalid = lineAmount.trim() !== "" && !parsed.success && parsed.error.issues.some((issue) => issue.path.at(-1) === "amount");
 
   async function create() {
@@ -74,6 +174,8 @@ export function BillingSourcePanel({
     setLineAmount("");
     setEvidenceOverrideReason("");
     setTotalOverrideReason("");
+    setMilestones(DEFAULT_MILESTONES);
+    setTermsOverrideReason("");
   }
 
   return (
@@ -112,6 +214,13 @@ export function BillingSourcePanel({
             {proposalDocuments.map((document) => <option key={document.id} value={document.id}>{document.fileName}</option>)}
           </select>
         </div>
+        <PaymentTermsFields
+          milestones={milestones}
+          onChange={setMilestones}
+          terms={terms}
+          overrideReason={termsOverrideReason}
+          onOverrideReasonChange={setTermsOverrideReason}
+        />
         <details className="rounded-md border border-border bg-background px-3 py-2">
           <summary className="cursor-pointer text-sm font-semibold text-foreground">Override reasons</summary>
           <p className="mt-2 text-xs text-muted-foreground">
@@ -135,22 +244,7 @@ export function BillingSourcePanel({
       <ul className="mt-4 grid gap-3" aria-label="Billing sources">
         {billingSources.length === 0 ? <NoBillingSource statements={statements} /> : null}
         {billingSources.map((source) => (
-          <li key={source.id} aria-label={`Billing source ${source.sourceLabel}`} className="rounded-md border border-border bg-background p-4 text-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="font-black">{source.sourceLabel}</p>
-                <p className="mt-1 text-muted-foreground">{money.format(source.totalAmount)} · {source.lineItems.length} line item(s)</p>
-              </div>
-              <StatusBadge status={source.status} label={label(source.status)} />
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {source.status === "approved" ? (
-                <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void onGenerate(source.id)}>Generate statement</Button>
-              ) : (
-                <Button type="button" size="sm" disabled={busy} onClick={() => void onApprove(source.id)}>Approve source</Button>
-              )}
-            </div>
-          </li>
+          <BillingSourceItem key={source.id} source={source} busy={busy} onApprove={onApprove} onGenerate={onGenerate} />
         ))}
       </ul>
     </section>

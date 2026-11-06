@@ -306,6 +306,22 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
             affectedId: request.id,
           affectedLabel: request.supplierName,
         }, transactionContext);
+        // Walking away from a booked event is a reliability fact PMCM should not have to remember to record.
+        const db = transactionContext?.prisma ?? this.prisma;
+        const event = await db.opsEvent.findUnique({ where: { id: request.eventId }, select: { eventName: true } });
+        const noteKey = `supplier-withdraw-note:${request.id}`;
+        await db.opsSupplierReliabilityNote.upsert({
+          where: { idempotencyKey: noteKey },
+          update: {},
+          create: {
+            id: `reliability_${randomUUID()}`,
+            supplierId: request.supplierId!,
+            eventId: request.eventId,
+            note: `Withdrawn from ${event?.eventName ?? 'an event'} (${request.category}) after being assigned${reason?.trim() ? `: ${reason.trim()}` : ' (no reason recorded)'}`,
+            createdBy: actor.name,
+            idempotencyKey: noteKey,
+          },
+        });
         await this.pareDispatchWriter.queue({
           eventId: request.eventId,
           requestId: request.id,

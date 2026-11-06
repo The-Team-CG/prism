@@ -33,12 +33,46 @@ function baseSupplierRow() {
     bniMember: false,
     serviceInclusions: '',
     performanceNotes: '',
+    capacityRating: null as string | null,
     applicationDate: new Date('2026-01-01'),
     reviews: [],
     reliabilityNotes: [],
     certifications: [],
   };
 }
+
+describe('SuppliersService capacity rating', () => {
+  function capacityHarness() {
+    const row = baseSupplierRow();
+    const prisma = {
+      opsSupplierCategory: { findUnique: async () => ({ id: 'cat_prod', name: 'Production' }) },
+      opsSupplier: {
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { Object.assign(row, data); return row; }),
+        update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { Object.assign(row, data); return row; }),
+        findUnique: vi.fn(async () => row),
+        findFirst: vi.fn(async () => row),
+      },
+    };
+    return { service: new SuppliersService(prisma as any, eventReferences, commercialFacts), prisma, row };
+  }
+
+  it('saves a rating on creation, keeps it through unrelated edits, and clears it with null', async () => {
+    const { service, prisma } = capacityHarness();
+
+    expect((await service.createSupplier({ categoryId: 'cat_prod', name: 'Acme AV', capacityRating: 'large' })).capacityRating).toBe('large');
+    expect((await service.updateSupplier('sup_1', { phone: '0917' })).capacityRating).toBe('large');
+    expect(prisma.opsSupplier.update.mock.calls[0][0].data).not.toHaveProperty('capacityRating');
+    expect((await service.updateSupplier('sup_1', { capacityRating: 'small' })).capacityRating).toBe('small');
+    expect((await service.updateSupplier('sup_1', { capacityRating: null })).capacityRating).toBeNull();
+  });
+
+  it('reads an unknown stored value as unrated rather than passing it on', async () => {
+    const { service, row } = capacityHarness();
+    row.capacityRating = 'gigantic';
+
+    expect((await service.updateSupplier('sup_1', { phone: '1' })).capacityRating).toBeNull();
+  });
+});
 
 describe('SuppliersService', () => {
   it('auto-selects the Tier 1 supplier for a requested category', async () => {
