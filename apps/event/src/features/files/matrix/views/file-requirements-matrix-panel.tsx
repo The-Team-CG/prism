@@ -91,6 +91,20 @@ function FileRequirementCountLine({ counts }: { counts: ReturnType<typeof fileRe
   );
 }
 
+function SupplierFulfilmentList({ fulfilments }: { fulfilments: NonNullable<PrismFileRequirementItem["supplierFulfilments"]> }) {
+  return (
+    <ul className="mt-2 space-y-1">
+      {fulfilments.map((fulfilment) => (
+        <li key={fulfilment.supplierId} className="flex flex-wrap items-center gap-2 text-2xs">
+          <span className="font-semibold text-foreground">{fulfilment.supplierName}</span>
+          <StatusBadge status={fulfilment.status} />
+          {fulfilment.overdue ? <span className="font-semibold text-destructive">Overdue</span> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 type FileRequirementEditor = ReturnType<typeof useFileRequirementEditorViewModel>;
 
 function FileRequirementRow({ item, editable, editor }: { item: PrismFileRequirementItem; editable: boolean; editor: FileRequirementEditor }) {
@@ -110,6 +124,7 @@ function FileRequirementRow({ item, editable, editor }: { item: PrismFileRequire
             {item.overdue ? <span className="text-destructive"> · Overdue</span> : null}
           </p>
           {item.notes ? <p className="mt-1 text-2xs text-muted-foreground">PMCM note: {item.notes}</p> : null}
+          {item.supplierFulfilments?.length ? <SupplierFulfilmentList fulfilments={item.supplierFulfilments} /> : null}
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={item.status} />

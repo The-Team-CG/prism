@@ -17,7 +17,7 @@ import { scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
 import { FileRequirementsMatrixService } from '../../application/files/file-requirements-matrix.service';
 import { FILE_REQUIREMENT_COMMANDS } from '../../contracts/file-ops.tokens';
 import type { FileRequirementCommands } from '../../contracts/file-requirement-commands.port';
-import { visibleFileRequirementItems } from '../../domain/file-requirement-matrix.policy';
+import { scopeFileRequirementItemsForActor, visibleFileRequirementItems } from '../../domain/file-requirement-matrix.policy';
 
 @Controller('events')
 export class OpsEventFileRequirementsController {
@@ -36,7 +36,7 @@ export class OpsEventFileRequirementsController {
     await this.eventAccessPolicyService.requireCanReadEvent(scoped.actor, event, 'file requirements matrix', scoped.scope);
 
     const matrix = await this.fileRequirementsMatrixService.buildForEvent(eventId);
-    const items = visibleFileRequirementItems(matrix.items, actor.role);
+    const items = scopeFileRequirementItemsForActor(visibleFileRequirementItems(matrix.items, actor.role), scoped.actor);
     const privileged = actor.role === 'pmcm-admin' || actor.role === 'system';
     const billingWithheld = !privileged && items.some((item) => item.key === 'billing_statement') && !(await this.fileRequirementsMatrixService.hasSentBillingStatement(eventId));
     return { ...matrix, items: billingWithheld ? items.filter((item) => item.key !== 'billing_statement') : items };

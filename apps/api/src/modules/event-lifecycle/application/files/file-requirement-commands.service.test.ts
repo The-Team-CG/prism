@@ -17,7 +17,10 @@ const signedConforme: DerivedFileRequirementItem = {
 type Row = Record<string, any>;
 
 /** Uses the real merge policy so overrides, custom rows, and rejected uploads flow through the same rules as production. */
-function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirementItem[]; rejectedDocuments?: Array<{ id: string; type: string }>; dueEvents?: string[]; storedUpload?: Row | null } = {}) {
+function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirementItem[]; rejectedDocuments?: Array<{ id: string; type: string }>; dueEvents?: string[]; storedUpload?: Row | null; suppliers?: Array<{ supplierId: string; supplierName: string; email: string }> } = {}) {
+  const selectedSuppliers = options.suppliers ?? [];
+  // Only the stored upload's owner is known to the matrix stand-in, mirroring the real object-owner mapping.
+  const supplierOwnerOf = (storageKey: unknown) => (options.storedUpload?.id === storageKey && options.storedUpload?.ownerRecordType === 'supplier' ? options.storedUpload.ownerRecordId as string : null);
   const rows: Row[] = [...(options.rows ?? [])];
   const documents: Row[] = [];
   const templates: Row[] = [];
@@ -54,7 +57,7 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
         templates.push(row); return row;
       }),
     },
-    opsSupplierQuoteRequest: { findMany: vi.fn(async () => []) },
+    opsSupplierQuoteRequest: { findMany: vi.fn(async () => selectedSuppliers.map((supplier) => ({ supplierId: supplier.supplierId, supplierName: supplier.supplierName, supplier: { email: supplier.email } }))) },
     opsCoordinatorAssignment: { findMany: vi.fn(async () => []) },
     opsDocument: {
       findMany: vi.fn(async () => options.rejectedDocuments ?? []),
@@ -71,8 +74,9 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
         rows.map((row) => ({ ...row, dueAt: row.dueAt ?? null }) as never),
         [
           ...(options.rejectedDocuments ?? []).map((document) => ({ id: document.id, type: document.type, status: 'submitted', validationStatus: 'rejected', uploadedAt: new Date('2026-10-10T00:00:00.000Z') })),
-          ...documents.map((document) => ({ id: document.id, type: document.type, status: document.status, validationStatus: document.validationStatus, uploadedAt: document.uploadedAt })),
+          ...documents.map((document) => ({ id: document.id, type: document.type, status: document.status, validationStatus: document.validationStatus, uploadedAt: document.uploadedAt, storageKey: document.storageKey, ownerSupplierId: supplierOwnerOf(document.storageKey) })),
         ],
+        selectedSuppliers.map(({ supplierId, supplierName }) => ({ supplierId, supplierName })),
         now,
       ),
     })),
@@ -253,6 +257,25 @@ describe('FileRequirementCommandsService', () => {
     await expect(changedOwner.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, client as never)).rejects.toBeInstanceOf(ForbiddenException);
     expect(changedOwner.storedRequirementUploads.findStoredRequirementUpload).not.toHaveBeenCalled();
     expect(changedOwner.documents).toHaveLength(0);
+  });
+
+  it("returns a supplier only its own fulfilment after it binds its own upload, never another supplier's object", async () => {
+    const requirement = { id: 'freq_2', eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
+    const upload = { id: 'obj_sonic', eventId, ownerRecordType: 'supplier', ownerRecordId: 'supplier_sonic', usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
+    const suppliers = [
+      { supplierId: 'supplier_sonic', supplierName: 'Sonic Line Events', email: 'sonic@example.test' },
+      { supplierId: 'supplier_atlas', supplierName: 'Atlas Sound', email: 'atlas@example.test' },
+    ];
+    const harness = createHarness({ rows: [requirement], storedUpload: upload, suppliers });
+    const sonic = { id: 'usr_sonic', role: 'supplier', name: 'Sonic', email: 'sonic@example.test', explicit: true, verified: true };
+
+    const response = await harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, sonic as never);
+
+    expect(harness.documents).toHaveLength(1);
+    expect(response).toMatchObject({ key: 'insurance_certificate', status: 'submitted', uploadedObjectId: 'obj_sonic', overdue: false });
+    expect(response).not.toHaveProperty('supplierFulfilments');
+    expect(response).not.toHaveProperty('notes');
+    expect(JSON.stringify(response)).not.toMatch(/supplier_atlas|Atlas Sound/);
   });
 
   it('applies PMCM-configured event templates idempotently and offsets due dates from the event date', async () => {
