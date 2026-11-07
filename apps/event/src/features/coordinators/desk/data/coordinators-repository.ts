@@ -15,6 +15,7 @@ import type {
   DecideEventTaskReassignmentInput,
   UpdateCoordinatorAttendanceInput,
   UpdateEventDayTaskInput,
+  BlockEventDayTaskInput,
   ReportSupplierSiteStatusInput,
   VerifySupplierStatusInput,
   WithdrawCoordinatorAssignmentInput,
@@ -94,6 +95,16 @@ export const coordinatorsRepository = {
       `/api/events/${eventId}/coordinators/${assignmentId}/status`,
       { method: "PATCH", body: input, authToken: session.accessToken },
     );
+  },
+  blockOwnTask(session: EventSession, eventId: string, taskId: string, input: BlockEventDayTaskInput) {
+    return eventApiRequest<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}/block`, {
+      method: "POST", body: input, authToken: session.accessToken,
+    });
+  },
+  unblockOwnTask(session: EventSession, eventId: string, taskId: string) {
+    return eventApiRequest<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}/unblock`, {
+      method: "POST", authToken: session.accessToken,
+    });
   },
   updateOwnTask(session: EventSession, eventId: string, taskId: string, input: UpdateEventDayTaskInput) {
     return eventApiRequest<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}`, {

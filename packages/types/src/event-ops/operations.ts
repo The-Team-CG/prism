@@ -347,6 +347,9 @@ export interface PrismEventDayTask {
   escalatedBy?: string | null;
   escalationNotes?: string;
   completedAt?: string | null;
+  blockedReason?: string | null;
+  blockedAt?: string | null;
+  blockedBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }

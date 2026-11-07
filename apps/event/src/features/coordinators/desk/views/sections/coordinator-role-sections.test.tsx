@@ -39,7 +39,7 @@ function renderRoleData(view: Record<string, unknown>, actions: { operator?: Rec
     taskForm: { title: "", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], routesAway: false, busy: false, error: null, submit: vi.fn() },
     issueForm: { title: "", setTitle: vi.fn(), severity: "high", setSeverity: vi.fn(), affectedArea: "", setAffectedArea: vi.fn(), description: "", setDescription: vi.fn(), slaDueAt: "", setSlaDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), busy: false, error: null, submit: vi.fn() },
     reassignment: { busy: false, error: null, request: vi.fn() },
-    taskActions: { busy: false, error: null, updateStatus: vi.fn() },
+    taskActions: { busy: false, error: null, updateStatus: vi.fn(), blockTask: vi.fn(), unblockTask: vi.fn() },
     operatorActions: { busy: false, error: null, supplierBusy: false, supplierError: null, updateAttendance: vi.fn(), verifySupplier: vi.fn(), reportSupplierStatus: vi.fn(), ...actions.operator },
   };
   const props = { section, roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, ...models };

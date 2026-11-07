@@ -1,4 +1,5 @@
 import type {
+  BlockEventDayTaskInput,
   CoordinatorRole,
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
@@ -29,6 +30,8 @@ export function LiveOperationsWorkspace({
   onReload,
   onCreateTask,
   onUpdateTask,
+  onBlockTask,
+  onUnblockTask,
   onEscalateTask,
   onCreateIssue,
   onUpdateIssue,
@@ -47,6 +50,8 @@ export function LiveOperationsWorkspace({
   onReload: () => Promise<void>;
   onCreateTask: (input: CreateEventDayTaskInput) => Promise<void>;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
+  onBlockTask: (taskId: string, input: BlockEventDayTaskInput) => Promise<void>;
+  onUnblockTask: (taskId: string) => Promise<void>;
   onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
   onCreateIssue: (input: CreateUrgentIssueInput) => Promise<void>;
   onUpdateIssue: (issueId: string, input: UpdateUrgentIssueInput) => Promise<void>;
@@ -57,7 +62,7 @@ export function LiveOperationsWorkspace({
   onVerifySupplierStatus: (requestId: string, input: VerifySupplierStatusInput) => Promise<void>;
   onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
-  const vm = useLiveOperationsWorkspaceViewModel({ liveOps, busy, onCreateTask, onCreateIssue });
+  const vm = useLiveOperationsWorkspaceViewModel({ liveOps, busy, onCreateTask, onCreateIssue, onBlockTask, onUnblockTask });
   const ended = hasEventDatePassed(event.eventDate, prismCalendarDateKey());
 
   return (
