@@ -22,13 +22,14 @@ export interface PrismDecisionLogEntry {
   /** Stable composite id: `<sourceRef.type>:<sourceRef.id>`. */
   id: string;
   kind: PrismDecisionLogKind;
-  /** Decision or outcome, e.g. `approved`, `waived`, `overridden`, `postponed`. */
+  /** Decision or request state, e.g. `approved`, `pending`, `waived`, `overridden`, `postponed`. */
   decision: string;
   /** What the decision was about, e.g. the compliance check title or requested change. */
   subject: string;
   /** Management reasoning from the source record's dedicated reason field. */
   reason: string | null;
   actor: PrismDecisionLogActor;
+  /** Decision time, or request time while an item is pending. */
   decidedAt: string;
   sourceRef: PrismDecisionLogSourceRef;
 }
