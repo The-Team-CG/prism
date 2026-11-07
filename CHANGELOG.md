@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Lint now rejects conditionally called React hooks, and browser lifecycle acceptance opens the client event overview.
 - PMCM blocked-task inbox items now include blocker, owner and due context and open the exact event-day task.
 - Clients now see a version-specific action-center item for addenda awaiting their acknowledgment, linked to the addendum row.
 - File-requirement reminder sweeps now keyset-page through every eligible event while retaining stable idempotency keys.
