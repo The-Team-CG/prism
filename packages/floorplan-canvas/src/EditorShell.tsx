@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { ShellUIProvider, useShellUI } from "./shell-ui";
 import { EditorProvider, useEditor, useKeyboard } from "./store";
 import { TopBar } from "./TopBar";
 import { Toolbar } from "./Toolbar";
@@ -13,16 +13,6 @@ import type { TemplateStore } from "./template-store";
 export type AssignmentRejectionMessages = Record<TableAssignmentIneligibleReason, string>;
 
 const DEFAULT_ASSIGNMENT_REJECTION_MESSAGE = "This guest cannot be seated at that table.";
-
-interface ShellUI {
-  leftOpen: boolean;
-  rightOpen: boolean;
-  setLeftOpen: (b: boolean) => void;
-  setRightOpen: (b: boolean) => void;
-  toggleLeft: () => void;
-  toggleRight: () => void;
-  isNarrow: boolean;
-}
 
 export interface EditorShellProps {
   project: Project;
@@ -59,58 +49,6 @@ function AssignmentRejectionNotice({ messages }: { messages?: AssignmentRejectio
       </button>
     </div>
   );
-}
-
-const ShellCtx = createContext<ShellUI | null>(null);
-
-export function useShellUI() {
-  const c = useContext(ShellCtx);
-  if (!c) throw new Error("useShellUI outside provider");
-  return c;
-}
-
-function applyViewportBreakpoints(
-  width: number,
-  setIsNarrow: (value: boolean) => void,
-  setLeftOpen: (value: boolean) => void,
-  setRightOpen: (value: boolean) => void,
-) {
-  const narrow = width < 900;
-  const tight = width < 1200;
-  setIsNarrow(narrow);
-  if (narrow) {
-    setLeftOpen(false);
-    setRightOpen(false);
-    return;
-  }
-  if (tight) setRightOpen(false);
-}
-
-function ShellUIProvider({ children }: { children: ReactNode }) {
-  const [leftOpen, setLeftOpen] = useState(true);
-  const [rightOpen, setRightOpen] = useState(true);
-  const [isNarrow, setIsNarrow] = useState(false);
-
-  useEffect(() => {
-    function update() {
-      applyViewportBreakpoints(window.innerWidth, setIsNarrow, setLeftOpen, setRightOpen);
-    }
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, []);
-
-  const value: ShellUI = {
-    leftOpen,
-    rightOpen,
-    setLeftOpen,
-    setRightOpen,
-    toggleLeft: () => setLeftOpen((v) => !v),
-    toggleRight: () => setRightOpen((v) => !v),
-    isNarrow,
-  };
-
-  return <ShellCtx.Provider value={value}>{children}</ShellCtx.Provider>;
 }
 
 function dockClass(isNarrow: boolean, edge: "left" | "right"): string {

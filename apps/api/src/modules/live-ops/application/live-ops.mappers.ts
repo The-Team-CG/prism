@@ -1,21 +1,13 @@
 import { CoordinatorAttendanceStatus, LiveOpsEscalationLevel } from '@prism/kernel/event-core';
 import type { OpsEventDayLog, OpsEventDayTask, OpsUrgentIssue } from '@prisma/client';
 import type { PrismCoordinatorAssignment } from '@prism/types';
+import { computeSlaStatus } from '../domain/live-ops-sla.policy';
 
-type SlaRecord = {
-  status?: string | null;
-  slaStatus?: string | null;
-  slaDueAt?: Date | null;
-  dueAt?: Date | null;
-  resolvedAt?: Date | null;
-  completedAt?: Date | null;
-};
-type ComputeSlaStatus = (record: SlaRecord) => string;
 function timestamp(value: Date) {
   return value.toISOString();
 }
 
-export function mapEventDayTask(task: OpsEventDayTask, computeSlaStatus: ComputeSlaStatus) {
+export function mapEventDayTask(task: OpsEventDayTask) {
   return {
     id: task.id,
     eventId: task.eventId,
@@ -38,7 +30,7 @@ export function mapEventDayTask(task: OpsEventDayTask, computeSlaStatus: Compute
   };
 }
 
-export function mapUrgentIssue(issue: OpsUrgentIssue, computeSlaStatus: ComputeSlaStatus) {
+export function mapUrgentIssue(issue: OpsUrgentIssue) {
   return {
     id: issue.id,
     eventId: issue.eventId,
