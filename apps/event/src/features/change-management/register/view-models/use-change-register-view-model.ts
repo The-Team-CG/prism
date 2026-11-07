@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PrismAddendum, PrismEventFreezeException, RequestFreezeExceptionInput } from "@prism/types";
 import { changeRegisterRepository } from "../data/change-register-repository";
 import { unusedApprovedExceptions, type RecordDecisionDraft } from "../model/change-register-rules";
-import { countersignAddendumConformeUseCase, decideFreezeExceptionUseCase, freezeScopeUseCase, recordEventDecisionUseCase, requestAddendumConformeUseCase, requestFreezeExceptionUseCase } from "../use-cases/change-register-use-cases";
+import { countersignAddendumConformeUseCase, decideFreezeExceptionUseCase, freezeScopeUseCase, recordEventDecisionUseCase, requestAddendumConformeUseCase, requestFreezeExceptionUseCase, withdrawAddendumUseCase } from "../use-cases/change-register-use-cases";
 
 export function useChangeRegisterViewModel(eventId: string, options: { frozen: boolean }) {
   const [addenda, setAddenda] = useState<PrismAddendum[]>([]);
@@ -67,5 +67,6 @@ export function useChangeRegisterViewModel(eventId: string, options: { frozen: b
     recordDecision: (draft: RecordDecisionDraft) => run(() => recordEventDecisionUseCase(eventId, draft, { frozen: options.frozen })),
     requestAddendumConforme: (addendumId: string) => run(() => requestAddendumConformeUseCase(eventId, addendumId)),
     countersignAddendumConforme: (addendum: PrismAddendum) => run(() => countersignAddendumConformeUseCase(eventId, addendum)),
+    withdrawAddendum: (addendum: PrismAddendum, reason: string) => run(() => withdrawAddendumUseCase(eventId, addendum.id, { reason })),
   };
 }

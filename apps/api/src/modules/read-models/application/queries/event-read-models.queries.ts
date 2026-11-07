@@ -435,7 +435,7 @@ export class EventReadModelQueries {
       readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
         this.prisma.opsAddendum.findMany({
           where: { eventId, ...(afterId ? { id: { gt: afterId } } : {}) },
-          select: { id: true, versionNumber: true, title: true, summary: true, status: true, financialDelta: true, issuedAt: true, _count: { select: { impacts: true } } },
+          select: { id: true, versionNumber: true, title: true, summary: true, status: true, financialDelta: true, issuedAt: true, effectiveAt: true, withdrawnAt: true, withdrawalReason: true, _count: { select: { impacts: true } } },
           orderBy: { id: 'asc' },
           take: DECISION_LOG_SOURCE_PAGE_SIZE,
         }),

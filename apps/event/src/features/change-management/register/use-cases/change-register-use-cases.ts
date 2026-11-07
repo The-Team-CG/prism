@@ -1,6 +1,7 @@
 import {
   decideFreezeExceptionSchema,
   signAddendumConformeExecutionSchema,
+  withdrawAddendumSchema,
   recordEventDecisionSchema,
   freezeEventSchema,
   requestFreezeExceptionSchema,
@@ -8,6 +9,7 @@ import {
   type FreezeEventInput,
   type PrismAddendum,
   type RequestFreezeExceptionInput,
+  type WithdrawAddendumInput,
 } from "@prism/types";
 import { changeRegisterRepository } from "../data/change-register-repository";
 import { pesosToMinorUnits, type RecordDecisionDraft } from "../model/change-register-rules";
@@ -32,6 +34,11 @@ export function countersignAddendumConformeUseCase(eventId: string, addendum: Pr
     consentAccepted: true,
   }));
   return changeRegisterRepository.countersignAddendumConforme(eventId, addendum.id, input);
+}
+
+/** PMCM closes a pending addendum with a reason. The server refuses it once the addendum is effective. */
+export function withdrawAddendumUseCase(eventId: string, addendumId: string, draft: WithdrawAddendumInput) {
+  return changeRegisterRepository.withdrawAddendum(eventId, addendumId, parseOrThrow(withdrawAddendumSchema.safeParse(draft)));
 }
 
 export function freezeScopeUseCase(eventId: string, draft: FreezeEventInput) {
