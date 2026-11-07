@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Suppliers can proceed through the optional certifications step before giving privacy consent on the review step, so public applications can be submitted again.
 - API context imports load focused contracts and projections without pulling in unrelated controllers; shared inquiry, document, briefing and live-ops projections now have one owning implementation.
 - PMCM and guest game views share background refresh mechanics. Portal caches retain reads through initial session hydration, and guest entry and check-in use one session model and privacy cleanup path.
 - Client dashboard and shared-floorplan views use one snapshot-to-editor conversion; plans saved in the older canvas shape still open.
