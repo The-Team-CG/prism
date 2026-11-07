@@ -12,6 +12,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Suppliers now see due and overdue file requirements for selected bookings, with links to the booking actions and uploaded files.
 - PMCM scope-change approvals and rejections now queue idempotent, event-scoped client notices with only client-safe wording and responses; the client view labels withdrawal explicitly.
 - PMCM supplier readiness now loads all requests in keyset pages, and the handoff brief uses the same shared readiness projection with its role-safe fields; supplier dashboard actions target the exact request or booking.
+- PMCM decision logs now keyset-page every source and attribution read, include pending freeze exceptions, billing corrections and task reassignments, and show actor roles from available audit records.
 - Suppliers can proceed through the optional certifications step before giving privacy consent on the review step, so public applications can be submitted again.
 - API context imports load focused contracts and projections without pulling in unrelated controllers; shared inquiry, document, briefing and live-ops projections now have one owning implementation.
 - PMCM and guest game views share background refresh mechanics. Portal caches retain reads through initial session hydration, and guest entry and check-in use one session model and privacy cleanup path.

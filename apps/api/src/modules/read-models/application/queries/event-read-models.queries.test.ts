@@ -11,6 +11,8 @@ import {
   MAX_CLIENT_ACTION_CENTER_ROWS,
   MAX_SUPPLIER_WORKSPACE_ROWS,
   MAX_VISIBLE_EVENTS,
+  DECISION_LOG_SOURCE_PAGE_SIZE,
+  DECISION_LOG_AUDIT_PAGE_SIZE,
 } from './event-read-models.queries';
 
 function model<T = never>() {
@@ -21,6 +23,18 @@ function model<T = never>() {
     count: vi.fn(async () => 0),
     groupBy: vi.fn(async () => []),
   };
+}
+
+function decisionLogSourceRows(pageSize: number) {
+  const rows = Array.from({ length: pageSize + 1 }, (_, index) => ({ id: `row_${String(index).padStart(4, '0')}` }));
+  const findMany = vi.fn(async ({ where, take }: { where: Record<string, unknown>; take: number }) => {
+    const idFilter = where.id;
+    const afterId = idFilter && typeof idFilter === 'object' && 'gt' in idFilter
+      ? (idFilter as { gt?: unknown }).gt
+      : undefined;
+    return rows.filter((row) => typeof afterId !== 'string' || row.id > afterId).slice(0, take);
+  });
+  return { rows, findMany };
 }
 
 describe('EventReadModelQueries collection limits', () => {
@@ -59,6 +73,75 @@ describe('EventReadModelQueries collection limits', () => {
     expect(requests.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { eventId: 'evt_1' }, orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }));
     expect(requests.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: { eventId: 'evt_1', id: { gt: rows[MAX_SUPPLIER_WORKSPACE_ROWS - 1]?.id } }, orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }));
     expect(requests.findMany).toHaveBeenNthCalledWith(3, expect.objectContaining({ where: { eventId: 'evt_1', id: { gt: rows[MAX_SUPPLIER_WORKSPACE_ROWS * 2 - 1]?.id } }, orderBy: { id: 'asc' }, take: MAX_SUPPLIER_WORKSPACE_ROWS }));
+  });
+
+  it('keyset-pages every decision source and the attribution history without excluding pending requests', async () => {
+    const event = {
+      id: 'evt_1', inquiryId: 'inq_1', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked',
+      archivedAt: null, archiveOverrideReason: null, archiveOverrideBy: null, updatedAt: new Date('2026-10-19T10:00:00.000Z'),
+    };
+    const eventDecisions = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const freezeExceptions = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const addenda = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const complianceOverrides = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const riskChanges = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const ocularWaivers = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const billingCorrections = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const billingWaivers = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const paymentTermsOverrides = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const reassignments = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const inquiryMerges = decisionLogSourceRows(DECISION_LOG_SOURCE_PAGE_SIZE);
+    const auditAttributions = decisionLogSourceRows(DECISION_LOG_AUDIT_PAGE_SIZE);
+    const queries = new EventReadModelQueries({
+      opsEvent: { findUnique: vi.fn(async () => event) },
+      opsEventDecision: eventDecisions,
+      opsEventFreezeException: freezeExceptions,
+      opsAddendum: addenda,
+      opsComplianceCheck: complianceOverrides,
+      opsComplianceRiskHistory: riskChanges,
+      opsOcularVisitRequest: ocularWaivers,
+      opsBillingCorrection: billingCorrections,
+      opsAdditionalBilling: billingWaivers,
+      opsBillingSource: paymentTermsOverrides,
+      opsEventTaskReassignmentRequest: reassignments,
+      opsInquiryMerge: inquiryMerges,
+      opsAuditLog: auditAttributions,
+    } as unknown as PrismaService);
+
+    const sources = await queries.decisionLogSourcesForEvent('evt_1');
+
+    expect(sources).not.toBeNull();
+    expect(sources?.eventDecisions).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.freezeExceptions).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.addenda).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.complianceOverrides).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.riskChanges).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.ocularWaivers).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.billingCorrections).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.billingWaivers).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.paymentTermsOverrides).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.reassignments).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.inquiryMerges).toHaveLength(DECISION_LOG_SOURCE_PAGE_SIZE + 1);
+    expect(sources?.auditAttributions).toHaveLength(DECISION_LOG_AUDIT_PAGE_SIZE + 1);
+
+    for (const source of [eventDecisions, freezeExceptions, addenda, complianceOverrides, riskChanges, ocularWaivers, billingCorrections, billingWaivers, paymentTermsOverrides, reassignments, inquiryMerges]) {
+      expect(source.findMany).toHaveBeenCalledTimes(2);
+      expect(source.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        where: expect.objectContaining({ id: { gt: source.rows[DECISION_LOG_SOURCE_PAGE_SIZE - 1]?.id } }),
+        orderBy: { id: 'asc' },
+        take: DECISION_LOG_SOURCE_PAGE_SIZE,
+      }));
+    }
+    expect(freezeExceptions.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { eventId: 'evt_1' } }));
+    expect(billingCorrections.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { eventId: 'evt_1' } }));
+    expect(reassignments.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({ where: { eventId: 'evt_1' } }));
+    expect(auditAttributions.findMany).toHaveBeenCalledTimes(2);
+    expect(auditAttributions.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      where: expect.objectContaining({ id: { gt: auditAttributions.rows[DECISION_LOG_AUDIT_PAGE_SIZE - 1]?.id } }),
+      select: expect.objectContaining({ id: true }),
+      orderBy: { id: 'asc' },
+      take: DECISION_LOG_AUDIT_PAGE_SIZE,
+    }));
   });
 
   it('loads recent coordinator reliability history by coordinator with event and role context', async () => {
