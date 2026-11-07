@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Supplier file requirement reminders go only to the suppliers who are overdue or need to replace a rejected file.
 - Supplier-owned file requirements are now tracked per supplier: each supplier sees only its own status and files, and PMCM sees who has submitted.
 - CI now runs the database query audit; raw SQL, unbounded reads and per-row loops in the API state why they are safe.
 - Lint now rejects conditionally called React hooks, and browser lifecycle acceptance opens the client event overview.
