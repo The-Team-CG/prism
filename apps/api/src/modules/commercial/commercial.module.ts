@@ -68,28 +68,6 @@ const supplierCommandsProvider = {
   useExisting: SupplierNetworkWorkflowService,
 };
 
-
-/**
- * Bounded-context composition root for commercial: the supplier
- * sourcing -> quote -> billing pipeline. Merged from the former
- * `commercial-ops`, `supplier-ops`, and `finance-ops` Nest library modules
- * (2026-09-01) — same event-commerce lifecycle, split by former CRUD
- * ownership rather than by capability. Kept as three sub-areas
- * (`quotes`, `suppliers`, `billing`) under one context. `commercial-ops`'s
- * existing `domain/` folder (quote-request lifecycle policy) moves in
- * unchanged.
- *
- * Owned tables: OpsSupplierQuote, OpsSupplierQuoteRequest, OpsSupplier,
- * OpsSupplierApplication,
- * OpsSupplierCertification, OpsSupplierReview, OpsSupplierReliabilityNote,
- * OpsBillingSource,
- * OpsBillingStatement, OpsPaymentMilestone, OpsPaymentRecord. Lifecycle owns
- * all OpsDocument metadata and exposes the document-vault capability.
- * Read-only: OpsEvent (via inquiry-onboarding), OpsSupplierCategory
- * (populated only by local fixtures; no owning module), OpsSupplierReviewDimension
- * (populated only by local fixtures; no owning module), OpsInquiry (via
- * inquiry-onboarding).
- */
 @Module({
   imports: [
     DatabaseModule,
