@@ -28,6 +28,7 @@ import type {
 import { cx, label } from "@/features/pmcm-kit";
 import { isOpenLiveOpsIssue, liveOpsPillClass, orderLiveOpsIssuesForDesk } from "../model/live-ops-workspace-rules";
 import { useCoordinatorRowViewModel } from "../view-models/use-coordinator-row-view-model";
+import { useEventDayTaskTarget } from "../view-models/use-event-day-task-target";
 import type { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
 import Link from "next/link";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk, eventRunSheetHref } from "@/features/live-ops/schedule";
@@ -487,6 +488,7 @@ function LiveOpsTasksPanel({
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
   onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
 }) {
+  useEventDayTaskTarget();
   return (
     <section className="rounded-lg border border-border bg-card p-4 sm:p-5" aria-label="Event-day tasks">
       <Header

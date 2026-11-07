@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventSessionModule } from '@prism/kernel/event-session';
@@ -22,17 +22,8 @@ import { IDENTITY_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { PASSWORD_RESET_DELIVERY } from './contracts/password-reset-delivery.port';
 import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-mail.adapter';
 
-/**
- * Identity-access bounded-context composition root for user accounts,
- * approval workflow, password authentication, and two-factor enrollment.
- * Event-session remains a kernel primitive and is imported directly by
- * contexts that need verified request actors.
- *
- * Owned tables: OpsApprovalRequest (account approval workflow) and OpsUser.
- * Read-only: participant eligibility uses the focused ReadModels participant-facts contract.
- */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, forwardRef(() => EventLifecycleModule), EventSessionModule, ParticipantFactsModule, MailModule, PortalUrlsModule, AccountInvitationReferenceModule],
+  imports: [DatabaseModule, AccessControlModule, PlatformOpsModule, EventLifecycleModule, EventSessionModule, ParticipantFactsModule, MailModule, PortalUrlsModule, AccountInvitationReferenceModule],
   controllers: [OpsAuthController],
   providers: [
     AuthOperationsService,

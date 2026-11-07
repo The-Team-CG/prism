@@ -1,4 +1,5 @@
 import type { OpsDocument, OpsEvent, OpsFloorPlanDraft, OpsInquiry, OpsInquiryMerge } from '@prisma/client';
+import { guestAccessCode } from '@prism/contexts/operations';
 import { isDeterministicHighFitInquiry } from '../../domain/inquiry-triage.policy';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
@@ -89,10 +90,10 @@ export interface InquiryListCues {
 }
 
 export function mapInquiry(inquiry: InquiryCueRow, cues?: InquiryListCues) {
-  const reminderDueAt = inquiryReminderDueAt(inquiry);
   const statusHistory = inquiry.statusHistory;
   return {
-    ...mapInquiryCore(inquiry, reminderDueAt, statusHistory),
+    ...mapInquirySummary(inquiry),
+    statusHistory: statusHistory?.map((item) => ({ ...item, createdAt: timestamp(item.createdAt) })) ?? [],
     organizationKey: inquiry.organizationKey ?? null,
     mergedIntoInquiryId: inquiry.mergedInto?.primaryInquiryId ?? null,
     mergeHistory: (inquiry.mergesAsPrimary ?? []).map((merge) => ({
@@ -138,11 +139,8 @@ export function mapPublicInquiryReceipt(inquiry: OpsInquiry) {
   return publicFields;
 }
 
-function mapInquiryCore(
-  inquiry: OpsInquiry,
-  reminderDueAt: Date | null,
-  statusHistory: InquiryCueRow['statusHistory'],
-) {
+export function mapInquirySummary(inquiry: OpsInquiry) {
+  const reminderDueAt = inquiryReminderDueAt(inquiry);
   return {
     id: inquiry.id,
     clientName: inquiry.clientName,
@@ -172,7 +170,6 @@ function mapInquiryCore(
     portalInvitationOpenedAt: optionalTimestamp(inquiry.portalInvitationOpenedAt),
     portalInvitationExpiresAt: optionalTimestamp(inquiry.portalInvitationExpiresAt),
     createdAt: timestamp(inquiry.createdAt),
-    statusHistory: statusHistory?.map((item) => ({ ...item, createdAt: timestamp(item.createdAt) })) ?? [],
   };
 }
 
@@ -193,19 +190,6 @@ export function mapDocument(document: OpsDocument) {
     rejectionReason: expanded.rejectionReason ?? null,
     uploadedAt: timestamp(document.uploadedAt),
   };
-}
-
-function guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>) {
-  const namePart =
-    event.eventName
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, '-')
-      .split('-')
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('-') || 'PRISM';
-  const idPart = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase() || 'EVNT';
-  return `${namePart}-${idPart}`;
 }
 
 export function mapOnboardingFloorPlanDraft(draft: OpsFloorPlanDraft) {
@@ -279,14 +263,19 @@ export function mapOnboardingEvent(event: EventWithDrafts) {
   };
 }
 
-export function mapBriefing(briefing: {
-  eventId: string;
-  venue: string;
-  guestCount: number;
-  budgetRange: string;
-  serviceRequirements: unknown;
-  notes: string;
-  submittedAt: Date;
+export function mapBriefingSummary(briefing: { eventId: string; venue: string; guestCount: number; budgetRange: string; serviceRequirements: unknown; notes: string; submittedAt: Date }) {
+  return {
+    eventId: briefing.eventId,
+    venue: briefing.venue,
+    guestCount: briefing.guestCount,
+    budgetRange: briefing.budgetRange,
+    serviceRequirements: Array.isArray(briefing.serviceRequirements) ? (briefing.serviceRequirements as string[]) : [],
+    notes: briefing.notes,
+    submittedAt: timestamp(briefing.submittedAt),
+  };
+}
+
+export function mapBriefing(briefing: Parameters<typeof mapBriefingSummary>[0] & {
   confirmedDate?: Date | null;
   confirmedStartTime?: string | null;
   confirmedEndTime?: string | null;
@@ -295,13 +284,7 @@ export function mapBriefing(briefing: {
   stylingBudget?: number | null;
 }) {
   return {
-    eventId: briefing.eventId,
-    venue: briefing.venue,
-    guestCount: briefing.guestCount,
-    budgetRange: briefing.budgetRange,
-    serviceRequirements: Array.isArray(briefing.serviceRequirements) ? (briefing.serviceRequirements as string[]) : [],
-    notes: briefing.notes,
-    submittedAt: briefing.submittedAt.toISOString(),
+    ...mapBriefingSummary(briefing),
     confirmedDate: briefing.confirmedDate?.toISOString() ?? null,
     confirmedStartTime: briefing.confirmedStartTime ?? null,
     confirmedEndTime: briefing.confirmedEndTime ?? null,
