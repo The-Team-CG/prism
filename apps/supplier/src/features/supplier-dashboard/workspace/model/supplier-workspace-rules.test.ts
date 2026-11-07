@@ -3,6 +3,7 @@ import {
   isEventStatusStepAllowed,
   buildBookingSteps,
   buildSupplierContractRequirements,
+  buildSupplierFileRequirementRows,
   canReportSupplierEventDayStatus,
   buildQuoteByRequest,
   closedRequestReason,
@@ -32,8 +33,9 @@ import {
   supplierMessageEvents,
 } from "./supplier-workspace-rules";
 import { splitSupplierNextSteps } from "./supplier-next-step";
-import type { PrismSupplierReadinessItem } from "@prism/types";
+import type { PrismFileRequirementsMatrix, PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
+import { supplierBookingHref } from "./supplier-next-step";
 
 function makeRequest(
   overrides: Partial<PrismSupplierQuoteRequest> & { id: string },
@@ -184,6 +186,37 @@ describe("supplier-workspace-rules", () => {
     expect(buildSupplierContractRequirements({ quoteRequests: [request, makeRequest({ id: "unselected" })], supplierQuotes: [] })).toEqual([
       expect.objectContaining({ key: "supplier-contract:contract", status, detail: meta }),
     ]);
+  });
+
+  it("shows server due status only for supplier-owned requirements on selected bookings", () => {
+    const selected = makeRequest({ id: "booking_selected", eventId: "event_selected", status: "selected", contractReviewStatus: "missing" });
+    const unselected = makeRequest({ id: "booking_open", eventId: "event_open", status: "open" });
+    const item = (key: string, ownerRole: string, required = true, visibleToRoles = ["supplier"]) => ({
+      key,
+      label: key,
+      ownerRole,
+      visibleToRoles,
+      sourceWorkflow: "supplier_booking",
+      status: "missing" as const,
+      required,
+      dueDate: "2026-10-01T00:00:00.000Z",
+      overdue: true,
+      auditCategory: "documents",
+      detail: `${key} details`,
+    });
+    const matrices: PrismFileRequirementsMatrix[] = [
+      { eventId: "event_selected", items: [item("supplier_contract", "supplier"), item("supplier_insurance", "supplier"), item("internal_note", "pmcm-admin"), item("hidden_supplier_file", "supplier", true, ["pmcm-admin"]), item("optional_file", "supplier", false)] },
+      { eventId: "event_open", items: [item("unselected_requirement", "supplier")] },
+    ];
+
+    const rows = buildSupplierFileRequirementRows({ quoteRequests: [selected, unselected], supplierQuotes: [] }, matrices);
+
+    expect(rows.map(({ item: rowItem, eventId, requestIds }) => [rowItem.key, eventId, requestIds])).toEqual([
+      ["supplier-contract:booking_selected", "event_selected", ["booking_selected"]],
+      ["supplier_insurance", "event_selected", ["booking_selected"]],
+    ]);
+    expect(rows[0]?.item).toMatchObject({ dueDate: "2026-10-01T00:00:00.000Z", overdue: true });
+    expect(supplierBookingHref("booking_selected")).toBe("/dashboard/bookings#supplier-work-booking_selected");
   });
 
   it("routes every readiness item to the section where it is actioned", () => {

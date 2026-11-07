@@ -1,12 +1,13 @@
 import type {
   PrismAuthenticatedSession,
   PrismFileRequirementItem,
+  PrismFileRequirementsMatrix,
   PrismSupplierReadinessConcernKind,
   PrismSupplierReadinessItem,
   PrismSupplierReadinessSetupStatus,
 } from "@prism/types";
 import { manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
-import type { BookingStep, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
+import type { BookingStep, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest } from "./supplier-workspace-types";
 import { supplierWorkTargetHref } from "./supplier-workspace-types";
 
 export const EVENT_STATUS_ACTIONS = [
@@ -155,6 +156,61 @@ export function buildSupplierContractRequirements(workspace: Pick<SupplierWorksp
     overdue: false,
     bookingHref: supplierWorkTargetHref("bookings", request.id),
   }));
+}
+
+export type SupplierFileRequirementRow = {
+  eventId: string;
+  requestIds: string[];
+  item: PrismFileRequirementItem;
+};
+
+function isSupplierContractRequirement(key: string) {
+  return key === "supplier_contract" || key === "supplier-contract";
+}
+
+/** Combines booking contract progress with server-owned due dates, keeping event requirements inside assigned bookings. */
+export function buildSupplierFileRequirementRows(
+  workspace: Pick<SupplierWorkspace, "quoteRequests" | "supplierQuotes">,
+  matrices: PrismFileRequirementsMatrix[],
+): SupplierFileRequirementRow[] {
+  const selectedRequests = filterSelectedRequests(workspace.quoteRequests, buildQuoteByRequest(workspace.supplierQuotes));
+  const requestsByEvent = new Map<string, PrismSupplierQuoteRequest[]>();
+  for (const request of selectedRequests) {
+    const requests = requestsByEvent.get(request.eventId) ?? [];
+    requests.push(request);
+    requestsByEvent.set(request.eventId, requests);
+  }
+  const matrixByEvent = new Map(matrices.map((matrix) => [matrix.eventId, matrix]));
+  const contractItems = new Map(buildSupplierContractRequirements(workspace).map((item) => [
+    item.key.slice("supplier-contract:".length), item,
+  ]));
+  const contractRows = selectedRequests.flatMap((request) => {
+    const contract = contractItems.get(request.id);
+    if (!contract) return [];
+    const serverRequirement = matrixByEvent.get(request.eventId)?.items.find((item) =>
+      item.ownerRole === "supplier" && item.visibleToRoles.includes("supplier") && isSupplierContractRequirement(item.key),
+    );
+    return [{
+      eventId: request.eventId,
+      requestIds: [request.id],
+      item: serverRequirement
+        ? { ...contract, dueDate: serverRequirement.dueDate, overdue: serverRequirement.overdue }
+        : contract,
+    }];
+  });
+  const eventRequirementRows = matrices.flatMap((matrix) => {
+    const requestIds = requestsByEvent.get(matrix.eventId)?.map((request) => request.id) ?? [];
+    if (requestIds.length === 0) return [];
+    return matrix.items
+      .filter((item) =>
+        item.ownerRole === "supplier" &&
+        item.visibleToRoles.includes("supplier") &&
+        item.required &&
+        !isSupplierContractRequirement(item.key),
+      )
+      .map((item) => ({ eventId: matrix.eventId, requestIds, item }));
+  });
+  return [...contractRows, ...eventRequirementRows];
 }
 
 export function countEventsThisMonth(

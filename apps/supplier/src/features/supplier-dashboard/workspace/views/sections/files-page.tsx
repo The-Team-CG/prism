@@ -6,7 +6,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { buildSupplierContractRequirements, formatDate } from "../../model/supplier-workspace-rules";
 import type { PrismAuthenticatedSession } from "@prism/types";
-import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
+import type { PrismSupplierReadinessBoard, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { SupplierFileRequirementsMatrix } from "./supplier-file-requirements-matrix";
@@ -15,11 +15,13 @@ export function FilesPage({
   workspace,
   session,
   workflowWorkspace,
+  readinessBoard,
   onDownloadObject,
 }: {
   workspace: SupplierWorkspace;
   session: PrismAuthenticatedSession;
   workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
+  readinessBoard: PrismSupplierReadinessBoard | null;
   onDownloadObject: (objectId: string) => void;
 }) {
   const contracts = workflowWorkspace?.contracts ?? [];
@@ -27,7 +29,7 @@ export function FilesPage({
 
   return (
     <div className="space-y-4">
-      <SupplierFileRequirementsMatrix workspace={workspace} />
+      <SupplierFileRequirementsMatrix workspace={workspace} session={session} readinessBoard={readinessBoard} onDownloadObject={onDownloadObject} />
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
