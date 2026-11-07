@@ -177,17 +177,20 @@ function clientActionNextActor(item: PrismClientActionItem): "you" | "pmcm" | "u
   return "you";
 }
 
+const CLIENT_ACTION_LABEL: Partial<Record<PrismClientActionItem["kind"], string>> = {
+  addendum: "Review and acknowledge",
+  billing: "Review payment",
+  briefing: "Complete briefing",
+  feedback: "Share feedback",
+  closure: "Review closeout",
+  document: "Review documents",
+  change_request: "View request",
+};
+
 function clientActionLabel(item: PrismClientActionItem): string {
-  if (item.kind === "addendum") return "Review and acknowledge";
-  if (item.kind === "billing") return "Review payment";
-  if (item.kind === "briefing") return "Complete briefing";
-  if (item.kind === "feedback") return "Share feedback";
   if (item.kind === "floorplan") return item.id.startsWith("floorplan:preferences:") ? "Add preferences" : "View layout";
-  if (item.kind === "closure") return "Review closeout";
-  if (item.kind === "document") return "Review documents";
   if (item.id.startsWith("approval:proposal:")) return "Review proposal";
-  if (item.kind === "change_request") return "View request";
-  return "View details";
+  return CLIENT_ACTION_LABEL[item.kind] ?? "View details";
 }
 
 export function selectNextAction(actions: ClientDashboardAction[]) {
