@@ -25,6 +25,9 @@ export function mapEventDayTask(task: OpsEventDayTask) {
     escalatedBy: task.escalatedBy ?? null,
     escalationNotes: task.escalationNotes ?? '',
     completedAt: task.completedAt ? timestamp(task.completedAt) : null,
+    blockedReason: task.blockedReason ?? null,
+    blockedAt: task.blockedAt ? timestamp(task.blockedAt) : null,
+    blockedBy: task.blockedBy ?? null,
     createdAt: timestamp(task.createdAt),
     updatedAt: timestamp(task.updatedAt),
   };

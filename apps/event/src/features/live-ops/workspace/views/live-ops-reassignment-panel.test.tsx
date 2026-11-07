@@ -80,6 +80,8 @@ describe("LiveOperationsWorkspace desk order", () => {
         onReload={noop}
         onCreateTask={noop}
         onUpdateTask={noop}
+        onBlockTask={noop}
+        onUnblockTask={noop}
         onEscalateTask={noop}
         onCreateIssue={noop}
         onUpdateIssue={noop}
@@ -126,6 +128,8 @@ describe("LiveOperationsWorkspace desk order", () => {
         onReload={noop}
         onCreateTask={noop}
         onUpdateTask={noop}
+        onBlockTask={noop}
+        onUnblockTask={noop}
         onEscalateTask={noop}
         onCreateIssue={noop}
         onUpdateIssue={noop}
@@ -173,6 +177,8 @@ describe("LiveOperationsWorkspace after the event date", () => {
         onReload={noop()}
         onCreateTask={noop()}
         onUpdateTask={noop()}
+        onBlockTask={noop()}
+        onUnblockTask={noop()}
         onEscalateTask={noop()}
         onCreateIssue={noop()}
         onUpdateIssue={noop()}
@@ -215,6 +221,84 @@ describe("LiveOperationsWorkspace after the event date", () => {
     expect(screen.getByRole("button", { name: "Mark resolved" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Run window" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Approve" })).toBeTruthy();
+  });
+});
+
+describe("LiveOperationsWorkspace event-day task blocking", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T04:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  const task = (overrides: Record<string, unknown>) => ({
+    eventId: "evt_1", priority: "normal", notes: "", dueAt: null, slaDueAt: null, slaStatus: "on_track",
+    escalationLevel: "none", escalatedAt: null, escalatedBy: null, completedAt: null,
+    blockedReason: null, blockedAt: null, blockedBy: null, ownerName: "", ...overrides,
+  });
+  const tasks = [
+    task({ id: "task_open", title: "Confirm power", assignedRole: "Technical Lead", ownerName: "Dane", status: "open" }),
+    task({
+      id: "task_blocked", title: "Release VIP gate", assignedRole: "Access Lead", status: "blocked",
+      blockedReason: "Scanner offline", blockedAt: "2026-10-01T03:00:00.000Z", blockedBy: "Marco Santos",
+    }),
+  ];
+
+  function renderDesk(onBlockTask: (...args: unknown[]) => Promise<void>, onUnblockTask: (...args: unknown[]) => Promise<void>) {
+    const noop = async () => {};
+    render(
+      <LiveOperationsWorkspace
+        event={{ id: "evt_1", eventName: "Gala", clientName: "Ana", eventDate: "2026-10-02" } as never}
+        liveOps={{
+          tasks, taskReassignmentRequests: [], supplierStatuses: [], coordinatorAssignments: [], guestAttendanceCount: 0,
+          guestCheckIns: [], eventDayLogs: [], urgentIssues: [],
+          schedule: { eventId: "evt_1", authored: true, days: [], serverTime: "2026-10-02T00:00:00.000Z" },
+        } as never}
+        statusFeed={null}
+        coordinators={[]}
+        busy={false}
+        onReload={noop}
+        onCreateTask={noop}
+        onUpdateTask={noop}
+        onBlockTask={onBlockTask as never}
+        onUnblockTask={onUnblockTask as never}
+        onEscalateTask={noop}
+        onCreateIssue={noop}
+        onUpdateIssue={noop}
+        onEscalateIssue={noop}
+        onUpdateCoordinatorAttendance={noop}
+        onReplaceCoordinator={noop}
+        onLoadCoordinatorSuggestions={async () => []}
+        onVerifySupplierStatus={noop}
+        onDecideTaskReassignment={noop}
+      />,
+    );
+  }
+
+  it("blocks an open task only once a trimmed reason is entered", async () => {
+    const onBlockTask = vi.fn(async () => {});
+    renderDesk(onBlockTask, vi.fn(async () => {}));
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark blocked" }));
+    const confirm = screen.getByRole("button", { name: "Confirm blocked" }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+
+    fireEvent.change(screen.getByPlaceholderText("What is stopping this task?"), { target: { value: "  Scanner offline  " } });
+    expect((screen.getByRole("button", { name: "Confirm blocked" }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm blocked" }));
+
+    await vi.waitFor(() => expect(onBlockTask).toHaveBeenCalledWith("task_open", { reason: "Scanner offline" }));
+  });
+
+  it("shows a blocked task's reason and blocker, and unblocks it from that row", async () => {
+    const onUnblockTask = vi.fn(async () => {});
+    renderDesk(vi.fn(async () => {}), onUnblockTask);
+
+    expect(screen.getByText("Blocker: Scanner offline")).toBeTruthy();
+    expect(screen.getByText(/Blocked by Marco Santos/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Unblock" }));
+
+    await vi.waitFor(() => expect(onUnblockTask).toHaveBeenCalledWith("task_blocked"));
   });
 });
 

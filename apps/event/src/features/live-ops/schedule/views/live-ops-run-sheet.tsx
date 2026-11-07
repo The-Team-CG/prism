@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { PrismEventRunSheet } from "@prism/types";
+import type { PrismEventRunSheet, PrismRunSheetGuestOperations } from "@prism/types";
 import { useRunSheetViewModel } from "../view-models/use-run-sheet-view-model";
 import {
   RUN_SHEET_KIND_LABELS,
@@ -142,6 +142,9 @@ function RunSheetMessages({ props }: { props: LiveOpsRunSheetViewProps }) {
 function RunSheetBody({ runSheet, timeline, now }: { runSheet: PrismEventRunSheet; timeline: RunSheetTimeline; now: Date }) {
   return (
     <>
+      {runSheet.guestOperations ? <GuestOperationsPanel guestOperations={runSheet.guestOperations} /> : (
+        <p className="text-xs text-muted-foreground">Guest operations are not shared with this role.</p>
+      )}
       {!runSheet.supplierWindowsVisible ? (
         <p className="text-xs text-muted-foreground">Supplier ingress and egress windows are not shared with this role.</p>
       ) : null}
@@ -152,6 +155,54 @@ function RunSheetBody({ runSheet, timeline, now }: { runSheet: PrismEventRunShee
       )}
       <p className="text-xs text-muted-foreground">Generated {formatRunSheetDate(runSheet.generatedAt)} {formatRunSheetTime(runSheet.generatedAt)}</p>
     </>
+  );
+}
+
+/** Untimed planned guest work: registration setup, headcount, roster verification, walk-in policy and desk staffing. */
+function GuestOperationsPanel({ guestOperations }: { guestOperations: PrismRunSheetGuestOperations }) {
+  const { registrationPlatform, walkIn, rosterVerification, registrationStaff } = guestOperations;
+  return (
+    <section aria-labelledby="run-sheet-guest-operations" className="space-y-2 rounded-lg border border-border p-4 text-sm">
+      <h3 id="run-sheet-guest-operations" className="font-semibold text-foreground">Guest operations</h3>
+      <dl className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-muted-foreground">Registration</dt>
+          <dd className="text-foreground">
+            {registrationPlatform
+              ? `${words(registrationPlatform.platformType)} · ${words(registrationPlatform.status)} · expected ${registrationPlatform.expectedPaxMin}–${registrationPlatform.expectedPaxMax} guests`
+              : "No registration platform configured"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Walk-ins</dt>
+          <dd className="text-foreground">
+            {walkIn
+              ? walkIn.policy === "threshold" && walkIn.threshold !== null
+                ? `At threshold of ${walkIn.threshold}`
+                : words(walkIn.policy)
+              : "Not recorded"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Roster verification</dt>
+          <dd className="text-foreground">{rosterVerification.verified} verified · {rosterVerification.pending} pending</dd>
+        </div>
+      </dl>
+      <div>
+        <p className="text-xs text-muted-foreground">Registration and usher staff</p>
+        {registrationStaff.length ? (
+          <ul className="mt-1 space-y-0.5">
+            {registrationStaff.map((staff) => (
+              <li key={`${staff.coordinatorName}:${staff.role}`} className="text-foreground">
+                {[staff.coordinatorName, staff.role, words(staff.status)].join(" · ")}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground">No registration or usher staff are assigned.</p>
+        )}
+      </div>
+    </section>
   );
 }
 
