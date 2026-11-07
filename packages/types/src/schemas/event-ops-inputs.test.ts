@@ -3,6 +3,7 @@ import { acknowledgePrivacyNoticeSchema, requestApprovalSchema } from "./auth-in
 import { PRISM_PRIVACY_NOTICE_VERSION } from "../privacy.js";
 import { createFileRequirementSchema, updateFileRequirementSchema } from "./file-requirement-inputs.js";
 import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
+import { blockEventDayTaskSchema } from "./live-ops-inputs.js";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
@@ -71,6 +72,16 @@ import {
   parseContract,
   PrismContractError,
 } from "./index.js";
+
+describe("event-day task block contract", () => {
+  it("trims the reason and requires one to 500 characters", () => {
+    expect(blockEventDayTaskSchema.parse({ reason: "  Venue power map missing  " })).toEqual({ reason: "Venue power map missing" });
+    expect(blockEventDayTaskSchema.safeParse({ reason: "   " }).success).toBe(false);
+    expect(blockEventDayTaskSchema.safeParse({ reason: "x".repeat(500) }).success).toBe(true);
+    expect(blockEventDayTaskSchema.safeParse({ reason: "x".repeat(501) }).success).toBe(false);
+    expect(blockEventDayTaskSchema.safeParse({}).success).toBe(false);
+  });
+});
 
 describe("privacy legal hold contracts", () => {
   it("requires a supported identity and reason while allowing optional event scope", () => {

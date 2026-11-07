@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Coordinators and PMCM can mark an event-day task blocked with a required reason and unblock it; the PMCM inbox shows that reason.
 - Supplier-owned file requirements are now tracked per supplier: each supplier sees only its own status and files, and PMCM sees who has submitted.
 - CI now runs the database query audit; raw SQL, unbounded reads and per-row loops in the API state why they are safe.
 - Lint now rejects conditionally called React hooks, and browser lifecycle acceptance opens the client event overview.

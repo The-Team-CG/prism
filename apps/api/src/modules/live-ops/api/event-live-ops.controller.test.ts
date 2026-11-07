@@ -30,6 +30,8 @@ const liveOpsRouteNames = [
   'statusFeed',
   'createEventDayTask',
   'updateEventDayTask',
+  'blockEventDayTask',
+  'unblockEventDayTask',
   'escalateEventDayTask',
   'createUrgentIssue',
   'updateUrgentIssue',
@@ -48,6 +50,8 @@ function createController() {
   const commandService = {
     createEventDayTask: vi.fn(async () => ({ id: 'task_created' })),
     updateEventDayTask: vi.fn(async () => ({ id: 'task_updated' })),
+    blockEventDayTask: vi.fn(async () => ({ id: 'task_blocked' })),
+    unblockEventDayTask: vi.fn(async () => ({ id: 'task_unblocked' })),
     escalateEventDayTask: vi.fn(async () => ({ id: 'task_escalated' })),
     createUrgentIssue: vi.fn(async () => ({ id: 'issue_created' })),
     updateUrgentIssue: vi.fn(async () => ({ id: 'issue_updated' })),
@@ -99,6 +103,8 @@ describe('EventLiveOpsController', () => {
     await controller.statusFeed('evt_sample', sessionActor);
     await controller.createEventDayTask('evt_sample', { title: 'Open registration' }, sessionActor);
     await controller.updateEventDayTask('evt_sample', 'task_sample', { status: 'done' }, sessionActor);
+    await controller.blockEventDayTask('evt_sample', 'task_sample', { reason: 'Power map missing' }, sessionActor);
+    await controller.unblockEventDayTask('evt_sample', 'task_sample', sessionActor);
     await controller.escalateEventDayTask('evt_sample', 'task_sample', { notes: 'Need backup' }, sessionActor);
     await controller.createUrgentIssue('evt_sample', { title: 'Power issue' }, sessionActor);
     await controller.updateUrgentIssue('evt_sample', 'issue_sample', { status: 'resolved' }, sessionActor);
@@ -112,12 +118,14 @@ describe('EventLiveOpsController', () => {
     );
     await controller.verifySupplierStatus('evt_sample', 'qr_sample', { verificationStatus: 'verified' }, sessionActor);
 
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledTimes(11);
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledTimes(13);
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, sessionActor);
     expect(readService.getEventLiveOps).toHaveBeenCalledWith('evt_sample', resolvedActor);
     expect(readService.getEventDayStatusFeed).toHaveBeenCalledWith('evt_sample', resolvedActor);
     expect(commandService.createEventDayTask).toHaveBeenCalledWith('evt_sample', { title: 'Open registration' }, resolvedActor);
     expect(commandService.updateEventDayTask).toHaveBeenCalledWith('evt_sample', 'task_sample', { status: 'done' }, resolvedActor);
+    expect(commandService.blockEventDayTask).toHaveBeenCalledWith('evt_sample', 'task_sample', { reason: 'Power map missing' }, resolvedActor);
+    expect(commandService.unblockEventDayTask).toHaveBeenCalledWith('evt_sample', 'task_sample', resolvedActor);
     expect(commandService.escalateEventDayTask).toHaveBeenCalledWith('evt_sample', 'task_sample', { notes: 'Need backup' }, resolvedActor);
     expect(commandService.createUrgentIssue).toHaveBeenCalledWith('evt_sample', { title: 'Power issue' }, resolvedActor);
     expect(commandService.updateUrgentIssue).toHaveBeenCalledWith('evt_sample', 'issue_sample', { status: 'resolved' }, resolvedActor);

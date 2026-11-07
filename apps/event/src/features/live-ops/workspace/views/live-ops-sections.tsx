@@ -504,6 +504,7 @@ function LiveOpsTasksPanel({
               task={task}
               busy={busy}
               readOnly={readOnly}
+              vm={vm}
               onProgress={() => onUpdateTask(task.id, { status: "in_progress" })}
               onDone={() => onUpdateTask(task.id, { status: "done", notes: "Completed from live desk." })}
               onEscalate={() =>
@@ -727,6 +728,7 @@ function TaskRow({
   task,
   busy,
   readOnly,
+  vm,
   onProgress,
   onDone,
   onEscalate,
@@ -734,6 +736,7 @@ function TaskRow({
   task: PrismEventDayTask;
   busy: boolean;
   readOnly: boolean;
+  vm: LiveOpsVm;
   onProgress: () => Promise<void>;
   onDone: () => Promise<void>;
   onEscalate: () => Promise<void>;
@@ -748,20 +751,103 @@ function TaskRow({
         </div>
         <Pill value={task.status} />
       </div>
+      {task.status === "blocked" ? <TaskBlockerNotice task={task} /> : null}
       {readOnly ? null : (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button disabled={busy || task.status === "in_progress" || task.status === "done"} onClick={onProgress} className="h-10 rounded-md bg-attention-soft px-3 text-xs font-semibold text-attention disabled:opacity-60">
-            In progress
-          </button>
-          <button disabled={busy || task.status === "done"} onClick={onDone} className="h-10 rounded-md bg-success-soft px-3 text-xs font-semibold text-success disabled:opacity-60">
-            Done
-          </button>
-          <button disabled={busy || task.status === "done"} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-danger-soft px-3 text-xs font-semibold text-danger disabled:opacity-60">
-            <BellRing className="size-3.5" /> Escalate task
-          </button>
-        </div>
+        <>
+          <TaskActions task={task} busy={busy} vm={vm} onProgress={onProgress} onDone={onDone} onEscalate={onEscalate} />
+          {vm.blockingTaskId === task.id ? <BlockReasonForm busy={busy} vm={vm} /> : null}
+        </>
       )}
     </div>
+  );
+}
+
+function TaskBlockerNotice({ task }: { task: PrismEventDayTask }) {
+  return (
+    <div className="mt-3 rounded-md bg-danger-soft p-3 text-sm text-danger">
+      <p className="font-semibold">Blocker: {task.blockedReason}</p>
+      <p className="mt-1 text-xs">
+        Blocked by {task.blockedBy}{task.blockedAt ? ` - ${formatPortalDateTime(task.blockedAt)}` : ""}
+      </p>
+    </div>
+  );
+}
+
+function TaskActions({
+  task,
+  busy,
+  vm,
+  onProgress,
+  onDone,
+  onEscalate,
+}: {
+  task: PrismEventDayTask;
+  busy: boolean;
+  vm: LiveOpsVm;
+  onProgress: () => Promise<void>;
+  onDone: () => Promise<void>;
+  onEscalate: () => Promise<void>;
+}) {
+  const blocked = task.status === "blocked";
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      <button disabled={busy || task.status === "in_progress" || task.status === "done" || blocked} onClick={onProgress} className="h-10 rounded-md bg-attention-soft px-3 text-xs font-semibold text-attention disabled:opacity-60">
+        In progress
+      </button>
+      <button disabled={busy || task.status === "done" || blocked} onClick={onDone} className="h-10 rounded-md bg-success-soft px-3 text-xs font-semibold text-success disabled:opacity-60">
+        Done
+      </button>
+      <TaskBlockAction task={task} busy={busy} vm={vm} />
+      <button disabled={busy || task.status === "done"} onClick={onEscalate} className="inline-flex h-10 items-center gap-1 rounded-md bg-danger-soft px-3 text-xs font-semibold text-danger disabled:opacity-60">
+        <BellRing className="size-3.5" /> Escalate task
+      </button>
+    </div>
+  );
+}
+
+function TaskBlockAction({ task, busy, vm }: { task: PrismEventDayTask; busy: boolean; vm: LiveOpsVm }) {
+  if (task.status === "blocked") {
+    return (
+      <button disabled={busy} onClick={() => vm.unblockTask(task.id)} className="h-10 rounded-md bg-success-soft px-3 text-xs font-semibold text-success disabled:opacity-60">
+        Unblock
+      </button>
+    );
+  }
+  return (
+    <button disabled={busy || task.status === "done" || vm.blockingTaskId === task.id} onClick={() => vm.startBlockTask(task.id)} className="h-10 rounded-md bg-danger-soft px-3 text-xs font-semibold text-danger disabled:opacity-60">
+      Mark blocked
+    </button>
+  );
+}
+
+function BlockReasonForm({ busy, vm }: { busy: boolean; vm: LiveOpsVm }) {
+  return (
+    <form
+      className="mt-3 grid gap-2 rounded-md border border-border bg-card p-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void vm.confirmBlockTask();
+      }}
+    >
+      <label className="grid gap-1.5">
+        <span className="text-xs font-medium text-muted-foreground">Blocker reason</span>
+        <input
+          value={vm.blockReason}
+          onChange={(event) => vm.setBlockReason(event.target.value)}
+          maxLength={500}
+          placeholder="What is stopping this task?"
+          className="h-11 rounded-md border border-border bg-white px-3 text-sm"
+        />
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" disabled={busy || !vm.blockReason.trim()} className="h-10 rounded-md bg-danger-soft px-3 text-xs font-semibold text-danger disabled:opacity-60">
+          Confirm blocked
+        </button>
+        <button type="button" disabled={busy} onClick={vm.cancelBlockTask} className="h-10 rounded-md bg-muted px-3 text-xs font-semibold text-muted-foreground disabled:opacity-60">
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
 

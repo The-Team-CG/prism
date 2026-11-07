@@ -6,6 +6,7 @@ import {
   type ResolvedEventOpsActor,
 } from '@prism/kernel/access-control';
 import type {
+  BlockEventDayTaskInput,
   CreateEventDayTaskInput,
   CreateEventTaskReassignmentInput,
   DecideEventTaskReassignmentInput,
@@ -68,6 +69,20 @@ export class EventLiveOpsCommandService {
     }
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     const task = await this.taskIssueCommandService.updateEventDayTask(eventId, taskId, input, actor);
+    return mapEventDayTask(task);
+  }
+
+  async blockEventDayTask(eventId: string, taskId: string, input: BlockEventDayTaskInput, actor: ResolvedEventOpsActor) {
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
+    const task = await this.taskIssueCommandService.blockEventDayTask(eventId, taskId, input, actor);
+    return mapEventDayTask(task);
+  }
+
+  async unblockEventDayTask(eventId: string, taskId: string, actor: ResolvedEventOpsActor) {
+    const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
+    await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
+    const task = await this.taskIssueCommandService.unblockEventDayTask(eventId, taskId, actor);
     return mapEventDayTask(task);
   }
 
