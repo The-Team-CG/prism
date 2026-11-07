@@ -214,6 +214,7 @@ function sessionRecord(row: SessionRow): GameSessionRecord {
 @Injectable()
 export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, GameSessionStorePort {
   async listForEvent(eventId: string, transaction: PrismTransactionContext): Promise<GameDefinitionRecord[]> {
+    // QUERY_AUDIT_RAW_SQL: Definitions joined to their latest config version by LATERAL, with an EXISTS for started sessions, in one read; per-definition latest version is not a Prisma relation filter.
     const rows = await transaction.prisma.$queryRaw<DefinitionRow[]>`
       SELECT d."id", d."event_id", d."slug", d."title", d."game_kind", d."entry_mode", d."status",
         v."version", v."id" AS "config_version_id", v."config", d."available_from", d."available_until",
@@ -236,6 +237,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     scope: { eventId: string; gameId: string },
     transaction: PrismTransactionContext,
   ): Promise<GameDefinitionRecord | null> {
+    // QUERY_AUDIT_RAW_SQL: Same latest-version LATERAL and started-session EXISTS as listForEvent, for one definition.
     const rows = await transaction.prisma.$queryRaw<DefinitionRow[]>`
       SELECT d."id", d."event_id", d."slug", d."title", d."game_kind", d."entry_mode", d."status",
         v."version", v."id" AS "config_version_id", v."config", d."available_from", d."available_until",
@@ -255,6 +257,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
   }
 
   async createDraft(input: CreateGameDraftRecord, transaction: PrismTransactionContext): Promise<GameDefinitionRecord> {
+    // QUERY_AUDIT_RAW_SQL: Plain insert of the draft game definition with updated_at NOW(); no lock or conditional write, so Prisma create could serve it.
     await transaction.prisma.$executeRaw`
       INSERT INTO "event_games"."game_definitions"
         ("id", "event_id", "slug", "title", "game_kind", "entry_mode", "status", "created_by",
@@ -262,6 +265,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
       VALUES (${input.id}, ${input.eventId}, ${input.slug}, ${input.title}, ${input.kind}, ${input.entryMode}, 'draft',
         ${input.createdBy}, ${input.availableFrom}, ${input.availableUntil}, NOW())
     `;
+    // QUERY_AUDIT_RAW_SQL: Plain insert of version 1 of the draft config with a jsonb cast; no lock or conditional write, so Prisma create could serve it.
     await transaction.prisma.$executeRaw`
       INSERT INTO "event_games"."game_config_versions"
         ("id", "game_definition_id", "event_id", "version", "config", "created_by")
@@ -287,6 +291,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     scope: { eventId: string; gameId: string },
     transaction: PrismTransactionContext,
   ): Promise<GameDefinitionRecord | null> {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF d locks the draft definition; its latest config and has-started EXISTS are read under the lock before a new version is appended.
     const rows = await transaction.prisma.$queryRaw<DefinitionRow[]>`
       SELECT d."id", d."event_id", d."slug", d."title", d."game_kind", d."entry_mode", d."status",
         v."version", v."id" AS "config_version_id", v."config", d."available_from", d."available_until",
@@ -309,6 +314,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
   }
 
   async appendDraftVersion(input: AppendGameDraftVersionRecord, transaction: PrismTransactionContext): Promise<GameDefinitionRecord> {
+    // QUERY_AUDIT_RAW_SQL: Conditional draft edit: updates only while draft or published, not archived, and no session has started (NOT EXISTS), so edits cannot land after a start.
     const rows = await transaction.prisma.$queryRaw<DefinitionRow[]>`
       UPDATE "event_games"."game_definitions" d
       SET "title" = ${input.title}, "available_from" = ${input.availableFrom},
@@ -324,11 +330,13 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     if (!rows[0]) throw new ConflictException('Game draft changed before its new version could be saved');
 
     const configVersionId = randomUUID();
+    // QUERY_AUDIT_RAW_SQL: Plain insert of the next config version row; the version number comes from the draft row read under lock by findDraftForUpdate. Prisma create could serve the insert.
     await transaction.prisma.$executeRaw`
       INSERT INTO "event_games"."game_config_versions"
         ("id", "game_definition_id", "event_id", "version", "config", "created_by")
       VALUES (${configVersionId}, ${input.gameId}, ${input.eventId}, ${input.version}, ${JSON.stringify(input.config)}::jsonb, ${input.actorId})
     `;
+    // QUERY_AUDIT_RAW_SQL: Conditional repoint: moves unstarted scheduled or lobby sessions of this game to the new config version and snapshot only where started_at IS NULL.
     await transaction.prisma.$executeRaw`
       UPDATE "event_games"."game_sessions"
       SET "config_version_id" = ${configVersionId}, "config_snapshot" = ${JSON.stringify(input.config)}::jsonb,
@@ -343,6 +351,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     scope: { eventId: string; gameId: string; actorId: string },
     transaction: PrismTransactionContext,
   ): Promise<RemovedGameRecord | null> {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF d locks the definition with its latest config version, so removal reads the unstarted state under the lock.
     const before = await transaction.prisma.$queryRaw<DefinitionRow[]>`
       SELECT d."id", d."event_id", d."slug", d."title", d."game_kind", d."entry_mode", d."status",
         v."version", v."id" AS "config_version_id", v."config", d."available_from", d."available_until"
@@ -360,6 +369,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
       FOR UPDATE OF d
     `;
     if (!before[0]) return null;
+    // QUERY_AUDIT_RAW_SQL: Conditional archive: sets status removed only while draft or published and not already archived; RETURNING gives the archived row.
     const changed = await transaction.prisma.$queryRaw<DefinitionRow[]>`
       UPDATE "event_games"."game_definitions" d
       SET "status" = 'removed', "archived_at" = NOW(), "updated_by" = ${scope.actorId}, "updated_at" = NOW()
@@ -370,6 +380,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
         ${JSON.stringify(jsonRecord(before[0].config))}::jsonb AS "config", d."available_from", d."available_until"
     `;
     if (!changed[0]) return null;
+    // QUERY_AUDIT_RAW_SQL: Conditional cancel: marks unstarted scheduled or lobby sessions of the game cancelled, only where started_at IS NULL; RETURNING gives the cancelled ids.
     const cancellable = await transaction.prisma.$queryRaw<Array<{ id: string }>>`
       UPDATE "event_games"."game_sessions"
       SET "status" = 'cancelled', "ended_at" = NOW(), "scheduled_start_at" = NULL, "updated_at" = NOW()
@@ -391,6 +402,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
   ): Promise<RemovedGameRecord | null> {
     const before = await this.findDraftForUpdate({ eventId: scope.eventId, gameId: scope.gameId }, transaction);
     if (!before || before.version !== scope.expectedVersion) return null;
+    // QUERY_AUDIT_RAW_SQL: Compare-and-set publish: sets status published only while the definition is still draft; RETURNING shows whether this call published it.
     const rows = await transaction.prisma.$queryRaw<DefinitionRow[]>`
       UPDATE "event_games"."game_definitions" d
       SET "status" = 'published', "published_at" = NOW(), "updated_by" = ${scope.actorId}, "updated_at" = NOW()
@@ -407,6 +419,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     scope: { eventId: string; gameId: string },
     transaction: PrismTransactionContext,
   ): Promise<PublishedGameDefinitionForSession | null> {
+    // QUERY_AUDIT_RAW_SQL: Published definition joined to its latest config version by LATERAL ORDER BY version DESC LIMIT 1, read when a session starts; no lock or write.
     const rows = await transaction.prisma.$queryRaw<SessionDefinitionRow[]>`
       SELECT d."id", d."event_id", d."slug", d."title", d."game_kind", d."entry_mode", d."status",
         v."version", v."id" AS "config_version_id", v."config",
@@ -438,6 +451,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
   }
 
   async createHostSession(input: CreateHostGameSessionRecord, transaction: PrismTransactionContext): Promise<GameSessionRecord> {
+    // QUERY_AUDIT_RAW_SQL: INSERT ... SELECT from the live definition and its latest config version with RETURNING; the session snapshot comes from the definition in one statement.
     const rows = await transaction.prisma.$queryRaw<SessionRow[]>`
       WITH created AS (
         INSERT INTO "event_games"."game_sessions"
@@ -465,6 +479,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     scope: { eventId: string; sessionId: string },
     transaction: PrismTransactionContext,
   ): Promise<PrismGameHostState | null> {
+    // QUERY_AUDIT_RAW_SQL: Host state read with a COUNT subquery of active participant grants per session; plain read, no lock or write.
     const sessions = await transaction.prisma.$queryRaw<HostStateRow[]>`
       SELECT s."event_id", s."id" AS "session_id", d."id" AS "game_id", d."title", d."game_kind",
         s."status", s."scheduled_start_at", s."started_at", s."ended_at", s."wheel_result",
@@ -478,6 +493,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     const row = sessions[0];
     if (!row) return null;
 
+    // QUERY_AUDIT_RAW_SQL: Per-grant score totals with a LATERAL moderation check and a window OVER ranking; a ranking over aggregated scores is not expressible through Prisma relations.
     const scores = await transaction.prisma.$queryRaw<ScoreRow[]>`
       WITH grant_scores AS (
         SELECT g."id", g."team_id", MIN(g."team_label") AS "team_label", COALESCE(SUM(l."points"), 0)::integer AS "score"
@@ -575,6 +591,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     scope: { eventId: string; sessionId: string },
     transaction: PrismTransactionContext,
   ) {
+    // QUERY_AUDIT_RAW_SQL: Read of session status, config and timing joined to its definition for the host read context; plain read, no lock or write.
     const rows = await transaction.prisma.$queryRaw<HostReadContextRow[]>`
       SELECT d."game_kind", s."status", s."config_snapshot", s."started_at", s."ended_at",
         s."paused_at", s."total_paused_ms", s."round_offset_ms", s."wheel_result"
@@ -602,6 +619,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     eventId: string,
     transaction: PrismTransactionContext,
   ): Promise<PrismEventGameAnalytics> {
+    // QUERY_AUDIT_RAW_SQL: Event analytics totals as scalar COUNT subqueries across definitions and sessions, returned in one row; no lock or write.
     const totalsRows = await transaction.prisma.$queryRaw<EventAnalyticsTotalsRow[]>`
       SELECT
         (SELECT COUNT(*) FROM "event_games"."game_definitions" d
@@ -626,6 +644,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
     const participantJoins = analyticsCount(totals.participant_joins);
     const roundsAnswered = analyticsCount(totals.rounds_answered);
 
+    // QUERY_AUDIT_RAW_SQL: Per-session analytics with COUNT(DISTINCT (grant, round)) over submissions; Prisma count cannot take a distinct over a tuple.
     const sessionRows = await transaction.prisma.$queryRaw<EventAnalyticsSessionRow[]>`
       SELECT s."id" AS "session_id", d."title" AS "game_title", d."game_kind",
         s."status",
@@ -639,6 +658,7 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
       WHERE s."event_id" = ${eventId}
       ORDER BY s."created_at", s."id"
     `;
+    // QUERY_AUDIT_RAW_SQL: Participation joins per UTC day: date_trunc on granted_at with GROUP BY; Prisma groupBy cannot truncate a timestamp to a day.
     const participationRows = await transaction.prisma.$queryRaw<EventAnalyticsByDayRow[]>`
       SELECT to_char(date_trunc('day', g."granted_at" AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS "date",
         COUNT(*) AS "participant_joins"

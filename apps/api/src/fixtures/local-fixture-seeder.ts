@@ -336,6 +336,8 @@ async function assertModelCountsAreBaseline(prisma: PrismaService): Promise<void
 async function assertAuditChainIsPristine(prisma: PrismaService): Promise<void> {
   const auditChainLocks = await prisma.opsAuditChainLock.findMany({
     select: { id: true, revision: true, headId: true, headHash: true },
+    // Two rows is enough: any count other than exactly one fails the baseline check below.
+    take: 2,
   });
   if (
     auditChainLocks.length !== 1 ||

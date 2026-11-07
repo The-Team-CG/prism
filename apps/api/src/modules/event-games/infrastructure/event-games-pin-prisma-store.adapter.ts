@@ -69,6 +69,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     input: { now: Date },
     transaction: PrismTransactionContext,
   ): Promise<number> {
+    // QUERY_AUDIT_RAW_SQL: One statement releases expired reservations: DELETE ... RETURNING feeds an INSERT of expired pin_history rows, so no reservation is removed without its history record.
     const rows = await transaction.prisma.$queryRaw<Array<{ released_count: bigint }>>`
       WITH expired AS (
         DELETE FROM "event_games"."active_pin_reservations"
@@ -90,6 +91,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     input: { eventId: string; sessionId: string; idempotencyKeyDigest: string; now: Date },
     transaction: PrismTransactionContext,
   ) {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the unexpired reservation matching this issue idempotency digest (LIMIT 1), so a replayed PIN issue reads one reservation under the lock.
     const rows = await transaction.prisma.$queryRaw<ActivePinRow[]>`
       SELECT "session_id", "pin_digest", "generation_attempt", "expires_at"
       FROM "event_games"."active_pin_reservations"
@@ -142,6 +144,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
   }
 
   private async isActiveSession(input: Parameters<GamePinStorePort['issueSessionPin']>[0], transaction: PrismTransactionContext) {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the session row so its entry mode and status are checked under the transaction lock before a PIN is issued.
     const sessions = await transaction.prisma.$queryRaw<PinSessionScopeRow[]>`
       SELECT "entry_mode", "status"
       FROM "event_games"."game_sessions"
@@ -156,6 +159,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     input: Parameters<GamePinStorePort['issueSessionPin']>[0],
     transaction: PrismTransactionContext,
   ): Promise<IssuedGamePinRecord | null | undefined> {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the reservation matched by the unique (event, issue idempotency digest) key, so a replayed issue reads the earlier PIN under lock.
     const priorRequest = await transaction.prisma.$queryRaw<ActivePinRow[]>`
       SELECT "session_id", "pin_digest", "generation_attempt", "expires_at"
       FROM "event_games"."active_pin_reservations"
@@ -178,6 +182,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     input: Parameters<GamePinStorePort['issueSessionPin']>[0],
     transaction: PrismTransactionContext,
   ) {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the session current reservation (unique per event and session) before it is rotated or replaced.
     return transaction.prisma.$queryRaw<ActivePinRow[]>`
       SELECT "session_id", "pin_digest", "generation_attempt", "expires_at"
       FROM "event_games"."active_pin_reservations"
@@ -189,6 +194,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
 
   private async lockCandidateDigests(candidates: readonly GamePinCandidate[], transaction: PrismTransactionContext) {
     for (const pinDigest of candidates.map(({ pinDigest }) => pinDigest).sort()) {
+      // QUERY_AUDIT_RAW_SQL: pg_advisory_xact_lock keyed on the candidate PIN digest: two issuers cannot reserve the same candidate at once; released at commit.
       await transaction.prisma.$queryRaw<Array<{ locked: boolean }>>`
         WITH lock_acquired AS MATERIALIZED (
           SELECT pg_advisory_xact_lock(hashtextextended(${pinDigest}, 0))
@@ -204,6 +210,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     transaction: PrismTransactionContext,
   ): Promise<IssuedGamePinRecord | null> {
     for (const candidate of input.candidates) {
+      // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the reservation holding this PIN digest; pin_digest is unique, so at most one row. The advisory lock above covers the case where no row exists yet.
       const collision = await transaction.prisma.$queryRaw<Array<{ id: string }>>`
         SELECT "id" FROM "event_games"."active_pin_reservations"
         WHERE "pin_digest" = ${candidate.pinDigest}
@@ -226,6 +233,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
   }
 
   private recordRotation(input: Parameters<GamePinStorePort['issueSessionPin']>[0], transaction: PrismTransactionContext) {
+    // QUERY_AUDIT_RAW_SQL: CTE deletes the session current reservation and inserts a rotated pin_history row, RETURNING the prior PIN; rotation removes and records the old PIN in one statement.
     return transaction.prisma.$queryRaw<Array<{ id: string }>>`
       WITH prior AS (
         DELETE FROM "event_games"."active_pin_reservations"
@@ -247,6 +255,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     candidate: GamePinCandidate,
     transaction: PrismTransactionContext,
   ) {
+    // QUERY_AUDIT_RAW_SQL: Inserts the chosen candidate reservation with RETURNING; pin_digest is unique, so a PIN held by another reservation fails the insert instead of being issued twice.
     return transaction.prisma.$queryRaw<ActivePinRow[]>`
       WITH reserved AS (
         INSERT INTO "event_games"."active_pin_reservations"
@@ -272,12 +281,14 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     input: { eventId: string; sessionId: string; actorId: string; now: Date; reason: 'revoked' | 'closed' },
     transaction: PrismTransactionContext,
   ): Promise<boolean | null> {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the session row so PIN revocation serializes with rotation and issue on the same session.
     const sessions = await transaction.prisma.$queryRaw<Array<{ id: string }>>`
       SELECT "id" FROM "event_games"."game_sessions"
       WHERE "event_id" = ${input.eventId} AND "id" = ${input.sessionId}
       FOR UPDATE
     `;
     if (!sessions[0]) return null;
+    // QUERY_AUDIT_RAW_SQL: CTE deletes the session reservation and inserts a revoked pin_history row with the caller reason; revocation removes and records the PIN in one statement.
     const rows = await transaction.prisma.$queryRaw<Array<{ revoked_count: bigint }>>`
       WITH revoked AS (
         DELETE FROM "event_games"."active_pin_reservations"
@@ -299,6 +310,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     input: { pinDigest: string; now: Date },
     transaction: PrismTransactionContext,
   ): Promise<JoinableGameSessionRecord | null> {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF r, s locks the reservation and its session matched by PIN digest, so a join does not race a concurrent revoke, rotation or expiry.
     const rows = await transaction.prisma.$queryRaw<JoinableSessionRow[]>`
       SELECT s."event_id", s."id" AS "session_id", s."game_definition_id" AS "game_id",
         d."title", d."game_kind", d."entry_mode", s."status", r."expires_at"
@@ -334,6 +346,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     input: { eventId: string; tokenDigest: string },
     transaction: PrismTransactionContext,
   ): Promise<{ id: string } | null> {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the active participant credential for this token digest (LIMIT 1), so a grant is not created against a credential being revoked.
     const rows = await transaction.prisma.$queryRaw<CredentialRow[]>`
       SELECT c."id", c."revoked_at"
       FROM "event_games"."participant_credentials" c
@@ -350,6 +363,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     input: { sessionId: string; tokenDigest: string },
     transaction: PrismTransactionContext,
   ): Promise<boolean> {
+    // QUERY_AUDIT_RAW_SQL: EXISTS across credential, grant and session with revocation checks for one session id; read-only authorization probe, no lock or write.
     const rows = await transaction.prisma.$queryRaw<Array<{ authorized: boolean }>>`
       SELECT EXISTS (
         SELECT 1
@@ -373,6 +387,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     input: { eventId: string; idempotencyKeyDigest: string },
     transaction: PrismTransactionContext,
   ) {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF g, c locks the grant and its credential for join validation, so revocation state is read under the lock.
     const rows = await transaction.prisma.$queryRaw<JoinGrantRow[]>`
       SELECT g."event_id", g."session_id", g."participant_credential_id" AS "credential_id",
         c."token_digest", d."title", d."game_kind", s."status",
@@ -417,6 +432,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     transaction: PrismTransactionContext,
   ): Promise<GameSessionJoinResult | null> {
     if (input.createCredential) {
+      // QUERY_AUDIT_RAW_SQL: Credential insert ON CONFLICT (token_digest) DO NOTHING: a repeated join with the same token digest reuses one credential row.
       await transaction.prisma.$executeRaw`
         INSERT INTO "event_games"."participant_credentials" ("id", "event_id", "token_digest", "created_at")
         VALUES (${input.credentialId}, ${input.eventId}, ${input.tokenDigest}, ${input.now})
@@ -424,6 +440,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
       `;
     }
 
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the active credential for this token digest (LIMIT 1), read after the insert above, so grant creation serializes with credential revocation.
     const credentialRows = await transaction.prisma.$queryRaw<CredentialRow[]>`
       SELECT c."id", c."revoked_at"
       FROM "event_games"."participant_credentials" c
@@ -436,6 +453,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
     const credential = credentialRows[0];
     if (!credential || (!input.createCredential && credential.id !== input.credentialId)) return null;
 
+    // QUERY_AUDIT_RAW_SQL: Grant insert with bare ON CONFLICT DO NOTHING: a repeated join for the same session and credential is a no-op against the grant unique keys.
     await transaction.prisma.$executeRaw`
       INSERT INTO "event_games"."session_participation_grants"
         ("id", "event_id", "session_id", "participant_credential_id", "join_idempotency_key_digest", "entry_mode", "granted_at")
@@ -443,6 +461,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
       ON CONFLICT DO NOTHING
     `;
 
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF g, c reads the grant and credential after the insert, so the join result is read under lock.
     const grantRows = await transaction.prisma.$queryRaw<JoinGrantRow[]>`
       SELECT g."event_id", g."session_id", g."participant_credential_id" AS "credential_id",
         c."token_digest", d."title", d."game_kind", s."status",
