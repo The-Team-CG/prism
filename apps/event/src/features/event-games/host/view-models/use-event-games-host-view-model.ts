@@ -17,7 +17,7 @@ import type {
 } from "@prism/types";
 import { PRISM_EVENT_GAME_BRAND_THEMES } from "@prism/types";
 import { eventGamesHostActions } from "../use-cases/event-games-host-actions";
-import { useEventGameSessionUpdates } from "./use-event-game-session-updates";
+import { useBackgroundRefresh } from "@prism/portal-query";
 
 export type EventGamesHostOptions = {
   eventId: string | null;
@@ -161,7 +161,7 @@ export function useEventGamesHostViewModel({
       return false;
     }
   }, [canManage, eventId, selectedSessionId]);
-  const refreshSelectedSessionNow = useEventGameSessionUpdates({
+  const refreshSelectedSessionNow = useBackgroundRefresh({
     enabled: isRefreshableMultiplayerSession(hostState),
     refresh: refreshSelectedSession,
   });

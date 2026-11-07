@@ -31,10 +31,8 @@ class RateLimitProbeController {
 /**
  * Guards the boot path itself. Nest DI metadata is invisible to `tsc`, so a
  * module that exports a token nothing provides typechecks cleanly and then
- * dies during module scanning with `UnknownExportException`. Scan the module
- * graph directly instead of using Nest's preview bootstrap: preview still
- * starts provider dependency resolution and can leave an internal barrier
- * promise pending for this graph's forward references.
+ * dies during module scanning with `UnknownExportException`. Scan without
+ * initializing database and mail integrations.
  */
 describe('AppModule', () => {
   it('boots the rate-limit guard and enforces its request budget', async () => {
