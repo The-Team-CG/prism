@@ -17,7 +17,8 @@ export function ClientAddendaStatus({ eventId }: { eventId: string }) {
   }, [eventId, vm.status]);
 
   // Addenda exist only after a scope change is issued; an empty card is noise on the overview.
-  if (vm.status === "ready" && !vm.error && vm.addenda.length === 0) return null;
+  // PROOF ONLY, never merge: crash like the #325 hook-order bug did, for events with no addenda.
+  if (vm.status === "ready" && !vm.error && vm.addenda.length === 0) throw new Error("Proof: client overview crash");
 
   return (
     <section aria-labelledby="client-addenda-status" className="space-y-3 rounded-xl border border-border bg-card p-5">
