@@ -44,6 +44,7 @@ export class EventGamesPostgresRateLimiter implements GameRateLimiterPort {
         await this.cleanupExpiredBuckets(prisma, now);
         for (const bucket of buckets) {
           if (failurePreflight) {
+            // QUERY_AUDIT_RAW_SQL: Plain read of one rate-limit bucket count; no lock or write. The atomic increment below is what enforces the limit.
             const rows = await prisma.$queryRaw<RateLimitCounterRow[]>`
               SELECT "request_count"
               FROM "event_games"."rate_limit_buckets"
@@ -58,6 +59,7 @@ export class EventGamesPostgresRateLimiter implements GameRateLimiterPort {
             }
             continue;
           }
+          // QUERY_AUDIT_RAW_SQL: Atomic bucket increment: INSERT ON CONFLICT (bucket_key, bucket_started_at) DO UPDATE adds under a LEAST() ceiling and RETURNING gives the count, so concurrent requests cannot both read a stale count.
           const rows = await prisma.$queryRaw<RateLimitCounterRow[]>`
             INSERT INTO "event_games"."rate_limit_buckets" AS current_bucket
               ("bucket_key", "bucket_started_at", "request_count", "expires_at")
@@ -160,6 +162,7 @@ export class EventGamesPostgresRateLimiter implements GameRateLimiterPort {
     if (now.getTime() - this.lastCleanupAt < CLEANUP_INTERVAL_MS) return;
     this.lastCleanupAt = now.getTime();
     const expiresBefore = now;
+    // QUERY_AUDIT_RAW_SQL: Batch cleanup: SELECT ... FOR UPDATE SKIP LOCKED LIMIT n lets concurrent cleaners skip buckets another pass is deleting; the LIMIT bounds each pass.
     await prisma.$executeRaw`
       WITH expired AS (
         SELECT "bucket_key", "bucket_started_at"

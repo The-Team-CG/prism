@@ -71,6 +71,7 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
       throw new ServiceUnavailableException('Spin the Wheel result is invalid');
     }
 
+    // QUERY_AUDIT_RAW_SQL: Conditional spin: stores wheel_result only while the session is live, the result is still null and the definition is spin-wheel; RETURNING shows whether this call won.
     const updated = await transaction.prisma.$queryRaw<WheelResultRow[]>`
       UPDATE "event_games"."game_sessions" s
       SET "wheel_result" = ${JSON.stringify(parsed.data)}::jsonb, "updated_at" = NOW()
@@ -87,6 +88,7 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
       return this.wheelCommandResult(input, updated[0], 'spun');
     }
 
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF s locks the session row, joined to its spin-wheel definition, so the spin decision reads the locked session state.
     const existing = await transaction.prisma.$queryRaw<WheelResultRow[]>`
       SELECT s."event_id", s."id" AS "session_id", s."status", s."wheel_result"
       FROM "event_games"."game_sessions" s
@@ -132,6 +134,7 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
 
   private async advanceRound(input: GameHostCommandInput, transaction: PrismTransactionContext): Promise<PersistedGameHostCommand> {
     const command = parseAdvanceRoundCommand(input.command);
+    // QUERY_AUDIT_RAW_SQL: Optimistic-concurrency advance: adds to round_offset_ms only while status, started_at, paused_at and total_paused_ms still match the expected values; no row returned means a conflict.
     const rows = await transaction.prisma.$queryRaw<RoundAdvanceRow[]>`
       UPDATE "event_games"."game_sessions"
       SET "round_offset_ms" = "round_offset_ms" + ${command.advanceByMs}, "updated_at" = NOW()
@@ -167,12 +170,14 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
     if (typeof lobbySlug !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(lobbySlug) || input.resourceId !== input.eventId) {
       throw new ServiceUnavailableException('Event game lobby provisioning command is invalid');
     }
+    // QUERY_AUDIT_RAW_SQL: INSERT ON CONFLICT (event_id) DO NOTHING RETURNING: the lobby slug is created at most once per event; a conflict returns no row, and the fallback read supplies the existing slug.
     const inserted = await transaction.prisma.$queryRaw<LobbySlugRow[]>`
       INSERT INTO "event_games"."lobby_slugs" ("event_id", "lobby_slug")
       VALUES (${input.eventId}, ${lobbySlug})
       ON CONFLICT ("event_id") DO NOTHING
       RETURNING "event_id", "lobby_slug"
     `;
+    // QUERY_AUDIT_RAW_SQL: Fallback read of the existing lobby slug row when the insert above conflicted; FOR UPDATE locks it so the returned slug is stable.
     const existing = inserted[0] ?? (await transaction.prisma.$queryRaw<LobbySlugRow[]>`
       SELECT "event_id", "lobby_slug" FROM "event_games"."lobby_slugs"
       WHERE "event_id" = ${input.eventId} FOR UPDATE
@@ -201,6 +206,7 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
     if (!settings.success || input.resourceId !== input.eventId) {
       throw new ServiceUnavailableException('Event game lobby branding command is invalid');
     }
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the event lobby_slugs row so branding changes read the current theme and colours under the lock.
     const existing = await transaction.prisma.$queryRaw<Array<{
       event_id: string; brand_theme: string; brand_primary_color: string | null;
       brand_secondary_color: string | null; brand_logo_object_id: string | null;
@@ -211,6 +217,7 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
     `;
     if (!existing[0]) throw new ConflictException('Create the event game lobby before updating its branding');
     const beforeTheme = prismEventGameBrandThemeSchema.parse(existing[0].brand_theme);
+    // QUERY_AUDIT_RAW_SQL: Single UPDATE of the lobby branding fields with brand_updated_at and brand_updated_by stamped in the same write; RETURNING gives the stored values.
     const updated = await transaction.prisma.$queryRaw<Array<{ event_id: string; brand_theme: string }>>`
       UPDATE "event_games"."lobby_slugs"
       SET "brand_theme" = ${settings.data.theme},
@@ -304,6 +311,7 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
       throw new ServiceUnavailableException('This event-game command is not available yet');
     }
 
+    // QUERY_AUDIT_RAW_SQL: CTE locks the session row (FOR UPDATE) and reads its status; the UPDATE applies the state transition with CASE on started_at, so check and write are one statement.
     const rows = await transaction.prisma.$queryRaw<TransitionRow[]>`
       WITH prior AS MATERIALIZED (
         SELECT s."event_id", s."id", s."status"
