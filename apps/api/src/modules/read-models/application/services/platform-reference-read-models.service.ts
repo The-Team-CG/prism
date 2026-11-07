@@ -13,6 +13,9 @@ import type {
   PlatformStorageEventScope,
 } from '../../contracts/ports/platform-reference-read-model.port';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import { readEventAccessScope } from '../../event-scope';
+
+const MAX_STORED_OBJECT_BINDINGS = 1000;
 
 @Injectable()
 export class PlatformReferenceReadModelsService implements PlatformReferenceReadModel {
@@ -26,31 +29,17 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
       if (!this.operationsEventReferences) throw new ServiceUnavailableException('Lifecycle event reference capability is unavailable');
       if (!await this.operationsEventReferences.findOperationsEvent(eventId, transaction)) return null;
     }
-    const event = await (transaction?.prisma ?? this.prisma).opsEvent.findUnique({
-      where: { id: eventId },
-      select: {
-        id: true,
-        archived: true,
-        clientName: true,
-        clientPortalStatus: true,
-        inquiry: { select: { email: true } },
-      },
-    });
+    // Same scope facts as every other event-level gate: current coordinator assignments and quote-request status.
+    const event = await readEventAccessScope(transaction?.prisma ?? this.prisma, eventId);
     if (!event) return null;
-    const supplierRequests = await (transaction?.prisma ?? this.prisma).opsSupplierQuoteRequest.findMany({
-      where: { eventId },
-      select: { supplierId: true, supplier: { select: { email: true } } },
-    });
-    const supplierContacts = supplierRequests.flatMap(({ supplierId, supplier }) =>
-      supplierId ? [{ supplierId, email: supplier?.email ?? null }] : []);
     return {
       id: event.id,
       archived: event.archived,
       clientName: event.clientName,
       clientPortalStatus: event.clientPortalStatus,
       clientEmail: event.inquiry?.email ?? null,
-      supplierIds: supplierContacts.map(({ supplierId }) => supplierId),
-      supplierContacts,
+      coordinatorAssignments: event.coordinatorAssignments,
+      supplierQuoteRequests: event.supplierQuoteRequests,
     };
   }
 
@@ -61,6 +50,19 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
       take: 200,
     });
     return Object.fromEntries(rows.map((row) => [row.key, row.visibleToRoles]));
+  }
+
+  /** Bounded by the requested object ids, so a cap can never hide a binding that narrows a file. */
+  async findStoredObjectRequirementBindings(eventId: string, objectIds: readonly string[]): Promise<Array<{ objectId: string; documentType: string }>> {
+    if (objectIds.length === 0) return [];
+    const rows = await this.prisma.opsDocument.findMany({
+      where: { eventId, storageKey: { in: [...objectIds] } },
+      select: { storageKey: true, type: true },
+      take: MAX_STORED_OBJECT_BINDINGS,
+    });
+    // A full page could hide a binding that narrows a file, so the lookup fails closed instead of truncating.
+    if (rows.length >= MAX_STORED_OBJECT_BINDINGS) throw new ServiceUnavailableException('File requirement bindings exceed the file access bound');
+    return rows.flatMap((row) => (row.storageKey ? [{ objectId: row.storageKey, documentType: row.type }] : []));
   }
 
   async findInquiryTriageSource(inquiryId: string): Promise<AiInquiryTriageSource | null> {

@@ -664,3 +664,34 @@ describe('EventReadModelQueries collection limits', () => {
     expect(result[1].selectedSupplierRequests).toBe(2);
   });
 });
+
+describe('EventReadModelQueries client document rows', () => {
+  it('shows a client only the document rows the file policy allows, with narrowing and billing sent state applied', async () => {
+    const client = { name: 'Client', role: 'client', email: 'client@example.test', explicit: true, verified: true } as never;
+    const row = (fields: Record<string, unknown>) => ({ eventId: 'evt_1', status: 'submitted', fileName: 'f.pdf', uploadedAt: new Date('2026-10-01T00:00:00Z'), ...fields });
+    const documents = [
+      row({ id: 'doc_bound', type: 'insurance_certificate', storageKey: 'obj_client_doc' }),
+      row({ id: 'doc_hidden_by_pmcm', type: 'insurance_pmcm', storageKey: 'obj_pmcm_only' }),
+      row({ id: 'doc_contract', type: 'supplier_contract', storageKey: 'obj_supplier' }),
+      row({ id: 'doc_unsent_bill', type: 'billing_statement', storageKey: null }),
+      row({ id: 'doc_sent_bill', type: 'billing_statement', storageKey: null }),
+      row({ id: 'doc_proposal', type: 'proposal', storageKey: null }),
+    ];
+    const queries = new EventReadModelQueries({
+      opsStoredObject: { findMany: vi.fn(async () => [
+        { id: 'obj_client_doc', usage: 'client_document', ownerRecordType: 'event', ownerRecordId: 'evt_1', lifecycleState: 'stored', deletedAt: null },
+        { id: 'obj_pmcm_only', usage: 'client_document', ownerRecordType: 'event', ownerRecordId: 'evt_1', lifecycleState: 'stored', deletedAt: null },
+        { id: 'obj_supplier', usage: 'supplier_document', ownerRecordType: 'supplier', ownerRecordId: 'sup_1', lifecycleState: 'stored', deletedAt: null },
+      ]) },
+      opsFileRequirement: { findMany: vi.fn(async () => [
+        { eventId: 'evt_1', key: 'insurance_certificate', visibleToRoles: ['pmcm-admin', 'client'] },
+        { eventId: 'evt_1', key: 'insurance_pmcm', visibleToRoles: ['pmcm-admin'] },
+      ]) },
+      opsBillingStatement: { findMany: vi.fn(async () => [{ id: 'bill_sent', documentId: 'doc_sent_bill' }]) },
+    } as unknown as PrismaService);
+
+    const visible = await queries.clientReadableDocuments(client, documents as never);
+
+    expect(visible.map((document) => document.id)).toEqual(['doc_bound', 'doc_sent_bill', 'doc_proposal']);
+  });
+});

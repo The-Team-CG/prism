@@ -5,6 +5,6 @@ export async function readStoredConformeEvidence(prisma: Prisma.TransactionClien
   return prisma.opsStoredObject.findFirst({
     where: { eventId, usage: 'signed_conforme', lifecycleState: 'stored' },
     orderBy: [{ storedAt: 'desc' }, { id: 'asc' }],
-    select: { id: true },
+    select: { id: true, usage: true, ownerRecordType: true, ownerRecordId: true, lifecycleState: true, deletedAt: true },
   });
 }

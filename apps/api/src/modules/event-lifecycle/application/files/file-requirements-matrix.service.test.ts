@@ -175,3 +175,47 @@ describe('FileRequirementsMatrixService', () => {
     expect(result.missingKeys).toContain('feedback');
   });
 });
+
+describe('FileRequirementsMatrixService audiences', () => {
+  /** A custom requirement bound to a client document, and a billing statement that may or may not be sent. */
+  function matrixPrisma(billingSentAt: Date | null) {
+    const base = createPrisma();
+    const requirements = [{
+      key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin', 'client', 'supplier'],
+      required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1,
+    }];
+    const documents = [{ id: 'doc_insurance', eventId: 'evt_file', type: 'insurance_certificate', status: 'submitted', validationStatus: 'accepted', uploadedAt: new Date('2026-10-01T00:00:00Z'), storageKey: 'obj_client_doc' }];
+    return {
+      ...base,
+      opsDocument: { findMany: vi.fn(async () => documents) },
+      opsFileRequirement: { findMany: vi.fn(async () => requirements) },
+      opsStoredObject: { ...base.opsStoredObject, findMany: vi.fn(async () => [{ id: 'obj_client_doc', usage: 'client_document', ownerRecordType: 'event', ownerRecordId: 'evt_file', lifecycleState: 'stored', deletedAt: null }]) },
+      opsBillingStatement: { findMany: vi.fn(async () => [{ id: 'bill_1', eventId: 'evt_file', sentAt: billingSentAt }]) },
+    };
+  }
+  const itemFor = (matrix: { items: Array<{ key: string }> }, key: string) => matrix.items.find((item) => item.key === key) as Record<string, unknown> | undefined;
+  const now = new Date('2026-10-20T00:00:00Z');
+
+  it('references a bound file only for an audience that may download it, and never a supplier', async () => {
+    const service = (prisma: ReturnType<typeof matrixPrisma>) => new FileRequirementsMatrixService(prisma as never);
+    const pmcm = await service(matrixPrisma(null)).buildForEvent('evt_file', undefined, now);
+    const client = await service(matrixPrisma(null)).buildForEvent('evt_file', undefined, now, { role: 'client' });
+    const supplier = await service(matrixPrisma(null)).buildForEvent('evt_file', undefined, now, { role: 'supplier', supplierId: 'sup_1' });
+
+    expect(itemFor(pmcm, 'insurance_certificate')).toMatchObject({ status: 'submitted', uploadedObjectId: 'obj_client_doc' });
+    expect(itemFor(client, 'insurance_certificate')).toMatchObject({ status: 'submitted', uploadedObjectId: 'obj_client_doc' });
+    expect(itemFor(supplier, 'insurance_certificate')).toMatchObject({ status: 'missing' });
+    expect(itemFor(supplier, 'insurance_certificate')?.uploadedObjectId).toBeUndefined();
+    expect(itemFor(supplier, 'insurance_certificate')?.uploadedAssetId).toBeUndefined();
+  });
+
+  it('references the billing statement for a client only once PMCM has sent it', async () => {
+    const unsent = await new FileRequirementsMatrixService(matrixPrisma(null) as never).buildForEvent('evt_file', undefined, now, { role: 'client' });
+    const sent = await new FileRequirementsMatrixService(matrixPrisma(new Date('2026-10-19T00:00:00Z')) as never).buildForEvent('evt_file', undefined, now, { role: 'client' });
+    const pmcm = await new FileRequirementsMatrixService(matrixPrisma(null) as never).buildForEvent('evt_file', undefined, now);
+
+    expect(itemFor(unsent, 'billing_statement')?.generatedDocumentId).toBeUndefined();
+    expect(itemFor(sent, 'billing_statement')?.generatedDocumentId).toBe('bill_1');
+    expect(itemFor(pmcm, 'billing_statement')?.generatedDocumentId).toBe('bill_1');
+  });
+});

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { LocalFileSystemStorageAdapter } from '../../infrastructure/storage/local-filesystem-storage.adapter';
 import { StorageObjectService } from './storage-object.service';
 import { StorageValidationService } from './storage-validation.service';
@@ -62,25 +63,25 @@ function createStore() {
     $queryRaw: vi.fn(async () => [{ id: 'evt_1' }]),
     $transaction: vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work(prisma)),
   };
-  const accessPolicy = {
-    requireActorRole: vi.fn(async (candidate: { role: string }, roles: readonly string[], resource: string) => {
-      if (!roles.includes(candidate.role)) throw new ForbiddenException(`${candidate.role} cannot access ${resource}`);
-    }),
-    requireCanReadEvent: vi.fn(async () => undefined),
-    recordForbiddenAccess: vi.fn(async () => undefined),
-  };
   const requirementVisibility: Record<string, string[]> = {};
+  const coordinatorAssignments: Array<{ coordinatorId: string | null; coordinator: { userId: string | null; email: string | null } | null }> = [];
+  const auditWriter = { write: vi.fn(async (_input: Record<string, any>) => undefined) };
+  // The real policy: assignment, booking, and portal gates are what these tests exercise.
+  const accessPolicy = new EventAccessPolicyService(auditWriter as never);
   const platformReferences = {
     findStorageEventScope: vi.fn(async (eventId: string) => eventId === 'evt_1' ? ({
-      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [] as string[], supplierContacts: [] as Array<{ supplierId: string; email: string | null }>,
+      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test',
+      coordinatorAssignments,
+      supplierQuoteRequests: bookings.map((booking) => ({ supplierId: booking.supplierId, status: booking.status, supplier: { email: 'supplier@example.test' } })),
     }) : null),
     findFileRequirementVisibility: vi.fn(async () => requirementVisibility),
+    findStoredObjectRequirementBindings: vi.fn(async () => []),
   };
-  const auditWriter = { write: vi.fn(async (_input: Record<string, any>) => undefined) };
   return {
     objects,
     statements,
     bookings,
+    coordinatorAssignments,
     prisma,
     accessPolicy,
     platformReferences,
@@ -261,6 +262,7 @@ describe('StorageObjectService', () => {
       deleteObject: vi.fn(),
     };
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
+    const requireActorRole = vi.spyOn(store.accessPolicy, 'requireActorRole');
 
     await expect(service.requestUpload({
       ...request,
@@ -274,13 +276,13 @@ describe('StorageObjectService', () => {
     expect(store.prisma.opsStoredObject.findUnique).not.toHaveBeenCalled();
     expect(store.prisma.opsStoredObject.create).not.toHaveBeenCalled();
     expect(store.platformReferences.findStorageEventScope).not.toHaveBeenCalled();
-    expect(store.accessPolicy.requireActorRole).not.toHaveBeenCalled();
+    expect(requireActorRole).not.toHaveBeenCalled();
   });
 
   it('rejects writes to an archived event before requesting provider authorization', async () => {
     const store = createStore();
     store.platformReferences.findStorageEventScope.mockResolvedValue({
-      id: 'evt_1', archived: true, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: [], supplierContacts: [],
+      id: 'evt_1', archived: true, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', coordinatorAssignments: [], supplierQuoteRequests: [],
     });
     const adapter = { requestUploadLocation: vi.fn(), confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn() };
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
@@ -455,20 +457,13 @@ describe('StorageObjectService', () => {
     expect(serialized).not.toContain('events/evt_1/');
   });
 
-  it('derives supplier event access from the read-model supplier scope', async () => {
+  it('lets a supplier read event files only while its booking on the event is selected', async () => {
     const store = createStore();
     const supplier = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true, verified: true } as never;
-    store.platformReferences.findStorageEventScope.mockResolvedValue({
-      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test', supplierIds: ['sup_1'], supplierContacts: [{ supplierId: 'sup_1', email: 'supplier@example.test' }],
-    });
 
     await expect(store.service.listEventObjects('evt_1', supplier)).resolves.toEqual([]);
-    expect(store.accessPolicy.requireCanReadEvent).toHaveBeenCalledWith(
-      supplier,
-      expect.objectContaining({ id: 'evt_1', clientEmail: 'client@example.test' }),
-      'list event documents',
-      { supplierEventIds: ['evt_1'] },
-    );
+    store.bookings[0].status = 'declined';
+    await expect(store.service.listEventObjects('evt_1', supplier)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('rejects a legacy unsupported supplier-document reference during retrieval', async () => {
@@ -495,17 +490,13 @@ describe('StorageObjectService', () => {
 
   it('resolves a signed-in supplier by persisted booking email for upload, confirmation and download', async () => {
     const store = createStore();
-    store.platformReferences.findStorageEventScope.mockResolvedValue({
-      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test',
-      supplierIds: ['sup_1'], supplierContacts: [{ supplierId: 'sup_1', email: 'supplier@example.test' }],
-    });
     const root = await mkdtemp(join(tmpdir(), 'prism-supplier-storage-'));
     roots.push(root);
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), new LocalFileSystemStorageAdapter(root), store.platformReferences as never);
     const supplier = { id: 'supplier-user', role: 'supplier', email: 'SUPPLIER@example.test', name: 'Supplier', explicit: true, verified: true } as never;
     const declaration = { ...request, usage: 'supplier_document' as const, ownerRecordType: 'supplier', ownerRecordId: 'sup_1', logicalTarget: 'supplier-contract:req_1:123e4567-e89b-42d3-a456-426614174000' };
     store.bookings[0].status = 'submitted';
-    await expect(service.requestUpload({ ...declaration, actor: supplier })).rejects.toThrow(/outside the verified booking/);
+    await expect(service.requestUpload({ ...declaration, actor: supplier })).rejects.toBeInstanceOf(ForbiddenException);
     expect(store.objects).toHaveLength(0);
     store.bookings[0].status = 'selected';
     const requested = await service.requestUpload({ ...declaration, actor: supplier });
@@ -516,7 +507,7 @@ describe('StorageObjectService', () => {
     await expect(service.readAuthorizedDownload({ objectId: stored.id, downloadUrl: authorization.downloadUrl, actor: supplier })).resolves.toEqual(bytes);
     await expect(service.requestUpload({ ...declaration, ownerRecordId: 'sup_other', actor: supplier })).rejects.toThrow(/verified supplier/);
     const other = { id: 'other-user', role: 'supplier', email: 'other@example.test', name: 'Other supplier', explicit: true, verified: true } as never;
-    await expect(service.issueDownloadAuthorization({ objectId: stored.id, actor: other })).rejects.toThrow(/outside.*scope/);
+    await expect(service.issueDownloadAuthorization({ objectId: stored.id, actor: other })).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('prevents a different actor from reusing the uploader logical target', async () => {
@@ -679,5 +670,93 @@ describe('StorageObjectService', () => {
       logicalTarget: 'lobby-logo:upload-1', usage: 'event_game_branding', fileName: 'logo.png',
       contentType: 'image/png', declaredByteSize: 1024, checksumSha256: 'a'.repeat(64), actor,
     })).rejects.toThrow(/scoped to its event lobby/);
+  });
+});
+
+describe('file access: lists and downloads follow one policy', () => {
+  const at = new Date('2026-10-19T00:00:00.000Z');
+  const shared = { eventId: 'evt_1', lifecycleState: 'stored', providerName: 'test', providerObjectKey: 'events/evt_1/file.pdf', contentType: 'application/pdf', declaredByteSize: 1, checksumSha256: 'a'.repeat(64), uploaderActorId: 'uploader', uploaderActorRole: 'pmcm-admin', requestedAt: at, storedAt: at, failedAt: null, failureReason: null, deletedAt: null, createdAt: at, updatedAt: at, logicalTarget: 'file' };
+
+  /** One stored file of every supported kind on evt_1, with a billing statement that PMCM has sent. */
+  function storedFiles() {
+    const store = createStore();
+    store.objects.push(
+      { ...shared, id: 'obj_conforme', ownerRecordType: 'event', ownerRecordId: 'evt_1', usage: 'signed_conforme', originalFileName: 'conforme.pdf' },
+      { ...shared, id: 'obj_client_doc', ownerRecordType: 'event', ownerRecordId: 'evt_1', usage: 'client_document', originalFileName: 'client.pdf' },
+      { ...shared, id: 'obj_billing', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_1', usage: 'event_deliverable', originalFileName: 'billing.pdf' },
+      { ...shared, id: 'obj_proposal', ownerRecordType: 'proposal_version', ownerRecordId: 'prop_1', usage: 'event_deliverable', originalFileName: 'proposal.pdf' },
+      { ...shared, id: 'obj_supplier_own', ownerRecordType: 'supplier', ownerRecordId: 'sup_1', usage: 'supplier_document', originalFileName: 'contract.pdf' },
+      { ...shared, id: 'obj_supplier_other', ownerRecordType: 'supplier', ownerRecordId: 'sup_2', usage: 'supplier_document', originalFileName: 'other.pdf' },
+    );
+    store.statements.push({ id: 'bill_1', sentAt: new Date('2026-10-20T00:00:00.000Z') });
+    return store;
+  }
+
+  function serviceFor(store: ReturnType<typeof storedFiles>) {
+    const adapter = { issueDownloadAuthorization: vi.fn(async () => ({ downloadUrl: 'https://storage.example.test/signed', expiresAt: new Date('2026-10-20T00:00:00.000Z') })) };
+    return new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never, store.auditWriter as never);
+  }
+
+  const ALL_OBJECTS = ['obj_conforme', 'obj_client_doc', 'obj_billing', 'obj_proposal', 'obj_supplier_own', 'obj_supplier_other'];
+  const coordinatorToken = { id: 'user_coord', role: 'coordinator', email: 'coord@example.test', name: 'Coordinator', explicit: true, verified: true, eventId: 'evt_1', coordinatorId: 'coord_1' } as never;
+  const supplierToken = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true, verified: true } as never;
+
+  // The expected visible set for each actor; `forbidden` means the list itself is refused.
+  it.each([
+    ['PMCM', 'pmcm', () => {}, actor, ALL_OBJECTS],
+    ['client, unlocked event', 'client', () => {}, client, ['obj_conforme', 'obj_client_doc', 'obj_billing', 'obj_proposal']],
+    ['coordinator with a current assignment', 'coordinator', (store: ReturnType<typeof storedFiles>) => {
+      store.coordinatorAssignments.push({ coordinatorId: 'coord_1', coordinator: { userId: 'user_coord', email: 'coord@example.test' } });
+    }, coordinatorToken, ['obj_client_doc']],
+    ['coordinator token without an assignment', 'coordinator-unassigned', () => {}, coordinatorToken, 'forbidden'],
+    ['supplier with a selected booking', 'supplier-selected', () => {}, supplierToken, ['obj_supplier_own']],
+    ['supplier whose booking was declined', 'supplier-declined', (store: ReturnType<typeof storedFiles>) => {
+      store.bookings[0].status = 'declined';
+    }, supplierToken, 'forbidden'],
+    ['supplier with no booking on the event', 'supplier-stranger', (store: ReturnType<typeof storedFiles>) => {
+      store.bookings.length = 0;
+    }, supplierToken, 'forbidden'],
+  ] as const)('%s: the list shows exactly what the download allows', async (_label, _key, prepare, who, expected) => {
+    const store = storedFiles();
+    prepare(store);
+    const service = serviceFor(store);
+    if (expected === 'forbidden') {
+      await expect(service.listEventObjects('evt_1', who as never)).rejects.toBeInstanceOf(ForbiddenException);
+    } else {
+      const listed = await service.listEventObjects('evt_1', who as never);
+      expect(listed.map((object) => object.id).sort()).toEqual([...expected].sort());
+    }
+    for (const objectId of ALL_OBJECTS) {
+      const allowed = await service.issueDownloadAuthorization({ objectId, actor: who as never }).then(() => true, (error: unknown) => {
+        if (error instanceof ForbiddenException) return false;
+        throw error;
+      });
+      expect(allowed).toBe(expected !== 'forbidden' && (expected as readonly string[]).includes(objectId));
+    }
+  });
+
+  it('ends a coordinator\'s file access the moment its assignment ends, even with a live token', async () => {
+    const store = storedFiles();
+    store.coordinatorAssignments.push({ coordinatorId: 'coord_1', coordinator: { userId: 'user_coord', email: 'coord@example.test' } });
+    const service = serviceFor(store);
+    await expect(service.listEventObjects('evt_1', coordinatorToken)).resolves.toHaveLength(1);
+
+    store.coordinatorAssignments.length = 0;
+    await expect(service.listEventObjects('evt_1', coordinatorToken)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_client_doc', actor: coordinatorToken })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('shows failed and requested uploads, and provider detail, to PMCM only', async () => {
+    const store = storedFiles();
+    store.objects.push({ ...store.objects[1], id: 'obj_failed', lifecycleState: 'failed', failureReason: 'provider timeout', failedAt: at, providerObjectKey: 'events/evt_1/retry.pdf' });
+    store.coordinatorAssignments.push({ coordinatorId: 'coord_1', coordinator: { userId: 'user_coord', email: 'coord@example.test' } });
+    const service = serviceFor(store);
+
+    const clientList = await service.listEventObjects('evt_1', client);
+    expect(clientList.map((object) => object.id)).not.toContain('obj_failed');
+    const coordinatorList = await service.listEventObjects('evt_1', coordinatorToken);
+    expect(coordinatorList.every((object) => !('providerObjectKey' in object) && !('failureReason' in object))).toBe(true);
+    expect((await service.listEventObjects('evt_1', actor)).find((object) => object.id === 'obj_failed'))
+      .toMatchObject({ failureReason: 'provider timeout', providerObjectKey: 'events/evt_1/retry.pdf' });
   });
 });

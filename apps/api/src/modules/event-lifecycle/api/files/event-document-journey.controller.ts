@@ -49,6 +49,6 @@ export class EventDocumentJourneyController {
   }
 
   private actor(actor: PrismVerifiedEventActor) {
-    return this.accessPolicy.resolveActor({}, actor);
+    return this.accessPolicy.resolveEventScopedActor(actor);
   }
 }
