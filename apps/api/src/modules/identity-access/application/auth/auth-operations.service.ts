@@ -30,8 +30,7 @@ import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
 import { LOGIN_LOCKOUT_THRESHOLD, loginFailureUpdate, nextLoginFailureState } from './login-lockout.policy';
 import { canonicalAccountEmail } from './account-email';
-import { INQUIRY_COMMANDS } from '../../../event-lifecycle/contracts/inquiry-onboarding.tokens';
-import type { InquiryCommands } from '../../../event-lifecycle/contracts/inquiry-commands.port';
+import { INQUIRY_COMMANDS, type InquiryCommands } from '@prism/contexts/event-lifecycle';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
 
 const INVALID_CREDENTIALS = 'Invalid email or password';

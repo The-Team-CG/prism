@@ -21,7 +21,7 @@
  * cleared whenever the signed-in actor changes, so one account never sees another's data.
  */
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type Resource<Params, Data> = {
   readonly name: string;
@@ -56,8 +56,7 @@ function resourceKey(resource: { name: string }, params?: unknown) {
 export function useResource<Params, Data>(resource: Resource<Params, Data>, params: Params | null): ResourceState<Data> {
   const query = useQuery({
     queryKey: resourceKey(resource, params),
-    queryFn: ({ signal }) => resource.fetch(params as Params, signal),
-    enabled: params !== null,
+    queryFn: params === null ? skipToken : ({ signal }) => resource.fetch(params, signal),
     staleTime: resource.staleMs,
     refetchInterval: resource.pollMs,
   });
@@ -70,7 +69,6 @@ export function useResource<Params, Data>(resource: Resource<Params, Data>, para
 /** Starts loading a resource before the component that reads it mounts; a no-op when fresh data is cached. */
 export function usePrefetch() {
   const client = useQueryClient();
-  // Stable across renders, so effects that prefetch run only when their own inputs change.
   return useCallback(
     <Params, Data>(resource: Resource<Params, Data>, params: Params) =>
       void client.prefetchQuery({
@@ -102,7 +100,7 @@ export function PortalQueryProvider({ actorKey, children }: { actorKey: string |
   // since nothing user-specific can have been cached for nobody.
   const [cache, setCache] = useState(() => ({ actorKey, client: createClient() }));
   if (cache.actorKey !== actorKey) setCache({ actorKey, client: cache.actorKey === null ? cache.client : createClient() });
-  useEffect(() => () => cache.client.clear(), [cache]);
+  useEffect(() => () => cache.client.clear(), [cache.client]);
   return <QueryClientProvider client={cache.client}>{children}</QueryClientProvider>;
 }
 

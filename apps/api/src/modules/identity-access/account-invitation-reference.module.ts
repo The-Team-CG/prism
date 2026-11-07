@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { MailModule } from '@prism/kernel/mail';
 import { PortalUrlsModule } from '@prism/kernel/shared';
@@ -7,14 +7,8 @@ import { ACCOUNT_INVITATION_DELIVERY, ACCOUNT_PROVISIONING } from './contracts/a
 import { AccountInvitationService } from './application/auth/account-invitation.service';
 import { AccountInvitationMailAdapter } from './infrastructure/auth/account-invitation-mail.adapter';
 
-/**
- * Lets other contexts provision account logins without importing the identity composition root, which
- * imports event-lifecycle. Depends only on kernel modules and platform-ops audit. platform-ops reaches this
- * file again through event-lifecycle, so PlatformOpsModule is still undefined when this decorator runs:
- * forwardRef defers the lookup until Nest scans the graph.
- */
 @Module({
-  imports: [DatabaseModule, forwardRef(() => PlatformOpsModule), MailModule, PortalUrlsModule],
+  imports: [DatabaseModule, PlatformOpsModule, MailModule, PortalUrlsModule],
   providers: [
     AccountInvitationService,
     { provide: ACCOUNT_INVITATION_DELIVERY, useClass: AccountInvitationMailAdapter },
