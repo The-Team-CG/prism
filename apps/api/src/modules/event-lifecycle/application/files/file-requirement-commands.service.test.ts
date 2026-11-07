@@ -24,7 +24,10 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
   const audits: Array<Record<string, any>> = [];
   const outbox: Array<Record<string, any>> = [];
   const tx = {
-    opsEvent: { findUnique: vi.fn(async () => ({ id: eventId, archived: false, eventDate: new Date('2026-12-01T00:00:00.000Z'), inquiry: { eventType: 'wedding' } })), findMany: vi.fn(async () => (options.dueEvents ?? []).map((id) => ({ id }))) },
+    opsEvent: {
+      findUnique: vi.fn(async () => ({ id: eventId, archived: false, eventDate: new Date('2026-12-01T00:00:00.000Z'), inquiry: { eventType: 'wedding' } })),
+      findMany: vi.fn(async (_query?: { where?: { id?: { gt?: string } }; take?: number }) => (options.dueEvents ?? []).map((id) => ({ id }))),
+    },
     opsFileRequirement: {
       findUnique: vi.fn(async ({ where }: { where: { eventId_key: { eventId: string; key: string } } }) => rows.find((row) => row.key === where.eventId_key.key) ?? null),
       findMany: vi.fn(async ({ where }: { where: Row }) => rows.filter((row) => row.eventId === where.eventId)),
@@ -84,7 +87,7 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
   const notificationOutboxWriter = { write: vi.fn(async (input: Record<string, any>) => { outbox.push(input); return input; }) };
   const storedRequirementUploads = { findStoredRequirementUpload: vi.fn(async () => options.storedUpload ?? null) };
   const service = new FileRequirementCommandsService(prisma as never, matrix as never, accessPolicy as never, auditWriter as never, notificationOutboxWriter as never, storedRequirementUploads as never);
-  return { service, rows, audits, outbox, tx, prisma, documents, templates, storedRequirementUploads };
+  return { service, rows, audits, outbox, tx, prisma, matrix, documents, templates, storedRequirementUploads };
 }
 
 describe('FileRequirementCommandsService', () => {
@@ -174,6 +177,39 @@ describe('FileRequirementCommandsService', () => {
     expect(second.reminders.map((reminder) => reminder.idempotencyKey)).toEqual(first.reminders.map((reminder) => reminder.idempotencyKey));
     expect(new Set(first.reminders.map((reminder) => reminder.idempotencyKey)).size).toBe(2);
     expect(harness.outbox.every((entry) => entry.idempotencyKey && entry.eventId === eventId)).toBe(true);
+  });
+
+  it('paginates the reminder sweep through every eligible event beyond the first 100', async () => {
+    const overdueRow = { id: 'freq_1', eventId, key: 'signed_conforme', label: 'Signed conforme', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: new Date('2026-10-01T00:00:00.000Z'), sourceWorkflow: 'client_onboarding', isCustom: false, notes: null, revision: 2 };
+    const eventIds = Array.from({ length: 205 }, (_, index) => `evt_${String(index + 1).padStart(3, '0')}`);
+    const harness = createHarness({ rows: [overdueRow] });
+    harness.prisma.opsEvent.findMany.mockImplementation(async (query) => {
+      const afterId = query?.where?.id?.gt;
+      return eventIds.filter((id) => !afterId || id > afterId).slice(0, query?.take ?? 100).map((id) => ({ id }));
+    });
+
+    const result = await harness.service.runReminderSweep(new Date('2026-10-20T00:00:00.000Z'));
+
+    expect(harness.prisma.opsEvent.findMany).toHaveBeenCalledTimes(3);
+    expect(harness.prisma.opsEvent.findMany.mock.calls.map(([query]) => query?.where?.id?.gt ?? null)).toEqual([null, 'evt_100', 'evt_200']);
+    expect(new Set(result.reminders.map((reminder) => reminder.eventId))).toEqual(new Set(eventIds));
+    expect(harness.outbox).toHaveLength(eventIds.length * 2);
+    expect(new Set(harness.outbox.map((entry) => entry.idempotencyKey)).size).toBe(harness.outbox.length);
+  });
+
+  it('still sends reminders for later events when one event fails to build its matrix', async () => {
+    const overdueRow = { id: 'freq_1', eventId, key: 'signed_conforme', label: 'Signed conforme', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: new Date('2026-10-01T00:00:00.000Z'), sourceWorkflow: 'client_onboarding', isCustom: false, notes: null, revision: 2 };
+    const harness = createHarness({ rows: [overdueRow], dueEvents: ['evt_001', 'evt_002', 'evt_003'] });
+    const buildForEvent = harness.matrix.buildForEvent.getMockImplementation()!;
+    harness.matrix.buildForEvent.mockImplementation(async (candidateId: string, client?: unknown, now?: Date) => {
+      if (candidateId === 'evt_002') throw new Error('Matrix unavailable');
+      return buildForEvent(candidateId, client, now);
+    });
+
+    const result = await harness.service.runReminderSweep(new Date('2026-10-20T00:00:00.000Z'));
+
+    expect(new Set(result.reminders.map((reminder) => reminder.eventId))).toEqual(new Set(['evt_001', 'evt_003']));
+    expect(result.reminders).toHaveLength(4);
   });
 
   it('queues a rejected-upload reminder for required items, anchored to the rejected document', async () => {
