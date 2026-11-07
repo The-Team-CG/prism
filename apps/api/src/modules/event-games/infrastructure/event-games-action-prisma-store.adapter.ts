@@ -114,6 +114,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     input: { sessionId: string; tokenDigest: string },
     transaction: PrismTransactionContext,
   ): Promise<GameParticipantActionContext | null> {
+    // QUERY_AUDIT_RAW_SQL: Joins session, definition and participation grant into one participant context with LIMIT 1; plain read, no lock or write.
     const rows = await transaction.prisma.$queryRaw<ParticipantActionContextRow[]>`
       SELECT s."event_id", s."id" AS "session_id", d."id" AS "game_id",
         d."title", d."game_kind", d."entry_mode", d."available_from", d."available_until", s."status",
@@ -172,6 +173,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
   ): Promise<{ points: number; result?: Parameters<GameActionStorePort['recordParticipantAction']>[0]['result'] } | null> {
     const teamId = input.teamAssignment?.teamId ?? null;
     const teamLabel = input.teamAssignment?.teamLabel ?? null;
+    // QUERY_AUDIT_RAW_SQL: Locks session, grant and credential rows (FOR UPDATE OF s, g, c); submission and score ledger inserts are ON CONFLICT DO NOTHING, so a repeated action is recorded once.
     const inserted = await transaction.prisma.$queryRaw<InsertedSubmissionRow[]>`
       WITH eligible AS MATERIALIZED (
         SELECT s."event_id", s."id" AS "session_id", g."id" AS "participation_grant_id"
@@ -241,6 +243,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     `;
     if (!inserted[0]) return null;
 
+    // QUERY_AUDIT_RAW_SQL: Plain SUM of score_ledger points for one grant after the write; no lock or conditional write.
     const totals = await transaction.prisma.$queryRaw<ParticipantTotalRow[]>`
       SELECT COALESCE(SUM("points"), 0)::int AS "score"
       FROM "event_games"."score_ledger"
@@ -257,6 +260,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     input: { eventId: string; sessionId: string; participationGrantId: string; roundKey: string | null },
     transaction: PrismTransactionContext,
   ): Promise<GameParticipantStateSummary> {
+    // QUERY_AUDIT_RAW_SQL: One read combining a score SUM subquery with an EXISTS over submissions for the round; Prisma would need separate queries.
     const rows = await transaction.prisma.$queryRaw<ParticipantScoreRow[]>`
       SELECT
         (SELECT COALESCE(SUM(l."points"), 0)::integer
@@ -298,6 +302,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     input: { eventId: string; sessionId: string; roundKey: string },
     transaction: PrismTransactionContext,
   ): Promise<Array<{ label: string; count: number }>> {
+    // QUERY_AUDIT_RAW_SQL: Vote counts grouped by the payload option JSON field, filtered by a correlated latest-moderation subquery; Prisma groupBy cannot group on a JSON path.
     const rows = await transaction.prisma.$queryRaw<VoteCountRow[]>`
       SELECT s."payload"->>'option' AS "label", COUNT(*)::integer AS "count"
       FROM "event_games"."submissions" s
@@ -320,6 +325,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     input: { eventId: string; sessionId: string; roundKey: string },
     transaction: PrismTransactionContext,
   ): Promise<Array<{ id: string; roundNumber: number; response: string }>> {
+    // QUERY_AUDIT_RAW_SQL: LATERAL join picks each submission latest moderation action (ORDER BY created_at DESC, id DESC LIMIT 1) for the moderation queue; per-row latest lookup is not a Prisma filter.
     const rows = await transaction.prisma.$queryRaw<RoundModerationQueueRow[]>`
       SELECT s."id", s."round_number", s."payload"->>'response' AS "response"
       FROM "event_games"."submissions" s
@@ -345,6 +351,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     input: { eventId: string; sessionId: string; roundKey: string },
     transaction: PrismTransactionContext,
   ): Promise<Array<{ id: string; roundNumber: number; answer: string }>> {
+    // QUERY_AUDIT_RAW_SQL: LATERAL latest-moderation lookup per Family Feud submission, joined to session and definition for the adjudication queue; not expressible as a Prisma relation filter.
     const rows = await transaction.prisma.$queryRaw<FamilyFeudModerationQueueRow[]>`
       SELECT s."id", s."round_number", s."payload"->>'answer' AS "answer"
       FROM "event_games"."submissions" s
@@ -376,6 +383,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     input: { eventId: string; sessionId: string; roundKey: string },
     transaction: PrismTransactionContext,
   ): Promise<string[]> {
+    // QUERY_AUDIT_RAW_SQL: JOIN LATERAL latest moderation action, filtered to approve_submission, selects approved round responses; per-submission latest action is not a Prisma filter.
     const rows = await transaction.prisma.$queryRaw<ApprovedRoundResponseRow[]>`
       SELECT s."payload"->>'response' AS "response"
       FROM "event_games"."submissions" s
@@ -408,6 +416,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     },
     transaction: PrismTransactionContext,
   ): Promise<GameResponseHistoryPage | null> {
+    // QUERY_AUDIT_RAW_SQL: EXISTS probe that the session belongs to the event before listing responses; plain read, no lock or write.
     const session = await transaction.prisma.$queryRaw<SessionExistsRow[]>`
       SELECT EXISTS (
         SELECT 1 FROM "event_games"."game_sessions"
@@ -416,6 +425,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     `;
     if (!session[0]?.exists) return null;
 
+    // QUERY_AUDIT_RAW_SQL: Response history with a LATERAL latest moderation action mapped by CASE to visible, hidden or pending; per-submission latest state is not a Prisma relation filter.
     const rows = await transaction.prisma.$queryRaw<GameResponseRow[]>`
       SELECT s."id", s."round_number", g."id" AS "participation_grant_id",
         s."payload",
@@ -471,6 +481,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
   }
 
   async listResponseRetentionEventIds(now: Date, transaction: PrismTransactionContext): Promise<string[]> {
+    // QUERY_AUDIT_RAW_SQL: DISTINCT event IDs of responses older than one year whose payload is not yet the redacted marker (jsonb comparison); read-only retention scan.
     const rows = await transaction.prisma.$queryRaw<Array<{ event_id: string }>>`
       SELECT DISTINCT "event_id"
       FROM "event_games"."submissions"
@@ -485,6 +496,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     input: { eventId: string; archivedAt: Date | null; now: Date },
     transaction: PrismTransactionContext,
   ): Promise<number> {
+    // QUERY_AUDIT_RAW_SQL: One statement redacts expired responses: DISTINCT ON picks each latest moderation row, the expired set feeds an UPDATE of the payload, then an UPDATE clears moderation reasons for those rows.
     const rows = await transaction.prisma.$queryRaw<RedactedCountRow[]>`
       WITH latest_moderation AS (
         SELECT DISTINCT ON (m."submission_id") m."submission_id", m."created_at"

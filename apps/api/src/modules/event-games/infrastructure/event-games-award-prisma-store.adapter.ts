@@ -64,6 +64,7 @@ export class EventGamesAwardPrismaStoreAdapter implements GameAwardStorePort {
     input: { eventId: string; sessionId: string; actorId: string; request: PrismAssignEventGameAwardInput; now: Date },
     transaction: PrismTransactionContext,
   ): Promise<PrismEventGameAward | null> {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the session row so concurrent award assignments for the same session serialize before the status check.
     const session = await transaction.prisma.$queryRaw<SessionStatusRow[]>`
       SELECT "status" FROM "event_games"."game_sessions"
       WHERE "event_id" = ${input.eventId} AND "id" = ${input.sessionId}
@@ -77,6 +78,7 @@ export class EventGamesAwardPrismaStoreAdapter implements GameAwardStorePort {
 
     const target = await this.findRecipient(input, transaction);
     if (!target) return null;
+    // QUERY_AUDIT_RAW_SQL: Idempotency read of an award already recorded for this source event and recipient; plain read, no lock or write.
     const existing = await transaction.prisma.$queryRaw<AwardRow[]>`
       SELECT a."id", a."session_id", a."recipient_type", a."recipient_key", ${target.label}::text AS "recipient_label",
         a."award_kind", a."label", a."points", a."prize_reference", a."created_at", a."assigned_by"
@@ -87,6 +89,7 @@ export class EventGamesAwardPrismaStoreAdapter implements GameAwardStorePort {
     if (existing[0]) return this.replay(existing[0], input, target.label, recipient);
 
     const awardId = randomUUID();
+    // QUERY_AUDIT_RAW_SQL: One CTE inserts the award and its score ledger row, each ON CONFLICT DO NOTHING on its unique source-event key, so a replayed assignment adds nothing twice.
     const rows = await transaction.prisma.$queryRaw<InsertedAwardRow[]>`
       WITH inserted AS (
         INSERT INTO "event_games"."awards"
@@ -141,6 +144,7 @@ export class EventGamesAwardPrismaStoreAdapter implements GameAwardStorePort {
     transaction: PrismTransactionContext,
   ): Promise<RecipientRow | null> {
     if (input.request.recipient.type === 'participant') {
+      // QUERY_AUDIT_RAW_SQL: LATERAL COUNT of earlier grants gives the recipient player number ordered by (granted_at, id); tuple comparison and lateral count are not expressible through Prisma.
       const rows = await transaction.prisma.$queryRaw<RecipientRow[]>`
         SELECT g."id" AS "participation_grant_id", g."team_id", COALESCE(g."team_label", 'Player ' || participant."number") AS "label"
         FROM "event_games"."session_participation_grants" g
@@ -157,6 +161,7 @@ export class EventGamesAwardPrismaStoreAdapter implements GameAwardStorePort {
       return row ? { ...row, team_id: null } : null;
     }
 
+    // QUERY_AUDIT_RAW_SQL: GROUP BY team with HAVING COUNT(DISTINCT team_label) = 1, so a team label resolves only when unambiguous; Prisma groupBy cannot filter on a distinct count.
     const rows = await transaction.prisma.$queryRaw<RecipientRow[]>`
       SELECT NULL::text AS "participation_grant_id", g."team_id", MIN(g."team_label") AS "label"
       FROM "event_games"."session_participation_grants" g

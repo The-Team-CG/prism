@@ -32,6 +32,7 @@ export class SchemaCompatibilityService implements OnApplicationBootstrap {
     }
 
     const localMigrations = await this.readLocalMigrations();
+    // QUERY_AUDIT_RAW_SQL: Reads Prisma's own _prisma_migrations ledger, which has no Prisma model delegate, to compare applied checksums with the local migration set; catalog-style read, no lock or write.
     const rows = await this.prisma.$queryRaw<PrismaMigrationRow[]>`
       SELECT migration_name, checksum, started_at, finished_at, rolled_back_at
       FROM public."_prisma_migrations"
