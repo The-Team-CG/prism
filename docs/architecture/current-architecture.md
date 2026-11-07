@@ -4,11 +4,11 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-07"
 authority: normative
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-10-29; module/kernel tree, AppModule composition, seam tokens, inbox query, Prisma schemas and owner manifest checked against source"
+last_verified: "2026-10-29; module/kernel tree, composition, inbox query, Prisma schemas and owner manifest checked; 2026-11-07 focused public exports, portal-query, guest session, and canvas context checked"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -98,6 +98,7 @@ flowchart LR
 | --- | --- |
 | `packages/types` | Shared Zod write schemas, inferred write types, read-model interfaces, session keys, and contract parsing. |
 | `packages/api-client` | Shared request helpers and typed API-client functions for role apps. |
+| `packages/portal-query` | Portal resource caches and role-neutral background refresh mechanics; role apps supply actor identity, fetchers, and refresh callbacks. |
 | `packages/floorplan-canvas` | Role-neutral editor state, canvas mechanics, and floorplan editor panels, injected with role-owned template storage. It does not read app identity or authorize, persist, or submit workflows. |
 | `packages/ui` | Shared shells, brand, public blocks, and presentation primitives; no workflow ownership or role data rules. |
 | `packages/tokens` | Shared design tokens, theme values, and typography. |
@@ -107,6 +108,11 @@ modules behind the existing package-root exports. Portal consumers keep stable
 imports while ownership and changes stay local to each capability.
 
 Portal role apps import `@prism/floorplan-canvas` through their local floorplan editor wrappers. The client app chooses read-only mode for official layouts and keeps preference workflows; the event app retains PMCM official-plan authoring. Template API adapters stay in each portal.
+
+Floorplan panel context and viewport rules live with the canvas shell UI state,
+so the toolbar can consume them without importing the editor composition.
+Guest access and check-in share `PrismGuestSession` from `@prism/types`; the
+guest portal's storage adapter owns removal of legacy guest names and counts.
 
 ## Portal data access and PMCM dashboard reads
 

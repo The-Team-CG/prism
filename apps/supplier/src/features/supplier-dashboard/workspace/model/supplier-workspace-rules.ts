@@ -7,7 +7,7 @@ import type {
   PrismSupplierReadinessSetupStatus,
 } from "@prism/types";
 import { manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
-import type { BookingStep, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "./supplier-workspace-types";
+import type { BookingStep, QuoteFormState, QuoteSubmitInput, SectionMeta, SupplierDashboardSection, SupplierWorkspace, WorkspaceDerived, PrismSupplierQuote, PrismSupplierQuoteRequest } from "./supplier-workspace-types";
 import { supplierWorkTargetHref } from "./supplier-workspace-types";
 
 export const EVENT_STATUS_ACTIONS = [
@@ -211,21 +211,6 @@ export function buildSupplierFileRequirementRows(
       .map((item) => ({ eventId: matrix.eventId, requestIds, item }));
   });
   return [...contractRows, ...eventRequirementRows];
-}
-
-export function countReadinessNeedsAction(
-  readinessBoard: PrismSupplierReadinessBoard | null,
-  quoteNeedingSubmission: number,
-  handoffPending: number,
-): number {
-  if (readinessBoard) {
-    return (
-      readinessBoard.counts.critical +
-      readinessBoard.counts.warning +
-      readinessBoard.counts.attention
-    );
-  }
-  return quoteNeedingSubmission + handoffPending;
 }
 
 export function countEventsThisMonth(

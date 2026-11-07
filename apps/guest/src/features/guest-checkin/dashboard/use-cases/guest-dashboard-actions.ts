@@ -3,17 +3,17 @@ import {
   buildFeedbackPayload,
   checkInSuccessNotice,
 } from "../model/guest-dashboard-rules";
-import type { CheckInMode, GuestSession } from "../model/guest-dashboard-types";
+import type { CheckInMode } from "../model/guest-dashboard-types";
 import { guestDashboardRepository } from "../data/guest-dashboard-repository";
-import { createGuestFeedbackSchema, parseContract, withdrawGuestFeedbackConsentSchema, type PrismGuestFeedbackReceipt } from "@prism/types";
+import { createGuestFeedbackSchema, parseContract, withdrawGuestFeedbackConsentSchema, type PrismGuestFeedbackReceipt, type PrismGuestSession } from "@prism/types";
 
-export function loadGuestDashboardSession(): GuestSession | null {
+export function loadGuestDashboardSession(): PrismGuestSession | null {
   return guestDashboardRepository.readSession();
 }
 
 export async function refreshGuestEvent(
-  session: GuestSession,
-): Promise<GuestSession> {
+  session: PrismGuestSession,
+): Promise<PrismGuestSession> {
   const event = await guestDashboardRepository.fetchEvent(session);
   const next = { ...session, ...event };
   guestDashboardRepository.saveSession(next);
@@ -21,8 +21,8 @@ export async function refreshGuestEvent(
 }
 
 export async function refreshGuestEventIfChanged(
-  session: GuestSession,
-): Promise<GuestSession> {
+  session: PrismGuestSession,
+): Promise<PrismGuestSession> {
   const { watermark, feedbackAvailability } = await guestDashboardRepository.fetchWatermark(session);
   if (session.watermark === watermark && session.feedbackAvailability === feedbackAvailability) return session;
   if (session.watermark === watermark) {
@@ -34,11 +34,11 @@ export async function refreshGuestEventIfChanged(
 }
 
 export async function submitGuestCheckIn(input: {
-  session: GuestSession;
+  session: PrismGuestSession;
   checkInMode: CheckInMode;
   guestName?: string;
   consentAccepted: boolean;
-}): Promise<{ session: GuestSession; notice: string }> {
+}): Promise<{ session: PrismGuestSession; notice: string }> {
   const payload = buildCheckInPayload(input);
   await guestDashboardRepository.checkIn(input.session, payload);
   let session = input.session;
@@ -54,7 +54,7 @@ export async function submitGuestCheckIn(input: {
 }
 
 export async function submitGuestFeedback(input: {
-  session: GuestSession;
+  session: PrismGuestSession;
   guestName: string;
   rating: string;
   comment: string;
@@ -73,7 +73,7 @@ export function leaveGuestEvent(): void {
   guestDashboardRepository.clearSession();
 }
 
-export async function withdrawGuestFeedbackConsent(session: GuestSession): Promise<GuestSession> {
+export async function withdrawGuestFeedbackConsent(session: PrismGuestSession): Promise<PrismGuestSession> {
   if (!session.feedbackReceiptId) throw new Error("No feedback receipt is saved on this device.");
   await guestDashboardRepository.withdrawFeedbackConsent(session, session.feedbackReceiptId,
     parseContract(withdrawGuestFeedbackConsentSchema, { withdrawPrivacyConsent: true, withdrawMarketingConsent: true }, "Withdraw feedback consent"));
@@ -82,7 +82,7 @@ export async function withdrawGuestFeedbackConsent(session: GuestSession): Promi
   return next;
 }
 
-export function saveGuestFeedbackReceipt(session: GuestSession, receipt: PrismGuestFeedbackReceipt): GuestSession {
+export function saveGuestFeedbackReceipt(session: PrismGuestSession, receipt: PrismGuestFeedbackReceipt): PrismGuestSession {
   const next = { ...session, feedbackReceiptId: receipt.id };
   guestDashboardRepository.saveSession(next);
   return next;

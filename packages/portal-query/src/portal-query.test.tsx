@@ -63,4 +63,24 @@ describe("portal query", () => {
     rerender(<PortalQueryProvider actorKey="user_2"><Reader /></PortalQueryProvider>);
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   });
+
+  it("retains a loaded read through initial actor resolution, then clears it on sign-out", async () => {
+    const fetch = vi.fn(async () => "cached data");
+    const resource = defineResource({ name: "test.hydration", fetch });
+    function Reader() {
+      const state = useResource(resource, "x");
+      return <p>{state.status === "ready" ? state.data : state.status}</p>;
+    }
+    const { rerender } = render(<PortalQueryProvider actorKey={null}><Reader /></PortalQueryProvider>);
+    await waitFor(() => expect(screen.getByText("cached data")).toBeTruthy());
+
+    rerender(<PortalQueryProvider actorKey="user_1"><Reader /></PortalQueryProvider>);
+    rerender(<PortalQueryProvider actorKey="user_1">Navigating</PortalQueryProvider>);
+    rerender(<PortalQueryProvider actorKey="user_1"><Reader /></PortalQueryProvider>);
+    await waitFor(() => expect(screen.getByText("cached data")).toBeTruthy());
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    rerender(<PortalQueryProvider actorKey={null}><Reader /></PortalQueryProvider>);
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  });
 });

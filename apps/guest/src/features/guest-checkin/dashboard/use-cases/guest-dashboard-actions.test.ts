@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GuestSession } from "../model/guest-dashboard-types";
 
 const repository = vi.hoisted(() => ({
   fetchWatermark: vi.fn(),
@@ -13,6 +12,7 @@ vi.mock("../data/guest-dashboard-repository", () => ({
 }));
 
 import { refreshGuestEventIfChanged, withdrawGuestFeedbackConsent } from "./guest-dashboard-actions";
+import type { PrismGuestSession } from "@prism/types";
 
 const session = {
   id: "evt_sample",
@@ -25,7 +25,7 @@ const session = {
   watermark: "2026-06-01T00:00:00.000Z",
   feedbackAvailability: "not_open",
   openedAt: "2026-06-01T00:00:00.000Z",
-} as GuestSession;
+} as PrismGuestSession;
 
 describe("refreshGuestEventIfChanged", () => {
   beforeEach(() => {
