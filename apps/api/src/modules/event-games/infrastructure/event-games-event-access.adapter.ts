@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { EventAccessPolicyService } from '@prism/kernel/access-control';
+import { EventAccessPolicyService, scopeActorToEvent } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import {
@@ -7,7 +7,6 @@ import {
   readEventGameLobbyScope,
   readEventGameResponseRetentionScope,
   readEventGameWriteState,
-  scopeActorToEvent,
 } from '@prism/contexts/read-models/event-scope';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PrismVerifiedEventActor } from '@prism/types';

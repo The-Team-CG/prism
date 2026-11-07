@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- File access follows one policy for lists and downloads: coordinators need a current assignment, suppliers see only their own files on selected bookings, and failed uploads are no longer shown outside PMCM.
 - Supplier-owned file requirements are now tracked per supplier: each supplier sees only its own status and files, and PMCM sees who has submitted.
 - CI now runs the database query audit; raw SQL, unbounded reads and per-row loops in the API state why they are safe.
 - Lint now rejects conditionally called React hooks, and browser lifecycle acceptance opens the client event overview.

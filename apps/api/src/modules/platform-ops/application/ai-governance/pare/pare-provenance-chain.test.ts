@@ -171,6 +171,7 @@ function setup<A extends AiProviderAdapter = ScriptedPareAdapter>(
     findEventReference: async () => null,
     findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
     findFileRequirementVisibility: async () => ({}),
+    findStoredObjectRequirementBindings: async () => [],
     findPareEventSource: async (requestId) => ({
       request: {
         id: requestId,

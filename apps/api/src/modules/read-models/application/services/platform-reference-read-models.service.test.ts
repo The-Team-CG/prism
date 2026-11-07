@@ -38,7 +38,7 @@ describe('PlatformReferenceReadModelsService', () => {
     expect(opsGuestCheckIn.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: { in: ['evt_1'] } } }));
   });
 
-  it('returns only the event fields Platform needs for storage authorization', async () => {
+  it('returns the event scope that file access resolves against, with current coordinator assignments and quote status', async () => {
     const findUnique = vi.fn(async () => ({
       id: 'evt_1',
       archived: false,
@@ -47,12 +47,16 @@ describe('PlatformReferenceReadModelsService', () => {
       inquiry: { email: 'client@example.test' },
     }));
     const requestFindMany = vi.fn(async () => [
-      { supplierId: 'supplier_1', supplier: { email: 'supplier@example.test' } },
-      { supplierId: null, supplier: null },
+      { supplierId: 'supplier_1', status: 'selected', supplier: { email: 'supplier@example.test' } },
+      { supplierId: null, status: 'declined', supplier: null },
+    ]);
+    const assignmentFindMany = vi.fn(async () => [
+      { coordinatorId: 'coord_1', coordinator: { userId: 'user_coord', email: 'coord@example.test' } },
     ]);
     const service = new PlatformReferenceReadModelsService({
       opsEvent: { findUnique },
       opsSupplierQuoteRequest: { findMany: requestFindMany },
+      opsCoordinatorAssignment: { findMany: assignmentFindMany },
     } as unknown as PrismaService);
 
     await expect(service.findStorageEventScope('evt_1')).resolves.toEqual({
@@ -61,22 +65,19 @@ describe('PlatformReferenceReadModelsService', () => {
       clientName: 'Client',
       clientPortalStatus: 'unlocked',
       clientEmail: 'client@example.test',
-      supplierIds: ['supplier_1'],
-      supplierContacts: [{ supplierId: 'supplier_1', email: 'supplier@example.test' }],
+      coordinatorAssignments: [{ coordinatorId: 'coord_1', coordinator: { userId: 'user_coord', email: 'coord@example.test' } }],
+      supplierQuoteRequests: [
+        { supplierId: 'supplier_1', status: 'selected', supplier: { email: 'supplier@example.test' } },
+        { supplierId: null, status: 'declined', supplier: null },
+      ],
     });
-    expect(findUnique).toHaveBeenCalledWith(expect.objectContaining({
-      select: expect.objectContaining({
-        id: true,
-        archived: true,
-        clientName: true,
-        clientPortalStatus: true,
-        inquiry: { select: { email: true } },
-      }),
-    }));
     expect(requestFindMany).toHaveBeenCalledWith({
       where: { eventId: 'evt_1' },
-      select: { supplierId: true, supplier: { select: { email: true } } },
+      select: { supplierId: true, status: true, supplier: { select: { email: true } } },
     });
+    expect(assignmentFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ eventId: 'evt_1' }),
+    }));
   });
 
   it('rejects missing or mismatched PARE event references before reading dependent data', async () => {

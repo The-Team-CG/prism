@@ -1,8 +1,7 @@
 import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Inject, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { EventAccessPolicyService } from '@prism/kernel/access-control';
+import { EventAccessPolicyService, scopeActorToEvent } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import { scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
 import { zodBody } from '@prism/kernel/shared';
 import {
   createFloorPlanDraftSchema,
