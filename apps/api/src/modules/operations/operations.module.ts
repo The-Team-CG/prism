@@ -35,23 +35,6 @@ import { GuestPrivacyClassificationService } from './application/guest/guest-pri
 import { OperationsPrivacyRedactorService } from './application/guest/operations-privacy-redactor.service';
 import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 
-/**
- * Bounded-context composition root for operations: day-to-day coordinator
- * staffing (`api/staffing`, `application/staffing`) and guest check-in/feedback
- * (`api/guest`, `application/guest`). Merged from the former `staffing-ops`
- * and `guest-ops` Nest library modules (2026-09-01) — both are ground-level
- * event support operations with no dependency back on `event-read-models`, so
- * they merge safely (unlike `live-ops`, which structurally sits above
- * `event-read-models` and was kept as its own context — see the design doc's
- * correction note).
- *
- * Owned tables: OpsCoordinatorAssignment (day-to-day staffing assignment;
- * Live Ops and event lifecycle use the staffing command port for assignment changes), OpsCoordinatorReliabilityNote,
- * OpsGuestCheckIn, OpsGuestFeedback.
- * Read-only: OpsCoordinator pool profiles are fixture-provisioned, while Operations owns their
- * staffing eligibility; linked account state is resolved through the Identity capability. OpsEvent
- * command checks use Lifecycle, and guest/workspace projections use read-models.
- */
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule],
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController],

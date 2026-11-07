@@ -1,8 +1,7 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
-import { IdentityAccessModule } from '../identity-access/identity-access.module';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { ClientFloorplanAccessModule, EventLifecycleProjectionModule } from '@prism/contexts/event-lifecycle';
 import { FloorplanReferenceModule } from '@prism/contexts/event-lifecycle/floorplan-reference';
@@ -21,23 +20,8 @@ import { PlansService } from './application/authoring/plans.service';
 import { PublishService } from './application/authoring/publish.service';
 import { TemplatesService } from './application/authoring/templates.service';
 
-/**
- * Bounded-context composition root for floorplan: live per-event floorplan
- * drafts/preferences/snapshots (`api/live`, `application/live`) and
- * venue-template authoring/publishing (`api/authoring`, `application/authoring`).
- * Merged from the former `floorplan` and `floorplan-authoring` Nest library
- * modules (2026-09-01) — same physical-layout domain, different lifecycle
- * stage; kept as two sub-areas under one context rather than two libraries.
- *
- * Owned tables: FloorPlan, FloorPlanObject, OpsFloorPlanDraft, EventInstance,
- * OpsFloorPlanProjectionClock, PublishedSnapshot, VenueTemplate.
- * Lifecycle owns OpsEvent and exposes transaction-aware current-state facts for
- * Floorplan gates. Floorplan status and readiness changes use Lifecycle's
- * version-checked projection capability; the projection clock stores a scalar
- * event reference, and no cross-domain FK is introduced for that clock.
- */
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, forwardRef(() => IdentityAccessModule), EventSessionModule, EventLifecycleProjectionModule, FloorplanReferenceModule, ClientFloorplanAccessModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, EventSessionModule, EventLifecycleProjectionModule, FloorplanReferenceModule, ClientFloorplanAccessModule],
   controllers: [OpsEventFloorplansController, FloorplanClientReviewController, LayoutEventsController, PlansController, PublishController, TemplatesController],
   providers: [
     FloorPlanWorkflowService,

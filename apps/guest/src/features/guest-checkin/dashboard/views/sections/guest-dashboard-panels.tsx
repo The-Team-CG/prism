@@ -3,10 +3,10 @@
 import { CheckCircle2, ClipboardCheck, MessageCircleHeart, Star, TicketCheck, Users } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
+import type { PrismGuestSession } from "@prism/types";
 import { PrismSectionPanel, PrismTextarea } from "@prism/ui";
 import { checkInModeButtonClass, guestPassDetails } from "../../model/guest-dashboard-rules";
 import type { useGuestDashboardViewModel } from "../../view-models/use-guest-dashboard-view-model";
-import type { GuestSession } from "../../model/guest-dashboard-types";
 
 type GuestDashboardVm = ReturnType<typeof useGuestDashboardViewModel>;
 
@@ -80,7 +80,7 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
   );
 }
 
-export function GuestEventDetailsPanel({ session }: { session: GuestSession }) {
+export function GuestEventDetailsPanel({ session }: { session: PrismGuestSession }) {
   const description = session.venue
     ? "Show this to the registration team when you arrive."
     : "Show this to the registration team when you arrive. They can give you venue and arrival directions.";
