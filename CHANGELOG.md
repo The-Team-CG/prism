@@ -9,6 +9,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - PMCM blocked-task inbox items now include blocker, owner and due context and open the exact event-day task.
 - Clients now see a version-specific action-center item for addenda awaiting their acknowledgment, linked to the addendum row.
 - File-requirement reminder sweeps now keyset-page through every eligible event while retaining stable idempotency keys.
+- Suppliers can proceed through the optional certifications step before giving privacy consent on the review step, so public applications can be submitted again.
+- API context imports load focused contracts and projections without pulling in unrelated controllers; shared inquiry, document, briefing and live-ops projections now have one owning implementation.
+- PMCM and guest game views share background refresh mechanics. Portal caches retain reads through initial session hydration, and guest entry and check-in use one session model and privacy cleanup path.
+- Client dashboard and shared-floorplan views use one snapshot-to-editor conversion; plans saved in the older canvas shape still open.
 - Billing sources take payment terms other than 50/50: up to three named milestones totalling 100%, shown with a running total. A downpayment under 50% needs a repeat-client reason before the source can be created, as the API already required.
 - Suppliers carry a capacity or scale rating (small, medium or large, or not rated) that PMCM sets on the supplier profile and sees in the profile drawer. It is PMCM-only. Adds a migration for one nullable column.
 - Withdrawing a booked supplier now writes a reliability note on their profile by itself (event, category and reason), once per assignment, instead of relying on PMCM to add one.

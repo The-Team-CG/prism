@@ -42,6 +42,7 @@ import {
   type GuestEventProjection,
   type GuestEventProjectionReader,
 } from '@prism/contexts/read-models/guest-events';
+import { guestAccessCode } from './guest-access-code';
 
 type EventWithDrafts = GuestEventProjection;
 
@@ -750,16 +751,7 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   guestAccessCode(event: Pick<PrismEvent, 'id' | 'eventName'>) {
-    const namePart =
-      event.eventName
-        .toUpperCase()
-        .replace(/[^A-Z0-9]+/g, '-')
-        .split('-')
-        .filter(Boolean)
-        .slice(0, 2)
-        .join('-') || 'PRISM';
-    const idPart = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase() || 'EVNT';
-    return `${namePart}-${idPart}`;
+    return guestAccessCode(event);
   }
 
   private normalizeGuestAccessCode(accessCode: string) {

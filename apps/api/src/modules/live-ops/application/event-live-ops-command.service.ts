@@ -32,7 +32,6 @@ import {
   mapEventDayTask,
   mapUrgentIssue,
 } from './live-ops.mappers';
-import { computeSlaStatus } from '../domain/live-ops-sla.policy';
 import { recordEventDayLog } from './event-day-log.writer';
 import { CoordinatorLiveOpsCommandService } from './coordinator-live-ops-command.service';
 import { LiveOpsTaskIssueCommandService } from './live-ops-task-issue-command.service';
@@ -53,7 +52,7 @@ export class EventLiveOpsCommandService {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day tasks');
     this.requireCoordinatorTaskScope(actor, assignment, designatedOperator, input.assignedRole, input.ownerName);
     const task = await this.taskIssueCommandService.createEventDayTask(eventId, input, actor);
-    return mapEventDayTask(task, computeSlaStatus);
+    return mapEventDayTask(task);
   }
 
   async updateEventDayTask(
@@ -69,7 +68,7 @@ export class EventLiveOpsCommandService {
     }
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     const task = await this.taskIssueCommandService.updateEventDayTask(eventId, taskId, input, actor);
-    return mapEventDayTask(task, computeSlaStatus);
+    return mapEventDayTask(task);
   }
 
   async escalateEventDayTask(
@@ -81,14 +80,14 @@ export class EventLiveOpsCommandService {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day task escalation');
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
     const task = await this.taskIssueCommandService.escalateEventDayTask(eventId, taskId, input, actor);
-    return mapEventDayTask(task, computeSlaStatus);
+    return mapEventDayTask(task);
   }
 
   async createUrgentIssue(eventId: string, input: CreateUrgentIssueInput, actor: ResolvedEventOpsActor) {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'urgent issues');
     const scopedInput = await this.scopeCoordinatorIssueInput(eventId, actor, assignment, designatedOperator, input);
     const issue = await this.taskIssueCommandService.createUrgentIssue(eventId, scopedInput, actor);
-    return mapUrgentIssue(issue, computeSlaStatus);
+    return mapUrgentIssue(issue);
   }
 
   async updateUrgentIssue(
@@ -101,7 +100,7 @@ export class EventLiveOpsCommandService {
     await this.requireUrgentIssueScope(eventId, issueId, actor, assignment, designatedOperator);
     await this.rejectCoordinatorIssueOwnershipChange(eventId, actor, designatedOperator, input.ownerRole, input.ownerName);
     const issue = await this.taskIssueCommandService.updateUrgentIssue(eventId, issueId, input, actor);
-    return mapUrgentIssue(issue, computeSlaStatus);
+    return mapUrgentIssue(issue);
   }
 
   async escalateUrgentIssue(
@@ -114,7 +113,7 @@ export class EventLiveOpsCommandService {
     await this.requireUrgentIssueScope(eventId, issueId, actor, assignment, designatedOperator);
     await this.rejectCoordinatorIssueOwnershipChange(eventId, actor, designatedOperator, input.ownerRole, input.ownerName);
     const issue = await this.taskIssueCommandService.escalateUrgentIssue(eventId, issueId, input, actor);
-    return mapUrgentIssue(issue, computeSlaStatus);
+    return mapUrgentIssue(issue);
   }
 
   async updateCoordinatorAttendance(
