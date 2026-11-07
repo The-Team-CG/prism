@@ -1,4 +1,5 @@
 import type { PrismAddendumConformeExecution } from "../conforme-signing.js";
+import type { AddendumPlannedImpacts } from "../schemas/session-w26-inputs.js";
 import type { PrismProjectLike } from "./core.js";
 
 type CreateFloorPlanDraftInput = {
@@ -67,7 +68,8 @@ export interface PrismEventProposalResponse {
   proposal: PrismIssuedProposalSummary | null;
 }
 
-export type PrismAddendumStatus = "issued";
+/** pending: issued, commercial effect not yet applied. effective: applied at countersignature. withdrawn: closed by PMCM, never applied. */
+export type PrismAddendumStatus = "pending" | "effective" | "withdrawn";
 
 export interface PrismAddendum {
   id: string;
@@ -82,6 +84,12 @@ export interface PrismAddendum {
   comparison: { contract: unknown[]; quotes: unknown[] };
   financialDelta: number;
   issuedAt: string;
+  effectiveAt: string | null;
+  withdrawnAt: string | null;
+  /** Client-visible reason PMCM gave when withdrawing; null unless withdrawn. */
+  withdrawalReason: string | null;
+  /** PMCM-only commercial effect. Null for clients, and for effective addenda issued before plans were stored. */
+  plannedImpacts: AddendumPlannedImpacts | null;
   /** In-app conforme for this addendum version; null until PMCM requests signing. */
   conforme: PrismAddendumConformeExecution | null;
 }
