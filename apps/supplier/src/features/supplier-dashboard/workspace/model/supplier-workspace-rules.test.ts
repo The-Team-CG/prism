@@ -35,7 +35,7 @@ import {
 import { splitSupplierNextSteps } from "./supplier-next-step";
 import type { PrismFileRequirementsMatrix, PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
-import { supplierBookingHref } from "./supplier-next-step";
+import { supplierBookingHref, supplierWorkHref } from "./supplier-next-step";
 
 function makeRequest(
   overrides: Partial<PrismSupplierQuoteRequest> & { id: string },
@@ -217,6 +217,8 @@ describe("supplier-workspace-rules", () => {
     ]);
     expect(rows[0]?.item).toMatchObject({ dueDate: "2026-10-01T00:00:00.000Z", overdue: true });
     expect(supplierBookingHref("booking_selected")).toBe("/dashboard/bookings#supplier-work-booking_selected");
+    expect(supplierWorkHref({ quoteStatus: "open", requestId: "request_open" })).toBe("/dashboard/requests#supplier-work-request_open");
+    expect(supplierWorkHref({ quoteStatus: "selected", requestId: "booking_selected" })).toBe("/dashboard/bookings#supplier-work-booking_selected");
   });
 
   it("routes every readiness item to the section where it is actioned", () => {

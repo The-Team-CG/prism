@@ -9,6 +9,7 @@ import type {
   PrismBriefing,
   PrismCoordinatorAssignment,
   PrismEvent,
+  PrismSupplierReadinessItem,
   PrismUrgentIssue,
 } from '@prism/types';
 import { UrgentIssueStatus } from '@prism/kernel/event-core';
@@ -53,18 +54,18 @@ export function projectHandoffKeyDetails(
 
 /** Supplier readiness projection: status fields only, so readiness/verification notes stay private. */
 export type HandoffSupplierInput = {
-  id: string;
-  supplierName: string;
-  category: string;
-  assignmentStatus?: string;
-  readinessStatus?: string;
-  eventDayStatus?: string;
-  verificationStatus?: string;
+  requestId: PrismSupplierReadinessItem['requestId'];
+  supplierName: PrismSupplierReadinessItem['supplierName'];
+  category: PrismSupplierReadinessItem['category'];
+  assignmentStatus?: PrismSupplierReadinessItem['assignmentStatus'];
+  readinessStatus?: PrismSupplierReadinessItem['readinessStatus'];
+  eventDayStatus?: PrismSupplierReadinessItem['eventDayStatus'];
+  verificationStatus?: PrismSupplierReadinessItem['verificationStatus'];
 };
 
 export function projectHandoffSupplier(request: HandoffSupplierInput): PrismHandoffBriefSupplier {
   return {
-    id: request.id,
+    id: request.requestId,
     supplierName: request.supplierName,
     category: request.category,
     assignmentStatus: request.assignmentStatus ?? '',

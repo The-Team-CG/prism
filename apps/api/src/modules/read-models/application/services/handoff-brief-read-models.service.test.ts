@@ -193,6 +193,7 @@ function createService(input: {
         submittedAt: CREATED_AT,
       },
     })),
+    supplierReadinessRequestsForEvent: vi.fn(async () => input.suppliers ?? []),
     taskReassignmentRequests: vi.fn(async () => []),
     activeOperatorForCoordinator: vi.fn(async () => (input.operatorDesignated ? { id: 'designation_1' } : null)),
     handoffsForEvent: vi.fn(async () => [handoffFixture()]),
@@ -269,6 +270,16 @@ describe('HandoffBriefReadModelsService', () => {
     expect(brief.supplierReadiness.items).toEqual([
       expect.objectContaining({ supplierName: 'Technicals Supplier', readinessStatus: 'ready', verificationStatus: 'verified' }),
     ]);
+  });
+
+  it('orders the PMCM brief supplier readiness items by the shared sort, not by read order', async () => {
+    const service = createService({
+      suppliers: [supplierRequestFixture('quote_2', 'Lighting'), supplierRequestFixture('quote_1', 'Technicals')],
+    });
+
+    const brief = await service.getHandoffBrief(EVENT_ID, actor(OpsUserRole.PmcmAdmin));
+
+    expect(brief.supplierReadiness.items.map((item) => item.supplierName)).toEqual(['Technicals Supplier', 'Lighting Supplier']);
   });
 
   it('never returns private supplier notes, audit fields, finance items, or access codes to the PMCM brief', async () => {
