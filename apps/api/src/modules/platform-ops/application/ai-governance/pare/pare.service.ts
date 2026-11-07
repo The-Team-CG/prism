@@ -505,7 +505,7 @@ export class PAREService implements PareApprovalGovernance {
       withdrawnSupplierName: ctx.withdrawnSupplier.name,
       eventId: ctx.eventId,
     });
-    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(ctx, suppliers, signal);
+    ctx.candidates = await this.supplierFinderAgent.findPareSupplierCandidates(suppliers, signal);
     return ctx;
   }
 
