@@ -147,14 +147,20 @@ describe('ScopeChangeRequestService PMCM review', () => {
     ...overrides,
   });
 
-  it('approves a request after impact review and records the impact flags and linked addendum', async () => {
-    const { service, rows } = fakeStore({ addenda: [{ id: 'addendum_1', eventId: 'evt_1' }] });
+  it('approves a request after impact review, records the linked addendum, and queues a client-safe notice', async () => {
+    const { service, rows, notifications } = fakeStore({ addenda: [{ id: 'addendum_1', eventId: 'evt_1' }] });
     const submitted = await service.submit('evt_1', submission, primaryClient);
 
     const decided = await service.review('evt_1', submitted.id, approval({ addendumId: 'addendum_1', clientResponse: 'Approved, see the addendum.' }), pmcm);
 
     expect(decided).toMatchObject({ status: 'approved', addendumId: 'addendum_1', impacts: { billing: true, supplier: false, coordinator: false, floorplan: false }, clientResponse: 'Approved, see the addendum.' });
     expect(rows.get(submitted.id)?.impactReviewedAt).toBeInstanceOf(Date);
+    expect(notifications.write).toHaveBeenLastCalledWith(expect.objectContaining({
+      eventId: 'evt_1',
+      recipient: 'Client',
+      message: 'Your scope change request “Add a sunset slot” was approved. PMCM response: Approved, see the addendum.',
+      idempotencyKey: `scope-change-decision:${submitted.id}:approved`,
+    }), expect.objectContaining({ correlationId: submitted.id }));
   });
 
   it('rejects an approval that names an addendum from another event', async () => {
@@ -164,14 +170,20 @@ describe('ScopeChangeRequestService PMCM review', () => {
     await expect(service.review('evt_1', submitted.id, approval({ addendumId: 'addendum_other' }), pmcm)).rejects.toThrow('Addendum was not found for this event');
   });
 
-  it('requires a PMCM reason to reject, which stays out of the client projection', async () => {
-    const { service } = fakeStore();
+  it('requires a PMCM reason to reject and keeps it out of the client notice', async () => {
+    const { service, notifications } = fakeStore();
     const submitted = await service.submit('evt_1', submission, primaryClient);
     expect(reviewScopeChangeRequestSchema.safeParse({ decision: 'reject', decisionReason: '  ' }).success).toBe(false);
 
-    const rejected = await service.review('evt_1', submitted.id, reviewScopeChangeRequestSchema.parse({ decision: 'reject', decisionReason: 'Venue cannot take the extra hour' }), pmcm);
+    const rejected = await service.review('evt_1', submitted.id, reviewScopeChangeRequestSchema.parse({ decision: 'reject', decisionReason: 'Venue cannot take the extra hour', clientResponse: 'We cannot add this slot.' }), pmcm);
 
     expect(rejected).toMatchObject({ status: 'rejected', decisionReason: 'Venue cannot take the extra hour' });
+    expect(notifications.write).toHaveBeenLastCalledWith(expect.objectContaining({
+      eventId: 'evt_1',
+      recipient: 'Client',
+      message: 'Your scope change request “Add a sunset slot” was not approved. PMCM response: We cannot add this slot.',
+      idempotencyKey: `scope-change-decision:${submitted.id}:rejected`,
+    }), expect.objectContaining({ correlationId: submitted.id }));
   });
 
   it('decides a request only once, so a second decision is refused', async () => {
@@ -210,7 +222,7 @@ describe('ScopeChangeRequestService PMCM review', () => {
   });
 
   it('keeps the review and register away from clients, suppliers, coordinators, and guests, and audits PMCM decisions', async () => {
-    const { service, rows, audit } = fakeStore();
+    const { service, rows, audit, notifications } = fakeStore();
     const submitted = await service.submit('evt_1', submission, primaryClient);
     const denied = [primaryClient, { id: 'coord_1', role: OpsUserRole.Coordinator, name: 'Coordinator', explicit: true, verified: true, eventId: 'evt_1' }, { id: 'sup_1', role: OpsUserRole.Supplier, name: 'Supplier', explicit: true, verified: true }, { id: 'guest_1', role: OpsUserRole.Guest, name: 'Guest', explicit: true, verified: true }] as ResolvedEventOpsActor[];
 
@@ -222,6 +234,7 @@ describe('ScopeChangeRequestService PMCM review', () => {
 
     await service.review('evt_1', submitted.id, { decision: 'start_review' }, pmcm);
     expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Started scope change review', eventId: 'evt_1' }), expect.anything());
+    expect(notifications.write).toHaveBeenCalledTimes(1);
   });
 });
 
