@@ -114,7 +114,9 @@ export function PrivacyRequestCard({ request, vm }: { request: PrismPrivacyReque
       <p className={cx("mt-2 text-xs", request.overdue ? "font-black text-danger" : "text-muted-foreground")}>
         {privacyDeadlineLabel(request, vm.now)}
       </p>
-      <p className="mt-1 text-xs text-muted-foreground">Owner: {owner} · Logged {compactTimestamp(request.createdAt)}</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        {request.source === "self_service" ? "Self-service" : "PMCM-logged"} · Owner: {owner} · Logged {compactTimestamp(request.createdAt)}
+      </p>
       {request.requestNotes ? <p className="mt-2 text-xs text-muted-foreground">{request.requestNotes}</p> : null}
       {closed ? null : (
         <>
