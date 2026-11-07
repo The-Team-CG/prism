@@ -1,6 +1,6 @@
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload, GuestSession } from "./guest-dashboard-types";
-import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
+import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload } from "./guest-dashboard-types";
+import { PRISM_PRIVACY_NOTICE_VERSION, type PrismGuestSession } from "@prism/types";
 import { GuestApiError } from "@/features/guest-shared/guest-http";
 
 const GUEST_ACCESS_ENDED_STATUSES: readonly number[] = [401, 403, 404, 410];
@@ -15,12 +15,12 @@ export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_DURATION_S = 60;
 export { GUEST_API_OFFLINE_MESSAGE as GUEST_DASHBOARD_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-messages";
 
-export function guestApiPath(session: GuestSession, suffix = ""): string {
+export function guestApiPath(session: PrismGuestSession, suffix = ""): string {
   return `/api/guest/events/${encodeURIComponent(session.guestAccessCode)}${suffix}`;
 }
 
 export function buildCheckInPayload(input: {
-  session: GuestSession;
+  session: PrismGuestSession;
   checkInMode: CheckInMode;
   guestName?: string;
   consentAccepted: boolean;
@@ -78,7 +78,7 @@ export function toMediaMeta(file: File): FeedbackMediaMeta {
 }
 
 export function buildFeedbackPayload(input: {
-  session: GuestSession;
+  session: PrismGuestSession;
   guestName: string;
   rating: string;
   comment: string;
@@ -124,7 +124,7 @@ export function formatArrivalTime(value?: string): string | undefined {
   return `${hours % 12 || 12}:${match[2]} ${hours < 12 ? "AM" : "PM"}`;
 }
 
-export function guestPassDetails(session: GuestSession): Array<[string, string]> {
+export function guestPassDetails(session: PrismGuestSession): Array<[string, string]> {
   const startTime = formatArrivalTime(session.startTime);
   return [
     ["Event", session.eventName],

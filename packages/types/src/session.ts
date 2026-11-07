@@ -1,4 +1,9 @@
-import type { PrismAuthenticatedSession } from "./event-ops.js";
+import type { PrismAuthenticatedSession, PrismGuestEventPass } from "./event-ops.js";
+
+export interface PrismGuestSession extends PrismGuestEventPass {
+  openedAt: string;
+  feedbackReceiptId?: string;
+}
 
 export const PRISM_SESSION_STORAGE_KEYS = {
   client: "prism:client-session",

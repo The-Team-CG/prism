@@ -8,7 +8,7 @@ import {
   mapGuestDashboardError,
   POLL_INTERVAL_MS,
 } from "../model/guest-dashboard-rules";
-import type { CheckInMode, GuestBusyAction, GuestDashboardStatus, GuestSession } from "../model/guest-dashboard-types";
+import type { CheckInMode, GuestBusyAction, GuestDashboardStatus } from "../model/guest-dashboard-types";
 import {
   leaveGuestEvent,
   loadGuestDashboardSession,
@@ -18,10 +18,11 @@ import {
   withdrawGuestFeedbackConsent,
   saveGuestFeedbackReceipt,
 } from "../use-cases/guest-dashboard-actions";
+import type { PrismGuestSession } from "@prism/types";
 
 export function useGuestDashboardViewModel() {
   const router = useRouter();
-  const [session, setSession] = useState<GuestSession | null>(null);
+  const [session, setSession] = useState<PrismGuestSession | null>(null);
   const [status, setStatus] = useState<GuestDashboardStatus>("loading");
   const [checkedIn, setCheckedIn] = useState(false);
   const [accessEnded, setAccessEnded] = useState(false);
