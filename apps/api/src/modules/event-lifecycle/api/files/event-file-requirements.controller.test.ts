@@ -186,6 +186,33 @@ describe('OpsEventFileRequirementsController', () => {
     });
   });
 
+  it("scopes a supplier's read to its own fulfilment and never returns another supplier's uploaded object", async () => {
+    const { controller, fileRequirementsMatrixService } = createController();
+    // supplier_1 (Sonic Line Events, the verified actor's event quote) is missing; supplier_2 (Atlas Sound) has uploaded.
+    const insurance = {
+      key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.Supplier],
+      status: 'missing', required: true, overdue: true, origin: 'custom', auditCategory: 'documents', sourceWorkflow: 'custom',
+      detail: '1 of 2 selected supplier(s) submitted', notes: 'Chase Sonic',
+      supplierFulfilments: [
+        { supplierId: 'supplier_1', supplierName: 'Sonic Line Events', status: 'missing', overdue: true },
+        { supplierId: 'supplier_2', supplierName: 'Atlas Sound', status: 'submitted', overdue: false, validationStatus: 'accepted', uploadedAssetId: 'doc_atlas', uploadedObjectId: 'obj_atlas_secret' },
+      ],
+    };
+    fileRequirementsMatrixService.buildForEvent.mockResolvedValue({ eventId: 'evt_file', items: [insurance] } as never);
+
+    const supplierView = await controller.fileRequirements('evt_file', verified(OpsUserRole.Supplier, 'Sonic', 'sonic.line@pmcm.test'));
+
+    expect(supplierView.items).toEqual([expect.objectContaining({ key: 'insurance_certificate', status: 'missing', overdue: true })]);
+    expect(supplierView.items[0]).not.toHaveProperty('supplierFulfilments');
+    expect(supplierView.items[0]).not.toHaveProperty('uploadedObjectId');
+    expect(supplierView.items[0]).not.toHaveProperty('notes');
+    const serialised = JSON.stringify(supplierView);
+    for (const leaked of ['obj_atlas_secret', 'doc_atlas', 'Atlas Sound', 'supplier_2']) expect(serialised).not.toContain(leaked);
+
+    const pmcmView = await controller.fileRequirements('evt_file', verified(OpsUserRole.PmcmAdmin, 'Maxine'));
+    expect(pmcmView.items[0]).toMatchObject({ supplierFulfilments: insurance.supplierFulfilments, notes: 'Chase Sonic' });
+  });
+
   it('does not build the matrix when the event is missing or access is denied', async () => {
     const { controller, fileRequirementsMatrixService, eventAccessPolicyService } = createController();
     fileRequirementsMatrixService.requireEvent.mockRejectedValueOnce(new NotFoundException('Event not found'));

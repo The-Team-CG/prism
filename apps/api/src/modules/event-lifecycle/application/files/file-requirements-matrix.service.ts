@@ -13,14 +13,29 @@ import { readUnresolvedCloseoutIssues } from '@prism/contexts/read-models/closeo
 import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 import { readStoredConformeEvidence } from '@prism/contexts/read-models/file-evidence';
 import type { PrismFileRequirementItem, PrismFileRequirementStatus, PrismFileRequirementsMatrix } from '@prism/types';
-import { mergeFileRequirementOverrides, type DerivedFileRequirementItem } from '../../domain/file-requirement-matrix.policy';
+import {
+  mergeFileRequirementOverrides,
+  type DerivedFileRequirementItem,
+  type FileRequirementSupplier,
+} from '../../domain/file-requirement-matrix.policy';
 
 export type FileRequirementStatus = PrismFileRequirementStatus;
 export type FileRequirementMatrixItem = PrismFileRequirementItem;
 export type FileRequirementsMatrix = PrismFileRequirementsMatrix;
 
+/** Selected quote requests per event; a bound event has a handful, so the cap only guards against runaway rows. */
+const MAX_SELECTED_SUPPLIERS = 200;
+
 function trackedDeliverablesStatus(documents: OpsPostEventDocument[]): FileRequirementStatus {
   return documents.length > 0 && documents.every(document => document.status === 'submitted') ? 'complete' : 'missing';
+}
+
+function distinctSuppliers(rows: Array<{ supplierId: string | null; supplierName: string }>): FileRequirementSupplier[] {
+  const byId = new Map<string, FileRequirementSupplier>();
+  for (const row of rows) {
+    if (row.supplierId && !byId.has(row.supplierId)) byId.set(row.supplierId, { supplierId: row.supplierId, supplierName: row.supplierName });
+  }
+  return [...byId.values()];
 }
 
 @Injectable()
@@ -41,7 +56,7 @@ export class FileRequirementsMatrixService {
   async buildForEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma, now: Date = new Date()): Promise<FileRequirementsMatrix> {
     const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues, clientCloseoutResponse, storedConforme, digitalConforme, logisticsCompletion, persistedRequirements] = await Promise.all([
+    const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues, clientCloseoutResponse, storedConforme, digitalConforme, logisticsCompletion, persistedRequirements, selectedSupplierRows] = await Promise.all([
       prisma.opsDocument.findMany({ where: { eventId } }),
       prisma.opsPostEventDocument.findMany({ where: { eventId } }),
       prisma.opsBillingStatement.findMany({ where: { eventId } }),
@@ -53,16 +68,21 @@ export class FileRequirementsMatrixService {
       prisma.opsConformeExecution.findFirst({ where: { eventId, status: 'completed' }, orderBy: { templateVersion: 'desc' }, select: { id: true } }),
       prisma.opsLogisticsCompletion.findUnique({ where: { eventId }, select: { assetReturnsVerified: true, recordedAt: true } }),
       prisma.opsFileRequirement.findMany({ where: { eventId }, orderBy: { key: 'asc' }, take: 200 }),
+      prisma.opsSupplierQuoteRequest.findMany({ where: { eventId, status: 'selected' }, select: { supplierId: true, supplierName: true }, orderBy: { id: 'asc' }, take: MAX_SELECTED_SUPPLIERS }),
     ]);
     const storedObjectIds = [...new Set(documents.map((document) => document.storageKey).filter((key): key is string => Boolean(key)))];
     const storedObjects = storedObjectIds.length
-      ? await prisma.opsStoredObject.findMany({ where: { id: { in: storedObjectIds } }, select: { id: true, lifecycleState: true } })
+      ? await prisma.opsStoredObject.findMany({ where: { id: { in: storedObjectIds } }, select: { id: true, lifecycleState: true, ownerRecordType: true, ownerRecordId: true } })
       : [];
     const objectAvailability = new Map(storedObjects.map((object) => [object.id, object.lifecycleState === 'stored']));
+    // A document belongs to the supplier that owns its stored object; event-owned and unbound files belong to no supplier.
+    const objectOwnerSupplier = new Map(storedObjects.map((object) => [object.id, object.ownerRecordType === 'supplier' ? object.ownerRecordId : null]));
     const documentFacts = documents.map((document) => ({
       ...document,
       available: !document.storageKey || objectAvailability.get(document.storageKey) !== false,
+      ownerSupplierId: document.storageKey ? objectOwnerSupplier.get(document.storageKey) ?? null : null,
     }));
+    const suppliers = distinctSuppliers(selectedSupplierRows);
 
     const derived: DerivedFileRequirementItem[] = [
       ...this.itemsForEvent(event, documentFacts, postEventDocuments, billingStatements, milestones, supplierReviews, clientCloseoutResponse, storedConforme, digitalConforme),
@@ -74,7 +94,7 @@ export class FileRequirementsMatrixService {
       },
     ];
     // Overrides change ownership, visibility, required state, and due dates only; close gates read derived status.
-    return { eventId, items: mergeFileRequirementOverrides(derived, persistedRequirements, documentFacts, now) };
+    return { eventId, items: mergeFileRequirementOverrides(derived, persistedRequirements, documentFacts, suppliers, now) };
   }
 
   async closeGates(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {
