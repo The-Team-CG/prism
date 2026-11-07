@@ -47,5 +47,12 @@
     "context": "platform-ops",
     "severity": "high",
     "query": "SELECT approval.id AS approval_id, audit.id AS audit_id, audit.sanitized_payload->>'reviewPayloadDigest' AS review_payload_digest\nFROM {{platform-ops.ai_approval_records}} AS approval\nJOIN {{platform-ops.ai_audit_logs}} AS audit ON audit.id = approval.ai_audit_log_id\nWHERE approval.feature_name = 'PARE'\n  AND audit.feature_name = 'PARE'\n  AND (audit.sanitized_payload->>'pareProvenanceVersion' = '1' OR audit.sanitized_payload ? 'reviewPayloadDigest')\n  AND (jsonb_typeof(approval.review_payload) IS DISTINCT FROM 'object'\n    OR COALESCE(audit.sanitized_payload->>'reviewPayloadDigest', '') !~ '^[0-9a-f]{64}$'\n    OR encode(sha256(convert_to(approval.review_payload::text, 'UTF8')), 'hex') <> audit.sanitized_payload->>'reviewPayloadDigest')\nORDER BY approval.id;"
+  },
+  {
+    "id": "live_ops_blocked_tasks_have_reason",
+    "description": "Every blocked event-day task has a non-empty blocked reason and a blocked timestamp.",
+    "context": "live-ops",
+    "severity": "high",
+    "query": "SELECT id, event_id, blocked_reason, blocked_at\nFROM {{live-ops.event_day_tasks}}\nWHERE status = 'blocked'\n  AND (blocked_reason IS NULL OR btrim(blocked_reason) = '' OR blocked_at IS NULL)\nORDER BY id;"
   }
 ]

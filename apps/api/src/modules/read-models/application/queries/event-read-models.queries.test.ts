@@ -559,6 +559,7 @@ describe('EventReadModelQueries collection limits', () => {
         status: { notIn: ['done', 'cancelled'] },
         OR: expect.arrayContaining([{ status: 'blocked' }, { slaDueAt: { lt: now } }, { slaDueAt: null, dueAt: { lt: now } }]),
       }),
+      select: expect.objectContaining({ blockedReason: true }),
       orderBy: [{ slaDueAt: 'asc' }, { id: 'asc' }],
     }));
     expect(opsUrgentIssue.findMany).toHaveBeenCalledWith(expect.objectContaining({

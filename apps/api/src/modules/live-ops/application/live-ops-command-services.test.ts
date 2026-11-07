@@ -258,6 +258,98 @@ describe('LiveOpsTaskIssueCommandService - Urgent Issues & Attribution Security'
   });
 });
 
+describe('LiveOpsTaskIssueCommandService - blocked event-day tasks', () => {
+  const actor = { name: 'Alex', role: 'coordinator', email: 'alex@pmcm.test' };
+
+  function taskService(task: Record<string, unknown> | null) {
+    const prisma = {
+      opsEventDayTask: {
+        findUnique: vi.fn(async () => task),
+        update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...task, ...data })),
+      },
+      opsEventDayLog: { create: vi.fn(async () => ({})) },
+    };
+    const auditWriter = { write: vi.fn(async () => undefined) };
+    const service = new LiveOpsTaskIssueCommandService(
+      prisma as never,
+      auditWriter as never,
+      mockNotificationOutboxWriter as never,
+      mockWorkflowCommandService as never,
+      mockAccountContacts as never,
+    );
+    return { service, prisma, auditWriter };
+  }
+
+  const openTask = { id: 'task_1', eventId: 'evt_001', title: 'Confirm venue power', assignedRole: 'Technical Lead', ownerName: 'Alex', status: 'open', notes: '' };
+  const blockedTask = { ...openTask, status: 'blocked', notes: 'Completed from live desk.', blockedReason: 'Power map missing', blockedAt: new Date('2026-11-07T01:00:00.000Z'), blockedBy: 'Alex' };
+
+  it('blocks an open task with the reason and the blocker, then logs and audits it', async () => {
+    const { service, prisma, auditWriter } = taskService(openTask);
+
+    const result = await service.blockEventDayTask('evt_001', 'task_1', { reason: 'Power map missing' }, actor);
+
+    expect(prisma.opsEventDayTask.update).toHaveBeenCalledWith({
+      where: { id: 'task_1' },
+      data: { status: 'blocked', blockedReason: 'Power map missing', blockedAt: expect.any(Date), blockedBy: 'Alex' },
+    });
+    expect(result).toMatchObject({ status: 'blocked', blockedReason: 'Power map missing', blockedBy: 'Alex' });
+    expect(prisma.opsEventDayLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ actionType: 'task_blocked', relatedId: 'task_1' }) });
+    expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: 'evt_001',
+      action: 'Blocked event-day task: Confirm venue power',
+      affectedId: 'task_1',
+      metadata: { status: 'blocked', reason: 'Power map missing' },
+    }), undefined);
+  });
+
+  it.each(['done', 'cancelled', 'blocked'])('refuses to block a %s task', async (status) => {
+    const { service, prisma } = taskService({ ...openTask, status });
+
+    await expect(service.blockEventDayTask('evt_001', 'task_1', { reason: 'Power map missing' }, actor)).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.opsEventDayTask.update).not.toHaveBeenCalled();
+  });
+
+  it('unblocks a blocked task and clears every blocker field', async () => {
+    const { service, prisma } = taskService(blockedTask);
+
+    const result = await service.unblockEventDayTask('evt_001', 'task_1', actor);
+
+    expect(prisma.opsEventDayTask.update).toHaveBeenCalledWith({
+      where: { id: 'task_1' },
+      data: { status: 'open', blockedReason: null, blockedAt: null, blockedBy: null },
+    });
+    expect(result).toMatchObject({ status: 'open', blockedReason: null, blockedAt: null, blockedBy: null });
+    expect(prisma.opsEventDayLog.create).toHaveBeenCalledWith({ data: expect.objectContaining({ actionType: 'task_unblocked', relatedId: 'task_1' }) });
+  });
+
+  it.each(['open', 'in_progress', 'done'])('refuses to unblock a %s task', async (status) => {
+    const { service, prisma } = taskService({ ...openTask, status });
+
+    await expect(service.unblockEventDayTask('evt_001', 'task_1', actor)).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.opsEventDayTask.update).not.toHaveBeenCalled();
+  });
+
+  it('keeps the generic update from moving a task into or out of blocked', async () => {
+    const open = taskService(openTask);
+    await expect(open.service.updateEventDayTask('evt_001', 'task_1', { status: 'blocked' }, actor)).rejects.toThrow(/block action/);
+    expect(open.prisma.opsEventDayTask.update).not.toHaveBeenCalled();
+
+    const blocked = taskService(blockedTask);
+    await expect(blocked.service.updateEventDayTask('evt_001', 'task_1', { status: 'in_progress' }, actor)).rejects.toThrow(/unblock action/);
+    expect(blocked.prisma.opsEventDayTask.update).not.toHaveBeenCalled();
+  });
+
+  it('still lets a blocked task keep its notes without leaving the blocked state', async () => {
+    const { service, prisma } = taskService(blockedTask);
+
+    await service.updateEventDayTask('evt_001', 'task_1', { notes: 'Electrician called' }, actor);
+
+    expect(prisma.opsEventDayTask.update).toHaveBeenCalledWith({ where: { id: 'task_1' }, data: { notes: 'Electrician called' } });
+  });
+});
+
 describe('CoordinatorLiveOpsCommandService', () => {
   type EventDayLogUpsertArgs = { where: { id: string }; create: Record<string, unknown>; update: Record<string, unknown> };
   const actor = { id: 'usr_admin', name: 'Anthony Admin', email: 'anthony@pmcm.test', role: 'pmcm-admin', explicit: true } as const;

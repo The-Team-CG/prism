@@ -4,6 +4,7 @@ export {
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
   isEmergencyCoordinatorWithdrawal,
+  isGuestDeskRole,
   normalizeCoordinatorRole,
   type CoordinatorRole,
 } from "./coordinator-roles.js";
@@ -101,6 +102,7 @@ export {
   createSupplierScheduleSchema,
   createEventDayTaskSchema,
   updateEventDayTaskSchema,
+  blockEventDayTaskSchema,
   createEventTaskReassignmentSchema,
   decideEventTaskReassignmentSchema,
   updateCoordinatorAttendanceSchema,
@@ -194,6 +196,7 @@ export {
   type CreateSupplierScheduleInput,
   type CreateEventDayTaskInput,
   type UpdateEventDayTaskInput,
+  type BlockEventDayTaskInput,
   type CreateEventTaskReassignmentInput,
   type DecideEventTaskReassignmentInput,
   type UpdateCoordinatorAttendanceInput,
