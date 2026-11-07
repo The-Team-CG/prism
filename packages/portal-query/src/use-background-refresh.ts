@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-export const EVENT_GAME_SESSION_UPDATE_INTERVAL_MS = 30_000;
+export const BACKGROUND_REFRESH_INTERVAL_MS = 30_000;
 const MAX_RETRY_DELAY_MS = 120_000;
 
-export function useEventGameSessionUpdates({
+export function useBackgroundRefresh({
   enabled,
   refresh,
 }: {
@@ -50,7 +50,7 @@ export function useEventGameSessionUpdates({
     const schedule = () => {
       if (disposed || isDocumentHidden()) return;
       clearTimer();
-      const delay = Math.min(EVENT_GAME_SESSION_UPDATE_INTERVAL_MS * 2 ** failures, MAX_RETRY_DELAY_MS);
+      const delay = Math.min(BACKGROUND_REFRESH_INTERVAL_MS * 2 ** failures, MAX_RETRY_DELAY_MS);
       timer = window.setTimeout(() => { void poll(); }, delay);
     };
     const poll = async (): Promise<boolean> => {
@@ -84,7 +84,7 @@ export function useEventGameSessionUpdates({
     };
 
     triggerRef.current = poll;
-    timer = window.setTimeout(() => { void poll(); }, EVENT_GAME_SESSION_UPDATE_INTERVAL_MS);
+    timer = window.setTimeout(() => { void poll(); }, BACKGROUND_REFRESH_INTERVAL_MS);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("focus", onVisibilityChange);
     return () => {

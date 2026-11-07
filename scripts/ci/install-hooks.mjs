@@ -6,7 +6,11 @@ export function installHooks(repo, { ci = process.env.CI } = {}) {
   if (ci) return 'skipped';
   git(repo, ['rev-parse', '--git-dir']);
   let existing;
-  try { existing = git(repo, ['config', '--get', 'core.hooksPath']); } catch { /* Unconfigured Git uses its default hooks directory. */ }
+  try {
+    existing = git(repo, ['config', '--get', 'core.hooksPath']);
+  } catch (error) {
+    if (error.status !== 1) throw error;
+  }
   if (existing && existing !== '.githooks') {
     console.log(`Preserved existing Git hooks at ${existing}. Run npm run check:push manually or integrate .githooks/pre-push there.`);
     return 'preserved';
