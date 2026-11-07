@@ -32,6 +32,27 @@ describe("EventCommandInbox — render states", () => {
     expect(screen.queryByText("Loading command inbox...")).toBeNull();
   });
 
+  it("renders addendum inbox actions with their owning area and review label", () => {
+    const item = {
+      id: "addendum-1", kind: "addendum" as const, severity: "attention" as const,
+      label: "Client addendum awaiting countersignature", eventName: "Gala",
+      description: "", status: "pending", createdAt: "2026-01-01T00:00:00.000Z", href: "/events/event-1/addenda/addendum-1",
+    };
+
+    render(
+      <EventCommandInbox
+        inbox={{ ...EMPTY_INBOX, items: [item] }}
+        onRefresh={() => {}}
+        onPageChange={() => {}}
+        loadFailed={false}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: item.label }).getAttribute("href")).toBe(item.href);
+    expect(screen.getByText("Addenda · Gala")).toBeTruthy();
+    expect(screen.getByText("Review addendum")).toBeTruthy();
+  });
+
   it("moves only to available inbox pages", () => {
     const onPageChange = vi.fn();
     const { rerender } = render(

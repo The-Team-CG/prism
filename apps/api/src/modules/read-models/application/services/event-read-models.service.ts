@@ -530,6 +530,7 @@ export class EventReadModelsService {
     const postEventDocuments: ClientActionSources[6] = [];
     const closeoutResponses: ClientActionSources[7] = [];
     const changeRequests: ClientActionSources[8] = [];
+    const addenda: ClientActionSources[9] = [];
     const now = new Date();
     const changeDecisionsSince = new Date(now.getTime() - CLIENT_CHANGE_DECISION_REVIEW_DAYS * 24 * 60 * 60 * 1000);
     for (let offset = 0; offset < visibleEvents.length; offset += 100) {
@@ -544,6 +545,7 @@ export class EventReadModelsService {
         batchPostEventDocuments,
         batchCloseoutResponses,
         batchChangeRequests,
+        batchAddenda,
       ] =
       await this.queries.clientActionCenterForEvents(eventBatch.map((event) => event.id), changeDecisionsSince);
       briefings.push(...batchBriefings);
@@ -555,6 +557,7 @@ export class EventReadModelsService {
       postEventDocuments.push(...batchPostEventDocuments);
       closeoutResponses.push(...batchCloseoutResponses);
       changeRequests.push(...batchChangeRequests);
+      addenda.push(...batchAddenda);
     }
     const items = collectClientActionItems({
       visibleEvents,
@@ -567,6 +570,7 @@ export class EventReadModelsService {
       postEventDocuments,
       closeoutResponses,
       changeRequests,
+      addenda,
       now,
     });
 

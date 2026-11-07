@@ -710,6 +710,7 @@ export class EventReadModelQueries {
       postEventDocuments,
       closeoutResponses,
       changeRequests,
+      addenda,
     ] = await Promise.all([
       readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
         this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
@@ -755,6 +756,24 @@ export class EventReadModelQueries {
           select: { ...CLIENT_CHANGE_REQUEST_SELECT, eventId: true },
           orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS }),
       ),
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsAddendum.findMany({
+          where: {
+            eventId: { in: eventIds },
+            conformeExecution: { is: { status: 'awaiting_client' } },
+            ...(afterId ? { id: { gt: afterId } } : {}),
+          },
+          select: {
+            id: true,
+            eventId: true,
+            versionNumber: true,
+            title: true,
+            issuedAt: true,
+            conformeExecution: { select: { status: true } },
+          },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS,
+        }),
+      ),
     ]);
     return [
       sortByDate(briefings, (row) => row.submittedAt, 'desc'),
@@ -768,6 +787,7 @@ export class EventReadModelQueries {
       ),
       closeoutResponses,
       sortByDate(changeRequests, (row) => row.requestedAt, 'desc'),
+      sortByDate(addenda, (row) => row.issuedAt, 'desc'),
     ] as const;
   }
   // Supplier and event eligibility is applied before each bounded keyset page.
