@@ -667,18 +667,21 @@ function liveOpsTaskInboxItem(
   if (!overdue && task.status !== 'blocked') return null;
   const state = overdue ? OVERDUE_LIVE_OPS_TASK_STATE : BLOCKED_LIVE_OPS_TASK_STATE;
   const owner = task.ownerName ? `${task.assignedRole} (${task.ownerName})` : task.assignedRole;
+  const blocker = task.status === 'blocked'
+    ? ` Blocker: ${task.notes.trim() || 'No blocker details recorded.'}`
+    : '';
   return {
     id: `live-ops:task:${task.id}`,
     kind: 'live_ops',
     severity: state.severity,
     label: state.label,
-    description: `${task.title} for ${event.eventName} is ${state.status}. Owner: ${owner}.`,
+    description: `${task.title} for ${event.eventName} is ${state.status}. Owner: ${owner}.${blocker}`,
     status: state.status,
     eventId: event.id,
     eventName: event.eventName,
     clientName: event.clientName,
     dueAt: toIso(dueAt),
-    href: `/dashboard/events/${event.id}/live-ops`,
+    href: `/dashboard/events/${event.id}/live-ops#event-day-task-${encodeURIComponent(task.id)}`,
   };
 }
 

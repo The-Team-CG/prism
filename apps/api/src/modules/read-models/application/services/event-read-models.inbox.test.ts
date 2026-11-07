@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { collectClientActionItems } from './event-read-models.inbox';
+import { collectClientActionItems, collectPmcmCommandInboxItems } from './event-read-models.inbox';
 
 type Input = Parameters<typeof collectClientActionItems>[0];
 
@@ -33,5 +33,43 @@ describe('client action center', () => {
     // Only delivered, unacknowledged records need the client; each is named so two can be told apart.
     const closeout = items.filter((item) => item.kind === 'closure');
     expect(closeout.map((item) => item.label).sort()).toEqual(['Acknowledge deliverable: Photo gallery', 'Acknowledge deliverable: Post-event report']);
+  });
+});
+
+describe('PMCM command inbox', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-06T00:00:00Z'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows blocked task context and links directly to the affected event-day task', () => {
+    const items = collectPmcmCommandInboxItems({
+      inquiries: [],
+      events: [{
+        id: 'evt_gala', eventName: 'Founders gala', eventDate: new Date('2026-11-10T09:00:00.000Z'),
+        floorPlanStatus: 'not_started', status: 'planning', clientName: 'Alex Client',
+      }],
+      paymentMilestones: [],
+      quoteRequests: [],
+      coordinatorAssignments: [],
+      floorPlanDrafts: [],
+      postEventDocuments: [],
+      eventDayTasks: [{
+        id: 'task_42', eventId: 'evt_gala', title: 'Confirm venue power', status: 'blocked',
+        assignedRole: 'Technical Coordinator', ownerName: 'Morgan Lee', notes: 'Waiting for the venue power map.',
+        dueAt: new Date('2026-11-08T09:00:00.000Z'), slaDueAt: null, slaStatus: 'on_track',
+      }],
+    });
+
+    expect(items).toContainEqual(expect.objectContaining({
+      id: 'live-ops:task:task_42',
+      label: 'Event-day task blocked',
+      description: 'Confirm venue power for Founders gala is blocked. Owner: Technical Coordinator (Morgan Lee). Blocker: Waiting for the venue power map.',
+      dueAt: '2026-11-08T09:00:00.000Z',
+      href: '/dashboard/events/evt_gala/live-ops#event-day-task-task_42',
+    }));
   });
 });

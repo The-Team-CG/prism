@@ -28,6 +28,7 @@ import type {
 import { cx, label } from "@/features/pmcm-kit";
 import { isOpenLiveOpsIssue, liveOpsPillClass, orderLiveOpsIssuesForDesk } from "../model/live-ops-workspace-rules";
 import { useCoordinatorRowViewModel } from "../view-models/use-coordinator-row-view-model";
+import { useEventDayTaskTarget } from "../view-models/use-event-day-task-target";
 import type { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
 import Link from "next/link";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk, eventRunSheetHref } from "@/features/live-ops/schedule";
@@ -487,6 +488,7 @@ function LiveOpsTasksPanel({
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
   onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
 }) {
+  useEventDayTaskTarget();
   return (
     <section className="rounded-lg border border-border bg-card p-4 sm:p-5" aria-label="Event-day tasks">
       <Header
@@ -497,21 +499,22 @@ function LiveOpsTasksPanel({
       <div className="mt-3 space-y-3">
         {liveOps.tasks.length === 0 ? <Empty label="No event-day tasks yet." /> : null}
         {liveOps.tasks.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            busy={busy}
-            readOnly={readOnly}
-            onProgress={() => onUpdateTask(task.id, { status: "in_progress" })}
-            onDone={() => onUpdateTask(task.id, { status: "done", notes: "Completed from live desk." })}
-            onEscalate={() =>
-              onEscalateTask(task.id, {
-                escalationLevel: task.priority === "critical" ? "critical" : "pmcm",
-                notes: `Escalated from PMCM live desk: ${task.title}`,
-                ownerName: task.ownerName || undefined,
-              })
-            }
-          />
+          <div key={task.id} id={`event-day-task-${task.id}`} className="scroll-mt-6">
+            <TaskRow
+              task={task}
+              busy={busy}
+              readOnly={readOnly}
+              onProgress={() => onUpdateTask(task.id, { status: "in_progress" })}
+              onDone={() => onUpdateTask(task.id, { status: "done", notes: "Completed from live desk." })}
+              onEscalate={() =>
+                onEscalateTask(task.id, {
+                  escalationLevel: task.priority === "critical" ? "critical" : "pmcm",
+                  notes: `Escalated from PMCM live desk: ${task.title}`,
+                  ownerName: task.ownerName || undefined,
+                })
+              }
+            />
+          </div>
         ))}
       </div>
       <div id="live-ops-task-form" hidden={readOnly || !vm.taskFormOpen} className="mt-4 grid gap-3 rounded-md border border-border bg-background p-3">
