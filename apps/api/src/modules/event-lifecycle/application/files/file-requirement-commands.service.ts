@@ -191,16 +191,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       if (!requirement.visibleToRoles.includes(scopedActor.role) && scopedActor.role !== OpsUserRole.PmcmAdmin) {
         throw new BadRequestException('This role cannot fulfil the file requirement');
       }
-      if (scopedActor.role === OpsUserRole.Supplier) {
-        // An unresolved supplierId must refuse outright: Prisma treats an undefined where-field as no filter.
-        const selectedBooking = scopedActor.supplierId
-          ? await tx.opsSupplierQuoteRequest.findFirst({ where: { eventId, supplierId: scopedActor.supplierId, status: 'selected' }, select: { id: true } })
-          : null;
-        if (!selectedBooking) {
-          await this.accessPolicy.recordForbiddenAccess(scopedActor, 'fulfil file requirement without a selected booking', eventId);
-          throw new ForbiddenException('Only a selected supplier on this event can fulfil this requirement');
-        }
-      }
+      await this.requireSelectedSupplierBooking(tx, eventId, scopedActor);
       const object = await this.requireBindingUpload(tx, eventId, key, input.objectId, scopedActor, requirement);
       const currentBinding = await tx.opsDocument.findFirst({ where: { eventId, storageKey: object.id } });
       if (currentBinding) {
@@ -231,6 +222,18 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     return ((object.usage === 'client_document' || object.usage === 'signed_conforme') && object.ownerRecordType === 'event' && object.ownerRecordId === eventId)
         || (object.usage === 'supplier_document' && object.ownerRecordType === 'supplier' && object.ownerRecordId === actor.supplierId)
         || (object.usage === 'event_deliverable' && ['billing_statement', 'proposal_version'].includes(object.ownerRecordType));
+  }
+
+  /** Suppliers may bind only when they hold a selected booking on the event; other roles pass through. */
+  private async requireSelectedSupplierBooking(tx: Prisma.TransactionClient, eventId: string, scopedActor: ResolvedEventOpsActor) {
+    if (scopedActor.role !== OpsUserRole.Supplier) return;
+    // An unresolved supplierId must refuse outright: Prisma treats an undefined where-field as no filter.
+    const selectedBooking = scopedActor.supplierId
+      ? await tx.opsSupplierQuoteRequest.findFirst({ where: { eventId, supplierId: scopedActor.supplierId, status: 'selected' }, select: { id: true } })
+      : null;
+    if (selectedBooking) return;
+    await this.accessPolicy.recordForbiddenAccess(scopedActor, 'fulfil file requirement without a selected booking', eventId);
+    throw new ForbiddenException('Only a selected supplier on this event can fulfil this requirement');
   }
 
   private async requireBindingUpload(tx: Prisma.TransactionClient, eventId: string, key: string, objectId: string, scopedActor: ResolvedEventOpsActor, requirement: OpsFileRequirement) {
