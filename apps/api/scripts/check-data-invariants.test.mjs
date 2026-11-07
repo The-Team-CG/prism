@@ -17,7 +17,7 @@ const SCRIPT_PATH = fileURLToPath(new URL('./check-data-invariants.mjs', import.
 describe('data invariant declaration validation', () => {
   it('loads and validates the checked-in invariant declarations', () => {
     const declarations = loadInvariantDeclarations();
-    assert.equal(declarations.length, 8);
+    assert.equal(declarations.length, 12);
     assert.deepEqual(
       declarations.map(({ id }) => id),
       [
@@ -28,6 +28,10 @@ describe('data invariant declaration validation', () => {
         'billing_sequence_covers_existing_statements',
         'migration_ledger_no_unfinished',
         'pare_review_payload_has_audit_digest',
+        'addenda_effective_has_effective_at',
+        'addenda_pending_has_plan_and_no_applied_impacts',
+        'addenda_withdrawn_has_reason_and_no_impacts',
+        'addenda_completed_conforme_is_effective',
         'live_ops_blocked_tasks_have_reason',
       ],
     );
@@ -139,7 +143,7 @@ describe('dry-run process behavior', () => {
       encoding: 'utf8',
     });
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /8 invariants/);
+    assert.match(result.stdout, /12 invariants/);
   });
 
   it('dry-runs owner queries against the final schema catalog without database credentials', () => {

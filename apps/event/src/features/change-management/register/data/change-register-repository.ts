@@ -8,6 +8,7 @@ import type {
   PrismAddendum,
   PrismEventFreezeException,
   RequestFreezeExceptionInput,
+  WithdrawAddendumInput,
 } from "@prism/types";
 
 export const changeRegisterRepository = {
@@ -35,5 +36,8 @@ export const changeRegisterRepository = {
   },
   countersignAddendumConforme(eventId: string, addendumId: string, input: SignAddendumConformeExecutionInput): Promise<PrismAddendumConformeExecution> {
     return eventApi.events.countersignAddendumConforme(eventId, addendumId, input);
+  },
+  withdrawAddendum(eventId: string, addendumId: string, input: WithdrawAddendumInput): Promise<PrismAddendum> {
+    return eventApi.events.withdrawAddendum(eventId, addendumId, input);
   },
 };

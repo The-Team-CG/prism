@@ -1,4 +1,5 @@
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import type { AddendumPlannedImpacts } from '@prism/types';
 
 export type AddendumQuotePriceChange = {
   quoteId: string;
@@ -13,12 +14,19 @@ export type CommercialAddendumImpact = {
   deltaAmount: number;
 };
 
+/** Read-only input for the plan that issuing an addendum stores. Writes nothing. */
+export type PreviewCommercialAddendumInput = {
+  eventId: string;
+  financialDelta: number;
+  quotePriceChanges: AddendumQuotePriceChange[];
+};
+
+/** Countersignature input: the plan stored at issue, applied once when the addendum becomes effective. */
 export type ApplyCommercialAddendumInput = {
   eventId: string;
   addendumId: string;
   versionNumber: number;
-  financialDelta: number;
-  quotePriceChanges: AddendumQuotePriceChange[];
+  plan: AddendumPlannedImpacts;
 };
 
 /**
@@ -41,6 +49,15 @@ export type CommercialAddendumConformeTrace = {
 };
 
 export interface CommercialAddendumImpactWriter {
+  /**
+   * Read-only. Resolves the approved billing source and the current selected-quote amounts that an addendum would change.
+   * Refuses a financial delta when no approved billing source exists. Quotes that are not selected in this event are skipped.
+   */
+  preview(input: PreviewCommercialAddendumInput, transaction: PrismTransactionContext): Promise<AddendumPlannedImpacts>;
+  /**
+   * Writes the planned billing and selected-quote changes. Every baseline in the plan must still match the stored value;
+   * otherwise the call throws a conflict and the caller's transaction rolls back.
+   */
   apply(input: ApplyCommercialAddendumInput, transaction: PrismTransactionContext): Promise<CommercialAddendumImpact[]>;
   /**
    * Stamps the billing line that carries this addendum's id with the executed conforme version. Replays of the same

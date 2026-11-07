@@ -411,10 +411,14 @@ export {
   requestFreezeExceptionSchema,
   decideFreezeExceptionSchema,
   issueAddendumSchema,
+  withdrawAddendumSchema,
+  addendumPlannedImpactsSchema,
   type FreezeEventInput,
   type RequestFreezeExceptionInput,
   type DecideFreezeExceptionInput,
   type IssueAddendumInput,
+  type WithdrawAddendumInput,
+  type AddendumPlannedImpacts,
 } from "./session-w26-inputs.js";
 export {
   scopeChangeCategorySchema,
