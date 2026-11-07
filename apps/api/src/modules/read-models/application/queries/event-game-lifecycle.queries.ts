@@ -7,6 +7,7 @@ import type { Prisma } from '@prisma/client';
  */
 export async function readEventGameWriteState(prisma: Prisma.TransactionClient, eventId: string) {
   // Query budget: one row-locking read for the current event write; no per-row queries.
+  // QUERY_AUDIT_RAW_SQL: FOR SHARE on the owning event lifecycle row: a concurrent event closure waits until this game write commits, as the function doc comment states.
   const rows = await prisma.$queryRaw<Array<{ is_open: boolean }>>`
     SELECT NOT (
       archived

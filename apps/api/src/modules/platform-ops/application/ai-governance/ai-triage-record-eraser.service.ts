@@ -18,13 +18,13 @@ export class AiTriageRecordEraser {
   ): Promise<{ surfaces: string[]; touchedRecords: number }> {
     if (inquiryIds.length === 0) return { surfaces: [], touchedRecords: 0 };
 
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: erasure must remove every triage record for these inquiries; a cap would leave personal data behind.
     const records = await transaction.opsAiApprovalRecord.findMany({
       where: {
         featureName: INQUIRY_TRIAGE_FEATURE,
         OR: inquiryIds.map((inquiryId) => ({ sourceDispatchId: { startsWith: `${INQUIRY_TRIAGE_KEY_PREFIX}${inquiryId}:` } })),
       },
       select: { id: true, aiAuditLogId: true },
-      take: 5_000,
     });
     if (records.length === 0) return { surfaces: [], touchedRecords: 0 };
 
@@ -32,6 +32,7 @@ export class AiTriageRecordEraser {
       where: { id: { in: records.map((record) => record.aiAuditLogId) } },
       select: { id: true, sanitizedPayload: true },
     });
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: covers exactly the matched records of the inquiries being erased: one update per audit log referenced by those approval records (the audits read above); each row needs its own sanitizedPayload update.
     for (const audit of audits) {
       const payload = audit.sanitizedPayload as Record<string, unknown> | null;
       const route = payload && typeof payload === 'object' ? payload._aiGatewayRoute : undefined;
