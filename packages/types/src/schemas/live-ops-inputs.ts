@@ -80,6 +80,11 @@ export const updateEventDayTaskSchema = z.object({
 });
 export type UpdateEventDayTaskInput = z.infer<typeof updateEventDayTaskSchema>;
 
+export const blockEventDayTaskSchema = z.object({
+  reason: nonEmptyStringSchema.max(500),
+});
+export type BlockEventDayTaskInput = z.infer<typeof blockEventDayTaskSchema>;
+
 export const createEventTaskReassignmentSchema = z.object({
   toOwnerRole: coordinatorRoleSchema,
   toOwnerName: optionalTrimmedStringSchema,

@@ -86,7 +86,8 @@ describe('PMCM command inbox', () => {
       postEventDocuments: [],
       eventDayTasks: [{
         id: 'task_42', eventId: 'evt_gala', title: 'Confirm venue power', status: 'blocked',
-        assignedRole: 'Technical Coordinator', ownerName: 'Morgan Lee', notes: 'Waiting for the venue power map.',
+        assignedRole: 'Technical Coordinator', ownerName: 'Morgan Lee',
+        blockedReason: 'Waiting for the venue power map.',
         dueAt: new Date('2026-11-08T09:00:00.000Z'), slaDueAt: null, slaStatus: 'on_track',
       }],
     });

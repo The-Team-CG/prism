@@ -1599,6 +1599,9 @@ model OpsEventDayTask {
   escalatedBy     String?   @map("escalated_by")
   escalationNotes String    @default("") @map("escalation_notes")
   completedAt     DateTime? @map("completed_at")
+  blockedReason   String?   @map("blocked_reason")
+  blockedAt       DateTime? @map("blocked_at")
+  blockedBy       String?   @map("blocked_by")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 

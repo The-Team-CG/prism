@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 import { EventLiveOpsCommandService } from './event-live-ops-command.service';
@@ -118,6 +119,8 @@ function createService(assignment: unknown) {
       createdAt: new Date('2026-09-02T00:00:00.000Z'),
       updatedAt: new Date('2026-09-02T00:00:00.000Z'),
     })),
+    blockEventDayTask: vi.fn(async (_eventId: string, taskId: string) => ({ id: taskId, eventId: 'evt_sample_ayala', title: 'Open registration', assignedRole: 'Registration Staff', ownerName: 'Marco Santos', priority: 'normal', status: 'blocked', notes: '', blockedReason: 'Scanner offline', blockedAt: new Date('2026-09-02T00:00:00.000Z'), blockedBy: 'Marco Santos', dueAt: null, slaDueAt: null, createdAt: new Date('2026-09-02T00:00:00.000Z'), updatedAt: new Date('2026-09-02T00:00:00.000Z') })),
+    unblockEventDayTask: vi.fn(async (_eventId: string, taskId: string) => ({ id: taskId, eventId: 'evt_sample_ayala', title: 'Open registration', assignedRole: 'Registration Staff', ownerName: 'Marco Santos', priority: 'normal', status: 'open', notes: '', blockedReason: null, blockedAt: null, blockedBy: null, dueAt: null, slaDueAt: null, createdAt: new Date('2026-09-02T00:00:00.000Z'), updatedAt: new Date('2026-09-02T00:00:00.000Z') })),
   };
   const coordinatorCommandService = {
     updateCoordinatorAttendance: vi.fn(async () => coordinatorAssignmentRow()),
@@ -436,6 +439,88 @@ describe('EventLiveOpsCommandService event scoping', () => {
       'issue_1',
       { ownerRole: 'Finance', ownerName: 'Finance Lead' },
       expect.objectContaining({ role: OpsUserRole.Coordinator }),
+    );
+  });
+});
+
+describe('EventLiveOpsCommandService blocked event-day tasks', () => {
+  const openTask = {
+    id: 'task_registration',
+    eventId: 'evt_sample_ayala',
+    title: 'Open registration',
+    assignedRole: 'Registration Staff',
+    ownerName: 'Marco Santos',
+    status: 'open',
+  };
+
+  // Rejections come from the real role gate, not the stub used by the other scope tests.
+  function createServiceWithRoleGate(assignment: unknown) {
+    const harness = createService(assignment);
+    const policy = new EventAccessPolicyService({ write: vi.fn(async () => undefined) } as never);
+    harness.eventAccessPolicyService.requireActorRole.mockImplementation(
+      ((...args: Parameters<EventAccessPolicyService['requireActorRole']>) => policy.requireActorRole(...args)) as never,
+    );
+    return harness;
+  }
+
+  it.each([
+    ['client', { id: 'usr_client', role: OpsUserRole.Client, name: 'Ana Reyes', email: 'ana@ayala.test', explicit: true }],
+    ['supplier', { id: 'usr_supplier', role: OpsUserRole.Supplier, name: 'Sonic Line Events', email: 'ops@sonic.test', explicit: true }],
+    ['guest', { id: 'usr_guest', role: OpsUserRole.Guest, name: 'Guest Pass', email: 'guest@ayala.test', explicit: true }],
+  ])('refuses %s block and unblock before the task is read or written', async (_label, actor) => {
+    const { service, liveOperationsService, prisma } = createServiceWithRoleGate(null);
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsEventDayTask.findFirst.mockResolvedValue(openTask as never);
+
+    await expect(service.blockEventDayTask('evt_sample_ayala', 'task_registration', { reason: 'Power out' }, actor as never))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.unblockEventDayTask('evt_sample_ayala', 'task_registration', actor as never))
+      .rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(liveOperationsService.blockEventDayTask).not.toHaveBeenCalled();
+    expect(liveOperationsService.unblockEventDayTask).not.toHaveBeenCalled();
+  });
+
+  it('refuses a coordinator block or unblock on a task outside their queue', async () => {
+    const { service, liveOperationsService, eventAccessPolicyService, prisma } = createServiceWithRoleGate(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsEventDayTask.findFirst.mockResolvedValue({ ...openTask, assignedRole: 'Access Lead', ownerName: 'Taylor Cruz' } as never);
+
+    await expect(service.blockEventDayTask('evt_sample_ayala', 'task_registration', { reason: 'Power out' }, coordinatorActor()))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.unblockEventDayTask('evt_sample_ayala', 'task_registration', coordinatorActor()))
+      .rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(liveOperationsService.blockEventDayTask).not.toHaveBeenCalled();
+    expect(liveOperationsService.unblockEventDayTask).not.toHaveBeenCalled();
+    expect(eventAccessPolicyService.recordForbiddenAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
+      'coordinator task scope',
+      'evt_sample_ayala',
+    );
+  });
+
+  it('lets the assigned coordinator block their own queue task and PMCM block any task', async () => {
+    const { service, liveOperationsService, prisma } = createServiceWithRoleGate(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsEventDayTask.findFirst.mockResolvedValue(openTask as never);
+
+    await service.blockEventDayTask('evt_sample_ayala', 'task_registration', { reason: 'Scanner offline' }, coordinatorActor());
+    await service.blockEventDayTask('evt_sample_ayala', 'task_registration', { reason: 'Venue access held' }, pmcmAdminActor());
+
+    expect(liveOperationsService.blockEventDayTask).toHaveBeenNthCalledWith(
+      1,
+      'evt_sample_ayala',
+      'task_registration',
+      { reason: 'Scanner offline' },
+      expect.objectContaining({ role: OpsUserRole.Coordinator }),
+    );
+    expect(liveOperationsService.blockEventDayTask).toHaveBeenNthCalledWith(
+      2,
+      'evt_sample_ayala',
+      'task_registration',
+      { reason: 'Venue access held' },
+      expect.objectContaining({ role: OpsUserRole.PmcmAdmin }),
     );
   });
 });

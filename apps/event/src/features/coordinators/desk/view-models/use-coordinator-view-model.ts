@@ -12,6 +12,7 @@ import {
   coordinatorAssignmentAcknowledgementSchema,
   withdrawCoordinatorAssignmentSchema,
   parseContract,
+  blockEventDayTaskSchema,
   updateCoordinatorAttendanceSchema,
   updateEventDayTaskSchema,
   reportSupplierSiteStatusSchema,
@@ -31,6 +32,8 @@ import {
   loadCoordinatorRoleView,
   markAttendanceAndRefreshRoleView,
   updateOwnTaskAndRefreshRoleView,
+  blockOwnTaskAndRefreshRoleView,
+  unblockOwnTaskAndRefreshRoleView,
   updateDelegatedAttendanceAndRefreshRoleView,
   reportSupplierStatusAndRefreshRoleView,
   verifySupplierStatusAndRefreshRoleView,
@@ -363,6 +366,29 @@ export function useCoordinatorViewModel({
     } finally { setTaskBusy(false); }
   }
 
+  async function blockTask(taskId: string, reason: string) {
+    if (!isWritableCoordinatorEvent(event)) return;
+    setTaskBusy(true);
+    setTaskError(null);
+    try {
+      const input = parseContract(blockEventDayTaskSchema, { reason }, "Event-day task blocker");
+      setRoleView(await blockOwnTaskAndRefreshRoleView({ session, eventId: event.id, taskId, input }));
+    } catch (error) {
+      setTaskError(error instanceof Error ? error.message : "Unable to block this task.");
+    } finally { setTaskBusy(false); }
+  }
+
+  async function unblockTask(taskId: string) {
+    if (!isWritableCoordinatorEvent(event)) return;
+    setTaskBusy(true);
+    setTaskError(null);
+    try {
+      setRoleView(await unblockOwnTaskAndRefreshRoleView({ session, eventId: event.id, taskId }));
+    } catch (error) {
+      setTaskError(error instanceof Error ? error.message : "Unable to unblock this task.");
+    } finally { setTaskBusy(false); }
+  }
+
   async function updateDelegatedAttendance(assignmentId: string, status: string) {
     if (!isWritableCoordinatorEvent(event) || !roleView?.isDesignatedOperator) return;
     setOperatorBusy(true);
@@ -553,7 +579,7 @@ export function useCoordinatorViewModel({
       error: reassignmentError,
       request: requestReassignment,
     },
-    taskActions: { busy: taskBusy, error: taskError, updateStatus: updateTaskStatus },
+    taskActions: { busy: taskBusy, error: taskError, updateStatus: updateTaskStatus, blockTask, unblockTask },
     operatorActions: {
       busy: operatorBusy,
       error: operatorError,
