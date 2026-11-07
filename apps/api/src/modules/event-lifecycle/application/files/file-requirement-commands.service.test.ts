@@ -19,7 +19,25 @@ type Row = Record<string, any>;
 /** Uses the real merge policy so overrides, custom rows, and rejected uploads flow through the same rules as production. */
 type HarnessSupplier = { supplierId: string; supplierName: string; email: string };
 
-function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirementItem[]; rejectedDocuments?: Array<{ id: string; type: string }>; dueEvents?: string[]; storedUpload?: Row | null; suppliers?: HarnessSupplier[]; openSuppliers?: HarnessSupplier[] } = {}) {
+const atlas: HarnessSupplier = { supplierId: 'supplier_atlas', supplierName: 'Atlas Sound', email: 'atlas@example.test' };
+const sonic: HarnessSupplier = { supplierId: 'supplier_sonic', supplierName: 'Sonic Line Events', email: 'sonic@example.test' };
+/** A supplier-owned custom requirement; a fresh row each call because the harness mutates persisted rows. */
+const insuranceRequirement = (dueAt = '2026-10-01T00:00:00.000Z') => ({
+  id: 'freq_sup', eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'],
+  required: true, dueAt: new Date(dueAt), sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm',
+});
+
+function createHarness(options: {
+  rows?: Row[];
+  derived?: DerivedFileRequirementItem[];
+  rejectedDocuments?: Array<{ id: string; type: string }>;
+  /** Documents stored by one selected supplier; the matrix attributes them to that supplier only. */
+  supplierDocuments?: Array<{ id: string; type: string; ownerSupplierId: string; validationStatus?: 'accepted' | 'rejected' }>;
+  dueEvents?: string[];
+  storedUpload?: Row | null;
+  suppliers?: HarnessSupplier[];
+  openSuppliers?: HarnessSupplier[];
+} = {}) {
   const selectedSuppliers = options.suppliers ?? [];
   // Open quote requests exist on the event but are not selected: they resolve the actor's event scope, never a booking.
   const quoteRequests = [...selectedSuppliers, ...(options.openSuppliers ?? [])];
@@ -30,6 +48,8 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
   const templates: Row[] = [];
   const audits: Array<Record<string, any>> = [];
   const outbox: Array<Record<string, any>> = [];
+  // Only the suppliers selected on the event have contact emails read for reminders.
+  const accountContacts = { findSelectedSupplierContacts: vi.fn(async () => selectedSuppliers.map((supplier) => ({ supplierId: supplier.supplierId, email: supplier.email || null }))) };
   const tx = {
     opsEvent: {
       findUnique: vi.fn(async () => ({ id: eventId, archived: false, eventDate: new Date('2026-12-01T00:00:00.000Z'), inquiry: { eventType: 'wedding' } })),
@@ -81,6 +101,7 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
         rows.map((row) => ({ ...row, dueAt: row.dueAt ?? null }) as never),
         [
           ...(options.rejectedDocuments ?? []).map((document) => ({ id: document.id, type: document.type, status: 'submitted', validationStatus: 'rejected', uploadedAt: new Date('2026-10-10T00:00:00.000Z') })),
+          ...(options.supplierDocuments ?? []).map((document) => ({ id: document.id, type: document.type, status: 'submitted', validationStatus: document.validationStatus ?? 'accepted', uploadedAt: new Date('2026-10-10T00:00:00.000Z'), ownerSupplierId: document.ownerSupplierId })),
           ...documents.map((document) => ({ id: document.id, type: document.type, status: document.status, validationStatus: document.validationStatus, uploadedAt: document.uploadedAt, storageKey: document.storageKey, ownerSupplierId: supplierOwnerOf(document.storageKey) })),
         ],
         selectedSuppliers.map(({ supplierId, supplierName }) => ({ supplierId, supplierName })),
@@ -96,9 +117,13 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
     recordForbiddenAccess: vi.fn(async () => undefined),
   };
   const auditWriter = { write: vi.fn(async (input: Record<string, any>) => { audits.push(input); return input; }) };
-  const notificationOutboxWriter = { write: vi.fn(async (input: Record<string, any>) => { outbox.push(input); return input; }) };
+  // Mirrors the outbox's idempotency: a repeated key keeps the existing row rather than queueing another.
+  const notificationOutboxWriter = { write: vi.fn(async (input: Record<string, any>) => {
+    if (!outbox.some((entry) => entry.idempotencyKey === input.idempotencyKey)) outbox.push(input);
+    return input;
+  }) };
   const storedRequirementUploads = { findStoredRequirementUpload: vi.fn(async () => options.storedUpload ?? null) };
-  const service = new FileRequirementCommandsService(prisma as never, matrix as never, accessPolicy as never, auditWriter as never, notificationOutboxWriter as never, storedRequirementUploads as never);
+  const service = new FileRequirementCommandsService(prisma as never, matrix as never, accessPolicy as never, auditWriter as never, notificationOutboxWriter as never, storedRequirementUploads as never, accountContacts as never);
   return { service, rows, audits, outbox, tx, prisma, matrix, documents, templates, storedRequirementUploads, accessPolicy };
 }
 
@@ -233,6 +258,52 @@ describe('FileRequirementCommandsService', () => {
     const result = await harness.service.runReminderSweep(new Date('2026-10-20T00:00:00.000Z'));
     expect(result.reminders.map((reminder) => reminder.reason)).toEqual(['rejected', 'rejected']);
     expect(result.reminders[0].idempotencyKey).toContain('doc_rejected');
+  });
+
+  it('reminds only the overdue supplier at its own contact, plus one PMCM reminder, and never names another supplier', async () => {
+    const harness = createHarness({ rows: [insuranceRequirement()], suppliers: [atlas, sonic], dueEvents: [eventId], supplierDocuments: [{ id: 'doc_atlas', type: 'insurance_certificate', ownerSupplierId: atlas.supplierId }] });
+
+    const result = await harness.service.runReminderSweep(new Date('2026-10-20T00:00:00.000Z'));
+
+    expect(result.reminders.map(({ recipient }) => recipient).sort()).toEqual(['PMCM Admin', 'sonic@example.test']);
+    expect(harness.outbox.map(({ recipient }) => recipient).sort()).toEqual(['PMCM Admin', 'sonic@example.test']);
+    expect(JSON.stringify(harness.outbox)).not.toContain('Atlas Sound');
+  });
+
+  it('keeps a repeated sweep from queueing supplier reminders again', async () => {
+    const harness = createHarness({ rows: [insuranceRequirement()], suppliers: [atlas, sonic], dueEvents: [eventId] });
+    const now = new Date('2026-10-20T00:00:00.000Z');
+
+    await harness.service.runReminderSweep(now);
+    expect(harness.outbox).toHaveLength(3);
+    await harness.service.runReminderSweep(now);
+    expect(harness.outbox).toHaveLength(3);
+  });
+
+  it('sends a rejected reminder only to the supplier whose upload was rejected', async () => {
+    const harness = createHarness({
+      rows: [insuranceRequirement('2026-11-30T00:00:00.000Z')],
+      suppliers: [atlas, sonic],
+      dueEvents: [eventId],
+      supplierDocuments: [
+        { id: 'doc_atlas', type: 'insurance_certificate', ownerSupplierId: atlas.supplierId },
+        { id: 'doc_sonic', type: 'insurance_certificate', ownerSupplierId: sonic.supplierId, validationStatus: 'rejected' },
+      ],
+    });
+
+    const result = await harness.service.runReminderSweep(new Date('2026-10-20T00:00:00.000Z'));
+
+    expect(result.reminders.map(({ recipient, reason }) => `${recipient}:${reason}`).sort()).toEqual(['PMCM Admin:rejected', 'sonic@example.test:rejected']);
+    expect(result.reminders.find(({ recipient }) => recipient === 'sonic@example.test')?.idempotencyKey)
+      .toBe('file-requirement-rejected:evt_file:insurance_certificate:r1:doc_sonic:supplier:supplier_sonic');
+  });
+
+  it('skips a supplier with no contact email and still reminds the others', async () => {
+    const harness = createHarness({ rows: [insuranceRequirement()], suppliers: [{ ...atlas, email: '' }, sonic], dueEvents: [eventId] });
+
+    const result = await harness.service.runReminderSweep(new Date('2026-10-20T00:00:00.000Z'));
+
+    expect(result.reminders.map(({ recipient }) => recipient).sort()).toEqual(['PMCM Admin', 'sonic@example.test']);
   });
 
   it('lets PMCM queue event-scoped overdue reminders and rejects client-triggered reminders', async () => {
