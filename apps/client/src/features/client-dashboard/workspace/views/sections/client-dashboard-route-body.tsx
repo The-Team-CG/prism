@@ -11,6 +11,7 @@ import { ClientMessagesView } from "../../../messages";
 import { ClientPortalBillingView } from "../../../billing";
 import { ClientEventWorkspaceView } from "../../../event-workspace";
 import { ClientSharedFloorplansView } from "@/features/client-shared-floorplans/views/client-shared-floorplans-view";
+import { ClientPrivacyRequestsView } from "../../../privacy";
 import type { ClientDashboardRoute } from "../../model/client-dashboard-types";
 
 const PORTAL_ROUTE_VIEWS: Partial<Record<ClientDashboardRoute, () => ReactElement>> = {
@@ -26,6 +27,7 @@ const PORTAL_ONLY_VIEWS: Partial<Record<ClientDashboardRoute, () => ReactElement
   approvals: () => <ClientApprovalsView />,
   messages: () => <ClientMessagesView />,
   billing: () => <ClientPortalBillingView />,
+  privacy: () => <ClientPrivacyRequestsView />,
 };
 
 export function ClientDashboardRouteBody({
