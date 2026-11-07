@@ -272,6 +272,16 @@ describe('HandoffBriefReadModelsService', () => {
     ]);
   });
 
+  it('orders the PMCM brief supplier readiness items by the shared sort, not by read order', async () => {
+    const service = createService({
+      suppliers: [supplierRequestFixture('quote_2', 'Lighting'), supplierRequestFixture('quote_1', 'Technicals')],
+    });
+
+    const brief = await service.getHandoffBrief(EVENT_ID, actor(OpsUserRole.PmcmAdmin));
+
+    expect(brief.supplierReadiness.items.map((item) => item.supplierName)).toEqual(['Technicals Supplier', 'Lighting Supplier']);
+  });
+
   it('never returns private supplier notes, audit fields, finance items, or access codes to the PMCM brief', async () => {
     const service = createService({
       suppliers: [supplierRequestFixture('quote_1', 'Technicals')],
