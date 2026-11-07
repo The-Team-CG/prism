@@ -13,8 +13,10 @@ import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser } from '@prism/types';
 import { NOTIFICATION_OUTBOX_WRITER } from '@prism/contexts/platform-ops';
 import { ScopeChangeRequestController } from './scope-change-request.controller';
 import { EventRiskAssessmentController } from './event-risk-assessment.controller';
+import { AddendumWithdrawalController } from './addendum-withdrawal.controller';
 import { ScopeChangeRequestService } from '../../application/change/scope-change-request.service';
 import { EventRiskAssessmentService } from '../../application/change/event-risk-assessment.service';
+import { AddendumWithdrawalService } from '../../application/change/addendum-withdrawal.service';
 
 const sessionSecret = 'local-scope-change-risk-http-test-secret-with-entropy';
 const eventId = 'evt_1';
@@ -91,14 +93,29 @@ const prismaMock = {
     updateMany: async () => ({ count: 1 }),
   },
   opsEventRiskAssessmentHistory: { create: async ({ data }: { data: Row }) => { riskHistory.push(data); return data; } },
+  $queryRaw: async () => [{ id: 'addendum_pending' }],
+  opsAddendum: {
+    findFirst: async ({ where }: { where: Row }) => (where.id === 'addendum_pending' ? {
+      id: 'addendum_pending', eventId, versionNumber: 1, title: 'Stage rig', status: 'pending', plannedImpacts: { financialDelta: 0, billing: null, quotes: [] },
+      conformeExecution: null, event: { inquiry: { email: 'ana.owner@example.test' } },
+    } : null),
+    updateMany: async () => ({ count: 1 }),
+    findUniqueOrThrow: async () => ({
+      id: 'addendum_pending', eventId, versionNumber: 1, title: 'Stage rig', summary: '', status: 'withdrawn', documentId: 'doc_1', documentState: 'pending',
+      comparison: { contract: [], quotes: [] }, financialDelta: 0, issuedAt: new Date('2026-10-18T09:00:00.000Z'), effectiveAt: null,
+      withdrawnAt: new Date('2026-10-18T10:00:00.000Z'), withdrawalReason: 'Venue cannot take the rig', plannedImpacts: null, conformeExecution: null,
+    }),
+  },
+  opsAddendumConformeExecution: { updateMany: async () => ({ count: 1 }) },
   $transaction: async (callback: (tx: unknown) => Promise<unknown>) => callback(prismaMock),
 };
 
 @Module({
-  controllers: [ScopeChangeRequestController, EventRiskAssessmentController],
+  controllers: [ScopeChangeRequestController, EventRiskAssessmentController, AddendumWithdrawalController],
   providers: [
     ScopeChangeRequestService,
     EventRiskAssessmentService,
+    AddendumWithdrawalService,
     EventAccessPolicyService,
     EventSessionGuard,
     AuthSessionService,
@@ -110,7 +127,7 @@ const prismaMock = {
 })
 class ScopeChangeRiskHttpTestModule {}
 
-describe('scope change and risk routes, authenticated HTTP authorization', () => {
+describe('scope change, risk, and addendum withdrawal routes, authenticated HTTP authorization', () => {
   let app: Awaited<ReturnType<typeof NestFactory.create>>;
   let baseUrl: string;
   const tokens: Record<string, string> = {};
@@ -145,6 +162,7 @@ describe('scope change and risk routes, authenticated HTTP authorization', () =>
   const submitBody = { title: 'Add a sunset slot', description: 'Move the cocktail hour outside', category: 'schedule' };
   const rejectBody = { decision: 'reject', decisionReason: 'Venue cannot take the extra hour' };
   const riskBody = { level: 'high', summary: 'Venue access is uncertain', expectedRevision: 0 };
+  const withdrawBody = { reason: 'Venue cannot take the rig' };
 
   // Each row: the caller, the route, and the expected status. Happy paths are the first row of each route group.
   const cases: Array<{ label: string; actor: string; method: 'GET' | 'POST' | 'PATCH'; path: string; body?: unknown; status: number }> = [
@@ -172,6 +190,13 @@ describe('scope change and risk routes, authenticated HTTP authorization', () =>
     { label: 'supplier cannot record the risk level', actor: 'supplier-1', method: 'POST', path: '/risk-assessment', body: riskBody, status: 403 },
     { label: 'guest cannot record the risk level', actor: 'guest-1', method: 'POST', path: '/risk-assessment', body: riskBody, status: 403 },
     { label: 'coordinator cannot record the risk level', actor: 'coordinator-1', method: 'POST', path: '/risk-assessment', body: riskBody, status: 403 },
+    { label: 'PMCM withdraws a pending addendum with a reason', actor: 'pmcm-user', method: 'POST', path: '/addenda/addendum_pending/withdraw', body: withdrawBody, status: 201 },
+    { label: 'PMCM cannot withdraw an addendum without a reason', actor: 'pmcm-user', method: 'POST', path: '/addenda/addendum_pending/withdraw', body: { reason: '  ' }, status: 400 },
+    { label: 'client cannot withdraw an addendum', actor: 'client-owner', method: 'POST', path: '/addenda/addendum_pending/withdraw', body: withdrawBody, status: 403 },
+    { label: 'non-primary client cannot withdraw an addendum', actor: 'client-other', method: 'POST', path: '/addenda/addendum_pending/withdraw', body: withdrawBody, status: 403 },
+    { label: 'supplier cannot withdraw an addendum', actor: 'supplier-1', method: 'POST', path: '/addenda/addendum_pending/withdraw', body: withdrawBody, status: 403 },
+    { label: 'guest cannot withdraw an addendum', actor: 'guest-1', method: 'POST', path: '/addenda/addendum_pending/withdraw', body: withdrawBody, status: 403 },
+    { label: 'coordinator cannot withdraw an addendum', actor: 'coordinator-1', method: 'POST', path: '/addenda/addendum_pending/withdraw', body: withdrawBody, status: 403 },
   ];
 
   it('returns the expected status for every caller and route in the scope change and risk table', async () => {
