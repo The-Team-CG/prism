@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsFileRequirement, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
@@ -190,6 +190,16 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       await this.accessPolicy.requireActorRole(scopedActor, [requirement.ownerRole as OpsUserRoleValue, OpsUserRole.PmcmAdmin], 'fulfil file requirement', eventId);
       if (!requirement.visibleToRoles.includes(scopedActor.role) && scopedActor.role !== OpsUserRole.PmcmAdmin) {
         throw new BadRequestException('This role cannot fulfil the file requirement');
+      }
+      if (scopedActor.role === OpsUserRole.Supplier) {
+        // An unresolved supplierId must refuse outright: Prisma treats an undefined where-field as no filter.
+        const selectedBooking = scopedActor.supplierId
+          ? await tx.opsSupplierQuoteRequest.findFirst({ where: { eventId, supplierId: scopedActor.supplierId, status: 'selected' }, select: { id: true } })
+          : null;
+        if (!selectedBooking) {
+          await this.accessPolicy.recordForbiddenAccess(scopedActor, 'fulfil file requirement without a selected booking', eventId);
+          throw new ForbiddenException('Only a selected supplier on this event can fulfil this requirement');
+        }
       }
       const object = await this.requireBindingUpload(tx, eventId, key, input.objectId, scopedActor, requirement);
       const currentBinding = await tx.opsDocument.findFirst({ where: { eventId, storageKey: object.id } });
