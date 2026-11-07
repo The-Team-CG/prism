@@ -1,16 +1,5 @@
-import type {
-  OpsBriefing,
-  OpsComplianceCheck,
-  OpsComplianceRule,
-  OpsDocument,
-  OpsEvent,
-  OpsEventInsight,
-  OpsFloorPlanDraft,
-  OpsInquiry,
-  OpsNotificationLog,
-  OpsPostEventDocument,
-  OpsUser,
-} from '@prisma/client';
+import type { OpsComplianceCheck, OpsComplianceRule, OpsEvent, OpsEventInsight, OpsFloorPlanDraft, OpsNotificationLog, OpsPostEventDocument, OpsUser } from '@prisma/client';
+import { mapBriefingSummary, mapDocument, mapInquirySummary } from '@prism/contexts/event-lifecycle';
 import { mapAuditLog } from '@prism/contexts/platform-ops';
 import { mapBillingSource, mapBillingStatement, mapPaymentMilestone, mapPaymentRecord, mapSupplierQuote, mapSupplierQuoteRequest } from '@prism/contexts/commercial';
 import type { FloorplanReader } from '@prism/contexts/floorplan';
@@ -27,70 +16,6 @@ function timestamp(value: Date) {
   return value.toISOString();
 }
 
-function addDays(value: Date, days: number) {
-  const next = new Date(value);
-  next.setDate(next.getDate() + days);
-  return next;
-}
-
-function optionalTimestamp(value: Date | null | undefined) {
-  return value ? timestamp(value) : null;
-}
-
-function inquiryReminderDueAt(inquiry: OpsInquiry) {
-  const reminderBase = inquiry.lastConformeReminderAt ?? inquiry.conformeSentAt;
-  if (inquiry.status === 'accepted' && !inquiry.conformeSignedAt && reminderBase) {
-    return addDays(reminderBase, inquiry.followUpIntervalDays);
-  }
-  return null;
-}
-
-function inquiryInvitationStatus(inquiry: OpsInquiry) {
-  const expired =
-    inquiry.portalInvitationStatus === 'sent' &&
-    inquiry.portalInvitationExpiresAt &&
-    !inquiry.portalInvitationOpenedAt &&
-    inquiry.portalInvitationExpiresAt < new Date();
-  return expired ? 'expired' : inquiry.portalInvitationStatus;
-}
-
-function isReminderDue(reminderDueAt: Date | null) {
-  return Boolean(reminderDueAt && reminderDueAt <= new Date());
-}
-
-type InquiryTriage = OpsInquiry & {
-  channel?: string | null;
-  normalizedEmail?: string;
-  referralDetails?: string;
-  loggedByRole?: string | null;
-  loggedByName?: string | null;
-  duplicateOfInquiryId?: string | null;
-  previousDeclinedInquiryId?: string | null;
-  previousDeclineReason?: string | null;
-  privacyConsentAccepted?: boolean;
-  privacyNoticeVersion?: string;
-  marketingConsentAccepted?: boolean;
-};
-
-function inquiryTriageFields(inquiry: OpsInquiry) {
-  const triage = inquiry as InquiryTriage;
-  return {
-    channel: triage.channel ?? null,
-    normalizedEmail: triage.normalizedEmail ?? inquiry.email.trim().toLowerCase(),
-    referralDetails: triage.referralDetails ?? '',
-    loggedByRole: triage.loggedByRole ?? null,
-    loggedByName: triage.loggedByName ?? null,
-    duplicateOfInquiryId: triage.duplicateOfInquiryId ?? null,
-    previousDeclinedInquiryId: triage.previousDeclinedInquiryId ?? null,
-    previousDeclineReason: triage.previousDeclineReason ?? null,
-    duplicate: Boolean(triage.duplicateOfInquiryId),
-    previouslyDeclined: Boolean(triage.previousDeclinedInquiryId),
-    privacyConsentAccepted: triage.privacyConsentAccepted ?? false,
-    privacyNoticeVersion: triage.privacyNoticeVersion ?? '',
-    marketingConsentAccepted: triage.marketingConsentAccepted ?? false,
-  };
-}
-
 export type EventReadModelMapperDependencies = {
   floorplanReader: FloorplanReader;
   guestReader: GuestReader;
@@ -105,10 +30,10 @@ export function createPmcmReadModelMappers(dependencies: PmcmReadModelMapperDepe
   return createPmcmDashboardMappers({
     coordinatorRoleRequirements: [],
     mapUser,
-    mapInquiry,
+    mapInquiry: mapInquirySummary,
     mapEvent: (event) => mapEvent(event as EventWithDrafts, dependencies),
     mapDocument,
-    mapBriefing,
+    mapBriefing: mapBriefingSummary,
     mapSupplierQuoteRequest,
     mapSupplierQuote,
     mapCoordinator: dependencies.staffingReader.mapCoordinator.bind(dependencies.staffingReader),
@@ -142,40 +67,6 @@ export function mapUser(user: OpsUser) {
   };
 }
 
-export function mapInquiry(inquiry: OpsInquiry) {
-  const reminderDueAt = inquiryReminderDueAt(inquiry);
-  return {
-    id: inquiry.id,
-    clientName: inquiry.clientName,
-    companyName: inquiry.companyName,
-    email: inquiry.email,
-    eventName: inquiry.eventName,
-    eventType: inquiry.eventType,
-    eventDate: isoDate(inquiry.eventDate),
-    clientType: inquiry.clientType,
-    source: inquiry.source,
-    ...inquiryTriageFields(inquiry),
-    message: inquiry.message,
-    status: inquiry.status,
-    declineReason: inquiry.declineReason,
-    acceptedAt: optionalTimestamp(inquiry.acceptedAt),
-    pendingAt: optionalTimestamp(inquiry.pendingAt),
-    declinedAt: optionalTimestamp(inquiry.declinedAt),
-    conformeSentAt: optionalTimestamp(inquiry.conformeSentAt),
-    conformeSignedAt: optionalTimestamp(inquiry.conformeSignedAt),
-    portalActivatedAt: optionalTimestamp(inquiry.portalActivatedAt),
-    followUpIntervalDays: inquiry.followUpIntervalDays,
-    lastConformeReminderAt: optionalTimestamp(inquiry.lastConformeReminderAt),
-    reminderDueAt: optionalTimestamp(reminderDueAt),
-    reminderDue: isReminderDue(reminderDueAt),
-    portalInvitationStatus: inquiryInvitationStatus(inquiry),
-    portalInvitationSentAt: optionalTimestamp(inquiry.portalInvitationSentAt),
-    portalInvitationOpenedAt: optionalTimestamp(inquiry.portalInvitationOpenedAt),
-    portalInvitationExpiresAt: optionalTimestamp(inquiry.portalInvitationExpiresAt),
-    createdAt: timestamp(inquiry.createdAt),
-  };
-}
-
 export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMapperDependencies) {
   const floorPlanDrafts = event.floorPlanDrafts ?? [];
   const activeDraft =
@@ -202,37 +93,6 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     guestAccessCode: dependencies.guestReader.guestAccessCode(event),
     activeFloorPlanDraftId: activeDraft?.id,
     floorPlanDrafts: floorPlanDrafts.map((draft) => dependencies.floorplanReader.mapFloorPlanDraft(draft)),
-  };
-}
-
-export function mapDocument(document: OpsDocument) {
-  const expanded = document as OpsDocument & {
-    generatedFileName?: string | null;
-    validationStatus?: string;
-    rejectionReason?: string | null;
-  };
-  return {
-    id: document.id,
-    eventId: document.eventId,
-    type: document.type,
-    fileName: document.fileName,
-    generatedFileName: expanded.generatedFileName ?? null,
-    status: document.status,
-    validationStatus: expanded.validationStatus ?? 'accepted',
-    rejectionReason: expanded.rejectionReason ?? null,
-    uploadedAt: timestamp(document.uploadedAt),
-  };
-}
-
-export function mapBriefing(briefing: OpsBriefing) {
-  return {
-    eventId: briefing.eventId,
-    venue: briefing.venue,
-    guestCount: briefing.guestCount,
-    budgetRange: briefing.budgetRange,
-    serviceRequirements: Array.isArray(briefing.serviceRequirements) ? (briefing.serviceRequirements as string[]) : [],
-    notes: briefing.notes,
-    submittedAt: timestamp(briefing.submittedAt),
   };
 }
 

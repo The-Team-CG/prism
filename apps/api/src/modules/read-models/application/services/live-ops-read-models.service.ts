@@ -1,4 +1,5 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { mapEventDayLog, mapEventDayTask, mapUrgentIssue } from '@prism/contexts/live-ops';
 import type { OpsEvent, OpsFloorPlanDraft, OpsSupplierQuoteRequest } from '@prisma/client';
 import type {
   PrismCoordinatorRoleView,
@@ -23,9 +24,6 @@ import { EventReadModelQueries } from '../queries/event-read-models.queries';
 import {
   buildStatusFeed,
   mapCoordinatorAssignmentForEventDay,
-  mapEventDayLog,
-  mapEventDayTask,
-  mapUrgentIssue,
 } from '../mappers/live-ops-read-model.mappers';
 import type { LiveOpsReadModel } from '../../contracts/ports/live-ops-read-model.port';
 import { deriveLiveOpsTimer, mapScheduleDay } from '../mappers/schedule-read-model.mappers';

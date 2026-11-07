@@ -9,14 +9,15 @@ import { useClientAddendaViewModel } from "../view-models/use-client-addenda-vie
 export function ClientAddendaStatus({ eventId }: { eventId: string }) {
   const vm = useClientAddendaViewModel(eventId);
   const awaiting = addendaAwaitingClientAcknowledgment(vm.addenda);
-  // Addenda exist only after a scope change is issued; an empty card is noise on the overview.
-  if (vm.status === "ready" && !vm.error && vm.addenda.length === 0) return null;
 
   useEffect(() => {
     if (vm.status !== "ready" || !window.location.hash.startsWith("#client-addendum-")) return;
     const id = decodeURIComponent(window.location.hash.slice(1));
     document.getElementById(id)?.scrollIntoView({ block: "start" });
   }, [eventId, vm.status]);
+
+  // Addenda exist only after a scope change is issued; an empty card is noise on the overview.
+  if (vm.status === "ready" && !vm.error && vm.addenda.length === 0) return null;
 
   return (
     <section aria-labelledby="client-addenda-status" className="space-y-3 rounded-xl border border-border bg-card p-5">

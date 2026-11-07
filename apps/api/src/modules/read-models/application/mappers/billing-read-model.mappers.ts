@@ -1,4 +1,6 @@
 import type { OpsEvent, OpsFloorPlanDraft } from '@prisma/client';
+import { mapOnboardingFloorPlanDraft } from '@prism/contexts/event-lifecycle';
+import { guestAccessCode } from '@prism/contexts/operations';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
 
@@ -8,50 +10,6 @@ function isoDate(value: Date) {
 
 function timestamp(value: Date) {
   return value.toISOString();
-}
-
-function guestAccessCode(event: Pick<OpsEvent, 'id' | 'eventName'>) {
-  const namePart =
-    event.eventName
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, '-')
-      .split('-')
-      .filter(Boolean)
-      .slice(0, 2)
-      .join('-') || 'PRISM';
-  const idPart = event.id.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase() || 'EVNT';
-  return `${namePart}-${idPart}`;
-}
-
-export function mapReadModelFloorPlanDraft(draft: OpsFloorPlanDraft) {
-  const expanded = draft as OpsFloorPlanDraft & {
-    submittedSnapshot?: unknown;
-    approvedSnapshot?: unknown;
-    submittedSnapshotAt?: Date | null;
-    approvedSnapshotAt?: Date | null;
-    revisionComment?: string;
-  };
-  return {
-    id: draft.id,
-    eventId: draft.eventId,
-    floorPlanId: draft.floorPlanId,
-    name: draft.name,
-    status: draft.status,
-    isActive: draft.isActive,
-    sourceType: draft.sourceType,
-    createdByRole: draft.createdByRole,
-    clientPreference: draft.clientPreference ?? undefined,
-    submittedSnapshot: expanded.submittedSnapshot ?? undefined,
-    approvedSnapshot: expanded.approvedSnapshot ?? undefined,
-    submittedAt: draft.submittedAt ? timestamp(draft.submittedAt) : undefined,
-    reviewedAt: draft.reviewedAt ? timestamp(draft.reviewedAt) : undefined,
-    approvedAt: draft.approvedAt ? timestamp(draft.approvedAt) : undefined,
-    submittedSnapshotAt: expanded.submittedSnapshotAt ? timestamp(expanded.submittedSnapshotAt) : undefined,
-    approvedSnapshotAt: expanded.approvedSnapshotAt ? timestamp(expanded.approvedSnapshotAt) : undefined,
-    revisionComment: expanded.revisionComment ?? '',
-    createdAt: timestamp(draft.createdAt),
-    updatedAt: timestamp(draft.updatedAt),
-  };
 }
 
 export function mapBillingEvent(event: EventWithDrafts) {
@@ -78,6 +36,6 @@ export function mapBillingEvent(event: EventWithDrafts) {
     floorPlanId: event.floorPlanId,
     guestAccessCode: guestAccessCode(event),
     activeFloorPlanDraftId: activeDraft?.id,
-    floorPlanDrafts: floorPlanDrafts.map(mapReadModelFloorPlanDraft),
+    floorPlanDrafts: floorPlanDrafts.map(mapOnboardingFloorPlanDraft),
   };
 }
