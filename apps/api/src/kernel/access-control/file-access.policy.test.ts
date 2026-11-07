@@ -145,6 +145,13 @@ describe('file access policy: document metadata rows', () => {
     expect(canReadDocumentRow(ACTORS.client!, row, stored(null))).toBe(false);
   });
 
+  it('shows an issued proposal row to the client even when its storage key is a PDF provider key with no loaded object', () => {
+    const issuedProposal = { type: 'proposal', storageKey: 'events/evt_1/objects/event_deliverable/obj_pdf.pdf' };
+    expect(canReadDocumentRow(ACTORS.client!, issuedProposal, stored(null))).toBe(true);
+    expect(canReadDocumentRow(ACTORS.coordinator!, issuedProposal, stored(null))).toBe(false);
+    expect(canReadDocumentRow(ACTORS.supplierOwner!, issuedProposal, stored(null))).toBe(false);
+  });
+
   it('shows an unbound conforme or proposal metadata row to the client only, and never to a coordinator or supplier', () => {
     const conforme = { type: 'signed_conforme', storageKey: null };
     const proposal = { type: 'proposal', storageKey: null };

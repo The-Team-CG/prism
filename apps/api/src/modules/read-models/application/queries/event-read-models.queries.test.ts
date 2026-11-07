@@ -695,4 +695,51 @@ describe('EventReadModelQueries client document rows', () => {
 
     expect(visible.map((document) => document.id)).toEqual(['doc_bound', 'doc_sent_bill', 'doc_proposal']);
   });
+
+  it('keeps an issued proposal visible to the client even though its document stores the PDF provider key, not a loaded object id', async () => {
+    const client = { name: 'Client', role: 'client', email: 'client@example.test', explicit: true, verified: true } as never;
+    // What PMCM issuing version 1 writes: an issued proposal row whose storageKey is the PDF's provider object key.
+    const issuedProposal = {
+      id: 'doc_proposal_v1', eventId: 'evt_1', type: 'proposal', status: 'issued', fileName: 'proposal-v1.pdf',
+      uploadedAt: new Date('2026-10-02T00:00:00Z'), storageKey: 'events/evt_1/objects/event_deliverable/obj_pdf.pdf',
+    };
+    const queries = new EventReadModelQueries({
+      opsStoredObject: { findMany: vi.fn(async () => []) },
+      opsFileRequirement: { findMany: vi.fn(async () => []) },
+      opsBillingStatement: { findMany: vi.fn(async () => []) },
+    } as unknown as PrismaService);
+
+    const visible = await queries.clientReadableDocuments(client, [issuedProposal] as never);
+
+    expect(visible.map((document) => document.id)).toEqual(['doc_proposal_v1']);
+  });
+
+  it('keeps a sent billing statement visible whose document stores a provider key, and still hides an unsent one', async () => {
+    const client = { name: 'Client', role: 'client', email: 'client@example.test', explicit: true, verified: true } as never;
+    const documents = [
+      { id: 'doc_sent', eventId: 'evt_1', type: 'billing_statement', status: 'stored', fileName: 'BS-1.pdf', uploadedAt: new Date('2026-10-02T00:00:00Z'), storageKey: 'events/evt_1/billing/BS-1.pdf' },
+      { id: 'doc_unsent', eventId: 'evt_1', type: 'billing_statement', status: 'stored', fileName: 'BS-2.pdf', uploadedAt: new Date('2026-10-02T00:00:00Z'), storageKey: 'events/evt_1/billing/BS-2.pdf' },
+    ];
+    const queries = new EventReadModelQueries({
+      opsStoredObject: { findMany: vi.fn(async () => []) },
+      opsFileRequirement: { findMany: vi.fn(async () => []) },
+      opsBillingStatement: { findMany: vi.fn(async () => [{ id: 'bill_1', documentId: 'doc_sent' }]) },
+    } as unknown as PrismaService);
+
+    const visible = await queries.clientReadableDocuments(client, documents as never);
+
+    expect(visible.map((document) => document.id)).toEqual(['doc_sent']);
+  });
+
+  it('hides a client document bound to an object the lookup cannot find, so a missing object fails closed', async () => {
+    const client = { name: 'Client', role: 'client', email: 'client@example.test', explicit: true, verified: true } as never;
+    const bound = { id: 'doc_bound', eventId: 'evt_1', type: 'insurance_certificate', status: 'submitted', fileName: 'ins.pdf', uploadedAt: new Date('2026-10-02T00:00:00Z'), storageKey: 'obj_missing' };
+    const queries = new EventReadModelQueries({
+      opsStoredObject: { findMany: vi.fn(async () => []) },
+      opsFileRequirement: { findMany: vi.fn(async () => [{ eventId: 'evt_1', key: 'insurance_certificate', visibleToRoles: ['pmcm-admin', 'client'] }]) },
+      opsBillingStatement: { findMany: vi.fn(async () => []) },
+    } as unknown as PrismaService);
+
+    await expect(queries.clientReadableDocuments(client, [bound] as never)).resolves.toEqual([]);
+  });
 });

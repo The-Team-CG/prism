@@ -109,9 +109,12 @@ export function canDownloadStoredObject(actor: FileAccessActor, object: FileAcce
 export type DocumentRowFacts = { type: string; storageKey: string | null };
 
 /**
- * Whether a document metadata row may appear for an actor. Rows bound to a
- * stored object follow that object's list rule. Rows without an object follow
- * their type. A supplier contract row never reaches a non-PMCM role.
+ * Whether a document metadata row may appear for an actor. A row bound to a
+ * requirement follows that stored object's list rule (its storageKey is the
+ * object id). Billing and proposal rows are decided by their type, because
+ * their storageKey is the PDF's provider key, not an object id. Their bytes are
+ * still gated by the object download rule. A supplier contract row never reaches
+ * a non-PMCM role.
  */
 export function canReadDocumentRow(
   actor: FileAccessActor,
@@ -121,6 +124,7 @@ export function canReadDocumentRow(
   if (PRIVILEGED_ROLES.includes(actor.role)) return true;
   if (row.type === 'supplier_contract') return false;
   if (row.type === 'billing_statement') return actor.role === OpsUserRole.Client && bound.billingStatementSent;
+  if (PROPOSAL_DOCUMENT_TYPES.includes(row.type)) return actor.role === OpsUserRole.Client;
   if (row.storageKey) return bound.object !== null && canListStoredObject(actor, bound.object, bound);
-  return actor.role === OpsUserRole.Client && (row.type === 'signed_conforme' || PROPOSAL_DOCUMENT_TYPES.includes(row.type));
+  return actor.role === OpsUserRole.Client && row.type === 'signed_conforme';
 }
