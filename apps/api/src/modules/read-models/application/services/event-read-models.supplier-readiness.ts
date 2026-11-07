@@ -6,6 +6,7 @@ import type {
   PrismSupplierReadinessSchedule,
   PrismSupplierReadinessSetupStatus,
 } from '@prism/types';
+import { supplierIngressLateGraceMinutes } from '@prism/contexts/commercial';
 import { CONFIDENTIAL_EVENT_NAME, isSupplierBidIdentityHidden } from '@prism/kernel/event-core';
 import { priorityRank, toIso } from './event-read-models.inbox';
 
@@ -46,7 +47,12 @@ export type SupplierReadinessRequestSource = {
   schedule?: SupplierReadinessScheduleSource | null;
 };
 
-export type SupplierReadinessEventRef = { eventName?: string | null; clientName?: string | null; eventDate?: Date | null } | undefined;
+export type SupplierReadinessEventRef = { eventName?: string | null; clientName?: string | null; eventDate?: Date | string | null } | undefined;
+
+function eventDateKey(eventDate: Date | string | null | undefined): string | null {
+  if (!eventDate) return null;
+  return typeof eventDate === 'string' ? eventDate.slice(0, 10) : eventDate.toISOString().slice(0, 10);
+}
 
 /** What a supplier may know about the event behind a request; PMCM projections keep the full event. */
 export function supplierFacingEventRef(request: { confidentialBid: boolean; status: string }, event: SupplierReadinessEventRef): SupplierReadinessEventRef {
@@ -55,6 +61,10 @@ export function supplierFacingEventRef(request: { confidentialBid: boolean; stat
 }
 
 export type SupplierReadinessClock = { now: Date; ingressLateGraceMinutes: number };
+
+export function createSupplierReadinessClock(now = new Date()): SupplierReadinessClock {
+  return { now, ingressLateGraceMinutes: supplierIngressLateGraceMinutes() };
+}
 
 function contractStatusOf(request: SupplierReadinessRequestSource): PrismSupplierReadinessItem['contractStatus'] {
   const latest = request.contractVersions?.[0]?.reviewStatus;
@@ -173,7 +183,7 @@ export function buildSupplierReadinessItem(
     eventId: request.eventId,
     eventName: event?.eventName ?? null,
     clientName: event?.clientName ?? null,
-    eventDate: event?.eventDate ? event.eventDate.toISOString().slice(0, 10) : null,
+    eventDate: eventDateKey(event?.eventDate),
     supplierId: request.supplierId,
     supplierName: request.supplierName,
     category: request.category,
