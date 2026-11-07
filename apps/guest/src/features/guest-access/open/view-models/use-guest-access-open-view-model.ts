@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PrismGuestEventPass } from "@prism/types";
+import type { PrismGuestEventPass, PrismGuestSession } from "@prism/types";
 import {
   isOpenDraftValid,
   mapGuestAccessError,
 } from "../model/guest-access-open-rules";
-import type { GuestAccessOpenDraft, GuestAccessOpenStatus, GuestSession } from "../model/guest-access-open-types";
+import type { GuestAccessOpenDraft, GuestAccessOpenStatus } from "../model/guest-access-open-types";
 import {
   loadExistingGuestSession,
   openGuestEventPass,
@@ -20,7 +20,7 @@ export function useGuestAccessOpenViewModel() {
     accessCode: "",
   });
   const [preview, setPreview] = useState<PrismGuestEventPass | null>(null);
-  const [existing, setExisting] = useState<GuestSession | null>(null);
+  const [existing, setExisting] = useState<PrismGuestSession | null>(null);
   const [status, setStatus] = useState<GuestAccessOpenStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 

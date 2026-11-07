@@ -1,5 +1,5 @@
-import { safeNextPath, type PrismGuestEventPass } from "@prism/types";
-import type { GuestAccessOpenDraft, GuestSession } from "./guest-access-open-types";
+import { safeNextPath, type PrismGuestEventPass, type PrismGuestSession } from "@prism/types";
+import type { GuestAccessOpenDraft } from "./guest-access-open-types";
 
 export { GUEST_API_OFFLINE_MESSAGE as GUEST_ACCESS_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-messages";
 
@@ -18,7 +18,7 @@ export function encodeAccessCodePath(accessCode: string): string {
 export function buildGuestSession(
   event: PrismGuestEventPass,
   openedAt: string = new Date().toISOString(),
-): GuestSession {
+): PrismGuestSession {
   return {
     id: event.id,
     eventName: event.eventName,

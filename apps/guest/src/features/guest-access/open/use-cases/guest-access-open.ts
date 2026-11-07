@@ -1,10 +1,9 @@
-import type { PrismGuestEventPass } from "@prism/types";
+import type { PrismGuestEventPass, PrismGuestSession } from "@prism/types";
 import { guestAccessRepository } from "../data/guest-access-repository";
 import {
   buildGuestSession,
   resolvePostOpenPath,
 } from "../model/guest-access-open-rules";
-import type { GuestSession } from "../model/guest-access-open-types";
 
 export async function previewGuestEvent(accessCode: string): Promise<PrismGuestEventPass> {
   return guestAccessRepository.fetchEventPass(accessCode);
@@ -14,7 +13,7 @@ export async function openGuestEventPass(input: {
   accessCode: string;
   preview?: PrismGuestEventPass | null;
   nextPath?: string | null;
-}): Promise<{ session: GuestSession; redirectTo: string }> {
+}): Promise<{ session: PrismGuestSession; redirectTo: string }> {
   const guestEvent =
     input.preview ?? (await guestAccessRepository.fetchEventPass(input.accessCode));
   const session = buildGuestSession(guestEvent);
@@ -25,6 +24,6 @@ export async function openGuestEventPass(input: {
   };
 }
 
-export function loadExistingGuestSession(): GuestSession | null {
+export function loadExistingGuestSession(): PrismGuestSession | null {
   return guestAccessRepository.readSession();
 }
