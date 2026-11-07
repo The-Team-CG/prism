@@ -32,6 +32,7 @@ export class AiTriageRecordEraser {
       where: { id: { in: records.map((record) => record.aiAuditLogId) } },
       select: { id: true, sanitizedPayload: true },
     });
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: audits are the audit logs of the at most 5,000 approval records selected above (take: 5_000); each row needs its own sanitizedPayload update.
     for (const audit of audits) {
       const payload = audit.sanitizedPayload as Record<string, unknown> | null;
       const route = payload && typeof payload === 'object' ? payload._aiGatewayRoute : undefined;

@@ -147,6 +147,7 @@ export class PrivacyOperationsService {
   }
 
   async listLegalHolds(input: ListPrivacyLegalHoldsQuery = {}) {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: lists every unreleased legal hold for the operator view; a take could hide an active hold, and active holds gate privacy erasure (activeLegalHoldWhere).
     const holds = await this.prisma.opsPrivacyLegalHold.findMany({
       where: {
         releasedAt: null,

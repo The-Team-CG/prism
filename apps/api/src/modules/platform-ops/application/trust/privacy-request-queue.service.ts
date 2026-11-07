@@ -59,7 +59,9 @@ export class PrivacyRequestQueueService {
       this.prisma.opsPrivacyRequest.findMany({
         where,
         orderBy: [{ dueAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: listPrivacyRequestsQuerySchema caps page at 10,000 and limit at PRISM_PRIVACY_REQUEST_MAX_PAGE_LIMIT (100), so skip is at most 1,000,000 rows.
         skip: query.page * query.limit,
+        // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: take is query.limit, validated to 1..PRISM_PRIVACY_REQUEST_MAX_PAGE_LIMIT (100) by listPrivacyRequestsQuerySchema.
         take: query.limit,
       }),
     ]);

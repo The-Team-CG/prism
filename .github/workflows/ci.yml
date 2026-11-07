@@ -63,7 +63,7 @@ jobs:
           MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
         run: >-
           npm run check:migrations && npm run check:migration-immutability && npm run check:domain-persistence && npm run check:invariants &&
-          npm run check:test-clocks && npm run check:complexity && npm run check:boundaries
+          npm run check:test-clocks && npm run check:complexity && npm run check:boundaries && npm run check:query-audit
 
       - name: Lint and typecheck
         if: matrix.task == 'quality'
@@ -75,7 +75,7 @@ jobs:
           npm --workspace prism-api run test:fixtures:seed && npm run test:migrations && npm run test:domain-persistence && npm run test:invariants &&
           npm run test:test-clocks && npm --workspace prism-api run test:db:connection &&
           npm --workspace prism-api run test:db:preflight:quote-request-fk &&
-          npm --workspace prism-api run test:db:schema-equivalence && npm run test:boundaries
+          npm --workspace prism-api run test:db:schema-equivalence && npm run test:boundaries && npm --workspace prism-api run test:db:query-audit
 
       - name: CI selection and required-check behavior
         if: matrix.task == 'checks'

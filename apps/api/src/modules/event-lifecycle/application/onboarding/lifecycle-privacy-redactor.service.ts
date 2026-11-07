@@ -49,6 +49,7 @@ export class LifecyclePrivacyRedactorService implements LifecyclePrivacyRedactor
     input: { email: string; eventId?: string | null },
     transaction: Prisma.TransactionClient,
   ): Promise<{ eventIds: string[]; sections: PrismPrivacyExportSection[] }> {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: export must include every inquiry matching this subject email (and optional event) in inquiryMatchWhere; a take would omit records from the export.
     const inquiries = await transaction.opsInquiry.findMany({
       where: this.inquiryMatchWhere(input.email, input.eventId),
       select: {
@@ -145,6 +146,7 @@ export class LifecyclePrivacyRedactorService implements LifecyclePrivacyRedactor
   }
 
   private async matchingInquiryIds(email: string, eventId: string | null | undefined, transaction: Prisma.TransactionClient) {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: erasure and redaction need every inquiry id matching this subject (inquiryMatchWhere); a take would leave matching inquiries unprocessed.
     const identities = await transaction.opsInquiry.findMany({
       where: this.inquiryMatchWhere(email, eventId),
       select: { id: true },
@@ -153,6 +155,7 @@ export class LifecyclePrivacyRedactorService implements LifecyclePrivacyRedactor
   }
 
   private async linkedEventIds(inquiryIds: string[], eventId: string | null | undefined, transaction: Prisma.TransactionClient) {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: every event linked to these inquiry ids is exported or redacted with the subject; a take would drop linked events.
     const eventReferences = await transaction.opsEvent.findMany({
       where: {
         inquiryId: { in: inquiryIds },

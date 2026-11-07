@@ -125,6 +125,7 @@ export class BillingAdjustmentService {
       where: { id: { in: originalMilestones.map((milestone) => milestone.id) }, eventId, supersededAt: null },
       data: { supersededAt: new Date(), status: 'superseded' },
     });
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: bounded by the replacement statement's payment milestones (created from the correction source's paymentSchedule, which has no schema max); each credit depends on creditRemaining from the previous milestone, so the updates stay sequential.
     for (const milestone of replacementMilestones) {
       const creditApplied = Math.min(milestone.amount, creditRemaining);
       creditRemaining -= creditApplied;

@@ -520,6 +520,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             { idempotencyKey: `supplier-quote-result:${result.quote.id}:selected` },
           ),
           ...await Promise.all(result.notSelected.map(async (rejected) =>
+            // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: bounded by the other quotes for this event and category (competingQuotes above, read without a take); one outbox write per rejected quote with its own idempotency key, so the writes are not batched.
             writeNotification(
               this.notificationOutboxWriter,
               eventId,
