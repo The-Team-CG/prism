@@ -88,40 +88,38 @@ describe('ChangeManagementService automatic freeze', () => {
 });
 
 describe('ChangeManagementService Commercial ownership', () => {
-  it('delegates billing and selected-quote writes while Lifecycle records returned impact history', async () => {
-    const impacts = [
-      {
-        targetType: 'billing_source' as const,
-        targetId: 'billing_source_1',
-        beforeValue: { totalAmount: 100, lineItems: [] },
-        afterValue: { totalAmount: 110, lineItems: [{ label: 'Addendum v1 scope change', amount: 10 }] },
-        deltaAmount: 10,
-      },
-      {
-        targetType: 'supplier_quote' as const,
-        targetId: 'quote_1',
-        beforeValue: { amount: 20, status: 'selected' },
-        afterValue: { amount: 25, status: 'selected' },
-        deltaAmount: 5,
-      },
-    ];
+  it('issues a pending addendum that stores its planned effect and touches no billing or quote row', async () => {
+    const plan = {
+      financialDelta: 10,
+      billing: { billingSourceId: 'billing_source_1', baselineTotalAmount: 100, baselineLineItems: [] },
+      quotes: [{ quoteId: 'quote_1', baselineAmount: 20, targetAmount: 25 }],
+    };
     const prisma = {
       opsEvent: { findUnique: async () => ({ id: 'evt_addendum', archived: false, freezeStatus: 'open' }) },
       opsDocument: { findFirst: async () => ({ id: 'doc_addendum', eventId: 'evt_addendum' }) },
-      opsEventFreezeException: { findFirst: async () => null },
+      opsEventFreezeException: { findFirst: async () => null, updateMany: vi.fn() },
       opsAddendum: {
         findFirst: async () => null,
-        create: async ({ data }: { data: Record<string, unknown> }) => ({
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({
           ...data,
           documentState: 'pending',
-          signatureMethod: 'scanned_document',
           issuedAt: new Date('2026-10-04T00:00:00.000Z'),
-        }),
+          effectiveAt: null,
+          withdrawnAt: null,
+          withdrawalReason: null,
+          plannedImpacts: data.plannedImpacts,
+        })),
       },
-      opsAddendumImpact: { createMany: vi.fn(async ({ data }: { data: Record<string, unknown>[] }) => ({ count: data.length })) },
+      opsBillingSource: { findFirst: vi.fn(), update: vi.fn() },
+      opsSupplierQuote: { findFirst: vi.fn(), update: vi.fn() },
+      opsAddendumImpact: { createMany: vi.fn(async () => ({ count: 0 })) },
       $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
     };
-    const commercialWriter: CommercialAddendumImpactWriter = { apply: vi.fn(async () => impacts), recordConformeExecution: vi.fn(async () => null) };
+    const commercialWriter: CommercialAddendumImpactWriter = {
+      preview: vi.fn(async () => plan),
+      apply: vi.fn(async () => []),
+      recordConformeExecution: vi.fn(async () => null),
+    };
     const access = { requireActorRole: async () => undefined, requireCanReadEvent: async () => undefined };
     const auditWrite = vi.fn(async () => undefined);
     const audit = { write: auditWrite };
@@ -142,27 +140,48 @@ describe('ChangeManagementService Commercial ownership', () => {
 
     const result = await service.issueAddendum('evt_addendum', input, actor);
 
-    expect(result).toMatchObject({ eventId: 'evt_addendum', versionNumber: 1, financialDelta: 10 });
-    expect(commercialWriter.apply).toHaveBeenCalledWith({
+    expect(result).toMatchObject({ eventId: 'evt_addendum', versionNumber: 1, financialDelta: 10, status: 'pending', effectiveAt: null, plannedImpacts: plan });
+    // Issuing only plans: the commercial writer is asked to preview, never to apply, and no impact row exists yet.
+    expect(commercialWriter.preview).toHaveBeenCalledWith({
       eventId: 'evt_addendum',
-      addendumId: result.id,
-      versionNumber: 1,
       financialDelta: 10,
       quotePriceChanges: [{ quoteId: 'quote_1', amount: 25 }],
-    }, expect.objectContaining({ correlationId: result.id, prisma: expect.anything() }));
-    expect(prisma.opsAddendumImpact.createMany).toHaveBeenCalledTimes(1);
-    expect(prisma.opsAddendumImpact.createMany).toHaveBeenCalledWith({
-      data: expect.arrayContaining([
-        expect.objectContaining({ targetType: 'billing_source', targetId: 'billing_source_1', deltaAmount: 10 }),
-        expect.objectContaining({ targetType: 'supplier_quote', targetId: 'quote_1', deltaAmount: 5 }),
-      ]),
-    });
+    }, expect.objectContaining({ correlationId: 'evt_addendum', prisma: expect.anything() }));
+    expect(commercialWriter.apply).not.toHaveBeenCalled();
+    expect(prisma.opsBillingSource.update).not.toHaveBeenCalled();
+    expect(prisma.opsSupplierQuote.update).not.toHaveBeenCalled();
+    expect(prisma.opsAddendumImpact.createMany).not.toHaveBeenCalled();
     // The issuance audit entry is readable through client workspaces, so it records supplier quote counts, never quote lines or amounts.
     expect(auditWrite).toHaveBeenCalledWith(
-      expect.objectContaining({ action: 'Issued immutable addendum', metadata: expect.objectContaining({ comparison: { contract: [], quoteChangeCount: 1 } }) }),
+      expect.objectContaining({ action: 'Issued immutable addendum', metadata: expect.objectContaining({ comparison: { contract: [], quoteChangeCount: 1 }, commercialEffect: 'pending_countersignature' }) }),
       expect.anything(),
     );
     expect(JSON.stringify(auditWrite.mock.calls)).not.toContain('quote_1');
+  });
+
+  it('refuses a second addendum while one is pending, before consuming any freeze exception', async () => {
+    const prisma = {
+      opsEvent: { findUnique: async () => ({ id: 'evt_addendum', archived: false, freezeStatus: 'frozen' }) },
+      opsDocument: { findFirst: async () => ({ id: 'doc_addendum', eventId: 'evt_addendum' }) },
+      opsEventFreezeException: { updateMany: vi.fn(async () => ({ count: 1 })) },
+      opsAddendum: {
+        findFirst: vi.fn(async ({ where }: { where: { status?: string } }) => (where.status === 'pending' ? { versionNumber: 1 } : null)),
+        create: vi.fn(),
+      },
+      $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
+    };
+    const service = new ChangeManagementService(
+      prisma as unknown as PrismaService,
+      { requireActorRole: async () => undefined, requireCanReadEvent: async () => undefined } as unknown as EventAccessPolicyService,
+      { write: async () => undefined } as unknown as AuditWriter,
+      { preview: vi.fn(), apply: vi.fn(), recordConformeExecution: vi.fn() } as unknown as CommercialAddendumImpactWriter,
+    );
+    const input = issueAddendumSchema.parse({ title: 'Scope change', documentId: 'doc_addendum', contractSnapshot: [], quoteSnapshot: [], freezeExceptionId: 'freeze_ex_2' });
+
+    await expect(service.issueAddendum('evt_addendum', input, { id: 'user_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true } satisfies ResolvedEventOpsActor))
+      .rejects.toThrow('Addendum v1 is still pending countersignature');
+    expect(prisma.opsEventFreezeException.updateMany).not.toHaveBeenCalled();
+    expect(prisma.opsAddendum.create).not.toHaveBeenCalled();
   });
 });
 
@@ -213,9 +232,11 @@ describe('ChangeManagementService freeze exception register', () => {
 describe('ChangeManagementService approval single-use', () => {
   const pmcm = { id: 'user_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true } satisfies ResolvedEventOpsActor;
 
-  it('rejects a second addendum that reuses an approved freeze exception', async () => {
+  it('rejects a second addendum that reuses an approved freeze exception once the first is withdrawn', async () => {
     // Stateful exception row: the first conditional consume wins, every later one matches nothing.
     const exception = { id: 'freeze_ex_1', eventId: 'evt_addendum', status: 'approved', consumedAt: null as Date | null };
+    // Stateful addenda: the first one is pending until it is withdrawn, which frees the pending slot but not the approval.
+    const addenda: Array<{ id: string; status: string; versionNumber: number }> = [];
     const prisma = {
       opsEvent: { findUnique: async () => ({ id: 'evt_addendum', archived: false, freezeStatus: 'frozen' }) },
       opsDocument: { findFirst: async () => ({ id: 'doc_addendum', eventId: 'evt_addendum' }) },
@@ -227,21 +248,28 @@ describe('ChangeManagementService approval single-use', () => {
         }),
       },
       opsAddendum: {
-        findFirst: async () => null,
-        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...data, documentState: 'pending', signatureMethod: 'scanned_document', issuedAt: new Date('2026-10-18T00:00:00.000Z') })),
+        findFirst: vi.fn(async ({ where, orderBy }: { where?: { status?: string }; orderBy?: unknown }) => {
+          const matches = addenda.filter((row) => where?.status === undefined || row.status === where.status);
+          if (matches.length === 0) return null;
+          return orderBy ? matches.reduce((latest, row) => (row.versionNumber > latest.versionNumber ? row : latest)) : matches[0]!;
+        }),
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          addenda.push({ id: String(data.id), status: String(data.status), versionNumber: Number(data.versionNumber) });
+          return { ...data, documentState: 'pending', issuedAt: new Date('2026-10-18T00:00:00.000Z'), effectiveAt: null, withdrawnAt: null, withdrawalReason: null, plannedImpacts: data.plannedImpacts };
+        }),
       },
-      opsAddendumImpact: { createMany: vi.fn(async () => ({ count: 0 })) },
       $transaction: async (callback: (transaction: unknown) => Promise<unknown>) => callback(prisma),
     };
     const service = new ChangeManagementService(
       prisma as unknown as PrismaService,
       { requireActorRole: async () => undefined, requireCanReadEvent: async () => undefined } as unknown as EventAccessPolicyService,
       { write: async () => undefined } as unknown as AuditWriter,
-      { apply: vi.fn(async () => []) } as unknown as CommercialAddendumImpactWriter,
+      { preview: vi.fn(async () => ({ financialDelta: 0, billing: null, quotes: [] })), apply: vi.fn(async () => []), recordConformeExecution: vi.fn(async () => null) } as unknown as CommercialAddendumImpactWriter,
     );
     const input = issueAddendumSchema.parse({ title: 'Scope change', documentId: 'doc_addendum', contractSnapshot: [], quoteSnapshot: [], freezeExceptionId: 'freeze_ex_1' });
 
-    await expect(service.issueAddendum('evt_addendum', input, pmcm)).resolves.toMatchObject({ versionNumber: 1 });
+    await expect(service.issueAddendum('evt_addendum', input, pmcm)).resolves.toMatchObject({ versionNumber: 1, status: 'pending' });
+    addenda[0]!.status = 'withdrawn';
     await expect(service.issueAddendum('evt_addendum', input, pmcm)).rejects.toThrow('Freeze exception is not an unused approval for this event');
     expect(prisma.opsAddendum.create).toHaveBeenCalledTimes(1);
   });
@@ -309,9 +337,11 @@ describe('ChangeManagementService addendum comparison visibility', () => {
     quotes: [{ key: 'quote_1', before: { id: 'quote_1', amount: 20_000 }, after: { id: 'quote_1', amount: 25_000 } }],
   };
   const addendumRow = {
-    id: 'addendum_1', eventId: 'evt_1', versionNumber: 2, title: 'Add stage lighting', summary: 'Extra rig', status: 'issued',
+    id: 'addendum_1', eventId: 'evt_1', versionNumber: 2, title: 'Add stage lighting', summary: 'Extra rig', status: 'pending',
     documentId: 'doc_1', documentState: 'pending', signatureMethod: 'scanned_document', comparison, financialDelta: 15_000,
-    issuedAt: new Date('2026-10-19T09:00:00.000Z'), conformeExecution: null,
+    issuedAt: new Date('2026-10-19T09:00:00.000Z'), effectiveAt: null, withdrawnAt: null, withdrawalReason: null,
+    plannedImpacts: { financialDelta: 15_000, billing: { billingSourceId: 'billing_1', baselineTotalAmount: 100_000, baselineLineItems: [] }, quotes: [{ quoteId: 'quote_1', baselineAmount: 20_000, targetAmount: 25_000 }] },
+    conformeExecution: null,
   };
   const clientActor = { id: 'client_primary', role: OpsUserRole.Client, email: 'client@example.test', name: 'Client', explicit: true, verified: true } satisfies ResolvedEventOpsActor;
   const pmcmActor = { id: 'user_pmcm', role: OpsUserRole.PmcmAdmin, name: 'PMCM Admin', explicit: true } satisfies ResolvedEventOpsActor;
@@ -336,8 +366,24 @@ describe('ChangeManagementService addendum comparison visibility', () => {
     const forClient = await service.listAddenda('evt_1', clientActor);
     const forPmcm = await service.listAddenda('evt_1', pmcmActor);
 
-    expect(forClient[0]).toMatchObject({ versionNumber: 2, financialDelta: 15_000, comparison: { contract: comparison.contract, quotes: [] } });
+    expect(forClient[0]).toMatchObject({ versionNumber: 2, financialDelta: 15_000, status: 'pending', comparison: { contract: comparison.contract, quotes: [] }, plannedImpacts: null });
     expect(JSON.stringify(forClient)).not.toContain('quote_1');
+    expect(JSON.stringify(forClient)).not.toContain('billing_1');
     expect(forPmcm[0]!.comparison).toEqual(comparison);
+    expect(forPmcm[0]!.plannedImpacts).toMatchObject({ financialDelta: 15_000, quotes: [{ quoteId: 'quote_1', targetAmount: 25_000 }] });
+  });
+
+  it('shows the withdrawal reason to the client and leaves the planned effect out of a withdrawn addendum', async () => {
+    const withdrawn = { ...addendumRow, status: 'withdrawn', plannedImpacts: null, withdrawnAt: new Date('2026-10-20T09:00:00.000Z'), withdrawalReason: 'Venue cannot take the rig' };
+    const prisma = {
+      opsEvent: { findUniqueOrThrow: async () => ({ id: 'evt_1', clientPortalStatus: 'unlocked', archived: false, inquiry: { email: 'client@example.test' } }) },
+      opsAddendum: { findMany: vi.fn(async () => [withdrawn]) },
+    };
+    const audit = { write: async () => undefined } as unknown as AuditWriter;
+    const service = new ChangeManagementService(prisma as unknown as PrismaService, new EventAccessPolicyService(audit), audit, { preview: vi.fn(), apply: vi.fn(), recordConformeExecution: vi.fn() } as unknown as CommercialAddendumImpactWriter);
+
+    const [forClient] = await service.listAddenda('evt_1', clientActor);
+
+    expect(forClient).toMatchObject({ status: 'withdrawn', withdrawnAt: '2026-10-20T09:00:00.000Z', withdrawalReason: 'Venue cannot take the rig', effectiveAt: null });
   });
 });
