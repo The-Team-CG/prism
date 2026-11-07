@@ -19,6 +19,7 @@ import {
 import type { FileRequirementCommands, FileRequirementReminder, FileRequirementReminderReason } from '../../contracts/file-requirement-commands.port';
 import { FileRequirementsMatrixService } from './file-requirements-matrix.service';
 import { readEventAccessScope, scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
+import { scopeFileRequirementItemsForActor, visibleFileRequirementItems } from '../../domain/file-requirement-matrix.policy';
 
 const MANAGEMENT_RESOURCE = 'file requirement management';
 const REMINDER_SWEEP_EVENT_PAGE_SIZE = 100;
@@ -178,7 +179,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
   }
 
   async bindRequirementUpload(eventId: string, key: string, input: BindFileRequirementUploadInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
-    await this.writeRequirement(async (tx) => {
+    const responseActor = await this.writeRequirement(async (tx) => {
       const eventScope = await readEventAccessScope(tx, eventId);
       if (!eventScope) throw new NotFoundException('Event not found');
       const scoped = scopeActorToEvent(actor, eventScope);
@@ -194,7 +195,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       const currentBinding = await tx.opsDocument.findFirst({ where: { eventId, storageKey: object.id } });
       if (currentBinding) {
         if (currentBinding.type !== key) throw new ConflictException('This upload already fulfils another file requirement');
-        return;
+        return scopedActor;
       }
       await this.requireWritableEvent(eventId, tx);
       await tx.opsDocument.create({ data: {
@@ -207,12 +208,13 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
         affectedType: 'file_requirement', affectedId: requirement.id, affectedLabel: key,
         metadata: { objectId: object.id, originalFileName: object.originalFileName, uploaderActorRole: object.uploaderActorRole },
       }, { prisma: tx, correlationId: `file-requirement-upload:${eventId}:${key}:${object.id}` });
+      return scopedActor;
     });
     const item = await this.itemFor(eventId, key, this.prisma as unknown as Prisma.TransactionClient);
-    if (actor.role === OpsUserRole.PmcmAdmin) return item;
-    const visible = { ...item };
-    delete visible.notes;
-    return visible;
+    // The response is shaped for the event-scoped actor so a supplier sees its own fulfilment only.
+    const [scopedItem] = scopeFileRequirementItemsForActor(visibleFileRequirementItems([item], responseActor.role), responseActor);
+    if (!scopedItem) throw new NotFoundException('File requirement not found');
+    return scopedItem;
   }
 
   private isRequirementUploadOwner(object: StoredRequirementUploadReference, eventId: string, actor: ResolvedEventOpsActor) {

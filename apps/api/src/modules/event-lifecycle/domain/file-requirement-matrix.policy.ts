@@ -1,4 +1,4 @@
-import type { PrismFileRequirementItem, PrismFileRequirementStatus } from '@prism/types';
+import type { PrismFileRequirementItem, PrismFileRequirementStatus, PrismSupplierFileRequirementFulfilment } from '@prism/types';
 
 /** A matrix item as derived from workflow records, before PMCM overrides are applied. */
 export type DerivedFileRequirementItem = Omit<PrismFileRequirementItem, 'required' | 'overdue' | 'origin' | 'revision' | 'validationStatus' | 'notes'>;
@@ -26,7 +26,11 @@ export type FileRequirementDocumentFact = {
   storageKey?: string | null;
   /** Stored bytes may be removed independently of the document metadata. */
   available?: boolean;
+  /** Supplier that owns the stored object behind this document; absent for event-owned or unbound files. */
+  ownerSupplierId?: string | null;
 };
+
+export type FileRequirementSupplier = { supplierId: string; supplierName: string };
 
 const SATISFIED_STATUSES: ReadonlySet<PrismFileRequirementStatus> = new Set(['submitted', 'generated', 'approved', 'complete']);
 
@@ -72,15 +76,78 @@ function customItem(row: PersistedFileRequirement, documents: FileRequirementDoc
   };
 }
 
+/** One selected supplier's fulfilment, computed only from documents whose stored object that supplier owns. */
+function supplierFulfilment(
+  row: PersistedFileRequirement,
+  supplier: FileRequirementSupplier,
+  documents: FileRequirementDocumentFact[],
+  now: Date,
+): PrismSupplierFileRequirementFulfilment {
+  const owned = documents.filter((document) => document.ownerSupplierId === supplier.supplierId);
+  const { status, uploadedAssetId, uploadedObjectId } = customItem(row, owned);
+  const validationStatus = validationOf(latestDocument(owned, row.key));
+  const fulfilment: PrismSupplierFileRequirementFulfilment = {
+    supplierId: supplier.supplierId,
+    supplierName: supplier.supplierName,
+    status,
+    overdue: false,
+    ...(validationStatus ? { validationStatus } : {}),
+    ...(uploadedAssetId ? { uploadedAssetId } : {}),
+    ...(uploadedObjectId ? { uploadedObjectId } : {}),
+  };
+  return { ...fulfilment, overdue: isFileRequirementOverdue({ required: row.required, status, dueDate: row.dueAt?.toISOString() }, now) };
+}
+
+/** The top-level status of a supplier-owned requirement: approved only when every selected supplier is approved. */
+function aggregateSupplierStatus(fulfilments: PrismSupplierFileRequirementFulfilment[]): PrismFileRequirementStatus {
+  if (fulfilments.length === 0) return 'missing';
+  if (fulfilments.every((fulfilment) => fulfilment.status === 'approved')) return 'approved';
+  if (fulfilments.every((fulfilment) => isFileRequirementSatisfied(fulfilment.status))) return 'submitted';
+  return 'missing';
+}
+
+/** A supplier-owned custom requirement: one definition per event, fulfilled separately by each selected supplier. */
+function supplierOwnedItem(
+  row: PersistedFileRequirement,
+  suppliers: FileRequirementSupplier[],
+  documents: FileRequirementDocumentFact[],
+  now: Date,
+): PrismFileRequirementItem {
+  const fulfilments = suppliers.map((supplier) => supplierFulfilment(row, supplier, documents, now));
+  const satisfied = fulfilments.filter((fulfilment) => isFileRequirementSatisfied(fulfilment.status)).length;
+  const item: PrismFileRequirementItem = {
+    key: row.key,
+    label: row.label,
+    ownerRole: row.ownerRole,
+    visibleToRoles: row.visibleToRoles,
+    sourceWorkflow: row.sourceWorkflow,
+    status: aggregateSupplierStatus(fulfilments),
+    required: row.required,
+    dueDate: row.dueAt?.toISOString(),
+    overdue: false,
+    origin: 'custom',
+    revision: row.revision,
+    supplierFulfilments: fulfilments,
+    auditCategory: 'documents',
+    detail: fulfilments.length === 0
+      ? 'No supplier is selected on this event.'
+      : `${satisfied} of ${fulfilments.length} selected supplier(s) submitted`,
+    ...(row.notes ? { notes: row.notes } : {}),
+  };
+  return { ...item, overdue: isFileRequirementOverdue(item, now) };
+}
+
 /**
  * Applies PMCM overrides (owner, visibility, required state, due date, notes)
  * onto derived items, appends custom requirements, and computes overdue state.
- * Derived status and labels always follow their source workflow.
+ * Derived status and labels always follow their source workflow. Supplier-owned
+ * custom requirements are fulfilled per entry in `suppliers`.
  */
 export function mergeFileRequirementOverrides(
   derived: DerivedFileRequirementItem[],
   persisted: PersistedFileRequirement[],
   documents: FileRequirementDocumentFact[],
+  suppliers: FileRequirementSupplier[],
   now: Date,
 ): PrismFileRequirementItem[] {
   const derivedKeys = new Set(derived.map((item) => item.key));
@@ -107,7 +174,9 @@ export function mergeFileRequirementOverrides(
 
   return [
     ...derived.map((item) => merge(item, byKey.get(item.key), 'derived')),
-    ...custom.map((row) => merge(customItem(row, documents), row, 'custom')),
+    ...custom.map((row) => (row.ownerRole === 'supplier'
+      ? supplierOwnedItem(row, suppliers, documents, now)
+      : merge(customItem(row, documents), row, 'custom'))),
   ];
 }
 
@@ -121,4 +190,38 @@ export function visibleFileRequirementItems(items: PrismFileRequirementItem[], r
       const { notes: _notes, ...shared } = item;
       return shared;
     });
+}
+
+function ownFulfilmentDetail(fulfilment: PrismSupplierFileRequirementFulfilment) {
+  if (fulfilment.validationStatus === 'rejected') return 'The latest upload was rejected; a replacement file is required.';
+  if (fulfilment.status === 'approved') return 'Your file has been approved.';
+  return isFileRequirementSatisfied(fulfilment.status) ? 'Your file has been submitted.' : 'No file submitted yet.';
+}
+
+/**
+ * Narrows items to what one actor may see of per-supplier fulfilment; apply after `visibleFileRequirementItems`.
+ * A supplier sees only its own entry, folded into the item with no other supplier's status, ids or names,
+ * and loses the item entirely when it has no entry. Every other non-PMCM role keeps the aggregate, without breakdown.
+ */
+export function scopeFileRequirementItemsForActor(
+  items: PrismFileRequirementItem[],
+  actor: { role: string; supplierId?: string | null },
+): PrismFileRequirementItem[] {
+  if (actor.role === 'pmcm-admin' || actor.role === 'system') return items;
+  return items.flatMap((item) => {
+    const { supplierFulfilments, uploadedAssetId: _asset, uploadedObjectId: _object, validationStatus: _validation, ...shared } = item;
+    if (!supplierFulfilments) return [item];
+    if (actor.role !== 'supplier') return [shared];
+    const own = supplierFulfilments.find((fulfilment) => fulfilment.supplierId === actor.supplierId);
+    if (!own) return [];
+    return [{
+      ...shared,
+      status: own.status,
+      overdue: own.overdue,
+      detail: ownFulfilmentDetail(own),
+      ...(own.validationStatus ? { validationStatus: own.validationStatus } : {}),
+      ...(own.uploadedAssetId ? { uploadedAssetId: own.uploadedAssetId } : {}),
+      ...(own.uploadedObjectId ? { uploadedObjectId: own.uploadedObjectId } : {}),
+    }];
+  });
 }

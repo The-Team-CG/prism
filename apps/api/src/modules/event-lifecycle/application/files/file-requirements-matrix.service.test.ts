@@ -26,7 +26,11 @@ function createPrisma() {
     opsBillingStatement: { findMany: vi.fn(async () => billingStatements) },
     opsPaymentMilestone: { findMany: vi.fn(async () => milestones) },
     opsSupplierReview: { findMany: vi.fn(async () => supplierReviews) },
-    opsStoredObject: { findFirst: vi.fn(async (): Promise<{ id: string } | null> => storedConforme) },
+    opsStoredObject: {
+      findFirst: vi.fn(async (): Promise<{ id: string } | null> => storedConforme),
+      findMany: vi.fn(async () => [] as Array<{ id: string; lifecycleState: string; ownerRecordType: string; ownerRecordId: string }>),
+    },
+    opsSupplierQuoteRequest: { findMany: vi.fn(async () => [] as Array<{ supplierId: string | null; supplierName: string }>) },
     opsConformeExecution: { findFirst: vi.fn(async (): Promise<{ id: string } | null> => digitalConforme) },
     opsClientCloseoutResponse: { findUnique: vi.fn(async (): Promise<{ id: string; rating: number; submittedAt: Date } | null> => closeoutResponse) },
     opsFileRequirement: { findMany: vi.fn(async () => [] as unknown[]) },
@@ -76,6 +80,37 @@ describe('FileRequirementsMatrixService', () => {
     expect(closeGates.missingKeys).toEqual(['logistics']);
     expect(closeGates.gates.map(gate => gate.key)).toEqual(['documents', 'billing', 'logistics', 'issues', 'feedback']);
     expect(prisma.opsDocument.findMany).toHaveBeenCalledWith({ where: { eventId: 'evt_file' } });
+  });
+
+  it('attributes each stored upload to the supplier that owns it and evaluates every selected supplier', async () => {
+    const prisma = createPrisma();
+    prisma.opsFileRequirement.findMany.mockResolvedValue([
+      { key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: new Date('2026-10-01T00:00:00.000Z'), sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 0 },
+    ] as never);
+    prisma.opsDocument.findMany.mockResolvedValue([
+      { id: 'doc_a', eventId: 'evt_file', type: 'insurance_certificate', status: 'submitted', validationStatus: 'accepted', uploadedAt: new Date('2026-10-10T00:00:00.000Z'), storageKey: 'obj_a' },
+    ] as never);
+    prisma.opsStoredObject.findMany.mockResolvedValue([
+      { id: 'obj_a', lifecycleState: 'stored', ownerRecordType: 'supplier', ownerRecordId: 'supplier_a' },
+    ]);
+    prisma.opsSupplierQuoteRequest.findMany.mockResolvedValue([
+      { supplierId: 'supplier_a', supplierName: 'Atlas Sound' },
+      { supplierId: 'supplier_b', supplierName: 'Bright Lights' },
+      { supplierId: 'supplier_a', supplierName: 'Atlas Sound' },
+      { supplierId: null, supplierName: 'Unlinked quote' },
+    ]);
+
+    const matrix = await new FileRequirementsMatrixService(prisma as never).buildForEvent('evt_file', undefined, new Date('2026-10-20T00:00:00.000Z'));
+
+    expect(prisma.opsSupplierQuoteRequest.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: 'evt_file', status: 'selected' } }));
+    expect(prisma.opsStoredObject.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['obj_a'] } } }));
+    const item = matrix.items.find((candidate) => candidate.key === 'insurance_certificate');
+    expect(item?.supplierFulfilments).toEqual([
+      { supplierId: 'supplier_a', supplierName: 'Atlas Sound', status: 'submitted', overdue: false, validationStatus: 'accepted', uploadedAssetId: 'doc_a', uploadedObjectId: 'obj_a' },
+      { supplierId: 'supplier_b', supplierName: 'Bright Lights', status: 'missing', overdue: true },
+    ]);
+    expect(item).toMatchObject({ status: 'missing', overdue: true });
+    expect(item).not.toHaveProperty('uploadedObjectId');
   });
 
   it('does not let a signed conforme or generic report clear pending tracked deliverables', async () => {
