@@ -5,6 +5,7 @@ import { EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor 
 import type { PrismaService } from '@prism/kernel/database';
 import type { CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 import type { NotificationOutboxWriter } from '@prism/contexts/platform-ops';
+import type { AddendumPlannedImpacts } from '@prism/types';
 import { AddendumConformeService } from './addendum-conforme.service';
 import { sha256 } from './addendum-conforme-document';
 
@@ -25,23 +26,43 @@ const pmcm = actor(OpsUserRole.PmcmAdmin, 'pmcm-1', 'pmcm@example.test');
 const otherPmcm = actor(OpsUserRole.PmcmAdmin, 'pmcm-2', 'pmcm2@example.test');
 const metadata = { ip: '203.0.113.7', userAgent: 'vitest' };
 
-function harness({ billingSourceId = 'billing_source_1' }: { billingSourceId?: string | null } = {}) {
+const storedPlan: AddendumPlannedImpacts = {
+  financialDelta: 15000,
+  billing: { billingSourceId: 'billing_source_1', baselineTotalAmount: 100000, baselineLineItems: [{ label: 'Package', amount: 100000 }] },
+  quotes: [{ quoteId: 'quote_1', baselineAmount: 20, targetAmount: 35 }],
+};
+
+type HarnessOptions = {
+  billingSourceId?: string | null;
+  addendumStatus?: 'pending' | 'effective' | 'withdrawn';
+  plannedImpacts?: AddendumPlannedImpacts | null;
+  applyError?: Error;
+};
+
+function harness({ billingSourceId = 'billing_source_1', addendumStatus = 'pending', plannedImpacts = storedPlan, applyError }: HarnessOptions = {}) {
   const event = { id: 'evt_1', clientName: 'Client Person', eventName: 'Launch', archived: false, clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' } };
   const addendum = {
     id: 'addendum_1', eventId: 'evt_1', versionNumber: 2, title: 'Add stage lighting', summary: 'Extra rig', financialDelta: 15000,
     comparison: { contract: [], quotes: [{ key: 'quote_1', before: { id: 'quote_1', amount: 20 }, after: { id: 'quote_1', amount: 35 } }] },
     event,
   };
+  // The addendum row is stateful: the pending -> effective transition and the withdrawal both go through updateMany.
+  const addendumState: { status: string; plannedImpacts: unknown; effectiveAt: Date | null } = { status: addendumStatus, plannedImpacts, effectiveAt: null };
   const executions: Array<Record<string, any>> = [];
   const signatures: Array<Record<string, any>> = [];
-  const view = (execution: Record<string, any>) => ({ ...execution, signatures: signatures.filter((s) => s.executionId === execution.id), event });
+  const view = (execution: Record<string, any>) => ({ ...execution, signatures: signatures.filter((s) => s.executionId === execution.id), event, addendum: { ...addendumState } });
   const tx = {
     $queryRaw: vi.fn(async () => [{ id: 'locked' }]),
     opsAddendum: {
       findFirst: vi.fn(async ({ where }: { where: { id: string; eventId: string } }) => {
         if (where.id !== addendum.id || where.eventId !== addendum.eventId) return null;
         const existing = executions.find((e) => e.addendumId === addendum.id);
-        return { ...addendum, conformeExecution: existing ? view(existing) : null };
+        return { ...addendum, ...addendumState, conformeExecution: existing ? view(existing) : null };
+      }),
+      updateMany: vi.fn(async ({ where, data }: { where: { id: string; status: string }; data: Record<string, any> }) => {
+        if (where.id !== addendum.id || where.status !== addendumState.status) return { count: 0 };
+        Object.assign(addendumState, data);
+        return { count: 1 };
       }),
     },
     opsAddendumConformeExecution: {
@@ -62,6 +83,7 @@ function harness({ billingSourceId = 'billing_source_1' }: { billingSourceId?: s
     opsAddendumImpact: {
       findFirst: vi.fn(async ({ where }: { where: { addendumId: string; targetType: string } }) =>
         billingSourceId && where.addendumId === addendum.id && where.targetType === 'billing_source' ? { targetId: billingSourceId } : null),
+      createMany: vi.fn(async ({ data }: { data: unknown[] }) => ({ count: data.length })),
     },
     opsAddendumConformeSignature: {
       create: vi.fn(async ({ data }: { data: Record<string, any> }) => {
@@ -72,7 +94,11 @@ function harness({ billingSourceId = 'billing_source_1' }: { billingSourceId?: s
   };
   const prisma = { $transaction: async (work: (t: typeof tx) => Promise<unknown>) => work(tx) };
   const commercial: CommercialAddendumImpactWriter = {
-    apply: vi.fn(async () => []),
+    preview: vi.fn(async () => storedPlan),
+    apply: vi.fn(async () => {
+      if (applyError) throw applyError;
+      return [];
+    }),
     recordConformeExecution: vi.fn(async () => ({ billingSourceId: 'billing_source_1' })),
   };
   const audit = { write: vi.fn(async () => undefined) } as unknown as AuditWriter;
@@ -81,7 +107,7 @@ function harness({ billingSourceId = 'billing_source_1' }: { billingSourceId?: s
     prisma as unknown as PrismaService, new EventAccessPolicyService(audit), audit, notifications, commercial,
   );
   const signInput = () => ({ executionId: executions[0]!.id as string, versionNumber: 2, documentSha256: executions[0]!.documentSha256 as string, consentAccepted: true as const });
-  return { service, commercial, executions, signatures, tx, signInput };
+  return { service, commercial, executions, signatures, tx, signInput, addendumState };
 }
 
 describe('AddendumConformeService request', () => {
@@ -112,21 +138,32 @@ describe('AddendumConformeService request', () => {
     await expect(service.requestExecution('evt_1', 'addendum_1', actor(role, 'someone', 'client@example.test'))).rejects.toBeInstanceOf(ForbiddenException);
     expect(tx.opsAddendumConformeExecution.create).not.toHaveBeenCalled();
   });
+
+  it('refuses to prepare a conforme for a withdrawn addendum', async () => {
+    const { service, tx } = harness({ addendumStatus: 'withdrawn', plannedImpacts: null });
+
+    await expect(service.requestExecution('evt_1', 'addendum_1', pmcm)).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.opsAddendumConformeExecution.create).not.toHaveBeenCalled();
+  });
 });
 
 describe('AddendumConformeService signing', () => {
-  it('runs client acknowledgment then PMCM countersignature and links the billing trace to the executed version', async () => {
-    const { service, commercial, signInput, executions, signatures } = harness();
+  it('runs client acknowledgment then PMCM countersignature, applies the stored plan once, and links the billing trace', async () => {
+    const { service, commercial, signInput, executions, signatures, addendumState } = harness();
     await service.requestExecution('evt_1', 'addendum_1', pmcm);
 
     const acknowledged = await service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata);
     expect(acknowledged.status).toBe('awaiting_pmcm');
+    expect(commercial.apply).not.toHaveBeenCalled();
     expect(commercial.recordConformeExecution).not.toHaveBeenCalled();
 
     const completed = await service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), pmcm, metadata);
 
     expect(completed).toMatchObject({ status: 'completed', completedAt: '2026-10-19T09:00:00.000Z' });
     expect(completed.signatures.map((signature) => signature.actorRole)).toEqual(['client', 'pmcm']);
+    expect(addendumState).toMatchObject({ status: 'effective', effectiveAt: new Date('2026-10-19T09:00:00.000Z') });
+    expect(commercial.apply).toHaveBeenCalledTimes(1);
+    expect(commercial.apply).toHaveBeenCalledWith({ eventId: 'evt_1', addendumId: 'addendum_1', versionNumber: 2, plan: storedPlan }, expect.objectContaining({ correlationId: 'addendum_1' }));
     expect(commercial.recordConformeExecution).toHaveBeenCalledWith({
       eventId: 'evt_1', addendumId: 'addendum_1', billingSourceId: 'billing_source_1', versionNumber: 2, executionId: executions[0]!.id,
       documentSha256: executions[0]!.documentSha256, executedAt: '2026-10-19T09:00:00.000Z',
@@ -139,7 +176,7 @@ describe('AddendumConformeService signing', () => {
   });
 
   it('leaves the billing trace empty when the addendum has no billing line to point at', async () => {
-    const { service, commercial, signInput, executions } = harness({ billingSourceId: null });
+    const { service, commercial, signInput, executions } = harness({ billingSourceId: null, plannedImpacts: { financialDelta: 0, billing: null, quotes: [] } });
     await service.requestExecution('evt_1', 'addendum_1', pmcm);
     await service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata);
 
@@ -150,12 +187,40 @@ describe('AddendumConformeService signing', () => {
     expect(executions[0]!.billingSourceId).toBeNull();
   });
 
+  it('one rule for legacy rows: an effective addendum completes its conforme and never re-applies a plan', async () => {
+    // Addenda issued before this change were already effective when their billing effect was applied at issue.
+    const { service, commercial, signInput, executions, addendumState } = harness({ addendumStatus: 'effective', plannedImpacts: null });
+    await service.requestExecution('evt_1', 'addendum_1', pmcm);
+    await service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata);
+
+    const completed = await service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), pmcm, metadata);
+
+    expect(completed.status).toBe('completed');
+    expect(commercial.apply).not.toHaveBeenCalled();
+    expect(addendumState.status).toBe('effective');
+    expect(addendumState.effectiveAt).toBeNull();
+    expect(commercial.recordConformeExecution).toHaveBeenCalledTimes(1);
+    expect(executions[0]!.billingSourceId).toBe('billing_source_1');
+  });
+
   it('keeps PMCM from countersigning before the client has acknowledged', async () => {
-    const { service, signInput, signatures } = harness();
+    const { service, signInput, signatures, commercial } = harness();
     await service.requestExecution('evt_1', 'addendum_1', pmcm);
 
     await expect(service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), pmcm, metadata)).rejects.toBeInstanceOf(ConflictException);
     expect(signatures).toHaveLength(0);
+    expect(commercial.apply).not.toHaveBeenCalled();
+  });
+
+  it('keeps the conforme awaiting PMCM when the stored plan no longer matches billing or quotes', async () => {
+    const { service, signInput, executions, commercial } = harness({ applyError: new ConflictException('stale plan') });
+    await service.requestExecution('evt_1', 'addendum_1', pmcm);
+    await service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata);
+
+    await expect(service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), pmcm, metadata)).rejects.toBeInstanceOf(ConflictException);
+    expect(commercial.apply).toHaveBeenCalledTimes(1);
+    expect(commercial.recordConformeExecution).not.toHaveBeenCalled();
+    expect(executions[0]!.status).toBe('awaiting_pmcm');
   });
 
   it.each([
@@ -178,12 +243,26 @@ describe('AddendumConformeService signing', () => {
     ['the client', primaryClient],
     ['a coordinator', actor(OpsUserRole.Coordinator, 'coord-1', 'coord@example.test')],
   ])('rejects countersignature by %s even after the client acknowledged', async (_label, who) => {
-    const { service, signInput, signatures } = harness();
+    const { service, signInput, signatures, addendumState } = harness();
     await service.requestExecution('evt_1', 'addendum_1', pmcm);
     await service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata);
 
     await expect(service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), who, metadata)).rejects.toBeInstanceOf(ForbiddenException);
     expect(signatures).toHaveLength(1);
+    expect(addendumState.status).toBe('pending');
+  });
+
+  it('refuses acknowledgment and countersignature of a withdrawn addendum without writing a signature', async () => {
+    const { service, signInput, signatures, commercial, addendumState, executions } = harness();
+    await service.requestExecution('evt_1', 'addendum_1', pmcm);
+    // PMCM withdraws the pending addendum between request and signing.
+    addendumState.status = 'withdrawn';
+    executions[0]!.status = 'withdrawn';
+
+    await expect(service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), pmcm, metadata)).rejects.toBeInstanceOf(ConflictException);
+    expect(signatures).toHaveLength(0);
+    expect(commercial.apply).not.toHaveBeenCalled();
   });
 
   it('replays signatures idempotently and refuses a different account once a role has signed', async () => {
@@ -198,11 +277,13 @@ describe('AddendumConformeService signing', () => {
     expect(replayedPmcm).toEqual(completed);
     expect(signatures).toHaveLength(2);
     expect(commercial.recordConformeExecution).toHaveBeenCalledTimes(1);
+    // A replay never re-applies the commercial effect: the billing and quote changes landed exactly once.
+    expect(commercial.apply).toHaveBeenCalledTimes(1);
     await expect(service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), otherPmcm, metadata)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('never replaces or re-signs a completed version', async () => {
-    const { service, signInput, executions, signatures, tx } = harness();
+    const { service, signInput, executions, signatures, tx, commercial } = harness();
     await service.requestExecution('evt_1', 'addendum_1', pmcm);
     await service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata);
     const completed = await service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), pmcm, metadata);
@@ -213,6 +294,7 @@ describe('AddendumConformeService signing', () => {
     expect(tx.opsAddendumConformeExecution.create).toHaveBeenCalledTimes(1);
     expect(executions[0]!.documentSha256).toBe(completed.documentSha256);
     expect(signatures).toHaveLength(2);
+    expect(commercial.apply).toHaveBeenCalledTimes(1);
   });
 
   it('rejects signing a document version that is no longer the one displayed', async () => {
