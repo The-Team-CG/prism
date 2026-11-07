@@ -17,8 +17,12 @@ const signedConforme: DerivedFileRequirementItem = {
 type Row = Record<string, any>;
 
 /** Uses the real merge policy so overrides, custom rows, and rejected uploads flow through the same rules as production. */
-function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirementItem[]; rejectedDocuments?: Array<{ id: string; type: string }>; dueEvents?: string[]; storedUpload?: Row | null; suppliers?: Array<{ supplierId: string; supplierName: string; email: string }> } = {}) {
+type HarnessSupplier = { supplierId: string; supplierName: string; email: string };
+
+function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirementItem[]; rejectedDocuments?: Array<{ id: string; type: string }>; dueEvents?: string[]; storedUpload?: Row | null; suppliers?: HarnessSupplier[]; openSuppliers?: HarnessSupplier[] } = {}) {
   const selectedSuppliers = options.suppliers ?? [];
+  // Open quote requests exist on the event but are not selected: they resolve the actor's event scope, never a booking.
+  const quoteRequests = [...selectedSuppliers, ...(options.openSuppliers ?? [])];
   // Only the stored upload's owner is known to the matrix stand-in, mirroring the real object-owner mapping.
   const supplierOwnerOf = (storageKey: unknown) => (options.storedUpload?.id === storageKey && options.storedUpload?.ownerRecordType === 'supplier' ? options.storedUpload.ownerRecordId as string : null);
   const rows: Row[] = [...(options.rows ?? [])];
@@ -57,7 +61,10 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
         templates.push(row); return row;
       }),
     },
-    opsSupplierQuoteRequest: { findMany: vi.fn(async () => selectedSuppliers.map((supplier) => ({ supplierId: supplier.supplierId, supplierName: supplier.supplierName, supplier: { email: supplier.email } }))) },
+    opsSupplierQuoteRequest: {
+      findMany: vi.fn(async () => quoteRequests.map((supplier) => ({ supplierId: supplier.supplierId, supplierName: supplier.supplierName, supplier: { email: supplier.email } }))),
+      findFirst: vi.fn(async ({ where }: { where: Row }) => (where.supplierId && selectedSuppliers.some((supplier) => supplier.supplierId === where.supplierId) ? { id: `sqr_${where.supplierId}` } : null)),
+    },
     opsCoordinatorAssignment: { findMany: vi.fn(async () => []) },
     opsDocument: {
       findMany: vi.fn(async () => options.rejectedDocuments ?? []),
@@ -86,12 +93,13 @@ function createHarness(options: { rows?: Row[]; derived?: DerivedFileRequirement
       if (!roles.includes(candidate.role)) throw new ForbiddenException(`${candidate.role} cannot access ${resource}`);
     }),
     requireCanReadEvent: vi.fn(async () => undefined),
+    recordForbiddenAccess: vi.fn(async () => undefined),
   };
   const auditWriter = { write: vi.fn(async (input: Record<string, any>) => { audits.push(input); return input; }) };
   const notificationOutboxWriter = { write: vi.fn(async (input: Record<string, any>) => { outbox.push(input); return input; }) };
   const storedRequirementUploads = { findStoredRequirementUpload: vi.fn(async () => options.storedUpload ?? null) };
   const service = new FileRequirementCommandsService(prisma as never, matrix as never, accessPolicy as never, auditWriter as never, notificationOutboxWriter as never, storedRequirementUploads as never);
-  return { service, rows, audits, outbox, tx, prisma, matrix, documents, templates, storedRequirementUploads };
+  return { service, rows, audits, outbox, tx, prisma, matrix, documents, templates, storedRequirementUploads, accessPolicy };
 }
 
 describe('FileRequirementCommandsService', () => {
@@ -276,6 +284,29 @@ describe('FileRequirementCommandsService', () => {
     expect(response).not.toHaveProperty('supplierFulfilments');
     expect(response).not.toHaveProperty('notes');
     expect(JSON.stringify(response)).not.toMatch(/supplier_atlas|Atlas Sound/);
+  });
+
+  it('refuses a supplier without a selected booking before any upload is bound, and still binds for a selected one', async () => {
+    const requirement = { id: 'freq_3', eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm' };
+    const upload = { id: 'obj_sonic', eventId, ownerRecordType: 'supplier', ownerRecordId: 'supplier_sonic', usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
+    const sonic = { id: 'usr_sonic', role: 'supplier', name: 'Sonic', email: 'sonic@example.test', explicit: true, verified: true };
+    const atlas = { supplierId: 'supplier_atlas', supplierName: 'Atlas Sound', email: 'atlas@example.test' };
+
+    // Sonic has an open quote on the event but no selected booking.
+    const unselected = createHarness({ rows: [requirement], storedUpload: upload, suppliers: [atlas], openSuppliers: [{ supplierId: 'supplier_sonic', supplierName: 'Sonic Line Events', email: 'sonic@example.test' }] });
+    await expect(unselected.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, sonic as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(unselected.documents).toHaveLength(0);
+    expect(unselected.storedRequirementUploads.findStoredRequirementUpload).not.toHaveBeenCalled();
+    expect(unselected.accessPolicy.recordForbiddenAccess).toHaveBeenCalledWith(expect.objectContaining({ supplierId: 'supplier_sonic' }), 'fulfil file requirement without a selected booking', eventId);
+
+    // Sonic has no quote on the event at all, so its supplier id never resolves.
+    const absent = createHarness({ rows: [requirement], storedUpload: upload, suppliers: [atlas] });
+    await expect(absent.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, sonic as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(absent.documents).toHaveLength(0);
+
+    const selected = createHarness({ rows: [requirement], storedUpload: upload, suppliers: [{ ...atlas }, { supplierId: 'supplier_sonic', supplierName: 'Sonic Line Events', email: 'sonic@example.test' }] });
+    await expect(selected.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, sonic as never)).resolves.toMatchObject({ key: requirement.key, uploadedObjectId: 'obj_sonic' });
+    expect(selected.documents).toHaveLength(1);
   });
 
   it('applies PMCM-configured event templates idempotently and offsets due dates from the event date', async () => {
