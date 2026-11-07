@@ -191,6 +191,12 @@ export function createEventsClient(
           `/events/${eventId}/addenda/${addendumId}/conforme-execution/countersign`,
           withBase(options, { method: "POST", body: input }),
         ),
+      // PMCM only. Refused once the addendum is effective, because its billing and quote effect has been applied.
+      withdrawAddendum: (eventId, addendumId, input) =>
+        prismRequest<PrismAddendum>(
+          `/events/${eventId}/addenda/${addendumId}/withdraw`,
+          withBase(options, { method: "POST", body: input }),
+        ),
     },
   };
 }

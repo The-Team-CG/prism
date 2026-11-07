@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
 
 import type { PrismAddendum } from "@prism/types";
-import { addendaAwaitingClientAcknowledgment, addendumConformeStatusLabel } from "../model/client-addenda-rules";
+import { addendaAwaitingClientAcknowledgment, addendumConformeStatusLabel, addendumStatusLabel } from "../model/client-addenda-rules";
 import { useClientAddendaViewModel } from "../view-models/use-client-addenda-view-model";
 
 export function ClientAddendaStatus({ eventId }: { eventId: string }) {
@@ -71,7 +71,8 @@ function AddendumRow({
       <p className="text-xs text-muted-foreground">
         {addendum.documentState === "pending" ? "Document pending" : "Document available"} · Issued {formatPortalDate(addendum.issuedAt)}
       </p>
-      <p className="text-xs text-muted-foreground">{addendumConformeStatusLabel(addendum.conforme)}</p>
+      <p className="text-xs font-medium">{addendumStatusLabel(addendum)}</p>
+      {addendum.status !== "withdrawn" ? <p className="text-xs text-muted-foreground">{addendumConformeStatusLabel(addendum.conforme)}</p> : null}
       {awaiting && addendum.conforme ? (
         <div className="space-y-2">
           <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background p-3 text-xs">{addendum.conforme.documentContent}</pre>
