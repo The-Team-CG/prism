@@ -4,11 +4,11 @@ title: "P.R.I.S.M context contracts"
 description: "Current public context surfaces, dependency direction, read-model composition, and focused seams in the Prism modular monolith."
 tags: [architecture, contracts, boundaries, ddd]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-07"
 authority: normative
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/modules and kernel seams"
-last_verified: "2026-10-29; context and kernel folders, injection tokens, and the boundary checker's public-subpath allowlist checked against source"
+last_verified: "2026-10-29; context and kernel folders, injection tokens, and public-subpath allowlist checked; 2026-11-07 focused public-export caller trace, module scan, and boundary checks"
 sources:
   - id: context-source
     resource: "apps/api/src/modules"
@@ -57,6 +57,10 @@ for event gates and projection facts in event-scoped write transactions.
 
 1. A context's public `index.ts` is the default surface for stable in-process
    capability use.
+   Keep it to consumed contracts, pure projections, and focused composition
+   exports. Controllers and unused workflow implementations stay private so
+   importing a token does not load unrelated context workflows. Public exports
+   must not require a particular declaration order to initialize their tokens.
 2. `contracts/` and shared `@prism/types` types contain serialisable inputs and
    outputs; they do not expose Prisma models, Nest controllers, or vendor SDKs.
 3. A focused injected port is used only for genuine inversion, an optional
