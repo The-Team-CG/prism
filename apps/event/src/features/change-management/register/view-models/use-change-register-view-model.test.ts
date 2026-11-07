@@ -50,8 +50,9 @@ function renderRegister(frozen: boolean, exceptions: PrismEventFreezeException[]
 }
 
 const addendumVersion2 = {
-  id: "addendum_1", eventId: "evt_1", versionNumber: 2, title: "Lighting", summary: "", status: "issued", documentId: "", documentState: "pending",
+  id: "addendum_1", eventId: "evt_1", versionNumber: 2, title: "Lighting", summary: "", status: "pending", documentId: "", documentState: "pending",
   signatureMethod: "scanned_document", comparison: { contract: [], quotes: [] }, financialDelta: 15000, issuedAt: "2026-10-19T09:00:00.000Z",
+  effectiveAt: null, withdrawnAt: null, withdrawalReason: null, plannedImpacts: null,
   conforme: null,
 } as PrismAddendum;
 const conformeAwaitingPmcm = {
