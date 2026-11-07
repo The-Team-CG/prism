@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsFileRequirement, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
@@ -19,6 +19,7 @@ import {
 import type { FileRequirementCommands, FileRequirementReminder, FileRequirementReminderReason } from '../../contracts/file-requirement-commands.port';
 import { FileRequirementsMatrixService } from './file-requirements-matrix.service';
 import { readEventAccessScope, scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
+import { scopeFileRequirementItemsForActor, visibleFileRequirementItems } from '../../domain/file-requirement-matrix.policy';
 
 const MANAGEMENT_RESOURCE = 'file requirement management';
 const REMINDER_SWEEP_EVENT_PAGE_SIZE = 100;
@@ -178,7 +179,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
   }
 
   async bindRequirementUpload(eventId: string, key: string, input: BindFileRequirementUploadInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
-    await this.writeRequirement(async (tx) => {
+    const responseActor = await this.writeRequirement(async (tx) => {
       const eventScope = await readEventAccessScope(tx, eventId);
       if (!eventScope) throw new NotFoundException('Event not found');
       const scoped = scopeActorToEvent(actor, eventScope);
@@ -190,11 +191,12 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       if (!requirement.visibleToRoles.includes(scopedActor.role) && scopedActor.role !== OpsUserRole.PmcmAdmin) {
         throw new BadRequestException('This role cannot fulfil the file requirement');
       }
+      await this.requireSelectedSupplierBooking(tx, eventId, scopedActor);
       const object = await this.requireBindingUpload(tx, eventId, key, input.objectId, scopedActor, requirement);
       const currentBinding = await tx.opsDocument.findFirst({ where: { eventId, storageKey: object.id } });
       if (currentBinding) {
         if (currentBinding.type !== key) throw new ConflictException('This upload already fulfils another file requirement');
-        return;
+        return scopedActor;
       }
       await this.requireWritableEvent(eventId, tx);
       await tx.opsDocument.create({ data: {
@@ -207,18 +209,31 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
         affectedType: 'file_requirement', affectedId: requirement.id, affectedLabel: key,
         metadata: { objectId: object.id, originalFileName: object.originalFileName, uploaderActorRole: object.uploaderActorRole },
       }, { prisma: tx, correlationId: `file-requirement-upload:${eventId}:${key}:${object.id}` });
+      return scopedActor;
     });
     const item = await this.itemFor(eventId, key, this.prisma as unknown as Prisma.TransactionClient);
-    if (actor.role === OpsUserRole.PmcmAdmin) return item;
-    const visible = { ...item };
-    delete visible.notes;
-    return visible;
+    // The response is shaped for the event-scoped actor so a supplier sees its own fulfilment only.
+    const [scopedItem] = scopeFileRequirementItemsForActor(visibleFileRequirementItems([item], responseActor.role), responseActor);
+    if (!scopedItem) throw new NotFoundException('File requirement not found');
+    return scopedItem;
   }
 
   private isRequirementUploadOwner(object: StoredRequirementUploadReference, eventId: string, actor: ResolvedEventOpsActor) {
     return ((object.usage === 'client_document' || object.usage === 'signed_conforme') && object.ownerRecordType === 'event' && object.ownerRecordId === eventId)
         || (object.usage === 'supplier_document' && object.ownerRecordType === 'supplier' && object.ownerRecordId === actor.supplierId)
         || (object.usage === 'event_deliverable' && ['billing_statement', 'proposal_version'].includes(object.ownerRecordType));
+  }
+
+  /** Suppliers may bind only when they hold a selected booking on the event; other roles pass through. */
+  private async requireSelectedSupplierBooking(tx: Prisma.TransactionClient, eventId: string, scopedActor: ResolvedEventOpsActor) {
+    if (scopedActor.role !== OpsUserRole.Supplier) return;
+    // An unresolved supplierId must refuse outright: Prisma treats an undefined where-field as no filter.
+    const selectedBooking = scopedActor.supplierId
+      ? await tx.opsSupplierQuoteRequest.findFirst({ where: { eventId, supplierId: scopedActor.supplierId, status: 'selected' }, select: { id: true } })
+      : null;
+    if (selectedBooking) return;
+    await this.accessPolicy.recordForbiddenAccess(scopedActor, 'fulfil file requirement without a selected booking', eventId);
+    throw new ForbiddenException('Only a selected supplier on this event can fulfil this requirement');
   }
 
   private async requireBindingUpload(tx: Prisma.TransactionClient, eventId: string, key: string, objectId: string, scopedActor: ResolvedEventOpsActor, requirement: OpsFileRequirement) {

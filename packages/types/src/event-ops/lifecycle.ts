@@ -293,6 +293,17 @@ export type PrismFileRequirementStatus =
   | "approved"
   | "complete";
 
+/** One selected supplier's fulfilment of a supplier-owned requirement. PMCM-only: suppliers receive their own entry, folded into the item. */
+export interface PrismSupplierFileRequirementFulfilment {
+  supplierId: string;
+  supplierName: string;
+  status: PrismFileRequirementStatus;
+  overdue: boolean;
+  validationStatus?: "accepted" | "rejected";
+  uploadedAssetId?: string;
+  uploadedObjectId?: string;
+}
+
 export interface PrismFileRequirementItem {
   key: string;
   label: string;
@@ -317,6 +328,11 @@ export interface PrismFileRequirementItem {
   uploadedAssetId?: string;
   /** Stored file that currently fulfils a custom requirement, so portals can show the upload beside its requirement. */
   uploadedObjectId?: string;
+  /**
+   * PMCM-only breakdown for a supplier-owned custom requirement: one entry per selected supplier.
+   * When present, the item's top-level status is the aggregate and its upload fields are absent.
+   */
+  supplierFulfilments?: PrismSupplierFileRequirementFulfilment[];
   generatedDocumentId?: string;
   auditCategory: string;
   detail: string;
