@@ -123,6 +123,16 @@ export function createLiveOpsClient(
           actorPath(`/events/${eventId}/event-day/tasks/${taskId}`, actor),
           withBase(options, { method: "PATCH", body: input }),
         ),
+      blockTask: (eventId, taskId, input, actor = {}) =>
+        prismRequest<PrismEventDayTask>(
+          actorPath(`/events/${eventId}/event-day/tasks/${taskId}/block`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      unblockTask: (eventId, taskId, actor = {}) =>
+        prismRequest<PrismEventDayTask>(
+          actorPath(`/events/${eventId}/event-day/tasks/${taskId}/unblock`, actor),
+          withBase(options, { method: "POST" }),
+        ),
       listTaskReassignmentRequests: (eventId, actor = {}) =>
         prismRequest<PrismEventTaskReassignmentRequest[]>(
           actorPath(`/events/${eventId}/event-day/task-reassignments`, actor),

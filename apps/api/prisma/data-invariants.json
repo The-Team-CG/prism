@@ -75,5 +75,12 @@
     "context": "event-lifecycle",
     "severity": "critical",
     "query": "SELECT e.id, e.addendum_id, a.status\nFROM {{event-lifecycle.addendum_conforme_executions}} AS e\nJOIN {{event-lifecycle.addenda}} AS a ON a.id = e.addendum_id\nWHERE e.status = 'completed' AND a.status <> 'effective'\nORDER BY e.id;"
+  },
+  {
+    "id": "live_ops_blocked_tasks_have_reason",
+    "description": "Every blocked event-day task has a non-empty blocked reason and a blocked timestamp.",
+    "context": "live-ops",
+    "severity": "high",
+    "query": "SELECT id, event_id, blocked_reason, blocked_at\nFROM {{live-ops.event_day_tasks}}\nWHERE status = 'blocked'\n  AND (blocked_reason IS NULL OR btrim(blocked_reason) = '' OR blocked_at IS NULL)\nORDER BY id;"
   }
 ]
