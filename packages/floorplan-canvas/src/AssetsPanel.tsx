@@ -5,7 +5,6 @@ import { useEditor } from "./store";
 import type { ElementCategory } from "./types";
 
 function AssetPreview({ asset }: { asset: AssetDef }) {
-  // Render a miniature of the shape itself so the palette looks like Figma/RoomSketch
   const maxDim = Math.max(asset.w, asset.h);
   const scale = 26 / maxDim; // fit into ~32px box
   const W = asset.w * scale;

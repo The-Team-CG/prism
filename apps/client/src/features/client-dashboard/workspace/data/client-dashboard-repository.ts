@@ -7,37 +7,17 @@ import {
   type PrismFloorPlanDraft,
   type CreatePrismInquiryInput,
   type CreateFloorPlanPreferenceInput,
-  type PrismFloorPlanSnapshot,
   type PrismClientOcularVisit,
   type SubmitClientOcularVisitInput,
   type SubmitBriefingInput,
   type PrismBriefing,
 } from "@prism/types";
+import { projectFromSnapshot, type ApiFloorPlanSnapshot } from "@/features/floorplan/snapshot-project";
 import { clientApi, clientApiRequest } from "@/lib/prism-api";
 import type { Project } from "@/features/floorplan/editor";
 import type { ClientSession } from "../model/client-dashboard-types";
 
 export type FloorPlanPreferenceInput = CreateFloorPlanPreferenceInput;
-
-type ApiFloorPlanSnapshot = Omit<PrismFloorPlanSnapshot, "objects" | "guests" | "suppliers"> &
-  Pick<Project, "objects" | "guests" | "suppliers">;
-
-function toProject(plan: ApiFloorPlanSnapshot): Project {
-  const timestamp = plan.updatedAt ? new Date(plan.updatedAt).getTime() : Date.now();
-  return {
-    id: plan.id,
-    name: plan.name,
-    venue: plan.venue,
-    widthM: plan.width,
-    heightM: plan.height,
-    pax: plan.pax,
-    objects: plan.objects ?? [],
-    guests: plan.guests ?? [],
-    suppliers: plan.suppliers ?? [],
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-}
 
 export const clientDashboardRepository = {
   readSession(): ClientSession | null {
@@ -143,12 +123,12 @@ export const clientDashboardRepository = {
     const plan = await clientApiRequest<ApiFloorPlanSnapshot>(
       `/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`,
     );
-    return toProject(plan);
+    return projectFromSnapshot(plan);
   },
 
   async loadPlan(planId: string): Promise<Project> {
     const plan = await clientApiRequest<ApiFloorPlanSnapshot>(`/plans/${planId}`);
-    return toProject(plan);
+    return projectFromSnapshot(plan);
   },
 
   async savePlan(project: Project): Promise<Project> {
@@ -167,6 +147,6 @@ export const clientDashboardRepository = {
         },
       },
     );
-    return toProject(plan);
+    return projectFromSnapshot(plan);
   },
 };

@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@prism/api-client": "*",
+    "@prism/portal-query": "*",
     "@prism/tokens": "*",
     "@prism/types": "*",
     "@prism/ui": "*",

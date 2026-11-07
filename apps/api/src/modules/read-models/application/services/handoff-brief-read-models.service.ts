@@ -14,7 +14,7 @@ import {
   projectHandoffSupplier,
 } from '../mappers/handoff-brief.mappers';
 import { canSeeSupplierReadiness } from '../mappers/run-sheet.mappers';
-import { buildSupplierReadinessItem, createSupplierReadinessClock } from './event-read-models.supplier-readiness';
+import { buildSupplierReadinessItem, createSupplierReadinessClock, sortSupplierReadinessItems } from './event-read-models.supplier-readiness';
 import { LiveOpsReadModelsService } from './live-ops-read-models.service';
 
 /**
@@ -59,9 +59,10 @@ export class HandoffBriefReadModelsService {
     const visible = canSeeSupplierReadiness(liveOps, scope);
     const requests = visible ? await this.queries.supplierReadinessRequestsForEvent(eventId) : [];
     const clock = createSupplierReadinessClock();
+    const items = sortSupplierReadinessItems(requests.map((request) => buildSupplierReadinessItem(request, liveOps.event, clock)));
     return {
       visible,
-      items: requests.map((request) => projectHandoffSupplier(buildSupplierReadinessItem(request, liveOps.event, clock))),
+      items: items.map((item) => projectHandoffSupplier(item)),
     };
   }
 }
