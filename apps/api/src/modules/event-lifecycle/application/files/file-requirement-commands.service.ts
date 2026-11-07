@@ -21,7 +21,7 @@ import { FileRequirementsMatrixService } from './file-requirements-matrix.servic
 import { readEventAccessScope, scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
 
 const MANAGEMENT_RESOURCE = 'file requirement management';
-const SWEEP_EVENT_LIMIT = 100;
+const REMINDER_SWEEP_EVENT_PAGE_SIZE = 100;
 
 /** Outbox recipient labels used by role-addressed PMCM notifications elsewhere in the API. */
 const ROLE_RECIPIENT: Record<string, string> = {
@@ -160,6 +160,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       const existing = await tx.opsFileRequirement.findMany({ where: { eventId }, select: { key: true } });
       const existingKeys = new Set(existing.map(({ key }) => key));
       const created: string[] = [];
+      // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the event-type template is a short PMCM-configured list, applied once per event.
       for (const requirement of requirements) {
         if (existingKeys.has(requirement.key)) continue;
         const dueAt = requirement.dueOffsetDays === undefined ? null : new Date(event.eventDate);
@@ -288,41 +289,62 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
   }
 
   async runReminderSweep(now = new Date()): Promise<{ reminders: FileRequirementReminder[] }> {
-    const events = await this.prisma.opsEvent.findMany({
-      where: {
-        archived: false,
-        OR: [
-          { fileRequirements: { some: { required: true, dueAt: { lte: now } } } },
-          { documents: { some: { validationStatus: 'rejected' } } },
-        ],
-      },
-      select: { id: true },
-      orderBy: { id: 'asc' },
-      take: SWEEP_EVENT_LIMIT,
-    });
     const reminders: FileRequirementReminder[] = [];
-    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the source query limits this sweep to 100 events.
-    for (const event of events) {
-      const [matrix, rejectedDocuments] = await Promise.all([
-        this.matrix.buildForEvent(event.id, this.prisma, now),
-        this.prisma.opsDocument.findMany({
-          where: { eventId: event.id, validationStatus: 'rejected' },
-          orderBy: [{ uploadedAt: 'desc' }, { id: 'asc' }],
-          select: { id: true, type: true },
-          take: 200,
-        }),
-      ]);
-      const rejectedByType = new Map<string, string>();
-      rejectedDocuments.forEach((document) => { if (!rejectedByType.has(document.type)) rejectedByType.set(document.type, document.id); });
-      for (const item of matrix.items.filter((candidate) => candidate.required)) {
-        const reasons: Array<[FileRequirementReminderReason, string]> = [];
-        if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
-        const rejectedId = item.validationStatus === 'rejected' ? rejectedByType.get(item.key) : undefined;
-        if (rejectedId) reasons.push(['rejected', rejectedId]);
-        for (const [reason, anchor] of reasons) reminders.push(...await this.queueReminder(event.id, item, reason, anchor));
+    let afterId: string | undefined;
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: keyset pages cover the complete eligible event set.
+    while (true) {
+      const events = await this.prisma.opsEvent.findMany({
+        where: {
+          archived: false,
+          OR: [
+            { fileRequirements: { some: { required: true, dueAt: { lte: now } } } },
+            { documents: { some: { validationStatus: 'rejected' } } },
+          ],
+          ...(afterId ? { id: { gt: afterId } } : {}),
+        },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+        take: REMINDER_SWEEP_EVENT_PAGE_SIZE,
+      });
+      if (events.length === 0) break;
+
+      // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one bounded page of events per iteration.
+      for (const event of events) {
+        try {
+          reminders.push(...await this.sweepEventReminders(event.id, now));
+        } catch (error) {
+          this.logger.warn(`File requirement reminder sweep failed for event ${event.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
+
+      if (events.length < REMINDER_SWEEP_EVENT_PAGE_SIZE) break;
+      afterId = events[events.length - 1]!.id;
     }
     return { reminders };
+  }
+
+  private async sweepEventReminders(eventId: string, now: Date): Promise<FileRequirementReminder[]> {
+    const [matrix, rejectedDocuments] = await Promise.all([
+      this.matrix.buildForEvent(eventId, this.prisma, now),
+      this.prisma.opsDocument.findMany({
+        where: { eventId, validationStatus: 'rejected' },
+        orderBy: [{ uploadedAt: 'desc' }, { id: 'asc' }],
+        select: { id: true, type: true },
+        take: 200,
+      }),
+    ]);
+    const rejectedByType = new Map<string, string>();
+    rejectedDocuments.forEach((document) => { if (!rejectedByType.has(document.type)) rejectedByType.set(document.type, document.id); });
+    const reminders: FileRequirementReminder[] = [];
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one event's required items, each with at most two reasons.
+    for (const item of matrix.items.filter((candidate) => candidate.required)) {
+      const reasons: Array<[FileRequirementReminderReason, string]> = [];
+      if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
+      const rejectedId = item.validationStatus === 'rejected' ? rejectedByType.get(item.key) : undefined;
+      if (rejectedId) reasons.push(['rejected', rejectedId]);
+      for (const [reason, anchor] of reasons) reminders.push(...await this.queueReminder(eventId, item, reason, anchor));
+    }
+    return reminders;
   }
 
   async sendReminders(eventId: string, actor: ResolvedEventOpsActor, now = new Date()): Promise<{ reminders: FileRequirementReminder[] }> {
