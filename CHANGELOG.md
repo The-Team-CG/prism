@@ -10,6 +10,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Clients now see a version-specific action-center item for addenda awaiting their acknowledgment, linked to the addendum row.
 - File-requirement reminder sweeps now keyset-page through every eligible event while retaining stable idempotency keys.
 - Suppliers now see due and overdue file requirements for selected bookings, with links to the booking actions and uploaded files.
+- PMCM scope-change approvals and rejections now queue idempotent, event-scoped client notices with only client-safe wording and responses; the client view labels withdrawal explicitly.
 - Suppliers can proceed through the optional certifications step before giving privacy consent on the review step, so public applications can be submitted again.
 - API context imports load focused contracts and projections without pulling in unrelated controllers; shared inquiry, document, briefing and live-ops projections now have one owning implementation.
 - PMCM and guest game views share background refresh mechanics. Portal caches retain reads through initial session hydration, and guest entry and check-in use one session model and privacy cleanup path.
