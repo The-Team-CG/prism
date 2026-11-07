@@ -467,7 +467,7 @@ export class EventReadModelsService {
       events: visibleEvents.map((event) => mappers.mapEvent(this.eventVisibleToActor(event, actor))),
       archivedEvents,
       clientEventTimelines,
-      documents: documents.map((document) => mappers.mapDocument(document)),
+      documents: (await this.queries.clientReadableDocuments(actor, documents)).map((document) => mappers.mapDocument(document)),
       briefings: briefings.map((briefing) => mappers.mapBriefing(briefing)),
       supplierQuotes: [],
       coordinatorAssignments: [],
@@ -549,7 +549,7 @@ export class EventReadModelsService {
       ] =
       await this.queries.clientActionCenterForEvents(eventBatch.map((event) => event.id), changeDecisionsSince);
       briefings.push(...batchBriefings);
-      documents.push(...batchDocuments);
+      documents.push(...await this.queries.clientReadableDocuments(actor, batchDocuments));
       floorPlanDrafts.push(...batchFloorPlanDrafts);
       billingStatements.push(...batchBillingStatements);
       paymentMilestones.push(...batchPaymentMilestones);

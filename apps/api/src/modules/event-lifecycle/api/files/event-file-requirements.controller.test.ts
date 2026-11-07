@@ -25,12 +25,12 @@ function createController() {
     requireEvent: vi.fn(async () => ({
       id: 'evt_file', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked',
       inquiry: { email: 'ana@pmcm.test' },
-      supplierQuoteRequests: [{ supplierId: 'supplier_1', supplier: { email: 'sonic.line@pmcm.test' } }],
+      supplierQuoteRequests: [{ supplierId: 'supplier_1', status: 'selected', supplier: { email: 'sonic.line@pmcm.test' } }],
       coordinatorAssignments: [{ coordinatorId: 'coord_marco', coordinator: { userId: 'usr-Marco', email: 'marco@pmcm.test' } }],
     })),
   };
   const eventAccessPolicyService = {
-    resolveActor: vi.fn((_input = {}, verifiedActor?: { actorId?: string; actorRole?: string; actorName?: string; actorEmail?: string }) => ({
+    resolveEventScopedActor: vi.fn((verifiedActor?: { actorId?: string; actorRole?: string; actorName?: string; actorEmail?: string }) => ({
       role: verifiedActor?.actorRole ?? OpsUserRole.PmcmAdmin,
       id: verifiedActor?.actorId,
       name: verifiedActor?.actorName ?? 'PMCM Admin',
@@ -96,7 +96,7 @@ describe('OpsEventFileRequirementsController', () => {
       'file requirements matrix',
       { supplierEventIds: [] },
     );
-    expect(fileRequirementsMatrixService.buildForEvent).toHaveBeenCalledWith('evt_file');
+    expect(fileRequirementsMatrixService.buildForEvent).toHaveBeenCalledWith('evt_file', undefined, undefined, expect.objectContaining({ role: 'pmcm-admin' }));
   });
 
   it('filters file requirements by actor-visible roles', async () => {

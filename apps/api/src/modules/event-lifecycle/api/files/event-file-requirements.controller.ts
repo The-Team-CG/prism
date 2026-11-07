@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Inject, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { EventAccessPolicyService } from '@prism/kernel/access-control';
+import { EventAccessPolicyService, resolveFileEventScope } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
 import {
@@ -13,7 +13,6 @@ import {
   type PrismVerifiedEventActor,
   type UpdateFileRequirementInput,
 } from '@prism/types';
-import { scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
 import { FileRequirementsMatrixService } from '../../application/files/file-requirements-matrix.service';
 import { FILE_REQUIREMENT_COMMANDS } from '../../contracts/file-ops.tokens';
 import type { FileRequirementCommands } from '../../contracts/file-requirement-commands.port';
@@ -30,12 +29,13 @@ export class OpsEventFileRequirementsController {
   @Get(':eventId/file-requirements')
   @UseGuards(EventSessionGuard)
   async fileRequirements(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    const actor = this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor);
     const event = await this.fileRequirementsMatrixService.requireEvent(eventId);
-    const scoped = scopeActorToEvent(actor, event);
+    const scoped = resolveFileEventScope(actor, event);
     await this.eventAccessPolicyService.requireCanReadEvent(scoped.actor, event, 'file requirements matrix', scoped.scope);
 
-    const matrix = await this.fileRequirementsMatrixService.buildForEvent(eventId);
+    // The matrix is built for this actor's audience, so ids and counts never exceed what it may download.
+    const matrix = await this.fileRequirementsMatrixService.buildForEvent(eventId, undefined, undefined, { role: scoped.actor.role, supplierId: scoped.actor.supplierId });
     const items = scopeFileRequirementItemsForActor(visibleFileRequirementItems(matrix.items, actor.role), scoped.actor);
     const privileged = actor.role === 'pmcm-admin' || actor.role === 'system';
     const billingWithheld = !privileged && items.some((item) => item.key === 'billing_statement') && !(await this.fileRequirementsMatrixService.hasSentBillingStatement(eventId));
@@ -49,7 +49,7 @@ export class OpsEventFileRequirementsController {
     @Body(zodBody(createFileRequirementSchema)) input: CreateFileRequirementInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    const actor = this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor);
     return this.fileRequirementCommands.createRequirement(eventId, input, actor);
   }
 
@@ -61,7 +61,7 @@ export class OpsEventFileRequirementsController {
     @Body(zodBody(updateFileRequirementSchema)) input: UpdateFileRequirementInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    const actor = this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor);
     const parsedKey = fileRequirementKeySchema.safeParse(key);
     if (!parsedKey.success) throw new NotFoundException('File requirement not found');
     return this.fileRequirementCommands.updateRequirement(eventId, parsedKey.data, input, actor);
@@ -70,14 +70,14 @@ export class OpsEventFileRequirementsController {
   @Post(':eventId/file-requirements/reminders')
   @UseGuards(EventSessionGuard)
   sendFileRequirementReminders(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    const actor = this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor);
     return this.fileRequirementCommands.sendReminders(eventId, actor);
   }
 
   @Post(':eventId/file-requirements/apply-template')
   @UseGuards(EventSessionGuard)
   applyFileRequirementTemplate(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    const actor = this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor);
     return this.fileRequirementCommands.applyRequirementTemplate(eventId, actor);
   }
 
@@ -89,7 +89,7 @@ export class OpsEventFileRequirementsController {
     @Body(zodBody(bindFileRequirementUploadSchema)) input: import('@prism/types').BindFileRequirementUploadInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    const actor = this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor);
     const parsedKey = fileRequirementKeySchema.safeParse(key);
     if (!parsedKey.success) throw new NotFoundException('File requirement not found');
     return this.fileRequirementCommands.bindRequirementUpload(eventId, parsedKey.data, input, actor);
@@ -104,13 +104,13 @@ export class FileRequirementTemplatesController {
   @Get()
   @UseGuards(EventSessionGuard)
   list(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    return this.fileRequirementCommands.listRequirementTemplates(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+    return this.fileRequirementCommands.listRequirementTemplates(this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor));
   }
 
   @Post()
   @UseGuards(EventSessionGuard)
   upsert(@Body(zodBody(upsertFileRequirementTemplateSchema)) input: UpsertFileRequirementTemplateInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    return this.fileRequirementCommands.upsertRequirementTemplate(input, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+    return this.fileRequirementCommands.upsertRequirementTemplate(input, this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor));
   }
 }

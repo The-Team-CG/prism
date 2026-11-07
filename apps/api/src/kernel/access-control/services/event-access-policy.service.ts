@@ -75,6 +75,20 @@ export class EventAccessPolicyService {
     };
   }
 
+  /**
+   * The single actor shape for event-scoped HTTP routes. It carries the verified token's event,
+   * supplier, and coordinator identity. The token event only has to match the route; a coordinator
+   * still gains event scope through a current assignment in the shared scope resolver.
+   */
+  resolveEventScopedActor(verifiedActor: PrismVerifiedEventActor): ResolvedEventOpsActor {
+    return {
+      ...this.resolveVerifiedActor(verifiedActor),
+      eventId: verifiedActor.eventId ?? undefined,
+      supplierId: verifiedActor.supplierId ?? undefined,
+      coordinatorId: verifiedActor.coordinatorId ?? undefined,
+    };
+  }
+
   async requireActorRole(
     actor: ResolvedEventOpsActor,
     allowedRoles: OpsUserRoleValue[],
