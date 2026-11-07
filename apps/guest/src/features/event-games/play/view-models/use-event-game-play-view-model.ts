@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from "@prism/types";
-import { useEventGameSessionUpdates } from "./use-event-game-session-updates";
+import { useBackgroundRefresh } from "@prism/portal-query";
 import {
   getEventGameParticipantState,
   getEventGameParticipantMediaAuthorization,
@@ -42,7 +42,7 @@ export function useEventGamePlayViewModel(sessionId: string) {
   }, [sessionId]);
 
   const shouldPoll = isActiveMultiplayerSession(state);
-  const refreshNow = useEventGameSessionUpdates({ enabled: shouldPoll, refresh });
+  const refreshNow = useBackgroundRefresh({ enabled: shouldPoll, refresh });
 
   useEffect(() => {
     void refreshNow();

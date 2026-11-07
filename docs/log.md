@@ -4,6 +4,10 @@ This log tracks changes to documentation structure and durable contracts. Releas
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md); Git history retains detailed
 implementation and verification history.
 
+## 2026-11-07
+
+- Clarified focused API context exports and owner-defined projections, documented portal-query background refresh ownership, and recorded shared guest-session and floorplan shell state boundaries.
+
 ## 2026-11-02
 
 - Updated the CI and browser execution contract for isolated workspace coverage jobs, generated-output refresh after dependency-cache restores, owned cache retention, and complete production/development server comparisons.

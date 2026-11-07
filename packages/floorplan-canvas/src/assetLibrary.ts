@@ -14,7 +14,6 @@ export interface AssetDef {
 }
 
 export const ASSETS: AssetDef[] = [
-  // Furniture
   { id: "round-banquet", name: "Round Banquet (10pax)", category: "furniture", kind: "ellipse", w: 1.8, h: 1.8, fill: "#FFF4EC", stroke: "#9060A0", seats: 10, icon: "Circle" },
   { id: "round-small", name: "Round Table (6pax)", category: "furniture", kind: "ellipse", w: 1.4, h: 1.4, fill: "#FFF4EC", stroke: "#9060A0", seats: 6, icon: "Circle" },
   { id: "rect-banquet", name: "Rectangular Banquet", category: "furniture", kind: "rect", w: 2.4, h: 0.8, fill: "#FFF4EC", stroke: "#9060A0", seats: 8, icon: "RectangleHorizontal" },
@@ -24,26 +23,22 @@ export const ASSETS: AssetDef[] = [
   { id: "vip-table", name: "VIP Table", category: "furniture", kind: "rect", w: 2.8, h: 1.0, fill: "#FFF0E6", stroke: "#F06030", seats: 10, icon: "Crown" },
   { id: "chair", name: "Chair", category: "furniture", kind: "rect", w: 0.45, h: 0.45, fill: "#EAD5CE", stroke: "#9060A0", icon: "Armchair" },
 
-  // Stage & Production
   { id: "stage", name: "Stage", category: "stage", kind: "rect", w: 6.0, h: 3.0, fill: "#9060A0", stroke: "#c01867", icon: "Square" },
   { id: "led-wall", name: "LED Wall", category: "stage", kind: "rect", w: 5.0, h: 0.4, fill: "#1B1B1F", stroke: "#000000", icon: "Monitor" },
   { id: "podium", name: "Podium", category: "stage", kind: "rect", w: 0.8, h: 0.6, fill: "#9060A0", stroke: "#171216", icon: "Mic" },
   { id: "speaker", name: "Speaker", category: "stage", kind: "rect", w: 0.5, h: 0.5, fill: "#1B1B1F", stroke: "#000000", icon: "Speaker" },
   { id: "light-truss", name: "Light Truss", category: "stage", kind: "rect", w: 4.0, h: 0.3, fill: "#9AA2AD", stroke: "#4C5561", icon: "Lightbulb" },
 
-  // Registration & Flow
   { id: "reg-desk", name: "Registration Desk", category: "registration", kind: "rect", w: 2.0, h: 0.8, fill: "#E9F7FB", stroke: "#9060A0", icon: "ClipboardList" },
   { id: "entrance-arch", name: "Entrance Arch", category: "registration", kind: "rect", w: 2.5, h: 0.4, fill: "#CCECF4", stroke: "#9060A0", icon: "DoorOpen" },
   { id: "photo-wall", name: "Photo Wall", category: "registration", kind: "rect", w: 3.0, h: 0.3, fill: "#E9F7FB", stroke: "#9060A0", icon: "Image" },
   { id: "photo-booth", name: "Photo Booth", category: "registration", kind: "rect", w: 1.5, h: 1.5, fill: "#E9F7FB", stroke: "#9060A0", icon: "Camera" },
   { id: "signage", name: "Directional Sign", category: "registration", kind: "rect", w: 0.4, h: 0.4, fill: "#E9F7FB", stroke: "#9060A0", icon: "SignpostBig" },
 
-  // Safety
   { id: "emergency-exit", name: "Emergency Exit", category: "safety", kind: "rect", w: 1.2, h: 0.2, fill: "#E74C3C", stroke: "#B4233A", icon: "DoorOpen" },
   { id: "fire-ext", name: "Fire Extinguisher", category: "safety", kind: "ellipse", w: 0.3, h: 0.3, fill: "#E74C3C", stroke: "#B4233A", icon: "Flame" },
   { id: "first-aid", name: "First Aid", category: "safety", kind: "rect", w: 0.6, h: 0.6, fill: "#FFFFFF", stroke: "#E74C3C", icon: "Cross" },
 
-  // Architecture
   { id: "wall", name: "Wall", category: "architecture", kind: "rect", w: 4.0, h: 0.2, fill: "#3A3A3A", stroke: "#1A1A1A", icon: "Minus" },
   { id: "door", name: "Door", category: "architecture", kind: "rect", w: 1.0, h: 0.15, fill: "#F06030", stroke: "#9060A0", icon: "DoorClosed" },
   { id: "window", name: "Window", category: "architecture", kind: "rect", w: 1.5, h: 0.15, fill: "#CCECF4", stroke: "#40A0D0", icon: "Square" },

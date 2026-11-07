@@ -1,9 +1,4 @@
-import type {
-  OpsCoordinatorAssignment,
-  OpsEventDayLog,
-  OpsEventDayTask,
-  OpsUrgentIssue,
-} from '@prisma/client';
+import type { OpsCoordinatorAssignment } from '@prisma/client';
 import type {
   PrismCoordinatorAssignment,
   PrismEventDayLog,
@@ -14,97 +9,10 @@ import type {
   PrismSupplierQuoteRequest,
   PrismUrgentIssue,
 } from '@prism/types';
-import { CoordinatorAttendanceStatus, LiveOpsEscalationLevel } from '@prism/kernel/event-core';
-
-type SlaRecord = {
-  status?: string | null;
-  slaStatus?: string | null;
-  slaDueAt?: Date | null;
-  dueAt?: Date | null;
-  resolvedAt?: Date | null;
-  completedAt?: Date | null;
-};
-
-const CLOSED_STATUSES = new Set(['done', 'resolved', 'cancelled', 'closed']);
-const DUE_SOON_MS = 60 * 60 * 1000;
+import { CoordinatorAttendanceStatus } from '@prism/kernel/event-core';
 
 function timestamp(value: Date) {
   return value.toISOString();
-}
-
-export function computeSlaStatus(record: SlaRecord, now = new Date()) {
-  if (record.resolvedAt || record.completedAt || CLOSED_STATUSES.has(record.status ?? '')) {
-    return 'resolved';
-  }
-
-  const dueAt = record.slaDueAt ?? record.dueAt ?? null;
-  if (!dueAt) return record.slaStatus && record.slaStatus !== 'on_track' ? record.slaStatus : 'on_track';
-  if (dueAt.getTime() < now.getTime()) return 'overdue';
-  if (dueAt.getTime() - now.getTime() <= DUE_SOON_MS) return 'due_soon';
-  return 'on_track';
-}
-
-export function mapEventDayTask(task: OpsEventDayTask): PrismEventDayTask {
-  return {
-    id: task.id,
-    eventId: task.eventId,
-    title: task.title,
-    assignedRole: task.assignedRole,
-    ownerName: task.ownerName,
-    priority: task.priority,
-    status: task.status,
-    notes: task.notes,
-    dueAt: task.dueAt ? timestamp(task.dueAt) : null,
-    slaDueAt: task.slaDueAt ? timestamp(task.slaDueAt) : null,
-    slaStatus: computeSlaStatus(task),
-    escalationLevel: task.escalationLevel ?? LiveOpsEscalationLevel.None,
-    escalatedAt: task.escalatedAt ? timestamp(task.escalatedAt) : null,
-    escalatedBy: task.escalatedBy ?? null,
-    escalationNotes: task.escalationNotes ?? '',
-    completedAt: task.completedAt ? timestamp(task.completedAt) : null,
-    createdAt: timestamp(task.createdAt),
-    updatedAt: timestamp(task.updatedAt),
-  };
-}
-
-export function mapUrgentIssue(issue: OpsUrgentIssue): PrismUrgentIssue {
-  return {
-    id: issue.id,
-    eventId: issue.eventId,
-    title: issue.title,
-    description: issue.description,
-    severity: issue.severity,
-    status: issue.status,
-    affectedArea: issue.affectedArea ?? '',
-    ownerRole: issue.ownerRole,
-    ownerName: issue.ownerName,
-    resolution: issue.resolution,
-    openedBy: issue.openedBy,
-    slaDueAt: issue.slaDueAt ? timestamp(issue.slaDueAt) : null,
-    slaStatus: computeSlaStatus(issue),
-    escalationLevel: issue.escalationLevel ?? LiveOpsEscalationLevel.None,
-    escalatedAt: issue.escalatedAt ? timestamp(issue.escalatedAt) : null,
-    escalatedBy: issue.escalatedBy ?? null,
-    escalationNotes: issue.escalationNotes ?? '',
-    resolvedAt: issue.resolvedAt ? timestamp(issue.resolvedAt) : null,
-    createdAt: timestamp(issue.createdAt),
-    updatedAt: timestamp(issue.updatedAt),
-  };
-}
-
-export function mapEventDayLog(log: OpsEventDayLog): PrismEventDayLog {
-  return {
-    id: log.id,
-    eventId: log.eventId,
-    actionType: log.actionType,
-    actor: log.actor,
-    actorRole: log.actorRole,
-    message: log.message,
-    relatedType: log.relatedType ?? null,
-    relatedId: log.relatedId ?? null,
-    metadata: log.metadata ?? {},
-    createdAt: timestamp(log.createdAt),
-  };
 }
 
 export function mapCoordinatorAssignmentForEventDay(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
+import { PRISM_PRIVACY_NOTICE_VERSION, type PrismGuestSession } from "@prism/types";
 import { GuestApiError } from "@/features/guest-shared/guest-http";
 import {
   buildCheckInPayload,
@@ -15,7 +15,6 @@ import {
   MAX_FILE_SIZE_BYTES,
   MAX_VIDEO_DURATION_S,
 } from "./guest-dashboard-rules";
-import type { GuestSession } from "./guest-dashboard-types";
 
 const session = {
   eventName: "Yala",
@@ -25,7 +24,7 @@ const session = {
   readiness: "ready_for_event_day",
   floorPlanStatus: "approved",
   openedAt: "2026-07-01T00:00:00.000Z",
-} as GuestSession;
+} as PrismGuestSession;
 
 describe("guest-dashboard-rules", () => {
   it("shows where and when to arrive on the pass only when PMCM has recorded it", () => {
