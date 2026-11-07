@@ -67,6 +67,10 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
     });
 
     await test.step('Client submits the briefing; requests a proposal revision; PMCM issues a new version for approval', async () => {
+      await client.goto(`${origins.client}/dashboard/events/${eventId}/overview`);
+      await client.waitForLoadState('networkidle');
+      await expect(client.getByRole('heading', { name: 'Event details', exact: true })).toBeVisible();
+      await expect(client.getByRole('heading', { name: 'Something went wrong.', exact: true })).toHaveCount(0);
       await client.goto(`${origins.client}/dashboard/events/${eventId}/briefing`);
       await client.getByLabel(/^Venue preference/).fill('Browser acceptance venue');
       await client.getByLabel(/^Expected guest count/).fill('120');
