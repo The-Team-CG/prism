@@ -31,6 +31,7 @@ export async function findFloorPlanDraftsByEvent(
   }
   if (perEventLimit === 0) return grouped;
 
+  // QUERY_AUDIT_RAW_SQL: Top-N per event: row_number() OVER (PARTITION BY event_id) is filtered to the per-event limit in the outer query; Prisma cannot apply a per-group limit in one query.
   const rows = await db.$queryRaw<OpsFloorPlanDraft[]>(Prisma.sql`
     SELECT
       id,

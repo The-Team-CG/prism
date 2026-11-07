@@ -294,6 +294,7 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
   ): Promise<string> {
     const base = `privacy-redacted:${entryId}`;
     const maxCandidates = 16;
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: at most maxCandidates (16) probes; each probe depends on the previous result (the first unused key wins), so the lookups cannot be batched.
     for (let suffix = 0; suffix < maxCandidates; suffix += 1) {
       const candidate = suffix === 0 ? base : `${base}:${suffix}`;
       const existing = await transaction.opsGuestRosterEntry.findFirst({

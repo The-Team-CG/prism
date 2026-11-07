@@ -46,6 +46,7 @@ export class GameScheduledStartWorker
     input: { eventId: string; sessionId: string; startsAt: Date },
     transaction: PrismTransactionContext,
   ): Promise<void> {
+    // QUERY_AUDIT_RAW_SQL: Plain keyed read of one session scheduled start; no lock or write, so Prisma findFirst could serve it.
     const rows = await transaction.prisma.$queryRaw<Array<{ session_id: string }>>`
       SELECT id AS session_id
       FROM "event_games"."game_sessions"
@@ -63,6 +64,7 @@ export class GameScheduledStartWorker
     input: { eventId: string; sessionId: string },
     transaction: PrismTransactionContext,
   ): Promise<void> {
+    // QUERY_AUDIT_RAW_SQL: Conditional clear: nulls scheduled_start_at only while the session is completed or cancelled; status guard and write are one statement.
     await transaction.prisma.$executeRaw`
       UPDATE "event_games"."game_sessions"
       SET scheduled_start_at = NULL, updated_at = NOW()
@@ -88,6 +90,7 @@ export class GameScheduledStartWorker
       (transaction) => this.pinStore.releaseExpiredReservations({ now }, transaction),
       { actorId: PIN_EXPIRY_ACTOR_ID },
     );
+    // QUERY_AUDIT_RAW_SQL: Plain read of due scheduled sessions, ordered and capped by MAX_DUE_STARTS; no lock or write.
     const due = await this.prisma.$queryRaw<DueStartRow[]>`
       SELECT event_id, id AS session_id, game_definition_id,
         COALESCE(start_idempotency_key, id) AS request_receipt_id
@@ -101,6 +104,7 @@ export class GameScheduledStartWorker
     for (const candidate of due) {
       const claimed = await this.transactions.run(async (transaction) => {
         if (!(await this.eventAccess.isEventOpen(candidate.event_id, transaction))) return false;
+        // QUERY_AUDIT_RAW_SQL: FOR SHARE on the published game definition: a concurrent archive or unpublish waits until this scheduled start commits.
         const activeDefinition = await transaction.prisma.$queryRaw<Array<{ id: string }>>`
           SELECT d."id"
           FROM "event_games"."game_definitions" d
@@ -111,6 +115,7 @@ export class GameScheduledStartWorker
           FOR SHARE OF d
         `;
         if (!activeDefinition[0]) return false;
+        // QUERY_AUDIT_RAW_SQL: Compare-and-set start: moves the session to live only while it is still scheduled and due; RETURNING reports whether this worker won.
         const transition = await transaction.prisma.$queryRaw<Array<{
           event_id: string;
           session_id: string;

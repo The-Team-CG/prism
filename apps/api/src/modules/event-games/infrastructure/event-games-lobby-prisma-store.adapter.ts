@@ -52,6 +52,7 @@ function publicGame(row: PublicGameRow): PublicIndependentGameRecord {
 @Injectable()
 export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
   async findEventIdForLobbySlug(eventSlug: string, transaction: PrismTransactionContext): Promise<string | null> {
+    // QUERY_AUDIT_RAW_SQL: Keyed lookup of the event for a lobby slug with LIMIT 1; plain read, no lock or write.
     const rows = await transaction.prisma.$queryRaw<LobbySlugRow[]>`
       SELECT "event_id", "lobby_slug" FROM "event_games"."lobby_slugs"
       WHERE "lobby_slug" = ${eventSlug}
@@ -61,6 +62,7 @@ export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
   }
 
   async findLobbyBranding(eventId: string, transaction: PrismTransactionContext) {
+    // QUERY_AUDIT_RAW_SQL: Keyed lookup of lobby branding by event with LIMIT 1; plain read, no lock or write.
     const rows = await transaction.prisma.$queryRaw<Array<{
       brand_theme: string;
       brand_primary_color: string | null;
@@ -83,6 +85,7 @@ export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
   }
 
   async listPublicIndependentGames(eventId: string, transaction: PrismTransactionContext): Promise<PublicIndependentGameRecord[]> {
+    // QUERY_AUDIT_RAW_SQL: Listing of published independent games filtered by availability window using NOW(); plain read, no lock or write.
     const rows = await transaction.prisma.$queryRaw<PublicGameRow[]>`
       SELECT "id", "title", "game_kind", "status", "entry_mode", "available_from", "available_until"
       FROM "event_games"."game_definitions"
@@ -99,6 +102,7 @@ export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
     scope: { eventId: string; gameId: string },
     transaction: PrismTransactionContext,
   ): Promise<PublicIndependentGameRecord | null> {
+    // QUERY_AUDIT_RAW_SQL: Published independent game joined to its latest config version by LATERAL ORDER BY version DESC LIMIT 1; one row per definition, no lock or write.
     const rows = await transaction.prisma.$queryRaw<IndependentGameRow[]>`
       SELECT d."id", d."event_id", d."title", d."game_kind", d."status", d."entry_mode",
         d."available_from", d."available_until", d."archived_at",
@@ -128,6 +132,7 @@ export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
     scope: { eventId: string; idempotencyKey: string },
     transaction: PrismTransactionContext,
   ) {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF s on the session row, read with its grant and credential, so an independent-start retry sees a stable status before reusing it.
     const rows = await transaction.prisma.$queryRaw<SessionRow[]>`
       SELECT s."id", s."event_id", s."game_definition_id", s."status", d."title", d."game_kind",
         g."participant_credential_id", c."token_digest"
@@ -204,6 +209,7 @@ export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
     transaction: PrismTransactionContext,
   ): Promise<{ id: string; event_id: string; revoked_at: Date | null }> {
     if (input.createCredential) {
+      // QUERY_AUDIT_RAW_SQL: ON CONFLICT (token_digest) DO NOTHING: credential insert is idempotent because token_digest is unique.
       await transaction.prisma.$executeRaw`
         INSERT INTO "event_games"."participant_credentials" ("id", "event_id", "token_digest")
         VALUES (${input.credentialId}, ${input.eventId}, ${input.tokenDigest})
@@ -211,6 +217,7 @@ export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
       `;
     }
 
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the active credential for this token digest, read after the conflicting insert above so concurrent issues serialize on one row.
     const credentials = await transaction.prisma.$queryRaw<Array<{ id: string; event_id: string; revoked_at: Date | null }>>`
       SELECT "id", "event_id", "revoked_at" FROM "event_games"."participant_credentials"
       WHERE "event_id" = ${input.eventId} AND "token_digest" = ${input.tokenDigest}
@@ -227,6 +234,7 @@ export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
     input: CreateIndependentGameSessionRecord,
     transaction: PrismTransactionContext,
   ): Promise<SessionRow | null> {
+    // QUERY_AUDIT_RAW_SQL: CTE picks the published definition and its latest config version, then inserts the session ON CONFLICT (event_id, start_idempotency_key) DO NOTHING RETURNING; one key starts at most one session.
     const inserted = await transaction.prisma.$queryRaw<SessionRow[]>`
       WITH eligible AS (
         SELECT d."id", d."event_id", v."id" AS "config_version_id", v."config", d."entry_mode"
@@ -291,12 +299,14 @@ export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
     sessionId: string,
     transaction: PrismTransactionContext,
   ): Promise<void> {
+    // QUERY_AUDIT_RAW_SQL: Grant insert ON CONFLICT (event_id, session_id, participant_credential_id) DO NOTHING: a repeated join creates one participation grant.
     await transaction.prisma.$executeRaw`
       INSERT INTO "event_games"."session_participation_grants"
         ("id", "event_id", "session_id", "participant_credential_id", "entry_mode")
       VALUES (${input.grantId}, ${input.eventId}, ${sessionId}, ${credentialId}, 'independent')
       ON CONFLICT ("event_id", "session_id", "participant_credential_id") DO NOTHING
     `;
+    // QUERY_AUDIT_RAW_SQL: Reads the active grant credential token digest after the insert; plain read, no lock or write.
     const grant = await transaction.prisma.$queryRaw<Array<{ token_digest: string }>>`
       SELECT c."token_digest"
       FROM "event_games"."session_participation_grants" g
@@ -317,6 +327,7 @@ export class EventGamesLobbyPrismaStoreAdapter implements GameLobbyStorePort {
     sessionId: string,
     transaction: PrismTransactionContext,
   ): Promise<SessionRow | null> {
+    // QUERY_AUDIT_RAW_SQL: Read joining session, definition and an active grant to resolve a granted independent session; plain read, no lock or write.
     const created = await transaction.prisma.$queryRaw<SessionRow[]>`
       SELECT s."id", s."event_id", s."game_definition_id", s."status", d."title", d."game_kind",
         g."participant_credential_id", c."token_digest"

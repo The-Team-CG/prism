@@ -95,6 +95,7 @@ export class EventGamesModerationPrismaStoreAdapter implements GameModerationSto
       eventId: input.eventId, sessionId: input.sessionId, actorId: input.actorId,
       key: input.request.idempotencyKey,
     });
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF s on the session row so moderation decisions on one session serialize and read its current status and config snapshot.
     const sessions = await transaction.prisma.$queryRaw<SessionStatusRow[]>`
       SELECT s."status", d."game_kind", s."config_snapshot"
       FROM "event_games"."game_sessions" s
@@ -106,6 +107,7 @@ export class EventGamesModerationPrismaStoreAdapter implements GameModerationSto
     const session = sessions[0];
     if (!session || !['live', 'paused', 'completed'].includes(session.status)) return null;
 
+    // QUERY_AUDIT_RAW_SQL: Reads one moderation action by id to return an existing decision; plain read, no lock or write.
     const existing = await transaction.prisma.$queryRaw<ExistingModerationRow[]>`
       SELECT "id", "action", "submission_id", "participation_grant_id", "reason", "resolved_answer"
       FROM "event_games"."moderation_actions" WHERE "id" = ${id}
@@ -157,6 +159,7 @@ export class EventGamesModerationPrismaStoreAdapter implements GameModerationSto
     request: Extract<PrismModerateEventGameInput, { action: 'resolve_family_feud_answer' }>,
     transaction: PrismTransactionContext,
   ) {
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF s locks the submission row; its latest moderation action comes from a LATERAL join, so adjudication reads current state under the lock.
     return (await transaction.prisma.$queryRaw<FamilyFeudSubmissionRow[]>`
       SELECT s."id", s."round_key", s."action_kind", s."payload", s."score_result",
         s."participation_grant_id", latest."action" AS "moderation_action"
@@ -179,6 +182,7 @@ export class EventGamesModerationPrismaStoreAdapter implements GameModerationSto
     points: number,
     transaction: PrismTransactionContext,
   ) {
+    // QUERY_AUDIT_RAW_SQL: UPDATE of the adjudicated score_ledger points for this grant and source event; RETURNING id tells the caller whether a row matched.
     const scored = await transaction.prisma.$queryRaw<InsertedRow[]>`
       UPDATE "event_games"."score_ledger"
       SET "points" = ${points}, "reason" = 'family-feud-adjudication'
@@ -188,6 +192,7 @@ export class EventGamesModerationPrismaStoreAdapter implements GameModerationSto
       RETURNING "id"
     `;
     if (!scored[0]) return null;
+    // QUERY_AUDIT_RAW_SQL: Conditional score write: sets score_result only while its points are still 0, so an already-scored answer is not overwritten; RETURNING id reports whether it applied.
     const updated = await transaction.prisma.$queryRaw<InsertedRow[]>`
       UPDATE "event_games"."submissions"
       SET "score_result" = ${JSON.stringify({ points, isCorrect: points > 0 })}::jsonb
@@ -206,6 +211,7 @@ export class EventGamesModerationPrismaStoreAdapter implements GameModerationSto
   ): Promise<PersistedGameModeration | null> {
     if (input.request.action !== 'remove_participant') return null;
     const grantId = input.request.participationGrantId;
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE on the participation grant so a removal serializes with a concurrent revoke and reads revoked_at under the lock.
     const targets = await transaction.prisma.$queryRaw<ParticipantTargetRow[]>`
       SELECT "id", "revoked_at" FROM "event_games"."session_participation_grants"
       WHERE "event_id" = ${input.eventId} AND "session_id" = ${input.sessionId} AND "id" = ${grantId}
@@ -213,6 +219,7 @@ export class EventGamesModerationPrismaStoreAdapter implements GameModerationSto
     `;
     const target = targets[0];
     if (!target || target.revoked_at) return null;
+    // QUERY_AUDIT_RAW_SQL: Conditional revoke: sets revoked_at and revoked_by only while revoked_at IS NULL, so the first revoke wins; RETURNING reports whether this call applied.
     const changed = await transaction.prisma.$queryRaw<InsertedRow[]>`
       UPDATE "event_games"."session_participation_grants"
       SET "revoked_at" = ${input.now}, "revoked_by" = ${input.actorId}
@@ -233,6 +240,7 @@ export class EventGamesModerationPrismaStoreAdapter implements GameModerationSto
   ): Promise<PersistedGameModeration | null> {
     if (input.request.action === 'remove_participant') return null;
     const submissionId = input.request.submissionId;
+    // QUERY_AUDIT_RAW_SQL: FOR UPDATE OF s locks the submission row and reads its latest moderation action via LATERAL, so the decision is made against the current state.
     const targets = await transaction.prisma.$queryRaw<SubmissionTargetRow[]>`
       SELECT s."id", latest."action" AS "moderation_action"
       FROM "event_games"."submissions" s
@@ -264,6 +272,7 @@ export class EventGamesModerationPrismaStoreAdapter implements GameModerationSto
     transaction: PrismTransactionContext,
     resolvedAnswer: string | null = null,
   ) {
+    // QUERY_AUDIT_RAW_SQL: Plain insert of a moderation action with RETURNING; no lock or conditional write, so Prisma create could serve it.
     const rows = await transaction.prisma.$queryRaw<InsertedRow[]>`
       INSERT INTO "event_games"."moderation_actions"
         ("id", "event_id", "session_id", "submission_id", "participation_grant_id", "action", "reason", "resolved_answer", "actor_id", "created_at")
