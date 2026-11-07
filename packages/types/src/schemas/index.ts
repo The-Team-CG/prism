@@ -4,6 +4,7 @@ export {
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
   isEmergencyCoordinatorWithdrawal,
+  isGuestDeskRole,
   normalizeCoordinatorRole,
   type CoordinatorRole,
 } from "./coordinator-roles.js";
