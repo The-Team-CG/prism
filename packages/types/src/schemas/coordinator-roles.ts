@@ -24,6 +24,15 @@ export function canonicalCoordinatorRole(value?: string | null): CoordinatorRole
   return COORDINATOR_ROLES.find((role) => normalizeCoordinatorRole(role) === normalized);
 }
 
+/**
+ * Registration and usher roles work the guest desk. They see guest check-in detail and the guest operations block on
+ * the event-day run sheet. Matches any role label that names registration or an usher, so custom labels still count.
+ */
+export function isGuestDeskRole(role?: string | null): boolean {
+  const value = role?.toLowerCase() ?? "";
+  return value.includes("registration") || value.includes("usher");
+}
+
 /** A coordinator who withdraws this close to the event day creates an Emergency Change (catalog FR-89). */
 export const COORDINATOR_EMERGENCY_WINDOW_HOURS = 48;
 
