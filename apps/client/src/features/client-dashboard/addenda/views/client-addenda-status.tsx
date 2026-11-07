@@ -1,4 +1,5 @@
 "use client";
+import { useEffect } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
 
 import type { PrismAddendum } from "@prism/types";
@@ -8,6 +9,13 @@ import { useClientAddendaViewModel } from "../view-models/use-client-addenda-vie
 export function ClientAddendaStatus({ eventId }: { eventId: string }) {
   const vm = useClientAddendaViewModel(eventId);
   const awaiting = addendaAwaitingClientAcknowledgment(vm.addenda);
+
+  useEffect(() => {
+    if (vm.status !== "ready" || !window.location.hash.startsWith("#client-addendum-")) return;
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    document.getElementById(id)?.scrollIntoView({ block: "start" });
+  }, [eventId, vm.status]);
+
   // Addenda exist only after a scope change is issued; an empty card is noise on the overview.
   if (vm.status === "ready" && !vm.error && vm.addenda.length === 0) return null;
 
@@ -24,6 +32,7 @@ export function ClientAddendaStatus({ eventId }: { eventId: string }) {
           {vm.addenda.map((addendum) => (
             <AddendumRow
               key={addendum.id}
+              id={`client-addendum-${addendum.id}`}
               addendum={addendum}
               awaiting={awaiting.some((item) => item.id === addendum.id)}
               consentAccepted={vm.consentAccepted(addendum.id)}
@@ -39,6 +48,7 @@ export function ClientAddendaStatus({ eventId }: { eventId: string }) {
 }
 
 function AddendumRow({
+  id,
   addendum,
   awaiting,
   consentAccepted,
@@ -46,6 +56,7 @@ function AddendumRow({
   onConsentChange,
   onAcknowledge,
 }: {
+  id: string;
   addendum: PrismAddendum;
   awaiting: boolean;
   consentAccepted: boolean;
@@ -54,7 +65,7 @@ function AddendumRow({
   onAcknowledge: () => void;
 }) {
   return (
-    <li className="space-y-2 border-b border-border pb-3 text-sm">
+    <li id={id} className="scroll-mt-6 space-y-2 border-b border-border pb-3 text-sm">
       <strong>Version {addendum.versionNumber}: {addendum.title}</strong>
       <p className="text-muted-foreground">{addendum.summary || "Scope change recorded"}</p>
       <p className="text-xs text-muted-foreground">

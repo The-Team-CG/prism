@@ -120,6 +120,7 @@ export const money = new Intl.NumberFormat("en-PH", {
 export function clientActionIcon(kind: PrismClientActionItem["kind"]): LucideIcon {
   if (kind === "billing") return ReceiptText;
   if (kind === "document" || kind === "closure") return FileText;
+  if (kind === "addendum") return FileText;
   if (kind === "floorplan") return MapPinned;
   if (kind === "approval") return BadgeCheck;
   if (kind === "feedback") return MessageSquareText;
@@ -128,6 +129,7 @@ export function clientActionIcon(kind: PrismClientActionItem["kind"]): LucideIco
 }
 
 export function clientActionTarget(kind: PrismClientActionItem["kind"]): DetailTab {
+  if (kind === "addendum") return "overview";
   if (kind === "billing") return "billing";
   if (kind === "document" || kind === "closure") return "documents";
   if (kind === "floorplan") return "floorplan";
@@ -175,16 +177,20 @@ function clientActionNextActor(item: PrismClientActionItem): "you" | "pmcm" | "u
   return "you";
 }
 
+const CLIENT_ACTION_LABEL: Partial<Record<PrismClientActionItem["kind"], string>> = {
+  addendum: "Review and acknowledge",
+  billing: "Review payment",
+  briefing: "Complete briefing",
+  feedback: "Share feedback",
+  closure: "Review closeout",
+  document: "Review documents",
+  change_request: "View request",
+};
+
 function clientActionLabel(item: PrismClientActionItem): string {
-  if (item.kind === "billing") return "Review payment";
-  if (item.kind === "briefing") return "Complete briefing";
-  if (item.kind === "feedback") return "Share feedback";
   if (item.kind === "floorplan") return item.id.startsWith("floorplan:preferences:") ? "Add preferences" : "View layout";
-  if (item.kind === "closure") return "Review closeout";
-  if (item.kind === "document") return "Review documents";
   if (item.id.startsWith("approval:proposal:")) return "Review proposal";
-  if (item.kind === "change_request") return "View request";
-  return "View details";
+  return CLIENT_ACTION_LABEL[item.kind] ?? "View details";
 }
 
 export function selectNextAction(actions: ClientDashboardAction[]) {
