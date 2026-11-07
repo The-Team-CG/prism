@@ -108,6 +108,15 @@ export class GuestWorkflowService implements GuestCommands {
     return this.prisma.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in' } });
   }
 
+  async countRosterVerificationForEvent(eventId: string) {
+    const active = { eventId, withdrawnAt: null };
+    const [verified, pending] = await Promise.all([
+      this.prisma.opsGuestRosterEntry.count({ where: { ...active, verificationStatus: 'verified' } }),
+      this.prisma.opsGuestRosterEntry.count({ where: { ...active, verificationStatus: 'pending' } }),
+    ]);
+    return { verified, pending };
+  }
+
   async listCheckInsForEvent(eventId: string): Promise<PrismGuestCheckIn[]> {
     const checkIns = await this.prisma.opsGuestCheckIn.findMany({
       where: { eventId, status: 'checked_in' },

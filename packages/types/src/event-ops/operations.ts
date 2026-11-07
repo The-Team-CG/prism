@@ -528,6 +528,27 @@ export interface PrismRunSheetEntry {
   carriedOver: boolean;
 }
 
+/**
+ * Untimed guest operations block on the run sheet: registration platform state and expected headcount, guest roster
+ * verification counts, walk-in policy, and registration/usher staffing. Carries counts and planned state only. It never
+ * carries guest names, check-in records, or live check-in totals.
+ */
+export interface PrismRunSheetGuestOperations {
+  /** Null until PMCM configures a registration platform for the event. */
+  registrationPlatform: {
+    platformType: PrismRegistrationPlatformType;
+    status: PrismRegistrationPlatformStatus;
+    expectedPaxMin: number;
+    expectedPaxMax: number;
+  } | null;
+  /** Null when the event has no walk-in policy recorded. */
+  walkIn: { policy: "closed" | "open" | "threshold"; threshold: number | null } | null;
+  /** Active (not withdrawn) roster entries by verification status. Counts only. */
+  rosterVerification: { verified: number; pending: number };
+  /** Active registration and usher assignments the viewer may see: all for PMCM and the designated operator, otherwise their own. */
+  registrationStaff: Array<{ coordinatorName: string; role: string; status: string }>;
+}
+
 export interface PrismRunSheetDayOption {
   id: string;
   dayDate: string;
@@ -553,6 +574,8 @@ export interface PrismEventRunSheet {
     /** Empty outside PMCM scope; supplier event-day notes stay PMCM-only on the run sheet. */
     notes: string;
   }>;
+  /** Null when the actor's role does not receive the guest operations block. */
+  guestOperations: PrismRunSheetGuestOperations | null;
   openTasks: PrismEventDayTask[];
   openIssues: PrismUrgentIssue[];
 }
