@@ -104,7 +104,11 @@ export class ClientReviewItemsService {
       this.lifecycleEventReferences.findEventReadAccess(eventId, context),
     ]);
     if (!event) throw new NotFoundException('Event not found');
-    if (!access || event.archived || access.clientPortalStatus !== 'unlocked') throw new BadRequestException('Client review items require an unlocked, active event');
+    if (!access || event.archived) throw new BadRequestException('Client review items require an unlocked, active event');
+    // FR-43: PMCM prepares options in an open bid's workspace; the client sees them once the conforme unlocks the portal.
+    if (access.clientPortalStatus !== 'unlocked' && !(await this.lifecycleEventReferences.isOpenBidWorkspace(eventId, context))) {
+      throw new BadRequestException('Client review items require an unlocked, active event');
+    }
   }
 
   private requireIssueReplay(item: OpsClientReviewItem, eventId: string, actor: ResolvedEventOpsActor, payloadHash: string) {

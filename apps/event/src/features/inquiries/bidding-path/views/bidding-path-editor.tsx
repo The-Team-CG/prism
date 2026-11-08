@@ -21,6 +21,18 @@ export function BiddingPathEditor({ inquiry }: { inquiry: PrismInquiry }) {
     setDueAt(inquiry.bidDueAt?.slice(0, 10) ?? "");
   }, [inquiry.id, inquiry.intakePath, inquiry.bidStatus, inquiry.bidDueAt]);
 
+  async function openWorkspace() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const { eventId } = await biddingPathRepository.workspace(inquiry.id);
+      window.location.assign(`/dashboard/events/${encodeURIComponent(eventId)}/overview`);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "Could not open the bid workspace.");
+      setBusy(false);
+    }
+  }
+
   async function save(nextBidding: boolean) {
     setBusy(true);
     setMessage(null);
@@ -28,7 +40,7 @@ export function BiddingPathEditor({ inquiry }: { inquiry: PrismInquiry }) {
       const input = nextBidding ? { intakePath: "bidding" as const, bidStatus: status, ...(dueAt ? { bidDueAt: dueAt } : {}) } : { intakePath: "standard" as const };
       const saved = await biddingPathRepository.set(inquiry.id, parseContract(setInquiryIntakePathSchema, input, "Inquiry path"));
       setBidding(saved.intakePath === "bidding");
-      setMessage(saved.intakePath === "bidding" ? `Bid ${saved.bidStatus}` : "Standard inquiry path");
+      setMessage(saved.intakePath !== "bidding" ? "Standard inquiry path" : saved.bidStatus === "won" ? "Bid won: the inquiry is accepted and the conforme was sent" : `Bid ${saved.bidStatus}`);
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "Could not save the inquiry path.");
     } finally {
@@ -47,8 +59,12 @@ export function BiddingPathEditor({ inquiry }: { inquiry: PrismInquiry }) {
           <label>Bid status<select value={status} onChange={(event) => setStatus(event.target.value as BidStatus)} className={field}>{INQUIRY_BID_STATUSES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
           <label>Bid due<input type="date" value={dueAt} onChange={(event) => setDueAt(event.target.value)} className={field} /></label>
           <button type="button" disabled={busy} onClick={() => void save(true)} className="rounded-md border border-border px-3 py-1.5 font-semibold">{busy ? "Saving…" : "Save bid"}</button>
+          {!inquiry.conformeSignedAt && inquiry.status !== "declined" ? (
+            <button type="button" disabled={busy} onClick={() => void openWorkspace()} className="rounded-md bg-primary px-3 py-1.5 font-semibold text-primary-foreground">Open bid workspace</button>
+          ) : null}
         </div>
       ) : null}
+      {bidding ? <p className="text-muted-foreground">The bid workspace holds the TOR and bid documents, confidential supplier quotes and the cost estimate. Marking the bid won accepts the inquiry and sends the conforme; the workspace becomes the event when the client signs.</p> : null}
       {message ? <p role="status" className="text-muted-foreground">{message}</p> : null}
     </div>
   );

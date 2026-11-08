@@ -689,7 +689,7 @@ export class InquiriesService {
       throw new ForbiddenException('Only PMCM can change the inquiry path');
     }
     const bidding = input.intakePath === 'bidding';
-    return this.prisma.$transaction(async (tx) => {
+    const saved = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.opsInquiry.findUnique({ where: { id: inquiryId }, select: { id: true } });
       if (!existing) throw new NotFoundException('Inquiry not found');
       const inquiry = await tx.opsInquiry.update({ where: { id: inquiryId }, data: {
@@ -707,8 +707,14 @@ export class InquiriesService {
         affectedLabel: inquiry.eventName,
         metadata: { intakePath: input.intakePath, bidStatus: input.bidStatus ?? null, bidDueAt: input.bidDueAt ?? null, actorId: verifiedActor.id ?? null },
       }, { prisma: tx, correlationId: `inquiry-intake-path:${inquiryId}:${Date.now()}`, actorId: verifiedActor.id });
-      return mapInquirySummary(inquiry);
+      return inquiry;
     });
+    // FR-43: winning the bid converts it: the inquiry is accepted, so the conforme and portal invitation go out, and the
+    // bid workspace (TOR, quotes, cost estimate) becomes the event once the client signs.
+    if (bidding && input.bidStatus === 'won' && saved.status !== 'accepted' && saved.status !== 'declined') {
+      return mapInquirySummary(await this.updateInquiryStatus(inquiryId, { status: 'accepted' }, actor));
+    }
+    return mapInquirySummary(saved);
   }
 
   /** FR-55: PMCM sets the language of this client's automated messages. */

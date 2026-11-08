@@ -17,7 +17,8 @@ function fixture() {
   const vault = { registerDocument: vi.fn(async () => ({ id: 'doc-1' })), attachStoredFile: vi.fn() };
   const storage = { requestUpload: vi.fn(async () => ({ status: 'ready', object: { id: 'obj-1', checksumSha256: 'hash', providerObjectKey: 'proposal.pdf' } })), confirmUpload: vi.fn(async () => ({ providerObjectKey: 'proposal.pdf' })) };
   const proposalReviewOwner = { updateProposalReview: vi.fn(async (input: { nextStatus: string; reviewedAt: Date | null; reviewedBy: string | null }) => { Object.assign(event, { proposalClientStatus: input.nextStatus, proposalReviewedAt: input.reviewedAt, proposalReviewedBy: input.reviewedBy }); return 1; }) };
-  return { service: new ProposalLifecycleService(prisma as never, access as never, audit as never, vault as never, proposalReviewOwner as never, storage as never), event, tx, versions, access, audit, vault, storage, proposalReviewOwner };
+  const eventReferences = { isOpenBidWorkspace: vi.fn(async () => false) };
+  return { service: new ProposalLifecycleService(prisma as never, access as never, audit as never, vault as never, proposalReviewOwner as never, eventReferences as never, storage as never), event, tx, versions, access, audit, vault, storage, proposalReviewOwner, eventReferences };
 }
 
 describe('ProposalLifecycleService', () => {
@@ -46,6 +47,16 @@ describe('ProposalLifecycleService', () => {
     expect(result.alignment).toBe('within_budget');
     expect(f.access.requireCanReadEvent).toHaveBeenCalled();
     expect(f.audit.write).toHaveBeenCalled();
+  });
+
+  it('prices a locked event only while it is an open bid workspace', async () => {
+    const f = fixture();
+    f.event.clientPortalStatus = 'locked';
+    const input = { budgetAmount: 100000, lines: [{ category: 'Venue', description: 'Room', quantity: 1, unitAmount: 90000 }], notes: '' };
+    await expect(f.service.createCostEstimate('evt-1', input, actor)).rejects.toThrow('open bid workspace');
+    f.eventReferences.isOpenBidWorkspace.mockResolvedValueOnce(true);
+    await expect(f.service.createCostEstimate('evt-1', input, actor)).resolves.toMatchObject({ alignment: 'within_budget' });
+    expect(f.eventReferences.isOpenBidWorkspace).toHaveBeenCalledWith('evt-1', expect.objectContaining({ prisma: expect.anything() }));
   });
 
   it('issues version one with the named policy defaults', async () => {
@@ -96,7 +107,7 @@ describe('ProposalLifecycleService previous estimates (FR-19)', () => {
       },
     };
     const access = { requireActorRole: vi.fn(), requireCanReadEvent: vi.fn() };
-    const service = new ProposalLifecycleService(prisma as never, access as never, {} as never, {} as never, {} as never, {} as never);
+    const service = new ProposalLifecycleService(prisma as never, access as never, {} as never, {} as never, {} as never, {} as never, {} as never);
     const result = await service.previousCostEstimates('evt-1', actor);
     expect(result.map((item) => item.eventId)).toEqual(['evt-old-1', 'evt-old-3', 'evt-old-4']);
     expect(prisma.opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { not: 'evt-1' }, inquiry: { email: { equals: 'ana@client.test', mode: 'insensitive' } } } }));
