@@ -269,6 +269,12 @@ export const archiveComparisonQuerySchema = z.object({
     ),
 });
 export type ArchiveComparisonQuery = z.infer<typeof archiveComparisonQuerySchema>;
+/** PMCM-set event privacy. Private events may use table assignment and the seating list (under 200 guests). */
+export const eventPrivacySchema = z.enum(["private", "public"]);
+export type PrismEventPrivacy = z.infer<typeof eventPrivacySchema>;
+export const setEventPrivacySchema = z.object({ privacy: eventPrivacySchema });
+export type SetEventPrivacyInput = z.infer<typeof setEventPrivacySchema>;
+
 export const setClientEventDayViewSchema = z.object({
   enabled: z.boolean(),
 });

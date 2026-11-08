@@ -93,6 +93,7 @@ function createService(opsDraft: unknown, overrides: Record<string, unknown> = {
       floorPlanStatus: String(event.floorPlanStatus ?? 'in_review'),
       readiness: String(event.readiness ?? ''),
       primaryClientEmail: String((event.inquiry as { email?: string } | undefined)?.email ?? 'owner@example.test'),
+      eventPrivacy: String(event.privacy ?? 'private') as 'private' | 'public',
       conformeSigned: true,
       ocularVisitStatus: 'completed',
     }) : null),
@@ -384,6 +385,7 @@ describe('PlansService floorplan permissions and versioning', () => {
       floorPlanStatus: 'in_review',
       readiness: 'Floorplan awaiting review',
       primaryClientEmail: 'owner@example.test',
+      eventPrivacy: 'private',
       conformeSigned: true,
       ocularVisitStatus: 'completed',
     });
@@ -552,6 +554,16 @@ describe('PlansService table assignment eligibility on official saves', () => {
     await expect(
       service.updatePlan('plan_event_1', changes({ objects: addSeat, guests: eventGuestRoster, pax: 150 }), pmcmActor()),
     ).resolves.toMatchObject({ id: 'plan_event_1' });
+  });
+
+  it('refuses new seat assignments on a public event even under 200 guests', async () => {
+    const { service, prisma } = createService(draft('pmcm_draft', 'Ana Reyes', 'owner@example.test', 'blank', { privacy: 'public' }));
+    const addSeat = [editorTable({ assignedGuestIds: ['g-ana'] })];
+
+    await expect(
+      service.updatePlan('plan_event_1', changes({ objects: addSeat, guests: eventGuestRoster, pax: 120 }), pmcmActor()),
+    ).rejects.toThrow('Table assignment is only available for private events.');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 
   it('keeps saving plans that carry no seat assignment fields, including legacy kernel-shaped objects', async () => {

@@ -27,7 +27,7 @@ function setup(email = 'client@example.test') {
         return created;
       }),
     },
-    opsFloorPlanClientAnnotation: { create: vi.fn(), findMany: vi.fn(async () => []) },
+    opsFloorPlanClientAnnotation: { create: vi.fn(), findFirst: vi.fn(async () => null), findMany: vi.fn(async () => []) },
     $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
   };
   const access = {
@@ -62,6 +62,39 @@ describe('FloorPlanClientReviewService', () => {
       snapshotHash: 'a'.repeat(64), action: 'approve', comment: '', idempotencyKey: 'wrong-client',
     }, actor)).rejects.toThrow('Only the primary client contact can review the official floorplan');
     expect(prisma.opsFloorPlanClientDecision.create).not.toHaveBeenCalled();
+  });
+
+  it('keeps a non-primary contact note as a non-binding annotation that cannot approve or request changes', async () => {
+    const { service, prisma, actor, decisions, currentHash } = setup('other@example.test');
+    const annotations: Array<Record<string, unknown>> = [];
+    prisma.opsFloorPlanClientAnnotation.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+      const row = { ...data, createdAt: new Date('2026-10-02T00:00:00.000Z') };
+      annotations.push(row);
+      return row;
+    });
+    prisma.opsFloorPlanClientAnnotation.findMany.mockImplementation(async () => annotations);
+    const snapshotHash = await currentHash();
+
+    const note = await service.annotate('event-1', 'draft-1', { snapshotHash, comment: 'Could the stage face the garden?' }, actor);
+
+    expect(note).toMatchObject({ comment: 'Could the stage face the garden?', nonBinding: true });
+    const review = await service.getReview('event-1', 'draft-1', actor);
+    expect(review.annotations).toEqual([expect.objectContaining({ nonBinding: true })]);
+    await expect(service.decide('event-1', 'draft-1', { snapshotHash, action: 'approve', comment: '', idempotencyKey: 'other-approve' }, actor))
+      .rejects.toThrow('Only the primary client contact can review the official floorplan');
+    await expect(service.decide('event-1', 'draft-1', { snapshotHash, action: 'request_revision', comment: 'Move the stage', idempotencyKey: 'other-revise' }, actor))
+      .rejects.toThrow('Only the primary client contact can review the official floorplan');
+    expect(decisions).toHaveLength(0);
+  });
+
+  it('records a primary contact annotation as binding', async () => {
+    const { service, prisma, actor, currentHash } = setup();
+    prisma.opsFloorPlanClientAnnotation.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ ...data, createdAt: new Date('2026-10-02T00:00:00.000Z') }));
+    const snapshotHash = await currentHash();
+
+    const note = await service.annotate('event-1', 'draft-1', { snapshotHash, comment: 'Move the bar nearer the door' }, actor);
+
+    expect(note).toMatchObject({ nonBinding: false });
   });
 
   it('records a revision request and returns the layout to PMCM in one transaction', async () => {

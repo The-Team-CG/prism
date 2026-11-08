@@ -102,6 +102,7 @@ function createWorkflow(prisma: PrismaService) {
           floorPlanStatus: true,
           readiness: true,
           inquiry: { select: { email: true, conformeSignedAt: true } },
+          privacy: true,
           ocularVisitRequest: { select: { status: true } },
         },
       });
@@ -118,6 +119,7 @@ function createWorkflow(prisma: PrismaService) {
         primaryClientEmail: event.inquiry?.email ?? null,
         conformeSigned: Boolean(event.inquiry?.conformeSignedAt),
         ocularVisitStatus: event.ocularVisitRequest?.status ?? null,
+        eventPrivacy: event.privacy as 'private' | 'public',
       };
     },
   };

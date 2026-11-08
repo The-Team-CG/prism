@@ -1,3 +1,4 @@
+import type { PrismEventPrivacy } from "@prism/types";
 import type {
   FloorPlanCanvasObject,
   FloorPlanElementCategory,
@@ -44,6 +45,8 @@ export interface Project {
   widthM: number;
   heightM: number;
   pax: number;
+  /** The owning event's privacy; seating needs a private event, so an unset value keeps it closed. */
+  eventPrivacy?: PrismEventPrivacy;
   objects: CanvasObject[];
   guests: Guest[];
   suppliers: Supplier[];

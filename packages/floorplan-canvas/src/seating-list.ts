@@ -1,3 +1,4 @@
+import { isSeatingListAvailable, type PrismEventPrivacy } from "@prism/types";
 import type { CanvasObject, Guest } from "./types";
 
 export interface SeatingListRow {
@@ -21,8 +22,12 @@ function compareNames(left: string, right: string): number {
   return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
 }
 
-/** Who sits where: one row per visible seating table with its guests by name, and the guests still without a table. */
-export function buildSeatingList(project: { objects: readonly CanvasObject[]; guests: readonly Guest[] }): SeatingList {
+/**
+ * Who sits where: one row per visible seating table with its guests by name, and the guests still without a table.
+ * Returns null when the event is not a private event under the seating limit, so no list can be printed.
+ */
+export function buildSeatingList(project: { objects: readonly CanvasObject[]; guests: readonly Guest[]; pax: number; eventPrivacy?: PrismEventPrivacy }): SeatingList | null {
+  if (!isSeatingListAvailable(project.pax, project.eventPrivacy)) return null;
   const names = new Map(project.guests.map((guest) => [guest.id, guest.name]));
   const seatedIds = new Set<string>();
   const rows = project.objects

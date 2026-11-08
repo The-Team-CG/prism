@@ -13,6 +13,7 @@ export type FloorplanEventReference = {
   primaryClientEmail: string | null;
   conformeSigned: boolean;
   ocularVisitStatus: string | null;
+  eventPrivacy: 'private' | 'public';
 };
 
 /** Reads Lifecycle state and locks it when called from an event-scoped Floorplan write. */
