@@ -8,8 +8,46 @@ const dateTime = z.string().datetime({ offset: true });
 export const bindSupplierContractSchema = z.object({
   storedObjectId: id,
   checksumSha256: z.string().regex(/^[a-f0-9]{64}$/i),
+  /** FR-77: the total on the signed contract, compared with the selected quote. */
+  contractTotal: positiveMoney,
 }).strict();
 export type BindSupplierContractInput = z.infer<typeof bindSupplierContractSchema>;
+
+/** FR-87: an outsourced creative designer managed by PMCM, with no supplier directory entry or portal account. */
+export const createExternalCreativeTicketSchema = z.object({
+  designerName: z.string().trim().min(1).max(200),
+  designerContact: z.string().trim().max(200).default(""),
+  deliverable: z.string().trim().min(1).max(2000),
+  dueDate: z.string().date().optional(),
+}).strict();
+export type CreateExternalCreativeTicketInput = z.input<typeof createExternalCreativeTicketSchema>;
+
+export const EXTERNAL_CREATIVE_TICKET_STATUSES = ["requested", "in_progress", "delivered", "completed"] as const;
+export const updateExternalCreativeTicketSchema = z.object({
+  status: z.enum(["in_progress", "delivered"]),
+  progressNote: note,
+}).strict();
+export type UpdateExternalCreativeTicketInput = z.infer<typeof updateExternalCreativeTicketSchema>;
+
+/** PMCM completes the ticket after uploading the finished output to the event file hub. */
+export const completeExternalCreativeTicketSchema = z.object({ outputDocumentId: id }).strict();
+export type CompleteExternalCreativeTicketInput = z.infer<typeof completeExternalCreativeTicketSchema>;
+
+export interface PrismExternalCreativeTicket {
+  id: string;
+  eventId: string;
+  designerName: string;
+  designerContact: string;
+  deliverable: string;
+  dueDate: string | null;
+  status: (typeof EXTERNAL_CREATIVE_TICKET_STATUSES)[number];
+  progressNote: string;
+  outputDocumentId: string | null;
+  outputFileName: string | null;
+  completedAt: string | null;
+  completedBy: string | null;
+  updatedAt: string;
+}
 
 export const reviewSupplierContractSchema = z.object({
   decision: z.enum(["accepted", "changes_requested"]),

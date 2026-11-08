@@ -1,8 +1,10 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory, EventLifecycleService, EventLifecycleStage, OpsUserRole } from '@prism/kernel/event-core';
 import type { StartEventDayResult } from '@prism/types';
+import { COMMERCIAL_FACTS_READER, type CommercialFactsReader } from '@prism/contexts/read-models/commercial-facts-reader';
 
 @Injectable()
 export class EventDayStartService {
@@ -11,7 +13,29 @@ export class EventDayStartService {
     private readonly access: EventAccessPolicyService,
     private readonly lifecycle: EventLifecycleService,
     @Inject(AUDIT_WRITER) private readonly audit: AuditWriter,
+    @Inject(COMMERCIAL_FACTS_READER) private readonly commercialFacts: CommercialFactsReader,
   ) {}
+
+  /** Every planning gate that must close before event day: conforme, floorplan, proposal and supplier coverage. */
+  private async assertReadyForEventDay(
+    event: { id: string; clientPortalStatus: string; floorPlanStatus: string; proposalClientStatus: string; inquiry: { conformeSignedAt: Date | null } },
+    tx: Prisma.TransactionClient,
+  ) {
+    if (event.clientPortalStatus !== 'unlocked' || !event.inquiry.conformeSignedAt) {
+      throw new BadRequestException('Complete the signed conforme and unlock the event before starting event day');
+    }
+    if (event.floorPlanStatus !== 'approved') {
+      throw new BadRequestException('Approve the official floorplan before starting event day');
+    }
+    if (event.proposalClientStatus !== 'approved') {
+      throw new BadRequestException('The client must approve the proposal before event day starts');
+    }
+    // FR-63: a supplier gap blocks event day until a supplier is booked or PMCM acknowledges the risk.
+    const openGap = (await this.commercialFacts.listSupplierGaps(event.id, tx)).find((item) => item.gap && !item.acknowledgement);
+    if (openGap) {
+      throw new BadRequestException(`Book a supplier or acknowledge the supplier gap for ${openGap.categoryName} before starting event day`);
+    }
+  }
 
   async start(eventId: string, actor: ResolvedEventOpsActor): Promise<StartEventDayResult> {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'start event day', eventId);
@@ -26,15 +50,7 @@ export class EventDayStartService {
       }
       const result: StartEventDayResult = { eventId, status: 'event_day' };
       if (event.status === 'event_day') return result;
-      if (event.clientPortalStatus !== 'unlocked' || !event.inquiry.conformeSignedAt) {
-        throw new BadRequestException('Complete the signed conforme and unlock the event before starting event day');
-      }
-      if (event.floorPlanStatus !== 'approved') {
-        throw new BadRequestException('Approve the official floorplan before starting event day');
-      }
-      if (event.proposalClientStatus !== 'approved') {
-        throw new BadRequestException('The client must approve the proposal before event day starts');
-      }
+      await this.assertReadyForEventDay(event, tx);
       this.lifecycle.assertCanTransition(this.lifecycle.stageForEvent(event), EventLifecycleStage.EventDay);
       await tx.opsEvent.update({ where: { id: eventId }, data: { status: 'event_day', readiness: 'Event day in progress' } });
       await writeAudit(this.audit, eventId, actor.name, 'Started event day', {

@@ -337,6 +337,21 @@ describe('SuppliersService', () => {
     expect(create).toHaveBeenCalledTimes(1);
   });
 
+  it('records an underperformance reliability note for an event assessment rated 2 or lower, and none above', async () => {
+    const notes: any[] = [];
+    const prisma = (rating: number) => ({
+      opsSupplier: { findUnique: async () => baseSupplierRow() },
+      opsEvent: { findUnique: async () => ({ eventDate: new Date('2026-01-01'), status: 'closed' }) },
+      opsSupplierQuoteRequest: { findFirst: async () => ({ id: 'req_1' }) },
+      opsSupplierReviewDimension: { findMany: async () => [] },
+      opsSupplierReview: { findFirst: async () => null, create: vi.fn(async (args: any) => ({ id: args.data.id, rating })) },
+      opsSupplierReliabilityNote: { upsert: vi.fn(async (args: any) => { notes.push(args.create); return args.create; }) },
+    });
+    await new SuppliersService(prisma(2) as any, eventReferences, commercialFacts).addSupplierReview('sup_1', { eventId: 'evt_1', rating: 2, notes: 'Late and short-staffed' }, 'Reviewer Seven');
+    await new SuppliersService(prisma(3) as any, eventReferences, commercialFacts).addSupplierReview('sup_1', { eventId: 'evt_2', rating: 3, notes: 'Fine' }, 'Reviewer Seven');
+    expect(notes).toEqual([expect.objectContaining({ supplierId: 'sup_1', eventId: 'evt_1', note: 'Underperformed on event day: rated 2 of 5 by Reviewer Seven' })]);
+  });
+
   it('maps a racing second assessment caught by the database unique index to the same 400 conflict', async () => {
     const prisma = {
       opsSupplier: { findUnique: async () => baseSupplierRow() },

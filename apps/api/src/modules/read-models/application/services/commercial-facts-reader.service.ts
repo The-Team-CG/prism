@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
 import type { Prisma } from '@prisma/client';
+import type { PrismSupplierGap } from '@prism/types';
 import type { CommercialFactsReader, ReadClient } from '../../contracts/ports/commercial-facts-reader.port';
+import { supplierGapsFrom } from './supplier-gap.rules';
 
 @Injectable()
 export class CommercialFactsReaderService implements CommercialFactsReader {
@@ -9,6 +11,49 @@ export class CommercialFactsReaderService implements CommercialFactsReader {
 
   findSupplierReviewEventEligibility(eventId: string, client: ReadClient = this.prisma) {
     return client.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, status: true, actualEndedAt: true } });
+  }
+
+  async listSupplierGaps(eventId: string, client: ReadClient = this.prisma): Promise<PrismSupplierGap[]> {
+    const event = await client.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
+    if (!event) return [];
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: one event's quote requests; bounded by the categories PMCM requested.
+    const requests = await client.opsSupplierQuoteRequest.findMany({
+      where: { eventId, categoryId: { not: null }, status: { notIn: ['closed', 'expired'] } },
+      select: { categoryId: true, status: true, category: true },
+    });
+    const categoryIds = [...new Set(requests.map((request) => request.categoryId).filter((id): id is string => Boolean(id)))];
+    if (categoryIds.length === 0) return [];
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: events held on one calendar date.
+    const sameDayEvents = await client.opsEvent.findMany({ where: { eventDate: event.eventDate }, select: { id: true } });
+    const [categories, suppliers, acknowledgements, bookings] = await Promise.all([
+      client.opsSupplierCategory.findMany({ where: { id: { in: categoryIds } }, select: { id: true, name: true } }),
+      // QUERY_AUDIT_ALLOW_UNBOUNDED: Tier 1 and Tier 2 suppliers of the requested categories only.
+      client.opsSupplier.findMany({
+        where: { categoryId: { in: categoryIds }, tier: { in: ['tier_1', 'tier_2'] } },
+        select: { id: true, categoryId: true, tier: true, availability: { where: { availableOn: event.eventDate }, select: { blocked: true, capacity: true } } },
+      }),
+      client.opsSupplierGapAcknowledgement.findMany({ where: { eventId, categoryId: { in: categoryIds } } }),
+      // QUERY_AUDIT_ALLOW_UNBOUNDED: selected bookings on one date, grouped per supplier.
+      client.opsSupplierQuoteRequest.groupBy({
+        by: ['supplierId'],
+        where: { status: 'selected', assignmentStatus: { in: ['pending_confirmation', 'confirmed'] }, supplierId: { not: null }, eventId: { in: sameDayEvents.map((item) => item.id) } },
+        _count: { _all: true },
+      }),
+    ]);
+    const bookingsBySupplier = new Map(bookings.map((row) => [row.supplierId, row._count._all]));
+    const covered = new Set(requests.filter((request) => request.status === 'selected').map((request) => request.categoryId));
+    return supplierGapsFrom({
+      eventDate: event.eventDate.toISOString().slice(0, 10),
+      categories: categories.map((category) => ({ id: category.id, name: category.name, coveredByThisEvent: covered.has(category.id) })),
+      suppliers: suppliers.map((supplier) => ({
+        id: supplier.id,
+        categoryId: supplier.categoryId,
+        tier: supplier.tier,
+        availability: supplier.availability[0] ?? null,
+        bookingsOnDate: bookingsBySupplier.get(supplier.id) ?? 0,
+      })),
+      acknowledgements: new Map(acknowledgements.map((row) => [row.categoryId, { reason: row.reason, acknowledgedBy: row.acknowledgedBy, acknowledgedAt: row.acknowledgedAt.toISOString() }])),
+    });
   }
 
   findProposalReviewEvent(eventId: string, client: ReadClient = this.prisma) {

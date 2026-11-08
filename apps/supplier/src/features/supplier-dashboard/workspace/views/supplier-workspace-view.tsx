@@ -96,7 +96,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
           onStatusNoteChange={vm.setStatusNote}
           onConfirmAssignment={(req) => void vm.confirmAssignment(req)}
           onConfirmReadiness={(req) => void vm.confirmReadiness(req)}
-          onSaveContract={(req, file) => void vm.saveContract(req, file)}
+          onSaveContract={(req, file, contractTotal) => void vm.saveContract(req, file, contractTotal)}
           onUpdateStatus={(req, status, photo) => void vm.updateStatus(req, status, photo)}
           onAcknowledgeSchedule={(requestId, revision) => void vm.acknowledgeSchedule(requestId, revision)}
           onRequestScheduleChange={(requestId, revision, reason) => void vm.requestScheduleChange(requestId, revision, reason)}

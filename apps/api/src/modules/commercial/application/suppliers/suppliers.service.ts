@@ -65,6 +65,8 @@ type SupplierWithProfile = Omit<SupplierProfileBase, 'reviews' | 'reliabilityNot
 
 type CategoryWithDimensions = OpsSupplierCategory & { reviewDimensions: OpsSupplierReviewDimension[] };
 
+/** Event assessments at or below this rating (1-5) write an underperformance reliability note (FR-79). */
+const SUPPLIER_UNDERPERFORMANCE_RATING = 2;
 const SUPPLIER_TEXT_FIELDS = ['name', 'contactName', 'email', 'phone', 'serviceInclusions', 'performanceNotes'] as const;
 type SupplierTextField = (typeof SUPPLIER_TEXT_FIELDS)[number];
 
@@ -294,6 +296,15 @@ export class SuppliersService {
           : undefined,
       },
     });
+    // FR-79: an event assessment of 2 or lower out of 5 is recorded as underperformance on the supplier profile.
+    if (input.eventId && input.rating <= SUPPLIER_UNDERPERFORMANCE_RATING) {
+      const noteKey = `supplier-underperformance-note:${reviewId}`;
+      await db.opsSupplierReliabilityNote.upsert({
+        where: { idempotencyKey: noteKey },
+        update: {},
+        create: { id: `reliability_${randomUUID()}`, supplierId, eventId: input.eventId, note: `Underperformed on event day: rated ${input.rating} of 5 by ${reviewedBy}`, createdBy: reviewedBy, idempotencyKey: noteKey },
+      });
+    }
   }
 
   private async resolveReviewConflict(error: unknown, supplierId: string, input: CreateSupplierReviewInput, db: PrismaService | Prisma.TransactionClient) {

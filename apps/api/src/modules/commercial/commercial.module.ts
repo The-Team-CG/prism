@@ -51,6 +51,10 @@ import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.con
 import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
 import { ProposalCommentsService } from './application/quotes/proposal-comments.service';
 import { PareReplacementDispatchService } from './application/suppliers/pare-replacement-dispatch.service';
+import { SupplierGapService } from './application/suppliers/supplier-gap.service';
+import { SupplierGapController } from './api/suppliers/supplier-gap.controller';
+import { ExternalCreativeTicketService } from './application/suppliers/external-creative-ticket.service';
+import { ExternalCreativeTicketController } from './api/suppliers/external-creative-ticket.controller';
 import { CommercialPrivacyRedactorService } from './application/suppliers/commercial-privacy-redactor.service';
 import { COMMERCIAL_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { CommercialAddendumImpactModule } from './commercial-addendum-impact.module';
@@ -103,6 +107,8 @@ const supplierCommandsProvider = {
     OpsEventBillingController,
     CommunicationController,
     ProposalLifecycleController,
+    SupplierGapController,
+    ExternalCreativeTicketController,
     OpsSupplierWorkflowController,
     OpsClientReviewItemsController,
   ],
@@ -133,6 +139,8 @@ const supplierCommandsProvider = {
     ProposalLifecycleService,
     ProposalCommentsService,
     PareReplacementDispatchService,
+    SupplierGapService,
+    ExternalCreativeTicketService,
     CommercialPrivacyRedactorService,
     { provide: COMMERCIAL_PRIVACY_REDACTOR, useExisting: CommercialPrivacyRedactorService },
     SupplierWorkflowService,

@@ -25,6 +25,11 @@ export interface PrismSupplierContractVersion {
   uploadedAt: string;
   reviewedAt: string | null;
   reviewedBy: string | null;
+  /** Contract total the supplier stated, and the selected quote amount it was compared with. */
+  contractTotal: number | null;
+  quotedTotal: number | null;
+  /** True when the contract total differs from the selected quote (FR-77 supplier-initiated mismatch). */
+  quoteMismatch: boolean;
 }
 
 export interface PrismSupplierCreativeSubmission {

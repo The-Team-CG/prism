@@ -172,13 +172,14 @@ export function useSupplierWorkspaceViewModel(section: SupplierDashboardSection)
           readinessNotes[req.id] ?? req.readinessNotes ?? "",
         ),
       ),
-    saveContract: (req: PrismSupplierQuoteRequest, file: File) =>
+    saveContract: (req: PrismSupplierQuoteRequest, file: File, contractTotal: number) =>
       runAction(req, "contract", () =>
         saveSupplierContract(
           session!,
           workspace!.supplier,
           req,
           file,
+          contractTotal,
         ),
       ),
     acknowledgeSchedule: (requestId: string, revision: number) =>
