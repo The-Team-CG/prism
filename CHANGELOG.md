@@ -10,6 +10,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - PMCM can download the conforme document as a printable PDF, with its document hash, for physical signing; clients and suppliers cannot.
 - The public inquiry has an optional room set-up section (seating arrangement, stage position, notes), shown read-only in the PMCM inquiry drawer.
 - PMCM can log an inquiry on behalf of a client with only the name, email, event name and date; anything else missing shows as Pending Full Details until it is filled in.
+- Styling options can be issued to the client only after the primary client confirms a styling budget in the briefing; PMCM sees the reason when it is missing.
+- PMCM can mark an event private or public (existing events are private); table assignment and the printable seating list are available only for private events under 200 guests.
+- A client's venue submission in the briefing opens one venue ocular task for PMCM to schedule, and later resubmissions leave it unchanged.
+- Notes from client contacts other than the primary contact are saved on the floor plan as non-binding notes; they cannot approve or request changes.
 - PMCM has five days after the recorded actual end of an event to endorse post-event deliverables; the countdown and overdue warning follow that five-day deadline instead of 24 hours.
 - PMCM can flag an end-of-day report as having incomplete tasks; the flag shows on the report in the PMCM inbox and to the coordinator who submitted it.
 - Registration staff can flag an unauthorized walk-in for verification; the walk-in stays blocked from check-in until PMCM verifies it, and the flagged count shows on the run sheet.

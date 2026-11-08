@@ -33,6 +33,7 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     status: 'planning',
     clientPortalStatus: 'unlocked',
     clientEventDayViewEnabled: false,
+    privacy: 'private',
     readiness: 'ready',
     archived: false,
     walkInPolicy: 'closed',

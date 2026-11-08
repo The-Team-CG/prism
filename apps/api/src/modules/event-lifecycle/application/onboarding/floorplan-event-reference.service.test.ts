@@ -13,6 +13,7 @@ describe('FloorplanEventReferenceService', () => {
       freezeStatus: 'open',
       floorPlanStatus: 'in_review',
       readiness: 'Floorplan awaiting review',
+      privacy: 'private',
       inquiry: { email: 'ana@example.test', conformeSignedAt: new Date('2026-01-01T00:00:00.000Z') },
       ocularVisitRequest: { status: 'completed' },
     };
@@ -40,6 +41,7 @@ describe('FloorplanEventReferenceService', () => {
       primaryClientEmail: 'ana@example.test',
       conformeSigned: true,
       ocularVisitStatus: 'completed',
+      eventPrivacy: 'private',
     });
 
     expect(order).toEqual(['event-lock', 'ocular-lock', 'event-read']);

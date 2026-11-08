@@ -11,6 +11,7 @@ const project: Project = {
   widthM: 20,
   heightM: 12,
   pax: 80,
+  eventPrivacy: "private",
   objects: [],
   guests: [],
   suppliers: [],
