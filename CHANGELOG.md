@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- After a completed ocular visit, PMCM records the venue size, pillars, exits, doors, fixed stage side, loading bay and rules, and the venue library loads them locked onto the next floor plan.
 - PMCM can scout venues for a client without one: at least three options with location, capacity, price range and available dates are shared together, and the client marks one preference in the portal.
 - Sending a styling option back asks the client how to handle the budget (raise it, ask for a lower-cost option, or keep it), and PMCM sees every version with its decision.
 - Removed the unused supplier contract route that recorded a contract from declared file metadata; every supplier contract now goes through the checksum-verified, byte-checked upload.
