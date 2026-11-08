@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The feature ledger lists every V4 catalog feature as done, partial, gated or not built after the quick-win batch, records the behaviour those PRs added, and restores the privacy row split between delivered behaviour and open limits.
 - Billing corrections and disputes record a severity: typo correction (no amount may change, and no second approver is needed) or amount discrepancy (unchanged approval rules). PMCM sets it and clients see it on their dispute status; existing records are amount discrepancies.
 - PMCM can download the conforme document as a printable PDF, with its document hash, for physical signing; clients and suppliers cannot.
 - The public inquiry has an optional room set-up section (seating arrangement, stage position, notes), shown read-only in the PMCM inquiry drawer.
