@@ -78,7 +78,7 @@ describe('OpsQuoteRequestsController', () => {
           clientName: 'Ana Reyes',
           eventDate: new Date('2026-07-10T00:00:00.000Z'),
           inquiry: { eventType: 'Corporate summit' },
-          briefings: [{ guestCount: 1200, serviceRequirements: ['Stage', 'Audio'] }],
+          briefings: [{ guestCount: 1200, venueType: null, serviceRequirements: ['Stage', 'Audio'] }],
         },
         quote,
       })),
@@ -125,7 +125,7 @@ describe('OpsQuoteRequestsController', () => {
       clientName: 'Ana Reyes',
       eventDate: new Date('2026-07-10T00:00:00.000Z'),
       inquiry: { eventType: 'Corporate summit' },
-      briefings: [{ venue: 'Solaire Grand Ballroom', guestCount: 1200, serviceRequirements: ['Stage', 'Audio'] }],
+      briefings: [{ venue: 'Solaire Grand Ballroom', venueType: 'Hotel ballroom', guestCount: 1200, serviceRequirements: ['Stage', 'Audio'] }],
     };
     const request = {
       id: 'qr_sample',
@@ -148,6 +148,7 @@ describe('OpsQuoteRequestsController', () => {
     expect(bidding).toMatchObject({
       eventType: 'Corporate summit',
       guestCount: 1200,
+      venueType: 'Hotel ballroom',
       serviceRequirements: ['Stage', 'Audio'],
       eventName: 'Confidential event',
       clientName: null,

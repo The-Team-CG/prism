@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 132,
+    "totalTables": 134,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 125,
+    "targetSameDomainFks": 126,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -26,14 +26,14 @@
       {
         "domain": "commercial",
         "schema": "commercial",
-        "tables": 35,
-        "columns": 433
+        "tables": 36,
+        "columns": 442
       },
       {
         "domain": "operations",
         "schema": "operations",
-        "tables": 12,
-        "columns": 149
+        "tables": 13,
+        "columns": 158
       },
       {
         "domain": "floorplan",
@@ -499,6 +499,15 @@
       "domain": "operations",
       "targetSchema": "operations",
       "columnCount": 9
+    },
+    {
+      "model": "OpsCoordinatorRoleBrief",
+      "currentSchema": "operations",
+      "table": "coordinator_role_briefs",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 9,
+      "introducedAfterCutover": true
     },
     {
       "model": "OpsCoordinatorAssignment",
@@ -1033,6 +1042,15 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 17,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsProposalComment",
+      "currentSchema": "commercial",
+      "table": "proposal_comments",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 9,
       "introducedAfterCutover": true
     },
     {
@@ -3387,6 +3405,21 @@
       "targetDomain": "commercial",
       "targetCurrentSchema": "commercial",
       "targetTable": "suppliers",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "proposal_comments",
+      "name": "proposal_comments_proposal_version_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (proposal_version_id) REFERENCES commercial.proposal_versions(id) ON DELETE CASCADE ON UPDATE CASCADE",
+      "columns": [
+        "proposal_version_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "proposal_versions",
       "sameDomain": true
     },
     {

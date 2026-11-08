@@ -1,5 +1,5 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { LogInquiryOnBehalfInput, PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, WaiveOcularVisitInput } from "@prism/types";
+import type { LogInquiryOnBehalfInput, PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, SetEventPrivacyInput, WaiveOcularVisitInput } from "@prism/types";
 import { liveOpsScheduleRepository } from "@/features/live-ops/schedule/data/live-ops-schedule-repository";
 
 export const lifecycleCommands = {
@@ -16,6 +16,11 @@ completeOcularVisit: (eventId: string) =>
 waiveOcularVisit: (eventId: string, input: WaiveOcularVisitInput) =>
     request<PrismPmcmOcularVisit>(`/api/events/${eventId}/ocular-visit/waive`, {
       method: "POST",
+      body: input,
+    }),
+setEventPrivacy: (eventId: string, input: SetEventPrivacyInput) =>
+    request<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>(`/api/events/${eventId}/privacy`, {
+      method: "PATCH",
       body: input,
     }),
 setClientEventDayView: (eventId: string, input: SetClientEventDayViewInput) =>

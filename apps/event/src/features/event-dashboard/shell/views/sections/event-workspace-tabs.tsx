@@ -39,6 +39,8 @@ import type { PrismBriefing } from "@prism/types";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
 import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
+import { PmcmProposalComments } from "@/features/commercial/proposal-comments/views/pmcm-proposal-comments";
+import { PmcmRoleBriefEditor } from "@/features/coordinators/role-briefs/views/pmcm-role-brief-editor";
 
 function selectedOcularVisit(vm: ReturnType<typeof useEventDashboardLoadedRouteViewModel>) {
   if (!vm.selectedEvent) return null;
@@ -199,7 +201,7 @@ export function EventWorkspaceBriefingTab() {
       attention: !briefing,
       render: () => <BriefingSummary briefing={briefing} canSubmit busy={Boolean(vm.busy)} onSubmit={() => void vm.submitBriefing()} />,
     },
-    ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <PmcmProposalIssuerPanel eventId={selectedEvent.id} /> }] : []),
+    ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
     { id: "reviews", label: "Client reviews", render: () => <PmcmClientReviewPanel eventId={selectedEvent.id} /> },
     { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
     ...(admin ? [{ id: "decisions", label: "Decision log", render: () => <DecisionLogPanel eventId={selectedEvent.id} /> }] : []),
@@ -285,6 +287,7 @@ export function EventWorkspaceCoordinatorsTab() {
         </div>
       ),
     },
+    { id: "role-briefs", label: "Role briefs", render: () => <PmcmRoleBriefEditor eventId={event.id} /> },
     { id: "postponement", label: "If the date moves", render: () => <PostponementImpactPanel eventId={event.id} /> },
   ];
   return <WorkspaceSubTabs label="Team sections" tabs={tabs} />;

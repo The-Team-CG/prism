@@ -49,6 +49,7 @@ import { IdentityAccessModule } from '../identity-access/identity-access.module'
 import { AccountInvitationReferenceModule } from '@prism/contexts/identity-access/account-invitation-reference';
 import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.controller';
 import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
+import { ProposalCommentsService } from './application/quotes/proposal-comments.service';
 import { CommercialPrivacyRedactorService } from './application/suppliers/commercial-privacy-redactor.service';
 import { COMMERCIAL_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { CommercialAddendumImpactModule } from './commercial-addendum-impact.module';
@@ -129,6 +130,7 @@ const supplierCommandsProvider = {
     PaymentRiskScheduler,
     CommunicationService,
     ProposalLifecycleService,
+    ProposalCommentsService,
     CommercialPrivacyRedactorService,
     { provide: COMMERCIAL_PRIVACY_REDACTOR, useExisting: CommercialPrivacyRedactorService },
     SupplierWorkflowService,

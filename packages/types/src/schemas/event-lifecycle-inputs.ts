@@ -176,8 +176,14 @@ export const uploadConformeSchema = z.object({
 });
 export type UploadConformeInput = z.infer<typeof uploadConformeSchema>;
 
+/** Venue kind on the briefing; suppliers see it on quote requests, including confidential bids (FR-36/FR-49). */
+export const BRIEFING_VENUE_TYPES = ["Hotel ballroom", "Function hall", "Convention center", "Restaurant", "Garden or outdoor", "Beach or resort", "Corporate office", "School or campus", "Other"] as const;
+export const briefingVenueTypeSchema = z.enum(BRIEFING_VENUE_TYPES);
+export type BriefingVenueType = z.infer<typeof briefingVenueTypeSchema>;
+
 export const submitBriefingSchema = z.object({
   venue: nonEmptyStringSchema,
+  venueType: briefingVenueTypeSchema.optional(),
   guestCount: z.number().int().min(1),
   budgetRange: nonEmptyStringSchema,
   serviceRequirements: z.array(z.string()),

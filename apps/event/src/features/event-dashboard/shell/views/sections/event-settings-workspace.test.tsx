@@ -36,6 +36,7 @@ type SettingsProps = {
   session: EventSession;
   selectedEvent?: PrismEvent;
   onToggleClientEventDayView: (enabled: boolean) => Promise<boolean>;
+  onSetEventPrivacy: (privacy: "private" | "public") => Promise<boolean>;
 };
 
 function renderSettings(overrides: Partial<SettingsProps> = {}) {
@@ -43,12 +44,26 @@ function renderSettings(overrides: Partial<SettingsProps> = {}) {
     session,
     selectedEvent: event,
     onToggleClientEventDayView: vi.fn(async () => true),
+    onSetEventPrivacy: vi.fn(async () => true),
     ...overrides,
   };
 
   render(<EventSettingsWorkspace {...props} />);
   return props;
 }
+
+describe("EventSettingsWorkspace event privacy", () => {
+  it("defaults to private and saves PMCM's choice of public", async () => {
+    const onSetEventPrivacy = vi.fn(async () => true);
+    renderSettings({ onSetEventPrivacy });
+    const privateOption = screen.getByRole("radio", { name: "Private" }) as HTMLInputElement;
+    const publicOption = screen.getByRole("radio", { name: "Public" }) as HTMLInputElement;
+    expect(privateOption.checked).toBe(true);
+    fireEvent.click(publicOption);
+    await waitFor(() => expect(publicOption.checked).toBe(true));
+    expect(onSetEventPrivacy).toHaveBeenCalledWith("public");
+  });
+});
 
 describe("EventSettingsWorkspace client event-day view", () => {
   it("starts off when the event flag is missing or false", () => {
@@ -57,6 +72,7 @@ describe("EventSettingsWorkspace client event-day view", () => {
         session={session}
         selectedEvent={event}
         onToggleClientEventDayView={vi.fn(async () => true)}
+        onSetEventPrivacy={vi.fn(async () => true)}
       />,
     );
     const toggle = screen.getByRole("switch", { name: "Client event-day view" });
@@ -67,6 +83,7 @@ describe("EventSettingsWorkspace client event-day view", () => {
         session={session}
         selectedEvent={{ ...event, clientEventDayViewEnabled: false }}
         onToggleClientEventDayView={vi.fn(async () => true)}
+        onSetEventPrivacy={vi.fn(async () => true)}
       />,
     );
     expect(toggle.getAttribute("aria-checked")).toBe("false");
@@ -121,6 +138,7 @@ describe("EventSettingsWorkspace client event-day view", () => {
         session={coordinatorSession}
         selectedEvent={event}
         onToggleClientEventDayView={vi.fn(async () => true)}
+        onSetEventPrivacy={vi.fn(async () => true)}
       />,
     );
 

@@ -43,7 +43,7 @@ export type QuoteRequestTokenDetail = {
     clientName: string;
     eventDate: Date;
     inquiry: { eventType: string };
-    briefings: Array<{ guestCount: number; serviceRequirements: unknown }>;
+    briefings: Array<{ guestCount: number; venueType: string | null; serviceRequirements: unknown }>;
   };
   quote: OpsSupplierQuote | null;
 };
@@ -409,7 +409,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
           clientName: true,
           eventDate: true,
           inquiry: { select: { eventType: true } },
-          briefings: { orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: 1, select: { guestCount: true, serviceRequirements: true } },
+          briefings: { orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: 1, select: { guestCount: true, venueType: true, serviceRequirements: true } },
         },
       }),
       this.prisma.opsSupplierQuote.findFirst({
