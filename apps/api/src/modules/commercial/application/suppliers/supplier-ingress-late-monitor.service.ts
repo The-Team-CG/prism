@@ -15,6 +15,8 @@ import { supplierIngressLateGraceMinutes } from './supplier-ingress-late-policy'
 const MAX_INGRESS_SCHEDULES_PER_PAGE = 500;
 const MAX_INGRESS_PAGES_PER_RUN = 2;
 const UNREPORTED_EVENT_DAY_STATUSES = ['not_started', 'planned'];
+/** Hours after the late flag with no arrival before the booking counts as a no-show. */
+export const SUPPLIER_NO_SHOW_HOURS = 12;
 
 async function lockSupplierSchedule(prisma: Prisma.TransactionClient, scheduleId: string) {
   await prisma.$queryRaw`SELECT id FROM "commercial"."supplier_schedules" WHERE id = ${scheduleId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized row lock serializes late marking against schedule changes.
@@ -151,5 +153,40 @@ export class SupplierIngressLateMonitorService {
     }
 
     return { graceMinutes, marked };
+  }
+
+  /**
+   * FR-79: a supplier still flagged late SUPPLIER_NO_SHOW_HOURS after the late flag never reported arriving, so the
+   * booking is recorded once as a no-show on the supplier profile. The event-day status itself is left as late.
+   */
+  async noteSupplierNoShows(actor: ResolvedEventOpsActor, now = new Date()) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.System], 'supplier no-show monitor');
+    const cutoff = new Date(now.getTime() - SUPPLIER_NO_SHOW_HOURS * 3_600_000);
+    const requests = await this.prisma.opsSupplierQuoteRequest.findMany({
+      where: { status: 'selected', assignmentStatus: 'confirmed', eventDayStatus: 'late', eventDayStatusAt: { lte: cutoff }, supplierId: { not: null } },
+      select: { id: true, eventId: true, supplierId: true, supplierName: true, category: true },
+      orderBy: { id: 'asc' },
+      take: MAX_INGRESS_SCHEDULES_PER_PAGE,
+    });
+    let noted = 0;
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: capped by the take above; each note is idempotent per booking.
+    for (const request of requests) {
+      const noteKey = `supplier-no-show-note:${request.id}`;
+      const existing = await this.prisma.opsSupplierReliabilityNote.findUnique({ where: { idempotencyKey: noteKey }, select: { id: true } });
+      if (existing) continue;
+      const event = await this.prisma.opsEvent.findUnique({ where: { id: request.eventId }, select: { eventName: true } });
+      await this.prisma.opsSupplierReliabilityNote.create({ data: {
+        id: `reliability_${randomUUID()}`, supplierId: request.supplierId!, eventId: request.eventId,
+        note: `No-show at ${event?.eventName ?? 'an event'} (${request.category}): never reported arriving after being flagged late`,
+        createdBy: actor.name, idempotencyKey: noteKey,
+      } });
+      await writeAudit(this.auditWriter, request.eventId, actor.name, `Supplier no-show: ${request.supplierName}`, {
+        actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update, category: AuditCategory.Suppliers,
+        affectedType: 'supplier_quote_request', affectedId: request.id, affectedLabel: request.supplierName, severity: 'warning',
+        metadata: { noShowAfterHours: SUPPLIER_NO_SHOW_HOURS },
+      });
+      noted += 1;
+    }
+    return { noted };
   }
 }
