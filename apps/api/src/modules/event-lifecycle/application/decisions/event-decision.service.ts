@@ -10,7 +10,8 @@ import {
   OpsUserRole,
 } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
-import type { EventDecisionInput } from '@prism/types';
+import { CANCELLATION_FEE_POLICY, cancellationFeeBounds, type EventDecisionInput, type PrismCancellationSummary, type PrismVenueConfirmationTask, type ResolveVenueConfirmationInput } from '@prism/types';
+import { COMMERCIAL_FACTS_READER, type CommercialFactsReader } from '@prism/contexts/read-models/commercial-facts-reader';
 import { STAFFING_COMMANDS, type StaffingCommands } from '@prism/contexts/operations';
 import { CONFIRMED_CANCELLATION_FEE_WRITER, type ConfirmedCancellationFeeWriter, EVENT_DECISION_SUPPLIER_OWNER, type EventDecisionSupplierOwner } from '@prism/contexts/commercial';
 
@@ -24,7 +25,63 @@ export class EventDecisionService {
     @Inject(STAFFING_COMMANDS) private readonly staffingCommands: StaffingCommands,
     @Inject(EVENT_DECISION_SUPPLIER_OWNER) private readonly supplierDecisionOwner: EventDecisionSupplierOwner,
     @Inject(CONFIRMED_CANCELLATION_FEE_WRITER) private readonly cancellationFeeWriter: ConfirmedCancellationFeeWriter,
+    @Inject(COMMERCIAL_FACTS_READER) private readonly commercialFacts: CommercialFactsReader,
   ) {}
+
+  async venueConfirmations(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismVenueConfirmationTask[]> {
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'venue confirmations', eventId);
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: one row per postponement of a single event.
+    const rows = await this.prisma.opsVenueConfirmationTask.findMany({ where: { eventId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
+    return rows.map((row) => this.mapVenueTask(row));
+  }
+
+  async resolveVenueConfirmation(eventId: string, taskId: string, input: ResolveVenueConfirmationInput, actor: ResolvedEventOpsActor): Promise<PrismVenueConfirmationTask> {
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'venue confirmation', eventId);
+    return this.prisma.$transaction(async (tx) => {
+      const task = await tx.opsVenueConfirmationTask.findFirst({ where: { id: taskId, eventId } });
+      if (!task) throw new NotFoundException('Venue confirmation not found');
+      if (task.status !== 'open') throw new BadRequestException('This venue confirmation is already resolved');
+      const updated = await tx.opsVenueConfirmationTask.update({ where: { id: taskId }, data: { status: input.outcome, note: input.note ?? '', resolvedAt: new Date(), resolvedBy: actor.name } });
+      await writeAudit(this.auditWriter, eventId, actor.name, `Venue ${input.outcome === 'confirmed' ? 'confirmed' : 'unavailable'} for the new date`, {
+        actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update, category: AuditCategory.Events,
+        affectedType: 'venue_confirmation_task', affectedId: taskId, metadata: { outcome: input.outcome, note: input.note ?? '' },
+      }, { prisma: tx, correlationId: `venue-confirmation:${taskId}`, actorId: actor.id });
+      return this.mapVenueTask(updated);
+    });
+  }
+
+  private mapVenueTask(row: { id: string; eventId: string; decision: string; newEventDate: Date | null; status: string; note: string; createdAt: Date; resolvedAt: Date | null; resolvedBy: string | null }): PrismVenueConfirmationTask {
+    return {
+      id: row.id, eventId: row.eventId, decision: row.decision as PrismVenueConfirmationTask['decision'],
+      newEventDate: row.newEventDate?.toISOString().slice(0, 10) ?? null, status: row.status as PrismVenueConfirmationTask['status'],
+      note: row.note, createdAt: row.createdAt.toISOString(), resolvedAt: row.resolvedAt?.toISOString() ?? null, resolvedBy: row.resolvedBy,
+    };
+  }
+
+  /** FR-96: what cancelling would cost, so PMCM sets the fee from the contract rather than typing it blind. */
+  async cancellationSummary(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismCancellationSummary> {
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'cancellation summary', eventId);
+    return this.buildCancellationSummary(eventId, this.prisma);
+  }
+
+  private async buildCancellationSummary(eventId: string, db: PrismaService | Prisma.TransactionClient): Promise<PrismCancellationSummary> {
+    const event = await db.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, inquiry: { select: { conformeSignedAt: true } } } });
+    if (!event) throw new NotFoundException('Event not found');
+    const facts = await this.commercialFacts.getCancellationFacts(eventId, db);
+    const conformeSigned = Boolean(event.inquiry?.conformeSignedAt);
+    const bounds = cancellationFeeBounds(facts.contractAmount, conformeSigned);
+    return { eventId, conformeSigned, ...facts, feeMinimum: bounds.minimum, feeMaximum: bounds.maximum, suggestedFee: bounds.minimum };
+  }
+
+  private async assertCancellationFee(eventId: string, input: EventDecisionInput, tx: Prisma.TransactionClient) {
+    if (input.decision !== 'cancelled') return;
+    const summary = await this.buildCancellationSummary(eventId, tx);
+    if (input.cancellationFeeAmount < summary.feeMinimum || input.cancellationFeeAmount > summary.feeMaximum) {
+      throw new BadRequestException(summary.conformeSigned
+        ? `The cancellation fee must be between PHP ${summary.feeMinimum.toLocaleString('en-PH')} and PHP ${summary.feeMaximum.toLocaleString('en-PH')} (${CANCELLATION_FEE_POLICY.minPercent} to ${CANCELLATION_FEE_POLICY.maxPercent} percent of the contract)`
+        : 'No cancellation fee applies before the conforme is signed');
+    }
+  }
 
   async list(eventId: string, actor: ResolvedEventOpsActor) {
     // Decision rows include commercial impact and actor details; event readers
@@ -47,12 +104,20 @@ export class EventDecisionService {
         // Consumption happens before any Operations or Commercial side effect, so a lost race stops the decision early.
         const freezeExceptionId = await this.consumeFreezeExceptionForDecision(tx, eventId, event.freezeStatus, input, decisionId);
         const priorState = this.validateEventState(event.status, event.eventDate, input);
+        await this.assertCancellationFee(eventId, input, tx);
         const impacts = await this.loadImpacts(tx, eventId, input, event.eventDate, priorState.nextDate, actor);
         const fee = input.cancellationFeeAmount > 0 ? await this.cancellationFeeWriter.createConfirmedCancellationFeeSource(eventId, {
           amount: input.cancellationFeeAmount, reason: input.reason, idempotencyKey: `event-decision-fee:${decisionId}`,
         }, { id: actor.id ?? '', name: actor.name, role: actor.role, email: actor.email }, { prisma: tx, actorId: actor.id, correlationId: decisionId }) : null;
         const decision = await this.createDecision(tx, decisionId, eventId, input, actor, priorState, impacts.assignmentImpact, freezeExceptionId, fee?.id ?? null);
         await this.applyTransition(tx, eventId, input, impacts, priorState.nextDate);
+        if (input.decision !== 'cancelled') {
+          // FR-97: a moved date needs the venue re-confirmed; the downpayment carries over and no fee applies.
+          await tx.opsVenueConfirmationTask.create({ data: {
+            id: `vct_${randomUUID()}`, eventId, decisionId: decision.id, decision: input.decision,
+            newEventDate: input.newEventDate ? new Date(`${input.newEventDate}T00:00:00.000Z`) : null,
+          } });
+        }
         await this.queueNotification(tx, event, eventId, input, decision.id);
         if (input.decision === 'cancelled' || input.supplierImpact === 'release_obligations') {
           // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each affected supplier receives a durable decision-scoped notice.

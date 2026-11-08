@@ -44,6 +44,7 @@ import { PmcmRoleBriefEditor } from "@/features/coordinators/role-briefs/views/p
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
 import { PmcmSupplierGapWarning } from "@/features/suppliers/supplier-gaps/views/pmcm-supplier-gap-warning";
 import { PmcmExternalCreativePanel } from "@/features/suppliers/external-creative/views/pmcm-external-creative-panel";
+import { VenueConfirmationsPanel } from "@/features/event-decisions/venue-confirmations/views/venue-confirmations-panel";
 
 function selectedOcularVisit(vm: ReturnType<typeof useEventDashboardLoadedRouteViewModel>) {
   if (!vm.selectedEvent) return null;
@@ -293,7 +294,7 @@ export function EventWorkspaceCoordinatorsTab() {
       ),
     },
     { id: "role-briefs", label: "Role briefs", render: () => <PmcmRoleBriefEditor eventId={event.id} /> },
-    { id: "postponement", label: "If the date moves", render: () => <PostponementImpactPanel eventId={event.id} /> },
+    { id: "postponement", label: "If the date moves", render: () => <div className="space-y-5"><VenueConfirmationsPanel eventId={event.id} /><PostponementImpactPanel eventId={event.id} /></div> },
   ];
   return <WorkspaceSubTabs label="Team sections" tabs={tabs} />;
 }

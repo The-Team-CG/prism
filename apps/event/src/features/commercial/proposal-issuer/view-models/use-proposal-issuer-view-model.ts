@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PrismIssuedProposalSummary } from "@prism/types";
+import type { PrismIssuedProposalSummary, PrismPreviousCostEstimate } from "@prism/types";
 import { composeProposalDraftSections } from "@prism/types";
 import { proposalIssuerRepository } from "../data/proposal-issuer-repository";
 import {
   buildCostEstimateInput,
   buildIssueProposalInput,
   buildProposalDraftRequest,
+  appendEstimateLines,
   emptyEstimateLine,
   estimateTotal,
   type EstimateLineDraft,
@@ -72,6 +73,28 @@ export function useProposalIssuerViewModel(eventId: string) {
   const updateLine = (key: string, patch: Partial<EstimateLineDraft>) =>
     editEstimate(setLines)(lines.map((line) => (line.key === key ? { ...line, ...patch } : line)));
   const addLine = () => editEstimate(setLines)([...lines, newLine()]);
+  const [previousEstimates, setPreviousEstimates] = useState<PrismPreviousCostEstimate[]>([]);
+  useEffect(() => {
+    let current = true;
+    proposalIssuerRepository.previousEstimates(eventId).then((result) => { if (current) setPreviousEstimates(result); }, () => { if (current) setPreviousEstimates([]); });
+    return () => { current = false; };
+  }, [eventId]);
+  /** FR-19: consolidate the selected supplier quotes into the estimate lines. */
+  async function addSelectedQuotes() {
+    setError(null);
+    try {
+      const quoteLines = await proposalIssuerRepository.selectedQuoteLines(eventId);
+      if (quoteLines.length === 0) {
+        setNotice("No supplier quote is selected for this event yet.");
+        return;
+      }
+      editEstimate(setLines)(appendEstimateLines(lines, quoteLines, () => newLine().key));
+      setNotice(`Added ${quoteLines.length} selected supplier quote${quoteLines.length === 1 ? "" : "s"}.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load the selected quotes.");
+    }
+  }
+  const applyPreviousEstimate = (estimate: PrismPreviousCostEstimate) => editEstimate(setLines)(appendEstimateLines(lines, estimate.lines, () => newLine().key));
   const removeLine = (key: string) => editEstimate(setLines)(lines.length > 1 ? lines.filter((line) => line.key !== key) : lines);
 
   /** Fills the title, summary and change note from the estimate. Nothing is issued; PMCM edits first. */
@@ -157,6 +180,9 @@ export function useProposalIssuerViewModel(eventId: string) {
     busy,
     drafting,
     draftWording,
+    addSelectedQuotes,
+    previousEstimates,
+    applyPreviousEstimate,
     canUndoDraft: beforeDraft !== null,
     undoDraft,
     error,

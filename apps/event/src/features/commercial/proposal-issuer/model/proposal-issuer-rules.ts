@@ -4,6 +4,12 @@ export type EstimateLineDraft = { key: string; category: string; description: st
 
 export const ESTIMATE_CATEGORY_SUGGESTIONS = ["Venue", "Catering", "Styling", "Production", "Staffing", "Logistics", "Management fee"] as const;
 
+/** FR-19: adds source lines to the estimate, dropping a still-empty starter line. */
+export function appendEstimateLines(current: EstimateLineDraft[], incoming: Array<{ category: string; description: string; quantity: number; unitAmount: number }>, nextKey: () => string): EstimateLineDraft[] {
+  const kept = current.filter((line) => line.category.trim() || line.description.trim() || line.unitAmount.trim());
+  return [...kept, ...incoming.map((line) => ({ key: nextKey(), category: line.category, description: line.description, quantity: String(line.quantity), unitAmount: String(line.unitAmount) }))];
+}
+
 export function emptyEstimateLine(key: string): EstimateLineDraft {
   return { key, category: "", description: "", quantity: "1", unitAmount: "" };
 }

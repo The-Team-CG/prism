@@ -498,9 +498,9 @@ export function useEventDashboardShellViewModel({
       });
       await refresh();
     },
-    prepareConformeSigning: async () => {
+    prepareConformeSigning: async (templateContent?: string) => {
       if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");
-      const execution = await prepareConformeExecution(conformeUploadTarget.id);
+      const execution = await prepareConformeExecution(conformeUploadTarget.id, templateContent);
       await refresh();
       return execution;
     },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { PrismPreviousCostEstimate } from "@prism/types";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
@@ -10,6 +11,23 @@ import { useProposalIssuerViewModel } from "../view-models/use-proposal-issuer-v
 type ProposalIssuerVm = ReturnType<typeof useProposalIssuerViewModel>;
 
 const fieldLabel = "grid gap-1.5 text-sm font-medium";
+
+function PreviousEstimates({ estimates, onUse }: { estimates: PrismPreviousCostEstimate[]; onUse: (estimate: PrismPreviousCostEstimate) => void }) {
+  if (estimates.length === 0) return null;
+  return (
+    <details className="mt-3 rounded-md border border-border p-3 text-sm">
+      <summary className="cursor-pointer font-semibold">Previous estimates for this client ({estimates.length})</summary>
+      <ul className="mt-2 space-y-2">
+        {estimates.map((estimate) => (
+          <li key={estimate.eventId} className="flex flex-wrap items-center justify-between gap-2">
+            <span>{estimate.eventName} · {estimate.eventDate} · {formatPeso(estimate.totalAmount)} · {estimate.lines.length} lines</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => onUse(estimate)}>Use these lines</Button>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
 
 export function PmcmProposalIssuerPanel({ eventId }: { eventId: string }) {
   const vm = useProposalIssuerViewModel(eventId);
@@ -76,8 +94,10 @@ function ProposalIssueForm({ vm }: { vm: ProposalIssuerVm }) {
           <Button type="button" variant="outline" size="sm" onClick={vm.addLine}>
             <Plus className="size-4" /> Add line
           </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => void vm.addSelectedQuotes()}>Add selected supplier quotes</Button>
           <EstimateTotal vm={vm} />
         </div>
+        <PreviousEstimates estimates={vm.previousEstimates} onUse={vm.applyPreviousEstimate} />
       </fieldset>
 
       <label className={fieldLabel}>
