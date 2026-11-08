@@ -15,6 +15,8 @@ export const decideClientReviewItemSchema = z.object({
   itemVersion: z.number().int().positive(),
   action: z.enum(["approve", "request_revision"]),
   comment: z.string().trim().max(4000).default(""),
+  /** FR-09 Budget vs Expectation Check: how the client wants to handle cost when turning a styling option down. */
+  budgetExpectation: z.enum(["raise_budget", "lower_cost_option", "keep_budget"]).optional(),
   idempotencyKey: nonEmptyStringSchema.optional(),
 }).superRefine((value, ctx) => {
   if (value.action === "request_revision" && value.comment.length === 0) {

@@ -134,12 +134,16 @@ export class ClientReviewItemsService {
     if (!actor.id) throw new ForbiddenException('A verified client identity is required to record this decision');
     const actorId = actor.id;
     const key = input.idempotencyKey?.trim() || `client-review:${itemId}:${input.itemVersion}:${actorId}`;
-    const payloadHash = this.hash({ itemId, itemVersion: input.itemVersion, action: input.action, comment: input.comment });
+    const payloadHash = this.hash({ itemId, itemVersion: input.itemVersion, action: input.action, comment: input.comment, budgetExpectation: input.budgetExpectation ?? null });
     return this.prisma.$transaction(async (tx) => {
       await this.authorizeClientDecision(tx, eventId, actor, key);
       const prior = await tx.opsClientReviewDecision.findUnique({ where: { idempotencyKey: key } });
       if (prior) return this.mapDecision(this.requireDecisionReplay(prior, eventId, actorId, payloadHash));
       const item = await this.requireCurrentPublishedItem(tx, eventId, itemId, input.itemVersion, actorId);
+      // FR-09: turning a styling option down triggers the Budget vs Expectation Check.
+      if (item.kind === 'styling' && input.action === 'request_revision' && !input.budgetExpectation) {
+        throw new BadRequestException('Tell PMCM how to handle the budget when asking for a styling revision');
+      }
       const decision = await this.createDecision(tx, { eventId, item, input, actor, actorId, key, payloadHash, itemId });
       await writeAudit(this.auditWriter, eventId, actor.name, input.action === 'approve' ? `Client approved ${item.kind} option` : `Client requested ${item.kind} revision`, {
         actorRole: actor.role,
@@ -197,7 +201,7 @@ export class ClientReviewItemsService {
       return await tx.opsClientReviewDecision.create({ data: {
         id: `client_review_decision_${randomUUID()}`, eventId: args.eventId, itemId: args.itemId,
         itemVersion: args.item.version, action: args.input.action, comment: args.input.comment,
-        payload: toPrismaJson({ kind: args.item.kind, title: args.item.title, version: args.item.version }),
+        payload: toPrismaJson({ kind: args.item.kind, title: args.item.title, version: args.item.version, budgetExpectation: args.input.budgetExpectation ?? null }),
         actorId: args.actorId, actorEmail: args.actor.email ?? null,
         idempotencyKey: args.key, payloadHash: args.payloadHash,
       } });
@@ -217,8 +221,9 @@ export class ClientReviewItemsService {
     };
   }
 
-  private mapDecision(decision: { id: string; itemId: string; itemVersion: number; action: string; comment: string; createdAt: Date }) {
-    return { id: decision.id, itemId: decision.itemId, itemVersion: decision.itemVersion, action: decision.action, comment: decision.comment, decidedAt: decision.createdAt.toISOString() };
+  private mapDecision(decision: { id: string; itemId: string; itemVersion: number; action: string; comment: string; createdAt: Date; payload?: unknown }) {
+    const budgetExpectation = (decision.payload as { budgetExpectation?: string | null } | undefined)?.budgetExpectation ?? undefined;
+    return { id: decision.id, itemId: decision.itemId, itemVersion: decision.itemVersion, action: decision.action, comment: decision.comment, ...(budgetExpectation ? { budgetExpectation } : {}), decidedAt: decision.createdAt.toISOString() };
   }
 
   private hash(value: unknown) {
