@@ -272,6 +272,20 @@ model OpsInquiry {
   @@schema("event_lifecycle")
 }
 
+model OpsInquiryCompanyNameChange {
+  id        String   @id
+  inquiryId String   @map("inquiry_id")
+  fromName  String   @map("from_name")
+  toName    String   @map("to_name")
+  reason    String
+  changedBy String   @map("changed_by")
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  @@index([inquiryId, changedAt], map: "inquiry_company_name_changes_inquiry_changed_idx")
+  @@map("inquiry_company_name_changes")
+  @@schema("event_lifecycle")
+}
+
 model OpsInquiryMerge {
   id               String   @id
   primaryInquiryId String   @map("primary_inquiry_id")

@@ -48,7 +48,19 @@ function harness(options: { archived?: boolean; existingRecord?: Record<string, 
     }),
   };
   const service = new EventClosureService(
-    prisma as never, {} as never, {} as never, audit as never, access as never, {} as never, {} as never, {} as never, {} as never,
+    prisma as never, {} as never, {} as never, audit as never, access as never, {} as never, {} as never,
+    {
+      getLifecycleFacts: vi.fn(async (id: string) => ({ supplierQuoteRequests: [], billingSources: [], supplierReviews: [], billingStatements: id === 'a' ? [{ id: 'st_1', totalAmount: 250_000 }] : [], paymentMilestones: [] })),
+      topReviewedSuppliers: vi.fn(async (id: string) => (id === 'a' ? [{ category: 'Catering', supplierName: 'Feast Co', rating: 5 }] : [])),
+    } as never,
+    {
+      getClosureFacts: vi.fn(async (id: string) => ({
+        guestFeedback: id === 'a' ? [{ id: 'f1', rating: 4, moderationStatus: 'approved', privacyConsentAccepted: true, privacyConsentWithdrawnAt: null }, { id: 'f2', rating: 2, moderationStatus: 'pending', privacyConsentAccepted: true, privacyConsentWithdrawnAt: null }] : [],
+        issues: id === 'a' ? [{ id: 'i1' }, { id: 'i2' }] : [],
+        scheduleDays: [],
+        checkedInGuestCount: id === 'a' ? 180 : 0,
+      })),
+    } as never,
   );
   return { service, logistics, audit, opsEvent };
 }
@@ -121,6 +133,9 @@ describe('archive comparison', () => {
     expect(rows.map((row) => row.id)).toEqual(['a', 'b']);
     expect(rows[0]).toMatchObject({ venue: 'Shangri-La', eventType: 'Gala', closeGatesReady: false, missingCloseGates: ['billing'], logisticsRecorded: false });
     expect(rows[1]).toMatchObject({ archiveOverridden: true, archiveOverrideReason: 'Venue closed early', logisticsRecorded: true });
+    // New-P1 metrics: only approved guest feedback counts toward satisfaction.
+    expect(rows[0]).toMatchObject({ attendeeCount: 180, totalCost: 250_000, averageGuestRating: 4, urgentIssueCount: 2, topSuppliers: [{ category: 'Catering', supplierName: 'Feast Co', rating: 5 }] });
+    expect(rows[1]).toMatchObject({ attendeeCount: 0, totalCost: 0, averageGuestRating: null, urgentIssueCount: 0, topSuppliers: [] });
     expect(JSON.stringify(rows)).not.toContain(PRIVATE_NOTE);
     expect(JSON.stringify(rows)).not.toContain(SUMMARY);
   });

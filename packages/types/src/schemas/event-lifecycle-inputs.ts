@@ -177,6 +177,23 @@ export const mergeInquirySchema = z.object({
 });
 export type MergeInquiryInput = z.infer<typeof mergeInquirySchema>;
 
+/** FR-44: PMCM corrects a client's company name; every change is logged with a reason. */
+export const updateInquiryCompanyNameSchema = z.object({
+  companyName: z.string().trim().min(1).max(200),
+  reason: nonEmptyStringSchema,
+});
+export type UpdateInquiryCompanyNameInput = z.infer<typeof updateInquiryCompanyNameSchema>;
+
+export interface PrismCompanyNameChange {
+  id: string;
+  inquiryId: string;
+  fromName: string;
+  toName: string;
+  reason: string;
+  changedBy: string;
+  changedAt: string;
+}
+
 export const updateInquiryStatusSchema = z.object({
   status: z.enum(["new", "accepted", "pending", "declined"]),
   declineReason: z

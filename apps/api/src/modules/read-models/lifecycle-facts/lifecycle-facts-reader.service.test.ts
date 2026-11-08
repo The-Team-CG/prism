@@ -8,6 +8,7 @@ function client() {
     opsGuestRosterEntry: { count: vi.fn(async () => 7) },
     opsGuestFeedback: { findMany: vi.fn(async () => [{ id: 'feedback_1', rating: 5, moderationStatus: 'approved', privacyConsentAccepted: true, privacyConsentWithdrawnAt: null }]) },
     opsUrgentIssue: { findMany: vi.fn(async () => [{ id: 'issue_1' }]) },
+    opsGuestCheckIn: { count: vi.fn(async () => 12) },
     opsEventScheduleDay: { findMany: vi.fn(async () => [{ id: 'day_1', segments: [{ id: 'segment_1', actualEndedAt: null, plannedEndAt: new Date('2026-10-06T13:00:00.000Z') }] }]) },
   };
 }
@@ -35,6 +36,7 @@ describe('LifecycleFactsReaderService', () => {
     const facts = await reader.getClosureFacts('evt_1');
     expect(facts.guestFeedback[0]).toMatchObject({ id: 'feedback_1', rating: 5, privacyConsentAccepted: true });
     expect(facts.issues).toEqual([{ id: 'issue_1' }]);
+    expect(facts.checkedInGuestCount).toBe(12);
     expect(facts.scheduleDays[0].segments[0].id).toBe('segment_1');
     expect(prisma.opsGuestFeedback.findMany).toHaveBeenCalledWith({
       where: { eventId: 'evt_1' },

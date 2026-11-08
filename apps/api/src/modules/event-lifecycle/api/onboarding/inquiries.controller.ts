@@ -8,6 +8,8 @@ import {
   logInquiryOnBehalfSchema,
   type LogInquiryOnBehalfInput,
   mergeInquirySchema,
+  updateInquiryCompanyNameSchema,
+  type UpdateInquiryCompanyNameInput,
   updateInquiryStatusSchema,
   uploadConformeSchema,
   type CreatePrismInquiryInput,
@@ -72,6 +74,24 @@ export class OpsInquiriesController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.inquiryWorkflowService.updateInquiryStatus(inquiryId, dto, this.inquiryWorkflowContext(), verifiedActor);
+  }
+
+  @Get(':inquiryId/company-name-changes')
+  @UseGuards(EventSessionGuard)
+  async companyNameChanges(@Param('inquiryId') inquiryId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'company name history');
+    return this.inquiriesService.listCompanyNameChanges(inquiryId);
+  }
+
+  @Patch(':inquiryId/company-name')
+  @UseGuards(EventSessionGuard)
+  async updateCompanyName(
+    @Param('inquiryId') inquiryId: string,
+    @Body(zodBody(updateInquiryCompanyNameSchema)) dto: UpdateInquiryCompanyNameInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    return this.inquiriesService.updateCompanyName(inquiryId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
   @Post(':inquiryId/merge')

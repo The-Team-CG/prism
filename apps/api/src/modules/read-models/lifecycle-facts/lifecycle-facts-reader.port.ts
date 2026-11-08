@@ -9,6 +9,7 @@ export type ComplianceLifecycleFacts = {
 export type ClosureLifecycleFacts = {
   guestFeedback: Array<{ id: string; rating: number; moderationStatus: string; privacyConsentAccepted: boolean; privacyConsentWithdrawnAt: Date | null }>;
   issues: Array<{ id: string }>;
+  checkedInGuestCount: number;
   scheduleDays: Array<{ id: string; segments: Array<{ id: string; actualEndedAt: Date | null; plannedEndAt: Date }> }>;
 };
 

@@ -21,6 +21,7 @@ import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import type { PrismInquiry } from "@prism/types";
+import { CompanyNameEditor } from "@/features/inquiries/company-name/views/company-name-editor";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 import {
   AWAITING_REVIEW,
@@ -412,6 +413,7 @@ function InquiryHistorySection({
   const mergeAllowed = canMergeInquiry(inquiry);
   return (
     <section className="space-y-3 rounded-lg border border-border bg-background px-4 py-3">
+      <CompanyNameEditor inquiryId={inquiry.id} companyName={inquiry.companyName ?? ""} />
       <div className="flex items-center gap-2">
         <ClipboardList className="size-4 text-primary" />
         <h4 className="text-sm font-bold text-foreground">Organization and history</h4>

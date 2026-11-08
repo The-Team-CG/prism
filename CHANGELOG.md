@@ -6,6 +6,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The archive comparison shows attendees, total cost, guest satisfaction, urgent issues and the top-rated supplier per category.
+- Clients set their own walk-in policy until event day; PMCM keeps it from event day on.
+- PMCM corrects a client's company name with a reason and a change log, and is told when a client returns after more than a year without an event.
 - PMCM tags each event file with a type (floor plan, moodboard, key visual, work permit, ingress and egress form, registration data, crew meals, manpower list, supplier contract, client asset, MOA, NDA, pre-conforme document or other).
 - Cancelling shows a financial summary (contract, payments received, supplier commitments) and holds the fee to 10 to 15 percent of the contract once the conforme is signed, and to zero before; postponements never carry a fee.
 - Fixed: the cancellation fee was multiplied by 100 before becoming a billing source; it is now whole pesos like every other billing amount.
