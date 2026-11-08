@@ -9,16 +9,16 @@ function timestamp(value: Date) {
 }
 
 export function mapBillingCorrection(correction: OpsBillingCorrection) {
-  return { id: correction.id, eventId: correction.eventId, statementId: correction.statementId, replacementStatementId: correction.replacementStatementId ?? null, reason: correction.reason, correctedTotalAmount: correction.correctedTotalAmount ?? null, status: correction.status, requestedBy: correction.requestedBy, requestedById: correction.requestedById ?? null, resolvedBy: correction.resolvedBy ?? null, resolutionNotes: correction.resolutionNotes ?? null, createdAt: timestamp(correction.createdAt), resolvedAt: correction.resolvedAt ? timestamp(correction.resolvedAt) : null };
+  return { id: correction.id, eventId: correction.eventId, statementId: correction.statementId, replacementStatementId: correction.replacementStatementId ?? null, reason: correction.reason, severity: correction.severity, correctedTotalAmount: correction.correctedTotalAmount ?? null, status: correction.status, requestedBy: correction.requestedBy, requestedById: correction.requestedById ?? null, resolvedBy: correction.resolvedBy ?? null, resolutionNotes: correction.resolutionNotes ?? null, createdAt: timestamp(correction.createdAt), resolvedAt: correction.resolvedAt ? timestamp(correction.resolvedAt) : null };
 }
 
 export function mapBillingDispute(dispute: OpsBillingDispute) {
-  return { id: dispute.id, eventId: dispute.eventId, statementId: dispute.statementId, milestoneId: dispute.milestoneId ?? null, amount: dispute.amount, reason: dispute.reason, status: dispute.status, raisedBy: dispute.raisedBy, resolvedBy: dispute.resolvedBy ?? null, resolutionNotes: dispute.resolutionNotes ?? null, createdAt: timestamp(dispute.createdAt), resolvedAt: dispute.resolvedAt ? timestamp(dispute.resolvedAt) : null };
+  return { id: dispute.id, eventId: dispute.eventId, statementId: dispute.statementId, milestoneId: dispute.milestoneId ?? null, amount: dispute.amount, reason: dispute.reason, severity: dispute.severity, status: dispute.status, raisedBy: dispute.raisedBy, resolvedBy: dispute.resolvedBy ?? null, resolutionNotes: dispute.resolutionNotes ?? null, createdAt: timestamp(dispute.createdAt), resolvedAt: dispute.resolvedAt ? timestamp(dispute.resolvedAt) : null };
 }
 
 /** Client-safe dispute projection: status and amount only, no PMCM reasons, resolver notes, or actor names. */
 export function mapClientBillingDispute(dispute: OpsBillingDispute) {
-  return { id: dispute.id, eventId: dispute.eventId, statementId: dispute.statementId, milestoneId: dispute.milestoneId ?? null, amount: dispute.amount, status: dispute.status, createdAt: timestamp(dispute.createdAt), resolvedAt: dispute.resolvedAt ? timestamp(dispute.resolvedAt) : null };
+  return { id: dispute.id, eventId: dispute.eventId, statementId: dispute.statementId, milestoneId: dispute.milestoneId ?? null, amount: dispute.amount, severity: dispute.severity, status: dispute.status, createdAt: timestamp(dispute.createdAt), resolvedAt: dispute.resolvedAt ? timestamp(dispute.resolvedAt) : null };
 }
 
 export function mapAdditionalBilling(billing: OpsAdditionalBilling) {

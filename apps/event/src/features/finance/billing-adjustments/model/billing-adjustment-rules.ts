@@ -1,5 +1,10 @@
 import type { PrismBillingCorrection, PrismBillingSource, PrismBillingStatement } from "@prism/types";
 
+/** Only amount discrepancies need a second PMCM approver; a typo correction changes no amount. */
+export function requiresSecondApprover(correction: Pick<PrismBillingCorrection, "severity">): boolean {
+  return correction.severity === "amount_discrepancy";
+}
+
 /** Client-side guard shown before submit. The shared Zod schemas remain the authority on the request body. */
 export function blankReasonError(reason: string, fieldLabel: string): string | null {
   return reason.trim() ? null : `${fieldLabel} is required.`;
