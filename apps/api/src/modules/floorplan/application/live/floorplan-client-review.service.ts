@@ -37,7 +37,6 @@ export class FloorPlanClientReviewService {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client, OpsUserRole.PmcmAdmin], 'client floorplan review', eventId);
     const { event, draft, snapshot, snapshotHash } = await this.loadSnapshot(this.prisma, eventId, draftId);
     await this.eventAccessPolicyService.requireCanReadEvent(actor, event, 'client floorplan review');
-    if (actor.role === OpsUserRole.Client) this.requirePrimaryContact(actor, event.inquiry.email);
     const [decisions, annotations] = await Promise.all([
       this.prisma.opsFloorPlanClientDecision.findMany({
         where: { eventId, draftId, snapshotHash, ...(actor.role === OpsUserRole.Client ? { actorId: actor.id } : {}) },
@@ -139,8 +138,9 @@ export class FloorPlanClientReviewService {
     return this.prisma.$transaction(async (tx) => {
       const { event, draft, snapshot, snapshotHash } = await this.loadSnapshot(tx, eventId, draftId, { prisma: tx, correlationId: `floorplan-client-annotation:${draftId}` });
       await this.eventAccessPolicyService.requireCanReadEvent(actor, event, 'client floorplan annotation');
-      this.requirePrimaryContact(actor, event.inquiry.email);
       this.requireMutableReview(event);
+      // Only the primary contact's annotations are actionable; other contacts' notes are kept as non-binding and never count as the client response.
+      const nonBinding = !isPrimaryClientContact(actor.email ?? '', event.inquiry.email);
       if (input.snapshotHash !== snapshotHash) throw new BadRequestException('The floorplan changed after this review was opened; reload the latest snapshot');
       if (Boolean(input.anchorX !== undefined) !== Boolean(input.anchorY !== undefined)) throw new BadRequestException('Both annotation anchor coordinates are required together');
       if (input.objectId) {
@@ -163,6 +163,7 @@ export class FloorPlanClientReviewService {
           comment: input.comment,
           actorId: actor.id!,
           actorEmail: actor.email ?? null,
+          nonBinding,
         },
       });
       await writeAudit(this.auditWriter, eventId, actor.name, `Client annotated floorplan: ${draft.name}`, {
@@ -173,9 +174,9 @@ export class FloorPlanClientReviewService {
         affectedType: 'floorplan_client_annotation',
         affectedId: annotation.id,
         affectedLabel: draft.name,
-        metadata: { draftId, snapshotHash, objectId: input.objectId ?? null, anchorX: input.anchorX ?? null, anchorY: input.anchorY ?? null },
+        metadata: { draftId, snapshotHash, objectId: input.objectId ?? null, anchorX: input.anchorX ?? null, anchorY: input.anchorY ?? null, nonBinding },
       }, { prisma: tx, correlationId: annotation.id, actorId: actor.id });
-      await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `Client added a floorplan note: ${draft.name}`, undefined, { idempotencyKey: annotation.id }, { prisma: tx, correlationId: annotation.id, actorId: actor.id });
+      await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `${nonBinding ? 'Client added a non-binding floorplan note' : 'Client added a floorplan note'}: ${draft.name}`, undefined, { idempotencyKey: annotation.id }, { prisma: tx, correlationId: annotation.id, actorId: actor.id });
       return this.mapAnnotation(annotation);
     });
   }
@@ -217,8 +218,8 @@ export class FloorPlanClientReviewService {
     return { id: decision.id, eventId: decision.eventId, draftId: decision.draftId, snapshotHash: decision.snapshotHash, action: decision.action, comment: decision.comment, decidedAt: decision.createdAt.toISOString() };
   }
 
-  private mapAnnotation(annotation: { id: string; eventId: string; draftId: string; snapshotHash: string; objectId: string | null; anchorX: number | null; anchorY: number | null; comment: string; createdAt: Date }) {
-    return { id: annotation.id, eventId: annotation.eventId, draftId: annotation.draftId, snapshotHash: annotation.snapshotHash, objectId: annotation.objectId ?? undefined, anchorX: annotation.anchorX ?? undefined, anchorY: annotation.anchorY ?? undefined, comment: annotation.comment, createdAt: annotation.createdAt.toISOString() };
+  private mapAnnotation(annotation: { id: string; eventId: string; draftId: string; snapshotHash: string; objectId: string | null; anchorX: number | null; anchorY: number | null; comment: string; nonBinding: boolean; createdAt: Date }) {
+    return { id: annotation.id, eventId: annotation.eventId, draftId: annotation.draftId, snapshotHash: annotation.snapshotHash, objectId: annotation.objectId ?? undefined, anchorX: annotation.anchorX ?? undefined, anchorY: annotation.anchorY ?? undefined, comment: annotation.comment, nonBinding: annotation.nonBinding, createdAt: annotation.createdAt.toISOString() };
   }
 
   private async lockEvent(tx: Prisma.TransactionClient, eventId: string) {

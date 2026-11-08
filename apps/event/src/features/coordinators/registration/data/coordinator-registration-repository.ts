@@ -17,4 +17,7 @@ export const coordinatorRegistrationRepository = {
   registerWalkIn(eventId: string, input: CoordinatorWalkInCheckInInput): Promise<PrismCoordinatorRegistrationEntry> {
     return eventApi.guest.registerWalkIn(eventId, input);
   },
+  flagForVerification(eventId: string, rosterEntryId: string): Promise<PrismCoordinatorRegistrationEntry> {
+    return eventApi.guest.flagWalkInForVerification(eventId, rosterEntryId);
+  },
 };

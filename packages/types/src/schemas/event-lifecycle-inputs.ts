@@ -73,6 +73,10 @@ export const inquiryClientCategorySchema = z
   .transform(normalizeInquiryClientType)
   .pipe(z.enum(INQUIRY_CLIENT_CATEGORIES));
 
+/** Lightweight spatial preference offered on the public inquiry. Choices are preferences for PMCM to plan from, not a floor plan. */
+export const INQUIRY_SEATING_ARRANGEMENTS = ["Theatre rows", "Banquet rounds", "Cocktail standing", "Classroom", "Boardroom or U-shape", "No preference"] as const;
+export const INQUIRY_STAGE_POSITIONS = ["Centre", "Left", "Right", "No stage", "Not sure"] as const;
+
 export const createPrismInquirySchema = privacyConsentSchema.extend({
   clientName: nonEmptyStringSchema,
   companyName: optionalTrimmedStringSchema,
@@ -92,8 +96,57 @@ export const createPrismInquirySchema = privacyConsentSchema.extend({
   channel: optionalTrimmedStringSchema,
   referralDetails: optionalTrimmedStringSchema,
   message: nonEmptyStringSchema,
+  seatingArrangement: z.enum(INQUIRY_SEATING_ARRANGEMENTS).optional(),
+  stagePosition: z.enum(INQUIRY_STAGE_POSITIONS).optional(),
+  setupNotes: z.string().trim().max(500).optional(),
 });
 export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
+
+/** PMCM logs an inquiry on behalf of a client with basic detail only. Whatever else is missing is completed later. */
+export const logInquiryOnBehalfSchema = z.object({
+  clientName: nonEmptyStringSchema,
+  companyName: optionalTrimmedStringSchema,
+  email: z.string().trim().email(),
+  eventName: nonEmptyStringSchema,
+  eventType: optionalTrimmedStringSchema,
+  eventDate: isoDateStringSchema,
+  clientType: inquiryClientCategorySchema.optional(),
+  source: createPrismInquirySchema.shape.source.optional(),
+  channel: optionalTrimmedStringSchema,
+  referralDetails: optionalTrimmedStringSchema,
+  message: optionalTrimmedStringSchema,
+});
+export type LogInquiryOnBehalfInput = z.infer<typeof logInquiryOnBehalfSchema>;
+
+/**
+ * Full-details fields of the public inquiry. Privacy consent is left out: a client gives it on the public form,
+ * which an inquiry logged on behalf never goes through.
+ */
+const inquiryFullDetailsSchema = createPrismInquirySchema.pick({
+  clientName: true,
+  email: true,
+  eventName: true,
+  eventDate: true,
+  clientType: true,
+  source: true,
+  message: true,
+});
+
+/**
+ * Derived, never stored. An inquiry logged on behalf is "Pending Full Details" while any full-details field is missing;
+ * it clears by itself once they are filled in.
+ */
+export function inquiryPendingFullDetails(inquiry: {
+  clientName: string;
+  email: string;
+  eventName: string;
+  eventDate: string;
+  clientType: string;
+  source: string;
+  message: string;
+}): boolean {
+  return !inquiryFullDetailsSchema.safeParse(inquiry).success;
+}
 
 /** PMCM-only organization merge. The target inquiry comes from the route; public writers cannot reach this schema. */
 export const mergeInquirySchema = z.object({
@@ -216,6 +269,12 @@ export const archiveComparisonQuerySchema = z.object({
     ),
 });
 export type ArchiveComparisonQuery = z.infer<typeof archiveComparisonQuerySchema>;
+/** PMCM-set event privacy. Private events may use table assignment and the seating list (under 200 guests). */
+export const eventPrivacySchema = z.enum(["private", "public"]);
+export type PrismEventPrivacy = z.infer<typeof eventPrivacySchema>;
+export const setEventPrivacySchema = z.object({ privacy: eventPrivacySchema });
+export type SetEventPrivacyInput = z.infer<typeof setEventPrivacySchema>;
+
 export const setClientEventDayViewSchema = z.object({
   enabled: z.boolean(),
 });

@@ -233,6 +233,9 @@ model OpsInquiry {
   previousDeclinedInquiryId String?   @map("previous_declined_inquiry_id")
   previousDeclineReason     String?   @map("previous_decline_reason")
   message                   String    @default("")
+  seatingArrangement        String?   @map("seating_arrangement")
+  stagePosition             String?   @map("stage_position")
+  setupNotes                String?   @map("setup_notes")
   status                    String    @default("new")
   declineReason             String?   @map("decline_reason")
   acceptedAt                DateTime? @map("accepted_at")
@@ -322,6 +325,7 @@ model OpsEvent {
   actualEndedBy              String?   @map("actual_ended_by")
   status                     String    @default("planning")
   clientPortalStatus         String    @default("locked") @map("client_portal_status")
+  privacy                    String    @default("private")
   clientEventDayViewEnabled  Boolean   @default(false) @map("client_event_day_view_enabled")
   readiness                  String    @default("Conforme pending")
   archived                   Boolean   @default(false)
@@ -643,6 +647,7 @@ model OpsBriefing {
   program             Json      @default("[]")
   moodAndStyling      String    @default("") @map("mood_and_styling")
   stylingBudget       Int?      @map("styling_budget")
+  stylingBudgetConfirmedAt DateTime? @map("styling_budget_confirmed_at")
   submittedAt         DateTime  @default(now()) @map("submitted_at")
 
   event OpsEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -1291,6 +1296,7 @@ model OpsFloorPlanClientAnnotation {
   comment      String
   actorId      String   @map("actor_id")
   actorEmail   String?  @map("actor_email")
+  nonBinding   Boolean  @default(false) @map("non_binding")
   createdAt    DateTime @default(now()) @map("created_at")
 
   draft OpsFloorPlanDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
@@ -1744,6 +1750,8 @@ model OpsEventEodReport {
   issues           Json     @default("[]")
   risksForTomorrow Json     @default("[]") @map("risks_for_tomorrow")
   submittedAt      DateTime @map("submitted_at")
+  incompleteTasksFlaggedAt DateTime? @map("incomplete_tasks_flagged_at")
+  incompleteTasksFlaggedBy String?   @map("incomplete_tasks_flagged_by")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -2578,6 +2586,8 @@ model OpsGuestRosterEntry {
   importBatchId            String?   @map("import_batch_id")
   checkedInAt              DateTime? @map("checked_in_at")
   withdrawnAt              DateTime? @map("withdrawn_at")
+  verificationFlaggedAt    DateTime? @map("verification_flagged_at")
+  verificationFlaggedBy    String?   @map("verification_flagged_by")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at")
 
@@ -2669,6 +2679,7 @@ model OpsRegistrationPlatform {
   expectedPaxMax    Int       @default(0) @map("expected_pax_max")
   status            String    @default("not_started") @map("status")
   setupConfirmedAt  DateTime? @map("setup_confirmed_at") @db.Timestamptz(6)
+  setupRequestedAt  DateTime? @map("setup_requested_at") @db.Timestamptz(6)
   setupNotes        String    @default("") @map("setup_notes")
   headcountSource   String    @default("") @map("headcount_source")
   importedHeadcount Int       @default(0) @map("imported_headcount")

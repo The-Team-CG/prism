@@ -18,6 +18,7 @@ const { repository } = vi.hoisted(() => ({
     createHandoff: vi.fn(),
     submitEodReport: vi.fn(),
     replyEodReport: vi.fn(),
+    setEodIncompleteTasks: vi.fn(),
   },
 }));
 
@@ -69,6 +70,8 @@ const report: PrismEventEodReport = {
   issues: ["Queue at north entrance"],
   risksForTomorrow: [],
   submittedAt: "2026-10-02T18:00:00.000Z",
+  incompleteTasksFlaggedAt: null,
+  incompleteTasksFlaggedBy: null,
   replies: [],
 };
 
@@ -144,6 +147,24 @@ describe("LiveOpsScheduleDesk", () => {
     const [, , input] = repository.createSegment.mock.calls[0] as unknown as [string, string, { plannedStartAt: string; plannedEndAt: string }];
     expect(new Date(input.plannedEndAt).getTime()).toBeGreaterThan(new Date(input.plannedStartAt).getTime());
   }, PICKER_TEST_TIMEOUT_MS);
+
+  it("lets PMCM flag an end-of-day report for incomplete tasks and shows the flag to the submitting coordinator", async () => {
+    const flagged = { ...report, incompleteTasksFlaggedAt: "2026-10-02T19:00:00.000Z", incompleteTasksFlaggedBy: "Maxine" };
+    repository.listEodReports.mockResolvedValueOnce([report]).mockResolvedValue([flagged]);
+    repository.setEodIncompleteTasks.mockResolvedValue(flagged);
+    const { unmount } = render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule canReplyToReports canSubmitReports={false} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Flag incomplete tasks" }));
+    await waitFor(() => expect(repository.setEodIncompleteTasks).toHaveBeenCalledWith("evt_1", "report_1", { flagged: true }));
+    expect(await screen.findByText(/Incomplete tasks flagged by PMCM \(Maxine\)/)).toBeTruthy();
+    unmount();
+
+    repository.listEodReports.mockResolvedValue([{ ...report, incompleteTasksFlaggedAt: "2026-10-02T19:00:00.000Z", incompleteTasksFlaggedBy: "Maxine" }]);
+    render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule={false} canReplyToReports={false} canSubmitReports />);
+    expect(await screen.findByText(/Incomplete tasks flagged by PMCM \(Maxine\)/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Flag incomplete tasks" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Clear incomplete-task flag" })).toBeNull();
+  });
 
   it("lets PMCM update a schedule segment and reply to an end-of-day report", async () => {
     repository.listEodReports.mockResolvedValue([report]);

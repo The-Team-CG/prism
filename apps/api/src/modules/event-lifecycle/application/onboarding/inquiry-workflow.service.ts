@@ -17,13 +17,13 @@ export type CreateInquiryInput = {
   eventName: string;
   eventType?: string;
   eventDate: string;
-  clientType: string;
+  clientType?: string;
   source?: string;
   channel?: string;
   referralDetails?: string;
-  message: string;
+  message?: string;
   privacyConsentAccepted?: boolean;
-  privacyNoticeVersion: string;
+  privacyNoticeVersion?: string;
   marketingConsentAccepted?: boolean;
 };
 

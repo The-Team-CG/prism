@@ -118,6 +118,7 @@ export function mapSupplierQuoteForSupplier(quote: OpsSupplierQuote) {
 
 export function mapQuoteRequestTokenDetail({ request, event, quote }: QuoteRequestTokenDetail) {
   const hidden = isSupplierBidIdentityHidden(request);
+  const briefing = event.briefings[0];
   return {
     request: mapSupplierQuoteRequestForSupplier(request),
     quote: quote ? mapSupplierQuoteForSupplier(quote) : null,
@@ -125,5 +126,10 @@ export function mapQuoteRequestTokenDetail({ request, event, quote }: QuoteReque
     eventName: hidden ? CONFIDENTIAL_EVENT_NAME : event.eventName,
     clientName: hidden ? null : event.clientName,
     eventDate: isoDate(event.eventDate),
+    eventType: event.inquiry.eventType,
+    guestCount: briefing?.guestCount ?? null,
+    serviceRequirements: Array.isArray(briefing?.serviceRequirements)
+      ? briefing.serviceRequirements.filter((value): value is string => typeof value === 'string')
+      : [],
   };
 }

@@ -113,6 +113,14 @@ export function createLiveOpsClient(
           ),
           withBase(options, { method: "POST", body: input }),
         ),
+      setEodIncompleteTasks: (eventId, reportId, input, actor = {}) =>
+        prismRequest<PrismEventEodReport>(
+          actorPath(
+            `/events/${eventId}/eod-reports/${reportId}/incomplete-tasks`,
+            actor,
+          ),
+          withBase(options, { method: "PUT", body: input }),
+        ),
       createTask: (eventId, input, actor = {}) =>
         prismRequest<PrismEventDayTask>(
           actorPath(`/events/${eventId}/event-day/tasks`, actor),

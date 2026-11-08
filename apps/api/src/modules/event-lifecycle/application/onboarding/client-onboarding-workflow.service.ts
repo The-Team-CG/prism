@@ -5,6 +5,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
+import { OcularVisitService } from '../ocular-visit/ocular-visit.service';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -19,6 +20,7 @@ export class ClientOnboardingWorkflowService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     _workflowCommandService: WorkflowCommandService,
+    private readonly ocularVisitService: OcularVisitService,
     private readonly eventAccessPolicyService?: EventAccessPolicyService,
   ) {}
 
@@ -38,9 +40,11 @@ export class ClientOnboardingWorkflowService {
         confirmedStartTime: input.confirmedStartTime ?? null,
         confirmedEndTime: input.confirmedEndTime ?? null,
         program: toPrismaJson(input.program ?? []), moodAndStyling: input.moodAndStyling ?? '', stylingBudget: input.stylingBudget ?? null,
+        stylingBudgetConfirmedAt: actor?.role === OpsUserRole.Client && input.stylingBudget != null ? new Date() : null,
       } });
       await tx.opsEvent.update({ where: { id: eventId }, data: { readiness: 'Supplier quotes pending', status: 'planning' } });
       const context = { prisma: tx, correlationId: saved.id };
+      if (actor?.role === OpsUserRole.Client && input.venue.trim()) await this.ocularVisitService.openVenueTaskFromBriefing(tx, eventId, actor, saved.id);
       await writeAudit(this.auditWriter, eventId, actor?.name ?? 'System', 'Submitted client briefing', {
         actorRole: actor?.role ?? OpsUserRole.System, actorEmail: actor?.email,
         category: AuditCategory.Events, affectedType: 'briefing', affectedId: saved.id,

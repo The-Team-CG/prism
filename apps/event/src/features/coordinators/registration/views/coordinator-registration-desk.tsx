@@ -3,7 +3,7 @@ import { formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 
 import type { FormEvent } from "react";
 import type { PrismCoordinatorRegistrationEntry } from "@prism/types";
-import { canCheckInRegistrationEntry } from "../model/registration-rules";
+import { canCheckInRegistrationEntry, canFlagRegistrationEntry, canRejectRegistrationEntry, canVerifyRegistrationEntry } from "../model/registration-rules";
 import { useCoordinatorRegistrationDeskViewModel } from "../view-models/use-coordinator-registration-desk-view-model";
 
 const buttonClass = "min-h-10 rounded-md border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground hover:bg-secondary/50 disabled:cursor-not-allowed disabled:opacity-50";
@@ -13,6 +13,11 @@ function checkedInLabel(entry: PrismCoordinatorRegistrationEntry): string {
   if (!entry.checkedInAt) return "Not checked in";
   const time = formatPortalTime(entry.checkedInAt, "");
   return time ? `Checked in at ${time}` : "Checked in";
+}
+
+function verificationLabel(entry: PrismCoordinatorRegistrationEntry): string {
+  if (!entry.verificationFlaggedAt) return entry.verificationStatus;
+  return `Flagged for verification by ${entry.verificationFlaggedBy ?? "registration staff"}`;
 }
 
 function submittedLabel(entry: PrismCoordinatorRegistrationEntry): string {
@@ -115,7 +120,7 @@ function RegistrationEntryRow({ entry, vm }: { entry: PrismCoordinatorRegistrati
   const rowBusy = vm.busyEntryId === entry.id;
   const disabled = vm.busyEntryId !== null;
   return <tr>
-    <th scope="row" className="px-3 py-3 font-semibold text-foreground">{entry.guestName}</th><td className="px-3 py-3 text-muted-foreground">{entry.category || "—"}</td><td className="px-3 py-3 text-muted-foreground">{entry.table || "—"}</td><td className="px-3 py-3 text-muted-foreground">{entry.eligibility}</td><td className="px-3 py-3 text-muted-foreground">{entry.verificationStatus}</td>
+    <th scope="row" className="px-3 py-3 font-semibold text-foreground">{entry.guestName}</th><td className="px-3 py-3 text-muted-foreground">{entry.category || "—"}</td><td className="px-3 py-3 text-muted-foreground">{entry.table || "—"}</td><td className="px-3 py-3 text-muted-foreground">{entry.eligibility}</td><td className="px-3 py-3 text-muted-foreground">{verificationLabel(entry)}</td>
     <RegistrationSubmittedCell entry={entry} visible={vm.pendingQueue} />
     <td className="px-3 py-3 text-muted-foreground">{checkedInLabel(entry)}</td><td className="px-3 py-3"><RegistrationActions entry={entry} vm={vm} disabled={disabled} rowBusy={rowBusy} /></td>
   </tr>;
@@ -126,10 +131,15 @@ function RegistrationSubmittedCell({ entry, visible }: { entry: PrismCoordinator
   return <td className="px-3 py-3 text-muted-foreground">{entry.reviewSubmittedAt ? <time dateTime={entry.reviewSubmittedAt}>{submittedLabel(entry)}</time> : "—"}</td>;
 }
 
+function busyLabel(rowBusy: boolean, label: string) {
+  return rowBusy ? "Saving…" : label;
+}
+
 function RegistrationActions({ entry, vm, disabled, rowBusy }: { entry: PrismCoordinatorRegistrationEntry; vm: RegistrationDeskViewModel; disabled: boolean; rowBusy: boolean }) {
   return <div className="flex flex-wrap gap-2">
-    {!entry.checkedInAt && entry.verificationStatus !== "verified" ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.updateVerification(entry, "verified")} aria-label={`Mark ${entry.guestName} verified`}>{rowBusy ? "Saving…" : "Verify"}</button> : null}
-    {!entry.checkedInAt && entry.verificationStatus !== "rejected" ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.updateVerification(entry, "rejected")} aria-label={`Reject ${entry.guestName}`}>Reject</button> : null}
-    {canCheckInRegistrationEntry(entry) ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.checkIn(entry)} aria-label={`Check in ${entry.guestName}`}>{rowBusy ? "Saving…" : "Check in"}</button> : null}
+    {canVerifyRegistrationEntry(entry) ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.updateVerification(entry, "verified")} aria-label={`Mark ${entry.guestName} verified`}>{busyLabel(rowBusy, "Verify")}</button> : null}
+    {canRejectRegistrationEntry(entry) ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.updateVerification(entry, "rejected")} aria-label={`Reject ${entry.guestName}`}>Reject</button> : null}
+    {canFlagRegistrationEntry(entry) ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.flagForVerification(entry)} aria-label={`Flag ${entry.guestName} for verification`}>{busyLabel(rowBusy, "Flag for verification")}</button> : null}
+    {canCheckInRegistrationEntry(entry) ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.checkIn(entry)} aria-label={`Check in ${entry.guestName}`}>{busyLabel(rowBusy, "Check in")}</button> : null}
   </div>;
 }

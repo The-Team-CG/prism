@@ -24,7 +24,7 @@ export function ClientFloorplanReviewPanel({ eventId, draftId, onDecided }: { ev
 function AnnotationList({ annotations, room }: { annotations: ReviewAnnotation[]; room: ReviewRoom }) {
   if (annotations.length === 0) return null;
   const objectLabel = (objectId: string) => room.objects.find((object) => object.id === objectId)?.name || `Object ${objectId}`;
-  return <div className="space-y-2"><h3 className="text-sm font-semibold">Annotations for this version</h3>{annotations.map((item, index) => <p key={item.id} className="rounded-md border border-border p-3 text-sm">{item.anchorX !== undefined ? `${index + 1}. ` : ""}{item.objectId ? `${objectLabel(item.objectId)}: ` : ""}{item.comment}</p>)}</div>;
+  return <div className="space-y-2"><h3 className="text-sm font-semibold">Annotations for this version</h3>{annotations.map((item, index) => <p key={item.id} className="rounded-md border border-border p-3 text-sm">{item.anchorX !== undefined ? `${index + 1}. ` : ""}{item.nonBinding ? "Non-binding note · " : ""}{item.objectId ? `${objectLabel(item.objectId)}: ` : ""}{item.comment}</p>)}</div>;
 }
 
 function pinStatus(vm: ReviewViewModel) {

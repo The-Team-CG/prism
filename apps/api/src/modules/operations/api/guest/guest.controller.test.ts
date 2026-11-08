@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { OpsGuestController } from './guest.controller';
@@ -128,5 +129,26 @@ describe('OpsGuestController', () => {
       'evt_1',
     );
     expect(guestWorkflowService.registerWalkIn).toHaveBeenCalledWith('evt_1', input, actor);
+  });
+
+  it('lets only registration desk roles flag a walk-in, rejecting guests and suppliers before the workflow runs', async () => {
+    const guestWorkflowService = {
+      flagWalkInForVerification: vi.fn(async () => ({ id: 'gre_1', verificationStatus: 'pending' })),
+    };
+    const eventAccessPolicyService = {
+      resolveActor: vi.fn((_input: unknown, verified: { actorRole: string; actorName: string }) => ({ role: verified.actorRole, name: verified.actorName })),
+      requireActorRole: vi.fn(async (actor: { role: string }, allowedRoles: string[]) => {
+        if (!allowedRoles.includes(actor.role)) throw new ForbiddenException('role cannot flag walk-ins');
+      }),
+    };
+    const controller = new OpsGuestController(guestWorkflowService as any, eventAccessPolicyService as any);
+    const verified = (actorRole: string) => ({ actorRole, actorName: 'Registration Staff' } as any);
+
+    await expect(controller.flagWalkInForVerification('evt_1', 'gre_1', verified(OpsUserRole.Guest))).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(controller.flagWalkInForVerification('evt_1', 'gre_1', verified(OpsUserRole.Supplier))).rejects.toBeInstanceOf(ForbiddenException);
+    expect(guestWorkflowService.flagWalkInForVerification).not.toHaveBeenCalled();
+
+    await expect(controller.flagWalkInForVerification('evt_1', 'gre_1', verified(OpsUserRole.Coordinator))).resolves.toEqual({ id: 'gre_1', verificationStatus: 'pending' });
+    expect(guestWorkflowService.flagWalkInForVerification).toHaveBeenCalledWith('evt_1', 'gre_1', { role: OpsUserRole.Coordinator, name: 'Registration Staff' });
   });
 });

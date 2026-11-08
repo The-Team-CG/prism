@@ -61,6 +61,12 @@ export const createEventEodReplySchema = z.object({
 });
 export type CreateEventEodReplyInput = z.infer<typeof createEventEodReplySchema>;
 
+/** PMCM-only: flag or clear incomplete tasks named in an end-of-day report. */
+export const setEventEodIncompleteTasksSchema = z.object({
+  flagged: z.boolean(),
+});
+export type SetEventEodIncompleteTasksInput = z.infer<typeof setEventEodIncompleteTasksSchema>;
+
 export const createEventDayTaskSchema = z.object({
   title: nonEmptyStringSchema,
   assignedRole: coordinatorRoleSchema.optional(),

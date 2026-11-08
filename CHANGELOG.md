@@ -7,7 +7,22 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 - Billing corrections and disputes record a severity: typo correction (no amount may change, and no second approver is needed) or amount discrepancy (unchanged approval rules). PMCM sets it and clients see it on their dispute status; existing records are amount discrepancies.
+- PMCM can download the conforme document as a printable PDF, with its document hash, for physical signing; clients and suppliers cannot.
+- The public inquiry has an optional room set-up section (seating arrangement, stage position, notes), shown read-only in the PMCM inquiry drawer.
+- PMCM can log an inquiry on behalf of a client with only the name, email, event name and date; anything else missing shows as Pending Full Details until it is filled in.
+- Styling options can be issued to the client only after the primary client confirms a styling budget in the briefing; PMCM sees the reason when it is missing.
+- PMCM can mark an event private or public (existing events are private); table assignment and the printable seating list are available only for private events under 200 guests.
+- A client's venue submission in the briefing opens one venue ocular task for PMCM to schedule, and later resubmissions leave it unchanged.
+- Notes from client contacts other than the primary contact are saved on the floor plan as non-binding notes; they cannot approve or request changes.
 - PMCM has five days after the recorded actual end of an event to endorse post-event deliverables; the countdown and overdue warning follow that five-day deadline instead of 24 hours.
+- PMCM can flag an end-of-day report as having incomplete tasks; the flag shows on the report in the PMCM inbox and to the coordinator who submitted it.
+- Registration staff can flag an unauthorized walk-in for verification; the walk-in stays blocked from check-in until PMCM verifies it, and the flagged count shows on the run sheet.
+- PMCM tracks the registration platform setup confirmation (requested, then confirmed), shown with the platform record and on the run sheet guest-operations block.
+- Suppliers quoting an event see its type, guest count and service requirements; confidential bids still hide the client.
+- Suppliers can attach an optional photo to each event-day status update, verified as an upload for their booking.
+- Suppliers receive a readiness-confirmation request seven days before the event day, once per selected booking.
+- PMCM supplier readiness flags overlapping ingress windows as a schedule conflict and lists production suppliers first.
+- Late ingress is recorded as a private reliability note on the supplier profile, once per booking.
 - Clients and suppliers can submit their own privacy requests and track their status; PMCM still verifies and carries them out.
 - Supplier file requirement reminders go only to the suppliers who are overdue or need to replace a rejected file.
 - File access follows one policy for lists and downloads: coordinators need a current assignment, suppliers see only their own files on selected bookings, and failed uploads are no longer shown outside PMCM.

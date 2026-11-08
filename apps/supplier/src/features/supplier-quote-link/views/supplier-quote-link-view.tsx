@@ -1,6 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
+import type { PrismSupplierQuoteRequestTokenDetail } from "@prism/types";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { Alert } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
@@ -26,6 +27,7 @@ export function SupplierQuoteLinkView({ token }: { token: string }) {
           <p className="text-xs font-semibold text-muted-foreground">P.R.I.S.M supplier quote</p>
           <h1 className="mt-2 break-words text-xl font-semibold text-foreground">{vm.detail?.eventName ?? "Quote request"}</h1>
           {vm.detail ? <p className="mt-1 text-sm text-muted-foreground">{vm.detail.request.category}{vm.detail.eventDate ? ` · ${formatPortalDate(vm.detail.eventDate)}` : ""}</p> : null}
+          {vm.detail ? <QuoteRequestContext detail={vm.detail} /> : null}
         </CardHeader>
         <CardBody>
           {vm.error ? <Alert variant="destructive" className="mb-4">{vm.error}</Alert> : null}
@@ -41,6 +43,19 @@ export function SupplierQuoteLinkView({ token }: { token: string }) {
 }
 
 type QuoteLinkVm = ReturnType<typeof useSupplierQuoteLinkViewModel>;
+
+function QuoteRequestContext({ detail }: { detail: PrismSupplierQuoteRequestTokenDetail }) {
+  return (
+    <dl className="mt-3 grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
+      <dt className="text-muted-foreground">Event type</dt>
+      <dd className="text-foreground">{detail.eventType}</dd>
+      <dt className="text-muted-foreground">Guests</dt>
+      <dd className="text-foreground tabular-nums">{detail.guestCount ?? "To be confirmed"}</dd>
+      <dt className="text-muted-foreground">Service requirements</dt>
+      <dd className="text-foreground">{detail.serviceRequirements.length > 0 ? detail.serviceRequirements.join(", ") : "None listed"}</dd>
+    </dl>
+  );
+}
 
 function QuoteLinkForm({ vm, onSubmit }: { vm: QuoteLinkVm; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
   const detail = vm.detail;

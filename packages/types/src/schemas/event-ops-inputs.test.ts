@@ -4,6 +4,7 @@ import { PRISM_PRIVACY_NOTICE_VERSION } from "../privacy.js";
 import { createFileRequirementSchema, updateFileRequirementSchema } from "./file-requirement-inputs.js";
 import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import { blockEventDayTaskSchema } from "./live-ops-inputs.js";
+import { inquiryPendingFullDetails, logInquiryOnBehalfSchema } from "./event-lifecycle-inputs.js";
 import {
   createPrismInquirySchema,
   createGuestFeedbackSchema,
@@ -829,5 +830,15 @@ describe("file requirement contracts", () => {
   it("requires at least one changed field on update and allows clearing the due date", () => {
     expect(updateFileRequirementSchema.safeParse({ expectedRevision: 2 }).success).toBe(false);
     expect(updateFileRequirementSchema.parse({ dueAt: null, expectedRevision: 2 })).toEqual({ dueAt: null, expectedRevision: 2 });
+  });
+
+  it("lets PMCM log an inquiry on behalf with basic detail only, and flags it Pending Full Details until the rest is filled", () => {
+    expect(logInquiryOnBehalfSchema.safeParse({ clientName: "Ada", email: "ada@acme.test", eventName: "Gala", eventDate: "2099-01-15" }).success).toBe(true);
+    expect(logInquiryOnBehalfSchema.safeParse({ clientName: "", email: "ada@acme.test", eventName: "Gala", eventDate: "2099-01-15" }).success).toBe(false);
+
+    const basic = { clientName: "Ada", email: "ada@acme.test", eventName: "Gala", eventDate: "2099-01-15", clientType: "", source: "", message: "" };
+    expect(inquiryPendingFullDetails(basic)).toBe(true);
+    expect(inquiryPendingFullDetails({ ...basic, clientType: "Corporate", source: "BNI Referral", message: "Need a venue" })).toBe(false);
+    expect(inquiryPendingFullDetails({ ...basic, clientType: "Corporate", source: "BNI Referral", message: "   " })).toBe(true);
   });
 });

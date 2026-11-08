@@ -23,6 +23,7 @@ import type {
   PrismEventScheduleDay,
   PrismEventScheduleSegment,
   PrismLiveOpsTimer,
+  SetEventEodIncompleteTasksInput,
   UpdateEventScheduleSegmentStatusInput,
 } from '@prism/types';
 
@@ -99,6 +100,8 @@ function mapEodReport(report: OpsEventEodReport & { replies?: Array<{ id: string
     issues: strings(report.issues),
     risksForTomorrow: strings(report.risksForTomorrow),
     submittedAt: report.submittedAt.toISOString(),
+    incompleteTasksFlaggedAt: report.incompleteTasksFlaggedAt?.toISOString() ?? null,
+    incompleteTasksFlaggedBy: report.incompleteTasksFlaggedBy,
     replies: (report.replies ?? []).map((reply) => ({
       id: reply.id,
       reportId: reply.reportId,
@@ -346,6 +349,29 @@ export class EventScheduleService {
       const reply = await tx.opsEventEodReply.create({ data: { id: `eodr_${randomUUID()}`, reportId, authorId: actor.id ?? actor.name, authorRole: actor.role, body: input.body.trim() } });
       await writeAudit(this.auditWriter, eventId, actor.name, 'Replied to EOD report', { actorRole: actor.role, actorEmail: actor.email, actionType: 'create', category: 'live_ops', affectedType: 'event_eod_reply', affectedId: reply.id, metadata: { reportId } }, { prisma: tx, actorId: actor.id, correlationId: `eod-reply:${reply.id}` });
       return { id: reply.id, reportId, authorId: reply.authorId, authorRole: reply.authorRole, body: reply.body, createdAt: reply.createdAt.toISOString() };
+    });
+  }
+
+  async setEodIncompleteTasks(eventId: string, reportId: string, input: SetEventEodIncompleteTasksInput, actor: ResolvedEventOpsActor): Promise<PrismEventEodReport> {
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'EOD report incomplete-task flag', eventId);
+    const now = this.clock.now();
+    return this.prisma.$transaction(async (tx) => {
+      await this.requireCoordinatorWritableEvent(eventId, actor, tx);
+      const report = await tx.opsEventEodReport.findFirst({ where: { id: reportId, eventId } });
+      if (!report) throw new NotFoundException('EOD report not found');
+      if (Boolean(report.incompleteTasksFlaggedAt) === input.flagged) {
+        return mapEodReport(await tx.opsEventEodReport.findUniqueOrThrow({ where: { id: reportId }, include: { replies: { orderBy: { createdAt: 'asc' } } } }), actor);
+      }
+      const updated = await tx.opsEventEodReport.update({
+        where: { id: reportId },
+        data: {
+          incompleteTasksFlaggedAt: input.flagged ? now : null,
+          incompleteTasksFlaggedBy: input.flagged ? actor.name : null,
+        },
+        include: { replies: { orderBy: { createdAt: 'asc' } } },
+      });
+      await writeAudit(this.auditWriter, eventId, actor.name, input.flagged ? 'Flagged EOD report as having incomplete tasks' : 'Cleared incomplete-task flag on EOD report', { actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'live_ops', affectedType: 'event_eod_report', affectedId: reportId }, { prisma: tx, actorId: actor.id, correlationId: `eod-incomplete:${reportId}:${now.toISOString()}` });
+      return mapEodReport(updated, actor);
     });
   }
 
