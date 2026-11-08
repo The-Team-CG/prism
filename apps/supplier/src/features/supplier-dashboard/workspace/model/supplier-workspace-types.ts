@@ -21,6 +21,7 @@ export const SUPPLIER_DASHBOARD_SECTIONS = [
   "files",
   "payments",
   "profile",
+  "privacy",
   "support",
 ] as const;
 

@@ -9,6 +9,7 @@ import {
   MessageSquare,
   PackageCheck,
   User,
+  ShieldCheck,
   Wallet,
   Warehouse,
   type LucideIcon,
@@ -38,9 +39,12 @@ export function supplierActiveNavId(section: SupplierDashboardSection): Supplier
   return section === "quotations" ? "requests" : section;
 }
 
-/** Help lives in the account menu, out of the way of daily work. */
+/** Help and privacy requests live in the account menu, out of the way of daily work. */
 export function supplierAccountMenuItems(onNavigate: (section: SupplierDashboardSection) => void) {
-  return [{ id: "support", label: "Help & support", icon: HelpCircle, onSelect: () => onNavigate("support") }];
+  return [
+    { id: "privacy", label: "Privacy requests", icon: ShieldCheck, onSelect: () => onNavigate("privacy") },
+    { id: "support", label: "Help & support", icon: HelpCircle, onSelect: () => onNavigate("support") },
+  ];
 }
 
 export function supplierCommandActions(input: {

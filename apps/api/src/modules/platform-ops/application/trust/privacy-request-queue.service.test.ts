@@ -13,7 +13,7 @@ function record(overrides: Record<string, unknown> = {}) {
     id: 'priv_1', eventId: 'evt_sample', subjectType: 'guest', subjectEmail: '', subjectName: 'Ana Reyes',
     requestType: 'deletion', status: 'submitted', requestNotes: '', reviewReason: '', executionNotes: '',
     createdBy: 'Maxine', reviewedBy: null, reviewedAt: null, executedBy: null, executedAt: null,
-    dueAt: new Date('2026-10-18T08:00:00.000Z'), assignedTo: null as string | null,
+    dueAt: new Date('2026-10-18T08:00:00.000Z'), assignedTo: null as string | null, source: 'pmcm_logged',
     createdAt: new Date('2026-09-18T08:00:00.000Z'), updatedAt: new Date('2026-09-18T08:00:00.000Z'),
     ...overrides,
   };
