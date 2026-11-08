@@ -120,6 +120,9 @@ export class PrivacyOperationsService {
         this.privacySurface('guest_roster_entry', event.guestRosterEntryCount, ['guest_name', 'email', 'phone'], []),
         this.privacySurface('guest_feedback', event.guestFeedback.length, ['guest_name', 'rating', 'comment', 'media_metadata', 'consent'], event.guestFeedback),
         this.privacySurface('guest_feedback_media_metadata', event.guestFeedbackMedia.length, ['file_name_metadata', 'consent'], event.guestFeedbackMedia),
+        // New-SEC2: finance records hold client contact details and amounts; they are kept for accounting, not consent.
+        this.financeSurface('billing_statement', event.billingStatementCount, ['client_contact', 'billing_amounts']),
+        this.financeSurface('payment_record', event.paymentRecordCount, ['payment_reference', 'billing_amounts']),
       ];
       return {
         eventId: event.id,
@@ -716,6 +719,11 @@ export class PrivacyOperationsService {
       ),
       marketingConsentAcceptedCount: presentRecords.filter((record) => Boolean(record.marketingConsentAccepted)).length,
     };
+  }
+
+  /** Finance records are held under the client contract, so they are never counted as missing consent. */
+  private financeSurface(surface: string, recordCount: number, dataCategories: string[]) {
+    return { ...this.privacySurface(surface, recordCount, ['finance', ...dataCategories], []), missingConsentCount: 0 };
   }
 
   private requirePlatformReferences() {

@@ -177,6 +177,7 @@ export function mapInquirySummary(inquiry: OpsInquiry) {
     portalInvitationSentAt: optionalTimestamp(inquiry.portalInvitationSentAt),
     portalInvitationOpenedAt: optionalTimestamp(inquiry.portalInvitationOpenedAt),
     portalInvitationExpiresAt: optionalTimestamp(inquiry.portalInvitationExpiresAt),
+    preferredLanguage: inquiry.preferredLanguage === 'fil' ? 'fil' : 'en',
     intakePath: inquiry.intakePath === 'bidding' ? 'bidding' : 'standard',
     bidStatus: (inquiry.bidStatus ?? null) as PrismInquiry['bidStatus'],
     bidDueAt: optionalTimestamp(inquiry.bidDueAt),

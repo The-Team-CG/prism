@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { downloadProposalDeck } from "../model/proposal-deck";
 import type { PrismPreviousCostEstimate } from "@prism/types";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
@@ -41,6 +42,7 @@ export function PmcmProposalIssuerPanel({ eventId }: { eventId: string }) {
       </p>
 
       <IssuedProposal proposal={vm.latest} />
+      {vm.latest ? <button type="button" onClick={() => { const latest = vm.latest; if (latest) void downloadProposalDeck(latest); }} className="mt-2 text-xs font-semibold text-primary">Download as PowerPoint</button> : null}
 
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
       {vm.notice ? <p role="status" className="mt-3 text-sm font-medium text-success">{vm.notice}</p> : null}

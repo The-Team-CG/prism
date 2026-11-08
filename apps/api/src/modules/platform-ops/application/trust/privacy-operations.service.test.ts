@@ -194,6 +194,8 @@ describe('PrivacyOperationsService', () => {
         guestFeedback: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: true }],
         guestRosterEntryCount: 3,
         guestFeedbackMedia: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: false }],
+        billingStatementCount: 2,
+        paymentRecordCount: 1,
       }],
       approvalRequests: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v3', marketingConsentAccepted: false }],
     });
@@ -201,10 +203,12 @@ describe('PrivacyOperationsService', () => {
     const result = await service.getInventory({ eventId: 'evt_sample' });
 
     expect(platformReferences.findPrivacyInventory).toHaveBeenCalledWith({ eventId: 'evt_sample' });
-    expect(result.events[0]).toMatchObject({ eventId: 'evt_sample', recordCount: 8 });
+    expect(result.events[0]).toMatchObject({ eventId: 'evt_sample', recordCount: 11 });
     expect(result.events[0]?.surfaces.map(({ surface, consentAcceptedCount }) => [surface, consentAcceptedCount])).toEqual([
       ['inquiry', 1], ['guest_check_in', 1], ['guest_roster_entry', 0], ['guest_feedback', 1], ['guest_feedback_media_metadata', 1],
+      ['billing_statement', 0], ['payment_record', 0],
     ]);
+    expect(result.events[0]?.surfaces.find(({ surface }) => surface === 'payment_record')).toMatchObject({ recordCount: 1, missingConsentCount: 0, dataCategories: expect.arrayContaining(['finance']) });
     expect(result.globalSurfaces[0]).toMatchObject({ recordCount: 1, consentAcceptedCount: 1 });
   });
 

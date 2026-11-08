@@ -140,6 +140,13 @@ export const logInquiryOnBehalfSchema = z.object({
 });
 export type LogInquiryOnBehalfInput = z.infer<typeof logInquiryOnBehalfSchema>;
 
+/** FR-55: the language of a client's automated messages. English is the default. */
+export const CLIENT_LANGUAGES = ["en", "fil"] as const;
+export type ClientLanguage = (typeof CLIENT_LANGUAGES)[number];
+export const CLIENT_LANGUAGE_LABELS: Record<ClientLanguage, string> = { en: "English", fil: "Filipino" };
+export const setClientLanguageSchema = z.object({ language: z.enum(CLIENT_LANGUAGES) }).strict();
+export type SetClientLanguageInput = z.infer<typeof setClientLanguageSchema>;
+
 /* FR-50 Abandoned inquiry draft save and the 24-hour edit window. */
 export const INQUIRY_EDIT_WINDOW_HOURS = 24;
 export const INQUIRY_DRAFT_REMINDER_HOURS = 24;
