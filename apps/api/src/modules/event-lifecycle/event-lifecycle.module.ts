@@ -43,6 +43,8 @@ import { AddendumConformeService } from './application/change/addendum-conforme.
 import { AddendumWithdrawalController } from './api/change/addendum-withdrawal.controller';
 import { AddendumWithdrawalService } from './application/change/addendum-withdrawal.service';
 import { ClientEventDayViewController } from './api/client-visibility/client-event-day-view.controller';
+import { EventPrivacyController } from './api/onboarding/event-privacy.controller';
+import { EventPrivacyService } from './application/onboarding/event-privacy.service';
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
@@ -104,6 +106,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     AddendumConformeController,
     AddendumWithdrawalController,
     ClientEventDayViewController,
+    EventPrivacyController,
     OcularVisitController,
     EventClientFloorplanAccessController,
     ClientCloseoutController,
@@ -141,6 +144,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     AddendumConformeService,
     AddendumWithdrawalService,
     ClientEventDayViewService,
+    EventPrivacyService,
     OcularVisitService,
     ProposalReviewOwnerService,
     { provide: PROPOSAL_REVIEW_OWNER, useExisting: ProposalReviewOwnerService },

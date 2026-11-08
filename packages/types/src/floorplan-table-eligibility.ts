@@ -1,15 +1,25 @@
 import type { TableAssignmentIneligibleReason } from "./schemas/floorplan-inputs.js";
+import type { PrismEventPrivacy } from "./schemas/event-lifecycle-inputs.js";
 export { tableAssignmentIneligibleReasonSchema, type TableAssignmentIneligibleReason } from "./schemas/floorplan-inputs.js";
 
 /** Table assignment and the printable seating list are for events under this many guests (catalog FR-84). */
 export const SEATING_LIST_MAX_GUESTS = 200;
 
 /**
- * Every Prism event is a private PMCM-run client event, so the catalog's private-event condition always holds;
- * only the size limit varies. An unset guest count (0) does not block seating.
+ * Table assignment and the seating list need a private event under SEATING_LIST_MAX_GUESTS (catalog FR-84).
+ * An unset guest count (0) does not block seating. Returns the refusal reason, or null when seating is open.
  */
-export function isSeatingListAvailable(pax: number | undefined | null): boolean {
-  return !pax || pax < SEATING_LIST_MAX_GUESTS;
+export function seatingUnavailableReason(
+  pax: number | undefined | null,
+  eventPrivacy: PrismEventPrivacy | undefined,
+): "event-public" | "event-too-large" | null {
+  // An unknown privacy never opens seating: only an event PMCM marked private can seat guests.
+  if (eventPrivacy !== "private") return "event-public";
+  return pax && pax >= SEATING_LIST_MAX_GUESTS ? "event-too-large" : null;
+}
+
+export function isSeatingListAvailable(pax: number | undefined | null, eventPrivacy: PrismEventPrivacy | undefined): boolean {
+  return seatingUnavailableReason(pax, eventPrivacy) === null;
 }
 
 /**
@@ -44,15 +54,26 @@ export interface TableAssignmentRejection {
   reason: TableAssignmentIneligibleReason;
 }
 
+export interface SeatingEvent {
+  pax?: number | null;
+  eventPrivacy?: PrismEventPrivacy;
+}
+
 export function evaluateTableAssignment(input: {
   objects: readonly TableEligibilityObject[];
   guests: readonly TableEligibilityGuest[];
   guestId: string;
   objectId: string;
-  /** The event's expected guest count; seating is refused at SEATING_LIST_MAX_GUESTS (200) or more. */
-  pax?: number;
+  /**
+   * The event's guest count and privacy. Omitted by the whole-plan check, which leaves the event gate to the
+   * new-assignment guard so seats made before the event became ineligible are not reported as broken.
+   */
+  event?: SeatingEvent;
 }): TableAssignmentEligibility {
-  if (!isSeatingListAvailable(input.pax)) return refuse("event-too-large");
+  if (input.event) {
+    const unavailable = seatingUnavailableReason(input.event.pax, input.event.eventPrivacy);
+    if (unavailable) return refuse(unavailable);
+  }
   const guest = input.guests.find((g) => g.id === input.guestId);
   if (!guest) return refuse("unknown-guest");
   if (guest.rsvp === "declined") return refuse("guest-declined");

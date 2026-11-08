@@ -21,6 +21,7 @@ const assignmentRejectionMessages: AssignmentRejectionMessages = {
   "table-full": "This table has no free seats.",
   "guest-already-seated": "A guest can only be seated at one table.",
   "event-too-large": "Table assignment is only available for events under 200 guests.",
+  "event-public": "Table assignment is only available for private events.",
 };
 
 type EventEditorShellProps = Omit<

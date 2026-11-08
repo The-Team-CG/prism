@@ -6,6 +6,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Venue and styling review items can be issued to the client only after the primary client confirms a styling budget in the briefing; PMCM sees the reason when it is missing.
+- PMCM can mark an event private or public (existing events are private); table assignment and the printable seating list are available only for private events under 200 guests.
+- A client's venue submission in the briefing opens one venue ocular task for PMCM to schedule, and later resubmissions leave it unchanged.
+- Notes from client contacts other than the primary contact are saved on the floor plan as non-binding notes; they cannot approve or request changes.
 - File access follows one policy for lists and downloads: coordinators need a current assignment, suppliers see only their own files on selected bookings, and failed uploads are no longer shown outside PMCM.
 - Addenda change billing and quote amounts only when PMCM countersigns; until then they show as pending, and PMCM can withdraw one with a reason.
 - Coordinators and PMCM can mark an event-day task blocked with a required reason and unblock it; the PMCM inbox shows that reason.

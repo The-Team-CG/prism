@@ -188,6 +188,7 @@ function createService() {
         floorPlanStatus: event.floorPlanStatus,
         readiness: event.readiness,
         primaryClientEmail: event.inquiry?.email ?? null,
+        eventPrivacy: 'private' as const,
         conformeSigned: Boolean(event.inquiry?.conformeSignedAt),
         ocularVisitStatus: state.ocularVisitStatus,
       };
