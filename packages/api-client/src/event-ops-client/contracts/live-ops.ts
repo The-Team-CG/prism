@@ -20,6 +20,7 @@ import type {
   CreateEventHandoffInput,
   CreateEventEodReportInput,
   CreateEventEodReplyInput,
+  SetEventEodIncompleteTasksInput,
   PrismEventSchedule,
   PrismEventScheduleSegment,
   PrismEventRunSheetResult,
@@ -102,6 +103,12 @@ export interface EventOpsLiveOpsContract {
       input: CreateEventEodReplyInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismEventEodReport["replies"][number]>;
+    setEodIncompleteTasks(
+      eventId: string,
+      reportId: string,
+      input: SetEventEodIncompleteTasksInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventEodReport>;
     createTask(
       eventId: string,
       input: CreateEventDayTaskInput,

@@ -3,7 +3,7 @@ import type { PrismEvent, PrismGuestCheckIn, PrismGuestFeedback } from '@prism/t
 export interface GuestReader {
   countCheckInsForEvent(eventId: string): Promise<number>;
   /** Counts of active (not withdrawn) roster entries by verification status. Counts only, never guest rows. */
-  countRosterVerificationForEvent(eventId: string): Promise<{ verified: number; pending: number }>;
+  countRosterVerificationForEvent(eventId: string): Promise<{ verified: number; pending: number; flagged: number }>;
   listCheckInsForEvent(eventId: string): Promise<PrismGuestCheckIn[]>;
   listCheckInsForEvents(eventIds: string[]): Promise<PrismGuestCheckIn[]>;
   listFeedbackForEvent(eventId: string): Promise<PrismGuestFeedback[]>;

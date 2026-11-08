@@ -84,6 +84,10 @@ export interface EventOpsGuestContract {
       eventId: string,
       input: CoordinatorWalkInCheckInInput,
     ): Promise<PrismCoordinatorRegistrationEntry>;
+    flagWalkInForVerification(
+      eventId: string,
+      rosterEntryId: string,
+    ): Promise<PrismCoordinatorRegistrationEntry>;
     guestPrivacyClassification(eventId: string): Promise<PrismGuestPrivacyClassification>;
     updateGuestPrivacyClassification(
       eventId: string,

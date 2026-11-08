@@ -101,6 +101,11 @@ export function createGuestClient(
           `/guest/events/${eventId}/roster/${rosterEntryId}/verification`,
           withBase(options, { method: "PATCH", body: input }),
         ),
+      flagWalkInForVerification: (eventId, rosterEntryId) =>
+        prismRequest<PrismCoordinatorRegistrationEntry>(
+          `/guest/events/${eventId}/roster/${rosterEntryId}/flag-for-verification`,
+          withBase(options, { method: "POST" }),
+        ),
       registerWalkIn: (eventId, input) =>
         prismRequest<PrismCoordinatorRegistrationEntry>(
           `/guest/events/${eventId}/walk-ins`,

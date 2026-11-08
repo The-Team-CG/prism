@@ -9,6 +9,7 @@ const { repository } = vi.hoisted(() => ({
     checkIn: vi.fn(),
     verify: vi.fn(),
     registerWalkIn: vi.fn(),
+    flagForVerification: vi.fn(),
   },
 }));
 
@@ -54,6 +55,24 @@ describe("CoordinatorRegistrationDesk", () => {
     fireEvent.click(screen.getByRole("button", { name: "Check in Mia Santos" }));
     await waitFor(() => expect(repository.checkIn).toHaveBeenCalledWith("evt_1", "gre_1"));
     await waitFor(() => expect(onAttendanceChange).toHaveBeenCalledTimes(2));
+  });
+
+  it("flags an unauthorized walk-in for verification and blocks its check-in until it is verified again", async () => {
+    const walkIn = { ...pendingGuest, id: "gre_walk", guestName: "Walk-In Guest", category: "Walk-in", walkIn: true, verificationStatus: "verified" as const };
+    repository.search
+      .mockResolvedValueOnce([walkIn])
+      .mockResolvedValueOnce([{ ...walkIn, verificationStatus: "pending", verificationFlaggedAt: "2026-10-02T09:00:00.000Z", verificationFlaggedBy: "Registration Staff" }]);
+    repository.flagForVerification.mockResolvedValue({});
+    render(<CoordinatorRegistrationDesk eventId="evt_1" />);
+
+    fireEvent.change(screen.getByLabelText("Search guest roster"), { target: { value: "Walk" } });
+    fireEvent.click(screen.getByRole("button", { name: "Search guests" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Flag Walk-In Guest for verification" }));
+
+    await waitFor(() => expect(repository.flagForVerification).toHaveBeenCalledWith("evt_1", "gre_walk"));
+    expect(await screen.findByText("Flagged for verification by Registration Staff")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Check in Walk-In Guest" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Flag Walk-In Guest for verification" })).toBeNull();
   });
 
   it("shows the parent-refreshed aggregate without starting its own polling loop", async () => {
