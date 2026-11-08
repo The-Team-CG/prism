@@ -25,7 +25,7 @@ export function PostEventDeliverablesPanel({ eventId, documents, archived = fals
   return <section aria-label="Post-event deliverables" className="space-y-3 rounded-lg border border-border bg-card p-5">
     <h2 className="text-lg font-bold">Post-event deliverables</h2>
     <p className="text-sm text-muted-foreground">Confirm completion after reviewing each deliverable. The saved status feeds the closure gates.</p>
-    {countdown ? <p role="timer" className={"text-sm font-semibold " + COUNTDOWN_TONE[countdown.tone]}>{countdown.label} · the wrap-up window closes 24 hours after the event ended.</p> : null}
+    {countdown ? <p role="timer" className={"text-sm font-semibold " + COUNTDOWN_TONE[countdown.tone]}>{countdown.label} · the wrap-up window closes 5 days after the event ended.</p> : null}
     {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
     {vm.documents.length ? vm.documents.map((document) => {
       const done = document.status === "submitted" || vm.completed.includes(document.id);

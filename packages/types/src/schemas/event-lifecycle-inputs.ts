@@ -208,8 +208,8 @@ export type ArchiveSearchFilters = z.infer<typeof archiveSearchFiltersSchema>;
 export const wrapUpModeSchema = z.enum(["full", "quick"]);
 export type WrapUpMode = z.infer<typeof wrapUpModeSchema>;
 
-/** The post-event wrap-up window: it closes this many hours after the recorded actual end of the event. */
-export const WRAP_UP_WINDOW_HOURS = 24;
+/** The post-event wrap-up window: PMCM has five days to endorse deliverables after the recorded actual end of the event. */
+export const WRAP_UP_WINDOW_HOURS = 5 * 24;
 
 export const wrapUpSectionSchema = z.object({
   status: z.enum(["pending", "complete", "blocked"]).default("pending"),
