@@ -6,6 +6,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- AI proposal drafts follow the five catalog sections (executive summary, event concept, service package, investment summary, payment schedule), with payment amounts computed on the server.
+- A coordinator withdrawal inside the 48-hour window names up to three free same-role replacements in the PMCM alert and the audit trail.
+- Approving a PARE recommendation sends the replacement supplier a normal quote request and the PMCM-reviewed notice, with the client kept anonymous.
+- PMCM sees client follow-ups when a proposal waits 3 days, a balance is due within 48 hours, or a floor plan waits 2 days for approval, and can draft each with AI, edit it and send it.
+- The AI runbook records the confirmed zero-data-retention agreement and the production settings that turn on the ZDR route.
 - PMCM sets an event private or public from Settings; only private events under 200 guests can use table assignment and the seating list.
 - Flagging a walk-in for verification alerts PMCM at once, not only on the run sheet.
 - The coordinator desk list narrows to coordinators tagged with every selected skill.

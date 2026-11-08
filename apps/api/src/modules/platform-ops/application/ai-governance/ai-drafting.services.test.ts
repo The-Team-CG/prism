@@ -180,6 +180,19 @@ describe('proposal drafting', () => {
     expect(over.budgetAlignment).toBe('over_budget');
   });
 
+  it('computes payment schedule amounts on the server so they always sum to the estimate total', () => {
+    expect(buildProposalDraftInput(EVENT_SOURCE, ESTIMATE_REQUEST, NOW).paymentSchedule).toEqual([
+      { label: 'Downpayment', percentage: 50, amount: 225_000 },
+      { label: 'Balance before the event', percentage: 50, amount: 225_000 },
+    ]);
+    const thirds = buildProposalDraftInput(EVENT_SOURCE, {
+      ...ESTIMATE_REQUEST,
+      lines: [{ category: 'Venue', description: 'Hall', quantity: 1, unitAmount: 100_001 }],
+      paymentSchedule: [{ label: 'Downpayment', percentage: 50 }, { label: 'Second', percentage: 25 }, { label: 'Balance', percentage: 25 }],
+    }, NOW).paymentSchedule;
+    expect(thirds.map((item) => item.amount)).toEqual([50_000, 25_000, 25_001]);
+  });
+
   function setup(gatewayResult: unknown, source: typeof EVENT_SOURCE | null = EVENT_SOURCE) {
     const gateway = { run: vi.fn(async () => gatewayResult), stream: vi.fn() };
     const references = { findProposalDraftEventSource: vi.fn(async () => source) };
@@ -188,7 +201,19 @@ describe('proposal drafting', () => {
     return { service, gateway, access };
   }
 
-  const DRAFT = { title: 'Garden gala package', summary: 'A warm summary.', revisionNote: '', highlights: ['Garden venue'] };
+  const DRAFT = {
+    title: 'Garden gala package',
+    summary: 'A warm summary.',
+    revisionNote: '',
+    highlights: ['Garden venue'],
+    sections: {
+      executiveSummary: 'A garden gala for 200 guests.',
+      eventConcept: 'An evening in the garden.',
+      servicePackageSummary: 'Venue and catering.',
+      investmentSummary: 'PHP 450,000, within budget.',
+      paymentSchedule: 'Downpayment 50% (PHP 225,000); balance 50% (PHP 225,000).',
+    },
+  };
 
   it('returns the draft to the caller and persists nothing', async () => {
     const { service, gateway } = setup({ outcome: 'completed', output: DRAFT, evidence: evidence('proposal.draft') });

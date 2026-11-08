@@ -3,6 +3,7 @@ import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import {
   proposalDraftInputSchema,
+  proposalDraftRequestSchema,
   proposalDraftResultSchema,
   type PrismVerifiedEventActor,
   type ProposalDraftInput,
@@ -32,6 +33,14 @@ export function buildProposalDraftInput(
     totalAmount: Math.round(line.quantity * line.unitAmount),
   }));
   const totalAmount = lines.reduce((sum, line) => sum + line.totalAmount, 0);
+  const schedule = proposalDraftRequestSchema.shape.paymentSchedule.parse(request.paymentSchedule);
+  // Every milestone but the last rounds down; the last takes the remainder so the amounts sum to the total.
+  let allocated = 0;
+  const paymentSchedule = schedule.map((item, index) => {
+    const amount = index === schedule.length - 1 ? totalAmount - allocated : Math.floor((totalAmount * item.percentage) / 100);
+    allocated += amount;
+    return { label: item.label, percentage: item.percentage, amount };
+  });
   return proposalDraftInputSchema.parse({
     eventId: event.id,
     eventName: event.eventName,
@@ -41,8 +50,9 @@ export function buildProposalDraftInput(
     budgetAmount: request.budgetAmount,
     totalAmount,
     budgetAlignment: totalAmount <= request.budgetAmount ? 'within_budget' : 'over_budget',
-    estimateNotes: request.notes,
+    estimateNotes: request.notes ?? '',
     lines,
+    paymentSchedule,
   });
 }
 

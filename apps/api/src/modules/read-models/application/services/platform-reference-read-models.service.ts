@@ -4,6 +4,7 @@ import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader 
 import type {
   AiInquiryTriageSource,
   AiProposalEventSource,
+  ClientMessageTriggerFacts,
   PareEventSource,
   PareSupplierCandidateSource,
   PlatformPrivacyConsentFact,
@@ -112,6 +113,38 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
       eventDate: event.eventDate,
       archived: event.archived,
       clientPortalStatus: event.clientPortalStatus,
+    };
+  }
+
+  async findClientMessageTriggerFacts(eventId: string): Promise<ClientMessageTriggerFacts | null> {
+    const event = await this.prisma.opsEvent.findUnique({
+      where: { id: eventId },
+      select: {
+        id: true, eventName: true, eventDate: true, archived: true, clientPortalStatus: true,
+        proposalClientStatus: true, floorPlanStatus: true, floorPlanSubmittedAt: true,
+        inquiry: { select: { eventType: true, email: true } },
+      },
+    });
+    if (!event) return null;
+    const [proposal, milestone] = await Promise.all([
+      this.prisma.opsProposalVersion.findFirst({ where: { eventId, status: 'issued', issuedAt: { not: null } }, orderBy: { versionNumber: 'desc' }, select: { versionNumber: true, issuedAt: true } }),
+      this.prisma.opsPaymentMilestone.findFirst({ where: { eventId, supersededAt: null, status: { not: 'paid' }, remainingBalance: { gt: 0 } }, orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], select: { label: true, remainingBalance: true, dueDate: true } }),
+    ]);
+    return {
+      event: {
+        id: event.id,
+        eventName: event.eventName,
+        eventType: event.inquiry?.eventType ?? 'Event',
+        eventDate: event.eventDate,
+        archived: event.archived,
+        clientPortalStatus: event.clientPortalStatus,
+        proposalClientStatus: event.proposalClientStatus,
+        floorPlanStatus: event.floorPlanStatus,
+        floorPlanSubmittedAt: event.floorPlanSubmittedAt,
+        clientEmail: event.inquiry?.email ?? '',
+      },
+      latestIssuedProposal: proposal?.issuedAt ? { versionNumber: proposal.versionNumber, issuedAt: proposal.issuedAt } : null,
+      nextUnpaidMilestone: milestone,
     };
   }
 

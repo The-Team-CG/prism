@@ -41,6 +41,7 @@ import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views
 import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
 import { PmcmProposalComments } from "@/features/commercial/proposal-comments/views/pmcm-proposal-comments";
 import { PmcmRoleBriefEditor } from "@/features/coordinators/role-briefs/views/pmcm-role-brief-editor";
+import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
 
 function selectedOcularVisit(vm: ReturnType<typeof useEventDashboardLoadedRouteViewModel>) {
   if (!vm.selectedEvent) return null;
@@ -203,6 +204,7 @@ export function EventWorkspaceBriefingTab() {
     },
     ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
     { id: "reviews", label: "Client reviews", render: () => <PmcmClientReviewPanel eventId={selectedEvent.id} /> },
+    ...(admin ? [{ id: "follow-ups", label: "Client follow-ups", render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> }] : []),
     { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
     ...(admin ? [{ id: "decisions", label: "Decision log", render: () => <DecisionLogPanel eventId={selectedEvent.id} /> }] : []),
   ];

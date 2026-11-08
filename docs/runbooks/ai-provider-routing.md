@@ -4,7 +4,7 @@ title: "AI provider and model routing"
 description: "Configure Prism's live AI provider, understand which data may reach it, and switch providers or models."
 tags: [runbook, ai, providers, routing, privacy]
 status: canonical
-updated: "2026-11-06"
+updated: "2026-11-09"
 authority: operational
 audience: [developers, reviewers, agents]
 scope: "Live AI provider/model selection, the real-data gate, and the AI use cases that depend on it"
@@ -60,6 +60,13 @@ set ZDR (or use OpenRouter) before real client data is loaded.
 For a fixtures-only lockdown, set `AI_ROUTE_PROFILE=anthropic-synthetic`. It is
 never selected automatically and refuses real data.
 
+**Activation status:** on 2026-11-09 the maintainer confirmed that the Anthropic
+organization has a zero-data-retention agreement and that a provider key is in
+place. Production therefore runs the `anthropic-zdr` profile: set
+`AI_PROVIDER=anthropic`, `AI_ZDR_CONFIRMED=true` and `ANTHROPIC_API_KEY` in the
+deployment secret store and leave `AI_ALLOW_TEST_DATA_IN_PRODUCTION` unset. No
+code change is involved; local and UAT checkouts keep their own settings.
+
 Example (Anthropic with a ZDR agreement):
 
     AI_PROVIDER=anthropic
@@ -83,14 +90,18 @@ case is live once a provider is configured.
 | Use case | Ledger | What it does | Data it sends |
 | --- | --- | --- | --- |
 | `inquiry.triage` | FR-AI-01 | Advises PMCM on fit, risks and questions for an inquiry. Stored as an advisory record. | Inquiry shape and wording. No name, email, phone or company. |
-| `proposal.draft` | FR-AI-03 | Drafts proposal title, summary and highlights from the estimate being built. Returned to the form, stored nowhere. | Event, budget and estimate lines. No client identity. |
+| `proposal.draft` | FR-AI-03 | Drafts the five catalog sections (Executive Summary, Event Concept, Service Package Summary, Investment Summary, Payment Schedule) plus title and highlights from the estimate being built. Payment amounts are computed on the server. Returned to the form, stored nowhere. | Event, budget, estimate lines and payment milestones. No client identity. |
 | `comms.draft` | FR-AI-09 | Drafts a conforme reminder. | A generic fixture only. |
+| `client-message.draft` | FR-AI-09 | Drafts a follow-up when a proposal waits 3 days, a balance is due within 48 hours, or an official floor plan waits 2 days for approval. PMCM edits and sends it; send re-checks that the trigger still applies. | Trigger facts only (event type, days, milestone label and amount). No client identity. |
 | `pare.budget`, `pare.risk`, `pare.message-drafts` | FR-AI-04 | PARE supplier-replacement stages. PMCM approves before anything is sent. | Event, budget, ranked candidates and client preferences with names and ids masked (see PARE below). |
 
 Every use case is PMCM-only and advisory. AI output is never sent, applied or
 approved automatically: triage changes no inquiry status, a proposal draft only
-fills the form until PMCM issues it, and a conforme reminder needs PMCM approval
-before it enters the notification outbox.
+fills the form until PMCM issues it, a conforme reminder needs PMCM approval
+before it enters the notification outbox, and a client follow-up is sent only
+when PMCM presses send. Approving a PARE recommendation sends the replacement
+supplier a normal quote request and PARE's supplier notice, with name
+placeholders filled (the supplier's own name; the client stays "our client").
 
 ## What the gateway enforces
 
