@@ -110,6 +110,9 @@ export type PlatformPrivacyEventInventory = {
   guestFeedback: PlatformPrivacyConsentFact[];
   guestRosterEntryCount: number;
   guestFeedbackMedia: PlatformPrivacyConsentFact[];
+  /** New-SEC2 finance category: client billing copies and recorded payments. */
+  billingStatementCount: number;
+  paymentRecordCount: number;
 };
 
 export type PlatformPrivacyInventory = {

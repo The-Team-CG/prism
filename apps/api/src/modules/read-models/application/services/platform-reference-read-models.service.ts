@@ -182,6 +182,11 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
     const eventIds = events.map(({ id }) => id);
     const inquiryIds = Array.from(new Set(events.map(({ inquiryId }) => inquiryId)));
 
+    const [billingStatements, paymentRecords] = await Promise.all([
+      this.prisma.opsBillingStatement.groupBy({ by: ['eventId'], where: { eventId: { in: eventIds } }, _count: { _all: true } }),
+      this.prisma.opsPaymentRecord.groupBy({ by: ['eventId'], where: { eventId: { in: eventIds } }, _count: { _all: true } }),
+    ]);
+    const countFor = (rows: Array<{ eventId: string; _count: { _all: number } }>, eventId: string) => rows.find((row) => row.eventId === eventId)?._count._all ?? 0;
     const [inquiries, guestCheckIns, guestFeedback, guestRosterEntries, guestFeedbackMedia, approvalRequests] = await Promise.all([
       inquiryIds.length
         ? this.prisma.opsInquiry.findMany({
@@ -227,6 +232,8 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
         guestFeedback: guestFeedback.filter(({ eventId }) => eventId === event.id).map(consentFact),
         guestRosterEntryCount: guestRosterEntries.filter(({ eventId }) => eventId === event.id).length,
         guestFeedbackMedia: guestFeedbackMedia.filter(({ feedback }) => feedback.eventId === event.id).map(({ feedback }) => consentFact(feedback)),
+        billingStatementCount: countFor(billingStatements, event.id),
+        paymentRecordCount: countFor(paymentRecords, event.id),
       };
     });
 

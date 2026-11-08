@@ -6,6 +6,13 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM sets each client's email language (English or Filipino) on the inquiry; inquiry received, accepted, declined and conforme reminder emails go out in that language. Migration `20261110140000_event-lifecycle_client_language` adds `inquiries.preferred_language`. The Filipino copy should be reviewed by a fluent speaker before launch.
+- PMCM offers two to four proposal presentation times with an optional Zoom, Meet or Teams link; the client books one in the portal and both sides can download a calendar file. PMCM records whether the client attended, and two missed presentations in a row flag the event as at risk. Migration `20261110150000_commercial_presentation_meetings` adds `commercial.presentation_meetings`. The meeting link is pasted by PMCM; there is no Zoom API connection.
+- PMCM downloads an issued proposal as a PowerPoint deck (title, overview, investment per package, next steps).
+- The privacy inventory now lists billing statements and payment records per event as a finance category; they are held under the client contract, so they never count as missing consent.
+- The coordinator's on-site supplier status form no longer offers a setup photo. The photo was never stored; suppliers still attach a byte-checked photo to their own status updates.
+- The public site has a guest pass sample at `/guest-pass-sample`: prospects enter a sample code, open a pass, check in and leave a rating. It uses fixed sample content and never calls the API.
+
 - PMCM switches optional modules off per event (floor plans, games, venue scouting, accreditation, logistics bookings, client-owned suppliers) from Settings; their tabs and panels disappear for that event and come back unchanged when switched on.
 - The floor plan editor offers eighteen quick setup layouts, three per event type group, arranged to the venue size and guest count; venue walls and fixtures stay and the editor reports guests the room cannot seat.
 - The public inquiry form keeps the draft in the browser as the visitor types and, once they accept the privacy notice, on the server so they can resume from the emailed link; one reminder goes out after a day and drafts are purged after 30 days. After sending, the submitter can edit the inquiry for 24 hours or until PMCM reviews it. Migrations `20261110120000_event-lifecycle_event_modules` and `20261110130000_event-lifecycle_inquiry_drafts_and_edit_window` must apply before the API deploys.

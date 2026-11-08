@@ -1,7 +1,7 @@
 import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, OpsInquiryMerge, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { INQUIRY_EDIT_WINDOW_HOURS, type EditPublicInquiryInput, type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type PrismPublicInquiryEdit, type SetInquiryIntakePathInput, type UpdateInquiryCompanyNameInput } from '@prism/types';
+import { INQUIRY_EDIT_WINDOW_HOURS, type ClientLanguage, type SetClientLanguageInput, type EditPublicInquiryInput, type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type PrismPublicInquiryEdit, type SetInquiryIntakePathInput, type UpdateInquiryCompanyNameInput } from '@prism/types';
 import {
   ACCOUNT_PROVISIONING,
   type AccountInvitationActor,
@@ -21,6 +21,7 @@ import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotific
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { claimConformeReminderWindow } from './conforme-reminder-window';
 import { mapInquirySummary } from './inquiry.mappers';
+import { conformeReminderText, inquiryAcceptedText, inquiryDeclinedText, inquiryReceivedText } from '../../domain/client-message-templates';
 
 export type CreateInquiryInput = {
   clientName: string;
@@ -85,37 +86,21 @@ function daysBetween(left: Date, right: Date) {
  * The client's acceptance email names the next step for how their account invitation went: a new
  * account gets pointed at the separate setup email, an existing one is told to sign in.
  */
-export function inquiryAcceptedMessage(eventName: string, invitation: PrismAccountInvitationOutcome['outcome'] | null) {
-  const accepted = `PMCM accepted your inquiry for ${eventName}. The next step is to review and sign your conforme in the P.R.I.S.M client portal.`;
-  if (invitation === 'invited') {
-    return `${accepted} We sent you a separate email, "Set up your P.R.I.S.M account", with a link to set your password. If it isn't in your inbox, check Spam or Promotions.`;
-  }
-  if (invitation === 'existing_account') return `${accepted} Sign in with your existing P.R.I.S.M account to continue.`;
-  return `${accepted} PMCM will send you a link to set up your account shortly.`;
+export function inquiryAcceptedMessage(eventName: string, invitation: PrismAccountInvitationOutcome['outcome'] | null, language: ClientLanguage = 'en') {
+  return inquiryAcceptedText(language, eventName, invitation);
 }
 
 /**
- * Only these reasons are explained to the client. Every other reason, including no reason, declines with the generic wording,
- * so internal reasons such as budget or prior issues are never disclosed.
+ * The client's decline email. Only the date and scope reasons are explained; internal reasons such as budget are never
+ * disclosed. The first sentence becomes the mail subject, so it names the event.
  */
-const DISCLOSED_DECLINE_REASONS = new Map<string, string>([
-  ['Date Unavailable', "We're not available on your requested date."],
-  ['Outside Service Scope', 'The event is outside the services we currently offer.'],
-]);
+export function inquiryDeclinedMessage(eventName: string, declineReason?: string | null, language: ClientLanguage = 'en') {
+  return inquiryDeclinedText(language, eventName, declineReason);
+}
 
-/**
- * The client's decline email. The first sentence becomes the mail subject ("P.R.I.S.M: About your inquiry for …"),
- * so it names the event and stays a plain headline.
- */
-export function inquiryDeclinedMessage(eventName: string, declineReason?: string | null) {
-  const disclosure = declineReason ? DISCLOSED_DECLINE_REASONS.get(declineReason) : undefined;
-  return [
-    `About your inquiry for ${eventName}.`,
-    'Thank you for thinking of PMCM.',
-    `We can't take on ${eventName} this time.`,
-    disclosure,
-    'We would welcome the chance to work with you on future events, so please reach out anytime.',
-  ].filter(Boolean).join(' ');
+/** FR-55: unknown stored values fall back to English, the default language. */
+function clientLanguageOf(inquiry: { preferredLanguage?: string | null }): ClientLanguage {
+  return inquiry.preferredLanguage === 'fil' ? 'fil' : 'en';
 }
 
 /** FR-44: a client returning after this many days without an event counts as a dormant reactivation. */
@@ -291,7 +276,7 @@ export class InquiriesService {
           // The client needs the account to read and sign the conforme, so the invitation goes out with the acceptance.
           const invitation = await this.sendClientPortalInvitationAfterCommit(inquiry.id, this.invitationActorFor(verifiedActor));
           // Sent after the invitation so it can point the client at the right next step for that outcome.
-          await this.notify(undefined, inquiry.email, inquiryAcceptedMessage(inquiry.eventName, invitation));
+          await this.notify(undefined, inquiry.email, inquiryAcceptedMessage(inquiry.eventName, invitation, clientLanguageOf(inquiry)));
         }
         if (input.status === 'pending') {
           await this.audit(undefined, verifiedActor.name, `Marked inquiry pending for ${inquiry.clientName}`, {
@@ -655,7 +640,7 @@ export class InquiriesService {
               actorId: actor?.id ?? null,
             },
           }),
-          this.notify(undefined, inquiry.email, `We received your inquiry for ${inquiry.eventName}. PMCM will review it and reply by email.${editToken ? ` You can change the details for ${INQUIRY_EDIT_WINDOW_HOURS} hours, until PMCM reviews it: ${this.portals.client}/inquiry/edit?token=${editToken}` : ''}`),
+          this.notify(undefined, inquiry.email, inquiryReceivedText(clientLanguageOf(inquiry), inquiry.eventName, editToken ? { hours: INQUIRY_EDIT_WINDOW_HOURS, link: `${this.portals.client}/inquiry/edit?token=${editToken}` } : undefined)),
           ...(duplicate
             ? [this.notifyPmcmTriage(inquiry.id, 'duplicate', `Possible duplicate inquiry from ${inquiry.clientName} for ${inquiry.eventName}; matches ${duplicate.id}`)]
             : []),
@@ -724,6 +709,20 @@ export class InquiriesService {
       }, { prisma: tx, correlationId: `inquiry-intake-path:${inquiryId}:${Date.now()}`, actorId: verifiedActor.id });
       return mapInquirySummary(inquiry);
     });
+  }
+
+  /** FR-55: PMCM sets the language of this client's automated messages. */
+  async setClientLanguage(inquiryId: string, input: SetClientLanguageInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = this.requireVerifiedActor(actor);
+    if (verifiedActor.role !== OpsUserRole.PmcmAdmin && verifiedActor.role !== OpsUserRole.System) throw new ForbiddenException('Only PMCM can change the client language');
+    const existing = await this.prisma.opsInquiry.findUnique({ where: { id: inquiryId }, select: { id: true } });
+    if (!existing) throw new NotFoundException('Inquiry not found');
+    const inquiry = await this.prisma.opsInquiry.update({ where: { id: inquiryId }, data: { preferredLanguage: input.language } });
+    await this.audit(undefined, verifiedActor.name, `Set client message language to ${input.language}`, {
+      actorRole: verifiedActor.role, actorEmail: verifiedActor.email, actionType: AuditActionType.Update, category: AuditCategory.Events,
+      affectedType: 'inquiry', affectedId: inquiryId, affectedLabel: inquiry.eventName, metadata: { language: input.language, actorId: verifiedActor.id ?? null },
+    });
+    return mapInquirySummary(inquiry);
   }
 
   async listCompanyNameChanges(inquiryId: string): Promise<PrismCompanyNameChange[]> {
@@ -884,8 +883,8 @@ export class InquiriesService {
             expectedLastReminderAt,
             now,
             messages: [
-              { recipient: inquiry!.email, message: 'Reminder: signed conforme is still outstanding', channel: 'email' },
-              { recipient: inquiry!.clientName, message: 'Reminder: signed conforme is still outstanding', channel: 'viber' },
+              { recipient: inquiry!.email, message: conformeReminderText(clientLanguageOf(inquiry!)), channel: 'email' },
+              { recipient: inquiry!.clientName, message: conformeReminderText(clientLanguageOf(inquiry!)), channel: 'viber' },
             ],
           },
         ));
@@ -954,7 +953,7 @@ export class InquiriesService {
       this.notificationOutboxWriter,
       undefined,
       inquiry.email,
-      inquiryDeclinedMessage(inquiry.eventName, declineReason),
+      inquiryDeclinedMessage(inquiry.eventName, declineReason, clientLanguageOf(inquiry)),
       'email',
       { idempotencyKey: `inquiry-declined:${inquiry.id}` },
     );
