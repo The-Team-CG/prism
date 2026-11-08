@@ -49,6 +49,10 @@ import type {
 } from '@prism/types';
 import { mapSupplierQuoteRequest, mapSupplierQuoteRequestForSupplier, mapSupplierSchedule, omitPmcmReviewFields } from '../quotes/supplier-quote.mappers';
 import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
+import { STORED_SUPPLIER_UPLOAD_READER, type StoredSupplierUploadReader } from '@prism/contexts/platform-ops';
+
+const statusPhotoTargetPrefix = (requestId: string) => `supplier-status:${requestId}:`;
+type ConfirmedStatusPhoto = NonNullable<Awaited<ReturnType<StoredSupplierUploadReader['findConfirmedSupplierUpload']>>>;
 
 async function lockSupplierQuoteRequest(prisma: Prisma.TransactionClient, requestId: string) {
   await prisma.$queryRaw`SELECT id FROM "commercial"."quote_requests" WHERE id = ${requestId} FOR UPDATE`; // QUERY_AUDIT_RAW_SQL: parameterized primary-key row lock rechecks assignment state and identity.
@@ -141,6 +145,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
     @Inject(DOCUMENT_VAULT) private readonly documentVaultService: DocumentVault,
     @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
+    @Inject(STORED_SUPPLIER_UPLOAD_READER) private readonly storedSupplierUploads: StoredSupplierUploadReader,
   ) {}
 
   async createSupplier(input: CreateSupplierInput, actor: ResolvedEventOpsActor) {
@@ -443,7 +448,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
   }) {
     const { input, actor, reportedOnSite = false } = params;
     let request: OpsSupplierQuoteRequest | null = null;
-    let photo: ValidatedUploadMetadata | null = null;
+    let photo: ConfirmedStatusPhoto | null = null;
     let replay = false;
     let previousStatus = '';
 
@@ -456,6 +461,14 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
         if (request.status !== 'selected' || request.assignmentStatus !== 'confirmed' || request.readinessStatus !== 'confirmed') {
           throw new BadRequestException('Supplier event-day status requires confirmed assignment and readiness');
         }
+        if (input.storedObjectId) {
+          if (!request.supplierId) throw new NotFoundException('Supplier quote request not found');
+          photo = await this.storedSupplierUploads.findConfirmedSupplierUpload({
+            objectId: input.storedObjectId, eventId: request.eventId, supplierId: request.supplierId,
+            logicalTargetPrefix: statusPhotoTargetPrefix(request.id),
+          });
+          if (!photo) throw new BadRequestException('The status photo is not a confirmed upload for this assignment');
+        }
       },
       validateState: () => {
         const allowed = ['arrived', 'set_up_ready', 'done_leaving'];
@@ -464,7 +477,6 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
         previousStatus = request.eventDayStatus;
         replay = previousStatus === input.status;
         if (!replay) assertSupplierEventStatusStep(request.eventDayStatus, input.status);
-        photo = input.photo ? this.validateUploadMetadata(input.photo, `events/${request.eventId}/supplier-status`) : null;
       },
       write: async (transactionContext) => {
         if (!request) throw new NotFoundException('Supplier quote request not found');
@@ -476,7 +488,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
             eventDayStatus: input.status,
             eventDayStatusAt: new Date(),
             eventDayNotes: input.notes?.trim() ?? '',
-            statusPhotoFileName: photo?.generatedFileName ?? null,
+            statusPhotoFileName: photo?.originalFileName ?? null,
           },
         });
         if (changed.count !== 1) throw new ConflictException('Supplier status changed; reload before updating it');
@@ -495,7 +507,8 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
           metadata: {
             status: input.status,
             notes: input.notes ?? '',
-            photoFileName: photo?.generatedFileName ?? null,
+            photoFileName: photo?.originalFileName ?? null,
+            photoStoredObjectId: photo?.id ?? null,
             ...(reportedOnSite ? { reportedOnSite: true, reportedById: actor.id } : {}),
           },
         }, transactionContext);

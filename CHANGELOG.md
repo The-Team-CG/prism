@@ -14,6 +14,11 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - PMCM can flag an end-of-day report as having incomplete tasks; the flag shows on the report in the PMCM inbox and to the coordinator who submitted it.
 - Registration staff can flag an unauthorized walk-in for verification; the walk-in stays blocked from check-in until PMCM verifies it, and the flagged count shows on the run sheet.
 - PMCM tracks the registration platform setup confirmation (requested, then confirmed), shown with the platform record and on the run sheet guest-operations block.
+- Suppliers quoting an event see its type, guest count and service requirements; confidential bids still hide the client.
+- Suppliers can attach an optional photo to each event-day status update, verified as an upload for their booking.
+- Suppliers receive a readiness-confirmation request seven days before the event day, once per selected booking.
+- PMCM supplier readiness flags overlapping ingress windows as a schedule conflict and lists production suppliers first.
+- Late ingress is recorded as a private reliability note on the supplier profile, once per booking.
 - Clients and suppliers can submit their own privacy requests and track their status; PMCM still verifies and carries them out.
 - Supplier file requirement reminders go only to the suppliers who are overdue or need to replace a rejected file.
 - File access follows one policy for lists and downloads: coordinators need a current assignment, suppliers see only their own files on selected bookings, and failed uploads are no longer shown outside PMCM.

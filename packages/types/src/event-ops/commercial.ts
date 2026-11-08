@@ -53,6 +53,10 @@ export interface PrismSupplierQuoteRequestTokenDetail {
   eventName: string;
   clientName: string | null;
   eventDate: string | null;
+  /** Scale and requirements for pricing; shown on confidential bids too, since they identify no client. */
+  eventType: string;
+  guestCount: number | null;
+  serviceRequirements: string[];
 }
 
 export interface PrismSupplierSchedule {

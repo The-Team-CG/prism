@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import {
@@ -116,6 +117,25 @@ export class SupplierIngressLateMonitorService {
               },
               { prisma: tx, actorId: actor.id, correlationId: `supplier-ingress-late:${current.requestId}:${current.ingressAt.toISOString()}` },
             );
+
+            // A missed ingress is a reliability fact for future supplier selection (FR-79). The request moves to
+            // late only once, so the idempotency key keeps the note to one per booking.
+            if (current.request.supplierId) {
+              const event = await tx.opsEvent.findUnique({ where: { id: current.eventId }, select: { eventName: true } });
+              const noteKey = `supplier-ingress-late-note:${current.requestId}`;
+              await tx.opsSupplierReliabilityNote.upsert({
+                where: { idempotencyKey: noteKey },
+                update: {},
+                create: {
+                  id: `reliability_${randomUUID()}`,
+                  supplierId: current.request.supplierId,
+                  eventId: current.eventId,
+                  note: `Ingress late at ${event?.eventName ?? 'an event'} (${current.request.category}): no arrival reported after the ${current.ingressAt.toISOString()} window start`,
+                  createdBy: actor.name,
+                  idempotencyKey: noteKey,
+                },
+              });
+            }
             return true;
           });
           if (wasMarked) marked += 1;
