@@ -12,6 +12,7 @@ import { selectEventActionCenter } from "@/features/command-inbox/list/model/eve
 import type { DashboardSection, DetailTab } from "../../model/event-dashboard-routing";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { EventOcularVisitTask } from "./event-ocular-visit-task";
+import { VenueSurveyPanel } from "@/features/floorplan/venue-survey/views/venue-survey-panel";
 
 
 export function EventTasksWorkspace({
@@ -117,6 +118,7 @@ export function EventTasksWorkspace({
           onWaive={onWaiveOcularVisit}
         />
       ) : null}
+      {selectedEvent && isAdmin && ocularVisit?.status === "completed" ? <VenueSurveyPanel /> : null}
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card>
           <CardHeader>
