@@ -1,3 +1,5 @@
+import { EVENT_TYPE_COMPLIANCE_RULES } from './compliance-event-type-rules';
+
 export type ComplianceEvaluationStatus = 'satisfied' | 'not_satisfied' | 'not_applicable';
 
 export type ComplianceEvaluation = {
@@ -15,11 +17,12 @@ export type ComplianceEvaluationContext = {
     walkInThreshold: number;
   };
   inquiry: { eventType: string } | null;
-  briefings: Array<{ id: string }>;
+  briefings: Array<{ id: string; venueType?: string | null; program?: unknown }>;
   documents: Array<{ id: string; type: string; status: string }>;
   suppliers: Array<{
     id: string;
     supplierName: string;
+    category?: string;
     assignmentStatus: string;
     readinessStatus: string;
   }>;
@@ -37,6 +40,8 @@ export type ComplianceRuleDefinition = {
   phases: string[];
   severity: 'must_fix' | 'should_fix' | 'advisory';
   layer: 'Must-Fix' | 'Should-Fix' | 'Advisory';
+  /** FR-06: Layer 1 universal Must-Fix items, Layer 2 event-type rules, or operational checks. Layer 3 is PMCM custom rules. */
+  scope: 'universal' | 'event_type' | 'operational';
   definitionStatus: 'DERIVED' | 'PROVISIONAL';
   remediation: string;
   evaluate: (context: ComplianceEvaluationContext, now: Date) => ComplianceEvaluation;
@@ -46,9 +51,9 @@ function satisfied(evidence: string[]): ComplianceEvaluation { return { status: 
 function failed(evidence: string[]): ComplianceEvaluation { return { status: 'not_satisfied', evidence }; }
 function notApplicable(evidence: string[]): ComplianceEvaluation { return { status: 'not_applicable', evidence }; }
 
-export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
+const CORE_RULES: readonly ComplianceRuleDefinition[] = [
   {
-    id: 'compliance.lifecycle.phase-aligned', conditionKey: 'lifecycle_phase_aligned',
+    id: 'compliance.lifecycle.phase-aligned', conditionKey: 'lifecycle_phase_aligned', scope: 'operational',
     title: 'Event lifecycle phase is aligned', phases: ['planning', 'pre_event', 'event_day', 'closure'],
     severity: 'must_fix', layer: 'Must-Fix', definitionStatus: 'DERIVED',
     remediation: 'Move the event to the requested lifecycle phase through its owning workflow.',
@@ -61,7 +66,7 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
     },
   },
   {
-    id: 'compliance.onboarding.signed-conforme', conditionKey: 'signed_conforme',
+    id: 'compliance.onboarding.signed-conforme', conditionKey: 'signed_conforme', scope: 'universal',
     title: 'Signed conforme is recorded', phases: ['planning', 'pre_event', 'event_day', 'closure'],
     severity: 'must_fix', layer: 'Must-Fix', definitionStatus: 'DERIVED',
     remediation: 'Upload and accept the signed conforme in the event document vault.',
@@ -73,16 +78,16 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
     },
   },
   {
-    id: 'compliance.onboarding.briefing-submitted', conditionKey: 'briefing_submitted',
+    id: 'compliance.onboarding.briefing-submitted', conditionKey: 'briefing_submitted', scope: 'universal',
     title: 'Event briefing is submitted', phases: ['planning', 'pre_event'],
-    severity: 'should_fix', layer: 'Should-Fix', definitionStatus: 'DERIVED',
+    severity: 'must_fix', layer: 'Must-Fix', definitionStatus: 'DERIVED',
     remediation: 'Submit the current event briefing with venue, guest count, budget and service requirements.',
     evaluate: (context) => context.briefings.length > 0
       ? satisfied([`Persisted briefing count is ${context.briefings.length}.`])
       : failed(['No persisted event briefing is available.']),
   },
   {
-    id: 'compliance.suppliers.readiness-confirmed', conditionKey: 'supplier_readiness_confirmed',
+    id: 'compliance.suppliers.readiness-confirmed', conditionKey: 'supplier_readiness_confirmed', scope: 'universal',
     title: 'Assigned suppliers confirm readiness', phases: ['pre_event', 'event_day'],
     severity: 'must_fix', layer: 'Must-Fix', definitionStatus: 'DERIVED',
     remediation: 'Confirm each supplier assignment and readiness, or withdraw the unready request through supplier operations.',
@@ -98,7 +103,7 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
     },
   },
   {
-    id: 'compliance.staffing.coordinator-coverage', conditionKey: 'coordinator_coverage',
+    id: 'compliance.staffing.coordinator-coverage', conditionKey: 'coordinator_coverage', scope: 'universal',
     title: 'Coordinator coverage meets requirements', phases: ['pre_event', 'event_day'],
     severity: 'must_fix', layer: 'Must-Fix', definitionStatus: 'DERIVED',
     remediation: 'Assign active coordinators, obtain acknowledgement, and replace withdrawn assignments until every required role is covered.',
@@ -115,7 +120,7 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
     },
   },
   {
-    id: 'compliance.commercial.billing-source-approved', conditionKey: 'billing_source_approved',
+    id: 'compliance.commercial.billing-source-approved', conditionKey: 'billing_source_approved', scope: 'universal',
     title: 'Billing source is approved', phases: ['planning', 'pre_event', 'closure'],
     severity: 'must_fix', layer: 'Must-Fix', definitionStatus: 'PROVISIONAL',
     remediation: 'Have PMCM approve the billing source before relying on its payment schedule.',
@@ -128,9 +133,9 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
     },
   },
   {
-    id: 'compliance.files.required-items-complete', conditionKey: 'required_file_items_complete',
+    id: 'compliance.files.required-items-complete', conditionKey: 'required_file_items_complete', scope: 'universal',
     title: 'Applicable file requirements are complete', phases: ['pre_event', 'closure'],
-    severity: 'should_fix', layer: 'Should-Fix', definitionStatus: 'DERIVED',
+    severity: 'must_fix', layer: 'Must-Fix', definitionStatus: 'DERIVED',
     remediation: 'Resolve each applicable file requirement in the file requirements matrix or record a PMCM risk and mitigation.',
     evaluate: (context) => {
       if (context.fileRequirements.length === 0) return notApplicable(['The file requirements matrix returned no applicable items.']);
@@ -141,7 +146,7 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
     },
   },
   {
-    id: 'compliance.guests.walk-in-policy-configured', conditionKey: 'guest_policy_configured',
+    id: 'compliance.guests.walk-in-policy-configured', conditionKey: 'guest_policy_configured', scope: 'operational',
     title: 'Guest walk-in policy is configured', phases: ['pre_event', 'event_day'],
     severity: 'advisory', layer: 'Advisory', definitionStatus: 'PROVISIONAL',
     remediation: 'Confirm the walk-in policy and threshold with PMCM before guest access opens.',
@@ -150,7 +155,7 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
       : failed([`Persisted walk-in policy=${context.event.walkInPolicy || 'empty'}, threshold=${context.event.walkInThreshold}.`]),
   },
   {
-    id: 'compliance.lifecycle.event-date-valid', conditionKey: 'event_date_relative_to_now',
+    id: 'compliance.lifecycle.event-date-valid', conditionKey: 'event_date_relative_to_now', scope: 'operational',
     title: 'Event date is upcoming', phases: ['planning', 'pre_event'],
     severity: 'advisory', layer: 'Advisory', definitionStatus: 'PROVISIONAL',
     remediation: 'The event date has passed. Start closure if the event took place, or record a postponement with the new date.',
@@ -159,6 +164,8 @@ export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [
       : failed([`Persisted event date ${context.event.eventDate.toISOString()} is before evaluation time ${now.toISOString()}.`]),
   },
 ];
+
+export const COMPLIANCE_RULE_REGISTRY: readonly ComplianceRuleDefinition[] = [...CORE_RULES, ...EVENT_TYPE_COMPLIANCE_RULES];
 
 export function evaluateComplianceRuleForPhase(rule: ComplianceRuleDefinition, phase: string, context: ComplianceEvaluationContext, now: Date) {
   return rule.phases.includes(phase) ? rule.evaluate({ ...context, phase }, now) : notApplicable([`Rule is not applicable to lifecycle phase ${phase}.`]);
