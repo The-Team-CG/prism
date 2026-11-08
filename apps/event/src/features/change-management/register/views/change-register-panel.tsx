@@ -8,6 +8,7 @@ import { freezeExceptionStatusLabel, pendingFreezeExceptions } from "../model/ch
 import { PmcmAddendaStatus } from "../../views/pmcm-addenda-status";
 import { ScopeChangeReviewPanel } from "../../scope-review";
 import { RiskAssessmentPanel } from "../../risk-assessment";
+import { RiskRegisterPanel } from "@/features/change-management/risk-register/views/risk-register-panel";
 import { RecordDecisionForm } from "./record-decision-form";
 
 export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; frozen: boolean }) {
@@ -47,6 +48,7 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
           </RegisterGroup>
           <RegisterGroup title="Risk and scope changes">
             <RiskAssessmentPanel eventId={eventId} />
+            <RiskRegisterPanel eventId={eventId} />
             <ScopeChangeReviewPanel eventId={eventId} frozen={frozen} />
           </RegisterGroup>
           <RegisterGroup title="Cancel or postpone">
