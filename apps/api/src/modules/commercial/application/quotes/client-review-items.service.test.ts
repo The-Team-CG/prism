@@ -48,12 +48,12 @@ describe('ClientReviewItemsService', () => {
     expect(items).toHaveLength(2);
   });
 
-  it('refuses venue and styling review items until the primary client has confirmed a styling budget', async () => {
+  it('refuses styling options until the primary client has confirmed a styling budget, but still issues venue options', async () => {
     const { service, items, pmcm } = setup({ stylingBudgetConfirmed: false });
-    const reason = 'Venue and styling review items can only be issued after the primary client confirms a styling budget in the briefing';
+    const reason = 'Styling options can only be issued after the primary client confirms a styling budget in the briefing';
     await expect(service.issue('event-1', { kind: 'styling', title: 'Blue', summary: 'Blue palette', idempotencyKey: 'style-unconfirmed' }, pmcm)).rejects.toThrow(reason);
-    await expect(service.issue('event-1', { kind: 'venue', title: 'Garden', summary: 'Garden venue', idempotencyKey: 'venue-unconfirmed' }, pmcm)).rejects.toThrow(reason);
-    expect(items).toHaveLength(0);
+    await expect(service.issue('event-1', { kind: 'venue', title: 'Garden', summary: 'Garden venue', idempotencyKey: 'venue-unconfirmed' }, pmcm)).resolves.toMatchObject({ kind: 'venue' });
+    expect(items).toHaveLength(1);
   });
 
   it('rejects a decision against an obsolete version before writing a decision', async () => {

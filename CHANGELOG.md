@@ -6,7 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-- Venue and styling review items can be issued to the client only after the primary client confirms a styling budget in the briefing; PMCM sees the reason when it is missing.
+- Styling options can be issued to the client only after the primary client confirms a styling budget in the briefing; PMCM sees the reason when it is missing.
 - PMCM can mark an event private or public (existing events are private); table assignment and the printable seating list are available only for private events under 200 guests.
 - A client's venue submission in the briefing opens one venue ocular task for PMCM to schedule, and later resubmissions leave it unchanged.
 - Notes from client contacts other than the primary contact are saved on the floor plan as non-binding notes; they cannot approve or request changes.
