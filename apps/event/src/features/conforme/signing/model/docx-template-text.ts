@@ -42,16 +42,25 @@ async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
 
 const ENTITIES: Record<string, string> = { "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": '"', "&apos;": "'" };
 
-/** Paragraphs become lines, tabs and breaks are kept, every other tag is dropped. */
+/**
+ * Walks the XML and keeps only the character data inside Word text runs (w:t); paragraphs become lines and
+ * tabs and breaks are kept. Nothing outside a text run is ever copied, so no markup reaches the result.
+ */
 export function documentXmlToText(xml: string): string {
-  return xml
-    .replace(/<w:tab\/>/g, "\t")
-    .replace(/<w:br\/>/g, "\n")
-    .replace(/<\/w:p>/g, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&(amp|lt|gt|quot|apos);/g, (entity) => ENTITIES[entity] ?? entity)
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  const parts: string[] = [];
+  let inText = false;
+  for (const token of xml.matchAll(/<(\/?)([A-Za-z0-9:_-]+)[^>]*?(\/?)>|([^<]+)/g)) {
+    const [, closing, name, selfClosing, text] = token;
+    if (text !== undefined) {
+      if (inText) parts.push(text.replace(/&(amp|lt|gt|quot|apos);/g, (entity) => ENTITIES[entity] ?? entity));
+      continue;
+    }
+    if (name === "w:t") inText = !closing && !selfClosing;
+    else if (name === "w:tab") parts.push("\t");
+    else if (name === "w:br") parts.push("\n");
+    else if (name === "w:p" && closing) parts.push("\n");
+  }
+  return parts.join("").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 export async function readDocxText(buffer: ArrayBuffer): Promise<string> {
