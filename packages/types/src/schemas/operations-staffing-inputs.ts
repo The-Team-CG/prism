@@ -72,3 +72,38 @@ export const coordinatorSuggestionsQuerySchema = z.object({
   ),
 });
 export type CoordinatorSuggestionsQueryInput = z.infer<typeof coordinatorSuggestionsQuerySchema>;
+
+/** FR-AI-04 PARE coordinator mode: PMCM approves one recommended replacement, or rejects the package. Nothing happens before that. */
+export const decideCoordinatorReplacementSchema = z.object({
+  action: z.enum(["approve", "reject"]),
+  coordinatorId: optionalTrimmedStringSchema,
+  note: z.string().trim().max(1000).default(""),
+}).superRefine((value, ctx) => {
+  if (value.action === "approve" && !value.coordinatorId) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["coordinatorId"], message: "Choose the replacement coordinator" });
+});
+export type DecideCoordinatorReplacementInput = z.input<typeof decideCoordinatorReplacementSchema>;
+
+export interface PrismCoordinatorReplacementCandidate {
+  coordinatorId: string;
+  name: string;
+  matchedSkills: string[];
+  missingSkills: string[];
+}
+
+export interface PrismCoordinatorReplacementRecommendation {
+  id: string;
+  eventId: string;
+  withdrawnAssignmentId: string;
+  withdrawnCoordinatorName: string;
+  role: string;
+  hoursToEvent: number;
+  riskLevel: "high" | "critical";
+  riskSummary: string;
+  candidates: PrismCoordinatorReplacementCandidate[];
+  draftMessage: string;
+  status: "pending" | "approved" | "rejected";
+  selectedCoordinatorId: string | null;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+}

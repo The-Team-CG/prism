@@ -24,6 +24,8 @@ import { GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER } from './co
 import { CoordinatorWorkspaceReadService } from './application/staffing/coordinator-workspace-read.service';
 import { CoordinatorsService } from './application/staffing/coordinators.service';
 import { CoordinatorAssignmentCommandService } from './application/staffing/coordinator-assignment-command.service';
+import { CoordinatorReplacementRecommendationService } from './application/staffing/coordinator-replacement-recommendation.service';
+import { CoordinatorReplacementRecommendationsController } from './api/staffing/coordinator-replacement-recommendations.controller';
 import { CoordinatorReliabilityNoteWriterService } from './application/staffing/coordinator-reliability-note-writer.service';
 import { CoordinatorInsightFactsReaderService } from './application/staffing/coordinator-insight-facts-reader.service';
 import { CoordinatorSuggestionsService } from './application/staffing/coordinator-suggestions.service';
@@ -39,10 +41,11 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
 
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController, CoordinatorRoleBriefController],
+  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController, CoordinatorRoleBriefController, CoordinatorReplacementRecommendationsController],
   providers: [
     CoordinatorsService,
     CoordinatorAssignmentCommandService,
+    CoordinatorReplacementRecommendationService,
     CoordinatorReliabilityNoteWriterService,
     CoordinatorInsightFactsReaderService,
     CoordinatorSuggestionsService,
