@@ -15,6 +15,9 @@ export const EVENT_FILE_CATEGORIES = {
   client_asset: "Client-submitted asset",
   moa: "Memorandum of agreement (MOA)",
   nda: "Non-disclosure agreement (NDA)",
+  /** FR-43: the client's terms of reference and PMCM's submitted bid. */
+  bid_tor: "Terms of reference (TOR)",
+  bid_proposal: "Bid proposal",
   pre_conforme: "Pre-conforme document",
   other: "Other",
 } as const;

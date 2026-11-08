@@ -29,12 +29,13 @@ function setup({ stylingBudgetConfirmed = true }: { stylingBudgetConfirmed?: boo
   const lifecycleEventReferences = {
     findOperationsEvent: vi.fn(async () => ({ id: event.id, archived: event.archived })),
     findEventReadAccess: vi.fn(async () => ({ id: event.id, clientName: 'Client', clientPortalStatus: event.clientPortalStatus, clientEmail: event.inquiry.email, inquiry: event.inquiry })),
+    isOpenBidWorkspace: vi.fn(async () => false),
   };
   const documentVault = { findEligibleReference: vi.fn(async () => ({ id: 'doc_1', eventId: event.id, kind: 'proposal', status: 'issued', fileName: 'proposal.pdf' })) };
   const service = new ClientReviewItemsService(prisma as never, access as never, auditWriter as never, lifecycleEventReferences as never, documentVault as never);
   const pmcm = { id: 'pmcm-1', role: OpsUserRole.PmcmAdmin, email: 'pmcm@example.test', name: 'PMCM' } as never;
   const client = { id: 'client-1', role: OpsUserRole.Client, email: 'client@example.test', name: 'Client' } as never;
-  return { service, prisma, items, decisions, event, pmcm, client };
+  return { service, prisma, items, decisions, event, pmcm, client, lifecycleEventReferences };
 }
 
 describe('ClientReviewItemsService', () => {
@@ -54,6 +55,14 @@ describe('ClientReviewItemsService', () => {
     await expect(service.issue('event-1', { kind: 'styling', title: 'Blue', summary: 'Blue palette', idempotencyKey: 'style-unconfirmed' }, pmcm)).rejects.toThrow(reason);
     await expect(service.issue('event-1', { kind: 'venue', title: 'Garden', summary: 'Garden venue', idempotencyKey: 'venue-unconfirmed' }, pmcm)).resolves.toMatchObject({ kind: 'venue' });
     expect(items).toHaveLength(1);
+  });
+
+  it('prepares options on a locked event only while it is an open bid workspace', async () => {
+    const { service, event, pmcm, lifecycleEventReferences } = setup();
+    event.clientPortalStatus = 'locked';
+    await expect(service.issue('event-1', { kind: 'venue', title: 'Garden', summary: 'Garden venue', idempotencyKey: 'venue-locked' }, pmcm)).rejects.toThrow('unlocked, active event');
+    lifecycleEventReferences.isOpenBidWorkspace.mockResolvedValueOnce(true);
+    await expect(service.issue('event-1', { kind: 'venue', title: 'Garden', summary: 'Garden venue', idempotencyKey: 'venue-bid' }, pmcm)).resolves.toMatchObject({ kind: 'venue' });
   });
 
   it('requires the budget vs expectation answer when a styling option is sent back, and records it', async () => {
