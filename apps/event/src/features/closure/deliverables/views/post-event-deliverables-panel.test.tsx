@@ -29,12 +29,13 @@ describe("PostEventDeliverablesPanel", () => {
   });
 
   it("counts down to the wrap-up deadline only while a deliverable is still open and the event has ended", () => {
-    const now = Date.parse("2026-10-18T12:00:00.000Z");
+    const now = Date.parse("2026-10-22T12:00:00.000Z");
     vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
     vi.setSystemTime(now);
     try {
       const view = render(<PostEventDeliverablesPanel eventId="evt_1" documents={documents} actualEndedAt="2026-10-17T18:00:00.000Z" />);
       expect(screen.getByRole("timer").textContent).toContain("Due in 6h");
+      expect(screen.getByRole("timer").textContent).toContain("closes 5 days after the event ended");
       view.rerender(<PostEventDeliverablesPanel eventId="evt_1" documents={documents} actualEndedAt={null} />);
       expect(screen.queryByRole("timer")).toBeNull();
       view.rerender(<PostEventDeliverablesPanel eventId="evt_1" documents={documents} actualEndedAt="2026-10-17T18:00:00.000Z" archived />);
