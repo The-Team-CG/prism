@@ -24,6 +24,7 @@ import type { PrismInquiry } from "@prism/types";
 import { CompanyNameEditor } from "@/features/inquiries/company-name/views/company-name-editor";
 import { BiddingPathEditor } from "@/features/inquiries/bidding-path/views/bidding-path-editor";
 import { ContextNotesLog } from "@/features/inquiries/context-notes/views/context-notes-log";
+import { PreConformeDocuments } from "@/features/inquiries/pre-conforme-documents/views/pre-conforme-documents";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 import {
   AWAITING_REVIEW,
@@ -418,6 +419,7 @@ function InquiryHistorySection({
       <CompanyNameEditor inquiryId={inquiry.id} companyName={inquiry.companyName ?? ""} />
       <BiddingPathEditor inquiry={inquiry} />
       <ContextNotesLog inquiryId={inquiry.id} />
+      <PreConformeDocuments inquiryId={inquiry.id} conformeSigned={Boolean(inquiry.conformeSignedAt)} />
       <div className="flex items-center gap-2">
         <ClipboardList className="size-4 text-primary" />
         <h4 className="text-sm font-bold text-foreground">Organization and history</h4>

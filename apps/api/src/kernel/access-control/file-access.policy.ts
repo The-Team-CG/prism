@@ -17,7 +17,7 @@ export type FileAccessObject = {
 };
 
 /** Supported file kinds. Game media, lobby branding, and guest feedback media are outside this policy. */
-export type FileAccessKind = 'signed_conforme' | 'client_document' | 'billing_statement' | 'proposal_deliverable' | 'supplier_document';
+export type FileAccessKind = 'signed_conforme' | 'client_document' | 'billing_statement' | 'proposal_deliverable' | 'styling_moodboard' | 'supplier_document';
 
 export type FileAccessActor = { role: string; supplierId?: string | null };
 
@@ -44,6 +44,8 @@ const KIND_BY_OWNER_USAGE: ReadonlyMap<string, FileAccessKind> = new Map<string,
   ['event:client_document', 'client_document'],
   ['billing_statement:event_deliverable', 'billing_statement'],
   ['proposal_version:event_deliverable', 'proposal_deliverable'],
+  // FR-09 / FR-30: moodboard images PMCM attaches to a styling option; the client reviews them with the option.
+  ['client_review_item:event_deliverable', 'styling_moodboard'],
   ['supplier:supplier_document', 'supplier_document'],
 ]);
 
@@ -57,6 +59,7 @@ const KIND_ACCESS: Record<FileAccessKind, (actor: FileAccessActor, object: FileA
   client_document: (actor) => actor.role === OpsUserRole.Client || actor.role === OpsUserRole.Coordinator,
   billing_statement: (actor, _object, context) => actor.role === OpsUserRole.Client && context.billingStatementSent,
   proposal_deliverable: (actor) => actor.role === OpsUserRole.Client,
+  styling_moodboard: (actor) => actor.role === OpsUserRole.Client,
   supplier_document: (actor, object) => actor.role === OpsUserRole.Supplier && Boolean(actor.supplierId) && object.ownerRecordId === actor.supplierId,
 };
 
