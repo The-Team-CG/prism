@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- QR check-in: PMCM issues QR passes to roster guests with an email (print them or email each guest a pass link), and registration staff check guests in by scanning the pass with the device camera over HTTPS or typing its code. Name search and headcount check-in are unchanged.
 - A coordinator withdrawal within 48 hours of the event raises a PARE replacement package (ranked free coordinators, risk by hours left, drafted message); PMCM approves a coordinator to assign them or rejects the package, and nothing changes before that.
 - Event games add Live Poll (two to six options with room totals), Word Cloud and Open Q and A; guest answers go through PMCM moderation before the room sees them. With Live Trivia (ice breaker quiz) and Spin the Wheel (raffle draw), all five V4 templates are available.
 - PMCM can put an inquiry on the bidding path with a bid status (preparing, submitted, won, lost) and due date; the onboarding tracker lists bids apart from standard onboarding.

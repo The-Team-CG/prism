@@ -31,6 +31,8 @@ import { CoordinatorInsightFactsReaderService } from './application/staffing/coo
 import { CoordinatorSuggestionsService } from './application/staffing/coordinator-suggestions.service';
 import { CoordinatorAcknowledgementReminderScheduler } from './application/staffing/coordinator-acknowledgement-reminder.scheduler';
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
+import { GuestQrPassService } from './application/guest/guest-qr-pass.service';
+import { GuestQrPassController } from './api/guest/guest-qr-pass.controller';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
 import { CoordinatorRoleBriefService } from './application/staffing/coordinator-role-brief.service';
@@ -41,7 +43,7 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
 
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController, CoordinatorRoleBriefController, CoordinatorReplacementRecommendationsController],
+  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController, CoordinatorRoleBriefController, CoordinatorReplacementRecommendationsController, GuestQrPassController],
   providers: [
     CoordinatorsService,
     CoordinatorAssignmentCommandService,
@@ -52,6 +54,7 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
     CoordinatorAcknowledgementReminderScheduler,
     CoordinatorWorkspaceReadService,
     GuestWorkflowService,
+    GuestQrPassService,
     RegistrationPlatformService,
     WalkInPolicyService,
     CoordinatorRoleBriefService,

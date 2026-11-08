@@ -23,6 +23,8 @@ import { Panel } from "@/features/pmcm-kit/primitives";
 import { cx, label } from "@/features/pmcm-kit";
 import { Button } from "@/app/components/ui/button";
 import { RosterImportPanel } from "@/features/registration/roster-import";
+import { QrPassSheet } from "@/features/registration/qr-passes/views/qr-pass-sheet";
+import { QrScanCheckIn } from "@/features/registration/qr-passes/views/qr-scan-check-in";
 
 const PLATFORM_LABELS: Record<string, string> = {
   xperto: "XPERTO Registration",
@@ -946,6 +948,8 @@ export function EventRegistrationTab({
         onUpdateSetup={onUpdateSetup}
       />
       <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} onVerify={onVerifyRoster} />
+      <QrScanCheckIn key={`scan-${eventId}`} eventId={eventId} />
+      <QrPassSheet eventId={eventId} />
       <GuestAdmissionSection
         classification={guestPrivacyClassification}
         policy={walkInPolicy}

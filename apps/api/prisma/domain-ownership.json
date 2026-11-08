@@ -33,7 +33,7 @@
         "domain": "operations",
         "schema": "operations",
         "tables": 14,
-        "columns": 173
+        "columns": 174
       },
       {
         "domain": "floorplan",
@@ -830,7 +830,7 @@
       "table": "guest_roster_entries",
       "domain": "operations",
       "targetSchema": "operations",
-      "columnCount": 20
+      "columnCount": 21
     },
     {
       "model": "OpsGuestRosterImport",

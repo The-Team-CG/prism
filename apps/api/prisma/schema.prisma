@@ -2761,6 +2761,8 @@ model OpsGuestRosterEntry {
   withdrawnAt              DateTime? @map("withdrawn_at")
   verificationFlaggedAt    DateTime? @map("verification_flagged_at")
   verificationFlaggedBy    String?   @map("verification_flagged_by")
+  /// FR-39: random QR pass token, issued by PMCM to guests with an email address.
+  checkInToken             String?   @unique(map: "guest_roster_entries_check_in_token_key") @map("check_in_token")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at")
 
