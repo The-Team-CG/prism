@@ -122,4 +122,18 @@ describe('ConformeSigningService', () => {
     await expect(f.service.signForPmcm('inq_1', { executionId: 'cfx_1', templateVersion: 1, documentSha256: sha256(documentContent), consentAccepted: true }, clientActor as never, {})).rejects.toBeInstanceOf(ForbiddenException);
     await expect(f.service.signForPmcm('inq_1', { executionId: 'cfx_1', templateVersion: 1, documentSha256: sha256(documentContent), consentAccepted: true }, { ...pmcmActor, actorRole: 'supplier' } as never, {})).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('gives PMCM a printable PDF of the latest conforme document with its hash, and refuses client and supplier actors', async () => {
+    const f = createFixture();
+    const { fileName, pdf } = await f.service.pdfForPmcm('inq_1', pmcmActor as never);
+    const text = pdf.toString('latin1');
+
+    expect(fileName).toBe('conforme-v1.pdf');
+    expect(text.startsWith('%PDF-1.4')).toBe(true);
+    expect(text).toContain('Conforme v1 for client and event');
+    expect(text).toContain(`Document SHA-256: ${sha256(documentContent)}`);
+
+    await expect(f.service.pdfForPmcm('inq_1', clientActor as never)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(f.service.pdfForPmcm('inq_1', { ...pmcmActor, actorRole: 'supplier' } as never)).rejects.toBeInstanceOf(ForbiddenException);
+  });
 });

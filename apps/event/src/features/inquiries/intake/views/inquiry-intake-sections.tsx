@@ -264,6 +264,7 @@ function InquiryIntakeRow({
           {inquiry.source ? <> · {inquiry.source}</> : null}
         </p>
         {inquiry.previouslyDeclined ? <p className="mt-0.5 text-xs font-semibold text-destructive">Previously declined</p> : null}
+        {inquiry.pendingFullDetails ? <p className="mt-0.5 text-xs font-semibold text-attention">Pending Full Details</p> : null}
       </td>
       <td className="col-start-1 row-start-2 whitespace-nowrap align-top text-foreground lg:px-3 lg:py-2.5">
         <span className="block text-xs text-muted-foreground lg:hidden">Event date</span>
@@ -363,6 +364,7 @@ function InquiryDetailFlags({ inquiry }: { inquiry: PrismInquiry }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
+      {inquiry.pendingFullDetails ? <span className="text-xs font-semibold text-attention">Pending Full Details</span> : null}
       {inquiry.duplicate ? (
         <span className="rounded-full border border-attention/25 bg-attention/10 px-2.5 py-1 text-xs font-bold text-attention">
           Duplicate

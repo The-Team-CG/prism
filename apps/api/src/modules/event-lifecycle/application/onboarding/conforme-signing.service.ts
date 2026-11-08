@@ -7,6 +7,7 @@ import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotific
 import type { PrismVerifiedEventActor } from '@prism/types';
 import type { CreateConformeExecutionInput, SignConformeExecutionInput } from '@prism/types';
 import { InquiriesService } from './inquiries.service';
+import { renderConformePdf } from './conforme-pdf';
 import type { OpsConformeExecution, Prisma } from '@prisma/client';
 
 type SigningExecution = Prisma.OpsConformeExecutionGetPayload<{ include: { inquiry: true; signatures: true } }>;
@@ -78,6 +79,17 @@ export class ConformeSigningService {
     });
     if (!execution) throw new NotFoundException('Conforme execution not found');
     return this.toPublicExecution(execution);
+  }
+
+  /** Printable PDF of the latest conforme document, for PMCM to hand to the client for physical signing. */
+  async pdfForPmcm(inquiryId: string, actor: PrismVerifiedEventActor) {
+    this.requirePmcm(actor);
+    const execution = await this.prisma.opsConformeExecution.findFirst({ where: { inquiryId }, orderBy: { createdAt: 'desc' } });
+    if (!execution) throw new NotFoundException('Conforme execution not found');
+    return {
+      fileName: `conforme-v${execution.templateVersion}.pdf`,
+      pdf: renderConformePdf({ documentContent: execution.documentContent, documentSha256: execution.documentSha256, templateVersion: execution.templateVersion }),
+    };
   }
 
   async currentForClient(actor: PrismVerifiedEventActor) {

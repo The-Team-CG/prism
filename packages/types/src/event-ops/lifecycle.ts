@@ -45,6 +45,11 @@ export interface PrismInquiry {
   parallelInquiryIds?: string[];
   highFit?: boolean;
   message: string;
+  /** Derived for inquiries logged on behalf of a client; PMCM-only, never on public receipts. */
+  pendingFullDetails?: boolean;
+  seatingArrangement?: string | null;
+  stagePosition?: string | null;
+  setupNotes?: string | null;
   status: string;
   declineReason?: string | null;
   acceptedAt?: string | null;

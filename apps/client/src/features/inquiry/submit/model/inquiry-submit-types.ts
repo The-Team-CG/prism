@@ -17,6 +17,9 @@ export type InquiryForm = {
   budgetRange: string;
   inquiryPriority: string;
   message: string;
+  seatingArrangement: string;
+  stagePosition: string;
+  setupNotes: string;
   source: string;
   sourceOther: string;
   channel: string;
@@ -101,6 +104,9 @@ export const INITIAL_INQUIRY_FORM: InquiryForm = {
   budgetRange: "",
   inquiryPriority: "",
   message: "",
+  seatingArrangement: "",
+  stagePosition: "",
+  setupNotes: "",
   source: "",
   sourceOther: "",
   channel: "",
