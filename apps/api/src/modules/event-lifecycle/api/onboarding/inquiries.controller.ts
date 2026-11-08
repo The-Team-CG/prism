@@ -10,6 +10,8 @@ import {
   mergeInquirySchema,
   updateInquiryCompanyNameSchema,
   type UpdateInquiryCompanyNameInput,
+  setInquiryIntakePathSchema,
+  type SetInquiryIntakePathInput,
   updateInquiryStatusSchema,
   uploadConformeSchema,
   type CreatePrismInquiryInput,
@@ -92,6 +94,16 @@ export class OpsInquiriesController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.inquiriesService.updateCompanyName(inquiryId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Patch(':inquiryId/intake-path')
+  @UseGuards(EventSessionGuard)
+  async setIntakePath(
+    @Param('inquiryId') inquiryId: string,
+    @Body(zodBody(setInquiryIntakePathSchema)) dto: SetInquiryIntakePathInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    return this.inquiriesService.setIntakePath(inquiryId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
   @Post(':inquiryId/merge')

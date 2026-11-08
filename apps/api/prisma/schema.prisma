@@ -250,6 +250,10 @@ model OpsInquiry {
   portalInvitationSentAt    DateTime? @map("portal_invitation_sent_at")
   portalInvitationOpenedAt  DateTime? @map("portal_invitation_opened_at")
   portalInvitationExpiresAt DateTime? @map("portal_invitation_expires_at")
+  /// FR-02: "standard" or "bidding"; a bid carries its own status and due date.
+  intakePath                String    @default("standard") @map("intake_path")
+  bidStatus                 String?   @map("bid_status")
+  bidDueAt                  DateTime? @map("bid_due_at")
   privacyConsentAccepted    Boolean   @default(false) @map("privacy_consent_accepted")
   privacyNoticeVersion      String    @default("") @map("privacy_notice_version")
   marketingConsentAccepted  Boolean   @default(false) @map("marketing_consent_accepted")

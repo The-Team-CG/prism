@@ -184,6 +184,18 @@ export const updateInquiryCompanyNameSchema = z.object({
 });
 export type UpdateInquiryCompanyNameInput = z.infer<typeof updateInquiryCompanyNameSchema>;
 
+/** FR-02: an inquiry follows the standard path or the bidding path (a pitch against other agencies). */
+export const INQUIRY_INTAKE_PATHS = ["standard", "bidding"] as const;
+export const INQUIRY_BID_STATUSES = ["preparing", "submitted", "won", "lost"] as const;
+export const setInquiryIntakePathSchema = z.object({
+  intakePath: z.enum(INQUIRY_INTAKE_PATHS),
+  bidStatus: z.enum(INQUIRY_BID_STATUSES).optional(),
+  bidDueAt: isoDateStringSchema.optional(),
+}).superRefine((value, ctx) => {
+  if (value.intakePath === "bidding" && !value.bidStatus) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["bidStatus"], message: "A bid needs a status" });
+});
+export type SetInquiryIntakePathInput = z.infer<typeof setInquiryIntakePathSchema>;
+
 export interface PrismCompanyNameChange {
   id: string;
   inquiryId: string;
