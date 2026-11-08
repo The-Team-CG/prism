@@ -640,6 +640,8 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       sideEffects: async (assignment, transactionContext) => {
         const reason = input.reason?.trim();
         const emergencyChange = isEmergencyCoordinatorWithdrawal(assignment);
+        // FR-89: an emergency withdrawal surfaces free same-role replacements at once, ranked by the role's skills.
+        const replacements = emergencyChange ? await this.emergencyReplacementShortlist(eventId, assignment, transactionContext) : [];
         await Promise.all([
           this.reliabilityWriter.record({
             eventId,
@@ -660,7 +662,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
             affectedId: assignment.id,
             affectedLabel: assignment.coordinatorName,
             ...(emergencyChange ? { severity: 'critical' as const } : {}),
-            metadata: { reason: input.reason ?? '', emergencyChange },
+            metadata: { reason: input.reason ?? '', emergencyChange, ...(emergencyChange ? { suggestedReplacements: replacements.map((item) => item.id) } : {}) },
           }, transactionContext),
           this.notificationOutboxWriter.write({
             eventId,
@@ -669,11 +671,22 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
             correlationId: commandContext.correlationId,
             idempotencyKey: `${commandContext.idempotencyKey}:notify`,
           }, transactionContext),
-          ...(emergencyChange ? await this.notifyPmcmOfEmergency(eventId, assignment, reason, commandContext, transactionContext) : []),
+          ...(emergencyChange ? await this.notifyPmcmOfEmergency(eventId, assignment, reason, replacements, commandContext, transactionContext) : []),
         ]);
       },
       project: (assignment) => mapCoordinatorAssignment(assignment),
     });
+  }
+
+  private async emergencyReplacementShortlist(eventId: string, assignment: OpsCoordinatorAssignment, transactionContext?: PrismTransactionContext) {
+    if (!assignment.eventDate) return [];
+    const suggestions = await this.coordinatorSuggestionsService.listForConflict(
+      { id: eventId, eventDate: assignment.eventDate },
+      assignment.role,
+      assignment.coordinatorId ?? undefined,
+      transactionContext?.prisma ?? this.prisma,
+    );
+    return suggestions.slice(0, 3);
   }
 
   /** One email per approved PMCM admin, so a withdrawal inside the 48-hour window is acted on, not just recorded. */
@@ -681,15 +694,19 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
     eventId: string,
     assignment: OpsCoordinatorAssignment,
     reason: string | undefined,
+    replacements: Array<{ name: string }>,
     commandContext: PrismCommandContext,
     transactionContext?: PrismTransactionContext,
   ) {
     const recipients = await this.coordinatorAccountEligibility.listPmcmAdminEmails(transactionContext);
+    const shortlist = replacements.length
+      ? ` Free ${assignment.role} coordinators: ${replacements.map((item) => item.name).join(', ')}.`
+      : ` No free ${assignment.role} coordinator is available on the event date.`;
     return recipients.map((recipient) =>
       this.notificationOutboxWriter.write({
         eventId,
         recipient,
-        message: `Emergency change: ${assignment.coordinatorName} withdrew from ${assignment.role} within ${COORDINATOR_EMERGENCY_WINDOW_HOURS} hours of the event${reason ? `: ${reason}` : '.'} Assign a replacement now.`,
+        message: `Emergency change: ${assignment.coordinatorName} withdrew from ${assignment.role} within ${COORDINATOR_EMERGENCY_WINDOW_HOURS} hours of the event${reason ? `: ${reason}` : '.'} Assign a replacement now.${shortlist}`,
         correlationId: commandContext.correlationId,
         idempotencyKey: `${commandContext.idempotencyKey}:emergency:${recipient}`,
       }, transactionContext),

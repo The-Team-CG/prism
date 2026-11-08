@@ -16,11 +16,14 @@ function createController() {
   };
   const eventAccessPolicyService = { resolveActor: (_input: unknown, actor: any) => ({ role: actor?.actorRole, name: actor?.actorName, email: actor?.actorEmail }), requireActorRole: vi.fn(async () => undefined) };
   const verifiedActor = { actorRole: OpsUserRole.PmcmAdmin, actorName: 'Maxine', actorEmail: 'maxine@pmcm.test' };
+  const pareReplacementDispatch = { approve: vi.fn(async () => ({ id: 'aip_sample', status: 'approved', replacementRequested: true })) };
   return {
     controller: new OpsSupplierPareController(
       supplierNetworkWorkflowService as unknown as ConstructorParameters<typeof OpsSupplierPareController>[0],
       eventAccessPolicyService as unknown as ConstructorParameters<typeof OpsSupplierPareController>[1],
+      pareReplacementDispatch as unknown as ConstructorParameters<typeof OpsSupplierPareController>[2],
     ),
+    pareReplacementDispatch,
     supplierNetworkWorkflowService,
     eventAccessPolicyService,
     verifiedActor,
@@ -53,12 +56,12 @@ describe('OpsSupplierPareController', () => {
   });
 
   it('delegates PARE approval decisions to the supplier workflow', async () => {
-    const { controller, supplierNetworkWorkflowService, verifiedActor } = createController();
+    const { controller, supplierNetworkWorkflowService, pareReplacementDispatch, verifiedActor } = createController();
 
     await controller.pareApprove('aip_sample', verifiedActor as never);
     await controller.pareReject('aip_sample', verifiedActor as never);
 
-    expect(supplierNetworkWorkflowService.pareApprove).toHaveBeenCalledWith('aip_sample', 'Maxine');
+    expect(pareReplacementDispatch.approve).toHaveBeenCalledWith('aip_sample', expect.objectContaining({ name: 'Maxine', explicit: true }));
     expect(supplierNetworkWorkflowService.pareReject).toHaveBeenCalledWith('aip_sample', 'Maxine');
   });
 });
