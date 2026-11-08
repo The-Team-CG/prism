@@ -44,7 +44,6 @@ import type {
   PrismSupplierQuoteRequest,
   PrismVerifiedEventActor,
   ReportSupplierSiteStatusInput,
-  UploadContractInput,
   UploadMetadataInput,
 } from '@prism/types';
 import { mapSupplierQuoteRequest, mapSupplierQuoteRequestForSupplier, mapSupplierSchedule, omitPmcmReviewFields } from '../quotes/supplier-quote.mappers';
@@ -650,100 +649,6 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       },
     });
     return mapSupplierQuoteRequest(updated);
-  }
-
-  async uploadSupplierContract(
-    requestId: string,
-    input: UploadContractInput,
-    actor: ResolvedEventOpsActor,
-    verifiedActor: PrismVerifiedEventActor,
-  ) {
-    let request: OpsSupplierQuoteRequest = await this.requireSupplierQuoteRequestForActor(requestId, actor);
-    this.assertVerifiedSupplierActor(verifiedActor, actor, request);
-    const upload: ValidatedUploadMetadata = this.validateUploadMetadata(input, `events/${request.eventId}/supplier-contracts`);
-    const payloadHash = createHash('sha256').update(JSON.stringify({
-      requestId,
-      eventId: request.eventId,
-      documentKind: 'supplier_contract',
-      fileName: upload.originalFileName,
-      mimeType: upload.mimeType,
-      sizeBytes: upload.sizeBytes,
-    })).digest('hex');
-
-    const updated = await this.workflowCommandService.execute<
-      OpsSupplierQuoteRequest,
-      PrismSupplierQuoteRequest
-    >({
-      name: 'upload_supplier_contract',
-      eventId: request.eventId,
-      context: {
-        actorId: verifiedActor.actorId,
-        actorRole: verifiedActor.actorRole,
-        eventId: request.eventId,
-        correlationId: `supplier-contract:${requestId}:${input.idempotencyKey}`,
-        idempotencyKey: input.idempotencyKey,
-      },
-      sideEffectMode: 'same_tx',
-      idempotencyPayloadHash: payloadHash,
-      validatePermission: async () => {
-        const current = await this.requireSupplierQuoteRequestForActor(requestId, actor);
-        if (current.eventId !== request?.eventId || current.supplierId !== request?.supplierId) {
-          throw new NotFoundException('Supplier quote request not found');
-        }
-        this.assertVerifiedSupplierActor(verifiedActor, actor, current);
-        request = current;
-      },
-      validateState: () => {
-        if (!request) throw new NotFoundException('Supplier quote request not found');
-      },
-      validateStateInTransaction: async (transactionContext) => {
-        if (!request) throw new NotFoundException('Supplier quote request not found');
-        const current = await transactionContext.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
-        if (!current || current.eventId !== request.eventId || current.supplierId !== request.supplierId) {
-          throw new NotFoundException('Supplier quote request not found');
-        }
-        request = current;
-      },
-      write: async (transactionContext) => {
-        if (!request) throw new NotFoundException('Supplier quote request not found');
-        const document = await this.documentVaultService.registerDocument({
-          eventId: request.eventId,
-          documentKind: 'supplier_contract',
-          logicalTarget: { kind: 'supplier_quote_request', id: request.id },
-          fileName: upload.originalFileName,
-          generatedFileName: upload.generatedFileName,
-          mimeType: upload.mimeType,
-          sizeBytes: upload.sizeBytes,
-          validationStatus: upload.validationStatus,
-          storageBucket: upload.storageBucket,
-          storageKey: upload.storageKey,
-          status: 'submitted',
-          verifiedActor,
-          idempotencyKey: input.idempotencyKey,
-        }, transactionContext);
-        const db = transactionContext?.prisma ?? this.prisma;
-        return db.opsSupplierQuoteRequest.update({
-          where: { id: request.id },
-          data: { contractDocumentId: document.id },
-        });
-      },
-      sideEffects: async (updated, transactionContext) => {
-        if (!request) return;
-        await writeAudit(this.auditWriter, request.eventId, actor.name, `Uploaded supplier contract: ${request.supplierName}`, {
-          actorRole: actor.role,
-          actorEmail: actor.email,
-          actionType: AuditActionType.Upload,
-          category: AuditCategory.Documents,
-          affectedType: 'document',
-          affectedId: updated.contractDocumentId ?? undefined,
-          affectedLabel: upload.originalFileName,
-        }, transactionContext);
-      },
-      project: mapSupplierQuoteRequestForSupplier,
-    });
-    // Replays return the stored receipt result verbatim, so receipts written before the projection fix
-    // may still carry PMCM review fields. Sanitize at the response boundary for fresh and replayed results.
-    return omitPmcmReviewFields(updated);
   }
 
   private assertVerifiedSupplierActor(

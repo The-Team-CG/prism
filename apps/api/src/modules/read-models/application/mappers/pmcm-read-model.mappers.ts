@@ -86,6 +86,7 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     clientEventDayViewEnabled: event.clientEventDayViewEnabled,
     privacy: event.privacy as 'private' | 'public',
     proposalClientStatus: event.proposalClientStatus,
+    proposalRevisionCount: event.proposalRevisionCount,
     readiness: event.readiness,
     actualEndedAt: event.actualEndedAt?.toISOString() ?? null,
     archived: event.archived,

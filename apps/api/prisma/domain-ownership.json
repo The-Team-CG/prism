@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 138,
+    "totalTables": 139,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 33,
-        "columns": 455
+        "tables": 34,
+        "columns": 468
       },
       {
         "domain": "commercial",
@@ -217,6 +217,15 @@
       "targetSchema": "event_lifecycle",
       "introducedAfterCutover": true,
       "columnCount": 26
+    },
+    {
+      "model": "OpsEventRisk",
+      "currentSchema": "event_lifecycle",
+      "table": "event_risks",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 13,
+      "introducedAfterCutover": true
     },
     {
       "model": "OpsEventRiskAssessment",

@@ -6,6 +6,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Removed the unused supplier contract route that recorded a contract from declared file metadata; every supplier contract now goes through the checksum-verified, byte-checked upload.
+- Each event has a risk register by phase, with likelihood, impact, score, mitigation, owner and status, plus a one-click set of standard operational risks.
+- The live operations view shows the proposal stage, revision rounds used, floor plan stage and client portal state.
 - The archive comparison shows attendees, total cost, guest satisfaction, urgent issues and the top-rated supplier per category.
 - Clients set their own walk-in policy until event day; PMCM keeps it from event day on.
 - PMCM corrects a client's company name with a reason and a change log, and is told when a client returns after more than a year without an event.

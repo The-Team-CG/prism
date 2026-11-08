@@ -1,3 +1,4 @@
+import { EventPlanningStatusStrip } from "./event-planning-status-strip";
 import type {
   BlockEventDayTaskInput,
   CoordinatorRole,
@@ -67,6 +68,7 @@ export function LiveOperationsWorkspace({
 
   return (
     <div className="space-y-4">
+      <EventPlanningStatusStrip event={event} />
       <LiveOpsOverview
         event={event}
         liveOps={liveOps}
