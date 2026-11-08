@@ -7,6 +7,8 @@ import type { AccountContactReadModel } from '../../contracts/ports/account-cont
 
 const accountSelect = { id: true, name: true, email: true } as const;
 const NON_OCCUPYING_ASSIGNMENT_STATUSES = [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, CoordinatorAssignmentStatus.Declined];
+/** Selected quote requests per event; a bound event has a handful, so the cap only guards against runaway rows. */
+const MAX_SELECTED_SUPPLIER_CONTACTS = 200;
 
 @Injectable()
 export class AccountContactReadModelsService implements AccountContactReadModel {
@@ -43,6 +45,16 @@ export class AccountContactReadModelsService implements AccountContactReadModel 
     });
     if (!event) return null;
     return { eventName: event.eventName, clientEmail: event.inquiry.email.trim() || null };
+  }
+
+  async findSelectedSupplierContacts(eventId: string): Promise<Array<{ supplierId: string; email: string | null }>> {
+    const requests = await this.prisma.opsSupplierQuoteRequest.findMany({
+      where: { eventId, status: 'selected' },
+      select: { supplierId: true, supplier: { select: { email: true } } },
+      orderBy: { id: 'asc' },
+      take: MAX_SELECTED_SUPPLIER_CONTACTS,
+    });
+    return requests.flatMap(({ supplierId, supplier }) => (supplierId ? [{ supplierId, email: supplier?.email.trim() || null }] : []));
   }
 
   async findApprovedEmailByRole(role: string): Promise<string | null> {
