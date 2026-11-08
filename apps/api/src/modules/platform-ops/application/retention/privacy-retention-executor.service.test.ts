@@ -11,13 +11,14 @@ function createExecutor() {
   };
   const operations = {
     redactGuest: vi.fn(async () => ({ surfaces: ['guest_check_in'], touchedRecords: 3 })),
-    redactGuestRecord: vi.fn(async () => ({ surfaces: ['guest_feedback'], touchedRecords: 2 })),
+    redactGuestRecord: vi.fn(async () => ({ surfaces: ['guest_feedback'], touchedRecords: 2, storedObjectIds: ['obj_photo'] })),
   };
   const triage = {
     eraseForInquiries: vi.fn(async (ids: readonly string[]) => (ids.length ? { surfaces: ['ai_triage'], touchedRecords: 1 } : { surfaces: [], touchedRecords: 0 })),
   };
-  const executor = new PrivacyRetentionExecutorService(lifecycle as never, commercial as never, operations as never, triage as never);
-  return { executor, lifecycle, commercial, operations, triage };
+  const storage = { eraseGuestFeedbackMedia: vi.fn(async (ids: string[]) => ids.length) };
+  const executor = new PrivacyRetentionExecutorService(lifecycle as never, commercial as never, operations as never, triage as never, storage as never);
+  return { executor, lifecycle, commercial, operations, triage, storage };
 }
 
 describe('PrivacyRetentionExecutorService', () => {
@@ -39,8 +40,8 @@ describe('PrivacyRetentionExecutorService', () => {
     expect(result).toEqual({ surfaces: ['inquiry', 'billing_contact', 'ai_triage'], touchedRecords: 4 });
   });
 
-  it('redacts a guest record by name inside its event through the operations redactor', async () => {
-    const { executor, lifecycle, operations } = createExecutor();
+  it('redacts a guest record by id inside its event and deletes its stored media', async () => {
+    const { executor, lifecycle, operations, storage } = createExecutor();
     const candidate: PlatformRetentionCandidate = {
       category: 'guest_feedback', subjectId: 'fb_1', eventId: 'evt_gala', subjectEmail: '', subjectName: 'Ana Reyes', anchorAt: new Date('2025-01-01T00:00:00.000Z'),
     };
@@ -51,6 +52,7 @@ describe('PrivacyRetentionExecutorService', () => {
     expect(operations.redactGuestRecord).toHaveBeenCalledWith({ eventId: 'evt_gala', recordType: 'guest_feedback', recordId: 'fb_1' }, expect.anything());
     expect(operations.redactGuest).not.toHaveBeenCalled();
     expect(lifecycle.redactClient).not.toHaveBeenCalled();
-    expect(result).toEqual({ surfaces: ['guest_feedback'], touchedRecords: 2 });
+    expect(storage.eraseGuestFeedbackMedia).toHaveBeenCalledWith(['obj_photo'], expect.anything());
+    expect(result).toEqual({ surfaces: ['guest_feedback', 'guest_feedback_media'], touchedRecords: 3 });
   });
 });

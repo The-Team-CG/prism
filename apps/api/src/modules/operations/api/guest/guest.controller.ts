@@ -1,4 +1,5 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, HttpCode, HttpStatus, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { OpsUserRole } from '@prism/kernel/event-core';
@@ -168,6 +169,21 @@ export class OpsGuestController {
     return this.guestWorkflowService.submitFeedbackByAccessCode(accessCode, dto);
   }
 
+  /** New-SEC3: raw file bytes; the store checks size, checksum and file signature before keeping them. */
+  @Post('events/:accessCode/feedback-media')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(GuestAccessRateLimitGuard)
+  async uploadFeedbackMedia(
+    @Param('accessCode') accessCode: string,
+    @Headers('content-type') contentType: string | undefined,
+    @Headers('x-prism-file-name') encodedFileName: string | undefined,
+    @Req() request: Request,
+  ) {
+    if (!contentType || !encodedFileName) throw new BadRequestException('A file name and content type are required');
+    const bytes = await readGuestMediaBytes(request);
+    return this.guestWorkflowService.uploadFeedbackMediaByAccessCode(accessCode, { fileName: decodeURIComponent(encodedFileName), contentType: contentType.split(';')[0].trim(), bytes });
+  }
+
   @Post('events/:accessCode/feedback/:feedbackId/consent-withdrawal')
   @HttpCode(HttpStatus.OK)
   @UseGuards(GuestAccessRateLimitGuard)
@@ -201,4 +217,21 @@ export class OpsGuestController {
     const feedback = await this.guestWorkflowService.moderateFeedback(eventId, feedbackId, dto, actor);
     return this.guestWorkflowService.mapGuestFeedback(feedback);
   }
+}
+
+/** Guest feedback media matches the guest_feedback_media storage limit (100 MB). */
+const MAX_GUEST_MEDIA_BYTES = 100 * 1024 * 1024;
+
+async function readGuestMediaBytes(request: Request): Promise<Uint8Array> {
+  const declaredLength = Number(request.headers['content-length']);
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_GUEST_MEDIA_BYTES) throw new BadRequestException('File exceeds the allowed size');
+  const chunks: Buffer[] = [];
+  let byteSize = 0;
+  for await (const chunk of request as unknown as AsyncIterable<Uint8Array>) {
+    byteSize += chunk.byteLength;
+    if (byteSize > MAX_GUEST_MEDIA_BYTES) throw new BadRequestException('File exceeds the allowed size');
+    chunks.push(Buffer.from(chunk));
+  }
+  if (byteSize === 0) throw new BadRequestException('The file is empty');
+  return new Uint8Array(Buffer.concat(chunks));
 }

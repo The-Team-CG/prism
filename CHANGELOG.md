@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Guests can attach a photo or video (JPEG, PNG, MP4 or MOV, up to 100 MB) to event feedback. The API checks the file's size, checksum and file signature before storing it, and only PMCM can open it from the event files. A privacy erasure of the feedback deletes the stored file as well. Migration `20261110160000_operations_guest_feedback_media_storage` adds `feedback_media.stored_object_id`; feedback now takes `photoObjectId`/`videoObjectId` from `POST guest/events/:accessCode/feedback-media` instead of declared file metadata.
+
 - PMCM sets each client's email language (English or Filipino) on the inquiry; inquiry received, accepted, declined and conforme reminder emails go out in that language. Migration `20261110140000_event-lifecycle_client_language` adds `inquiries.preferred_language`. The Filipino copy should be reviewed by a fluent speaker before launch.
 - PMCM offers two to four proposal presentation times with an optional Zoom, Meet or Teams link; the client books one in the portal and both sides can download a calendar file. PMCM records whether the client attended, and two missed presentations in a row flag the event as at risk. Migration `20261110150000_commercial_presentation_meetings` adds `commercial.presentation_meetings`. The meeting link is pasted by PMCM; there is no Zoom API connection.
 - PMCM downloads an issued proposal as a PowerPoint deck (title, overview, investment per package, next steps).

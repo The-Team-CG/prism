@@ -55,8 +55,7 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
         findGuestEvent: (eventId: string) => new GuestEventProjectionService(prisma as never).findGuestEvent(eventId),
         listCoordinatorWorkspaceEvents: async () => [],
       } as never,
-      { write: vi.fn(async () => undefined) } as never,
-    );
+      { write: vi.fn(async () => undefined) } as never, {} as never);
   });
 
   afterEach(() => {
