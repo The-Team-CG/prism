@@ -169,7 +169,7 @@ function GuestOperationsPanel({ guestOperations }: { guestOperations: PrismRunSh
           <dt className="text-xs text-muted-foreground">Registration</dt>
           <dd className="text-foreground">
             {registrationPlatform
-              ? `${words(registrationPlatform.platformType)} · ${words(registrationPlatform.status)} · expected ${registrationPlatform.expectedPaxMin}–${registrationPlatform.expectedPaxMax} guests`
+              ? `${words(registrationPlatform.platformType)} · ${words(registrationPlatform.status)} · setup ${words(registrationPlatform.setupConfirmationStatus)} · expected ${registrationPlatform.expectedPaxMin}–${registrationPlatform.expectedPaxMax} guests`
               : "No registration platform configured"}
           </dd>
         </div>
@@ -185,7 +185,10 @@ function GuestOperationsPanel({ guestOperations }: { guestOperations: PrismRunSh
         </div>
         <div>
           <dt className="text-xs text-muted-foreground">Roster verification</dt>
-          <dd className="text-foreground">{rosterVerification.verified} verified · {rosterVerification.pending} pending</dd>
+          <dd className="text-foreground">
+            {rosterVerification.verified} verified · {rosterVerification.pending} pending
+            {rosterVerification.flagged ? ` · ${rosterVerification.flagged} flagged for verification` : ""}
+          </dd>
         </div>
       </dl>
       <div>

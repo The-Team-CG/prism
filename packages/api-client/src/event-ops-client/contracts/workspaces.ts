@@ -21,6 +21,7 @@ import type {
   PrismSupplierWorkspace,
   ImportHeadcountInput,
   UpdateRegistrationPlatformInput,
+  UpdateRegistrationPlatformSetupInput,
   UpdateSupplierEventStatusInput,
   UploadContractInput,
 } from "@prism/types";
@@ -66,6 +67,11 @@ export interface EventOpsWorkspacesContract {
     updateRegistrationPlatform(
       eventId: string,
       input: UpdateRegistrationPlatformInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismRegistrationPlatform>;
+    updateRegistrationPlatformSetup(
+      eventId: string,
+      input: UpdateRegistrationPlatformSetupInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismRegistrationPlatform>;
     importHeadcount(

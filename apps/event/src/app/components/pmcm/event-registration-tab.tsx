@@ -7,6 +7,7 @@ import type {
   PrismSupplier,
   CreateRegistrationPlatformInput,
   UpdateRegistrationPlatformInput,
+  UpdateRegistrationPlatformSetupInput,
   ImportHeadcountInput,
   ImportGuestRosterInput,
   PrismGuestRosterEntry,
@@ -83,14 +84,17 @@ function PlatformDisplay({
   busy,
   onEdit,
   onUpdate,
+  onUpdateSetup,
 }: {
   platform: PrismRegistrationPlatform;
   suppliers: PrismSupplier[];
   busy: boolean;
   onEdit: () => void;
   onUpdate: (input: UpdateRegistrationPlatformInput) => void;
+  onUpdateSetup: (input: UpdateRegistrationPlatformSetupInput) => void;
 }) {
   const canAdvance = platform.status !== "closed";
+  const setupAction = SETUP_ACTIONS[platform.setupConfirmationStatus];
   const nextStatus = getNextStatus(platform.status);
   const nextLabel = getNextStatusLabel(platform.status);
   const supplierName = resolveSupplierName(platform.supplierId, suppliers);
@@ -132,6 +136,23 @@ function PlatformDisplay({
             <p className="text-xs font-bold text-muted-foreground">Supplier</p>
             <p className="mt-1 text-sm font-black text-foreground">{supplierName}</p>
           </div>
+          <div className="border-l border-border bg-background/60 px-3 py-2.5">
+            <p className="text-xs font-bold text-muted-foreground">Setup confirmation</p>
+            <p className="mt-1 text-sm font-black text-foreground">
+              {SETUP_STATUS_LABELS[platform.setupConfirmationStatus]}
+              {platform.setupConfirmedAt ? ` · ${formatPortalDate(platform.setupConfirmedAt, "")}` : ""}
+            </p>
+            {setupAction && platform.status !== "closed" ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onUpdateSetup({ action: setupAction.action })}
+                className="mt-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-bold text-foreground hover:bg-secondary/80"
+              >
+                {setupAction.label}
+              </button>
+            ) : null}
+          </div>
         </div>
         {platform.setupNotes ? (
           <div className="border-l border-border bg-background/60 px-3 py-2.5">
@@ -155,6 +176,18 @@ function PlatformDisplay({
     </Panel>
   );
 }
+
+const SETUP_STATUS_LABELS: Record<PrismRegistrationPlatform["setupConfirmationStatus"], string> = {
+  not_requested: "Not requested",
+  requested: "Requested from supplier",
+  confirmed: "Confirmed",
+};
+
+const SETUP_ACTIONS: Record<PrismRegistrationPlatform["setupConfirmationStatus"], { action: UpdateRegistrationPlatformSetupInput["action"]; label: string } | null> = {
+  not_requested: { action: "request", label: "Request setup" },
+  requested: { action: "confirm", label: "Confirm setup" },
+  confirmed: null,
+};
 
 function resolveSupplierName(supplierId: string | null | undefined, suppliers: PrismSupplier[]): string {
   if (!supplierId) return "Not linked";
@@ -288,12 +321,14 @@ function RegistrationPlatformSection({
   busy,
   onUpsert,
   onUpdate,
+  onUpdateSetup,
 }: {
   platform: PrismRegistrationPlatform | null;
   suppliers: PrismSupplier[];
   busy: boolean;
   onUpsert: (input: CreateRegistrationPlatformInput) => void;
   onUpdate: (input: UpdateRegistrationPlatformInput) => void;
+  onUpdateSetup: (input: UpdateRegistrationPlatformSetupInput) => void;
 }) {
   const [editing, setEditing] = useState(!platform);
   if (!platform && !editing) {
@@ -309,6 +344,7 @@ function RegistrationPlatformSection({
         onUpdate={(input) => {
           onUpdate(input);
         }}
+        onUpdateSetup={onUpdateSetup}
       />
     );
   }
@@ -862,6 +898,7 @@ export function EventRegistrationTab({
   loadError,
   onUpsert,
   onUpdate,
+  onUpdateSetup,
   onImportHeadcount,
   onSearchRoster,
   onImportRoster,
@@ -880,6 +917,7 @@ export function EventRegistrationTab({
   loadError?: string | null;
   onUpsert: (input: CreateRegistrationPlatformInput) => void;
   onUpdate: (input: UpdateRegistrationPlatformInput) => void;
+  onUpdateSetup: (input: UpdateRegistrationPlatformSetupInput) => void;
   onImportHeadcount: (input: ImportHeadcountInput) => void;
   onSearchRoster: (filters?: GuestRosterSearchInput) => Promise<PrismGuestRosterEntry[]>;
   onImportRoster: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>;
@@ -905,6 +943,7 @@ export function EventRegistrationTab({
         busy={busy}
         onUpsert={onUpsert}
         onUpdate={onUpdate}
+        onUpdateSetup={onUpdateSetup}
       />
       <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} onVerify={onVerifyRoster} />
       <GuestAdmissionSection

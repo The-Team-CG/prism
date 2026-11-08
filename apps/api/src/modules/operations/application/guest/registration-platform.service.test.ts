@@ -11,6 +11,7 @@ function createService(overrides: Partial<OpsRegistrationPlatform> = {}) {
   let existing: OpsRegistrationPlatform = {
     id: 'reg_1', eventId: 'evt_sample', platformType: 'xperto', status: 'configuring',
     supplierId: 'sup_reg', expectedPaxMin: 100, expectedPaxMax: 200, setupConfirmedAt: null,
+    setupRequestedAt: null,
     setupNotes: '', headcountSource: '', importedHeadcount: 0, importedFileName: null,
     importedAt: null, createdAt: new Date(), updatedAt: new Date(), ...overrides,
   };
@@ -25,8 +26,11 @@ function createService(overrides: Partial<OpsRegistrationPlatform> = {}) {
       findUnique: vi.fn(async () => existing),
       create: vi.fn(async ({ data }: { data: Partial<OpsRegistrationPlatform> }) => (existing = { ...existing, ...data } as OpsRegistrationPlatform)),
       update: vi.fn(async ({ data }: { data: Partial<OpsRegistrationPlatform> }) => (existing = { ...existing, ...data })),
-      updateMany: vi.fn(async ({ where, data }: { where: { status: string }; data: Partial<OpsRegistrationPlatform> }) => {
-        if (where.status !== existing.status) return { count: 0 };
+      updateMany: vi.fn(async ({ where, data }: { where: Record<string, unknown>; data: Partial<OpsRegistrationPlatform> }) => {
+        if (where.status !== undefined && where.status !== existing.status) return { count: 0 };
+        if (where.setupRequestedAt === null && existing.setupRequestedAt !== null) return { count: 0 };
+        if (where.setupRequestedAt && typeof where.setupRequestedAt === 'object' && existing.setupRequestedAt === null) return { count: 0 };
+        if (where.setupConfirmedAt === null && existing.setupConfirmedAt !== null) return { count: 0 };
         existing = { ...existing, ...data };
         return { count: 1 };
       }),
@@ -58,6 +62,25 @@ describe('RegistrationPlatformService transaction validation', () => {
     expect(repeated.setupConfirmedAt).toEqual(live.setupConfirmedAt);
     expect(closed.setupConfirmedAt).toEqual(live.setupConfirmedAt);
     expect(prisma.opsRegistrationPlatform.updateMany).toHaveBeenCalledTimes(3);
+  });
+  it('tracks PMCM platform setup confirmation from requested to confirmed', async () => {
+    const { service, auditWriter } = createService();
+    const requested = await service.updateSetupConfirmation('evt_sample', { action: 'request' }, actor);
+    expect(requested.setupRequestedAt).toBeInstanceOf(Date);
+    expect(requested.setupConfirmedAt).toBeNull();
+    expect(service.mapRegistrationPlatform(requested).setupConfirmationStatus).toBe('requested');
+    const confirmed = await service.updateSetupConfirmation('evt_sample', { action: 'confirm' }, actor);
+    expect(service.mapRegistrationPlatform(confirmed).setupConfirmationStatus).toBe('confirmed');
+    expect(confirmed.setupConfirmedAt).toBeInstanceOf(Date);
+    expect(auditWriter.write).toHaveBeenCalledTimes(2);
+  });
+  it('rejects confirming setup that was never requested or confirming twice', async () => {
+    const { service, prisma } = createService();
+    await expect(service.updateSetupConfirmation('evt_sample', { action: 'confirm' }, actor)).rejects.toBeInstanceOf(BadRequestException);
+    await service.updateSetupConfirmation('evt_sample', { action: 'request' }, actor);
+    await service.updateSetupConfirmation('evt_sample', { action: 'confirm' }, actor);
+    await expect(service.updateSetupConfirmation('evt_sample', { action: 'confirm' }, actor)).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.opsRegistrationPlatform.updateMany).toHaveBeenCalledTimes(2);
   });
   it('rejects headcount import until platform closure', async () => {
     const { service, auditWriter } = createService({ status: 'live' });

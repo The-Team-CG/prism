@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards, Optional } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards, Optional } from '@nestjs/common';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -23,6 +23,7 @@ import {
   createEventHandoffSchema,
   createEventEodReportSchema,
   createEventEodReplySchema,
+  setEventEodIncompleteTasksSchema,
   type BlockEventDayTaskInput,
   type CreateEventDayTaskInput,
   type CreateEventTaskReassignmentInput,
@@ -43,6 +44,7 @@ import {
   type CreateEventHandoffInput,
   type CreateEventEodReportInput,
   type CreateEventEodReplyInput,
+  type SetEventEodIncompleteTasksInput,
   type PrismVerifiedEventActor,
 } from '@prism/types';
 import { EventLiveOpsCommandService } from '../application/event-live-ops-command.service';
@@ -133,6 +135,12 @@ export class EventLiveOpsController {
   @HttpCode(HttpStatus.CREATED)
   replyEodReport(@Param('eventId') eventId: string, @Param('reportId') reportId: string, @Body(zodBody(createEventEodReplySchema)) dto: CreateEventEodReplyInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     return this.scheduleService!.replyToEodReport(eventId, reportId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Put(':eventId/eod-reports/:reportId/incomplete-tasks')
+  @UseGuards(EventSessionGuard)
+  setEodIncompleteTasks(@Param('eventId') eventId: string, @Param('reportId') reportId: string, @Body(zodBody(setEventEodIncompleteTasksSchema)) dto: SetEventEodIncompleteTasksInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.scheduleService!.setEodIncompleteTasks(eventId, reportId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
   @Get(':eventId/live-ops')

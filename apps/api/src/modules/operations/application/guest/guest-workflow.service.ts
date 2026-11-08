@@ -110,11 +110,12 @@ export class GuestWorkflowService implements GuestCommands {
 
   async countRosterVerificationForEvent(eventId: string) {
     const active = { eventId, withdrawnAt: null };
-    const [verified, pending] = await Promise.all([
+    const [verified, pending, flagged] = await Promise.all([
       this.prisma.opsGuestRosterEntry.count({ where: { ...active, verificationStatus: 'verified' } }),
       this.prisma.opsGuestRosterEntry.count({ where: { ...active, verificationStatus: 'pending' } }),
+      this.prisma.opsGuestRosterEntry.count({ where: { ...active, verificationFlaggedAt: { not: null } } }),
     ]);
-    return { verified, pending };
+    return { verified, pending, flagged };
   }
 
   async listCheckInsForEvent(eventId: string): Promise<PrismGuestCheckIn[]> {
@@ -597,7 +598,7 @@ export class GuestWorkflowService implements GuestCommands {
     }
     const rows = await this.prisma.opsGuestRosterEntry.findMany({
       where,
-      select: { id: true, eventId: true, guestName: true, category: true, table: true, eligibility: true, verificationStatus: true, checkedInAt: true, source: true, createdAt: true },
+      select: { id: true, eventId: true, guestName: true, category: true, table: true, eligibility: true, verificationStatus: true, checkedInAt: true, source: true, createdAt: true, verificationFlaggedAt: true, verificationFlaggedBy: true },
       orderBy: input.reviewQueue ? [{ createdAt: 'asc' }, { id: 'asc' }] : [{ normalizedName: 'asc' }, { id: 'asc' }],
       take: MAX_GUEST_ROSTER_SEARCH,
     });
@@ -614,13 +615,43 @@ export class GuestWorkflowService implements GuestCommands {
       if (roster.checkedInAt && input.status !== roster.verificationStatus) {
         throw new BadRequestException('Guest verification cannot change after check-in');
       }
-      const updated = await tx.opsGuestRosterEntry.update({ where: { id: rosterEntryId }, data: { verificationStatus: input.status } });
+      const cleared = input.status === 'verified' ? { verificationFlaggedAt: null, verificationFlaggedBy: null } : {};
+      const updated = await tx.opsGuestRosterEntry.update({ where: { id: rosterEntryId }, data: { verificationStatus: input.status, ...cleared } });
       await writeAudit(this.auditWriter, eventId, actor.name, `Guest verification changed: ${roster.guestName}`, { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster_verification', affectedId: rosterEntryId, affectedLabel: roster.guestName, metadata: { previousStatus: roster.verificationStatus, status: input.status, actorId: actor.id } }, { prisma: tx, correlationId: `roster_verify_${rosterEntryId}`, actorId: actor.id });
       return updated;
     });
     return actor.role === OpsUserRole.Coordinator
       ? this.mapCoordinatorRegistrationEntry(updated)
       : this.mapGuestRosterEntry(updated);
+  }
+
+  async flagWalkInForVerification(eventId: string, rosterEntryId: string, actor: GuestWorkflowActor) {
+    await this.requireRegistrationDeskAccess(eventId, actor);
+    return this.prisma.$transaction(async (tx) => {
+      const correlationId = `roster_flag_${rosterEntryId}`;
+      const event = await this.eventReferences.findOperationsEvent(eventId, { prisma: tx, correlationId });
+      if (!event || event.archived) throw new NotFoundException('Event not found or archived');
+      const roster = await tx.opsGuestRosterEntry.findFirst({ where: { id: rosterEntryId, eventId, withdrawnAt: null } });
+      if (!roster) throw new NotFoundException('Roster entry not found');
+      if (roster.source !== GUEST_WALK_IN_ROSTER_SOURCE) throw new BadRequestException('Only unauthorized walk-ins can be flagged for verification');
+      if (roster.checkedInAt) throw new BadRequestException('Guest is already checked in');
+      if (roster.verificationFlaggedAt) return this.mapCoordinatorRegistrationEntry(roster);
+      // A flagged walk-in is pending again so the existing verification gate blocks check-in until it is verified.
+      const updated = await tx.opsGuestRosterEntry.update({
+        where: { id: rosterEntryId },
+        data: { verificationStatus: 'pending', verificationFlaggedAt: new Date(), verificationFlaggedBy: actor.name },
+      });
+      await writeAudit(this.auditWriter, eventId, actor.name, `Walk-in flagged for verification: ${roster.guestName}`, {
+        actorRole: actor.role,
+        category: AuditCategory.Events,
+        actionType: AuditActionType.Update,
+        affectedType: 'guest_roster_verification',
+        affectedId: rosterEntryId,
+        affectedLabel: roster.guestName,
+        metadata: { previousStatus: roster.verificationStatus, status: 'pending', flagged: true, actorId: actor.id },
+      }, { prisma: tx, correlationId, actorId: actor.id });
+      return this.mapCoordinatorRegistrationEntry(updated);
+    });
   }
 
   async checkInRosterEntry(eventId: string, rosterEntryId: string, actor: GuestWorkflowActor) {
@@ -848,7 +879,7 @@ export class GuestWorkflowService implements GuestCommands {
     };
   }
 
-  private mapCoordinatorRegistrationEntry(entry: Pick<OpsGuestRosterEntry, 'id' | 'eventId' | 'guestName' | 'category' | 'table' | 'eligibility' | 'verificationStatus' | 'checkedInAt' | 'source' | 'createdAt'>): PrismCoordinatorRegistrationEntry {
+  private mapCoordinatorRegistrationEntry(entry: Pick<OpsGuestRosterEntry, 'id' | 'eventId' | 'guestName' | 'category' | 'table' | 'eligibility' | 'verificationStatus' | 'checkedInAt' | 'source' | 'createdAt' | 'verificationFlaggedAt' | 'verificationFlaggedBy'>): PrismCoordinatorRegistrationEntry {
     return {
       id: entry.id,
       eventId: entry.eventId,
@@ -858,6 +889,8 @@ export class GuestWorkflowService implements GuestCommands {
       eligibility: entry.eligibility,
       verificationStatus: entry.verificationStatus as PrismCoordinatorRegistrationEntry['verificationStatus'],
       checkedInAt: entry.checkedInAt?.toISOString() ?? null,
+      verificationFlaggedAt: entry.verificationFlaggedAt?.toISOString() ?? null,
+      verificationFlaggedBy: entry.verificationFlaggedBy ?? null,
       walkIn: GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(entry.source),
       ...(GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(entry.source)
         ? { reviewSubmittedAt: entry.createdAt.toISOString() }
@@ -869,6 +902,7 @@ export class GuestWorkflowService implements GuestCommands {
     id: string; eventId: string; sourceKey: string; guestName: string; email: string; phone: string;
     category: string; table: string; eligibility: string; verificationStatus: string; source: string;
     importBatchId: string | null; checkedInAt: Date | null; withdrawnAt: Date | null; createdAt: Date; updatedAt: Date;
+    verificationFlaggedAt: Date | null; verificationFlaggedBy: string | null;
   }): PrismGuestRosterEntry {
     return {
       id: entry.id,
@@ -884,6 +918,8 @@ export class GuestWorkflowService implements GuestCommands {
       source: entry.source,
       importBatchId: entry.importBatchId,
       checkedInAt: entry.checkedInAt?.toISOString() ?? null,
+      verificationFlaggedAt: entry.verificationFlaggedAt?.toISOString() ?? null,
+      verificationFlaggedBy: entry.verificationFlaggedBy,
       withdrawnAt: entry.withdrawnAt?.toISOString() ?? null,
       createdAt: entry.createdAt.toISOString(),
       updatedAt: entry.updatedAt.toISOString(),
