@@ -31,7 +31,7 @@ export function useClientReviewItems(eventId: string) {
     void refresh();
   }, [refresh]);
 
-  const decide = useCallback(async (item: PrismClientReviewItem, action: DecideClientReviewItemInput["action"], comment: string) => {
+  const decide = useCallback(async (item: PrismClientReviewItem, action: DecideClientReviewItemInput["action"], comment: string, budgetExpectation?: DecideClientReviewItemInput["budgetExpectation"]) => {
     const requestedEventId = eventId;
     setBusyItemId(item.id);
     setError(null);
@@ -40,6 +40,7 @@ export function useClientReviewItems(eventId: string) {
         itemVersion: item.version,
         action,
         comment,
+        ...(budgetExpectation ? { budgetExpectation } : {}),
         idempotencyKey: crypto.randomUUID(),
       }, "Venue or styling decision");
       await clientReviewRepository.decide(requestedEventId, item.id, payload);

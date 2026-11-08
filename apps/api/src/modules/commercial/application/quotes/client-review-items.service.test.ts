@@ -56,6 +56,14 @@ describe('ClientReviewItemsService', () => {
     expect(items).toHaveLength(1);
   });
 
+  it('requires the budget vs expectation answer when a styling option is sent back, and records it', async () => {
+    const { service, pmcm, client } = setup();
+    const styling = await service.issue('event-1', { kind: 'styling', title: 'Blue', summary: 'Blue palette', budgetRange: 'PHP 80,000', idempotencyKey: 'style-check' }, pmcm);
+    await expect(service.decide('event-1', styling.id, { itemVersion: 1, action: 'request_revision', comment: 'Too formal', idempotencyKey: 'd-1' }, client)).rejects.toThrow('how to handle the budget');
+    const decision = await service.decide('event-1', styling.id, { itemVersion: 1, action: 'request_revision', comment: 'Too formal', budgetExpectation: 'lower_cost_option', idempotencyKey: 'd-2' }, client);
+    expect(decision).toMatchObject({ action: 'request_revision', budgetExpectation: 'lower_cost_option' });
+  });
+
   it('rejects a decision against an obsolete version before writing a decision', async () => {
     const { service, prisma, items, pmcm, client } = setup();
     const old = await service.issue('event-1', { kind: 'styling', title: 'Blue', summary: 'Blue palette', idempotencyKey: 'style-1' }, pmcm);

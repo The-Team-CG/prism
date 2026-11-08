@@ -5,8 +5,23 @@ import { Check, MessageSquareText } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
-import type { PrismClientReviewItem } from "@prism/types";
+import { BUDGET_EXPECTATION_LABELS, type PrismClientReviewItem } from "@prism/types";
 import { useClientReviewItems } from "../view-models/use-client-review-items";
+
+type BudgetExpectation = keyof typeof BUDGET_EXPECTATION_LABELS;
+
+/** FR-09 Budget vs Expectation Check, shown before a styling option is sent back. */
+function BudgetExpectationCheck({ budgetRange, value, onChange }: { budgetRange?: string; value: BudgetExpectation | ""; onChange: (value: BudgetExpectation) => void }) {
+  return (
+    <fieldset className="mb-2 rounded-lg border border-border p-2 text-xs">
+      <legend className="px-1 font-semibold text-foreground">If you ask for changes, how should PMCM handle the budget?</legend>
+      {budgetRange ? <p className="mb-1 text-muted-foreground">This option is priced at {budgetRange}.</p> : null}
+      {(Object.keys(BUDGET_EXPECTATION_LABELS) as BudgetExpectation[]).map((key) => (
+        <label key={key} className="flex items-center gap-2 py-0.5"><input type="radio" name="budget-expectation" checked={value === key} onChange={() => onChange(key)} />{BUDGET_EXPECTATION_LABELS[key]}</label>
+      ))}
+    </fieldset>
+  );
+}
 
 export function ClientVenueStylingReview({ eventId }: { eventId: string }) {
   const { items, loading, busyItemId, error, decide } = useClientReviewItems(eventId);
@@ -51,7 +66,7 @@ function ReviewGroup({
   items: PrismClientReviewItem[];
   latestVersion: number;
   busyItemId: string | null;
-  onDecide: (item: PrismClientReviewItem, action: "approve" | "request_revision", comment: string) => Promise<void>;
+  onDecide: (item: PrismClientReviewItem, action: "approve" | "request_revision", comment: string, budgetExpectation?: BudgetExpectation) => Promise<void>;
 }) {
   return (
     <section className="space-y-3">
@@ -70,9 +85,8 @@ function ReviewItemCard({
   item: PrismClientReviewItem;
   isLatest: boolean;
   busy: boolean;
-  onDecide: (item: PrismClientReviewItem, action: "approve" | "request_revision", comment: string) => Promise<void>;
+  onDecide: (item: PrismClientReviewItem, action: "approve" | "request_revision", comment: string, budgetExpectation?: BudgetExpectation) => Promise<void>;
 }) {
-  const [comment, setComment] = useState("");
   const decision = item.clientDecision;
   return (
     <article className="rounded-xl border border-border bg-muted/20 p-4">
@@ -85,17 +99,30 @@ function ReviewItemCard({
       </div>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{item.summary}</p>
       {decision?.comment ? <p className="mt-3 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">Your note: {decision.comment}</p> : null}
-      {!decision && isLatest ? (
-        <div className="mt-4 space-y-3">
-          <label className="block text-xs font-semibold text-muted-foreground">Note for PMCM (required to request a revision)
-            <textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={4000} className="mt-1.5 min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal text-foreground" placeholder="Add a comment or explain what should change." />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <Button disabled={busy} onClick={() => void onDecide(item, "approve", comment)} className="rounded-lg font-bold"><Check className="size-4" /> Approve option</Button>
-            <Button disabled={busy || !comment.trim()} variant="outline" onClick={() => void onDecide(item, "request_revision", comment)} className="rounded-lg font-semibold">Request revision</Button>
-          </div>
-        </div>
-      ) : null}
+      {!decision && isLatest ? <ReviewItemDecisionForm item={item} busy={busy} onDecide={onDecide} /> : null}
     </article>
+  );
+}
+
+function ReviewItemDecisionForm({ item, busy, onDecide }: {
+  item: PrismClientReviewItem;
+  busy: boolean;
+  onDecide: (item: PrismClientReviewItem, action: "approve" | "request_revision", comment: string, budgetExpectation?: BudgetExpectation) => Promise<void>;
+}) {
+  const [comment, setComment] = useState("");
+  const [budgetExpectation, setBudgetExpectation] = useState<BudgetExpectation | "">("");
+  const styling = item.kind === "styling";
+  const canRequestRevision = !busy && Boolean(comment.trim()) && (!styling || Boolean(budgetExpectation));
+  return (
+    <div className="mt-4 space-y-3">
+      <label className="block text-xs font-semibold text-muted-foreground">Note for PMCM (required to request a revision)
+        {styling ? <BudgetExpectationCheck budgetRange={item.budgetRange} value={budgetExpectation} onChange={setBudgetExpectation} /> : null}
+        <textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={4000} className="mt-1.5 min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal text-foreground" placeholder="Add a comment or explain what should change." />
+      </label>
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={busy} onClick={() => void onDecide(item, "approve", comment)} className="rounded-lg font-bold"><Check className="size-4" /> Approve option</Button>
+        <Button disabled={!canRequestRevision} variant="outline" onClick={() => void onDecide(item, "request_revision", comment, budgetExpectation || undefined)} className="rounded-lg font-semibold">Request revision</Button>
+      </div>
+    </div>
   );
 }
