@@ -198,7 +198,29 @@ function sanitizeParticipantGameData(value: unknown): PrismGamePublicState["part
   if (thisOrThat) return thisOrThat;
   const familyFeud = sanitizeFamilyFeudGameData(value);
   if (familyFeud) return familyFeud;
-  return sanitizeSplitTheRoomGameData(value);
+  return sanitizeSplitOrAudienceGameData(value);
+}
+
+function sanitizeSplitOrAudienceGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
+  return sanitizeSplitTheRoomGameData(value) ?? sanitizeAudienceGameData(value);
+}
+
+/** FR-40 Live Poll, Word Cloud and Open Q and A participant data. */
+function sanitizeAudienceGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
+  if (value.kind === "live-poll") return sanitizeLivePollGameData(value.options);
+  const limit = boundedResponseLimit(value.maxResponseLength);
+  if (value.kind === "word-cloud" && limit && limit <= 60) return { kind: "word-cloud", maxResponseLength: limit };
+  return value.kind === "open-qa" && limit ? { kind: "open-qa", maxResponseLength: limit } : undefined;
+}
+
+function sanitizeLivePollGameData(options: unknown): PrismGamePublicState["participant"]["gameData"] | undefined {
+  if (!Array.isArray(options) || options.length < 2 || options.length > 6) return undefined;
+  const valid = options.every((option) => typeof option === "string" && option.trim().length > 0 && option.length <= 120);
+  return valid ? { kind: "live-poll", options: options as string[] } : undefined;
+}
+
+function boundedResponseLimit(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 10 && value <= 300 ? value : null;
 }
 
 function sanitizeWordScrambleGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
@@ -353,7 +375,7 @@ function sanitizeApprovedResponses(
   kind: PrismGamePublicState["game"]["kind"],
   status: PrismGamePublicState["status"],
 ): readonly string[] | undefined {
-  if (kind !== "split-the-room" || status !== "paused" || !Array.isArray(value)) return undefined;
+  if (!["split-the-room", "word-cloud", "open-qa"].includes(kind) || status !== "paused" || !Array.isArray(value)) return undefined;
   return value.slice(0, 100).flatMap((response) =>
     typeof response === "string" && response.trim().length > 0 && response.length <= 500
       ? [response]

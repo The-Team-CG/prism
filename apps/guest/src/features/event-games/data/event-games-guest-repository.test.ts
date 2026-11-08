@@ -549,6 +549,27 @@ describe("event games guest repository", () => {
     expect(live).not.toHaveProperty("approvedResponses");
   });
 
+  it("passes poll options and word cloud limits through, shows approved answers only once paused, and drops malformed data", async () => {
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
+      eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
+    });
+    const withData = (kind: string, gameData: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
+      ...participantState, game: { title: kind, kind }, participant: { ...participantState.participant, gameData }, ...extra,
+    });
+    api.getParticipantState
+      .mockResolvedValueOnce(withData("live-poll", { kind: "live-poll", options: ["Keynote", "Panel", "Workshop"] }))
+      .mockResolvedValueOnce(withData("live-poll", { kind: "live-poll", options: ["Only one"] }))
+      .mockResolvedValueOnce(withData("word-cloud", { kind: "word-cloud", maxResponseLength: 30 }, { status: "paused", approvedResponses: ["Inspiring", "Fun"] }))
+      .mockResolvedValueOnce(withData("open-qa", { kind: "open-qa", maxResponseLength: 300 }, { approvedResponses: ["Not yet"] }));
+
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant.gameData).toEqual({ kind: "live-poll", options: ["Keynote", "Panel", "Workshop"] });
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant).not.toHaveProperty("gameData");
+    const cloud = await eventGamesGuestRepository.getParticipantState("session-a1");
+    expect(cloud.participant.gameData).toEqual({ kind: "word-cloud", maxResponseLength: 30 });
+    expect(cloud.approvedResponses).toEqual(["Inspiring", "Fun"]);
+    expect(await eventGamesGuestRepository.getParticipantState("session-a1")).not.toHaveProperty("approvedResponses");
+  });
+
   it("clears a rejected participant credential without touching the guest check-in session", async () => {
     savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
       eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
