@@ -21,7 +21,8 @@ export interface CommercialFactsReader {
   listProposalReviewAudits(eventId: string, client: Prisma.TransactionClient): Promise<ProposalReviewAudit[]>;
   getLifecycleFacts(eventId: string, client?: ReadClient): Promise<LifecycleCommercialFacts>;
   /** FR-63: per requested category, whether a Tier 1 or Tier 2 supplier is free on the event date. */
-  listSupplierGaps(eventId: string, client?: ReadClient): Promise<PrismSupplierGap[]>;
+  /** Requested categories, plus any extra category PMCM is about to request (FR-16 escalation check). */
+  listSupplierGaps(eventId: string, client?: ReadClient, extraCategoryIds?: string[]): Promise<PrismSupplierGap[]>;
   /** FR-96: contract amount (latest issued proposal), payments received and confirmed supplier commitments. */
   getCancellationFacts(eventId: string, client?: ReadClient): Promise<{ contractAmount: number; paidAmount: number; committedSupplierAmount: number }>;
   /** New-P1: the highest-rated reviewed supplier per category for one event. */

@@ -64,10 +64,17 @@ export function buildCostEstimateInput(draft: ProposalDraft) {
   );
 }
 
-export function buildIssueProposalInput(draft: ProposalDraft, costEstimateId: string, idempotencyKey: string) {
+/** FR-62: Option B, saved as its own estimate, and PMCM's reason when the briefing names one fixed budget. */
+export type ProposalPackages = { alternativeCostEstimateId?: string; packageOverrideReason?: string };
+
+export function buildIssueProposalInput(draft: ProposalDraft, costEstimateId: string, idempotencyKey: string, packages: ProposalPackages = {}) {
   return parseContract(
     issueProposalVersionSchema,
-    { title: draft.title, summary: draft.summary, revisionNote: draft.revisionNote, costEstimateId, idempotencyKey },
+    {
+      title: draft.title, summary: draft.summary, revisionNote: draft.revisionNote, costEstimateId, idempotencyKey,
+      ...(packages.alternativeCostEstimateId ? { alternativeCostEstimateId: packages.alternativeCostEstimateId } : {}),
+      ...(packages.packageOverrideReason?.trim() ? { packageOverrideReason: packages.packageOverrideReason.trim() } : {}),
+    },
     "Proposal",
   );
 }

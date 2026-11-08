@@ -6,12 +6,14 @@ import { zodBody } from '@prism/kernel/shared';
 import { addSupplierQuoteSchema, requestSupplierQuotesSchema, createSupplierScheduleSchema, type AddSupplierQuoteInput, type PrismVerifiedEventActor, type RequestSupplierQuotesInput, type CreateSupplierScheduleInput } from '@prism/types';
 import { SupplierNetworkWorkflowService } from '../../application/suppliers/supplier-network-workflow.service';
 import { CommercialWorkflowService } from '../../application/quotes/commercial-workflow.service';
+import { SupplierGapService } from '../../application/suppliers/supplier-gap.service';
 
 @Controller('events')
 export class OpsEventCommercialController {
   constructor(
     private readonly commercialWorkflowService: CommercialWorkflowService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    private readonly supplierGaps: SupplierGapService,
     @Optional() private readonly supplierNetworkWorkflowService?: SupplierNetworkWorkflowService,
   ) {}
 
@@ -62,7 +64,10 @@ export class OpsEventCommercialController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = await this.requireCommercialActor(verifiedActor, 'supplier quote requests', eventId);
-    return this.commercialWorkflowService.requestSupplierQuotes(eventId, dto, actor);
+    await this.supplierGaps.assertTierPolicy(eventId, dto);
+    const requests = await this.commercialWorkflowService.requestSupplierQuotes(eventId, dto, actor);
+    await this.supplierGaps.recordTierOverride(eventId, dto, actor);
+    return requests;
   }
 
   @Patch(':eventId/supplier-quotes/:quoteId/select')

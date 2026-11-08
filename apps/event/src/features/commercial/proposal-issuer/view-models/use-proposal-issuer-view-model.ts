@@ -29,6 +29,8 @@ export function useProposalIssuerViewModel(eventId: string) {
   // What the form held before the last AI draft, so one click restores typed text.
   const [beforeDraft, setBeforeDraft] = useState<{ title: string; summary: string; revisionNote: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [optionB, setOptionB] = useState<{ id: string; total: number } | null>(null);
+  const [packageOverrideReason, setPackageOverrideReason] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   // Kept between attempts so a failed issue retries against the estimate it already created.
   const createdEstimateId = useRef<string | null>(null);
@@ -129,6 +131,23 @@ export function useProposalIssuerViewModel(eventId: string) {
     setNotice("Your earlier wording is back.");
   }
 
+  /** FR-62: saves the lines on screen as Option B, then clears them so PMCM builds Option A. */
+  async function saveAsOptionB() {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const estimate = await proposalIssuerRepository.createEstimate(eventId, buildCostEstimateInput({ budgetAmount, notes, lines, title, summary, revisionNote }));
+      setOptionB({ id: estimate.id, total: estimate.totalAmount });
+      setLines([newLine()]);
+      setNotice("Option B is saved. Build Option A, then issue the proposal with both packages.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not save Option B.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function issue() {
     if (busy) return;
     const requestedEventId = eventId;
@@ -144,7 +163,7 @@ export function useProposalIssuerViewModel(eventId: string) {
         createdEstimateId.current = estimateId;
       }
       issueKey.current ??= crypto.randomUUID();
-      const version = await proposalIssuerRepository.issue(requestedEventId, buildIssueProposalInput(draft, estimateId, issueKey.current));
+      const version = await proposalIssuerRepository.issue(requestedEventId, buildIssueProposalInput(draft, estimateId, issueKey.current, { alternativeCostEstimateId: optionB?.id, packageOverrideReason }));
       if (currentEventId.current !== requestedEventId) return;
       createdEstimateId.current = null;
       issueKey.current = null;
@@ -155,6 +174,8 @@ export function useProposalIssuerViewModel(eventId: string) {
       setNotes("");
       setBudgetAmount("");
       setLines([newLine()]);
+      setOptionB(null);
+      setPackageOverrideReason("");
       await load();
     } catch (cause) {
       if (currentEventId.current === requestedEventId) setError(cause instanceof Error ? cause.message : "Could not issue this proposal.");
@@ -164,6 +185,11 @@ export function useProposalIssuerViewModel(eventId: string) {
   }
 
   return {
+    optionB,
+    clearOptionB: () => setOptionB(null),
+    saveAsOptionB,
+    packageOverrideReason,
+    setPackageOverrideReason,
     latest,
     lines,
     total: estimateTotal(lines),

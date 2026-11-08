@@ -45,6 +45,8 @@ export interface PrismProposalVersion {
   summary: string;
   costEstimateId: string;
   totalAmount: number;
+  /** FR-62: Option B total when the proposal offers two packages. */
+  alternativeTotalAmount?: number | null;
   status: "draft" | "issued" | "superseded";
   revisionNote: string;
   issuedAt?: string | null;
@@ -58,6 +60,8 @@ export interface PrismIssuedProposalSummary {
   title: string;
   summary: string;
   totalAmount: number;
+  /** FR-62: Option B total when the proposal offers two packages. */
+  alternativeTotalAmount: number | null;
   revisionNote: string;
   issuedAt: string;
   /** The client's decision on the current event proposal: approved means a new version can no longer be issued. */
