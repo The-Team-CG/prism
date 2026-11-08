@@ -1,9 +1,10 @@
-import type { PrismSupplierGap } from '@prism/types';
+import { supplierServesScale, type PrismSupplierGap, type SupplierCapacityRating } from '@prism/types';
 
 export type SupplierGapSupplier = {
   id: string;
   categoryId: string;
   tier: string;
+  capacityRating?: string | null;
   /** Availability row for the event date, if PMCM or the supplier recorded one. */
   availability: { blocked: boolean; capacity: number } | null;
   /** Selected bookings this supplier already holds on the event date, across events. */
@@ -21,6 +22,7 @@ export function isSupplierAvailable(supplier: SupplierGapSupplier): boolean {
 
 export function supplierGapsFrom(input: {
   eventDate: string;
+  eventScale?: SupplierCapacityRating | null;
   categories: SupplierGapCategory[];
   suppliers: SupplierGapSupplier[];
   acknowledgements: Map<string, PrismSupplierGap['acknowledgement']>;
@@ -29,12 +31,16 @@ export function supplierGapsFrom(input: {
     const available = input.suppliers.filter((supplier) => supplier.categoryId === category.id && isSupplierAvailable(supplier));
     const tier1Available = available.filter((supplier) => supplier.tier === 'tier_1').length;
     const tier2Available = available.filter((supplier) => supplier.tier === 'tier_2').length;
+    const tier1Capable = available.filter((supplier) => supplier.tier === 'tier_1' && supplierServesScale(supplier.capacityRating, input.eventScale ?? null)).length;
     return {
       categoryId: category.id,
       categoryName: category.name,
       eventDate: input.eventDate,
       tier1Available,
       tier2Available,
+      tier1Capable,
+      tier2EscalationAllowed: tier1Capable === 0,
+      eventScale: input.eventScale ?? null,
       gap: !category.coveredByThisEvent && tier1Available + tier2Available === 0,
       acknowledgement: input.acknowledgements.get(category.id) ?? null,
     };

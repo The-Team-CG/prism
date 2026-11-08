@@ -51,11 +51,27 @@ export const issueProposalVersionSchema = z.object({
   title: nonEmptyStringSchema,
   summary: z.string().trim().default(''),
   costEstimateId: nonEmptyStringSchema,
+  /** FR-62: a second package (Option B) for a client whose budget is a range or not yet confirmed. */
+  alternativeCostEstimateId: optionalTrimmedStringSchema,
+  /** FR-62: needed to offer two packages when the briefing names one fixed budget. */
+  packageOverrideReason: z.string().trim().min(1).max(500).optional(),
   revisionNote: z.string().trim().default(''),
   /** One key per drafted proposal: an identical retry replays the issued version instead of creating another. */
   idempotencyKey: nonEmptyStringSchema.optional(),
 });
 export type IssueProposalVersionInput = z.infer<typeof issueProposalVersionSchema>;
+
+/**
+ * FR-62: how many packages a proposal should offer. One when the briefing names a single fixed budget, up to two when
+ * the budget is a range or not given. PMCM can override with a reason.
+ */
+export function proposalPackageLimit(budgetRange: string | null | undefined): 1 | 2 {
+  const value = (budgetRange ?? "").trim();
+  if (!value) return 2;
+  const amounts = value.replace(/,/g, "").match(/\d+(?:\.\d+)?\s*[kKmM]?/g) ?? [];
+  const isRange = /(-|–|—|\bto\b|~)/i.test(value) || amounts.length > 1;
+  return amounts.length === 1 && !isRange ? 1 : 2;
+}
 
 /* ── Supplier ─────────────────────────────────────────────────── */
 

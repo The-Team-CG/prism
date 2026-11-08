@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 144,
+    "totalTables": 145,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -26,8 +26,8 @@
       {
         "domain": "commercial",
         "schema": "commercial",
-        "tables": 40,
-        "columns": 486
+        "tables": 41,
+        "columns": 502
       },
       {
         "domain": "operations",
@@ -356,7 +356,7 @@
       "table": "proposal_versions",
       "domain": "commercial",
       "targetSchema": "commercial",
-      "columnCount": 11
+      "columnCount": 14
     },
     {
       "model": "OpsEventFreezeException",
@@ -1177,6 +1177,15 @@
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
       "columnCount": 10,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsClientOwnedSupplier",
+      "currentSchema": "commercial",
+      "table": "client_owned_suppliers",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 13,
       "introducedAfterCutover": true
     },
     {

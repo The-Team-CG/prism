@@ -243,7 +243,13 @@ export function QuoteRequestModal({
   onConfidential,
   onClose,
   onSubmit,
+  tier2Selected,
+  tierOverrideReason,
+  onTierOverrideReason,
 }: {
+  tier2Selected: boolean;
+  tierOverrideReason: string;
+  onTierOverrideReason: (value: string) => void;
   categoryName?: string;
   groups: Array<{ title: string; suppliers: PrismSupplier[] }>;
   selectedSupplierIds: string[];
@@ -296,6 +302,13 @@ export function QuoteRequestModal({
               <input type="checkbox" checked={confidentialBid} onChange={(event) => onConfidential(event.target.checked)} className="size-5" />
             </label>
           </div>
+          {tier2Selected ? (
+            <label className="block rounded-md border border-border bg-background p-3 text-sm">
+              <span className="block font-black">Reason for asking a backup (Tier 2) supplier</span>
+              <span className="text-xs text-muted-foreground">Needed when a free Tier 1 supplier is rated for this event&apos;s size. Recorded in the audit trail.</span>
+              <input value={tierOverrideReason} maxLength={500} onChange={(event) => onTierOverrideReason(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3" />
+            </label>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border p-5">
           <button onClick={onClose} className="h-10 rounded-md border border-border bg-white px-3 text-sm font-black">Cancel</button>

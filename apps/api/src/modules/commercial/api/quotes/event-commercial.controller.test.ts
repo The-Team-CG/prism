@@ -76,6 +76,7 @@ function createController() {
   const controller = new OpsEventCommercialController(
     commercialWorkflowService as any,
     eventAccessPolicyService as any,
+    { assertTierPolicy: async () => undefined, recordTierOverride: async () => undefined } as any,
   );
   return { controller, commercialWorkflowService, eventAccessPolicyService };
 }
