@@ -32,7 +32,7 @@ import {
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
 import { refreshAfterDashboardCommand, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
-import { countersignConformeExecution, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
+import { countersignConformeExecution, downloadConformePdf, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
 import { assignedSupplierRequests } from "@/features/suppliers/readiness";
 
 export type { EventDashboardClientProps };
@@ -504,6 +504,10 @@ export function useEventDashboardShellViewModel({
     refreshConformeSigning: async () => {
       if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");
       return refreshConformeExecution(conformeUploadTarget.id);
+    },
+    downloadConformePdf: async () => {
+      if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");
+      await downloadConformePdf(conformeUploadTarget.id);
     },
     countersignConforme: async (execution: PrismConformeExecution) => {
       if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");

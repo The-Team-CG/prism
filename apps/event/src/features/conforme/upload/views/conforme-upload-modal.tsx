@@ -13,6 +13,7 @@ interface ConformeUploadModalProps {
   onPrepareDigital: () => Promise<PrismConformeExecution>;
   onRefreshDigital: () => Promise<PrismConformeExecution>;
   onSignDigital: (execution: PrismConformeExecution) => Promise<PrismConformeExecution>;
+  onDownloadPdf: () => Promise<void>;
   onClose: () => void;
 }
 
@@ -28,7 +29,7 @@ function isNotFoundError(error: unknown): boolean {
   return typeof error === "object" && error !== null && "status" in error && error.status === 404;
 }
 
-export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRefreshDigital, onSignDigital, onClose }: ConformeUploadModalProps) {
+export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRefreshDigital, onSignDigital, onDownloadPdf, onClose }: ConformeUploadModalProps) {
   const [phase, setPhase] = useState<ModalPhase>("pick");
   const [file, setFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -128,6 +129,12 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
     finally { setDigitalBusy(false); }
   }
 
+  async function downloadPdf() {
+    setApiError(null);
+    try { await onDownloadPdf(); }
+    catch (err) { setApiError(err instanceof Error ? err.message : "Unable to download the conforme PDF."); }
+  }
+
   async function signDigital() {
     if (!digitalExecution || !digitalConsent) return;
     setDigitalBusy(true);
@@ -140,7 +147,7 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-label="Upload signed conforme">
     <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
       <DigitalExecutionPanel execution={digitalExecution} busy={digitalBusy} consent={digitalConsent} onConsent={setDigitalConsent} onRefresh={refreshDigital} onPrepare={prepareDigital} onSign={signDigital} />
-      {phase === "success" ? <UploadSuccess inquiry={inquiry} /> : <ConformeUploadForm inquiry={inquiry} phase={phase} file={file} validationError={validationError} apiError={apiError} digitalBusy={digitalBusy} fileInputRef={fileInputRef} selectButtonRef={selectButtonRef} onClose={onClose} onFileChange={handleFileChange} onPrepareDigital={prepareDigital} onSubmit={handleSubmit} />}
+      {phase === "success" ? <UploadSuccess inquiry={inquiry} /> : <ConformeUploadForm inquiry={inquiry} phase={phase} file={file} validationError={validationError} apiError={apiError} digitalBusy={digitalBusy} fileInputRef={fileInputRef} selectButtonRef={selectButtonRef} onClose={onClose} onFileChange={handleFileChange} onPrepareDigital={prepareDigital} onDownloadPdf={downloadPdf} onSubmit={handleSubmit} />}
     </div>
   </div>;
 }
@@ -171,12 +178,12 @@ function UploadSuccess({ inquiry }: { inquiry: PrismInquiry }) {
   return <div className="flex flex-col items-center gap-3 py-4"><CheckCircle2 className="size-10 text-success" /><p className="text-sm font-bold text-foreground">Conforme uploaded</p><p className="text-xs text-muted-foreground">{inquiry.clientName} — {inquiry.eventName}</p></div>;
 }
 
-function ConformeUploadForm({ inquiry, phase, file, validationError, apiError, digitalBusy, fileInputRef, selectButtonRef, onClose, onFileChange, onPrepareDigital, onSubmit }: { inquiry: PrismInquiry; phase: ModalPhase; file: File | null; validationError: string | null; apiError: string | null; digitalBusy: boolean; fileInputRef: React.RefObject<HTMLInputElement | null>; selectButtonRef: React.RefObject<HTMLButtonElement | null>; onClose: () => void; onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onPrepareDigital: () => Promise<void>; onSubmit: () => Promise<void> }) {
+function ConformeUploadForm({ inquiry, phase, file, validationError, apiError, digitalBusy, fileInputRef, selectButtonRef, onClose, onFileChange, onPrepareDigital, onDownloadPdf, onSubmit }: { inquiry: PrismInquiry; phase: ModalPhase; file: File | null; validationError: string | null; apiError: string | null; digitalBusy: boolean; fileInputRef: React.RefObject<HTMLInputElement | null>; selectButtonRef: React.RefObject<HTMLButtonElement | null>; onClose: () => void; onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onPrepareDigital: () => Promise<void>; onDownloadPdf: () => Promise<void>; onSubmit: () => Promise<void> }) {
   const busy = phase === "uploading";
   return <>
     <div className="flex items-start justify-between gap-3"><div><h3 className="text-base font-bold text-foreground">Upload signed conforme</h3><p className="mt-1 text-sm text-muted-foreground">{inquiry.clientName} — {inquiry.eventName}</p></div><button type="button" onClick={onClose} disabled={busy} className="rounded-lg p-1 text-muted-foreground hover:bg-secondary disabled:opacity-50" aria-label="Close"><X className="size-4" /></button></div>
     <FileSelection file={file} busy={busy} inputRef={fileInputRef} buttonRef={selectButtonRef} onFileChange={onFileChange} />
-    <section className="mt-4 space-y-2 rounded-lg border border-border bg-background p-4"><h4 className="text-sm font-bold text-foreground">In-app acknowledgment</h4><p className="text-xs leading-5 text-muted-foreground">Prepare an immutable, prefilled conforme for client review. The workspace opens after both acknowledgments are recorded.</p><Button type="button" variant="outline" disabled={digitalBusy} onClick={() => void onPrepareDigital()} className="rounded-lg font-bold">{digitalBusy ? "Preparing…" : "Prepare in-app conforme"}</Button></section>
+    <section className="mt-4 space-y-2 rounded-lg border border-border bg-background p-4"><h4 className="text-sm font-bold text-foreground">In-app acknowledgment</h4><p className="text-xs leading-5 text-muted-foreground">Prepare an immutable, prefilled conforme for client review. The workspace opens after both acknowledgments are recorded.</p><Button type="button" variant="outline" disabled={digitalBusy} onClick={() => void onPrepareDigital()} className="rounded-lg font-bold">{digitalBusy ? "Preparing…" : "Prepare in-app conforme"}</Button><Button type="button" variant="outline" onClick={() => void onDownloadPdf()} className="rounded-lg font-bold">Download conforme PDF for physical signing</Button></section>
     {(validationError || apiError) ? <UploadError message={validationError || apiError || "Upload failed"} /> : null}
     <UploadActions file={file} validationError={validationError} busy={busy} onClose={onClose} onSubmit={onSubmit} />
   </>;

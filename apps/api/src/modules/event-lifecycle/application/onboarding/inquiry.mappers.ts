@@ -1,5 +1,6 @@
 import type { OpsDocument, OpsEvent, OpsFloorPlanDraft, OpsInquiry, OpsInquiryMerge } from '@prisma/client';
 import { guestAccessCode } from '@prism/contexts/operations';
+import { inquiryPendingFullDetails } from '@prism/types';
 import { isDeterministicHighFitInquiry } from '../../domain/inquiry-triage.policy';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
@@ -153,6 +154,10 @@ export function mapInquirySummary(inquiry: OpsInquiry) {
     source: inquiry.source,
     ...inquiryTriageFields(inquiry),
     message: inquiry.message,
+    pendingFullDetails: inquiry.loggedByRole != null && inquiryPendingFullDetails({ ...inquiry, eventDate: isoDate(inquiry.eventDate) }),
+    seatingArrangement: inquiry.seatingArrangement,
+    stagePosition: inquiry.stagePosition,
+    setupNotes: inquiry.setupNotes,
     status: inquiry.status,
     declineReason: inquiry.declineReason,
     acceptedAt: optionalTimestamp(inquiry.acceptedAt),

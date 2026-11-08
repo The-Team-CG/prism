@@ -3,13 +3,23 @@ import {
   type PrismConformeExecution,
   signConformeExecutionSchema,
 } from "@prism/types";
-import { eventApiRequest, storedEventAccessToken } from "@/lib/prism-api";
+import { apiUrl, eventApiRequest, storedEventAccessToken } from "@/lib/prism-api";
 
 const DEFAULT_CONFORME_TEMPLATE = `CONFORME — {{eventName}}\n\nClient: {{clientName}}\nCompany: {{companyName}}\nEvent type: {{eventType}}\nEvent date: {{eventDate}}\n\nPlease review the event details above. By acknowledging this conforme, you confirm that you have reviewed this version and agree to proceed with the arrangements described by PMCM. This in-app acknowledgment is recorded against this document version; PMCM must countersign before the client event workspace opens.`;
 
 export const pmcmConformeRepository = {
   latest(inquiryId: string): Promise<PrismConformeExecution> {
     return eventApiRequest(`/api/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/latest`);
+  },
+
+  /** PMCM-only printable copy of the latest conforme document, for physical signing. */
+  async latestPdf(inquiryId: string): Promise<Blob> {
+    const response = await fetch(apiUrl(`/api/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/latest/pdf`), {
+      headers: { Authorization: `Bearer ${storedEventAccessToken()}` },
+    });
+    if (response.status === 404) throw new Error("Prepare the in-app conforme before downloading its PDF.");
+    if (!response.ok) throw new Error("Unable to download the conforme PDF.");
+    return response.blob();
   },
 
   async prepare(inquiryId: string): Promise<PrismConformeExecution> {

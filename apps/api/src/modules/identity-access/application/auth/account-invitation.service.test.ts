@@ -115,6 +115,21 @@ describe('AccountInvitationService.provision', () => {
     expect(auditEntries(auditWriter)).toContainEqual(expect.objectContaining({ action: expect.stringContaining('skipped'), affectedId: 'usr_ana' }));
   });
 
+  it('links a returning client to the account of the same email in any letter case, and gives a different email its own account', async () => {
+    const existing = { id: 'usr_ana', name: 'Ana Reyes', email: 'ana@example.test', role: 'client', approvalStatus: 'approved', password: 'stored-hash' };
+    const returning = fixture(existing);
+
+    await expect(returning.service.provision({ ...clientInput, email: '  ANA@Example.test ' })).resolves.toEqual({ outcome: 'existing_account' });
+    expect(returning.prisma.opsUser.findUnique).toHaveBeenCalledWith({ where: { email: 'ana@example.test' } });
+    expect(returning.prisma.opsUser.create).not.toHaveBeenCalled();
+    expect(returning.delivery.deliver).not.toHaveBeenCalled();
+
+    const other = fixture(null);
+    await expect(other.service.provision({ ...clientInput, email: 'bea@example.test', name: 'Bea Cruz' })).resolves.toEqual({ outcome: 'invited', sentAt: expect.any(String), expiresAt: expect.any(String) });
+    expect(other.prisma.opsUser.findUnique).toHaveBeenCalledWith({ where: { email: 'bea@example.test' } });
+    expect(other.created).toEqual([expect.objectContaining({ email: 'bea@example.test', name: 'Bea Cruz', role: 'client' })]);
+  });
+
   it.each(['pending', 'declined'])('refuses an account whose approval is %s: no link, no new account, audited as a warning', async (approvalStatus) => {
     const existing = { id: 'usr_ana', name: 'Ana Reyes', email: 'ana@example.test', role: 'client', approvalStatus, password: 'stored-hash' };
     const { service, prisma, invitations, delivery, auditWriter } = fixture(existing);

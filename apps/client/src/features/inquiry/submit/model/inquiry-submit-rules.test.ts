@@ -82,6 +82,15 @@ describe("inquiry-submit-rules", () => {
     expect(payload.message).toContain("Phone: 0917");
     expect(payload.message).toContain("Need staging");
     expect(payload.privacyConsentAccepted).toBe(true);
+    expect(payload.seatingArrangement).toBeUndefined();
+    expect(payload.stagePosition).toBeUndefined();
+    expect(payload.setupNotes).toBeUndefined();
+  });
+
+  it("sends the optional spatial preference as typed, and omits it when the client skips it", () => {
+    const base = { clientName: "Ana", email: "ana@test.com", clientType: "Individual", eventName: "Night", eventType: "Gala", eventDate: "2026-08-01", expectedGuests: "80", source: "PMCM Facebook", privacyConsentAccepted: true };
+    const payload = buildInquiryPayload(form({ ...base, seatingArrangement: "Banquet rounds", stagePosition: "Centre", setupNotes: "  Dance floor by the stage  " }));
+    expect(payload).toMatchObject({ seatingArrangement: "Banquet rounds", stagePosition: "Centre", setupNotes: "Dance floor by the stage" });
   });
 
   it("requires and sends the client's own words when they pick Other", () => {
