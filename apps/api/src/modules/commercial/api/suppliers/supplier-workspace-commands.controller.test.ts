@@ -26,7 +26,7 @@ function verifiedActor(): PrismVerifiedEventActor {
   };
 }
 
-const supplierWorkspaceRouteNames = ['confirmAssignment', 'confirmReadiness', 'uploadContract'] as const;
+const supplierWorkspaceRouteNames = ['confirmAssignment', 'confirmReadiness'] as const;
 
 function createRequest(overrides: Record<string, unknown> = {}) {
   return {
@@ -71,11 +71,10 @@ describe('OpsSupplierWorkspaceCommandsController', () => {
     expect(guards).toContain(EventSessionGuard);
   });
 
-  it('serves supplier assignment, readiness, and contract commands through SupplierOps', async () => {
+  it('serves supplier assignment and readiness commands through SupplierOps', async () => {
     const supplierNetworkWorkflowService = {
       confirmSupplierAssignment: vi.fn(async () => createRequest()),
       confirmSupplierReadiness: vi.fn(async () => createRequest({ readinessNotes: 'Ingress confirmed' })),
-      uploadSupplierContract: vi.fn(async () => createRequest({ contractDocumentId: 'doc_uploaded' })),
     };
     const actor = { role: OpsUserRole.Supplier, name: 'SonicLine Technicals', supplierId: 'sup_sonic' };
     const eventAccessPolicyService = {
@@ -98,27 +97,13 @@ describe('OpsSupplierWorkspaceCommandsController', () => {
       id: 'qr_sonic',
       readinessNotes: 'Ingress confirmed',
     });
-    await expect(
-      controller.uploadContract(
-        'qr_sonic',
-        { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048, idempotencyKey: 'contract-submit-1' },
-        sessionActor,
-      ),
-    ).resolves.toMatchObject({ id: 'qr_sonic', contractDocumentId: 'doc_uploaded' });
-
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledTimes(3);
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledTimes(2);
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, sessionActor);
     expect(supplierNetworkWorkflowService.confirmSupplierAssignment).toHaveBeenCalledWith('qr_sonic', actor);
     expect(supplierNetworkWorkflowService.confirmSupplierReadiness).toHaveBeenCalledWith(
       'qr_sonic',
       { notes: 'Ingress confirmed' },
       actor,
-    );
-    expect(supplierNetworkWorkflowService.uploadSupplierContract).toHaveBeenCalledWith(
-      'qr_sonic',
-      { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048, idempotencyKey: 'contract-submit-1' },
-      actor,
-      sessionActor,
     );
   });
 });

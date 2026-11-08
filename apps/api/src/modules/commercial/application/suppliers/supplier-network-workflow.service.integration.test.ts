@@ -266,65 +266,6 @@ databaseSuite('SupplierNetworkWorkflowService PostgreSQL transition invariants',
     }
   });
 
-  it('rolls back Lifecycle document metadata when the Commercial link fails', async () => {
-    const fixture = await createFixture(prisma);
-    try {
-      const transactionRunner = {
-        run: (
-          work: (context: { prisma: unknown; correlationId: string; actorId?: string }) => Promise<unknown>,
-          command: { correlationId?: string; actorId?: string } = {},
-        ) => prisma.$transaction((tx) => {
-          const failingRequestDelegate = new Proxy(tx.opsSupplierQuoteRequest, {
-            get(target, property, receiver) {
-              if (property === 'update') return async () => { throw new Error('commercial link failed'); };
-              return Reflect.get(target, property, receiver);
-            },
-          });
-          const transactionPrisma = new Proxy(tx, {
-            get(target, property, receiver) {
-              if (property === 'opsSupplierQuoteRequest') return failingRequestDelegate;
-              return Reflect.get(target, property, receiver);
-            },
-          });
-          return work({
-            prisma: transactionPrisma,
-            correlationId: command.correlationId ?? 'p0_document_rollback',
-            actorId: command.actorId,
-          });
-        }),
-      };
-      const workflow = new WorkflowCommandService(transactionRunner as never);
-      const service = createService(prisma, auditWriter, pareService, fixture, undefined, workflow);
-      const actor = supplierActor(fixture);
-      const verifiedActor = {
-        id: actor.id,
-        actorId: actor.id,
-        role: actor.role,
-        actorRole: actor.role,
-        email: actor.email,
-        actorEmail: actor.email,
-        name: actor.name,
-        actorName: actor.name,
-        supplierId: fixture.supplierId,
-        eventId: fixture.eventId,
-        expiresAt: '2099-01-01T00:00:00.000Z',
-      };
-
-      await expect(service.uploadSupplierContract(
-        fixture.requestId,
-        { fileName: 'contract.pdf', mimeType: 'application/pdf', sizeBytes: 2048, idempotencyKey: 'p0-document-rollback' },
-        actor,
-        verifiedActor,
-      )).rejects.toThrow('commercial link failed');
-
-      await expect(prisma.opsDocument.count({ where: { eventId: fixture.eventId, type: 'supplier_contract' } })).resolves.toBe(0);
-      await expect(prisma.opsSupplierQuoteRequest.findUniqueOrThrow({ where: { id: fixture.requestId } })).resolves.toMatchObject({ contractDocumentId: null });
-      await expect(prisma.opsAuditLog.count({ where: { eventId: fixture.eventId, affectedId: fixture.requestId } })).resolves.toBe(0);
-    } finally {
-      await cleanupFixture(prisma, fixture);
-    }
-  });
-
   it('allows a confirmed selected supplier to be withdrawn for emergency replacement', async () => {
     const fixture = await createFixture(prisma);
     try {

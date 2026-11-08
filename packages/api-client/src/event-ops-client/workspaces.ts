@@ -69,11 +69,6 @@ export function createWorkspacesClient(
           ),
           withBase(options, { method: "PATCH", body: input }),
         ),
-      uploadContract: (requestId, input, actor = {}) =>
-        prismRequest<PrismSupplierQuoteRequest>(
-          actorPath(`/supplier/quote-requests/${requestId}/contract`, actor),
-          withBase(options, { method: "POST", body: input }),
-        ),
       updateEventStatus: (requestId, input, actor = {}) =>
         prismRequest<PrismSupplierQuoteRequest>(
           actorPath(

@@ -23,7 +23,6 @@ import type {
   UpdateRegistrationPlatformInput,
   UpdateRegistrationPlatformSetupInput,
   UpdateSupplierEventStatusInput,
-  UploadContractInput,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -93,11 +92,6 @@ export interface EventOpsWorkspacesContract {
     confirmReadiness(
       requestId: string,
       input: ConfirmSupplierReadinessInput,
-      actor?: EventOpsActorQuery,
-    ): Promise<PrismSupplierQuoteRequest>;
-    uploadContract(
-      requestId: string,
-      input: UploadContractInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismSupplierQuoteRequest>;
     updateEventStatus(

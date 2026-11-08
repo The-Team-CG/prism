@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Removed the unused supplier contract route that recorded a contract from declared file metadata; every supplier contract now goes through the checksum-verified, byte-checked upload.
 - Each event has a risk register by phase, with likelihood, impact, score, mitigation, owner and status, plus a one-click set of standard operational risks.
 - The live operations view shows the proposal stage, revision rounds used, floor plan stage and client portal state.
 - The archive comparison shows attendees, total cost, guest satisfaction, urgent issues and the top-rated supplier per category.

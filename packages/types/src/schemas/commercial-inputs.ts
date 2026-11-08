@@ -162,11 +162,6 @@ export const createSupplierScheduleSchema = z.object({
 });
 export type CreateSupplierScheduleInput = z.infer<typeof createSupplierScheduleSchema>;
 
-export const uploadContractSchema = uploadMetadataSchema.extend({
-  idempotencyKey: nonEmptyStringSchema,
-});
-export type UploadContractInput = z.infer<typeof uploadContractSchema>;
-
 export const updateSupplierEventStatusSchema = z.object({
   status: z.enum(["arrived", "set_up_ready", "done_leaving"]),
   notes: optionalTrimmedStringSchema,

@@ -4,7 +4,6 @@ export {
   type CreateGuestCheckInInput,
   type CreateGuestFeedbackInput,
   type ConfirmSupplierReadinessInput,
-  type UploadContractInput,
   type UpdateSupplierEventStatusInput,
   type CreateEventDayTaskInput,
   type CreateEventTaskReassignmentInput,
