@@ -44,6 +44,7 @@ import {
 } from "../../shared/tab-ui";
 import type { DetailTab } from "../../workspace/shared";
 import { BRIEFING_VENUE_TYPES, type BriefingVenueType, type SubmitBriefingInput } from "@prism/types";
+import { ClientWalkInPolicyCard } from "./client-walk-in-policy-card";
 
 
 export function ClientBriefingTab({
@@ -105,6 +106,7 @@ export function ClientBriefingTab({
   return <div className="space-y-4">
     <BriefingStatus complete={isComplete} />
     <BriefingSummary briefing={briefing} />
+    <ClientWalkInPolicyCard eventId={eventId} />
     <BriefingSubmissionForm
       briefing={briefing} busy={busy} onSubmit={handleSubmit}
       values={{ venue, venueType, guestCount, budgetRange, serviceRequirements, notes, confirmedDate, confirmedStartTime, confirmedEndTime, moodAndStyling, stylingBudget }}

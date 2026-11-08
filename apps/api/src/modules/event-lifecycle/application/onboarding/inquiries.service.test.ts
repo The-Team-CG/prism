@@ -54,7 +54,9 @@ const invitedOutcome = { outcome: 'invited', sentAt: '2026-10-25T00:00:00.000Z',
 function createService(
   existing = [inquiry()],
   accountProvisioning: { provision: (input: never) => Promise<unknown> } = { provision: vi.fn(async (_input: unknown) => invitedOutcome) },
+  pastEvents: Array<{ eventName: string; eventDate: Date }> = [],
 ) {
+  const nameChanges: Array<Record<string, unknown>> = [];
   const records: any[] = [...existing];
   const events: any[] = [];
   const documents: any[] = [];
@@ -63,6 +65,7 @@ function createService(
   const merges: any[] = [];
   const transaction = {
     $queryRaw: vi.fn(async () => []),
+    opsInquiryCompanyNameChange: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { const row = { ...data, changedAt: new Date('2026-05-04T00:00:00.000Z') }; nameChanges.push(row); return row; }) },
     opsInquiryMerge: {
       create: vi.fn(async ({ data }) => {
         const source = records.find((item) => item.id === data.mergedInquiryId);
@@ -126,7 +129,7 @@ function createService(
       }),
       updateMany: vi.fn(async () => ({ count: 0 })),
     },
-    opsEvent: { findFirst: vi.fn(async () => null) },
+    opsEvent: { findFirst: vi.fn(async () => null), findMany: vi.fn(async () => pastEvents) },
     opsBillingSource: { create: vi.fn(), count: vi.fn() },
     opsBillingStatement: { create: vi.fn(), count: vi.fn() },
     $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction)),
@@ -140,7 +143,7 @@ function createService(
     new WorkflowCommandService(),
     accountProvisioning as any,
   );
-  return { service, records, notifications, audits, prisma, merges, accountProvisioning };
+  return { service, records, notifications, audits, prisma, merges, accountProvisioning, nameChanges, transaction };
 }
 
 const pmcmActor = {
@@ -168,6 +171,26 @@ describe('inquiryDeclinedMessage', () => {
 });
 
 describe('InquiriesService', () => {
+  it('logs a PMCM company name change with its reason and moves the inquiry to the new organization', async () => {
+    const { service, records, nameChanges } = createService([inquiry({ id: 'inq_1', companyName: 'Acme Corp' })]);
+    (service as any).prisma.$transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback({ ...(service as any).prisma, opsInquiryCompanyNameChange: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { const row = { ...data, changedAt: new Date() }; nameChanges.push(row); return row; }) } }));
+    const change = await service.updateCompanyName('inq_1', { companyName: 'Acme Holdings', reason: 'Rebranded' }, pmcmActor);
+    expect(change).toMatchObject({ fromName: 'Acme Corp', toName: 'Acme Holdings', reason: 'Rebranded', changedBy: 'M. Reyes' });
+    expect(records[0]).toMatchObject({ companyName: 'Acme Holdings', organizationKey: 'acmeholdings' });
+    await expect(service.updateCompanyName('inq_1', { companyName: 'Acme Holdings', reason: 'Again' }, pmcmActor)).rejects.toThrow('unchanged');
+    await expect(service.updateCompanyName('inq_1', { companyName: 'X', reason: 'Y' }, { ...pmcmActor, role: OpsUserRole.Client })).rejects.toThrow('Only PMCM');
+  });
+
+  it('tells PMCM when a client returns after more than a year without an event, and not for a recent client', async () => {
+    const base = { privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, clientName: 'Ana', email: 'ana@acme.test', eventName: 'Gala 2027', eventDate: '2027-07-02', clientType: 'Corporate', message: 'Back again' };
+    const dormant = createService([], undefined, [{ eventName: 'Gala 2024', eventDate: new Date('2024-06-01T00:00:00.000Z') }]);
+    await dormant.service.createInquiry(base);
+    expect(dormant.notifications.some(([entry]) => String((entry as { message: string }).message).startsWith('Returning client Ana: 1 past event, last "Gala 2024"'))).toBe(true);
+    const recent = createService([], undefined, [{ eventName: 'Gala', eventDate: new Date(Date.now() - 30 * 86_400_000) }]);
+    await recent.service.createInquiry(base);
+    expect(recent.notifications.some(([entry]) => String((entry as { message: string }).message).startsWith('Returning client'))).toBe(false);
+  });
+
   it('requires privacy consent for public inquiry creation', async () => {
     const { service } = createService([]);
 

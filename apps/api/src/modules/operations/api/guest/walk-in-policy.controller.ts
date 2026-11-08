@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Inject, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Inject, NotFoundException, Param, Patch, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import {
   OPERATIONS_EVENT_REFERENCE_READER,
@@ -37,7 +37,20 @@ export class WalkInPolicyController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const actor = this.access.resolveActor({}, verifiedActor);
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'walk-in policy update', eventId);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client], 'walk-in policy update', eventId);
+    if (actor.role === OpsUserRole.Client) await this.requireClientCanSetPolicy(eventId, actor);
     return this.policy.update(eventId, input, actor);
+  }
+
+  /** New-CL1: the client sets the walk-in policy for their own event during planning; on event day PMCM owns it. */
+  private async requireClientCanSetPolicy(eventId: string, actor: ReturnType<EventAccessPolicyService['resolveActor']>) {
+    const access = await this.eventReferences.findEventReadAccess(eventId);
+    if (!access) throw new NotFoundException('Event not found');
+    await this.access.requireCanReadEvent(actor, access, 'walk-in policy update');
+    const event = await this.eventReferences.findOperationsEvent(eventId);
+    if (!event || event.archived) throw new NotFoundException('Event not found');
+    if (event.eventDate.getTime() <= Date.now() || event.status === 'event_day') {
+      throw new ForbiddenException('The walk-in policy is set by PMCM once event day begins');
+    }
   }
 }
