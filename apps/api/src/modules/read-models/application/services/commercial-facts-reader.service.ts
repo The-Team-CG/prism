@@ -102,7 +102,7 @@ export class CommercialFactsReaderService implements CommercialFactsReader {
 
   async getLifecycleFacts(eventId: string, client: ReadClient = this.prisma) {
     const [supplierQuoteRequests, billingSources, supplierReviews, billingStatements, paymentMilestones] = await Promise.all([
-      client.opsSupplierQuoteRequest.findMany({ where: { eventId }, select: { id: true, supplierName: true, assignmentStatus: true, readinessStatus: true, eventDayStatus: true } }),
+      client.opsSupplierQuoteRequest.findMany({ where: { eventId }, select: { id: true, supplierName: true, category: true, assignmentStatus: true, readinessStatus: true, eventDayStatus: true } }),
       client.opsBillingSource.findMany({ where: { eventId }, select: { id: true, status: true } }),
       client.opsSupplierReview.findMany({ where: { eventId }, select: { id: true, supplierId: true, rating: true, notes: true, reviewedBy: true } }),
       client.opsBillingStatement.findMany({ where: { eventId }, select: { id: true, totalAmount: true } }),

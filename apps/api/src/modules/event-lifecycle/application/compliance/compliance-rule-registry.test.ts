@@ -11,7 +11,7 @@ const base: ComplianceEvaluationContext = {
   inquiry: { eventType: 'corporate' },
   briefings: [{ id: 'brief_1' }],
   documents: [{ id: 'doc_conforme', type: 'signed_conforme', status: 'accepted' }],
-  suppliers: [{ id: 'sup_1', supplierName: 'Caterer', assignmentStatus: 'confirmed', readinessStatus: 'ready' }],
+  suppliers: [{ id: 'sup_1', supplierName: 'Caterer', category: 'Catering', assignmentStatus: 'confirmed', readinessStatus: 'ready' }],
   coverageRequirements: [{ role: 'Lead', required: 1 }],
   coordinatorAssignments: [{ role: 'Lead', status: 'acknowledged', withdrawnAt: null }],
   billingSources: [{ id: 'bill_1', status: 'approved' }],
@@ -36,7 +36,27 @@ function withFailure(key: string): ComplianceEvaluationContext {
 }
 
 describe('compliance rule registry', () => {
-  it.each(COMPLIANCE_RULE_REGISTRY)('$conditionKey has satisfied, failed and not-applicable outcomes', (rule) => {
+  it('has six universal Must-Fix items and eighteen event-type rules', () => {
+    const universal = COMPLIANCE_RULE_REGISTRY.filter((rule) => rule.scope === 'universal');
+    expect(universal).toHaveLength(6);
+    expect(universal.every((rule) => rule.severity === 'must_fix')).toBe(true);
+    expect(COMPLIANCE_RULE_REGISTRY.filter((rule) => rule.scope === 'event_type')).toHaveLength(18);
+    expect(new Set(COMPLIANCE_RULE_REGISTRY.map((rule) => rule.conditionKey)).size).toBe(COMPLIANCE_RULE_REGISTRY.length);
+  });
+
+  it('applies an event-type rule only to its event type and checks the real facts', () => {
+    const catering = COMPLIANCE_RULE_REGISTRY.find((rule) => rule.conditionKey === 'event_type_wedding_catering_confirmed')!;
+    const wedding = { ...base, inquiry: { eventType: 'Garden Wedding' } };
+    expect(evaluateComplianceRuleForPhase(catering, 'planning', base, past).status).toBe('not_applicable');
+    expect(evaluateComplianceRuleForPhase(catering, 'planning', wedding, past).status).toBe('satisfied');
+    const unconfirmed = { ...wedding, suppliers: [{ ...base.suppliers[0], assignmentStatus: 'requested' }] };
+    expect(evaluateComplianceRuleForPhase(catering, 'planning', unconfirmed, past).status).toBe('not_satisfied');
+
+    const security = COMPLIANCE_RULE_REGISTRY.find((rule) => rule.conditionKey === 'event_type_public_security_assigned')!;
+    expect(evaluateComplianceRuleForPhase(security, 'planning', { ...base, inquiry: { eventType: 'Music festival' } }, past).status).toBe('not_satisfied');
+  });
+
+  it.each(COMPLIANCE_RULE_REGISTRY.filter((rule) => rule.scope !== 'event_type'))('$conditionKey has satisfied, failed and not-applicable outcomes', (rule) => {
     const phase = rule.phases[0];
     const satisfied = evaluateComplianceRuleForPhase(rule, phase, { ...base, phase }, past);
     const failed = evaluateComplianceRuleForPhase(rule, phase, { ...withFailure(rule.conditionKey), phase }, past);
