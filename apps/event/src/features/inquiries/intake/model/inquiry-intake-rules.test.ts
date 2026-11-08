@@ -82,6 +82,15 @@ describe("inquiry-intake-rules", () => {
       { label: "Channel", value: "Phone" },
     ]);
     expect(inquiryExtraDetailFields({
+      seatingArrangement: "Banquet rounds",
+      stagePosition: "Centre",
+      setupNotes: "Sponsor wall",
+    } as never)).toEqual([
+      { label: "Seating", value: "Banquet rounds" },
+      { label: "Stage", value: "Centre" },
+      { label: "Setup notes", value: "Sponsor wall" },
+    ]);
+    expect(inquiryExtraDetailFields({
       previouslyDeclined: true,
       previousDeclineReason: "Date conflict",
     } as never)).toEqual([
@@ -90,13 +99,26 @@ describe("inquiry-intake-rules", () => {
     ]);
   });
 
-  it("requires a complete log form and trims optional fields", () => {
+  it("saves on basic detail only, leaves blank optional fields out of the request, and trims the rest", () => {
     expect(isInquiryLogFormReady(initialLogForm)).toBe(false);
-    // Channel and referral source are not guessed: the operator picks them before Save is enabled.
+    // Channel and referral source are not guessed: they stay unset until the operator picks them.
     expect(initialLogForm).toMatchObject({ channel: "", source: "" });
-    expect(inquiryLogMissingFields(initialLogForm)).toEqual([
-      "Client name", "Email", "Event name", "Event type", "Event date", "Client type", "Channel", "Referral source", "Message",
-    ]);
+    expect(inquiryLogMissingFields(initialLogForm)).toEqual(["Client name", "Email", "Event name", "Event date"]);
+    const basicOnly = { ...initialLogForm, clientName: "Ada", email: "ada@acme.test", eventName: "Gala", eventDate: "2099-01-15" };
+    expect(isInquiryLogFormReady(basicOnly)).toBe(true);
+    expect(toLogInquiryInput(basicOnly)).toEqual({
+      clientName: "Ada",
+      companyName: undefined,
+      email: "ada@acme.test",
+      eventName: "Gala",
+      eventType: undefined,
+      eventDate: "2099-01-15",
+      clientType: undefined,
+      source: undefined,
+      channel: undefined,
+      referralDetails: undefined,
+      message: undefined,
+    });
     const ready = {
       ...initialLogForm,
       clientName: "Ada",

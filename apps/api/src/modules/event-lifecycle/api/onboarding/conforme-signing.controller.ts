@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Req, StreamableFile, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
@@ -29,6 +29,12 @@ export class ConformeSigningController {
   @Get('inquiries/:inquiryId/conforme-executions/latest')
   latestForPmcm(@Param('inquiryId') inquiryId: string, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.conformeSigning.latestForPmcm(inquiryId, actor);
+  }
+
+  @Get('inquiries/:inquiryId/conforme-executions/latest/pdf')
+  async latestPdfForPmcm(@Param('inquiryId') inquiryId: string, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    const { fileName, pdf } = await this.conformeSigning.pdfForPmcm(inquiryId, actor);
+    return new StreamableFile(pdf, { type: 'application/pdf', disposition: `attachment; filename="${fileName}"` });
   }
 
   @Post('inquiries/:inquiryId/conforme-executions/:executionId/sign')

@@ -101,6 +101,7 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
           onPrepareDigital={viewModel.prepareConformeSigning}
           onRefreshDigital={viewModel.refreshConformeSigning}
           onSignDigital={viewModel.countersignConforme}
+          onDownloadPdf={viewModel.downloadConformePdf}
           onClose={viewModel.closeConformeUpload}
         />
       ) : null}

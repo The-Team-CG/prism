@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { InquiriesService, inquiryDeclinedMessage } from './inquiries.service';
+import { mapInquirySummary } from './inquiry.mappers';
 
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 function inquiry(overrides: Record<string, unknown> = {}) {
@@ -181,6 +182,41 @@ describe('InquiriesService', () => {
         message: 'Planning inquiry',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('stores the optional room set-up preference as typed, and leaves it empty when the client skips it', async () => {
+    const { service } = createService([]);
+    const base = {
+      privacyConsentAccepted: true,
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      clientName: 'Setup Client',
+      email: 'setup@example.test',
+      eventName: 'Setup Night',
+      eventDate: '2026-07-02',
+      clientType: 'Corporate',
+      message: 'Planning inquiry',
+    };
+
+    const withPreference = await service.createInquiry({ ...base, seatingArrangement: 'Banquet rounds', stagePosition: 'Centre', setupNotes: 'Sponsor wall behind the stage' });
+    expect(withPreference).toMatchObject({ seatingArrangement: 'Banquet rounds', stagePosition: 'Centre', setupNotes: 'Sponsor wall behind the stage' });
+
+    const skipped = await service.createInquiry({ ...base, email: 'skip@example.test' });
+    expect(skipped).toMatchObject({ seatingArrangement: null, stagePosition: null, setupNotes: null });
+  });
+
+  it('saves a basic on-behalf inquiry as Pending Full Details until the missing fields are filled in', async () => {
+    const { service } = createService([]);
+    const pmcm = { id: 'pmcm_1', role: OpsUserRole.PmcmAdmin, name: 'Marco', email: 'marco@pmcm.test', explicit: true, verified: true } satisfies ResolvedEventOpsActor;
+
+    const basic = await service.logInquiryOnBehalf(
+      { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, clientName: 'Walk In Client', email: 'walkin@example.test', eventName: 'Walk In Product Launch', eventDate: '2026-07-10' },
+      pmcm,
+    );
+    expect(basic).toMatchObject({ clientType: '', source: '', message: '' });
+    expect(mapInquirySummary(basic)).toMatchObject({ pendingFullDetails: true });
+
+    const completed = { ...basic, clientType: 'Corporate', source: 'BNI Referral', message: 'Client gave details at PMCM office' };
+    expect(mapInquirySummary(completed)).toMatchObject({ pendingFullDetails: false });
   });
 
   it('blocks non-PMCM actors from logging inquiries on behalf of clients', async () => {
