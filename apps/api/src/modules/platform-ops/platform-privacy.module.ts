@@ -7,7 +7,9 @@ import { IdentityAccessModule } from '../identity-access/identity-access.module'
 import { OperationsModule } from '../operations/operations.module';
 import { PlatformReferenceReadersModule } from '../../composition/platform-reference-readers.module';
 import { OpsPrivacyController } from './api/trust/audit-privacy.controller';
+import { OpsOwnPrivacyRequestController } from './api/trust/own-privacy-request.controller';
 import { OpsPrivacyRetentionController } from './api/trust/privacy-retention.controller';
+import { OwnPrivacyRequestService } from './application/trust/own-privacy-request.service';
 import { PrivacyOperationsService } from './application/trust/privacy-operations.service';
 import { PrivacyRetentionExecutorService } from './application/retention/privacy-retention-executor.service';
 import { PrivacyRetentionSweepScheduler } from './application/retention/privacy-retention-sweep.scheduler';
@@ -32,9 +34,10 @@ import { AiTriageRecordEraser } from './application/ai-governance/ai-triage-reco
     IdentityAccessModule,
     PlatformReferenceReadersModule,
   ],
-  controllers: [OpsPrivacyController, OpsPrivacyRetentionController],
+  controllers: [OpsPrivacyController, OpsOwnPrivacyRequestController, OpsPrivacyRetentionController],
   providers: [
     AiTriageRecordEraser,
+    OwnPrivacyRequestService,
     PrivacyOperationsService,
     PrivacyRequestQueueService,
     PrivacyRetentionService,
