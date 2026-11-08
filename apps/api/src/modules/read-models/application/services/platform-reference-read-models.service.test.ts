@@ -20,7 +20,9 @@ describe('PlatformReferenceReadModelsService', () => {
     const opsGuestRosterEntry = { findMany: vi.fn(async () => [{ eventId: 'evt_1' }]) };
     const opsGuestFeedbackMedia = { findMany: vi.fn(async () => [{ feedback: { eventId: 'evt_1', privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: false } }]) };
     const opsApprovalRequest = { findMany: vi.fn(async () => [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v3', marketingConsentAccepted: false }]) };
-    const service = new PlatformReferenceReadModelsService({ opsEvent, opsInquiry, opsGuestCheckIn, opsGuestFeedback, opsGuestRosterEntry, opsGuestFeedbackMedia, opsApprovalRequest } as unknown as PrismaService);
+    const opsBillingStatement = { groupBy: vi.fn(async () => [{ eventId: 'evt_1', _count: { _all: 2 } }]) };
+    const opsPaymentRecord = { groupBy: vi.fn(async () => []) };
+    const service = new PlatformReferenceReadModelsService({ opsEvent, opsInquiry, opsGuestCheckIn, opsGuestFeedback, opsGuestRosterEntry, opsGuestFeedbackMedia, opsApprovalRequest, opsBillingStatement, opsPaymentRecord } as unknown as PrismaService);
 
     await expect(service.findPrivacyInventory({ eventId: 'evt_1' })).resolves.toEqual({
       events: [{
@@ -30,12 +32,15 @@ describe('PlatformReferenceReadModelsService', () => {
         guestFeedback: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: true }],
         guestRosterEntryCount: 1,
         guestFeedbackMedia: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v2', marketingConsentAccepted: false }],
+        billingStatementCount: 2,
+        paymentRecordCount: 0,
       }],
       approvalRequests: [{ privacyConsentAccepted: true, privacyNoticeVersion: 'v3', marketingConsentAccepted: false }],
     });
     expect(opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'evt_1' } }));
     expect(opsInquiry.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['inq_1'] } } }));
     expect(opsGuestCheckIn.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: { in: ['evt_1'] } } }));
+    expect(opsBillingStatement.groupBy).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: { in: ['evt_1'] } } }));
   });
 
   it('returns the event scope that file access resolves against, with current coordinator assignments and quote status', async () => {
