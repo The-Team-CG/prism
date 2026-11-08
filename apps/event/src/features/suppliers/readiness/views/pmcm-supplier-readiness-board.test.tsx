@@ -63,6 +63,20 @@ describe("PmcmSupplierReadinessBoard", () => {
     expect(screen.queryByText(/Do not advance planning/)).toBeNull();
   });
 
+  it("flags overlapping selected ingress windows as a schedule conflict on both rows", async () => {
+    const window = { ingressAt: "2026-10-02T04:00:00.000Z", egressAt: "2026-10-02T10:00:00.000Z", location: "Bay 1", status: "planned", revision: 1, acknowledged: true, acknowledgedAt: null, changeRequestNote: null, changeRequestedAt: null };
+    repository.get.mockResolvedValue(board([
+      item({ schedule: window, concerns: [] }),
+      item({ id: "supplier-readiness:qr_lights", requestId: "qr_lights", supplierName: "Beam Co", category: "Technicals", schedule: { ...window, ingressAt: "2026-10-02T09:00:00.000Z" }, concerns: [] }),
+      item({ id: "supplier-readiness:qr_cater", requestId: "qr_cater", supplierName: "Feast Co", category: "Catering", schedule: { ...window, ingressAt: "2026-10-02T11:00:00.000Z" }, concerns: [] }),
+    ]));
+
+    render(<PmcmSupplierReadinessBoard eventId="evt_1" />);
+
+    expect(await screen.findByText("Sonic Line")).toBeTruthy();
+    expect(screen.getAllByText(/Schedule conflict:/)).toHaveLength(2);
+  });
+
   it("hard-blocks only the categories with no locked quote, and keeps the rows visible", async () => {
     repository.get.mockResolvedValue(board([
       item(),

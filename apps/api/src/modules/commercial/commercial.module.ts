@@ -33,6 +33,8 @@ import { PortalUrlsModule } from '@prism/kernel/shared';
 import { SupplierNetworkWorkflowService } from './application/suppliers/supplier-network-workflow.service';
 import { SupplierIngressLateMonitorService } from './application/suppliers/supplier-ingress-late-monitor.service';
 import { SupplierIngressLateScheduler } from './application/suppliers/supplier-ingress-late.scheduler';
+import { SupplierReadinessRequestScheduler } from './application/suppliers/supplier-readiness-request.scheduler';
+import { SupplierReadinessRequestService } from './application/suppliers/supplier-readiness-request.service';
 import { SupplierProfileCommandsService } from './application/suppliers/supplier-profile-commands.service';
 import { SuppliersService } from './application/suppliers/suppliers.service';
 import { SupplierWorkspaceQueries } from './application/suppliers/supplier-workspace.queries';
@@ -118,6 +120,8 @@ const supplierCommandsProvider = {
     SupplierNetworkWorkflowService,
     SupplierIngressLateMonitorService,
     SupplierIngressLateScheduler,
+    SupplierReadinessRequestService,
+    SupplierReadinessRequestScheduler,
     supplierCommandsProvider,
     BillingOperationsService,
     BillingAdjustmentService,

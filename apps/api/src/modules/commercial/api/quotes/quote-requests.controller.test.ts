@@ -77,6 +77,8 @@ describe('OpsQuoteRequestsController', () => {
           eventName: 'Ayala Tech Summit',
           clientName: 'Ana Reyes',
           eventDate: new Date('2026-07-10T00:00:00.000Z'),
+          inquiry: { eventType: 'Corporate summit' },
+          briefings: [{ guestCount: 1200, serviceRequirements: ['Stage', 'Audio'] }],
         },
         quote,
       })),
@@ -114,5 +116,47 @@ describe('OpsQuoteRequestsController', () => {
       inclusions: ['Audio'],
     });
     expect(commercialWorkflowService.reviseSupplierQuoteByToken).toHaveBeenCalledWith('token-sample', { amount: 175000 });
+  });
+
+  it('gives a confidential bidder the request context but no client identity until the bid is won', async () => {
+    const event = {
+      id: 'evt_sample',
+      eventName: 'Ayala Tech Summit',
+      clientName: 'Ana Reyes',
+      eventDate: new Date('2026-07-10T00:00:00.000Z'),
+      inquiry: { eventType: 'Corporate summit' },
+      briefings: [{ venue: 'Solaire Grand Ballroom', guestCount: 1200, serviceRequirements: ['Stage', 'Audio'] }],
+    };
+    const request = {
+      id: 'qr_sample',
+      eventId: 'evt_sample',
+      supplierName: 'SonicLine Technicals',
+      category: 'Technicals',
+      message: '',
+      dueDate: new Date('2026-06-25T00:00:00.000Z'),
+      accessToken: 'token-sample',
+      confidentialBid: true,
+      status: 'open',
+      createdAt: new Date('2026-06-20T08:00:00.000Z'),
+    };
+    const commercialWorkflowService = {
+      getQuoteRequestByToken: vi.fn(async () => ({ request, event, quote: null })),
+    };
+    const controller = new OpsQuoteRequestsController(commercialWorkflowService as any);
+
+    const bidding = await controller.getRequest('token-sample');
+    expect(bidding).toMatchObject({
+      eventType: 'Corporate summit',
+      guestCount: 1200,
+      serviceRequirements: ['Stage', 'Audio'],
+      eventName: 'Confidential event',
+      clientName: null,
+    });
+    expect(JSON.stringify(bidding)).not.toContain('Ana Reyes');
+    expect(JSON.stringify(bidding)).not.toContain('Solaire Grand Ballroom');
+
+    request.status = 'selected';
+    const won = await controller.getRequest('token-sample');
+    expect(won).toMatchObject({ eventName: 'Ayala Tech Summit', clientName: 'Ana Reyes' });
   });
 });

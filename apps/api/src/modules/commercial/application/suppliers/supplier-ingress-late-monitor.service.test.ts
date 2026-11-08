@@ -46,6 +46,12 @@ function createMonitor(
       ),
       findMany: vi.fn(),
     },
+    opsEvent: {
+      findUnique: vi.fn(async () => ({ eventName: 'Ayala Tech Summit' })),
+    },
+    opsSupplierReliabilityNote: {
+      upsert: vi.fn(async () => ({})),
+    },
     opsSupplierQuoteRequest: {
       updateMany: vi.fn(async ({ where, data }: {
         where: { id: string; eventDayStatus?: { in: string[] } };
@@ -101,7 +107,9 @@ function schedule(
     request: {
       id: `request_${id}`,
       eventId: 'evt_1',
+      supplierId: `sup_${id}`,
       supplierName: `Supplier ${id}`,
+      category: 'Technicals',
       status: 'selected',
       assignmentStatus: 'confirmed',
       eventDayStatus,
@@ -134,6 +142,15 @@ describe('SupplierIngressLateMonitorService', () => {
     expect(arrived.request.eventDayStatus).toBe('arrived');
     expect(rescheduled.request.eventDayStatus).toBe('not_started');
     expect(requireActorRole).toHaveBeenCalledWith(systemActor, [OpsUserRole.System], 'supplier ingress late monitor');
+    expect(tx.opsSupplierReliabilityNote.upsert).toHaveBeenCalledTimes(1);
+    expect(tx.opsSupplierReliabilityNote.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      where: { idempotencyKey: 'supplier-ingress-late-note:request_due' },
+      create: expect.objectContaining({
+        supplierId: 'sup_due',
+        eventId: 'evt_1',
+        note: expect.stringContaining('Ingress late at Ayala Tech Summit (Technicals)'),
+      }),
+    }));
     expect(auditWrite).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: 'evt_1',
@@ -158,6 +175,7 @@ describe('SupplierIngressLateMonitorService', () => {
     expect(result.marked).toBe(0);
     expect(candidate.request.eventDayStatus).toBe('arrived');
     expect(tx.opsSupplierQuoteRequest.updateMany).not.toHaveBeenCalled();
+    expect(tx.opsSupplierReliabilityNote.upsert).not.toHaveBeenCalled();
     expect(auditWrite).not.toHaveBeenCalled();
   });
 

@@ -37,7 +37,14 @@ type SelectSupplierQuoteResult = {
 
 export type QuoteRequestTokenDetail = {
   request: OpsSupplierQuoteRequest;
-  event: { id: string; eventName: string; clientName: string; eventDate: Date };
+  event: {
+    id: string;
+    eventName: string;
+    clientName: string;
+    eventDate: Date;
+    inquiry: { eventType: string };
+    briefings: Array<{ guestCount: number; serviceRequirements: unknown }>;
+  };
   quote: OpsSupplierQuote | null;
 };
 
@@ -396,7 +403,14 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
     const [event, quote] = await Promise.all([
       this.prisma.opsEvent.findUnique({
         where: { id: requestWithStatus.eventId },
-        select: { id: true, eventName: true, clientName: true, eventDate: true },
+        select: {
+          id: true,
+          eventName: true,
+          clientName: true,
+          eventDate: true,
+          inquiry: { select: { eventType: true } },
+          briefings: { orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }], take: 1, select: { guestCount: true, serviceRequirements: true } },
+        },
       }),
       this.prisma.opsSupplierQuote.findFirst({
         where: { requestId: requestWithStatus.id },

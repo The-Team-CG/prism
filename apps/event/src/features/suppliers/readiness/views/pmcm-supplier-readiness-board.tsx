@@ -6,7 +6,7 @@ import type { PrismPmcmSupplierReadinessItem } from "@prism/types";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
-import { concernLabel, setupStatusLabel } from "../model/pmcm-supplier-readiness-rules";
+import { concernLabel, orderSupplierSchedule, scheduleConflictItemIds, setupStatusLabel } from "../model/pmcm-supplier-readiness-rules";
 import { usePmcmSupplierReadinessViewModel } from "../view-models/use-pmcm-supplier-readiness-view-model";
 
 function formatDateTime(iso: string) {
@@ -15,7 +15,8 @@ function formatDateTime(iso: string) {
 
 export function PmcmSupplierReadinessBoard({ eventId, refreshKey }: { eventId: string; refreshKey?: string }) {
   const vm = usePmcmSupplierReadinessViewModel(eventId, refreshKey);
-  const items = vm.board?.items ?? [];
+  const items = orderSupplierSchedule(vm.board?.items ?? []);
+  const conflictIds = scheduleConflictItemIds(items);
 
   return (
     <section aria-labelledby="pmcm-supplier-readiness-heading" className="rounded-2xl border border-border bg-card shadow-sm">
@@ -42,14 +43,14 @@ export function PmcmSupplierReadinessBoard({ eventId, refreshKey }: { eventId: s
       ) : null}
       {items.length > 0 ? (
         <ul className="divide-y divide-border">
-          {items.map((item) => <ReadinessRow key={item.id} item={item} />)}
+          {items.map((item) => <ReadinessRow key={item.id} item={item} scheduleConflict={conflictIds.has(item.id)} />)}
         </ul>
       ) : null}
     </section>
   );
 }
 
-function ReadinessRow({ item }: { item: PrismPmcmSupplierReadinessItem }) {
+function ReadinessRow({ item, scheduleConflict }: { item: PrismPmcmSupplierReadinessItem; scheduleConflict: boolean }) {
   return (
     <li className="space-y-2 px-6 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -60,6 +61,7 @@ function ReadinessRow({ item }: { item: PrismPmcmSupplierReadinessItem }) {
         <ReadinessBadges item={item} />
       </div>
       <ReadinessSchedule item={item} />
+      {scheduleConflict ? <p role="status" className="text-xs font-semibold text-attention">Schedule conflict: ingress overlaps another selected supplier</p> : null}
       {item.concerns.length > 0 ? (
         <ul aria-label={`${item.supplierName} concerns`} className="space-y-1">
           {item.concerns.map((concern) => (

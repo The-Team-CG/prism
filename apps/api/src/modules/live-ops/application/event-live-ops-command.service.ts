@@ -265,7 +265,7 @@ export class EventLiveOpsCommandService {
       `Supplier status update: ${input.status}`,
       'supplier_quote_request',
       request.id,
-      { status: input.status, notes: input.notes ?? '', photoFileName: input.photo?.fileName ?? null },
+      { status: input.status, notes: input.notes ?? '', photoAttached: input.storedObjectId != null },
     );
 
     return request;
