@@ -79,7 +79,7 @@ export function QrScanCheckIn({ eventId, onCheckedIn }: { eventId: string; onChe
       {scanning ? <video ref={videoRef} muted playsInline className="aspect-video w-full max-w-sm rounded-md bg-black" aria-label="Camera preview" /> : null}
       <form className="flex flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); if (code.trim()) void checkIn(code); }}>
         <input value={code} onChange={(event) => setCode(event.target.value)} placeholder="Pass code" aria-label="Pass code" className="min-w-48 flex-1 rounded-md border border-border bg-background px-2 py-1.5 font-mono text-xs" />
-        <button type="submit" disabled={busy || !code.trim()} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">Check in</button>
+        <button type="submit" disabled={busy || !code.trim()} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">Check in pass</button>
       </form>
       {message ? <p role={message.tone === "error" ? "alert" : "status"} className={message.tone === "error" ? "text-destructive" : "text-foreground"}>{message.text}</p> : null}
     </div>
