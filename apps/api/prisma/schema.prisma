@@ -1266,6 +1266,28 @@ model OpsAddendumConformeSignature {
   @@schema("event_lifecycle")
 }
 
+// FR-10: venue options PMCM scouts for a client with no venue yet; the client marks one preference.
+model OpsVenueScoutingOption {
+  id                   String    @id
+  eventId              String    @map("event_id")
+  name                 String
+  location             String
+  capacity             Int
+  priceRange           String    @map("price_range")
+  availableDates       String[]  @map("available_dates")
+  notes                String    @default("")
+  status               String    @default("draft")
+  clientPreferredAt    DateTime? @map("client_preferred_at")
+  clientPreferenceNote String    @default("") @map("client_preference_note")
+  createdBy            String    @map("created_by")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@index([eventId, status], map: "venue_scouting_options_event_status_idx")
+  @@map("venue_scouting_options")
+  @@schema("commercial")
+}
+
 model OpsClientReviewItem {
   id             String    @id
   eventId        String    @map("event_id")

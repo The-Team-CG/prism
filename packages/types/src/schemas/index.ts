@@ -471,6 +471,7 @@ export {
 } from "./scope-change-risk-inputs.js";
 export * from "./ai-governance.js";
 export * from "./event-risk-register.js";
+export * from "./venue-scouting.js";
 export {
   PrismContractError,
   parseContract,

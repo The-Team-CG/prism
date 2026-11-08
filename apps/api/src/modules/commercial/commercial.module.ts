@@ -65,6 +65,8 @@ import { SupplierWorkflowService } from './application/suppliers/supplier-workfl
 import { OpsSupplierWorkflowController } from './api/suppliers/supplier-workflow.controller';
 import { OpsClientReviewItemsController } from './api/quotes/client-review-items.controller';
 import { ClientReviewItemsService } from './application/quotes/client-review-items.service';
+import { VenueScoutingController } from './api/quotes/venue-scouting.controller';
+import { VenueScoutingService } from './application/quotes/venue-scouting.service';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -111,6 +113,7 @@ const supplierCommandsProvider = {
     ExternalCreativeTicketController,
     OpsSupplierWorkflowController,
     OpsClientReviewItemsController,
+    VenueScoutingController,
   ],
   providers: [
     CommercialWorkflowService,
@@ -145,6 +148,7 @@ const supplierCommandsProvider = {
     { provide: COMMERCIAL_PRIVACY_REDACTOR, useExisting: CommercialPrivacyRedactorService },
     SupplierWorkflowService,
     ClientReviewItemsService,
+    VenueScoutingService,
     { provide: PAYMENT_STATUS_READER, useExisting: PaymentOperationsService },
   ],
   exports: [
