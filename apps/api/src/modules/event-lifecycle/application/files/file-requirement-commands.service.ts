@@ -6,6 +6,7 @@ import { AUDIT_WRITER, EventAccessPolicyService, scopeActorToEvent, writeAudit, 
 import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { STORED_REQUIREMENT_UPLOAD_READER, type StoredRequirementUploadReader, type StoredRequirementUploadReference } from '@prism/contexts/platform-ops';
+import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 import {
   DERIVED_FILE_REQUIREMENT_KEYS,
   type CreateFileRequirementInput,
@@ -69,6 +70,19 @@ function overridePatch(input: UpdateFileRequirementInput, current: PrismFileRequ
   return next;
 }
 
+/** Names only the requirement and the date or upload: the message never names another supplier. */
+function reminderMessage(reason: FileRequirementReminderReason, label: string, anchor: string) {
+  return reason === 'overdue'
+    ? `Required file "${label}" is overdue (due ${anchor.slice(0, 10)}). Upload it in the event file hub.`
+    : `Required file "${label}" was rejected. Upload a replacement in the event file hub.`;
+}
+
+/** The upload a PMCM rejected reminder points at: the rejected supplier file for supplier-owned items, else the latest rejected file of the type. */
+function rejectedAnchor(item: PrismFileRequirementItem, rejectedByType: Map<string, string>) {
+  if (item.supplierFulfilments) return item.supplierFulfilments.find((fulfilment) => fulfilment.validationStatus === 'rejected')?.uploadedAssetId;
+  return item.validationStatus === 'rejected' ? rejectedByType.get(item.key) : undefined;
+}
+
 @Injectable()
 export class FileRequirementCommandsService implements FileRequirementCommands {
   private readonly logger = new Logger(FileRequirementCommandsService.name);
@@ -80,6 +94,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     @Inject(STORED_REQUIREMENT_UPLOAD_READER) private readonly storedRequirementUploads: StoredRequirementUploadReader,
+    @Inject(ACCOUNT_CONTACT_READ_MODEL) private readonly accountContacts: AccountContactReadModel,
   ) {}
 
   async createRequirement(eventId: string, input: CreateFileRequirementInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
@@ -326,7 +341,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one bounded page of events per iteration.
       for (const event of events) {
         try {
-          reminders.push(...await this.sweepEventReminders(event.id, now));
+          reminders.push(...await this.queueEventReminders(event.id, now));
         } catch (error) {
           this.logger.warn(`File requirement reminder sweep failed for event ${event.id}: ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -338,8 +353,9 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     return { reminders };
   }
 
-  private async sweepEventReminders(eventId: string, now: Date): Promise<FileRequirementReminder[]> {
-    const [matrix, rejectedDocuments] = await Promise.all([
+  /** Queues one event's reminders as of `now`; the sweep and PMCM's manual send both come through here. */
+  private async queueEventReminders(eventId: string, now: Date): Promise<FileRequirementReminder[]> {
+    const [matrix, rejectedDocuments, supplierContacts] = await Promise.all([
       this.matrix.buildForEvent(eventId, this.prisma, now),
       this.prisma.opsDocument.findMany({
         where: { eventId, validationStatus: 'rejected' },
@@ -347,15 +363,18 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
         select: { id: true, type: true },
         take: 200,
       }),
+      this.accountContacts.findSelectedSupplierContacts(eventId),
     ]);
     const rejectedByType = new Map<string, string>();
     rejectedDocuments.forEach((document) => { if (!rejectedByType.has(document.type)) rejectedByType.set(document.type, document.id); });
+    const emailBySupplier = new Map(supplierContacts.map(({ supplierId, email }) => [supplierId, email]));
     const reminders: FileRequirementReminder[] = [];
     // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one event's required items, each with at most two reasons.
     for (const item of matrix.items.filter((candidate) => candidate.required)) {
+      reminders.push(...await this.queueFulfilmentReminders(eventId, item, emailBySupplier));
       const reasons: Array<[FileRequirementReminderReason, string]> = [];
       if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
-      const rejectedId = item.validationStatus === 'rejected' ? rejectedByType.get(item.key) : undefined;
+      const rejectedId = rejectedAnchor(item, rejectedByType);
       if (rejectedId) reasons.push(['rejected', rejectedId]);
       for (const [reason, anchor] of reasons) reminders.push(...await this.queueReminder(eventId, item, reason, anchor));
     }
@@ -367,32 +386,26 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, archived: true } });
     if (!event) throw new NotFoundException('Event not found');
     if (event.archived) throw new BadRequestException('Archived event file requirements are read-only');
-    const [matrix, rejectedDocuments] = await Promise.all([
-      this.matrix.buildForEvent(eventId, this.prisma, now),
-      this.prisma.opsDocument.findMany({
-        where: { eventId, validationStatus: 'rejected' },
-        orderBy: [{ uploadedAt: 'desc' }, { id: 'asc' }],
-        select: { id: true, type: true }, take: 200,
-      }),
-    ]);
-    const rejectedByType = new Map<string, string>();
-    rejectedDocuments.forEach((document) => { if (!rejectedByType.has(document.type)) rejectedByType.set(document.type, document.id); });
-    const reminders: FileRequirementReminder[] = [];
-    for (const item of matrix.items.filter((candidate) => candidate.required)) {
-      const reasons: Array<[FileRequirementReminderReason, string]> = [];
-      if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
-      const rejectedId = item.validationStatus === 'rejected' ? rejectedByType.get(item.key) : undefined;
-      if (rejectedId) reasons.push(['rejected', rejectedId]);
-      for (const [reason, anchor] of reasons) reminders.push(...await this.queueReminder(eventId, item, reason, anchor));
-    }
-    return { reminders };
+    return { reminders: await this.queueEventReminders(eventId, now) };
   }
 
+  /** Supplier-owned items remind each affected supplier at its own contact; a satisfied, unrejected supplier gets nothing. */
+  private async queueFulfilmentReminders(eventId: string, item: PrismFileRequirementItem, emailBySupplier: Map<string, string | null>) {
+    const reminders: FileRequirementReminder[] = [];
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one fulfilment per selected supplier, each with at most two reasons.
+    for (const fulfilment of item.supplierFulfilments ?? []) {
+      const email = emailBySupplier.get(fulfilment.supplierId) ?? null;
+      if (fulfilment.overdue && item.dueDate) reminders.push(...await this.queueSupplierReminder(eventId, item, 'overdue', item.dueDate, fulfilment.supplierId, email));
+      if (fulfilment.validationStatus === 'rejected' && fulfilment.uploadedAssetId) {
+        reminders.push(...await this.queueSupplierReminder(eventId, item, 'rejected', fulfilment.uploadedAssetId, fulfilment.supplierId, email));
+      }
+    }
+    return reminders;
+  }
+
+  /** Role-addressed reminder. Supplier-owned items reach PMCM only: the Supplier label would fan out to every selected supplier. */
   private async queueReminder(eventId: string, item: PrismFileRequirementItem, reason: FileRequirementReminderReason, anchor: string) {
-    const message = reason === 'overdue'
-      ? `Required file "${item.label}" is overdue (due ${anchor.slice(0, 10)}). Upload it in the event file hub.`
-      : `Required file "${item.label}" was rejected. Upload a replacement in the event file hub.`;
-    const roles = [...new Set([item.ownerRole, OpsUserRole.PmcmAdmin])];
+    const roles = [...new Set([item.supplierFulfilments ? OpsUserRole.PmcmAdmin : item.ownerRole, OpsUserRole.PmcmAdmin])];
     const queued: FileRequirementReminder[] = [];
     // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: at most the owner role and PMCM.
     for (const role of roles) {
@@ -400,14 +413,43 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       if (!recipient) continue;
       // Stable per requirement revision and reason anchor, so repeated sweeps never duplicate outbox rows.
       const idempotencyKey = `file-requirement-${reason}:${eventId}:${item.key}:r${item.revision ?? 0}:${anchor}:${role}`;
-      try {
-        await writeNotification(this.notificationOutboxWriter, eventId, recipient, message, undefined, { idempotencyKey, correlationId: idempotencyKey });
-        queued.push({ eventId, key: item.key, reason, recipient, idempotencyKey });
-      } catch (error) {
-        this.logger.warn(`File requirement reminder skipped for ${eventId}/${item.key}: ${error instanceof Error ? error.message : String(error)}`);
-      }
+      queued.push(...await this.writeReminder(eventId, item, reason, anchor, recipient, idempotencyKey));
     }
     return queued;
+  }
+
+  /** One selected supplier's reminder, addressed to that supplier's own contact and keyed by supplier. */
+  private async queueSupplierReminder(
+    eventId: string,
+    item: PrismFileRequirementItem,
+    reason: FileRequirementReminderReason,
+    anchor: string,
+    supplierId: string,
+    email: string | null,
+  ): Promise<FileRequirementReminder[]> {
+    if (!email) {
+      this.logger.warn(`File requirement reminder skipped for ${eventId}/${item.key}: supplier ${supplierId} has no contact email`);
+      return [];
+    }
+    const idempotencyKey = `file-requirement-${reason}:${eventId}:${item.key}:r${item.revision ?? 0}:${anchor}:supplier:${supplierId}`;
+    return this.writeReminder(eventId, item, reason, anchor, email, idempotencyKey);
+  }
+
+  private async writeReminder(
+    eventId: string,
+    item: PrismFileRequirementItem,
+    reason: FileRequirementReminderReason,
+    anchor: string,
+    recipient: string,
+    idempotencyKey: string,
+  ): Promise<FileRequirementReminder[]> {
+    try {
+      await writeNotification(this.notificationOutboxWriter, eventId, recipient, reminderMessage(reason, item.label, anchor), undefined, { idempotencyKey, correlationId: idempotencyKey });
+      return [{ eventId, key: item.key, reason, recipient, idempotencyKey }];
+    } catch (error) {
+      this.logger.warn(`File requirement reminder skipped for ${eventId}/${item.key}: ${error instanceof Error ? error.message : String(error)}`);
+      return [];
+    }
   }
 
   private async saveOverride(
