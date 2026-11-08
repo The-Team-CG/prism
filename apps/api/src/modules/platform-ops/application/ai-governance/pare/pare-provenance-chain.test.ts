@@ -197,6 +197,7 @@ function setup<A extends AiProviderAdapter = ScriptedPareAdapter>(
     findInquiryTriageSource: async () => null,
     findProposalDraftEventSource: async () => null,
     findClientMessageTriggerFacts: async () => null,
+    findAiAdvisoryFacts: async () => null,
   };
   const service = new PAREService(prisma, undefined, gateway, runtime, registry, platformReferences);
   return { root, prisma, state, adapter, registry, gateway, service };

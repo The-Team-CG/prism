@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM can ask AI to explain the open compliance items and order the actions, get two or three theme concepts from the briefing, and write a post-event intelligence report (what worked, what failed and why, recommended actions) from the insights card. All three are advice PMCM reads; nothing is applied or sent.
+- Supplier profiles show a reliability score from 0 to 100 with a likely range, combining on-time arrival, complaints, quote response within 48 hours and contract accuracy.
 - Quote requests escalate to backup (Tier 2) suppliers only when no free Tier 1 supplier is rated for the event's size (from the briefing guest count); PMCM can still ask Tier 2 with a reason, which is audited.
 - A proposal can offer two packages (Option A and Option B) when the briefing budget is a range or not given; a single fixed budget gets one package unless PMCM records why it offers two. The client sees both totals.
 - Clients add the suppliers they book themselves and mark them confirmed; PMCM sees their arrival notes and can raise a risk warning the client sees.
