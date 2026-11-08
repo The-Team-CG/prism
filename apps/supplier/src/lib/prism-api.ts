@@ -65,7 +65,7 @@ function showSupplierPrivacyNotice() {
   window.location.assign(portalHref(privacyNoticePath(`${appPath}${window.location.search}`)));
 }
 
-const eventOpsClient = createEventOpsClient({
+export const eventOpsClient = createEventOpsClient({
   getAuthToken: storedSupplierAccessToken,
   onUnauthorized: expireSupplierSession,
   onPrivacyNoticeRequired: showSupplierPrivacyNotice,

@@ -1,4 +1,5 @@
-import { createEventOpsClient, getStorageObjectDownload, uploadStorageObject } from '@prism/api-client';
+import { getStorageObjectDownload, uploadStorageObject } from '@prism/api-client';
+import { eventOpsClient } from '@/lib/prism-api';
 import type {
   PrismAuthenticatedSession,
   PrismSupplierQuoteRequest,
@@ -6,10 +7,6 @@ import type {
   SubmitSupplierCreativeTaskInput,
 } from '@prism/types';
 import type { PrismSupplier } from '../model/supplier-workspace-types';
-
-function client(session: PrismAuthenticatedSession) {
-  return createEventOpsClient({ getAuthToken: () => session.accessToken });
-}
 
 const uploadAttempts = new Map<string, string>();
 
@@ -30,7 +27,7 @@ function attemptId(key: string): string {
 
 export const supplierWorkflowRepository = {
   fetch(session: PrismAuthenticatedSession): Promise<PrismSupplierWorkflowWorkspace> {
-    return client(session).supplierWorkflows.detail();
+    return eventOpsClient.supplierWorkflows.detail();
   },
 
   async uploadContract(session: PrismAuthenticatedSession, supplier: PrismSupplier, request: PrismSupplierQuoteRequest, file: File) {
@@ -43,7 +40,7 @@ export const supplierWorkflowRepository = {
       logicalTarget: `supplier-contract:${request.id}:${currentAttemptId}`,
       usage: 'supplier_document',
     }, { authToken: session.accessToken });
-    const result = await client(session).supplierWorkflows.bindContract(request.id, {
+    const result = await eventOpsClient.supplierWorkflows.bindContract(request.id, {
       storedObjectId: stored.id,
       checksumSha256: stored.checksumSha256,
     });
@@ -72,7 +69,7 @@ export const supplierWorkflowRepository = {
       }, { authToken: session.accessToken });
       payload.storedObjectId = stored.id;
     }
-    const result = await client(session).supplierWorkflows.submitCreativeTask(taskId, payload);
+    const result = await eventOpsClient.supplierWorkflows.submitCreativeTask(taskId, payload);
     uploadAttempts.delete(key);
     return result;
   },
@@ -94,7 +91,7 @@ export const supplierWorkflowRepository = {
 
   /** Event-day status update; the actor is derived from the bearer token, as on the other workflow writes. */
   updateEventStatus(session: PrismAuthenticatedSession, requestId: string, status: string, notes: string, storedObjectId?: string) {
-    return client(session).supplierWorkspace.updateEventStatus(
+    return eventOpsClient.supplierWorkspace.updateEventStatus(
       requestId,
       { status: status as "arrived" | "set_up_ready" | "done_leaving", notes, ...(storedObjectId ? { storedObjectId } : {}) },
       { actorRole: "supplier", actorName: session.name, actorEmail: session.email },
@@ -102,15 +99,15 @@ export const supplierWorkflowRepository = {
   },
 
   acknowledgeSchedule(session: PrismAuthenticatedSession, requestId: string, expectedRevision: number) {
-    return client(session).supplierWorkflows.acknowledgeSchedule(requestId, { expectedRevision });
+    return eventOpsClient.supplierWorkflows.acknowledgeSchedule(requestId, { expectedRevision });
   },
 
   requestScheduleChange(session: PrismAuthenticatedSession, requestId: string, expectedRevision: number, reason: string) {
-    return client(session).supplierWorkflows.requestScheduleChange(requestId, { expectedRevision, reason });
+    return eventOpsClient.supplierWorkflows.requestScheduleChange(requestId, { expectedRevision, reason });
   },
 
   updateCreativeProgress(session: PrismAuthenticatedSession, taskId: string, note: string) {
-    return client(session).supplierWorkflows.updateCreativeProgress(taskId, { note });
+    return eventOpsClient.supplierWorkflows.updateCreativeProgress(taskId, { note });
   },
 
   download(session: PrismAuthenticatedSession, objectId: string) {
