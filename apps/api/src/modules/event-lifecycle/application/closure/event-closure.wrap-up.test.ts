@@ -62,13 +62,13 @@ describe('EventClosureService wrap-up', () => {
     expect(lifecycleFactsReader.getClosureFacts).toHaveBeenCalledWith('evt_1');
   });
 
-  it('starts exactly once from actualEndedAt and keeps a 24-hour deadline', async () => {
+  it('starts exactly once from actualEndedAt and keeps a five-day deadline', async () => {
     const { service, records } = harness();
     const first = await service.startWrapUp('evt_1', { mode: 'full' }, actor);
     const second = await service.startWrapUp('evt_1', { mode: 'quick' }, actor);
     expect(first.id).toBe(second.id);
     expect(records).toHaveLength(1);
-    expect(second.deadlineAt).toEqual(new Date('2026-09-08T00:00:00.000Z'));
+    expect(second.deadlineAt).toEqual(new Date('2026-09-12T00:00:00.000Z'));
   });
 
   it('rejects wrap-up without a recorded actual end', async () => {
