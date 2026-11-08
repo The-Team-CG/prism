@@ -10,12 +10,6 @@ type WithoutIdempotencyKey<T> = T extends { idempotencyKey: string } ? Omit<T, "
 
 export type CheckInPayload = WithoutIdempotencyKey<CreateGuestCheckInInput>;
 
-export type FeedbackMediaMeta = {
-  fileName: string;
-  mimeType: string;
-  sizeBytes: number;
-};
-
 export type FeedbackPayload = {
   guestName: string;
   rating: number;
@@ -23,6 +17,7 @@ export type FeedbackPayload = {
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
   marketingConsentAccepted: boolean;
-  photo?: FeedbackMediaMeta;
-  video?: FeedbackMediaMeta;
+  /** Stored upload ids from the guest feedback media route. */
+  photoObjectId?: string;
+  videoObjectId?: string;
 };

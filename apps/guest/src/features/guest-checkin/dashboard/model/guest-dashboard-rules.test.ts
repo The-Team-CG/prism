@@ -93,20 +93,19 @@ describe("guest-dashboard-rules", () => {
     expect(isVideoDurationAllowed(MAX_VIDEO_DURATION_S + 0.1)).toBe(false);
   });
 
-  it("builds feedback payload with optional media metadata", () => {
-    const photo = new File(["x"], "shot.jpg", { type: "image/jpeg" });
+  it("builds feedback payload with the stored media ids", () => {
     const payload = buildFeedbackPayload({
       session,
       guestName: "Maya Santos",
       rating: "4",
       comment: "Great",
       consentAccepted: true,
-      photo,
+      photoObjectId: "obj_photo",
     });
     expect(payload.rating).toBe(4);
     expect(payload.guestName).toBe("Maya Santos");
-    expect(payload.photo?.fileName).toBe("shot.jpg");
-    expect(payload.video).toBeUndefined();
+    expect(payload.photoObjectId).toBe("obj_photo");
+    expect(payload).not.toHaveProperty("videoObjectId");
   });
 
   it("ends guest access only for auth and not-found responses from the API", () => {

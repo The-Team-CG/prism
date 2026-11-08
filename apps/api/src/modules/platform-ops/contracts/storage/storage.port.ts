@@ -10,6 +10,23 @@ import type {
 export const STORAGE_ADAPTER = Symbol('STORAGE_ADAPTER');
 export const STORED_SUPPLIER_UPLOAD_READER = Symbol('STORED_SUPPLIER_UPLOAD_READER');
 export const STORED_REQUIREMENT_UPLOAD_READER = Symbol('STORED_REQUIREMENT_UPLOAD_READER');
+export const GUEST_FEEDBACK_MEDIA_STORE = Symbol('GUEST_FEEDBACK_MEDIA_STORE');
+
+export type GuestFeedbackMediaReference = {
+  id: string;
+  originalFileName: string;
+  contentType: string;
+  byteSize: number;
+};
+
+/**
+ * New-SEC3: guest feedback photos and videos. Guests have no session, so the guest-code route checks the access
+ * code and feedback window first; the store then checks size, checksum and file signature before storing bytes.
+ */
+export interface GuestFeedbackMediaStore {
+  storeGuestFeedbackMedia(input: { eventId: string; fileName: string; contentType: string; bytes: Uint8Array }): Promise<GuestFeedbackMediaReference>;
+  findStoredGuestFeedbackMedia(input: { eventId: string; objectId: string }): Promise<GuestFeedbackMediaReference | null>;
+}
 
 export type StoredSupplierUploadReference = {
   id: string;

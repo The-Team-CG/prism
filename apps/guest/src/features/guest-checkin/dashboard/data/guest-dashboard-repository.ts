@@ -5,6 +5,7 @@ import {
   type PrismGuestCheckInReceipt,
   type PrismGuestEventPass,
   type PrismGuestEventWatermark,
+  type PrismGuestFeedbackMediaUpload,
   type PrismGuestFeedbackReceipt,
   type PrismGuestSession,
   type WithdrawGuestFeedbackConsentInput,
@@ -138,6 +139,15 @@ export const guestDashboardRepository = {
 
   withdrawFeedbackConsent(session: PrismGuestSession, feedbackId: string, payload: WithdrawGuestFeedbackConsentInput): Promise<unknown> {
     return guestJson(guestApiPath(session, `/feedback/${encodeURIComponent(feedbackId)}/consent-withdrawal`), { method: "POST", body: JSON.stringify(payload) });
+  },
+
+  /** Sends the file bytes; the API checks the file type and size before storing them. */
+  uploadFeedbackMedia(session: PrismGuestSession, file: File): Promise<PrismGuestFeedbackMediaUpload> {
+    return guestJson<PrismGuestFeedbackMediaUpload>(guestApiPath(session, "/feedback-media"), {
+      method: "POST",
+      headers: { "Content-Type": file.type || "application/octet-stream", "x-prism-file-name": encodeURIComponent(file.name) },
+      body: file,
+    }, "Could not upload the file");
   },
 
   submitFeedback(session: PrismGuestSession, payload: CreateGuestFeedbackInput): Promise<PrismGuestFeedbackReceipt> {

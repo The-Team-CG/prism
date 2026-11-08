@@ -1,5 +1,5 @@
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import type { CheckInMode, CheckInPayload, FeedbackMediaMeta, FeedbackPayload } from "./guest-dashboard-types";
+import type { CheckInMode, CheckInPayload, FeedbackPayload } from "./guest-dashboard-types";
 import { PRISM_PRIVACY_NOTICE_VERSION, type PrismGuestSession } from "@prism/types";
 import { GuestApiError } from "@/features/guest-shared/guest-http";
 
@@ -69,22 +69,14 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function toMediaMeta(file: File): FeedbackMediaMeta {
-  return {
-    fileName: file.name,
-    mimeType: file.type,
-    sizeBytes: file.size,
-  };
-}
-
 export function buildFeedbackPayload(input: {
   session: PrismGuestSession;
   guestName: string;
   rating: string;
   comment: string;
   consentAccepted: boolean;
-  photo?: File | null;
-  video?: File | null;
+  photoObjectId?: string;
+  videoObjectId?: string;
 }): FeedbackPayload {
   const guestName = input.guestName.trim();
   if (!guestName) throw new Error("Enter your name for feedback.");
@@ -96,8 +88,8 @@ export function buildFeedbackPayload(input: {
     privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     marketingConsentAccepted: false,
   };
-  if (input.photo) payload.photo = toMediaMeta(input.photo);
-  if (input.video) payload.video = toMediaMeta(input.video);
+  if (input.photoObjectId) payload.photoObjectId = input.photoObjectId;
+  if (input.videoObjectId) payload.videoObjectId = input.videoObjectId;
   return payload;
 }
 

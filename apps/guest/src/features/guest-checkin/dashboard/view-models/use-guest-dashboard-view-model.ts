@@ -32,6 +32,7 @@ export function useGuestDashboardViewModel() {
   const [feedbackGuestName, setFeedbackGuestName] = useState("");
   const [feedbackRating, setFeedbackRating] = useState("5");
   const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackMedia, setFeedbackMedia] = useState<File | null>(null);
   const [feedbackConsentAccepted, setFeedbackConsentAccepted] = useState(false);
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,12 +121,14 @@ export function useGuestDashboardViewModel() {
         rating: feedbackRating,
         comment: feedbackComment,
         consentAccepted: feedbackConsentAccepted,
+        ...(feedbackMedia?.type.startsWith("video/") ? { video: feedbackMedia } : { photo: feedbackMedia }),
       });
       setSession(saveGuestFeedbackReceipt(session, receipt));
       setFeedbackSubmitted(true);
       setNotice("Feedback sent to PMCM for review. It will not be published automatically.");
       setFeedbackGuestName("");
       setFeedbackComment("");
+      setFeedbackMedia(null);
       setStatus("ready");
     } catch (err) {
       setStatus("error");
@@ -178,6 +181,8 @@ export function useGuestDashboardViewModel() {
       setFeedbackSubmitted(false);
     },
     feedbackComment,
+    feedbackMedia,
+    setFeedbackMedia,
     setFeedbackComment: (comment: string) => {
       setFeedbackComment(comment);
       setFeedbackSubmitted(false);

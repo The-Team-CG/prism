@@ -3,7 +3,8 @@ import type { PrismPrivacyExportSection, PrivacyCorrectionPatch } from '@prism/t
 
 export const OPERATIONS_PRIVACY_REDACTOR = Symbol('OPERATIONS_PRIVACY_REDACTOR');
 
-export type OperationsRedactionResult = { surfaces: string[]; touchedRecords: number };
+/** storedObjectIds: stored guest media the caller must delete with the record (platform-ops owns storage). */
+export type OperationsRedactionResult = { surfaces: string[]; touchedRecords: number; storedObjectIds?: string[] };
 
 export interface OperationsPrivacyRedactor {
   redactGuest(

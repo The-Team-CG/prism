@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import type { OpsStoredObject, Prisma } from '@prisma/client';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import {
   AUDIT_WRITER,
@@ -21,6 +21,8 @@ import type { PrismEventGameLobbyLogoUploadTicket, PrismEventGameMediaAuthorizat
 import { PLATFORM_REFERENCE_READ_MODEL, type PlatformReferenceReadModel, type PlatformStorageEventScope } from '@prism/contexts/read-models';
 import {
   STORAGE_ADAPTER,
+  type GuestFeedbackMediaReference,
+  type GuestFeedbackMediaStore,
   type StorageAdapter,
   type StorageLifecycleState,
   type StorageAdapterRequest,
@@ -48,7 +50,7 @@ import { StorageValidationService } from './storage-validation.service';
 const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsage[]>> = {
   billing_statement: ['event_deliverable'],
   client_review_item: ['event_deliverable'],
-  event: ['client_document', 'signed_conforme'],
+  event: ['client_document', 'signed_conforme', 'guest_feedback_media'],
   event_game_definition: ['event_game_media'],
   event_game_lobby: ['event_game_branding'],
   proposal_version: ['event_deliverable'],
@@ -88,7 +90,7 @@ function sameUploadContent(object: OpsStoredObject, input: StorageServiceRequest
 }
 
 @Injectable()
-export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader {
+export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader, GuestFeedbackMediaStore {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accessPolicy: EventAccessPolicyService,
@@ -125,7 +127,67 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     if (input.usage === 'event_game_media') {
       throw new ForbiddenException('Game media uploads must use the game-scoped route');
     }
+    if (input.usage === 'guest_feedback_media') {
+      throw new ForbiddenException('Guest feedback media must use the guest feedback route');
+    }
     return this.requestUploadThroughOwnerCapability(input);
+  }
+
+  async storeGuestFeedbackMedia(input: { eventId: string; fileName: string; contentType: string; bytes: Uint8Array }): Promise<GuestFeedbackMediaReference> {
+    if (!this.adapter) throw new ServiceUnavailableException('Storage provider is not configured');
+    const usage = 'guest_feedback_media' as const;
+    const checksumSha256 = createHash('sha256').update(input.bytes).digest('hex');
+    const declaration = this.validation.validateBytes({ fileName: input.fileName, contentType: input.contentType, byteSize: input.bytes.byteLength, usage, checksumSha256 }, input.bytes);
+    const actor: ResolvedEventOpsActor = { id: `guest-code:${input.eventId}`, role: OpsUserRole.Guest, name: 'Event guest', eventId: input.eventId, explicit: false, verified: true };
+    const objectId = `obj_${randomUUID()}`;
+    const request: StorageServiceRequest = {
+      eventId: input.eventId, ownerRecordType: 'event', ownerRecordId: input.eventId, logicalTarget: `guest-feedback:${objectId}`, usage,
+      fileName: declaration.fileName, contentType: declaration.contentType, declaredByteSize: declaration.byteSize, checksumSha256: declaration.checksumSha256, actor,
+    };
+    const providerObjectKey = this.providerObjectKey(input.eventId, usage, objectId, declaration.fileName);
+    const location = await this.requestLocation(this.adapterRequestForDeclaration(request, declaration, objectId, providerObjectKey, null));
+    if (!location) throw new ServiceUnavailableException('Storage provider could not issue an upload location');
+    await this.createRequest(request, declaration, objectId, location);
+    await this.writeProviderBytes(location, declaration.contentType, input.bytes);
+    const requested = await this.prisma.opsStoredObject.findUniqueOrThrow({ where: { id: objectId } });
+    const confirmation = await this.confirmWithAdapter(requested, { objectId, checksumSha256, byteSize: declaration.byteSize, bytes: input.bytes, actor });
+    await this.persistStored(requested, confirmation, actor);
+    return { id: objectId, originalFileName: declaration.fileName, contentType: declaration.contentType, byteSize: declaration.byteSize };
+  }
+
+  async findStoredGuestFeedbackMedia(input: { eventId: string; objectId: string }): Promise<GuestFeedbackMediaReference | null> {
+    const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (object?.eventId !== input.eventId || object.usage !== 'guest_feedback_media' || object.ownerRecordType !== 'event' || object.lifecycleState !== 'stored') return null;
+    return { id: object.id, originalFileName: object.originalFileName, contentType: object.contentType, byteSize: object.declaredByteSize };
+  }
+
+  /** Privacy erasure: a feedback item's stored media goes with it. A provider failure fails the erasure so it can be retried. */
+  async eraseGuestFeedbackMedia(objectIds: string[], transaction: Prisma.TransactionClient): Promise<number> {
+    if (objectIds.length === 0) return 0;
+    const objects = await transaction.opsStoredObject.findMany({ where: { id: { in: objectIds }, usage: 'guest_feedback_media', lifecycleState: { not: 'deleted' } } });
+    if (objects.length === 0) return 0;
+    const adapter = this.adapter;
+    if (!adapter) throw new ServiceUnavailableException('Storage provider is not configured');
+    await transaction.opsStoredObject.updateMany({
+      where: { id: { in: objects.map((object) => object.id) } },
+      data: { lifecycleState: 'deleted', deletedAt: new Date(), originalFileName: '[redacted by privacy request]' },
+    });
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: provider deletes only (no queries), bounded by the media of one feedback item (photo and video).
+    for (const object of objects) {
+      if (object.providerObjectKey) await adapter.deleteObject({ objectId: object.id, providerObjectKey: object.providerObjectKey });
+    }
+    return objects.length;
+  }
+
+  /** Server-side upload for guest media: local adapters take the bytes directly, providers get an HTTP PUT. */
+  private async writeProviderBytes(location: StorageUploadLocation, contentType: string, bytes: Uint8Array) {
+    if (location.uploadUrl.startsWith('localfs://') || location.uploadUrl.startsWith('prismapi://')) {
+      if (!this.adapter?.writeAuthorizedUpload) throw new ServiceUnavailableException('This storage provider requires a direct HTTP upload');
+      await this.adapter.writeAuthorizedUpload(location.uploadUrl, location.providerObjectKey, contentType, bytes);
+      return;
+    }
+    const response = await fetch(location.uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: Buffer.from(bytes) });
+    if (!response.ok) throw new ServiceUnavailableException('Storage provider rejected the upload');
   }
 
   private async requestUploadThroughOwnerCapability(
@@ -216,6 +278,9 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     const existing = await this.database(input.context).opsStoredObject.findUnique({ where: { id: input.objectId } });
     if (existing?.usage === 'event_game_media') {
       throw new ForbiddenException('Game media uploads must use the game-scoped route');
+    }
+    if (existing?.usage === 'guest_feedback_media') {
+      throw new ForbiddenException('Guest feedback media must use the guest feedback route');
     }
     return this.confirmUploadThroughOwnerCapability(input);
   }

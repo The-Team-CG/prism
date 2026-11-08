@@ -246,6 +246,7 @@ function createGuestWorkflowFixture() {
     listCoordinatorWorkspaceEvents: vi.fn(async () => []),
   };
   const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
+  const feedbackMedia = { storeGuestFeedbackMedia: vi.fn(), findStoredGuestFeedbackMedia: vi.fn() };
   const service = new GuestWorkflowService(
     prisma as any,
     auditWriter as any,
@@ -253,10 +254,9 @@ function createGuestWorkflowFixture() {
     staffingReader as any,
     eventReferences as any,
     eventProjections as any,
-    notificationOutboxWriter as any,
-  );
+    notificationOutboxWriter as any, feedbackMedia as any);
 
-  return { service, state, prisma, auditWriter, staffingReader, eventReferences, eventProjections, notificationOutboxWriter };
+  return { service, state, prisma, auditWriter, staffingReader, eventReferences, eventProjections, notificationOutboxWriter, feedbackMedia };
 }
 
 function guestRosterFixture(overrides: Record<string, unknown> = {}) {
@@ -596,6 +596,23 @@ describe('GuestWorkflowService', () => {
     expect(state.guestCheckIns).toHaveLength(1);
   });
 
+  it('attaches feedback media only from stored uploads of this event and the matching kind', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+    const { service, state, feedbackMedia } = createGuestWorkflowFixture();
+    feedbackMedia.findStoredGuestFeedbackMedia.mockImplementation(async ({ objectId }: { objectId: string }) =>
+      objectId === 'obj_photo' ? { id: 'obj_photo', originalFileName: 'table.jpg', contentType: 'image/jpeg', byteSize: 2048 } : null);
+    const base = { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, guestName: 'Sofia Lim', rating: 5, privacyConsentAccepted: true as const };
+
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { ...base, photoObjectId: 'obj_unknown' })).rejects.toThrow('The photo is not a stored upload for this event');
+    await expect(service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { ...base, videoObjectId: 'obj_photo' })).rejects.toThrow('The video is not a stored upload for this event');
+    await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', { ...base, photoObjectId: 'obj_photo' });
+
+    expect(feedbackMedia.findStoredGuestFeedbackMedia).toHaveBeenCalledWith({ eventId: 'evt_sample', objectId: 'obj_photo' });
+    expect(state.guestFeedback[state.guestFeedback.length - 1]?.mediaAttachments).toEqual([expect.objectContaining({ kind: 'photo', status: 'stored', storedObjectId: 'obj_photo', mimeType: 'image/jpeg' })]);
+    vi.useRealTimers();
+  });
+
   it.each([
     ['closed', 'Walk-in registration is closed for this event'],
     ['threshold', 'Walk-in registration threshold has been reached for this event'],
@@ -746,7 +763,7 @@ describe('GuestWorkflowService', () => {
     };
     const prisma = { $transaction: async (work: (context: typeof tx) => Promise<unknown>) => work(tx) };
     const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
-    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any, testEventReferences as any, createTestGuestEventProjections() as any, { write: vi.fn() } as any);
+    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any, testEventReferences as any, createTestGuestEventProjections() as any, { write: vi.fn() } as any, {} as any);
 
     const first = await service.checkInRosterEntry('evt_sample', 'gre_one', { name: 'Registration', role: 'coordinator' });
     const second = await service.checkInRosterEntry('evt_sample', 'gre_two', { name: 'Registration', role: 'coordinator' });
@@ -770,8 +787,7 @@ describe('GuestWorkflowService', () => {
       staffingReader as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
-      { write: vi.fn(async () => undefined) } as any,
-    );
+      { write: vi.fn(async () => undefined) } as any, {} as any);
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Mia Registration', role: 'coordinator' };
 
     await expect(service.searchCoordinatorRoster('evt_1', actor, { reviewQueue: true })).resolves.toEqual([{
@@ -813,8 +829,7 @@ describe('GuestWorkflowService', () => {
       staffingReader as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
-      { write: vi.fn(async () => undefined) } as any,
-    );
+      { write: vi.fn(async () => undefined) } as any, {} as any);
 
     await expect(service.updateVerification('evt_1', 'gre_1', { status: 'verified' }, {
       id: 'usr_coord', email: 'coord@example.test', name: 'Registration Staff', role: 'coordinator',
@@ -835,8 +850,7 @@ describe('GuestWorkflowService', () => {
       staffingReader as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
-      { write: vi.fn(async () => undefined) } as any,
-    );
+      { write: vi.fn(async () => undefined) } as any, {} as any);
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Usher', role: 'coordinator' };
 
     await expect(service.searchCoordinatorRoster('evt_1', actor)).rejects.toThrow('Registration role');
@@ -993,8 +1007,7 @@ describe('GuestWorkflowService', () => {
       { findAssignmentForEventActor: vi.fn() } as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
-      { write: vi.fn(async () => undefined) } as any,
-    );
+      { write: vi.fn(async () => undefined) } as any, {} as any);
 
     await expect(service.importRoster('evt_1', { source: ' Coordinator-Walk-In ', rows: [] } as any, {
       id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin',

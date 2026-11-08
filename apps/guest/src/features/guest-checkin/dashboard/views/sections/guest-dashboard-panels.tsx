@@ -121,9 +121,14 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
           <span className="flex justify-between gap-3"><span>Comment</span><span className="font-normal text-muted-foreground">{vm.feedbackComment.length}/500</span></span>
           <PrismTextarea value={vm.feedbackComment} maxLength={500} onChange={(event) => vm.setFeedbackComment(event.target.value)} placeholder="Tell us about your experience" />
         </label>
+        <label className="grid gap-1.5 text-sm font-semibold">
+          Photo or video (optional)
+          <input type="file" accept="image/jpeg,image/png,video/mp4,video/quicktime" onChange={(event) => vm.setFeedbackMedia(event.target.files?.[0] ?? null)} className="text-sm font-normal text-foreground" />
+          <span className="text-xs font-normal text-muted-foreground">JPEG, PNG, MP4 or MOV, up to 100 MB.</span>
+        </label>
         <label className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
           <input type="checkbox" checked={vm.feedbackConsentAccepted} onChange={(event) => vm.setFeedbackConsentAccepted(event.target.checked)} className="mt-1 size-4 accent-attention" />
-          <span>I consent to PMCM saving my name, rating and comment for review. My feedback will not be published automatically.</span>
+          <span>I consent to PMCM saving my name, rating, comment and any photo or video for review. My feedback will not be published automatically.</span>
         </label>
         <Button disabled={!vm.canSubmitFeedback} className="h-12 sm:w-fit" type="submit"><MessageCircleHeart className="size-4" /> Send feedback</Button>
         {vm.feedbackSubmitted ? <p role="status" className="flex items-start gap-2 text-sm text-success"><CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Feedback sent. PMCM will review it before sharing.</p> : null}
