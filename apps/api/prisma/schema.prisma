@@ -2182,6 +2182,7 @@ model OpsBillingCorrection {
   eventId              String    @map("event_id")
   statementId          String    @map("statement_id")
   reason               String
+  severity             String
   correctedTotalAmount Int?      @map("corrected_total_amount")
   status               String    @default("pending")
   requestedBy          String    @map("requested_by")
@@ -2210,6 +2211,7 @@ model OpsBillingDispute {
   milestoneId     String?   @map("milestone_id")
   amount          Int
   reason          String
+  severity        String
   status          String    @default("open")
   raisedBy        String    @map("raised_by")
   resolvedBy      String?   @map("resolved_by")

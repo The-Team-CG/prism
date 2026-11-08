@@ -25,6 +25,7 @@ function correction(overrides: Partial<PrismBillingCorrection> = {}): PrismBilli
     eventId: "evt_1",
     statementId: "bill_1",
     reason: "Tax line is incorrect",
+    severity: "amount_discrepancy",
     correctedTotalAmount: null,
     status: "pending",
     requestedBy: "Ms. Mys",
@@ -69,6 +70,13 @@ describe("BillingAdjustmentsPanel correction approval", () => {
     fireEvent.click(buttonFor("Approve"));
 
     await waitFor(() => expect(resolveCorrection).toHaveBeenCalledWith("evt_1", "corr_1", expect.objectContaining({ action: "approve" })));
+  });
+
+  it("lets the requester approve a typo correction, since it changes no amount and needs no second approver", async () => {
+    renderPanelWith([correction({ severity: "typo_correction" })], { id: "usr_pmcm", name: "Ms. Mys" });
+
+    await screen.findByText("Severity: Typo correction");
+    expect(buttonFor("Approve").disabled).toBe(false);
   });
 
   it("matches legacy corrections without a requester id on the stored requester name", async () => {

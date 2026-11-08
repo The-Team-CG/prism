@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { PrismBillingStatement, PrismClientBillingDispute } from "@prism/types";
+import type { BillingDiscrepancySeverity, PrismBillingStatement, PrismClientBillingDispute } from "@prism/types";
 import { submitClientBillingDispute } from "../use-cases/submit-client-billing-dispute";
 
 export function useClientBillingDisputeViewModel(input: {
@@ -12,6 +12,7 @@ export function useClientBillingDisputeViewModel(input: {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [milestoneId, setMilestoneId] = useState("");
+  const [severity, setSeverity] = useState<BillingDiscrepancySeverity>("amount_discrepancy");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState<PrismClientBillingDispute[]>([]);
@@ -26,11 +27,13 @@ export function useClientBillingDisputeViewModel(input: {
         milestoneId: milestoneId || undefined,
         amount: Number(amount),
         reason,
+        severity,
       });
       setCreated((current) => [dispute, ...current]);
       setAmount("");
       setReason("");
       setMilestoneId("");
+      setSeverity("amount_discrepancy");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not submit the billing dispute.");
     } finally {
@@ -42,12 +45,14 @@ export function useClientBillingDisputeViewModel(input: {
     amount,
     reason,
     milestoneId,
+    severity,
     submitting,
     error,
     disputes: [...created, ...input.disputes],
     setAmount,
     setReason,
     setMilestoneId,
+    setSeverity,
     submit,
   };
 }

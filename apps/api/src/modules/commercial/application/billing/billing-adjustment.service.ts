@@ -55,9 +55,9 @@ export class BillingAdjustmentService {
           replayed = true;
           return replay;
         }
-        return db.opsBillingCorrection.create({ data: { id: `corr_${randomUUID()}`, eventId, statementId: statement!.id, reason: input.reason.trim(), correctedTotalAmount: input.correctedTotalAmount ?? null, status: 'pending', requestedBy: actor.name, requestedById: actor.id, idempotencyKey: input.idempotencyKey, payloadHash } });
+        return db.opsBillingCorrection.create({ data: { id: `corr_${randomUUID()}`, eventId, statementId: statement!.id, reason: input.reason.trim(), severity: input.severity, correctedTotalAmount: input.correctedTotalAmount ?? null, status: 'pending', requestedBy: actor.name, requestedById: actor.id, idempotencyKey: input.idempotencyKey, payloadHash } });
       },
-      sideEffects: async (correction, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Requested billing correction for ${statement!.number}`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'billing_correction', affectedId: correction.id, affectedLabel: statement!.number, metadata: auditMetadata(actor, { statementId: statement!.id, reason: input.reason, correctedTotalAmount: input.correctedTotalAmount ?? null }) }, context); },
+      sideEffects: async (correction, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Requested billing correction for ${statement!.number}`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'billing_correction', affectedId: correction.id, affectedLabel: statement!.number, metadata: auditMetadata(actor, { statementId: statement!.id, reason: input.reason, severity: input.severity, correctedTotalAmount: input.correctedTotalAmount ?? null }) }, context); },
       project: (correction) => mapBillingCorrection(correction),
     });
   }
@@ -73,7 +73,7 @@ export class BillingAdjustmentService {
       if (input.action === 'approve' && correction.status === 'approved' && correction.replacementStatementId) return mapBillingCorrection(correction);
       this.assertPendingCorrection(correction, input, actor);
       let replacementStatementId: string | null = null;
-      if (input.action === 'approve') {
+      if (input.action === 'approve' && correction.severity === 'amount_discrepancy') {
         if (!verifiedActor) throw new BadRequestException('Verified actor context is required to issue a corrected statement');
         replacementStatementId = await this.issueCorrectedStatement(correction, actor, verifiedActor, context);
       }
@@ -99,7 +99,7 @@ export class BillingAdjustmentService {
 
   private assertPendingCorrection(correction: OpsBillingCorrection, input: ResolveBillingCorrectionInput, actor: BillingActor) {
     if (correction.status !== 'pending') throw new BadRequestException('Billing correction has already been resolved');
-    if (input.action === 'approve' && isBillingCorrectionRequester(correction, actor)) throw new ForbiddenException('A billing correction must be approved by a different PMCM user than the one who requested it');
+    if (correction.severity === 'amount_discrepancy' && input.action === 'approve' && isBillingCorrectionRequester(correction, actor)) throw new ForbiddenException('A billing correction must be approved by a different PMCM user than the one who requested it');
   }
 
   private async issueCorrectedStatement(correction: OpsBillingCorrection, actor: BillingActor, verifiedActor: PrismVerifiedEventActor, context: PrismTransactionContext) {
@@ -202,9 +202,9 @@ export class BillingAdjustmentService {
           replayed = true;
           return replay;
         }
-        return db.opsBillingDispute.create({ data: { id: `dispute_${randomUUID()}`, eventId, statementId: statement!.id, milestoneId: input.milestoneId ?? null, amount: input.amount, reason: input.reason.trim(), status: 'open', raisedBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
+        return db.opsBillingDispute.create({ data: { id: `dispute_${randomUUID()}`, eventId, statementId: statement!.id, milestoneId: input.milestoneId ?? null, amount: input.amount, reason: input.reason.trim(), severity: input.severity, status: 'open', raisedBy: actor.name, idempotencyKey: input.idempotencyKey, payloadHash } });
       },
-      sideEffects: async (dispute, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Opened billing dispute for ${statement!.number}`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'billing_dispute', affectedId: dispute.id, affectedLabel: statement!.number, metadata: auditMetadata(actor, { amount: input.amount, reason: input.reason }) }, context); },
+      sideEffects: async (dispute, context) => { if (replayed) return; await writeAudit(this.auditWriter, eventId, actor.name, `Opened billing dispute for ${statement!.number}`, { actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.Create, affectedType: 'billing_dispute', affectedId: dispute.id, affectedLabel: statement!.number, metadata: auditMetadata(actor, { amount: input.amount, reason: input.reason, severity: input.severity }) }, context); },
       project: (dispute) => mapBillingDispute(dispute),
     });
   }
