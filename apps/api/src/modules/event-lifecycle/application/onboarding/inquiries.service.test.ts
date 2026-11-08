@@ -181,6 +181,17 @@ describe('InquiriesService', () => {
     await expect(service.updateCompanyName('inq_1', { companyName: 'X', reason: 'Y' }, { ...pmcmActor, role: OpsUserRole.Client })).rejects.toThrow('Only PMCM');
   });
 
+  it('puts an inquiry on the bidding path with its status and clears the bid on return to the standard path', async () => {
+    const { service, records } = createService([inquiry({ id: 'inq_1' })]);
+    (service as any).prisma.$transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback((service as any).prisma));
+    const bid = await service.setIntakePath('inq_1', { intakePath: 'bidding', bidStatus: 'submitted', bidDueAt: '2027-01-15' }, pmcmActor);
+    expect(bid).toMatchObject({ intakePath: 'bidding', bidStatus: 'submitted', bidDueAt: '2027-01-15T00:00:00.000Z' });
+    const standard = await service.setIntakePath('inq_1', { intakePath: 'standard', bidStatus: 'won' }, pmcmActor);
+    expect(standard).toMatchObject({ intakePath: 'standard', bidStatus: null, bidDueAt: null });
+    expect(records[0]).toMatchObject({ intakePath: 'standard', bidStatus: null });
+    await expect(service.setIntakePath('inq_1', { intakePath: 'bidding', bidStatus: 'lost' }, { ...pmcmActor, role: OpsUserRole.Client })).rejects.toThrow('Only PMCM');
+  });
+
   it('tells PMCM when a client returns after more than a year without an event, and not for a recent client', async () => {
     const base = { privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, clientName: 'Ana', email: 'ana@acme.test', eventName: 'Gala 2027', eventDate: '2027-07-02', clientType: 'Corporate', message: 'Back again' };
     const dormant = createService([], undefined, [{ eventName: 'Gala 2024', eventDate: new Date('2024-06-01T00:00:00.000Z') }]);

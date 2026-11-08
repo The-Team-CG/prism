@@ -433,5 +433,6 @@ function isRefreshableMultiplayerSession(state: PrismGameHostState | null): bool
   if (!state || !["scheduled", "lobby", "live", "paused"].includes(state.status)) return false;
   return [
     "live-trivia", "bingo", "guess-picture", "spin-wheel", "this-or-that", "family-feud", "split-the-room",
+    "live-poll", "word-cloud", "open-qa",
   ].includes(state.game.kind);
 }

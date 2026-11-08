@@ -8,6 +8,9 @@ const ACTIVE_MULTIPLAYER_GAME_KINDS = new Set<PrismEventGameKind>([
   "this-or-that",
   "family-feud",
   "split-the-room",
+  "live-poll",
+  "word-cloud",
+  "open-qa",
 ]);
 
 export function normalizeGamePin(raw: string): string {

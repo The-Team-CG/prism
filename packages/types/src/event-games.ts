@@ -282,7 +282,10 @@ export type PrismGameParticipantData =
   | { kind: "this-or-that-solo"; options: readonly string[] }
   | { kind: "this-or-that"; options: readonly string[] }
   | { kind: "family-feud"; teamLabel: string }
-  | { kind: "split-the-room"; options: readonly string[]; maxResponseLength: number };
+  | { kind: "split-the-room"; options: readonly string[]; maxResponseLength: number }
+  | { kind: "live-poll"; options: readonly string[] }
+  | { kind: "word-cloud"; maxResponseLength: number }
+  | { kind: "open-qa"; maxResponseLength: number };
 
 export type PrismGameParticipantResult =
   | { kind: "singleplayer-choice"; option: string };

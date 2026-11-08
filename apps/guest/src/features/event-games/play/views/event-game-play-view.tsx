@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "@/app/components/ui/alert";
 import { Button } from "@/app/components/ui/button";
 import { useServerRoundCountdown } from "../model/server-round-countdown";
 import { useEventGamePlayViewModel } from "../view-models/use-event-game-play-view-model";
+import { audienceControls } from "./audience-game-controls";
 
 const STATUS_LABELS = {
   scheduled: "Scheduled",
@@ -244,7 +245,7 @@ function ActiveGameControls({
     return <SplitTheRoomControls key={key} state={state} roundKey={roundKey} data={splitTheRoom} busy={busy} onSubmit={onSubmit} />;
   }
 
-  return null;
+  return audienceControls({ state, roundKey, key, busy, onSubmit });
 }
 
 function independentSingleplayerControls({

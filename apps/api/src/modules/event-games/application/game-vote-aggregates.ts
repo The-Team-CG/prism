@@ -17,7 +17,7 @@ function isAggregateVisible(input: AggregateInput): boolean {
   if (input.kind === 'would-you-rather') return Boolean(configuredVoteOptions(input));
   return input.kind === 'this-or-that'
     || input.kind === 'this-or-that-solo'
-    || (input.kind === 'split-the-room' && input.status === 'paused');
+    || ((input.kind === 'split-the-room' || input.kind === 'live-poll') && input.status === 'paused');
 }
 
 function configuredVoteOptions(input: AggregateInput): readonly string[] | null {
@@ -40,9 +40,15 @@ function configuredVoteOptions(input: AggregateInput): readonly string[] | null 
   }
 }
 
+function livePollOptions(input: AggregateInput): readonly string[] | null {
+  const parsed = eventGameTemplateConfigurationSchema.safeParse(input.configSnapshot.configuration);
+  if (!parsed.success || parsed.data.kind !== 'live-poll') return null;
+  return parsed.data.rounds.find(({ key }) => key === input.roundKey)?.options ?? null;
+}
+
 export async function readConfiguredVoteAggregate(input: AggregateInput): Promise<Array<{ label: string; count: number }>> {
   if (!input.roundKey || !isAggregateVisible(input)) return [];
-  const options = configuredVoteOptions(input);
+  const options = input.kind === 'live-poll' ? livePollOptions(input) : configuredVoteOptions(input);
   if (!options) return [];
   const rows = await input.actionStore.getRoundVoteCounts({
     eventId: input.eventId,

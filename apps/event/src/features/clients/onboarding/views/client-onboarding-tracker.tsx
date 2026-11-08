@@ -24,6 +24,22 @@ function TimelineStep({ title, done, meta }: { title: string; done: boolean; met
   );
 }
 
+/** FR-02: bids are tracked apart from the standard onboarding path. */
+function BiddingPathList({ inquiries }: { inquiries: PrismInquiry[] }) {
+  const bids = inquiries.filter((inquiry) => inquiry.intakePath === "bidding");
+  if (bids.length === 0) return null;
+  return (
+    <div className="border-b border-border px-6 py-4">
+      <p className="text-xs font-bold text-foreground">Bidding path ({bids.length})</p>
+      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+        {bids.map((bid) => (
+          <li key={bid.id}><span className="font-semibold text-foreground">{bid.eventName}</span> · {bid.clientName} · bid {bid.bidStatus ?? "preparing"}{bid.bidDueAt ? ` · due ${compactTimestamp(bid.bidDueAt)}` : ""}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function ClientOnboardingTracker({
   inquiries,
   onUploadConforme,
@@ -53,6 +69,7 @@ export function ClientOnboardingTracker({
         </p>
       </div>
 
+      <BiddingPathList inquiries={inquiries} />
       {tracked.length === 0 ? (
         <div className="px-6 py-8">
           <EmptyState
