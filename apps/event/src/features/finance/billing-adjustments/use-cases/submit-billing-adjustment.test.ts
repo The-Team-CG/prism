@@ -45,6 +45,7 @@ describe("billing adjustment use cases", () => {
       statementId: "stmt_1",
       amount: 100001,
       reason: "Unapproved charge",
+      severity: "amount_discrepancy",
       statementTotal: 100000,
     })).rejects.toThrow("Disputed amount cannot exceed the statement total.");
 
@@ -59,12 +60,13 @@ describe("billing adjustment use cases", () => {
       milestoneId: "pay_balance",
       amount: 20000,
       reason: "Unapproved charge",
+      severity: "amount_discrepancy",
       statementTotal: 100000,
     });
 
     const [eventId, body] = writer.createDispute.mock.calls[0];
     expect(eventId).toBe("evt_1");
-    expect(body).toMatchObject({ statementId: "stmt_1", milestoneId: "pay_balance", amount: 20000, reason: "Unapproved charge" });
+    expect(body).toMatchObject({ statementId: "stmt_1", milestoneId: "pay_balance", amount: 20000, reason: "Unapproved charge", severity: "amount_discrepancy" });
     expect(body).not.toHaveProperty("statementTotal");
     expect(typeof body.idempotencyKey).toBe("string");
   });
@@ -79,7 +81,7 @@ describe("billing adjustment use cases", () => {
   it("blocks a correction without a reason", async () => {
     const writer = createWriter();
 
-    await expect(submitBillingCorrection(writer, "evt_1", { statementId: "stmt_1", reason: " " })).rejects.toThrow("Correction reason is required.");
+    await expect(submitBillingCorrection(writer, "evt_1", { statementId: "stmt_1", reason: " ", severity: "amount_discrepancy" })).rejects.toThrow("Correction reason is required.");
     expect(writer.createCorrection).not.toHaveBeenCalled();
   });
 

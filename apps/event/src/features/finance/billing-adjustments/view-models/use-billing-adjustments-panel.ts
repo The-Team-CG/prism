@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-  PrismAdditionalBilling,
+import {
+  type BillingDiscrepancySeverity,
+  type PrismAdditionalBilling,
   PrismBillingCorrection,
   PrismBillingDispute,
   PrismBillingSource,
@@ -11,7 +12,7 @@ import type {
 } from "@prism/types";
 import { readStoredEventSession, type EventSession } from "@/app/lib/session";
 import { billingAdjustmentRepository } from "../data/billing-adjustment-repository";
-import { approvedBillingSources, isOwnBillingCorrectionRequest } from "../model/billing-adjustment-rules";
+import { approvedBillingSources, isOwnBillingCorrectionRequest, requiresSecondApprover } from "../model/billing-adjustment-rules";
 import {
   submitAdditionalBilling,
   submitAdditionalBillingWaiver,
@@ -49,9 +50,9 @@ export function useBillingAdjustmentsPanel({
   const statement = statements.find((item) => item.eventId === eventId);
   const approvedSources = approvedBillingSources(billingSources.filter((source) => source.eventId === eventId));
 
-  const [disputeDraft, setDisputeDraft] = useState({ milestoneId: "", amount: "", reason: "" });
+  const [disputeDraft, setDisputeDraft] = useState<{ milestoneId: string; amount: string; reason: string; severity: BillingDiscrepancySeverity }>({ milestoneId: "", amount: "", reason: "", severity: "amount_discrepancy" });
   const [resolutionNotes, setResolutionNotes] = useState<Record<string, string>>({});
-  const [correctionDraft, setCorrectionDraft] = useState({ reason: "", correctedTotalAmount: "" });
+  const [correctionDraft, setCorrectionDraft] = useState<{ reason: string; correctedTotalAmount: string; severity: BillingDiscrepancySeverity }>({ reason: "", correctedTotalAmount: "", severity: "amount_discrepancy" });
   const [additionalDraft, setAdditionalDraft] = useState({ urgentIssueId: "", billingSourceId: "", description: "", amount: "" });
   const [waiverReasons, setWaiverReasons] = useState<Record<string, string>>({});
   const [correctionNotes, setCorrectionNotes] = useState<Record<string, string>>({});
@@ -113,9 +114,9 @@ export function useBillingAdjustmentsPanel({
     setWaiverReasons,
     correctionNotes,
     setCorrectionNotes,
-    /** Approval is blocked for the requester (separation of duties); rejection stays available to everyone. */
+    /** Amount discrepancies need a second PMCM approver; typo corrections do not. Rejection stays available to everyone. */
     canApproveCorrection: (correction: PrismBillingCorrection) =>
-      viewer !== null && !isOwnBillingCorrectionRequest(correction, viewer),
+      viewer !== null && (!requiresSecondApprover(correction) || !isOwnBillingCorrectionRequest(correction, viewer)),
     isOwnCorrectionRequest: (correction: PrismBillingCorrection) =>
       viewer !== null && isOwnBillingCorrectionRequest(correction, viewer),
     resolveCorrection:(correctionId: string, action: "approve" | "reject") =>
@@ -130,8 +131,9 @@ export function useBillingAdjustmentsPanel({
         milestoneId: disputeDraft.milestoneId || undefined,
         amount: Number(disputeDraft.amount),
         reason: disputeDraft.reason,
+        severity: disputeDraft.severity,
         statementTotal: statement.totalAmount,
-      }), () => setDisputeDraft({ milestoneId: "", amount: "", reason: "" }));
+      }), () => setDisputeDraft({ milestoneId: "", amount: "", reason: "", severity: "amount_discrepancy" }));
     },
     resolveDispute: (disputeId: string, action: "resolve" | "reject") =>
       act("Dispute resolution", () => submitDisputeResolution(billingAdjustmentRepository, eventId, disputeId, {
@@ -143,8 +145,10 @@ export function useBillingAdjustmentsPanel({
       return act("Correction", () => submitBillingCorrection(billingAdjustmentRepository, eventId, {
         statementId: statement.id,
         reason: correctionDraft.reason,
-        correctedTotalAmount: correctionDraft.correctedTotalAmount ? Number(correctionDraft.correctedTotalAmount) : undefined,
-      }), () => setCorrectionDraft({ reason: "", correctedTotalAmount: "" }));
+        severity: correctionDraft.severity,
+        // A typo correction never changes the amount, so the corrected-total field is not sent for it.
+        correctedTotalAmount: correctionDraft.severity === "amount_discrepancy" && correctionDraft.correctedTotalAmount ? Number(correctionDraft.correctedTotalAmount) : undefined,
+      }), () => setCorrectionDraft({ reason: "", correctedTotalAmount: "", severity: "amount_discrepancy" }));
     },
     submitAdditionalBilling: () =>
       act("Additional billing", () => submitAdditionalBilling(billingAdjustmentRepository, eventId, {

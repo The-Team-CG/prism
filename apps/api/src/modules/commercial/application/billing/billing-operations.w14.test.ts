@@ -14,14 +14,14 @@ const approver = { id: 'actor_mys', name: 'Ms. Mys', role: OpsUserRole.PmcmAdmin
 function createW14Service(withReceipts = false, withPaidHistory = false) {
   const event = { id: 'evt_w14', inquiryId: 'inq_w14', eventName: 'W14 Event', clientName: 'Client', eventDate: new Date('2026-08-01T00:00:00.000Z'), actualEndedAt: new Date('2026-08-02T00:00:00.000Z') };
   const statement = { id: 'stmt_w14', eventId: event.id, sourceId: 'bsrc_w14', number: 'BS-2026-0001', totalAmount: 100000, status: 'issued', paymentSchedule: [{ label: 'Deposit', percentage: 50, amount: 50000, dueDate: '2026-07-01' }, { label: 'Balance', percentage: 50, amount: 50000, dueDate: '2026-07-15' }], paymentMethods: [], lineItems: [] };
-  const correction = { id: 'corr_w14', eventId: event.id, statementId: statement.id, reason: 'Tax line is incorrect', correctedTotalAmount: 95000, status: 'pending', requestedBy: actor.name, resolvedBy: null, resolutionNotes: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null };
+  const correction = { id: 'corr_w14', eventId: event.id, statementId: statement.id, reason: 'Tax line is incorrect', correctedTotalAmount: 95000, severity: 'amount_discrepancy', status: 'pending', requestedBy: actor.name, resolvedBy: null, resolutionNotes: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null };
   const oldMilestones = withPaidHistory ? [{ id: 'pay_original', eventId: event.id, statementId: statement.id, label: 'Deposit', amount: 50000, amountPaid: 20000, creditApplied: 0, remainingBalance: 30000, percentage: 50, dueDate: new Date('2026-07-01T00:00:00.000Z'), status: 'partially_paid', createdAt: new Date('2026-06-01T00:00:00.000Z'), supersededAt: null }] : [];
   const newMilestones = withPaidHistory ? [
     { id: 'pay_replacement_deposit', eventId: event.id, statementId: 'bill_replacement', label: 'Deposit', amount: 47500, amountPaid: 0, creditApplied: 0, remainingBalance: 47500, percentage: 50, dueDate: new Date('2026-07-01T00:00:00.000Z'), status: 'pending', createdAt: new Date('2026-08-04T00:00:00.000Z'), supersededAt: null },
     { id: 'pay_replacement_balance', eventId: event.id, statementId: 'bill_replacement', label: 'Balance', amount: 47500, amountPaid: 0, creditApplied: 0, remainingBalance: 47500, percentage: 50, dueDate: new Date('2026-07-15T00:00:00.000Z'), status: 'pending', createdAt: new Date('2026-08-04T00:00:00.000Z'), supersededAt: null },
   ] : [];
   const paymentRecords = withPaidHistory ? [{ id: 'payrec_original', eventId: event.id, milestoneId: 'pay_original', amountReceived: 20000, paymentDate: new Date('2026-06-20T00:00:00.000Z'), paymentMethod: 'Bank Transfer', referenceNumber: 'BNK-123', recordedAt: new Date('2026-06-20T01:00:00.000Z') }] : [];
-  const dispute = { id: 'dispute_w14', eventId: event.id, statementId: statement.id, milestoneId: null, amount: 20000, reason: 'Unapproved charge', status: 'open', raisedBy: actor.name, resolvedBy: null, resolutionNotes: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null };
+  const dispute = { id: 'dispute_w14', eventId: event.id, statementId: statement.id, milestoneId: null, amount: 20000, reason: 'Unapproved charge', severity: 'amount_discrepancy', status: 'open', raisedBy: actor.name, resolvedBy: null, resolutionNotes: null, createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null };
   const billingSources = new Map([
     ['bsrc_w14', { id: 'bsrc_w14', eventId: event.id, status: 'approved', sourceDocumentId: null }],
     ['bsrc_pending_w14', { id: 'bsrc_pending_w14', eventId: event.id, status: 'pending' }],
@@ -120,7 +120,7 @@ describe('W14 billing operations', () => {
 
   it('persists a correction, replays duplicate command, and rejects a second resolution', async () => {
     const { service, prisma, correction } = createW14Service();
-    const input = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Tax line is incorrect', correctedTotalAmount: 95000, idempotencyKey: 'corr-key' });
+    const input = requestBillingCorrectionSchema.parse({ severity: 'amount_discrepancy', statementId: 'stmt_w14', reason: 'Tax line is incorrect', correctedTotalAmount: 95000, idempotencyKey: 'corr-key' });
     const first = await service.requestBillingCorrection('evt_w14', input, actor);
     const replay = await service.requestBillingCorrection('evt_w14', input, actor);
     expect(first.id).toBe(replay.id);
@@ -131,7 +131,7 @@ describe('W14 billing operations', () => {
 
   it('retains original payment records and carries paid credit into corrected active milestones', async () => {
     const { service, statement, correction, oldMilestones, newMilestones, paymentRecords } = createW14Service(false, true);
-    await service.requestBillingCorrection('evt_w14', requestBillingCorrectionSchema.parse({ statementId: statement.id, reason: 'Corrected package total', correctedTotalAmount: 95000, idempotencyKey: 'corr-reconcile-key' }), actor);
+    await service.requestBillingCorrection('evt_w14', requestBillingCorrectionSchema.parse({ severity: 'amount_discrepancy', statementId: statement.id, reason: 'Corrected package total', correctedTotalAmount: 95000, idempotencyKey: 'corr-reconcile-key' }), actor);
 
     const resolved = await service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, approver, verifiedApprover);
 
@@ -160,9 +160,35 @@ describe('W14 billing operations', () => {
     expect(correction.status).toBe('approved');
   });
 
+  it('approves a typo correction without a replacement statement, and refuses one that changes an amount', async () => {
+    expect(() => requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Client name misspelled', severity: 'typo_correction', correctedTotalAmount: 95000, idempotencyKey: 'typo-amount' }))
+      .toThrow(/cannot change the statement amount/);
+    const { service, prisma, correction, billingOperationsService } = createW14Service();
+    const typo = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Client name misspelled', severity: 'typo_correction', idempotencyKey: 'typo-text' });
+    await expect(service.requestBillingCorrection('evt_w14', typo, actor)).resolves.toMatchObject({ severity: 'typo_correction', correctedTotalAmount: null });
+    expect(prisma.opsBillingCorrection.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ severity: 'typo_correction' }) }));
+    // A typo correction needs no second approver and moves no amount, so the requester can approve it without a replacement.
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, actor)).resolves.toMatchObject({ status: 'approved', replacementStatementId: null });
+    expect(billingOperationsService.generateBillingStatement).not.toHaveBeenCalled();
+  });
+
+  it('keeps the second-approver rule for amount discrepancies, including when the requester approves', async () => {
+    const { service, statement, correction } = createW14Service();
+    await service.requestBillingCorrection('evt_w14', requestBillingCorrectionSchema.parse({ statementId: statement.id, reason: 'Tax line is incorrect', severity: 'amount_discrepancy', correctedTotalAmount: 95000, idempotencyKey: 'amount-self' }), actor);
+    await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'approve' }, actor, verifiedApprover)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('requires a severity on new disputes and records the one given', async () => {
+    expect(() => createBillingDisputeSchema.parse({ statementId: 'stmt_w14', amount: 20000, reason: 'Unapproved charge', idempotencyKey: 'no-severity' })).toThrow();
+    const { service, prisma } = createW14Service();
+    const input = createBillingDisputeSchema.parse({ statementId: 'stmt_w14', amount: 20000, reason: 'Unapproved charge', severity: 'typo_correction', idempotencyKey: 'typo-dispute' });
+    await expect(service.createBillingDispute('evt_w14', input, actor)).resolves.toMatchObject({ severity: 'typo_correction' });
+    expect(prisma.opsBillingDispute.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ severity: 'typo_correction' }) }));
+  });
+
   it('refuses self-approval with nothing written, then lets a different PMCM user approve', async () => {
     const { service, prisma, audit, correction } = createW14Service();
-    const input = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Tax line is incorrect', correctedTotalAmount: 95000, idempotencyKey: 'corr-self-approve-key' });
+    const input = requestBillingCorrectionSchema.parse({ severity: 'amount_discrepancy', statementId: 'stmt_w14', reason: 'Tax line is incorrect', correctedTotalAmount: 95000, idempotencyKey: 'corr-self-approve-key' });
     const requested = await service.requestBillingCorrection('evt_w14', input, actor);
     expect(requested.requestedById).toBe(actor.id);
     const auditWritesBefore = audit.write.mock.calls.length;
@@ -178,7 +204,7 @@ describe('W14 billing operations', () => {
 
   it('lets the requester withdraw their own pending correction by rejecting it', async () => {
     const { service, correction } = createW14Service();
-    const input = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Tax line is incorrect', idempotencyKey: 'corr-withdraw-key' });
+    const input = requestBillingCorrectionSchema.parse({ severity: 'amount_discrepancy', statementId: 'stmt_w14', reason: 'Tax line is incorrect', idempotencyKey: 'corr-withdraw-key' });
     await service.requestBillingCorrection('evt_w14', input, actor);
 
     await expect(service.resolveBillingCorrection('evt_w14', correction.id, { action: 'reject', resolutionNotes: 'Withdrawn by requester' }, actor))
@@ -196,7 +222,7 @@ describe('W14 billing operations', () => {
 
   it('replays a billing command from the central receipt before its table lookup', async () => {
     const { service, prisma, receiptStore, transactionRunner } = createW14Service(true);
-    const input = requestBillingCorrectionSchema.parse({ statementId: 'stmt_w14', reason: 'Tax line is incorrect', correctedTotalAmount: 95000, idempotencyKey: 'central-corr-key' });
+    const input = requestBillingCorrectionSchema.parse({ severity: 'amount_discrepancy', statementId: 'stmt_w14', reason: 'Tax line is incorrect', correctedTotalAmount: 95000, idempotencyKey: 'central-corr-key' });
 
     const first = await service.requestBillingCorrection('evt_w14', input, actor);
     const replay = await service.requestBillingCorrection('evt_w14', input, actor);
@@ -211,7 +237,7 @@ describe('W14 billing operations', () => {
 
   it('validates dispute amount, lifecycle, and idempotent replay', async () => {
     const { service, prisma, dispute } = createW14Service();
-    const input = createBillingDisputeSchema.parse({ statementId: 'stmt_w14', amount: 20000, reason: 'Unapproved charge', idempotencyKey: 'dispute-key' });
+    const input = createBillingDisputeSchema.parse({ severity: 'amount_discrepancy', statementId: 'stmt_w14', amount: 20000, reason: 'Unapproved charge', idempotencyKey: 'dispute-key' });
     const first = await service.createBillingDispute('evt_w14', input, actor);
     const replay = await service.createBillingDispute('evt_w14', input, actor);
     expect(first.id).toBe(replay.id);

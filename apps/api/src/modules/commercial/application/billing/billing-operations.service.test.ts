@@ -455,12 +455,12 @@ describe('BillingOperationsService', () => {
   it('projects client billing disputes without PMCM reasons, resolver notes, or actor names', () => {
     const projected = mapClientBillingDispute({
       id: 'dispute_1', eventId: 'evt_sample', statementId: 'stmt_1', milestoneId: null, amount: 2000,
-      reason: 'Internal: client was over-billed on venue hire', status: 'open', raisedBy: 'Francis',
+      reason: 'Internal: client was over-billed on venue hire', severity: 'amount_discrepancy', status: 'open', raisedBy: 'Francis',
       resolvedBy: null, resolutionNotes: 'Internal note', createdAt: new Date('2026-08-03T00:00:00.000Z'), resolvedAt: null,
     } as never);
     expect(projected).toEqual({
       id: 'dispute_1', eventId: 'evt_sample', statementId: 'stmt_1', milestoneId: null, amount: 2000,
-      status: 'open', createdAt: '2026-08-03T00:00:00.000Z', resolvedAt: null,
+      severity: 'amount_discrepancy', status: 'open', createdAt: '2026-08-03T00:00:00.000Z', resolvedAt: null,
     });
   });
 
