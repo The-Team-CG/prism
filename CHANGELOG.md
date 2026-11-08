@@ -11,6 +11,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Suppliers receive a readiness-confirmation request seven days before the event day, once per selected booking.
 - PMCM supplier readiness flags overlapping ingress windows as a schedule conflict and lists production suppliers first.
 - Late ingress is recorded as a private reliability note on the supplier profile, once per booking.
+- PMCM has five days after the recorded actual end of an event to endorse post-event deliverables; the countdown and overdue warning follow that five-day deadline instead of 24 hours.
 - Clients and suppliers can submit their own privacy requests and track their status; PMCM still verifies and carries them out.
 - Supplier file requirement reminders go only to the suppliers who are overdue or need to replace a rejected file.
 - File access follows one policy for lists and downloads: coordinators need a current assignment, suppliers see only their own files on selected bookings, and failed uploads are no longer shown outside PMCM.
