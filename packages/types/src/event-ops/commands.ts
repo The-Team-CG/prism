@@ -68,6 +68,17 @@ export interface PrismEventProposalResponse {
   proposal: PrismIssuedProposalSummary | null;
 }
 
+/** One message on the proposal thread, tied to the issued version it was written against. */
+export interface PrismProposalComment {
+  id: string;
+  eventId: string;
+  proposalVersionNumber: number;
+  authorName: string;
+  authorRole: "client" | "pmcm-admin";
+  body: string;
+  createdAt: string;
+}
+
 /** pending: issued, commercial effect not yet applied. effective: applied at countersignature. withdrawn: closed by PMCM, never applied. */
 export type PrismAddendumStatus = "pending" | "effective" | "withdrawn";
 

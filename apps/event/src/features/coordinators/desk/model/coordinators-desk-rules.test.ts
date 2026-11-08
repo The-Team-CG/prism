@@ -28,6 +28,7 @@ import {
   isRegistrationCoordinatorRole,
   isCoordinatorAssignmentActive,
   coordinatorSkillFilterOptions,
+  coordinatorHasAllSkills,
   pickActiveAssignment,
   sameCoordinatorName,
   shouldPreserveRoleViewOnAcknowledgeFailure,
@@ -54,6 +55,13 @@ describe("coordinators-desk-rules", () => {
       { active: true, roleTags: ["Usher"], skillsTags: ["usher skill"] },
     ], "Floor Director")).toEqual(["first aid", "Venue Layout"]);
     expect(coordinatorSkillFilterOptions([], "all")).toEqual([]);
+  });
+
+  it("keeps only coordinators tagged with every selected skill, ignoring case and spacing", () => {
+    const coordinator = { skillsTags: [" Venue   Layout ", "First Aid"] };
+    expect(coordinatorHasAllSkills(coordinator, [])).toBe(true);
+    expect(coordinatorHasAllSkills(coordinator, ["venue layout", "first aid"])).toBe(true);
+    expect(coordinatorHasAllSkills(coordinator, ["venue layout", "sound check"])).toBe(false);
   });
 
   it("keeps the role-safe desk when acknowledge refresh fails", () => {

@@ -6,6 +6,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM sets an event private or public from Settings; only private events under 200 guests can use table assignment and the seating list.
+- Flagging a walk-in for verification alerts PMCM at once, not only on the run sheet.
+- The coordinator desk list narrows to coordinators tagged with every selected skill.
+- Clients and PMCM can comment on the issued proposal in one thread; comments never approve it or use a revision round.
+- PMCM writes a brief per coordinator role (call time, attire, script, instructions), and each assigned coordinator sees the brief for their own role.
+- Briefings record a venue type, and suppliers see it on quote requests, including confidential bids, which still hide the venue name.
 - Billing corrections and disputes record a severity: typo correction (no amount may change, and no second approver is needed) or amount discrepancy (unchanged approval rules). PMCM sets it and clients see it on their dispute status; existing records are amount discrepancies.
 - PMCM can download the conforme document as a printable PDF, with its document hash, for physical signing; clients and suppliers cannot.
 - The public inquiry has an optional room set-up section (seating arrangement, stage position, notes), shown read-only in the PMCM inquiry drawer.

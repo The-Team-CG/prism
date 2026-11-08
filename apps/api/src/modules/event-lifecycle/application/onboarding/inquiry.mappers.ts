@@ -287,9 +287,11 @@ export function mapBriefing(briefing: Parameters<typeof mapBriefingSummary>[0] &
   program?: unknown;
   moodAndStyling?: string;
   stylingBudget?: number | null;
+  venueType?: string | null;
 }) {
   return {
     ...mapBriefingSummary(briefing),
+    venueType: briefing.venueType ?? null,
     confirmedDate: briefing.confirmedDate?.toISOString() ?? null,
     confirmedStartTime: briefing.confirmedStartTime ?? null,
     confirmedEndTime: briefing.confirmedEndTime ?? null,

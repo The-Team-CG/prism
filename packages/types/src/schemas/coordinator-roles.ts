@@ -12,6 +12,26 @@ export const COORDINATOR_ROLES = [
 ] as const;
 
 export const coordinatorRoleSchema = z.enum(COORDINATOR_ROLES);
+
+/** PMCM's per-role brief for one event: call time, attire, script and role instructions (New-CO2). */
+export const upsertCoordinatorRoleBriefSchema = z.object({
+  callTime: z.string().datetime({ offset: true }).nullable(),
+  attire: z.string().trim().max(500),
+  script: z.string().trim().max(8000),
+  instructions: z.string().trim().max(4000),
+});
+export type UpsertCoordinatorRoleBriefInput = z.infer<typeof upsertCoordinatorRoleBriefSchema>;
+
+export interface PrismCoordinatorRoleBrief {
+  eventId: string;
+  role: CoordinatorRole;
+  callTime: string | null;
+  attire: string;
+  script: string;
+  instructions: string;
+  updatedAt: string;
+  updatedBy: string;
+}
 export type CoordinatorRole = z.infer<typeof coordinatorRoleSchema>;
 
 export function normalizeCoordinatorRole(value: string) {

@@ -23,6 +23,13 @@ export const reviewEventProposalSchema = z.object({
 });
 export type ReviewEventProposalInput = z.infer<typeof reviewEventProposalSchema>;
 
+/** A comment on the issued proposal. Any client contact of the event may comment; only the primary contact decides. */
+export const createProposalCommentSchema = z.object({
+  body: z.string().trim().min(1).max(2000),
+  idempotencyKey: nonEmptyStringSchema,
+});
+export type CreateProposalCommentInput = z.infer<typeof createProposalCommentSchema>;
+
 export const costEstimateLineSchema = z.object({
   category: nonEmptyStringSchema,
   description: nonEmptyStringSchema,

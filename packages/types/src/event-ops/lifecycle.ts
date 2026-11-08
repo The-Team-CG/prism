@@ -157,6 +157,8 @@ export interface PrismEvent {
   clientPortalStatus: "locked" | "unlocked";
   clientEventDayViewEnabled?: boolean;
   readiness: string;
+  /** PMCM-set; only private events under 200 guests can use table assignment and the seating list. */
+  privacy?: "private" | "public";
   archived: boolean;
   floorPlanStatus: string;
   floorPlanId?: string | null;
@@ -367,6 +369,7 @@ export interface PrismFileRequirementReminder {
 export interface PrismBriefing {
   eventId: string;
   venue: string;
+  venueType?: string | null;
   guestCount: number;
   budgetRange: string;
   serviceRequirements: string[];
