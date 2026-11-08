@@ -51,6 +51,8 @@ function QuoteRequestContext({ detail }: { detail: PrismSupplierQuoteRequestToke
       <dd className="text-foreground">{detail.eventType}</dd>
       <dt className="text-muted-foreground">Guests</dt>
       <dd className="text-foreground tabular-nums">{detail.guestCount ?? "To be confirmed"}</dd>
+      <dt className="text-muted-foreground">Venue type</dt>
+      <dd className="text-foreground">{detail.venueType ?? "To be confirmed"}</dd>
       <dt className="text-muted-foreground">Service requirements</dt>
       <dd className="text-foreground">{detail.serviceRequirements.length > 0 ? detail.serviceRequirements.join(", ") : "None listed"}</dd>
     </dl>

@@ -56,6 +56,8 @@ export interface PrismSupplierQuoteRequestTokenDetail {
   /** Scale and requirements for pricing; shown on confidential bids too, since they identify no client. */
   eventType: string;
   guestCount: number | null;
+  /** Venue kind only; the venue name stays hidden on confidential bids. */
+  venueType: string | null;
   serviceRequirements: string[];
 }
 

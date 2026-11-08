@@ -31,6 +31,7 @@ import { recordedAttendanceLabel, type CoordinatorAttendanceChoice } from "../..
 import { liveOpsPillClass } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
 import type { CoordinatorRole, PrismCoordinatorAssignment, PrismCoordinatorRoleView } from "@prism/types";
 import { CCard, CCardBody, CCardHeader, FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
+import { CoordinatorRoleBriefCard } from "@/features/coordinators/role-briefs/views/coordinator-role-brief-card";
 import {
   CoordinatorRoleActions,
   CoordinatorTaskQueue,
@@ -609,6 +610,9 @@ function CoordinatorRoleQueueAndLive({
           {/* With nothing assigned yet, the way forward is logging a task, so that form opens. */}
           <CoordinatorDisclosure title="Log a task" open={roleView.tasks.length === 0}>
             <CoordinatorTaskForm taskForm={taskForm} />
+          </CoordinatorDisclosure>
+          <CoordinatorDisclosure title="Your role brief" description="Call time, attire, script and instructions PMCM set for your role." open>
+            <CoordinatorRoleBriefCard eventId={roleView.assignment.eventId} />
           </CoordinatorDisclosure>
           <CoordinatorDisclosure title="Event briefing" description="The venue, guest count and notes PMCM shared for this event.">
             <CoordinatorBriefingCard roleView={roleView} />

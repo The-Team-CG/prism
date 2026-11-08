@@ -1,5 +1,6 @@
 "use client";
 import { formatPortalDate } from "@prism/ui/format-date";
+import { ProposalCommentsThread } from "./proposal-comments-thread";
 
 import {
   MessageSquareText,
@@ -293,6 +294,7 @@ export function ClientProposalTab({ setTab }: { setTab: (tab: DetailTab) => void
           setTab={setTab}
         />
       </div>
+      <ProposalCommentsThread eventId={vm.selectedEvent.id} enabled={Boolean(vm.proposal)} />
       <ClientVenueStylingReview eventId={vm.selectedEvent.id} />
     </div>
   );

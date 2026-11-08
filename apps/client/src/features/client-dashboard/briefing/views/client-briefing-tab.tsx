@@ -43,7 +43,7 @@ import {
   portalStatusLabel,
 } from "../../shared/tab-ui";
 import type { DetailTab } from "../../workspace/shared";
-import type { SubmitBriefingInput } from "@prism/types";
+import { BRIEFING_VENUE_TYPES, type BriefingVenueType, type SubmitBriefingInput } from "@prism/types";
 
 
 export function ClientBriefingTab({
@@ -58,6 +58,7 @@ export function ClientBriefingTab({
   onSubmit: (eventId: string, input: SubmitBriefingInput) => Promise<void>;
 }) {
   const [venue, setVenue] = useState(briefing?.venue ?? "");
+  const [venueType, setVenueType] = useState(briefing?.venueType ?? "");
   const [guestCount, setGuestCount] = useState(briefing?.guestCount ? String(briefing.guestCount) : "");
   const [budgetRange, setBudgetRange] = useState(briefing?.budgetRange ?? "");
   const [serviceRequirements, setServiceRequirements] = useState(briefing?.serviceRequirements.join("\n") ?? "");
@@ -77,6 +78,7 @@ export function ClientBriefingTab({
     setConfirmedStartTime(briefing?.confirmedStartTime ?? "");
     setConfirmedEndTime(briefing?.confirmedEndTime ?? "");
     setMoodAndStyling(briefing?.moodAndStyling ?? "");
+    setVenueType(briefing?.venueType ?? "");
     setStylingBudget(briefing?.stylingBudget == null ? "" : String(briefing.stylingBudget));
   }, [briefing]);
   const isComplete = Boolean(
@@ -95,6 +97,7 @@ export function ClientBriefingTab({
       confirmedStartTime: confirmedStartTime || undefined,
       confirmedEndTime: confirmedEndTime || undefined,
       moodAndStyling: moodAndStyling || undefined,
+      venueType: venueType ? (venueType as BriefingVenueType) : undefined,
       stylingBudget: stylingBudget ? Number(stylingBudget) : undefined,
     });
   }
@@ -104,8 +107,8 @@ export function ClientBriefingTab({
     <BriefingSummary briefing={briefing} />
     <BriefingSubmissionForm
       briefing={briefing} busy={busy} onSubmit={handleSubmit}
-      values={{ venue, guestCount, budgetRange, serviceRequirements, notes, confirmedDate, confirmedStartTime, confirmedEndTime, moodAndStyling, stylingBudget }}
-      setters={{ setVenue, setGuestCount, setBudgetRange, setServiceRequirements, setNotes, setConfirmedDate, setConfirmedStartTime, setConfirmedEndTime, setMoodAndStyling, setStylingBudget }}
+      values={{ venue, venueType, guestCount, budgetRange, serviceRequirements, notes, confirmedDate, confirmedStartTime, confirmedEndTime, moodAndStyling, stylingBudget }}
+      setters={{ setVenue, setVenueType, setGuestCount, setBudgetRange, setServiceRequirements, setNotes, setConfirmedDate, setConfirmedStartTime, setConfirmedEndTime, setMoodAndStyling, setStylingBudget }}
     />
   </div>;
 }
@@ -135,6 +138,7 @@ function BriefingSubmissionForm({ briefing, busy, onSubmit, values, setters }: {
   return <Card><CardHeader><div className="flex items-center gap-2"><ClipboardList className="size-4 text-primary" /><h2 className="text-sm font-bold text-foreground">Submit briefing details</h2></div><p className="mt-0.5 text-xs text-muted-foreground">Share your event requirements with PMCM. Each submission is kept in the event history.</p></CardHeader><CardBody>
     <form onSubmit={onSubmit} className="space-y-4"><div className="grid gap-3 sm:grid-cols-2">
       <BriefingField label="Venue preference" required value={values.venue} onChange={setters.setVenue} />
+      <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground">Venue type<select value={values.venueType} onChange={(event) => setters.setVenueType(event.target.value)} className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm font-normal text-foreground"><option value="">Not decided yet</option>{BRIEFING_VENUE_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
       <BriefingField label="Expected guest count" required type="number" min={1} value={values.guestCount} onChange={setters.setGuestCount} />
       <BriefingField label="Budget range" required value={values.budgetRange} onChange={setters.setBudgetRange} />
       <div className="block space-y-1.5 text-xs font-semibold text-muted-foreground">

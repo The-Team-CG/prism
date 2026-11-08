@@ -40,6 +40,16 @@ export function coordinatorRoleViewSource(
   return { kind: "event" };
 }
 
+function skillKey(skill: string) {
+  return skill.normalize("NFC").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+/** A coordinator matches the desk's skill filter only when tagged with every selected skill. */
+export function coordinatorHasAllSkills(coordinator: Pick<PrismCoordinator, "skillsTags">, skills: string[]): boolean {
+  const tags = new Set(coordinator.skillsTags.map(skillKey));
+  return skills.every((skill) => tags.has(skillKey(skill)));
+}
+
 export function coordinatorSkillFilterOptions(
   coordinators: Pick<PrismCoordinator, "active" | "roleTags" | "skillsTags">[],
   role: CoordinatorRole | "all",
