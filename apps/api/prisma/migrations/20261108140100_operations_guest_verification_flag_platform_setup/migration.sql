@@ -1,6 +1,6 @@
 -- prism-owner: operations
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 
 ALTER TABLE "operations"."guest_roster_entries"
     ADD COLUMN "verification_flagged_at" TIMESTAMP(3),
