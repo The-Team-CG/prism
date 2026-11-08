@@ -1234,6 +1234,27 @@ describe("createEventOpsClient", () => {
     );
   });
 
+  it("files and lists the signed-in requester's own privacy requests with the session token", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = createEventOpsClient({
+      baseUrl: "http://localhost:4000/api",
+      getAuthToken: () => "client-session-token",
+    });
+    await client.privacy.submitOwnRequest({ requestType: "correction", details: "Fix my company name" });
+    await client.privacy.listOwnRequests();
+
+    expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:4000/api/privacy/requests/mine");
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ requestType: "correction", details: "Fix my company name" }),
+    });
+    expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:4000/api/privacy/requests/mine");
+    expect(fetchMock.mock.calls[1][1]?.method ?? "GET").toBe("GET");
+    expect(new Headers(fetchMock.mock.calls[1][1]?.headers).get("authorization")).toBe("Bearer client-session-token");
+  });
+
   it("loads and updates guest privacy classification through the authenticated event contract", async () => {
     const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(JSON.stringify({
       eventId: "evt_1",
