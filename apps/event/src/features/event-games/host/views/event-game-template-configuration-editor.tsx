@@ -7,6 +7,7 @@ import {
   type PrismEventGameTemplateConfiguration,
 } from "@prism/types";
 import { Button } from "@/app/components/ui/button";
+import { AudienceGameFields, audienceDraftFrom, buildAudienceConfiguration, emptyAudienceDraft, isAudienceDraft, type AudienceDraft } from "./audience-game-configuration";
 
 type TriviaRoundDraft = {
   key: string;
@@ -45,7 +46,8 @@ type ConfigurationDraft =
   | { kind: "split-the-room"; rounds: SplitRoundDraft[] }
   | { kind: "word-scramble"; rounds: WordScrambleRoundDraft[] }
   | { kind: "guess-picture-solo"; rounds: PictureSoloRoundDraft[] }
-  | { kind: "spot-the-difference"; rounds: DifferenceRoundDraft[] };
+  | { kind: "spot-the-difference"; rounds: DifferenceRoundDraft[] }
+  | AudienceDraft;
 
 type Props = {
   game: PrismEventGameDefinition;
@@ -57,6 +59,7 @@ type Props = {
 const CONFIGURABLE_TEMPLATES = new Set([
   "live-trivia", "bingo", "guess-picture", "spin-wheel", "this-or-that", "family-feud", "split-the-room",
   "word-scramble", "would-you-rather", "guess-picture-solo", "this-or-that-solo", "spot-the-difference",
+  "live-poll", "word-cloud", "open-qa",
 ]);
 
 const INITIAL_TEAM_IDS = [
@@ -79,8 +82,8 @@ function numberOrNaN(value: string): number {
 function toDraft(game: PrismEventGameDefinition): ConfigurationDraft | null {
   if (!CONFIGURABLE_TEMPLATES.has(game.kind)) return null;
   const current = eventGameTemplateConfigurationSchema.safeParse(game.config?.configuration);
-  if (current.success && current.data.kind === game.kind) return configurationDraft(current.data);
-  return emptyDraft(game.kind);
+  if (current.success && current.data.kind === game.kind) return audienceDraftFrom(current.data) ?? configurationDraft(current.data);
+  return emptyAudienceDraft(game.kind) ?? emptyDraft(game.kind);
 }
 
 function configurationDraft(config: PrismEventGameTemplateConfiguration): ConfigurationDraft | null {
@@ -213,6 +216,10 @@ function emptySingleplayerDraft(kind: PrismEventGameDefinition["kind"]): Configu
     { key: "difference-1", originalMediaObjectId: "", comparisonMediaObjectId: "", differences: "0.2, 0.2, 0.1, 0.1, 10", durationSeconds: "90" },
   ] };
   return null;
+}
+
+function buildDraftConfiguration(draft: ConfigurationDraft): unknown {
+  return isAudienceDraft(draft) ? buildAudienceConfiguration(draft) : buildConfiguration(draft);
 }
 
 function buildConfiguration(draft: ConfigurationDraft): unknown {
@@ -372,7 +379,7 @@ export function EventGameTemplateConfigurationEditor({ game, busy, onSave, onUpl
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!draft) return;
-    const result = eventGameTemplateConfigurationSchema.safeParse(buildConfiguration(draft));
+    const result = eventGameTemplateConfigurationSchema.safeParse(buildDraftConfiguration(draft));
     if (!result.success || result.data.kind !== game.kind) {
       setError("Complete the required fields and check the values for this game template.");
       return;
@@ -486,11 +493,12 @@ type WordScrambleDraft = Extract<ConfigurationDraft, { kind: "word-scramble" }>;
 type PictureSoloDraft = Extract<ConfigurationDraft, { kind: "guess-picture-solo" }>;
 type DifferenceDraft = Extract<ConfigurationDraft, { kind: "spot-the-difference" }>;
 type ExtendedTemplateDraft = Extract<ConfigurationDraft, {
-  kind: "this-or-that" | "would-you-rather" | "this-or-that-solo" | "family-feud" | "split-the-room" | "word-scramble" | "guess-picture-solo" | "spot-the-difference";
+  kind: "this-or-that" | "would-you-rather" | "this-or-that-solo" | "family-feud" | "split-the-room" | "word-scramble" | "guess-picture-solo" | "spot-the-difference" | AudienceDraft["kind"];
 }>;
 
 const EXTENDED_TEMPLATE_KINDS = new Set([
   "this-or-that", "would-you-rather", "this-or-that-solo", "family-feud", "split-the-room", "word-scramble", "guess-picture-solo", "spot-the-difference",
+  "live-poll", "word-cloud", "open-qa",
 ]);
 
 function isExtendedTemplateDraft(draft: ConfigurationDraft): draft is ExtendedTemplateDraft {
@@ -512,6 +520,7 @@ function ExtendedTemplateFields({ draft, onChange, onUploadMedia, mediaBusy }: {
     {draft.kind === "word-scramble" ? <WordScrambleFields draft={draft} onChange={(next) => onChange(next)} /> : null}
     {draft.kind === "guess-picture-solo" ? <PictureSoloFields draft={draft} onChange={onChange} onUploadMedia={onUploadMedia} mediaBusy={mediaBusy} /> : null}
     {draft.kind === "spot-the-difference" ? <SpotTheDifferenceFields draft={draft} onChange={onChange} onUploadMedia={onUploadMedia} mediaBusy={mediaBusy} /> : null}
+    {isAudienceDraft(draft) ? <AudienceGameFields draft={draft} onChange={(next) => onChange(next)} /> : null}
   </>;
 }
 

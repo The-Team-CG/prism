@@ -33,6 +33,9 @@ const COMPETITIVE_GAME_KINDS = new Set([
   'live-trivia', 'bingo', 'guess-picture', 'spin-wheel', 'family-feud',
 ]);
 
+/** Kinds whose text answers go through PMCM moderation and show to the room once approved. */
+const MODERATED_RESPONSE_KINDS = new Set(['split-the-room', 'word-cloud', 'open-qa']);
+
 type HostRound = NonNullable<ReturnType<typeof currentRoundFor>>;
 
 interface ParticipantReadData {
@@ -67,7 +70,7 @@ async function readParticipantData(
     status,
   });
   let approvedResponses: readonly string[] = [];
-  if (status === 'paused' && session.kind === 'split-the-room' && round) {
+  if (status === 'paused' && MODERATED_RESPONSE_KINDS.has(session.kind) && round) {
     approvedResponses = await actionStore.getApprovedRoundResponses({
       eventId: session.eventId,
       sessionId: session.sessionId,
@@ -146,7 +149,7 @@ function hostRoundView(
     prompt: round.prompt,
     deadlineAt: round.deadlineAt?.toISOString() ?? null,
     ...hostRoundReveal(context, status, round),
-    ...(context.kind === 'split-the-room' ? { pendingSubmissions } : {}),
+    ...(MODERATED_RESPONSE_KINDS.has(context.kind) ? { pendingSubmissions } : {}),
   };
 }
 
@@ -155,7 +158,7 @@ function pendingSplitResponses(
   transaction: PrismTransactionContext,
   input: { eventId: string; sessionId: string; context: GameHostReadContext; round: HostRound | null; status: PrismGameHostState['status'] },
 ) {
-  if (input.context.kind !== 'split-the-room' || !input.round || !['live', 'paused'].includes(input.status)) {
+  if (!MODERATED_RESPONSE_KINDS.has(input.context.kind) || !input.round || !['live', 'paused'].includes(input.status)) {
     return Promise.resolve([]);
   }
   return store.getRoundModerationQueue({

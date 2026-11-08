@@ -13,6 +13,9 @@ export const prismEventGameKindSchema = z.enum([
   "guess-picture-solo",
   "this-or-that-solo",
   "spot-the-difference",
+  "live-poll",
+  "word-cloud",
+  "open-qa",
 ]);
 export type PrismEventGameKind = z.infer<typeof prismEventGameKindSchema>;
 
@@ -207,6 +210,24 @@ export const activeMultiplayerGameActionSchema = z.discriminatedUnion("templateI
     (action.actionKind === "answer" && "response" in action.payload)
     || (action.actionKind === "vote" && "option" in action.payload),
   "Split the Room action kind must match its payload"),
+  z.object({
+    templateId: z.literal("live-poll"),
+    roundKey: activeMultiplayerRoundKeySchema,
+    actionKind: z.literal("vote"),
+    payload: z.object({ option: z.string().trim().min(1).max(120) }).strict(),
+  }).strict(),
+  z.object({
+    templateId: z.literal("word-cloud"),
+    roundKey: activeMultiplayerRoundKeySchema,
+    actionKind: z.literal("answer"),
+    payload: z.object({ response: z.string().trim().min(1).max(60) }).strict(),
+  }).strict(),
+  z.object({
+    templateId: z.literal("open-qa"),
+    roundKey: activeMultiplayerRoundKeySchema,
+    actionKind: z.literal("answer"),
+    payload: z.object({ response: z.string().trim().min(1).max(300) }).strict(),
+  }).strict(),
 ]);
 
 const independentSingleplayerGameActionSchema = z.discriminatedUnion("templateId", [
@@ -538,6 +559,42 @@ const thisOrThatSoloConfigurationSchema = z.object({
 }).strict();
 
 /** Strict, mode-tagged configs for implemented Active (Multiplayer) and Independent (Singleplayer) templates. */
+const audienceRoundKeySchema = z.string().trim().min(1).max(120).regex(/^[A-Za-z0-9:_-]+$/);
+const uniqueRoundKeys = (rounds: Array<{ key: string }>) => new Set(rounds.map(({ key }) => key)).size === rounds.length;
+
+/** FR-40 Live Poll: the room votes on two to six options; totals show when the host pauses. */
+const livePollConfigurationSchema = z.object({
+  kind: z.literal("live-poll"),
+  rounds: z.array(z.object({
+    key: audienceRoundKeySchema,
+    prompt: z.string().trim().min(1).max(500),
+    options: z.array(z.string().trim().min(1).max(120)).min(2).max(6)
+      .refine((options) => new Set(options.map((option) => option.toLocaleLowerCase())).size === options.length, "Poll options must be different"),
+    durationSeconds: z.number().int().min(5).max(600),
+  }).strict()).min(1).max(20).refine(uniqueRoundKeys, "Round keys must be unique"),
+}).strict();
+
+/** FR-40 Word Cloud: guests send a short word or phrase; approved answers form the cloud. */
+const wordCloudConfigurationSchema = z.object({
+  kind: z.literal("word-cloud"),
+  rounds: z.array(z.object({
+    key: audienceRoundKeySchema,
+    prompt: z.string().trim().min(1).max(500),
+    maxResponseLength: z.number().int().min(10).max(60),
+    durationSeconds: z.number().int().min(5).max(600),
+  }).strict()).min(1).max(20).refine(uniqueRoundKeys, "Round keys must be unique"),
+}).strict();
+
+/** FR-40 Open Q and A: guests send questions; PMCM approves which ones the room sees. */
+const openQaConfigurationSchema = z.object({
+  kind: z.literal("open-qa"),
+  rounds: z.array(z.object({
+    key: audienceRoundKeySchema,
+    prompt: z.string().trim().min(1).max(500),
+    durationSeconds: z.number().int().min(30).max(3600),
+  }).strict()).min(1).max(10).refine(uniqueRoundKeys, "Round keys must be unique"),
+}).strict();
+
 export const eventGameTemplateConfigurationSchema = z.discriminatedUnion("kind", [
   liveTriviaConfigurationSchema,
   bingoConfigurationSchema,
@@ -551,6 +608,9 @@ export const eventGameTemplateConfigurationSchema = z.discriminatedUnion("kind",
   spotTheDifferenceConfigurationSchema,
   wouldYouRatherConfigurationSchema,
   thisOrThatSoloConfigurationSchema,
+  livePollConfigurationSchema,
+  wordCloudConfigurationSchema,
+  openQaConfigurationSchema,
 ]);
 export type PrismEventGameTemplateConfiguration = z.infer<typeof eventGameTemplateConfigurationSchema>;
 
