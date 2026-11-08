@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AiAdvisoryFacts, EventDayCopilotFacts, OperationsAssistantFacts } from '@prism/contexts/read-models';
 import { AI_USE_CASE_REGISTRY } from './gateway/ai-use-cases';
 import { AiAdvisoryService, buildComplianceAdvisoryInput, buildEventDayCopilotInput, buildEventIntelligenceInput, buildOperationsAssistantInput, buildThemeSuggestionInput } from './ai-advisory.service';
@@ -48,6 +48,9 @@ function stringKeys(value: unknown, key = ''): string[] {
   return [];
 }
 
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(now); });
+afterEach(() => { vi.useRealTimers(); });
+
 describe('AI advisories (FR-10+, FR-11, FR-AI-08)', () => {
   it('sends the model only the minimized facts each use case declares as free text', () => {
     const inputs = {
@@ -85,6 +88,7 @@ describe('AI advisories (FR-10+, FR-11, FR-AI-08)', () => {
 });
 
 describe('event-day copilot and operations assistant (FR-AI-07, FR-AI-05)', () => {
+
   function serviceFor(actor: Record<string, unknown>) {
     const gateway = { run: vi.fn(async (useCase: string) => ({ outcome: 'completed', output: useCase === 'event-day.copilot' ? { summary: 'One supplier is late.', alerts: [] } : { answer: 'Two suppliers are unconfirmed.', basedOn: ['suppliers'], suggestedNextSteps: [] } })) };
     const access = { resolveActor: vi.fn(() => actor), requireActorRole: vi.fn(async () => undefined), recordForbiddenAccess: vi.fn(async () => undefined) };
