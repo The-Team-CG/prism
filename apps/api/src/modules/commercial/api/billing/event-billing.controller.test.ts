@@ -90,9 +90,9 @@ describe('OpsEventBillingController', () => {
       id: 'bill_new',
       status: 'sent',
     });
-    await expect(controller.requestBillingCorrection('evt_sample', { statementId: 'bill_new', reason: 'Tax line is incorrect', idempotencyKey: 'corr-controller-1' }, actor as never)).resolves.toEqual({ id: 'corr_new' });
+    await expect(controller.requestBillingCorrection('evt_sample', { statementId: 'bill_new', reason: 'Tax line is incorrect', severity: 'amount_discrepancy', idempotencyKey: 'corr-controller-1' }, actor as never)).resolves.toEqual({ id: 'corr_new' });
     await expect(controller.resolveBillingCorrection('evt_sample', 'corr_new', { action: 'approve' }, actor as never)).resolves.toEqual({ id: 'corr_new', status: 'approved' });
-    await expect(controller.createBillingDispute('evt_sample', { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', idempotencyKey: 'dispute-controller-1' }, actor as never)).resolves.toEqual({ id: 'dispute_new' });
+    await expect(controller.createBillingDispute('evt_sample', { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', severity: 'amount_discrepancy', idempotencyKey: 'dispute-controller-1' }, actor as never)).resolves.toEqual({ id: 'dispute_new' });
     await expect(controller.resolveBillingDispute('evt_sample', 'dispute_new', { action: 'resolve', resolutionNotes: 'Reviewed' }, actor as never)).resolves.toEqual({ id: 'dispute_new', status: 'resolved' });
     await expect(controller.createAdditionalBilling('evt_sample', { urgentIssueId: 'issue_new', billingSourceId: 'bsrc_approved', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, actor as never)).resolves.toEqual({ id: 'addbill_new' });
     await expect(controller.waiveAdditionalBilling('evt_sample', 'addbill_new', { reason: 'Approved goodwill' }, actor as never)).resolves.toEqual({ id: 'addbill_new', status: 'waived' });
@@ -124,11 +124,11 @@ describe('OpsEventBillingController', () => {
     );
     expect(billingAdjustmentService.requestBillingCorrection).toHaveBeenCalledWith(
       'evt_sample',
-      { statementId: 'bill_new', reason: 'Tax line is incorrect', idempotencyKey: 'corr-controller-1' },
+      { statementId: 'bill_new', reason: 'Tax line is incorrect', severity: 'amount_discrepancy', idempotencyKey: 'corr-controller-1' },
       { id: 'user_maxine', name: 'Maxine', role: OpsUserRole.PmcmAdmin, email: 'maxine@pmcm.test' },
     );
     expect(billingAdjustmentService.resolveBillingCorrection).toHaveBeenCalledWith('evt_sample', 'corr_new', { action: 'approve' }, expect.objectContaining({ id: 'user_maxine' }), actor);
-    expect(billingAdjustmentService.createBillingDispute).toHaveBeenCalledWith('evt_sample', { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', idempotencyKey: 'dispute-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
+    expect(billingAdjustmentService.createBillingDispute).toHaveBeenCalledWith('evt_sample', { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', severity: 'amount_discrepancy', idempotencyKey: 'dispute-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
     expect(billingAdjustmentService.resolveBillingDispute).toHaveBeenCalledWith('evt_sample', 'dispute_new', { action: 'resolve', resolutionNotes: 'Reviewed' }, expect.objectContaining({ id: 'user_maxine' }));
     expect(billingAdjustmentService.createAdditionalBilling).toHaveBeenCalledWith('evt_sample', { urgentIssueId: 'issue_new', billingSourceId: 'bsrc_approved', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, expect.objectContaining({ id: 'user_maxine' }));
     expect(billingAdjustmentService.waiveAdditionalBilling).toHaveBeenCalledWith('evt_sample', 'addbill_new', { reason: 'Approved goodwill' }, expect.objectContaining({ id: 'user_maxine' }));
@@ -172,7 +172,7 @@ describe('OpsEventBillingController', () => {
     await expect(
       controller.createBillingDispute(
         'evt_sample',
-        { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', idempotencyKey: 'forbidden-dispute' },
+        { statementId: 'bill_new', amount: 500, reason: 'Duplicate charge', severity: 'amount_discrepancy', idempotencyKey: 'forbidden-dispute' },
         client,
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -189,7 +189,7 @@ describe('OpsEventBillingController', () => {
     };
     await expect(controller.createBillingDispute(
       'evt_sample',
-      { statementId: 'bill_1', amount: 500, reason: 'Incorrect charge', idempotencyKey: 'dispute-client-1' },
+      { statementId: 'bill_1', amount: 500, reason: 'Incorrect charge', severity: 'amount_discrepancy', idempotencyKey: 'dispute-client-1' },
       clientActor as never,
     )).resolves.toEqual({ id: 'dispute_new' });
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
@@ -212,7 +212,7 @@ describe('OpsEventBillingController', () => {
     };
     await expect(controller.createBillingDispute(
       'evt_other',
-      { statementId: 'bill_1', amount: 500, reason: 'Incorrect charge', idempotencyKey: 'dispute-client-other-event' },
+      { statementId: 'bill_1', amount: 500, reason: 'Incorrect charge', severity: 'amount_discrepancy', idempotencyKey: 'dispute-client-other-event' },
       clientActor as never,
     )).rejects.toThrow(ForbiddenException);
     expect(billingAdjustmentService.createBillingDispute).not.toHaveBeenCalled();

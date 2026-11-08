@@ -103,11 +103,24 @@ export const recordPaymentSchema = z.object({
 });
 export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
 
+export const BILLING_DISCREPANCY_SEVERITIES = ["typo_correction", "amount_discrepancy"] as const;
+export const billingDiscrepancySeveritySchema = z.enum(BILLING_DISCREPANCY_SEVERITIES);
+export type BillingDiscrepancySeverity = z.infer<typeof billingDiscrepancySeveritySchema>;
+export const BILLING_DISCREPANCY_SEVERITY_LABELS: Record<BillingDiscrepancySeverity, string> = {
+  typo_correction: "Typo correction",
+  amount_discrepancy: "Amount discrepancy",
+};
+
 export const requestBillingCorrectionSchema = z.object({
   statementId: nonEmptyStringSchema,
   reason: nonEmptyStringSchema,
+  severity: billingDiscrepancySeveritySchema,
   correctedTotalAmount: z.number().int().positive().optional(),
   idempotencyKey: nonEmptyStringSchema,
+}).superRefine((value, ctx) => {
+  if (value.severity === "typo_correction" && value.correctedTotalAmount !== undefined) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["correctedTotalAmount"], message: "A typo correction cannot change the statement amount" });
+  }
 });
 export type RequestBillingCorrectionInput = z.infer<typeof requestBillingCorrectionSchema>;
 
@@ -126,6 +139,7 @@ export const createBillingDisputeSchema = z.object({
   milestoneId: optionalTrimmedStringSchema,
   amount: z.number().int().positive(),
   reason: nonEmptyStringSchema,
+  severity: billingDiscrepancySeveritySchema,
   idempotencyKey: nonEmptyStringSchema,
 });
 export type CreateBillingDisputeInput = z.infer<typeof createBillingDisputeSchema>;

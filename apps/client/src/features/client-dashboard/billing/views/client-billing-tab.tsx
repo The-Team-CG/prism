@@ -2,7 +2,7 @@
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 
 import { CheckCircle2, FileText, MessageSquareText, ReceiptText, WalletCards } from "lucide-react";
-import type { PrismBillingStatement, PrismClientBillingDispute, PrismPaymentMilestone } from "@prism/types";
+import { BILLING_DISCREPANCY_SEVERITIES, BILLING_DISCREPANCY_SEVERITY_LABELS, type PrismBillingStatement, type PrismClientBillingDispute, type PrismPaymentMilestone } from "@prism/types";
 import Link from "next/link";
 import { Button } from "@/app/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -209,6 +209,11 @@ function BillingDisputes({ billing, activePayments, disputeForm }: { billing: Pr
           <label className="grid gap-1 text-xs font-medium text-muted-foreground">Amount disputed
             <input type="number" min="1" max={billing.totalAmount} value={disputeForm.amount} onChange={(event) => disputeForm.setAmount(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground" />
           </label>
+          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Kind of discrepancy
+            <select value={disputeForm.severity} onChange={(event) => disputeForm.setSeverity(event.target.value as typeof disputeForm.severity)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground">
+              {BILLING_DISCREPANCY_SEVERITIES.map((severity) => <option key={severity} value={severity}>{BILLING_DISCREPANCY_SEVERITY_LABELS[severity]}</option>)}
+            </select>
+          </label>
           <label className="grid gap-1 text-xs font-medium text-muted-foreground">Related payment (optional)
             <select value={disputeForm.milestoneId} onChange={(event) => disputeForm.setMilestoneId(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground">
               <option value="">Whole statement</option>
@@ -229,7 +234,7 @@ function BillingDisputes({ billing, activePayments, disputeForm }: { billing: Pr
           {disputeForm.disputes.map((dispute) => (
             <li key={dispute.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">{money.format(dispute.amount)} disputed</span>
+                <span className="block text-sm font-semibold text-foreground">{money.format(dispute.amount)} disputed · {BILLING_DISCREPANCY_SEVERITY_LABELS[dispute.severity]}</span>
                 <span className="block text-xs text-muted-foreground">Opened {formatDayLabel(dispute.createdAt)}{dispute.resolvedAt ? ` · closed ${formatDayLabel(dispute.resolvedAt)}` : ""}</span>
               </span>
               <StatusBadge status={dispute.status} label={formatLabel(dispute.status)} />
