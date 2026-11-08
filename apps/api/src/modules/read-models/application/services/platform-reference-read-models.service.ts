@@ -5,6 +5,7 @@ import type {
   AiInquiryTriageSource,
   AiProposalEventSource,
   ClientMessageTriggerFacts,
+  AiAdvisoryFacts,
   PareEventSource,
   PareSupplierCandidateSource,
   PlatformPrivacyConsentFact,
@@ -113,6 +114,25 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
       eventDate: event.eventDate,
       archived: event.archived,
       clientPortalStatus: event.clientPortalStatus,
+    };
+  }
+
+  async findAiAdvisoryFacts(eventId: string): Promise<AiAdvisoryFacts | null> {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true, status: true, inquiry: { select: { eventType: true } } } });
+    if (!event) return null;
+    const latestRun = await this.prisma.opsComplianceRun.findFirst({ where: { eventId, status: 'completed' }, orderBy: { createdAt: 'desc' }, select: { id: true } });
+    const [briefing, openChecks, insight, checkedInGuests, closeout] = await Promise.all([
+      this.prisma.opsBriefing.findFirst({ where: { eventId }, orderBy: { submittedAt: 'desc' }, select: { guestCount: true, venueType: true, moodAndStyling: true, budgetRange: true, stylingBudget: true } }),
+      latestRun
+        ? this.prisma.opsComplianceCheck.findMany({ where: { runId: latestRun.id, status: 'open', evaluationStatus: 'not_satisfied' }, select: { title: true, severity: true, evidence: true, remediation: true }, orderBy: [{ severity: 'asc' }, { title: 'asc' }], take: 30 })
+        : Promise.resolve([]),
+      this.prisma.opsEventInsight.findUnique({ where: { eventId }, select: { dimensions: true, risks: true, supplierNotes: true, financialSummary: true } }),
+      this.prisma.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in' } }),
+      this.prisma.opsClientCloseoutResponse.findUnique({ where: { eventId }, select: { rating: true } }),
+    ]);
+    return {
+      event: { eventType: event.inquiry?.eventType ?? 'Event', eventDate: event.eventDate, status: event.status },
+      briefing, openChecks, insight, checkedInGuests, clientRating: closeout?.rating ?? null,
     };
   }
 

@@ -21,6 +21,7 @@ import { SupplierProfileActions } from "./supplier-profile-actions";
 import { SupplierPerformanceSummary } from "./supplier-performance-summary";
 import { RatingStars, SupplierAvatar, SupplierTags } from "./supplier-visuals";
 import styles from "./supplier-workspace.module.css";
+import { SupplierReliabilityScoreLine } from "@/features/ai-advisory/views/ai-advisory-panels";
 
 function contactLine(value: string) {
   return value.trim() || "Not on file";
@@ -326,6 +327,7 @@ function SupplierPrivateNotes({ profile }: { profile: PrismPmcmSupplierProfile }
       <h3 id="supplier-private-notes-heading" className="text-sm font-semibold">Private PMCM notes</h3>
       <p className="whitespace-pre-wrap rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">{profile.supplier.performanceNotes || "No private notes recorded."}</p>
       <p className="text-xs text-muted-foreground">Capacity or scale: <span className="font-medium text-foreground">{profile.supplier.capacityRating ? profile.supplier.capacityRating[0].toUpperCase() + profile.supplier.capacityRating.slice(1) : "Not rated"}</span></p>
+      <SupplierReliabilityScoreLine supplierId={profile.supplier.id} />
       {profile.supplier.serviceInclusions ? <p className="whitespace-pre-wrap rounded-lg border border-border p-3 text-xs leading-relaxed"><span className="mb-1 block text-muted-foreground">Service inclusions</span>{profile.supplier.serviceInclusions}</p> : null}
     </section>
   );

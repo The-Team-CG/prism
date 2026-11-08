@@ -5,6 +5,7 @@ import { RISK_RATINGS, riskSeverityFromRatings, type CreateComplianceRiskInput, 
 import { complianceReadinessReport } from "../model/compliance-readiness-report";
 import { complianceRunSummary } from "../model/compliance-run-summary";
 import { useComplianceReviewViewModel } from "../view-models/use-compliance-review-view-model";
+import { ComplianceAdvisory } from "@/features/ai-advisory/views/ai-advisory-panels";
 
 const RISK_STATUS: Record<string, string> = { open: "Open", mitigated: "Mitigated", accepted: "Accepted", closed: "Closed" };
 const RISK_SEVERITY: Record<string, string> = { low: "Low", medium: "Medium", high: "High", critical: "Critical" };
@@ -39,6 +40,7 @@ export function ComplianceReviewPanel({ eventId }: { eventId: string }) {
     <section aria-labelledby="compliance-history-title" className="rounded-lg border border-border bg-card p-5">
       <h2 id="compliance-history-title" className="text-lg font-semibold">History and risks</h2>
       <p className="mt-1 text-sm text-muted-foreground">{complianceRunSummary(vm.runs)}</p>
+      <ComplianceAdvisory eventId={eventId} />
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
 
       <h3 className="mt-5 text-sm font-semibold text-foreground">Readiness</h3>
