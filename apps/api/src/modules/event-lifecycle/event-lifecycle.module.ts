@@ -41,6 +41,10 @@ import { EventRiskAssessmentService } from './application/change/event-risk-asse
 import { EventRiskRegisterService } from './application/change/event-risk-register.service';
 import { EventRiskRegisterController } from './api/change/event-risk-register.controller';
 import { InquiryContextNotesController } from './api/onboarding/inquiry-context-notes.controller';
+import { PublicInquiryDraftController } from './api/onboarding/public-inquiry-draft.controller';
+import { InquiryDraftService } from './application/onboarding/inquiry-draft.service';
+import { InquiryDraftScheduler } from './application/onboarding/inquiry-draft.scheduler';
+import { PortalUrlsModule } from '@prism/kernel/shared';
 import { InquiryContextNotesService } from './application/onboarding/inquiry-context-notes.service';
 import { AccreditationController } from './api/compliance/accreditation.controller';
 import { AccreditationService } from './application/compliance/accreditation.service';
@@ -80,6 +84,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
 @Module({
   imports: [
     DatabaseModule,
+    PortalUrlsModule,
     EventCoreModule,
     PlatformOpsModule,
     OperationsModule,
@@ -113,6 +118,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     EventRiskAssessmentController,
     EventRiskRegisterController,
     InquiryContextNotesController,
+    PublicInquiryDraftController,
     AccreditationController,
     AddendumConformeController,
     AddendumWithdrawalController,
@@ -154,6 +160,8 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     EventRiskAssessmentService,
     EventRiskRegisterService,
     InquiryContextNotesService,
+    InquiryDraftService,
+    InquiryDraftScheduler,
     AccreditationService,
     AddendumConformeService,
     AddendumWithdrawalService,

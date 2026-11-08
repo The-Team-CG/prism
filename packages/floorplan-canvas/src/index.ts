@@ -4,6 +4,7 @@ export { cloneTemplateObjects } from "./templates";
 export type { CreateTemplateInput, FloorPlanTemplate } from "./templates";
 export { createTemplateStoreAdapter } from "./api-template-store";
 export { VENUE_WALLS, venueSurveyFixtures } from "./venue-survey";
+export { QUICK_SETUP_PRESETS, arrangeQuickSetup } from "./quick-setup";
 export type { VenueSurvey, VenueWall } from "./venue-survey";
 export type { TemplateApiRequest, TemplateApiRequestInit } from "./api-template-store";
 export type { CanvasObject, Guest, Project, Supplier, TableAssignmentIneligibleReason } from "./types";

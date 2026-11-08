@@ -1,3 +1,4 @@
+import type { PrismEvent } from '@prism/types';
 import type { OpsEvent, OpsFloorPlanDraft } from '@prisma/client';
 import { mapOnboardingFloorPlanDraft } from '@prism/contexts/event-lifecycle';
 import { guestAccessCode } from '@prism/contexts/operations';
@@ -29,6 +30,7 @@ export function mapBillingEvent(event: EventWithDrafts) {
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
     clientEventDayViewEnabled: event.clientEventDayViewEnabled,
+    disabledModules: event.disabledModules as PrismEvent['disabledModules'],
     proposalClientStatus: event.proposalClientStatus,
     readiness: event.readiness,
     archived: event.archived,

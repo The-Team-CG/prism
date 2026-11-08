@@ -250,6 +250,8 @@ model OpsInquiry {
   portalInvitationSentAt    DateTime? @map("portal_invitation_sent_at")
   portalInvitationOpenedAt  DateTime? @map("portal_invitation_opened_at")
   portalInvitationExpiresAt DateTime? @map("portal_invitation_expires_at")
+  /// FR-50: sha256 of the submitter's edit link token; the link works for 24 hours while the inquiry is new.
+  editTokenHash             String?   @unique(map: "inquiries_edit_token_hash_key") @map("edit_token_hash")
   /// FR-02: "standard" or "bidding"; a bid carries its own status and due date.
   intakePath                String    @default("standard") @map("intake_path")
   bidStatus                 String?   @map("bid_status")
@@ -306,6 +308,20 @@ model OpsAccreditationRequirement {
 
   @@index([eventId, status], map: "accreditation_requirements_event_status_idx")
   @@map("accreditation_requirements")
+  @@schema("event_lifecycle")
+}
+
+// FR-50: a public inquiry in progress, saved after privacy consent so the visitor can resume it.
+model OpsInquiryDraft {
+  id         String    @id
+  email      String?
+  payload    Json      @default("{}")
+  remindedAt DateTime? @map("reminded_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@index([updatedAt], map: "inquiry_drafts_updated_idx")
+  @@map("inquiry_drafts")
   @@schema("event_lifecycle")
 }
 
@@ -366,6 +382,8 @@ model OpsInquiryStatusHistory {
 model OpsEvent {
   id                         String    @id
   inquiryId                  String    @map("inquiry_id")
+  /// FR-24: optional modules PMCM switched off for this event.
+  disabledModules            String[]  @default([]) @map("disabled_modules")
   clientName                 String    @map("client_name")
   eventName                  String    @map("event_name")
   eventDate                  DateTime  @map("event_date")

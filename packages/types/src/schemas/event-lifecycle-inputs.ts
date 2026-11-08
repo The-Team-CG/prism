@@ -140,6 +140,43 @@ export const logInquiryOnBehalfSchema = z.object({
 });
 export type LogInquiryOnBehalfInput = z.infer<typeof logInquiryOnBehalfSchema>;
 
+/* FR-50 Abandoned inquiry draft save and the 24-hour edit window. */
+export const INQUIRY_EDIT_WINDOW_HOURS = 24;
+export const INQUIRY_DRAFT_REMINDER_HOURS = 24;
+export const INQUIRY_DRAFT_RETENTION_DAYS = 30;
+export const inquiryAccessTokenSchema = z.string().trim().regex(/^[A-Za-z0-9_-]{32,64}$/, "This link is not valid");
+
+/** Saved only after the visitor accepts the privacy notice; before that the draft stays in the browser. */
+export const saveInquiryDraftSchema = z.object({
+  privacyConsentAccepted: z.literal(true),
+  email: z.string().trim().email().optional(),
+  payload: z.record(z.string().max(60), z.union([z.string().max(2_000), z.boolean()]))
+    .refine((payload) => Object.keys(payload).length <= 40, "Too many draft fields"),
+}).strict();
+export type SaveInquiryDraftInput = z.infer<typeof saveInquiryDraftSchema>;
+
+export interface PrismInquiryDraft {
+  payload: Record<string, string | boolean>;
+  updatedAt: string;
+}
+
+/** What a submitter may still change in the first 24 hours, before PMCM reviews the inquiry. */
+export const editPublicInquirySchema = createPrismInquirySchema.pick({
+  eventName: true, eventType: true, eventDate: true, message: true, seatingArrangement: true, stagePosition: true, setupNotes: true,
+}).partial().strict();
+export type EditPublicInquiryInput = z.infer<typeof editPublicInquirySchema>;
+
+export interface PrismPublicInquiryEdit {
+  eventName: string;
+  eventType: string;
+  eventDate: string;
+  message: string;
+  seatingArrangement: string | null;
+  stagePosition: string | null;
+  setupNotes: string | null;
+  editableUntil: string;
+}
+
 /**
  * Full-details fields of the public inquiry. Privacy consent is left out: a client gives it on the public form,
  * which an inquiry logged on behalf never goes through.
@@ -331,6 +368,26 @@ export const eventPrivacySchema = z.enum(["private", "public"]);
 export type PrismEventPrivacy = z.infer<typeof eventPrivacySchema>;
 export const setEventPrivacySchema = z.object({ privacy: eventPrivacySchema });
 export type SetEventPrivacyInput = z.infer<typeof setEventPrivacySchema>;
+
+/** FR-24 Toggle System: optional modules PMCM switches off for a simpler event. Every module starts on. */
+export const EVENT_MODULES = ["floorplans", "games", "venue_scouting", "accreditation", "logistics", "client_owned_suppliers"] as const;
+export type EventModule = (typeof EVENT_MODULES)[number];
+export const EVENT_MODULE_LABELS: Record<EventModule, string> = {
+  floorplans: "Floor plans",
+  games: "In-event games",
+  venue_scouting: "Venue scouting",
+  accreditation: "Accreditation documents",
+  logistics: "Logistics bookings",
+  client_owned_suppliers: "Client-owned suppliers",
+};
+export const setEventModulesSchema = z.object({
+  disabledModules: z.array(z.enum(EVENT_MODULES)).max(EVENT_MODULES.length).refine((modules) => new Set(modules).size === modules.length, "Each module is listed once"),
+}).strict();
+export type SetEventModulesInput = z.infer<typeof setEventModulesSchema>;
+
+export function isEventModuleEnabled(event: { disabledModules?: readonly string[] | null } | null | undefined, module: EventModule): boolean {
+  return !(event?.disabledModules ?? []).includes(module);
+}
 
 export const setClientEventDayViewSchema = z.object({
   enabled: z.boolean(),

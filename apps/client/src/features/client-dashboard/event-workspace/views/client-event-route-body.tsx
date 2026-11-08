@@ -1,5 +1,6 @@
 "use client";
 
+import { isEventModuleEnabled } from "@prism/types";
 import type { ReactNode } from "react";
 import { ClientBillingTab } from "../../billing";
 import { ClientBriefingTab } from "../../briefing";
@@ -113,6 +114,7 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
   briefing: (ctx) => ctx.selectedEvent ? (
     <ClientBriefingTab
       eventId={ctx.selectedEvent.id}
+      ownSuppliersEnabled={isEventModuleEnabled(ctx.selectedEvent, "client_owned_suppliers")}
       briefing={ctx.briefing}
       busy={ctx.busy === "briefing"}
       onSubmit={ctx.submitBriefing}

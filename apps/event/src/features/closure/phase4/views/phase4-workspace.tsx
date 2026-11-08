@@ -38,6 +38,7 @@ import { EventWrapUpView } from "../../wrap-up";
 import { GuestFeedbackQr } from "@/features/closure/guest-feedback-qr/views/guest-feedback-qr";
 import { LogisticsBookingsPanel } from "@/features/closure/logistics-bookings/views/logistics-bookings-panel";
 import { EventIntelligencePanel } from "@/features/ai-advisory/views/ai-advisory-panels";
+import { isEventModuleEnabled } from "@prism/types";
 import { LogisticsCompletionPanel } from "../../logistics";
 import { ClientTestimonialModerationPanel } from "../../wrap-up/views/client-testimonial-moderation-panel";
 
@@ -136,7 +137,7 @@ export function Phase4Workspace({
         <>
           <Phase4SectionBoundary title="Event end"><ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} /></Phase4SectionBoundary>
           <Phase4SectionBoundary title="Logistics completion"><LogisticsCompletionPanel eventId={event.id} /></Phase4SectionBoundary>
-          <Phase4SectionBoundary title="Logistics bookings"><LogisticsBookingsPanel eventId={event.id} eventName={event.eventName} /></Phase4SectionBoundary>
+          {isEventModuleEnabled(event, "logistics") ? <Phase4SectionBoundary title="Logistics bookings"><LogisticsBookingsPanel eventId={event.id} eventName={event.eventName} /></Phase4SectionBoundary> : null}
           <Phase4SectionBoundary title="Wrap-up"><EventWrapUpView eventId={event.id} /></Phase4SectionBoundary>
           <Phase4SectionBoundary title="Guest feedback QR"><GuestFeedbackQr accessCode={event.guestAccessCode} /></Phase4SectionBoundary>
         </>
