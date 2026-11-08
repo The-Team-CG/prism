@@ -24,6 +24,8 @@ export interface CommercialFactsReader {
   listSupplierGaps(eventId: string, client?: ReadClient): Promise<PrismSupplierGap[]>;
   /** FR-96: contract amount (latest issued proposal), payments received and confirmed supplier commitments. */
   getCancellationFacts(eventId: string, client?: ReadClient): Promise<{ contractAmount: number; paidAmount: number; committedSupplierAmount: number }>;
+  /** New-P1: the highest-rated reviewed supplier per category for one event. */
+  topReviewedSuppliers(eventId: string, client?: ReadClient): Promise<Array<{ category: string; supplierName: string; rating: number }>>;
 }
 
 export const COMMERCIAL_FACTS_READER = Symbol('COMMERCIAL_FACTS_READER');

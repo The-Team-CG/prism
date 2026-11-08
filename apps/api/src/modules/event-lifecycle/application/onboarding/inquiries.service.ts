@@ -1,7 +1,7 @@
 import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, OpsInquiryMerge, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { type MergeInquiryInput, type PrismAccountInvitationOutcome } from '@prism/types';
+import { type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type UpdateInquiryCompanyNameInput } from '@prism/types';
 import {
   ACCOUNT_PROVISIONING,
   type AccountInvitationActor,
@@ -114,6 +114,13 @@ export function inquiryDeclinedMessage(eventName: string, declineReason?: string
     disclosure,
     'We would welcome the chance to work with you on future events, so please reach out anytime.',
   ].filter(Boolean).join(' ');
+}
+
+/** FR-44: a client returning after this many days without an event counts as a dormant reactivation. */
+const DORMANT_CLIENT_DAYS = 365;
+
+function mapCompanyNameChange(row: { id: string; inquiryId: string; fromName: string; toName: string; reason: string; changedBy: string; changedAt: Date }): PrismCompanyNameChange {
+  return { id: row.id, inquiryId: row.inquiryId, fromName: row.fromName, toName: row.toName, reason: row.reason, changedBy: row.changedBy, changedAt: row.changedAt.toISOString() };
 }
 
 @Injectable()
@@ -581,9 +588,68 @@ export class InquiriesService {
           ...(highFit
             ? [this.notifyPmcmTriage(inquiry.id, 'high-fit', `High-fit inquiry from ${inquiry.clientName} (${inquiry.companyName}) for ${inquiry.eventName}`)]
             : []),
+          this.notifyDormantReactivation(inquiry),
         ]);
       },
     });
+  }
+
+  /** FR-44: PMCM edits the company name; the organization key follows and the change is logged with its reason. */
+  async updateCompanyName(inquiryId: string, input: UpdateInquiryCompanyNameInput, actor: ResolvedEventOpsActor): Promise<PrismCompanyNameChange> {
+    const verifiedActor = this.requireVerifiedActor(actor);
+    if (verifiedActor.role !== OpsUserRole.PmcmAdmin && verifiedActor.role !== OpsUserRole.System) {
+      throw new ForbiddenException('Only PMCM can change a company name');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const inquiry = await tx.opsInquiry.findUnique({ where: { id: inquiryId }, select: { id: true, companyName: true } });
+      if (!inquiry) throw new NotFoundException('Inquiry not found');
+      const fromName = inquiry.companyName ?? '';
+      if (fromName.trim() === input.companyName) throw new BadRequestException('The company name is unchanged');
+      await tx.opsInquiry.update({ where: { id: inquiryId }, data: { companyName: input.companyName, organizationKey: inquiryOrganizationKey(input.companyName) } });
+      const change = await tx.opsInquiryCompanyNameChange.create({ data: {
+        id: `icn_${randomUUID()}`, inquiryId, fromName, toName: input.companyName, reason: input.reason, changedBy: verifiedActor.name,
+      } });
+      await writeAudit(this.auditWriter, undefined, verifiedActor.name, `Changed company name from "${fromName}" to "${input.companyName}"`, {
+        actorRole: verifiedActor.role,
+        actorEmail: verifiedActor.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Events,
+        affectedType: 'inquiry',
+        affectedId: inquiryId,
+        affectedLabel: input.companyName,
+        metadata: { fromName, toName: input.companyName, reason: input.reason, actorId: verifiedActor.id ?? null },
+      }, { prisma: tx, correlationId: `inquiry-company-name:${change.id}`, actorId: verifiedActor.id });
+      return mapCompanyNameChange(change);
+    });
+  }
+
+  async listCompanyNameChanges(inquiryId: string): Promise<PrismCompanyNameChange[]> {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: one inquiry's company name history.
+    const rows = await this.prisma.opsInquiryCompanyNameChange.findMany({ where: { inquiryId }, orderBy: [{ changedAt: 'desc' }, { id: 'desc' }] });
+    return rows.map(mapCompanyNameChange);
+  }
+
+  /**
+   * FR-44: a returning client whose last event was over a year ago is a reactivation; PMCM gets the history.
+   * Matches the same contact email or organization, ignoring the new inquiry itself.
+   */
+  private async notifyDormantReactivation(inquiry: { id: string; clientName: string; normalizedEmail: string | null; organizationKey: string | null }) {
+    const matchers = [
+      ...(inquiry.normalizedEmail ? [{ normalizedEmail: inquiry.normalizedEmail }] : []),
+      ...(inquiry.organizationKey ? [{ organizationKey: inquiry.organizationKey }] : []),
+    ];
+    if (matchers.length === 0) return;
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: one client's past events, newest first and capped.
+    const pastEvents = await this.prisma.opsEvent.findMany({
+      where: { inquiry: { id: { not: inquiry.id }, OR: matchers } },
+      orderBy: [{ eventDate: 'desc' }, { id: 'desc' }],
+      take: 20,
+      select: { eventName: true, eventDate: true },
+    });
+    const latest = pastEvents[0];
+    if (!latest || Date.now() - latest.eventDate.getTime() < DORMANT_CLIENT_DAYS * 86_400_000) return;
+    const summary = `Returning client ${inquiry.clientName}: ${pastEvents.length} past event${pastEvents.length === 1 ? '' : 's'}, last "${latest.eventName}" on ${latest.eventDate.toISOString().slice(0, 10)}.`;
+    await writeNotification(this.notificationOutboxWriter, undefined, PMCM_INQUIRY_NOTIFICATION_RECIPIENT, summary, 'email', { idempotencyKey: `inquiry-reactivation:${inquiry.id}` });
   }
 
   /** PMCM-only organization merge. The source inquiry is folded into the primary and the merge is recorded with audit. */

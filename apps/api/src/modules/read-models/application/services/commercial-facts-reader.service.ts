@@ -69,6 +69,18 @@ export class CommercialFactsReaderService implements CommercialFactsReader {
     };
   }
 
+  async topReviewedSuppliers(eventId: string, client: ReadClient = this.prisma) {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: one event's supplier assessments, at most one per supplier.
+    const reviews = await client.opsSupplierReview.findMany({ where: { eventId }, select: { rating: true, supplier: { select: { name: true, category: { select: { name: true } } } } } });
+    const best = new Map<string, { category: string; supplierName: string; rating: number }>();
+    for (const review of reviews) {
+      const category = review.supplier.category.name;
+      const current = best.get(category);
+      if (!current || review.rating > current.rating) best.set(category, { category, supplierName: review.supplier.name, rating: review.rating });
+    }
+    return [...best.values()].sort((left, right) => left.category.localeCompare(right.category));
+  }
+
   findProposalReviewEvent(eventId: string, client: ReadClient = this.prisma) {
     return client.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: { select: { email: true } } } });
   }

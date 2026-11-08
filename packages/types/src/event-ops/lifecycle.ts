@@ -247,6 +247,13 @@ export interface PrismArchiveComparisonRow extends PrismArchivedEventSearchHit {
   missingCloseGates: string[];
   logisticsRecorded: boolean;
   logisticsRecordedAt: string | null;
+  /** New-P1 metrics. Amounts are whole pesos; the rating is the average approved guest feedback (1-5). */
+  plannedGuestCount: number | null;
+  attendeeCount: number;
+  totalCost: number;
+  averageGuestRating: number | null;
+  urgentIssueCount: number;
+  topSuppliers: Array<{ category: string; supplierName: string; rating: number }>;
 }
 
 export interface PrismDefenseReadinessAction {

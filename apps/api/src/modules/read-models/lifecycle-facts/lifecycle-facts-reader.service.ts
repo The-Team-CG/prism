@@ -17,11 +17,12 @@ export class LifecycleFactsReaderService implements LifecycleFactsReader {
   }
 
   async getClosureFacts(eventId: string, client: Prisma.TransactionClient = this.prisma): Promise<ClosureLifecycleFacts> {
-    const [guestFeedback, issues, scheduleDays] = await Promise.all([
+    const [guestFeedback, issues, scheduleDays, checkedInGuestCount] = await Promise.all([
       client.opsGuestFeedback.findMany({ where: { eventId }, select: { id: true, rating: true, moderationStatus: true, privacyConsentAccepted: true, privacyConsentWithdrawnAt: true } }),
       client.opsUrgentIssue.findMany({ where: { eventId }, select: { id: true } }),
       client.opsEventScheduleDay.findMany({ where: { eventId }, include: { segments: { select: { id: true, actualEndedAt: true, plannedEndAt: true } } } }),
+      client.opsGuestCheckIn.count({ where: { eventId } }),
     ]);
-    return { guestFeedback, issues, scheduleDays };
+    return { guestFeedback, issues, scheduleDays, checkedInGuestCount };
   }
 }
