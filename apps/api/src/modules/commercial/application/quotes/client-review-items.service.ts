@@ -55,7 +55,7 @@ export class ClientReviewItemsService {
         await this.requireIssueEvent(tx, eventId, key);
         const prior = await tx.opsClientReviewItem.findUnique({ where: { idempotencyKey: key } });
         if (prior) return this.mapItem(this.requireIssueReplay(prior, eventId, actor, payloadHash));
-        await this.requireConfirmedStylingBudget(tx, eventId);
+        if (input.kind === 'styling') await this.requireConfirmedStylingBudget(tx, eventId);
         await this.validateIssueDocument(tx, eventId, input.documentId, key);
         const latest = await tx.opsClientReviewItem.findFirst({ where: { eventId, kind: input.kind }, orderBy: { version: 'desc' }, select: { version: true } });
         const item = await tx.opsClientReviewItem.create({
@@ -116,7 +116,7 @@ export class ClientReviewItemsService {
 
   private async requireConfirmedStylingBudget(tx: Prisma.TransactionClient, eventId: string) {
     const briefing = await tx.opsBriefing.findFirst({ where: { eventId }, orderBy: { submittedAt: 'desc' }, select: { stylingBudgetConfirmedAt: true } });
-    if (!briefing?.stylingBudgetConfirmedAt) throw new BadRequestException('Venue and styling review items can only be issued after the primary client confirms a styling budget in the briefing');
+    if (!briefing?.stylingBudgetConfirmedAt) throw new BadRequestException('Styling options can only be issued after the primary client confirms a styling budget in the briefing');
   }
 
   private async validateIssueDocument(tx: Prisma.TransactionClient, eventId: string, documentId: string | undefined, key: string) {
