@@ -1,4 +1,5 @@
 export * from "./event-ops.js";
+export * from "./event-file-categories.js";
 export * from "./event-games.js";
 export * from "./floorplan-table-eligibility.js";
 export * from "./client-review.js";

@@ -26,6 +26,18 @@ export class ProposalLifecycleController {
     return this.comments.create(eventId, input, this.access.resolveActor({}, verified));
   }
 
+  @Get(':eventId/cost-estimates/supplier-quote-lines')
+  @UseGuards(EventSessionGuard)
+  selectedQuoteLines(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.selectedQuoteLines(eventId, this.access.resolveActor({}, verified));
+  }
+
+  @Get(':eventId/cost-estimates/previous')
+  @UseGuards(EventSessionGuard)
+  previousCostEstimates(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.previousCostEstimates(eventId, this.access.resolveActor({}, verified));
+  }
+
   @Post(':eventId/cost-estimates')
   @UseGuards(EventSessionGuard)
   createEstimate(@Param('eventId') eventId: string, @Body(zodBody(createCostEstimateSchema)) input: CreateCostEstimateInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {

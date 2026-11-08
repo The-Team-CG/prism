@@ -87,16 +87,20 @@ describe("useChangeRegisterViewModel recordDecision", () => {
     expect(load.mock.calls.length).toBeGreaterThan(loadsBefore);
   });
 
-  it("sends the cancellation fee in centavos, from the peso amount typed", async () => {
+  it("sends the cancellation fee in whole pesos, the unit billing uses, and refuses centavos", async () => {
     recordDecision.mockResolvedValue({ id: "decision_2" });
     const { result } = renderRegister(false, []);
     await waitFor(() => expect(result.current.status).toBe("ready"));
 
     let saved = false;
-    await act(async () => { saved = await result.current.recordDecision({ ...cancellation, cancellationFeePesos: "₱12,500.50" }); });
+    await act(async () => { saved = await result.current.recordDecision({ ...cancellation, cancellationFeePesos: "₱12,500" }); });
 
     expect(saved).toBe(true);
-    expect(recordDecision).toHaveBeenCalledWith("evt_1", expect.objectContaining({ cancellationFeeAmount: 1250050 }));
+    expect(recordDecision).toHaveBeenCalledWith("evt_1", expect.objectContaining({ cancellationFeeAmount: 12500 }));
+    recordDecision.mockClear();
+    await act(async () => { saved = await result.current.recordDecision({ ...cancellation, cancellationFeePesos: "12,500.50" }); });
+    expect(saved).toBe(false);
+    expect(recordDecision).not.toHaveBeenCalled();
   });
 
   it("refuses a cancellation fee that is not an amount and sends nothing", async () => {

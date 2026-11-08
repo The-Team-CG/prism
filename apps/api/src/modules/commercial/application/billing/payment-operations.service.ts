@@ -12,6 +12,7 @@ import type { BillingActor } from '../../contracts/billing-operations.types';
 import type { PaymentStatusReader } from '../../contracts/payment-status-reader.port';
 import { addDays, auditMetadata, isoDate, parseDate, requireBillingActor } from './billing-operations.utils';
 import { mapPaymentMilestone, mapPaymentRecord } from './billing-operations.mappers';
+import { parsePaymentReminderDays, reachedReminderThreshold } from '../../domain/payment-reminder.policy';
 
 const MAX_OVERDUE_REMINDERS_PER_SWEEP = 200;
 
@@ -140,6 +141,33 @@ export class PaymentOperationsService implements PaymentStatusReader {
     }
 
     await this.enqueueOverdueReminders(now);
+    await this.enqueueUpcomingReminders(now);
+  }
+
+  /** FR-92: queue-only advance reminders at the configured day thresholds, one per milestone and threshold. */
+  private async enqueueUpcomingReminders(now: Date) {
+    const daysBefore = parsePaymentReminderDays(process.env.PAYMENT_REMINDER_DAYS_BEFORE);
+    const horizon = addDays(now, Math.max(...daysBefore));
+    const upcoming = await this.prisma.opsPaymentMilestone.findMany({
+      where: { dueDate: { gte: now, lte: horizon }, remainingBalance: { gt: 0 }, status: { not: 'paid' }, supersededAt: null },
+      select: { id: true, eventId: true, label: true, dueDate: true, remainingBalance: true },
+      orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+      take: MAX_OVERDUE_REMINDERS_PER_SWEEP,
+    });
+    if (upcoming.length === 0) return;
+    const activeEvents = await this.prisma.opsEvent.findMany({
+      where: { id: { in: [...new Set(upcoming.map((milestone) => milestone.eventId))] }, archived: false },
+      select: { id: true, eventName: true },
+    });
+    const eventById = new Map(activeEvents.map((event) => [event.id, event]));
+    for (const milestone of upcoming) { // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: capped by MAX_OVERDUE_REMINDERS_PER_SWEEP.
+      const event = eventById.get(milestone.eventId);
+      const threshold = reachedReminderThreshold(milestone.dueDate, now, daysBefore);
+      if (!event || threshold === null) continue;
+      await writeNotification(this.notificationOutboxWriter, event.id, 'Client', `${milestone.label} of PHP ${milestone.remainingBalance.toLocaleString('en-PH')} for ${event.eventName} is due ${milestone.dueDate.toISOString().slice(0, 10)}`, undefined, {
+        idempotencyKey: `payment-upcoming-reminder:${milestone.id}:${threshold}`,
+      });
+    }
   }
 
   /**

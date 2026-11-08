@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, FileText, LoaderCircle, Upload } from "lucide-react";
+import { EVENT_FILE_CATEGORIES, eventFileCategoryOf, type EventFileCategory } from "@prism/types";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { storedDocumentMetadataLine } from "../model/stored-document-labels";
 import { usePmcmDocumentHubViewModel } from "../view-models/use-pmcm-document-hub-view-model";
@@ -15,7 +16,12 @@ export function PmcmDocumentHubView({ eventId }: { eventId: string }) {
           <h2 className="text-base font-black text-foreground">Stored event files</h2>
           <p className="mt-1 text-xs text-muted-foreground">Files shared with clients are available in their event workspace after upload completes.</p>
         </div>
-        <div>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">File type
+            <select value={model.category} onChange={(event) => model.setCategory(event.target.value as EventFileCategory)} disabled={model.busy} className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal text-foreground">
+              {(Object.keys(EVENT_FILE_CATEGORIES) as EventFileCategory[]).map((key) => <option key={key} value={key}>{EVENT_FILE_CATEGORIES[key]}</option>)}
+            </select>
+          </label>
           <input ref={model.inputRef} type="file" className="sr-only" accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.mp4,.mov" onChange={(event) => void model.upload(event.currentTarget.files?.[0])} disabled={model.busy} />
           <button type="button" onClick={() => model.inputRef.current?.click()} disabled={model.busy} className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60">
             {model.busy ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
@@ -34,7 +40,7 @@ export function PmcmDocumentHubView({ eventId }: { eventId: string }) {
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-primary"><FileText className="size-4" /></span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-foreground">{document.originalFileName}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{storedDocumentMetadataLine(document)}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{EVENT_FILE_CATEGORIES[eventFileCategoryOf(document.logicalTarget)]} · {storedDocumentMetadataLine(document)}</p>
               </div>
               {document.lifecycleState === "stored" && (
                 <button type="button" aria-label={`Download ${document.originalFileName}`} onClick={() => void model.download(document.id)} disabled={model.downloading !== null} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50">

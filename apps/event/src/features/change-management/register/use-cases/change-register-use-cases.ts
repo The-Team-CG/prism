@@ -12,7 +12,7 @@ import {
   type WithdrawAddendumInput,
 } from "@prism/types";
 import { changeRegisterRepository } from "../data/change-register-repository";
-import { pesosToMinorUnits, type RecordDecisionDraft } from "../model/change-register-rules";
+import { wholePesos, type RecordDecisionDraft } from "../model/change-register-rules";
 
 function parseOrThrow<T>(result: { success: true; data: T } | { success: false; error: { issues: { message: string }[] } }): T {
   if (!result.success) throw new Error(result.error.issues[0]?.message ?? "Check the highlighted fields and try again.");
@@ -62,9 +62,9 @@ export function recordEventDecisionUseCase(eventId: string, draft: RecordDecisio
     throw new Error("Choose an approved freeze exception before recording this decision on a frozen event.");
   }
   const { cancellationFeePesos, ...decision } = draft;
-  const cancellationFeeAmount = pesosToMinorUnits(cancellationFeePesos);
+  const cancellationFeeAmount = wholePesos(cancellationFeePesos);
   if (!Number.isFinite(cancellationFeeAmount)) {
-    throw new Error("Enter the cancellation fee in pesos, for example 12,500, or leave it blank for no fee.");
+    throw new Error("Enter the cancellation fee in whole pesos, for example 12,500, or leave it blank for no fee.");
   }
   return changeRegisterRepository.recordDecision(eventId, parseOrThrow(recordEventDecisionSchema.safeParse({ ...decision, cancellationFeeAmount })));
 }

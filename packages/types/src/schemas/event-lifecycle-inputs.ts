@@ -27,15 +27,37 @@ function refineEventDecision(value: EventDecisionFields, ctx: z.RefinementCtx) {
   if (value.supplierImpact === "pending_review") {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["supplierImpact"], message: "Supplier impact must be resolved before recording this decision" });
   }
+  // FR-97: postponements never carry a cancellation fee.
+  if (value.decision !== "cancelled" && value.cancellationFeeAmount > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["cancellationFeeAmount"], message: "Only a cancellation can carry a cancellation fee" });
+  }
   const billingRequiresTreatment = value.decision === "cancelled" || value.cancellationFeeAmount > 0;
   if (billingRequiresTreatment && value.depositTreatment === "pending_review") {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["depositTreatment"], message: "Deposit treatment must be resolved when cancelling or charging a cancellation fee" });
   }
 }
 
+/** FR-96: once the conforme is signed the fee is 10 to 15 percent of the contract amount; before that, none. Amounts are whole pesos. */
+export const CANCELLATION_FEE_POLICY = { minPercent: 10, maxPercent: 15 } as const;
+
+export function cancellationFeeBounds(contractAmount: number, conformeSigned: boolean): { minimum: number; maximum: number } {
+  if (!conformeSigned || contractAmount <= 0) return { minimum: 0, maximum: 0 };
+  return {
+    minimum: Math.round((contractAmount * CANCELLATION_FEE_POLICY.minPercent) / 100),
+    maximum: Math.round((contractAmount * CANCELLATION_FEE_POLICY.maxPercent) / 100),
+  };
+}
+
 /** Decision treatment rules shared by the service-facing input and the PMCM write boundary. */
 export const eventDecisionSchema = eventDecisionFields.superRefine(refineEventDecision);
 export type EventDecisionInput = z.infer<typeof eventDecisionSchema>;
+
+/** FR-97: PMCM's outcome for the venue-confirmation sub-ticket opened by a postponement. */
+export const resolveVenueConfirmationSchema = z.object({
+  outcome: z.enum(["confirmed", "unavailable"]),
+  note: z.string().trim().max(1000).default(""),
+});
+export type ResolveVenueConfirmationInput = z.input<typeof resolveVenueConfirmationSchema>;
 
 /**
  * PMCM write boundary: a decision is recorded only after the coordinator, supplier, and billing impact review

@@ -50,7 +50,7 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
             <ScopeChangeReviewPanel eventId={eventId} frozen={frozen} />
           </RegisterGroup>
           <RegisterGroup title="Cancel or postpone">
-            <RecordDecisionForm frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />
+            <RecordDecisionForm eventId={eventId} frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />
           </RegisterGroup>
           <RegisterGroup title="Addenda">
             <PmcmAddendaStatus

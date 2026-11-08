@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { PrismStoredObject } from "@prism/types";
+import type { EventFileCategory, PrismStoredObject } from "@prism/types";
 import { pmcmDocumentRepository } from "../data/pmcm-document-repository";
 
 function saveFile(file: { blob: Blob; fileName: string }) {
@@ -18,6 +18,7 @@ export function usePmcmDocumentHubViewModel(eventId: string) {
   const activeEventId = useRef(eventId);
   const uploadAttempts = useRef(new Map<string, string>());
   activeEventId.current = eventId;
+  const [category, setCategory] = useState<EventFileCategory>("other");
   const [documents, setDocuments] = useState<PrismStoredObject[]>([]);
   const [busy, setBusy] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -42,13 +43,13 @@ export function usePmcmDocumentHubViewModel(eventId: string) {
   async function upload(file?: File) {
     if (!file) return;
     const uploadEventId = eventId;
-    const fileKey = `${uploadEventId}:${file.name}:${file.size}:${file.lastModified}`;
+    const fileKey = `${uploadEventId}:${category}:${file.name}:${file.size}:${file.lastModified}`;
     const attemptId = uploadAttempts.current.get(fileKey) ?? globalThis.crypto.randomUUID();
     uploadAttempts.current.set(fileKey, attemptId);
     setBusy(true);
     setError(null);
     try {
-      await pmcmDocumentRepository.upload(file, uploadEventId, attemptId);
+      await pmcmDocumentRepository.upload(file, uploadEventId, category, attemptId);
       await refresh(uploadEventId);
       uploadAttempts.current.delete(fileKey);
     } catch (reason) {
@@ -73,5 +74,5 @@ export function usePmcmDocumentHubViewModel(eventId: string) {
     }
   }
 
-  return { inputRef, documents, busy, downloading, error, upload, download };
+  return { inputRef, documents, busy, downloading, error, upload, download, category, setCategory };
 }

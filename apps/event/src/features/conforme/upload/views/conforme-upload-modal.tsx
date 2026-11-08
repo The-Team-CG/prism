@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileUp, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import type { PrismConformeExecution, PrismInquiry } from "@prism/types";
+import { readDocxText } from "@/features/conforme/signing/model/docx-template-text";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 interface ConformeUploadModalProps {
   inquiry: PrismInquiry;
   onUpload: (file: File) => Promise<void>;
-  onPrepareDigital: () => Promise<PrismConformeExecution>;
+  onPrepareDigital: (templateContent?: string) => Promise<PrismConformeExecution>;
   onRefreshDigital: () => Promise<PrismConformeExecution>;
   onSignDigital: (execution: PrismConformeExecution) => Promise<PrismConformeExecution>;
   onDownloadPdf: () => Promise<void>;
@@ -113,10 +114,17 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
     }
   }
 
+  const [wordTemplate, setWordTemplate] = useState<{ fileName: string; text: string } | null>(null);
+  async function chooseWordTemplate(templateFile: File | undefined) {
+    setApiError(null);
+    if (!templateFile) { setWordTemplate(null); return; }
+    try { setWordTemplate({ fileName: templateFile.name, text: await readDocxText(await templateFile.arrayBuffer()) }); }
+    catch (err) { setWordTemplate(null); setApiError(err instanceof Error ? err.message : "Unable to read the Word template."); }
+  }
   async function prepareDigital() {
     setDigitalBusy(true);
     setApiError(null);
-    try { setDigitalExecution(await onPrepareDigital()); }
+    try { setDigitalExecution(await onPrepareDigital(wordTemplate?.text)); }
     catch (err) { setApiError(err instanceof Error ? err.message : "Unable to prepare the in-app conforme."); }
     finally { setDigitalBusy(false); }
   }
@@ -147,8 +155,19 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
   return <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-label="Upload signed conforme">
     <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
       <DigitalExecutionPanel execution={digitalExecution} busy={digitalBusy} consent={digitalConsent} onConsent={setDigitalConsent} onRefresh={refreshDigital} onPrepare={prepareDigital} onSign={signDigital} />
-      {phase === "success" ? <UploadSuccess inquiry={inquiry} /> : <ConformeUploadForm inquiry={inquiry} phase={phase} file={file} validationError={validationError} apiError={apiError} digitalBusy={digitalBusy} fileInputRef={fileInputRef} selectButtonRef={selectButtonRef} onClose={onClose} onFileChange={handleFileChange} onPrepareDigital={prepareDigital} onDownloadPdf={downloadPdf} onSubmit={handleSubmit} />}
+      {phase === "success" ? <UploadSuccess inquiry={inquiry} /> : <ConformeUploadForm inquiry={inquiry} phase={phase} file={file} validationError={validationError} apiError={apiError} digitalBusy={digitalBusy} fileInputRef={fileInputRef} selectButtonRef={selectButtonRef} onClose={onClose} onFileChange={handleFileChange} onPrepareDigital={prepareDigital} onDownloadPdf={downloadPdf} onSubmit={handleSubmit} wordTemplateControl={<WordTemplatePicker template={wordTemplate} disabled={digitalBusy} onChoose={(templateFile) => void chooseWordTemplate(templateFile)} />} />}
     </div>
+  </div>;
+}
+
+/** FR-67: PMCM reuses its own Word conforme template; {{clientName}}, {{companyName}}, {{email}}, {{eventName}}, {{eventType}} and {{eventDate}} are prefilled. */
+function WordTemplatePicker({ template, disabled, onChoose }: { template: { fileName: string; text: string } | null; disabled: boolean; onChoose: (file: File | undefined) => void }) {
+  return <div className="space-y-1 text-xs text-muted-foreground">
+    <label className="block font-semibold text-foreground">Word template (optional)
+      <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" disabled={disabled} onChange={(event) => onChoose(event.currentTarget.files?.[0])} className="mt-1 block w-full text-xs font-normal" />
+    </label>
+    <p>Fields: {"{{clientName}}"}, {"{{companyName}}"}, {"{{email}}"}, {"{{eventName}}"}, {"{{eventType}}"}, {"{{eventDate}}"}. Without a template, the standard Prism conforme is used.</p>
+    {template ? <p className="text-foreground">Using {template.fileName} ({template.text.length.toLocaleString("en-PH")} characters).</p> : null}
   </div>;
 }
 
@@ -178,12 +197,12 @@ function UploadSuccess({ inquiry }: { inquiry: PrismInquiry }) {
   return <div className="flex flex-col items-center gap-3 py-4"><CheckCircle2 className="size-10 text-success" /><p className="text-sm font-bold text-foreground">Conforme uploaded</p><p className="text-xs text-muted-foreground">{inquiry.clientName} — {inquiry.eventName}</p></div>;
 }
 
-function ConformeUploadForm({ inquiry, phase, file, validationError, apiError, digitalBusy, fileInputRef, selectButtonRef, onClose, onFileChange, onPrepareDigital, onDownloadPdf, onSubmit }: { inquiry: PrismInquiry; phase: ModalPhase; file: File | null; validationError: string | null; apiError: string | null; digitalBusy: boolean; fileInputRef: React.RefObject<HTMLInputElement | null>; selectButtonRef: React.RefObject<HTMLButtonElement | null>; onClose: () => void; onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onPrepareDigital: () => Promise<void>; onDownloadPdf: () => Promise<void>; onSubmit: () => Promise<void> }) {
+function ConformeUploadForm({ inquiry, phase, file, validationError, apiError, digitalBusy, fileInputRef, selectButtonRef, onClose, onFileChange, onPrepareDigital, onDownloadPdf, onSubmit, wordTemplateControl }: { wordTemplateControl?: React.ReactNode; inquiry: PrismInquiry; phase: ModalPhase; file: File | null; validationError: string | null; apiError: string | null; digitalBusy: boolean; fileInputRef: React.RefObject<HTMLInputElement | null>; selectButtonRef: React.RefObject<HTMLButtonElement | null>; onClose: () => void; onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void; onPrepareDigital: () => Promise<void>; onDownloadPdf: () => Promise<void>; onSubmit: () => Promise<void> }) {
   const busy = phase === "uploading";
   return <>
     <div className="flex items-start justify-between gap-3"><div><h3 className="text-base font-bold text-foreground">Upload signed conforme</h3><p className="mt-1 text-sm text-muted-foreground">{inquiry.clientName} — {inquiry.eventName}</p></div><button type="button" onClick={onClose} disabled={busy} className="rounded-lg p-1 text-muted-foreground hover:bg-secondary disabled:opacity-50" aria-label="Close"><X className="size-4" /></button></div>
     <FileSelection file={file} busy={busy} inputRef={fileInputRef} buttonRef={selectButtonRef} onFileChange={onFileChange} />
-    <section className="mt-4 space-y-2 rounded-lg border border-border bg-background p-4"><h4 className="text-sm font-bold text-foreground">In-app acknowledgment</h4><p className="text-xs leading-5 text-muted-foreground">Prepare an immutable, prefilled conforme for client review. The workspace opens after both acknowledgments are recorded.</p><Button type="button" variant="outline" disabled={digitalBusy} onClick={() => void onPrepareDigital()} className="rounded-lg font-bold">{digitalBusy ? "Preparing…" : "Prepare in-app conforme"}</Button><Button type="button" variant="outline" onClick={() => void onDownloadPdf()} className="rounded-lg font-bold">Download conforme PDF for physical signing</Button></section>
+    <section className="mt-4 space-y-2 rounded-lg border border-border bg-background p-4"><h4 className="text-sm font-bold text-foreground">In-app acknowledgment</h4><p className="text-xs leading-5 text-muted-foreground">Prepare an immutable, prefilled conforme for client review. The workspace opens after both acknowledgments are recorded.</p>{wordTemplateControl}<Button type="button" variant="outline" disabled={digitalBusy} onClick={() => void onPrepareDigital()} className="rounded-lg font-bold">{digitalBusy ? "Preparing…" : "Prepare in-app conforme"}</Button><Button type="button" variant="outline" onClick={() => void onDownloadPdf()} className="rounded-lg font-bold">Download conforme PDF for physical signing</Button></section>
     {(validationError || apiError) ? <UploadError message={validationError || apiError || "Upload failed"} /> : null}
     <UploadActions file={file} validationError={validationError} busy={busy} onClose={onClose} onSubmit={onSubmit} />
   </>;
