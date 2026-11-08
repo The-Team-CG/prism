@@ -1,7 +1,7 @@
 import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, OpsInquiryMerge, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type UpdateInquiryCompanyNameInput } from '@prism/types';
+import { type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type SetInquiryIntakePathInput, type UpdateInquiryCompanyNameInput } from '@prism/types';
 import {
   ACCOUNT_PROVISIONING,
   type AccountInvitationActor,
@@ -19,6 +19,7 @@ import { AuditActionType, AuditCategory, OpsUserRole, PortalInvitationStatus, Wo
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { claimConformeReminderWindow } from './conforme-reminder-window';
+import { mapInquirySummary } from './inquiry.mappers';
 
 export type CreateInquiryInput = {
   clientName: string;
@@ -620,6 +621,35 @@ export class InquiriesService {
         metadata: { fromName, toName: input.companyName, reason: input.reason, actorId: verifiedActor.id ?? null },
       }, { prisma: tx, correlationId: `inquiry-company-name:${change.id}`, actorId: verifiedActor.id });
       return mapCompanyNameChange(change);
+    });
+  }
+
+  /** FR-02: PMCM moves an inquiry onto the bidding path (with bid status and due date) or back to the standard path. */
+  async setIntakePath(inquiryId: string, input: SetInquiryIntakePathInput, actor: ResolvedEventOpsActor) {
+    const verifiedActor = this.requireVerifiedActor(actor);
+    if (verifiedActor.role !== OpsUserRole.PmcmAdmin && verifiedActor.role !== OpsUserRole.System) {
+      throw new ForbiddenException('Only PMCM can change the inquiry path');
+    }
+    const bidding = input.intakePath === 'bidding';
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.opsInquiry.findUnique({ where: { id: inquiryId }, select: { id: true } });
+      if (!existing) throw new NotFoundException('Inquiry not found');
+      const inquiry = await tx.opsInquiry.update({ where: { id: inquiryId }, data: {
+        intakePath: input.intakePath,
+        bidStatus: bidding ? input.bidStatus : null,
+        bidDueAt: bidding && input.bidDueAt ? new Date(input.bidDueAt) : null,
+      } });
+      await writeAudit(this.auditWriter, undefined, verifiedActor.name, bidding ? `Bidding path: bid ${input.bidStatus}` : 'Moved inquiry to the standard path', {
+        actorRole: verifiedActor.role,
+        actorEmail: verifiedActor.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Events,
+        affectedType: 'inquiry',
+        affectedId: inquiryId,
+        affectedLabel: inquiry.eventName,
+        metadata: { intakePath: input.intakePath, bidStatus: input.bidStatus ?? null, bidDueAt: input.bidDueAt ?? null, actorId: verifiedActor.id ?? null },
+      }, { prisma: tx, correlationId: `inquiry-intake-path:${inquiryId}:${Date.now()}`, actorId: verifiedActor.id });
+      return mapInquirySummary(inquiry);
     });
   }
 

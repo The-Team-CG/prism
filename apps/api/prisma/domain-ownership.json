@@ -21,7 +21,7 @@
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
         "tables": 34,
-        "columns": 468
+        "columns": 471
       },
       {
         "domain": "commercial",
@@ -155,7 +155,7 @@
       "table": "inquiries",
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
-      "columnCount": 36
+      "columnCount": 39
     },
     {
       "model": "OpsInquiryStatusHistory",

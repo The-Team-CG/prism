@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM can put an inquiry on the bidding path with a bid status (preparing, submitted, won, lost) and due date; the onboarding tracker lists bids apart from standard onboarding.
 - The compliance engine checks six universal Must-Fix items (conforme, briefing, supplier readiness, coordinator coverage, billing source, required files) plus eighteen event-type rules for weddings, private celebrations, corporate meetings, launches, public events and galas; a missing briefing or required file now blocks readiness.
 - After a completed ocular visit, PMCM records the venue size, pillars, exits, doors, fixed stage side, loading bay and rules, and the venue library loads them locked onto the next floor plan.
 - PMCM can scout venues for a client without one: at least three options with location, capacity, price range and available dates are shared together, and the client marks one preference in the portal.

@@ -1,6 +1,6 @@
 import type { OpsDocument, OpsEvent, OpsFloorPlanDraft, OpsInquiry, OpsInquiryMerge } from '@prisma/client';
 import { guestAccessCode } from '@prism/contexts/operations';
-import { inquiryPendingFullDetails } from '@prism/types';
+import { inquiryPendingFullDetails, type PrismInquiry } from '@prism/types';
 import { isDeterministicHighFitInquiry } from '../../domain/inquiry-triage.policy';
 
 type EventWithDrafts = OpsEvent & { floorPlanDrafts?: OpsFloorPlanDraft[] };
@@ -135,6 +135,9 @@ export function mapPublicInquiryReceipt(inquiry: OpsInquiry) {
     mergeHistory: _mergeHistory,
     parallelInquiryIds: _parallelInquiryIds,
     highFit: _highFit,
+    intakePath: _intakePath,
+    bidStatus: _bidStatus,
+    bidDueAt: _bidDueAt,
     ...publicFields
   } = mapped;
   return publicFields;
@@ -174,6 +177,9 @@ export function mapInquirySummary(inquiry: OpsInquiry) {
     portalInvitationSentAt: optionalTimestamp(inquiry.portalInvitationSentAt),
     portalInvitationOpenedAt: optionalTimestamp(inquiry.portalInvitationOpenedAt),
     portalInvitationExpiresAt: optionalTimestamp(inquiry.portalInvitationExpiresAt),
+    intakePath: inquiry.intakePath === 'bidding' ? 'bidding' : 'standard',
+    bidStatus: (inquiry.bidStatus ?? null) as PrismInquiry['bidStatus'],
+    bidDueAt: optionalTimestamp(inquiry.bidDueAt),
     createdAt: timestamp(inquiry.createdAt),
   };
 }
