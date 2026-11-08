@@ -61,7 +61,6 @@ import {
   releasePrivacyLegalHoldSchema,
   createRegistrationPlatformSchema,
   updateRegistrationPlatformSchema,
-  uploadContractSchema,
   registerLifecycleDocumentSchema,
   importHeadcountSchema,
   submitBriefingSchema,
@@ -508,20 +507,6 @@ describe("event-ops write schemas", () => {
   it("validates supplier quote amount", () => {
     expect(submitSupplierQuoteSchema.safeParse({ amount: 12000 }).success).toBe(true);
     expect(submitSupplierQuoteSchema.safeParse({ amount: -1 }).success).toBe(false);
-  });
-
-  it("requires an idempotency key for supplier contract metadata", () => {
-    expect(uploadContractSchema.safeParse({
-      fileName: "contract.pdf",
-      mimeType: "application/pdf",
-      sizeBytes: 2048,
-    }).success).toBe(false);
-    expect(uploadContractSchema.safeParse({
-      fileName: "contract.pdf",
-      mimeType: "application/pdf",
-      sizeBytes: 2048,
-      idempotencyKey: "contract-submit-1",
-    }).success).toBe(true);
   });
 
   it("requires document ownership, target, verified actor, and replay metadata on registration", () => {

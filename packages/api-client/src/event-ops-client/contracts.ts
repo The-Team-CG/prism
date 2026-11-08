@@ -45,7 +45,6 @@ export type {
   UpdateRegistrationPlatformInput,
   UpdateSupplierEventStatusInput,
   UploadConformeInput,
-  UploadContractInput,
 } from "@prism/types";
 
 export interface EventOpsClient
