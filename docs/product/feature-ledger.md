@@ -8,7 +8,7 @@ updated: "2026-11-09"
 authority: normative
 audience: [product, engineering, design, agents]
 scope: "Prism feature-family decisions, ownership, sequencing, and closure evidence"
-last_verified: "2026-11-09; every V4 catalog feature re-checked against code after the partial-completion batch (#357-#366); family states and policy gates retained"
+last_verified: "2026-11-09; every V4 catalog feature re-checked against code after the build-out batch (#368-#376); family states and policy gates retained"
 sources:
   - id: v4-reference
     resource: "docs/reference/prism-v4/complete-feature-catalog.md"
@@ -213,35 +213,32 @@ production delivery and live database performance stay separate evidence.
 
 | Result | Features |
 | --- | --- |
-| Done | 96 |
-| Partial | 16 (all non-AI) |
+| Done | 124 |
+| Partial | 11 (all non-AI; each waits on Viber, Canva, Zoom, a recorded decision or legal sign-off) |
 | Built, held behind an external gate | 0 |
-| Not built | 23 (17 non-AI, 6 AI) |
+| Not built | 0 |
 
 **Done:** FR-01 Inquiry Intake Log · FR-08 Floor Plan Upload and Client Approval · FR-12 EOD Report Inbox · FR-14 Supplier Directory · FR-15 Tier 1/Tier 2 Designation · FR-17 Quote Request and Comparison · FR-18 Competitive Bidding · FR-21 Post-Event Additional Billing · FR-22 Post-Event Documentation Tracker · FR-23 Event Archive with Search · FR-26 Portal Gated by Signed Conforme · FR-27 Event Progress Visibility · FR-28 Client Draft Floor Plan · FR-29 Official Floor Plan Approval · FR-31 Styling Budget Confirmation · FR-32 Document Submission Portal · FR-33 Per-Event File Hub Access · FR-35 Supplier Profile · FR-37 Assignment Confirmation · FR-38 Contract Upload · FR-45 Referral Details · FR-46 Public Inquiry Page · FR-47 Spatial Preference Form · FR-48 Referral Source Dropdown · FR-51 Client Type Field · FR-52 Send Inquiry Link and Log on Behalf · FR-56 Data Anonymization · FR-58 Event Briefing Form · FR-66 Venue Ocular Task Trigger · FR-68 Dual Signing Path · FR-69 Payment Terms · FR-78 Ingress and Egress Schedule · FR-80 Floor Plan Builder · FR-83 Client Annotation and Approval · FR-88 Coordinator Double Booking · FR-90 Coordinator Acknowledgment · FR-93 Partial Payments · FR-94 Statement to Proposal Link · New-C1 Coordinator Role Views · New-C2 System Operator Tag · New-C3 Late/No-Show Flag · New-CL2 Event Day Limited View · New-CO1 Coordinator Homepage · New-CO4 Ingress/Egress Assistant View · New-CO5 Operator View · New-CO6 Usher/General Coordinator View · New-GU1 Ticketed Registration Coordination · New-P5 Billing Waiver · New-S1/New-SUP3/New-EX1 Supplier Registration · New-S2 Applications Inbox · New-S3 Pending First Event · New-S4 Performance Assessment · New-S5 Internal Supplier Review · New-SUP1 Event-Day Status Updates · New-SUP2 Readiness Confirmation · New-SUP4 Application Status · New-SY1 Wrap-Up Screen · New-SY2 One-Screen Close · New-SY3 Change Freeze · New-SY4 Addendum Conforme · New-SEC1 Authentication and Sessions · New-SEC4 Audit Trail · FR-02 Client Onboarding Tracker · FR-03 Conforme and MOA Storage · FR-04 Per-Event File Hub · FR-05 Live Operations Dashboard · FR-06 Compliance Engine · FR-07 Risk Assessment · FR-10 Venue Scouting · FR-19 Cost Estimation Builder · FR-36/FR-49 Quote Submission / Confidential Bid · FR-39 Digital Registration and Masterlist · FR-40 Event Games · FR-44 Organization Merge · FR-60 Proposal Review · FR-63 Supplier Gap Warning · FR-77 Contract Mismatch Warning · FR-81 Venue Library · FR-84 Table Assignment List · FR-87 Creative Designer Sub-Ticket · FR-89 Coordinator Withdrawal · FR-91 Coordinator Availability · FR-92 Payment Milestones · FR-95 Lightweight Digital Registration · FR-96 Cancellation · FR-97 Postponement · New-CL1 Walk-In Policy · New-CO2 Floor/Stage Director View · New-CO3 Registration Staff View · New-P1 Event Comparison · FR-AI-01 Inquiry Triage · FR-AI-03 Proposal Drafting · FR-AI-04 PARE · FR-AI-04b PARE Supplier Recommendation · FR-AI-09 Client Communication Assistant · FR-AI-ZDR Governance Layer.
 
 **Partial**, with the missing part:
 
-- FR-09 Moodboard Upload: no moodboard upload the client can open; the budget-versus-expectation check and revision history are done.
-- FR-13 Coordinator Assignment: no Viber leg.
+- FR-13 Coordinator Assignment: no Viber leg (no Viber provider).
 - FR-20 Billing Statement Generation: issued by PMCM, not on signing (decision below).
-- FR-25 Dual Notifications: email only; Viber has no provider; no channel preference.
+- FR-25 Dual Notifications: email only; Viber has no provider, so there is no second channel to choose (decision below).
 - FR-34 Task/Milestone Notifications: no Viber.
-- FR-41 Guest Experience Upload: no post-event QR; media recorded as `pending_storage`.
+- FR-59 Canva and PowerPoint Integration: an issued proposal downloads as a PowerPoint deck; no Canva connection.
+- FR-61 Zoom Meeting Scheduler: PMCM offers two to four times with a pasted meeting link, the client books one, both get a calendar file, and attendance and at-risk are tracked; no Zoom API, so meetings are not created in Zoom.
 - FR-64 Supplier Thread: no Viber; email only points to the portal.
-- FR-67 Template Pre-Fill: Word conforme templates are prefilled; no billing-statement prefill.
 - FR-75 Supplier Assignment Notice: no Viber leg.
-- FR-79 Supplier Reliability Notes: automatic notes on withdrawal, late ingress, contract mismatch and low assessments; no automatic note for a supplier no-show.
 - New-C4 Task Reassignment: approval stays manual by policy; no phone notification.
-- New-EX2 Guest Feedback Page: no QR entry to the feedback page.
-- New-P2 Event Insights Card: no PEIL analysis.
 - New-P3 Client Testimonials: no Canva fill.
-- New-SEC2 Privacy Module: retention off by default; no finance category; queue capped at 200; no personal information inventory.
-- New-SEC3 Upload Validation: the metadata-only supplier contract route is removed; supplier status photos and guest feedback media still register from declared metadata, so no file-signature check runs on them.
+- New-SEC2 Privacy Module: retention stays off by default until legal sign-off on the defaults. The inventory now covers inquiry, guest and finance surfaces, and the request queue is paged.
 
 **Built, held behind an external gate:** none. FR-AI-01 and every other AI use case go live once the deployment sets `ANTHROPIC_API_KEY` and `AI_ZDR_CONFIRMED=true` (the ZDR agreement is confirmed); camera QR scanning needs HTTPS and a browser with a built-in QR reader, with typed pass codes as the fallback.
 
-**Not built:** FR-16 Supplier Selection Policy Layer · FR-24 Toggle System · FR-30 Moodboard Client Approval · FR-42 Guest Pass Promotional Sample · FR-43 Bid Workspace · FR-50 Abandoned Inquiry Draft Save · FR-53 Pre-Conforme Context Notes · FR-54 Pre-Conforme Document Attachment · FR-55 Bilingual Email Templates · FR-59 Canva and PowerPoint Integration · FR-61 Zoom Meeting Scheduler · FR-62 Tiered Package Options · FR-65 Client-Owned Supplier Sub-Ticket · FR-70 Accreditation Tracker · FR-76 Supplier Unresponsive Escalation · FR-82 Quick Setup Presets · New-P4 Logistics Booking Record. AI: FR-10+ Compliance Advisory · FR-11/FR-15 Theme and Moodboard Suggestions · FR-AI-05 Operations Assistant · FR-AI-06 Reliability Scoring · FR-AI-07 Event-Day Copilot · FR-AI-08 PEIL.
+**Not built:** none.
+
+**Moved to Done in #368-#376:** FR-09 Moodboard Upload · FR-16 Supplier Selection Policy Layer · FR-24 Toggle System · FR-30 Moodboard Client Approval · FR-41 Guest Experience Upload · FR-42 Guest Pass Promotional Sample · FR-43 Bid Workspace · FR-50 Abandoned Inquiry Draft Save · FR-53 Pre-Conforme Context Notes · FR-54 Pre-Conforme Document Attachment · FR-55 Bilingual Email Templates · FR-62 Tiered Package Options · FR-65 Client-Owned Supplier Sub-Ticket · FR-67 Template Pre-Fill · FR-70 Accreditation Tracker · FR-76 Supplier Unresponsive Escalation · FR-79 Supplier Reliability Notes · FR-82 Quick Setup Presets · New-EX2 Guest Feedback Page · New-P2 Event Insights Card · New-P4 Logistics Booking Record · New-SEC3 Upload Validation. AI: FR-10+ Compliance Advisory · FR-11/FR-15 Theme and Moodboard Suggestions · FR-AI-05 Operations Assistant · FR-AI-06 Reliability Scoring · FR-AI-07 Event-Day Copilot · FR-AI-08 PEIL. FR-55's Filipino copy still needs review by a fluent speaker before launch.
 
 **Recorded decisions where code differs from the catalog text:**
 
@@ -255,6 +252,12 @@ production delivery and live database performance stay separate evidence.
 - FR-AI-04: PARE coordinator mode ranks and drafts by rule (coordinators have no budget stage) and waits for PMCM approval; the AI model is used only in supplier mode.
 - FR-39/FR-95: the API holds no guest portal URL, so PMCM sends each guest's pass link from the event portal; the pass page draws the QR from the link alone.
 - New-CL1: the client owns the walk-in policy until event day; PMCM owns it from event day on.
+- FR-43: a bid's workspace is the inquiry's locked pre-conforme record. PMCM can hold the TOR and bid documents, send confidential quote requests, prepare venue options and build the cost estimate there before signing. Styling options keep the FR-31 confirmed-budget gate, so a bid's styling concept goes in the bid proposal document. A won bid accepts the inquiry; a lost bid is left for PMCM to close, because the decline email would be wrong for a lost pitch.
+- FR-61: PMCM pastes the Zoom, Meet or Teams link; the system schedules, books and tracks the meeting without a Zoom API.
+- FR-25: no notification channel preference while email is the only channel.
+- FR-AI-07: the copilot advises the operator and never acts; the panel polls each minute and reuses the last advice while the minimized facts are unchanged.
+- FR-AI-05: the assistant answers from event-level counts and statuses only and has no tools; suggested next steps are text PMCM acts on.
+- New-SEC3: the coordinator on-site status form takes no photo; suppliers attach byte-checked photos to their own status updates, and guest feedback media is stored only after the byte check.
 
 ## Next Ledger Maintenance
 
