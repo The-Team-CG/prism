@@ -95,6 +95,7 @@ export function LiveOpsScheduleDesk({
                 busy={vm.busy}
                 canReply={canReplyToReports}
                 onReply={(value) => vm.replyToReport(report.id, value)}
+                onSetIncompleteTasks={(flagged) => vm.setReportIncompleteTasks(report.id, flagged)}
               />
             ))}
           </div>
@@ -392,12 +393,13 @@ function HandoffRow({ handoff, days, assignments }: {
   );
 }
 
-function EodReportCard({ report, day, busy, canReply, onReply }: {
+function EodReportCard({ report, day, busy, canReply, onReply, onSetIncompleteTasks }: {
   report: PrismEventEodReport;
   day?: PrismEventScheduleDay;
   busy: boolean;
   canReply: boolean;
   onReply: (value: unknown) => Promise<boolean>;
+  onSetIncompleteTasks: (flagged: boolean) => Promise<boolean>;
 }) {
   const [reply, setReply] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -415,6 +417,11 @@ function EodReportCard({ report, day, busy, canReply, onReply }: {
         <h4 className="font-semibold text-foreground">{day?.label || (day ? formatDate(day.dayDate) : "Event day report")}</h4>
         <p className="text-sm text-muted-foreground">{report.authoredByRole} · {formatDateTime(report.submittedAt)}</p>
       </header>
+      {report.incompleteTasksFlaggedAt ? (
+        <p className="rounded-md bg-danger/10 px-3 py-2 text-sm font-semibold text-danger">
+          Incomplete tasks flagged by PMCM{report.incompleteTasksFlaggedBy ? ` (${report.incompleteTasksFlaggedBy})` : ""} · {formatDateTime(report.incompleteTasksFlaggedAt)}
+        </p>
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-3">
         {sections.map(([label, items]) => (
           <div key={label}>
@@ -427,6 +434,13 @@ function EodReportCard({ report, day, busy, canReply, onReply }: {
         <ul className="space-y-2 border-t border-border pt-3">
           {report.replies.map((item) => <li key={item.id} className="text-sm"><span className="font-semibold">{item.authorRole}:</span> <span className="text-muted-foreground">{item.body}</span></li>)}
         </ul>
+      ) : null}
+      {canReply ? (
+        <div className="flex flex-wrap justify-end gap-2 border-t border-border pt-3">
+          <button type="button" disabled={busy} onClick={() => void onSetIncompleteTasks(!report.incompleteTasksFlaggedAt)} className={secondaryButtonClass}>
+            {report.incompleteTasksFlaggedAt ? "Clear incomplete-task flag" : "Flag incomplete tasks"}
+          </button>
+        </div>
       ) : null}
       {canReply ? (
         <form onSubmit={submit} className="flex flex-col gap-2 border-t border-border pt-3 sm:flex-row">

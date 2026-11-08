@@ -1,5 +1,5 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { CreateRegistrationPlatformInput, ImportHeadcountInput, ImportGuestRosterInput, UpdateWalkInPolicyInput, GuestRosterSearchInput, UpdateGuestVerificationInput, UpdateRegistrationPlatformInput, UpdateGuestPrivacyClassificationInput } from "@prism/types";
+import type { CreateRegistrationPlatformInput, ImportHeadcountInput, ImportGuestRosterInput, UpdateWalkInPolicyInput, GuestRosterSearchInput, UpdateGuestVerificationInput, UpdateRegistrationPlatformInput, UpdateRegistrationPlatformSetupInput, UpdateGuestPrivacyClassificationInput } from "@prism/types";
 
 export const guestCommands = {
 checkInGuestRoster: (eventId: string, rosterEntryId: string) => eventOpsClient.guest.checkInRoster(eventId, rosterEntryId),
@@ -15,5 +15,7 @@ upsertRegistrationPlatform: (eventId: string, input: CreateRegistrationPlatformI
     eventOpsClient.pmcm.upsertRegistrationPlatform(eventId, input),
   updateRegistrationPlatform: (eventId: string, input: UpdateRegistrationPlatformInput) =>
     eventOpsClient.pmcm.updateRegistrationPlatform(eventId, input),
+  updateRegistrationPlatformSetup: (eventId: string, input: UpdateRegistrationPlatformSetupInput) =>
+    eventOpsClient.pmcm.updateRegistrationPlatformSetup(eventId, input),
 verifyGuestRoster: (eventId: string, rosterEntryId: string, status: UpdateGuestVerificationInput["status"]) => eventOpsClient.guest.verifyRoster(eventId, rosterEntryId, { status }),
 };

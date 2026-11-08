@@ -135,6 +135,11 @@ export function createWorkspacesClient(
           actorPath(`/events/${eventId}/registration-platform`, actor),
           withBase(options, { method: "PATCH", body: input }),
         ),
+      updateRegistrationPlatformSetup: (eventId, input, actor = {}) =>
+        prismRequest<PrismRegistrationPlatform>(
+          actorPath(`/events/${eventId}/registration-platform/setup-confirmation`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
       importHeadcount: (eventId, input, actor = {}) =>
         prismRequest<PrismRegistrationPlatform>(
           actorPath(

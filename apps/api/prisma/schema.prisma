@@ -1747,6 +1747,8 @@ model OpsEventEodReport {
   issues           Json     @default("[]")
   risksForTomorrow Json     @default("[]") @map("risks_for_tomorrow")
   submittedAt      DateTime @map("submitted_at")
+  incompleteTasksFlaggedAt DateTime? @map("incomplete_tasks_flagged_at")
+  incompleteTasksFlaggedBy String?   @map("incomplete_tasks_flagged_by")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -2581,6 +2583,8 @@ model OpsGuestRosterEntry {
   importBatchId            String?   @map("import_batch_id")
   checkedInAt              DateTime? @map("checked_in_at")
   withdrawnAt              DateTime? @map("withdrawn_at")
+  verificationFlaggedAt    DateTime? @map("verification_flagged_at")
+  verificationFlaggedBy    String?   @map("verification_flagged_by")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at")
 
@@ -2672,6 +2676,7 @@ model OpsRegistrationPlatform {
   expectedPaxMax    Int       @default(0) @map("expected_pax_max")
   status            String    @default("not_started") @map("status")
   setupConfirmedAt  DateTime? @map("setup_confirmed_at") @db.Timestamptz(6)
+  setupRequestedAt  DateTime? @map("setup_requested_at") @db.Timestamptz(6)
   setupNotes        String    @default("") @map("setup_notes")
   headcountSource   String    @default("") @map("headcount_source")
   importedHeadcount Int       @default(0) @map("imported_headcount")

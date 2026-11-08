@@ -1,4 +1,4 @@
-import type { CreateEventEodReplyInput, CreateEventEodReportInput, CreateEventHandoffInput, CreateEventScheduleDayInput, CreateEventScheduleSegmentInput, PrismCoordinatorEventSchedule, PrismEventEodReport, PrismEventHandoff, PrismEventRunSheetResult, PrismEventSchedule, PrismEventScheduleSegment, UpdateEventScheduleSegmentStatusInput } from '@prism/types';
+import type { CreateEventEodReplyInput, CreateEventEodReportInput, SetEventEodIncompleteTasksInput, CreateEventHandoffInput, CreateEventScheduleDayInput, CreateEventScheduleSegmentInput, PrismCoordinatorEventSchedule, PrismEventEodReport, PrismEventHandoff, PrismEventRunSheetResult, PrismEventSchedule, PrismEventScheduleSegment, UpdateEventScheduleSegmentStatusInput } from '@prism/types';
 import { eventApi, eventApiRequest } from '@/lib/prism-api';
 import { startEventDaySchema, type PrismEvent, type StartEventDayResult } from '@prism/types';
 
@@ -17,4 +17,5 @@ export const liveOpsScheduleRepository = {
   listEodReports(eventId: string): Promise<PrismEventEodReport[]> { return eventApi.liveOps.listEodReports(eventId); },
   submitEodReport(eventId: string, input: CreateEventEodReportInput): Promise<PrismEventEodReport> { return eventApi.liveOps.submitEodReport(eventId, input); },
   replyEodReport(eventId: string, reportId: string, input: CreateEventEodReplyInput) { return eventApi.liveOps.replyEodReport(eventId, reportId, input); },
+  setEodIncompleteTasks(eventId: string, reportId: string, input: SetEventEodIncompleteTasksInput): Promise<PrismEventEodReport> { return eventApi.liveOps.setEodIncompleteTasks(eventId, reportId, input); },
 };

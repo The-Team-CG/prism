@@ -11,6 +11,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The public inquiry has an optional room set-up section (seating arrangement, stage position, notes), shown read-only in the PMCM inquiry drawer.
 - PMCM can log an inquiry on behalf of a client with only the name, email, event name and date; anything else missing shows as Pending Full Details until it is filled in.
 - PMCM has five days after the recorded actual end of an event to endorse post-event deliverables; the countdown and overdue warning follow that five-day deadline instead of 24 hours.
+- PMCM can flag an end-of-day report as having incomplete tasks; the flag shows on the report in the PMCM inbox and to the coordinator who submitted it.
+- Registration staff can flag an unauthorized walk-in for verification; the walk-in stays blocked from check-in until PMCM verifies it, and the flagged count shows on the run sheet.
+- PMCM tracks the registration platform setup confirmation (requested, then confirmed), shown with the platform record and on the run sheet guest-operations block.
 - Clients and suppliers can submit their own privacy requests and track their status; PMCM still verifies and carries them out.
 - Supplier file requirement reminders go only to the suppliers who are overdue or need to replace a rejected file.
 - File access follows one policy for lists and downloads: coordinators need a current assignment, suppliers see only their own files on selected bookings, and failed uploads are no longer shown outside PMCM.

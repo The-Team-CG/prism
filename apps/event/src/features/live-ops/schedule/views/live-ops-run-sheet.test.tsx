@@ -39,9 +39,9 @@ function runSheetFixture(overrides: Partial<PrismEventRunSheet> = {}): PrismEven
 }
 
 const guestOperationsFixture: NonNullable<PrismEventRunSheet["guestOperations"]> = {
-  registrationPlatform: { platformType: "xperto", status: "live", expectedPaxMin: 180, expectedPaxMax: 220 },
+  registrationPlatform: { platformType: "xperto", status: "live", setupConfirmationStatus: "confirmed", expectedPaxMin: 180, expectedPaxMax: 220 },
   walkIn: { policy: "threshold", threshold: 40 },
-  rosterVerification: { verified: 150, pending: 12 },
+  rosterVerification: { verified: 150, pending: 12, flagged: 2 },
   registrationStaff: [{ coordinatorName: "Rhea Santos", role: "Registration Staff", status: "acknowledged" }],
 };
 
@@ -80,9 +80,9 @@ describe("LiveOpsRunSheetView", () => {
     renderView(runSheetFixture({ guestOperations: guestOperationsFixture }), new Date("2026-08-20T08:00:00.000Z"));
 
     const block = screen.getByRole("region", { name: "Guest operations" });
-    expect(within(block).getByText("Xperto · Live · expected 180–220 guests")).toBeTruthy();
+    expect(within(block).getByText("Xperto · Live · setup Confirmed · expected 180–220 guests")).toBeTruthy();
     expect(within(block).getByText("At threshold of 40")).toBeTruthy();
-    expect(within(block).getByText("150 verified · 12 pending")).toBeTruthy();
+    expect(within(block).getByText("150 verified · 12 pending · 2 flagged for verification")).toBeTruthy();
     expect(within(block).getByText("Rhea Santos · Registration Staff · Acknowledged")).toBeTruthy();
   });
 

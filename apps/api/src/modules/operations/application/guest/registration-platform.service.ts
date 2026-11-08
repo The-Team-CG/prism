@@ -9,7 +9,9 @@ import type {
   CreateRegistrationPlatformInput,
   ImportHeadcountInput,
   PrismRegistrationPlatform,
+  PrismRegistrationPlatformSetupConfirmationStatus,
   UpdateRegistrationPlatformInput,
+  UpdateRegistrationPlatformSetupInput,
 } from '@prism/types';
 import type { RegistrationPlatformReader } from '../../contracts/registration-platform-reader.port';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
@@ -190,6 +192,61 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
     });
   }
 
+  /** PMCM tracks the Digital Registration supplier's setup sub-ticket: not_requested → requested → confirmed. */
+  async updateSetupConfirmation(eventId: string, input: UpdateRegistrationPlatformSetupInput, actor: ResolvedEventOpsActor): Promise<OpsRegistrationPlatform> {
+    const existing = await this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
+    if (!existing) throw new NotFoundException('Registration platform not configured for this event');
+    if (existing.status === 'closed') throw new BadRequestException('Platform setup cannot change after the registration platform is closed');
+    const from = input.action === 'request' ? 'not_requested' : 'requested';
+    const to = input.action === 'request' ? 'requested' : 'confirmed';
+    if (deriveSetupConfirmationStatus(existing) !== from) {
+      throw new BadRequestException(`Invalid platform setup transition: ${deriveSetupConfirmationStatus(existing)} to ${to}`);
+    }
+    const now = new Date();
+
+    return this.workflowCommandService.execute<OpsRegistrationPlatform>({
+      name: 'registration_platform_setup_confirmation',
+      sideEffectMode: 'same_tx',
+      validateState: async () => {
+        const event = await this.eventReferences.findOperationsEvent(eventId);
+        if (!event) throw new NotFoundException('Event not found');
+      },
+      validateStateInTransaction: async (transactionContext) => {
+        const current = await transactionContext.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } });
+        if (!current || deriveSetupConfirmationStatus(current) !== from || current.status !== existing.status) {
+          throw new ConflictException('Registration platform changed; retry the command');
+        }
+      },
+      write: (transactionContext) => {
+        const db = this.transaction(transactionContext).prisma;
+        // The status is derived from the two timestamps, so the guarded write matches the timestamp state it expects.
+        const guard = input.action === 'request'
+          ? { eventId, setupRequestedAt: null, setupConfirmedAt: null }
+          : { eventId, setupRequestedAt: { not: null }, setupConfirmedAt: null };
+        return db.opsRegistrationPlatform.updateMany({
+          where: guard,
+          data: input.action === 'request' ? { setupRequestedAt: now } : { setupConfirmedAt: now },
+        }).then(async (result: { count: number }) => {
+          if (result.count !== 1) throw new ConflictException('Registration platform changed; retry the command');
+          const updated = await db.opsRegistrationPlatform.findUnique({ where: { eventId } });
+          if (!updated) throw new NotFoundException('Registration platform not found after update');
+          return updated;
+        });
+      },
+      sideEffects: async (platform, transactionContext) => {
+        await writeAudit(this.auditWriter, eventId, actor.name, `Registration platform setup ${input.action === 'request' ? 'requested' : 'confirmed'}`, {
+          actorRole: actor.role,
+          category: AuditCategory.Events,
+          actionType: AuditActionType.Update,
+          affectedType: 'registration_platform',
+          affectedId: platform.id,
+          affectedLabel: platform.platformType,
+          metadata: { setupConfirmationStatus: to, action: input.action },
+        }, transactionContext);
+      },
+    });
+  }
+
   async importHeadcount(eventId: string, input: ImportHeadcountInput, actor: ResolvedEventOpsActor): Promise<OpsRegistrationPlatform> {
     const [existing, event] = await Promise.all([
       this.prisma.opsRegistrationPlatform.findUnique({ where: { eventId } }),
@@ -273,6 +330,8 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       expectedPaxMin: platform.expectedPaxMin,
       expectedPaxMax: platform.expectedPaxMax,
       status: platform.status as PrismRegistrationPlatform["status"],
+      setupConfirmationStatus: deriveSetupConfirmationStatus(platform),
+      setupRequestedAt: platform.setupRequestedAt?.toISOString() ?? null,
       setupConfirmedAt: platform.setupConfirmedAt?.toISOString() ?? null,
       setupNotes: platform.setupNotes,
       headcountSource: platform.headcountSource,
@@ -283,6 +342,13 @@ export class RegistrationPlatformService implements RegistrationPlatformReader {
       updatedAt: platform.updatedAt.toISOString(),
     };
   }
+}
+
+/** Single source of truth for setup confirmation: confirmed is setupConfirmedAt; requested is setupRequestedAt without it. */
+export function deriveSetupConfirmationStatus(platform: { setupRequestedAt: Date | null; setupConfirmedAt: Date | null }): PrismRegistrationPlatformSetupConfirmationStatus {
+  if (platform.setupConfirmedAt) return 'confirmed';
+  if (platform.setupRequestedAt) return 'requested';
+  return 'not_requested';
 }
 
 const ALLOWED_TRANSITIONS: Record<string, readonly string[]> = {

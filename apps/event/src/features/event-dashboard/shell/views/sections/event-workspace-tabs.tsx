@@ -472,6 +472,7 @@ function RegistrationAndGames({ initial }: { initial: "registration" | "games" }
           loadError={vm.commandDataErrors.registrationPlatform}
           onUpsert={vm.upsertRegistrationPlatform}
           onUpdate={vm.updateRegistrationPlatform}
+          onUpdateSetup={vm.updateRegistrationPlatformSetup}
           onImportHeadcount={vm.importHeadcount}
           eventId={event.id}
           onSearchRoster={vm.searchGuestRoster}
