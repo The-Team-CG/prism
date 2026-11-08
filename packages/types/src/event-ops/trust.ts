@@ -108,8 +108,24 @@ export interface PrismPrivacyRequest {
   overdue: boolean;
   /** PMCM operator user id that owns the request, or null when unassigned. */
   assignedTo: string | null;
+  /** `self_service` when the client or supplier filed the request; `pmcm_logged` when PMCM logged it. */
+  source: "pmcm_logged" | "self_service" | string;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * A requester's own privacy request. It carries only what the requester may see: no PMCM notes, assignee,
+ * review reason, or execution details. `outcomeMessage` is written server-side from the status.
+ */
+export interface PrismOwnPrivacyRequest {
+  id: string;
+  type: "access" | "correction" | "deletion" | "export" | string;
+  status: "submitted" | "approved" | "rejected" | "executed" | string;
+  submittedAt: string;
+  dueAt: string;
+  completedAt: string | null;
+  outcomeMessage: string;
 }
 
 /** One page of the PMCM privacy request queue. */
