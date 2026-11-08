@@ -42,6 +42,7 @@ import {
   clientEventSidebarItems,
   clientSidebarLinkHref,
   findClientEventNavItem,
+  CLIENT_ACCOUNT_MENU_ITEMS,
   findClientSidebarLink,
   portalViewFromLink,
   sidebarActiveItemId,
@@ -557,6 +558,7 @@ export function ClientDashboardWorkspaceView({
             />
           ) : null
         }
+        accountMenuItems={CLIENT_ACCOUNT_MENU_ITEMS}
         onSignOut={signOut}
       >
         <div className="space-y-5">

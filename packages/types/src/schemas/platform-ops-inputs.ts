@@ -2,15 +2,30 @@ import { z } from "zod";
 import { nonEmptyStringSchema, optionalTrimmedStringSchema } from "./common.js";
 /* ── Audit and privacy operations ────────────────────────────── */
 
+export const privacyRequestTypeSchema = z.enum(["access", "correction", "deletion", "export"]);
+
 export const createPrivacyRequestSchema = z.object({
   subjectType: nonEmptyStringSchema,
   subjectEmail: optionalTrimmedStringSchema,
   subjectName: optionalTrimmedStringSchema,
   eventId: optionalTrimmedStringSchema,
-  requestType: z.enum(["access", "correction", "deletion", "export"]),
+  requestType: privacyRequestTypeSchema,
   requestNotes: optionalTrimmedStringSchema,
 });
 export type CreatePrivacyRequestInput = z.infer<typeof createPrivacyRequestSchema>;
+
+/** A client or supplier files their own request; PMCM verifies identity before acting on it. */
+export const submitOwnPrivacyRequestSchema = z
+  .object({
+    requestType: privacyRequestTypeSchema,
+    details: z.string().trim().max(1000).optional(),
+  })
+  .superRefine((input, context) => {
+    if (input.requestType === "correction" && !input.details) {
+      context.addIssue({ code: "custom", path: ["details"], message: "Describe what should be corrected" });
+    }
+  });
+export type SubmitOwnPrivacyRequestInput = z.infer<typeof submitOwnPrivacyRequestSchema>;
 
 export const reviewPrivacyRequestSchema = z.object({
   status: z.enum(["approved", "rejected"]),
