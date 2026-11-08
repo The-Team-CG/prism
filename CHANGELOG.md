@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM can scout venues for a client without one: at least three options with location, capacity, price range and available dates are shared together, and the client marks one preference in the portal.
 - Sending a styling option back asks the client how to handle the budget (raise it, ask for a lower-cost option, or keep it), and PMCM sees every version with its decision.
 - Removed the unused supplier contract route that recorded a contract from declared file metadata; every supplier contract now goes through the checksum-verified, byte-checked upload.
 - Each event has a risk register by phase, with likelihood, impact, score, mitigation, owner and status, plus a one-click set of standard operational risks.
