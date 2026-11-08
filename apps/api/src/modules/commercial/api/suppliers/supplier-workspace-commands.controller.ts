@@ -4,10 +4,8 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { zodBody } from '@prism/kernel/shared';
 import {
   confirmSupplierReadinessSchema,
-  uploadContractSchema,
   type ConfirmSupplierReadinessInput,
   type PrismVerifiedEventActor,
-  type UploadContractInput,
 } from '@prism/types';
 import { SupplierNetworkWorkflowService } from '../../application/suppliers/supplier-network-workflow.service';
 
@@ -37,17 +35,5 @@ export class OpsSupplierWorkspaceCommandsController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.supplierNetworkWorkflowService.confirmSupplierReadiness(requestId, dto, actor);
-  }
-
-  @Post('quote-requests/:requestId/contract')
-  @HttpCode(HttpStatus.CREATED)
-  @UseGuards(EventSessionGuard)
-  async uploadContract(
-    @Param('requestId') requestId: string,
-    @Body(zodBody(uploadContractSchema)) dto: UploadContractInput,
-    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
-  ) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.supplierNetworkWorkflowService.uploadSupplierContract(requestId, dto, actor, verifiedActor);
   }
 }

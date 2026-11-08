@@ -110,7 +110,6 @@ export {
   sendCommunicationMessageSchema,
   reviewSupplierApplicationSchema,
   confirmSupplierReadinessSchema,
-  uploadContractSchema,
   updateSupplierEventStatusSchema,
   correctSupplierEventStatusSchema,
   submitSupplierQuoteSchema,
@@ -215,7 +214,6 @@ export {
   type SendCommunicationMessageInput,
   type ReviewSupplierApplicationInput,
   type ConfirmSupplierReadinessInput,
-  type UploadContractInput,
   type UpdateSupplierEventStatusInput,
   type CorrectSupplierEventStatusInput,
   type SubmitSupplierQuoteInput,
@@ -472,6 +470,7 @@ export {
   type RecordEventRiskAssessmentInput,
 } from "./scope-change-risk-inputs.js";
 export * from "./ai-governance.js";
+export * from "./event-risk-register.js";
 export {
   PrismContractError,
   parseContract,
