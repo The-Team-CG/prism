@@ -206,15 +206,19 @@ export function useSupplierWorkspaceViewModel(section: SupplierDashboardSection)
         setError(mapSupplierWorkspaceError(err, "Unable to download file"));
       }
     },
-    updateStatus: (req: PrismSupplierQuoteRequest, status: string) =>
-      runAction(req, status, () =>
+    updateStatus: (req: PrismSupplierQuoteRequest, status: string, photo?: File) => {
+      if (!workspace || !session) return;
+      return runAction(req, status, () =>
         updateSupplierEventStatus(
-          session!,
+          session,
+          workspace.supplier,
           req,
           status,
           statusNotes[req.id] ?? req.eventDayNotes ?? "",
+          photo,
         ),
-      ),
+      );
+    },
     refresh: () => refresh(),
     signOut,
     goToSignIn: () => router.replace("/sign-in"),

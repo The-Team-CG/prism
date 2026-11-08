@@ -25,7 +25,7 @@ type BookingHandlers = {
   onConfirmAssignment: (req: PrismSupplierQuoteRequest) => void;
   onConfirmReadiness: (req: PrismSupplierQuoteRequest) => void;
   onSaveContract: (req: PrismSupplierQuoteRequest, file: File) => void;
-  onUpdateStatus: (req: PrismSupplierQuoteRequest, status: string) => void;
+  onUpdateStatus: (req: PrismSupplierQuoteRequest, status: string, photo?: File) => void;
   onAcknowledgeSchedule: (requestId: string, revision: number) => void;
   onRequestScheduleChange: (requestId: string, revision: number, reason: string) => void;
   onUpdateProgress: (taskId: string, note: string) => void;
@@ -201,6 +201,7 @@ function ReadinessStep({ req, note, busy, onReadinessNoteChange, onConfirmReadin
 
 function EventDayStep({ req, note, busy, onStatusNoteChange, onUpdateStatus }: { req: PrismSupplierQuoteRequest; note?: string; busy: string | null } & Pick<BookingHandlers, "onStatusNoteChange" | "onUpdateStatus">) {
   const canReport = canReportSupplierEventDayStatus(req);
+  const [photo, setPhoto] = useState<File | null>(null);
   return (
     <>
       {req.eventDayStatus === "late" ? (
@@ -213,9 +214,13 @@ function EventDayStep({ req, note, busy, onStatusNoteChange, onUpdateStatus }: {
           Status note
           <Input value={note ?? req.eventDayNotes ?? ""} onChange={(e) => onStatusNoteChange(req.id, e.target.value)} className="h-11 rounded-md" placeholder="Optional note for PMCM" />
         </label>
+        <label className="mt-3 grid gap-1.5 text-sm font-medium text-foreground">
+          Photo for this update (optional)
+          <Input type="file" accept="image/jpeg,image/png" disabled={!canReport || busy !== null} onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} className="h-11 rounded-md pt-2.5" />
+        </label>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           {EVENT_STATUS_ACTIONS.map(({ status, label, helper }) => (
-            <button key={status} type="button" disabled={!isEventStatusStepAllowed(req.eventDayStatus, status) || busy === `${req.id}:${status}`} onClick={() => onUpdateStatus(req, status)}
+            <button key={status} type="button" disabled={!isEventStatusStepAllowed(req.eventDayStatus, status) || busy === `${req.id}:${status}`} onClick={() => { onUpdateStatus(req, status, photo ?? undefined); setPhoto(null); }}
               className={`flex h-20 w-full flex-col items-center justify-center gap-1 rounded-lg border font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${req.eventDayStatus === status ? "border-primary bg-primary text-white disabled:opacity-100" : "border-border bg-card text-foreground enabled:hover:border-primary/40 enabled:hover:bg-muted/40"}`}>
               <Truck className="size-5" aria-hidden="true" />
               <span className="text-sm">{label}</span>

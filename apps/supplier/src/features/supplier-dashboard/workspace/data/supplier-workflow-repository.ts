@@ -77,6 +77,30 @@ export const supplierWorkflowRepository = {
     return result;
   },
 
+  /** Uploads an event-day status photo and returns the stored object the status update must reference. */
+  async uploadStatusPhoto(session: PrismAuthenticatedSession, supplier: PrismSupplier, request: PrismSupplierQuoteRequest, file: File) {
+    const key = `status:${supplier.id}:${request.id}:${await contentFingerprint(file)}`;
+    const currentAttemptId = attemptId(key);
+    const stored = await uploadStorageObject(file, {
+      eventId: request.eventId,
+      ownerRecordType: 'supplier',
+      ownerRecordId: supplier.id,
+      logicalTarget: `supplier-status:${request.id}:${currentAttemptId}`,
+      usage: 'supplier_document',
+    }, { authToken: session.accessToken });
+    uploadAttempts.delete(key);
+    return stored.id;
+  },
+
+  /** Event-day status update; the actor is derived from the bearer token, as on the other workflow writes. */
+  updateEventStatus(session: PrismAuthenticatedSession, requestId: string, status: string, notes: string, storedObjectId?: string) {
+    return client(session).supplierWorkspace.updateEventStatus(
+      requestId,
+      { status: status as "arrived" | "set_up_ready" | "done_leaving", notes, ...(storedObjectId ? { storedObjectId } : {}) },
+      { actorRole: "supplier", actorName: session.name, actorEmail: session.email },
+    );
+  },
+
   acknowledgeSchedule(session: PrismAuthenticatedSession, requestId: string, expectedRevision: number) {
     return client(session).supplierWorkflows.acknowledgeSchedule(requestId, { expectedRevision });
   },
