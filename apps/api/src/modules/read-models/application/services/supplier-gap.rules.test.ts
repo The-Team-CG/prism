@@ -29,3 +29,16 @@ describe('FR-63 supplier gap rule', () => {
     expect(gaps.map((item) => [item.categoryName, item.gap])).toEqual([['Technicals', true], ['Catering', false], ['Photo', false]]);
   });
 });
+
+describe('FR-16 supplier selection policy', () => {
+  it('allows Tier 2 only when no free Tier 1 supplier is rated for the event scale', () => {
+    const categories = [{ id: 'cat_av', name: 'Technicals', coveredByThisEvent: false }];
+    const run = (suppliers: unknown[], eventScale: 'small' | 'medium' | 'large' | null) => supplierGapsFrom({ eventDate: '2026-12-01', eventScale, categories, suppliers: suppliers as never, acknowledgements: new Map() })[0]!;
+
+    const smallTier1 = supplier({ id: 'av1', capacityRating: 'small' });
+    expect(run([smallTier1], 'small')).toMatchObject({ tier1Capable: 1, tier2EscalationAllowed: false });
+    expect(run([smallTier1], 'large')).toMatchObject({ tier1Available: 1, tier1Capable: 0, tier2EscalationAllowed: true });
+    expect(run([supplier({ id: 'av2', capacityRating: null })], 'large')).toMatchObject({ tier1Capable: 1, tier2EscalationAllowed: false });
+    expect(run([supplier({ id: 'av3', capacityRating: 'large', availability: { blocked: true, capacity: 1 } })], 'medium')).toMatchObject({ tier1Capable: 0, tier2EscalationAllowed: true });
+  });
+});

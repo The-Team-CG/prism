@@ -45,6 +45,7 @@ import { PmcmRoleBriefEditor } from "@/features/coordinators/role-briefs/views/p
 import { CoordinatorReplacementPanel } from "@/features/pare/coordinator/views/coordinator-replacement-panel";
 import { PreConformeContextPanel } from "@/features/inquiries/context-notes/views/context-notes-log";
 import { AccreditationPanel } from "@/features/compliance/accreditation/views/accreditation-panel";
+import { ClientOwnedSuppliersPanel, UnresponsiveSuppliersPanel } from "@/features/suppliers/follow-ups/views/supplier-follow-ups";
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
 import { PmcmSupplierGapWarning } from "@/features/suppliers/supplier-gaps/views/pmcm-supplier-gap-warning";
 import { PmcmExternalCreativePanel } from "@/features/suppliers/external-creative/views/pmcm-external-creative-panel";
@@ -247,7 +248,7 @@ export function EventWorkspaceSuppliersTab() {
         />
       ),
     },
-    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /></div> },
+    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><UnresponsiveSuppliersPanel eventId={event.id} /><ClientOwnedSuppliersPanel eventId={event.id} /><PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /></div> },
     { id: "bookings", label: "Bookings & contracts", count: assigned.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
     { id: "creative", label: "Outsourced creative", render: () => <PmcmExternalCreativePanel eventId={event.id} documents={vm.documents.filter((document) => document.eventId === event.id)} /> },
     {

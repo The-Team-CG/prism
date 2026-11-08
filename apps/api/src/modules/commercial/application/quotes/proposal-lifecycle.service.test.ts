@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ProposalLifecycleService, PROPOSAL_LIFECYCLE_POLICY } from './proposal-lifecycle.service';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { proposalPackageLimit } from '@prism/types';
 
 const verified = { id: 'pmcm-1', actorId: 'pmcm-1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01T00:00:00.000Z' } as never;
 const actor = { id: 'pmcm-1', role: OpsUserRole.PmcmAdmin, name: 'PMCM', email: 'pmcm@test', explicit: true, verified: true };
@@ -27,6 +28,18 @@ describe('ProposalLifecycleService', () => {
     expect(f.vault.attachStoredFile).not.toHaveBeenCalled();
     expect(f.audit.write).not.toHaveBeenCalled();
   });
+  it('offers a second package only for a range or unconfirmed budget, unless PMCM gives a reason', async () => {
+    expect(['PHP 500,000', 'PHP 300k - 500k', '300,000 to 450,000', ''].map(proposalPackageLimit)).toEqual([1, 2, 2, 2]);
+    const f = fixture();
+    const optionB = { id: 'ce-2', totalAmount: 120000 };
+    f.tx.opsCostEstimate.findFirst = vi.fn(async ({ where }: { where: { id: string } }) => (where.id === 'ce-2' ? optionB : { id: 'ce-1', eventId: 'evt-1', totalAmount: 90000, lines: [] })) as never;
+    (f.tx as Record<string, unknown>).opsBriefing = { findFirst: vi.fn(async () => ({ budgetRange: 'PHP 500,000' })) };
+    const base = { title: 'Proposal', summary: '', costEstimateId: 'ce-1', alternativeCostEstimateId: 'ce-2', revisionNote: '' };
+    await expect(f.service.issueProposalVersion('evt-1', base, actor, verified)).rejects.toThrow('one fixed budget');
+    await f.service.issueProposalVersion('evt-1', { ...base, packageOverrideReason: 'Client asked for a premium option' }, actor, verified);
+    expect(f.versions[0]).toMatchObject({ alternativeCostEstimateId: 'ce-2', alternativeTotalAmount: 120000, packageOverrideReason: 'Client asked for a premium option' });
+  });
+
   it('calculates category totals and budget alignment transactionally', async () => {
     const f = fixture();
     const result = await f.service.createCostEstimate('evt-1', { budgetAmount: 100000, lines: [{ category: 'Venue', description: 'Room', quantity: 1, unitAmount: 90000 }], notes: '' }, actor);

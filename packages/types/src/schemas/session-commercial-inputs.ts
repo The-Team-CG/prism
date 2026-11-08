@@ -20,6 +20,8 @@ export const requestSupplierQuotesSchema = z.object({
   supplierIds: z.array(nonEmptyStringSchema).optional(),
   confidentialBid: z.boolean().optional(),
   deadline: optionalTrimmedStringSchema,
+  /** FR-16: needed to ask a Tier 2 supplier while a free Tier 1 supplier can serve the event. */
+  tierOverrideReason: z.string().trim().min(1).max(500).optional(),
 });
 export type RequestSupplierQuotesInput = z.infer<typeof requestSupplierQuotesSchema>;
 
@@ -31,6 +33,19 @@ export type AcknowledgeSupplierGapInput = z.infer<typeof acknowledgeSupplierGapS
 export const SUPPLIER_CAPACITY_RATINGS = ["small", "medium", "large"] as const;
 export const supplierCapacityRatingSchema = z.enum(SUPPLIER_CAPACITY_RATINGS);
 export type SupplierCapacityRating = z.infer<typeof supplierCapacityRatingSchema>;
+
+/** FR-16: the scale an event needs, from its briefing guest count (up to 100 small, up to 300 medium, above that large). */
+export function eventSupplierScale(guestCount: number | null | undefined): SupplierCapacityRating | null {
+  if (!guestCount || guestCount < 1) return null;
+  if (guestCount <= 100) return "small";
+  return guestCount <= 300 ? "medium" : "large";
+}
+
+/** A supplier rated at or above the event scale can serve it; an unrated supplier is not ruled out. */
+export function supplierServesScale(rating: string | null | undefined, scale: SupplierCapacityRating | null): boolean {
+  if (!scale || !rating) return true;
+  return SUPPLIER_CAPACITY_RATINGS.indexOf(rating as SupplierCapacityRating) >= SUPPLIER_CAPACITY_RATINGS.indexOf(scale);
+}
 
 export const createSupplierSchema = z.object({
   categoryId: nonEmptyStringSchema,

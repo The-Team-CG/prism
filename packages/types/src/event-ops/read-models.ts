@@ -281,6 +281,11 @@ export interface PrismSupplierGap {
   eventDate: string;
   tier1Available: number;
   tier2Available: number;
+  /** FR-16: free Tier 1 suppliers rated for this event's scale. */
+  tier1Capable: number;
+  /** FR-16: Tier 2 is offered only when no free Tier 1 supplier can serve the event. */
+  tier2EscalationAllowed: boolean;
+  eventScale: "small" | "medium" | "large" | null;
   gap: boolean;
   acknowledgement: { reason: string; acknowledgedBy: string; acknowledgedAt: string } | null;
 }

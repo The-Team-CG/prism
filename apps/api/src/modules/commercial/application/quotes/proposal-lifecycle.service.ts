@@ -4,7 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { DOCUMENT_VAULT, PROPOSAL_REVIEW_OWNER, type DocumentVault, type ProposalReviewOwner } from '@prism/contexts/event-lifecycle';
-import type { CreateCostEstimateInput, IssueProposalVersionInput, PrismCostEstimate, PrismEstimateLineSource, PrismEventProposalResponse, PrismPreviousCostEstimate, PrismProposalVersion, PrismVerifiedEventActor } from '@prism/types';
+import { proposalPackageLimit, type CreateCostEstimateInput, type IssueProposalVersionInput, type PrismCostEstimate, type PrismEstimateLineSource, type PrismEventProposalResponse, type PrismPreviousCostEstimate, type PrismProposalVersion, type PrismVerifiedEventActor } from '@prism/types';
 import { StorageObjectService } from '@prism/contexts/platform-ops';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
@@ -96,7 +96,7 @@ export class ProposalLifecycleService {
     if (actor.role === OpsUserRole.Client && event.clientPortalStatus !== 'unlocked') return { proposal: null };
     const version = await this.prisma.opsProposalVersion.findFirst({ where: { eventId, status: 'issued' }, orderBy: { versionNumber: 'desc' } });
     if (!version?.issuedAt) return { proposal: null };
-    return { proposal: { id: version.id, eventId, versionNumber: version.versionNumber, title: version.title, summary: version.summary, totalAmount: version.totalAmount, revisionNote: version.revisionNote, issuedAt: version.issuedAt.toISOString(), clientStatus: parseClientProposalStatus(event.proposalClientStatus) } };
+    return { proposal: { id: version.id, eventId, versionNumber: version.versionNumber, title: version.title, summary: version.summary, totalAmount: version.totalAmount, alternativeTotalAmount: version.alternativeTotalAmount ?? null, revisionNote: version.revisionNote, issuedAt: version.issuedAt.toISOString(), clientStatus: parseClientProposalStatus(event.proposalClientStatus) } };
   }
 
   async issueProposalVersion(eventId: string, input: IssueProposalVersionInput, actor: ResolvedEventOpsActor, verified: PrismVerifiedEventActor): Promise<PrismProposalVersion> {
@@ -112,11 +112,12 @@ export class ProposalLifecycleService {
       if (event.proposalClientStatus === 'approved') throw new BadRequestException('The client has approved this proposal. Record a scope change instead of issuing a new version.');
       const estimate = await tx.opsCostEstimate.findFirst({ where: { id: input.costEstimateId, eventId }, include: { lines: true } });
       if (!estimate) throw new BadRequestException('Cost estimate is not available for this event');
+      const packages = await this.resolvePackageOption(tx, eventId, input);
       const previous = await tx.opsProposalVersion.findFirst({ where: { eventId }, orderBy: { versionNumber: 'desc' } });
       const versionNumber = (previous?.versionNumber ?? 0) + 1;
       if (previous) await tx.opsProposalVersion.update({ where: { id: previous.id }, data: { status: 'superseded' } });
       const issuedAt = new Date();
-      const version = await tx.opsProposalVersion.create({ data: { id: `proposal_${randomUUID()}`, eventId, costEstimateId: estimate.id, versionNumber, title: input.title, summary: input.summary, totalAmount: estimate.totalAmount, revisionNote: input.revisionNote, status: 'issued', issuedAt } });
+      const version = await tx.opsProposalVersion.create({ data: { id: `proposal_${randomUUID()}`, eventId, costEstimateId: estimate.id, versionNumber, title: input.title, summary: input.summary, totalAmount: estimate.totalAmount, ...packages, revisionNote: input.revisionNote, status: 'issued', issuedAt } });
       const reviewStateUpdated = await this.proposalReviewOwner.updateProposalReview({
         eventId,
         expectedRevisionCount: event.proposalRevisionCount,
@@ -140,6 +141,19 @@ export class ProposalLifecycleService {
       return { version, documentId: document.id, eventName: event.eventName, totalAmount: estimate.totalAmount };
     }, { isolationLevel: 'Serializable' });
     return this.mapProposalVersion(issued.version);
+  }
+
+  /** FR-62: Option B must be another estimate of this event; a fixed single budget needs PMCM's reason for two packages. */
+  private async resolvePackageOption(tx: Prisma.TransactionClient, eventId: string, input: IssueProposalVersionInput) {
+    if (!input.alternativeCostEstimateId) return { alternativeCostEstimateId: null, alternativeTotalAmount: null, packageOverrideReason: null };
+    if (input.alternativeCostEstimateId === input.costEstimateId) throw new BadRequestException('Option B must be a different cost estimate');
+    const alternative = await tx.opsCostEstimate.findFirst({ where: { id: input.alternativeCostEstimateId, eventId }, select: { id: true, totalAmount: true } });
+    if (!alternative) throw new BadRequestException('Option B cost estimate is not available for this event');
+    const briefing = await tx.opsBriefing.findFirst({ where: { eventId }, orderBy: { submittedAt: 'desc' }, select: { budgetRange: true } });
+    if (proposalPackageLimit(briefing?.budgetRange) === 1 && !input.packageOverrideReason) {
+      throw new BadRequestException('The briefing names one fixed budget, so the proposal offers one package; give a reason to offer two');
+    }
+    return { alternativeCostEstimateId: alternative.id, alternativeTotalAmount: alternative.totalAmount, packageOverrideReason: input.packageOverrideReason ?? null };
   }
 
   /** The version an earlier request with this key issued, or null. The same key with other content is refused. */
