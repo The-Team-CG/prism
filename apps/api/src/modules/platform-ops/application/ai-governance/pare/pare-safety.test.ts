@@ -116,6 +116,8 @@ function fakeGateway(options: FakeGatewayOptions = {}) {
     'compliance.advisory': { explanation: 'Advice.', actions: [{ priority: 1, checkTitle: 'Check', action: 'Act.' }] },
     'theme.suggestions': { concepts: [{ name: 'A', palette: ['#111111', '#222222', '#333333'], moodboardDescription: 'a', referenceSearchTerms: ['x', 'y'] }, { name: 'B', palette: ['#111111', '#222222', '#333333'], moodboardDescription: 'b', referenceSearchTerms: ['x', 'y'] }] },
     'event.intelligence': { whatWorked: ['a'], whatFailed: [], recommendedActions: ['b'] },
+    'event-day.copilot': { summary: 'All clear.', alerts: [] },
+    'operations.assistant': { answer: 'Answer.', basedOn: ['phase'], suggestedNextSteps: [] },
   };
 
   const run = async <K extends AiUseCaseId>(
@@ -246,6 +248,8 @@ function harness(gateway?: AiGateway, runtime?: AiGatewayRuntimeConfig) {
     findProposalDraftEventSource: async () => null,
     findClientMessageTriggerFacts: async () => null,
     findAiAdvisoryFacts: async () => null,
+    findEventDayCopilotFacts: async () => null,
+    findOperationsAssistantFacts: async () => null,
   };
   return {
     service: new PAREService(prisma as unknown as PrismaService, undefined, gateway, runtime, undefined, platformReferences),

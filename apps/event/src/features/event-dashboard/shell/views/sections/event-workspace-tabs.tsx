@@ -47,6 +47,7 @@ import { PreConformeContextPanel } from "@/features/inquiries/context-notes/view
 import { AccreditationPanel } from "@/features/compliance/accreditation/views/accreditation-panel";
 import { ClientOwnedSuppliersPanel, UnresponsiveSuppliersPanel } from "@/features/suppliers/follow-ups/views/supplier-follow-ups";
 import { ThemeSuggestionsPanel } from "@/features/ai-advisory/views/ai-advisory-panels";
+import { EventDayCopilotPanel, OperationsAssistantPanel } from "@/features/ai-advisory/views/live-assist-panels";
 import { PresentationMeetingsPanel } from "@/features/commercial/presentation-meetings/views/presentation-meetings-panel";
 import { isEventModuleEnabled } from "@prism/types";
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
@@ -216,6 +217,7 @@ export function EventWorkspaceBriefingTab() {
     ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PresentationMeetingsPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
     { id: "reviews", label: "Client reviews", render: () => <div className="space-y-5">{admin && isEventModuleEnabled(selectedEvent, "venue_scouting") ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}{admin ? <ThemeSuggestionsPanel eventId={selectedEvent.id} /> : null}<PmcmClientReviewPanel eventId={selectedEvent.id} /></div> },
     ...(admin ? [{ id: "follow-ups", label: "Client follow-ups", render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> }] : []),
+    ...(admin ? [{ id: "assistant", label: "Ask P.R.I.S.M", render: () => <OperationsAssistantPanel eventId={selectedEvent.id} /> }] : []),
     { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
     ...(admin ? [{ id: "decisions", label: "Decision log", render: () => <DecisionLogPanel eventId={selectedEvent.id} /> }] : []),
     ...(admin ? [{ id: "pre-conforme", label: "Pre-conforme context", render: () => <PreConformeContextPanel eventId={selectedEvent.id} /> }] : []),
@@ -342,6 +344,7 @@ export function EventWorkspaceLiveOpsTab() {
         />
       ),
     },
+    ...(isPmcmAdmin(vm.session.role) ? [{ id: "copilot", label: "Copilot", render: () => <EventDayCopilotPanel eventId={event.id} /> }] : []),
     { id: "handoff", label: "Shift handoff", render: () => <HandoffBriefPanel eventId={event.id} /> },
   ];
   return <WorkspaceSubTabs label="Live operations sections" tabs={tabs} />;

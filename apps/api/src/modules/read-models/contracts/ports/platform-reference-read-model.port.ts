@@ -93,6 +93,37 @@ export type AiAdvisoryFacts = {
   clientRating: number | null;
 };
 
+/** FR-AI-07: one event's live state, as raw facts; the AI service reduces them before any model call. */
+export type EventDayCopilotFacts = {
+  eventType: string;
+  operatorCoordinatorIds: string[];
+  suppliers: Array<{ category: string; eventDayStatus: string; ingressAt: Date | null }>;
+  openTasks: Array<{ title: string; priority: string; assignedRole: string; dueAt: Date | null }>;
+  attendance: Array<{ attendanceStatus: string }>;
+  checkedIn: number;
+  checkedInLastHour: number;
+  expectedGuests: number | null;
+  openIssues: Array<{ title: string; severity: string; createdAt: Date; slaDueAt: Date | null }>;
+};
+
+/** FR-AI-05: counts and statuses for one event; no names, contacts or amounts per party. */
+export type OperationsAssistantFacts = {
+  eventType: string;
+  eventDate: Date;
+  phase: string;
+  guestCount: number | null;
+  proposalStatus: string;
+  floorPlanStatus: string;
+  suppliersRequested: number;
+  suppliersConfirmed: number;
+  openTasks: number;
+  overdueTasks: number;
+  openIssues: number;
+  openComplianceItems: number;
+  outstandingBalance: number;
+  checkedInGuests: number;
+};
+
 export type PlatformPrivacyConsentFact = {
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
@@ -135,6 +166,8 @@ export interface PlatformReferenceReadModel {
   findProposalDraftEventSource(eventId: string): Promise<AiProposalEventSource | null>;
   findClientMessageTriggerFacts(eventId: string): Promise<ClientMessageTriggerFacts | null>;
   findAiAdvisoryFacts(eventId: string): Promise<AiAdvisoryFacts | null>;
+  findEventDayCopilotFacts(eventId: string, now: Date): Promise<EventDayCopilotFacts | null>;
+  findOperationsAssistantFacts(eventId: string, now: Date): Promise<OperationsAssistantFacts | null>;
   findApprovedTrustRecipientEmail(): Promise<string | null>;
   /** Approved, non-locked PMCM administrator by user id; used to validate privacy request assignees. */
   findApprovedPmcmOperator(userId: string): Promise<{ id: string; name: string } | null>;

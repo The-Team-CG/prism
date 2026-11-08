@@ -6,6 +6,8 @@ import type {
   AiProposalEventSource,
   ClientMessageTriggerFacts,
   AiAdvisoryFacts,
+  EventDayCopilotFacts,
+  OperationsAssistantFacts,
   PareEventSource,
   PareSupplierCandidateSource,
   PlatformPrivacyConsentFact,
@@ -133,6 +135,51 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
     return {
       event: { eventType: event.inquiry?.eventType ?? 'Event', eventDate: event.eventDate, status: event.status },
       briefing, openChecks, insight, checkedInGuests, clientRating: closeout?.rating ?? null,
+    };
+  }
+
+  async findEventDayCopilotFacts(eventId: string, now: Date): Promise<EventDayCopilotFacts | null> {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { inquiry: { select: { eventType: true } } } });
+    if (!event) return null;
+    const hourAgo = new Date(now.getTime() - 3_600_000);
+    const [operators, suppliers, openTasks, attendance, checkedIn, checkedInLastHour, briefing, openIssues] = await Promise.all([
+      this.prisma.opsEventOperatorDesignation.findMany({ where: { eventId, revokedAt: null }, select: { coordinatorId: true }, take: 20 }),
+      this.prisma.opsSupplierQuoteRequest.findMany({ where: { eventId, status: 'selected', assignmentStatus: 'confirmed' }, select: { category: true, eventDayStatus: true, schedule: { select: { ingressAt: true } } }, orderBy: { category: 'asc' }, take: 40 }),
+      this.prisma.opsEventDayTask.findMany({ where: { eventId, status: { notIn: ['done', 'cancelled'] } }, select: { title: true, priority: true, assignedRole: true, dueAt: true }, orderBy: [{ dueAt: 'asc' }, { id: 'asc' }], take: 60 }),
+      this.prisma.opsCoordinatorAssignment.findMany({ where: { eventId, status: { notIn: ['withdrawn', 'declined', 'replaced'] } }, select: { attendanceStatus: true }, take: 200 }),
+      this.prisma.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in' } }),
+      this.prisma.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in', checkedInAt: { gte: hourAgo } } }),
+      this.prisma.opsBriefing.findFirst({ where: { eventId }, orderBy: { submittedAt: 'desc' }, select: { guestCount: true } }),
+      this.prisma.opsUrgentIssue.findMany({ where: { eventId, status: { notIn: ['resolved', 'closed', 'cancelled'] } }, select: { title: true, severity: true, createdAt: true, slaDueAt: true }, orderBy: { createdAt: 'asc' }, take: 30 }),
+    ]);
+    return {
+      eventType: event.inquiry?.eventType ?? 'Event',
+      operatorCoordinatorIds: operators.map((operator) => operator.coordinatorId),
+      suppliers: suppliers.map((supplier) => ({ category: supplier.category, eventDayStatus: supplier.eventDayStatus, ingressAt: supplier.schedule?.ingressAt ?? null })),
+      openTasks, attendance, checkedIn, checkedInLastHour, expectedGuests: briefing?.guestCount || null, openIssues,
+    };
+  }
+
+  async findOperationsAssistantFacts(eventId: string, now: Date): Promise<OperationsAssistantFacts | null> {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true, status: true, proposalClientStatus: true, floorPlanStatus: true, inquiry: { select: { eventType: true } } } });
+    if (!event) return null;
+    const latestRun = await this.prisma.opsComplianceRun.findFirst({ where: { eventId, status: 'completed' }, orderBy: { createdAt: 'desc' }, select: { id: true } });
+    const [briefing, suppliersRequested, suppliersConfirmed, openTasks, overdueTasks, openIssues, openComplianceItems, balance, checkedInGuests] = await Promise.all([
+      this.prisma.opsBriefing.findFirst({ where: { eventId }, orderBy: { submittedAt: 'desc' }, select: { guestCount: true } }),
+      this.prisma.opsSupplierQuoteRequest.count({ where: { eventId } }),
+      this.prisma.opsSupplierQuoteRequest.count({ where: { eventId, status: 'selected', assignmentStatus: 'confirmed' } }),
+      this.prisma.opsEventDayTask.count({ where: { eventId, status: { notIn: ['done', 'cancelled'] } } }),
+      this.prisma.opsEventDayTask.count({ where: { eventId, status: { notIn: ['done', 'cancelled'] }, dueAt: { lt: now } } }),
+      this.prisma.opsUrgentIssue.count({ where: { eventId, status: { notIn: ['resolved', 'closed', 'cancelled'] } } }),
+      latestRun ? this.prisma.opsComplianceCheck.count({ where: { runId: latestRun.id, status: 'open', evaluationStatus: 'not_satisfied' } }) : Promise.resolve(0),
+      this.prisma.opsPaymentMilestone.aggregate({ where: { eventId, supersededAt: null, status: { not: 'paid' } }, _sum: { remainingBalance: true } }),
+      this.prisma.opsGuestCheckIn.count({ where: { eventId, status: 'checked_in' } }),
+    ]);
+    return {
+      eventType: event.inquiry?.eventType ?? 'Event', eventDate: event.eventDate, phase: event.status,
+      guestCount: briefing?.guestCount || null, proposalStatus: event.proposalClientStatus ?? 'none', floorPlanStatus: event.floorPlanStatus ?? 'none',
+      suppliersRequested, suppliersConfirmed, openTasks, overdueTasks, openIssues, openComplianceItems,
+      outstandingBalance: Math.max(0, Math.round(Number(balance._sum.remainingBalance ?? 0))), checkedInGuests,
     };
   }
 

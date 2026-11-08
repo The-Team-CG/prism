@@ -12,6 +12,8 @@ export const aiUseCaseIdSchema = z.enum([
   "compliance.advisory",
   "theme.suggestions",
   "event.intelligence",
+  "event-day.copilot",
+  "operations.assistant",
 ]);
 export type AiUseCaseId = z.infer<typeof aiUseCaseIdSchema>;
 
@@ -307,6 +309,77 @@ export const themeSuggestionResultSchema = z
   .strict();
 export type ThemeSuggestionResult = z.infer<typeof themeSuggestionResultSchema>;
 
+/* FR-AI-07 Event-day copilot: prioritized alerts from live facts. No names: supplier categories, roles and counts only. */
+export const eventDayCopilotInputSchema = z
+  .object({
+    eventType: z.string().trim(),
+    suppliers: z.array(z.object({ category: z.string().trim().max(80), status: z.string().trim().max(30), minutesPastIngress: z.number().int() }).strict()).max(40),
+    overdueTasks: z.array(z.object({ title: z.string().trim().max(200), priority: z.string().trim().max(20), role: z.string().trim().max(80), minutesOverdue: z.number().int().nonnegative() }).strict()).max(30),
+    coordinators: z.object({ assigned: z.number().int().nonnegative(), present: z.number().int().nonnegative(), late: z.number().int().nonnegative(), absent: z.number().int().nonnegative(), notMarked: z.number().int().nonnegative() }).strict(),
+    checkIns: z.object({ checkedIn: z.number().int().nonnegative(), lastHour: z.number().int().nonnegative(), expected: z.number().int().nonnegative().optional() }).strict(),
+    openIssues: z.array(z.object({ title: z.string().trim().max(200), severity: z.string().trim().max(20), minutesOpen: z.number().int().nonnegative(), slaBreached: z.boolean() }).strict()).max(30),
+  })
+  .strict();
+export type EventDayCopilotInput = z.infer<typeof eventDayCopilotInputSchema>;
+export const EVENT_DAY_COPILOT_AREAS = ["suppliers", "tasks", "staffing", "check_in", "issues"] as const;
+export const eventDayCopilotResultSchema = z
+  .object({
+    summary: nonEmptyStringSchema.max(600),
+    alerts: z.array(z.object({
+      priority: z.enum(["critical", "high", "medium"]),
+      area: z.enum(EVENT_DAY_COPILOT_AREAS),
+      alert: nonEmptyStringSchema.max(300),
+      recommendation: nonEmptyStringSchema.max(300),
+    }).strict()).max(8),
+  })
+  .strict();
+export type EventDayCopilotResult = z.infer<typeof eventDayCopilotResultSchema>;
+/** The copilot as the operator sees it: the advice plus when it was produced, so a cached answer is visible as such. */
+export interface PrismEventDayCopilot extends EventDayCopilotResult {
+  generatedAt: string;
+}
+
+/* FR-AI-05 P.R.I.S.M Operations Assistant: PMCM asks about one event; the answer uses only the facts sent and takes no action. */
+export const OPERATIONS_ASSISTANT_FACT_KEYS = [
+  "phase", "daysUntilEvent", "guestCount", "suppliers", "tasks", "issues", "compliance", "billing", "checkIns", "proposal", "floorPlan",
+] as const;
+const assistantTurnSchema = z.object({ question: z.string().trim().min(1).max(500), answer: z.string().trim().min(1).max(1_500) }).strict();
+export const askOperationsAssistantSchema = z
+  .object({
+    question: z.string().trim().min(3).max(500),
+    history: z.array(assistantTurnSchema).max(3).default([]),
+  })
+  .strict();
+export type AskOperationsAssistantInput = z.input<typeof askOperationsAssistantSchema>;
+export const operationsAssistantInputSchema = z
+  .object({
+    question: z.string().trim().min(3).max(500),
+    history: z.array(assistantTurnSchema).max(3),
+    event: z.object({ eventType: z.string().trim(), phase: z.string().trim().max(40), daysUntilEvent: z.number().int(), guestCount: z.number().int().nonnegative().optional() }).strict(),
+    facts: z.object({
+      suppliersRequested: z.number().int().nonnegative(),
+      suppliersConfirmed: z.number().int().nonnegative(),
+      openTasks: z.number().int().nonnegative(),
+      overdueTasks: z.number().int().nonnegative(),
+      openIssues: z.number().int().nonnegative(),
+      openComplianceItems: z.number().int().nonnegative(),
+      outstandingBalance: z.number().int().nonnegative(),
+      checkedInGuests: z.number().int().nonnegative(),
+      proposalStatus: z.string().trim().max(40),
+      floorPlanStatus: z.string().trim().max(40),
+    }).strict(),
+  })
+  .strict();
+export type OperationsAssistantInput = z.infer<typeof operationsAssistantInputSchema>;
+export const operationsAssistantResultSchema = z
+  .object({
+    answer: nonEmptyStringSchema.max(1_500),
+    basedOn: z.array(z.enum(OPERATIONS_ASSISTANT_FACT_KEYS)).max(11),
+    suggestedNextSteps: z.array(nonEmptyStringSchema.max(200)).max(3),
+  })
+  .strict();
+export type OperationsAssistantResult = z.infer<typeof operationsAssistantResultSchema>;
+
 /* FR-AI-08 PEIL: the three-section post-event intelligence report. */
 export const eventIntelligenceInputSchema = z
   .object({
@@ -529,6 +602,8 @@ export type AiUseCaseContractMap = {
   "compliance.advisory": { input: ComplianceAdvisoryInput; output: ComplianceAdvisoryResult };
   "theme.suggestions": { input: ThemeSuggestionInput; output: ThemeSuggestionResult };
   "event.intelligence": { input: EventIntelligenceInput; output: EventIntelligenceResult };
+  "event-day.copilot": { input: EventDayCopilotInput; output: EventDayCopilotResult };
+  "operations.assistant": { input: OperationsAssistantInput; output: OperationsAssistantResult };
 };
 
 export type AiUseCaseInput<K extends AiUseCaseId> = AiUseCaseContractMap[K]["input"];
