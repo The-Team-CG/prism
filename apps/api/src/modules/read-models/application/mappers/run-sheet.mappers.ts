@@ -1,11 +1,15 @@
-import { prismCalendarDateKey } from '@prism/types';
+import { isActiveCoordinatorAssignmentStatus, isGuestDeskRole, prismCalendarDateKey } from '@prism/types';
 import type {
+  PrismCoordinatorAssignment,
   PrismCoordinatorLiveOps,
+  PrismEvent,
   PrismEventDayTask,
   PrismEventScheduleDay,
   PrismLiveOps,
+  PrismRegistrationPlatform,
   PrismRunSheetEntry,
   PrismRunSheetEntryKind,
+  PrismRunSheetGuestOperations,
   PrismRunSheetScope,
   PrismSupplierQuoteRequest,
   PrismUrgentIssue,
@@ -48,6 +52,41 @@ export function canSeeSupplierReadiness(liveOps: PrismLiveOps | PrismCoordinator
 export function isIngressRole(role?: string | null) {
   const value = role?.toLowerCase() ?? '';
   return value.includes('ingress') || value.includes('egress');
+}
+
+/** PMCM/system, the designated Event Day System Operator, and registration or usher roles see the guest operations block. */
+export function canSeeGuestOperations(liveOps: PrismLiveOps | PrismCoordinatorLiveOps, scope: PrismRunSheetScope) {
+  if (scope === 'pmcm') return true;
+  return Boolean(liveOps.isDesignatedOperator) || isGuestDeskRole(liveOps.role);
+}
+
+export interface GuestOperationsSources {
+  event: Pick<PrismEvent, 'walkInPolicy' | 'walkInThreshold'>;
+  platform: PrismRegistrationPlatform | null;
+  roster: { verified: number; pending: number };
+  /** Assignments the viewer may see; only active registration and usher assignments are kept. */
+  assignments: PrismCoordinatorAssignment[];
+}
+
+export function buildGuestOperations(sources: GuestOperationsSources): PrismRunSheetGuestOperations {
+  const { event, platform, roster, assignments } = sources;
+  return {
+    registrationPlatform: platform
+      ? {
+          platformType: platform.platformType,
+          status: platform.status,
+          expectedPaxMin: platform.expectedPaxMin,
+          expectedPaxMax: platform.expectedPaxMax,
+        }
+      : null,
+    walkIn: event.walkInPolicy
+      ? { policy: event.walkInPolicy, threshold: event.walkInThreshold ?? null }
+      : null,
+    rosterVerification: { verified: roster.verified, pending: roster.pending },
+    registrationStaff: assignments
+      .filter((assignment) => isActiveCoordinatorAssignmentStatus(assignment.status) && isGuestDeskRole(assignment.role))
+      .map((assignment) => ({ coordinatorName: assignment.coordinatorName, role: assignment.role, status: assignment.status })),
+  };
 }
 
 /**

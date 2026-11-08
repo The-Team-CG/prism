@@ -1,5 +1,5 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismCoordinatorPoolAvailability, PrismCoordinatorReliabilityHistoryEntry, PrismCoordinatorSuggestion, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput, CoordinatorSuggestionsQueryInput } from "@prism/types";
+import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismCoordinatorPoolAvailability, PrismCoordinatorReliabilityHistoryEntry, PrismCoordinatorSuggestion, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, BlockEventDayTaskInput, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput, CoordinatorSuggestionsQueryInput } from "@prism/types";
 
 export const operationsCommands = {
 revokeEventDayOperator: (eventId: string) => request<PrismEventOperatorDesignation>(`/api/events/${eventId}/operator-designation`, { method: "DELETE" }),
@@ -53,6 +53,13 @@ designateEventDayOperator: (eventId: string, input: CreateEventOperatorDesignati
 getEventDayOperator: (eventId: string) => request<PrismEventOperatorDesignation>(
     `/api/events/${eventId}/operator-designation`,
   ),
+blockEventDayTask: (eventId: string, taskId: string, input: BlockEventDayTaskInput) =>
+    request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}/block`, {
+      method: "POST",
+      body: input,
+    }),
+unblockEventDayTask: (eventId: string, taskId: string) =>
+    request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}/unblock`, { method: "POST" }),
 escalateEventDayTask: (eventId: string, taskId: string, input: EscalateEventDayTaskInput) =>
     request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}/escalate`, {
       method: "POST",

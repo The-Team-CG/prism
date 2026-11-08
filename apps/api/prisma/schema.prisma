@@ -732,7 +732,8 @@ model OpsAddendum {
   versionNumber     Int                           @map("version_number")
   title             String
   summary           String                        @default("")
-  status            String                        @default("issued")
+  // pending: issued, commercial effect not applied. effective: applied at countersignature. withdrawn: closed by PMCM.
+  status            String                        @default("pending")
   documentId        String?                       @map("document_id")
   documentState     String                        @default("pending") @map("document_state")
   signatureMethod   String                        @default("scanned_document") @map("signature_method")
@@ -740,7 +741,13 @@ model OpsAddendum {
   quoteSnapshot     Json                          @map("quote_snapshot")
   comparison        Json                          @default("{}")
   financialDelta    Int                           @default(0) @map("financial_delta")
+  // Commercial effect stored at issue and applied only when countersignature moves the addendum to effective.
+  plannedImpacts    Json?                         @map("planned_impacts")
   issuedAt          DateTime                      @default(now()) @map("issued_at")
+  effectiveAt       DateTime?                     @map("effective_at")
+  withdrawnAt       DateTime?                     @map("withdrawn_at")
+  withdrawnBy       String?                       @map("withdrawn_by")
+  withdrawalReason  String?                       @map("withdrawal_reason")
   createdAt         DateTime                      @default(now()) @map("created_at")
   freezeExceptionId String?                       @map("freeze_exception_id")
   event             OpsEvent                      @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -750,6 +757,8 @@ model OpsAddendum {
   conformeExecution OpsAddendumConformeExecution?
 
   @@unique([eventId, versionNumber], map: "addenda_event_version_key")
+  // At most one addendum awaits its commercial effect per event; a second issue is refused until the first is effective or withdrawn.
+  @@unique([eventId], where: { status: "pending" }, map: "addenda_one_pending_per_event_key")
   @@index([eventId, issuedAt], map: "addenda_event_issued_at_idx")
   @@map("addenda")
   @@schema("event_lifecycle")
@@ -1599,6 +1608,9 @@ model OpsEventDayTask {
   escalatedBy     String?   @map("escalated_by")
   escalationNotes String    @default("") @map("escalation_notes")
   completedAt     DateTime? @map("completed_at")
+  blockedReason   String?   @map("blocked_reason")
+  blockedAt       DateTime? @map("blocked_at")
+  blockedBy       String?   @map("blocked_by")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 

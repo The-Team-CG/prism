@@ -4,6 +4,7 @@ export {
   canonicalCoordinatorRole,
   coordinatorRoleSchema,
   isEmergencyCoordinatorWithdrawal,
+  isGuestDeskRole,
   normalizeCoordinatorRole,
   type CoordinatorRole,
 } from "./coordinator-roles.js";
@@ -101,6 +102,7 @@ export {
   createSupplierScheduleSchema,
   createEventDayTaskSchema,
   updateEventDayTaskSchema,
+  blockEventDayTaskSchema,
   createEventTaskReassignmentSchema,
   decideEventTaskReassignmentSchema,
   updateCoordinatorAttendanceSchema,
@@ -194,6 +196,7 @@ export {
   type CreateSupplierScheduleInput,
   type CreateEventDayTaskInput,
   type UpdateEventDayTaskInput,
+  type BlockEventDayTaskInput,
   type CreateEventTaskReassignmentInput,
   type DecideEventTaskReassignmentInput,
   type UpdateCoordinatorAttendanceInput,
@@ -408,10 +411,14 @@ export {
   requestFreezeExceptionSchema,
   decideFreezeExceptionSchema,
   issueAddendumSchema,
+  withdrawAddendumSchema,
+  addendumPlannedImpactsSchema,
   type FreezeEventInput,
   type RequestFreezeExceptionInput,
   type DecideFreezeExceptionInput,
   type IssueAddendumInput,
+  type WithdrawAddendumInput,
+  type AddendumPlannedImpacts,
 } from "./session-w26-inputs.js";
 export {
   scopeChangeCategorySchema,

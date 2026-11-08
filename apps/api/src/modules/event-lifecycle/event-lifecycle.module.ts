@@ -40,6 +40,8 @@ import { EventRiskAssessmentController } from './api/change/event-risk-assessmen
 import { EventRiskAssessmentService } from './application/change/event-risk-assessment.service';
 import { AddendumConformeController } from './api/change/addendum-conforme.controller';
 import { AddendumConformeService } from './application/change/addendum-conforme.service';
+import { AddendumWithdrawalController } from './api/change/addendum-withdrawal.controller';
+import { AddendumWithdrawalService } from './application/change/addendum-withdrawal.service';
 import { ClientEventDayViewController } from './api/client-visibility/client-event-day-view.controller';
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
@@ -102,6 +104,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ScopeChangeRequestController,
     EventRiskAssessmentController,
     AddendumConformeController,
+    AddendumWithdrawalController,
     ClientEventDayViewController,
     OcularVisitController,
     EventClientFloorplanAccessController,
@@ -138,6 +141,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ScopeChangeRequestService,
     EventRiskAssessmentService,
     AddendumConformeService,
+    AddendumWithdrawalService,
     ClientEventDayViewService,
     OcularVisitService,
     ProposalReviewOwnerService,

@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Inject, Inj
 import type { OpsFileRequirement, Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
-import { AUDIT_WRITER, EventAccessPolicyService, writeAudit, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { AUDIT_WRITER, EventAccessPolicyService, scopeActorToEvent, writeAudit, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { STORED_REQUIREMENT_UPLOAD_READER, type StoredRequirementUploadReader, type StoredRequirementUploadReference } from '@prism/contexts/platform-ops';
@@ -19,7 +19,7 @@ import {
 } from '@prism/types';
 import type { FileRequirementCommands, FileRequirementReminder, FileRequirementReminderReason } from '../../contracts/file-requirement-commands.port';
 import { FileRequirementsMatrixService } from './file-requirements-matrix.service';
-import { readEventAccessScope, scopeActorToEvent } from '@prism/contexts/read-models/event-scope';
+import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 import { scopeFileRequirementItemsForActor, visibleFileRequirementItems } from '../../domain/file-requirement-matrix.policy';
 
 const MANAGEMENT_RESOURCE = 'file requirement management';
@@ -226,7 +226,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       }, { prisma: tx, correlationId: `file-requirement-upload:${eventId}:${key}:${object.id}` });
       return scopedActor;
     });
-    const item = await this.itemFor(eventId, key, this.prisma as unknown as Prisma.TransactionClient);
+    const item = await this.itemFor(eventId, key, this.prisma as unknown as Prisma.TransactionClient, { role: responseActor.role, supplierId: responseActor.supplierId });
     // The response is shaped for the event-scoped actor so a supplier sees its own fulfilment only.
     const [scopedItem] = scopeFileRequirementItemsForActor(visibleFileRequirementItems([item], responseActor.role), responseActor);
     if (!scopedItem) throw new NotFoundException('File requirement not found');
@@ -485,8 +485,8 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     if (event.archived) throw new BadRequestException('Archived event file requirements are read-only');
   }
 
-  private async itemFor(eventId: string, key: string, tx: Prisma.TransactionClient) {
-    const item = (await this.matrix.buildForEvent(eventId, tx)).items.find((candidate) => candidate.key === key);
+  private async itemFor(eventId: string, key: string, tx: Prisma.TransactionClient, audience?: { role: string; supplierId?: string | null }) {
+    const item = (await this.matrix.buildForEvent(eventId, tx, undefined, audience)).items.find((candidate) => candidate.key === key);
     if (!item) throw new NotFoundException('File requirement not found');
     return item;
   }

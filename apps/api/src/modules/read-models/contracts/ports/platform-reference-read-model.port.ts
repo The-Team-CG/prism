@@ -2,15 +2,22 @@ import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 
 export const PLATFORM_REFERENCE_READ_MODEL = Symbol('PLATFORM_REFERENCE_READ_MODEL');
 
+/** Persisted event facts the file-access scope resolves against (assignments and quote requests with status). */
 export type PlatformStorageEventScope = {
   id: string;
   archived: boolean;
   clientName: string;
   clientPortalStatus: string;
   clientEmail: string | null;
-  supplierIds: string[];
-  /** Persisted supplier identities booked on the event; storage resolves signed-in suppliers by these emails. */
-  supplierContacts: Array<{ supplierId: string; email: string | null }>;
+  coordinatorAssignments: ReadonlyArray<{
+    coordinatorId: string | null;
+    coordinator: { userId: string | null; email: string | null } | null;
+  }>;
+  supplierQuoteRequests: ReadonlyArray<{
+    supplierId: string | null;
+    status: string;
+    supplier: { email: string | null } | null;
+  }>;
 };
 
 export type PareEventSource = {
@@ -98,6 +105,8 @@ export interface PlatformReferenceReadModel {
   findStorageEventScope(eventId: string, transaction?: PrismTransactionContext): Promise<PlatformStorageEventScope | null>;
   /** PMCM visibility overrides keyed by file requirement key; keys without an override are absent. */
   findFileRequirementVisibility(eventId: string): Promise<Record<string, string[]>>;
+  /** Document types that bind the given stored objects to a file requirement; a binding names the requirement key. */
+  findStoredObjectRequirementBindings(eventId: string, objectIds: readonly string[]): Promise<Array<{ objectId: string; documentType: string }>>;
   findEventReference(eventId: string): Promise<{ id: string } | null>;
   findPrivacyInventory(input?: { eventId?: string }): Promise<PlatformPrivacyInventory>;
   findPareEventSource(requestId: string): Promise<PareEventSource | null>;

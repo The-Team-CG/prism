@@ -385,6 +385,7 @@ describe('EventReadModelsService', () => {
         items: [event],
         pagination: { nextCursor: null, hasMore: false, totalCount: 1 },
       })),
+      clientReadableDocuments: vi.fn(async (_actor: unknown, documents: unknown[]) => documents),
       clientWorkspaceForEvents: vi.fn(async () => [
         [], [], [], [], [], [], [],
         [{
@@ -1316,6 +1317,7 @@ describe('EventReadModelsService', () => {
         items: [readyEvent, pendingEvent, completedEvent, hiddenEvent],
         pagination: { nextCursor: null, hasMore: false, totalCount: 4 },
       })),
+      clientReadableDocuments: vi.fn(async (_actor: unknown, documents: unknown[]) => documents),
       clientWorkspaceForEvents: vi.fn(async () => [
         [],
         [],
