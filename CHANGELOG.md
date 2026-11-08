@@ -6,6 +6,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Quote requests escalate to backup (Tier 2) suppliers only when no free Tier 1 supplier is rated for the event's size (from the briefing guest count); PMCM can still ask Tier 2 with a reason, which is audited.
+- A proposal can offer two packages (Option A and Option B) when the briefing budget is a range or not given; a single fixed budget gets one package unless PMCM records why it offers two. The client sees both totals.
+- Clients add the suppliers they book themselves and mark them confirmed; PMCM sees their arrival notes and can raise a risk warning the client sees.
+- PMCM sees suppliers that have not answered a quote request within 48 hours, with a one-tap Viber follow-up and, after a second window, backup supplier suggestions. Migrations `20261110100000_commercial_proposal_package_options` and `20261110110000_commercial_client_owned_suppliers` must apply before the API deploys.
 - PMCM attaches moodboard images to a styling option, and the client sees the moodboard on that option before approving it or asking for changes. Images go through the byte-checked upload and only the client and PMCM can open them.
 - PMCM attaches NDAs and other pre-conforme documents to an open inquiry; they are kept in the inquiry's locked event record, stay PMCM-only, and carry over when the conforme is signed.
 - A supplier still flagged late 12 hours after the late flag, with no arrival reported, gets one automatic no-show note on its profile.

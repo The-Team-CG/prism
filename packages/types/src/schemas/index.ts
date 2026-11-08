@@ -192,6 +192,7 @@ export {
   costEstimateLineSchema,
   createCostEstimateSchema,
   issueProposalVersionSchema,
+  proposalPackageLimit,
   type CostEstimateLineInput,
   type CreateCostEstimateInput,
   type IssueProposalVersionInput,
@@ -400,6 +401,8 @@ export {
   acknowledgeSupplierGapSchema,
   createSupplierSchema,
   SUPPLIER_CAPACITY_RATINGS,
+  eventSupplierScale,
+  supplierServesScale,
   supplierCapacityRatingSchema,
   updateSupplierSchema,
   changeSupplierTierSchema,
@@ -486,6 +489,7 @@ export * from "./ai-governance.js";
 export * from "./event-risk-register.js";
 export * from "./venue-scouting.js";
 export * from "./pre-event-records.js";
+export * from "./supplier-follow-ups.js";
 export {
   PrismContractError,
   parseContract,

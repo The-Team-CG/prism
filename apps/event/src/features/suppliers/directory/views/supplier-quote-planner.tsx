@@ -42,6 +42,7 @@ export function SupplierQuotePlanner({
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
   const [confidentialBid, setConfidentialBid] = useState(false);
+  const [tierOverrideReason, setTierOverrideReason] = useState("");
   const [deadline, setDeadline] = useState(() => {
     const date = new Date();
     date.setDate(date.getDate() + 7);
@@ -110,6 +111,7 @@ export function SupplierQuotePlanner({
   function openRequestModal() {
     setSelectedSupplierIds((availableTierOne.length ? availableTierOne : availableTierTwo).map((supplier) => supplier.id));
     setConfidentialBid(false);
+    setTierOverrideReason("");
     setModalOpen(true);
   }
 
@@ -124,6 +126,7 @@ export function SupplierQuotePlanner({
       supplierIds: selectedAvailableSupplierIds,
       confidentialBid,
       deadline,
+      ...(tierOverrideReason.trim() ? { tierOverrideReason: tierOverrideReason.trim() } : {}),
     });
     setModalOpen(false);
   }
@@ -197,6 +200,9 @@ export function SupplierQuotePlanner({
           onToggle={toggleSupplier}
           onDeadline={setDeadline}
           onConfidential={setConfidentialBid}
+          tier2Selected={selectedSupplierIds.some((id) => tierTwo.some((supplier) => supplier.id === id))}
+          tierOverrideReason={tierOverrideReason}
+          onTierOverrideReason={setTierOverrideReason}
           onClose={() => setModalOpen(false)}
           onSubmit={submitQuoteRequest}
         />

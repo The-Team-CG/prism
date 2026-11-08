@@ -764,6 +764,10 @@ model OpsProposalVersion {
   id             String          @id
   eventId        String          @map("event_id")
   costEstimateId String          @map("cost_estimate_id")
+  /// FR-62: Option B when the proposal offers two packages.
+  alternativeCostEstimateId String? @map("alternative_cost_estimate_id")
+  alternativeTotalAmount    Int?    @map("alternative_total_amount")
+  packageOverrideReason     String? @map("package_override_reason")
   versionNumber  Int             @map("version_number")
   title          String
   summary        String          @default("")
@@ -1301,6 +1305,27 @@ model OpsAddendumConformeSignature {
   @@index([actorId], map: "addendum_conforme_signatures_actor_id_idx")
   @@map("addendum_conforme_signatures")
   @@schema("event_lifecycle")
+}
+
+// FR-65: a supplier the client books and coordinates outside P.R.I.S.M; PMCM sees only operational details.
+model OpsClientOwnedSupplier {
+  id               String    @id
+  eventId          String    @map("event_id")
+  category         String
+  supplierName     String    @map("supplier_name")
+  contact          String    @default("")
+  operationalNotes String    @default("") @map("operational_notes")
+  status           String    @default("pending")
+  confirmedAt      DateTime? @map("confirmed_at")
+  riskWarning      String?   @map("risk_warning")
+  riskRaisedBy     String?   @map("risk_raised_by")
+  createdBy        String    @map("created_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([eventId, status], map: "client_owned_suppliers_event_status_idx")
+  @@map("client_owned_suppliers")
+  @@schema("commercial")
 }
 
 // New-P4: courier bookings for returning client assets; a priced booking raises a draft logistics billing source.

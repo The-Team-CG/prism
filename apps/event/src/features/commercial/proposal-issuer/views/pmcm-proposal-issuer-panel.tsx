@@ -56,6 +56,25 @@ export function PmcmProposalIssuerPanel({ eventId }: { eventId: string }) {
   );
 }
 
+/** FR-62: up to two packages. A briefing with one fixed budget gets one, unless PMCM records why it offers two. */
+function PackageOptions({ vm }: { vm: ProposalIssuerVm }) {
+  return (
+    <div className="space-y-2 rounded-md border border-border p-3 text-xs">
+      <p className="font-semibold">Package options</p>
+      {vm.optionB ? (
+        <>
+          <p>Option B is saved ({formatPeso(vm.optionB.total)}). The lines above are Option A. <button type="button" onClick={vm.clearOptionB} className="font-semibold text-primary">Remove Option B</button></p>
+          <label className="block">Reason for two packages <span className="text-muted-foreground">(needed when the briefing names one fixed budget)</span>
+            <input value={vm.packageOverrideReason} maxLength={500} onChange={(event) => vm.setPackageOverrideReason(event.target.value)} className="mt-1 block w-full rounded-md border border-border bg-input px-2 py-1.5 text-sm" />
+          </label>
+        </>
+      ) : (
+        <p className="text-muted-foreground">One package by default. For a budget range or an unconfirmed budget you can offer a second: <button type="button" disabled={vm.busy} onClick={() => void vm.saveAsOptionB()} className="font-semibold text-primary">Save these lines as Option B</button></p>
+      )}
+    </div>
+  );
+}
+
 function ProposalIssueForm({ vm }: { vm: ProposalIssuerVm }) {
   // Issuing is permanent for the version and client-visible, so the form asks for a second confirmation first.
   const [confirming, setConfirming] = useState(false);
@@ -98,6 +117,7 @@ function ProposalIssueForm({ vm }: { vm: ProposalIssuerVm }) {
           <EstimateTotal vm={vm} />
         </div>
         <PreviousEstimates estimates={vm.previousEstimates} onUse={vm.applyPreviousEstimate} />
+        <PackageOptions vm={vm} />
       </fieldset>
 
       <label className={fieldLabel}>

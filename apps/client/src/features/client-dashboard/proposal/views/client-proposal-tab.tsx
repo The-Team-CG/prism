@@ -145,7 +145,8 @@ function ProposalPackageCard({
         {proposal ? (
           <>
             <DataRow label="Proposal" value={`${proposal.title} (version ${proposal.versionNumber})`} />
-            <DataRow label="Proposal total" value={money.format(proposal.totalAmount)} />
+            <DataRow label={proposal.alternativeTotalAmount ? "Option A total" : "Proposal total"} value={money.format(proposal.totalAmount)} />
+            {proposal.alternativeTotalAmount ? <DataRow label="Option B total" value={money.format(proposal.alternativeTotalAmount)} /> : null}
           </>
         ) : null}
         <DataRow label="Client review" value={formatLabel(clientStatus)} />
