@@ -50,6 +50,7 @@ import { AccountInvitationReferenceModule } from '@prism/contexts/identity-acces
 import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.controller';
 import { ProposalLifecycleService } from './application/quotes/proposal-lifecycle.service';
 import { ProposalCommentsService } from './application/quotes/proposal-comments.service';
+import { PareReplacementDispatchService } from './application/suppliers/pare-replacement-dispatch.service';
 import { CommercialPrivacyRedactorService } from './application/suppliers/commercial-privacy-redactor.service';
 import { COMMERCIAL_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 import { CommercialAddendumImpactModule } from './commercial-addendum-impact.module';
@@ -131,6 +132,7 @@ const supplierCommandsProvider = {
     CommunicationService,
     ProposalLifecycleService,
     ProposalCommentsService,
+    PareReplacementDispatchService,
     CommercialPrivacyRedactorService,
     { provide: COMMERCIAL_PRIVACY_REDACTOR, useExisting: CommercialPrivacyRedactorService },
     SupplierWorkflowService,

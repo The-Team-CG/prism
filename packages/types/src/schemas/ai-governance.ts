@@ -8,6 +8,7 @@ export const aiUseCaseIdSchema = z.enum([
   "comms.draft",
   "inquiry.triage",
   "proposal.draft",
+  "client-message.draft",
 ]);
 export type AiUseCaseId = z.infer<typeof aiUseCaseIdSchema>;
 
@@ -211,6 +212,48 @@ export const commsDraftResultSchema = z
   .strict();
 export type CommsDraftResult = z.infer<typeof commsDraftResultSchema>;
 
+/** FR-AI-09 workflow trigger points beyond the unsigned conforme: each drafts a message PMCM reviews and sends. */
+export const CLIENT_MESSAGE_TRIGGERS = ["proposal_unanswered", "balance_due", "floorplan_pending"] as const;
+export const clientMessageTriggerSchema = z.enum(CLIENT_MESSAGE_TRIGGERS);
+export type ClientMessageTrigger = z.infer<typeof clientMessageTriggerSchema>;
+
+export const clientMessageDraftRequestSchema = z.object({ eventId: nonEmptyStringSchema, trigger: clientMessageTriggerSchema }).strict();
+export type ClientMessageDraftRequest = z.infer<typeof clientMessageDraftRequestSchema>;
+
+/** The minimized, server-built facts the model sees for one trigger. No client identity. */
+export const clientMessageDraftInputSchema = z
+  .object({
+    trigger: clientMessageTriggerSchema,
+    eventType: z.string().trim(),
+    daysUntilEvent: z.number().int(),
+    proposalVersion: z.number().int().positive().optional(),
+    daysSinceProposalIssued: z.number().int().nonnegative().optional(),
+    milestoneLabel: z.string().trim().optional(),
+    amountDue: z.number().int().nonnegative().optional(),
+    dueDate: z.string().trim().optional(),
+    daysSinceFloorPlanSubmitted: z.number().int().nonnegative().optional(),
+  })
+  .strict();
+export type ClientMessageDraftInput = z.infer<typeof clientMessageDraftInputSchema>;
+
+export const sendClientMessageSchema = z
+  .object({
+    eventId: nonEmptyStringSchema,
+    trigger: clientMessageTriggerSchema,
+    subject: nonEmptyStringSchema.max(150),
+    body: nonEmptyStringSchema.max(2_000),
+    idempotencyKey: nonEmptyStringSchema,
+  })
+  .strict();
+export type SendClientMessageInput = z.infer<typeof sendClientMessageSchema>;
+
+export interface PrismClientMessageTriggerState {
+  trigger: ClientMessageTrigger;
+  /** When the condition started, for example when the proposal was issued. */
+  since: string;
+  detail: string;
+}
+
 export const inquiryTriageRequestSchema = z
   .object({
     inquiryId: nonEmptyStringSchema,
@@ -283,9 +326,19 @@ export const proposalDraftRequestSchema = z
     budgetAmount: z.number().int().positive(),
     notes: z.string().trim().default(""),
     lines: z.array(proposalDraftLineSchema).min(1).max(60),
+    /** Milestones for the Payment Schedule section. The standard policy is a 50% downpayment and the balance before the event. */
+    paymentSchedule: z
+      .array(z.object({ label: nonEmptyStringSchema.max(80), percentage: z.number().positive().max(100) }).strict())
+      .min(1)
+      .max(4)
+      .default([
+        { label: "Downpayment", percentage: 50 },
+        { label: "Balance before the event", percentage: 50 },
+      ])
+      .refine((schedule) => Math.round(schedule.reduce((sum, item) => sum + item.percentage, 0) * 100) === 10_000, "Payment milestones must total 100%"),
   })
   .strict();
-export type ProposalDraftRequest = z.infer<typeof proposalDraftRequestSchema>;
+export type ProposalDraftRequest = z.input<typeof proposalDraftRequestSchema>;
 
 /** The minimized, server-built view of an event estimate that the drafting model sees. No client identity. */
 export const proposalDraftInputSchema = z
@@ -312,6 +365,11 @@ export const proposalDraftInputSchema = z
       )
       .min(1)
       .max(60),
+    /** Amounts are computed on the server from the estimate total; the model only words them. */
+    paymentSchedule: z
+      .array(z.object({ label: nonEmptyStringSchema, percentage: z.number().positive(), amount: z.number().int().nonnegative() }).strict())
+      .min(1)
+      .max(4),
   })
   .strict();
 export type ProposalDraftInput = z.infer<typeof proposalDraftInputSchema>;
@@ -322,9 +380,34 @@ export const proposalDraftResultSchema = z
     summary: nonEmptyStringSchema.max(1_500),
     revisionNote: z.string().trim().max(400),
     highlights: z.array(nonEmptyStringSchema.max(200)).max(8),
+    /** The five catalog sections of a first-draft proposal (FR-AI-03). */
+    sections: z
+      .object({
+        executiveSummary: nonEmptyStringSchema.max(1_200),
+        eventConcept: nonEmptyStringSchema.max(1_200),
+        servicePackageSummary: nonEmptyStringSchema.max(1_200),
+        investmentSummary: nonEmptyStringSchema.max(800),
+        paymentSchedule: nonEmptyStringSchema.max(800),
+      })
+      .strict(),
   })
   .strict();
 export type ProposalDraftResult = z.infer<typeof proposalDraftResultSchema>;
+
+export const PROPOSAL_DRAFT_SECTION_TITLES = {
+  executiveSummary: "Executive Summary",
+  eventConcept: "Event Concept",
+  servicePackageSummary: "Service Package Summary",
+  investmentSummary: "Investment Summary",
+  paymentSchedule: "Payment Schedule",
+} as const satisfies Record<keyof ProposalDraftResult["sections"], string>;
+
+/** The proposal summary text PMCM edits: each section under its heading, in catalog order. */
+export function composeProposalDraftSections(sections: ProposalDraftResult["sections"]): string {
+  return (Object.keys(PROPOSAL_DRAFT_SECTION_TITLES) as Array<keyof typeof PROPOSAL_DRAFT_SECTION_TITLES>)
+    .map((key) => `${PROPOSAL_DRAFT_SECTION_TITLES[key]}\n${sections[key].trim()}`)
+    .join("\n\n");
+}
 
 export const proposalDraftResponseSchema = z
   .object({
@@ -358,6 +441,7 @@ export type AiUseCaseContractMap = {
   "comms.draft": { input: CommsDraftRequest; output: CommsDraftResult };
   "inquiry.triage": { input: InquiryTriageInput; output: InquiryTriageResult };
   "proposal.draft": { input: ProposalDraftInput; output: ProposalDraftResult };
+  "client-message.draft": { input: ClientMessageDraftInput; output: CommsDraftResult };
 };
 
 export type AiUseCaseInput<K extends AiUseCaseId> = AiUseCaseContractMap[K]["input"];

@@ -76,6 +76,13 @@ export type AiProposalEventSource = {
   clientPortalStatus: string;
 };
 
+/** Facts behind the FR-AI-09 client message triggers. The client email is for delivery only, never for the model. */
+export type ClientMessageTriggerFacts = {
+  event: AiProposalEventSource & { proposalClientStatus: string; floorPlanStatus: string; floorPlanSubmittedAt: Date | null; clientEmail: string };
+  latestIssuedProposal: { versionNumber: number; issuedAt: Date } | null;
+  nextUnpaidMilestone: { label: string; remainingBalance: number; dueDate: Date } | null;
+};
+
 export type PlatformPrivacyConsentFact = {
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
@@ -113,6 +120,7 @@ export interface PlatformReferenceReadModel {
   findPareSupplierCandidates(input: { category: string; withdrawnSupplierId: string; withdrawnSupplierName: string; eventId: string }): Promise<PareSupplierCandidateSource[]>;
   findInquiryTriageSource(inquiryId: string): Promise<AiInquiryTriageSource | null>;
   findProposalDraftEventSource(eventId: string): Promise<AiProposalEventSource | null>;
+  findClientMessageTriggerFacts(eventId: string): Promise<ClientMessageTriggerFacts | null>;
   findApprovedTrustRecipientEmail(): Promise<string | null>;
   /** Approved, non-locked PMCM administrator by user id; used to validate privacy request assignees. */
   findApprovedPmcmOperator(userId: string): Promise<{ id: string; name: string } | null>;

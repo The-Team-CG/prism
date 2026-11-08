@@ -335,8 +335,11 @@ describe("AI governance contracts", () => {
     expect(proposalDraftRequestSchema.safeParse({ ...request, lines: [] }).success).toBe(false);
     expect(proposalDraftRequestSchema.safeParse({ ...request, clientName: "Jane" }).success).toBe(false);
 
-    const draft = { title: "Package", summary: "Summary", revisionNote: "", highlights: [] };
+    const draft = { title: "Package", summary: "Summary", revisionNote: "", highlights: [], sections: { executiveSummary: "A garden gala.", eventConcept: "An evening outdoors.", servicePackageSummary: "Venue.", investmentSummary: "PHP 300,000.", paymentSchedule: "Downpayment 50%; balance 50%." } };
     expect(proposalDraftResultSchema.safeParse(draft).success).toBe(true);
+    // The five catalog sections are required, and payment milestones must total 100%.
+    expect(proposalDraftResultSchema.safeParse({ ...draft, sections: undefined }).success).toBe(false);
+    expect(proposalDraftRequestSchema.safeParse({ ...request, paymentSchedule: [{ label: "Downpayment", percentage: 50 }] }).success).toBe(false);
     expect(proposalDraftResultSchema.safeParse({ ...draft, title: "x".repeat(121) }).success).toBe(false);
   });
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PrismIssuedProposalSummary } from "@prism/types";
+import { composeProposalDraftSections } from "@prism/types";
 import { proposalIssuerRepository } from "../data/proposal-issuer-repository";
 import {
   buildCostEstimateInput,
@@ -86,7 +87,7 @@ export function useProposalIssuerViewModel(eventId: string) {
       if (currentEventId.current !== requestedEventId) return;
       setBeforeDraft({ title, summary, revisionNote });
       editProposal(setTitle)(draft.title);
-      editProposal(setSummary)(draft.summary);
+      editProposal(setSummary)(composeProposalDraftSections(draft.sections));
       if (latest) editProposal(setRevisionNote)(draft.revisionNote);
       setNotice("Draft wording added. Review and edit it before you issue.");
     } catch (cause) {

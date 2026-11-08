@@ -44,7 +44,7 @@ describe("PmcmProposalIssuerPanel", () => {
 
   it("fills the wording from the estimate for PMCM to edit and issues nothing", async () => {
     repo.draftWording.mockResolvedValue({
-      draft: { title: "Garden gala package", summary: "A warm summary.", revisionNote: "", highlights: [] },
+      draft: { title: "Garden gala package", summary: "A warm summary.", revisionNote: "", highlights: [], sections: { executiveSummary: "A garden gala.", eventConcept: "An evening outdoors.", servicePackageSummary: "Venue.", investmentSummary: "PHP 300,000.", paymentSchedule: "Downpayment 50%; balance 50%." } },
       requestId: "req_1",
       modelVersion: "claude-sonnet-5-5",
     });
@@ -63,7 +63,10 @@ describe("PmcmProposalIssuerPanel", () => {
       budgetAmount: 500000,
       notes: "",
       lines: [{ category: "Venue", description: "Garden venue", quantity: 1, unitAmount: 300000 }],
+      paymentSchedule: [{ label: "Downpayment", percentage: 50 }, { label: "Balance before the event", percentage: 50 }],
     });
+    // The summary is filled with the five sections under their catalog headings.
+    expect((screen.getByLabelText(/What the client sees/) as HTMLTextAreaElement).value).toMatch(/^Executive Summary\nA garden gala\.\n\nEvent Concept\n/);
     expect(screen.getByText("Draft wording added. Review and edit it before you issue.")).toBeTruthy();
     expect(repo.createEstimate).not.toHaveBeenCalled();
     expect(repo.issue).not.toHaveBeenCalled();
@@ -71,7 +74,7 @@ describe("PmcmProposalIssuerPanel", () => {
 
   it("restores the wording PMCM had typed when the AI draft is undone", async () => {
     repo.draftWording.mockResolvedValue({
-      draft: { title: "AI title", summary: "AI summary", revisionNote: "", highlights: [] },
+      draft: { title: "AI title", summary: "AI summary", revisionNote: "", highlights: [], sections: { executiveSummary: "A garden gala.", eventConcept: "An evening outdoors.", servicePackageSummary: "Venue.", investmentSummary: "PHP 300,000.", paymentSchedule: "Downpayment 50%; balance 50%." } },
       requestId: "req_1",
       modelVersion: "claude-sonnet-5-5",
     });
