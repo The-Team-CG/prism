@@ -5,6 +5,7 @@ import { LIFECYCLE_PRIVACY_REDACTOR, type LifecyclePrivacyRedactor } from '@pris
 import { OPERATIONS_PRIVACY_REDACTOR, type OperationsPrivacyRedactor } from '@prism/contexts/operations';
 import type { PlatformRetentionCandidate } from '@prism/contexts/read-models';
 import { AiTriageRecordEraser } from '../ai-governance/ai-triage-record-eraser.service';
+import { StorageObjectService } from '../storage/storage-object.service';
 
 export type RetentionRedactionResult = { surfaces: string[]; touchedRecords: number };
 
@@ -19,6 +20,7 @@ export class PrivacyRetentionExecutorService {
     @Inject(COMMERCIAL_PRIVACY_REDACTOR) private readonly commercialPrivacy: CommercialPrivacyRedactor,
     @Inject(OPERATIONS_PRIVACY_REDACTOR) private readonly operationsPrivacy: OperationsPrivacyRedactor,
     private readonly aiTriageRecords: AiTriageRecordEraser,
+    private readonly storage: StorageObjectService,
   ) {}
 
   async redactCandidate(
@@ -49,6 +51,11 @@ export class PrivacyRetentionExecutorService {
       { eventId: candidate.eventId, recordType: candidate.category, recordId: candidate.subjectId },
       transaction,
     );
-    return { surfaces: result.surfaces, touchedRecords: result.touchedRecords };
+    // New-SEC3: stored feedback photos and videos are deleted with the feedback, not only renamed.
+    const erasedMedia = await this.storage.eraseGuestFeedbackMedia(result.storedObjectIds ?? [], transaction);
+    return {
+      surfaces: [...result.surfaces, ...(erasedMedia ? ['guest_feedback_media'] : [])],
+      touchedRecords: result.touchedRecords + erasedMedia,
+    };
   }
 }

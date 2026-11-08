@@ -303,6 +303,14 @@ export interface PrismGuestFeedbackMedia {
   sizeBytes: number;
   status: string;
   blocker: string;
+  /** The byte-checked stored file; null on media recorded before guest uploads were stored. */
+  storedObjectId: string | null;
+}
+
+/** New-SEC3: a guest feedback photo or video stored after its bytes passed the file checks. */
+export interface PrismGuestFeedbackMediaUpload {
+  objectId: string;
+  kind: "photo" | "video";
 }
 
 export type PrismRegistrationPlatformType =

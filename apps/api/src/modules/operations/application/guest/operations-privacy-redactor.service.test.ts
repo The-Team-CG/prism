@@ -92,6 +92,7 @@ describe('OperationsPrivacyRedactorService', () => {
     const matches = (row: Row, where: Record<string, unknown>) =>
       Object.entries(where).every(([key, expected]) => {
         if (expected && typeof expected === 'object' && 'in' in expected) return (expected as { in: unknown[] }).in.includes(row[key]);
+        if (expected && typeof expected === 'object' && 'not' in expected) return row[key] != null && row[key] !== (expected as { not: unknown }).not;
         if (expected && typeof expected === 'object' && 'equals' in expected) {
           return String(row[key]).toLowerCase() === String(expected.equals).toLowerCase();
         }
@@ -113,12 +114,12 @@ describe('OperationsPrivacyRedactorService', () => {
         { id: 'fb_2', eventId: 'event_1', guestName: 'Ana Reyes', comment: 'Great', photoFileName: 'b.jpg', videoFileName: null },
       ];
       const media: Row[] = [
-        { id: 'm_1', feedbackId: 'fb_1', originalFileName: 'a-original.jpg' },
-        { id: 'm_2', feedbackId: 'fb_2', originalFileName: 'b-original.jpg' },
+        { id: 'm_1', feedbackId: 'fb_1', originalFileName: 'a-original.jpg', storedObjectId: 'obj_a' },
+        { id: 'm_2', feedbackId: 'fb_2', originalFileName: 'b-original.jpg', storedObjectId: 'obj_b' },
       ];
       const table = (rows: Row[]) => ({
         findFirst: vi.fn(async ({ where }: { where: Row }) => rows.find((row) => matches(row, where)) ?? null),
-        findMany: vi.fn(async ({ where }: { where: Row }) => rows.filter((row) => matches(row, where))),
+        findMany: vi.fn(async ({ where }: { where: Row }) => rows.filter((row) => matches(row, where)).map((row) => ({ ...row }))),
         updateMany: vi.fn(async ({ where, data }: { where: Row; data: Row }) => {
           const hit = rows.filter((row) => matches(row, where));
           hit.forEach((row) => Object.assign(row, data));
@@ -171,10 +172,11 @@ describe('OperationsPrivacyRedactorService', () => {
       );
 
       expect(store.feedback.find((row) => row.id === 'fb_1')).toMatchObject({ guestName: 'Redacted guest', comment: '[redacted by privacy request]', photoFileName: null });
-      expect(store.media.find((row) => row.id === 'm_1')?.originalFileName).toBe('[redacted by privacy request]');
+      expect(store.media.find((row) => row.id === 'm_1')).toMatchObject({ originalFileName: '[redacted by privacy request]', storedObjectId: null });
       expect(store.feedback.find((row) => row.id === 'fb_2')).toMatchObject({ guestName: 'Ana Reyes', comment: 'Great', photoFileName: 'b.jpg' });
-      expect(store.media.find((row) => row.id === 'm_2')?.originalFileName).toBe('b-original.jpg');
-      expect(result).toEqual({ surfaces: ['guest_feedback_media_metadata', 'guest_feedback'], touchedRecords: 2 });
+      expect(store.media.find((row) => row.id === 'm_2')).toMatchObject({ originalFileName: 'b-original.jpg', storedObjectId: 'obj_b' });
+      // Only the referenced item's stored bytes are handed back for deletion.
+      expect(result).toEqual({ surfaces: ['guest_feedback_media_metadata', 'guest_feedback'], touchedRecords: 2, storedObjectIds: ['obj_a'] });
     });
 
     it('does nothing when the record does not belong to the event', async () => {

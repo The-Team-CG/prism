@@ -2950,6 +2950,7 @@ model OpsGuestFeedbackMedia {
   sizeBytes        Int      @map("size_bytes")
   status           String   @default("pending_storage")
   blocker          String
+  storedObjectId   String?  @unique @map("stored_object_id")
   createdAt        DateTime @default(now()) @map("created_at")
 
   feedback OpsGuestFeedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)

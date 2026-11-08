@@ -3,7 +3,6 @@ import {
   nonEmptyStringSchema,
   optionalTrimmedStringSchema,
   privacyConsentSchema,
-  uploadMetadataSchema,
 } from "./common.js";
 /* Guest check-in and feedback. */
 
@@ -51,8 +50,9 @@ export const createGuestFeedbackSchema = privacyConsentSchema.extend({
   guestName: nonEmptyStringSchema,
   rating: z.number().int().min(1).max(5),
   comment: optionalTrimmedStringSchema,
-  photo: uploadMetadataSchema.optional(),
-  video: uploadMetadataSchema.optional(),
+  /** New-SEC3: ids returned by the guest feedback media upload, which checked the bytes before storing them. */
+  photoObjectId: nonEmptyStringSchema.optional(),
+  videoObjectId: nonEmptyStringSchema.optional(),
 });
 export type CreateGuestFeedbackInput = z.infer<typeof createGuestFeedbackSchema>;
 

@@ -42,7 +42,7 @@ import { PARE_APPROVAL_GOVERNANCE, PARE_DISPATCH_WRITER } from './contracts/ai-g
 import { StorageObjectService } from './application/storage/storage-object.service';
 import { STORED_REQUIREMENT_UPLOAD_READER } from './contracts/storage/storage.port';
 import { StorageValidationService } from './application/storage/storage-validation.service';
-import { STORAGE_ADAPTER, STORED_SUPPLIER_UPLOAD_READER } from './contracts/storage/storage.port';
+import { GUEST_FEEDBACK_MEDIA_STORE, STORAGE_ADAPTER, STORED_SUPPLIER_UPLOAD_READER } from './contracts/storage/storage.port';
 import { LocalFileSystemStorageAdapter } from './infrastructure/storage/local-filesystem-storage.adapter';
 import { SupabaseStorageAdapter } from './infrastructure/storage/supabase-storage.adapter';
 import { StorageController } from './api/storage/storage.controller';
@@ -177,6 +177,7 @@ export function createAiProviderAdapters(
     StorageObjectService,
     { provide: STORED_SUPPLIER_UPLOAD_READER, useExisting: StorageObjectService },
     { provide: STORED_REQUIREMENT_UPLOAD_READER, useExisting: StorageObjectService },
+    { provide: GUEST_FEEDBACK_MEDIA_STORE, useExisting: StorageObjectService },
     storageAdapterProvider,
   ],
   exports: [
@@ -200,6 +201,7 @@ export function createAiProviderAdapters(
     StorageObjectService,
     STORED_SUPPLIER_UPLOAD_READER,
     STORED_REQUIREMENT_UPLOAD_READER,
+    GUEST_FEEDBACK_MEDIA_STORE,
     STORAGE_ADAPTER,
   ],
 })

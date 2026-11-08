@@ -62,7 +62,10 @@ export async function submitGuestFeedback(input: {
   photo?: File | null;
   video?: File | null;
 }): Promise<PrismGuestFeedbackReceipt> {
-  const payload = buildFeedbackPayload(input);
+  // Files go first; feedback only references uploads the API has already checked and stored.
+  const photo = input.photo ? await guestDashboardRepository.uploadFeedbackMedia(input.session, input.photo) : undefined;
+  const video = input.video ? await guestDashboardRepository.uploadFeedbackMedia(input.session, input.video) : undefined;
+  const payload = buildFeedbackPayload({ ...input, photoObjectId: photo?.objectId, videoObjectId: video?.objectId });
   return guestDashboardRepository.submitFeedback(
     input.session,
     parseContract(createGuestFeedbackSchema, payload, "Guest feedback"),
