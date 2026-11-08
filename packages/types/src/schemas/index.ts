@@ -485,6 +485,7 @@ export {
 export * from "./ai-governance.js";
 export * from "./event-risk-register.js";
 export * from "./venue-scouting.js";
+export * from "./pre-event-records.js";
 export {
   PrismContractError,
   parseContract,

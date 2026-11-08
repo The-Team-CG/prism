@@ -37,6 +37,7 @@ export class SupplierIngressLateScheduler implements OnModuleInit, OnModuleDestr
     this.running = true;
     try {
       await this.monitorService.markLateSupplierIngresses(SYSTEM_ACTOR);
+      await this.monitorService.noteSupplierNoShows(SYSTEM_ACTOR);
     } catch (error) {
       this.logger.warn(
         `Supplier ingress late sweep skipped: ${error instanceof Error ? error.message : String(error)}`,

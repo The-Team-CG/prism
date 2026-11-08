@@ -40,6 +40,10 @@ import { EventRiskAssessmentController } from './api/change/event-risk-assessmen
 import { EventRiskAssessmentService } from './application/change/event-risk-assessment.service';
 import { EventRiskRegisterService } from './application/change/event-risk-register.service';
 import { EventRiskRegisterController } from './api/change/event-risk-register.controller';
+import { InquiryContextNotesController } from './api/onboarding/inquiry-context-notes.controller';
+import { InquiryContextNotesService } from './application/onboarding/inquiry-context-notes.service';
+import { AccreditationController } from './api/compliance/accreditation.controller';
+import { AccreditationService } from './application/compliance/accreditation.service';
 import { AddendumConformeController } from './api/change/addendum-conforme.controller';
 import { AddendumConformeService } from './application/change/addendum-conforme.service';
 import { AddendumWithdrawalController } from './api/change/addendum-withdrawal.controller';
@@ -108,6 +112,8 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ScopeChangeRequestController,
     EventRiskAssessmentController,
     EventRiskRegisterController,
+    InquiryContextNotesController,
+    AccreditationController,
     AddendumConformeController,
     AddendumWithdrawalController,
     ClientEventDayViewController,
@@ -147,6 +153,8 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ScopeChangeRequestService,
     EventRiskAssessmentService,
     EventRiskRegisterService,
+    InquiryContextNotesService,
+    AccreditationService,
     AddendumConformeService,
     AddendumWithdrawalService,
     ClientEventDayViewService,

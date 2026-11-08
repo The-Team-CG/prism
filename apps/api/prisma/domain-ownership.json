@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 141,
+    "totalTables": 144,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -20,14 +20,14 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 34,
-        "columns": 471
+        "tables": 36,
+        "columns": 488
       },
       {
         "domain": "commercial",
         "schema": "commercial",
-        "tables": 39,
-        "columns": 477
+        "tables": 40,
+        "columns": 486
       },
       {
         "domain": "operations",
@@ -1159,6 +1159,33 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 12,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsInquiryContextNote",
+      "currentSchema": "event_lifecycle",
+      "table": "inquiry_context_notes",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsAccreditationRequirement",
+      "currentSchema": "event_lifecycle",
+      "table": "accreditation_requirements",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 10,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsLogisticsBooking",
+      "currentSchema": "commercial",
+      "table": "logistics_bookings",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 9,
       "introducedAfterCutover": true
     },
     {

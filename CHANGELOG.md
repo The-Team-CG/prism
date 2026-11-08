@@ -6,6 +6,12 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- A supplier still flagged late 12 hours after the late flag, with no arrival reported, gets one automatic no-show note on its profile.
+- PMCM can fill its own Word billing statement template from the issued statement (number, client, event, line items, schedule, payment methods), review it, then copy or download it.
+- The closure workspace shows a printable guest feedback QR; it opens the guest portal with the event code filled in.
+- PMCM logs pre-conforme discussion notes, scope flags and dated follow-ups on an inquiry, and sees them as Pre-Conforme Context in the event workspace.
+- PMCM tracks accreditation documents per event, each with its own deadline (default 7 days) and an overdue flag; planning does not wait for them.
+- PMCM records courier bookings (Grab, Lalamove, Transportify) for returning client assets with a printable slip and a Viber share link; a priced booking adds a draft logistics billing item for approval. Migrations `20261110090000_event-lifecycle_pre_conforme_notes_and_accreditation` and `20261110090100_commercial_logistics_bookings` must apply before the API deploys.
 - The feature ledger records the current catalog status: 96 done, 16 partial, 23 not built, none held behind an external gate.
 - QR check-in: PMCM issues QR passes to roster guests with an email (print them or email each guest a pass link), and registration staff check guests in by scanning the pass with the device camera over HTTPS or typing its code. Name search and headcount check-in are unchanged.
 - A coordinator withdrawal within 48 hours of the event raises a PARE replacement package (ranked free coordinators, risk by hours left, drafted message); PMCM approves a coordinator to assign them or rejects the package, and nothing changes before that.
