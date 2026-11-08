@@ -3,13 +3,14 @@ import { BadRequestException } from '@nestjs/common';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { ClientReviewItemsService } from './client-review-items.service';
 
-function setup() {
+function setup({ stylingBudgetConfirmed = true }: { stylingBudgetConfirmed?: boolean } = {}) {
   const items: any[] = [];
   const decisions: any[] = [];
   const event = { id: 'event-1', archived: false, clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' } };
   const prisma: any = {
     opsEvent: { findUnique: vi.fn(async () => event) },
     opsDocument: { findFirst: vi.fn(async () => null) },
+    opsBriefing: { findFirst: vi.fn(async () => ({ stylingBudgetConfirmedAt: stylingBudgetConfirmed ? new Date('2026-11-01T10:00:00Z') : null })) },
     opsClientReviewItem: {
       findUnique: vi.fn(async ({ where }: any) => items.find((item) => item.idempotencyKey === where.idempotencyKey) ?? null),
       findFirst: vi.fn(async ({ where }: any) => where.id ? items.find((item) => item.id === where.id && item.eventId === where.eventId) ?? null : items.filter((item) => item.eventId === where.eventId && item.kind === where.kind).sort((a, b) => b.version - a.version)[0] ?? null),
@@ -45,6 +46,14 @@ describe('ClientReviewItemsService', () => {
     expect(first.id).toBe(replay.id);
     expect(second.version).toBe(2);
     expect(items).toHaveLength(2);
+  });
+
+  it('refuses venue and styling review items until the primary client has confirmed a styling budget', async () => {
+    const { service, items, pmcm } = setup({ stylingBudgetConfirmed: false });
+    const reason = 'Venue and styling review items can only be issued after the primary client confirms a styling budget in the briefing';
+    await expect(service.issue('event-1', { kind: 'styling', title: 'Blue', summary: 'Blue palette', idempotencyKey: 'style-unconfirmed' }, pmcm)).rejects.toThrow(reason);
+    await expect(service.issue('event-1', { kind: 'venue', title: 'Garden', summary: 'Garden venue', idempotencyKey: 'venue-unconfirmed' }, pmcm)).rejects.toThrow(reason);
+    expect(items).toHaveLength(0);
   });
 
   it('rejects a decision against an obsolete version before writing a decision', async () => {

@@ -75,6 +75,10 @@ function isPrismaSerializationFailure(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2034';
 }
 
+type EventPrivacy = 'private' | 'public';
+/** A plan as PMCM and client readers see it: the owning event's privacy decides whether seating is open. */
+type PlanView = FloorPlan & { eventPrivacy: EventPrivacy };
+
 @Injectable()
 export class PlansService {
   constructor(
@@ -84,7 +88,7 @@ export class PlansService {
     @Inject(FLOORPLAN_EVENT_REFERENCE_READER) private readonly lifecycleEventReferences: FloorplanEventReferenceReader,
   ) {}
 
-  private mapPlan(row: PlanWithObjects, resolvedObjects?: FloorPlanObject[]): FloorPlan {
+  private mapPlan(row: PlanWithObjects, eventPrivacy: EventPrivacy, resolvedObjects?: FloorPlanObject[]): PlanView {
     const objects =
       resolvedObjects ??
       (row.objectRows.length
@@ -99,6 +103,7 @@ export class PlansService {
       height: row.height,
       gridSize: row.gridSize,
       pax: row.pax,
+      eventPrivacy,
       ownerId: row.ownerId,
       templateId: row.templateId,
       eventId: row.eventId,
@@ -111,20 +116,27 @@ export class PlansService {
     };
   }
 
-  async getPlan(planId: string, actor: ResolvedEventOpsActor): Promise<FloorPlan> {
+  async getPlan(planId: string, actor: ResolvedEventOpsActor): Promise<PlanView> {
     const row = await this.findPlan(planId);
 
     if (!row) throw new NotFoundException('Plan not found');
     await this.assertCanReadPlan(row, actor);
 
-    return this.mapPlan(row);
+    return this.mapPlan(row, await this.eventPrivacyOf(row.eventId));
+  }
+
+  /** A plan with no event is never private, so seating on it stays closed. */
+  private async eventPrivacyOf(eventId: string | null): Promise<EventPrivacy> {
+    if (!eventId) return 'public';
+    const reference = await this.lifecycleEventReferences.findFloorplanEvent(eventId);
+    return reference?.eventPrivacy ?? 'public';
   }
 
   async updatePlan(
     planId: string,
     changes: UpdatePlanInput,
     actor: ResolvedEventOpsActor,
-  ): Promise<FloorPlan> {
+  ): Promise<PlanView> {
     const plan = await this.findPlan(planId);
     if (!plan) throw new NotFoundException('Plan not found');
 
@@ -168,7 +180,7 @@ export class PlansService {
       }
 
       if (Object.keys(requestedChanges).length === 0) return latestPlan;
-      this.assertTableAssignmentsEligible(latestPlan, requestedChanges, actor);
+      this.assertTableAssignmentsEligible(latestPlan, requestedChanges, actor, lifecycleEvent?.eventPrivacy ?? 'public');
 
       const saved = await this.savePlanChanges(tx, planId, scalarChanges, objects, expectedUpdatedAt);
 
@@ -197,7 +209,7 @@ export class PlansService {
       throw error;
     });
 
-    return this.mapPlan(updated, objects);
+    return this.mapPlan(updated, await this.eventPrivacyOf(plan.opsDraft?.eventId ?? plan.eventId), objects);
   }
 
   /**
@@ -205,7 +217,7 @@ export class PlansService {
    * checked here because they carry no authoritative guest roster. A save that omits objects or guests
    * is checked against the stored values it leaves in place.
    */
-  private assertTableAssignmentsEligible(plan: PlanWithObjects, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor) {
+  private assertTableAssignmentsEligible(plan: PlanWithObjects, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor, eventPrivacy: EventPrivacy) {
     if (actor.role === OpsUserRole.Client) return;
     if (changes.objects === undefined && changes.guests === undefined) return;
     const storedObjects = plan.objectRows.length
@@ -215,7 +227,7 @@ export class PlansService {
     const guests = changes.guests ?? storedTableEligibilityGuests(asArray<unknown>(plan.guests));
     assertTableAssignmentsEligible(objects, guests);
     if (changes.objects !== undefined) {
-      assertSeatingAllowedForNewAssignments(storedTableEligibilityObjects(storedObjects), objects, changes.pax ?? plan.pax);
+      assertSeatingAllowedForNewAssignments(storedTableEligibilityObjects(storedObjects), objects, { pax: changes.pax ?? plan.pax, eventPrivacy });
     }
   }
 

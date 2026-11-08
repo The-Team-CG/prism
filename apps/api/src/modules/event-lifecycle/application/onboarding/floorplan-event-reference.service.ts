@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
+import { eventPrivacySchema } from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { FloorplanEventReference, FloorplanEventReferenceReader } from '../../contracts/floorplan-event-reference.port';
 
@@ -36,6 +37,7 @@ export class FloorplanEventReferenceService implements FloorplanEventReferenceRe
         freezeStatus: true,
         floorPlanStatus: true,
         readiness: true,
+        privacy: true,
         inquiry: { select: { email: true, conformeSignedAt: true } },
         ocularVisitRequest: { select: { status: true } },
       },
@@ -54,6 +56,7 @@ export class FloorplanEventReferenceService implements FloorplanEventReferenceRe
       primaryClientEmail: event.inquiry?.email ?? null,
       conformeSigned: Boolean(event.inquiry?.conformeSignedAt),
       ocularVisitStatus: event.ocularVisitRequest?.status ?? null,
+      eventPrivacy: eventPrivacySchema.parse(event.privacy),
     };
   }
 }
