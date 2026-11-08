@@ -1,4 +1,5 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
+import { parseContract, setEventModulesSchema, type SetEventModulesInput } from "@prism/types";
 import type { LogInquiryOnBehalfInput, PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, SetEventPrivacyInput, WaiveOcularVisitInput } from "@prism/types";
 import { liveOpsScheduleRepository } from "@/features/live-ops/schedule/data/live-ops-schedule-repository";
 
@@ -17,6 +18,11 @@ waiveOcularVisit: (eventId: string, input: WaiveOcularVisitInput) =>
     request<PrismPmcmOcularVisit>(`/api/events/${eventId}/ocular-visit/waive`, {
       method: "POST",
       body: input,
+    }),
+setEventModules: (eventId: string, input: SetEventModulesInput) =>
+    request<{ eventId: string; disabledModules: SetEventModulesInput["disabledModules"] }>(`/api/events/${eventId}/modules`, {
+      method: "PATCH",
+      body: parseContract(setEventModulesSchema, input, "Event modules"),
     }),
 setEventPrivacy: (eventId: string, input: SetEventPrivacyInput) =>
     request<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>(`/api/events/${eventId}/privacy`, {

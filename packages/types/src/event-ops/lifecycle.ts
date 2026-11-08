@@ -66,6 +66,9 @@ export interface PrismInquiry {
   portalInvitationSentAt?: string | null;
   portalInvitationOpenedAt?: string | null;
   portalInvitationExpiresAt?: string | null;
+  /** FR-50: on the public receipt only. The submitter's edit link token and when the edit window closes. */
+  editToken?: string;
+  editableUntil?: string;
   /** FR-02: "standard" or "bidding". */
   intakePath?: "standard" | "bidding";
   bidStatus?: "preparing" | "submitted" | "won" | "lost" | null;
@@ -149,6 +152,8 @@ export interface PrismFloorPlanSnapshotVersion {
 export interface PrismEvent {
   id: string;
   inquiryId: string;
+  /** FR-24: modules PMCM switched off for this event. */
+  disabledModules?: Array<"floorplans" | "games" | "venue_scouting" | "accreditation" | "logistics" | "client_owned_suppliers">;
   clientName: string;
   eventName: string;
   eventDate: string;

@@ -21,6 +21,8 @@ export const PUBLIC_RATE_LIMITS = {
   accountRequest: { limit: 5, ttl: MINUTE_MS },
   /** Public inquiry and supplier application forms. */
   publicSubmission: { limit: 10, ttl: MINUTE_MS },
+  /** FR-50: inquiry draft autosave and the submitter's edit link. */
+  inquiryDraft: { limit: 40, ttl: MINUTE_MS },
   /** Supplier quote-request token links (read, submit, revise). */
   quoteRequestToken: { limit: 60, ttl: MINUTE_MS },
 } as const;

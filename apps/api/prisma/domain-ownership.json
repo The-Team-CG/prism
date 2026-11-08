@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 145,
+    "totalTables": 146,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 36,
-        "columns": 488
+        "tables": 37,
+        "columns": 496
       },
       {
         "domain": "commercial",
@@ -155,7 +155,7 @@
       "table": "inquiries",
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
-      "columnCount": 39
+      "columnCount": 40
     },
     {
       "model": "OpsInquiryStatusHistory",
@@ -171,7 +171,7 @@
       "table": "events",
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
-      "columnCount": 34
+      "columnCount": 35
     },
     {
       "model": "OpsEventClientFloorplanAccessGrant",
@@ -1159,6 +1159,15 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 12,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsInquiryDraft",
+      "currentSchema": "event_lifecycle",
+      "table": "inquiry_drafts",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 6,
       "introducedAfterCutover": true
     },
     {

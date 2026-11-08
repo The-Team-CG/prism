@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { parseContract, saveInquiryDraftSchema } from "@prism/types";
+import { inquiryRepository } from "../data/inquiry-repository";
+import { clearLocalDraft, draftPayload, formFromPayload, hasDraftContent, newDraftToken, readLocalDraft, saveLocalDraft, serverDraftAllowed } from "../model/inquiry-draft";
 import { toast } from "sonner";
 import {
   applyInquiryPrefill,
@@ -24,10 +27,35 @@ export function useInquirySubmitViewModel() {
   const [status, setStatus] = useState<InquirySubmitStatus>("idle");
   const [error, setError] = useState<string | null>(null);
   const [attempted, setAttempted] = useState(false);
+  const [receipt, setReceipt] = useState<{ editToken?: string; editableUntil?: string } | null>(null);
+  const draftToken = useRef<string | null>(null);
 
   useEffect(() => {
-    setForm((current) => applyInquiryPrefill(current, new URLSearchParams(window.location.search)));
+    const params = new URLSearchParams(window.location.search);
+    const resume = params.get("draft");
+    const local = readLocalDraft();
+    draftToken.current = resume ?? local?.token ?? newDraftToken();
+    if (resume) {
+      void inquiryRepository.getDraft(resume).then((draft) => setForm(formFromPayload(draft.payload))).catch(() => undefined);
+    } else if (local) {
+      setForm(local.form);
+    } else {
+      setForm((current) => applyInquiryPrefill(current, params));
+    }
   }, []);
+
+  // FR-50: keep the draft in this browser as the visitor types, and on the server once they accept the privacy notice.
+  useEffect(() => {
+    const token = draftToken.current;
+    if (!token || status === "submitted" || !hasDraftContent(form)) return;
+    const timer = setTimeout(() => {
+      saveLocalDraft({ token, form });
+      if (!serverDraftAllowed(form)) return;
+      const input = parseContract(saveInquiryDraftSchema, { privacyConsentAccepted: true, email: form.email.trim(), payload: draftPayload(form) }, "Inquiry draft");
+      void inquiryRepository.saveDraft(token, input).catch(() => undefined);
+    }, 2_000);
+    return () => clearTimeout(timer);
+  }, [form, status]);
 
   const minDate = useMemo(() => inquiryMinDate(), []);
   const submitted = status === "submitted";
@@ -69,7 +97,12 @@ export function useInquirySubmitViewModel() {
     setStatus("loading");
     setError(null);
     try {
-      await submitInquiry(form);
+      const created = await submitInquiry(form);
+      setReceipt({ editToken: created.editToken, editableUntil: created.editableUntil });
+      const token = draftToken.current;
+      clearLocalDraft();
+      if (token) void inquiryRepository.discardDraft(token).catch(() => undefined);
+      draftToken.current = newDraftToken();
       setStatus("submitted");
       setForm(INITIAL_INQUIRY_FORM);
       setCurrentStep(0);
@@ -90,6 +123,7 @@ export function useInquirySubmitViewModel() {
   const missing = attempted ? missingInquiryFields(form, currentStep) : [];
 
   return {
+    receipt,
     form,
     missing,
     currentStep,

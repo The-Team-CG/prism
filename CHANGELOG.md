@@ -6,6 +6,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM switches optional modules off per event (floor plans, games, venue scouting, accreditation, logistics bookings, client-owned suppliers) from Settings; their tabs and panels disappear for that event and come back unchanged when switched on.
+- The floor plan editor offers eighteen quick setup layouts, three per event type group, arranged to the venue size and guest count; venue walls and fixtures stay and the editor reports guests the room cannot seat.
+- The public inquiry form keeps the draft in the browser as the visitor types and, once they accept the privacy notice, on the server so they can resume from the emailed link; one reminder goes out after a day and drafts are purged after 30 days. After sending, the submitter can edit the inquiry for 24 hours or until PMCM reviews it. Migrations `20261110120000_event-lifecycle_event_modules` and `20261110130000_event-lifecycle_inquiry_drafts_and_edit_window` must apply before the API deploys.
 - PMCM can ask AI to explain the open compliance items and order the actions, get two or three theme concepts from the briefing, and write a post-event intelligence report (what worked, what failed and why, recommended actions) from the insights card. All three are advice PMCM reads; nothing is applied or sent.
 - Supplier profiles show a reliability score from 0 to 100 with a likely range, combining on-time arrival, complaints, quote response within 48 hours and contract accuracy.
 - Quote requests escalate to backup (Tier 2) suppliers only when no free Tier 1 supplier is rated for the event's size (from the briefing guest count); PMCM can still ask Tier 2 with a reason, which is audited.

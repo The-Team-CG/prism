@@ -53,7 +53,10 @@ export function ClientBriefingTab({
   briefing,
   busy,
   onSubmit,
+  ownSuppliersEnabled = true,
 }: {
+  /** FR-24: PMCM can switch client-owned suppliers off for the event. */
+  ownSuppliersEnabled?: boolean;
   eventId: string;
   briefing?: PrismBriefing;
   busy: boolean;
@@ -108,7 +111,7 @@ export function ClientBriefingTab({
     <BriefingStatus complete={isComplete} />
     <BriefingSummary briefing={briefing} />
     <ClientWalkInPolicyCard eventId={eventId} />
-    <ClientOwnSuppliers eventId={eventId} />
+    {ownSuppliersEnabled ? <ClientOwnSuppliers eventId={eventId} /> : null}
     <BriefingSubmissionForm
       briefing={briefing} busy={busy} onSubmit={handleSubmit}
       values={{ venue, venueType, guestCount, budgetRange, serviceRequirements, notes, confirmedDate, confirmedStartTime, confirmedEndTime, moodAndStyling, stylingBudget }}

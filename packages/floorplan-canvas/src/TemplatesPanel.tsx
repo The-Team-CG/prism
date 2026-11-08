@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Save, Trash2, Check, Download, Search, Layers } from "lucide-react";
 import { useEditor } from "./store";
+import { QuickSetupPanel } from "./QuickSetupPanel";
 import {
   cloneTemplateObjects,
   permanentFeatureCount,
@@ -159,6 +160,7 @@ export function TemplatesPanel({ store }: { store: TemplateStore }) {
 
   return (
     <div className="flex flex-col">
+      <QuickSetupPanel />
       <div className="px-3 pb-2 pt-3">
         <div className="text-xs font-medium text-neutral-500">Library</div>
         <div className="mt-0.5 text-sm text-neutral-900" style={{ fontWeight: 500 }}>

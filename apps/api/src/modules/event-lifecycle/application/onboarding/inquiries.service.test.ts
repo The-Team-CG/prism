@@ -121,7 +121,7 @@ function createService(
         records.push(row);
         return row;
       }),
-      findUnique: vi.fn(async ({ where }) => records.find((item) => item.id === where.id) ?? null),
+      findUnique: vi.fn(async ({ where }) => records.find((item) => (where.id ? item.id === where.id : item.editTokenHash === where.editTokenHash)) ?? null),
       update: vi.fn(async ({ where, data }) => {
         const index = records.findIndex((item) => item.id === where.id);
         records[index] = { ...records[index], ...data };
@@ -142,6 +142,7 @@ function createService(
     notificationOutboxWriter as any,
     new WorkflowCommandService(),
     accountProvisioning as any,
+    { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
   );
   return { service, records, notifications, audits, prisma, merges, accountProvisioning, nameChanges, transaction };
 }
@@ -211,6 +212,24 @@ describe('InquiriesService', () => {
     expect(events[0]).toMatchObject({ clientPortalStatus: 'locked', status: 'inquiry' });
     await expect(service.ensurePreConformeWorkspace('inq_declined', pmcmActor)).rejects.toThrow('before the conforme is signed');
     await expect(service.ensurePreConformeWorkspace('inq_1', { ...pmcmActor, role: OpsUserRole.Client })).rejects.toThrow('Only PMCM');
+  });
+
+  it('gives the submitter a 24-hour edit link that stops working once PMCM reviews the inquiry', async () => {
+    const base = { privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, clientName: 'Ana', email: 'ana@acme.test', eventName: 'Gala 2027', eventDate: '2027-07-02', clientType: 'Corporate', message: 'Planning' };
+    const { service, records, notifications } = createService([]);
+    const created = await service.createInquiry(base);
+    records[0].createdAt = new Date();
+    expect(created.editToken).toMatch(/^[A-Za-z0-9_-]{32}$/);
+    expect(records[0].editTokenHash).not.toBe(created.editToken);
+    expect(notifications.some(([entry]) => String((entry as { message: string }).message).includes(`/inquiry/edit?token=${created.editToken}`))).toBe(true);
+
+    expect(await service.updatePublicEdit(created.editToken, { eventName: 'Gala 2027 (revised)' })).toMatchObject({ eventName: 'Gala 2027 (revised)' });
+    records[0].status = 'pending';
+    await expect(service.getPublicEdit(created.editToken)).rejects.toThrow('reviewed');
+    records[0].status = 'new';
+    records[0].createdAt = new Date(Date.now() - 25 * 3_600_000);
+    await expect(service.getPublicEdit(created.editToken)).rejects.toThrow('24-hour edit window');
+    await expect(service.getPublicEdit('x'.repeat(32))).rejects.toThrow('not valid');
   });
 
   it('tells PMCM when a client returns after more than a year without an event, and not for a recent client', async () => {

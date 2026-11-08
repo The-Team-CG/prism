@@ -2,6 +2,7 @@
 
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
+import { EventModulesControl } from "@/features/event-settings/modules/views/event-modules-control";
 import { ComplianceRulesSettings } from "@/features/compliance/rules";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 
@@ -11,6 +12,7 @@ export function EventDashboardSettingsSectionView() {
     selectedEvent,
     toggleClientEventDayView,
     setEventPrivacy,
+    setEventModules,
     complianceRules,
     createComplianceRule,
     busy,
@@ -23,6 +25,7 @@ export function EventDashboardSettingsSectionView() {
         onToggleClientEventDayView={toggleClientEventDayView}
         onSetEventPrivacy={setEventPrivacy}
       />
+      {isPmcmAdmin(session.role) ? <EventModulesControl selectedEvent={selectedEvent} onSave={setEventModules} /> : null}
       {isPmcmAdmin(session.role) ? (
         <ComplianceRulesSettings rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} />
       ) : null}
