@@ -100,3 +100,13 @@ export interface PrismClientCloseoutWorkspace {
   deliverables: PrismClientCloseoutDeliverable[];
   response: PrismClientCloseoutResponse | null;
 }
+
+/** FR-09 / FR-30: storage target for a moodboard image attached to one styling option. */
+export function stylingMoodboardTarget(itemId: string, attemptId: string): string {
+  return `styling-moodboard:${itemId}:${attemptId}`;
+}
+
+/** The stored moodboard images of one styling option, from an event's stored-object list. */
+export function stylingMoodboardImages<T extends { ownerRecordType: string; ownerRecordId: string; lifecycleState: string }>(objects: readonly T[], itemId: string): T[] {
+  return objects.filter((object) => object.ownerRecordType === "client_review_item" && object.ownerRecordId === itemId && object.lifecycleState === "stored");
+}

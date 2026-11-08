@@ -192,6 +192,27 @@ describe('InquiriesService', () => {
     await expect(service.setIntakePath('inq_1', { intakePath: 'bidding', bidStatus: 'lost' }, { ...pmcmActor, role: OpsUserRole.Client })).rejects.toThrow('Only PMCM');
   });
 
+  it('opens one locked workspace for pre-conforme documents, reuses it, and refuses declined or signed inquiries', async () => {
+    const { service } = createService([inquiry({ id: 'inq_1', status: 'accepted' })]);
+    const events: Array<Record<string, unknown>> = [];
+    const statusById: Record<string, { status: string; conformeSignedAt: Date | null }> = { inq_1: { status: 'accepted', conformeSignedAt: null }, inq_declined: { status: 'declined', conformeSignedAt: null } };
+    (service as any).prisma.$transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback({
+      opsInquiry: { findUnique: vi.fn(async ({ where }: { where: { id: string } }) => (statusById[where.id] ? { ...inquiry({ id: where.id }), ...statusById[where.id] } : null)) },
+      opsEvent: {
+        findFirst: vi.fn(async ({ where }: { where: { inquiryId: string } }) => events.find((event) => event.inquiryId === where.inquiryId) ?? null),
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { events.push(data); return data; }),
+      },
+      opsPostEventDocument: { createMany: vi.fn(async () => ({ count: 2 })) },
+    }));
+    const first = await service.ensurePreConformeWorkspace('inq_1', pmcmActor);
+    const second = await service.ensurePreConformeWorkspace('inq_1', pmcmActor);
+    expect(second.eventId).toBe(first.eventId);
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ clientPortalStatus: 'locked', status: 'inquiry' });
+    await expect(service.ensurePreConformeWorkspace('inq_declined', pmcmActor)).rejects.toThrow('before the conforme is signed');
+    await expect(service.ensurePreConformeWorkspace('inq_1', { ...pmcmActor, role: OpsUserRole.Client })).rejects.toThrow('Only PMCM');
+  });
+
   it('tells PMCM when a client returns after more than a year without an event, and not for a recent client', async () => {
     const base = { privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, clientName: 'Ana', email: 'ana@acme.test', eventName: 'Gala 2027', eventDate: '2027-07-02', clientType: 'Corporate', message: 'Back again' };
     const dormant = createService([], undefined, [{ eventName: 'Gala 2024', eventDate: new Date('2024-06-01T00:00:00.000Z') }]);

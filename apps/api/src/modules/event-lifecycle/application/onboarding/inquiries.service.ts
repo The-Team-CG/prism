@@ -460,6 +460,30 @@ export class InquiriesService {
     return { event, inquiry };
   }
 
+  /**
+   * FR-54: the locked event record that holds pre-conforme documents (NDA, other required files) before the conforme.
+   * It is the same record the conforme later unlocks; the client portal stays locked until then.
+   */
+  async ensurePreConformeWorkspace(inquiryId: string, actor: ResolvedEventOpsActor): Promise<{ eventId: string }> {
+    const verifiedActor = this.requireVerifiedActor(actor);
+    if (verifiedActor.role !== OpsUserRole.PmcmAdmin) throw new ForbiddenException('Only PMCM can attach pre-conforme documents');
+    return this.prisma.$transaction(async (tx) => {
+      const inquiry = await tx.opsInquiry.findUnique({ where: { id: inquiryId } });
+      if (!inquiry) throw new NotFoundException('Inquiry not found');
+      if (inquiry.status === 'declined' || inquiry.conformeSignedAt) throw new BadRequestException('Pre-conforme documents are for open inquiries before the conforme is signed');
+      const event = await this.ensureConformeEvent(tx, inquiry, false);
+      return { eventId: event.id };
+    });
+  }
+
+  /** FR-54: the existing pre-conforme record, if any; reading never creates one. */
+  async findPreConformeWorkspace(inquiryId: string, actor: ResolvedEventOpsActor): Promise<{ eventId: string | null }> {
+    const verifiedActor = this.requireVerifiedActor(actor);
+    if (verifiedActor.role !== OpsUserRole.PmcmAdmin) throw new ForbiddenException('Only PMCM can read pre-conforme documents');
+    const event = await this.prisma.opsEvent.findFirst({ where: { inquiryId }, select: { id: true } });
+    return { eventId: event?.id ?? null };
+  }
+
   private async ensureConformeEvent(tx: Prisma.TransactionClient, inquiry: OpsInquiry, unlocked: boolean) {
     let event = await tx.opsEvent.findFirst({ where: { inquiryId: inquiry.id } });
     if (event?.archived) throw new ConflictException('Archived event workspaces cannot be activated');
