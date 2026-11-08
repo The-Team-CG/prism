@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { EVENT_FILE_CATEGORIES, eventFileCategoryOf, type PrismStoredObject } from "@prism/types";
-import { preConformeDocumentsRepository, type PreConformeCategory } from "../data/pre-conforme-documents-repository";
+import { PRE_CONFORME_CATEGORIES, preConformeDocumentsRepository, type PreConformeCategory } from "../data/pre-conforme-documents-repository";
 
 /** FR-54: PMCM attaches NDAs and other required documents to an inquiry before the conforme; they stay PMCM-only. */
 export function PreConformeDocuments({ inquiryId, conformeSigned }: { inquiryId: string; conformeSigned: boolean }) {
@@ -60,7 +60,7 @@ export function PreConformeDocuments({ inquiryId, conformeSigned }: { inquiryId:
         ))}
       </ul>
       <div className="flex flex-wrap items-end gap-2">
-        <label>Type<select value={category} onChange={(event) => setCategory(event.target.value as PreConformeCategory)} className="mt-1 block rounded-md border border-border bg-background px-2 py-1.5 text-sm"><option value="nda">{EVENT_FILE_CATEGORIES.nda}</option><option value="pre_conforme">{EVENT_FILE_CATEGORIES.pre_conforme}</option></select></label>
+        <label>Type<select value={category} onChange={(event) => setCategory(event.target.value as PreConformeCategory)} className="mt-1 block rounded-md border border-border bg-background px-2 py-1.5 text-sm">{PRE_CONFORME_CATEGORIES.map((value) => <option key={value} value={value}>{EVENT_FILE_CATEGORIES[value]}</option>)}</select></label>
         <label>Attach<input type="file" disabled={busy} onChange={(event) => void upload(event.currentTarget.files?.[0])} className="mt-1 block text-xs" /></label>
       </div>
       {error ? <p role="alert" className="text-destructive">{error}</p> : null}

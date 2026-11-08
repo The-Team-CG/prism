@@ -67,6 +67,7 @@ function createOperationsEventReferences(prisma: PrismaService) {
       where: { eventDate: { gte: startsAt, lt: endsBefore } },
       select: { id: true },
     })).map((event) => event.id),
+    isOpenBidWorkspace: async () => false,
     findEventReadAccess: async (eventId: string) => prisma.opsEvent.findUnique({
       where: { id: eventId },
       select: { id: true, clientName: true, clientPortalStatus: true, inquiry: { select: { email: true } } },

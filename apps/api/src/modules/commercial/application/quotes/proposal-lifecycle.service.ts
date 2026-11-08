@@ -4,6 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { DOCUMENT_VAULT, PROPOSAL_REVIEW_OWNER, type DocumentVault, type ProposalReviewOwner } from '@prism/contexts/event-lifecycle';
+import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 import { proposalPackageLimit, type CreateCostEstimateInput, type IssueProposalVersionInput, type PrismCostEstimate, type PrismEstimateLineSource, type PrismEventProposalResponse, type PrismPreviousCostEstimate, type PrismProposalVersion, type PrismVerifiedEventActor } from '@prism/types';
 import { StorageObjectService } from '@prism/contexts/platform-ops';
 import { createHash, randomUUID } from 'node:crypto';
@@ -27,6 +28,7 @@ export class ProposalLifecycleService {
     @Inject(AUDIT_WRITER) private readonly audit: AuditWriter,
     @Inject(DOCUMENT_VAULT) private readonly documentVault: DocumentVault,
     @Inject(PROPOSAL_REVIEW_OWNER) private readonly proposalReviewOwner: ProposalReviewOwner,
+    @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
     @Optional() @Inject(StorageObjectService) private readonly storageObjectService?: StorageObjectService,
   ) {}
 
@@ -36,7 +38,11 @@ export class ProposalLifecycleService {
       const event = await tx.opsEvent.findUnique({ where: { id: eventId } });
       if (!event) throw new NotFoundException('Event not found');
       await this.access.requireCanReadEvent(actor, event, 'cost estimate');
-      if (event.archived || event.clientPortalStatus === 'locked') throw new BadRequestException('Cost estimates require an unlocked event');
+      if (event.archived) throw new BadRequestException('Cost estimates require an unlocked event');
+      // FR-43: an open bid prices its cost estimate in the locked pre-conforme record before the client signs.
+      if (event.clientPortalStatus === 'locked' && !(await this.eventReferences.isOpenBidWorkspace(eventId, { prisma: tx, correlationId: `cost-estimate:${eventId}` }))) {
+        throw new BadRequestException('Cost estimates require an unlocked event or an open bid workspace');
+      }
       const totalAmount = input.lines.reduce((sum, line) => sum + Math.round(line.quantity * line.unitAmount), 0);
       const estimate = await tx.opsCostEstimate.create({ data: {
         id: `ce_${randomUUID()}`, eventId, budgetAmount: input.budgetAmount, totalAmount, notes: input.notes,
