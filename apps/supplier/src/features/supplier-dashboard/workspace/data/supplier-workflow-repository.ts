@@ -30,7 +30,7 @@ export const supplierWorkflowRepository = {
     return eventOpsClient.supplierWorkflows.detail();
   },
 
-  async uploadContract(session: PrismAuthenticatedSession, supplier: PrismSupplier, request: PrismSupplierQuoteRequest, file: File) {
+  async uploadContract(session: PrismAuthenticatedSession, supplier: PrismSupplier, request: PrismSupplierQuoteRequest, file: File, contractTotal: number) {
     const key = `contract:${supplier.id}:${request.id}:${await contentFingerprint(file)}`;
     const currentAttemptId = attemptId(key);
     const stored = await uploadStorageObject(file, {
@@ -43,6 +43,7 @@ export const supplierWorkflowRepository = {
     const result = await eventOpsClient.supplierWorkflows.bindContract(request.id, {
       storedObjectId: stored.id,
       checksumSha256: stored.checksumSha256,
+      contractTotal,
     });
     uploadAttempts.delete(key);
     return result;

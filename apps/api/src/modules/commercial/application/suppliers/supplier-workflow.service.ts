@@ -125,18 +125,41 @@ export class SupplierWorkflowService {
       const existing = await tx.opsSupplierContractVersion.findUnique({ where: { storedObjectId: object.id } });
       if (existing) return this.mapContract(existing);
       const previous = await tx.opsSupplierContractVersion.findFirst({ where: { requestId }, orderBy: { version: 'desc' } });
+      const selectedQuote = await tx.opsSupplierQuote.findFirst({ where: { requestId, status: 'selected' }, select: { amount: true } });
       const created = await tx.opsSupplierContractVersion.create({ data: {
         id: `scv_${randomUUID()}`, eventId: request.eventId, requestId, supplierId: supplier.id,
         version: (previous?.version ?? 0) + 1, storedObjectId: object.id, fileName: object.originalFileName,
         mimeType: object.contentType, sizeBytes: object.declaredByteSize, checksumSha256: object.checksumSha256,
-        reviewStatus: 'submitted',
+        reviewStatus: 'submitted', contractTotal: input.contractTotal, quotedTotal: selectedQuote?.amount ?? null,
       } });
+      if (selectedQuote && selectedQuote.amount !== input.contractTotal) await this.recordContractMismatch(tx, created, request.supplierName, actor);
       await writeAudit(this.auditWriter, request.eventId, actor.name, `Submitted supplier contract: ${request.supplierName}`, {
         actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Upload, category: AuditCategory.Documents,
         affectedType: 'supplier_contract_version', affectedId: created.id, affectedLabel: created.fileName,
         metadata: { requestId, version: created.version, storedObjectId: object.id },
       }, { prisma: tx, actorId: actor.id, correlationId: `supplier-contract:${requestId}:${object.id}` });
       return this.mapContract(created);
+    });
+  }
+
+  /** FR-77/FR-79: a supplier-initiated contract-versus-quote mismatch is a PMCM warning and a reliability fact. */
+  private async recordContractMismatch(
+    tx: Prisma.TransactionClient,
+    contract: { id: string; eventId: string; supplierId: string; version: number; contractTotal: number | null; quotedTotal: number | null },
+    supplierName: string,
+    actor: ResolvedEventOpsActor,
+  ) {
+    const detail = `contract v${contract.version} states PHP ${contract.contractTotal?.toLocaleString('en-PH')} against the selected quote of PHP ${contract.quotedTotal?.toLocaleString('en-PH')}`;
+    await writeAudit(this.auditWriter, contract.eventId, actor.name, `Supplier contract mismatch: ${supplierName} ${detail}`, {
+      actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update, category: AuditCategory.Suppliers,
+      affectedType: 'supplier_contract_version', affectedId: contract.id, affectedLabel: supplierName, severity: 'warning',
+      metadata: { contractTotal: contract.contractTotal, quotedTotal: contract.quotedTotal },
+    }, { prisma: tx, actorId: actor.id, correlationId: `supplier-contract-mismatch:${contract.id}` });
+    const noteKey = `supplier-contract-mismatch-note:${contract.id}`;
+    await tx.opsSupplierReliabilityNote.upsert({
+      where: { idempotencyKey: noteKey },
+      update: {},
+      create: { id: `reliability_${randomUUID()}`, supplierId: contract.supplierId, eventId: contract.eventId, note: `Contract mismatch: ${detail}`, createdBy: 'System', idempotencyKey: noteKey },
     });
   }
 
@@ -511,6 +534,7 @@ export class SupplierWorkflowService {
     id: string; eventId: string; requestId: string; supplierId: string; version: number; storedObjectId: string;
     fileName: string; mimeType: string; sizeBytes: number; checksumSha256: string; reviewStatus: string;
     reviewReason: string | null; uploadedAt: Date; reviewedAt: Date | null; reviewedBy: string | null;
+    contractTotal: number | null; quotedTotal: number | null;
   }): PrismSupplierContractVersion {
     return {
       id: contract.id, eventId: contract.eventId, requestId: contract.requestId, supplierId: contract.supplierId,
@@ -519,6 +543,9 @@ export class SupplierWorkflowService {
       reviewStatus: contractReviewStatus(contract.reviewStatus), reviewReason: contract.reviewReason,
       uploadedAt: contract.uploadedAt.toISOString(), reviewedAt: contract.reviewedAt?.toISOString() ?? null,
       reviewedBy: contract.reviewedBy,
+      contractTotal: contract.contractTotal,
+      quotedTotal: contract.quotedTotal,
+      quoteMismatch: contract.contractTotal !== null && contract.quotedTotal !== null && contract.contractTotal !== contract.quotedTotal,
     };
   }
 

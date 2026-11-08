@@ -42,6 +42,8 @@ import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/v
 import { PmcmProposalComments } from "@/features/commercial/proposal-comments/views/pmcm-proposal-comments";
 import { PmcmRoleBriefEditor } from "@/features/coordinators/role-briefs/views/pmcm-role-brief-editor";
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
+import { PmcmSupplierGapWarning } from "@/features/suppliers/supplier-gaps/views/pmcm-supplier-gap-warning";
+import { PmcmExternalCreativePanel } from "@/features/suppliers/external-creative/views/pmcm-external-creative-panel";
 
 function selectedOcularVisit(vm: ReturnType<typeof useEventDashboardLoadedRouteViewModel>) {
   if (!vm.selectedEvent) return null;
@@ -238,8 +240,9 @@ export function EventWorkspaceSuppliersTab() {
         />
       ),
     },
-    { id: "readiness", label: "Readiness", render: () => <PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /> },
+    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /></div> },
     { id: "bookings", label: "Bookings & contracts", count: assigned.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
+    { id: "creative", label: "Outsourced creative", render: () => <PmcmExternalCreativePanel eventId={event.id} documents={vm.documents.filter((document) => document.eventId === event.id)} /> },
     {
       id: "emergency",
       label: "Replace a supplier",
