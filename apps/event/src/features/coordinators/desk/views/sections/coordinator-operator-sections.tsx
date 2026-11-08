@@ -37,6 +37,8 @@ export type CoordinatorTaskActionsModel = {
   busy: boolean;
   error: string | null;
   updateStatus: (taskId: string, status: string) => void;
+  blockTask: (taskId: string, reason: string) => void;
+  unblockTask: (taskId: string) => void;
 };
 
 export type CoordinatorOperatorActionsModel = {
@@ -96,22 +98,83 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
 
 function CoordinatorTaskQueueRow({ task, taskActions, canUpdate }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel; canUpdate: boolean }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-muted/40 p-3.5">
-      <div>
-        <p className="text-sm font-bold text-foreground">{task.title}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {task.assignedRole}{task.notes ? " — " + task.notes : ""}{task.slaDueAt ? " · Due " + formatPortalDateTime(task.slaDueAt) : ""}
-        </p>
+    <div className="space-y-3 rounded-xl bg-muted/40 p-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-bold text-foreground">{task.title}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {task.assignedRole}{task.notes ? " — " + task.notes : ""}{task.slaDueAt ? " · Due " + formatPortalDateTime(task.slaDueAt) : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge status={task.status} />
+          {canUpdate ? (
+            <Button type="button" size="sm" variant="outline" disabled={taskActions.busy || task.status === "blocked"} onClick={() => taskActions.updateStatus(task.id, nextCoordinatorTaskStatus(task.status))}>
+              {coordinatorTaskActionLabel(task.status)}
+            </Button>
+          ) : null}
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <StatusBadge status={task.status} />
-        {canUpdate ? (
-          <Button type="button" size="sm" variant="outline" disabled={taskActions.busy || task.status === "blocked"} onClick={() => taskActions.updateStatus(task.id, nextCoordinatorTaskStatus(task.status))}>
-            {coordinatorTaskActionLabel(task.status)}
-          </Button>
-        ) : null}
-      </div>
+      {canUpdate ? <CoordinatorTaskBlocking task={task} taskActions={taskActions} /> : null}
     </div>
+  );
+}
+
+function CoordinatorTaskBlocking({ task, taskActions }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel }) {
+  if (task.status === "blocked") return <CoordinatorBlockedNotice task={task} taskActions={taskActions} />;
+  if (task.status === "done") return null;
+  return <CoordinatorBlockForm task={task} taskActions={taskActions} />;
+}
+
+function CoordinatorBlockedNotice({ task, taskActions }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-xs text-danger">
+        Blocker: {task.blockedReason}
+        {task.blockedBy ? ` · Blocked by ${task.blockedBy}` : ""}
+        {task.blockedAt ? ` · ${formatPortalDateTime(task.blockedAt)}` : ""}
+      </p>
+      <Button type="button" size="sm" variant="outline" disabled={taskActions.busy} onClick={() => taskActions.unblockTask(task.id)}>
+        Unblock
+      </Button>
+    </div>
+  );
+}
+
+function CoordinatorBlockForm({ task, taskActions }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel }) {
+  const [blocking, setBlocking] = useState(false);
+  const [reason, setReason] = useState("");
+
+  function confirmBlock(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!reason.trim()) return;
+    taskActions.blockTask(task.id, reason);
+    setBlocking(false);
+    setReason("");
+  }
+
+  if (!blocking) {
+    return (
+      <Button type="button" size="sm" variant="outline" disabled={taskActions.busy} onClick={() => setBlocking(true)}>
+        Mark blocked
+      </Button>
+    );
+  }
+  return (
+    <form className="flex flex-wrap items-end gap-2" onSubmit={confirmBlock}>
+      <label className="grid min-w-0 flex-1 gap-1 text-xs font-medium text-muted-foreground">
+        Blocker reason
+        <input
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          maxLength={500}
+          placeholder="What is stopping this task?"
+          className="h-9 rounded-md border border-border bg-white px-3 text-sm font-normal text-foreground"
+        />
+      </label>
+      <Button type="submit" size="sm" disabled={taskActions.busy || !reason.trim()}>Confirm blocked</Button>
+      <Button type="button" size="sm" variant="outline" onClick={() => { setBlocking(false); setReason(""); }}>Cancel</Button>
+    </form>
   );
 }
 

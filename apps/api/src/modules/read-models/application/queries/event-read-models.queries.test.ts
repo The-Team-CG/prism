@@ -559,6 +559,7 @@ describe('EventReadModelQueries collection limits', () => {
         status: { notIn: ['done', 'cancelled'] },
         OR: expect.arrayContaining([{ status: 'blocked' }, { slaDueAt: { lt: now } }, { slaDueAt: null, dueAt: { lt: now } }]),
       }),
+      select: expect.objectContaining({ blockedReason: true }),
       orderBy: [{ slaDueAt: 'asc' }, { id: 'asc' }],
     }));
     expect(opsUrgentIssue.findMany).toHaveBeenCalledWith(expect.objectContaining({
@@ -662,5 +663,83 @@ describe('EventReadModelQueries collection limits', () => {
 
     expect(result[1].quoteRequests).toBe(5);
     expect(result[1].selectedSupplierRequests).toBe(2);
+  });
+});
+
+describe('EventReadModelQueries client document rows', () => {
+  it('shows a client only the document rows the file policy allows, with narrowing and billing sent state applied', async () => {
+    const client = { name: 'Client', role: 'client', email: 'client@example.test', explicit: true, verified: true } as never;
+    const row = (fields: Record<string, unknown>) => ({ eventId: 'evt_1', status: 'submitted', fileName: 'f.pdf', uploadedAt: new Date('2026-10-01T00:00:00Z'), ...fields });
+    const documents = [
+      row({ id: 'doc_bound', type: 'insurance_certificate', storageKey: 'obj_client_doc' }),
+      row({ id: 'doc_hidden_by_pmcm', type: 'insurance_pmcm', storageKey: 'obj_pmcm_only' }),
+      row({ id: 'doc_contract', type: 'supplier_contract', storageKey: 'obj_supplier' }),
+      row({ id: 'doc_unsent_bill', type: 'billing_statement', storageKey: null }),
+      row({ id: 'doc_sent_bill', type: 'billing_statement', storageKey: null }),
+      row({ id: 'doc_proposal', type: 'proposal', storageKey: null }),
+    ];
+    const queries = new EventReadModelQueries({
+      opsStoredObject: { findMany: vi.fn(async () => [
+        { id: 'obj_client_doc', usage: 'client_document', ownerRecordType: 'event', ownerRecordId: 'evt_1', lifecycleState: 'stored', deletedAt: null },
+        { id: 'obj_pmcm_only', usage: 'client_document', ownerRecordType: 'event', ownerRecordId: 'evt_1', lifecycleState: 'stored', deletedAt: null },
+        { id: 'obj_supplier', usage: 'supplier_document', ownerRecordType: 'supplier', ownerRecordId: 'sup_1', lifecycleState: 'stored', deletedAt: null },
+      ]) },
+      opsFileRequirement: { findMany: vi.fn(async () => [
+        { eventId: 'evt_1', key: 'insurance_certificate', visibleToRoles: ['pmcm-admin', 'client'] },
+        { eventId: 'evt_1', key: 'insurance_pmcm', visibleToRoles: ['pmcm-admin'] },
+      ]) },
+      opsBillingStatement: { findMany: vi.fn(async () => [{ id: 'bill_sent', documentId: 'doc_sent_bill' }]) },
+    } as unknown as PrismaService);
+
+    const visible = await queries.clientReadableDocuments(client, documents as never);
+
+    expect(visible.map((document) => document.id)).toEqual(['doc_bound', 'doc_sent_bill', 'doc_proposal']);
+  });
+
+  it('keeps an issued proposal visible to the client even though its document stores the PDF provider key, not a loaded object id', async () => {
+    const client = { name: 'Client', role: 'client', email: 'client@example.test', explicit: true, verified: true } as never;
+    // What PMCM issuing version 1 writes: an issued proposal row whose storageKey is the PDF's provider object key.
+    const issuedProposal = {
+      id: 'doc_proposal_v1', eventId: 'evt_1', type: 'proposal', status: 'issued', fileName: 'proposal-v1.pdf',
+      uploadedAt: new Date('2026-10-02T00:00:00Z'), storageKey: 'events/evt_1/objects/event_deliverable/obj_pdf.pdf',
+    };
+    const queries = new EventReadModelQueries({
+      opsStoredObject: { findMany: vi.fn(async () => []) },
+      opsFileRequirement: { findMany: vi.fn(async () => []) },
+      opsBillingStatement: { findMany: vi.fn(async () => []) },
+    } as unknown as PrismaService);
+
+    const visible = await queries.clientReadableDocuments(client, [issuedProposal] as never);
+
+    expect(visible.map((document) => document.id)).toEqual(['doc_proposal_v1']);
+  });
+
+  it('keeps a sent billing statement visible whose document stores a provider key, and still hides an unsent one', async () => {
+    const client = { name: 'Client', role: 'client', email: 'client@example.test', explicit: true, verified: true } as never;
+    const documents = [
+      { id: 'doc_sent', eventId: 'evt_1', type: 'billing_statement', status: 'stored', fileName: 'BS-1.pdf', uploadedAt: new Date('2026-10-02T00:00:00Z'), storageKey: 'events/evt_1/billing/BS-1.pdf' },
+      { id: 'doc_unsent', eventId: 'evt_1', type: 'billing_statement', status: 'stored', fileName: 'BS-2.pdf', uploadedAt: new Date('2026-10-02T00:00:00Z'), storageKey: 'events/evt_1/billing/BS-2.pdf' },
+    ];
+    const queries = new EventReadModelQueries({
+      opsStoredObject: { findMany: vi.fn(async () => []) },
+      opsFileRequirement: { findMany: vi.fn(async () => []) },
+      opsBillingStatement: { findMany: vi.fn(async () => [{ id: 'bill_1', documentId: 'doc_sent' }]) },
+    } as unknown as PrismaService);
+
+    const visible = await queries.clientReadableDocuments(client, documents as never);
+
+    expect(visible.map((document) => document.id)).toEqual(['doc_sent']);
+  });
+
+  it('hides a client document bound to an object the lookup cannot find, so a missing object fails closed', async () => {
+    const client = { name: 'Client', role: 'client', email: 'client@example.test', explicit: true, verified: true } as never;
+    const bound = { id: 'doc_bound', eventId: 'evt_1', type: 'insurance_certificate', status: 'submitted', fileName: 'ins.pdf', uploadedAt: new Date('2026-10-02T00:00:00Z'), storageKey: 'obj_missing' };
+    const queries = new EventReadModelQueries({
+      opsStoredObject: { findMany: vi.fn(async () => []) },
+      opsFileRequirement: { findMany: vi.fn(async () => [{ eventId: 'evt_1', key: 'insurance_certificate', visibleToRoles: ['pmcm-admin', 'client'] }]) },
+      opsBillingStatement: { findMany: vi.fn(async () => []) },
+    } as unknown as PrismaService);
+
+    await expect(queries.clientReadableDocuments(client, [bound] as never)).resolves.toEqual([]);
   });
 });

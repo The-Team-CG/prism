@@ -14,7 +14,8 @@ export function pesosToMinorUnits(value: string): number {
 export type AddendumConformeAction = "request" | "countersign" | "awaiting_client" | "none";
 
 /** The one step PMCM can take next on an addendum conforme; the server enforces the same order. */
-export function addendumConformeAction(addendum: Pick<PrismAddendum, "conforme">): AddendumConformeAction {
+export function addendumConformeAction(addendum: Pick<PrismAddendum, "status" | "conforme">): AddendumConformeAction {
+  if (addendum.status === "withdrawn") return "none";
   if (!addendum.conforme) return "request";
   if (addendum.conforme.status === "awaiting_pmcm") return "countersign";
   if (addendum.conforme.status === "awaiting_client") return "awaiting_client";

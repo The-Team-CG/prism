@@ -58,6 +58,7 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
               busy={vm.busy}
               onRequestConforme={(addendumId) => vm.requestAddendumConforme(addendumId)}
               onCountersign={(addendum) => vm.countersignAddendumConforme(addendum)}
+              onWithdraw={(addendum, reason) => vm.withdrawAddendum(addendum, reason)}
             />
           </RegisterGroup>
         </>

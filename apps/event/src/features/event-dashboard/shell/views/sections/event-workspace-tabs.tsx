@@ -308,6 +308,8 @@ export function EventWorkspaceLiveOpsTab() {
           onReload={vm.loadLiveOps}
           onCreateTask={vm.createEventDayTask}
           onUpdateTask={vm.updateEventDayTask}
+          onBlockTask={vm.blockEventDayTask}
+          onUnblockTask={vm.unblockEventDayTask}
           onEscalateTask={vm.escalateEventDayTask}
           onCreateIssue={vm.createUrgentIssue}
           onUpdateIssue={vm.updateUrgentIssue}

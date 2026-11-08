@@ -8,14 +8,15 @@ import type {
   OpsEventScheduleDay,
   OpsEventScheduleSegment,
   OpsFloorPlanDraft,
+  OpsRegistrationPlatform,
   OpsSupplierQuoteRequest,
   OpsUrgentIssue,
 } from '@prisma/client';
-import type { PrismEventRunSheet, PrismEventRunSheetResult, PrismGuestCheckIn } from '@prism/types';
+import type { PrismEventRunSheet, PrismEventRunSheetResult, PrismGuestCheckIn, PrismRegistrationPlatform } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { EventAccessPolicyService, ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import type { FloorPlanWorkflowService } from '@prism/contexts/floorplan';
-import type { GuestReader, StaffingReader } from '@prism/contexts/operations';
+import type { GuestReader, RegistrationPlatformReader, StaffingReader } from '@prism/contexts/operations';
 import type { EventReadModelQueries } from '../queries/event-read-models.queries';
 import { LiveOpsReadModelsService } from './live-ops-read-models.service';
 import { RunSheetReadModelsService } from './run-sheet-read-models.service';
@@ -97,6 +98,15 @@ function assignment(role: string, coordinatorName = 'Francis Coordinator'): OpsC
   } as unknown as OpsCoordinatorAssignment;
 }
 
+/** Registration platform row with PMCM-only setup notes and a supplier id, neither of which may reach the run sheet. */
+function registrationPlatformRow(): OpsRegistrationPlatform {
+  return {
+    id: 'reg_run_sheet', eventId: EVENT_ID, platformType: 'custom', supplierId: 'supplier_secret_registration', expectedPaxMin: 180,
+    expectedPaxMax: 220, status: 'live', setupConfirmedAt: CREATED_AT, setupNotes: 'Private setup note for PMCM only.', headcountSource: 'import',
+    importedHeadcount: 200, importedAt: CREATED_AT, importedFileName: 'guests.csv', createdAt: CREATED_AT, updatedAt: CREATED_AT,
+  } as unknown as OpsRegistrationPlatform;
+}
+
 function actor(role: string): ResolvedEventOpsActor {
   return {
     id: 'user_1', role, email: 'francis@pmcm.test',
@@ -109,6 +119,7 @@ function createService(input: {
   assignment?: OpsCoordinatorAssignment | null;
   operatorDesignated?: boolean;
   scheduled?: boolean;
+  registrationPlatformConfigured?: boolean;
   extraWindows?: Array<{ id: string; requestId: string; ingressAt: Date; egressAt: Date; location: string; status: string }>;
 } = {}) {
   const queries = {
@@ -151,11 +162,22 @@ function createService(input: {
   const guestReader = {
     listCheckInsForEvent: vi.fn(async (): Promise<PrismGuestCheckIn[]> => []),
     countCheckInsForEvent: vi.fn(async () => 0),
+    countRosterVerificationForEvent: vi.fn(async () => ({ verified: 3, pending: 2 })),
     guestAccessCode: vi.fn(() => 'EVENT-SECRET-CODE'),
   } as unknown as GuestReader;
+  const registrationPlatforms = {
+    getByEventId: vi.fn(async () => (input.registrationPlatformConfigured === false ? null : registrationPlatformRow())),
+    mapRegistrationPlatform: vi.fn((row: OpsRegistrationPlatform) => ({
+      id: row.id, eventId: row.eventId, platformType: row.platformType, supplierId: row.supplierId, expectedPaxMin: row.expectedPaxMin,
+      expectedPaxMax: row.expectedPaxMax, status: row.status, setupConfirmedAt: null, setupNotes: row.setupNotes, headcountSource: row.headcountSource,
+      importedHeadcount: row.importedHeadcount, importedAt: null, importedFileName: row.importedFileName, createdAt: CREATED_AT.toISOString(), updatedAt: CREATED_AT.toISOString(),
+    }) as PrismRegistrationPlatform),
+  } as unknown as RegistrationPlatformReader;
   const own = input.assignment ?? null;
   const staffingReader = {
-    listAssignmentsForEvent: vi.fn(async () => (own ? [own, assignment('Registration Staff', 'Rhea Santos')] : [assignment('Logistics Coordinator')])),
+    listAssignmentsForEvent: vi.fn(async () => (own
+      ? [own, assignment('Registration Staff', 'Rhea Santos')]
+      : [assignment('Logistics Coordinator'), assignment('Registration Staff', 'Rhea Santos')])),
     findAssignmentForEventActor: vi.fn(async () => own),
     mapCoordinatorAssignment: vi.fn((row: OpsCoordinatorAssignment) => ({
       id: row.id, eventId: EVENT_ID, coordinatorId: row.coordinatorId, coordinatorName: row.coordinatorName, role: row.role, status: row.status, doubleBookingWarning: false,
@@ -163,7 +185,12 @@ function createService(input: {
   } as unknown as StaffingReader;
   const typedQueries = queries as unknown as EventReadModelQueries;
   const liveOps = new LiveOpsReadModelsService(typedQueries, policy, { mapFloorPlanDraft: vi.fn() } as unknown as FloorPlanWorkflowService, guestReader, staffingReader);
-  return { service: new RunSheetReadModelsService(typedQueries, liveOps), queries };
+  return {
+    service: new RunSheetReadModelsService(typedQueries, liveOps, registrationPlatforms, guestReader),
+    queries,
+    guestReader,
+    registrationPlatforms,
+  };
 }
 
 function sheet(result: PrismEventRunSheetResult): PrismEventRunSheet {
@@ -280,6 +307,74 @@ describe('RunSheetReadModelsService', () => {
     expect(result.entries.filter((entry) => entry.kind === 'ingress' || entry.kind === 'egress').map((entry) => entry.id)).toEqual(['ingress:sched_lights', 'egress:sched_lights']);
     expect(result.supplierCommitments).toEqual([expect.objectContaining({ id: 'quote_lights', notes: '' })]);
     expect(JSON.stringify(result)).not.toContain('Private');
+  });
+
+  it('shows PMCM the guest operations block with planned state, roster counts and registration staff, never check-in totals', async () => {
+    const { service, guestReader } = createService();
+
+    const result = sheet(await service.getRunSheet(EVENT_ID, 'day_1', actor(OpsUserRole.PmcmAdmin)));
+
+    // Exact shape: no live check-in count or guest rows can ride along on the block.
+    expect(result.guestOperations).toEqual({
+      registrationPlatform: { platformType: 'custom', status: 'live', expectedPaxMin: 180, expectedPaxMax: 220 },
+      walkIn: { policy: 'closed', threshold: 200 },
+      rosterVerification: { verified: 3, pending: 2 },
+      registrationStaff: [{ coordinatorName: 'Rhea Santos', role: 'Registration Staff', status: 'acknowledged' }],
+    });
+    expect(guestReader.countRosterVerificationForEvent).toHaveBeenCalledWith(EVENT_ID);
+    const serialized = JSON.stringify(result.guestOperations);
+    expect(serialized).not.toContain('Private setup note');
+    expect(serialized).not.toContain('supplier_secret_registration');
+  });
+
+  it('shows a registration coordinator the block with only their own staffing line and no PMCM-only setup detail', async () => {
+    const { service } = createService({ assignment: assignment('Registration Staff', 'Francis Coordinator') });
+
+    const result = sheet(await service.getRunSheet(EVENT_ID, 'day_1', actor(OpsUserRole.Coordinator)));
+
+    expect(result.guestOperations).toEqual({
+      registrationPlatform: { platformType: 'custom', status: 'live', expectedPaxMin: 180, expectedPaxMax: 220 },
+      walkIn: { policy: 'closed', threshold: 200 },
+      rosterVerification: { verified: 3, pending: 2 },
+      registrationStaff: [{ coordinatorName: 'Francis Coordinator', role: 'Registration Staff', status: 'acknowledged' }],
+    });
+    const serialized = JSON.stringify(result.guestOperations);
+    expect(serialized).not.toContain('Rhea Santos');
+    expect(serialized).not.toContain('Private setup note');
+  });
+
+  it.each([
+    ['the designated Event Day System Operator', { assignment: assignment('Logistics Coordinator'), operatorDesignated: true }, ['Rhea Santos']],
+    ['an usher', { assignment: assignment('Usher', 'Francis Coordinator') }, ['Francis Coordinator']],
+  ])('shows the guest operations block to %s', async (_label, input, staffNames) => {
+    const { service } = createService(input);
+
+    const result = sheet(await service.getRunSheet(EVENT_ID, 'day_1', actor(OpsUserRole.Coordinator)));
+
+    expect(result.guestOperations).not.toBeNull();
+    expect(result.guestOperations?.registrationStaff.map((staff) => staff.coordinatorName)).toEqual(staffNames);
+  });
+
+  it('withholds the guest operations block from other coordinators without reading guest data', async () => {
+    const { service, guestReader, registrationPlatforms } = createService({ assignment: assignment('Logistics Coordinator') });
+
+    const result = sheet(await service.getRunSheet(EVENT_ID, 'day_1', actor(OpsUserRole.Coordinator)));
+
+    expect(result.guestOperations).toBeNull();
+    expect(guestReader.countRosterVerificationForEvent).not.toHaveBeenCalled();
+    expect(registrationPlatforms.getByEventId).not.toHaveBeenCalled();
+  });
+
+  it('reports an unconfigured registration platform as null while roster counts and walk-in policy still show', async () => {
+    const { service } = createService({ registrationPlatformConfigured: false });
+
+    const result = sheet(await service.getRunSheet(EVENT_ID, 'day_1', actor(OpsUserRole.PmcmAdmin)));
+
+    expect(result.guestOperations).toMatchObject({
+      registrationPlatform: null,
+      walkIn: { policy: 'closed', threshold: 200 },
+      rosterVerification: { verified: 3, pending: 2 },
+    });
   });
 
   it('forbids an unassigned coordinator', async () => {

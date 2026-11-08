@@ -81,6 +81,9 @@ function taskFixture(id: string, assignedRole: string): OpsEventDayTask {
     escalatedBy: null,
     escalationNotes: '',
     completedAt: null,
+    blockedReason: null,
+    blockedAt: null,
+    blockedBy: null,
     createdAt: CREATED_AT,
     updatedAt: CREATED_AT,
   };

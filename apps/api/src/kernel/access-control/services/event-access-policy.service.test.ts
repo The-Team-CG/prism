@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
+import { scopeActorToEvent } from '../event-scope';
 import { EventAccessPolicyService } from './event-access-policy.service';
 
 function createPolicy() {
@@ -225,5 +226,15 @@ describe('EventAccessPolicyService', () => {
       name: 'Marco',
       explicit: true,
     });
+  });
+
+  it('carries the verified token event and identity to event routes, and the shared scope drops a coordinator without an assignment', () => {
+    const policy = new EventAccessPolicyService({ write: vi.fn(), recordIntegrityIncident: vi.fn() } as any);
+    const verified = { actorId: 'user_coord', actorRole: 'coordinator', actorName: 'Coordinator', actorEmail: 'coord@example.test', eventId: 'evt_1', coordinatorId: 'coord_1', supplierId: null, sessionVersion: 0 } as any;
+
+    const actor = policy.resolveEventScopedActor(verified);
+
+    expect(actor).toMatchObject({ role: 'coordinator', eventId: 'evt_1', coordinatorId: 'coord_1', supplierId: undefined, verified: true });
+    expect(scopeActorToEvent(actor, { id: 'evt_1', coordinatorAssignments: [], supplierQuoteRequests: [] }).actor.eventId).toBeUndefined();
   });
 });

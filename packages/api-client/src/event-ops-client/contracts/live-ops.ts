@@ -1,4 +1,5 @@
 import type {
+  BlockEventDayTaskInput,
   CreateEventDayTaskInput,
   CreateEventTaskReassignmentInput,
   DecideEventTaskReassignmentInput,
@@ -110,6 +111,17 @@ export interface EventOpsLiveOpsContract {
       eventId: string,
       taskId: string,
       input: UpdateEventDayTaskInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventDayTask>;
+    blockTask(
+      eventId: string,
+      taskId: string,
+      input: BlockEventDayTaskInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventDayTask>;
+    unblockTask(
+      eventId: string,
+      taskId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismEventDayTask>;
     listTaskReassignmentRequests(

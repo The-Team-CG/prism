@@ -142,5 +142,10 @@ export interface EventOpsEventsContract {
       addendumId: string,
       input: SignAddendumConformeExecutionInput,
     ): Promise<PrismAddendumConformeExecution>;
+    withdrawAddendum(
+      eventId: string,
+      addendumId: string,
+      input: import("@prism/types").WithdrawAddendumInput,
+    ): Promise<PrismAddendum>;
   };
 }

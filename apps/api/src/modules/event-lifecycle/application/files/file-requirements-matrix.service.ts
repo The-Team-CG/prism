@@ -9,6 +9,7 @@ import type {
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
+import { canListStoredObject, canReadDocumentRow, requirementVisibilityFor, type FileAccessActor, type FileAccessObject } from '@prism/kernel/access-control';
 import { readUnresolvedCloseoutIssues } from '@prism/contexts/read-models/closeout';
 import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 import { readStoredConformeEvidence } from '@prism/contexts/read-models/file-evidence';
@@ -38,6 +39,50 @@ function distinctSuppliers(rows: Array<{ supplierId: string | null; supplierName
   return [...byId.values()];
 }
 
+/** The billing row the matrix references is the first statement; it is referenceable only once that statement is sent. */
+function firstStatementSent(statements: ReadonlyArray<{ id: string }>, sentIds: ReadonlySet<string>) {
+  const first = statements[0];
+  return Boolean(first && sentIds.has(first.id));
+}
+
+/**
+ * What an audience may reference in the matrix: documents, the signed conforme, and the billing row, each
+ * decided by the shared file policy. No audience is the full PMCM view.
+ */
+function audienceView<T extends { type: string; storageKey?: string | null }>(
+  audience: FileAccessActor | undefined,
+  input: {
+    documents: ReadonlyArray<{ type: string; storageKey: string | null }>;
+    documentFacts: T[];
+    storedObjectById: ReadonlyMap<string, FileAccessObject & { id: string }>;
+    storedConforme: (FileAccessObject & { id: string }) | null;
+    persistedRequirements: ReadonlyArray<{ key: string; visibleToRoles: string[] }>;
+    billingStatements: ReadonlyArray<{ id: string; sentAt: Date | null }>;
+  },
+) {
+  if (!audience) return { visibleDocuments: input.documentFacts, visibleStoredConforme: input.storedConforme, billingReferenceable: true };
+  const sentStatementIds = new Set(input.billingStatements.filter((statement) => statement.sentAt !== null).map((statement) => statement.id));
+  const boundTypes = new Map<string, string[]>();
+  for (const document of input.documents) {
+    if (document.storageKey) boundTypes.set(document.storageKey, [...(boundTypes.get(document.storageKey) ?? []), document.type]);
+  }
+  const visibility: Record<string, string[]> = Object.fromEntries(input.persistedRequirements.map((row) => [row.key, row.visibleToRoles]));
+  const accessContext = (object: FileAccessObject & { id: string }) => ({
+    requirementVisibility: requirementVisibilityFor(object, boundTypes.get(object.id) ?? [], visibility),
+    billingStatementSent: sentStatementIds.has(object.ownerRecordId),
+  });
+  const visibleDocuments = input.documentFacts.filter((document) => {
+    const object = document.storageKey ? input.storedObjectById.get(document.storageKey) ?? null : null;
+    return canReadDocumentRow(audience, { type: document.type, storageKey: document.storageKey ?? null },
+      object ? { object, ...accessContext(object) } : { object: null, requirementVisibility: [], billingStatementSent: false });
+  });
+  const storedConforme = input.storedConforme;
+  const visibleStoredConforme = storedConforme && !canListStoredObject(audience, storedConforme, accessContext(storedConforme)) ? null : storedConforme;
+  const billingReferenceable = canReadDocumentRow(audience, { type: 'billing_statement', storageKey: null },
+    { object: null, requirementVisibility: [], billingStatementSent: firstStatementSent(input.billingStatements, sentStatementIds) });
+  return { visibleDocuments, visibleStoredConforme, billingReferenceable };
+}
+
 @Injectable()
 export class FileRequirementsMatrixService {
   constructor(private readonly prisma: PrismaService) {}
@@ -53,7 +98,8 @@ export class FileRequirementsMatrixService {
     return (await this.prisma.opsBillingStatement.count({ where: { eventId, sentAt: { not: null } } })) > 0;
   }
 
-  async buildForEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma, now: Date = new Date()): Promise<FileRequirementsMatrix> {
+  /** `audience` narrows the matrix to what that actor may reference; omitted means the full PMCM view. */
+  async buildForEvent(eventId: string, prisma: Prisma.TransactionClient = this.prisma, now: Date = new Date(), audience?: FileAccessActor): Promise<FileRequirementsMatrix> {
     const event = await prisma.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
     const [documents, postEventDocuments, billingStatements, milestones, supplierReviews, issues, clientCloseoutResponse, storedConforme, digitalConforme, logisticsCompletion, persistedRequirements, selectedSupplierRows] = await Promise.all([
@@ -72,8 +118,9 @@ export class FileRequirementsMatrixService {
     ]);
     const storedObjectIds = [...new Set(documents.map((document) => document.storageKey).filter((key): key is string => Boolean(key)))];
     const storedObjects = storedObjectIds.length
-      ? await prisma.opsStoredObject.findMany({ where: { id: { in: storedObjectIds } }, select: { id: true, lifecycleState: true, ownerRecordType: true, ownerRecordId: true } })
+      ? await prisma.opsStoredObject.findMany({ where: { id: { in: storedObjectIds } }, select: { id: true, usage: true, lifecycleState: true, ownerRecordType: true, ownerRecordId: true, deletedAt: true } })
       : [];
+    const storedObjectById = new Map(storedObjects.map((object) => [object.id, object]));
     const objectAvailability = new Map(storedObjects.map((object) => [object.id, object.lifecycleState === 'stored']));
     // A document belongs to the supplier that owns its stored object; event-owned and unbound files belong to no supplier.
     const objectOwnerSupplier = new Map(storedObjects.map((object) => [object.id, object.ownerRecordType === 'supplier' ? object.ownerRecordId : null]));
@@ -84,8 +131,14 @@ export class FileRequirementsMatrixService {
     }));
     const suppliers = distinctSuppliers(selectedSupplierRows);
 
+    // An audience sees only what the shared file policy lets it reference, so counts, status, and ids
+    // all come from what it may download.
+    const { visibleDocuments, visibleStoredConforme, billingReferenceable } = audienceView(audience, {
+      documents, documentFacts, storedObjectById, storedConforme, persistedRequirements, billingStatements,
+    });
+
     const derived: DerivedFileRequirementItem[] = [
-      ...this.itemsForEvent(event, documentFacts, postEventDocuments, billingStatements, milestones, supplierReviews, clientCloseoutResponse, storedConforme, digitalConforme),
+      ...this.itemsForEvent(event, visibleDocuments, postEventDocuments, billingStatements, milestones, supplierReviews, clientCloseoutResponse, visibleStoredConforme, digitalConforme, billingReferenceable),
       this.logisticsItem(logisticsCompletion),
       {
         key: 'issues', label: 'Issues', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin'],
@@ -94,7 +147,7 @@ export class FileRequirementsMatrixService {
       },
     ];
     // Overrides change ownership, visibility, required state, and due dates only; close gates read derived status.
-    return { eventId, items: mergeFileRequirementOverrides(derived, persistedRequirements, documentFacts, suppliers, now) };
+    return { eventId, items: mergeFileRequirementOverrides(derived, persistedRequirements, visibleDocuments, suppliers, now) };
   }
 
   async closeGates(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {
@@ -127,11 +180,12 @@ export class FileRequirementsMatrixService {
     clientCloseoutResponse: { id: string; rating: number; submittedAt: Date } | null,
     storedConforme: { id: string } | null,
     digitalConforme: { id: string } | null,
+    billingReferenceable: boolean,
   ): DerivedFileRequirementItem[] {
     return [
       this.signedConformeItem(documents, storedConforme, digitalConforme),
       this.postEventDocumentsItem(postEventDocuments),
-      this.billingItem(billingStatements, milestones),
+      this.billingItem(billingStatements, milestones, billingReferenceable),
       this.floorplanItem(event),
       this.supplierReviewItem(supplierReviews),
       this.clientFeedbackItem(documents, postEventDocuments, clientCloseoutResponse),
@@ -171,12 +225,12 @@ export class FileRequirementsMatrixService {
     };
   }
 
-  private billingItem(statements: OpsBillingStatement[], milestones: OpsPaymentMilestone[]): DerivedFileRequirementItem {
+  private billingItem(statements: OpsBillingStatement[], milestones: OpsPaymentMilestone[], referenceable: boolean): DerivedFileRequirementItem {
     const unpaid = milestones.filter((milestone) => milestone.status !== 'paid' || milestone.remainingBalance > 0).length;
     return {
       key: 'billing_statement', label: 'Billing and payment schedule', ownerRole: 'pmcm-admin', visibleToRoles: ['pmcm-admin', 'client'],
       sourceWorkflow: 'commercial', status: statements.length > 0 && milestones.length > 0 && unpaid === 0 ? 'complete' : 'pending',
-      generatedDocumentId: statements[0]?.id, auditCategory: 'finance',
+      generatedDocumentId: referenceable ? statements[0]?.id : undefined, auditCategory: 'finance',
       detail: statements.length === 0 ? 'No billing statement generated' : `${milestones.length} payment milestone(s); ${unpaid} still unpaid`,
     };
   }

@@ -31,11 +31,19 @@ function runSheetFixture(overrides: Partial<PrismEventRunSheet> = {}): PrismEven
     ],
     coordinators: [],
     supplierCommitments: [],
+    guestOperations: null,
     openTasks: [],
     openIssues: [],
     ...overrides,
   };
 }
+
+const guestOperationsFixture: NonNullable<PrismEventRunSheet["guestOperations"]> = {
+  registrationPlatform: { platformType: "xperto", status: "live", expectedPaxMin: 180, expectedPaxMax: 220 },
+  walkIn: { policy: "threshold", threshold: 40 },
+  rosterVerification: { verified: 150, pending: 12 },
+  registrationStaff: [{ coordinatorName: "Rhea Santos", role: "Registration Staff", status: "acknowledged" }],
+};
 
 function renderView(runSheet: PrismEventRunSheet, now: Date, overrides: Partial<LiveOpsRunSheetViewProps> = {}) {
   return render(
@@ -66,6 +74,23 @@ describe("LiveOpsRunSheetView", () => {
     expect(rows.filter((row) => row.getAttribute("data-overdue") === "true").map((row) => row.getAttribute("data-kind"))).toEqual(["ingress", "segment"]);
     expect(screen.getByText(/Carried over from/)).toBeTruthy();
     expect(screen.getByText(/Supplier ingress · Technicals · Dock B/)).toBeTruthy();
+  });
+
+  it("shows the guest operations block with planned registration state, roster counts and desk staffing", () => {
+    renderView(runSheetFixture({ guestOperations: guestOperationsFixture }), new Date("2026-08-20T08:00:00.000Z"));
+
+    const block = screen.getByRole("region", { name: "Guest operations" });
+    expect(within(block).getByText("Xperto · Live · expected 180–220 guests")).toBeTruthy();
+    expect(within(block).getByText("At threshold of 40")).toBeTruthy();
+    expect(within(block).getByText("150 verified · 12 pending")).toBeTruthy();
+    expect(within(block).getByText("Rhea Santos · Registration Staff · Acknowledged")).toBeTruthy();
+  });
+
+  it("says so when the guest operations block is withheld from this role", () => {
+    renderView(runSheetFixture({ scope: "coordinator", guestOperations: null }), new Date("2026-08-20T08:00:00.000Z"));
+
+    expect(screen.queryByRole("region", { name: "Guest operations" })).toBeNull();
+    expect(screen.getByText("Guest operations are not shared with this role.")).toBeTruthy();
   });
 
   it("explains the coordinator projection and withheld supplier windows", () => {
