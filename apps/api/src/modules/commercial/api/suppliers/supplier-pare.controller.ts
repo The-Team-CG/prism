@@ -4,12 +4,14 @@ import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { SupplierNetworkWorkflowService } from '../../application/suppliers/supplier-network-workflow.service';
+import { PareReplacementDispatchService } from '../../application/suppliers/pare-replacement-dispatch.service';
 
 @Controller('ai')
 export class OpsSupplierPareController {
   constructor(
     private readonly supplierNetworkWorkflowService: SupplierNetworkWorkflowService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    private readonly pareReplacementDispatch: PareReplacementDispatchService,
   ) {}
 
   @Post('pare/trigger/:requestId')
@@ -34,7 +36,7 @@ export class OpsSupplierPareController {
   pareApprove(@Param('approvalRecordId') approvalRecordId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'PARE approval').then(() =>
-      this.supplierNetworkWorkflowService.pareApprove(approvalRecordId, actor.name));
+      this.pareReplacementDispatch.approve(approvalRecordId, { ...actor, explicit: true }));
   }
 
   @Patch('pare/:approvalRecordId/reject')

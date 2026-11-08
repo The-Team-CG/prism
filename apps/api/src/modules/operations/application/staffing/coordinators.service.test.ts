@@ -1000,6 +1000,9 @@ describe('Coordinator staffing workflows', () => {
         const pmcmAlerts = fake.notifications.filter((entry: any) => /Emergency change/.test(entry.message));
         expect(pmcmAlerts.map((entry: any) => entry.recipient).sort()).toEqual(["admin@pmcm.test", "ops@pmcm.test"]);
         expect(pmcmAlerts[0].message).toContain("Marco Santos withdrew from Floor Director within 48 hours of the event: Family emergency");
+        // The withdrawn coordinator is never suggested as their own replacement.
+        expect(pmcmAlerts[0].message).toMatch(/Free Floor Director coordinators: |No free Floor Director coordinator is available/);
+        expect(pmcmAlerts[0].message).not.toMatch(/coordinators: .*Marco Santos/);
         expect(fake.audits).toContainEqual(expect.objectContaining({
           action: expect.stringContaining('Emergency change: Marco Santos withdrew from Floor Director'),
           severity: 'critical',
