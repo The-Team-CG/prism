@@ -7,6 +7,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
 import { BUDGET_EXPECTATION_LABELS, type PrismClientReviewItem } from "@prism/types";
 import { useClientReviewItems } from "../view-models/use-client-review-items";
+import { StylingMoodboard } from "./styling-moodboard";
 
 type BudgetExpectation = keyof typeof BUDGET_EXPECTATION_LABELS;
 
@@ -98,6 +99,7 @@ function ReviewItemCard({
         {decision ? <StatusBadge status={decision.action === "approve" ? "approved" : "attention"} label={decision.action === "approve" ? "Approved by you" : "Revision requested"} /> : isLatest ? <StatusBadge status="ready" label="Your review needed" /> : <StatusBadge status="pending" label="Earlier version" />}
       </div>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{item.summary}</p>
+      {item.kind === "styling" ? <StylingMoodboard eventId={item.eventId} itemId={item.id} /> : null}
       {decision?.comment ? <p className="mt-3 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground">Your note: {decision.comment}</p> : null}
       {!decision && isLatest ? <ReviewItemDecisionForm item={item} busy={busy} onDecide={onDecide} /> : null}
     </article>

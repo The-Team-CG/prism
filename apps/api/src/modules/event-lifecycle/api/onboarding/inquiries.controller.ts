@@ -96,6 +96,18 @@ export class OpsInquiriesController {
     return this.inquiriesService.updateCompanyName(inquiryId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
+  @Get(':inquiryId/pre-conforme-workspace')
+  @UseGuards(EventSessionGuard)
+  findPreConformeWorkspace(@Param('inquiryId') inquiryId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.inquiriesService.findPreConformeWorkspace(inquiryId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Post(':inquiryId/pre-conforme-workspace')
+  @UseGuards(EventSessionGuard)
+  ensurePreConformeWorkspace(@Param('inquiryId') inquiryId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.inquiriesService.ensurePreConformeWorkspace(inquiryId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
   @Patch(':inquiryId/intake-path')
   @UseGuards(EventSessionGuard)
   async setIntakePath(

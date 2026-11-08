@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM attaches moodboard images to a styling option, and the client sees the moodboard on that option before approving it or asking for changes. Images go through the byte-checked upload and only the client and PMCM can open them.
+- PMCM attaches NDAs and other pre-conforme documents to an open inquiry; they are kept in the inquiry's locked event record, stay PMCM-only, and carry over when the conforme is signed.
 - A supplier still flagged late 12 hours after the late flag, with no arrival reported, gets one automatic no-show note on its profile.
 - PMCM can fill its own Word billing statement template from the issued statement (number, client, event, line items, schedule, payment methods), review it, then copy or download it.
 - The closure workspace shows a printable guest feedback QR; it opens the guest portal with the event code filled in.
