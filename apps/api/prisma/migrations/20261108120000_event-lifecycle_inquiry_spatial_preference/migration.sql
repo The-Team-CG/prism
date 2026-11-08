@@ -1,6 +1,6 @@
 -- prism-owner: event-lifecycle
--- prism-kind: additive
--- prism-risk: low
+-- prism-kind: schema
+-- prism-risk: medium
 
 -- Optional spatial preference captured on the public inquiry. Existing inquiries carry none.
 ALTER TABLE "event_lifecycle"."inquiries"
