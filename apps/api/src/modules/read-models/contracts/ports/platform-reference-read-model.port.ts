@@ -83,6 +83,16 @@ export type ClientMessageTriggerFacts = {
   nextUnpaidMilestone: { label: string; remainingBalance: number; dueDate: Date } | null;
 };
 
+/** Facts for the event-scoped AI advisories (FR-10+, FR-11, FR-AI-08). No client identity. */
+export type AiAdvisoryFacts = {
+  event: { eventType: string; eventDate: Date; status: string };
+  briefing: { guestCount: number; venueType: string | null; moodAndStyling: string; budgetRange: string; stylingBudget: number | null } | null;
+  openChecks: Array<{ title: string; severity: string; evidence: unknown; remediation: string }>;
+  insight: { dimensions: unknown; risks: unknown; supplierNotes: unknown; financialSummary: unknown } | null;
+  checkedInGuests: number;
+  clientRating: number | null;
+};
+
 export type PlatformPrivacyConsentFact = {
   privacyConsentAccepted: boolean;
   privacyNoticeVersion: string;
@@ -121,6 +131,7 @@ export interface PlatformReferenceReadModel {
   findInquiryTriageSource(inquiryId: string): Promise<AiInquiryTriageSource | null>;
   findProposalDraftEventSource(eventId: string): Promise<AiProposalEventSource | null>;
   findClientMessageTriggerFacts(eventId: string): Promise<ClientMessageTriggerFacts | null>;
+  findAiAdvisoryFacts(eventId: string): Promise<AiAdvisoryFacts | null>;
   findApprovedTrustRecipientEmail(): Promise<string | null>;
   /** Approved, non-locked PMCM administrator by user id; used to validate privacy request assignees. */
   findApprovedPmcmOperator(userId: string): Promise<{ id: string; name: string } | null>;

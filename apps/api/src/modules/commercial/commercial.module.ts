@@ -71,6 +71,8 @@ import { LogisticsBookingController } from './api/billing/logistics-booking.cont
 import { ClientOwnedSupplierController } from './api/suppliers/client-owned-supplier.controller';
 import { ClientOwnedSupplierService } from './application/suppliers/client-owned-supplier.service';
 import { UnresponsiveSupplierService } from './application/suppliers/unresponsive-supplier.service';
+import { SupplierReliabilityScoreController } from './api/suppliers/supplier-reliability-score.controller';
+import { SupplierReliabilityScoreService } from './application/suppliers/supplier-reliability-score.service';
 import { LogisticsBookingService } from './application/billing/logistics-booking.service';
 
 const supplierDirectoryProvider = {
@@ -121,6 +123,7 @@ const supplierCommandsProvider = {
     VenueScoutingController,
     LogisticsBookingController,
     ClientOwnedSupplierController,
+    SupplierReliabilityScoreController,
   ],
   providers: [
     CommercialWorkflowService,
@@ -159,6 +162,7 @@ const supplierCommandsProvider = {
     LogisticsBookingService,
     ClientOwnedSupplierService,
     UnresponsiveSupplierService,
+    SupplierReliabilityScoreService,
     { provide: PAYMENT_STATUS_READER, useExisting: PaymentOperationsService },
   ],
   exports: [

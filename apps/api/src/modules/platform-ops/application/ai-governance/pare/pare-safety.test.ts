@@ -113,6 +113,9 @@ function fakeGateway(options: FakeGatewayOptions = {}) {
     },
     'proposal.draft': { title: 'Proposal', summary: 'Proposal summary.', revisionNote: 'First draft.', highlights: [], sections: { executiveSummary: 'a', eventConcept: 'b', servicePackageSummary: 'c', investmentSummary: 'd', paymentSchedule: 'e' } },
     'client-message.draft': { subject: 'Follow-up', body: 'Hello.' },
+    'compliance.advisory': { explanation: 'Advice.', actions: [{ priority: 1, checkTitle: 'Check', action: 'Act.' }] },
+    'theme.suggestions': { concepts: [{ name: 'A', palette: ['#111111', '#222222', '#333333'], moodboardDescription: 'a', referenceSearchTerms: ['x', 'y'] }, { name: 'B', palette: ['#111111', '#222222', '#333333'], moodboardDescription: 'b', referenceSearchTerms: ['x', 'y'] }] },
+    'event.intelligence': { whatWorked: ['a'], whatFailed: [], recommendedActions: ['b'] },
   };
 
   const run = async <K extends AiUseCaseId>(
@@ -242,6 +245,7 @@ function harness(gateway?: AiGateway, runtime?: AiGatewayRuntimeConfig) {
     findInquiryTriageSource: async () => null,
     findProposalDraftEventSource: async () => null,
     findClientMessageTriggerFacts: async () => null,
+    findAiAdvisoryFacts: async () => null,
   };
   return {
     service: new PAREService(prisma as unknown as PrismaService, undefined, gateway, runtime, undefined, platformReferences),
