@@ -16,6 +16,7 @@ import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 import type {
+  BlockEventDayTaskInput,
   CreateEventDayTaskInput,
   CreateEventTaskReassignmentInput,
   CreateUrgentIssueInput,
@@ -141,6 +142,12 @@ export class LiveOpsTaskIssueCommandService {
         if (status && !isOpsConstantValue(EventDayTaskStatus, status)) {
           throw new BadRequestException('Unsupported event-day task status');
         }
+        if (status === EventDayTaskStatus.Blocked) {
+          throw new BadRequestException('Use the block action to mark an event-day task blocked with a reason');
+        }
+        if (status && current.status === EventDayTaskStatus.Blocked) {
+          throw new BadRequestException('Use the unblock action before changing a blocked event-day task status');
+        }
       },
       write: () => {
         if (!current) throw new NotFoundException('Event-day task not found');
@@ -161,6 +168,97 @@ export class LiveOpsTaskIssueCommandService {
             status: task.status,
           }),
           writeAudit(auditWriter, eventId, actor.name, `Updated event-day task: ${task.title}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Events,
+            affectedType: 'event_day_task',
+            affectedId: task.id,
+            affectedLabel: task.title,
+            metadata: { status: task.status },
+          }),
+        ]);
+      },
+    });
+  }
+
+  async blockEventDayTask(eventId: string, taskId: string, input: BlockEventDayTaskInput, actor: LiveOpsActor) {
+    const prisma = this.requirePrisma();
+    const auditWriter = this.requireAuditWriter();
+    let current: OpsEventDayTask | null = null;
+
+    return this.workflowCommandService.execute<OpsEventDayTask>({
+      name: 'block_event_day_task',
+      eventId,
+      validateState: async () => {
+        current = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
+        if (current?.eventId !== eventId) current = null;
+        if (!current) throw new NotFoundException('Event-day task not found');
+        if (current.status === EventDayTaskStatus.Blocked) throw new BadRequestException('Event-day task is already blocked');
+        if (current.status === EventDayTaskStatus.Done || current.status === 'cancelled') {
+          throw new BadRequestException('Done or cancelled event-day tasks cannot be blocked');
+        }
+      },
+      write: () => {
+        if (!current) throw new NotFoundException('Event-day task not found');
+        return prisma.opsEventDayTask.update({
+          where: { id: taskId },
+          data: {
+            status: EventDayTaskStatus.Blocked,
+            blockedReason: input.reason,
+            blockedAt: new Date(),
+            blockedBy: actor.name,
+          },
+        });
+      },
+      sideEffects: async (task) => {
+        await Promise.all([
+          recordEventDayLog(this.prisma, eventId, 'task_blocked', actor, `Blocked event-day task: ${task.title}`, 'event_day_task', task.id, {
+            reason: input.reason,
+          }),
+          writeAudit(auditWriter, eventId, actor.name, `Blocked event-day task: ${task.title}`, {
+            actorRole: actor.role,
+            actorEmail: actor.email,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Events,
+            affectedType: 'event_day_task',
+            affectedId: task.id,
+            affectedLabel: task.title,
+            severity: 'warning',
+            metadata: { status: task.status, reason: input.reason },
+          }),
+        ]);
+      },
+    });
+  }
+
+  async unblockEventDayTask(eventId: string, taskId: string, actor: LiveOpsActor) {
+    const prisma = this.requirePrisma();
+    const auditWriter = this.requireAuditWriter();
+    let current: OpsEventDayTask | null = null;
+
+    return this.workflowCommandService.execute<OpsEventDayTask>({
+      name: 'unblock_event_day_task',
+      eventId,
+      validateState: async () => {
+        current = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
+        if (current?.eventId !== eventId) current = null;
+        if (!current) throw new NotFoundException('Event-day task not found');
+        if (current.status !== EventDayTaskStatus.Blocked) throw new BadRequestException('Event-day task is not blocked');
+      },
+      write: () => {
+        if (!current) throw new NotFoundException('Event-day task not found');
+        return prisma.opsEventDayTask.update({
+          where: { id: taskId },
+          data: { status: EventDayTaskStatus.Open, blockedReason: null, blockedAt: null, blockedBy: null },
+        });
+      },
+      sideEffects: async (task) => {
+        await Promise.all([
+          recordEventDayLog(this.prisma, eventId, 'task_unblocked', actor, `Unblocked event-day task: ${task.title}`, 'event_day_task', task.id, {
+            status: task.status,
+          }),
+          writeAudit(auditWriter, eventId, actor.name, `Unblocked event-day task: ${task.title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,

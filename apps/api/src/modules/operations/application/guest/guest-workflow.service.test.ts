@@ -153,6 +153,11 @@ function createGuestWorkflowFixture() {
         return row;
       }),
       update: vi.fn(async ({ where, data }: any) => Object.assign(state.guestRoster.find((entry) => entry.id === where.id)!, data)),
+      count: vi.fn(async ({ where }: any = {}) => state.guestRoster.filter((entry) =>
+        (!where?.eventId || entry.eventId === where.eventId)
+        && (where?.withdrawnAt === undefined || (where.withdrawnAt === null ? entry.withdrawnAt == null : entry.withdrawnAt === where.withdrawnAt))
+        && (where?.verificationStatus === undefined || entry.verificationStatus === where.verificationStatus),
+      ).length),
     },
     opsGuestCheckIn: {
       count: vi.fn(async ({ where }: any = {}) =>
@@ -313,6 +318,20 @@ describe('GuestWorkflowService', () => {
       watermark: '2026-06-01T00:00:00.000Z',
     });
     expect(prisma.opsGuestCheckIn.count).not.toHaveBeenCalled();
+  });
+
+  it('counts active roster entries by verification status, leaving out withdrawn, rejected and other-event entries', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    state.guestRoster.push(
+      guestRosterFixture({ id: 'gre_verified_a', normalizedName: 'verified a', verificationStatus: 'verified' }),
+      guestRosterFixture({ id: 'gre_verified_b', normalizedName: 'verified b', verificationStatus: 'verified' }),
+      guestRosterFixture({ id: 'gre_pending', normalizedName: 'pending a', verificationStatus: 'pending' }),
+      guestRosterFixture({ id: 'gre_withdrawn', normalizedName: 'withdrawn a', verificationStatus: 'verified', withdrawnAt: new Date('2026-09-01T00:00:00.000Z') }),
+      guestRosterFixture({ id: 'gre_rejected', normalizedName: 'rejected a', verificationStatus: 'rejected' }),
+      guestRosterFixture({ id: 'gre_other_event', eventId: 'evt_other', normalizedName: 'other a', verificationStatus: 'pending' }),
+    );
+
+    await expect(service.countRosterVerificationForEvent('evt_sample')).resolves.toEqual({ verified: 2, pending: 1 });
   });
 
   it('counts and lists checked-in records only', async () => {

@@ -1,5 +1,6 @@
 import type { EventSession } from "@/app/lib/session";
 import type {
+  BlockEventDayTaskInput,
   CreateEventDayTaskInput,
   CreateEventTaskReassignmentInput,
   CreateUrgentIssueInput,
@@ -95,6 +96,25 @@ export async function markAttendanceAndRefreshRoleView(input: {
     input.assignmentId,
     input.input,
   );
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function blockOwnTaskAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  taskId: string;
+  input: BlockEventDayTaskInput;
+}) {
+  await coordinatorsRepository.blockOwnTask(input.session, input.eventId, input.taskId, input.input);
+  return loadCoordinatorRoleView(input.session, input.eventId);
+}
+
+export async function unblockOwnTaskAndRefreshRoleView(input: {
+  session: EventSession;
+  eventId: string;
+  taskId: string;
+}) {
+  await coordinatorsRepository.unblockOwnTask(input.session, input.eventId, input.taskId);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 

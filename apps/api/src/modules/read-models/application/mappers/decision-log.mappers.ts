@@ -4,6 +4,14 @@ import type { EventReadModelQueries } from '../queries/event-read-models.queries
 
 export type DecisionLogSources = NonNullable<Awaited<ReturnType<EventReadModelQueries['decisionLogSourcesForEvent']>>>;
 type AuditAttributionRow = DecisionLogSources['auditAttributions'][number];
+type AddendumDecisionRow = { status: string; withdrawalReason: string | null; _count: { impacts: number } };
+
+/** A pending addendum has no applied impacts yet, so its label says so instead of showing a zero count. */
+function addendumStateLabel(row: AddendumDecisionRow) {
+  if (row.status === 'pending') return 'pending countersignature';
+  if (row.status === 'withdrawn') return row.withdrawalReason ? `withdrawn: ${row.withdrawalReason}` : 'withdrawn';
+  return `effective, ${row._count.impacts} impact${row._count.impacts === 1 ? '' : 's'}`;
+}
 
 /**
  * Attribution index over audit rows keyed by `affectedType:affectedId`. Audit rows only fill the
@@ -74,10 +82,10 @@ export function mapDecisionLogEntries(sources: DecisionLogSources): PrismDecisio
     ...sources.addenda.map((row) =>
       entry('addendum', 'addendum', row.id, {
         decision: row.status,
-        subject: `Addendum v${row.versionNumber}: ${row.title} (${row._count.impacts} impact${row._count.impacts === 1 ? '' : 's'}, delta ${row.financialDelta})`,
+        subject: `Addendum v${row.versionNumber}: ${row.title} (${addendumStateLabel(row)}, delta ${row.financialDelta})`,
         reason: row.summary,
         actor: attribute('addendum', row.id),
-        decidedAt: row.issuedAt,
+        decidedAt: row.withdrawnAt ?? row.effectiveAt ?? row.issuedAt,
       }),
     ),
     ...archiveOverrideEntries(sources, attribute),
