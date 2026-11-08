@@ -113,18 +113,19 @@ export function isInquiryLogFormReady(form: InquiryLogForm) {
 }
 
 export function inquiryExtraDetailFields(inquiry: PrismInquiry) {
-  const fields: Array<{ label: string; value: string }> = [];
-  if (inquiry.referralDetails) fields.push({ label: "Referral", value: inquiry.referralDetails });
-  if (inquiry.channel) fields.push({ label: "Channel", value: inquiry.channel });
-  if (inquiry.seatingArrangement) fields.push({ label: "Seating", value: inquiry.seatingArrangement });
-  if (inquiry.stagePosition) fields.push({ label: "Stage", value: inquiry.stagePosition });
-  if (inquiry.setupNotes) fields.push({ label: "Setup notes", value: inquiry.setupNotes });
-  if (inquiry.loggedByName) fields.push({ label: "Logged by", value: inquiry.loggedByName });
-  if (inquiry.duplicateOfInquiryId) fields.push({ label: "Duplicate of", value: inquiry.duplicateOfInquiryId });
-  if (inquiry.previouslyDeclined) fields.push({ label: "Previously declined", value: "Yes" });
-  if (inquiry.previousDeclineReason) fields.push({ label: "Previous decline", value: inquiry.previousDeclineReason });
-  if (inquiry.declineReason) fields.push({ label: "Decline reason", value: inquiry.declineReason });
-  return fields;
+  const candidates: Array<[string, string | null | undefined]> = [
+    ["Referral", inquiry.referralDetails],
+    ["Channel", inquiry.channel],
+    ["Seating", inquiry.seatingArrangement],
+    ["Stage", inquiry.stagePosition],
+    ["Setup notes", inquiry.setupNotes],
+    ["Logged by", inquiry.loggedByName],
+    ["Duplicate of", inquiry.duplicateOfInquiryId],
+    ["Previously declined", inquiry.previouslyDeclined ? "Yes" : null],
+    ["Previous decline", inquiry.previousDeclineReason],
+    ["Decline reason", inquiry.declineReason],
+  ];
+  return candidates.flatMap(([label, value]) => (value ? [{ label, value }] : []));
 }
 
 /** An inquiry can be merged as a source unless it is already merged or has been accepted into a conforme path. */
