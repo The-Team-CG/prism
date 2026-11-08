@@ -72,7 +72,7 @@ function InquiryFooter() {
   );
 }
 
-function InquirySubmittedView({ onReset }: { onReset: () => void }) {
+function InquirySubmittedView({ onReset, editToken }: { onReset: () => void; editToken?: string }) {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <InquiryHeader />
@@ -85,6 +85,11 @@ function InquirySubmittedView({ onReset }: { onReset: () => void }) {
           <p className="mt-6 text-sm text-muted-foreground">
             Reference <span className="font-semibold tabular-nums text-foreground">{buildInquiryReference()}</span>
           </p>
+          {editToken ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Need to change something? You can <a href={`/inquiry/edit?token=${encodeURIComponent(editToken)}`} className="font-semibold text-primary">edit your inquiry</a> for 24 hours, until PMCM reviews it. The link is also in your confirmation email.
+            </p>
+          ) : null}
           <Button type="button" variant="outline" onClick={onReset} className="mt-8 h-11 rounded-lg px-5 text-base shadow-none">
             Send another inquiry
           </Button>
@@ -97,7 +102,7 @@ function InquirySubmittedView({ onReset }: { onReset: () => void }) {
 }
 
 export function InquirySubmitView() {
-  const { form, missing, currentStep, submitted, busy, error, minDate, update, nextStep, previousStep, goToStep, submit, resetSubmitted } =
+  const { form, missing, currentStep, submitted, busy, error, minDate, update, nextStep, previousStep, goToStep, submit, resetSubmitted, receipt } =
     useInquirySubmitViewModel();
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -105,7 +110,7 @@ export function InquirySubmitView() {
     await submit();
   }
 
-  if (submitted) return <InquirySubmittedView onReset={resetSubmitted} />;
+  if (submitted) return <InquirySubmittedView onReset={resetSubmitted} editToken={receipt?.editToken} />;
 
   return (
     <main className="min-h-screen bg-background text-foreground">

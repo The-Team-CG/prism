@@ -76,6 +76,7 @@ function eventWorkspaceNavItems(
 export function eventPortalNavItems({
   inEventWorkspace,
   eventStage,
+  disabledModules = [],
   inquiryCount,
   commandInboxCount,
   assignmentCount,
@@ -86,6 +87,8 @@ export function eventPortalNavItems({
 }: {
   inEventWorkspace: boolean;
   eventStage?: PrismLifecycleStage;
+  /** FR-24: modules PMCM switched off for the selected event. */
+  disabledModules?: readonly string[];
   inquiryCount?: number;
   commandInboxCount?: number | string;
   assignmentCount?: number;
@@ -97,7 +100,8 @@ export function eventPortalNavItems({
   const inbox: PrismNavItem = { id: "dashboard", icon: Inbox, label: "Inbox", section: "PMCM", badge: optionalNavBadge(commandInboxCount) };
   if (inEventWorkspace) {
     return [
-      ...eventWorkspaceNavItems(eventStage, { assignmentCount, quoteCount, draftCount, paymentCount, closeoutCount }),
+      ...eventWorkspaceNavItems(eventStage, { assignmentCount, quoteCount, draftCount, paymentCount, closeoutCount })
+        .filter((item) => item.id !== "event-floorplans" || !disabledModules.includes("floorplans")),
       { id: "events-list", icon: CalendarDays, label: "All events", section: "Back to" },
       { ...inbox, section: "Back to" },
     ];

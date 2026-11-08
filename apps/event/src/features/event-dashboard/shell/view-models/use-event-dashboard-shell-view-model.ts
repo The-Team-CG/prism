@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { CoordinatorRole, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier } from "@prism/types";
+import type { CoordinatorRole, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
 import { derivePrismLifecycleStage } from "@prism/types";
 import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
@@ -297,6 +297,7 @@ export function useEventDashboardShellViewModel({
   const shellNavItems = eventPortalNavItems({
     inEventWorkspace,
     eventStage: selectedEvent ? derivePrismLifecycleStage(selectedEvent) : undefined,
+    disabledModules: selectedEvent?.disabledModules ?? [],
     inquiryCount: unreviewedInquiries + pendingApprovals.length,
     commandInboxCount: commandInboxLoadFailed
       ? "!"
@@ -446,6 +447,9 @@ export function useEventDashboardShellViewModel({
     loadCloseGates: () => selectedEvent ? commands.closeGates(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     archiveSelectedEvent: (reason?: string) => selectedEvent ? run("archive event", () => commands.archiveEvent(selectedEvent.id, reason)) : Promise.resolve(),
     recordActualEventEnd: (input: Parameters<typeof commands.recordActualEventEnd>[1]) => selectedEvent ? run("record actual event end", () => commands.recordActualEventEnd(selectedEvent.id, input)) : Promise.resolve(),
+    setEventModules: (disabledModules: SetEventModulesInput["disabledModules"]) => selectedEvent && session && isPmcmAdmin(session.role)
+      ? runAsBoolean("event modules", () => commands.setEventModules(selectedEvent.id, { disabledModules }))
+      : Promise.resolve(false),
     setEventPrivacy: (privacy: "private" | "public") => selectedEvent && session && isPmcmAdmin(session.role)
       ? runAsBoolean("event privacy", () => commands.setEventPrivacy(selectedEvent.id, { privacy }))
       : Promise.resolve(false),

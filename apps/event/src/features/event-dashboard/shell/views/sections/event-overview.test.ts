@@ -21,6 +21,10 @@ describe("event workspace stage signals", () => {
 
     const live = eventPortalNavItems({ ...counts, eventStage: "event_day" });
     expect(live.find((item) => item.id === "event-report")?.badge).toBe(11);
+
+    // FR-24: the Floorplans tab follows the event's module switch.
+    expect(planning.some((item) => item.id === "event-floorplans")).toBe(true);
+    expect(eventPortalNavItems({ ...counts, eventStage: "briefing_proposal", disabledModules: ["floorplans"] }).some((item) => item.id === "event-floorplans")).toBe(false);
   });
 
   it("leads a past, unarchived event with its close-out and keeps only billing and closure work", () => {
