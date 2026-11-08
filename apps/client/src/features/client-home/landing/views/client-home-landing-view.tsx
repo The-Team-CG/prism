@@ -362,6 +362,12 @@ export function ClientHomeLandingView() {
                     Sign in
                   </a>
                 </Button>
+                <Button asChild variant="ghost" className="h-12 rounded-full px-5 text-sm font-medium">
+                  <a href="/guest-pass-sample">
+                    <UserCheck data-icon="inline-start" />
+                    Try the guest pass
+                  </a>
+                </Button>
               </div>
               <HeroTrustStrip />
             </div>

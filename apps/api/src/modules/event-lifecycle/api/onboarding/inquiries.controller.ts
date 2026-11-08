@@ -12,6 +12,8 @@ import {
   type UpdateInquiryCompanyNameInput,
   setInquiryIntakePathSchema,
   type SetInquiryIntakePathInput,
+  setClientLanguageSchema,
+  type SetClientLanguageInput,
   updateInquiryStatusSchema,
   uploadConformeSchema,
   type CreatePrismInquiryInput,
@@ -106,6 +108,12 @@ export class OpsInquiriesController {
   @UseGuards(EventSessionGuard)
   ensurePreConformeWorkspace(@Param('inquiryId') inquiryId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     return this.inquiriesService.ensurePreConformeWorkspace(inquiryId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Patch(':inquiryId/language')
+  @UseGuards(EventSessionGuard)
+  setClientLanguage(@Param('inquiryId') inquiryId: string, @Body(zodBody(setClientLanguageSchema)) dto: SetClientLanguageInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.inquiriesService.setClientLanguage(inquiryId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
   @Patch(':inquiryId/intake-path')

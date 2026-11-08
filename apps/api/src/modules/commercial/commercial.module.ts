@@ -72,6 +72,8 @@ import { ClientOwnedSupplierController } from './api/suppliers/client-owned-supp
 import { ClientOwnedSupplierService } from './application/suppliers/client-owned-supplier.service';
 import { UnresponsiveSupplierService } from './application/suppliers/unresponsive-supplier.service';
 import { SupplierReliabilityScoreController } from './api/suppliers/supplier-reliability-score.controller';
+import { PresentationMeetingController } from './api/quotes/presentation-meeting.controller';
+import { PresentationMeetingService } from './application/quotes/presentation-meeting.service';
 import { SupplierReliabilityScoreService } from './application/suppliers/supplier-reliability-score.service';
 import { LogisticsBookingService } from './application/billing/logistics-booking.service';
 
@@ -124,6 +126,7 @@ const supplierCommandsProvider = {
     LogisticsBookingController,
     ClientOwnedSupplierController,
     SupplierReliabilityScoreController,
+    PresentationMeetingController,
   ],
   providers: [
     CommercialWorkflowService,
@@ -163,6 +166,7 @@ const supplierCommandsProvider = {
     ClientOwnedSupplierService,
     UnresponsiveSupplierService,
     SupplierReliabilityScoreService,
+    PresentationMeetingService,
     { provide: PAYMENT_STATUS_READER, useExisting: PaymentOperationsService },
   ],
   exports: [
