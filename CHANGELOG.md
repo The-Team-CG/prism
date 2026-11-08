@@ -7,6 +7,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 - Billing corrections and disputes record a severity: typo correction (no amount may change, and no second approver is needed) or amount discrepancy (unchanged approval rules). PMCM sets it and clients see it on their dispute status; existing records are amount discrepancies.
+- Clients and suppliers can submit their own privacy requests and track their status; PMCM still verifies and carries them out.
+- Supplier file requirement reminders go only to the suppliers who are overdue or need to replace a rejected file.
 - File access follows one policy for lists and downloads: coordinators need a current assignment, suppliers see only their own files on selected bookings, and failed uploads are no longer shown outside PMCM.
 - Addenda change billing and quote amounts only when PMCM countersigns; until then they show as pending, and PMCM can withdraw one with a reason.
 - Coordinators and PMCM can mark an event-day task blocked with a required reason and unblock it; the PMCM inbox shows that reason.
