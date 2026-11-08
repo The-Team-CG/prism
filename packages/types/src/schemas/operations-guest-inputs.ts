@@ -164,3 +164,27 @@ export const updateGuestVerificationSchema = z.object({
   status: z.enum(["pending", "verified", "rejected"]),
 });
 export type UpdateGuestVerificationInput = z.infer<typeof updateGuestVerificationSchema>;
+
+/** FR-39 / FR-95 QR check-in: the pass carries a random token only; staff scan it at the registration desk. */
+export const guestQrCheckInSchema = z.object({
+  token: z.string().trim().regex(/^[A-Za-z0-9_-]{32,64}$/, "This is not a P.R.I.S.M guest pass"),
+}).strict();
+export type GuestQrCheckInInput = z.infer<typeof guestQrCheckInSchema>;
+
+export interface PrismGuestQrPass {
+  rosterEntryId: string;
+  guestName: string;
+  email: string;
+  token: string;
+  checkedInAt: string | null;
+}
+
+/** The text a guest pass QR encodes. Staff scanners accept this or the bare token. */
+export const GUEST_QR_PASS_PREFIX = "prism-pass:";
+
+export function guestQrPassToken(scanned: string): string {
+  const value = scanned.trim();
+  if (value.startsWith(GUEST_QR_PASS_PREFIX)) return value.slice(GUEST_QR_PASS_PREFIX.length);
+  const fromLink = /\/pass\/([A-Za-z0-9_-]{32,64})(?:[/?#]|$)/.exec(value);
+  return fromLink?.[1] ?? value;
+}

@@ -15,18 +15,20 @@ import type {
   EventDecisionInput,
   PrismCoordinatorAssignment,
   PrismCoordinatorAttendanceUpdateResult,
+  PrismCoordinatorSuggestion,
   PrismEventDecisionAssignmentImpact,
   ReplaceCoordinatorAssignmentInput,
   UpdateCoordinatorAttendanceInput,
   WithdrawCoordinatorAssignmentInput,
 } from '@prism/types';
-import { PrismaService } from '@prism/kernel/database';
+import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { lockCoordinatorAssignmentDay, type PrismCommandContext, type PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, CoordinatorAttendanceStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, isOpsConstantValue, OpsUserRole, WorkflowCommandService, WORKFLOW_COMMAND_LOG } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/contexts/platform-ops';
 import type { StaffingCommands } from '../../contracts/staffing-commands.port';
+import { buildCoordinatorReplacementPackage } from './coordinator-replacement-package';
 import { COORDINATOR_RELIABILITY_WRITER } from '../../contracts/coordinator-reliability-writer.token';
 import type { CoordinatorReliabilityWriter } from '../../contracts/coordinator-reliability-writer.port';
 import { mapCoordinatorAssignment } from './coordinators.mappers';
@@ -672,9 +674,29 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
             idempotencyKey: `${commandContext.idempotencyKey}:notify`,
           }, transactionContext),
           ...(emergencyChange ? await this.notifyPmcmOfEmergency(eventId, assignment, reason, replacements, commandContext, transactionContext) : []),
+          ...(emergencyChange ? [this.raiseReplacementPackage(eventId, assignment, replacements, transactionContext)] : []),
         ]);
       },
       project: (assignment) => mapCoordinatorAssignment(assignment),
+    });
+  }
+
+  /** FR-AI-04: one PARE coordinator package per withdrawn assignment, waiting for PMCM approval. */
+  private async raiseReplacementPackage(eventId: string, assignment: OpsCoordinatorAssignment, suggestions: PrismCoordinatorSuggestion[], transactionContext?: PrismTransactionContext) {
+    const db = transactionContext?.prisma ?? this.prisma;
+    const event = await this.eventReferences.findOperationsEvent(eventId, transactionContext);
+    const pkg = buildCoordinatorReplacementPackage({
+      role: assignment.role, withdrawnCoordinatorName: assignment.coordinatorName, eventName: event?.eventName ?? 'the event',
+      eventDate: assignment.eventDate ?? event?.eventDate ?? new Date(), now: new Date(), suggestions,
+    });
+    await db.opsCoordinatorReplacementRecommendation.upsert({
+      where: { withdrawnAssignmentId: assignment.id },
+      update: {},
+      create: {
+        id: `coord_pare_${randomUUID()}`, eventId, withdrawnAssignmentId: assignment.id, withdrawnCoordinatorName: assignment.coordinatorName,
+        role: assignment.role, hoursToEvent: pkg.hoursToEvent, riskLevel: pkg.riskLevel, riskSummary: pkg.riskSummary,
+        candidates: toPrismaJson(pkg.candidates), draftMessage: pkg.draftMessage,
+      },
     });
   }
 

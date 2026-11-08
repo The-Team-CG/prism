@@ -1676,6 +1676,29 @@ model OpsCoordinatorRoleBrief {
   @@schema("operations")
 }
 
+// FR-AI-04 PARE coordinator mode: a replacement package raised by an emergency withdrawal; PMCM approves before anything happens.
+model OpsCoordinatorReplacementRecommendation {
+  id                       String    @id
+  eventId                  String    @map("event_id")
+  withdrawnAssignmentId    String    @unique(map: "coordinator_replacement_recommendations_assignment_key") @map("withdrawn_assignment_id")
+  withdrawnCoordinatorName String    @map("withdrawn_coordinator_name")
+  role                     String
+  hoursToEvent             Int       @map("hours_to_event")
+  riskLevel                String    @map("risk_level")
+  riskSummary              String    @map("risk_summary")
+  candidates               Json      @default("[]")
+  draftMessage             String    @map("draft_message")
+  status                   String    @default("pending")
+  selectedCoordinatorId    String?   @map("selected_coordinator_id")
+  reviewedBy               String?   @map("reviewed_by")
+  reviewedAt               DateTime? @map("reviewed_at")
+  createdAt                DateTime  @default(now()) @map("created_at")
+
+  @@index([eventId, status], map: "coordinator_replacement_recommendations_event_status_idx")
+  @@map("coordinator_replacement_recommendations")
+  @@schema("operations")
+}
+
 model OpsCoordinatorAssignment {
   id                     String    @id
   eventId                String    @map("event_id")
@@ -2738,6 +2761,8 @@ model OpsGuestRosterEntry {
   withdrawnAt              DateTime? @map("withdrawn_at")
   verificationFlaggedAt    DateTime? @map("verification_flagged_at")
   verificationFlaggedBy    String?   @map("verification_flagged_by")
+  /// FR-39: random QR pass token, issued by PMCM to guests with an email address.
+  checkInToken             String?   @unique(map: "guest_roster_entries_check_in_token_key") @map("check_in_token")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @default(now()) @updatedAt @map("updated_at")
 
