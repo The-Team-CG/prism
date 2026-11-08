@@ -28,3 +28,10 @@ describe("Word conforme templates (FR-67)", () => {
     expect(documentXmlToText("<w:p></w:p>")).toBe("");
   });
 });
+
+describe("Word template text extraction", () => {
+  it("keeps only text inside Word text runs, so markup and scripts never reach the conforme", () => {
+    const xml = '<w:p><w:r><w:t>Hello &lt;b&gt; {{clientName}}</w:t></w:r><w:bookmarkStart w:name="x"/><script>alert(1)</script></w:p>';
+    expect(documentXmlToText(xml)).toBe("Hello <b> {{clientName}}");
+  });
+});
