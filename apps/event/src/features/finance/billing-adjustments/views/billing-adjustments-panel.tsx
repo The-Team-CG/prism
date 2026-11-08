@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import type { PrismBillingSource, PrismBillingStatement, PrismPaymentMilestone, PrismUrgentIssue } from "@prism/types";
 import { money } from "@/features/pmcm-kit";
+import { BILLING_DISCREPANCY_SEVERITIES, BILLING_DISCREPANCY_SEVERITY_LABELS, type BillingDiscrepancySeverity } from "@prism/types";
 import { useBillingAdjustmentsPanel } from "../view-models/use-billing-adjustments-panel";
 
 const fieldClass = "mt-1 block w-full rounded-md border border-border bg-white px-3 py-2 text-sm";
@@ -55,6 +56,16 @@ function CreateToggle({ label, open, controls, onToggle }: { label: string; open
   );
 }
 
+function SeveritySelect({ value, onChange }: { value: BillingDiscrepancySeverity; onChange: (value: BillingDiscrepancySeverity) => void }) {
+  return (
+    <label className="block text-xs font-semibold">Discrepancy severity
+      <select className={fieldClass} value={value} onChange={(e) => onChange(e.target.value as BillingDiscrepancySeverity)}>
+        {BILLING_DISCREPANCY_SEVERITIES.map((severity) => <option key={severity} value={severity}>{BILLING_DISCREPANCY_SEVERITY_LABELS[severity]}</option>)}
+      </select>
+    </label>
+  );
+}
+
 function SectionHeader({ title, action }: { title: string; action: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -75,6 +86,7 @@ function DisputeSection({ vm }: { vm: BillingAdjustmentsVm }) {
       {openDisputes.map((dispute) => (
         <div key={dispute.id} className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
           <p className="text-xs font-semibold">{money.format(dispute.amount)} disputed: {dispute.reason}</p>
+          <p className="text-xs text-muted-foreground">Severity: {BILLING_DISCREPANCY_SEVERITY_LABELS[dispute.severity]}</p>
           <input
             className={fieldClass}
             placeholder="Resolution notes (required to reject)"
@@ -89,6 +101,7 @@ function DisputeSection({ vm }: { vm: BillingAdjustmentsVm }) {
       ))}
       {creating ? (
         <form id="billing-dispute-form" className="space-y-3 rounded-xl border border-border p-3" onSubmit={(event) => { event.preventDefault(); void vm.submitDispute(); }}>
+          <SeveritySelect value={vm.disputeDraft.severity} onChange={(severity) => vm.setDisputeDraft({ ...vm.disputeDraft, severity })} />
           <label className="block text-xs font-semibold">Milestone (optional)
             <select className={fieldClass} value={vm.disputeDraft.milestoneId} onChange={(e) => vm.setDisputeDraft({ ...vm.disputeDraft, milestoneId: e.target.value })}>
               <option value="">Whole statement</option>
@@ -118,6 +131,7 @@ function CorrectionSection({ vm }: { vm: BillingAdjustmentsVm }) {
       {vm.corrections.map((correction) => (
         <div key={correction.id} className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
           <p className="text-xs font-semibold">{correction.reason} ({correction.status})</p>
+          <p className="text-xs text-muted-foreground">Severity: {BILLING_DISCREPANCY_SEVERITY_LABELS[correction.severity]}</p>
           {correction.status === "pending" ? (
             <>
               <input
@@ -143,8 +157,10 @@ function CorrectionSection({ vm }: { vm: BillingAdjustmentsVm }) {
           <label className="block text-xs font-semibold">Reason
             <textarea className={fieldClass} rows={2} value={vm.correctionDraft.reason} onChange={(e) => vm.setCorrectionDraft({ ...vm.correctionDraft, reason: e.target.value })} />
           </label>
+          <SeveritySelect value={vm.correctionDraft.severity} onChange={(severity) => vm.setCorrectionDraft({ ...vm.correctionDraft, severity })} />
           <label className="block text-xs font-semibold">Corrected total (optional)
-            <input className={fieldClass} inputMode="numeric" value={vm.correctionDraft.correctedTotalAmount} onChange={(e) => vm.setCorrectionDraft({ ...vm.correctionDraft, correctedTotalAmount: e.target.value })} />
+            <input className={fieldClass} inputMode="numeric" disabled={vm.correctionDraft.severity === "typo_correction"} value={vm.correctionDraft.correctedTotalAmount} onChange={(e) => vm.setCorrectionDraft({ ...vm.correctionDraft, correctedTotalAmount: e.target.value })} />
+            {vm.correctionDraft.severity === "typo_correction" ? <span className="mt-1 block font-normal text-muted-foreground">A typo correction cannot change the amount.</span> : null}
           </label>
           <button type="submit" className={buttonClass} disabled={vm.busy || !vm.statement || !vm.correctionDraft.reason.trim()}>Request correction</button>
         </form>

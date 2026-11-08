@@ -1,5 +1,6 @@
 import type { PrismAddendumConformeTraceReference } from "../conforme-signing.js";
 import type { PrismFileRequirementsMatrix } from "./lifecycle.js";
+import type { BillingDiscrepancySeverity } from "../schemas/session-commercial-inputs.js";
 
 export interface PrismBillingLineItem {
   label: string;
@@ -157,6 +158,7 @@ export interface PrismBillingCorrection {
   statementId: string;
   replacementStatementId?: string | null;
   reason: string;
+  severity: BillingDiscrepancySeverity;
   correctedTotalAmount?: number | null;
   status: string;
   requestedBy: string;
@@ -175,6 +177,7 @@ export interface PrismBillingDispute {
   milestoneId?: string | null;
   amount: number;
   reason: string;
+  severity: BillingDiscrepancySeverity;
   status: string;
   raisedBy: string;
   resolvedBy?: string | null;
@@ -190,6 +193,7 @@ export interface PrismClientBillingDispute {
   statementId: string;
   milestoneId?: string | null;
   amount: number;
+  severity: BillingDiscrepancySeverity;
   status: string;
   createdAt: string;
   resolvedAt?: string | null;
