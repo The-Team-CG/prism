@@ -1018,6 +1018,8 @@ model OpsSupplierContractVersion {
   uploadedAt     DateTime  @default(now()) @map("uploaded_at")
   reviewedAt     DateTime? @map("reviewed_at")
   reviewedBy     String?   @map("reviewed_by")
+  contractTotal  Int?      @map("contract_total")
+  quotedTotal    Int?      @map("quoted_total")
   createdAt      DateTime  @default(now()) @map("created_at")
 
   request  OpsSupplierQuoteRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
@@ -1345,6 +1347,41 @@ model OpsClientCloseoutResponse {
   @@index([actorId], map: "client_closeout_responses_actor_id_idx")
   @@map("client_closeout_responses")
   @@schema("event_lifecycle")
+}
+
+model OpsExternalCreativeTicket {
+  id               String    @id
+  eventId          String    @map("event_id")
+  designerName     String    @map("designer_name")
+  designerContact  String    @default("") @map("designer_contact")
+  deliverable      String
+  dueDate          DateTime? @map("due_date") @db.Date
+  status           String    @default("requested")
+  progressNote     String    @default("") @map("progress_note")
+  outputDocumentId String?   @map("output_document_id")
+  outputFileName   String?   @map("output_file_name")
+  createdBy        String    @map("created_by")
+  completedAt      DateTime? @map("completed_at")
+  completedBy      String?   @map("completed_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([eventId, status], map: "external_creative_tickets_event_status_idx")
+  @@map("external_creative_tickets")
+  @@schema("commercial")
+}
+
+model OpsSupplierGapAcknowledgement {
+  id             String   @id
+  eventId        String   @map("event_id")
+  categoryId     String   @map("category_id")
+  reason         String
+  acknowledgedBy String   @map("acknowledged_by")
+  acknowledgedAt DateTime @default(now()) @map("acknowledged_at")
+
+  @@unique([eventId, categoryId], map: "supplier_gap_acknowledgements_event_category_key")
+  @@map("supplier_gap_acknowledgements")
+  @@schema("commercial")
 }
 
 model OpsSupplierAvailability {

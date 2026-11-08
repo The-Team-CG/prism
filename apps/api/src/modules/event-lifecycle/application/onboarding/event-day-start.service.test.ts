@@ -6,6 +6,7 @@ import { AUDIT_WRITER, EventAccessPolicyService } from '@prism/kernel/access-con
 import { EventLifecycleService, OpsUserRole } from '@prism/kernel/event-core';
 import type { OpsEvent, OpsInquiry } from '@prisma/client';
 import type { StartEventDayResult } from '@prism/types';
+import { COMMERCIAL_FACTS_READER } from '@prism/contexts/read-models/commercial-facts-reader';
 import { EventDayStartService } from './event-day-start.service';
 
 const actor = { id: 'admin_1', name: 'PMCM', role: OpsUserRole.PmcmAdmin, email: 'admin@example.test', verified: true, explicit: true };
@@ -24,9 +25,11 @@ async function fixture() {
   const prisma = { $transaction: (work: (value: typeof tx) => Promise<StartEventDayResult>) => work(tx) };
   const access = { requireActorRole: vi.fn(async () => undefined), requireCanReadEvent: vi.fn(async () => undefined) };
   const audit = { write: vi.fn(async () => undefined) };
+  const gaps: Array<{ categoryName: string; gap: boolean; acknowledgement: unknown }> = [];
+  const commercialFacts = { listSupplierGaps: vi.fn(async () => gaps) };
   const module = await Test.createTestingModule({ providers: [EventDayStartService, EventLifecycleService,
-    { provide: PrismaService, useValue: prisma }, { provide: EventAccessPolicyService, useValue: access }, { provide: AUDIT_WRITER, useValue: audit }] }).compile();
-  return { service: module.get(EventDayStartService), event, tx, access, audit };
+    { provide: PrismaService, useValue: prisma }, { provide: EventAccessPolicyService, useValue: access }, { provide: AUDIT_WRITER, useValue: audit }, { provide: COMMERCIAL_FACTS_READER, useValue: commercialFacts }] }).compile();
+  return { service: module.get(EventDayStartService), event, tx, access, audit, gaps };
 }
 
 describe('EventDayStartService', () => {
@@ -39,17 +42,24 @@ describe('EventDayStartService', () => {
     expect(f.audit.write).toHaveBeenCalledTimes(1);
   });
 
-  it.each(['locked', 'unsigned', 'unapproved', 'proposal pending', 'cancelled', 'ended'])('refuses %s events without a write', async (condition) => {
+  it.each(['locked', 'unsigned', 'unapproved', 'proposal pending', 'unacknowledged supplier gap', 'cancelled', 'ended'])('refuses %s events without a write', async (condition) => {
     const f = await fixture();
     if (condition === 'locked') f.event.clientPortalStatus = 'locked';
     if (condition === 'unsigned') f.event.inquiry.conformeSignedAt = null;
     if (condition === 'unapproved') f.event.floorPlanStatus = 'not_started';
     if (condition === 'proposal pending') f.event.proposalClientStatus = 'pending';
+    if (condition === 'unacknowledged supplier gap') f.gaps.push({ categoryName: 'Technicals', gap: true, acknowledgement: null });
     if (condition === 'cancelled') f.event.status = 'cancelled';
     if (condition === 'ended') f.event.actualEndedAt = new Date('2026-10-02T00:00:00Z');
     await expect(f.service.start('evt_1', actor)).rejects.toBeInstanceOf(BadRequestException);
     expect(f.tx.opsEvent.update).not.toHaveBeenCalled();
     expect(f.audit.write).not.toHaveBeenCalled();
+  });
+
+  it('starts once PMCM has acknowledged the supplier gap', async () => {
+    const f = await fixture();
+    f.gaps.push({ categoryName: 'Technicals', gap: true, acknowledgement: { reason: 'Client brings own AV', acknowledgedBy: 'PMCM', acknowledgedAt: '2026-10-27T00:00:00.000Z' } });
+    await expect(f.service.start('evt_1', actor)).resolves.toEqual({ eventId: 'evt_1', status: 'event_day' });
   });
 
   it('preserves a permission denial before reading or changing the event', async () => {

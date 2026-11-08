@@ -274,6 +274,17 @@ export interface PrismPmcmSupplierReadinessBoard {
   items: PrismPmcmSupplierReadinessItem[];
 }
 
+/** FR-63: a requested category with no selected booking and no available Tier 1 or Tier 2 supplier on the event date. */
+export interface PrismSupplierGap {
+  categoryId: string;
+  categoryName: string;
+  eventDate: string;
+  tier1Available: number;
+  tier2Available: number;
+  gap: boolean;
+  acknowledgement: { reason: string; acknowledgedBy: string; acknowledgedAt: string } | null;
+}
+
 export type PrismCommandInboxSeverity = "critical"
   | "warning"
   | "attention"

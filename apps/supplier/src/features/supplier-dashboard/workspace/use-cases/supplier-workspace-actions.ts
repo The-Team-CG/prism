@@ -76,8 +76,9 @@ export async function saveSupplierContract(
   supplier: PrismSupplier,
   request: PrismSupplierQuoteRequest,
   file: File,
+  contractTotal: number,
 ): Promise<{ notice: string }> {
-  await supplierWorkflowRepository.uploadContract(session, supplier, request, file);
+  await supplierWorkflowRepository.uploadContract(session, supplier, request, file, contractTotal);
   return { notice: "Contract uploaded for PMCM review." };
 }
 
