@@ -108,5 +108,6 @@ function isActiveMultiplayerSession(state: PrismGamePublicState | null): boolean
   if (!state || !["lobby", "live", "paused"].includes(state.status)) return false;
   return [
     "live-trivia", "bingo", "guess-picture", "spin-wheel", "this-or-that", "family-feud", "split-the-room",
+    "live-poll", "word-cloud", "open-qa",
   ].includes(state.game.kind);
 }

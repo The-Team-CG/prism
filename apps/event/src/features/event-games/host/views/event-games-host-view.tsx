@@ -352,7 +352,7 @@ function GameSessionSection({
             <p role="status" className="mt-1">{hostState.sessionResult.label} · {hostState.sessionResult.points} points</p>
           </section>
         ) : null}
-        {hostState.game.kind === "split-the-room" && hostState.currentRound?.pendingSubmissions ? (
+        {["split-the-room", "word-cloud", "open-qa"].includes(hostState.game.kind) && hostState.currentRound?.pendingSubmissions ? (
           <SplitResponseModerationQueue
             sessionId={hostState.sessionId}
             submissions={hostState.currentRound.pendingSubmissions}
@@ -637,7 +637,8 @@ function hostPauseLabel(kind: PrismGameHostState["game"]["kind"]): string {
   if (kind === "live-trivia") return "Reveal answer and pause";
   if (kind === "family-feud") return "Pause and reveal board";
   if (kind === "this-or-that") return "Pause voting";
-  if (kind === "split-the-room") return "Reveal totals and pause";
+  if (kind === "split-the-room" || kind === "live-poll") return "Reveal totals and pause";
+  if (kind === "word-cloud" || kind === "open-qa") return "Show approved answers and pause";
   return kind === "bingo" ? "Pause number calls" : "Pause";
 }
 
@@ -645,7 +646,7 @@ function hostResumeLabel(kind: PrismGameHostState["game"]["kind"]): string {
   if (kind === "live-trivia") return "Resume timed questions";
   if (kind === "family-feud") return "Resume questions";
   if (kind === "this-or-that") return "Resume voting";
-  if (kind === "split-the-room") return "Resume timed prompts";
+  if (["split-the-room", "live-poll", "word-cloud", "open-qa"].includes(kind)) return "Resume timed prompts";
   return kind === "bingo" ? "Resume number calls" : "Resume";
 }
 

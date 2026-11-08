@@ -66,6 +66,10 @@ export interface PrismInquiry {
   portalInvitationSentAt?: string | null;
   portalInvitationOpenedAt?: string | null;
   portalInvitationExpiresAt?: string | null;
+  /** FR-02: "standard" or "bidding". */
+  intakePath?: "standard" | "bidding";
+  bidStatus?: "preparing" | "submitted" | "won" | "lost" | null;
+  bidDueAt?: string | null;
   createdAt: string;
 }
 

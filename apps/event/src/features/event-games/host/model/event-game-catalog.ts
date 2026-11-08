@@ -17,6 +17,9 @@ export const EVENT_GAME_OPTIONS: ReadonlyArray<{
   { kind: "guess-picture-solo", label: "Guess the Picture (Solo)", entryMode: "independent" },
   { kind: "this-or-that-solo", label: "This or That (Solo)", entryMode: "independent" },
   { kind: "spot-the-difference", label: "Spot the Difference", entryMode: "independent" },
+  { kind: "live-poll", label: "Live Poll", entryMode: "active" },
+  { kind: "word-cloud", label: "Word Cloud", entryMode: "active" },
+  { kind: "open-qa", label: "Open Q and A", entryMode: "active" },
 ];
 
 export function eventGameOption(kind: PrismEventGameKind) {
