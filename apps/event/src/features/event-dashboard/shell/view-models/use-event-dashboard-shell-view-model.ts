@@ -446,6 +446,9 @@ export function useEventDashboardShellViewModel({
     loadCloseGates: () => selectedEvent ? commands.closeGates(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     archiveSelectedEvent: (reason?: string) => selectedEvent ? run("archive event", () => commands.archiveEvent(selectedEvent.id, reason)) : Promise.resolve(),
     recordActualEventEnd: (input: Parameters<typeof commands.recordActualEventEnd>[1]) => selectedEvent ? run("record actual event end", () => commands.recordActualEventEnd(selectedEvent.id, input)) : Promise.resolve(),
+    setEventPrivacy: (privacy: "private" | "public") => selectedEvent && session && isPmcmAdmin(session.role)
+      ? runAsBoolean("event privacy", () => commands.setEventPrivacy(selectedEvent.id, { privacy }))
+      : Promise.resolve(false),
     toggleClientEventDayView: (enabled: boolean) => selectedEvent && session && isPmcmAdmin(session.role)
       ? runAsBoolean("client event-day view", () => commands.setClientEventDayView(selectedEvent.id, { enabled }))
       : Promise.resolve(false),

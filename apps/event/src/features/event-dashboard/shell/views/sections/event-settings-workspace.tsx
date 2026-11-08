@@ -10,17 +10,67 @@ import type { PrismEvent } from "@prism/types";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 
+function EventPrivacyControl({ selectedEvent, onSetEventPrivacy }: {
+  selectedEvent?: PrismEvent;
+  onSetEventPrivacy: (privacy: "private" | "public") => Promise<boolean>;
+}) {
+  const [privacy, setPrivacy] = useState<"private" | "public">(selectedEvent?.privacy ?? "private");
+  const [saving, setSaving] = useState(false);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setPrivacy(selectedEvent?.privacy ?? "private");
+    setFailed(false);
+  }, [selectedEvent?.id, selectedEvent?.privacy]);
+  if (!selectedEvent || selectedEvent.archived) return null;
+
+  async function choose(next: "private" | "public") {
+    if (saving || next === privacy) return;
+    setSaving(true);
+    setFailed(false);
+    try {
+      if (await onSetEventPrivacy(next)) setPrivacy(next);
+      else setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <fieldset className="rounded-md border border-border bg-muted/20 px-4 py-3" disabled={saving}>
+      <legend className="sr-only">Event privacy</legend>
+      <p className="text-sm font-black text-foreground">Event privacy</p>
+      <p id="event-privacy-description" className="mt-1 text-xs text-muted-foreground">
+        Private events under 200 guests can use table assignment and the seating list.
+      </p>
+      <div className="mt-3 flex gap-4 text-sm" aria-describedby="event-privacy-description">
+        {(["private", "public"] as const).map((option) => (
+          <label key={option} className="flex items-center gap-2">
+            <input type="radio" name="event-privacy" value={option} checked={privacy === option} onChange={() => void choose(option)} />
+            {option === "private" ? "Private" : "Public"}
+          </label>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">{saving ? "Saving…" : null}</p>
+      {failed ? <p role="alert" className="mt-2 text-xs text-destructive">Could not save the event privacy. Try again.</p> : null}
+    </fieldset>
+  );
+}
+
 
 type EventSettingsWorkspaceProps = {
   session: EventSession;
   selectedEvent?: PrismEvent;
   onToggleClientEventDayView: (enabled: boolean) => Promise<boolean>;
+  onSetEventPrivacy: (privacy: "private" | "public") => Promise<boolean>;
 };
 
 export function EventSettingsWorkspace({
   session,
   selectedEvent,
   onToggleClientEventDayView,
+  onSetEventPrivacy,
 }: EventSettingsWorkspaceProps) {
   const [clientEventDayViewEnabled, setClientEventDayViewEnabled] = useState(
     selectedEvent?.clientEventDayViewEnabled === true,
@@ -75,6 +125,7 @@ export function EventSettingsWorkspace({
           </div>
         </CardHeader>
         <CardBody className="grid gap-3 md:grid-cols-3">
+          <EventPrivacyControl selectedEvent={selectedEvent} onSetEventPrivacy={onSetEventPrivacy} />
           {canManageClientEventDayView && (
             <div className="rounded-md border border-border bg-muted/20 px-4 py-3">
               <div className="flex items-center justify-between gap-4">

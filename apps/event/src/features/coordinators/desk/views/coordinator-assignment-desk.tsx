@@ -23,6 +23,7 @@ import { dateKey } from "@/features/pmcm-kit";
 import {
   activeAssignmentForRole,
   coordinatorSkillFilterOptions,
+  coordinatorHasAllSkills,
   isCoordinatorAssignmentActive,
   isOperatorEligibleAssignment,
   otherActiveRoleAssignment,
@@ -140,6 +141,7 @@ export function CoordinatorAssignmentDesk({
     if (!c.active) return false;
     if (roleFilter !== "all" && !coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === roleFilter)) return false;
     if (onlyAvailable && conflictFor(c.id)) return false;
+    if (!coordinatorHasAllSkills(c, selectedSkills)) return false;
     return true;
   });
 

@@ -35,7 +35,7 @@ export class ClientOnboardingWorkflowService {
       const saved = await tx.opsBriefing.create({ data: {
         id: `brief_${randomUUID()}`, eventId, venue: input.venue,
         guestCount: input.guestCount, budgetRange: input.budgetRange,
-        serviceRequirements: toPrismaJson(input.serviceRequirements), notes: input.notes,
+        serviceRequirements: toPrismaJson(input.serviceRequirements), notes: input.notes, venueType: input.venueType ?? null,
         confirmedDate: input.confirmedDate ? new Date(input.confirmedDate) : null,
         confirmedStartTime: input.confirmedStartTime ?? null,
         confirmedEndTime: input.confirmedEndTime ?? null,

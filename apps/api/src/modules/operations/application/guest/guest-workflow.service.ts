@@ -4,6 +4,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { validateUploadMetadata } from '@prism/kernel/shared';
 import { STAFFING_READER } from '../../contracts/staffing-ops.tokens';
 import type { StaffingReader } from '../../contracts/staffing-reader.port';
@@ -89,6 +90,7 @@ export class GuestWorkflowService implements GuestCommands {
     @Inject(STAFFING_READER) private readonly staffingReader: StaffingReader,
     @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
     @Inject(GUEST_EVENT_PROJECTION_READER) private readonly eventProjections: GuestEventProjectionReader,
+    @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
   ) {}
 
   async getEventByAccessCode(accessCode: string) {
@@ -649,6 +651,10 @@ export class GuestWorkflowService implements GuestCommands {
         affectedId: rosterEntryId,
         affectedLabel: roster.guestName,
         metadata: { previousStatus: roster.verificationStatus, status: 'pending', flagged: true, actorId: actor.id },
+      }, { prisma: tx, correlationId, actorId: actor.id });
+      // PMCM is alerted at once so an unauthorized walk-in is reviewed while the guest is still at the desk.
+      await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `Walk-in flagged for verification at ${event.eventName}: ${roster.guestName}`, undefined, {
+        idempotencyKey: `walk-in-flag:${rosterEntryId}:${updated.verificationFlaggedAt?.toISOString()}`,
       }, { prisma: tx, correlationId, actorId: actor.id });
       return this.mapCoordinatorRegistrationEntry(updated);
     });

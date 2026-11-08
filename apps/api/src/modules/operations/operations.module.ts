@@ -31,13 +31,15 @@ import { CoordinatorAcknowledgementReminderScheduler } from './application/staff
 import { GuestWorkflowService } from './application/guest/guest-workflow.service';
 import { RegistrationPlatformService } from './application/guest/registration-platform.service';
 import { WalkInPolicyService } from './application/guest/walk-in-policy.service';
+import { CoordinatorRoleBriefService } from './application/staffing/coordinator-role-brief.service';
+import { CoordinatorRoleBriefController } from './api/staffing/coordinator-role-brief.controller';
 import { GuestPrivacyClassificationService } from './application/guest/guest-privacy-classification.service';
 import { OperationsPrivacyRedactorService } from './application/guest/operations-privacy-redactor.service';
 import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
 
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController],
+  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController, CoordinatorRoleBriefController],
   providers: [
     CoordinatorsService,
     CoordinatorAssignmentCommandService,
@@ -49,6 +51,7 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
     GuestWorkflowService,
     RegistrationPlatformService,
     WalkInPolicyService,
+    CoordinatorRoleBriefService,
     GuestPrivacyClassificationService,
     OperationsPrivacyRedactorService,
     { provide: OPERATIONS_PRIVACY_REDACTOR, useExisting: OperationsPrivacyRedactorService },

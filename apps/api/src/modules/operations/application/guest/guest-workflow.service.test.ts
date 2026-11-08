@@ -245,6 +245,7 @@ function createGuestWorkflowFixture() {
     findGuestEvent: vi.fn(async (eventId: string) => state.events.find((event) => event.id === eventId) ?? null),
     listCoordinatorWorkspaceEvents: vi.fn(async () => []),
   };
+  const notificationOutboxWriter = { write: vi.fn(async () => undefined) };
   const service = new GuestWorkflowService(
     prisma as any,
     auditWriter as any,
@@ -252,9 +253,10 @@ function createGuestWorkflowFixture() {
     staffingReader as any,
     eventReferences as any,
     eventProjections as any,
+    notificationOutboxWriter as any,
   );
 
-  return { service, state, prisma, auditWriter, staffingReader, eventReferences, eventProjections };
+  return { service, state, prisma, auditWriter, staffingReader, eventReferences, eventProjections, notificationOutboxWriter };
 }
 
 function guestRosterFixture(overrides: Record<string, unknown> = {}) {
@@ -744,7 +746,7 @@ describe('GuestWorkflowService', () => {
     };
     const prisma = { $transaction: async (work: (context: typeof tx) => Promise<unknown>) => work(tx) };
     const staffingReader = { findAssignmentForEventActor: vi.fn(async () => ({ id: 'asg_registration', role: 'Registration Staff', status: 'acknowledged' })) };
-    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any, testEventReferences as any, createTestGuestEventProjections() as any);
+    const service = new GuestWorkflowService(prisma as any, { write: vi.fn() } as any, new WorkflowCommandService(), staffingReader as any, testEventReferences as any, createTestGuestEventProjections() as any, { write: vi.fn() } as any);
 
     const first = await service.checkInRosterEntry('evt_sample', 'gre_one', { name: 'Registration', role: 'coordinator' });
     const second = await service.checkInRosterEntry('evt_sample', 'gre_two', { name: 'Registration', role: 'coordinator' });
@@ -768,6 +770,7 @@ describe('GuestWorkflowService', () => {
       staffingReader as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
+      { write: vi.fn(async () => undefined) } as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Mia Registration', role: 'coordinator' };
 
@@ -810,6 +813,7 @@ describe('GuestWorkflowService', () => {
       staffingReader as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
+      { write: vi.fn(async () => undefined) } as any,
     );
 
     await expect(service.updateVerification('evt_1', 'gre_1', { status: 'verified' }, {
@@ -831,6 +835,7 @@ describe('GuestWorkflowService', () => {
       staffingReader as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
+      { write: vi.fn(async () => undefined) } as any,
     );
     const actor = { id: 'usr_coord', email: 'coord@example.test', name: 'Usher', role: 'coordinator' };
 
@@ -899,7 +904,7 @@ describe('GuestWorkflowService', () => {
   });
 
   it('flags an unauthorized walk-in for verification, blocks its check-in until PMCM verifies it, and only flags walk-ins', async () => {
-    const { service, state, auditWriter } = createGuestWorkflowFixture();
+    const { service, state, auditWriter, notificationOutboxWriter } = createGuestWorkflowFixture();
     const coordinator = { id: 'usr_registration', email: 'staff@example.test', name: 'Registration Staff', role: 'coordinator' };
     const pmcm = { id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin' };
     const walkIn = await service.registerWalkIn('evt_sample', { guestName: 'Unlisted Guest', privacyConsentAccepted: true }, coordinator);
@@ -911,6 +916,12 @@ describe('GuestWorkflowService', () => {
     await expect(service.flagWalkInForVerification('evt_sample', walkIn.id, coordinator)).resolves.toMatchObject({ verificationFlaggedAt: flagged.verificationFlaggedAt });
     // registration, PMCM verification and the first flag write audit entries; the repeat flag is a no-op.
     expect(auditWriter.write).toHaveBeenCalledTimes(3);
+    // PMCM is alerted once, when the walk-in is first flagged.
+    expect(notificationOutboxWriter.write).toHaveBeenCalledTimes(1);
+    expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: 'evt_sample', recipient: 'PMCM Admin', message: expect.stringContaining('Unlisted Guest') }),
+      expect.anything(),
+    );
     await expect(service.checkInRosterEntry('evt_sample', walkIn.id, coordinator)).rejects.toThrow('must be verified before check-in');
     await expect(service.searchCoordinatorRoster('evt_sample', coordinator, { reviewQueue: true })).resolves.toEqual([
       expect.objectContaining({ id: walkIn.id, verificationFlaggedBy: 'Registration Staff' }),
@@ -982,6 +993,7 @@ describe('GuestWorkflowService', () => {
       { findAssignmentForEventActor: vi.fn() } as any,
       testEventReferences as any,
       createTestGuestEventProjections() as any,
+      { write: vi.fn(async () => undefined) } as any,
     );
 
     await expect(service.importRoster('evt_1', { source: ' Coordinator-Walk-In ', rows: [] } as any, {

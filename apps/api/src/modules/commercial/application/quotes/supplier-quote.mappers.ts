@@ -128,6 +128,7 @@ export function mapQuoteRequestTokenDetail({ request, event, quote }: QuoteReque
     eventDate: isoDate(event.eventDate),
     eventType: event.inquiry.eventType,
     guestCount: briefing?.guestCount ?? null,
+    venueType: briefing?.venueType ?? null,
     serviceRequirements: Array.isArray(briefing?.serviceRequirements)
       ? briefing.serviceRequirements.filter((value): value is string => typeof value === 'string')
       : [],

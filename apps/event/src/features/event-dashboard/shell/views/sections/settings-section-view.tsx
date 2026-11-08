@@ -10,6 +10,7 @@ export function EventDashboardSettingsSectionView() {
     session,
     selectedEvent,
     toggleClientEventDayView,
+    setEventPrivacy,
     complianceRules,
     createComplianceRule,
     busy,
@@ -20,6 +21,7 @@ export function EventDashboardSettingsSectionView() {
         session={session}
         selectedEvent={selectedEvent}
         onToggleClientEventDayView={toggleClientEventDayView}
+        onSetEventPrivacy={setEventPrivacy}
       />
       {isPmcmAdmin(session.role) ? (
         <ComplianceRulesSettings rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} />
