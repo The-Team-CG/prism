@@ -106,7 +106,7 @@ function ProposalIssueForm({ vm }: { vm: ProposalIssuerVm }) {
         </label>
         <label className={`${fieldLabel} md:col-span-2`}>
           What the client sees <span className="font-normal text-muted-foreground">(optional)</span>
-          <textarea rows={3} value={vm.summary} onChange={(event) => vm.setSummary(event.target.value)} className="rounded-md border border-border bg-input px-3 py-2 text-sm" />
+          <textarea rows={8} value={vm.summary} onChange={(event) => vm.setSummary(event.target.value)} className="rounded-md border border-border bg-input px-3 py-2 text-sm" />
         </label>
         {vm.latest ? (
           <label className={`${fieldLabel} md:col-span-2`}>
