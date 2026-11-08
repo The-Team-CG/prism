@@ -366,6 +366,31 @@ export interface PrismFileRequirementReminder {
   idempotencyKey: string;
 }
 
+/** FR-97: confirm the venue for a postponed event's new date (or once the date is set). */
+export interface PrismVenueConfirmationTask {
+  id: string;
+  eventId: string;
+  decision: "postponed" | "date_to_be_confirmed";
+  newEventDate: string | null;
+  status: "open" | "confirmed" | "unavailable";
+  note: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolvedBy: string | null;
+}
+
+/** FR-96: the cancellation financial summary PMCM reviews before recording a cancellation. Whole pesos. */
+export interface PrismCancellationSummary {
+  eventId: string;
+  conformeSigned: boolean;
+  contractAmount: number;
+  paidAmount: number;
+  committedSupplierAmount: number;
+  feeMinimum: number;
+  feeMaximum: number;
+  suggestedFee: number;
+}
+
 export interface PrismBriefing {
   eventId: string;
   venue: string;

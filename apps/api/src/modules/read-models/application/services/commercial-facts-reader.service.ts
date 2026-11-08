@@ -56,6 +56,19 @@ export class CommercialFactsReaderService implements CommercialFactsReader {
     });
   }
 
+  async getCancellationFacts(eventId: string, client: ReadClient = this.prisma) {
+    const [proposal, paid, committed] = await Promise.all([
+      client.opsProposalVersion.findFirst({ where: { eventId, status: 'issued' }, orderBy: { versionNumber: 'desc' }, select: { totalAmount: true } }),
+      client.opsPaymentMilestone.aggregate({ where: { eventId, supersededAt: null }, _sum: { amountPaid: true } }),
+      client.opsSupplierQuote.aggregate({ where: { eventId, status: 'selected' }, _sum: { amount: true } }),
+    ]);
+    return {
+      contractAmount: proposal?.totalAmount ?? 0,
+      paidAmount: paid._sum.amountPaid ?? 0,
+      committedSupplierAmount: committed._sum.amount ?? 0,
+    };
+  }
+
   findProposalReviewEvent(eventId: string, client: ReadClient = this.prisma) {
     return client.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: { select: { email: true } } } });
   }

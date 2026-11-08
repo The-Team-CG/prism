@@ -6,6 +6,13 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM tags each event file with a type (floor plan, moodboard, key visual, work permit, ingress and egress form, registration data, crew meals, manpower list, supplier contract, client asset, MOA, NDA, pre-conforme document or other).
+- Cancelling shows a financial summary (contract, payments received, supplier commitments) and holds the fee to 10 to 15 percent of the contract once the conforme is signed, and to zero before; postponements never carry a fee.
+- Fixed: the cancellation fee was multiplied by 100 before becoming a billing source; it is now whole pesos like every other billing amount.
+- Each postponement opens a venue-confirmation sub-ticket that PMCM resolves as confirmed or unavailable.
+- The cost estimate builder adds the selected supplier quotes as lines and offers a returning client's previous estimates to reuse.
+- Clients get advance payment reminders at configurable intervals (PAYMENT_REMINDER_DAYS_BEFORE, default 7, 3 and 1 days).
+- PMCM can prepare the in-app conforme from its own Word template, with event fields prefilled.
 - PMCM sees a supplier gap when no Tier 1 or Tier 2 supplier in a requested category is free on the event date; event day cannot start until a supplier is booked or PMCM acknowledges the risk with a reason.
 - Suppliers state the contract total when uploading a signed contract; a total that differs from the selected quote is flagged for PMCM, audited and noted on the supplier profile.
 - A supplier assessment of 2 or lower out of 5 adds an underperformance note to the supplier profile.

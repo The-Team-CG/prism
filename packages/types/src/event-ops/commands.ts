@@ -68,6 +68,23 @@ export interface PrismEventProposalResponse {
   proposal: PrismIssuedProposalSummary | null;
 }
 
+/** FR-19: estimate lines PMCM can pull into the cost estimate builder. Whole pesos. */
+export interface PrismEstimateLineSource {
+  category: string;
+  description: string;
+  quantity: number;
+  unitAmount: number;
+}
+
+/** FR-19: a returning client's earlier estimate, for reference only; never shown to the client. */
+export interface PrismPreviousCostEstimate {
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+  totalAmount: number;
+  lines: PrismEstimateLineSource[];
+}
+
 /** One message on the proposal thread, tied to the issued version it was written against. */
 export interface PrismProposalComment {
   id: string;

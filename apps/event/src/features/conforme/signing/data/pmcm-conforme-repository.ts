@@ -22,7 +22,8 @@ export const pmcmConformeRepository = {
     return response.blob();
   },
 
-  async prepare(inquiryId: string): Promise<PrismConformeExecution> {
+  /** Prepares the next version from PMCM's template, or the standard one when PMCM uploads none. */
+  async prepare(inquiryId: string, templateContent: string = DEFAULT_CONFORME_TEMPLATE): Promise<PrismConformeExecution> {
     let templateVersion = 1;
     try {
       const latest = await eventApiRequest<PrismConformeExecution>(`/api/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/latest`);
@@ -30,7 +31,7 @@ export const pmcmConformeRepository = {
     } catch (error) {
       if (!(error && typeof error === "object" && "status" in error && error.status === 404)) throw error;
     }
-    const input = createConformeExecutionSchema.parse({ templateVersion, templateContent: DEFAULT_CONFORME_TEMPLATE });
+    const input = createConformeExecutionSchema.parse({ templateVersion, templateContent });
     return eventApiRequest(`/api/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions`, {
       method: "POST", body: input, authToken: storedEventAccessToken(),
     });
