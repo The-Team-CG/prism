@@ -4,7 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { DOCUMENT_VAULT, PROPOSAL_REVIEW_OWNER, type DocumentVault, type ProposalReviewOwner } from '@prism/contexts/event-lifecycle';
-import type { CreateCostEstimateInput, IssueProposalVersionInput, PrismCostEstimate, PrismEventProposalResponse, PrismProposalVersion, PrismVerifiedEventActor } from '@prism/types';
+import type { CreateCostEstimateInput, IssueProposalVersionInput, PrismCostEstimate, PrismEstimateLineSource, PrismEventProposalResponse, PrismPreviousCostEstimate, PrismProposalVersion, PrismVerifiedEventActor } from '@prism/types';
 import { StorageObjectService } from '@prism/contexts/platform-ops';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
@@ -48,6 +48,45 @@ export class ProposalLifecycleService {
   }
 
   /** The latest issued proposal as the client sees it. PMCM reads the same summary; neither sees superseded versions here. */
+  /** FR-19: the event's selected supplier quotes as estimate lines, one per supplier. */
+  async selectedQuoteLines(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEstimateLineSource[]> {
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'cost estimate sources', eventId);
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: one event's selected quotes, at most one per requested category and supplier.
+    const quotes = await this.prisma.opsSupplierQuote.findMany({ where: { eventId, status: 'selected' }, orderBy: [{ category: 'asc' }, { supplierName: 'asc' }], select: { category: true, supplierName: true, amount: true } });
+    return quotes.map((quote) => ({ category: quote.category, description: `${quote.supplierName} quote`, quantity: 1, unitAmount: quote.amount }));
+  }
+
+  /** FR-19: up to three latest estimates from the same client's other events, by contact email. */
+  async previousCostEstimates(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismPreviousCostEstimate[]> {
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'previous cost estimates', eventId);
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { inquiry: { select: { email: true } } } });
+    if (!event) throw new NotFoundException('Event not found');
+    const email = event.inquiry?.email?.trim().toLowerCase();
+    if (!email) return [];
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: one client's other events, capped below.
+    const others = await this.prisma.opsEvent.findMany({
+      where: { id: { not: eventId }, inquiry: { email: { equals: email, mode: 'insensitive' } } },
+      orderBy: [{ eventDate: 'desc' }, { id: 'desc' }],
+      take: 10,
+      select: { id: true, eventName: true, eventDate: true },
+    });
+    const results: PrismPreviousCostEstimate[] = [];
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: at most ten events, stopping after three estimates.
+    for (const other of others) {
+      if (results.length >= 3) break;
+      const estimate = await this.prisma.opsCostEstimate.findFirst({ where: { eventId: other.id }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], include: { lines: true } });
+      if (!estimate) continue;
+      results.push({
+        eventId: other.id,
+        eventName: other.eventName,
+        eventDate: other.eventDate.toISOString().slice(0, 10),
+        totalAmount: estimate.totalAmount,
+        lines: estimate.lines.map((line) => ({ category: line.category, description: line.description, quantity: Number(line.quantity), unitAmount: line.unitAmount })),
+      });
+    }
+    return results;
+  }
+
   async getLatestIssuedProposal(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventProposalResponse> {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client], 'proposal', eventId);
     // A client owns an event through its inquiry's primary contact email, so the inquiry must be loaded.

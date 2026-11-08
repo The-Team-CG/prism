@@ -67,3 +67,26 @@ describe('ProposalLifecycleService', () => {
     expect(f.versions).toHaveLength(2);
   });
 });
+
+describe('ProposalLifecycleService previous estimates (FR-19)', () => {
+  it('returns at most three estimates from the same client\'s other events, newest first', async () => {
+    const others = [1, 2, 3, 4].map((n) => ({ id: `evt-old-${n}`, eventName: `Gala ${n}`, eventDate: new Date(`202${n}-01-01T00:00:00.000Z`) }));
+    const prisma = {
+      opsEvent: {
+        findUnique: vi.fn(async () => ({ inquiry: { email: ' Ana@Client.test ' } })),
+        findMany: vi.fn(async () => others),
+      },
+      opsCostEstimate: {
+        findFirst: vi.fn(async ({ where }: { where: { eventId: string } }) => (where.eventId === 'evt-old-2'
+          ? null
+          : { totalAmount: 100_000, lines: [{ category: 'Venue', description: 'Hall', quantity: { toString: () => '1' }, unitAmount: 100_000 }] })),
+      },
+    };
+    const access = { requireActorRole: vi.fn(), requireCanReadEvent: vi.fn() };
+    const service = new ProposalLifecycleService(prisma as never, access as never, {} as never, {} as never, {} as never, {} as never);
+    const result = await service.previousCostEstimates('evt-1', actor);
+    expect(result.map((item) => item.eventId)).toEqual(['evt-old-1', 'evt-old-3', 'evt-old-4']);
+    expect(prisma.opsEvent.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { not: 'evt-1' }, inquiry: { email: { equals: 'ana@client.test', mode: 'insensitive' } } } }));
+    expect(result[0]!.lines[0]).toEqual({ category: 'Venue', description: 'Hall', quantity: 1, unitAmount: 100_000 });
+  });
+});

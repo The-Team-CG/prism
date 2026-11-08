@@ -22,6 +22,8 @@ export interface CommercialFactsReader {
   getLifecycleFacts(eventId: string, client?: ReadClient): Promise<LifecycleCommercialFacts>;
   /** FR-63: per requested category, whether a Tier 1 or Tier 2 supplier is free on the event date. */
   listSupplierGaps(eventId: string, client?: ReadClient): Promise<PrismSupplierGap[]>;
+  /** FR-96: contract amount (latest issued proposal), payments received and confirmed supplier commitments. */
+  getCancellationFacts(eventId: string, client?: ReadClient): Promise<{ contractAmount: number; paidAmount: number; committedSupplierAmount: number }>;
 }
 
 export const COMMERCIAL_FACTS_READER = Symbol('COMMERCIAL_FACTS_READER');

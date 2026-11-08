@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 136,
+    "totalTables": 137,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 31,
-        "columns": 438
+        "tables": 32,
+        "columns": 448
       },
       {
         "domain": "commercial",
@@ -235,6 +235,15 @@
       "targetSchema": "event_lifecycle",
       "introducedAfterCutover": true,
       "columnCount": 12
+    },
+    {
+      "model": "OpsVenueConfirmationTask",
+      "currentSchema": "event_lifecycle",
+      "table": "venue_confirmation_tasks",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "columnCount": 10,
+      "introducedAfterCutover": true
     },
     {
       "model": "OpsOcularVisitRequest",

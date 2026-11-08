@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
-import { recordEventDecisionSchema, type RecordEventDecisionInput, type PrismVerifiedEventActor } from '@prism/types';
+import { recordEventDecisionSchema, resolveVenueConfirmationSchema, type RecordEventDecisionInput, type PrismVerifiedEventActor, type ResolveVenueConfirmationInput } from '@prism/types';
 import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -13,6 +13,21 @@ export class EventDecisionController {
   @Get()
   list(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.list(eventId, this.access.resolveActor({}, verified));
+  }
+
+  @Get('cancellation-summary')
+  cancellationSummary(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.cancellationSummary(eventId, this.access.resolveActor({}, verified));
+  }
+
+  @Get('venue-confirmations')
+  venueConfirmations(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.venueConfirmations(eventId, this.access.resolveActor({}, verified));
+  }
+
+  @Post('venue-confirmations/:taskId/resolve')
+  resolveVenueConfirmation(@Param('eventId') eventId: string, @Param('taskId') taskId: string, @Body(zodBody(resolveVenueConfirmationSchema)) input: ResolveVenueConfirmationInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.resolveVenueConfirmation(eventId, taskId, input, this.access.resolveActor({}, verified));
   }
 
   @Post()

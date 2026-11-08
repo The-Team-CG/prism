@@ -4,11 +4,12 @@ import type { PrismAddendum, PrismEventFreezeException, RecordEventDecisionInput
 export type RecordDecisionDraft = Omit<RecordEventDecisionInput, "cancellationFeeAmount"> & { cancellationFeePesos: string };
 
 /** "₱12,500.50" becomes 1250050. Blank means no fee. Returns NaN for text that is not a non-negative amount. */
-export function pesosToMinorUnits(value: string): number {
+/** Billing amounts are whole pesos, so the fee is too; a blank field is no fee and anything else invalid is NaN. */
+export function wholePesos(value: string): number {
   const digits = value.replace(/[₱,\s]/g, "");
   if (digits === "") return 0;
   const amount = Number(digits);
-  return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) : Number.NaN;
+  return Number.isInteger(amount) && amount >= 0 ? amount : Number.NaN;
 }
 
 export type AddendumConformeAction = "request" | "countersign" | "awaiting_client" | "none";

@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PmcmProposalIssuerPanel } from "./pmcm-proposal-issuer-panel";
 
-const repo = vi.hoisted(() => ({ latest: vi.fn(), createEstimate: vi.fn(), issue: vi.fn(), draftWording: vi.fn() }));
+const repo = vi.hoisted(() => ({ latest: vi.fn(), createEstimate: vi.fn(), issue: vi.fn(), draftWording: vi.fn(), selectedQuoteLines: vi.fn(async (): Promise<unknown[]> => []), previousEstimates: vi.fn(async (): Promise<unknown[]> => []) }));
 vi.mock("../data/proposal-issuer-repository", () => ({ proposalIssuerRepository: repo }));
 
 afterEach(cleanup);
@@ -15,6 +15,20 @@ beforeEach(() => {
 });
 
 describe("PmcmProposalIssuerPanel", () => {
+  it("consolidates selected supplier quotes and a returning client's previous estimate into the lines", async () => {
+    repo.selectedQuoteLines.mockResolvedValue([{ category: "Production", description: "SoundLine quote", quantity: 1, unitAmount: 85000 }]);
+    repo.previousEstimates.mockResolvedValue([{ eventId: "evt_0", eventName: "Gala 2025", eventDate: "2025-12-01", totalAmount: 120000, lines: [{ category: "Venue", description: "Ballroom", quantity: 1, unitAmount: 120000 }] }]);
+    render(<PmcmProposalIssuerPanel eventId="evt_1" />);
+    await screen.findByText("No proposal has been issued for this event yet.");
+
+    fireEvent.click(screen.getByRole("button", { name: "Add selected supplier quotes" }));
+    await waitFor(() => expect((screen.getByLabelText("Line 1 description") as HTMLInputElement).value).toBe("SoundLine quote"));
+    expect(screen.queryByLabelText("Line 2 description")).toBeNull();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Use these lines" }));
+    expect((screen.getByLabelText("Line 2 description") as HTMLInputElement).value).toBe("Ballroom");
+  });
+
   it("does not issue the immutable version until the PMCM user confirms it", async () => {
     render(<PmcmProposalIssuerPanel eventId="evt_1" />);
     await screen.findByText("No proposal has been issued for this event yet.");

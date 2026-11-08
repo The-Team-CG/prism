@@ -33,7 +33,7 @@ const postpone = (supplierImpact: 'release_obligations' | 'preserve_obligations'
   impactReviewAcknowledged: true,
 }) as const;
 
-function setup(options: { eventOverrides?: Partial<typeof event>; staffingImpact?: unknown; approvedExceptionIds?: string[] } = {}) {
+function setup(options: { eventOverrides?: Partial<typeof event> & { inquiry?: { email: string; conformeSignedAt?: Date } }; staffingImpact?: unknown; approvedExceptionIds?: string[]; contractAmount?: number } = {}) {
   // Freeze exception store. Approvals are single-use: the conditional update matches only while the row is unconsumed.
   const exceptions = new Map((options.approvedExceptionIds ?? []).map((id) => [id, {
     id, eventId: 'evt-1', status: 'approved', consumedAt: null as Date | null, consumedByDecisionId: null as string | null,
@@ -47,6 +47,7 @@ function setup(options: { eventOverrides?: Partial<typeof event>; staffingImpact
     }),
   };
   const tx = {
+    opsVenueConfirmationTask: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => data) },
     opsEvent: {
       findUnique: vi.fn().mockResolvedValue({ ...event, ...options.eventOverrides }),
       update: vi.fn().mockResolvedValue({ ...event, status: 'postponed' }),
@@ -103,11 +104,20 @@ function setup(options: { eventOverrides?: Partial<typeof event>; staffingImpact
     staffingCommands as never,
     new EventDecisionSupplierOwnerService(),
     { createConfirmedCancellationFeeSource: vi.fn(async () => ({ id: 'bsrc_fee', eventId: 'evt-1', sourceLabel: 'Cancellation fee', totalAmount: 25000, status: 'approved' })) },
+    { getCancellationFacts: vi.fn(async () => ({ contractAmount: options.contractAmount ?? 0, paidAmount: 0, committedSupplierAmount: 0 })) } as never,
   );
   return { service, tx, prisma, access, audit, notification, staffingCommands, assignmentImpact };
 }
 
 describe('EventDecisionService', () => {
+  it('holds a signed-conforme cancellation fee to 10-15 percent of the contract and refuses any fee before signing', async () => {
+    const signed = { inquiry: { email: 'client@example.test', conformeSignedAt: new Date('2026-10-01T00:00:00.000Z') } };
+    const resolved = { ...cancel, depositTreatment: 'retain', supplierImpact: 'release_obligations' } as const;
+    await expect(setup({ eventOverrides: signed, contractAmount: 200_000 }).service.decide('evt-1', { ...resolved, cancellationFeeAmount: 10_000 }, actor as never)).rejects.toThrow('between PHP 20,000 and PHP 30,000');
+    await expect(setup({ eventOverrides: signed, contractAmount: 200_000 }).service.decide('evt-1', { ...resolved, cancellationFeeAmount: 25_000, idempotencyKey: 'fee-ok' }, actor as never)).resolves.toBeTruthy();
+    await expect(setup({ contractAmount: 200_000 }).service.decide('evt-1', { ...resolved, cancellationFeeAmount: 25_000 }, actor as never)).rejects.toThrow('before the conforme is signed');
+  });
+
   it('delegates staffing impact in the decision transaction and records the returned impact', async () => {
     const { service, tx, notification, audit, staffingCommands, assignmentImpact } = setup();
     const input = postpone('preserve_obligations');
@@ -152,7 +162,7 @@ describe('EventDecisionService', () => {
   });
 
   it('passes unchanged dates for a decision that does not reschedule the event', async () => {
-    const { service, staffingCommands } = setup();
+    const { service, staffingCommands, tx } = setup();
     const input = {
       decision: 'date_to_be_confirmed',
       reason: 'Client is checking venues',
@@ -166,6 +176,8 @@ describe('EventDecisionService', () => {
     expect(staffingCommands.applyEventDecisionAssignments).toHaveBeenCalledWith(
       'evt-1', input, event.eventDate.toISOString(), event.eventDate.toISOString(), actor, expect.anything(),
     );
+    // FR-97: a moved or unconfirmed date opens a venue-confirmation sub-ticket.
+    expect(tx.opsVenueConfirmationTask.create).toHaveBeenCalledWith({ data: expect.objectContaining({ eventId: 'evt-1', decision: 'date_to_be_confirmed', newEventDate: null }) });
   });
 
   it('does not record or notify a decision when Operations cannot apply its assignment transition', async () => {

@@ -1,8 +1,8 @@
 import type { PrismConformeExecution } from "@prism/types";
 import { pmcmConformeRepository } from "../data/pmcm-conforme-repository";
 
-export function prepareConformeExecution(inquiryId: string) {
-  return pmcmConformeRepository.prepare(inquiryId);
+export function prepareConformeExecution(inquiryId: string, templateContent?: string) {
+  return pmcmConformeRepository.prepare(inquiryId, templateContent);
 }
 
 export function refreshConformeExecution(inquiryId: string) {

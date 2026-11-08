@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import type { RecordEventDecisionInput, PrismEventFreezeException } from "@prism/types";
+import type { PrismCancellationSummary, RecordEventDecisionInput, PrismEventFreezeException } from "@prism/types";
+import { useCancellationSummary } from "../view-models/use-cancellation-summary";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { canRecordDecision, depositTreatmentOptions, decisionOptions, supplierImpactOptions, type RecordDecisionDraft } from "../model/change-register-rules";
 
@@ -11,12 +12,32 @@ type DecisionValue = RecordEventDecisionInput["decision"];
  * Records a cancellation or postponement. The impact review is part of the submission: the coordinator,
  * supplier, and billing treatments must be chosen and the review confirmed before the decision can be sent.
  */
+function CancellationSummaryNote({ summary, error, onUseSuggested }: {
+  summary: PrismCancellationSummary | null;
+  error: string | null;
+  onUseSuggested: (fee: number) => void;
+}) {
+  if (error) return <span role="alert" className="mt-1 block text-xs text-destructive">{error}</span>;
+  if (!summary) return <span className="mt-1 block text-xs text-muted-foreground">Loading the cancellation summary…</span>;
+  const peso = (amount: number) => `PHP ${amount.toLocaleString("en-PH")}`;
+  return (
+    <span className="mt-2 block rounded-md border border-border bg-background p-2 text-xs text-muted-foreground">
+      Contract {peso(summary.contractAmount)} · received {peso(summary.paidAmount)} · supplier commitments {peso(summary.committedSupplierAmount)}.{" "}
+      {summary.conformeSigned
+        ? <>Fee {peso(summary.feeMinimum)} to {peso(summary.feeMaximum)} (10 to 15 percent of the contract). <button type="button" className="font-semibold text-foreground underline-offset-2 hover:underline" onClick={() => onUseSuggested(summary.suggestedFee)}>Use {peso(summary.suggestedFee)}</button></>
+        : "No fee applies: the conforme is not signed."}
+    </span>
+  );
+}
+
 export function RecordDecisionForm({
+  eventId,
   frozen,
   approvedExceptions,
   busy,
   onSubmit,
 }: {
+  eventId: string;
   frozen: boolean;
   approvedExceptions: readonly PrismEventFreezeException[];
   busy: boolean;
@@ -35,6 +56,8 @@ export function RecordDecisionForm({
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
 
   const needsDate = decision === "postponed";
+  const cancelling = decision === "cancelled";
+  const cancellation = useCancellationSummary(eventId, cancelling);
   const needsException = frozen;
   const canSubmit = !busy && canRecordDecision({ decision, reason, newEventDate, frozen, freezeExceptionId, impactReviewed });
 
@@ -108,11 +131,15 @@ export function RecordDecisionForm({
               {supplierImpactOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </label>
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Cancellation fee (PHP)</span>
-            <input inputMode="decimal" value={cancellationFeePesos} onChange={(event) => setCancellationFeePesos(event.target.value)} placeholder="0" className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
-            <span className="mt-1 block text-xs text-muted-foreground">Leave blank when no fee applies.</span>
-          </label>
+          {cancelling ? (
+            <label className="block text-sm">
+              <span className="text-muted-foreground">Cancellation fee (PHP)</span>
+              <input inputMode="numeric" value={cancellationFeePesos} onChange={(event) => setCancellationFeePesos(event.target.value)} placeholder="0" className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />
+              <CancellationSummaryNote summary={cancellation.summary} error={cancellation.error} onUseSuggested={(fee) => setCancellationFeePesos(String(fee))} />
+            </label>
+          ) : (
+            <p className="text-xs text-muted-foreground">Postponements never carry a cancellation fee; the downpayment carries over to the new date.</p>
+          )}
           <label className="block text-sm">
             <span className="text-muted-foreground">Deposit treatment</span>
             <select value={depositTreatment} onChange={(event) => setDepositTreatment(event.target.value as typeof depositTreatment)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
