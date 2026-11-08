@@ -71,6 +71,9 @@ const eventOpsClient = createEventOpsClient({
   onPrivacyNoticeRequired: showSupplierPrivacyNotice,
 });
 
+/** Authenticated, role-scoped API client for feature data adapters. Feature operations stay in the feature data folders. */
+export const supplierApi = eventOpsClient;
+
 function actorFromSession(session: PrismAuthenticatedSession) {
   return { actorRole: "supplier" as const, actorName: session.name, actorEmail: session.email };
 }

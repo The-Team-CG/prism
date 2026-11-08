@@ -429,6 +429,11 @@ export function sectionMeta(
       title: "Services & profile",
       description: "Your supplier profile, tier, category, and service inclusions.",
     },
+    privacy: {
+      eyebrow: "Account",
+      title: "Privacy requests",
+      description: "File a privacy request and follow its status. PMCM verifies your identity before acting.",
+    },
     support: {
       eyebrow: "Support",
       title: "Support",
