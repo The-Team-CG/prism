@@ -60,6 +60,7 @@ function createStore() {
       findFirst: vi.fn(async ({ where }: { where: Record<string, string> }) => bookings.find((booking) => Object.entries(where).every(([key, value]) => booking[key as keyof typeof booking] === value)) ?? null),
     },
     opsSupplierCreativeTask: { findFirst: vi.fn(async () => ({ id: 'task_1' })) },
+    opsClientReviewItem: { findFirst: vi.fn(async ({ where }: { where: Record<string, string> }) => (where.id === 'client_review_1' && where.eventId === 'evt_1' && where.kind === 'styling' ? { id: 'client_review_1' } : null)) },
     $queryRaw: vi.fn(async () => [{ id: 'evt_1' }]),
     $transaction: vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work(prisma)),
   };
@@ -243,6 +244,14 @@ describe('StorageObjectService', () => {
     expect(result).toMatchObject({ status: 'failed', reason: 'Storage provider is not configured' });
     expect(objects[0]).toMatchObject({ lifecycleState: 'failed', failureReason: 'Storage provider is not configured', providerName: null });
     expect('location' in result).toBe(false);
+  });
+
+  it('accepts a moodboard image only under a styling option of the same event', async () => {
+    const { service } = createStore();
+    const moodboard = { ...request, ownerRecordType: 'client_review_item', ownerRecordId: 'client_review_1', logicalTarget: 'styling-moodboard:client_review_1:123e4567-e89b-42d3-a456-426614174000' };
+    await expect(service.requestUpload({ ...moodboard, actor })).resolves.toMatchObject({ status: 'failed', reason: 'Storage provider is not configured' });
+    await expect(service.requestUpload({ ...moodboard, ownerRecordId: 'client_review_other', logicalTarget: 'styling-moodboard:client_review_other:123e4567-e89b-42d3-a456-426614174000', actor })).rejects.toThrow('styling option of this event');
+    await expect(service.requestUpload({ ...moodboard, logicalTarget: 'styling-moodboard:client_review_2:123e4567-e89b-42d3-a456-426614174000', actor })).rejects.toThrow('target their styling option');
   });
 
   it('rejects new storage work for an event that no longer resolves', async () => {

@@ -47,6 +47,7 @@ import { StorageValidationService } from './storage-validation.service';
 // This allowlist does not validate target-row existence; each owner capability must do that.
 const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsage[]>> = {
   billing_statement: ['event_deliverable'],
+  client_review_item: ['event_deliverable'],
   event: ['client_document', 'signed_conforme'],
   event_game_definition: ['event_game_media'],
   event_game_lobby: ['event_game_branding'],
@@ -634,6 +635,15 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
   private async assertUploadOwner(input: StorageServiceRequest) {
     if (input.usage === 'supplier_document') await this.assertSupplierUploadOwner(input);
     if (input.usage === 'client_document' || input.usage === 'signed_conforme') await this.assertClientUploadOwner(input);
+    if (input.ownerRecordType === 'client_review_item') await this.assertStylingMoodboardOwner(input);
+  }
+
+  /** FR-09: a moodboard image belongs to one styling option of this event, under its own target. */
+  private async assertStylingMoodboardOwner(input: StorageServiceRequest) {
+    const target = /^styling-moodboard:([A-Za-z0-9_-]{1,100}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
+    if (!target || target[1] !== input.ownerRecordId) throw new ForbiddenException('Moodboard images must target their styling option');
+    const item = await this.prisma.opsClientReviewItem.findFirst({ where: { id: input.ownerRecordId, eventId: input.eventId, kind: 'styling' }, select: { id: true } });
+    if (!item) throw new ForbiddenException('Moodboard images must belong to a styling option of this event');
   }
 
   private async assertSupplierUploadOwner(input: StorageServiceRequest) {
