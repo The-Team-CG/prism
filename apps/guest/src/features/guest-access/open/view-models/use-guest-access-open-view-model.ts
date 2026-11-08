@@ -26,6 +26,9 @@ export function useGuestAccessOpenViewModel() {
 
   useEffect(() => {
     setExisting(loadExistingGuestSession());
+    // New-EX2: the post-event feedback QR links here with the event code already in the URL.
+    const code = new URLSearchParams(window.location.search).get("code")?.trim();
+    if (code) setDraft((prev) => ({ ...prev, accessCode: code }));
   }, []);
 
   function updateAccessCode(accessCode: string) {

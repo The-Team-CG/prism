@@ -19,8 +19,10 @@ describe('SupplierIngressLateScheduler', () => {
     vi.useFakeTimers();
     delete process.env.PRISM_DISABLE_SUPPLIER_INGRESS_LATE_JOB;
     const markLateSupplierIngresses = vi.fn().mockResolvedValue({ marked: 0 });
+    const noteSupplierNoShows = vi.fn().mockResolvedValue({ noted: 0 });
     const scheduler = new SupplierIngressLateScheduler({
       markLateSupplierIngresses,
+      noteSupplierNoShows,
     } as unknown as SupplierIngressLateMonitorService);
 
     scheduler.onModuleInit();
@@ -28,6 +30,7 @@ describe('SupplierIngressLateScheduler', () => {
     scheduler.onModuleDestroy();
 
     expect(markLateSupplierIngresses).toHaveBeenCalledTimes(1);
+    expect(noteSupplierNoShows).toHaveBeenCalledTimes(1);
     expect(markLateSupplierIngresses).toHaveBeenCalledWith(expect.objectContaining({
       id: 'system:supplier-ingress-late-monitor',
       role: OpsUserRole.System,

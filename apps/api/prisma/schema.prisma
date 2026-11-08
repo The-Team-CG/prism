@@ -276,6 +276,39 @@ model OpsInquiry {
   @@schema("event_lifecycle")
 }
 
+// FR-53: pre-conforme discussion notes, scope flags and follow-ups; shown as context once the event exists.
+model OpsInquiryContextNote {
+  id         String    @id
+  inquiryId  String    @map("inquiry_id")
+  kind       String
+  body       String
+  followUpAt DateTime? @map("follow_up_at")
+  createdBy  String    @map("created_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([inquiryId, createdAt], map: "inquiry_context_notes_inquiry_created_idx")
+  @@map("inquiry_context_notes")
+  @@schema("event_lifecycle")
+}
+
+// FR-70: accreditation documents a large corporate client must submit, each with its own SLA; never a planning gate.
+model OpsAccreditationRequirement {
+  id           String    @id
+  eventId      String    @map("event_id")
+  documentName String    @map("document_name")
+  status       String    @default("pending")
+  dueAt        DateTime  @map("due_at")
+  submittedAt  DateTime? @map("submitted_at")
+  note         String    @default("")
+  updatedBy    String    @map("updated_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([eventId, status], map: "accreditation_requirements_event_status_idx")
+  @@map("accreditation_requirements")
+  @@schema("event_lifecycle")
+}
+
 model OpsInquiryCompanyNameChange {
   id        String   @id
   inquiryId String   @map("inquiry_id")
@@ -1268,6 +1301,23 @@ model OpsAddendumConformeSignature {
   @@index([actorId], map: "addendum_conforme_signatures_actor_id_idx")
   @@map("addendum_conforme_signatures")
   @@schema("event_lifecycle")
+}
+
+// New-P4: courier bookings for returning client assets; a priced booking raises a draft logistics billing source.
+model OpsLogisticsBooking {
+  id               String   @id
+  eventId          String   @map("event_id")
+  provider         String
+  bookingReference String   @map("booking_reference")
+  description      String
+  amount           Int
+  billingSourceId  String?  @map("billing_source_id")
+  createdBy        String   @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([eventId, createdAt], map: "logistics_bookings_event_created_idx")
+  @@map("logistics_bookings")
+  @@schema("commercial")
 }
 
 // FR-10: venue options PMCM scouts for a client with no venue yet; the client marks one preference.
