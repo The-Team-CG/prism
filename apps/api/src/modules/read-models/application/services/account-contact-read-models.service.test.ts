@@ -77,6 +77,22 @@ describe('AccountContactReadModelsService', () => {
     expect(findMany).not.toHaveBeenCalled();
   });
 
+  it('reads only selected suppliers and their contact emails in one bounded query, with blank emails as null', async () => {
+    const findMany = vi.fn(async () => [
+      { supplierId: 'supplier_atlas', supplier: { email: ' atlas@example.test ' } },
+      { supplierId: 'supplier_sonic', supplier: { email: '' } },
+      { supplierId: null, supplier: null },
+    ]);
+    const service = new AccountContactReadModelsService({ opsSupplierQuoteRequest: { findMany } } as never);
+
+    await expect(service.findSelectedSupplierContacts('evt_1')).resolves.toEqual([
+      { supplierId: 'supplier_atlas', email: 'atlas@example.test' },
+      { supplierId: 'supplier_sonic', email: null },
+    ]);
+    expect(findMany).toHaveBeenCalledTimes(1);
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: 'evt_1', status: 'selected' }, take: 200 }));
+  });
+
   it('checks current client role and approval status before allowing shared-event reads', async () => {
     const findFirst = vi.fn().mockResolvedValue({ id: 'client_1' });
     const service = new AccountContactReadModelsService({ opsUser: { findFirst } } as never);

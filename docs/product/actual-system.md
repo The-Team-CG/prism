@@ -52,7 +52,7 @@ with its issued proposal document and a one-page PDF copy; the client sees only
 the title, summary and total. Archive checks five explicit gates; logistics passes with a PMCM-recorded
 completion record and otherwise needs a reasoned override. PMCM privacy
 operations execute access/export, native-account erasure, correction and
-supported operational redaction; there is no self-service requester flow. Live AI remains governed by the separate provider,
+supported operational redaction. Clients and suppliers file their own requests and see their status from their portals; guests have no self-service path, so PMCM logs guest requests on their behalf. Live AI remains governed by the separate provider,
 privacy, and approval gates.
 
 The [authority and lifecycle policy](event-authority-and-lifecycle-policy.md)

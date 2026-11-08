@@ -60,6 +60,7 @@ import { FloorplanReferenceModule } from './floorplan-reference.module';
 import { ClientFloorplanAccessModule } from './client-floorplan-access.module';
 import { LifecycleFactsReaderModule } from '@prism/contexts/read-models/lifecycle-facts';
 import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
+import { AccountContactReadModelModule } from '@prism/contexts/read-models/account-contacts';
 import { AccountInvitationReferenceModule } from '@prism/contexts/identity-access/account-invitation-reference';
 import { ProposalReviewOwnerService } from './application/onboarding/proposal-review-owner.service';
 import { PROPOSAL_REVIEW_OWNER } from './contracts/proposal-review-owner.port';
@@ -86,6 +87,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ClientFloorplanAccessModule,
     LifecycleFactsReaderModule,
     CommercialFactsReaderModule,
+    AccountContactReadModelModule,
     AccountInvitationReferenceModule,
     AccessControlModule,
     EventSessionModule,

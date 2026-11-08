@@ -1,4 +1,4 @@
-import { PRISM_PRIVACY_REQUEST_SLA_DAYS, type PrismPrivacyRequest } from '@prism/types';
+import { PRISM_PRIVACY_REQUEST_SLA_DAYS, type PrismOwnPrivacyRequest, type PrismPrivacyRequest } from '@prism/types';
 import { PrivacyRequestStatus } from '@prism/kernel/event-core';
 
 export type OpsPrivacyRequestRecord = {
@@ -19,6 +19,7 @@ export type OpsPrivacyRequestRecord = {
   executedAt?: Date | null;
   dueAt: Date;
   assignedTo?: string | null;
+  source: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -62,7 +63,37 @@ export function mapPrivacyRequest(request: OpsPrivacyRequestRecord, now: Date = 
     dueAt: request.dueAt.toISOString(),
     overdue: isPrivacyRequestOverdue(request, now),
     assignedTo: request.assignedTo ?? null,
+    source: request.source,
     createdAt: timestamp(request.createdAt) ?? '',
     updatedAt: timestamp(request.updatedAt) ?? '',
+  };
+}
+
+/** Requester-safe wording for each status. PMCM review reasons and notes are never shown to the requester. */
+function ownPrivacyRequestOutcomeMessage(status: string): string {
+  switch (status) {
+    case PrivacyRequestStatus.Submitted:
+      return 'Received. PMCM verifies your identity before acting on this request.';
+    case PrivacyRequestStatus.Approved:
+      return 'Identity verified. PMCM is carrying out this request.';
+    case PrivacyRequestStatus.Rejected:
+      return 'Closed without action. Contact PMCM if you need more detail.';
+    case PrivacyRequestStatus.Executed:
+      return 'Completed. PMCM has carried out this request.';
+    default:
+      throw new Error(`Unknown privacy request status: ${status}`);
+  }
+}
+
+/** Maps a request to the requester-facing read type. Only the requester's own rows may be passed in. */
+export function mapOwnPrivacyRequest(request: OpsPrivacyRequestRecord): PrismOwnPrivacyRequest {
+  return {
+    id: request.id,
+    type: request.requestType,
+    status: request.status,
+    submittedAt: request.createdAt.toISOString(),
+    dueAt: request.dueAt.toISOString(),
+    completedAt: timestamp(request.executedAt) ?? (request.status === PrivacyRequestStatus.Rejected ? timestamp(request.reviewedAt) : null),
+    outcomeMessage: ownPrivacyRequestOutcomeMessage(request.status),
   };
 }

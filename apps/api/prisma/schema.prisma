@@ -466,6 +466,8 @@ model OpsPrivacyRequest {
   dueAt          DateTime  @map("due_at")
   /// PMCM operator user id that owns the request; null while unassigned.
   assignedTo     String?   @map("assigned_to")
+  /// Who filed the request: `pmcm_logged` (PMCM logged it) or `self_service` (the client or supplier filed it).
+  source         String    @default("pmcm_logged")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 
