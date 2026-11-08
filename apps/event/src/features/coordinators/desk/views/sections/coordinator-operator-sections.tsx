@@ -1,4 +1,5 @@
 "use client";
+import { EventDayCopilotPanel } from "@/features/ai-advisory/views/live-assist-panels";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
@@ -66,6 +67,7 @@ export function CoordinatorRoleActions({ roleView, reassignment, operatorActions
   return (
     <>
       {operator ? <CoordinatorOperatorControls roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} /> : null}
+      {operator ? <EventDayCopilotPanel eventId={roleView.event.id} /> : null}
       {operator || isIngressOrEgressRole(roleView.role) ? <CoordinatorSupplierChecks roleView={roleView} actions={operatorActions} /> : null}
     </>
   );
