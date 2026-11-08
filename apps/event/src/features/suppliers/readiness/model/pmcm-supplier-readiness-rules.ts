@@ -41,6 +41,45 @@ export function supplierReadinessRefreshKey(
     .join("|");
 }
 
+type ScheduleWindow = { ingressAt: string; egressAt: string };
+type ScheduledItem = { id: string; category: string; quoteStatus: string; schedule: ScheduleWindow | null };
+
+/** Production is the category the schedule leads with; requests carry the category name, not an id. */
+export function isProductionCategory(category: string) {
+  return category.trim().toLowerCase() === "production";
+}
+
+/** Half-open windows: a supplier leaving as the next one arrives is not a conflict. */
+export function scheduleWindowsOverlap(
+  left: { ingressAt: string; egressAt: string },
+  right: { ingressAt: string; egressAt: string },
+) {
+  return Date.parse(left.ingressAt) < Date.parse(right.egressAt) && Date.parse(right.ingressAt) < Date.parse(left.egressAt);
+}
+
+/** Item ids whose ingress window overlaps another selected supplier's window on the same event. */
+export function scheduleConflictItemIds(items: Array<Pick<ScheduledItem, "id" | "quoteStatus" | "schedule">>) {
+  const selected = items.filter((item): item is typeof item & { schedule: NonNullable<typeof item.schedule> } => item.quoteStatus === "selected" && item.schedule != null);
+  const conflicting = new Set<string>();
+  selected.forEach((left, index) => {
+    for (const right of selected.slice(index + 1)) {
+      if (!scheduleWindowsOverlap(left.schedule, right.schedule)) continue;
+      conflicting.add(left.id);
+      conflicting.add(right.id);
+    }
+  });
+  return conflicting;
+}
+
+/** Default schedule order: production suppliers first, then by ingress start; suppliers without a window last. */
+export function orderSupplierSchedule<T extends ScheduledItem>(items: T[]): T[] {
+  const rank = (item: T) => [isProductionCategory(item.category) ? 0 : 1, item.schedule ? Date.parse(item.schedule.ingressAt) : Number.POSITIVE_INFINITY] as const;
+  return items
+    .map((item, index) => ({ item, index, rank: rank(item) }))
+    .sort((left, right) => (left.rank[0] - right.rank[0]) || (left.rank[1] - right.rank[1]) || (left.index - right.index))
+    .map(({ item }) => item);
+}
+
 const SETUP_LABELS: Record<PrismSupplierReadinessSetupStatus, string> = {
   not_started: "Setup not started",
   late: "Ingress late",
