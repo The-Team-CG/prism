@@ -38,6 +38,8 @@ import { ScopeChangeRequestController } from './api/change/scope-change-request.
 import { ScopeChangeRequestService } from './application/change/scope-change-request.service';
 import { EventRiskAssessmentController } from './api/change/event-risk-assessment.controller';
 import { EventRiskAssessmentService } from './application/change/event-risk-assessment.service';
+import { EventRiskRegisterService } from './application/change/event-risk-register.service';
+import { EventRiskRegisterController } from './api/change/event-risk-register.controller';
 import { AddendumConformeController } from './api/change/addendum-conforme.controller';
 import { AddendumConformeService } from './application/change/addendum-conforme.service';
 import { AddendumWithdrawalController } from './api/change/addendum-withdrawal.controller';
@@ -105,6 +107,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ChangeManagementController,
     ScopeChangeRequestController,
     EventRiskAssessmentController,
+    EventRiskRegisterController,
     AddendumConformeController,
     AddendumWithdrawalController,
     ClientEventDayViewController,
@@ -143,6 +146,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ChangeManagementService,
     ScopeChangeRequestService,
     EventRiskAssessmentService,
+    EventRiskRegisterService,
     AddendumConformeService,
     AddendumWithdrawalService,
     ClientEventDayViewService,

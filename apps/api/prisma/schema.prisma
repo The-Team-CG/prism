@@ -2120,6 +2120,27 @@ model OpsScopeChangeRequest {
 }
 
 // FL-025 PMCM-only event-level risk assessment. One current row per event; every revision is kept in history.
+model OpsEventRisk {
+  id         String   @id
+  eventId    String   @map("event_id")
+  phase      String
+  title      String
+  likelihood Int
+  impact     Int
+  mitigation String   @default("")
+  owner      String   @default("")
+  status     String   @default("open")
+  catalogKey String?  @map("catalog_key")
+  updatedBy  String   @map("updated_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([eventId, catalogKey], map: "event_risks_event_catalog_key")
+  @@index([eventId, phase], map: "event_risks_event_phase_idx")
+  @@map("event_risks")
+  @@schema("event_lifecycle")
+}
+
 model OpsEventRiskAssessment {
   id           String   @id
   eventId      String   @unique(map: "event_risk_assessments_event_id_key") @map("event_id")
