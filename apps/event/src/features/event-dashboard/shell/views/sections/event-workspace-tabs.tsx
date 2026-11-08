@@ -47,6 +47,7 @@ import { PreConformeContextPanel } from "@/features/inquiries/context-notes/view
 import { AccreditationPanel } from "@/features/compliance/accreditation/views/accreditation-panel";
 import { ClientOwnedSuppliersPanel, UnresponsiveSuppliersPanel } from "@/features/suppliers/follow-ups/views/supplier-follow-ups";
 import { ThemeSuggestionsPanel } from "@/features/ai-advisory/views/ai-advisory-panels";
+import { isEventModuleEnabled } from "@prism/types";
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
 import { PmcmSupplierGapWarning } from "@/features/suppliers/supplier-gaps/views/pmcm-supplier-gap-warning";
 import { PmcmExternalCreativePanel } from "@/features/suppliers/external-creative/views/pmcm-external-creative-panel";
@@ -212,12 +213,12 @@ export function EventWorkspaceBriefingTab() {
       render: () => <BriefingSummary briefing={briefing} canSubmit busy={Boolean(vm.busy)} onSubmit={() => void vm.submitBriefing()} />,
     },
     ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
-    { id: "reviews", label: "Client reviews", render: () => <div className="space-y-5">{admin ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}{admin ? <ThemeSuggestionsPanel eventId={selectedEvent.id} /> : null}<PmcmClientReviewPanel eventId={selectedEvent.id} /></div> },
+    { id: "reviews", label: "Client reviews", render: () => <div className="space-y-5">{admin && isEventModuleEnabled(selectedEvent, "venue_scouting") ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}{admin ? <ThemeSuggestionsPanel eventId={selectedEvent.id} /> : null}<PmcmClientReviewPanel eventId={selectedEvent.id} /></div> },
     ...(admin ? [{ id: "follow-ups", label: "Client follow-ups", render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> }] : []),
     { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
     ...(admin ? [{ id: "decisions", label: "Decision log", render: () => <DecisionLogPanel eventId={selectedEvent.id} /> }] : []),
     ...(admin ? [{ id: "pre-conforme", label: "Pre-conforme context", render: () => <PreConformeContextPanel eventId={selectedEvent.id} /> }] : []),
-    ...(admin ? [{ id: "accreditation", label: "Accreditation", render: () => <AccreditationPanel eventId={selectedEvent.id} /> }] : []),
+    ...(admin && isEventModuleEnabled(selectedEvent, "accreditation") ? [{ id: "accreditation", label: "Accreditation", render: () => <AccreditationPanel eventId={selectedEvent.id} /> }] : []),
   ];
   return <WorkspaceSubTabs label="Planning sections" tabs={tabs} />;
 }
@@ -249,7 +250,7 @@ export function EventWorkspaceSuppliersTab() {
         />
       ),
     },
-    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><UnresponsiveSuppliersPanel eventId={event.id} /><ClientOwnedSuppliersPanel eventId={event.id} /><PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /></div> },
+    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><UnresponsiveSuppliersPanel eventId={event.id} />{isEventModuleEnabled(event, "client_owned_suppliers") ? <ClientOwnedSuppliersPanel eventId={event.id} /> : null}<PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /></div> },
     { id: "bookings", label: "Bookings & contracts", count: assigned.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
     { id: "creative", label: "Outsourced creative", render: () => <PmcmExternalCreativePanel eventId={event.id} documents={vm.documents.filter((document) => document.eventId === event.id)} /> },
     {
@@ -505,13 +506,13 @@ function RegistrationAndGames({ initial }: { initial: "registration" | "games" }
         />
       ),
     },
-    {
+    ...(isEventModuleEnabled(event, "games") ? [{
       id: "games",
       label: "Games",
       render: () => (
         <EventGamesHostView eventId={event.id} role={vm.session.role} eventStatus={event.status} archived={event.archived} actualEndedAt={event.actualEndedAt} />
       ),
-    },
+    }] : []),
   ];
   return <WorkspaceSubTabs label="Registration and games" tabs={tabs} defaultId={initial} />;
 }

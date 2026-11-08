@@ -108,7 +108,8 @@ export class InquiryWorkflowService {
 
   async createInquiry(input: CreateInquiryInput, context: InquiryWorkflowContext) {
     const inquiry = await context.inquiriesService.createInquiry(input);
-    return context.mapPublicInquiry(inquiry);
+    // FR-50: the receipt carries the submitter's edit link token once.
+    return { ...context.mapPublicInquiry(inquiry), editToken: inquiry.editToken, editableUntil: inquiry.editableUntil };
   }
 
   async mergeInquiry(

@@ -1,7 +1,7 @@
 import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, OpsInquiryMerge, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type SetInquiryIntakePathInput, type UpdateInquiryCompanyNameInput } from '@prism/types';
+import { INQUIRY_EDIT_WINDOW_HOURS, type EditPublicInquiryInput, type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type PrismPublicInquiryEdit, type SetInquiryIntakePathInput, type UpdateInquiryCompanyNameInput } from '@prism/types';
 import {
   ACCOUNT_PROVISIONING,
   type AccountInvitationActor,
@@ -14,7 +14,8 @@ import {
   type InquiryMatchBasis,
 } from '../../domain/inquiry-triage.policy';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { PRISM_PORTAL_URLS, type PrismPortalUrls } from '@prism/kernel/shared';
 import { AuditActionType, AuditCategory, OpsUserRole, PortalInvitationStatus, WorkflowCommandService } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
@@ -134,6 +135,7 @@ export class InquiriesService {
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
     private readonly workflowCommandService: WorkflowCommandService,
     @Inject(ACCOUNT_PROVISIONING) private readonly accountProvisioning: AccountProvisioningPort,
+    @Inject(PRISM_PORTAL_URLS) private readonly portals: PrismPortalUrls,
   ) {}
 
   async createInquiry(input: CreateInquiryInput) {
@@ -144,7 +146,53 @@ export class InquiriesService {
       throw new BadRequestException('Privacy consent is required before submitting a public inquiry');
     }
 
-    return this.createInquiryRecord(input);
+    // FR-50: the submitter gets a 24-hour edit link; only its hash is stored.
+    const editToken = randomBytes(24).toString('base64url');
+    const inquiry = await this.createInquiryRecord(input, undefined, editToken);
+    return Object.assign(inquiry, { editToken, editableUntil: new Date(inquiry.createdAt.getTime() + INQUIRY_EDIT_WINDOW_HOURS * 3_600_000).toISOString() });
+  }
+
+  /** FR-50: the submitter's view of the inquiry while it can still be edited. */
+  async getPublicEdit(token: string): Promise<PrismPublicInquiryEdit> {
+    const inquiry = await this.requireEditableInquiry(token);
+    return this.mapPublicEdit(inquiry);
+  }
+
+  /** FR-50: changes within 24 hours of submission, until PMCM reviews the inquiry. */
+  async updatePublicEdit(token: string, input: EditPublicInquiryInput): Promise<PrismPublicInquiryEdit> {
+    const inquiry = await this.requireEditableInquiry(token);
+    const data: Prisma.OpsInquiryUpdateInput = {
+      ...(input.eventName !== undefined ? { eventName: input.eventName } : {}),
+      ...(input.eventType !== undefined ? { eventType: input.eventType } : {}),
+      ...(input.eventDate !== undefined ? { eventDate: new Date(input.eventDate) } : {}),
+      ...(input.message !== undefined ? { message: input.message } : {}),
+      ...(input.seatingArrangement !== undefined ? { seatingArrangement: input.seatingArrangement } : {}),
+      ...(input.stagePosition !== undefined ? { stagePosition: input.stagePosition } : {}),
+      ...(input.setupNotes !== undefined ? { setupNotes: input.setupNotes || null } : {}),
+    };
+    const updated = await this.prisma.opsInquiry.update({ where: { id: inquiry.id }, data });
+    await this.audit(undefined, 'Inquiry submitter', 'Submitter edited the inquiry within the edit window', {
+      actorRole: OpsUserRole.System, actionType: AuditActionType.Update, category: AuditCategory.Events,
+      affectedType: 'inquiry', affectedId: inquiry.id, affectedLabel: updated.eventName, metadata: { fields: Object.keys(data) },
+    });
+    return this.mapPublicEdit(updated);
+  }
+
+  private async requireEditableInquiry(token: string) {
+    const editTokenHash = createHash('sha256').update(token).digest('hex');
+    const inquiry = await this.prisma.opsInquiry.findUnique({ where: { editTokenHash } });
+    if (!inquiry) throw new NotFoundException('This edit link is not valid');
+    if (inquiry.status !== 'new') throw new BadRequestException('PMCM has reviewed this inquiry, so it can no longer be edited here. Reply to PMCM by email with any changes.');
+    if (Date.now() > inquiry.createdAt.getTime() + INQUIRY_EDIT_WINDOW_HOURS * 3_600_000) throw new BadRequestException('The 24-hour edit window has closed. Reply to PMCM by email with any changes.');
+    return inquiry;
+  }
+
+  private mapPublicEdit(inquiry: OpsInquiry): PrismPublicInquiryEdit {
+    return {
+      eventName: inquiry.eventName, eventType: inquiry.eventType, eventDate: inquiry.eventDate.toISOString().slice(0, 10), message: inquiry.message,
+      seatingArrangement: inquiry.seatingArrangement, stagePosition: inquiry.stagePosition, setupNotes: inquiry.setupNotes,
+      editableUntil: new Date(inquiry.createdAt.getTime() + INQUIRY_EDIT_WINDOW_HOURS * 3_600_000).toISOString(),
+    };
   }
 
   async logInquiryOnBehalf(input: CreateInquiryInput, actor: ResolvedEventOpsActor) {
@@ -518,7 +566,7 @@ export class InquiriesService {
     return event;
   }
 
-  private async createInquiryRecord(input: CreateInquiryInput, actor?: ResolvedEventOpsActor & { id: string; verified: true }) {
+  private async createInquiryRecord(input: CreateInquiryInput, actor?: ResolvedEventOpsActor & { id: string; verified: true }, editToken?: string) {
     const normalizedEmail = normalizeEmail(input.email);
     const eventDate = new Date(input.eventDate);
     if (Number.isNaN(eventDate.getTime())) throw new BadRequestException('Invalid event date');
@@ -585,6 +633,7 @@ export class InquiriesService {
             privacyConsentAccepted: input.privacyConsentAccepted === true,
             privacyNoticeVersion: input.privacyNoticeVersion ?? '',
             marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
+            editTokenHash: editToken ? createHash('sha256').update(editToken).digest('hex') : null,
             status: 'new',
           },
         }),
@@ -606,7 +655,7 @@ export class InquiriesService {
               actorId: actor?.id ?? null,
             },
           }),
-          this.notify(undefined, inquiry.email, `We received your inquiry for ${inquiry.eventName}. PMCM will review it and reply by email.`),
+          this.notify(undefined, inquiry.email, `We received your inquiry for ${inquiry.eventName}. PMCM will review it and reply by email.${editToken ? ` You can change the details for ${INQUIRY_EDIT_WINDOW_HOURS} hours, until PMCM reviews it: ${this.portals.client}/inquiry/edit?token=${editToken}` : ''}`),
           ...(duplicate
             ? [this.notifyPmcmTriage(inquiry.id, 'duplicate', `Possible duplicate inquiry from ${inquiry.clientName} for ${inquiry.eventName}; matches ${duplicate.id}`)]
             : []),

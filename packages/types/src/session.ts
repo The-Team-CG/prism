@@ -12,6 +12,8 @@ export const PRISM_SESSION_STORAGE_KEYS = {
   guest: "prism:guest-session",
   guestCheckInRequest: "prism:guest-check-in-request",
   gameParticipant: "prism:game-participant-session",
+  /** FR-50: the public inquiry in progress and its resume token. Not a sign-in session. */
+  inquiryDraft: "prism:inquiry-draft",
 } as const;
 
 export type PrismSessionStorageKey =

@@ -1,3 +1,4 @@
+import type { PrismEvent } from '@prism/types';
 import type { OpsComplianceCheck, OpsComplianceRule, OpsEvent, OpsEventInsight, OpsFloorPlanDraft, OpsNotificationLog, OpsPostEventDocument, OpsUser } from '@prisma/client';
 import { mapBriefingSummary, mapDocument, mapInquirySummary } from '@prism/contexts/event-lifecycle';
 import { mapAuditLog } from '@prism/contexts/platform-ops';
@@ -84,6 +85,7 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
     clientEventDayViewEnabled: event.clientEventDayViewEnabled,
+    disabledModules: event.disabledModules as PrismEvent['disabledModules'],
     privacy: event.privacy as 'private' | 'public',
     proposalClientStatus: event.proposalClientStatus,
     proposalRevisionCount: event.proposalRevisionCount,

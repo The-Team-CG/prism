@@ -32,6 +32,7 @@ export const ASSETS: AssetDef[] = [
   { id: "reg-desk", name: "Registration Desk", category: "registration", kind: "rect", w: 2.0, h: 0.8, fill: "#E9F7FB", stroke: "#9060A0", icon: "ClipboardList" },
   { id: "entrance-arch", name: "Entrance Arch", category: "registration", kind: "rect", w: 2.5, h: 0.4, fill: "#CCECF4", stroke: "#9060A0", icon: "DoorOpen" },
   { id: "photo-wall", name: "Photo Wall", category: "registration", kind: "rect", w: 3.0, h: 0.3, fill: "#E9F7FB", stroke: "#9060A0", icon: "Image" },
+  { id: "booth", name: "Exhibit Booth", category: "registration", kind: "rect", w: 3.0, h: 3.0, fill: "#E9F7FB", stroke: "#9060A0", icon: "Square" },
   { id: "photo-booth", name: "Photo Booth", category: "registration", kind: "rect", w: 1.5, h: 1.5, fill: "#E9F7FB", stroke: "#9060A0", icon: "Camera" },
   { id: "signage", name: "Directional Sign", category: "registration", kind: "rect", w: 0.4, h: 0.4, fill: "#E9F7FB", stroke: "#9060A0", icon: "SignpostBig" },
 
