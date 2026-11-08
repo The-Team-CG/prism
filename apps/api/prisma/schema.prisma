@@ -250,6 +250,8 @@ model OpsInquiry {
   portalInvitationSentAt    DateTime? @map("portal_invitation_sent_at")
   portalInvitationOpenedAt  DateTime? @map("portal_invitation_opened_at")
   portalInvitationExpiresAt DateTime? @map("portal_invitation_expires_at")
+  /// FR-55: "en" or "fil", the language of this client's automated messages.
+  preferredLanguage         String    @default("en") @map("preferred_language")
   /// FR-50: sha256 of the submitter's edit link token; the link works for 24 hours while the inquiry is new.
   editTokenHash             String?   @unique(map: "inquiries_edit_token_hash_key") @map("edit_token_hash")
   /// FR-02: "standard" or "bidding"; a bid carries its own status and due date.
@@ -1323,6 +1325,25 @@ model OpsAddendumConformeSignature {
   @@index([actorId], map: "addendum_conforme_signatures_actor_id_idx")
   @@map("addendum_conforme_signatures")
   @@schema("event_lifecycle")
+}
+
+// FR-61: a proposal presentation meeting; PMCM offers slots, the client picks one, and attendance is recorded.
+model OpsPresentationMeeting {
+  id            String    @id
+  eventId       String    @map("event_id")
+  title         String
+  slots         Json      @default("[]")
+  chosenStartAt DateTime? @map("chosen_start_at")
+  chosenEndAt   DateTime? @map("chosen_end_at")
+  meetingLink   String?   @map("meeting_link")
+  status        String    @default("proposed")
+  createdBy     String    @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([eventId, createdAt], map: "presentation_meetings_event_created_idx")
+  @@map("presentation_meetings")
+  @@schema("commercial")
 }
 
 // FR-65: a supplier the client books and coordinates outside P.R.I.S.M; PMCM sees only operational details.

@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 146,
+    "totalTables": 147,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -21,13 +21,13 @@
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
         "tables": 37,
-        "columns": 496
+        "columns": 497
       },
       {
         "domain": "commercial",
         "schema": "commercial",
-        "tables": 41,
-        "columns": 502
+        "tables": 42,
+        "columns": 513
       },
       {
         "domain": "operations",
@@ -155,7 +155,7 @@
       "table": "inquiries",
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
-      "columnCount": 40
+      "columnCount": 41
     },
     {
       "model": "OpsInquiryStatusHistory",
@@ -1186,6 +1186,15 @@
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
       "columnCount": 10,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsPresentationMeeting",
+      "currentSchema": "commercial",
+      "table": "presentation_meetings",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 11,
       "introducedAfterCutover": true
     },
     {

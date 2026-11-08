@@ -66,6 +66,8 @@ export interface PrismInquiry {
   portalInvitationSentAt?: string | null;
   portalInvitationOpenedAt?: string | null;
   portalInvitationExpiresAt?: string | null;
+  /** FR-55: the language of this client's automated messages. */
+  preferredLanguage?: "en" | "fil";
   /** FR-50: on the public receipt only. The submitter's edit link token and when the edit window closes. */
   editToken?: string;
   editableUntil?: string;

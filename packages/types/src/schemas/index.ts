@@ -57,6 +57,11 @@ export {
   type InquiryClientCategory,
   type LogInquiryOnBehalfInput,
   INQUIRY_EDIT_WINDOW_HOURS,
+  CLIENT_LANGUAGES,
+  CLIENT_LANGUAGE_LABELS,
+  setClientLanguageSchema,
+  type ClientLanguage,
+  type SetClientLanguageInput,
   INQUIRY_DRAFT_REMINDER_HOURS,
   INQUIRY_DRAFT_RETENTION_DAYS,
   inquiryAccessTokenSchema,
@@ -506,6 +511,7 @@ export * from "./event-risk-register.js";
 export * from "./venue-scouting.js";
 export * from "./pre-event-records.js";
 export * from "./supplier-follow-ups.js";
+export * from "./presentation-meetings.js";
 export {
   PrismContractError,
   parseContract,

@@ -47,6 +47,7 @@ import { PreConformeContextPanel } from "@/features/inquiries/context-notes/view
 import { AccreditationPanel } from "@/features/compliance/accreditation/views/accreditation-panel";
 import { ClientOwnedSuppliersPanel, UnresponsiveSuppliersPanel } from "@/features/suppliers/follow-ups/views/supplier-follow-ups";
 import { ThemeSuggestionsPanel } from "@/features/ai-advisory/views/ai-advisory-panels";
+import { PresentationMeetingsPanel } from "@/features/commercial/presentation-meetings/views/presentation-meetings-panel";
 import { isEventModuleEnabled } from "@prism/types";
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
 import { PmcmSupplierGapWarning } from "@/features/suppliers/supplier-gaps/views/pmcm-supplier-gap-warning";
@@ -212,7 +213,7 @@ export function EventWorkspaceBriefingTab() {
       attention: !briefing,
       render: () => <BriefingSummary briefing={briefing} canSubmit busy={Boolean(vm.busy)} onSubmit={() => void vm.submitBriefing()} />,
     },
-    ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
+    ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PresentationMeetingsPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
     { id: "reviews", label: "Client reviews", render: () => <div className="space-y-5">{admin && isEventModuleEnabled(selectedEvent, "venue_scouting") ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}{admin ? <ThemeSuggestionsPanel eventId={selectedEvent.id} /> : null}<PmcmClientReviewPanel eventId={selectedEvent.id} /></div> },
     ...(admin ? [{ id: "follow-ups", label: "Client follow-ups", render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> }] : []),
     { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
