@@ -1,6 +1,6 @@
 -- prism-owner: commercial
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 
 -- Billing corrections and disputes carry a discrepancy severity. Existing rows predate the
 -- distinction and are all amount discrepancies; the default is dropped so new rows must state it.
