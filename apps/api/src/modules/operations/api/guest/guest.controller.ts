@@ -121,6 +121,19 @@ export class OpsGuestController {
     return this.guestWorkflowService.updateVerification(eventId, rosterEntryId, input, actor);
   }
 
+  @Post('events/:eventId/roster/:rosterEntryId/flag-for-verification')
+  @HttpCode(HttpStatus.CREATED)
+  @UseGuards(EventSessionGuard)
+  async flagWalkInForVerification(
+    @Param('eventId') eventId: string,
+    @Param('rosterEntryId') rosterEntryId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'walk-in verification flag', eventId);
+    return this.guestWorkflowService.flagWalkInForVerification(eventId, rosterEntryId, actor);
+  }
+
   @Get('events/:accessCode')
   @UseGuards(GuestAccessRateLimitGuard)
   async eventByAccessCode(@Param('accessCode') accessCode: string) {

@@ -156,7 +156,8 @@ function createGuestWorkflowFixture() {
       count: vi.fn(async ({ where }: any = {}) => state.guestRoster.filter((entry) =>
         (!where?.eventId || entry.eventId === where.eventId)
         && (where?.withdrawnAt === undefined || (where.withdrawnAt === null ? entry.withdrawnAt == null : entry.withdrawnAt === where.withdrawnAt))
-        && (where?.verificationStatus === undefined || entry.verificationStatus === where.verificationStatus),
+        && (where?.verificationStatus === undefined || entry.verificationStatus === where.verificationStatus)
+        && (where?.verificationFlaggedAt?.not === undefined || (entry.verificationFlaggedAt ?? null) !== null),
       ).length),
     },
     opsGuestCheckIn: {
@@ -329,9 +330,10 @@ describe('GuestWorkflowService', () => {
       guestRosterFixture({ id: 'gre_withdrawn', normalizedName: 'withdrawn a', verificationStatus: 'verified', withdrawnAt: new Date('2026-09-01T00:00:00.000Z') }),
       guestRosterFixture({ id: 'gre_rejected', normalizedName: 'rejected a', verificationStatus: 'rejected' }),
       guestRosterFixture({ id: 'gre_other_event', eventId: 'evt_other', normalizedName: 'other a', verificationStatus: 'pending' }),
+      guestRosterFixture({ id: 'gre_flagged', normalizedName: 'flagged a', verificationStatus: 'pending', verificationFlaggedAt: new Date('2026-10-02T09:00:00.000Z') }),
     );
 
-    await expect(service.countRosterVerificationForEvent('evt_sample')).resolves.toEqual({ verified: 2, pending: 1 });
+    await expect(service.countRosterVerificationForEvent('evt_sample')).resolves.toEqual({ verified: 2, pending: 2, flagged: 1 });
   });
 
   it('counts and lists checked-in records only', async () => {
@@ -772,6 +774,7 @@ describe('GuestWorkflowService', () => {
     await expect(service.searchCoordinatorRoster('evt_1', actor, { reviewQueue: true })).resolves.toEqual([{
       id: 'gre_1', eventId: 'evt_1', guestName: 'Mia Santos', category: 'VIP', table: 'A1', eligibility: 'eligible',
        verificationStatus: 'pending', checkedInAt: null, walkIn: true, reviewSubmittedAt: createdAt.toISOString(),
+      verificationFlaggedAt: null, verificationFlaggedBy: null,
     }]);
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: expect.objectContaining({
@@ -813,7 +816,7 @@ describe('GuestWorkflowService', () => {
       id: 'usr_coord', email: 'coord@example.test', name: 'Registration Staff', role: 'coordinator',
     })).resolves.toEqual({
       id: 'gre_1', eventId: 'evt_1', guestName: 'Mia Santos', category: 'VIP', table: 'A1', eligibility: 'eligible',
-      verificationStatus: 'verified', checkedInAt: null, walkIn: false,
+      verificationStatus: 'verified', checkedInAt: null, walkIn: false, verificationFlaggedAt: null, verificationFlaggedBy: null,
     });
   });
 
@@ -885,6 +888,7 @@ describe('GuestWorkflowService', () => {
     await expect(service.updateVerification('evt_sample', roster.id, { status: 'verified' }, actor)).rejects.toThrow('archived');
     await expect(service.checkInRosterEntry('evt_sample', roster.id, actor)).rejects.toThrow('archived');
     await expect(service.registerWalkIn('evt_sample', { guestName: 'New Guest', privacyConsentAccepted: true }, actor)).rejects.toThrow('archived');
+    await expect(service.flagWalkInForVerification('evt_sample', roster.id, actor)).rejects.toThrow('archived');
     await expect(service.searchCoordinatorRoster('evt_sample', actor)).resolves.toEqual([
       expect.objectContaining({ id: roster.id, guestName: 'Historical Guest', verificationStatus: 'pending' }),
     ]);
@@ -892,6 +896,35 @@ describe('GuestWorkflowService', () => {
     expect(prisma.opsGuestRosterEntry.create).not.toHaveBeenCalled();
     expect(prisma.opsGuestCheckIn.create).not.toHaveBeenCalled();
     expect(auditWriter.write).not.toHaveBeenCalled();
+  });
+
+  it('flags an unauthorized walk-in for verification, blocks its check-in until PMCM verifies it, and only flags walk-ins', async () => {
+    const { service, state, auditWriter } = createGuestWorkflowFixture();
+    const coordinator = { id: 'usr_registration', email: 'staff@example.test', name: 'Registration Staff', role: 'coordinator' };
+    const pmcm = { id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin' };
+    const walkIn = await service.registerWalkIn('evt_sample', { guestName: 'Unlisted Guest', privacyConsentAccepted: true }, coordinator);
+    await service.updateVerification('evt_sample', walkIn.id, { status: 'verified' }, pmcm);
+
+    const flagged = await service.flagWalkInForVerification('evt_sample', walkIn.id, coordinator);
+    expect(flagged).toMatchObject({ verificationStatus: 'pending', verificationFlaggedBy: 'Registration Staff', walkIn: true });
+    expect(flagged.verificationFlaggedAt).toEqual(expect.any(String));
+    await expect(service.flagWalkInForVerification('evt_sample', walkIn.id, coordinator)).resolves.toMatchObject({ verificationFlaggedAt: flagged.verificationFlaggedAt });
+    // registration, PMCM verification and the first flag write audit entries; the repeat flag is a no-op.
+    expect(auditWriter.write).toHaveBeenCalledTimes(3);
+    await expect(service.checkInRosterEntry('evt_sample', walkIn.id, coordinator)).rejects.toThrow('must be verified before check-in');
+    await expect(service.searchCoordinatorRoster('evt_sample', coordinator, { reviewQueue: true })).resolves.toEqual([
+      expect.objectContaining({ id: walkIn.id, verificationFlaggedBy: 'Registration Staff' }),
+    ]);
+    await expect(service.countRosterVerificationForEvent('evt_sample')).resolves.toEqual({ verified: 0, pending: 1, flagged: 1 });
+
+    await service.updateVerification('evt_sample', walkIn.id, { status: 'verified' }, pmcm);
+    expect(state.guestRoster[0]).toMatchObject({ verificationStatus: 'verified', verificationFlaggedAt: null, verificationFlaggedBy: null });
+    await expect(service.checkInRosterEntry('evt_sample', walkIn.id, coordinator)).resolves.toMatchObject({ walkIn: true });
+
+    const preRegistered = { ...state.guestRoster[0], id: 'gre_prereg', sourceKey: 'import-1', source: 'guest-import', checkedInAt: null, verificationStatus: 'pending', verificationFlaggedAt: null };
+    state.guestRoster.push(preRegistered);
+    await expect(service.flagWalkInForVerification('evt_sample', preRegistered.id, coordinator)).rejects.toThrow('Only unauthorized walk-ins');
+    await expect(service.flagWalkInForVerification('evt_sample', walkIn.id, coordinator)).rejects.toThrow('already checked in');
   });
 
   it('keeps PMCM walk-in review actionable through the shared registration roster', async () => {

@@ -4,5 +4,5 @@ export function canCheckInRegistrationEntry(entry: PrismCoordinatorRegistrationE
   return entry.eligibility === "eligible"
     && entry.verificationStatus !== "rejected"
     && !entry.checkedInAt
-    && (!entry.walkIn || entry.verificationStatus === "verified");
+    && (!entry.walkIn || (entry.verificationStatus === "verified" && !entry.verificationFlaggedAt));
 }

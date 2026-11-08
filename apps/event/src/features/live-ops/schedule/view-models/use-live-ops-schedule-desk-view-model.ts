@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createEventEodReplySchema,
+  setEventEodIncompleteTasksSchema,
   createEventEodReportSchema,
   createEventHandoffSchema,
   createEventScheduleDaySchema,
@@ -134,6 +135,11 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string, { coordinatorSc
     await liveOpsScheduleRepository.submitEodReport(eventId, input);
   }, "End-of-day report submitted."), [eventId, run]);
 
+  const setReportIncompleteTasks = useCallback((reportId: string, flagged: boolean) => run(async () => {
+    const input = parseContract(setEventEodIncompleteTasksSchema, { flagged }, "End-of-day report flag");
+    await liveOpsScheduleRepository.setEodIncompleteTasks(eventId, reportId, input);
+  }, flagged ? "End-of-day report flagged for incomplete tasks." : "Incomplete-task flag cleared."), [eventId, run]);
+
   const replyToReport = useCallback((reportId: string, value: unknown) => run(async () => {
     const input = parseContract(createEventEodReplySchema, value, "End-of-day report reply");
     await liveOpsScheduleRepository.replyEodReport(eventId, reportId, input);
@@ -156,5 +162,6 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string, { coordinatorSc
     createHandoff,
     submitReport,
     replyToReport,
+    setReportIncompleteTasks,
   };
 }

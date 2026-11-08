@@ -6,6 +6,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM can flag an end-of-day report as having incomplete tasks; the flag shows on the report in the PMCM inbox and to the coordinator who submitted it.
+- Registration staff can flag an unauthorized walk-in for verification; the walk-in stays blocked from check-in until PMCM verifies it, and the flagged count shows on the run sheet.
+- PMCM tracks the registration platform setup confirmation (requested, then confirmed), shown with the platform record and on the run sheet guest-operations block.
 - File access follows one policy for lists and downloads: coordinators need a current assignment, suppliers see only their own files on selected bookings, and failed uploads are no longer shown outside PMCM.
 - Addenda change billing and quote amounts only when PMCM countersigns; until then they show as pending, and PMCM can withdraw one with a reason.
 - Coordinators and PMCM can mark an event-day task blocked with a required reason and unblock it; the PMCM inbox shows that reason.

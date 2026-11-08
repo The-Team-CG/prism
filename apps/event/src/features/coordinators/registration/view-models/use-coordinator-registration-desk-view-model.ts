@@ -120,6 +120,21 @@ export function useCoordinatorRegistrationDeskViewModel(eventId: string, onAtten
     }
   }
 
+  async function flagForVerification(entry: PrismCoordinatorRegistrationEntry) {
+    setBusyEntryId(entry.id);
+    setError(null);
+    setNotice(null);
+    try {
+      await coordinatorRegistrationRepository.flagForVerification(eventId, entry.id);
+      await refreshRoster();
+      setNotice(`${entry.guestName} flagged for verification. Check-in stays blocked until PMCM verifies them.`);
+    } catch (flagError) {
+      setError(errorMessage(flagError, "Unable to flag this walk-in for verification."));
+    } finally {
+      setBusyEntryId(null);
+    }
+  }
+
   async function registerWalkIn() {
     const parsed = coordinatorWalkInCheckInSchema.safeParse({
       guestName: walkInName,
@@ -162,6 +177,7 @@ export function useCoordinatorRegistrationDeskViewModel(eventId: string, onAtten
     loadPendingReviews,
     checkIn,
     updateVerification,
+    flagForVerification,
     walkInName,
     setWalkInName,
     privacyConsentAccepted,

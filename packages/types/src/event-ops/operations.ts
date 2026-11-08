@@ -216,6 +216,8 @@ export interface PrismGuestRosterEntry {
   eligibility: string;
   verificationStatus: "pending" | "verified" | "rejected";
   source: string;
+  verificationFlaggedAt?: string | null;
+  verificationFlaggedBy?: string | null;
   importBatchId?: string | null;
   checkedInAt?: string | null;
   withdrawnAt?: string | null;
@@ -235,6 +237,9 @@ export interface PrismCoordinatorRegistrationEntry {
   checkedInAt?: string | null;
   walkIn: boolean;
   reviewSubmittedAt?: string | null;
+  /** Set when registration staff flag an unauthorized walk-in; cleared when it is verified. */
+  verificationFlaggedAt?: string | null;
+  verificationFlaggedBy?: string | null;
 }
 
 export type PrismGuestFeedbackAvailability = "not_open" | "open" | "closed";
@@ -312,6 +317,11 @@ export type PrismRegistrationPlatformStatus =
   | "live"
   | "closed";
 
+export type PrismRegistrationPlatformSetupConfirmationStatus =
+  | "not_requested"
+  | "requested"
+  | "confirmed";
+
 export interface PrismRegistrationPlatform {
   id: string;
   eventId: string;
@@ -320,6 +330,9 @@ export interface PrismRegistrationPlatform {
   expectedPaxMin: number;
   expectedPaxMax: number;
   status: PrismRegistrationPlatformStatus;
+  /** Derived server-side from setupRequestedAt and setupConfirmedAt; not stored separately. */
+  setupConfirmationStatus: PrismRegistrationPlatformSetupConfirmationStatus;
+  setupRequestedAt: string | null;
   setupConfirmedAt: string | null;
   setupNotes: string;
   headcountSource: string;
@@ -541,13 +554,14 @@ export interface PrismRunSheetGuestOperations {
   registrationPlatform: {
     platformType: PrismRegistrationPlatformType;
     status: PrismRegistrationPlatformStatus;
+    setupConfirmationStatus: PrismRegistrationPlatformSetupConfirmationStatus;
     expectedPaxMin: number;
     expectedPaxMax: number;
   } | null;
   /** Null when the event has no walk-in policy recorded. */
   walkIn: { policy: "closed" | "open" | "threshold"; threshold: number | null } | null;
   /** Active (not withdrawn) roster entries by verification status. Counts only. */
-  rosterVerification: { verified: number; pending: number };
+  rosterVerification: { verified: number; pending: number; flagged: number };
   /** Active registration and usher assignments the viewer may see: all for PMCM and the designated operator, otherwise their own. */
   registrationStaff: Array<{ coordinatorName: string; role: string; status: string }>;
 }
@@ -626,6 +640,9 @@ export interface PrismEventEodReport {
   issues: string[];
   risksForTomorrow: string[];
   submittedAt: string;
+  /** Set by PMCM when tasks named in this report are incomplete; null when not flagged. */
+  incompleteTasksFlaggedAt: string | null;
+  incompleteTasksFlaggedBy: string | null;
   replies: PrismEventEodReply[];
 }
 

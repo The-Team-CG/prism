@@ -497,6 +497,46 @@ describe('EventScheduleService end-of-day reports', () => {
     expect(tx.opsEventEodReport.create).not.toHaveBeenCalled();
   });
 
+  it('lets only PMCM flag an end-of-day report as having incomplete tasks, and clear the flag', async () => {
+    const report = {
+      id: 'report_1', eventId: 'evt_1', dayId: 'day_1', authoredBy: 'user_coord_1', authoredByRole: 'coordinator',
+      progress: ['Doors opened'], issues: [], risksForTomorrow: [], submittedAt: new Date('2026-10-02T18:00:00.000Z'),
+      incompleteTasksFlaggedAt: null, incompleteTasksFlaggedBy: null, replies: [],
+    };
+    const access = {
+      requireActorRole: vi.fn(async (actor: { role: string }, allowedRoles: string[]) => {
+        if (!allowedRoles.includes(actor.role)) throw new ForbiddenException('role cannot flag reports');
+      }),
+    };
+    const prisma: any = {
+      opsEvent: { findUnique: vi.fn(async () => ({ archived: false })) },
+      opsEventEodReport: {
+        findFirst: vi.fn(async () => report),
+        findUniqueOrThrow: vi.fn(async () => report),
+        update: vi.fn(async ({ data }: { data: { incompleteTasksFlaggedAt: Date | null; incompleteTasksFlaggedBy: string | null } }) => Object.assign(report, data)),
+      },
+    };
+    prisma.$transaction = vi.fn(async (callback: (tx: typeof prisma) => unknown) => callback(prisma));
+    const audit = { write: vi.fn(async () => undefined) };
+    const instance = createScheduleService(prisma, access as never, audit as never, {} as never, {} as never);
+    const pmcm = { id: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' } as never;
+
+    await expect(instance.setEodIncompleteTasks('evt_1', 'report_1', { flagged: true }, { id: 'user_coord_1', name: 'Coordinator One', role: 'coordinator' } as never))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.opsEventEodReport.update).not.toHaveBeenCalled();
+
+    await expect(instance.setEodIncompleteTasks('evt_1', 'report_1', { flagged: true }, pmcm)).resolves.toMatchObject({
+      id: 'report_1', incompleteTasksFlaggedAt: expect.any(String), incompleteTasksFlaggedBy: 'PMCM',
+    });
+    await expect(instance.setEodIncompleteTasks('evt_1', 'report_1', { flagged: true }, pmcm)).resolves.toMatchObject({ incompleteTasksFlaggedAt: expect.any(String) });
+    expect(prisma.opsEventEodReport.update).toHaveBeenCalledTimes(1);
+    expect(audit.write).toHaveBeenCalledTimes(1);
+
+    await expect(instance.setEodIncompleteTasks('evt_1', 'report_1', { flagged: false }, pmcm)).resolves.toMatchObject({
+      incompleteTasksFlaggedAt: null, incompleteTasksFlaggedBy: null,
+    });
+  });
+
   it('turns a concurrent same-day report insert into a reload conflict', async () => {
     const day = { dayDate: new Date('2026-10-02T00:00:00.000Z') };
     const tx = {
