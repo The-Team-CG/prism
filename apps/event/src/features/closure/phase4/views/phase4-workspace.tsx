@@ -37,6 +37,7 @@ import { Phase4SectionBoundary } from "./phase4-section-boundary";
 import { EventWrapUpView } from "../../wrap-up";
 import { GuestFeedbackQr } from "@/features/closure/guest-feedback-qr/views/guest-feedback-qr";
 import { LogisticsBookingsPanel } from "@/features/closure/logistics-bookings/views/logistics-bookings-panel";
+import { EventIntelligencePanel } from "@/features/ai-advisory/views/ai-advisory-panels";
 import { LogisticsCompletionPanel } from "../../logistics";
 import { ClientTestimonialModerationPanel } from "../../wrap-up/views/client-testimonial-moderation-panel";
 
@@ -189,6 +190,7 @@ export function Phase4Workspace({
             />
           </Phase4SectionBoundary>
           <Phase4SectionBoundary title="Post-event insights"><Phase4InsightsSection latestInsight={latestInsight} busy={busy} onGenerate={generateInsights} /></Phase4SectionBoundary>
+          <Phase4SectionBoundary title="Post-event intelligence report"><EventIntelligencePanel eventId={event.id} hasInsight={Boolean(latestInsight)} /></Phase4SectionBoundary>
         </>
       ) : null}
     </div>

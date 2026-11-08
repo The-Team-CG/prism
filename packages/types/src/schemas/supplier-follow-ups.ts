@@ -43,3 +43,12 @@ export interface PrismClientOwnedSupplier {
   riskRaisedBy: string | null;
   createdAt: string;
 }
+
+/* FR-AI-06 Probabilistic supplier reliability score: 0 to 100 with a 95% band. */
+export interface PrismSupplierReliabilityScore {
+  score: number;
+  low: number;
+  high: number;
+  observations: number;
+  factors: Array<{ factor: "onTime" | "noComplaints" | "responsive" | "contractAccuracy"; rate: number; observations: number }>;
+}

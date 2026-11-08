@@ -52,6 +52,8 @@ import { InquiryTriageService } from './application/ai-governance/inquiry-triage
 import { ProposalDraftService } from './application/ai-governance/proposal-draft.service';
 import { ClientMessageDraftsController, InquiryTriageController, ProposalDraftsController } from './api/ai-governance/ai-drafting.controllers';
 import { ClientMessageDraftService } from './application/ai-governance/client-message-draft.service';
+import { AiAdvisoryController } from './api/ai-governance/ai-advisory.controller';
+import { AiAdvisoryService } from './application/ai-governance/ai-advisory.service';
 
 const auditWriterProvider = {
   provide: AUDIT_WRITER,
@@ -136,7 +138,7 @@ export function createAiProviderAdapters(
  */
 @Module({
   imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, MailModule],
-  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController],
+  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController],
   providers: [
     AuditService,
     AuditReadService,
@@ -153,6 +155,7 @@ export function createAiProviderAdapters(
     InquiryTriageService,
     ProposalDraftService,
     ClientMessageDraftService,
+    AiAdvisoryService,
     {
       provide: AI_GATEWAY_RUNTIME_CONFIG,
       inject: [ConfigService],

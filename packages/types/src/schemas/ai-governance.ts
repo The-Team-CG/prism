@@ -9,6 +9,9 @@ export const aiUseCaseIdSchema = z.enum([
   "inquiry.triage",
   "proposal.draft",
   "client-message.draft",
+  "compliance.advisory",
+  "theme.suggestions",
+  "event.intelligence",
 ]);
 export type AiUseCaseId = z.infer<typeof aiUseCaseIdSchema>;
 
@@ -247,6 +250,87 @@ export const sendClientMessageSchema = z
   .strict();
 export type SendClientMessageInput = z.infer<typeof sendClientMessageSchema>;
 
+/** Request body for the event-scoped AI advisories below; the server builds the model input from the event record. */
+export const aiEventRequestSchema = z.object({ eventId: nonEmptyStringSchema }).strict();
+export type AiEventRequest = z.infer<typeof aiEventRequestSchema>;
+
+/* FR-10+ Compliance AI advisory: plain-language explanation and a prioritized action list over the rule results. */
+export const complianceAdvisoryInputSchema = z
+  .object({
+    eventType: z.string().trim(),
+    phase: z.string().trim(),
+    daysUntilEvent: z.number().int(),
+    openChecks: z
+      .array(z.object({
+        title: z.string().trim().max(200),
+        severity: z.string().trim().max(40),
+        evidence: z.array(z.string().trim().max(300)).max(3),
+        remediation: z.string().trim().max(400),
+      }).strict())
+      .min(1)
+      .max(30),
+  })
+  .strict();
+export type ComplianceAdvisoryInput = z.infer<typeof complianceAdvisoryInputSchema>;
+export const complianceAdvisoryResultSchema = z
+  .object({
+    explanation: nonEmptyStringSchema.max(1_500),
+    actions: z.array(z.object({ priority: z.number().int().min(1).max(30), checkTitle: nonEmptyStringSchema.max(200), action: nonEmptyStringSchema.max(400) }).strict()).min(1).max(10),
+  })
+  .strict();
+export type ComplianceAdvisoryResult = z.infer<typeof complianceAdvisoryResultSchema>;
+
+/* FR-11 Theme and moodboard suggestions: concepts in words and colors, never generated images. */
+export const themeSuggestionInputSchema = z
+  .object({
+    eventType: z.string().trim(),
+    guestCount: z.number().int().nonnegative().optional(),
+    venueType: z.string().trim().max(120).optional(),
+    moodAndStyling: z.string().trim().max(1_000),
+    budgetRange: z.string().trim().max(120).optional(),
+    stylingBudget: z.number().int().nonnegative().optional(),
+  })
+  .strict();
+export type ThemeSuggestionInput = z.infer<typeof themeSuggestionInputSchema>;
+export const themeSuggestionResultSchema = z
+  .object({
+    concepts: z
+      .array(z.object({
+        name: nonEmptyStringSchema.max(80),
+        palette: z.array(z.string().trim().regex(/^#[\da-f]{6}$/i)).min(3).max(5),
+        moodboardDescription: nonEmptyStringSchema.max(600),
+        referenceSearchTerms: z.array(nonEmptyStringSchema.max(60)).min(2).max(6),
+      }).strict())
+      .min(2)
+      .max(3),
+  })
+  .strict();
+export type ThemeSuggestionResult = z.infer<typeof themeSuggestionResultSchema>;
+
+/* FR-AI-08 PEIL: the three-section post-event intelligence report. */
+export const eventIntelligenceInputSchema = z
+  .object({
+    eventType: z.string().trim(),
+    guestCount: z.number().int().nonnegative().optional(),
+    checkedInGuests: z.number().int().nonnegative().optional(),
+    dimensions: z.array(z.object({ dimension: z.string().trim().max(80), status: z.string().trim().max(20), summary: z.string().trim().max(400) }).strict()).max(12),
+    risks: z.array(z.object({ title: z.string().trim().max(200), severity: z.string().trim().max(20), status: z.string().trim().max(20) }).strict()).max(20),
+    supplierRatings: z.array(z.number().min(0).max(5)).max(50),
+    totalBilled: z.number().int().nonnegative().optional(),
+    outstandingAmount: z.number().int().nonnegative().optional(),
+    clientRating: z.number().int().min(1).max(5).optional(),
+  })
+  .strict();
+export type EventIntelligenceInput = z.infer<typeof eventIntelligenceInputSchema>;
+export const eventIntelligenceResultSchema = z
+  .object({
+    whatWorked: z.array(nonEmptyStringSchema.max(300)).min(1).max(6),
+    whatFailed: z.array(z.object({ issue: nonEmptyStringSchema.max(200), why: nonEmptyStringSchema.max(400) }).strict()).max(6),
+    recommendedActions: z.array(nonEmptyStringSchema.max(300)).min(1).max(6),
+  })
+  .strict();
+export type EventIntelligenceResult = z.infer<typeof eventIntelligenceResultSchema>;
+
 export interface PrismClientMessageTriggerState {
   trigger: ClientMessageTrigger;
   /** When the condition started, for example when the proposal was issued. */
@@ -442,6 +526,9 @@ export type AiUseCaseContractMap = {
   "inquiry.triage": { input: InquiryTriageInput; output: InquiryTriageResult };
   "proposal.draft": { input: ProposalDraftInput; output: ProposalDraftResult };
   "client-message.draft": { input: ClientMessageDraftInput; output: CommsDraftResult };
+  "compliance.advisory": { input: ComplianceAdvisoryInput; output: ComplianceAdvisoryResult };
+  "theme.suggestions": { input: ThemeSuggestionInput; output: ThemeSuggestionResult };
+  "event.intelligence": { input: EventIntelligenceInput; output: EventIntelligenceResult };
 };
 
 export type AiUseCaseInput<K extends AiUseCaseId> = AiUseCaseContractMap[K]["input"];
