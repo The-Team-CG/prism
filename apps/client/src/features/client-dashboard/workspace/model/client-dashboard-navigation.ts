@@ -8,12 +8,14 @@ import {
   MapPinned,
   MessageSquareText,
   PackageCheck,
+  ShieldCheck,
   TicketCheck,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
 
 import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
+import type { PrismAccountMenuItem } from "@prism/ui";
 import type { PrismEvent } from "@prism/types";
 
 export const CLIENT_CONFORME_REVIEW_HREF = "/conforme";
@@ -162,7 +164,13 @@ export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, stri
   files: "files",
   billing: "billing-payments",
   messages: "messages",
+  privacy: "privacy-requests",
 };
+
+/** Privacy requests live in the account menu, not the sidebar; the id matches that menu entry. */
+export const CLIENT_ACCOUNT_MENU_ITEMS: PrismAccountMenuItem[] = [
+  { id: "privacy-requests", label: "Privacy requests", icon: ShieldCheck, href: "/dashboard/privacy" },
+];
 
 export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
   overview: "event-overview",
@@ -333,6 +341,7 @@ const PORTAL_HREFS: Partial<Record<ClientDashboardRoute, string>> = {
   messages: "/dashboard/messages",
   files: "/dashboard/files",
   billing: "/dashboard/billing",
+  privacy: "/dashboard/privacy",
 };
 
 const EVENT_PATH_SEGMENT: Partial<Record<ClientDashboardRoute, string>> = {
