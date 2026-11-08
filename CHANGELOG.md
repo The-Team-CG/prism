@@ -6,6 +6,10 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM sees a supplier gap when no Tier 1 or Tier 2 supplier in a requested category is free on the event date; event day cannot start until a supplier is booked or PMCM acknowledges the risk with a reason.
+- Suppliers state the contract total when uploading a signed contract; a total that differs from the selected quote is flagged for PMCM, audited and noted on the supplier profile.
+- A supplier assessment of 2 or lower out of 5 adds an underperformance note to the supplier profile.
+- PMCM tracks outsourced creative designers on sub-tickets with no supplier account, and completes each against the finished file in the event files.
 - AI proposal drafts follow the five catalog sections (executive summary, event concept, service package, investment summary, payment schedule), with payment amounts computed on the server.
 - A coordinator withdrawal inside the 48-hour window names up to three free same-role replacements in the PMCM alert and the audit trail.
 - Approving a PARE recommendation sends the replacement supplier a normal quote request and the PMCM-reviewed notice, with the client kept anonymous.

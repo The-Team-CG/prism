@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 134,
+    "totalTables": 136,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -26,8 +26,8 @@
       {
         "domain": "commercial",
         "schema": "commercial",
-        "tables": 36,
-        "columns": 442
+        "tables": 38,
+        "columns": 463
       },
       {
         "domain": "operations",
@@ -1042,6 +1042,24 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 17,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsExternalCreativeTicket",
+      "currentSchema": "commercial",
+      "table": "external_creative_tickets",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 15,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsSupplierGapAcknowledgement",
+      "currentSchema": "commercial",
+      "table": "supplier_gap_acknowledgements",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 6,
       "introducedAfterCutover": true
     },
     {

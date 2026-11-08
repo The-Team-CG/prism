@@ -1,4 +1,5 @@
 import type { OpsAuditLog, OpsEvent, OpsInquiry, Prisma, PrismaClient } from '@prisma/client';
+import type { PrismSupplierGap } from '@prism/types';
 
 export type SupplierReviewEventEligibility = Pick<OpsEvent, 'id' | 'status' | 'actualEndedAt'>;
 export type ProposalReviewEvent = OpsEvent & { inquiry: Pick<OpsInquiry, 'email'> };
@@ -19,6 +20,8 @@ export interface CommercialFactsReader {
   findProposalReviewAudit(eventId: string, idempotencyKey: string, client: Prisma.TransactionClient): Promise<ProposalReviewAudit | null>;
   listProposalReviewAudits(eventId: string, client: Prisma.TransactionClient): Promise<ProposalReviewAudit[]>;
   getLifecycleFacts(eventId: string, client?: ReadClient): Promise<LifecycleCommercialFacts>;
+  /** FR-63: per requested category, whether a Tier 1 or Tier 2 supplier is free on the event date. */
+  listSupplierGaps(eventId: string, client?: ReadClient): Promise<PrismSupplierGap[]>;
 }
 
 export const COMMERCIAL_FACTS_READER = Symbol('COMMERCIAL_FACTS_READER');

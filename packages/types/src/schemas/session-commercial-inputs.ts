@@ -23,6 +23,10 @@ export const requestSupplierQuotesSchema = z.object({
 });
 export type RequestSupplierQuotesInput = z.infer<typeof requestSupplierQuotesSchema>;
 
+/** FR-63: PMCM accepts the risk of a category with no available Tier 1 or Tier 2 supplier. */
+export const acknowledgeSupplierGapSchema = z.object({ reason: nonEmptyStringSchema.max(500) });
+export type AcknowledgeSupplierGapInput = z.infer<typeof acknowledgeSupplierGapSchema>;
+
 /** PMCM's own sizing of how big an event a supplier can serve, relative to their category (catalog FR-14, FR-35). */
 export const SUPPLIER_CAPACITY_RATINGS = ["small", "medium", "large"] as const;
 export const supplierCapacityRatingSchema = z.enum(SUPPLIER_CAPACITY_RATINGS);

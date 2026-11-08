@@ -132,16 +132,16 @@ describe.skipIf(!live)('supplier contract, schedule, and deliverable workflows a
       await expect(service.createCreativeTask(eventId, { ...taskAssignment, title: 'Different payload' }, pmcm))
         .rejects.toThrow('Idempotency key was reused for another supplier deliverable');
 
-      await expect(service.bindContract(requestId, { storedObjectId: objectIds[2]!, checksumSha256: checksum }, supplier))
+      await expect(service.bindContract(requestId, { storedObjectId: objectIds[2]!, checksumSha256: checksum, contractTotal: 100_000 }, supplier))
         .rejects.toThrow('Uploaded contract is not a confirmed upload for this supplier assignment');
-      const firstContract = await service.bindContract(requestId, { storedObjectId: objectIds[0]!, checksumSha256: checksum }, supplier);
-      const secondContract = await service.bindContract(requestId, { storedObjectId: objectIds[1]!, checksumSha256: checksum }, supplier);
+      const firstContract = await service.bindContract(requestId, { storedObjectId: objectIds[0]!, checksumSha256: checksum, contractTotal: 100_000 }, supplier);
+      const secondContract = await service.bindContract(requestId, { storedObjectId: objectIds[1]!, checksumSha256: checksum, contractTotal: 100_000 }, supplier);
       expect([firstContract.version, secondContract.version]).toEqual([1, 2]);
       await expect(service.reviewContract(firstContract.id, { decision: 'accepted', reason: '' }, pmcm))
         .rejects.toThrow('A newer contract version has replaced this one');
       const reviewedContract = await service.reviewContract(secondContract.id, { decision: 'changes_requested', reason: 'Please include the signed page.' }, pmcm);
       expect(reviewedContract).toMatchObject({ version: 2, reviewStatus: 'changes_requested', reviewReason: 'Please include the signed page.' });
-      await expect(service.bindContract(otherRequestId, { storedObjectId: objectIds[0]!, checksumSha256: checksum }, supplier))
+      await expect(service.bindContract(otherRequestId, { storedObjectId: objectIds[0]!, checksumSha256: checksum, contractTotal: 100_000 }, supplier))
         .rejects.toThrow('Supplier cannot access this assignment');
 
       const acknowledged = await service.acknowledgeSchedule(requestId, { expectedRevision: 1 }, supplier);
@@ -178,7 +178,7 @@ describe.skipIf(!live)('supplier contract, schedule, and deliverable workflows a
 
       await prisma.opsEvent.update({ where: { id: eventId }, data: { archived: true } });
       await expect(service.acknowledgeSchedule(requestId, { expectedRevision: 2 }, supplier)).rejects.toThrow('Active event not found');
-      await expect(service.bindContract(requestId, { storedObjectId: objectIds[3]!, checksumSha256: checksum }, supplier)).rejects.toThrow('Active event not found');
+      await expect(service.bindContract(requestId, { storedObjectId: objectIds[3]!, checksumSha256: checksum, contractTotal: 100_000 }, supplier)).rejects.toThrow('Active event not found');
       expect(await prisma.opsSupplierCreativeSubmission.count({ where: { taskId } })).toBe(2);
     } finally {
       await prisma.opsEvent.deleteMany({ where: { id: eventId } });

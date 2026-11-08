@@ -24,7 +24,7 @@ type BookingHandlers = {
   onStatusNoteChange: (id: string, v: string) => void;
   onConfirmAssignment: (req: PrismSupplierQuoteRequest) => void;
   onConfirmReadiness: (req: PrismSupplierQuoteRequest) => void;
-  onSaveContract: (req: PrismSupplierQuoteRequest, file: File) => void;
+  onSaveContract: (req: PrismSupplierQuoteRequest, file: File, contractTotal: number) => void;
   onUpdateStatus: (req: PrismSupplierQuoteRequest, status: string, photo?: File) => void;
   onAcknowledgeSchedule: (requestId: string, revision: number) => void;
   onRequestScheduleChange: (requestId: string, revision: number, reason: string) => void;
@@ -106,6 +106,9 @@ function AssignmentStep({ req, busy, onConfirmAssignment }: { req: PrismSupplier
 
 function ContractStep({ req, contracts, busy, onSaveContract, onDownloadObject }: { req: PrismSupplierQuoteRequest; contracts: Contract[]; busy: string | null } & Pick<BookingHandlers, "onSaveContract" | "onDownloadObject">) {
   const [file, setFile] = useState<File | null>(null);
+  const [total, setTotal] = useState("");
+  const contractTotal = Number(total);
+  const totalValid = Number.isInteger(contractTotal) && contractTotal > 0;
   const assignmentConfirmed = req.assignmentStatus === "confirmed";
   const state: PanelState = !assignmentConfirmed ? "locked" : CONTRACT_ACTION_STATUSES.includes(req.contractReviewStatus) ? "current" : "done";
   return (
@@ -115,14 +118,18 @@ function ContractStep({ req, contracts, busy, onSaveContract, onDownloadObject }
           Signed contract file
           <Input type="file" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="h-11 rounded-md py-2" />
         </label>
-        <Button type="button" size="sm" variant="outline" disabled={!file || busy === `${req.id}:contract`} onClick={() => { if (file) onSaveContract(req, file); }} className="h-11 rounded-md font-semibold">
+        <label className="grid gap-1.5 text-sm font-medium text-foreground">
+          Contract total (PHP)
+          <Input type="number" min={1} step={1} inputMode="numeric" value={total} onChange={(e) => setTotal(e.target.value)} className="h-11 rounded-md" />
+        </label>
+        <Button type="button" size="sm" variant="outline" disabled={!file || !totalValid || busy === `${req.id}:contract`} onClick={() => { if (file && totalValid) onSaveContract(req, file, contractTotal); }} className="h-11 rounded-md font-semibold">
           <FileText className="size-4" /> Upload contract
         </Button>
       </div>
       {contracts.map((contract) => (
         <div key={contract.id} className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs">
           <span className="truncate font-semibold">v{contract.version} · {contract.fileName}</span>
-          <span>{statusLabel(contract.reviewStatus)}{contract.reviewReason ? ` · ${contract.reviewReason}` : ""}</span>
+          <span>{statusLabel(contract.reviewStatus)}{contract.reviewReason ? ` · ${contract.reviewReason}` : ""}{contract.quoteMismatch ? " · Total differs from your selected quote" : ""}</span>
           <Button type="button" size="sm" variant="ghost" onClick={() => onDownloadObject(contract.storedObjectId)}>Download</Button>
         </div>
       ))}
