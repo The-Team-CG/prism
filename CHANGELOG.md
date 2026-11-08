@@ -9,6 +9,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - PMCM can download the conforme document as a printable PDF, with its document hash, for physical signing; clients and suppliers cannot.
 - The public inquiry has an optional room set-up section (seating arrangement, stage position, notes), shown read-only in the PMCM inquiry drawer.
 - PMCM can log an inquiry on behalf of a client with only the name, email, event name and date; anything else missing shows as Pending Full Details until it is filled in.
+- Clients and suppliers can submit their own privacy requests and track their status; PMCM still verifies and carries them out.
+- Supplier file requirement reminders go only to the suppliers who are overdue or need to replace a rejected file.
 - File access follows one policy for lists and downloads: coordinators need a current assignment, suppliers see only their own files on selected bookings, and failed uploads are no longer shown outside PMCM.
 - Addenda change billing and quote amounts only when PMCM countersigns; until then they show as pending, and PMCM can withdraw one with a reason.
 - Coordinators and PMCM can mark an event-day task blocked with a required reason and unblock it; the PMCM inbox shows that reason.
