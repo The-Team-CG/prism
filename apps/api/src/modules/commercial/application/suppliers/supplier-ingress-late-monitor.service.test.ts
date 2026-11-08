@@ -194,3 +194,34 @@ describe('SupplierIngressLateMonitorService', () => {
     expect(schedules.filter((item) => item.request.eventDayStatus === 'not_started')).toHaveLength(201);
   });
 });
+
+describe('FR-79 supplier no-show notes', () => {
+  it('notes a supplier still late after the no-show window once, and never for a supplier who arrived', async () => {
+    const notes = new Map<string, Record<string, unknown>>();
+    const requests = [
+      { id: 'sqr_late', eventId: 'evt_1', supplierId: 'sup_1', supplierName: 'Sonic AV', category: 'AV', eventDayStatus: 'late', eventDayStatusAt: new Date('2026-10-17T00:00:00.000Z') },
+      { id: 'sqr_arrived', eventId: 'evt_1', supplierId: 'sup_2', supplierName: 'Bloom', category: 'Floral', eventDayStatus: 'arrived', eventDayStatusAt: new Date('2026-10-17T00:00:00.000Z') },
+    ];
+    const prisma = {
+      opsSupplierQuoteRequest: {
+        findMany: vi.fn(async ({ where }: { where: { eventDayStatus: string; eventDayStatusAt: { lte: Date } } }) =>
+          requests.filter((request) => request.eventDayStatus === where.eventDayStatus && request.eventDayStatusAt <= where.eventDayStatusAt.lte)),
+      },
+      opsSupplierReliabilityNote: {
+        findUnique: vi.fn(async ({ where }: { where: { idempotencyKey: string } }) => notes.get(where.idempotencyKey) ?? null),
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> & { idempotencyKey: string } }) => { notes.set(data.idempotencyKey, data); return data; }),
+      },
+      opsEvent: { findUnique: vi.fn(async () => ({ eventName: 'Ayala Tech Summit' })) },
+    };
+    const monitor = new SupplierIngressLateMonitorService(
+      prisma as unknown as PrismaService,
+      { write: vi.fn(async () => undefined) } as unknown as AuditWriter,
+      { requireActorRole: vi.fn(async () => undefined) } as unknown as EventAccessPolicyService,
+    );
+
+    expect(await monitor.noteSupplierNoShows(systemActor, new Date('2026-10-17T06:00:00.000Z'))).toEqual({ noted: 0 });
+    expect(await monitor.noteSupplierNoShows(systemActor, new Date('2026-10-17T13:00:00.000Z'))).toEqual({ noted: 1 });
+    expect(await monitor.noteSupplierNoShows(systemActor, new Date('2026-10-17T14:00:00.000Z'))).toEqual({ noted: 0 });
+    expect([...notes.values()]).toEqual([expect.objectContaining({ supplierId: 'sup_1', note: expect.stringContaining('No-show at Ayala Tech Summit (AV)') })]);
+  });
+});

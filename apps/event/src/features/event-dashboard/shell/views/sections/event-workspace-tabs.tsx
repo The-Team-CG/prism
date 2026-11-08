@@ -43,6 +43,8 @@ import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/v
 import { PmcmProposalComments } from "@/features/commercial/proposal-comments/views/pmcm-proposal-comments";
 import { PmcmRoleBriefEditor } from "@/features/coordinators/role-briefs/views/pmcm-role-brief-editor";
 import { CoordinatorReplacementPanel } from "@/features/pare/coordinator/views/coordinator-replacement-panel";
+import { PreConformeContextPanel } from "@/features/inquiries/context-notes/views/context-notes-log";
+import { AccreditationPanel } from "@/features/compliance/accreditation/views/accreditation-panel";
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
 import { PmcmSupplierGapWarning } from "@/features/suppliers/supplier-gaps/views/pmcm-supplier-gap-warning";
 import { PmcmExternalCreativePanel } from "@/features/suppliers/external-creative/views/pmcm-external-creative-panel";
@@ -212,6 +214,8 @@ export function EventWorkspaceBriefingTab() {
     ...(admin ? [{ id: "follow-ups", label: "Client follow-ups", render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> }] : []),
     { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
     ...(admin ? [{ id: "decisions", label: "Decision log", render: () => <DecisionLogPanel eventId={selectedEvent.id} /> }] : []),
+    ...(admin ? [{ id: "pre-conforme", label: "Pre-conforme context", render: () => <PreConformeContextPanel eventId={selectedEvent.id} /> }] : []),
+    ...(admin ? [{ id: "accreditation", label: "Accreditation", render: () => <AccreditationPanel eventId={selectedEvent.id} /> }] : []),
   ];
   return <WorkspaceSubTabs label="Planning sections" tabs={tabs} />;
 }

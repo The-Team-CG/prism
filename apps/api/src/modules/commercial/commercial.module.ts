@@ -67,6 +67,8 @@ import { OpsClientReviewItemsController } from './api/quotes/client-review-items
 import { ClientReviewItemsService } from './application/quotes/client-review-items.service';
 import { VenueScoutingController } from './api/quotes/venue-scouting.controller';
 import { VenueScoutingService } from './application/quotes/venue-scouting.service';
+import { LogisticsBookingController } from './api/billing/logistics-booking.controller';
+import { LogisticsBookingService } from './application/billing/logistics-booking.service';
 
 const supplierDirectoryProvider = {
   provide: SUPPLIER_DIRECTORY,
@@ -114,6 +116,7 @@ const supplierCommandsProvider = {
     OpsSupplierWorkflowController,
     OpsClientReviewItemsController,
     VenueScoutingController,
+    LogisticsBookingController,
   ],
   providers: [
     CommercialWorkflowService,
@@ -149,6 +152,7 @@ const supplierCommandsProvider = {
     SupplierWorkflowService,
     ClientReviewItemsService,
     VenueScoutingService,
+    LogisticsBookingService,
     { provide: PAYMENT_STATUS_READER, useExisting: PaymentOperationsService },
   ],
   exports: [

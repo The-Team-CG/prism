@@ -1,4 +1,5 @@
 import type { PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
+import { BillingWordTemplate } from "@/features/finance/billing-template/views/billing-word-template";
 import type { MarkPaymentInput } from "@prism/types";
 import { remainingPaymentCopy, sumPaymentAmounts } from "../model/finance-workspace-rules";
 import { useFinancialWorkspaceViewModel } from "../view-models/use-financial-workspace-view-model";
@@ -65,6 +66,7 @@ export function FinancialWorkspace({
         />
         <PaymentTracker payments={payments} busy={busy} onRecord={vm.openRecordModal} onMarkPayment={onMarkPayment} />
       </div>
+      <BillingWordTemplate statement={statement} />
       {vm.activePayment ? (
         <RecordPaymentModal
           activePayment={vm.activePayment}

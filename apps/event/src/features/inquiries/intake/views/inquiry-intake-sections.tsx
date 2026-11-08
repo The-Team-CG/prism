@@ -23,6 +23,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import type { PrismInquiry } from "@prism/types";
 import { CompanyNameEditor } from "@/features/inquiries/company-name/views/company-name-editor";
 import { BiddingPathEditor } from "@/features/inquiries/bidding-path/views/bidding-path-editor";
+import { ContextNotesLog } from "@/features/inquiries/context-notes/views/context-notes-log";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 import {
   AWAITING_REVIEW,
@@ -416,6 +417,7 @@ function InquiryHistorySection({
     <section className="space-y-3 rounded-lg border border-border bg-background px-4 py-3">
       <CompanyNameEditor inquiryId={inquiry.id} companyName={inquiry.companyName ?? ""} />
       <BiddingPathEditor inquiry={inquiry} />
+      <ContextNotesLog inquiryId={inquiry.id} />
       <div className="flex items-center gap-2">
         <ClipboardList className="size-4 text-primary" />
         <h4 className="text-sm font-bold text-foreground">Organization and history</h4>
