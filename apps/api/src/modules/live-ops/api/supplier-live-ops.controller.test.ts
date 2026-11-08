@@ -39,7 +39,7 @@ describe('SupplierLiveOpsController', () => {
       eventAccessPolicyService as unknown as EventAccessPolicyService,
     );
     const sessionActor = verifiedActor();
-    const dto = { status: 'arrived' as const, notes: 'At dock', photo: { fileName: 'dock.jpg' } };
+    const dto = { status: 'arrived' as const, notes: 'At dock', storedObjectId: 'obj_dock' };
 
     await controller.updateEventStatus('qr_sample', dto, sessionActor);
 
@@ -61,7 +61,7 @@ describe('SupplierLiveOpsController', () => {
       eventAccessPolicyService as unknown as EventAccessPolicyService,
     );
     const sessionActor = verifiedActor();
-    const dto = { status: 'arrived' as const, notes: 'At dock', photo: { fileName: 'dock.jpg' } };
+    const dto = { status: 'arrived' as const, notes: 'At dock', storedObjectId: 'obj_dock' };
 
     await controller.updateEventStatus('qr_sample', dto, sessionActor);
 

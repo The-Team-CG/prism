@@ -110,15 +110,19 @@ export async function submitSupplierCreativeTask(
 
 export async function updateSupplierEventStatus(
   session: PrismAuthenticatedSession,
+  supplier: PrismSupplier,
   request: PrismSupplierQuoteRequest,
   status: string,
   notes: string,
+  photo?: File,
 ): Promise<{ notice: string }> {
-  await supplierWorkspaceRepository.updateEventStatus(
+  const storedObjectId = photo ? await supplierWorkflowRepository.uploadStatusPhoto(session, supplier, request, photo) : undefined;
+  await supplierWorkflowRepository.updateEventStatus(
     session,
     request.id,
     status,
     notes,
+    storedObjectId,
   );
   return { notice: eventStatusSuccessNotice(status) };
 }

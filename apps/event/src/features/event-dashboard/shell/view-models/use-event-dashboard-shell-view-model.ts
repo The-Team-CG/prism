@@ -32,7 +32,7 @@ import {
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
 import { refreshAfterDashboardCommand, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
-import { countersignConformeExecution, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
+import { countersignConformeExecution, downloadConformePdf, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
 import { assignedSupplierRequests } from "@/features/suppliers/readiness";
 
 export type { EventDashboardClientProps };
@@ -505,6 +505,10 @@ export function useEventDashboardShellViewModel({
       if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");
       return refreshConformeExecution(conformeUploadTarget.id);
     },
+    downloadConformePdf: async () => {
+      if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");
+      await downloadConformePdf(conformeUploadTarget.id);
+    },
     countersignConforme: async (execution: PrismConformeExecution) => {
       if (!conformeUploadTarget) throw new Error("Select an accepted inquiry first.");
       const updated = await countersignConformeExecution(conformeUploadTarget.id, execution);
@@ -532,6 +536,7 @@ export function useEventDashboardShellViewModel({
     withdrawSupplier: (requestId: string) => selectedEvent ? run("withdraw supplier", () => commands.withdrawSupplier(selectedEvent.id, requestId)) : Promise.resolve(),
     upsertRegistrationPlatform: (input: Parameters<typeof commands.upsertRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.upsertRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
     updateRegistrationPlatform: (input: Parameters<typeof commands.updateRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.updateRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
+    updateRegistrationPlatformSetup: (input: Parameters<typeof commands.updateRegistrationPlatformSetup>[1]) => selectedEvent ? run("registration platform setup", () => commands.updateRegistrationPlatformSetup(selectedEvent.id, input)) : Promise.resolve(),
     updateGuestPrivacyClassification: (input: Parameters<typeof commands.updateGuestPrivacyClassification>[1]) => selectedEvent && session ? runAsBoolean("guest privacy classification", () => commands.updateGuestPrivacyClassification(selectedEvent.id, input)) : Promise.resolve(false),
     importHeadcount: (input: Parameters<typeof commands.importHeadcount>[1]) => selectedEvent ? run("import headcount", () => commands.importHeadcount(selectedEvent.id, input)) : Promise.resolve(),
     searchGuestRoster: (filters = {}) => selectedEvent ? commands.searchGuestRosterWithFilters(selectedEvent.id, filters) : Promise.resolve([]),

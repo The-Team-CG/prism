@@ -1,6 +1,6 @@
 import type { Project } from "@/features/floorplan/editor";
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { CreateFloorPlanDraftInput, PrismFloorPlanDraft } from "@prism/types";
+import type { PrismEventPrivacy, CreateFloorPlanDraftInput, PrismFloorPlanDraft } from "@prism/types";
 
 interface ApiFloorPlan {
   id: string;
@@ -10,6 +10,7 @@ interface ApiFloorPlan {
   height: number;
   gridSize: number;
   pax: number;
+  eventPrivacy: PrismEventPrivacy;
   objects?: Project["objects"];
   guests?: Project["guests"];
   suppliers?: Project["suppliers"];
@@ -25,6 +26,7 @@ function apiPlanToProject(plan: ApiFloorPlan): Project {
     widthM: plan.width,
     heightM: plan.height,
     pax: plan.pax,
+    eventPrivacy: plan.eventPrivacy,
     objects: Array.isArray(plan.objects) ? plan.objects : [],
     guests: Array.isArray(plan.guests) ? plan.guests : [],
     suppliers: Array.isArray(plan.suppliers) ? plan.suppliers : [],

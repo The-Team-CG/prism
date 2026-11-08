@@ -26,6 +26,7 @@ function renderRegistrationTab(overrides: Partial<ComponentProps<typeof EventReg
       busy={false}
       onUpsert={vi.fn()}
       onUpdate={vi.fn()}
+      onUpdateSetup={vi.fn()}
       onImportHeadcount={vi.fn()}
       onSearchRoster={vi.fn().mockResolvedValue([])}
       onImportRoster={vi.fn().mockResolvedValue([])}

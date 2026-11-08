@@ -54,13 +54,4 @@ export const supplierWorkspaceRepository = {
   confirmReadiness(session: PrismAuthenticatedSession, requestId: string, notes: string) {
     return prismApi.confirmReadiness(session, requestId, notes);
   },
-
-  updateEventStatus(
-    session: PrismAuthenticatedSession,
-    requestId: string,
-    status: string,
-    notes: string,
-  ) {
-    return prismApi.updateEventStatus(session, requestId, status, notes);
-  },
 };

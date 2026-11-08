@@ -331,7 +331,7 @@ export const handlers: ActionHandlers = {
       guests: state.project.guests,
       guestId: action.guestId,
       objectId: action.objectId,
-      pax: state.project.pax,
+      event: { pax: state.project.pax, eventPrivacy: state.project.eventPrivacy },
     });
     if (!eligibility.eligible) {
       return {

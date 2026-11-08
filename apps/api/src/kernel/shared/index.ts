@@ -5,3 +5,4 @@ export * from './zod-validation.pipe';
 export * from './runtime-env';
 export * from './public-rate-limit';
 export * from './portal-urls';
+export * from './text-pdf';

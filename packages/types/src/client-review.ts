@@ -46,6 +46,8 @@ export interface PrismClientFloorPlanAnnotation {
   comment: string;
   anchorX?: number;
   anchorY?: number;
+  /** Notes from contacts other than the primary client contact: visible, but never approve, request changes or count as the client response. */
+  nonBinding: boolean;
   createdAt: string;
 }
 

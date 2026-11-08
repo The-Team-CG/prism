@@ -139,15 +139,18 @@ describe("seating list size limit", () => {
   const table: TableEligibilityObject = { id: "t1", kind: "ellipse", category: "furniture", seats: 10, assignedGuestIds: [] };
   const guests = [{ id: "g1", rsvp: "confirmed" }];
 
-  it("is open below 200 guests or when the count is unset, and closed from 200", () => {
-    expect([undefined, 0, 1, 199, 200, 450].map((pax) => isSeatingListAvailable(pax))).toEqual([true, true, true, true, false, false]);
+  it("is open only for private events below 200 guests (or with an unset count), and closed otherwise", () => {
+    const sizes = [undefined, 0, 1, 199, 200, 450].map((pax) => isSeatingListAvailable(pax, "private"));
+    expect(sizes).toEqual([true, true, true, true, false, false]);
+    expect([undefined, 0, 199].map((pax) => isSeatingListAvailable(pax, "public"))).toEqual([false, false, false]);
   });
 
-  it("refuses to seat a guest at a large event before any other check", () => {
-    const seat = (pax?: number) => evaluateTableAssignment({ objects: [table], guests, guestId: "g1", objectId: "t1", pax });
-    expect(seat(199)).toEqual({ eligible: true });
-    expect(seat(200)).toEqual({ eligible: false, reason: "event-too-large" });
-    expect(evaluateTableAssignment({ objects: [table], guests, guestId: "ghost", objectId: "t1", pax: 500 })).toEqual({ eligible: false, reason: "event-too-large" });
+  it("refuses to seat a guest at a large or public event before any other check", () => {
+    const seat = (pax: number | undefined, eventPrivacy: "private" | "public") => evaluateTableAssignment({ objects: [table], guests, guestId: "g1", objectId: "t1", event: { pax, eventPrivacy } });
+    expect(seat(199, "private")).toEqual({ eligible: true });
+    expect(seat(200, "private")).toEqual({ eligible: false, reason: "event-too-large" });
+    expect(seat(50, "public")).toEqual({ eligible: false, reason: "event-public" });
+    expect(evaluateTableAssignment({ objects: [table], guests, guestId: "ghost", objectId: "t1", event: { pax: 500, eventPrivacy: "private" } })).toEqual({ eligible: false, reason: "event-too-large" });
   });
 
   it("lists only the seats a save adds, so seats made before the limit stay", () => {

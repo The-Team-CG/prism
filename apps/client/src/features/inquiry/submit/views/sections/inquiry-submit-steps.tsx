@@ -22,6 +22,7 @@ import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
 import { DatePicker } from "@prism/ui/components/date-picker";
+import { INQUIRY_SEATING_ARRANGEMENTS, INQUIRY_STAGE_POSITIONS } from "@prism/types";
 import { formatInquiryDate, formatInquiryPhone, inquiryEventTypeLabel, inquirySourceLabel } from "../../model/inquiry-submit-rules";
 import { cn } from "@/app/components/ui/utils";
 import type { InquiryForm } from "../../model/inquiry-submit-types";
@@ -170,6 +171,28 @@ function VenueBudgetStep({ form, update }: InquiryStepProps) {
         />
         <p className="text-right text-sm tabular-nums text-muted-foreground">{form.message.length} / 1000</p>
       </div>
+      <fieldset className="grid gap-7 border-t border-border pt-7">
+        <legend className="text-sm font-semibold text-foreground">
+          Room set-up <span className="font-normal text-muted-foreground">(optional, a preference only)</span>
+        </legend>
+        <InquiryChoiceGroup label="Seating arrangement" options={INQUIRY_SEATING_ARRANGEMENTS} value={form.seatingArrangement} onChange={(value) => update("seatingArrangement", value)} />
+        <InquiryChoiceGroup label="Stage position" options={INQUIRY_STAGE_POSITIONS} value={form.stagePosition} onChange={(value) => update("stagePosition", value)} />
+        <div className="grid gap-2">
+          <label htmlFor="setupNotes" className="text-sm font-semibold text-foreground">
+            Setup notes <span className="font-normal text-muted-foreground">(optional)</span>
+          </label>
+          <Textarea
+            id="setupNotes"
+            value={form.setupNotes}
+            onChange={(event) => update("setupNotes", event.target.value)}
+            placeholder="For example, a dance floor, a sponsor wall, or a quiet area."
+            rows={3}
+            maxLength={500}
+            className="min-h-24 rounded-lg border-border-strong bg-white px-3.5 py-3 text-base md:text-base"
+          />
+          <p className="text-right text-sm tabular-nums text-muted-foreground">{form.setupNotes.length} / 500</p>
+        </div>
+      </fieldset>
     </div>
   );
 }
@@ -202,7 +225,7 @@ function ReviewStep({
 }: InquiryStepProps & { error: string | null; onEdit: (step: number) => void; consentInvalid: boolean }) {
   const groups = [
     { step: 0, title: "Event", rows: [["Name", form.eventName], ["Type", inquiryEventTypeLabel(form)], ["Date", formatInquiryDate(form.eventDate)], ["Date flexibility", form.dateFlexibility], ["Guests", form.expectedGuests]] },
-    { step: 1, title: "Venue and budget", rows: [["Venue or city", form.venueCity], ["Venue status", form.venueStatus], ["Budget", form.budgetRange], ["Reply needed", form.inquiryPriority], ["Notes", form.message]] },
+    { step: 1, title: "Venue and budget", rows: [["Venue or city", form.venueCity], ["Venue status", form.venueStatus], ["Budget", form.budgetRange], ["Reply needed", form.inquiryPriority], ["Seating", form.seatingArrangement], ["Stage", form.stagePosition], ["Set-up notes", form.setupNotes], ["Notes", form.message]] },
     { step: 2, title: "Your details", rows: [["Name", form.clientName], ["Organisation", form.companyName], ["Email", form.email], ["Mobile", form.phoneNumber], ["Booking as", form.clientType], ["Heard via", inquirySourceLabel(form)]] },
   ] as const;
   return (

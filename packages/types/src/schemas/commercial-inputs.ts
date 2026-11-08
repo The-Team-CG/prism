@@ -163,7 +163,8 @@ export type UploadContractInput = z.infer<typeof uploadContractSchema>;
 export const updateSupplierEventStatusSchema = z.object({
   status: z.enum(["arrived", "set_up_ready", "done_leaving"]),
   notes: optionalTrimmedStringSchema,
-  photo: uploadMetadataSchema.optional(),
+  /** Optional status photo: a confirmed upload from the supplier's storage upload, verified server-side. */
+  storedObjectId: nonEmptyStringSchema.optional(),
 });
 export type UpdateSupplierEventStatusInput = z.infer<typeof updateSupplierEventStatusSchema>;
 

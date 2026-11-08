@@ -2,8 +2,9 @@ import { BadRequestException } from '@nestjs/common';
 import {
   SEATING_LIST_MAX_GUESTS,
   findTableAssignmentRejection,
-  isSeatingListAvailable,
   newTableAssignments,
+  seatingUnavailableReason,
+  type SeatingEvent,
   floorPlanCanvasObjectSchema,
   type TableAssignmentIneligibleReason,
   type TableEligibilityGuest,
@@ -18,6 +19,7 @@ const REJECTION_MESSAGES: Record<TableAssignmentIneligibleReason, string> = {
   'table-full': 'This table has no free seats.',
   'guest-already-seated': 'A guest can only be seated at one table.',
   'event-too-large': `Table assignment is only available for events under ${SEATING_LIST_MAX_GUESTS} guests.`,
+  'event-public': 'Table assignment is only available for private events.',
 };
 
 /** Rejects a plan save whose seat assignments break the shared table eligibility rule. */
@@ -29,14 +31,15 @@ export function assertTableAssignmentsEligible(
   if (rejection) throw new BadRequestException(REJECTION_MESSAGES[rejection.reason]);
 }
 
-/** Refuses new seat assignments on a plan for a large event; seats made before the limit applied are left alone. */
+/** Refuses new seat assignments on a plan for a public or large event; seats made before the rule applied are left alone. */
 export function assertSeatingAllowedForNewAssignments(
   previousObjects: readonly TableEligibilityObject[],
   nextObjects: readonly TableEligibilityObject[],
-  pax: number | undefined | null,
+  event: SeatingEvent,
 ) {
-  if (isSeatingListAvailable(pax)) return;
-  if (newTableAssignments(previousObjects, nextObjects).length > 0) throw new BadRequestException(REJECTION_MESSAGES['event-too-large']);
+  const unavailable = seatingUnavailableReason(event.pax, event.eventPrivacy);
+  if (!unavailable) return;
+  if (newTableAssignments(previousObjects, nextObjects).length > 0) throw new BadRequestException(REJECTION_MESSAGES[unavailable]);
 }
 
 /**

@@ -134,6 +134,43 @@ export class OcularVisitService {
     }, { isolationLevel: 'Serializable' });
   }
 
+  /**
+   * The client's venue submission opens the one ocular task PMCM schedules and completes before the floorplan workflow.
+   * The record is unique per event, so a repeat submission leaves the existing task (and its status) untouched.
+   */
+  async openVenueTaskFromBriefing(
+    tx: Prisma.TransactionClient,
+    eventId: string,
+    actor: ResolvedEventOpsActor,
+    briefingId: string,
+  ): Promise<void> {
+    const existing = await tx.opsOcularVisitRequest.findUnique({ where: { eventId }, select: { id: true } });
+    if (existing) return;
+    const request = await this.createOcularVisitRequest(tx, {
+      id: 'ocular_visit_' + randomUUID(),
+      eventId,
+      status: 'requested',
+      requestedAt: new Date(),
+    });
+    await writeAudit(
+      this.auditWriter,
+      eventId,
+      actor.name,
+      'Opened venue ocular task from client venue submission',
+      {
+        actorRole: actor.role,
+        actorEmail: actor.email,
+        category: AuditCategory.Events,
+        actionType: AuditActionType.Create,
+        affectedType: 'ocular_visit_request',
+        affectedId: request.id,
+        affectedLabel: 'Venue ocular task',
+        metadata: { actorId: actor.id ?? null, briefingId },
+      },
+      { prisma: tx, correlationId: briefingId, actorId: actor.id },
+    );
+  }
+
   async scheduleOcularVisit(
     eventId: string,
     input: ScheduleOcularVisitInput,

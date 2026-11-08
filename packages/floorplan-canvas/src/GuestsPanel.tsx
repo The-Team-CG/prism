@@ -19,7 +19,7 @@ export function GuestsPanel() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [printBlocked, setPrintBlocked] = useState(false);
-  const seatingOpen = isSeatingListAvailable(state.project.pax);
+  const seatingOpen = isSeatingListAvailable(state.project.pax, state.project.eventPrivacy);
 
   const assignedMap = useMemo(() => {
     const m = new Map<string, { objectId: string; label: string }>();
@@ -90,7 +90,10 @@ export function GuestsPanel() {
           <button
             type="button"
             disabled={stats.assigned === 0}
-            onClick={() => setPrintBlocked(!printSeatingList((state.project.name || "Event") + " seating list", buildSeatingList(state.project)))}
+            onClick={() => {
+              const list = buildSeatingList(state.project);
+              setPrintBlocked(list !== null && !printSeatingList((state.project.name || "Event") + " seating list", list));
+            }}
             className="flex w-full items-center justify-center gap-1.5 rounded-md bg-white py-1.5 text-[11px] text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-50 disabled:opacity-50"
           >
             <Printer size={12} /> Print seating list
@@ -99,7 +102,7 @@ export function GuestsPanel() {
         </div>
       ) : (
         <p role="status" className="mx-3 mb-2 rounded-md bg-muted p-2 text-[10px] text-neutral-600">
-          Table assignment and the seating list are only for events under {SEATING_LIST_MAX_GUESTS} guests. This event expects {state.project.pax}.
+          Table assignment and the seating list are only for private events under {SEATING_LIST_MAX_GUESTS} guests. This event is {state.project.eventPrivacy} and expects {state.project.pax} guests.
         </p>
       )}
 

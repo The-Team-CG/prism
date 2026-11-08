@@ -103,6 +103,12 @@ export const updateRegistrationPlatformSchema = z.object({
 });
 export type UpdateRegistrationPlatformInput = z.infer<typeof updateRegistrationPlatformSchema>;
 
+/** PMCM setup confirmation sub-ticket: request setup from the Digital Registration supplier, then confirm it. */
+export const updateRegistrationPlatformSetupSchema = z.object({
+  action: z.enum(["request", "confirm"]),
+});
+export type UpdateRegistrationPlatformSetupInput = z.infer<typeof updateRegistrationPlatformSetupSchema>;
+
 export const importHeadcountSchema = z.object({
   headcountSource: nonEmptyStringSchema,
   importedHeadcount: z.number().int().min(0),

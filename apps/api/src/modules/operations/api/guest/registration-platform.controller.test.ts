@@ -29,6 +29,7 @@ function createController() {
     getByEventId: vi.fn(async () => ({ id: 'reg_1' })),
     upsert: vi.fn(async () => ({ id: 'reg_1' })),
     update: vi.fn(async () => ({ id: 'reg_1' })),
+    updateSetupConfirmation: vi.fn(async () => ({ id: 'reg_1' })),
     importHeadcount: vi.fn(async () => ({ id: 'reg_1' })),
     mapRegistrationPlatform: vi.fn(() => mappedPlatform),
   };
@@ -74,8 +75,10 @@ describe('OpsRegistrationPlatformController', () => {
     await expect(controller.importHeadcount('evt_sample', importInput, verifiedPmcmActor as any)).resolves.toEqual(
       mappedPlatform,
     );
+    await expect(controller.updateSetupConfirmation('evt_sample', { action: 'request' }, verifiedPmcmActor as any)).resolves.toEqual(mappedPlatform);
 
-    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(4);
+    expect(registrationPlatformService.updateSetupConfirmation).toHaveBeenCalledWith('evt_sample', { action: 'request' }, { role: OpsUserRole.PmcmAdmin, name: 'Maxine' });
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(5);
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
       { role: OpsUserRole.PmcmAdmin, name: 'Maxine' },
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
@@ -103,7 +106,16 @@ describe('OpsRegistrationPlatformController', () => {
         actorName: 'Ana Reyes',
       } as any),
     ).rejects.toBeInstanceOf(ForbiddenException);
+    eventAccessPolicyService.requireActorRole.mockRejectedValueOnce(new ForbiddenException('registration staff cannot confirm platform setup'));
+    await expect(
+      controller.updateSetupConfirmation('evt_sample', { action: 'confirm' }, {
+        ...verifiedPmcmActor,
+        actorRole: OpsUserRole.Coordinator,
+        actorName: 'Registration Staff',
+      } as any),
+    ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(registrationPlatformService.upsert).not.toHaveBeenCalled();
+    expect(registrationPlatformService.updateSetupConfirmation).not.toHaveBeenCalled();
   });
 });

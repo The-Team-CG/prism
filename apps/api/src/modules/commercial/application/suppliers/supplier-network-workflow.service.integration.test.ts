@@ -183,6 +183,7 @@ function createService(
     new DocumentVaultService(servicePrisma),
     new OperationsEventReferenceService(servicePrisma),
     { write: async () => ({}) } as any,
+    { findConfirmedSupplierUpload: async () => null } as any,
   );
 }
 

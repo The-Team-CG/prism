@@ -34,10 +34,12 @@ describe("buildSeatingList", () => {
       table({ id: "empty", label: "Table 3", assignedGuestIds: ["ghost"] }),
     ],
     guests: [guest("g1", "Zed Lim"), guest("g2", "Ana Cruz"), guest("g3", "Ben Tan"), guest("g4", "Cara Uy"), guest("g5", "Dan Ng", "declined"), guest("g9", "Hidden Table Guest")],
+    pax: 120,
+    eventPrivacy: "private" as const,
   };
 
   it("lists visible seating tables in natural order with their guests by name", () => {
-    const list = buildSeatingList(project);
+    const list = buildSeatingList(project)!;
 
     expect(list.rows.map((row) => row.table)).toEqual(["Table 2", "Table 3", "Table 10"]);
     expect(list.rows[2]).toEqual({ table: "Table 10", seats: 10, guests: ["Ana Cruz", "Zed Lim"] });
@@ -45,10 +47,19 @@ describe("buildSeatingList", () => {
   });
 
   it("leaves out declined guests from the not-yet-seated list and counts only guests who are listed at a table", () => {
-    const list = buildSeatingList(project);
+    const list = buildSeatingList(project)!;
 
     expect(list.unseated).toEqual(["Cara Uy", "Hidden Table Guest"]);
     expect(list.totalSeated).toBe(3);
+  });
+});
+
+describe("buildSeatingList availability", () => {
+  const base = { objects: [table({ id: "t1", label: "Table 1", assignedGuestIds: [] })], guests: [guest("g1", "Ana")] };
+
+  it("produces no list for a public event or an event of 200 guests or more", () => {
+    expect(buildSeatingList({ ...base, pax: 120, eventPrivacy: "public" })).toBeNull();
+    expect(buildSeatingList({ ...base, pax: 200, eventPrivacy: "private" })).toBeNull();
   });
 });
 

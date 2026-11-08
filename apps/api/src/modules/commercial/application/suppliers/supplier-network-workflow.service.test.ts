@@ -99,6 +99,12 @@ function createService(overrides: {
     documentVault as any,
     { findOperationsEvent: vi.fn(async (eventId: string) => ({ id: eventId, archived: false })) } as any,
     { write: notify } as any,
+    {
+      findConfirmedSupplierUpload: vi.fn(async ({ objectId, logicalTargetPrefix }: { objectId: string; logicalTargetPrefix: string }) =>
+        objectId === 'obj_dock' && logicalTargetPrefix === 'supplier-status:qr_sonic:'
+          ? { id: 'obj_dock', originalFileName: 'dock.jpg' }
+          : null),
+    } as any,
   );
   return { service, prisma, audit, notify, request, suppliers, documentVault, reliabilityNotes, getSchedule: () => schedule };
 }
@@ -253,6 +259,23 @@ describe('SupplierNetworkWorkflowService', () => {
     // Supplier-authored readiness notes and the supplier's own status stay visible to the supplier.
     expect(ready.readinessNotes).toBe('Supplier-authored readiness note.');
     expect(eventStatus.eventDayStatus).toBe('arrived');
+  });
+
+  it('records a status photo only when it is a confirmed upload for this assignment', async () => {
+    const { service, request, audit } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', supplierId: 'sup_sonicline' });
+    const supplier = {
+      name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline',
+      email: 'supplier@example.com', explicit: true, verified: true,
+    };
+
+    await expect(service.updateSupplierEventStatus('qr_sonic', { status: 'arrived', storedObjectId: 'obj_other' }, supplier))
+      .rejects.toThrow('The status photo is not a confirmed upload for this assignment');
+    expect(request.eventDayStatus).toBe('not_started');
+
+    const arrived = await service.updateSupplierEventStatus('qr_sonic', { status: 'arrived', storedObjectId: 'obj_dock' }, supplier);
+    expect(arrived.statusPhotoFileName).toBe('dock.jpg');
+    expect(audit.mock.calls.some(([entry]) => entry.metadata?.photoStoredObjectId === 'obj_dock' && entry.metadata?.photoFileName === 'dock.jpg')).toBe(true);
   });
 
   it('accepts supplier event-day status only in order, replays the current status, and rejects skips and backward steps', async () => {

@@ -65,7 +65,7 @@ function showSupplierPrivacyNotice() {
   window.location.assign(portalHref(privacyNoticePath(`${appPath}${window.location.search}`)));
 }
 
-const eventOpsClient = createEventOpsClient({
+export const eventOpsClient = createEventOpsClient({
   getAuthToken: storedSupplierAccessToken,
   onUnauthorized: expireSupplierSession,
   onPrivacyNoticeRequired: showSupplierPrivacyNotice,
@@ -133,12 +133,6 @@ export const prismApi = {
     eventOpsClient.supplierWorkspace.confirmAssignment(requestId, actorFromSession(session)),
   confirmReadiness: (session: PrismAuthenticatedSession, requestId: string, notes: string) =>
     eventOpsClient.supplierWorkspace.confirmReadiness(requestId, { notes }, actorFromSession(session)),
-  updateEventStatus: (session: PrismAuthenticatedSession, requestId: string, status: string, notes: string) =>
-    eventOpsClient.supplierWorkspace.updateEventStatus(
-      requestId,
-      { status: status as "arrived" | "set_up_ready" | "done_leaving", notes },
-      actorFromSession(session),
-    ),
   createSupplierApplication: (input: CreateSupplierApplicationInput): Promise<PrismSupplierApplication> =>
     request("/api/supplier-applications", {
       method: "POST",

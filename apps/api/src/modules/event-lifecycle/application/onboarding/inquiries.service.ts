@@ -27,13 +27,16 @@ export type CreateInquiryInput = {
   eventName: string;
   eventType?: string;
   eventDate: string;
-  clientType: string;
+  clientType?: string;
   source?: string;
   channel?: string;
   referralDetails?: string;
-  message: string;
+  message?: string;
+  seatingArrangement?: string;
+  stagePosition?: string;
+  setupNotes?: string;
   privacyConsentAccepted?: boolean;
-  privacyNoticeVersion: string;
+  privacyNoticeVersion?: string;
   marketingConsentAccepted?: boolean;
 };
 
@@ -488,7 +491,7 @@ export class InquiriesService {
     const eventDate = new Date(input.eventDate);
     if (Number.isNaN(eventDate.getTime())) throw new BadRequestException('Invalid event date');
 
-    const source = input.source ?? 'Website';
+    const source = input.source ?? '';
     if (source === 'Log on Behalf' && !actor) {
       throw new BadRequestException('Public inquiries cannot use Log on Behalf source');
     }
@@ -496,7 +499,7 @@ export class InquiriesService {
     // Organization and high-fit are derived server-side only; public payloads cannot supply them.
     const organizationKey = inquiryOrganizationKey(input.companyName);
     const highFit = isDeterministicHighFitInquiry(
-      { clientType: input.clientType, companyName: input.companyName, eventDate },
+      { clientType: input.clientType ?? '', companyName: input.companyName, eventDate },
       new Date(),
     );
     let duplicate: InquiryWithTriage | undefined;
@@ -534,7 +537,7 @@ export class InquiriesService {
             eventName: input.eventName,
             eventType: input.eventType ?? input.clientType,
             eventDate,
-            clientType: input.clientType,
+            clientType: input.clientType ?? '',
             source,
             channel: input.channel ?? null,
             referralDetails: input.referralDetails ?? '',
@@ -543,9 +546,12 @@ export class InquiriesService {
             duplicateOfInquiryId: duplicate?.id ?? null,
             previousDeclinedInquiryId: previousDeclined?.id ?? null,
             previousDeclineReason: previousDeclined?.declineReason ?? null,
-            message: input.message,
+            message: input.message ?? '',
+            seatingArrangement: input.seatingArrangement ?? null,
+            stagePosition: input.stagePosition ?? null,
+            setupNotes: input.setupNotes || null,
             privacyConsentAccepted: input.privacyConsentAccepted === true,
-            privacyNoticeVersion: input.privacyNoticeVersion,
+            privacyNoticeVersion: input.privacyNoticeVersion ?? '',
             marketingConsentAccepted: Boolean(input.marketingConsentAccepted),
             status: 'new',
           },

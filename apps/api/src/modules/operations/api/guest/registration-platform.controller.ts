@@ -7,10 +7,12 @@ import {
   createRegistrationPlatformSchema,
   importHeadcountSchema,
   updateRegistrationPlatformSchema,
+  updateRegistrationPlatformSetupSchema,
   type CreateRegistrationPlatformInput,
   type ImportHeadcountInput,
   type PrismVerifiedEventActor,
   type UpdateRegistrationPlatformInput,
+  type UpdateRegistrationPlatformSetupInput,
 } from '@prism/types';
 import { RegistrationPlatformService } from '../../application/guest/registration-platform.service';
 
@@ -53,6 +55,18 @@ export class OpsRegistrationPlatformController {
   ) {
     const actor = await this.requirePmcm(verifiedActor, eventId);
     const platform = await this.registrationPlatformService.update(eventId, input, actor);
+    return this.registrationPlatformService.mapRegistrationPlatform(platform);
+  }
+
+  @Post('setup-confirmation')
+  @UseGuards(EventSessionGuard)
+  async updateSetupConfirmation(
+    @Param('eventId') eventId: string,
+    @Body(zodBody(updateRegistrationPlatformSetupSchema)) input: UpdateRegistrationPlatformSetupInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = await this.requirePmcm(verifiedActor, eventId);
+    const platform = await this.registrationPlatformService.updateSetupConfirmation(eventId, input, actor);
     return this.registrationPlatformService.mapRegistrationPlatform(platform);
   }
 

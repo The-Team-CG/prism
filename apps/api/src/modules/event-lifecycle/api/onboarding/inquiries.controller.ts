@@ -5,6 +5,8 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
 import {
   createPrismInquirySchema,
+  logInquiryOnBehalfSchema,
+  type LogInquiryOnBehalfInput,
   mergeInquirySchema,
   updateInquiryStatusSchema,
   uploadConformeSchema,
@@ -49,7 +51,7 @@ export class OpsInquiriesController {
   @HttpCode(HttpStatus.CREATED)
   @UseGuards(EventSessionGuard)
   logOnBehalf(
-    @Body(zodBody(createPrismInquirySchema)) dto: CreatePrismInquiryInput,
+    @Body(zodBody(logInquiryOnBehalfSchema)) dto: LogInquiryOnBehalfInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.inquiryWorkflowService.logInquiryOnBehalf(dto, {}, this.inquiryWorkflowContext(), verifiedActor);
