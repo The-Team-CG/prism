@@ -51,6 +51,7 @@ function renderModal(overrides: Partial<Parameters<typeof ConformeUploadModal>[0
     onPrepareDigital: vi.fn(async () => execution("awaiting_client", 2)),
     onRefreshDigital: vi.fn(async () => execution("awaiting_client")),
     onSignDigital: vi.fn(async () => execution("completed")),
+    onDownloadPdf: vi.fn(async () => {}),
     onClose: vi.fn(),
     ...overrides,
   };
@@ -59,6 +60,14 @@ function renderModal(overrides: Partial<Parameters<typeof ConformeUploadModal>[0
 }
 
 describe("ConformeUploadModal", () => {
+  it("hands PMCM the conforme PDF for physical signing from the same dialog", async () => {
+    const props = renderModal();
+
+    fireEvent.click(screen.getByRole("button", { name: "Download conforme PDF for physical signing" }));
+
+    await waitFor(() => expect(props.onDownloadPdf).toHaveBeenCalledTimes(1));
+  });
+
   it("loads a client-signed execution after reopening and exposes PMCM countersignature", async () => {
     const latest = execution("awaiting_pmcm");
     const props = renderModal({ onRefreshDigital: vi.fn(async () => latest) });

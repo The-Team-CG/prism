@@ -1,18 +1,13 @@
-import { INQUIRY_CLIENT_CATEGORIES, type PrismInquiry, type PrismInquiryMergeRecord } from "@prism/types";
+import {
+  INQUIRY_CLIENT_CATEGORIES,
+  logInquiryOnBehalfSchema,
+  parseContract,
+  type LogInquiryOnBehalfInput,
+  type PrismInquiry,
+  type PrismInquiryMergeRecord,
+} from "@prism/types";
 
-export interface LogInquiryOnBehalfInput {
-  clientName: string;
-  companyName?: string;
-  email: string;
-  eventName: string;
-  eventType?: string;
-  eventDate: string;
-  clientType: string;
-  source?: string;
-  channel?: string;
-  referralDetails?: string;
-  message: string;
-}
+export type { LogInquiryOnBehalfInput };
 
 export const declineReasons = ["Date Unavailable", "Outside Service Scope", "Budget Too Low", "Prior Issue", "Other"];
 export const logFormEventTypes = [
@@ -99,18 +94,16 @@ export function inquiryMatchesIntakeFilters(
   return dateRangeMatches(inquiry.eventDate, filters.dateRange, now);
 }
 
-/** Labels of the required log-form fields that are still empty, in form order. Empty means Save is enabled. */
+/**
+ * Labels of the basic fields still empty, in form order. Empty means Save is enabled. The rest may be left blank:
+ * the inquiry is then saved as Pending Full Details until it is completed.
+ */
 export function inquiryLogMissingFields(form: InquiryLogForm): string[] {
   const missing: Array<[string, boolean]> = [
     ["Client name", !form.clientName.trim()],
     ["Email", !form.email.trim()],
     ["Event name", !form.eventName.trim()],
-    ["Event type", !form.eventType],
     ["Event date", !form.eventDate],
-    ["Client type", !form.clientType],
-    ["Channel", !form.channel],
-    ["Referral source", !form.source],
-    ["Message", !form.message.trim()],
   ];
   return missing.filter(([, isMissing]) => isMissing).map(([name]) => name);
 }
@@ -120,15 +113,19 @@ export function isInquiryLogFormReady(form: InquiryLogForm) {
 }
 
 export function inquiryExtraDetailFields(inquiry: PrismInquiry) {
-  const fields: Array<{ label: string; value: string }> = [];
-  if (inquiry.referralDetails) fields.push({ label: "Referral", value: inquiry.referralDetails });
-  if (inquiry.channel) fields.push({ label: "Channel", value: inquiry.channel });
-  if (inquiry.loggedByName) fields.push({ label: "Logged by", value: inquiry.loggedByName });
-  if (inquiry.duplicateOfInquiryId) fields.push({ label: "Duplicate of", value: inquiry.duplicateOfInquiryId });
-  if (inquiry.previouslyDeclined) fields.push({ label: "Previously declined", value: "Yes" });
-  if (inquiry.previousDeclineReason) fields.push({ label: "Previous decline", value: inquiry.previousDeclineReason });
-  if (inquiry.declineReason) fields.push({ label: "Decline reason", value: inquiry.declineReason });
-  return fields;
+  const candidates: Array<[string, string | null | undefined]> = [
+    ["Referral", inquiry.referralDetails],
+    ["Channel", inquiry.channel],
+    ["Seating", inquiry.seatingArrangement],
+    ["Stage", inquiry.stagePosition],
+    ["Setup notes", inquiry.setupNotes],
+    ["Logged by", inquiry.loggedByName],
+    ["Duplicate of", inquiry.duplicateOfInquiryId],
+    ["Previously declined", inquiry.previouslyDeclined ? "Yes" : null],
+    ["Previous decline", inquiry.previousDeclineReason],
+    ["Decline reason", inquiry.declineReason],
+  ];
+  return candidates.flatMap(([label, value]) => (value ? [{ label, value }] : []));
 }
 
 /** An inquiry can be merged as a source unless it is already merged or has been accepted into a conforme path. */
@@ -196,19 +193,19 @@ export function inquiryHistoryCues(inquiry: PrismInquiry, all: PrismInquiry[]) {
 }
 
 export function toLogInquiryInput(form: InquiryLogForm): LogInquiryOnBehalfInput {
-  return {
+  return parseContract(logInquiryOnBehalfSchema, {
     clientName: form.clientName.trim(),
     companyName: form.companyName.trim() || undefined,
     email: form.email.trim(),
     eventName: form.eventName.trim(),
-    eventType: form.eventType,
+    eventType: form.eventType || undefined,
     eventDate: form.eventDate,
-    clientType: form.clientType,
-    source: form.source,
-    channel: form.channel,
+    clientType: form.clientType || undefined,
+    source: form.source || undefined,
+    channel: form.channel || undefined,
     referralDetails: form.referralDetails.trim() || undefined,
-    message: form.message.trim(),
-  };
+    message: form.message.trim() || undefined,
+  }, "Log inquiry on behalf");
 }
 
 export type InquiryNextStep = { label: string; tone: "action" | "waiting" | "done" };

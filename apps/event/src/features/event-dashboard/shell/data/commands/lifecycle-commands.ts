@@ -1,5 +1,5 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, WaiveOcularVisitInput } from "@prism/types";
+import type { LogInquiryOnBehalfInput, PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, WaiveOcularVisitInput } from "@prism/types";
 import { liveOpsScheduleRepository } from "@/features/live-ops/schedule/data/live-ops-schedule-repository";
 
 export const lifecycleCommands = {
@@ -46,18 +46,7 @@ mergeInquiry: (primaryInquiryId: string, input: { sourceInquiryId: string; reaso
       body: input,
     }),
 logInquiryOnBehalf: (
-    input: {
-      clientName: string;
-      companyName?: string;
-      email: string;
-      eventName: string;
-      eventType?: string;
-      eventDate: string;
-      clientType: string;
-      channel?: string;
-      referralDetails?: string;
-      message: string;
-    },
+    input: LogInquiryOnBehalfInput,
     session: { name: string; email: string; role: string },
   ) =>
     request<PrismInquiry>("/api/inquiries/log-on-behalf", {

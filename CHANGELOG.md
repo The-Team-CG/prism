@@ -7,6 +7,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 - Billing corrections and disputes record a severity: typo correction (no amount may change, and no second approver is needed) or amount discrepancy (unchanged approval rules). PMCM sets it and clients see it on their dispute status; existing records are amount discrepancies.
+- PMCM can download the conforme document as a printable PDF, with its document hash, for physical signing; clients and suppliers cannot.
+- The public inquiry has an optional room set-up section (seating arrangement, stage position, notes), shown read-only in the PMCM inquiry drawer.
+- PMCM can log an inquiry on behalf of a client with only the name, email, event name and date; anything else missing shows as Pending Full Details until it is filled in.
 - PMCM has five days after the recorded actual end of an event to endorse post-event deliverables; the countdown and overdue warning follow that five-day deadline instead of 24 hours.
 - Clients and suppliers can submit their own privacy requests and track their status; PMCM still verifies and carries them out.
 - Supplier file requirement reminders go only to the suppliers who are overdue or need to replace a rejected file.
