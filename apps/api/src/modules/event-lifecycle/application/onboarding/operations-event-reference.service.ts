@@ -99,6 +99,15 @@ export class OperationsEventReferenceService implements OperationsEventReference
     return events.map((event) => event.id);
   }
 
+  async isOpenBidWorkspace(eventId: string, transaction?: PrismTransactionContext) {
+    const event = await (transaction?.prisma ?? this.prisma).opsEvent.findUnique({
+      where: { id: eventId },
+      select: { archived: true, inquiry: { select: { intakePath: true, bidStatus: true, conformeSignedAt: true } } },
+    });
+    const inquiry = event?.inquiry;
+    return Boolean(event && !event.archived && inquiry?.intakePath === 'bidding' && !inquiry.conformeSignedAt && (inquiry.bidStatus === 'preparing' || inquiry.bidStatus === 'submitted'));
+  }
+
   async findEventReadAccess(eventId: string, transaction?: PrismTransactionContext) {
     return (transaction?.prisma ?? this.prisma).opsEvent.findUnique({
       where: { id: eventId },

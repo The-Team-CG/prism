@@ -193,6 +193,20 @@ describe('InquiriesService', () => {
     await expect(service.setIntakePath('inq_1', { intakePath: 'bidding', bidStatus: 'lost' }, { ...pmcmActor, role: OpsUserRole.Client })).rejects.toThrow('Only PMCM');
   });
 
+  it('converts a won bid by accepting the inquiry, and leaves a lost bid for PMCM to close', async () => {
+    const { service, records } = createService([inquiry({ id: 'inq_1', status: 'pending' })]);
+    (service as any).prisma.$transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback((service as any).prisma));
+    const accept = vi.spyOn(service, 'updateInquiryStatus').mockImplementation(async () => Object.assign(records[0], { status: 'accepted' }) as never);
+
+    await service.setIntakePath('inq_1', { intakePath: 'bidding', bidStatus: 'lost' }, pmcmActor);
+    expect(accept).not.toHaveBeenCalled();
+    const won = await service.setIntakePath('inq_1', { intakePath: 'bidding', bidStatus: 'won' }, pmcmActor);
+    expect(accept).toHaveBeenCalledWith('inq_1', { status: 'accepted' }, pmcmActor);
+    expect(won).toMatchObject({ bidStatus: 'won', status: 'accepted' });
+    await service.setIntakePath('inq_1', { intakePath: 'bidding', bidStatus: 'won' }, pmcmActor);
+    expect(accept).toHaveBeenCalledTimes(1);
+  });
+
   it('opens one locked workspace for pre-conforme documents, reuses it, and refuses declined or signed inquiries', async () => {
     const { service } = createService([inquiry({ id: 'inq_1', status: 'accepted' })]);
     const events: Array<Record<string, unknown>> = [];

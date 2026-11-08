@@ -59,6 +59,8 @@ export interface OperationsEventReferenceReader {
   findOperationsEvents(eventIds: readonly string[]): Promise<OperationsEventReference[]>;
   findEventIdsByDateRange(startsAt: Date, endsBefore: Date): Promise<string[]>;
   findEventReadAccess(eventId: string, transaction?: PrismTransactionContext): Promise<EventReadAccessReference | null>;
+  /** FR-43: the pre-conforme record of an inquiry on the bidding path whose bid is still being prepared or awaits the outcome. */
+  isOpenBidWorkspace(eventId: string, transaction?: PrismTransactionContext): Promise<boolean>;
 }
 
 /** Lifecycle-owned mutation for guest policy stored on the event record. */
