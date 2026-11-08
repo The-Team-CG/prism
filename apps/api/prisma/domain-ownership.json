@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 139,
+    "totalTables": 140,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -26,8 +26,8 @@
       {
         "domain": "commercial",
         "schema": "commercial",
-        "tables": 38,
-        "columns": 463
+        "tables": 39,
+        "columns": 477
       },
       {
         "domain": "operations",
@@ -1123,6 +1123,15 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 17,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsVenueScoutingOption",
+      "currentSchema": "commercial",
+      "table": "venue_scouting_options",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 14,
       "introducedAfterCutover": true
     },
     {
