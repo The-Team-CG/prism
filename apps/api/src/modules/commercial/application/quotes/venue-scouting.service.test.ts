@@ -21,7 +21,7 @@ function fixture() {
   const rows: Row[] = [];
   const table = {
     create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
-      const row = { status: 'draft', clientPreferredAt: null, clientPreferenceNote: '', notes: '', createdAt: new Date(), ...data } as Row;
+      const row: Row = { status: 'draft', clientPreferenceNote: '', notes: '', createdAt: new Date(), ...data, id: String(data.id), clientPreferredAt: null };
       rows.push(row);
       return row;
     }),
