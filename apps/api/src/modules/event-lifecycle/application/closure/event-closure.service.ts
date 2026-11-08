@@ -424,11 +424,31 @@ export class EventClosureService {
     });
     const byId = new Map(events.map((event) => [event.id, event]));
     // Columns keep the requested order; any id that is not an archived event fails the whole comparison.
-    return query.eventIds.map((id) => {
+    const ordered = query.eventIds.map((id) => {
       const event = byId.get(id);
       if (!event) throw new NotFoundException('One or more archived events were not found');
-      return mapArchiveComparisonRow(event);
+      return event;
     });
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the comparison holds 2 to 4 events.
+    return Promise.all(ordered.map(async (event) => ({ ...mapArchiveComparisonRow(event), ...(await this.comparisonMetrics(event)) })));
+  }
+
+  /** New-P1: attendance, cost, satisfaction, urgent issues and top suppliers for one archived event. */
+  private async comparisonMetrics(event: { id: string; briefings?: Array<{ guestCount?: number }> }) {
+    const [commercial, lifecycle, topSuppliers] = await Promise.all([
+      this.commercialFactsReader.getLifecycleFacts(event.id),
+      this.lifecycleFactsReader.getClosureFacts(event.id),
+      this.commercialFactsReader.topReviewedSuppliers(event.id),
+    ]);
+    const approved = lifecycle.guestFeedback.filter((item) => item.moderationStatus === 'approved' && item.privacyConsentAccepted && !item.privacyConsentWithdrawnAt);
+    return {
+      plannedGuestCount: event.briefings?.[0]?.guestCount ?? null,
+      attendeeCount: lifecycle.checkedInGuestCount,
+      totalCost: commercial.billingStatements.reduce((sum, statement) => sum + statement.totalAmount, 0),
+      averageGuestRating: approved.length ? Number((approved.reduce((sum, item) => sum + item.rating, 0) / approved.length).toFixed(2)) : null,
+      urgentIssueCount: lifecycle.issues.length,
+      topSuppliers,
+    };
   }
 
   /** Read path: the logistics section and status reflect the PMCM record, whatever the stored row says. */
