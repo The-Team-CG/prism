@@ -5,6 +5,7 @@ import type { FormEvent } from "react";
 import type { PrismCoordinatorRegistrationEntry } from "@prism/types";
 import { canCheckInRegistrationEntry, canFlagRegistrationEntry, canRejectRegistrationEntry, canVerifyRegistrationEntry } from "../model/registration-rules";
 import { useCoordinatorRegistrationDeskViewModel } from "../view-models/use-coordinator-registration-desk-view-model";
+import { QrScanCheckIn } from "@/features/registration/qr-passes/views/qr-scan-check-in";
 
 const buttonClass = "min-h-10 rounded-md border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground hover:bg-secondary/50 disabled:cursor-not-allowed disabled:opacity-50";
 const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground";
@@ -53,6 +54,7 @@ export function CoordinatorRegistrationDesk({
         <p className="mt-2 text-sm font-semibold text-foreground" aria-live="polite" aria-atomic="true">
           {guestAttendanceCount === undefined ? "Attendance count unavailable." : `${guestAttendanceCount} guests checked in.`}
         </p>
+        <div className="mt-3"><QrScanCheckIn key={`scan-${eventId}`} eventId={eventId} onCheckedIn={() => void onAttendanceChange?.()} /></div>
       </header>
 
       <div className="space-y-6 px-5 py-4">

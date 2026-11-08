@@ -42,6 +42,7 @@ import { VenueScoutingPanel } from "@/features/commercial/venue-scouting/views/v
 import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
 import { PmcmProposalComments } from "@/features/commercial/proposal-comments/views/pmcm-proposal-comments";
 import { PmcmRoleBriefEditor } from "@/features/coordinators/role-briefs/views/pmcm-role-brief-editor";
+import { CoordinatorReplacementPanel } from "@/features/pare/coordinator/views/coordinator-replacement-panel";
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
 import { PmcmSupplierGapWarning } from "@/features/suppliers/supplier-gaps/views/pmcm-supplier-gap-warning";
 import { PmcmExternalCreativePanel } from "@/features/suppliers/external-creative/views/pmcm-external-creative-panel";
@@ -295,6 +296,7 @@ export function EventWorkspaceCoordinatorsTab() {
       ),
     },
     { id: "role-briefs", label: "Role briefs", render: () => <PmcmRoleBriefEditor eventId={event.id} /> },
+    ...(isPmcmAdmin(vm.session.role) ? [{ id: "emergency-replacements", label: "Emergency replacements", render: () => <CoordinatorReplacementPanel eventId={event.id} /> }] : []),
     { id: "postponement", label: "If the date moves", render: () => <div className="space-y-5"><VenueConfirmationsPanel eventId={event.id} /><PostponementImpactPanel eventId={event.id} /></div> },
   ];
   return <WorkspaceSubTabs label="Team sections" tabs={tabs} />;

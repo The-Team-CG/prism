@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 140,
+    "totalTables": 141,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -32,8 +32,8 @@
       {
         "domain": "operations",
         "schema": "operations",
-        "tables": 13,
-        "columns": 158
+        "tables": 14,
+        "columns": 174
       },
       {
         "domain": "floorplan",
@@ -830,7 +830,7 @@
       "table": "guest_roster_entries",
       "domain": "operations",
       "targetSchema": "operations",
-      "columnCount": 20
+      "columnCount": 21
     },
     {
       "model": "OpsGuestRosterImport",
@@ -1123,6 +1123,15 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 17,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsCoordinatorReplacementRecommendation",
+      "currentSchema": "operations",
+      "table": "coordinator_replacement_recommendations",
+      "domain": "operations",
+      "targetSchema": "operations",
+      "columnCount": 15,
       "introducedAfterCutover": true
     },
     {
