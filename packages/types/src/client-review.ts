@@ -24,8 +24,16 @@ export interface PrismClientReviewDecision {
   itemVersion: number;
   action: PrismClientReviewAction;
   comment: string;
+  /** FR-09: present on a styling revision request. */
+  budgetExpectation?: "raise_budget" | "lower_cost_option" | "keep_budget";
   decidedAt: string;
 }
+
+export const BUDGET_EXPECTATION_LABELS = {
+  raise_budget: "Raise the styling budget",
+  lower_cost_option: "Ask for a lower-cost option",
+  keep_budget: "Keep the budget and change the design",
+} as const;
 
 export interface PrismClientFloorPlanDecision {
   id: string;
