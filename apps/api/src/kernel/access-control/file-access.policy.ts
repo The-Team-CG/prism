@@ -16,8 +16,8 @@ export type FileAccessObject = {
   deletedAt: Date | null;
 };
 
-/** Supported file kinds. Game media, lobby branding, and guest feedback media are outside this policy. */
-export type FileAccessKind = 'signed_conforme' | 'client_document' | 'billing_statement' | 'proposal_deliverable' | 'styling_moodboard' | 'supplier_document';
+/** Supported file kinds. Game media and lobby branding are outside this policy. */
+export type FileAccessKind = 'signed_conforme' | 'client_document' | 'billing_statement' | 'proposal_deliverable' | 'styling_moodboard' | 'supplier_document' | 'guest_feedback_media';
 
 export type FileAccessActor = { role: string; supplierId?: string | null };
 
@@ -47,6 +47,8 @@ const KIND_BY_OWNER_USAGE: ReadonlyMap<string, FileAccessKind> = new Map<string,
   // FR-09 / FR-30: moodboard images PMCM attaches to a styling option; the client reviews them with the option.
   ['client_review_item:event_deliverable', 'styling_moodboard'],
   ['supplier:supplier_document', 'supplier_document'],
+  // New-SEC3: guest feedback photos and videos; only PMCM reviews them.
+  ['event:guest_feedback_media', 'guest_feedback_media'],
 ]);
 
 export function fileAccessKindOf(object: Pick<FileAccessObject, 'usage' | 'ownerRecordType'>): FileAccessKind | null {
@@ -61,6 +63,7 @@ const KIND_ACCESS: Record<FileAccessKind, (actor: FileAccessActor, object: FileA
   proposal_deliverable: (actor) => actor.role === OpsUserRole.Client,
   styling_moodboard: (actor) => actor.role === OpsUserRole.Client,
   supplier_document: (actor, object) => actor.role === OpsUserRole.Supplier && Boolean(actor.supplierId) && object.ownerRecordId === actor.supplierId,
+  guest_feedback_media: () => false,
 };
 
 /**

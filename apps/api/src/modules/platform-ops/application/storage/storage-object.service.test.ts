@@ -38,6 +38,11 @@ function createStore() {
         return object;
       }),
       updateMany: vi.fn(async ({ where, data }: { where: Record<string, any>; data: Record<string, any> }) => {
+        if (where.id?.in) {
+          const hits = objects.filter((candidate) => where.id.in.includes(candidate.id));
+          hits.forEach((candidate) => Object.assign(candidate, data, { updatedAt: now() }));
+          return { count: hits.length };
+        }
         const object = objects.find((candidate) => Object.entries(where).every(([key, value]) => candidate[key] === value));
         if (!object) return { count: 0 };
         Object.assign(object, data, { updatedAt: now() });
@@ -48,7 +53,7 @@ function createStore() {
         if (!object) throw new Error('object missing');
         return object;
       }),
-      findMany: vi.fn(async ({ where }: { where: { eventId: string } }) => objects.filter((object) => object.eventId === where.eventId)),
+      findMany: vi.fn(async ({ where }: { where: { eventId?: string; id?: { in: string[] } } }) => objects.filter((object) => (where.id ? where.id.in.includes(object.id) : object.eventId === where.eventId))),
     },
     opsEvent: {
       findUnique: vi.fn(async () => ({ id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] as Array<{ supplierId: string; supplier: { email: string } }> })),
@@ -297,6 +302,30 @@ describe('StorageObjectService', () => {
     const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
     await expect(service.requestUpload({ ...request, actor })).rejects.toThrow(/Archived events/);
     expect(adapter.requestUploadLocation).not.toHaveBeenCalled();
+  });
+
+  it('stores guest feedback media only when the bytes are a real image, keeps it PMCM-only, and erases it on request', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'prism-guest-media-'));
+    roots.push(root);
+    const store = createStore();
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), new LocalFileSystemStorageAdapter(root), store.platformReferences as never);
+    const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 4]);
+
+    await expect(service.storeGuestFeedbackMedia({ eventId: 'evt_1', fileName: 'table.png', contentType: 'image/png', bytes: Buffer.from('not really a png') })).rejects.toThrow('Uploaded bytes do not match the declared file type');
+    expect(store.objects).toHaveLength(0);
+
+    const stored = await service.storeGuestFeedbackMedia({ eventId: 'evt_1', fileName: 'table.png', contentType: 'image/png', bytes: png });
+    expect(stored).toMatchObject({ originalFileName: 'table.png', contentType: 'image/png', byteSize: png.byteLength });
+    expect(await service.findStoredGuestFeedbackMedia({ eventId: 'evt_1', objectId: stored.id })).toMatchObject({ id: stored.id });
+    expect(await service.findStoredGuestFeedbackMedia({ eventId: 'evt_other', objectId: stored.id })).toBeNull();
+    // The generic session routes cannot reach guest media, and a client cannot download it.
+    await expect(service.requestUpload({ ...request, ownerRecordType: 'event', ownerRecordId: 'evt_1', usage: 'guest_feedback_media', actor })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.issueDownloadAuthorization({ objectId: stored.id, actor: client })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.issueDownloadAuthorization({ objectId: stored.id, actor })).resolves.toMatchObject({ fileName: 'table.png' });
+
+    await expect(service.eraseGuestFeedbackMedia([stored.id], store.prisma as never)).resolves.toBe(1);
+    expect(store.objects.find((object) => object.id === stored.id)).toMatchObject({ lifecycleState: 'deleted', originalFileName: '[redacted by privacy request]' });
+    expect(await service.findStoredGuestFeedbackMedia({ eventId: 'evt_1', objectId: stored.id })).toBeNull();
   });
 
   it('round-trips bytes through the configured local adapter and marks deletion', async () => {

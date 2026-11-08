@@ -80,9 +80,13 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
       select: { id: true },
     });
     if (!feedback) return { surfaces: [], touchedRecords: 0 };
+    const storedMedia = await transaction.opsGuestFeedbackMedia.findMany({
+      where: { feedbackId: feedback.id, storedObjectId: { not: null } },
+      select: { storedObjectId: true },
+    });
     const media = await transaction.opsGuestFeedbackMedia.updateMany({
       where: { feedbackId: feedback.id },
-      data: { originalFileName: '[redacted by privacy request]' },
+      data: { originalFileName: '[redacted by privacy request]', storedObjectId: null, status: 'erased' },
     });
     const feedbackUpdate = await transaction.opsGuestFeedback.updateMany({
       where: { id: feedback.id, eventId: input.eventId },
@@ -99,6 +103,7 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
         ...(feedbackUpdate.count ? ['guest_feedback'] : []),
       ],
       touchedRecords: media.count + feedbackUpdate.count,
+      storedObjectIds: storedMedia.flatMap(({ storedObjectId }) => (storedObjectId ? [storedObjectId] : [])),
     };
   }
 

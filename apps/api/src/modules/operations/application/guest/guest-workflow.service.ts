@@ -4,8 +4,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
-import { validateUploadMetadata } from '@prism/kernel/shared';
+import { GUEST_FEEDBACK_MEDIA_STORE, NOTIFICATION_OUTBOX_WRITER, type GuestFeedbackMediaStore, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
 import { STAFFING_READER } from '../../contracts/staffing-ops.tokens';
 import type { StaffingReader } from '../../contracts/staffing-reader.port';
 import type {
@@ -26,7 +25,7 @@ import type {
   PrismGuestFeedbackReceipt,
   PrismGuestRosterEntry,
   UpdateGuestVerificationInput,
-  UploadMetadataInput,
+  PrismGuestFeedbackMediaUpload,
   WithdrawGuestFeedbackConsentInput,
   PrismGuestEventWatermark,
 } from '@prism/types';
@@ -69,8 +68,6 @@ export type GuestFeedbackInput = CreateGuestFeedbackInput;
 export type GuestFeedbackModerator = { id?: string; name: string; email?: string; role: string };
 type GuestWorkflowActor = { id?: string; coordinatorId?: string; email?: string; name: string; role: string };
 
-const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-const GUEST_UPLOAD_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'video/mp4'] as const;
 const MAX_GUEST_CHECK_INS = 500;
 const MAX_GUEST_FEEDBACK = 500;
 const MAX_GUEST_ROSTER_SEARCH = 500;
@@ -91,7 +88,18 @@ export class GuestWorkflowService implements GuestCommands {
     @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
     @Inject(GUEST_EVENT_PROJECTION_READER) private readonly eventProjections: GuestEventProjectionReader,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter,
+    @Inject(GUEST_FEEDBACK_MEDIA_STORE) private readonly feedbackMedia: GuestFeedbackMediaStore,
   ) {}
+
+  /** New-SEC3: a guest's feedback photo or video, stored only after the code, window and file checks pass. */
+  async uploadFeedbackMediaByAccessCode(accessCode: string, file: { fileName: string; contentType: string; bytes: Uint8Array }): Promise<PrismGuestFeedbackMediaUpload> {
+    const event = await this.resolveGuestEventByAccessCode(accessCode, true);
+    this.assertFeedbackWindow(event);
+    const kind = feedbackMediaKind(file.contentType);
+    if (!kind) throw new BadRequestException('Feedback media must be a photo or a video');
+    const stored = await this.feedbackMedia.storeGuestFeedbackMedia({ eventId: event.id, ...file });
+    return { objectId: stored.id, kind };
+  }
 
   async getEventByAccessCode(accessCode: string) {
     return this.resolveGuestEventByAccessCode(accessCode);
@@ -465,6 +473,7 @@ export class GuestWorkflowService implements GuestCommands {
   async submitFeedbackByAccessCode(accessCode: string, input: GuestFeedbackInput): Promise<PrismGuestFeedbackReceipt> {
     let event: EventWithDrafts | null = null;
     let guestName = '';
+    let storedMedia: Prisma.OpsGuestFeedbackMediaCreateWithoutFeedbackInput[] = [];
 
     const feedback = await this.workflowCommandService.execute<OpsGuestFeedback>({
       name: 'guest_feedback',
@@ -481,10 +490,7 @@ export class GuestWorkflowService implements GuestCommands {
           throw new BadRequestException('Rating must be between 1 and 5');
         }
         this.assertFeedbackWindow(event);
-
-        const prefix = `events/${event.id}/guest-feedback`;
-        if (input.photo) this.validateUploadMetadata(input.photo, prefix);
-        if (input.video) this.validateUploadMetadata(input.video, prefix);
+        storedMedia = await this.resolveFeedbackMedia(event.id, input);
       },
       validateStateInTransaction: async (context) => {
         if (!event) throw new NotFoundException('Guest event code was not found');
@@ -496,9 +502,7 @@ export class GuestWorkflowService implements GuestCommands {
         if (!event) throw new NotFoundException('Guest event code was not found');
         const db = transactionContext?.prisma ?? this.prisma;
         const feedbackId = `gfb_${randomUUID()}`;
-        const mediaAttachments: Prisma.OpsGuestFeedbackMediaCreateWithoutFeedbackInput[] = [];
-        if (input.photo) mediaAttachments.push({ id: `gfm_${randomUUID()}`, kind: 'photo', originalFileName: input.photo.fileName, mimeType: input.photo.mimeType ?? '', sizeBytes: input.photo.sizeBytes ?? 0, status: 'pending_storage', blocker: 'W10 object storage provider and credentials are not available' });
-        if (input.video) mediaAttachments.push({ id: `gfm_${randomUUID()}`, kind: 'video', originalFileName: input.video.fileName, mimeType: input.video.mimeType ?? '', sizeBytes: input.video.sizeBytes ?? 0, status: 'pending_storage', blocker: 'W10 object storage provider and credentials are not available' });
+        const mediaAttachments = storedMedia;
         return db.opsGuestFeedback.create({
           data: {
             id: feedbackId,
@@ -506,7 +510,7 @@ export class GuestWorkflowService implements GuestCommands {
             guestName,
             rating: input.rating,
             comment: input.comment?.trim() ?? '',
-            // Binary bytes are not stored until W10 supplies an approved object-storage adapter.
+            // Media lives in feedback_media rows that point at byte-checked stored objects.
             photoFileName: null,
             videoFileName: null,
             privacyConsentAccepted: input.privacyConsentAccepted === true,
@@ -961,16 +965,29 @@ export class GuestWorkflowService implements GuestCommands {
           sizeBytes: media.sizeBytes,
           status: media.status,
           blocker: media.blocker,
+          storedObjectId: media.storedObjectId,
         }];
       }),
       submittedAt: feedback.submittedAt.toISOString(),
     };
   }
 
-  private validateUploadMetadata(input: UploadMetadataInput, prefix: string) {
-    return validateUploadMetadata(input, prefix, {
-      maxSizeBytes: MAX_UPLOAD_SIZE_BYTES,
-      allowedMimeTypes: GUEST_UPLOAD_MIME_TYPES,
-    });
+  /** Each referenced object must be stored guest media of this event, of the matching kind. */
+  private async resolveFeedbackMedia(eventId: string, input: GuestFeedbackInput): Promise<Prisma.OpsGuestFeedbackMediaCreateWithoutFeedbackInput[]> {
+    const requested = [['photo', input.photoObjectId], ['video', input.videoObjectId]] as const;
+    const media: Prisma.OpsGuestFeedbackMediaCreateWithoutFeedbackInput[] = [];
+    for (const [kind, objectId] of requested) {
+      if (!objectId) continue;
+      const stored = await this.feedbackMedia.findStoredGuestFeedbackMedia({ eventId, objectId });
+      if (!stored || feedbackMediaKind(stored.contentType) !== kind) throw new BadRequestException(`The ${kind} is not a stored upload for this event`);
+      media.push({ id: `gfm_${randomUUID()}`, kind, originalFileName: stored.originalFileName, mimeType: stored.contentType, sizeBytes: stored.byteSize, status: 'stored', blocker: '', storedObjectId: stored.id });
+    }
+    return media;
   }
+}
+
+function feedbackMediaKind(contentType: string): 'photo' | 'video' | null {
+  if (contentType.startsWith('image/')) return 'photo';
+  if (contentType.startsWith('video/')) return 'video';
+  return null;
 }
