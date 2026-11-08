@@ -38,6 +38,7 @@ import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismBriefing } from "@prism/types";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import { PmcmClientReviewPanel } from "@/features/commercial/client-review/views/pmcm-client-review-panel";
+import { VenueScoutingPanel } from "@/features/commercial/venue-scouting/views/venue-scouting-panel";
 import { PmcmProposalIssuerPanel } from "@/features/commercial/proposal-issuer/views/pmcm-proposal-issuer-panel";
 import { PmcmProposalComments } from "@/features/commercial/proposal-comments/views/pmcm-proposal-comments";
 import { PmcmRoleBriefEditor } from "@/features/coordinators/role-briefs/views/pmcm-role-brief-editor";
@@ -206,7 +207,7 @@ export function EventWorkspaceBriefingTab() {
       render: () => <BriefingSummary briefing={briefing} canSubmit busy={Boolean(vm.busy)} onSubmit={() => void vm.submitBriefing()} />,
     },
     ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
-    { id: "reviews", label: "Client reviews", render: () => <PmcmClientReviewPanel eventId={selectedEvent.id} /> },
+    { id: "reviews", label: "Client reviews", render: () => <div className="space-y-5">{admin ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}<PmcmClientReviewPanel eventId={selectedEvent.id} /></div> },
     ...(admin ? [{ id: "follow-ups", label: "Client follow-ups", render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> }] : []),
     { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
     ...(admin ? [{ id: "decisions", label: "Decision log", render: () => <DecisionLogPanel eventId={selectedEvent.id} /> }] : []),
