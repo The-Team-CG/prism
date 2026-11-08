@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
@@ -6,7 +6,7 @@ import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, isPrimaryClientContact, type CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
-import type { PrismAddendumConformeExecution, SignAddendumConformeExecutionInput } from '@prism/types';
+import { addendumPlannedImpactsSchema, type PrismAddendumConformeExecution, type SignAddendumConformeExecutionInput } from '@prism/types';
 import {
   ADDENDUM_CONSENT_TEXT,
   ADDENDUM_CONSENT_VERSION,
@@ -18,7 +18,7 @@ import { mapAddendumConformeExecution } from './addendum-conforme.mappers';
 
 type SignerRole = 'client' | 'pmcm';
 type RequestMetadata = { ip?: string; userAgent?: string };
-type ExecutionWithContext = Prisma.OpsAddendumConformeExecutionGetPayload<{ include: { signatures: true; event: { include: { inquiry: true } } } }>;
+type ExecutionWithContext = Prisma.OpsAddendumConformeExecutionGetPayload<{ include: { signatures: true; event: { include: { inquiry: true } }; addendum: true } }>;
 type ComparisonChanges = AddendumConformeSnapshot['comparison']['contract'];
 
 @Injectable()
@@ -42,6 +42,7 @@ export class AddendumConformeService {
         include: { conformeExecution: { include: { signatures: true } }, event: { include: { inquiry: true } } },
       });
       if (!addendum) throw new NotFoundException('Addendum not found');
+      if (addendum.status === 'withdrawn') throw new ConflictException('A withdrawn addendum cannot be sent for conforme signature');
       if (addendum.conformeExecution) return mapAddendumConformeExecution(addendum.conformeExecution);
       if (addendum.event.archived) throw new BadRequestException('Archived events cannot receive addendum conformes');
 
@@ -79,12 +80,15 @@ export class AddendumConformeService {
   private async sign(role: SignerRole, eventId: string, addendumId: string, input: SignAddendumConformeExecutionInput, actor: ResolvedEventOpsActor, metadata: RequestMetadata) {
     this.requireVerifiedIdentity(actor);
     return this.prisma.$transaction(async (tx) => {
+      // QUERY_AUDIT_RAW_SQL: lock order is addendum, then execution. Withdrawal and countersignature take the same order.
+      await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.addenda WHERE id = ${addendumId} FOR UPDATE`;
       // QUERY_AUDIT_RAW_SQL: serialize client/PMCM signature insertion on the immutable execution version.
       await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.addendum_conforme_executions WHERE id = ${input.executionId} FOR UPDATE`;
       const execution = await tx.opsAddendumConformeExecution.findUnique({
-        where: { id: input.executionId }, include: { signatures: true, event: { include: { inquiry: true } } },
+        where: { id: input.executionId }, include: { signatures: true, event: { include: { inquiry: true } }, addendum: true },
       });
       if (!execution || execution.addendumId !== addendumId || execution.eventId !== eventId) throw new NotFoundException('Addendum conforme not found');
+      if (execution.addendum.status === 'withdrawn') throw new ConflictException('This addendum was withdrawn and can no longer be signed');
       await this.assertSignerScope(role, execution, actor);
       this.assertDisplayedVersion(execution, input);
       if (this.findPriorSignature(execution, role, actor)) return mapAddendumConformeExecution(execution);
@@ -107,8 +111,13 @@ export class AddendumConformeService {
     return mapAddendumConformeExecution(updated);
   }
 
+  /**
+   * One rule: countersignature always completes the conforme and records it on the billing line. The stored plan is applied
+   * only by the pending -> effective transition, so an addendum that is already effective has nothing to apply.
+   */
   private async completeWithCountersignature(tx: Prisma.TransactionClient, execution: ExecutionWithContext, actor: ResolvedEventOpsActor) {
     const completedAt = new Date();
+    if (execution.addendum.status === 'pending') await this.makeEffective(tx, execution, completedAt);
     // The billing line carrying this addendum's delta is found through the addendum's own impact record, then matched by addendum id.
     const billingSourceId = await this.addendumBillingSourceId(tx, execution.addendumId);
     const trace = billingSourceId
@@ -122,6 +131,34 @@ export class AddendumConformeService {
     });
     await this.auditSignature(tx, execution, actor, 'Completed addendum conforme with PMCM countersignature', 'pmcm', { billingSourceId: trace?.billingSourceId ?? null });
     return mapAddendumConformeExecution(completed);
+  }
+
+  /** The pending -> effective transition. The only place the stored plan is applied; it runs inside the countersignature transaction. */
+  private async makeEffective(tx: Prisma.TransactionClient, execution: ExecutionWithContext, effectiveAt: Date) {
+    const transition = await tx.opsAddendum.updateMany({
+      where: { id: execution.addendumId, status: 'pending' },
+      data: { status: 'effective', effectiveAt },
+    });
+    if (transition.count !== 1) throw new ConflictException('This addendum is no longer pending');
+    if (execution.addendum.plannedImpacts === null) throw new InternalServerErrorException('A pending addendum has no stored commercial plan');
+    const plan = addendumPlannedImpactsSchema.parse(execution.addendum.plannedImpacts);
+    const impacts = await this.commercial.apply({
+      eventId: execution.eventId, addendumId: execution.addendumId, versionNumber: execution.versionNumber, plan,
+    }, { prisma: tx, correlationId: execution.addendumId });
+    if (impacts.length > 0) {
+      await tx.opsAddendumImpact.createMany({
+        data: impacts.map((impact) => ({
+          id: `impact_${randomUUID()}`,
+          eventId: execution.eventId,
+          addendumId: execution.addendumId,
+          targetType: impact.targetType,
+          targetId: impact.targetId,
+          beforeValue: toPrismaJson(impact.beforeValue),
+          afterValue: toPrismaJson(impact.afterValue),
+          deltaAmount: impact.deltaAmount,
+        })),
+      });
+    }
   }
 
   private async addendumBillingSourceId(tx: Prisma.TransactionClient, addendumId: string): Promise<string | null> {

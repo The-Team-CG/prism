@@ -20,7 +20,7 @@ export interface PrismConformeExecution {
   signatures: PrismConformeSignature[];
 }
 
-export type PrismAddendumConformeStatus = 'awaiting_client' | 'awaiting_pmcm' | 'completed';
+export type PrismAddendumConformeStatus = 'awaiting_client' | 'awaiting_pmcm' | 'completed' | 'withdrawn';
 
 export interface PrismAddendumConformeSignature {
   id: string;

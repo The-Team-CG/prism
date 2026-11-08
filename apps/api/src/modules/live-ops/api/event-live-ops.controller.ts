@@ -3,6 +3,7 @@ import { zodBody } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import {
+  blockEventDayTaskSchema,
   createEventDayTaskSchema,
   createEventTaskReassignmentSchema,
   decideEventTaskReassignmentSchema,
@@ -22,6 +23,7 @@ import {
   createEventHandoffSchema,
   createEventEodReportSchema,
   createEventEodReplySchema,
+  type BlockEventDayTaskInput,
   type CreateEventDayTaskInput,
   type CreateEventTaskReassignmentInput,
   type DecideEventTaskReassignmentInput,
@@ -175,6 +177,31 @@ export class EventLiveOpsController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.commandService.updateEventDayTask(eventId, taskId, dto, actor);
+  }
+
+  @Post(':eventId/event-day/tasks/:taskId/block')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  blockEventDayTask(
+    @Param('eventId') eventId: string,
+    @Param('taskId') taskId: string,
+    @Body(zodBody(blockEventDayTaskSchema)) dto: BlockEventDayTaskInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.commandService.blockEventDayTask(eventId, taskId, dto, actor);
+  }
+
+  @Post(':eventId/event-day/tasks/:taskId/unblock')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  unblockEventDayTask(
+    @Param('eventId') eventId: string,
+    @Param('taskId') taskId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.commandService.unblockEventDayTask(eventId, taskId, actor);
   }
 
   @Post(':eventId/event-day/tasks/:taskId/escalate')

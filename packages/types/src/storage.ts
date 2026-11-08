@@ -17,7 +17,8 @@ export interface PrismStoredObject {
   lifecycleState: "requested" | "stored" | "failed" | "deleted";
   providerName?: string | null;
   providerObjectKey?: string | null;
-  failureReason: string | null;
+  /** Provider failure detail; PMCM-only, so non-PMCM lists omit it. */
+  failureReason?: string | null;
   requestedAt: string;
   storedAt: string | null;
   failedAt: string | null;

@@ -9,7 +9,7 @@ import type {
   PrismBriefing,
   PrismLiveOps,
 } from '@prism/types';
-import { isActiveCoordinatorAssignmentStatus, prismCalendarDateKey, selectCoordinatorFocusEventId } from '@prism/types';
+import { isActiveCoordinatorAssignmentStatus, isGuestDeskRole, prismCalendarDateKey, selectCoordinatorFocusEventId } from '@prism/types';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
   isOpsConstantValue,
@@ -160,7 +160,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
             verifiedBy: status.verifiedBy,
           }))
         : [],
-      guestCheckIns: this.isRegistrationRole(assignment.role) ? base.guestCheckIns : [],
+      guestCheckIns: isGuestDeskRole(assignment.role) ? base.guestCheckIns : [],
     };
   }
 
@@ -245,7 +245,7 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
     const includeGuestDetails =
       actor.role === OpsUserRole.PmcmAdmin ||
       actor.role === OpsUserRole.System ||
-      Boolean(liveOps.role && this.isRegistrationRole(liveOps.role));
+      isGuestDeskRole(liveOps.role);
 
     return buildStatusFeed({
       event: liveOps.event,
@@ -340,11 +340,6 @@ export class LiveOpsReadModelsService implements LiveOpsReadModel {
       activeFloorPlanDraftId: activeDraft?.id,
       floorPlanDrafts: floorPlanDrafts.map((draft) => this.floorplanReader.mapFloorPlanDraft(draft)),
     };
-  }
-
-  private isRegistrationRole(role: string) {
-    const normalized = role.toLowerCase();
-    return normalized.includes('registration') || normalized.includes('usher');
   }
 
   private isIngressRole(role?: string | null) {

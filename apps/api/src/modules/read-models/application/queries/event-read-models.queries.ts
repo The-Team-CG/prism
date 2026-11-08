@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type {
+  OpsDocument,
   OpsEvent,
   OpsSupplier,
   OpsSupplierCategory,
@@ -10,7 +11,7 @@ import type {
 } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditCategory, CoordinatorAssignmentStatus, OpsUserRole } from '@prism/kernel/event-core';
-import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
+import { canReadDocumentRow, requirementVisibilityFor, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { PRISM_PMCM_COMMAND_INBOX_MAX_PAGE } from '@prism/types';
 import { findFloorPlanDraftsByEvent, withFloorPlanDrafts } from '@prism/contexts/floorplan/event-drafts';
 import { CLIENT_CHANGE_REQUEST_SELECT } from '@prism/contexts/event-lifecycle';
@@ -435,7 +436,7 @@ export class EventReadModelQueries {
       readAllRowsById(DECISION_LOG_SOURCE_PAGE_SIZE, (afterId) =>
         this.prisma.opsAddendum.findMany({
           where: { eventId, ...(afterId ? { id: { gt: afterId } } : {}) },
-          select: { id: true, versionNumber: true, title: true, summary: true, status: true, financialDelta: true, issuedAt: true, _count: { select: { impacts: true } } },
+          select: { id: true, versionNumber: true, title: true, summary: true, status: true, financialDelta: true, issuedAt: true, effectiveAt: true, withdrawnAt: true, withdrawalReason: true, _count: { select: { impacts: true } } },
           orderBy: { id: 'asc' },
           take: DECISION_LOG_SOURCE_PAGE_SIZE,
         }),
@@ -721,6 +722,59 @@ export class EventReadModelQueries {
       take: MAX_NOTIFICATION_LOGS,
     });
   }
+  /**
+   * Document rows a client may see under the shared file policy. A row bound to a stored object follows
+   * that object's list rule, including requirement narrowing; a row without one follows its type. Every
+   * lookup is bounded by the batch's own rows, so nothing is truncated into a fail-open decision.
+   */
+  async clientReadableDocuments(actor: ResolvedEventOpsActor, documents: OpsDocument[]): Promise<OpsDocument[]> {
+    if (documents.length === 0) return documents;
+    const boundTypes = new Map<string, string[]>();
+    for (const document of documents) {
+      if (document.storageKey) boundTypes.set(document.storageKey, [...(boundTypes.get(document.storageKey) ?? []), document.type]);
+    }
+    const objectIds = [...boundTypes.keys()];
+    const eventIds = [...new Set(documents.map((document) => document.eventId))];
+    const keys = [...new Set(['signed_conforme', 'billing_statement', ...documents.map((document) => document.type)])];
+    const objects = objectIds.length === 0 ? [] : await this.prisma.opsStoredObject.findMany({
+      where: { id: { in: objectIds } },
+      select: { id: true, usage: true, ownerRecordType: true, ownerRecordId: true, lifecycleState: true, deletedAt: true },
+      take: objectIds.length,
+    });
+    const billingOwnerIds = objects.filter((object) => object.ownerRecordType === 'billing_statement').map((object) => object.ownerRecordId);
+    // Requirement narrowing matters only for rows bound to a stored object; billing sent state only for billing rows.
+    const requirements = objectIds.length === 0 ? [] : await this.prisma.opsFileRequirement.findMany({
+      where: { eventId: { in: eventIds }, key: { in: keys } },
+      select: { eventId: true, key: true, visibleToRoles: true },
+      take: eventIds.length * keys.length,
+    });
+    const needsBilling = billingOwnerIds.length > 0 || documents.some((document) => document.type === 'billing_statement');
+    const statements = needsBilling ? await this.prisma.opsBillingStatement.findMany({
+      where: {
+        sentAt: { not: null },
+        OR: [{ documentId: { in: documents.map((document) => document.id) } }, { id: { in: billingOwnerIds } }],
+      },
+      select: { id: true, documentId: true },
+      take: documents.length + billingOwnerIds.length,
+    }) : [];
+    const objectById = new Map(objects.map((object) => [object.id, object]));
+    const visibilityByEvent = new Map<string, Record<string, string[]>>();
+    for (const row of requirements) visibilityByEvent.set(row.eventId, { ...visibilityByEvent.get(row.eventId), [row.key]: row.visibleToRoles });
+    const sentStatementIds = new Set(statements.map((statement) => statement.id));
+    const sentDocumentIds = new Set(statements.flatMap((statement) => (statement.documentId ? [statement.documentId] : [])));
+    return documents.filter((document) => {
+      const object = document.storageKey ? objectById.get(document.storageKey) ?? null : null;
+      const bound = object
+        ? {
+          object,
+          requirementVisibility: requirementVisibilityFor(object, boundTypes.get(object.id) ?? [], visibilityByEvent.get(document.eventId) ?? {}),
+          billingStatementSent: sentStatementIds.has(object.ownerRecordId),
+        }
+        : { object: null, requirementVisibility: [], billingStatementSent: sentDocumentIds.has(document.id) };
+      return canReadDocumentRow(actor, { type: document.type, storageKey: document.storageKey ?? null }, bound);
+    });
+  }
+
   // Every action source is fetched in bounded keyset pages for the visible event set.
   async clientActionCenterForEvents(eventIds: string[], changeDecisionsSince = new Date(0)) {
     const [
@@ -984,7 +1038,7 @@ export class EventReadModelQueries {
             { slaDueAt: null, dueAt: { lt: now } },
           ],
         },
-        select: { id: true, eventId: true, title: true, status: true, assignedRole: true, ownerName: true, notes: true, dueAt: true, slaDueAt: true, slaStatus: true },
+        select: { id: true, eventId: true, title: true, status: true, assignedRole: true, ownerName: true, blockedReason: true, dueAt: true, slaDueAt: true, slaStatus: true },
         orderBy: [{ slaDueAt: 'asc' }, { id: 'asc' }],
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
         skip, take,

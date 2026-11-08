@@ -1,11 +1,11 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { DecideFreezeExceptionInput, FreezeEventInput, IssueAddendumInput, RequestFreezeExceptionInput, PrismAddendum, PrismClientChangeRequest, PrismEventFreezeException } from '@prism/types';
 import { randomUUID } from 'node:crypto';
-import { mapAddendumConformeExecution } from './addendum-conforme.mappers';
+import { mapAddendum, presentAddendumFor } from './addendum.mappers';
 import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, type CommercialAddendumImpactWriter } from '@prism/contexts/commercial';
 import { consumeApprovedFreezeException } from './freeze-exception-consumption';
 import { PRISM_BUSINESS_UTC_OFFSET_HOURS } from '@prism/types';
@@ -51,14 +51,15 @@ function mapException(value: { id: string; eventId: string; requestedChange: str
   };
 }
 
-function mapAddendum(value: { id: string; eventId: string; versionNumber: number; title: string; summary: string; status: string; documentId: string | null; documentState: string; signatureMethod: string; comparison: unknown; financialDelta: number; issuedAt: Date; conformeExecution?: Parameters<typeof mapAddendumConformeExecution>[0] | null }): PrismAddendum {
-  return { id: value.id, eventId: value.eventId, versionNumber: value.versionNumber, title: value.title, summary: value.summary, status: 'issued', documentId: value.documentId ?? '', documentState: value.documentState as 'pending' | 'available', signatureMethod: 'scanned_document', comparison: value.comparison as PrismAddendum['comparison'], financialDelta: value.financialDelta, issuedAt: value.issuedAt.toISOString(), conforme: value.conformeExecution ? mapAddendumConformeExecution(value.conformeExecution) : null };
-}
-
-/** Supplier quote lines are PMCM cost data; every other reader gets the contract-level comparison only. */
-function presentAddendumFor(addendum: PrismAddendum, includeSupplierQuotes: boolean): PrismAddendum {
-  if (includeSupplierQuotes) return addendum;
-  return { ...addendum, comparison: { contract: addendum.comparison.contract, quotes: [] } };
+/** Quote amounts that the comparison says changed. Quotes whose amount did not change are not planned. */
+function quotePriceChangesOf(quoteChanges: ReturnType<typeof compareSnapshots>) {
+  return quoteChanges.flatMap((change) => {
+    const before = change.before as SnapshotEntry | null;
+    const after = change.after as SnapshotEntry | null;
+    const quoteId = String(after?.id ?? before?.id ?? '');
+    const amount = typeof after?.amount === 'number' ? after.amount : null;
+    return quoteId && amount !== null ? [{ quoteId, amount }] : [];
+  });
 }
 
 @Injectable()
@@ -199,55 +200,29 @@ export class ChangeManagementService {
     return consumeApprovedFreezeException(tx, eventId, exceptionId);
   }
 
-  private async applyCommercialImpacts(
-    tx: Prisma.TransactionClient,
-    eventId: string,
-    addendumId: string,
-    versionNumber: number,
-    financialDelta: number,
-    changes: ReturnType<typeof compareSnapshots>,
-  ) {
-    const quotePriceChanges = changes.flatMap((change) => {
-      const before = change.before as SnapshotEntry | null;
-      const after = change.after as SnapshotEntry | null;
-      const quoteId = String(after?.id ?? before?.id ?? '');
-      const amount = typeof after?.amount === 'number' ? after.amount : null;
-      return quoteId && amount !== null ? [{ quoteId, amount }] : [];
-    });
-    const impacts = await this.commercialAddendumImpactWriter.apply({
-      eventId,
-      addendumId,
-      versionNumber,
-      financialDelta,
-      quotePriceChanges,
-    }, { prisma: tx, correlationId: addendumId });
-
-    if (impacts.length > 0) {
-      await tx.opsAddendumImpact.createMany({
-        data: impacts.map((impact) => ({
-          id: `impact_${randomUUID()}`,
-          eventId,
-          addendumId,
-          targetType: impact.targetType,
-          targetId: impact.targetId,
-          beforeValue: toPrismaJson(impact.beforeValue),
-          afterValue: toPrismaJson(impact.afterValue),
-          deltaAmount: impact.deltaAmount,
-        })),
-      });
-    }
-  }
-
+  /**
+   * Issuing stores the addendum as pending together with its planned commercial effect. Billing lines, quote amounts,
+   * and impact rows change only when PMCM countersignature makes the addendum effective.
+   */
   async issueAddendum(eventId: string, input: IssueAddendumInput, actor: ResolvedEventOpsActor): Promise<PrismAddendum> {
     await this.requireOperator(actor, eventId, 'issue addendum');
     return this.prisma.$transaction(async (tx) => {
+      // One pending addendum per event: a second one would be planned against billing the first has not changed yet.
+      const pending = await tx.opsAddendum.findFirst({ where: { eventId, status: 'pending' }, select: { versionNumber: true } });
+      if (pending) throw new ConflictException(`Addendum v${pending.versionNumber} is still pending countersignature. Countersign or withdraw it before issuing another.`);
       const { document, exception } = await this.resolveAddendumContext(tx, eventId, input);
-      const previous = await tx.opsAddendum.findFirst({ where: { eventId }, orderBy: { versionNumber: 'desc' } });
-      const comparison = { contract: compareSnapshots((previous?.contractSnapshot ?? []) as SnapshotEntry[], input.contractSnapshot), quotes: compareSnapshots((previous?.quoteSnapshot ?? []) as SnapshotEntry[], input.quoteSnapshot) };
-      const versionNumber = (previous?.versionNumber ?? 0) + 1;
-      const addendum = await tx.opsAddendum.create({ data: { id: `addendum_${randomUUID()}`, eventId, versionNumber, title: input.title.trim(), summary: input.summary?.trim() ?? '', documentId: document.id, contractSnapshot: toPrismaJson(input.contractSnapshot), quoteSnapshot: toPrismaJson(input.quoteSnapshot), comparison: toPrismaJson(comparison), financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null } });
-      await this.applyCommercialImpacts(tx, eventId, addendum.id, versionNumber, input.financialDelta, comparison.quotes);
-      await writeAudit(this.audit, eventId, actor.name, 'Issued immutable addendum', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'addendum', affectedId: addendum.id, metadata: { versionNumber, documentId: document.id, documentState: 'pending', signatureMethod: 'scanned_document', comparison: { contract: comparison.contract, quoteChangeCount: comparison.quotes.length }, financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null } }, { prisma: tx, correlationId: addendum.id, actorId: actor.id });
+      const latest = await tx.opsAddendum.findFirst({ where: { eventId }, orderBy: { versionNumber: 'desc' }, select: { versionNumber: true } });
+      // Comparisons run against the latest effective version; a withdrawn addendum never changed the contract or the quotes.
+      const baseline = await tx.opsAddendum.findFirst({ where: { eventId, status: 'effective' }, orderBy: { versionNumber: 'desc' } });
+      const comparison = { contract: compareSnapshots((baseline?.contractSnapshot ?? []) as SnapshotEntry[], input.contractSnapshot), quotes: compareSnapshots((baseline?.quoteSnapshot ?? []) as SnapshotEntry[], input.quoteSnapshot) };
+      const versionNumber = (latest?.versionNumber ?? 0) + 1;
+      const plannedImpacts = await this.commercialAddendumImpactWriter.preview({
+        eventId,
+        financialDelta: input.financialDelta,
+        quotePriceChanges: quotePriceChangesOf(comparison.quotes),
+      }, { prisma: tx, correlationId: eventId });
+      const addendum = await tx.opsAddendum.create({ data: { id: `addendum_${randomUUID()}`, eventId, versionNumber, title: input.title.trim(), summary: input.summary?.trim() ?? '', status: 'pending', documentId: document.id, contractSnapshot: toPrismaJson(input.contractSnapshot), quoteSnapshot: toPrismaJson(input.quoteSnapshot), comparison: toPrismaJson(comparison), financialDelta: input.financialDelta, plannedImpacts: toPrismaJson(plannedImpacts), freezeExceptionId: exception?.id ?? null } });
+      await writeAudit(this.audit, eventId, actor.name, 'Issued immutable addendum', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'addendum', affectedId: addendum.id, metadata: { versionNumber, documentId: document.id, documentState: 'pending', signatureMethod: 'scanned_document', comparison: { contract: comparison.contract, quoteChangeCount: comparison.quotes.length }, financialDelta: input.financialDelta, freezeExceptionId: exception?.id ?? null, commercialEffect: 'pending_countersignature' } }, { prisma: tx, correlationId: addendum.id, actorId: actor.id });
       return mapAddendum(addendum);
     }, { isolationLevel: 'Serializable' });
   }

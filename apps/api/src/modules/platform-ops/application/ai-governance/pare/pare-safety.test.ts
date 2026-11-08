@@ -215,6 +215,7 @@ function harness(gateway?: AiGateway, runtime?: AiGatewayRuntimeConfig) {
     findEventReference: async () => null,
     findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
     findFileRequirementVisibility: async () => ({}),
+    findStoredObjectRequirementBindings: async () => [],
     findPareEventSource: async () => ({
       request: {
         id: context.triggerId,

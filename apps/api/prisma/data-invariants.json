@@ -47,5 +47,40 @@
     "context": "platform-ops",
     "severity": "high",
     "query": "SELECT approval.id AS approval_id, audit.id AS audit_id, audit.sanitized_payload->>'reviewPayloadDigest' AS review_payload_digest\nFROM {{platform-ops.ai_approval_records}} AS approval\nJOIN {{platform-ops.ai_audit_logs}} AS audit ON audit.id = approval.ai_audit_log_id\nWHERE approval.feature_name = 'PARE'\n  AND audit.feature_name = 'PARE'\n  AND (audit.sanitized_payload->>'pareProvenanceVersion' = '1' OR audit.sanitized_payload ? 'reviewPayloadDigest')\n  AND (jsonb_typeof(approval.review_payload) IS DISTINCT FROM 'object'\n    OR COALESCE(audit.sanitized_payload->>'reviewPayloadDigest', '') !~ '^[0-9a-f]{64}$'\n    OR encode(sha256(convert_to(approval.review_payload::text, 'UTF8')), 'hex') <> audit.sanitized_payload->>'reviewPayloadDigest')\nORDER BY approval.id;"
+  },
+  {
+    "id": "addenda_effective_has_effective_at",
+    "description": "Every effective addendum records when its commercial effect was applied.",
+    "context": "event-lifecycle",
+    "severity": "critical",
+    "query": "SELECT id, status, issued_at\nFROM {{event-lifecycle.addenda}}\nWHERE status = 'effective' AND effective_at IS NULL\nORDER BY id;"
+  },
+  {
+    "id": "addenda_pending_has_plan_and_no_applied_impacts",
+    "description": "A pending addendum stores its commercial plan and has no applied impact rows yet.",
+    "context": "event-lifecycle",
+    "severity": "critical",
+    "query": "SELECT a.id, a.event_id\nFROM {{event-lifecycle.addenda}} AS a\nWHERE a.status = 'pending'\n  AND (a.planned_impacts IS NULL\n    OR EXISTS (SELECT 1 FROM {{event-lifecycle.addendum_impacts}} AS i WHERE i.addendum_id = a.id))\nORDER BY a.id;"
+  },
+  {
+    "id": "addenda_withdrawn_has_reason_and_no_impacts",
+    "description": "A withdrawn addendum records who closed it and why, and never has applied impact rows.",
+    "context": "event-lifecycle",
+    "severity": "critical",
+    "query": "SELECT a.id, a.event_id, a.withdrawn_at\nFROM {{event-lifecycle.addenda}} AS a\nWHERE a.status = 'withdrawn'\n  AND (a.withdrawn_at IS NULL\n    OR a.withdrawn_by IS NULL\n    OR btrim(coalesce(a.withdrawal_reason, '')) = ''\n    OR EXISTS (SELECT 1 FROM {{event-lifecycle.addendum_impacts}} AS i WHERE i.addendum_id = a.id))\nORDER BY a.id;"
+  },
+  {
+    "id": "addenda_completed_conforme_is_effective",
+    "description": "A completed addendum conforme belongs to an effective addendum, so the billing trace always has an applied effect behind it.",
+    "context": "event-lifecycle",
+    "severity": "critical",
+    "query": "SELECT e.id, e.addendum_id, a.status\nFROM {{event-lifecycle.addendum_conforme_executions}} AS e\nJOIN {{event-lifecycle.addenda}} AS a ON a.id = e.addendum_id\nWHERE e.status = 'completed' AND a.status <> 'effective'\nORDER BY e.id;"
+  },
+  {
+    "id": "live_ops_blocked_tasks_have_reason",
+    "description": "Every blocked event-day task has a non-empty blocked reason and a blocked timestamp.",
+    "context": "live-ops",
+    "severity": "high",
+    "query": "SELECT id, event_id, blocked_reason, blocked_at\nFROM {{live-ops.event_day_tasks}}\nWHERE status = 'blocked'\n  AND (blocked_reason IS NULL OR btrim(blocked_reason) = '' OR blocked_at IS NULL)\nORDER BY id;"
   }
 ]

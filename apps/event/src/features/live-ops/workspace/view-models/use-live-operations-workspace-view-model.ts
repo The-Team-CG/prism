@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 
 import type {
+  BlockEventDayTaskInput,
   CoordinatorRole,
   CreateEventDayTaskInput,
   CreateUrgentIssueInput,
   PrismLiveOps,
 } from "@prism/types";
-import { canonicalCoordinatorRole } from "@prism/types";
+import { blockEventDayTaskSchema, canonicalCoordinatorRole, parseContract } from "@prism/types";
 import {
   asIsoDateTime,
   computeLiveOpsMetrics,
@@ -17,6 +18,8 @@ type LiveOperationsWorkspaceViewModelProps = {
   busy: boolean;
   onCreateTask: (input: CreateEventDayTaskInput) => Promise<void>;
   onCreateIssue: (input: CreateUrgentIssueInput) => Promise<void>;
+  onBlockTask: (taskId: string, input: BlockEventDayTaskInput) => Promise<void>;
+  onUnblockTask: (taskId: string) => Promise<void>;
 };
 
 export function useLiveOperationsWorkspaceViewModel({
@@ -24,6 +27,8 @@ export function useLiveOperationsWorkspaceViewModel({
   busy,
   onCreateTask,
   onCreateIssue,
+  onBlockTask,
+  onUnblockTask,
 }: LiveOperationsWorkspaceViewModelProps) {
   const [taskTitle, setTaskTitle] = useState("");
   const [taskRole, setTaskRoleState] = useState<CoordinatorRole>("General Coordinator");
@@ -37,8 +42,31 @@ export function useLiveOperationsWorkspaceViewModel({
   const [issueSlaDueAt, setIssueSlaDueAt] = useState("");
   const [issueFormOpen, setIssueFormOpen] = useState(false);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [blockingTaskId, setBlockingTaskId] = useState<string | null>(null);
+  const [blockReason, setBlockReason] = useState("");
 
   const metrics = useMemo(() => computeLiveOpsMetrics(liveOps), [liveOps]);
+
+  function startBlockTask(taskId: string) {
+    setBlockingTaskId(taskId);
+    setBlockReason("");
+  }
+
+  function cancelBlockTask() {
+    setBlockingTaskId(null);
+    setBlockReason("");
+  }
+
+  async function confirmBlockTask() {
+    if (!blockingTaskId) return;
+    const input = parseContract(blockEventDayTaskSchema, { reason: blockReason }, "Event-day task blocker");
+    await onBlockTask(blockingTaskId, input);
+    cancelBlockTask();
+  }
+
+  async function unblockTask(taskId: string) {
+    await onUnblockTask(taskId);
+  }
 
   async function createTask() {
     await onCreateTask({
@@ -97,6 +125,13 @@ export function useLiveOperationsWorkspaceViewModel({
     toggleIssueForm: () => setIssueFormOpen((open) => !open),
     taskFormOpen,
     toggleTaskForm: () => setTaskFormOpen((open) => !open),
+    blockingTaskId,
+    blockReason,
+    setBlockReason,
+    startBlockTask,
+    cancelBlockTask,
+    confirmBlockTask,
+    unblockTask,
     createTask,
     createIssue,
     status: busy ? ("loading" as const) : ("idle" as const),
