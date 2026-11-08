@@ -68,6 +68,7 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
   const availability: any[] = [];
   const acknowledgments: any[] = [];
   const reliabilityNotes: any[] = [];
+  const replacementPackages: any[] = [];
   const transactionCalls: string[] = [];
   const queryOrder: string[] = [];
   const matchesValue = (value: unknown, condition: unknown): boolean => {
@@ -185,6 +186,12 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
         return row;
       },
     },
+    opsCoordinatorReplacementRecommendation: {
+      upsert: async ({ create }: { create: any }) => {
+        replacementPackages.push(create);
+        return create;
+      },
+    },
     opsCoordinatorReliabilityNote: {
       create: async ({ data }: { data: any }) => {
         const row = { ...data, createdAt: new Date() };
@@ -269,6 +276,7 @@ function createPrisma(coverageRequirements: { role: string; requiredSkills: stri
     availability,
     acknowledgments,
     reliabilityNotes,
+    replacementPackages,
     transactionCalls,
     queryOrder,
     prisma,
@@ -1003,6 +1011,10 @@ describe('Coordinator staffing workflows', () => {
         // The withdrawn coordinator is never suggested as their own replacement.
         expect(pmcmAlerts[0].message).toMatch(/Free Floor Director coordinators: |No free Floor Director coordinator is available/);
         expect(pmcmAlerts[0].message).not.toMatch(/coordinators: .*Marco Santos/);
+        // FR-AI-04: the withdrawal also raises one PARE coordinator package for PMCM approval.
+        expect(fake.replacementPackages).toHaveLength(1);
+        expect(fake.replacementPackages[0]).toMatchObject({ withdrawnAssignmentId: created.id, role: 'Floor Director', withdrawnCoordinatorName: 'Marco Santos' });
+        expect(['high', 'critical']).toContain(fake.replacementPackages[0].riskLevel);
         expect(fake.audits).toContainEqual(expect.objectContaining({
           action: expect.stringContaining('Emergency change: Marco Santos withdrew from Floor Director'),
           severity: 'critical',
