@@ -91,6 +91,22 @@ export class TrustRoutePolicy {
     });
     throw new ForbiddenException(deniedMessage);
   }
+
+  /** Clients and suppliers file and track their own privacy requests; every other role, PMCM included, is refused and audited. */
+  async requireSelfServiceRequester(actor: TrustActor, resource: string) {
+    if (actor.role === OpsUserRole.Client || actor.role === OpsUserRole.Supplier) return;
+    await this.auditService.audit(undefined, actor.name, `403 forbidden access: ${resource}`, {
+      actorRole: actor.role,
+      actorEmail: actor.email,
+      actionType: AuditActionType.ForbiddenAccess,
+      category: AuditCategory.Access,
+      affectedType: 'scoped_write',
+      affectedLabel: resource,
+      severity: 'warning',
+      metadata: { actorId: actor.id, role: actor.role },
+    });
+    throw new ForbiddenException(`${actor.role} cannot access ${resource}`);
+  }
 }
 
 @Controller('audit')

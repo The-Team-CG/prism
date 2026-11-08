@@ -14,6 +14,7 @@ const PORTAL_TITLES: Partial<Record<ClientDashboardRoute, string>> = {
   messages: "Messages",
   files: "Files",
   billing: "Billing & Payments",
+  privacy: "Privacy requests",
 };
 
 const PORTAL_EYEBROWS: Partial<Record<ClientDashboardRoute, string>> = {
