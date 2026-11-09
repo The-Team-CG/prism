@@ -4,11 +4,11 @@ title: "P.R.I.S.M actual system"
 description: "Current product identity, actors, lifecycle, workflows, ownership, and completion evidence for PMCM's event operating system."
 tags: [product, current-state, lifecycle, roles]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-09"
 authority: informative
 audience: [product, engineering, design, reviewers]
 scope: "PMCM product identity, actors, lifecycle, workflows, and ownership"
-last_verified: "2026-10-29; portal routes under apps/*/src/app, API modules, privacy execution, supplier application and guest games surfaces"
+last_verified: "2026-11-09; portal routes under apps/*/src/app, API modules, privacy execution, supplier application, guest games, bid workspace and AI advisory surfaces"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
