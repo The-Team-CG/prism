@@ -6,6 +6,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The runtime is Node 26 (LTS): the API image, CI, the portal deploys and `@types/node` move from 24, and `engines` requires Node 26 or 28 and later. Switch local installs with `nvm use` (`.nvmrc` says 26).
+- Local Docker builds no longer copy `.env` files from app folders into the image. `.dockerignore` listed `.env` and `.env.*`, which match only the repository root, so `apps/api/.env` and the portals' `.env.local` were in the build context.
+
 - Dependencies updated to releases at least 3 days old: Next 16.4.5, TanStack Query 5.106.1, Tailwind CSS 4.3.4, lucide-react 1.70.0, Vitest 5.1.0, jsdom 31, the Anthropic SDK 1.6.0 and pptxgenjs 4.0.1 (proposal decks). Nest stays on 12.3.2 until Dependabot proposes a release past the cooldown.
 
 - Dependabot now runs (its config had a byte-order mark and never opened a pull request): weekly grouped npm updates (Nest, Prisma, Next and React, UI, TypeScript and lint, test and build tooling, production, development) on Monday 06:00 Manila with a 3-day release cooldown, and monthly grouped GitHub Actions and Node base-image updates. The Dockerfile names its Node image directly so Dependabot can update it.
