@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { FileCheck2 } from "lucide-react";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { StatusBadge } from "@prism/ui/components/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import type { PrismAuthenticatedSession, PrismSupplierReadinessBoard } from "@prism/types";
 import { buildSupplierFileRequirementRows, formatDate } from "../../model/supplier-workspace-rules";
 import { supplierBookingHref } from "../../model/supplier-next-step";

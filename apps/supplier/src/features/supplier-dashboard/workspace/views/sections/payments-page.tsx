@@ -3,8 +3,8 @@
 import { Wallet } from "lucide-react";
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { formatMoney } from "../../model/supplier-workspace-rules";
 import type { PrismSupplierQuote, PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { Card, CardBody, CardHeader, SectionAccent } from "./shell-ui";

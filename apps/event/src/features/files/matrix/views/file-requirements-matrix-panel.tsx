@@ -3,8 +3,8 @@
 import { FileCheck2 } from "lucide-react";
 import { useState } from "react";
 import type { PrismFileRequirementItem } from "@prism/types";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { StatusBadge } from "@prism/ui/components/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { useFileRequirementsMatrixViewModel } from "../view-models/use-file-requirements-matrix-view-model";
 import { useFileRequirementEditorViewModel } from "../view-models/use-file-requirement-editor-view-model";
 import {

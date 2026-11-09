@@ -3,7 +3,7 @@
 import { FormEvent } from "react";
 import { Check, ChevronLeft } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { cn } from "@/app/components/ui/utils";
 import { inquiryImages } from "../content/inquiry-images";
 import { buildInquiryReference } from "../model/inquiry-submit-rules";

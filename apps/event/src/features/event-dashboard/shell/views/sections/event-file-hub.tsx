@@ -8,7 +8,7 @@ import {
   List,
   Search,
 } from "lucide-react";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { formatShortDate, humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import type { PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";

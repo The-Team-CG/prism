@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CalendarDays, CheckCircle2, Send } from "lucide-react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismClientActionCenter, PrismEvent } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { formatStatusLabel, type ClientDashboardAction } from "../../../workspace/shared";
 import { ClientListEmpty, ClientListRow, ClientListSection } from "../../../shared/client-list-ui";
 import { groupClientActionsByEvent } from "../../model/client-home-action-groups";

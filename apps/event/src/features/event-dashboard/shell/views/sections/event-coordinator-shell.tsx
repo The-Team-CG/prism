@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import {
   EventDashboardSkeleton,
   SkeletonCard,

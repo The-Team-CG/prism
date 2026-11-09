@@ -3,9 +3,9 @@ import { formatPortalDate } from "@prism/ui/format-date";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
 
 import type { MarkPaymentInput, PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { label, money } from "@/features/pmcm-kit";
 import { countNoun, isMilestoneSettled, paymentHistoryLabel, paymentOverdueDays, sortPaymentsByDueDate } from "../model/finance-workspace-rules";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";

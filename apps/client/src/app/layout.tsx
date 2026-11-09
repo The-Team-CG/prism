@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Toaster } from "./components/ui/sonner";
+import { Toaster } from "@prism/ui/components/sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {

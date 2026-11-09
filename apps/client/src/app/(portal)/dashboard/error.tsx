@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button } from "../../components/ui/button";
+import { Button } from "@prism/ui/components/button";
 
 export default function ClientDashboardError({
   error,

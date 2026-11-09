@@ -3,8 +3,8 @@
 import type { LucideIcon } from "lucide-react";
 import { FileText, ReceiptText } from "lucide-react";
 import type * as React from "react";
-import { PrismBadge } from "./primitives";
-import { PrismStatusBadge } from "./status-badge";
+import { Badge } from "./components/ui/badge";
+import { StatusBadge } from "./components/ui/status-badge";
 import { cn } from "./utils";
 
 export interface PrismMetricTileProps {
@@ -32,7 +32,7 @@ export function PrismMetricTile({ label, value, icon: Icon, detail, trend, class
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <p className="text-[28px] font-black leading-none tracking-normal text-foreground">{value}</p>
-          {trend ? <PrismBadge variant="success">{trend}</PrismBadge> : null}
+          {trend ? <Badge variant="success">{trend}</Badge> : null}
         </div>
         <p className="mt-1.5 truncate text-xs font-medium text-muted-foreground">
           {label}
@@ -155,7 +155,7 @@ export function PrismStatusSummary({
               </p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
                 <span className="min-w-0 truncate">{item.value}</span>
-                {item.status ? <PrismStatusBadge status={item.status} /> : null}
+                {item.status ? <StatusBadge status={item.status} /> : null}
               </div>
               {item.detail ? (
                 <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{item.detail}</p>
@@ -279,7 +279,7 @@ export function PrismCompactRecordList({
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="truncate text-sm font-black text-foreground">{item.title}</span>
-                {item.status ? <PrismStatusBadge status={item.status} /> : null}
+                {item.status ? <StatusBadge status={item.status} /> : null}
               </span>
               {item.description ? (
                 <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">
@@ -355,7 +355,7 @@ export function PrismEventDayActionGroup({
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-black text-foreground">{action.label}</span>
-                {action.status ? <PrismStatusBadge status={action.status} /> : null}
+                {action.status ? <StatusBadge status={action.status} /> : null}
               </span>
               {action.description ? (
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">{action.description}</span>
@@ -411,7 +411,7 @@ export function PrismActionQueue({
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-black text-foreground">{item.title}</span>
-                {item.status ? <PrismStatusBadge status={item.status} /> : null}
+                {item.status ? <StatusBadge status={item.status} /> : null}
               </span>
               <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
               {item.action ? <span className="mt-3 block">{item.action}</span> : null}
@@ -462,7 +462,7 @@ export function PrismStatusTimeline({ items }: { items: PrismTimelineItem[] }) {
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-black text-foreground">{item.title}</span>
-                <PrismStatusBadge status={item.status} />
+                <StatusBadge status={item.status} />
               </span>
               {item.description ? (
                 <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{item.description}</span>
@@ -563,7 +563,7 @@ export function PrismDocumentList({ documents }: { documents: PrismDocumentItem[
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="font-black text-foreground">{document.title}</p>
-              {document.status ? <PrismStatusBadge status={document.status} /> : null}
+              {document.status ? <StatusBadge status={document.status} /> : null}
             </div>
             {document.description ? (
               <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{document.description}</p>
@@ -615,7 +615,7 @@ export function PrismBillingMilestoneList({ milestones }: { milestones: PrismBil
           </div>
           <div className="text-right">
             <p className="text-sm font-black text-foreground">{milestone.amount}</p>
-            <PrismStatusBadge status={milestone.status} />
+            <StatusBadge status={milestone.status} />
           </div>
         </div>
       ))}

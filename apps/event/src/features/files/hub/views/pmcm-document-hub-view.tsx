@@ -2,7 +2,7 @@
 
 import { Download, FileText, LoaderCircle, Upload } from "lucide-react";
 import { EVENT_FILE_CATEGORIES, eventFileCategoryOf, type EventFileCategory } from "@prism/types";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { storedDocumentMetadataLine } from "../model/stored-document-labels";
 import { usePmcmDocumentHubViewModel } from "../view-models/use-pmcm-document-hub-view-model";
 

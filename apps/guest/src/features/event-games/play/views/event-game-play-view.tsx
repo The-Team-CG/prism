@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactElement } from "react";
 import { LogOut, RefreshCw } from "lucide-react";
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from "@prism/types";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
 import { useServerRoundCountdown } from "../model/server-round-countdown";
 import { useEventGamePlayViewModel } from "../view-models/use-event-game-play-view-model";
 import { audienceControls } from "./audience-game-controls";

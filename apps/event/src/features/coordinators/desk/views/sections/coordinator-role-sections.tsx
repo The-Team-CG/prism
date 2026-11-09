@@ -16,9 +16,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useId, useRef, type ReactNode } from "react";
-import { Badge } from "@/app/components/ui/badge";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Badge } from "@prism/ui/components/badge";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { label } from "@/features/pmcm-kit";
 import {
   coordinatorAttendanceControlCopy,

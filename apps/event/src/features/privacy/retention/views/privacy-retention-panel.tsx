@@ -3,9 +3,9 @@
 import { ShieldCheck } from "lucide-react";
 
 import type { PrismRetentionPolicy, PrismRetentionReviewItem } from "@prism/types";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import { compactTimestamp, label, Panel } from "@/features/pmcm-kit";
 import { retentionPeriodCopy, reviewStatusLabel } from "../model/retention-rules";
 import { usePrivacyRetentionViewModel, type PrivacyRetentionViewModel } from "../view-models/use-privacy-retention-view-model";

@@ -3,7 +3,7 @@ import { formatPortalDate } from "@prism/ui/format-date";
 
 import { useEffect, useRef } from "react";
 import { Handshake, LockKeyhole, Mail, Phone, X } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import type {
   PrismPmcmSupplierCertificationsPage,
   PrismPmcmSupplierEngagement,

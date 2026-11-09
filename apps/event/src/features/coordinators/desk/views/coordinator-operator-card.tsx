@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { PrismCoordinatorAssignment, PrismEventOperatorDesignation } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
 
 type Operator = PrismEventOperatorDesignation["operator"];

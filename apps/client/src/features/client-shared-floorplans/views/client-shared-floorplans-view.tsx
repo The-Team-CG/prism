@@ -2,7 +2,7 @@
 
 import { MapPinned, RotateCcw } from "lucide-react";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { ClientListEmpty, ClientListRow, ClientListSection } from "@/features/client-dashboard/shared/client-list-ui";
 import { clientSharedFloorplanSnapshotHref } from "../model/client-shared-floorplans";
 import { useClientSharedFloorplansViewModel } from "../view-models/use-client-shared-floorplans-view-model";

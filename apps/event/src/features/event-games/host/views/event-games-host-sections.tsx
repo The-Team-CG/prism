@@ -12,8 +12,8 @@ import type {
   UpdateEventGameLobbyBrandingInput,
 } from "@prism/types";
 import { portalUrlFor } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
 import { EVENT_GAME_OPTIONS, eventGameModeLabel } from "../model/event-game-catalog";
 import { resolveGuestGameLobbyUrl } from "../model/guest-lobby-url";

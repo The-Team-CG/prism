@@ -1,7 +1,7 @@
 "use client";
 
 import { LockKeyhole } from "lucide-react";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { useClientWorkspace } from "../../workspace/shared";
 import { ClientEventRouteBody } from "./client-event-route-body";
 

@@ -2,7 +2,7 @@ import { CalendarDays, Check, ChevronDown, Flag, Send, X } from "lucide-react";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { cx, label, money, RatingStars, tierLabel } from "@/features/pmcm-kit";
 import type { SupplierQuoteRow } from "@/features/pmcm-kit";
 import {

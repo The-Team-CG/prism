@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 
 export default function GuestNotFound() {
   return (

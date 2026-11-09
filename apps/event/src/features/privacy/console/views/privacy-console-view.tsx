@@ -1,7 +1,7 @@
 "use client";
 
 import { Database } from "lucide-react";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { PrivacyRetentionPanel as RetentionReviewPanel } from "@/features/privacy/retention/views/privacy-retention-panel";
 import { Panel } from "@/features/pmcm-kit";
 import { usePrivacyConsoleViewModel } from "../view-models/use-privacy-console-view-model";

@@ -13,9 +13,9 @@ import type {
   PrismUserRole,
   PrismUpdateEventGameInput,
 } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { EmptyState } from "@prism/ui/components/empty-state";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
 import { EVENT_GAME_OPTIONS, eventGameModeLabel, eventGameOption } from "../model/event-game-catalog";
 import { useEventGamesHostViewModel } from "../view-models/use-event-games-host-view-model";

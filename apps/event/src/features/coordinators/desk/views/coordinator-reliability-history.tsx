@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { PrismCoordinatorAssignment, PrismCoordinator, PrismCoordinatorReliabilityHistoryEntry } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
 
 type HistoryStatus = "idle" | "loading" | "loaded" | "error";

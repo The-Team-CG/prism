@@ -2,7 +2,7 @@
 
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { portalUrlFor } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import { signOutClientSession } from "../../use-cases/client-dashboard-actions";
 import type { ClientSession } from "../../model/client-dashboard-types";

@@ -1,6 +1,6 @@
 "use client";
 
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { formatStatusLabel } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
 

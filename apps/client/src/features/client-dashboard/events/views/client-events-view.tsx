@@ -4,8 +4,8 @@ import Link from "next/link";
 import { CalendarCheck, CalendarDays, Search, Send } from "lucide-react";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { PrismEvent } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import { cn } from "@/app/components/ui/utils";
 import {
   clientEventCardOpenRoute,

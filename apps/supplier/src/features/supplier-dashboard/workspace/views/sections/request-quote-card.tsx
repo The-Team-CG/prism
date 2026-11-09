@@ -3,8 +3,8 @@
 import { FormEvent } from "react";
 import { LockKeyhole, Send } from "lucide-react";
 import type { PrismSupplierQuoteForSupplier } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import { closedRequestReason, formatMoney, isQuoteLocked, statusLabel } from "../../model/supplier-workspace-rules";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, QuoteFormState } from "../../model/supplier-workspace-types";
 
