@@ -76,17 +76,29 @@ export class NotificationPreferenceService {
     if (!rawBody || !viber.verifySignature(rawBody, signature)) throw new UnauthorizedException('Invalid Viber signature');
     const callback = JSON.parse(rawBody.toString('utf8')) as ViberCallback;
     if (callback.event === 'unsubscribed' && callback.user_id) {
-      await this.prisma.opsNotificationChannelPreference.updateMany({ where: { viberUserId: callback.user_id }, data: { viberUserId: null, viberEnabled: false, viberLinkedAt: null } });
+      await this.clearViberUser(callback.user_id);
       return {};
     }
-    if (callback.event === 'conversation_started') {
-      const linked = callback.context && callback.user?.id ? await this.link(callback.context, callback.user.id, now) : false;
-      return { sender: { name: viber.senderName }, type: 'text', text: linked ? 'Viber updates from P.R.I.S.M are on. You can turn them off from your portal account menu.' : 'To get P.R.I.S.M updates here, open Notifications in your portal account menu and tap "Link Viber".' };
-    }
-    if (callback.event === 'message' && callback.sender?.id && callback.message?.text) {
-      if (await this.link(callback.message.text, callback.sender.id, now)) await viber.sendText(callback.sender.id, 'Viber updates from P.R.I.S.M are on.');
-    }
+    if (callback.event === 'conversation_started') return this.welcome(viber, callback, now);
+    if (callback.event === 'message') await this.linkFromMessage(viber, callback, now);
     return {};
+  }
+
+  /** Opening the deep link carries the code as context; Viber shows the returned text as the welcome message. */
+  private async welcome(viber: ViberBot, callback: ViberCallback, now: Date): Promise<ViberWelcome> {
+    const linked = callback.context && callback.user?.id ? await this.link(callback.context, callback.user.id, now) : false;
+    const text = linked
+      ? 'Viber updates from P.R.I.S.M are on. You can turn them off from your portal account menu.'
+      : 'To get P.R.I.S.M updates here, open Notifications in your portal account menu and tap "Link Viber".';
+    return { sender: { name: viber.senderName }, type: 'text', text };
+  }
+
+  /** A user who already has the chat open can send the code as a message instead. */
+  private async linkFromMessage(viber: ViberBot, callback: ViberCallback, now: Date) {
+    const senderId = callback.sender?.id;
+    const text = callback.message?.text;
+    if (!senderId || !text) return;
+    if (await this.link(text, senderId, now)) await viber.sendText(senderId, 'Viber updates from P.R.I.S.M are on.');
   }
 
   /** Viber delivery: the linked, opted-in Viber users among these account emails. */

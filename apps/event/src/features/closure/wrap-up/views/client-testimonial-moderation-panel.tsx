@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PrismClientCloseoutResponse } from "@prism/types";
 import { clientTestimonialRepository } from "../data/client-testimonial-repository";
+import { canvaRepository } from "@/features/event-settings/canva/data/canva-repository";
+import { OpenInCanvaButton } from "@/features/event-settings/canva/views/open-in-canva-button";
 
 export function ClientTestimonialModerationPanel({ eventId }: { eventId: string }) {
   const [response, setResponse] = useState<(PrismClientCloseoutResponse & { actorEmail?: string | null }) | null>(null);
@@ -20,7 +22,7 @@ export function ClientTestimonialModerationPanel({ eventId }: { eventId: string 
     catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save moderation decision."); }
     finally { setBusy(false); }
   };
-  return <section className="rounded-lg border border-border bg-card p-5"><h2 className="text-lg font-bold">Client feedback and testimonial</h2><p className="mt-1 text-sm text-muted-foreground">Client feedback remains private. A testimonial can only be approved when the client gave explicit consent.</p>{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}<ModerationFeedback response={response} reason={reason} busy={busy} onReasonChange={setReason} onDecide={decide} /></section>;
+  return <section className="rounded-lg border border-border bg-card p-5"><h2 className="text-lg font-bold">Client feedback and testimonial</h2><p className="mt-1 text-sm text-muted-foreground">Client feedback remains private. A testimonial can only be approved when the client gave explicit consent.</p>{error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}<ModerationFeedback response={response} reason={reason} busy={busy} onReasonChange={setReason} onDecide={decide} />{response?.moderationStatus === "approved" && response.testimonialConsent ? <div className="mt-3"><OpenInCanvaButton label="Make a Canva testimonial card" fill={() => canvaRepository.testimonial(eventId)} /></div> : null}</section>;
 }
 
 function ModerationFeedback({ response, reason, busy, onReasonChange, onDecide }: { response: (PrismClientCloseoutResponse & { actorEmail?: string | null }) | null; reason: string; busy: boolean; onReasonChange: (value: string) => void; onDecide: (action: "approve" | "reject") => Promise<void> }) {

@@ -156,6 +156,7 @@ export class PrivacyRetentionService {
   }
 
   async listReviewItems(query: ListPrivacyRetentionReviewItemsQuery): Promise<PrismRetentionReviewItem[]> {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: keyset page; query.limit is validated to 1-200 by listPrivacyRetentionReviewItemsQuerySchema.
     const rows = await this.prisma.opsRetentionReviewItem.findMany({
       where: {
         ...(query.status && query.status !== 'all' ? { status: query.status } : {}),

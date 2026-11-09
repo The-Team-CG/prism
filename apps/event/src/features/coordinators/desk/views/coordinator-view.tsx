@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, Radio, UsersRound } from "lucide-react";
@@ -134,6 +134,12 @@ function CoordinatorCalendarSection({ vm, onOpen }: { vm: CoordinatorVm; onOpen:
   return <CoordinatorCalendar items={buildCoordinatorCalendarItems(vm.assignedEvents, focus)} onOpen={onOpen} />;
 }
 
+/** Views that belong to the account, not to one event. */
+const ACCOUNT_VIEWS: Partial<Record<CoordinatorViewId, (vm: CoordinatorVm, onOpen: (view: CoordinatorViewId, eventId: string) => void) => ReactElement>> = {
+  calendar: (vm, onOpen) => <CoordinatorCalendarSection vm={vm} onOpen={onOpen} />,
+  notifications: () => <AccountNotificationsView />,
+};
+
 function CoordinatorViewContent({ vm, view, sessionName, roleName, onNavigate, onOpenItem }: {
   vm: CoordinatorVm;
   view: CoordinatorViewId;
@@ -142,8 +148,8 @@ function CoordinatorViewContent({ vm, view, sessionName, roleName, onNavigate, o
   onNavigate: NavigateTo;
   onOpenItem: (view: CoordinatorViewId, eventId: string) => void;
 }) {
-  if (view === "calendar") return <CoordinatorCalendarSection vm={vm} onOpen={onOpenItem} />;
-  if (view === "notifications") return <AccountNotificationsView />;
+  const accountView = ACCOUNT_VIEWS[view];
+  if (accountView) return accountView(vm, onOpenItem);
   if (!vm.event) return <p role="status" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">{vm.selectedEventId ? "That event is not available to this account. Choose an assigned event." : "Choose an assigned event to see your work."}</p>;
   switch (view) {
     case "shift": return <CoordinatorShift vm={vm} roleName={roleName} onNavigate={onNavigate} />;
