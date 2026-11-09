@@ -182,13 +182,13 @@ describe("event-dashboard-routing", () => {
     }
   });
 
-  it("names the section under the event title, so an event page says where you are", () => {
+  it("names the event and section in the breadcrumb, so an event page says where you are", () => {
     const event = { eventName: "Launch", clientName: "Acme", eventDate: "2026-09-01" };
     expect(routeShellCopy(eventRouteState("event-42", "briefing"), { activeNavLabel: "Planning & decisions", selectedEvent: event })).toEqual({
       eyebrow: "Event workspace",
       title: "Launch",
       description: "Planning & decisions · Acme · Sep 1, 2026",
-      breadcrumb: ["Planning & decisions"],
+      breadcrumb: ["Events", "Launch", "Planning & decisions"],
       documentTitle: "Planning & decisions · Launch · P.R.I.S.M",
     });
     expect(routeShellCopy(eventRouteState("event-42", "overview"), { selectedEvent: event }).description).toBe("Acme · Sep 1, 2026");
@@ -203,7 +203,7 @@ describe("event-dashboard-routing", () => {
       eyebrow: "Event workspace",
       title: "Event Manager",
       description: "Select an event or accept an inquiry to begin.",
-      breadcrumb: [],
+      breadcrumb: ["Events"],
       documentTitle: "P.R.I.S.M",
     });
   });
