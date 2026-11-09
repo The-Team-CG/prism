@@ -168,6 +168,29 @@ describe("useSupplierDirectoryViewModel", () => {
     expect(result.current.searchDraft).toBe("other");
   });
 
+  it("keeps a page size chosen while the earlier search URL is still committing, and still follows outside navigation", async () => {
+    const sessionValue = session("actor-a");
+    const { result, rerender } = renderHook(() => useSupplierDirectoryViewModel({ view: "all", session: sessionValue }));
+    await waitFor(() => expect(loadSupplierDirectoryMock).toHaveBeenCalled());
+    const searchOf = (call: number) => new URL(routerMock.replace.mock.calls[call]?.[0] ?? "", "http://localhost").search.slice(1);
+
+    const firstWrite = routerMock.replace.mock.calls.length;
+    act(() => result.current.updateQuery({ q: "harbor", page: 0 }));
+    act(() => result.current.updateQuery({ pageSize: 50 }));
+
+    routeSearchMock.value = searchOf(firstWrite);
+    rerender();
+    expect(result.current.query).toMatchObject({ q: "harbor", pageSize: 50 });
+
+    routeSearchMock.value = searchOf(firstWrite + 1);
+    rerender();
+    expect(result.current.query).toMatchObject({ q: "harbor", pageSize: 50 });
+
+    routeSearchMock.value = "q=harbor&page=0&pageSize=25";
+    rerender();
+    await waitFor(() => expect(result.current.query).toMatchObject({ q: "harbor", pageSize: 25 }));
+  });
+
   it("refreshes on a visible-tab return only after the 30-second freshness window", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-07T00:00:00.000Z"));
