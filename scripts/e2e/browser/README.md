@@ -59,6 +59,21 @@ The supplier directory check creates 26 synthetic suppliers and verifies the 25-
 
 Each group writes `page-coverage-<viewport>-<portal>.json` into the private run directory after each route. Reports contain page paths and results with supplier invitation tokens redacted. Completed reports are attached to the Playwright test; partial reports remain available after a setup or route failure.
 
+## History data and screenshots
+
+`BROWSER_SEED_HISTORY=1` also seeds the five-year `history` profile into the disposable database, so lists,
+calendars, archives and finance screens render with years of data. `BROWSER_SCREENSHOTS=1` saves a full-page
+screenshot of every route the page-coverage sweep visits, per viewport and portal, under
+`.local-dev/browser/<run-id>/screenshots/<viewport>/<portal>/`, numbered in visit order. A route that fails its
+checks is saved with a `FAILED-` prefix. Invitation tokens are redacted from file names. With both set,
+`history-gallery.spec.mjs` also signs in the seeded fixture accounts (Ana as client, XPERTO as supplier, PMCM and
+Marco as coordinator) and saves their main screens over the history data under `history-<role>/`; the route sweep
+signs in fresh actors, so this is where years of data show. Both are off in CI, where the gallery skips.
+
+```powershell
+$env:BROWSER_SEED_HISTORY='1'; $env:BROWSER_SCREENSHOTS='1'; npm run test:browser
+```
+
 ## Local test inbox for manual development
 
 Set `PRISM_LOCAL_MAILPIT=1` before the ordinary startup wrapper (PowerShell: `$env:PRISM_LOCAL_MAILPIT='1'; .\start-prism.cmd`). It starts a checkout-specific, loopback-bound Mailpit container and prints the inbox URL; generated Node and Docker env files select `PRISM_MAIL_TRANSPORT=mailpit` and `PRISM_MAILPIT_URL`. The API uses Mailpit's HTTP send endpoint through the existing mail transport seam. Both plain text and HTML are captured for auth and notification emails. No Resend key or external forwarding is configured, so no email-provider credits are used. Captured mail stays local and is not delivered to real recipients.

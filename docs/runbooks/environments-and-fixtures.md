@@ -4,11 +4,11 @@ title: "Prism environments and fixture commands"
 description: "Explicit database selection, repeatable portal scenarios, and migration history inspection."
 tags: [runbook, environments, fixtures, uat]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-11"
 authority: operational
 audience: [developers, QA, agents]
 scope: "database selection, synthetic accounts, and portal UAT scenarios"
-last_verified: "2026-10-29; seed CLI flags, target guards, account catalog, and db-doctor history mode reviewed against code; hosted identity unverified"
+last_verified: "2026-11-11; seed CLI flags, target guards, account catalog, history profile (applied, verified and re-run on a disposable local database) and db-doctor history mode reviewed; hosted identity unverified"
 sources:
   - id: seed-cli
     resource: "apps/api/scripts/seed.mjs"
@@ -105,7 +105,10 @@ npm --workspace prism-api run db:seed -- --profile portal-uat --scenario-date 20
 npm --workspace prism-api run db:seed:verify -- --profile portal-uat --scenario-date 2026-10-24 --env-file <absolute-private-file>
 ```
 
-The explicit scenario date anchors the live event at midnight **Asia/Manila**.
+The explicit scenario date is the live event's calendar date. Times of day are **Asia/Manila**; calendar dates
+(event, briefing, milestone and schedule-day dates) are stored at UTC midnight, the same as dates the app writes, so
+the live event reads as today in every portal. Databases seeded before 2026-11-11 keep the earlier Manila-midnight
+dates, which show one day early; reseed a new disposable database to correct them.
 Planning is 28 days later; feedback/closure/archive examples are earlier. Other
 scheduled dates shift equally. Stable legacy ID date suffixes remain identifiers.
 
@@ -114,6 +117,34 @@ rows in one transaction and serializes seed commands with an advisory lock.
 Identity/link conflicts fail before writes; constraint errors roll back all inserts.
 Reruns preserve tokens, statuses, dates, and tester edits. A new scenario date or
 clean replay needs a new disposable database. There is no implicit reset/delete.
+
+### Five-year history
+
+`history` adds five years of synthetic events on top of `accounts`, anchored to the
+same `--scenario-date`: four years back and one year ahead, four events a month
+(about 240 events and 4,900 rows). Each event carries the records of its stage:
+
+| Stage (event date vs scenario date) | Records |
+| --- | --- |
+| Archived (more than 45 days ago) | Inquiry, signed conforme, briefing, selected quotes, cost estimate, issued proposal, sent billing statement, paid deposit and balance, coordinator attendance, check-ins, guest feedback, and for most clients a closeout survey and testimonial |
+| Closing out (last 45 days) | As archived, but not archived: balances partly paid or open, testimonials pending moderation |
+| Live (the scenario date) | Two events on event day, one for the client fixture account, with check-ins from the last hours |
+| Planning (next 75 days) | Signed conforme, briefing, confirmed suppliers, approved proposal, billing with a paid deposit for the next 45 days, acknowledged coordinators |
+| Briefing (75–200 days ahead) | Signed conforme, briefing and open quote requests |
+| Inquiry (more than 200 days ahead) | Accepted, pending and new inquiries; earlier dates also include declined inquiries |
+
+Every fifth event belongs to the client fixture account (`ana@ayala.test`), so the
+client portal shows a history too. Four history suppliers (catering, lights and sound,
+photo and video) join the accounts profile's two. The data is deterministic: the same
+scenario date produces the same rows, and reruns insert nothing.
+
+```powershell
+npm --workspace prism-api run db:seed -- --profile history --scenario-date 2026-11-11 --env-file <absolute-private-file> --dry-run
+npm --workspace prism-api run db:seed -- --profile history --scenario-date 2026-11-11 --env-file <absolute-private-file>
+npm --workspace prism-api run db:seed:verify -- --profile history --scenario-date 2026-11-11 --env-file <absolute-private-file>
+```
+
+It can share a database with `portal-uat`; their records do not overlap.
 
 Scenarios cover conforme/briefing, supplier workflows, guest/coordinator operations,
 live schedules, games, and privacy review. No notification outbox writes or delivery

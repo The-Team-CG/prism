@@ -142,9 +142,9 @@ export function SupplierQuotePlanner({
           onCategory={(id) => { setCategoryId(id); comparisonRequest.current += 1; setComparison(null); setComparisonBusy(false); }}
         onRequest={openRequestModal}
       />
-      <section className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
+      <section className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
         <label className="grid gap-1 text-xs font-semibold">Supplier availability
-          <select aria-label="Supplier availability supplier" value={availabilitySupplierId} onChange={(event) => setAvailabilitySupplierId(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm">
+          <select aria-label="Supplier availability supplier" value={availabilitySupplierId} onChange={(event) => setAvailabilitySupplierId(event.target.value)} className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm">
             <option value="">Choose supplier</option>
             {categorySuppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
           </select>

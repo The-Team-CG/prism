@@ -269,11 +269,15 @@ export async function run(ctx) {
     status(await call("PATCH", p, s.clientA, { status: "present" }), 403);
     status(await call("PATCH", p, undefined, { status: "present" }), 401);
   });
-  await step("coordinator marks their own attendance", async () => {
+  // Coordinators mark attendance only from the day before through the day after the event; PMCM can correct it any time.
+  // Event A is years ahead, so the coordinator is refused here and PMCM records it (event-day marking runs in phase 6).
+  await step("a coordinator cannot mark attendance far from the event day; PMCM records it", async () => {
     if (!s.asgMarco) blocked("no assignment");
-    const r = expectStatus(await call("PATCH", `/events/${A}/coordinators/${s.asgMarco.id}/status`, s.marco, { status: "present" }), 200);
+    const early = await call("PATCH", `/events/${A}/coordinators/${s.asgMarco.id}/status`, s.marco, { status: "present" });
+    expect(early.status === 400 && /day before through the day after the event/.test(msg(early)), `coordinator outside the window: ${early.status} ${msg(early)}`);
+    const r = expectStatus(await call("PATCH", `/events/${A}/coordinators/${s.asgMarco.id}/status`, s.admin, { status: "present" }), 200);
     expect(r.attendanceStatus === "present", `attendanceStatus=${r.attendanceStatus}`);
-    const again = expectStatus(await call("PATCH", `/events/${A}/coordinators/${s.asgMarco.id}/status`, s.marco, { status: "present" }), 200);
+    const again = expectStatus(await call("PATCH", `/events/${A}/coordinators/${s.asgMarco.id}/status`, s.admin, { status: "present" }), 200);
     expect(again.attendanceStatus === "present", "repeat changed the attendance");
   });
   await step("an ordinary coordinator cannot mark another coordinator's attendance", async () => {
@@ -297,11 +301,13 @@ export async function run(ctx) {
     expect(view.isDesignatedOperator === true, `role view isDesignatedOperator=${view.isDesignatedOperator}`);
     s.designationId = r.id;
   });
-  await step("the designated operator marks ANOTHER coordinator's attendance (late, with a note)", async () => {
+  await step("outside the window the operator is refused too; PMCM marks another coordinator late with a note", async () => {
     if (!s.designationId || !s.asgBianca) blocked("no designation");
-    const r = expectStatus(await call("PATCH", `/events/${A}/coordinators/${s.asgBianca.id}/status`, s.marco, { status: "late", notes: "e2e: stuck in traffic" }), 200);
+    const early = await call("PATCH", `/events/${A}/coordinators/${s.asgBianca.id}/status`, s.marco, { status: "late", notes: "e2e: stuck in traffic" });
+    expect(early.status === 400 && /day before through the day after the event/.test(msg(early)), `operator outside the window: ${early.status} ${msg(early)}`);
+    const r = expectStatus(await call("PATCH", `/events/${A}/coordinators/${s.asgBianca.id}/status`, s.admin, { status: "late", notes: "e2e: stuck in traffic" }), 200);
     expect(r.attendanceStatus === "late", `attendanceStatus=${r.attendanceStatus}`);
-    const again = expectStatus(await call("PATCH", `/events/${A}/coordinators/${s.asgBianca.id}/status`, s.marco, { status: "late", notes: "e2e: stuck in traffic" }), 200);
+    const again = expectStatus(await call("PATCH", `/events/${A}/coordinators/${s.asgBianca.id}/status`, s.admin, { status: "late", notes: "e2e: stuck in traffic" }), 200);
     expect(again.attendanceMarkedAt === r.attendanceMarkedAt || again.attendanceStatus === "late", "repeat was not idempotent");
   });
   await step("operator authority is scoped to the event (marking an assignment through an unassigned event is 403/404)", async () => {
@@ -317,7 +323,8 @@ export async function run(ctx) {
     const rows = list(expectStatus(r, 200));
     const hit = rows.find((x) => /attendance/i.test(x.action ?? "") && /Bianca/.test(JSON.stringify(x)));
     expect(hit, `no attendance audit entry for Bianca among ${rows.length} rows`);
-    expect(/Marco/i.test(hit.actor ?? JSON.stringify(hit)), `audit entry does not name the acting operator: ${JSON.stringify(hit).slice(0, 160)}`);
+    // PMCM recorded Bianca's attendance above (coordinators are outside their marking window on this future event).
+    expect(hit.actorRole === "pmcm-admin" && Boolean(hit.actor), `audit entry does not name the acting PMCM admin: ${JSON.stringify(hit).slice(0, 160)}`);
     return `${hit.action} by ${hit.actor}`;
   });
   await step("late marking creates a reliability note in the coordinator history", async () => {
@@ -412,7 +419,10 @@ export async function run(ctx) {
     if (!s.clientA) blocked("no client token");
     status(await call("GET", `/events/${B}/walk-in-policy`, s.clientA), 403);
     status(await call("GET", `/events/${A}/walk-in-policy`, s.clientA), 200);
-    status(await call("PATCH", `/events/${A}/walk-in-policy`, s.clientA, { policy: "open" }), 403);
+    // New-CL1: the client owns its own event's walk-in policy until event day; it is restored to closed below.
+    status(await call("PATCH", `/events/${B}/walk-in-policy`, s.clientA, { policy: "open" }), 403);
+    status(await call("PATCH", `/events/${A}/walk-in-policy`, s.clientA, { policy: "open" }), 200);
+    status(await call("PATCH", `/events/${A}/walk-in-policy`, s.clientA, { policy: "closed" }), 200);
     status(await call("GET", `/events/${A}/guest-privacy`, s.clientA), 403);
     status(await call("GET", `/guest/events/${A}/roster`, s.clientA), 403);
   });
@@ -670,7 +680,7 @@ export async function run(ctx) {
     expect(r.status === 404, `unknown feedback receipt returned ${r.status}: ${msg(r)}`);
   });
   await step("feedback submits for moderation after recorded end and closes after seven days", async () => {
-    await ctx.prepareEventDay(D);
+    await ctx.prepareEventDay(D, await s.D.as());
     expectStatus(await call("POST", `/events/${D}/start-event-day`, s.admin, {}), 200);
     expectStatus(await call("POST", `/events/${D}/actual-end`, s.admin, { actualEndedAt: new Date(Date.now() - 3600000).toISOString() }), 200, 201);
     const code = expectStatus(await call("GET", `/events/${D}`, s.admin), 200).guestAccessCode;
