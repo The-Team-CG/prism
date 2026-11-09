@@ -140,8 +140,12 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
         await expect(rows.first()).toContainText(`${supplierPrefix} 00`);
         await expect(page.getByRole('button', { name: 'Previous', exact: true })).toBeDisabled();
         await page.getByPlaceholder('Search suppliers', { exact: true }).fill(supplierPrefix);
-        await page.locator('#supplier-page-size').click();
-        await page.getByRole('option', { name: '50', exact: true }).click();
+        await page.locator('#supplier-page-size').focus();
+        await page.keyboard.press('Enter');
+        await expect(page.getByRole('option', { name: '50', exact: true })).toBeVisible();
+        await page.keyboard.type('50');
+        await page.keyboard.press('Enter');
+        await expect(page.locator('#supplier-page-size')).toHaveText('50');
         await expect(rows).toHaveCount(26);
         await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
         records.push({ app, template: 'supplier pagination controls', path: '/dashboard/suppliers', result: 'passed' });
