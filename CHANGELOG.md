@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Dependabot keeps package families together: Nest, Prisma, Radix, Tailwind, ESLint/oxlint, Vitest and Testing Library updates go to their own groups. The production and development catch-alls had been taking any package matched by a wildcard, which split Nest 12.4.0 across two pull requests, so neither one passed alone.
 - The runtime is Node 26 (LTS): the API image, CI, the portal deploys and `@types/node` move from 24, and `engines` requires Node 26 or 28 and later. Switch local installs with `nvm use` (`.nvmrc` says 26).
 - Local Docker builds no longer copy `.env` files from app folders into the image. `.dockerignore` listed `.env` and `.env.*`, which match only the repository root, so `apps/api/.env` and the portals' `.env.local` were in the build context.
 

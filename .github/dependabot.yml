@@ -95,10 +95,32 @@ updates:
           - concurrently
           - bun
           - supabase
+      # Dependabot ranks a dependency-type group above a wildcard pattern, so
+      # without these exclusions the catch-alls take every package the named
+      # groups match by wildcard (it split Nest across two pull requests).
+      # Keep this list in step with the wildcards above.
       production:
         dependency-type: production
+        exclude-patterns:
+          - '@nestjs/*'
+          - '@prisma/*'
+          - '@radix-ui/*'
+          - '@tailwindcss/*'
+          - 'eslint-*'
+          - 'oxlint-*'
+          - '@vitest/*'
+          - '@testing-library/*'
       development:
         dependency-type: development
+        exclude-patterns:
+          - '@nestjs/*'
+          - '@prisma/*'
+          - '@radix-ui/*'
+          - '@tailwindcss/*'
+          - 'eslint-*'
+          - 'oxlint-*'
+          - '@vitest/*'
+          - '@testing-library/*'
 
   - package-ecosystem: github-actions
     directories:
