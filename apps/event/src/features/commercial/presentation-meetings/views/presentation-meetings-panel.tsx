@@ -23,6 +23,7 @@ export function PresentationMeetingsPanel({ eventId }: { eventId: string }) {
   const [data, setData] = useState<PrismPresentationMeetings>({ meetings: [], atRisk: false });
   const [title, setTitle] = useState("Proposal presentation");
   const [link, setLink] = useState("");
+  const [zoom, setZoom] = useState(false);
   const [slots, setSlots] = useState<string[]>(["", ""]);
   const [minutes, setMinutes] = useState("60");
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export function PresentationMeetingsPanel({ eventId }: { eventId: string }) {
   }
 
   const propose = () => run(() => presentationMeetingsRepository.propose(eventId, {
-    title, ...(link.trim() ? { meetingLink: link.trim() } : {}),
+    title, ...(zoom ? { createZoomMeeting: true } : link.trim() ? { meetingLink: link.trim() } : {}),
     slots: slots.filter(Boolean).map((start) => {
       const startsAt = new Date(start);
       return { startsAt: startsAt.toISOString(), endsAt: new Date(startsAt.getTime() + Number(minutes) * 60_000).toISOString() };
@@ -54,7 +55,8 @@ export function PresentationMeetingsPanel({ eventId }: { eventId: string }) {
         {data.meetings.map((meeting) => (
           <li key={meeting.id} className="rounded-md border border-border p-3">
             <p className="font-semibold">{meeting.title} · {meeting.status.replace("_", " ")}</p>
-            <p className="text-xs text-muted-foreground">{meeting.chosen ? `Booked for ${formatPortalDateTime(meeting.chosen.startsAt)}` : `Offered: ${meeting.slots.map((slot) => formatPortalDateTime(slot.startsAt)).join(" · ")}`}</p>
+            <p className="text-xs text-muted-foreground">{meeting.chosen ? `Booked for ${formatPortalDateTime(meeting.chosen.startsAt)}` : `Offered: ${meeting.slots.map((slot) => formatPortalDateTime(slot.startsAt)).join(" · ")}`}{meeting.zoomMeeting && !meeting.meetingLink ? " · Zoom meeting created on booking" : ""}</p>
+            {meeting.meetingLink ? <a href={meeting.meetingLink} target="_blank" rel="noreferrer" className="text-xs font-semibold text-primary">Meeting link</a> : null}
             {meeting.status === "scheduled" ? (
               <div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold">
                 <button type="button" onClick={() => downloadIcs(meeting)} className="text-primary">Calendar file</button>
@@ -67,7 +69,8 @@ export function PresentationMeetingsPanel({ eventId }: { eventId: string }) {
       </ul>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         <label>Title<input value={title} onChange={(event) => setTitle(event.target.value)} className={field} /></label>
-        <label>Meeting link (Zoom, Meet or Teams)<input value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://" className={field} /></label>
+        <label>Meeting link (Zoom, Meet or Teams)<input value={link} disabled={zoom} onChange={(event) => setLink(event.target.value)} placeholder="https://" className={field} /></label>
+        <label className="flex items-center gap-2 sm:col-span-2"><input type="checkbox" checked={zoom} onChange={(event) => setZoom(event.target.checked)} />Create the Zoom meeting when the client books a time</label>
         {slots.map((slot, index) => (
           <label key={index}>Time option {index + 1}<input type="datetime-local" value={slot} onChange={(event) => setSlots(slots.map((item, itemIndex) => itemIndex === index ? event.target.value : item))} className={field} /></label>
         ))}

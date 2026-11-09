@@ -8,7 +8,7 @@ const pmcm = { id: 'usr_pmcm', role: OpsUserRole.PmcmAdmin, name: 'Maxine', emai
 const client = { id: 'usr_client', role: OpsUserRole.Client, name: 'Ana', email: 'ana@test', explicit: true, verified: true };
 const slots = [{ startsAt: '2027-01-10T02:00:00.000Z', endsAt: '2027-01-10T03:00:00.000Z' }, { startsAt: '2027-01-11T06:00:00.000Z', endsAt: '2027-01-11T07:00:00.000Z' }];
 
-function fixture() {
+function fixture(zoom: { create: ReturnType<typeof vi.fn>; remove: ReturnType<typeof vi.fn> } | null = null) {
   const rows: Array<Record<string, unknown> & { id: string; status: string }> = [];
   const table = {
     findMany: vi.fn(async () => rows.filter((row) => row.status !== 'superseded')),
@@ -23,10 +23,24 @@ function fixture() {
     requireCanReadEvent: vi.fn(async () => undefined),
   };
   const events = { findEventReadAccess: vi.fn(async () => ({ id: 'evt_1', clientPortalStatus: 'unlocked', inquiry: { email: 'ana@test' } })) };
-  return new PresentationMeetingService(prisma as never, access as never, { write: vi.fn(async () => undefined) } as never, events as never, { write: vi.fn(async () => undefined) } as never);
+  return new PresentationMeetingService(prisma as never, access as never, { write: vi.fn(async () => undefined) } as never, events as never, { write: vi.fn(async () => undefined) } as never, zoom as never);
 }
 
 describe('FR-61 presentation meetings', () => {
+  it('creates the Zoom meeting when the client books, and deletes it when PMCM reschedules', async () => {
+    await expect(fixture().propose('evt_1', { title: 'Walkthrough', slots, createZoomMeeting: true }, pmcm)).rejects.toThrow('Zoom is not configured');
+    const zoom = { create: vi.fn(async () => ({ meetingId: 'zm_1', joinUrl: 'https://zoom.us/j/1' })), remove: vi.fn(async () => undefined) };
+    const service = fixture(zoom);
+    const offered = await service.propose('evt_1', { title: 'Walkthrough', slots, createZoomMeeting: true }, pmcm);
+    expect(offered).toMatchObject({ zoomMeeting: true, meetingLink: null });
+    expect(zoom.create).not.toHaveBeenCalled();
+    const booked = await service.choose('evt_1', offered.id, { startsAt: slots[0]!.startsAt }, client);
+    expect(zoom.create).toHaveBeenCalledWith({ topic: 'Walkthrough', startsAt: new Date(slots[0]!.startsAt), durationMinutes: 60 });
+    expect(booked).toMatchObject({ status: 'scheduled', meetingLink: 'https://zoom.us/j/1' });
+    await service.propose('evt_1', { title: 'Walkthrough', slots }, pmcm);
+    expect(zoom.remove).toHaveBeenCalledWith('zm_1');
+  });
+
   it('lets the client pick only an offered time, replaces the open proposal on reschedule, and gives a calendar file', async () => {
     const service = fixture();
     const first = await service.propose('evt_1', { title: 'Proposal walkthrough', slots, meetingLink: 'https://meet.example.test/abc' }, pmcm);

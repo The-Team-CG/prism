@@ -1336,6 +1336,8 @@ model OpsPresentationMeeting {
   chosenStartAt DateTime? @map("chosen_start_at")
   chosenEndAt   DateTime? @map("chosen_end_at")
   meetingLink   String?   @map("meeting_link")
+  createZoomMeeting Boolean @default(false) @map("create_zoom_meeting")
+  zoomMeetingId String?   @map("zoom_meeting_id")
   status        String    @default("proposed")
   createdBy     String    @map("created_by")
   createdAt     DateTime  @default(now()) @map("created_at")
