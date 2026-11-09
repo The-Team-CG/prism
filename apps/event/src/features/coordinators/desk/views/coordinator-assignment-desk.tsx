@@ -283,63 +283,18 @@ export function CoordinatorAssignmentDesk({
                       </CardHeader>
                       <CardContent>
                         <ItemGroup className="gap-2">
-                          {roleCoords.map((coord) => {
-                            const conflict = conflictFor(coord.id);
-                            const holding = activeAssignmentForRole(eventAssignments, coord.id, role);
-                            const assignedHere = Boolean(holding);
-                            const otherRole = holding ? null : otherActiveRoleAssignment(eventAssignments, coord.id, role);
-                            const awaitingAcknowledgement = holding?.status === "pending_acknowledgement";
-                            const acknowledged = holding?.status === "acknowledged";
-                            return (
-                              <Item key={`${role}-${coord.id}`} role="group" aria-label={`${role}: ${coord.name}`} variant="outline" className="items-start">
-                                <ItemMedia>
-                                  <Avatar className="size-10 border border-border">
-                                    <AvatarFallback className="bg-card text-xs font-bold text-foreground">
-                                      {coord.name.slice(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                </ItemMedia>
-                                <ItemContent className="min-w-0">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <ItemTitle className="min-w-0 truncate">{coord.name}</ItemTitle>
-                                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${conflict ? "text-attention" : "text-success"}`}>
-                                      <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                                      {conflict ? "Has conflict" : "Available"}
-                                    </span>
-                                  </div>
-                                  <ItemDescription className="truncate">{coord.email}</ItemDescription>
-                                  <p className="text-xs text-foreground">{coordinatorRoleTags(coord).join(" · ")}</p>
-                                  {coord.skillsTags.length > 0 && (
-                                    <p className="text-xs text-muted-foreground">Skills: {coord.skillsTags.join(", ")}</p>
-                                  )}
-                                  {conflict && (
-                                    <p className="text-xs font-semibold text-attention">
-                                      Assigned to {conflict.conflictEventName ?? "another event"} on {eventDate}.
-                                    </p>
-                                  )}
-                                  {otherRole ? <p className="text-xs text-muted-foreground">Assigned as {canonicalCoordinatorRole(otherRole.role) ?? otherRole.role}</p> : null}
-                                  {awaitingAcknowledgement || acknowledged ? (
-                                    <p className={`inline-flex items-center gap-1.5 text-xs font-semibold ${awaitingAcknowledgement ? "text-attention" : "text-success"}`}>
-                                      <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                                      {awaitingAcknowledgement ? "Awaiting acknowledgement" : "Acknowledged"}
-                                    </p>
-                                  ) : null}
-                                </ItemContent>
-                                <ItemActions>
-                                  <Button
-                                    size="sm"
-                                    disabled={busy || assignedHere}
-                                    onClick={() => assign(coord, role)}
-                                    className="rounded-xl font-bold"
-                                    variant={assignedHere ? "outline" : "default"}
-                                  >
-                                    <UserCheck className="size-3.5" />
-                                    {assignedHere ? "Assigned" : conflict ? "Review conflict" : "Quick assign"}
-                                  </Button>
-                                </ItemActions>
-                              </Item>
-                            );
-                          })}
+                          {roleCoords.map((coord) => (
+                            <CoordinatorCandidateItem
+                              key={`${role}-${coord.id}`}
+                              coordinator={coord}
+                              role={role}
+                              conflict={conflictFor(coord.id)}
+                              eventAssignments={eventAssignments}
+                              eventDate={eventDate}
+                              busy={busy}
+                              onAssign={assign}
+                            />
+                          ))}
                         </ItemGroup>
                       </CardContent>
                     </Card>
@@ -538,4 +493,97 @@ function CoordinatorSkillResults({ status, suggestions, busy, onAssign }: {
                 </section>
               )}
   </>;
+}
+
+type CandidateAssignmentState = {
+  assignedHere: boolean;
+  otherRole: PrismCoordinatorAssignment | undefined;
+  acknowledgement: { label: string; tone: string } | null;
+};
+
+function candidateAssignmentState(
+  eventAssignments: PrismCoordinatorAssignment[],
+  coordinatorId: string,
+  role: CoordinatorRole,
+): CandidateAssignmentState {
+  const holding = activeAssignmentForRole(eventAssignments, coordinatorId, role);
+  if (!holding) {
+    return { assignedHere: false, otherRole: otherActiveRoleAssignment(eventAssignments, coordinatorId, role) ?? undefined, acknowledgement: null };
+  }
+  if (holding.status === "pending_acknowledgement") {
+    return { assignedHere: true, otherRole: undefined, acknowledgement: { label: "Awaiting acknowledgement", tone: "text-attention" } };
+  }
+  if (holding.status === "acknowledged") {
+    return { assignedHere: true, otherRole: undefined, acknowledgement: { label: "Acknowledged", tone: "text-success" } };
+  }
+  return { assignedHere: true, otherRole: undefined, acknowledgement: null };
+}
+
+function candidateActionLabel(assignedHere: boolean, hasConflict: boolean) {
+  if (assignedHere) return "Assigned";
+  return hasConflict ? "Review conflict" : "Quick assign";
+}
+
+function CoordinatorCandidateItem({
+  coordinator,
+  role,
+  conflict,
+  eventAssignments,
+  eventDate,
+  busy,
+  onAssign,
+}: {
+  coordinator: PrismCoordinator;
+  role: CoordinatorRole;
+  conflict: PrismCoordinatorAssignment | undefined;
+  eventAssignments: PrismCoordinatorAssignment[];
+  eventDate: string;
+  busy: boolean;
+  onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole) => void;
+}) {
+  const { assignedHere, otherRole, acknowledgement } = candidateAssignmentState(eventAssignments, coordinator.id, role);
+  const actionLabel = candidateActionLabel(assignedHere, Boolean(conflict));
+  return (
+    <Item role="group" aria-label={`${role}: ${coordinator.name}`} variant="outline" className="items-start">
+      <ItemMedia>
+        <Avatar className="size-10 border border-border">
+          <AvatarFallback className="bg-card text-xs font-bold text-foreground">
+            {coordinator.name.slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      </ItemMedia>
+      <ItemContent className="min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <ItemTitle className="min-w-0 truncate">{coordinator.name}</ItemTitle>
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${conflict ? "text-attention" : "text-success"}`}>
+            <span aria-hidden className="size-1.5 rounded-full bg-current" />
+            {conflict ? "Has conflict" : "Available"}
+          </span>
+        </div>
+        <ItemDescription className="truncate">{coordinator.email}</ItemDescription>
+        <p className="text-xs text-foreground">{coordinatorRoleTags(coordinator).join(" · ")}</p>
+        {coordinator.skillsTags.length > 0 && (
+          <p className="text-xs text-muted-foreground">Skills: {coordinator.skillsTags.join(", ")}</p>
+        )}
+        {conflict && (
+          <p className="text-xs font-semibold text-attention">
+            Assigned to {conflict.conflictEventName ?? "another event"} on {eventDate}.
+          </p>
+        )}
+        {otherRole ? <p className="text-xs text-muted-foreground">Assigned as {canonicalCoordinatorRole(otherRole.role) ?? otherRole.role}</p> : null}
+        {acknowledgement ? (
+          <p className={`inline-flex items-center gap-1.5 text-xs font-semibold ${acknowledgement.tone}`}>
+            <span aria-hidden className="size-1.5 rounded-full bg-current" />
+            {acknowledgement.label}
+          </p>
+        ) : null}
+      </ItemContent>
+      <ItemActions>
+        <Button size="sm" disabled={busy || assignedHere} onClick={() => onAssign(coordinator, role)} variant={assignedHere ? "outline" : "default"}>
+          <UserCheck className="size-3.5" />
+          {actionLabel}
+        </Button>
+      </ItemActions>
+    </Item>
+  );
 }
