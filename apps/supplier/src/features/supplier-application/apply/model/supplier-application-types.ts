@@ -19,8 +19,6 @@ export type SupplierApplicationForm = {
 
 export type SupplierApplicationSubmitStatus = "idle" | "loading" | "submitted" | "error";
 
-export const APPLICATION_WIZARD_STEPS = ["Company Info", "Services & Portfolio", "Certifications", "Review & Submit"] as const;
-
 export const APPLICATION_PRICE_RANGES = [
   "Below PHP 50k",
   "PHP 50k-150k",

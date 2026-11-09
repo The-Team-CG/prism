@@ -8,10 +8,10 @@ import { clockLabel } from "@prism/ui/calendar-views";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
 import { PortalCalendar, type PortalCalendarKind } from "@prism/ui/portal-calendar";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Card, CardContent } from "@prism/ui/components/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { buildSupplierCalendarItems, type SupplierCalendarItemKind } from "../../model/supplier-calendar-items";
 import type { PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
-import { Card, CardBody } from "./shell-ui";
 
 const UPCOMING_LIMIT = 8;
 
@@ -44,9 +44,17 @@ export function CalendarPage({ workspace, readinessBoard, workflowWorkspace }: {
 
   if (items.length === 0) {
     return (
-      <Card><CardBody>
-        <EmptyState icon={CalendarDays} title="Nothing scheduled yet" description="Event days, quote deadlines, arrivals, deliverables and payments appear here once they're set." />
-      </CardBody></Card>
+      <Card>
+        <CardContent>
+          <Empty className="border-0 p-6 md:p-8">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><CalendarDays /></EmptyMedia>
+              <EmptyTitle>Nothing scheduled yet</EmptyTitle>
+              <EmptyDescription>Event days, quote deadlines, arrivals, deliverables and payments appear here once they&apos;re set.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </CardContent>
+      </Card>
     );
   }
 
@@ -63,7 +71,7 @@ export function CalendarPage({ workspace, readinessBoard, workflowWorkspace }: {
             action: (item) => <Button asChild><Link href={item.href}>{ACTIONS[item.kind]}</Link></Button>,
           }}
         />
-        <Card className="min-w-0 self-start">
+        <Card className="min-w-0 gap-0 self-start py-0">
           <h2 className="border-b border-border px-4 py-3 text-base font-semibold text-foreground">Coming up</h2>
           {upcoming.length === 0 ? (
             <p className="px-4 py-5 text-sm text-muted-foreground">Nothing else is scheduled.</p>

@@ -1,33 +1,19 @@
 import type { CreateSupplierApplicationInput } from "@prism/types";
 import type { SupplierApplicationForm } from "./supplier-application-types";
-import { APPLICATION_WIZARD_STEPS } from "./supplier-application-types";
 
-export function isSupplierApplicationStepValid(form: SupplierApplicationForm, step: number): boolean {
-  if (step === 0) {
-    return Boolean(form.companyName.trim() && form.contactName.trim() && form.email.trim());
-  }
-  if (step === 1) {
-    return Boolean(form.categoryId);
-  }
-  if (step === 2) {
-    return true;
-  }
-  if (step === APPLICATION_WIZARD_STEPS.length - 1) {
-    return form.privacyConsentAccepted;
-  }
-  return false;
+/** Required items that are still missing, in form order. An empty list means the application can be submitted. */
+export function missingSupplierApplicationItems(form: SupplierApplicationForm): string[] {
+  const missing: string[] = [];
+  if (!form.companyName.trim()) missing.push("company name");
+  if (!form.contactName.trim()) missing.push("contact person");
+  if (!form.email.trim()) missing.push("email address");
+  if (!form.categoryId) missing.push("service category");
+  if (!form.privacyConsentAccepted) missing.push("privacy notice consent");
+  return missing;
 }
 
-export function canAdvanceSupplierApplicationStep(form: SupplierApplicationForm, step: number): boolean {
-  return isSupplierApplicationStepValid(form, step) && step < APPLICATION_WIZARD_STEPS.length - 1;
-}
-
-export function nextSupplierApplicationStep(step: number): number {
-  return Math.min(step + 1, APPLICATION_WIZARD_STEPS.length - 1);
-}
-
-export function previousSupplierApplicationStep(step: number): number {
-  return Math.max(step - 1, 0);
+export function isSupplierApplicationReady(form: SupplierApplicationForm): boolean {
+  return missingSupplierApplicationItems(form).length === 0;
 }
 
 export function buildSupplierApplicationPayload(form: SupplierApplicationForm): CreateSupplierApplicationInput {

@@ -3,7 +3,7 @@
 import { FormEvent } from "react";
 import { ChevronRight, ClipboardList } from "lucide-react";
 import { daysUntil, dueLabel, formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { formatDate, formatMoney, initialForm, isPastDate, isRequestClosed, requestsForQuoting, statusLabel } from "../../model/supplier-workspace-rules";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { Card, CardBody } from "./shell-ui";
@@ -35,11 +35,13 @@ export function RequestsPage({
   if (!requests.length) {
     return (
       <Card><CardBody>
-        <EmptyState
-          icon={ClipboardList}
-          title={workspace.quoteRequests.length ? "No open quote requests." : "No quote requests yet."}
-          description={workspace.quoteRequests.length ? "Selected quotes are in Bookings. New requests from PMCM will appear here." : "PMCM will send scoped quote requests when events are ready."}
-        />
+        <Empty className="border-0 p-6 md:p-8">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><ClipboardList /></EmptyMedia>
+            <EmptyTitle>{workspace.quoteRequests.length ? "No open quote requests." : "No quote requests yet."}</EmptyTitle>
+            <EmptyDescription>{workspace.quoteRequests.length ? "Selected quotes are in Bookings. New requests from PMCM will appear here." : "PMCM will send scoped quote requests when events are ready."}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       </CardBody></Card>
     );
   }
