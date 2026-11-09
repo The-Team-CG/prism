@@ -121,6 +121,7 @@ export function useSupplierDirectoryViewModel({ view, session }: { view: string;
   const supplierId = searchParams.get("supplierId") || null;
   // URLs this view wrote and the router has not reported back yet, oldest first.
   const pendingUrlWrites = useRef<string[]>([]);
+  const settledUrl = useRef<string | null>(null);
 
   const route = useMemo(
     () => normalizeSupplierDirectoryRoute(view, new URLSearchParams(searchKey), categories),
@@ -197,7 +198,12 @@ export function useSupplierDirectoryViewModel({ view, session }: { view: string;
 
   useEffect(() => {
     if (!categoriesLoaded) return;
-    if (isSupersededUrlWrite(pendingUrlWrites.current, routeQueryString(route.query, supplierId))) return;
+    const reportedUrl = routeQueryString(route.query, supplierId);
+    // This effect also re-runs when only `route` changes identity. A URL already settled must not be settled again:
+    // its pending entry is gone by then, so it would be mistaken for outside navigation and undo a newer change.
+    if (reportedUrl === settledUrl.current) return;
+    settledUrl.current = reportedUrl;
+    if (isSupersededUrlWrite(pendingUrlWrites.current, reportedUrl)) return;
     queryRef.current = route.query;
     setQuery((current) => Object.keys(route.query).every((key) => current[key as keyof PmcmSupplierDirectoryQuery] === route.query[key as keyof PmcmSupplierDirectoryQuery]) ? current : route.query);
   }, [categoriesLoaded, route.query, searchKey, supplierId]);

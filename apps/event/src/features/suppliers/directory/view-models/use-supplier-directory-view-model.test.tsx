@@ -170,7 +170,7 @@ describe("useSupplierDirectoryViewModel", () => {
 
   it("keeps a page size chosen while the earlier search URL is still committing, and still follows outside navigation", async () => {
     const sessionValue = session("actor-a");
-    const { result, rerender } = renderHook(() => useSupplierDirectoryViewModel({ view: "all", session: sessionValue }));
+    const { result, rerender } = renderHook(({ view }) => useSupplierDirectoryViewModel({ view, session: sessionValue }), { initialProps: { view: "all" } });
     await waitFor(() => expect(loadSupplierDirectoryMock).toHaveBeenCalled());
     const searchOf = (call: number) => new URL(routerMock.replace.mock.calls[call]?.[0] ?? "", "http://localhost").search.slice(1);
 
@@ -179,15 +179,19 @@ describe("useSupplierDirectoryViewModel", () => {
     act(() => result.current.updateQuery({ pageSize: 50 }));
 
     routeSearchMock.value = searchOf(firstWrite);
-    rerender();
+    rerender({ view: "all" });
+    expect(result.current.query).toMatchObject({ q: "harbor", pageSize: 50 });
+
+    // The same stale URL seen again (the route object is rebuilt without the URL changing) is still stale.
+    rerender({ view: "unknown-view" });
     expect(result.current.query).toMatchObject({ q: "harbor", pageSize: 50 });
 
     routeSearchMock.value = searchOf(firstWrite + 1);
-    rerender();
+    rerender({ view: "all" });
     expect(result.current.query).toMatchObject({ q: "harbor", pageSize: 50 });
 
     routeSearchMock.value = "q=harbor&page=0&pageSize=25";
-    rerender();
+    rerender({ view: "all" });
     await waitFor(() => expect(result.current.query).toMatchObject({ q: "harbor", pageSize: 25 }));
   });
 
