@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import { ClientDashboardWorkspaceView, type ClientPortalView } from "@/features/client-dashboard/workspace";
 
 const billingViews: Record<string, ClientPortalView> = {
-  quotations: "billing-quotations",
-  invoices: "billing-invoices",
+  statements: "billing-statements",
   "payment-schedule": "billing-payment-schedule",
   "payment-reminders": "dashboard-payment-reminders",
   receipts: "billing-receipts",

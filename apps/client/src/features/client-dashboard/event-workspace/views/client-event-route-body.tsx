@@ -7,7 +7,8 @@ import { ClientBriefingTab } from "../../briefing";
 import { ClientDocumentsTab } from "../../documents";
 import { ClientProposalTab } from "../../proposal";
 import { ClientActionGroup } from "../../shared/client-action-group";
-import { useClientWorkspace, type ClientWorkspaceValue } from "../../workspace/shared";
+import { dashboardHref, useClientWorkspace, type ClientWorkspaceValue } from "../../workspace/shared";
+import { ClientRouteTabs } from "../../shared/client-route-tabs";
 import { ClientOverviewTab } from "./client-overview-tab";
 import { ClientEventDetailsView } from "./client-event-details-view";
 import { ClientOcularVisitPanel } from "./client-ocular-visit-panel";
@@ -130,9 +131,30 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
   summary: (ctx) => <div className="space-y-4"><ClientFinalSummaryView />{ctx.selectedEvent ? <ClientCloseoutView key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} archived={ctx.selectedEvent.archived} /> : null}</div>,
 };
 
+/** Planning is one sidebar item with five views; the tabs are the way between them. */
+const PLANNING_TABS: Array<{ route: ClientDashboardRoute; label: string }> = [
+  { route: "progress", label: "Progress" },
+  { route: "schedule", label: "Schedule" },
+  { route: "actions", label: "Actions" },
+  { route: "details", label: "Details" },
+  { route: "changes", label: "Changes" },
+];
+
 export function ClientEventRouteBody() {
   const ctx = useClientWorkspace();
   const render = EVENT_ROUTE_RENDERERS[ctx.route];
   if (!render) return null;
-  return render(ctx);
+  const { selectedEvent } = ctx;
+  const planningRoute = PLANNING_TABS.some((tab) => tab.route === ctx.route);
+  if (!planningRoute || !selectedEvent) return render(ctx);
+  return (
+    <div className="space-y-4">
+      <ClientRouteTabs
+        label="Planning views"
+        activeId={ctx.route}
+        tabs={PLANNING_TABS.map((tab) => ({ id: tab.route, label: tab.label, href: dashboardHref(tab.route, selectedEvent.id) }))}
+      />
+      {render(ctx)}
+    </div>
+  );
 }

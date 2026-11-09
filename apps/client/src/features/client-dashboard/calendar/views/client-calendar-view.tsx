@@ -8,10 +8,21 @@ import { Button } from "@prism/ui/components/button";
 import { PortalCalendar } from "@prism/ui/portal-calendar";
 import { cn } from "@/app/components/ui/utils";
 import { CLIENT_PORTAL_VIEW_META, dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
-import type { ClientDashboardRoute } from "../../workspace/model/client-dashboard-types";
+import { CLIENT_PORTAL_VIEW_HREFS } from "../../workspace/model/client-dashboard-navigation";
+import type { ClientDashboardRoute, ClientPortalView } from "../../workspace/model/client-dashboard-types";
 import { ClientListEmpty, ClientListSection, type ClientRowTone } from "../../shared/client-list-ui";
+import { ClientRouteTabs } from "../../shared/client-route-tabs";
 import { dueState, eventCountdown } from "../../home/model/client-home-summary";
-import { buildClientCalendarItems, type ClientCalendarItem, type ClientCalendarItemKind } from "../model/client-calendar-items";
+import { buildClientCalendarItems, clientCalendarEmptyCopy, type ClientCalendarItem, type ClientCalendarItemKind } from "../model/client-calendar-items";
+
+const CALENDAR_TABS: Array<{ id: string; label: string; href: string; view?: ClientPortalView }> = [
+  { id: "calendar-all", label: "All", href: "/dashboard/calendar" },
+  { id: "calendar-event-dates", label: "Event dates", href: CLIENT_PORTAL_VIEW_HREFS["calendar-event-dates"], view: "calendar-event-dates" },
+  { id: "calendar-meetings", label: "Site visits", href: CLIENT_PORTAL_VIEW_HREFS["calendar-meetings"], view: "calendar-meetings" },
+  { id: "calendar-deadlines", label: "Due dates", href: CLIENT_PORTAL_VIEW_HREFS["calendar-deadlines"], view: "calendar-deadlines" },
+  { id: "calendar-payment-due-dates", label: "Payment schedule", href: CLIENT_PORTAL_VIEW_HREFS["calendar-payment-due-dates"], view: "calendar-payment-due-dates" },
+  { id: "calendar-approval-deadlines", label: "Layout approvals", href: CLIENT_PORTAL_VIEW_HREFS["calendar-approval-deadlines"], view: "calendar-approval-deadlines" },
+];
 
 const KIND: Record<ClientCalendarItemKind, { label: string; icon: LucideIcon; chip: string; dot: string; route: ClientDashboardRoute; action: string }> = {
   event: { label: "Event", icon: CalendarDays, chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary", route: "overview", action: "Open event" },
@@ -41,31 +52,35 @@ export function ClientCalendarView() {
 
   const upcoming = items.filter((item) => item.date >= today);
   const viewTitle = portalView ? CLIENT_PORTAL_VIEW_META[portalView]?.title : undefined;
-
-  if (items.length === 0) {
-    return <ClientListEmpty icon={CalendarDays} title="Nothing scheduled yet" description="Event dates, payment due dates, site visits and layout approvals appear here once they're set." />;
-  }
+  const activeTab = CALENDAR_TABS.find((tab) => tab.view === portalView) ?? CALENDAR_TABS[0];
 
   return (
-    <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <PortalCalendar
-        items={items}
-        kinds={KIND}
-        today={today}
-        initialDate={upcoming[0]?.date ?? today}
-        detail={{
-          action: (item) => <Button asChild><Link href={itemHref(item)}>{KIND[item.kind].action}</Link></Button>,
-        }}
-      />
+    <div className="min-w-0 space-y-4">
+      <ClientRouteTabs label="Calendar views" activeId={activeTab.id} tabs={CALENDAR_TABS.map((tab) => ({ id: tab.id, label: tab.label, href: tab.href }))} />
+      {items.length === 0 ? (
+        <ClientListEmpty icon={CalendarDays} {...clientCalendarEmptyCopy(portalView)} />
+      ) : (
+        <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <PortalCalendar
+            items={items}
+            kinds={KIND}
+            today={today}
+            initialDate={upcoming[0]?.date ?? today}
+            detail={{
+              action: (item) => <Button asChild><Link href={itemHref(item)}>{KIND[item.kind].action}</Link></Button>,
+            }}
+          />
 
-      <ClientListSection id="client-calendar-upcoming" title={viewTitle ?? (upcoming.length ? "Coming up" : "Recent")} count={(upcoming.length ? upcoming : items).length}>
-        {(upcoming.length ? upcoming : [...items].reverse()).slice(0, 8).map((item) => {
-          const status = itemStatus(item, today);
-          return (
-            <ClientCalendarRow key={item.id} item={item} status={status} />
-          );
-        })}
-      </ClientListSection>
+          <ClientListSection id="client-calendar-upcoming" title={viewTitle ?? (upcoming.length ? "Coming up" : "Recent")} count={(upcoming.length ? upcoming : items).length}>
+            {(upcoming.length ? upcoming : [...items].reverse()).slice(0, 8).map((item) => {
+              const status = itemStatus(item, today);
+              return (
+                <ClientCalendarRow key={item.id} item={item} status={status} />
+              );
+            })}
+          </ClientListSection>
+        </div>
+      )}
     </div>
   );
 }
@@ -80,7 +95,7 @@ function ClientCalendarRow({ item, status }: { item: ClientCalendarItem; status:
         <Link href={itemHref(item)} className="block truncate text-sm font-semibold text-foreground outline-none after:absolute after:inset-0">{item.title}</Link>
         <span className="block truncate text-xs text-muted-foreground">{formatPortalDate(item.date)} · {item.detail}</span>
       </span>
-      <span className={cn("shrink-0 whitespace-nowrap text-xs tabular-nums", status.tone === "urgent" ? "font-semibold text-danger" : status.tone === "attention" ? "font-medium text-attention" : status.tone === "done" ? "text-success" : "text-muted-foreground")}>{status.label}</span>
+      <span className={cn("w-28 shrink-0 whitespace-nowrap text-center text-xs tabular-nums", status.tone === "urgent" ? "font-semibold text-danger" : status.tone === "attention" ? "font-medium text-attention" : status.tone === "done" ? "text-success" : "text-muted-foreground")}>{status.label}</span>
     </li>
   );
 }

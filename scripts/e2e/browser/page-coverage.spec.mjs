@@ -23,7 +23,7 @@ async function pageFixture(app) {
     await api('POST', `/events/${fixture.eventId}/ocular-visit/waive`, { reason: 'Synthetic page coverage venue fixture' });
     const draft = await api('POST', `/events/${fixture.eventId}/floorplans`, {
       name: 'Page coverage official layout', sourceType: 'blank', width: 1200, height: 800, gridSize: 20, pax: 120,
-      objects: [{ id: 'coverage-table', kind: 'table', position: { x: 100, y: 100 }, size: { width: 80, height: 80 }, rotation: 0, zIndex: 1 }],
+      objects: [{ id: 'coverage-table', kind: 'ellipse', name: 'Table', category: 'furniture', x: 100, y: 100, w: 80, h: 80, rotation: 0, fill: '#FFFFFF', stroke: '#000000', strokeWidth: 1, locked: false, hidden: false }],
     });
     await api('POST', `/events/${fixture.eventId}/floorplans/${draft.id}/submit`);
     await api('POST', `/events/${fixture.eventId}/floorplans/${draft.id}/approve`);

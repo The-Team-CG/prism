@@ -5,7 +5,12 @@ import { CheckCircle2, FileText, MessageSquareText, ReceiptText, WalletCards } f
 import { BILLING_DISCREPANCY_SEVERITIES, BILLING_DISCREPANCY_SEVERITY_LABELS, type PrismBillingStatement, type PrismClientBillingDispute, type PrismPaymentMilestone } from "@prism/types";
 import Link from "next/link";
 import { Button } from "@prism/ui/components/button";
+import { Card } from "@prism/ui/components/card";
+import { Field, FieldLabel } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { StatusBadge } from "@prism/ui/components/status-badge";
+import { Textarea } from "@prism/ui/components/textarea";
 import { cn } from "@/app/components/ui/utils";
 import { formatDayLabel, formatLabel, money } from "../../shared/tab-ui";
 import { dashboardHref } from "../../workspace/shared";
@@ -65,7 +70,7 @@ export function ClientBillingTab({
           action={<Button asChild variant="outline" size="sm"><Link href={messagesHref}>Message PMCM about billing</Link></Button>}
         />
       ) : (
-        <section aria-labelledby="client-payment-schedule" className="overflow-hidden rounded-lg border border-border bg-card">
+        <Card role="region" aria-labelledby="client-payment-schedule" className="gap-0 overflow-hidden py-0">
           <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <h2 id="client-payment-schedule" className="flex items-center gap-2 text-sm font-semibold text-foreground">
               Payment schedule <span className="font-normal tabular-nums text-muted-foreground">{activePayments.length}</span>
@@ -76,7 +81,7 @@ export function ClientBillingTab({
               <PaymentRow key={payment.id} payment={payment} todayKey={todayKey} onReceipt={(record) => downloadReceipt(record, payment.label)} />
             ))}
           </ul>
-        </section>
+        </Card>
       )}
 
       {billing && eventId ? (
@@ -84,7 +89,8 @@ export function ClientBillingTab({
       ) : null}
 
       {historicalPayments.length > 0 ? (
-        <details className="group overflow-hidden rounded-lg border border-border bg-card">
+        <Card className="gap-0 overflow-hidden py-0">
+          <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-foreground">
             Earlier statement payments <span className="font-normal tabular-nums text-muted-foreground">{historicalPayments.length}</span>
           </summary>
@@ -94,7 +100,8 @@ export function ClientBillingTab({
               <PaymentRow key={payment.id} payment={payment} todayKey={todayKey} onReceipt={(record) => downloadReceipt(record, payment.label)} superseded />
             ))}
           </ul>
-        </details>
+          </details>
+        </Card>
       ) : null}
     </div>
   );
@@ -170,7 +177,7 @@ function eventBillingFigures(summary: { totalAmount: number; totalPaid: number; 
 
 function StatementBar({ billing, messagesHref, statementDownload }: { billing: PrismBillingStatement; messagesHref: string; statementDownload: ReturnType<typeof useClientStatementDownload> }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
+    <Card className="flex-row flex-wrap items-center justify-between gap-3 px-4 py-3">
       <div className="flex min-w-0 items-center gap-3">
         <span aria-hidden className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground"><FileText className="size-4" /></span>
         <div className="min-w-0">
@@ -186,17 +193,20 @@ function StatementBar({ billing, messagesHref, statementDownload }: { billing: P
           </Button>
         ) : null}
       </div>
-    </div>
+    </Card>
   );
 }
 
 type DisputeForm = ReturnType<typeof useClientBillingDisputeViewModel>;
 
 /** Open disputes as rows; the form to raise one stays folded until the client asks for it. */
-function BillingDisputes({ billing, activePayments, disputeForm }: { billing: PrismBillingStatement; activePayments: PrismPaymentMilestone[]; disputeForm: DisputeForm }) {
+/** Radix selects cannot hold an empty value, so "no related payment" is this sentinel in the list. */
+const WHOLE_STATEMENT = "whole-statement";
+
+function BillingDisputes({ billing, activePayments, disputeForm }:{ billing: PrismBillingStatement; activePayments: PrismPaymentMilestone[]; disputeForm: DisputeForm }) {
   const canSubmit = !disputeForm.submitting && Boolean(disputeForm.amount) && Number(disputeForm.amount) <= billing.totalAmount && Boolean(disputeForm.reason.trim());
   return (
-    <section aria-labelledby="client-billing-disputes" className="overflow-hidden rounded-lg border border-border bg-card">
+    <Card role="region" aria-labelledby="client-billing-disputes" className="gap-0 overflow-hidden py-0">
       <details className="group">
         <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-4 py-3">
           <span>
@@ -206,23 +216,43 @@ function BillingDisputes({ billing, activePayments, disputeForm }: { billing: Pr
           <span className="text-sm font-medium text-primary group-open:hidden">Raise a dispute</span>
         </summary>
         <div className="grid gap-3 border-t border-border px-4 py-4 sm:grid-cols-2">
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Amount disputed
-            <input type="number" min="1" max={billing.totalAmount} value={disputeForm.amount} onChange={(event) => disputeForm.setAmount(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground" />
-          </label>
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Kind of discrepancy
-            <select value={disputeForm.severity} onChange={(event) => disputeForm.setSeverity(event.target.value as typeof disputeForm.severity)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground">
-              {BILLING_DISCREPANCY_SEVERITIES.map((severity) => <option key={severity} value={severity}>{BILLING_DISCREPANCY_SEVERITY_LABELS[severity]}</option>)}
-            </select>
-          </label>
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground">Related payment (optional)
-            <select value={disputeForm.milestoneId} onChange={(event) => disputeForm.setMilestoneId(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground">
-              <option value="">Whole statement</option>
-              {activePayments.map((payment) => <option key={payment.id} value={payment.id}>{payment.label}</option>)}
-            </select>
-          </label>
-          <label className="grid gap-1 text-xs font-medium text-muted-foreground sm:col-span-2">Reason
-            <textarea value={disputeForm.reason} onChange={(event) => disputeForm.setReason(event.target.value)} rows={3} maxLength={1000} className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground" />
-          </label>
+          <Field>
+            <FieldLabel htmlFor="client-dispute-amount">Amount disputed</FieldLabel>
+            <Input id="client-dispute-amount" type="number" min="1" max={billing.totalAmount} value={disputeForm.amount} onChange={(event) => disputeForm.setAmount(event.target.value)} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="client-dispute-severity">Kind of discrepancy</FieldLabel>
+            <Select
+              value={disputeForm.severity}
+              onValueChange={(value) => {
+                const severity = BILLING_DISCREPANCY_SEVERITIES.find((candidate) => candidate === value);
+                if (severity) disputeForm.setSeverity(severity);
+              }}
+            >
+              <SelectTrigger id="client-dispute-severity" className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {BILLING_DISCREPANCY_SEVERITIES.map((severity) => <SelectItem key={severity} value={severity}>{BILLING_DISCREPANCY_SEVERITY_LABELS[severity]}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="client-dispute-milestone">Related payment (optional)</FieldLabel>
+            <Select value={disputeForm.milestoneId || WHOLE_STATEMENT} onValueChange={(value) => disputeForm.setMilestoneId(value === WHOLE_STATEMENT ? "" : value)}>
+              <SelectTrigger id="client-dispute-milestone" className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={WHOLE_STATEMENT}>Whole statement</SelectItem>
+                {activePayments.map((payment) => <SelectItem key={payment.id} value={payment.id}>{payment.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field className="sm:col-span-2">
+            <FieldLabel htmlFor="client-dispute-reason">Reason</FieldLabel>
+            <Textarea id="client-dispute-reason" value={disputeForm.reason} onChange={(event) => disputeForm.setReason(event.target.value)} rows={3} maxLength={1000} />
+          </Field>
           {disputeForm.error ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{disputeForm.error}</p> : null}
           <div className="sm:col-span-2">
             <Button disabled={!canSubmit} onClick={() => void disputeForm.submit()}>{disputeForm.submitting ? "Submitting…" : "Submit dispute"}</Button>
@@ -242,6 +272,6 @@ function BillingDisputes({ billing, activePayments, disputeForm }: { billing: Pr
           ))}
         </ul>
       ) : null}
-    </section>
+    </Card>
   );
 }

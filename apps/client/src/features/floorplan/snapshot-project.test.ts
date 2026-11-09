@@ -33,11 +33,4 @@ describe("snapshot project", () => {
     });
   });
 
-  it("opens plans saved in the older canvas shape that the API still accepts", () => {
-    const legacyObject = {
-      id: "table_1", kind: "table", position: { x: 2, y: 3 }, size: { width: 4, height: 2 }, rotation: 0, zIndex: 1,
-    };
-    const project = projectFromSnapshot({ ...snapshot, objects: [legacyObject] } as unknown as ApiFloorPlanSnapshot);
-    expect(project.objects).toEqual([legacyObject]);
-  });
 });

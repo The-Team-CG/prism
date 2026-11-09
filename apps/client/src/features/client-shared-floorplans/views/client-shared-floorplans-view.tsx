@@ -3,6 +3,7 @@
 import { MapPinned, RotateCcw } from "lucide-react";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
+import { Card } from "@prism/ui/components/card";
 import { ClientListEmpty, ClientListRow, ClientListSection } from "@/features/client-dashboard/shared/client-list-ui";
 import { clientSharedFloorplanSnapshotHref } from "../model/client-shared-floorplans";
 import { useClientSharedFloorplansViewModel } from "../view-models/use-client-shared-floorplans-view-model";
@@ -30,7 +31,7 @@ export function ClientSharedFloorplansView() {
     <div className="space-y-4">
       {vm.error ? <p role="alert" className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">{vm.error}</p> : null}
       {vm.loading && vm.entries.length === 0 ? (
-        <p role="status" className="rounded-lg border border-border bg-card px-4 py-5 text-sm text-muted-foreground">Loading shared floorplans…</p>
+        <Card role="status" className="gap-0 px-4 py-5 text-sm text-muted-foreground">Loading shared floorplans…</Card>
       ) : vm.entries.length === 0 ? (
         <ClientListEmpty icon={MapPinned} title="No floorplans shared yet" description="When PMCM shares an official layout for one of your events, it appears here to view." action={refresh} />
       ) : (

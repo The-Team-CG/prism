@@ -30,28 +30,32 @@ const finite = (value: unknown): value is number => typeof value === "number" &&
 const text = (value: unknown, fallback: string) => (typeof value === "string" ? value : fallback);
 const positive = (value: unknown): number | null => (finite(value) && value > 0 ? value : null);
 
-type PlacedItem = Record<string, unknown> & { x: number; y: number; w: number; h: number };
+type Box = { x: number; y: number; w: number; h: number };
 
-/** A visible object with a finite position and size; the PMCM can hide objects from the drawn plan. */
-function isPlaced(item: Record<string, unknown>): item is PlacedItem {
-  return finite(item.x) && finite(item.y) && finite(item.w) && finite(item.h) && item.hidden !== true;
+/** Where an object sits: the canonical canvas box. Objects without a finite box are not drawable. */
+function boxOf(item: Record<string, unknown>): Box | null {
+  if (!finite(item.x) || !finite(item.y) || !finite(item.w) || !finite(item.h)) return null;
+  return { x: item.x, y: item.y, w: item.w, h: item.h };
 }
 
 /** The label the editor shows, falling back to the object's name. */
 const objectName = (item: Record<string, unknown>) => (typeof item.label === "string" && item.label ? item.label : text(item.name, ""));
 
+/** A drawable object; the PMCM can hide objects from the drawn plan, and those are left out. */
 function readObject(value: unknown): ReviewObject | null {
   if (typeof value !== "object" || value === null) return null;
   const item = value as Record<string, unknown>;
-  if (!isPlaced(item)) return null;
+  if (item.hidden === true) return null;
+  const box = boxOf(item);
+  if (!box) return null;
   return {
     id: typeof item.id === "string" ? item.id : undefined,
     name: objectName(item),
     kind: text(item.kind, "rect"),
-    x: item.x,
-    y: item.y,
-    w: Math.max(0, item.w),
-    h: Math.max(0, item.h),
+    x: box.x,
+    y: box.y,
+    w: Math.max(0, box.w),
+    h: Math.max(0, box.h),
     fill: text(item.fill, "#FFF4EC"),
     stroke: text(item.stroke, "#9060A0"),
   };

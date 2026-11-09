@@ -7,6 +7,13 @@ import { ClientCloseoutView } from "./client-closeout-view";
 
 const mocks = vi.hoisted(() => ({ useClientCloseout: vi.fn() }));
 
+// The shared checkbox sizes itself with ResizeObserver, which jsdom does not provide.
+vi.stubGlobal("ResizeObserver", class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+});
+
 vi.mock("../view-models/use-client-closeout", () => ({
   useClientCloseout: mocks.useClientCloseout,
 }));
@@ -78,14 +85,14 @@ describe("ClientCloseoutView", () => {
     const view = render(createElement(ClientCloseoutView, { eventId: "evt-first", archived: false }));
     expect((screen.getByLabelText("Feedback") as HTMLTextAreaElement).value).toBe("Private feedback from the first event");
     expect((screen.getByLabelText("Optional testimonial") as HTMLTextAreaElement).value).toBe("First event testimonial");
-    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe("true");
 
     view.rerender(createElement(ClientCloseoutView, { eventId: "evt-second", archived: false }));
 
     await waitFor(() => {
       expect((screen.getByLabelText("Feedback") as HTMLTextAreaElement).value).toBe("");
       expect((screen.getByLabelText("Optional testimonial") as HTMLTextAreaElement).value).toBe("");
-      expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+      expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe("false");
       expect((screen.getByLabelText("Acknowledgement note (optional)") as HTMLInputElement).value).toBe("");
     });
   });

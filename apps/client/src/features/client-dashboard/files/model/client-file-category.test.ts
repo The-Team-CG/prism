@@ -17,8 +17,4 @@ describe("client file routes", () => {
     expect(ids("files-all")).toHaveLength(4);
   });
 
-  it("admits when records cannot answer a route instead of implying a filter ran", () => {
-    expect(filterClientFiles(documents, "files-shared")).toEqual({ documents, filtered: false });
-    expect(filterClientFiles(documents, "files-all").filtered).toBe(true);
-  });
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { Card } from "@prism/ui/components/card";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { formatStatusLabel } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
@@ -15,11 +16,11 @@ export function ClientFinalSummaryView() {
       { label: "Billing", value: billing ? formatStatusLabel(billing.status) : "Pending", status: billing?.status ?? "pending" },
       { label: "Files", value: `${documents.length} file${documents.length === 1 ? "" : "s"}`, status: documents.length ? "approved" : "pending" },
     ].map((item) => (
-      <div key={item.label} className="rounded-xl border border-border bg-card px-4 py-4 shadow-sm">
+      <Card key={item.label} className="gap-1 px-4 py-4">
         <p className="text-xs font-semibold text-muted-foreground">{item.label}</p>
         <p className="mt-2 text-lg font-black text-foreground">{item.value}</p>
         <div className="mt-3"><StatusBadge status={item.status} label={formatStatusLabel(item.status)} /></div>
-      </div>
+      </Card>
     ))}
   </div>
   );

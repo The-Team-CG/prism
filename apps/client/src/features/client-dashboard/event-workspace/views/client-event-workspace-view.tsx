@@ -1,7 +1,7 @@
 "use client";
 
 import { LockKeyhole } from "lucide-react";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { ClientListEmpty } from "../../shared/client-list-ui";
 import { useClientWorkspace } from "../../workspace/shared";
 import { ClientEventRouteBody } from "./client-event-route-body";
 
@@ -10,11 +10,10 @@ export function ClientEventWorkspaceView() {
 
   if (!selectedEvent) {
     return (
-      <EmptyState
+      <ClientListEmpty
         icon={LockKeyhole}
         title="No active event portal"
         description="The client event workspace opens after PMCM accepts your inquiry and both you and PMCM acknowledge the conforme."
-        className="mt-8"
       />
     );
   }

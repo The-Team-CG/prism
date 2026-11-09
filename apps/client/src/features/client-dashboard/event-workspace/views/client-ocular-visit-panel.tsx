@@ -1,5 +1,6 @@
 "use client";
 import { formatPortalDateTime } from "@prism/ui/format-date";
+import { Card } from "@prism/ui/components/card";
 
 import { useState, type FormEvent } from "react";
 import type { PrismClientOcularVisit } from "@prism/types";
@@ -46,7 +47,7 @@ export function ClientOcularVisitPanel({
     : null;
 
   return (
-    <section aria-labelledby="client-ocular-visit-title" className="rounded-xl border border-border bg-card p-5">
+    <Card role="region" aria-labelledby="client-ocular-visit-title" className="gap-3 p-5">
       <div>
         <h2 id="client-ocular-visit-title" className="text-base font-semibold text-foreground">
           Ocular visit
@@ -89,6 +90,6 @@ export function ClientOcularVisitPanel({
           </button>
         </form>
       )}
-    </section>
+    </Card>
   );
 }

@@ -229,7 +229,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
     await test.step('PMCM approves the official plan and starts event day when its overview action opens', async () => {
       await api('POST', `/events/${eventId}/ocular-visit/waive`, { reason: 'Synthetic browser acceptance venue fixture' });
-      await api('POST', '/templates', { name: 'Browser acceptance layout', venue: 'Browser acceptance venue', width: 1200, height: 800, gridSize: 20, pax: 120, objects: [{ id: 'table-1', kind: 'table', position: { x: 100, y: 100 }, size: { width: 80, height: 80 }, rotation: 0, zIndex: 1 }] });
+      await api('POST', '/templates', { name: 'Browser acceptance layout', venue: 'Browser acceptance venue', width: 1200, height: 800, gridSize: 20, pax: 120, objects: [{ id: 'table-1', kind: 'ellipse', name: 'Table', category: 'furniture', x: 100, y: 100, w: 80, h: 80, rotation: 0, fill: '#FFFFFF', stroke: '#000000', strokeWidth: 1, locked: false, hidden: false }] });
       await pmcm.page.goto(path('floorplans'));
       // Picking a template creates the PMCM draft and opens it in the editor; submission and approval live in the draft list.
       await pmcm.page.getByRole('button', { name: /Browser acceptance layout/ }).first().click();
@@ -325,7 +325,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       // The actual end opened the client's feedback window; closeout lives on the client event summary.
       await client.goto(`${origins.client}/dashboard/events/${eventId}/summary`);
       const feedback = client.locator('form', { has: client.getByRole('heading', { name: 'Your feedback', exact: true }) });
-      await feedback.getByRole('combobox').selectOption('5');
+      await feedback.getByRole('combobox', { name: 'Rating', exact: true }).click();
+      await client.getByRole('option', { name: '5 / 5', exact: true }).click();
       await feedback.getByLabel('Feedback', { exact: true }).fill('Browser lifecycle: smooth planning and a well-run event day.');
       await feedback.getByRole('button', { name: 'Submit feedback', exact: true }).click();
       await expect(feedback.getByRole('button', { name: 'Update feedback', exact: true })).toBeVisible();
@@ -338,7 +339,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('button', { name: 'Archive event', exact: true }).click();
       await expect.poll(async () => { const detail = await api('GET', `/events/${eventId}`); return detail.archived === true || Boolean(detail.archivedAt); }).toBe(true);
       await client.goto(`${origins.client}/dashboard/events/${eventId}/summary`);
-      await expect(client.getByText(inquiry.eventName, { exact: true }).first()).toBeVisible();
+      await expect(client.getByRole('heading', { name: 'Closeout & feedback', exact: true })).toBeVisible();
+      await expect(client.getByText(inquiry.eventName, { exact: false }).first()).toBeVisible();
       await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
       await expect(coordinator.page.getByText('Archived event: operational records are read-only.', { exact: true })).toBeVisible();
     });

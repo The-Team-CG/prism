@@ -3,6 +3,7 @@
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { portalUrlFor } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Card } from "@prism/ui/components/card";
 import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import { signOutClientSession } from "../../use-cases/client-dashboard-actions";
 import type { ClientSession } from "../../model/client-dashboard-types";
@@ -26,7 +27,7 @@ export function ClientWrongPortalView({
 
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
-      <section className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+      <Card role="region" className="w-full max-w-md gap-4 p-8">
         <span className="grid size-12 place-items-center rounded-xl bg-attention-soft text-attention">
           <ShieldCheck className="size-5" />
         </span>
@@ -57,7 +58,7 @@ export function ClientWrongPortalView({
             Use client sign-in
           </Button>
         </div>
-      </section>
+      </Card>
     </main>
   );
 }

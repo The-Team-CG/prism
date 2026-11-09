@@ -37,7 +37,7 @@ describe("EventProgressView client timeline", () => {
     useEventProgressViewMock.mockReturnValue(baseProgress);
     render(createElement(EventProgressView));
 
-    const rows = screen.getAllByRole("listitem");
+    const rows = within(screen.getByText("Conforme signed").closest("ol, ul") as HTMLElement).getAllByRole("listitem");
     expect(rows).toHaveLength(5);
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("Conforme signed"),

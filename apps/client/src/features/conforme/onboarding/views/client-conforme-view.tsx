@@ -1,8 +1,12 @@
 "use client";
 import { formatPortalDateTime } from "@prism/ui/format-date";
+import { Card } from "@prism/ui/components/card";
 
 import Link from "next/link";
 import type { PrismConformeExecution } from "@prism/types";
+import { Checkbox } from "@prism/ui/components/checkbox";
+import { Field, FieldLabel } from "@prism/ui/components/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { useClientConformeViewModel } from "../view-models/use-client-conforme-view-model";
 
 export function ClientConformeView() {
@@ -16,24 +20,36 @@ export function ClientConformeView() {
 
 function ConformeContent({ model }: { model: ReturnType<typeof useClientConformeViewModel> }) {
   if (model.error) return <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{model.error}</div>;
-  if (!model.execution) return <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">No conforme is available for this account. Contact PMCM if you expected one.</div>;
+  if (!model.execution) return <Card className="gap-0 p-6 text-sm text-muted-foreground">No conforme is available for this account. Contact PMCM if you expected one.</Card>;
   return <ConformeRecord model={model} execution={model.execution} />;
 }
 
 function ConformeRecord({ model, execution }: { model: ReturnType<typeof useClientConformeViewModel>; execution: PrismConformeExecution }) {
   const clientSigned = execution.signatures.some((signature) => signature.actorRole === "client");
-  return <section className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-7">
+  return <Card role="region" className="gap-5 p-5 sm:p-7">
     <ExecutionSelector executions={model.executions} selectedId={model.selectedExecutionId} onSelect={model.setSelectedExecutionId} />
     <ExecutionSummary execution={execution} />
     <pre className="max-h-[55vh] overflow-auto whitespace-pre-wrap rounded-xl border border-border bg-background p-5 font-sans text-sm leading-6 text-foreground">{execution.documentContent}</pre>
     <ExecutionSignatures execution={execution} />
     <ExecutionAction model={model} execution={execution} clientSigned={clientSigned} />
-  </section>;
+  </Card>;
 }
 
 function ExecutionSelector({ executions, selectedId, onSelect }: { executions: PrismConformeExecution[]; selectedId: string | null; onSelect: (id: string) => void }) {
   if (executions.length <= 1) return null;
-  return <label className="grid max-w-sm gap-2 text-sm font-medium text-foreground">Conforme to review<select value={selectedId ?? ""} onChange={(event) => onSelect(event.target.value)} className="min-h-10 rounded-lg border border-border bg-background px-3">{executions.map((item) => <option key={item.id} value={item.id}>Version {item.templateVersion} · {item.status.replaceAll("_", " ")}</option>)}</select></label>;
+  return (
+    <Field className="max-w-sm">
+      <FieldLabel htmlFor="conforme-version">Conforme to review</FieldLabel>
+      <Select value={selectedId ?? ""} onValueChange={(value) => onSelect(value)}>
+        <SelectTrigger id="conforme-version" className="w-full min-w-0">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {executions.map((item) => <SelectItem key={item.id} value={item.id}>Version {item.templateVersion} · {item.status.replaceAll("_", " ")}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </Field>
+  );
 }
 
 function ExecutionSummary({ execution }: { execution: PrismConformeExecution }) {
@@ -47,7 +63,7 @@ function ExecutionSignatures({ execution }: { execution: PrismConformeExecution 
 }
 
 function ExecutionAction({ model, execution, clientSigned }: { model: ReturnType<typeof useClientConformeViewModel>; execution: PrismConformeExecution; clientSigned: boolean }) {
-  if (execution.status === "awaiting_client" && !clientSigned) return <div className="space-y-4 border-t border-border pt-5"><label className="flex items-start gap-3 text-sm leading-6 text-foreground"><input type="checkbox" checked={model.consentAccepted} onChange={(event) => model.setConsentAccepted(event.target.checked)} className="mt-1 size-4 accent-primary" /><span>I have reviewed this conforme version and agree to record my in-app acknowledgment. I understand PMCM must countersign before the event workspace activates.</span></label><button type="button" disabled={!model.consentAccepted || model.signing} onClick={() => void model.sign()} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{model.signing ? "Recording acknowledgment…" : "Acknowledge conforme"}</button></div>;
+  if (execution.status === "awaiting_client" && !clientSigned) return <div className="space-y-4 border-t border-border pt-5"><div className="flex items-start gap-3"><Checkbox id="conforme-consent" checked={model.consentAccepted} onCheckedChange={(checked) => model.setConsentAccepted(checked === true)} className="mt-1" /><FieldLabel htmlFor="conforme-consent" className="font-normal leading-6 text-foreground">I have reviewed this conforme version and agree to record my in-app acknowledgment. I understand PMCM must countersign before the event workspace activates.</FieldLabel></div><button type="button" disabled={!model.consentAccepted || model.signing} onClick={() => void model.sign()} className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{model.signing ? "Recording acknowledgment…" : "Acknowledge conforme"}</button></div>;
   if (execution.status === "awaiting_pmcm") return <p className="border-t border-border pt-5 text-sm text-muted-foreground">Your acknowledgment is recorded. The workspace will open after PMCM countersigns.</p>;
   if (execution.status === "completed") return <p className="border-t border-border pt-5 text-sm text-muted-foreground">Both acknowledgments are recorded. Your event workspace is ready.</p>;
   return null;
