@@ -69,7 +69,7 @@
     "benchmark:typecheck": "node scripts/benchmark-typecheck.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.64.1",
+    "@playwright/test": "1.65.0",
     "concurrently": "^10.0.6",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
