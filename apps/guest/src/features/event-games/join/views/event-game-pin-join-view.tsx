@@ -5,7 +5,8 @@ import { ArrowRight, LogOut } from "lucide-react";
 import { portalHref } from "@prism/ui/portal-path";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
-import { Input } from "@prism/ui/components/input";
+import { Field, FieldDescription, FieldLabel } from "@prism/ui/components/field";
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "@prism/ui/components/input-otp";
 import { GameIdentityHelp } from "../../lobby/views/event-game-lobby-view";
 import { useEventGamePinJoinViewModel } from "../view-models/use-event-game-pin-join-view-model";
 
@@ -21,7 +22,6 @@ export function EventGamePinJoinView({ expectedEventSlug }: { expectedEventSlug?
     <main className="min-h-screen bg-page px-5 py-8 text-foreground">
       <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-xl items-center">
         <section className="w-full rounded-lg border border-border bg-card p-6 sm:p-9">
-          <div className="mb-7 h-1 w-20 rounded-sm bg-primary" />
           <div>
             <h1 className="text-2xl font-bold leading-tight sm:text-3xl">Join the host&apos;s game</h1>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -29,27 +29,34 @@ export function EventGamePinJoinView({ expectedEventSlug }: { expectedEventSlug?
             </p>
           </div>
 
-          <form onSubmit={onSubmit} className="mt-8 grid gap-4">
-            <label htmlFor="game-pin" className="grid gap-2 text-sm font-semibold">
-              Game PIN
-              <Input
+          <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-5">
+            <Field>
+              <FieldLabel htmlFor="game-pin">Game PIN</FieldLabel>
+              {/* One slot per digit: the PIN reads as empty until it is typed, and the numeric keypad opens on phones. */}
+              <InputOTP
                 id="game-pin"
                 name="pin"
+                maxLength={6}
                 value={vm.pin}
-                onChange={(event) => vm.updatePin(event.target.value)}
+                onChange={vm.updatePin}
                 inputMode="numeric"
+                pattern="[0-9]*"
                 autoComplete="one-time-code"
-                autoCapitalize="off"
-                spellCheck={false}
-                maxLength={12}
-                placeholder="123456"
                 aria-describedby="game-pin-help"
-                className="h-16 rounded-md text-center font-mono text-3xl font-black tracking-[0.28em]"
-              />
-            </label>
-            <p id="game-pin-help" className="text-sm leading-6 text-muted-foreground">
-              PINs are temporary. If yours does not work, ask the host for the current one.
-            </p>
+                containerClassName="justify-center"
+              >
+                <InputOTPGroup>
+                  {[0, 1, 2].map((index) => <InputOTPSlot key={index} index={index} className="size-12 rounded-md text-xl font-bold" />)}
+                </InputOTPGroup>
+                <InputOTPSeparator />
+                <InputOTPGroup>
+                  {[3, 4, 5].map((index) => <InputOTPSlot key={index} index={index} className="size-12 rounded-md text-xl font-bold" />)}
+                </InputOTPGroup>
+              </InputOTP>
+              <FieldDescription id="game-pin-help">
+                PINs are temporary. If yours does not work, ask the host for the current one.
+              </FieldDescription>
+            </Field>
 
             {vm.error ? (
               <Alert variant="destructive" role="alert" className="rounded-md">

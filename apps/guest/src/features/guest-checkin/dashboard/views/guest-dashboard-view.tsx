@@ -3,6 +3,7 @@
 import { LogOut } from "lucide-react";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { PrismGuestShell, PrismNoticeBanner } from "@prism/ui";
+import { Button } from "@prism/ui/components/button";
 import { portalHref } from "@prism/ui/portal-path";
 import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
 import { isGuestCheckInOpen } from "../model/guest-dashboard-rules";
@@ -25,8 +26,6 @@ function GuestDashboardLoading() {
 
 type GuestDashboardVm = ReturnType<typeof useGuestDashboardViewModel>;
 
-const PASS_LINK_CLASS = "inline-flex min-h-11 items-center rounded-md bg-secondary px-3 text-foreground transition hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-primary";
-
 function GuestDashboardNotices({ vm }: { vm: GuestDashboardVm }) {
   return (
     <>
@@ -39,11 +38,11 @@ function GuestDashboardNotices({ vm }: { vm: GuestDashboardVm }) {
 
 function GuestPassNav({ checkInOpen, feedbackOpen }: { checkInOpen: boolean; feedbackOpen: boolean }) {
   return (
-    <nav aria-label="Guest pass sections" className="flex flex-wrap gap-2 text-sm font-semibold">
-      {checkInOpen ? <a className={PASS_LINK_CLASS} href="#check-in">Check in</a> : null}
-      <a className={PASS_LINK_CLASS} href="#event-details">Event details</a>
-      <a className={PASS_LINK_CLASS} href={portalHref("/games/join")}>Join a game</a>
-      {feedbackOpen ? <a className={PASS_LINK_CLASS} href="#feedback">Feedback</a> : null}
+    <nav aria-label="Guest pass sections" className="flex flex-wrap gap-2">
+      {checkInOpen ? <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#check-in">Check in</a></Button> : null}
+      <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#event-details">Event details</a></Button>
+      <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href={portalHref("/games/join")}>Join a game</a></Button>
+      {feedbackOpen ? <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#feedback">Feedback</a></Button> : null}
     </nav>
   );
 }

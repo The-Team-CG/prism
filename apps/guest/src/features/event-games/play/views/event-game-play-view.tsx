@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactElement } from "react";
 import { LogOut, RefreshCw } from "lucide-react";
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from "@prism/types";
+import { PRISM_AUTH_INPUT_CLASS_NAME } from "@prism/ui/auth-shell";
+import { PrismBrandLogo } from "@prism/ui";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { useServerRoundCountdown } from "../model/server-round-countdown";
@@ -36,10 +38,10 @@ export function EventGamePlayView({ sessionId }: { sessionId: string }) {
   }, [deadlineAt, gameState, secondsRemaining, vm.refresh]);
 
   return (
-    <main className="min-h-screen bg-page px-5 py-6 text-foreground sm:py-10">
-      <div className="mx-auto w-full max-w-3xl">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-          <a href="/games/join" className="text-sm font-black tracking-wide text-primary">P.R.I.S.M games</a>
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <PrismBrandLogo href="/" title="P.R.I.S.M." detail="Guest pass" markClassName="size-8 rounded-md bg-card ring-1 ring-border" />
           <div className="flex gap-2">
             <Button type="button" variant="outline" size="sm" onClick={() => void vm.refresh()} disabled={vm.status === "loading"}>
               <RefreshCw className="size-4" aria-hidden="true" /> Refresh
@@ -48,35 +50,48 @@ export function EventGamePlayView({ sessionId }: { sessionId: string }) {
               <LogOut className="size-4" aria-hidden="true" /> Leave games
             </Button>
           </div>
-        </header>
+        </div>
+      </header>
 
+      <div className="mx-auto w-full max-w-3xl px-4 pb-10 sm:px-6">
         <SessionAvailability vm={vm} secondsRemaining={secondsRemaining} />
       </div>
     </main>
   );
 }
 
+/** A session that cannot be opened from this device: say why, and offer a way forward instead of a dead end. */
+function SessionUnavailable({ message }: { message: string | null }) {
+  return (
+    <section className="mt-8 grid gap-4">
+      {message ? (
+        <Alert variant="destructive" role="alert" className="rounded-lg">
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
+      ) : null}
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h1 className="text-xl font-bold">Game session unavailable</h1>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Join again with the host’s PIN or go back to where you were.</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button asChild className="min-h-11">
+            <a href="/games/join">Join with a PIN</a>
+          </Button>
+          <Button type="button" variant="outline" className="min-h-11" onClick={() => window.history.back()}>
+            Back
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function SessionAvailability({ vm, secondsRemaining }: { vm: PlayViewModel; secondsRemaining: number | null }) {
-  if (vm.error) {
-    return (
-      <Alert variant="destructive" role="alert" className="mt-6 rounded-md">
-        <AlertDescription>{vm.error}</AlertDescription>
-      </Alert>
-    );
-  }
+  if (vm.error) return <SessionUnavailable message={vm.error} />;
   if (vm.status === "loading") {
-    return <p role="status" className="mt-8 rounded-md border border-border bg-card p-5 text-sm text-muted-foreground">Opening your game…</p>;
+    return <p role="status" className="mt-8 rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">Opening your game…</p>;
   }
   if (vm.state) return <GameSessionContent vm={vm} secondsRemaining={secondsRemaining} />;
-  if (vm.status === "error") {
-    return (
-      <section className="mt-8 rounded-md border border-border bg-card p-5">
-        <h1 className="text-xl font-bold">Game session unavailable</h1>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Join again with the host’s PIN or open the event games link.</p>
-        <a className="mt-4 inline-flex text-sm font-semibold text-primary underline-offset-4 hover:underline" href="/games/join">Return to game entry</a>
-      </section>
-    );
-  }
+  if (vm.status === "error") return <SessionUnavailable message={null} />;
   return null;
 }
 
@@ -87,8 +102,8 @@ function GameSessionContent({ vm, secondsRemaining }: { vm: PlayViewModel; secon
     <section className="pt-7" aria-labelledby="event-game-title">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold text-muted-foreground">{STATUS_LABELS[gameState.status]}</p>
-          <h1 id="event-game-title" className="mt-1 text-3xl font-black leading-tight">{gameState.game.title}</h1>
+          <h1 id="event-game-title" className="text-3xl font-black leading-tight">{gameState.game.title}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{STATUS_LABELS[gameState.status]}</p>
           {vm.participantAlias ? <p className="mt-2 text-sm text-muted-foreground">Playing as {vm.participantAlias}</p> : null}
         </div>
         {gameState.currentRound ? (
@@ -120,7 +135,7 @@ function GameSessionContent({ vm, secondsRemaining }: { vm: PlayViewModel; secon
       </fieldset>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <section className="rounded-md border border-border bg-card p-5" aria-labelledby="your-game-status">
+        <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="your-game-status">
           <h2 id="your-game-status" className="font-bold">Your game status</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {gameState.participant.hasSubmitted ? "Your response has been recorded." : "You have not responded to this round yet."}
@@ -146,7 +161,7 @@ function RoundCountdown({ state, secondsRemaining }: { state: PrismGamePublicSta
   const seconds = (secondsRemaining % 60).toString().padStart(2, "0");
   const display = `${minutes}:${seconds}`;
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm" role={secondsRemaining === 0 ? "status" : undefined}>
+    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm" role={secondsRemaining === 0 ? "status" : undefined}>
       <span className="font-semibold">{state.status === "paused" ? "Round paused" : "Time remaining"}</span>
       <time aria-label={`Time remaining: ${display}`} className="font-mono font-bold tabular-nums">{display}</time>
       {secondsRemaining === 0 ? <span className="text-muted-foreground">The timer has ended. Your answers are closed until the game updates.</span> : null}
@@ -158,7 +173,7 @@ function SharedGameResults({ state }: { state: PrismGamePublicState }) {
   if (isSingleplayerPuzzleKind(state.game.kind)) return null;
   if (state.game.kind === "would-you-rather" && (state.participant.gameData?.kind !== "would-you-rather"
     || !state.participant.gameData.aggregateResults)) return null;
-  return <section className="rounded-md border border-border bg-card p-5" aria-labelledby="game-results">
+  return <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="game-results">
     <h2 id="game-results" className="font-bold">Shared results</h2>
     {state.aggregateResults.length ? (
       <ul className="mt-3 grid gap-2">
@@ -393,7 +408,7 @@ function WordScrambleControls({ roundKey, prompt, canSubmit, busy, onSubmit }: {
     templateId: "word-scramble", roundKey, actionKind: "answer", payload: { answer },
   }, canSubmit, busy, onSubmit)}>
     <label className="grid gap-1.5 text-sm font-semibold">Unscrambled word
-      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className="min-h-11 rounded-md border border-border bg-background px-3" disabled={!canSubmit || busy} />
+      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-11 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canSubmit || busy} />
     </label>
     <Button type="submit" className="mt-3" disabled={!answer.trim() || !canSubmit || busy}>{busy ? "Sending…" : "Submit answer"}</Button>
     <p className="mt-3 text-xs text-muted-foreground">Your answer is scored privately for this event game.</p>
@@ -412,7 +427,7 @@ function PictureSoloControls({ roundKey, stage, totalStages, mediaUrl, mediaErro
     <h2 className="font-bold">Private picture reveal · Hint {stage} of {totalStages}</h2>
     {mediaUrl ? <div className="mt-3 overflow-hidden rounded-md bg-secondary"><img src={mediaUrl} alt="Your event picture puzzle" data-reveal-stage={stage} style={{ clipPath: `inset(0 ${100 - visibleWidth}% 0 0)` }} className="block h-auto w-full rounded-md object-contain" /></div> : <p role={mediaError ? "alert" : "status"} className="mt-3 rounded-md bg-secondary px-3 py-4 text-sm text-muted-foreground">{mediaError ?? "Loading the event picture…"}</p>}
     <label className="mt-4 grid gap-1.5 text-sm font-semibold">Your guess
-      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className="min-h-11 rounded-md border border-border bg-background px-3" disabled={!canSubmit || busy} />
+      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-11 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canSubmit || busy} />
     </label>
     <Button type="submit" className="mt-3" disabled={!answer.trim() || !canSubmit || busy}>{busy ? "Sending…" : "Submit guess"}</Button>
   </form>;
@@ -449,13 +464,13 @@ function SpotTheDifferenceControls({ roundKey, data, originalMediaUrl, compariso
         </button>
       </figure>
     </div> : <p role={mediaError ? "alert" : "status"} className="mt-3 rounded-md bg-secondary px-3 py-4 text-sm text-muted-foreground">{mediaError ?? "Loading the image pair…"}</p>}
-    <fieldset disabled={!canSubmit || busy || selections.length >= data.totalDifferences} className="mt-4 grid gap-3 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+    <fieldset disabled={!canSubmit || busy || selections.length >= data.totalDifferences} className="mt-4 grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
       <legend className="px-1 text-sm font-semibold">Keyboard selection</legend>
       <label className="grid gap-1 text-sm">Horizontal position (%)
-        <input aria-label="Horizontal position (%)" type="number" min={0} max={100} step={1} value={keyboardX} onChange={(event) => setKeyboardX(Math.min(100, Math.max(0, Number(event.target.value) || 0)))} className="min-h-10 rounded-md border border-border bg-background px-3" />
+        <input aria-label="Horizontal position (%)" type="number" min={0} max={100} step={1} value={keyboardX} onChange={(event) => setKeyboardX(Math.min(100, Math.max(0, Number(event.target.value) || 0)))} className={`min-h-10 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} />
       </label>
       <label className="grid gap-1 text-sm">Vertical position (%)
-        <input aria-label="Vertical position (%)" type="number" min={0} max={100} step={1} value={keyboardY} onChange={(event) => setKeyboardY(Math.min(100, Math.max(0, Number(event.target.value) || 0)))} className="min-h-10 rounded-md border border-border bg-background px-3" />
+        <input aria-label="Vertical position (%)" type="number" min={0} max={100} step={1} value={keyboardY} onChange={(event) => setKeyboardY(Math.min(100, Math.max(0, Number(event.target.value) || 0)))} className={`min-h-10 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} />
       </label>
       <Button type="button" variant="outline" onClick={addKeyboardSelection}>Add selected location</Button>
     </fieldset>
@@ -541,7 +556,7 @@ function GuessPictureControls({
       <img src={mediaUrl} alt="Progressively revealed event game picture" data-reveal-stage={revealStage} style={{ clipPath: `inset(0 ${100 - visibleWidth}% 0 0)` }} className="block max-h-96 w-full rounded-md object-contain" />
     </div> : <p role={mediaError ? "alert" : "status"} className="mt-3 rounded-md bg-secondary px-3 py-4 text-sm text-muted-foreground">{mediaError ?? "Loading the event picture…"}</p>}
     <label className="mt-4 grid gap-1.5 text-sm font-semibold">Your guess
-      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className="min-h-11 rounded-md border border-border bg-background px-3" disabled={!canSubmit || busy} />
+      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-11 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canSubmit || busy} />
     </label>
     <Button type="submit" className="mt-3" disabled={!answer.trim() || !canSubmit || busy}>{busy ? "Checking…" : "Submit guess"}</Button>
   </form>;
@@ -560,7 +575,7 @@ function SpinWheelStatus({ result }: {
 function PublicLeaderboard({ state }: { state: PrismGamePublicState }) {
   if (!["live-trivia", "bingo", "guess-picture", "spin-wheel", "family-feud"].includes(state.game.kind)) return null;
   const entries = state.leaderboard ?? [];
-  return <section className="mt-4 rounded-md border border-border bg-card p-5" aria-label="Live standings">
+  return <section className="mt-4 rounded-lg border border-border bg-card p-5" aria-label="Live standings">
     <h2 className="font-bold">Live standings</h2>
     {entries.length ? <ol className="mt-3 space-y-2">
       {entries.map((entry) => <li key={`${entry.rank}-${entry.label}`} className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2 text-sm">
@@ -717,7 +732,7 @@ function FamilyFeudControls({ state, roundKey, teamLabel, busy, onSubmit }: {
     <p className="text-sm font-semibold text-muted-foreground">Your team</p>
     <h2 className="mt-1 font-bold">{teamLabel}</h2>
     <label className="mt-4 grid gap-1.5 text-sm font-semibold">Your answer
-      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className="min-h-11 rounded-md border border-border bg-background px-3" disabled={!canAnswer || busy} />
+      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-11 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canAnswer || busy} />
     </label>
     <Button type="submit" className="mt-3" disabled={!answer.trim() || !canAnswer || busy}>{busy ? "Sending…" : "Submit answer"}</Button>
     {state.participant.hasSubmitted ? <p role="status" className="mt-3 text-sm text-muted-foreground">Your answer was recorded. The team score follows the host-configured answer board.</p> : null}
@@ -780,7 +795,7 @@ function SplitTheRoomResponseForm({ state, roundKey, data, busy, onSubmit }: {
     templateId: "split-the-room", roundKey, actionKind: "answer", payload: { response },
   }, canRespond, busy, onSubmit)}>
     <label className="grid gap-1.5 text-sm font-semibold">Your response
-      <textarea value={response} onChange={(event) => setResponse(event.target.value)} maxLength={data.maxResponseLength} rows={3} autoComplete="off" className="rounded-md border border-border bg-background px-3 py-2" disabled={!canRespond || busy} />
+      <textarea value={response} onChange={(event) => setResponse(event.target.value)} maxLength={data.maxResponseLength} rows={3} autoComplete="off" className={`rounded-lg bg-background px-3 py-2 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canRespond || busy} />
     </label>
     <p className="mt-1 text-xs text-muted-foreground">Your text stays private to hosts unless approved. Approved responses may be shown after the host pauses the round.</p>
     <Button type="submit" className="mt-3" disabled={!response.trim() || !canRespond || busy}>{busy ? "Sending…" : "Submit response"}</Button>
@@ -789,7 +804,7 @@ function SplitTheRoomResponseForm({ state, roundKey, data, busy, onSubmit }: {
 
 function ApprovedSplitResponses({ responses }: { responses?: readonly string[] }) {
   if (!responses?.length) return null;
-  return <section className="mt-4 rounded-md border border-border bg-background p-3" aria-label="Host-approved responses">
+  return <section className="mt-4 rounded-lg border border-border bg-background p-3" aria-label="Host-approved responses">
     <h3 className="text-sm font-semibold">Host-approved responses</h3>
     <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
       {responses.map((response, index) => <li key={index} className="whitespace-pre-wrap">{response}</li>)}
