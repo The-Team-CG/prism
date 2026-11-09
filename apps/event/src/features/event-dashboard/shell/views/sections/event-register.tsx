@@ -45,8 +45,19 @@ function matches(event: PrismEvent, query: string) {
   return text.includes(query.trim().toLowerCase());
 }
 
+/** Overdue payments, overdue files and unread messages for one event, in the warning colour. Nothing is shown before the summaries load. */
+function AttentionLabels({ labels, className, quietWhenClear = false }: { labels: string[] | undefined; className?: string; quietWhenClear?: boolean }) {
+  if (!labels) return null;
+  if (labels.length === 0) return quietWhenClear ? <span className="text-xs text-muted-foreground">Nothing overdue</span> : null;
+  return (
+    <ul className={className ?? "grid gap-0.5"}>
+      {labels.map((label) => <li key={label} className="text-xs font-medium text-destructive">{label}</li>)}
+    </ul>
+  );
+}
+
 /** Every confirmed event as one searchable register; opening a row enters that event's workspace. */
-export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; onOpenEvent: (id: string) => void }) {
+export function EventRegister({ events, attention, onOpenEvent }: { events: PrismEvent[]; attention?: Map<string, string[]>; onOpenEvent: (id: string) => void }) {
   const pathname = usePathname();
   const [query, setQuery] = useListFilter("q");
   const [visible, setVisible] = useState(PAGE_SIZE);
@@ -92,13 +103,14 @@ export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; o
                 <TableHead scope="col">Event</TableHead>
                 <TableHead scope="col" className="hidden sm:table-cell">Date</TableHead>
                 <TableHead scope="col">Stage</TableHead>
+                <TableHead scope="col" className="hidden md:table-cell">Needs attention</TableHead>
                 <TableHead scope="col" className="w-28 text-right"><span className="sr-only">Open</span></TableHead>
               </TableRow>
             </TableHeader>
             {groups.map((group) => (
               <TableBody key={group.month} className="[&_tr:last-child]:border-b">
                 <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead scope="rowgroup" colSpan={4} className="h-auto py-2 text-left text-xs font-semibold text-foreground">
+                  <TableHead scope="rowgroup" colSpan={5} className="h-auto py-2 text-left text-xs font-semibold text-foreground">
                     {group.month} <span className="font-normal text-muted-foreground">· {group.events.length}</span>
                   </TableHead>
                 </TableRow>
@@ -111,9 +123,11 @@ export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; o
                         {event.venue ? <> · {event.venue}</> : null}
                         <span className="sm:hidden"> · {formatPortalDate(event.eventDate)}</span>
                       </p>
+                      <AttentionLabels labels={attention?.get(event.id)} className="mt-1 md:hidden" />
                     </TableCell>
                     <TableCell className="hidden whitespace-nowrap tabular-nums sm:table-cell">{formatPortalDate(event.eventDate)}</TableCell>
                     <TableCell className="whitespace-nowrap">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</TableCell>
+                    <TableCell className="hidden whitespace-normal md:table-cell"><AttentionLabels labels={attention?.get(event.id)} quietWhenClear /></TableCell>
                     <TableCell className="text-right">
                       <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
                         Open event<span className="sr-only"> {event.eventName}</span>

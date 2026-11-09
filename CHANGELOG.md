@@ -7,6 +7,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 - Unlocking an account and resetting two-factor in the event portal ask for confirmation in a dialog that names the person and the consequence, instead of a browser pop-up.
+- The PMCM Events list has a "Needs attention" column showing overdue payments, overdue file requirements and unread messages per event, so a problem event is visible without opening it.
 - The client, supplier and guest tabs are named after the open page (for example "Approvals · P.R.I.S.M.") instead of one title on every page. The event and client portals now show a clear error and "page not found" screen instead of a blank or framework default, using shared pages from `@prism/ui`.
 - The event supplier directory keeps long supplier names on one line, so the contact and rating columns stay on screen. Choosing a page size right after a search no longer snaps back to 25.
 - The four portals share one set of UI primitives from `@prism/ui` (buttons, inputs, textareas, badges, cards, alerts, labels, selects, empty states, status badges, plus the new shadcn table, tabs, switch, checkbox, radio group, toggle, input-otp, progress, item, empty, collapsible, scroll area and hover card). Text inputs and textareas now have visible borders on white cards, buttons look and disable the same in every portal, and the auth brand panel stays in view on long pages. Per-portal copies are gone; import from `@prism/ui/components/<name>`.
