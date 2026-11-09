@@ -8,9 +8,9 @@ import {
   MapPinned,
   WalletCards,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { Label } from "@/app/components/ui/label";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { Label } from "@prism/ui/components/label";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { cn } from "@/app/components/ui/utils";
 import type { PrismBillingStatement, PrismBriefing, PrismEvent } from "@prism/types";
 import {

@@ -3,7 +3,7 @@
 import { FormEvent } from "react";
 import { ChevronRight, ClipboardList } from "lucide-react";
 import { daysUntil, dueLabel, formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { formatDate, formatMoney, initialForm, isPastDate, isRequestClosed, requestsForQuoting, statusLabel } from "../../model/supplier-workspace-rules";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { Card, CardBody } from "./shell-ui";

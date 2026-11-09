@@ -3,8 +3,8 @@ import { ChevronRight } from "lucide-react";
 
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import { formatPortalDateTime } from "@prism/ui/format-date";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import type { FloorPlanTemplate } from "@/features/floorplan/editor";
 import { floorplanSourceLabel, roleLabel } from "@/features/pmcm-kit";
 import { floorplanDraftActions, groupFloorplanDrafts } from "../model/floorplan-workspace-rules";

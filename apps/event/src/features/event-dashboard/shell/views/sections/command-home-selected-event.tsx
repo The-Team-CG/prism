@@ -2,7 +2,7 @@
 
 import { ArrowRight } from "lucide-react";
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { SelectedEventStatusSummary } from "@/features/command-inbox/list";
 import { RouteLink } from "@/features/pmcm-kit";
 import { eventWorkspaceHref } from "../../model/event-dashboard-routing";

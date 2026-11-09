@@ -5,9 +5,9 @@ import { PrismAccountHelp } from "@prism/ui/account-help";
 import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import type { FormEvent } from "react";
 import type { PrismSupplierApplicationStatusResult } from "@prism/types";
-import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import { useSupplierApplicationStatusViewModel } from "../view-models/use-supplier-application-status-view-model";
 import {
   isTerminalSupplierApplicationStatus,

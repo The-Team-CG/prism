@@ -2,7 +2,7 @@
 
 import { formatPortalDateTime } from '@prism/ui/format-date';
 import { Sparkles } from 'lucide-react';
-import { Button } from '@/app/components/ui/button';
+import { Button } from '@prism/ui/components/button';
 import { actionLabel, fitLabel } from '../model/inquiry-triage';
 import { useInquiryTriageViewModel } from '../view-models/use-inquiry-triage-view-model';
 

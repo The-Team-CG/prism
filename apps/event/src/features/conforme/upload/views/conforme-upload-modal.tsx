@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileUp, X } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import type { PrismConformeExecution, PrismInquiry } from "@prism/types";
 import { readDocxText } from "@/features/conforme/signing/model/docx-template-text";
 

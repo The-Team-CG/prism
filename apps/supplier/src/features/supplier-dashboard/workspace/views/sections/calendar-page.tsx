@@ -8,7 +8,7 @@ import { clockLabel } from "@prism/ui/calendar-views";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
 import { PortalCalendar, type PortalCalendarKind } from "@prism/ui/portal-calendar";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { buildSupplierCalendarItems, type SupplierCalendarItemKind } from "../../model/supplier-calendar-items";
 import type { PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { Card, CardBody } from "./shell-ui";

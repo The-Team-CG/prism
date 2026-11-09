@@ -8,7 +8,7 @@ import {
   type PrismCoordinatorAssignment,
   type PrismCoordinatorAvailability,
 } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { availabilityRangeFromDates, formatAvailabilityRange, isCoordinatorAssignmentActive } from "../model/coordinators-desk-rules";
 import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";

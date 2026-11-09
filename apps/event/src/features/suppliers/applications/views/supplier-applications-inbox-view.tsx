@@ -2,10 +2,10 @@
 
 import { useId } from "react";
 import { Inbox } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { Input } from "@/app/components/ui/input";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { EmptyState } from "@prism/ui/components/empty-state";
+import { Input } from "@prism/ui/components/input";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { applicationActionLabel, applicationReviewActions } from "../model/supplier-applications-rules";
 import { useSupplierApplicationsInboxViewModel } from "../view-models/use-supplier-applications-inbox-view-model";
 

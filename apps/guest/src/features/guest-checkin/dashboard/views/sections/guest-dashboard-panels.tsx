@@ -1,10 +1,11 @@
 "use client";
 
 import { CheckCircle2, ClipboardCheck, MessageCircleHeart, Star, TicketCheck, Users } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import type { PrismGuestSession } from "@prism/types";
-import { PrismSectionPanel, PrismTextarea } from "@prism/ui";
+import { PrismSectionPanel } from "@prism/ui";
+import { Textarea } from "@prism/ui/components/textarea";
 import { checkInModeButtonClass, guestPassDetails } from "../../model/guest-dashboard-rules";
 import type { useGuestDashboardViewModel } from "../../view-models/use-guest-dashboard-view-model";
 
@@ -119,7 +120,7 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
         </fieldset>
         <label className="grid gap-1.5 text-sm font-semibold">
           <span className="flex justify-between gap-3"><span>Comment</span><span className="font-normal text-muted-foreground">{vm.feedbackComment.length}/500</span></span>
-          <PrismTextarea value={vm.feedbackComment} maxLength={500} onChange={(event) => vm.setFeedbackComment(event.target.value)} placeholder="Tell us about your experience" />
+          <Textarea value={vm.feedbackComment} maxLength={500} onChange={(event) => vm.setFeedbackComment(event.target.value)} placeholder="Tell us about your experience" />
         </label>
         <label className="grid gap-1.5 text-sm font-semibold">
           Photo or video (optional)

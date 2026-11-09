@@ -17,8 +17,8 @@ import {
 import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, hasEventDatePassed, isBeforePrismEventDay, prismCalendarDateKey } from "@prism/types";
 import type { PrismDefenseReadiness, PrismDefenseReadinessAction, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { RouteLink, cx, label } from "@/features/pmcm-kit";
 import { EVENT_TAB_ROUTES, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { RefreshCcw } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { PrismDashboardShell } from "@prism/ui";
 import { useSupplierWorkspaceViewModel } from "../view-models/use-supplier-workspace-view-model";
 import { supplierAccountMenuItems, supplierActiveNavId, supplierCommandActions, supplierMobileActions, supplierNavItems } from "../model/supplier-workspace-nav";

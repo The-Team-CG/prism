@@ -2,7 +2,7 @@
 import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import type { PrismInquiry } from '@prism/types';
-import { Button } from '@/app/components/ui/button';
+import { Button } from '@prism/ui/components/button';
 import { canOfferConformeDraft, CONFORME_DRAFT_DELAY_MS, isCurrentConformeDraftWindow } from '../model/conforme-draft-review';
 import { useConformeDraftReviewViewModel } from '../view-models/use-conforme-draft-review-view-model';
 

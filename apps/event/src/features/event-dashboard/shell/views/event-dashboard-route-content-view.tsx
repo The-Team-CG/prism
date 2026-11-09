@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import type { EventDashboardShellViewModel } from "../view-models/use-event-dashboard-shell-view-model";
 import { EventDashboardRouteProvider } from "./event-dashboard-route-context";
 

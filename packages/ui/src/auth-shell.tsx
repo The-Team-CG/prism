@@ -71,7 +71,7 @@ export function PrismAuthShell({
       className="grid min-h-screen bg-background text-foreground lg:grid-cols-2"
       style={{ "--prism-auth-field": `var(--prism-portal-${portal})` } as CSSProperties}
     >
-      <aside className="flex h-[168px] flex-col justify-center bg-(--prism-auth-field) px-6 text-white lg:h-auto lg:min-h-screen lg:justify-between lg:px-14 lg:py-14">
+      <aside className="flex h-[168px] flex-col justify-center bg-(--prism-auth-field) px-6 text-white lg:sticky lg:top-0 lg:h-screen lg:self-start lg:justify-between lg:px-14 lg:py-14">
         <PrismBrandLogo dark detail={portalName} />
         <div className="hidden lg:block">
           <p className="max-w-[420px] font-heading text-[44px] font-bold leading-[1.08] text-balance text-white">

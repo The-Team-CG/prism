@@ -18,22 +18,22 @@ import {
   UserCheck,
   Warehouse,
 } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/app/components/ui/accordion";
-import { Badge } from "@/app/components/ui/badge";
-import { Button } from "@/app/components/ui/button";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@prism/ui/components/accordion";
+import { Badge } from "@prism/ui/components/badge";
+import { Button } from "@prism/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/app/components/ui/card";
+} from "@prism/ui/components/card";
 import {
   NavigationMenu,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
-} from "@/app/components/ui/navigation-menu";
+} from "@prism/ui/components/navigation-menu";
 import { PrismBrandLogo } from "@prism/ui";
 import { PrismLifecycleStrip, PrismPublicRoleGrid } from "@prism/ui/public-blocks";
 

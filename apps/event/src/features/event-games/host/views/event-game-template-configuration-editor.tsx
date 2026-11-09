@@ -6,7 +6,7 @@ import {
   type PrismEventGameDefinition,
   type PrismEventGameTemplateConfiguration,
 } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { AudienceGameFields, audienceDraftFrom, buildAudienceConfiguration, emptyAudienceDraft, isAudienceDraft, type AudienceDraft } from "./audience-game-configuration";
 
 type TriviaRoundDraft = {

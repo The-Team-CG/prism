@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MessageSquare } from "lucide-react";
 import { ChatWorkspace } from "@prism/ui/chat";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { supplierMessageEvents } from "../../model/supplier-workspace-rules";
 import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "../../model/supplier-workspace-types";
 import type { PrismAuthenticatedSession } from "@prism/types";

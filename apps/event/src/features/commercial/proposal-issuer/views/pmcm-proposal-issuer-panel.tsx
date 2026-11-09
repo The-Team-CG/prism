@@ -6,8 +6,8 @@ import { useState } from "react";
 import { downloadProposalDeck } from "../model/proposal-deck";
 import type { PrismPreviousCostEstimate } from "@prism/types";
 import { Plus, Trash2 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import { ESTIMATE_CATEGORY_SUGGESTIONS, estimateLineTotal, formatPeso, parsePesoAmount } from "../model/proposal-issuer-rules";
 import { useProposalIssuerViewModel } from "../view-models/use-proposal-issuer-view-model";
 
@@ -70,7 +70,7 @@ function PackageOptions({ vm }: { vm: ProposalIssuerVm }) {
         <>
           <p>Option B is saved ({formatPeso(vm.optionB.total)}). The lines above are Option A. <button type="button" onClick={vm.clearOptionB} className="font-semibold text-primary">Remove Option B</button></p>
           <label className="block">Reason for two packages <span className="text-muted-foreground">(needed when the briefing names one fixed budget)</span>
-            <input value={vm.packageOverrideReason} maxLength={500} onChange={(event) => vm.setPackageOverrideReason(event.target.value)} className="mt-1 block w-full rounded-md border border-border bg-input px-2 py-1.5 text-sm" />
+            <input value={vm.packageOverrideReason} maxLength={500} onChange={(event) => vm.setPackageOverrideReason(event.target.value)} className="mt-1 block w-full rounded-md border border-border bg-input-background px-2 py-1.5 text-sm" />
           </label>
         </>
       ) : (
@@ -127,7 +127,7 @@ function ProposalIssueForm({ vm }: { vm: ProposalIssuerVm }) {
 
       <label className={fieldLabel}>
         Internal estimate notes <span className="font-normal text-muted-foreground">(PMCM only, optional)</span>
-        <textarea rows={2} value={vm.notes} onChange={(event) => vm.setNotes(event.target.value)} className="rounded-md border border-border bg-input px-3 py-2 text-sm" />
+        <textarea rows={2} value={vm.notes} onChange={(event) => vm.setNotes(event.target.value)} className="rounded-md border border-border bg-input-background px-3 py-2 text-sm" />
       </label>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -151,7 +151,7 @@ function ProposalIssueForm({ vm }: { vm: ProposalIssuerVm }) {
         </label>
         <label className={`${fieldLabel} md:col-span-2`}>
           What the client sees <span className="font-normal text-muted-foreground">(optional)</span>
-          <textarea rows={8} value={vm.summary} onChange={(event) => vm.setSummary(event.target.value)} className="rounded-md border border-border bg-input px-3 py-2 text-sm" />
+          <textarea rows={8} value={vm.summary} onChange={(event) => vm.setSummary(event.target.value)} className="rounded-md border border-border bg-input-background px-3 py-2 text-sm" />
         </label>
         {vm.latest ? (
           <label className={`${fieldLabel} md:col-span-2`}>

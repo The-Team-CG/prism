@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 
 /** Previous/next footer for a paged list; hidden when everything fits on one page. */
 export function ListPager({

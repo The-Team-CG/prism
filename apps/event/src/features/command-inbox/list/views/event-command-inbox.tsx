@@ -24,7 +24,7 @@ import type { PrismCommandInboxItem, PrismCommandInboxKind, PrismPmcmCommandInbo
 import { daysUntil, dueLabel, formatPortalDate, formatPortalDateTime, formatPortalTime, manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
 import { selectCommandInboxTriage } from "../model/command-inbox-selectors";
 import { COMMAND_INBOX_ACTION_LABEL, COMMAND_INBOX_AREA_LABEL } from "../model/command-inbox-labels";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { cx } from "@/features/pmcm-kit";
 
 const KIND_ICON: Record<PrismCommandInboxKind, LucideIcon> = {

@@ -3,11 +3,11 @@
 import { FormEvent } from "react";
 import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { portalHref } from "@prism/ui/portal-path";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Field } from "@/app/components/ui/field";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
+import { Field } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Label } from "@prism/ui/components/label";
 import { CLIENT_PORTAL_POINTS, CLIENT_PORTAL_STATEMENT } from "../../sign-in/model/client-portal-copy";
 import {
   PASSWORD_RESET_DONE_LABEL,

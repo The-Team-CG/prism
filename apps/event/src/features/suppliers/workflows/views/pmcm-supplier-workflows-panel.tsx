@@ -4,9 +4,9 @@ import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { usePmcmSupplierWorkflows } from "../view-models/use-pmcm-supplier-workflows";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
 

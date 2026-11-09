@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The four portals share one set of UI primitives from `@prism/ui` (buttons, inputs, textareas, badges, cards, alerts, labels, selects, empty states, status badges, plus the new shadcn table, tabs, switch, checkbox, radio group, toggle, input-otp, progress, item, empty, collapsible, scroll area and hover card). Text inputs and textareas now have visible borders on white cards, buttons look and disable the same in every portal, and the auth brand panel stays in view on long pages. Per-portal copies are gone; import from `@prism/ui/components/<name>`.
 - Dependabot keeps package families together: Nest, Prisma, Radix, Tailwind, ESLint/oxlint, Vitest and Testing Library updates go to their own groups. The production and development catch-alls had been taking any package matched by a wildcard, which split Nest 12.4.0 across two pull requests, so neither one passed alone.
 - The runtime is Node 26 (LTS): the API image, CI, the portal deploys and `@types/node` move from 24, and `engines` requires Node 26 or 28 and later. Switch local installs with `nvm use` (`.nvmrc` says 26).
 - Local Docker builds no longer copy `.env` files from app folders into the image. `.dockerignore` listed `.env` and `.env.*`, which match only the repository root, so `apps/api/.env` and the portals' `.env.local` were in the build context.

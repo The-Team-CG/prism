@@ -4,11 +4,11 @@ import { portalHref } from "@prism/ui/portal-path";
 import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { FormEvent } from "react";
 import { ArrowRight, TicketCheck } from "lucide-react";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Field } from "@/app/components/ui/field";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
+import { Field } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Label } from "@prism/ui/components/label";
 import { useGuestAccessOpenViewModel } from "../view-models/use-guest-access-open-view-model";
 
 const GUEST_POINTS = [

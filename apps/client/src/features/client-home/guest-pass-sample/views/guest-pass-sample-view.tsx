@@ -2,8 +2,8 @@
 
 import { ArrowLeft, CheckCircle2, QrCode, RotateCcw, Star } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
-import { Button } from "@/app/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Button } from "@prism/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@prism/ui/components/card";
 import { SAMPLE_ACCESS_CODE, SAMPLE_EVENT } from "../model/guest-pass-sample";
 import { useGuestPassSampleViewModel } from "../view-models/use-guest-pass-sample-view-model";
 

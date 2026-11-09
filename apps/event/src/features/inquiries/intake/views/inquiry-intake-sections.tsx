@@ -16,10 +16,10 @@ import {
   X,
 } from "lucide-react";
 
-import { Input } from "@/app/components/ui/input";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Input } from "@prism/ui/components/input";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import type { PrismInquiry } from "@prism/types";
 import { CompanyNameEditor } from "@/features/inquiries/company-name/views/company-name-editor";
 import { BiddingPathEditor } from "@/features/inquiries/bidding-path/views/bidding-path-editor";

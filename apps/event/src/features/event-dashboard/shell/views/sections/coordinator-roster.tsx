@@ -3,8 +3,8 @@
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { PrismCoordinator, PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
 import { Search, UsersRound } from "lucide-react";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { RouteLink, useListFilter } from "@/features/pmcm-kit";
 import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
 import {

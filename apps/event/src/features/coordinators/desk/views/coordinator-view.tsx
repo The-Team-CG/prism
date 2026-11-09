@@ -6,7 +6,7 @@ import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, Radio, UsersRound } from "lucide-react";
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { useDocumentTitle } from "@/app/components/document-title";
 import { roleLabel } from "@/features/pmcm-kit";
 import { CoordinatorRegistrationDesk } from "@/features/coordinators/registration";

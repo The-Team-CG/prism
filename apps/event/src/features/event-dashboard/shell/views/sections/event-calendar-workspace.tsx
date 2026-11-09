@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { VisibleRange } from "@prism/ui/calendar-views";
 import { PortalCalendar } from "@prism/ui/portal-calendar";

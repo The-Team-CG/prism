@@ -3,9 +3,9 @@
 import type { FormEvent } from "react";
 import { ArrowRight, LogOut } from "lucide-react";
 import { portalHref } from "@prism/ui/portal-path";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import { GameIdentityHelp } from "../../lobby/views/event-game-lobby-view";
 import { useEventGamePinJoinViewModel } from "../view-models/use-event-game-pin-join-view-model";
 

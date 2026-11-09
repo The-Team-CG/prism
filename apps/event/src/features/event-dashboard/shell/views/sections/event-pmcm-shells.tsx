@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { EventWorkspaceSwitcher } from "./event-workspace-switcher";
 import { PrismDashboardShell } from "@prism/ui";
 import { buildPmcmCommandGroups, inquiryLogHref } from "../../model/event-command-index";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import { supplierWorkspaceStyles } from "@/features/suppliers/directory";
 import { EventDashboardSkeleton, eventDashboardSkeletonVariant } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
