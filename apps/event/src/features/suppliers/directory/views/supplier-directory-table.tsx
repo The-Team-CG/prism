@@ -220,50 +220,66 @@ function TruncatedText({ value, className = "" }: { value: string; className?: s
 }
 
 function SupplierDirectoryRow({ supplier, selected, onSelect }: { supplier: SupplierRow; selected: boolean; onSelect: SupplierDirectoryTableProps["onSelectSupplier"] }) {
-  const contact = supplier.contactName || "No contact on file";
-  const contactValue = supplier.email || supplier.phone || "";
-
   return (
     <TableRow data-state={selected ? "selected" : undefined} className={selected ? styles.selectedRow : undefined}>
-      <TableCell className="sticky left-0 z-[1] bg-card pl-4 font-medium">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="group flex min-h-6 min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <span className="truncate">{supplier.name}</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>{supplier.name}</TooltipContent>
-          </Tooltip>
-          {supplier.bniMember ? <Tooltip><TooltipTrigger asChild><Badge variant="info" className="shrink-0">BNI</Badge></TooltipTrigger><TooltipContent>{BNI_TITLE}</TooltipContent></Tooltip> : null}
-        </div>
-      </TableCell>
+      <SupplierNameCell supplier={supplier} onSelect={onSelect} />
       <TableCell>
         <Badge variant="secondary" className="max-w-full min-w-0"><TruncatedText value={supplier.categoryName} /></Badge>
       </TableCell>
       <TableCell>
         <Badge variant={supplier.tier === "pending_first_event" ? "outline" : "success"} className="whitespace-nowrap">{supplierTierLabel(supplier.tier)}</Badge>
       </TableCell>
-      <TableCell className="text-muted-foreground">
-        <div className="flex min-w-0 items-center gap-2">
-          <SupplierAvatar name={supplier.contactName || supplier.name} />
-          <div className="min-w-0">
-            <TruncatedText value={contact} />
-            {contactValue ? <TruncatedText value={contactValue} className="text-xs" /> : null}
-          </div>
-        </div>
-      </TableCell>
+      <SupplierContactCell supplier={supplier} />
       <TableCell className="whitespace-nowrap text-sm">{ratingLabel(supplier.rating)}</TableCell>
       <TableCell className="whitespace-nowrap text-muted-foreground">
         <span className={`mr-1.5 inline-block size-1.5 rounded-full ${certificationDotClass(supplier.certifications.attention)}`} />{certificationLabel(supplier.certifications.attention, supplier.certifications)}
       </TableCell>
-      <TableCell className="whitespace-nowrap text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <CalendarDays aria-hidden="true" className="size-3" />
-          {supplier.lastReviewedAt ? <time dateTime={supplier.lastReviewedAt} title={formatPortalDate(supplier.lastReviewedAt)}>{dateLabel(supplier.lastReviewedAt)}</time> : dateLabel(null)}
-        </span>
-      </TableCell>
+      <SupplierReviewDateCell lastReviewedAt={supplier.lastReviewedAt} />
     </TableRow>
+  );
+}
+
+function SupplierNameCell({ supplier, onSelect }: { supplier: SupplierRow; onSelect: SupplierDirectoryTableProps["onSelectSupplier"] }) {
+  return (
+    <TableCell className="sticky left-0 z-[1] bg-card pl-4 font-medium">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="group flex min-h-6 min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="truncate">{supplier.name}</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{supplier.name}</TooltipContent>
+        </Tooltip>
+        {supplier.bniMember ? <Tooltip><TooltipTrigger asChild><Badge variant="info" className="shrink-0">BNI</Badge></TooltipTrigger><TooltipContent>{BNI_TITLE}</TooltipContent></Tooltip> : null}
+      </div>
+    </TableCell>
+  );
+}
+
+function SupplierContactCell({ supplier }: { supplier: SupplierRow }) {
+  const contactValue = supplier.email || supplier.phone || "";
+  return (
+    <TableCell className="text-muted-foreground">
+      <div className="flex min-w-0 items-center gap-2">
+        <SupplierAvatar name={supplier.contactName || supplier.name} />
+        <div className="min-w-0">
+          <TruncatedText value={supplier.contactName || "No contact on file"} />
+          {contactValue ? <TruncatedText value={contactValue} className="text-xs" /> : null}
+        </div>
+      </div>
+    </TableCell>
+  );
+}
+
+function SupplierReviewDateCell({ lastReviewedAt }: { lastReviewedAt: string | null }) {
+  return (
+    <TableCell className="whitespace-nowrap text-muted-foreground">
+      <span className="flex items-center gap-1.5">
+        <CalendarDays aria-hidden="true" className="size-3" />
+        {lastReviewedAt ? <time dateTime={lastReviewedAt} title={formatPortalDate(lastReviewedAt)}>{dateLabel(lastReviewedAt)}</time> : dateLabel(null)}
+      </span>
+    </TableCell>
   );
 }
 
