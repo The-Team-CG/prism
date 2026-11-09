@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { ACCREDITATION_SLA_DAYS, ACCREDITATION_STATUSES, createAccreditationRequirementSchema, parseContract, updateAccreditationRequirementSchema, type PrismAccreditationRequirement } from "@prism/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { accreditationRepository } from "../data/accreditation-repository";
 
 type Status = (typeof ACCREDITATION_STATUSES)[number];
@@ -39,9 +40,14 @@ export function AccreditationPanel({ eventId }: { eventId: string }) {
         {items.map((item) => (
           <li key={item.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-md border p-2 ${item.overdue ? "border-destructive/50" : "border-border"}`}>
             <span><span className="font-semibold">{item.documentName}</span> · due {formatPortalDateTime(item.dueAt)}{item.overdue ? " · overdue" : ""}</span>
-            <select aria-label={`Status of ${item.documentName}`} value={item.status} onChange={(event) => void setStatus(item.id, event.target.value as Status)} className="rounded-md border border-border bg-background px-2 py-1 text-xs">
-              {ACCREDITATION_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
-            </select>
+            <Select value={item.status} onValueChange={(status) => void setStatus(item.id, status as Status)}>
+              <SelectTrigger aria-label={`Status of ${item.documentName}`} size="sm" className="min-w-36 bg-background text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ACCREDITATION_STATUSES.map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </li>
         ))}
       </ul>

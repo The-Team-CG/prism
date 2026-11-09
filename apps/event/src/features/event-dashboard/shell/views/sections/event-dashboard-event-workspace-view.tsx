@@ -5,7 +5,7 @@ import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import { EmptyEventWorkspace } from "./event-workspace-header";
 import {
-  EventWorkspaceActivityTab,
+  EventWorkspaceMessagesTab,
   EventWorkspaceBillingTab,
   EventWorkspaceBriefingTab,
   EventWorkspaceClosureTab,
@@ -34,7 +34,7 @@ const EVENT_TAB_VIEWS: Record<DetailTab, () => ReactElement> = {
   billing: () => <EventWorkspaceBillingTab />,
   closure: () => <EventWorkspaceClosureTab />,
   decisions: () => <EventWorkspaceDecisionsTab />,
-  activity: () => <EventWorkspaceActivityTab />,
+  messages: () => <EventWorkspaceMessagesTab />,
 };
 
 /** PMCM print-friendly run sheet for the selected event (FL-026). */

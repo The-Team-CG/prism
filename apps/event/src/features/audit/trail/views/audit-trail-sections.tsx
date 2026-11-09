@@ -27,6 +27,8 @@ import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
 import { compactTimestamp, cx, label, roleLabel, SegmentedControl, sessionDeviceLabel, severityTone } from "@/features/pmcm-kit";
+import { Field, FieldLabel } from "@prism/ui/components/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { Metric, Panel } from "@/features/pmcm-kit";
 import { auditIconKind, auditIntegrityCopy, groupRepeatedAuditLogs, type AuditLogGroup } from "../model/audit-trail-rules";
 import { usePagedItems } from "../view-models/use-paged-items";
@@ -200,42 +202,67 @@ function AuditAdvancedFilters({
 }) {
   return (
     <div className="mt-4 grid gap-3 rounded-lg border border-border bg-muted p-4 md:grid-cols-4">
-      <label className="text-xs font-medium text-muted-foreground">
-        Event
-        <select value={vm.eventId} onChange={(event) => vm.setEventId(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
-          <option value="all">All events</option>
-          {events.map((event) => <option key={event.id} value={event.id}>{event.eventName}</option>)}
-        </select>
-      </label>
-      <label className="text-xs font-medium text-muted-foreground">
-        User
-        <select value={vm.actor} onChange={(event) => vm.setActor(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
-          <option value="all">All users</option>
-          {users.map((user) => <option key={user.id} value={user.name}>{user.name}</option>)}
-          <option value="System">System</option>
-        </select>
-      </label>
-      <label className="text-xs font-medium text-muted-foreground">
-        Action Type
-        <select value={vm.actionType} onChange={(event) => vm.setActionType(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
-          {vm.auditActionTypes.map((item) => <option key={item} value={item}>{label(item)}</option>)}
-        </select>
-      </label>
-      <label className="text-xs font-medium text-muted-foreground">
-        Date Range
-        <select value={vm.dateRange} onChange={(event) => vm.setDateRange(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
-          {vm.auditDateRanges.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-        </select>
-      </label>
-      <label className="text-xs font-medium text-muted-foreground md:col-span-2">
-        Severity
-        <select value={vm.severity} onChange={(event) => vm.setSeverity(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3 text-sm normal-case text-foreground">
-          <option value="all">All severities</option>
-          <option value="info">Info</option>
-          <option value="warning">Warning</option>
-          <option value="critical">Critical</option>
-        </select>
-      </label>
+      <Field>
+        <FieldLabel htmlFor="audit-filter-event">Event</FieldLabel>
+        <Select value={vm.eventId} onValueChange={vm.setEventId}>
+          <SelectTrigger id="audit-filter-event" className="w-full min-w-0 bg-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All events</SelectItem>
+            {events.map((event) => <SelectItem key={event.id} value={event.id}>{event.eventName}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="audit-filter-user">User</FieldLabel>
+        <Select value={vm.actor} onValueChange={vm.setActor}>
+          <SelectTrigger id="audit-filter-user" className="w-full min-w-0 bg-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All users</SelectItem>
+            {users.map((user) => <SelectItem key={user.id} value={user.name}>{user.name}</SelectItem>)}
+            <SelectItem value="System">System</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="audit-filter-action">Action Type</FieldLabel>
+        <Select value={vm.actionType} onValueChange={vm.setActionType}>
+          <SelectTrigger id="audit-filter-action" className="w-full min-w-0 bg-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {vm.auditActionTypes.map((item) => <SelectItem key={item} value={item}>{label(item)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field>
+        <FieldLabel htmlFor="audit-filter-range">Date Range</FieldLabel>
+        <Select value={vm.dateRange} onValueChange={vm.setDateRange}>
+          <SelectTrigger id="audit-filter-range" className="w-full min-w-0 bg-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {vm.auditDateRanges.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </Field>
+      <Field className="md:col-span-2">
+        <FieldLabel htmlFor="audit-filter-severity">Severity</FieldLabel>
+        <Select value={vm.severity} onValueChange={vm.setSeverity}>
+          <SelectTrigger id="audit-filter-severity" className="w-full min-w-0 bg-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All severities</SelectItem>
+            <SelectItem value="info">Info</SelectItem>
+            <SelectItem value="warning">Warning</SelectItem>
+            <SelectItem value="critical">Critical</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
       <div className="rounded-md bg-white p-3 text-xs leading-5 text-muted-foreground md:col-span-2">
         Audit rows are append-only in the UI/API surface. Each new service-created log receives a tamper-evident hash and previous-hash pointer.
       </div>

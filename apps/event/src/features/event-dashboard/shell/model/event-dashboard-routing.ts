@@ -38,7 +38,7 @@ export const EVENT_TAB_ROUTES: Record<DetailTab, string> = {
   billing: "billing",
   closure: "closure",
   decisions: "decision-log",
-  activity: "activity",
+  messages: "messages",
 };
 
 /** The route of one event workspace tab. The Games tab is the Registration route's `part=games` section. */
@@ -117,7 +117,7 @@ export const EVENT_WORKSPACE_ROUTE_ITEMS: Record<string, string> = {
   coordinators: "event-staff",
   billing: "event-budget",
   files: "event-files",
-  activity: "event-messages",
+  messages: "event-messages",
   "live-ops": "event-timeline",
   "run-sheet": "event-timeline",
   closure: "event-report",
@@ -198,7 +198,7 @@ export const EVENT_DETAIL_ROUTES: Record<string, string> = {
   "event-budget": "billing",
   "event-files": "files",
   "event-floorplans": "floorplans",
-  "event-messages": "activity",
+  "event-messages": "messages",
   "event-timeline": "live-ops",
   "event-report": "closure",
   "event-games": "registration",
@@ -227,7 +227,7 @@ const SIDEBAR_ITEM_TO_STATE: Record<string, RouteState> = {
   team: { section: "team", tab: "coordinators", view: "all" },
   suppliers: { section: "suppliers", tab: "overview", view: "all" },
   files: { section: "files", tab: "floorplans", view: "all" },
-  messages: { section: "messages", tab: "activity", view: "inbox" },
+  messages: { section: "messages", tab: "messages", view: "inbox" },
   finance: { section: "finance", tab: "billing", view: "overview" },
   audit: { section: "audit", tab: "overview", view: "system-logs" },
   privacy: { section: "privacy", tab: "overview", view: "console" },
@@ -369,7 +369,7 @@ export function routeShellCopy(
       description: event
         ? [sectionLabel, `${event.clientName} · ${formatPortalDate(event.eventDate)}`].filter(Boolean).join(" · ")
         : "Select an event or accept an inquiry to begin.",
-      breadcrumb: sectionLabel ? [sectionLabel] : [],
+      breadcrumb: ["Events", event?.eventName, sectionLabel].filter((part): part is string => Boolean(part)),
       documentTitle: pageDocumentTitle([sectionLabel, event?.eventName]),
     };
   }

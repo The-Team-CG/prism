@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createLogisticsBookingSchema, LOGISTICS_PROVIDER_LABELS, LOGISTICS_PROVIDERS, parseContract, type PrismLogisticsBooking } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@prism/ui/components/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { logisticsBookingsRepository } from "../data/logistics-bookings-repository";
 
 type Provider = (typeof LOGISTICS_PROVIDERS)[number];
-const field = "mt-1 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm";
 
 export function logisticsBrief(booking: PrismLogisticsBooking, eventName: string): string {
   return `Logistics brief: ${eventName}\n${LOGISTICS_PROVIDER_LABELS[booking.provider]} booking ${booking.bookingReference}\nItems: ${booking.description}`;
@@ -32,6 +36,8 @@ export function LogisticsBookingsPanel({ eventId, eventName }: { eventId: string
     }
   }
 
+  const canRecord = form.bookingReference.trim().length > 0 && form.description.trim().length > 0;
+
   function print(brief: string) {
     const page = window.open("", "_blank", "width=480,height=600");
     if (!page) return;
@@ -40,30 +46,70 @@ export function LogisticsBookingsPanel({ eventId, eventName }: { eventId: string
   }
 
   return (
-    <div className="space-y-3 text-sm">
+    <div className="grid gap-4 text-sm">
       {error ? <p role="alert" className="text-destructive">{error}</p> : null}
-      <ul className="space-y-2">
-        {items.map((booking) => {
-          const brief = logisticsBrief(booking, eventName);
-          return (
-            <li key={booking.id} className="rounded-md border border-border p-2">
-              <p className="font-semibold">{LOGISTICS_PROVIDER_LABELS[booking.provider]} · {booking.bookingReference}</p>
-              <p className="text-xs text-muted-foreground">{booking.description}{booking.amount ? ` · PHP ${booking.amount.toLocaleString("en-PH")} (draft billing item)` : ""}</p>
-              <div className="mt-1 flex gap-3 text-xs font-semibold">
-                <a href={`viber://forward?text=${encodeURIComponent(brief)}`} className="text-primary">Share on Viber</a>
-                <button type="button" onClick={() => print(brief)} className="text-primary">Print slip</button>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <label>Courier<select value={form.provider} onChange={(event) => setForm({ ...form, provider: event.target.value as Provider })} className={field}>{LOGISTICS_PROVIDERS.map((value) => <option key={value} value={value}>{LOGISTICS_PROVIDER_LABELS[value]}</option>)}</select></label>
-        <label>Booking reference<input value={form.bookingReference} onChange={(event) => setForm({ ...form, bookingReference: event.target.value })} className={field} /></label>
-        <label className="sm:col-span-2">Items being returned<input value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className={field} /></label>
-        <label>Cost to bill (PHP, 0 for none)<input type="number" min={0} value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} className={field} /></label>
-        <div className="self-end"><button type="button" disabled={!form.bookingReference.trim() || !form.description.trim()} onClick={() => void add()} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Record booking</button></div>
-      </div>
+      {items.length > 0 ? (
+        <ul className="grid gap-2">
+          {items.map((booking) => {
+            const brief = logisticsBrief(booking, eventName);
+            return (
+              <li key={booking.id} className="grid gap-1 rounded-md border border-border p-3">
+                <p className="font-semibold text-foreground">{LOGISTICS_PROVIDER_LABELS[booking.provider]} · {booking.bookingReference}</p>
+                <p className="text-xs text-muted-foreground">{booking.description}{booking.amount ? ` · PHP ${booking.amount.toLocaleString("en-PH")} (draft billing item)` : ""}</p>
+                <div className="mt-1 flex flex-wrap gap-3 text-xs font-semibold">
+                  <a href={`viber://forward?text=${encodeURIComponent(brief)}`} className="text-primary hover:underline">Share on Viber</a>
+                  <Button type="button" variant="ghost" size="sm" className="h-auto px-0 text-primary" onClick={() => print(brief)}>Print slip</Button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+      <Card className="gap-4">
+        <CardHeader>
+          <CardTitle>Book a courier</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FieldGroup className="grid gap-4 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="logistics-courier">Courier</FieldLabel>
+              <Select value={form.provider} onValueChange={(value) => setForm({ ...form, provider: value as Provider })}>
+                <SelectTrigger id="logistics-courier" className="w-full min-w-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LOGISTICS_PROVIDERS.map((value) => (
+                    <SelectItem key={value} value={value}>{LOGISTICS_PROVIDER_LABELS[value]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="logistics-reference">Booking reference</FieldLabel>
+              <Input id="logistics-reference" value={form.bookingReference} onChange={(event) => setForm({ ...form, bookingReference: event.target.value })} />
+            </Field>
+            <Field className="sm:col-span-2">
+              <FieldLabel htmlFor="logistics-items">Items being returned</FieldLabel>
+              <Input id="logistics-items" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="logistics-amount">Cost to bill (PHP)</FieldLabel>
+              <Input id="logistics-amount" type="number" min={0} value={form.amount} onChange={(event) => setForm({ ...form, amount: event.target.value })} />
+              <FieldDescription>Enter 0 when the courier cost is not billed.</FieldDescription>
+            </Field>
+            <Field className="self-end">
+              <Button
+                type="button"
+                disabled={!canRecord}
+                onClick={() => void add()}
+              >
+                Record booking
+              </Button>
+              {canRecord ? null : <FieldDescription>Add a booking reference and the items being returned to record it.</FieldDescription>}
+            </Field>
+          </FieldGroup>
+        </CardContent>
+      </Card>
     </div>
   );
 }

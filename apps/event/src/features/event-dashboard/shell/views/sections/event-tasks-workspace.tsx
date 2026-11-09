@@ -5,7 +5,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
 } from "lucide-react";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { pluralize } from "@/features/pmcm-kit";
 import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEvent, PrismPmcmCommandInbox, PrismPmcmOcularVisit, ScheduleOcularVisitInput, WaiveOcularVisitInput } from "@prism/types";
 import { selectEventActionCenter } from "@/features/command-inbox/list/model/event-action-center";
@@ -146,14 +146,14 @@ export function EventTasksWorkspace({
           </CardHeader>
           <CardBody className="space-y-3">
             {!selectedEvent ? (
-              <EmptyState icon={CalendarDays} title="Select an event" description="Open an event to see its readiness actions here." />
+              <Empty><EmptyHeader><EmptyMedia variant="icon"><CalendarDays /></EmptyMedia><EmptyTitle>Select an event</EmptyTitle><EmptyDescription>Open an event to see its readiness actions here.</EmptyDescription></EmptyHeader></Empty>
             ) : nextActions.length ? nextActions.slice(0, 5).map((action) => (
               <div key={action.key} className="rounded-md border border-border bg-muted/20 px-3 py-2">
                 <p className="text-xs font-black text-foreground">{action.label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{action.detail}</p>
               </div>
             )) : (
-              <EmptyState icon={CheckCircle2} title="No open blockers" description="The selected event has no current readiness action items." />
+              <Empty><EmptyHeader><EmptyMedia variant="icon"><CheckCircle2 /></EmptyMedia><EmptyTitle>No open blockers</EmptyTitle><EmptyDescription>The selected event has no current readiness action items.</EmptyDescription></EmptyHeader></Empty>
             )}
           </CardBody>
         </Card>
@@ -166,7 +166,7 @@ export function EventTasksWorkspace({
                 <p className="text-xs font-black text-foreground">{action.label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{action.detail}</p>
               </div>
-            )) : <EmptyState icon={CheckCircle2} title="No persisted action items" description="Command and readiness sources have no current PMCM actions." />}
+            )) : <Empty><EmptyHeader><EmptyMedia variant="icon"><CheckCircle2 /></EmptyMedia><EmptyTitle>No persisted action items</EmptyTitle><EmptyDescription>Command and readiness sources have no current PMCM actions.</EmptyDescription></EmptyHeader></Empty>}
           </CardBody>
         </Card>
       </div>

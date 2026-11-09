@@ -48,17 +48,39 @@ afterEach(() => {
 });
 
 describe("global event-scoped destinations without a selected event", () => {
+  it("shows ten events at a time, reveals the rest with Show more, and narrows by search", () => {
+    const original = routeModel.events;
+    routeModel.events = Array.from({ length: 12 }, (_, index) => ({
+      id: `evt-${index}`,
+      eventName: `Event ${String(index).padStart(2, "0")}`,
+      clientName: "Acme",
+      eventDate: `2027-01-${String(index + 1).padStart(2, "0")}`,
+    }));
+    try {
+      render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardFinanceSectionView /></PortalQueryProvider>);
+      expect(screen.getAllByRole("link", { name: /^Open billing:/ })).toHaveLength(10);
+
+      fireEvent.click(screen.getByRole("button", { name: "Show more" }));
+      expect(screen.getAllByRole("link", { name: /^Open billing:/ })).toHaveLength(12);
+
+      fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Event 03" } });
+      expect(screen.getAllByRole("link", { name: /^Open billing:/ }).map((row) => row.textContent)).toEqual(["Event 03"]);
+    } finally {
+      routeModel.events = original;
+    }
+  });
+
   it.each([
     ["Finance", EventDashboardFinanceSectionView, "Open billing", "billing"],
     ["Files", EventDashboardFilesSectionView, "Open files", "files"],
-    ["Messages", EventDashboardMessagesSectionView, "Open messages", "activity"],
+    ["Messages", EventDashboardMessagesSectionView, "Open messages", "messages"],
   ] as const)("%s lists events and opens the chosen event's matching section in one selection", async (_name, View, action, tab) => {
     render(<PortalQueryProvider actorKey="pmcm:test"><View /></PortalQueryProvider>);
 
     expect(screen.getByRole("heading", { name: "Choose an event" })).toBeTruthy();
     const rows = screen.getAllByRole("link", { name: new RegExp(`^${action}:`) });
-    expect(rows.map((row) => row.getAttribute("title"))).toEqual(["Product expo", "Founders gala"]);
-    expect(screen.getByText(/15 May 2027|May 15, 2027/)).toBeTruthy();
+    expect(rows.map((row) => row.textContent)).toEqual(["Product expo", "Founders gala"]);
+    expect(screen.getAllByText(/15 May 2027|May 15, 2027/).length).toBeGreaterThan(0);
 
     const chosen = screen.getByRole("link", { name: `${action}: Founders gala` });
     expect(chosen.getAttribute("href")).toBe(`/dashboard/events/evt-gala/${tab}`);

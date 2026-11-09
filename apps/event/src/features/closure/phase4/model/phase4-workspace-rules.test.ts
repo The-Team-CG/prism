@@ -3,7 +3,7 @@ import {
   closeGateDestination,
   compliancePhaseForStage,
   isCompliancePhase,
-  numberedClosureTabs,
+  CLOSURE_TABS,
   phase4ArchiveStatus,
   phase4BillingSourceCard,
   phase4CloseGatesCard,
@@ -13,13 +13,13 @@ import {
 } from "./phase4-workspace-rules";
 
 describe("phase4-workspace-rules", () => {
-  it("numbers closure tabs 1–5 in run order, with Deliverables gating Archive last", () => {
-    expect(numberedClosureTabs().map((tab) => [tab.id, tab.label])).toEqual([
-      ["wrap-up", "1. Wrap up"],
-      ["feedback", "2. Feedback & reviews"],
-      ["compliance", "3. Compliance"],
-      ["deliverables", "4. Deliverables"],
-      ["archive", "5. Archive"],
+  it("runs closure tabs in order with Archive last, unnumbered so they read as sections, not a wizard", () => {
+    expect(CLOSURE_TABS.map((tab) => [tab.id, tab.label])).toEqual([
+      ["wrap-up", "Wrap up"],
+      ["feedback", "Feedback & reviews"],
+      ["compliance", "Compliance"],
+      ["deliverables", "Deliverables"],
+      ["archive", "Archive"],
     ]);
   });
 

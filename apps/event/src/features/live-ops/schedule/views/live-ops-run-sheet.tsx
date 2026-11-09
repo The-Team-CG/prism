@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { PrismEventRunSheet, PrismRunSheetGuestOperations } from "@prism/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { useRunSheetViewModel } from "../view-models/use-run-sheet-view-model";
 import {
   RUN_SHEET_KIND_LABELS,
@@ -95,15 +96,16 @@ function RunSheetControls({ props }: { props: LiveOpsRunSheetViewProps }) {
       {runSheet && runSheet.days.length > 1 ? (
         <label className="flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Day</span>
-          <select
-            className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-            value={props.selectedDayId ?? runSheet.day.id}
-            onChange={(event) => props.onSelectDay(event.target.value)}
-          >
-            {runSheet.days.map((day) => (
-              <option key={day.id} value={day.id}>{day.label ? `${day.label} (${day.dayDate})` : day.dayDate}</option>
-            ))}
-          </select>
+          <Select value={props.selectedDayId ?? runSheet.day.id} onValueChange={props.onSelectDay}>
+            <SelectTrigger aria-label="Run sheet day" className="h-auto min-w-48 bg-background px-2 py-1.5 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {runSheet.days.map((day) => (
+                <SelectItem key={day.id} value={day.id}>{day.label ? `${day.label} (${day.dayDate})` : day.dayDate}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
       ) : null}
       {runSheet || props.error ? (

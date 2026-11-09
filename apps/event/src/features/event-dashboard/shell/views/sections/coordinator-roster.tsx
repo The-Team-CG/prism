@@ -3,7 +3,7 @@
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { PrismCoordinator, PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
 import { Search, UsersRound } from "lucide-react";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { RouteLink, useListFilter } from "@/features/pmcm-kit";
 import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
@@ -21,10 +21,17 @@ function initials(name: string) {
 
 const ROW_GRID = "sm:grid sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1.5fr)_minmax(0,1.4fr)] sm:items-center sm:gap-6";
 
+function rosterEmptyCopy(archived: boolean, searching: boolean) {
+  if (searching) return { title: "No coordinator matches", description: "Try a name, a role such as Usher, or a skill." };
+  if (archived) return { title: "No archived coordinators", description: "Deactivated coordinators are listed here. Active coordinators stay in the roster." };
+  return { title: "No coordinators yet", description: "Coordinators appear here once PMCM adds them to the team." };
+}
+
 /** PMCM's coordinators: what each does and where they're booked next. Assignment happens inside each event. */
 export function CoordinatorRoster({
   title,
   note,
+  archived = false,
   coordinators,
   assignments,
   events,
@@ -32,6 +39,8 @@ export function CoordinatorRoster({
 }: {
   title: string;
   note?: string;
+  /** The archived team view: its empty state talks about deactivated coordinators, not an empty roster. */
+  archived?: boolean;
   coordinators: PrismCoordinator[];
   assignments: PrismCoordinatorAssignment[];
   events: PrismEvent[];
@@ -39,6 +48,7 @@ export function CoordinatorRoster({
 }) {
   const [query, setQuery] = useListFilter("q");
   const needle = query.trim().toLowerCase();
+  const emptyCopy = rosterEmptyCopy(archived, needle.length > 0);
   const bookings = coordinatorBookingsByCoordinator(assignments, events, manilaDateKey());
   const nextDate = (coordinator: PrismCoordinator) => String(bookings.get(coordinator.id)?.upcoming[0]?.event.eventDate ?? "9999");
   const rows = coordinators
@@ -69,13 +79,15 @@ export function CoordinatorRoster({
 
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         {rows.length === 0 ? (
-          <div className="p-6">
-            <EmptyState
-              icon={UsersRound}
-              title={needle ? "No coordinator matches" : "No coordinators yet"}
-              description={needle ? "Try a name, a role such as Usher, or a skill." : "Coordinators appear here once PMCM adds them to the team."}
-            />
-          </div>
+          <Empty className="border-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <UsersRound />
+              </EmptyMedia>
+              <EmptyTitle>{emptyCopy.title}</EmptyTitle>
+              <EmptyDescription>{emptyCopy.description}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <>
             <div aria-hidden="true" className={`hidden border-b border-border px-4 py-2.5 text-xs text-muted-foreground ${ROW_GRID}`}>

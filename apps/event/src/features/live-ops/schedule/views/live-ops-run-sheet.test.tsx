@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { chooseSelectOption } from "@/test-support/select-test-utils";
 import type { PrismEventRunSheet, PrismRunSheetEntry } from "@prism/types";
 import { buildRunSheetTimeline } from "../model/run-sheet-timeline";
 import { LiveOpsRunSheet, LiveOpsRunSheetView, type LiveOpsRunSheetViewProps } from "./live-ops-run-sheet";
@@ -126,7 +127,7 @@ describe("LiveOpsRunSheet", () => {
     expect(await screen.findByText("Opening program")).toBeTruthy();
     expect(repository.getRunSheet).toHaveBeenCalledWith("evt_1", undefined);
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "day_2" } });
+    chooseSelectOption(screen.getByRole("combobox"), "Load-out (2026-08-21)");
     await waitFor(() => expect(repository.getRunSheet).toHaveBeenLastCalledWith("evt_1", "day_2"));
   });
 

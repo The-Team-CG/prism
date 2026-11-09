@@ -2,7 +2,7 @@ import { ShieldCheck } from "lucide-react";
 import type { PrismApprovalRequest } from "@prism/types";
 import { PrismSectionPanel } from "@prism/ui";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { label } from "@/features/pmcm-kit";
 
@@ -20,11 +20,15 @@ export function AdminApprovalsPanel({
   return (
     <PrismSectionPanel title="Admin approvals" icon={ShieldCheck}>
       {approvals.length === 0 ? (
-        <EmptyState
-          icon={ShieldCheck}
-          title="No pending approvals"
-          description="New account requests will appear here for review."
-        />
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldCheck />
+            </EmptyMedia>
+            <EmptyTitle>No pending approvals</EmptyTitle>
+            <EmptyDescription>New account requests will appear here for review.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
         <div className="grid gap-3 xl:grid-cols-2">
           {approvals.map((request) => (

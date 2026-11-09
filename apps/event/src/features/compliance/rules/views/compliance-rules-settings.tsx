@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { Plus, ShieldCheck } from "lucide-react";
 import type { PrismComplianceRule } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@prism/ui/components/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Textarea } from "@prism/ui/components/textarea";
+import { Item, ItemContent, ItemDescription, ItemTitle } from "@prism/ui/components/item";
 import {
   COMPLIANCE_RULE_PHASES,
   COMPLIANCE_RULE_SEVERITIES,
@@ -12,8 +19,6 @@ import {
   toCreateComplianceRuleInput,
   type ComplianceRuleDraft,
 } from "../model/compliance-rule-rules";
-
-const FIELD = "h-10 w-full rounded-md border border-border bg-background px-3 text-sm";
 
 /** Settings → Compliance rules: rules here apply to every event's compliance checks. */
 export function ComplianceRulesSettings({
@@ -27,7 +32,7 @@ export function ComplianceRulesSettings({
 }) {
   const [draft, setDraft] = useState<ComplianceRuleDraft>(EMPTY_COMPLIANCE_RULE_DRAFT);
   const active = activeWorkspaceRules(rules);
-  const ready = draft.title.trim() && draft.conditionKey.trim();
+  const ready = draft.title.trim().length > 0 && draft.conditionKey.trim().length > 0;
   const set = (patch: Partial<ComplianceRuleDraft>) => setDraft((current) => ({ ...current, ...patch }));
 
   async function submit() {
@@ -37,72 +42,100 @@ export function ComplianceRulesSettings({
   }
 
   return (
-    <section id="compliance-rules" aria-labelledby="compliance-rules-title" className="scroll-mt-6 rounded-xl border border-border bg-card">
-      <header className="flex items-start gap-2 border-b border-border px-5 py-4">
-        <ShieldCheck className="mt-0.5 size-4 text-primary" aria-hidden />
-        <div>
-          <h2 id="compliance-rules-title" className="text-sm font-semibold text-foreground">Compliance rules</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">Rules apply to every event. Each event's Closure → Compliance step runs them and records the results.</p>
+    <Card id="compliance-rules" aria-labelledby="compliance-rules-title" className="scroll-mt-6 gap-0 py-0">
+      <CardHeader className="border-b border-border px-5 py-4">
+        <div className="flex items-start gap-2">
+          <ShieldCheck className="mt-0.5 size-4 text-primary" aria-hidden />
+          <div className="grid gap-1">
+            <CardTitle id="compliance-rules-title" className="text-sm font-semibold">Compliance rules</CardTitle>
+            <CardDescription>Rules apply to every event. Each event's Closure → Compliance step runs them and records the results.</CardDescription>
+          </div>
         </div>
-      </header>
-      <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div>
-          <h3 className="text-sm font-semibold text-foreground">{active.length} active workspace rule{active.length === 1 ? "" : "s"}</h3>
+        <CardAction>
+          <span className="text-sm tabular-nums text-muted-foreground">{active.length} active</span>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="grid gap-6 p-5 lg:grid-cols-2 lg:gap-8">
+        <section aria-label="Active workspace rules" className="grid content-start gap-3">
+          <h3 className="text-sm font-semibold text-foreground">Active workspace rules</h3>
           {active.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">No custom rules yet. Built-in checks still run for every event.</p>
+            <p className="text-sm text-muted-foreground">No custom rules yet. Built-in checks still run for every event.</p>
           ) : (
-            <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
+            <ul className="grid gap-2">
               {active.map((rule) => (
-                <li key={rule.id} className="px-4 py-2.5">
-                  <p className="text-sm font-medium text-foreground">{rule.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {complianceOptionLabel(COMPLIANCE_RULE_PHASES, rule.phase)} · {complianceOptionLabel(COMPLIANCE_RULE_SEVERITIES, rule.severity)}
-                    {rule.note ? ` · ${rule.note}` : ""}
-                  </p>
+                <li key={rule.id}>
+                  <Item variant="outline" size="sm">
+                    <ItemContent>
+                      <ItemTitle>{rule.title}</ItemTitle>
+                      <ItemDescription>
+                        {complianceOptionLabel(COMPLIANCE_RULE_PHASES, rule.phase)} · {complianceOptionLabel(COMPLIANCE_RULE_SEVERITIES, rule.severity)}
+                        {rule.note ? ` · ${rule.note}` : ""}
+                      </ItemDescription>
+                    </ItemContent>
+                  </Item>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </section>
+
         <form
-          className="grid content-start gap-3 rounded-lg border border-border bg-muted/20 p-4"
+          aria-label="Add a rule"
+          className="grid content-start gap-4"
           onSubmit={(event) => {
             event.preventDefault();
             void submit();
           }}
         >
           <h3 className="text-sm font-semibold text-foreground">Add a rule</h3>
-          <label className="grid gap-1 text-sm font-medium text-foreground">
-            Rule title
-            <input value={draft.title} onChange={(event) => set({ title: event.target.value })} placeholder="Venue power capacity confirmed" className={FIELD} />
-          </label>
-          <label className="grid gap-1 text-sm font-medium text-foreground">
-            Check identifier
-            <input value={draft.conditionKey} onChange={(event) => set({ conditionKey: event.target.value })} placeholder="e.g. venue_power_capacity" className={FIELD} />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1 text-sm font-medium text-foreground">
-              Phase
-              <select value={draft.phase} onChange={(event) => set({ phase: event.target.value })} className={FIELD}>
-                {COMPLIANCE_RULE_PHASES.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium text-foreground">
-              Severity
-              <select value={draft.severity} onChange={(event) => set({ severity: event.target.value })} className={FIELD}>
-                {COMPLIANCE_RULE_SEVERITIES.map(([value, text]) => <option key={value} value={value}>{text}</option>)}
-              </select>
-            </label>
-          </div>
-          <label className="grid gap-1 text-sm font-medium text-foreground">
-            PMCM note
-            <textarea value={draft.note} onChange={(event) => set({ note: event.target.value })} className="min-h-20 rounded-md border border-border bg-background p-3 text-sm" />
-          </label>
-          <button type="submit" disabled={busy || !ready} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-60">
-            <Plus className="size-4" aria-hidden /> Add rule
-          </button>
+          <FieldGroup className="gap-4">
+            <Field>
+              <FieldLabel htmlFor="compliance-rule-title">Rule title</FieldLabel>
+              <Input id="compliance-rule-title" value={draft.title} onChange={(event) => set({ title: event.target.value })} placeholder="Venue power capacity confirmed" />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="compliance-rule-key">Check identifier</FieldLabel>
+              <Input id="compliance-rule-key" value={draft.conditionKey} onChange={(event) => set({ conditionKey: event.target.value })} placeholder="e.g. venue_power_capacity" />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="compliance-rule-phase">Phase</FieldLabel>
+                <Select value={draft.phase} onValueChange={(phase) => set({ phase })}>
+                  <SelectTrigger id="compliance-rule-phase" className="w-full min-w-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMPLIANCE_RULE_PHASES.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="compliance-rule-severity">Severity</FieldLabel>
+                <Select value={draft.severity} onValueChange={(severity) => set({ severity })}>
+                  <SelectTrigger id="compliance-rule-severity" className="w-full min-w-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COMPLIANCE_RULE_SEVERITIES.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="compliance-rule-note">PMCM note</FieldLabel>
+              <Textarea id="compliance-rule-note" value={draft.note} onChange={(event) => set({ note: event.target.value })} className="min-h-20" />
+            </Field>
+          </FieldGroup>
+          <Field>
+            <div>
+              <Button type="submit" disabled={busy || !ready}>
+                <Plus aria-hidden /> Add rule
+              </Button>
+            </div>
+            {ready ? null : <FieldDescription>Add a rule title and a check identifier to save the rule.</FieldDescription>}
+          </Field>
         </form>
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
