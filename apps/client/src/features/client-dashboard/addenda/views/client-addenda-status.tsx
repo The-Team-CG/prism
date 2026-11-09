@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
+import { Card } from "@prism/ui/components/card";
 import { Checkbox } from "@prism/ui/components/checkbox";
 import { FieldLabel } from "@prism/ui/components/field";
 
@@ -22,7 +23,7 @@ export function ClientAddendaStatus({ eventId }: { eventId: string }) {
   if (vm.status === "ready" && !vm.error && vm.addenda.length === 0) return null;
 
   return (
-    <section aria-labelledby="client-addenda-status" className="space-y-3 rounded-xl border border-border bg-card p-5">
+    <Card role="region" aria-labelledby="client-addenda-status" className="gap-3 p-5">
       <div>
         <h2 id="client-addenda-status" className="text-lg font-semibold">Addendum status</h2>
         <p className="text-sm text-muted-foreground">Review the scope changes issued for your event. Acknowledge each addendum conforme once you have read the version PMCM issued.</p>
@@ -45,7 +46,7 @@ export function ClientAddendaStatus({ eventId }: { eventId: string }) {
           ))}
         </ul>
       ) : null}
-    </section>
+    </Card>
   );
 }
 

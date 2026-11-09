@@ -9,6 +9,7 @@ import {
   WalletCards,
 } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
+import { Card } from "@prism/ui/components/card";
 import { Label } from "@prism/ui/components/label";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { cn } from "@/app/components/ui/utils";
@@ -52,7 +53,7 @@ export function EventSummaryCard({
   const dateParts = eventDateParts(event.eventDate);
 
   return (
-    <article className={cn("overflow-hidden rounded-xl border border-border bg-card shadow-sm", className)}>
+    <Card role="article" className={cn("gap-0 overflow-hidden py-0", className)}>
       <div className="bg-ink px-4 py-4 text-white">
         <div className="flex items-start justify-between gap-3">
           <div className="rounded-md bg-white px-3 py-2 text-center text-ink">
@@ -112,7 +113,7 @@ export function EventSummaryCard({
           )}
         </div>
       </div>
-    </article>
+    </Card>
   );
 }
 

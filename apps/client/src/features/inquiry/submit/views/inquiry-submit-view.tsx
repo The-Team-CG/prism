@@ -4,6 +4,7 @@ import { FormEvent } from "react";
 import { Check, ChevronLeft } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 import { Button } from "@prism/ui/components/button";
+import { Card } from "@prism/ui/components/card";
 import { cn } from "@/app/components/ui/utils";
 import { inquiryImages } from "../content/inquiry-images";
 import { buildInquiryReference } from "../model/inquiry-submit-rules";
@@ -124,10 +125,12 @@ export function InquirySubmitView() {
           <div className="mt-8">
             <InquiryProgress currentStep={currentStep} onGoTo={goToStep} />
           </div>
-          <form noValidate onSubmit={onSubmit} className="mt-6 rounded-xl border border-border bg-card p-5 sm:p-8">
+          <Card className="mt-6 gap-0 p-5 sm:p-8">
+          <form noValidate onSubmit={onSubmit}>
             <InquiryStepBody currentStep={currentStep} form={form} update={update} minDate={minDate} error={error} onEdit={goToStep} consentInvalid={missing.includes("your consent")} />
             <InquiryWizardFooter currentStep={currentStep} busy={busy} missing={missing} onBack={previousStep} onContinue={nextStep} />
           </form>
+          </Card>
         </div>
         <aside className="grid content-start gap-8 lg:sticky lg:top-6 lg:self-start">
           <InquiryNextSteps reviewing={currentStep === INQUIRY_WIZARD_STEPS.length - 1} />

@@ -104,7 +104,8 @@ export function OverviewStats({
 }) {
   const openMilestones = payments.filter((p) => p.status !== "paid").length;
   return (
-    <dl className="grid grid-cols-3 divide-x divide-border rounded-lg border border-border bg-card">
+    <Card className="gap-0 py-0">
+    <dl className="grid grid-cols-3 divide-x divide-border">
       {[
         { label: "Until the event", value: daysToEventLabel(selectedEvent.eventDate) },
         { label: "Open payments", value: openMilestones },
@@ -116,6 +117,7 @@ export function OverviewStats({
         </div>
       ))}
     </dl>
+    </Card>
   );
 }
 

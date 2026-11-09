@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClientOwnedSupplierSchema, parseContract, type PrismClientOwnedSupplier } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Card } from "@prism/ui/components/card";
 import { ownSuppliersRepository } from "../data/own-suppliers-repository";
 
 const field = "mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
@@ -25,7 +26,7 @@ export function ClientOwnSuppliers({ eventId }: { eventId: string }) {
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card p-4 text-sm">
+    <Card className="gap-2 p-4 text-sm">
       <h3 className="font-bold text-foreground">Your own suppliers</h3>
       <p className="mt-1 text-xs text-muted-foreground">Add any supplier you are booking yourself (for example a family photographer or a church choir). Mark it confirmed once they commit, so PMCM can plan around them.</p>
       {error ? <p role="alert" className="mt-2 text-destructive">{error}</p> : null}
@@ -49,6 +50,6 @@ export function ClientOwnSuppliers({ eventId }: { eventId: string }) {
         await ownSuppliersRepository.create(eventId, parseContract(createClientOwnedSupplierSchema, form, "Supplier"));
         setForm(empty);
       })}>Add supplier</Button>
-    </section>
+    </Card>
   );
 }

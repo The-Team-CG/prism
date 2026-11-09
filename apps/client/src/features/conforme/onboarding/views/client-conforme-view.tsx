@@ -1,5 +1,6 @@
 "use client";
 import { formatPortalDateTime } from "@prism/ui/format-date";
+import { Card } from "@prism/ui/components/card";
 
 import Link from "next/link";
 import type { PrismConformeExecution } from "@prism/types";
@@ -19,19 +20,19 @@ export function ClientConformeView() {
 
 function ConformeContent({ model }: { model: ReturnType<typeof useClientConformeViewModel> }) {
   if (model.error) return <div role="alert" className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">{model.error}</div>;
-  if (!model.execution) return <div className="rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">No conforme is available for this account. Contact PMCM if you expected one.</div>;
+  if (!model.execution) return <Card className="gap-0 p-6 text-sm text-muted-foreground">No conforme is available for this account. Contact PMCM if you expected one.</Card>;
   return <ConformeRecord model={model} execution={model.execution} />;
 }
 
 function ConformeRecord({ model, execution }: { model: ReturnType<typeof useClientConformeViewModel>; execution: PrismConformeExecution }) {
   const clientSigned = execution.signatures.some((signature) => signature.actorRole === "client");
-  return <section className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-7">
+  return <Card role="region" className="gap-5 p-5 sm:p-7">
     <ExecutionSelector executions={model.executions} selectedId={model.selectedExecutionId} onSelect={model.setSelectedExecutionId} />
     <ExecutionSummary execution={execution} />
     <pre className="max-h-[55vh] overflow-auto whitespace-pre-wrap rounded-xl border border-border bg-background p-5 font-sans text-sm leading-6 text-foreground">{execution.documentContent}</pre>
     <ExecutionSignatures execution={execution} />
     <ExecutionAction model={model} execution={execution} clientSigned={clientSigned} />
-  </section>;
+  </Card>;
 }
 
 function ExecutionSelector({ executions, selectedId, onSelect }: { executions: PrismConformeExecution[]; selectedId: string | null; onSelect: (id: string) => void }) {
