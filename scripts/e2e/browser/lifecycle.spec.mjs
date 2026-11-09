@@ -2,10 +2,12 @@ import { test, expect, devices } from '@playwright/test';
 import { api, origins, password, inbox, mailLink, persona, privacyIfNeeded, fillStable } from './helpers.mjs';
 import { submitPublicInquiry } from './inquiry-actions.mjs';
 
-// Each supplier booking is a <details> titled "Category · Event". A single booking starts open, so only a closed one is clicked.
+// Each supplier booking is a disclosure: a ghost button titled "Category · Event" that toggles its panel (aria-expanded).
+// A single booking starts open, so only a collapsed one is clicked.
 async function openBooking(page, eventName) {
-  const booking = page.locator('details', { has: page.locator('summary', { hasText: eventName }) });
-  if ((await booking.getAttribute('open')) === null) await booking.locator(':scope > summary').click();
+  const booking = page.locator('[id^="supplier-work-"]', { has: page.locator('button', { hasText: eventName }) }).first();
+  const trigger = booking.locator(':scope > button').first();
+  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
   return booking;
 }
 

@@ -79,7 +79,7 @@ describe("table assignment eligibility on saved plans", () => {
     expect(parsed.success && parsed.data.objects?.[0]).toMatchObject({ id: "t1", customNote: "keep" });
   });
 
-  it("still parses legacy kernel-shaped plan objects and guests", () => {
+  it("rejects kernel-shaped plan objects that carry position and size instead of the editor's x, y, w, h", () => {
     const legacyObject = {
       id: "legacy-table",
       kind: "table",
@@ -91,10 +91,9 @@ describe("table assignment eligibility on saved plans", () => {
     const parsed = updatePlanSchema.safeParse({
       expectedUpdatedAt: "2026-05-05T00:00:00.000Z",
       objects: [legacyObject],
-      guests: [legacyObject],
     });
 
-    expect(parsed.success).toBe(true);
+    expect(parsed.success).toBe(false);
   });
 
   it("refuses to parse the same guest listed twice at one table", () => {
@@ -106,19 +105,11 @@ describe("table assignment eligibility on saved plans", () => {
     expect(parsed.success).toBe(false);
   });
 
-  it("parses an editor-shaped supplier roster and still accepts legacy supplier objects", () => {
+  it("parses an editor-shaped supplier roster", () => {
     const editorSupplier = { id: "s-cater", name: "Mesa Catering", kind: "catering", status: "confirmed", contact: "mesa@example.test" };
-    const legacySupplier = {
-      id: "legacy-supplier",
-      kind: "decor",
-      position: { x: 0, y: 0 },
-      size: { width: 1, height: 1 },
-      rotation: 0,
-      zIndex: 0,
-    };
     const parsed = updatePlanSchema.safeParse({
       expectedUpdatedAt: "2026-05-05T00:00:00.000Z",
-      suppliers: [editorSupplier, legacySupplier],
+      suppliers: [editorSupplier],
     });
 
     expect(parsed.success).toBe(true);
