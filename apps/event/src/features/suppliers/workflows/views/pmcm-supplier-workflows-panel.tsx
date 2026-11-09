@@ -6,6 +6,7 @@ import type { PrismSupplierQuote, PrismSupplierQuoteRequest } from "@prism/types
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { usePmcmSupplierWorkflows } from "../view-models/use-pmcm-supplier-workflows";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
@@ -75,13 +76,15 @@ function ScheduleEditor({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel }
 }
 
 const EVENT_DAY_STATUSES = [["not_started", "Not started"], ["arrived", "Arrived"], ["set_up_ready", "Set up and ready"], ["done_leaving", "Done and leaving"]] as const;
+/** Radix Select cannot hold an empty-string item, so "none" stands for "no status chosen yet". */
+const NO_STATUS = "none";
 
 function StatusCorrection({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel }) {
   const key = `status:${row.requestId}`;
   const status = vm.value(key, "status");
   const reason = vm.value(key, "reason");
   return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Correct event-day status</p><div className="flex flex-wrap items-center gap-2">
-    <select aria-label="Corrected event-day status" className="h-8 rounded-lg border border-border bg-background px-2 text-xs" value={status} onChange={(e) => vm.setValue(key, "status", e.target.value)}><option value="">Choose status</option>{EVENT_DAY_STATUSES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+    <Select value={status || NO_STATUS} onValueChange={(next) => vm.setValue(key, "status", next === NO_STATUS ? "" : next)}><SelectTrigger aria-label="Corrected event-day status" className="h-8 w-44 min-w-0 rounded-lg bg-background text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={NO_STATUS}>Choose status</SelectItem>{EVENT_DAY_STATUSES.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
     <Input className="h-8 max-w-xs" aria-label="Status correction reason" placeholder="Reason for correction" value={reason} onChange={(e) => vm.setValue(key, "reason", e.target.value)} />
     <Button size="sm" variant="outline" disabled={vm.busy || !status || !reason.trim()} onClick={() => void vm.correctStatus(row.requestId)}>Correct status</Button></div></div>;
 }

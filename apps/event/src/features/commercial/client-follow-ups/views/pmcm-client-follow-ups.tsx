@@ -1,6 +1,7 @@
 "use client";
 
 import type { ClientMessageTrigger } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
 import { useClientFollowUps } from "../view-models/use-client-follow-ups";
 
 const TITLES: Record<ClientMessageTrigger, string> = {
@@ -32,10 +33,10 @@ export function PmcmClientFollowUps({ eventId }: { eventId: string }) {
                 <form className="mt-3 grid gap-2" onSubmit={(event) => { event.preventDefault(); void vm.send(item.trigger); }}>
                   <label className="text-sm">Subject<input value={draft.subject} maxLength={150} onChange={(event) => vm.edit(item.trigger, { subject: event.target.value })} className={FIELD} /></label>
                   <label className="text-sm">Message<textarea rows={5} maxLength={2000} value={draft.body} onChange={(event) => vm.edit(item.trigger, { body: event.target.value })} className={FIELD} /></label>
-                  <div><button type="submit" disabled={busy || !draft.subject.trim() || !draft.body.trim()} className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{busy ? "Sending…" : "Send to client"}</button></div>
+                  <div><Button type="submit" disabled={busy || !draft.subject.trim() || !draft.body.trim()}>{busy ? "Sending…" : "Send to client"}</Button></div>
                 </form>
               ) : (
-                <button type="button" disabled={busy} onClick={() => void vm.draft(item.trigger)} className="mt-3 rounded-md border border-border px-3 py-2 text-sm font-semibold disabled:opacity-50">{busy ? "Drafting…" : "Draft with AI"}</button>
+                <Button type="button" variant="outline" className="mt-3" disabled={busy} onClick={() => void vm.draft(item.trigger)}>{busy ? "Drafting…" : "Draft with AI"}</Button>
               )}
             </li>
           );

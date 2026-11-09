@@ -3,8 +3,9 @@
 import { FileCheck2 } from "lucide-react";
 import { useState } from "react";
 import type { PrismFileRequirementItem } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { useFileRequirementsMatrixViewModel } from "../view-models/use-file-requirements-matrix-view-model";
 import { useFileRequirementEditorViewModel } from "../view-models/use-file-requirement-editor-view-model";
 import {
@@ -28,13 +29,25 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
   function renderRequirements() {
     return <>      {status === "error" ? (
         <div className="px-6 py-6">
-          <EmptyState icon={FileCheck2} title="Unable to load file requirements" description={error ?? "Try again after selecting an event."} />
+          <Empty className="border-0 p-6">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><FileCheck2 /></EmptyMedia>
+              <EmptyTitle>Unable to load file requirements</EmptyTitle>
+              <EmptyDescription>{error ?? "Try again after selecting an event."}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </div>
       ) : status === "loading" || status === "idle" ? (
         <p className="px-6 py-6 text-sm text-muted-foreground">Loading file requirements…</p>
       ) : items.length === 0 ? (
         <div className="px-6 py-6">
-          <EmptyState icon={FileCheck2} title="No visible file requirements" description="Requirements appear after conforme, briefing, or supplier records exist." />
+          <Empty className="border-0 p-6">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><FileCheck2 /></EmptyMedia>
+              <EmptyTitle>No visible file requirements</EmptyTitle>
+              <EmptyDescription>Requirements appear after conforme, briefing, or supplier records exist.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </div>
       ) : (
         <div className="divide-y divide-border">
@@ -59,13 +72,13 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
         </div>
         {editable && editor.target?.mode !== "create" ? (
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => void sendReminders()} disabled={remindersBusy} className="rounded-md border border-border px-3 py-2 text-xs font-semibold disabled:opacity-60">
+            <Button type="button" variant="outline" size="sm" onClick={() => void sendReminders()} disabled={remindersBusy}>
               {remindersBusy ? "Queueing…" : "Send reminders"}
-            </button>
-            <button type="button" onClick={() => setTemplatesOpen((open) => !open)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Templates</button>
-            <button type="button" onClick={editor.startCreate} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setTemplatesOpen((open) => !open)}>Templates</Button>
+            <Button type="button" variant="outline" size="sm" onClick={editor.startCreate}>
               Add requirement
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>
