@@ -2717,6 +2717,20 @@ model OpsAuditLog {
   @@schema("platform_ops")
 }
 
+/// FR-25: an account's notification channels, keyed by its email (what outbox recipients resolve to). Email always stays on.
+model OpsNotificationChannelPreference {
+  email             String    @id
+  viberUserId       String?   @unique @map("viber_user_id")
+  viberEnabled      Boolean   @default(false) @map("viber_enabled")
+  viberLinkedAt     DateTime? @map("viber_linked_at")
+  linkCodeHash      String?   @unique @map("link_code_hash")
+  linkCodeExpiresAt DateTime? @map("link_code_expires_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("notification_channel_preferences")
+  @@schema("platform_ops")
+}
+
 model OpsNotificationLog {
   id              String    @id
   eventId         String?   @map("event_id")

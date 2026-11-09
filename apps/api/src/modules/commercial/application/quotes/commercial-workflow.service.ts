@@ -276,7 +276,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             ),
             writeNotification(this.notificationOutboxWriter,
               eventId,
-              supplier?.phone || request.supplierName,
+              supplier?.email || request.supplierName,
               `Quote request link: ${supplierQuoteLink(this.portals.supplier, request.accessToken)}`,
               'viber',
               { idempotencyKey: `supplier-quote-request:${request.id}:viber` },

@@ -244,8 +244,8 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
           }, transactionContext),
           this.notificationOutboxWriter.write({
             eventId,
-            recipient: assignment.coordinatorName,
-            message: 'Coordinator assignment issued',
+            recipient: plan.coordinator.email,
+            message: `Coordinator assignment issued: ${plan.event.eventName} (${plan.role})`,
             channel: 'viber',
             correlationId: commandContext.correlationId,
             idempotencyKey: `${commandContext.idempotencyKey}:viber`,

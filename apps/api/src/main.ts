@@ -30,7 +30,8 @@ function getAllowedOrigins() {
 async function bootstrap() {
   // Parsed before the app starts so a missing or invalid value fails the boot with a clear message.
   const trustProxy = parseTrustProxySetting(process.env[TRUST_PROXY_ENV]);
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter());
+  // rawBody keeps the exact request bytes for signed provider webhooks (Viber).
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(), { rawBody: true });
   app.set('trust proxy', trustProxy);
 
   // Worker `onApplicationShutdown` hooks and Prisma disconnect run on SIGTERM/SIGINT.

@@ -434,6 +434,11 @@ export function sectionMeta(
       title: "Privacy requests",
       description: "File a privacy request and follow its status. PMCM verifies your identity before acting.",
     },
+    notifications: {
+      eyebrow: "Account",
+      title: "Notifications",
+      description: "Updates always go to your email. Link Viber to get them there too.",
+    },
     support: {
       eyebrow: "Support",
       title: "Support",

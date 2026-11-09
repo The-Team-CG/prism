@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  Bell,
   ClipboardList,
   CalendarDays,
   FileCheck2,
@@ -43,6 +44,7 @@ export function supplierActiveNavId(section: SupplierDashboardSection): Supplier
 export function supplierAccountMenuItems(onNavigate: (section: SupplierDashboardSection) => void) {
   return [
     { id: "privacy", label: "Privacy requests", icon: ShieldCheck, onSelect: () => onNavigate("privacy") },
+    { id: "notifications", label: "Notifications", icon: Bell, onSelect: () => onNavigate("notifications") },
     { id: "support", label: "Help & support", icon: HelpCircle, onSelect: () => onNavigate("support") },
   ];
 }

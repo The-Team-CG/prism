@@ -38,6 +38,7 @@ function settlement(row: OpsNotificationLog, result: NotificationDeliveryResult,
   const release = { leaseToken: null, leaseExpiresAt: null };
   const attempts = row.attempts + 1;
   if (result.status === 'accepted') return { ...release, attempts, status: 'sent', sentAt: now, providerReceipt: result.receipt, failureReason: null, failedAt: null };
+  if (result.status === 'skipped') return { ...release, attempts, status: 'skipped', failureReason: result.reason, failedAt: null };
   const terminal = result.status === 'permanent_failure' || attempts >= maxAttempts;
   return { ...release, attempts, status: terminal ? 'failed' : 'queued', failedAt: now,
     failureReason: result.reason ?? (terminal ? 'Delivery failed; operator review required' : 'Delivery failed; retry scheduled'),
