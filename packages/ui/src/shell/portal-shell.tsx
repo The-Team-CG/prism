@@ -6,6 +6,7 @@ import type { PrismAppShellProps, PrismCommandGroup, PrismNavItem, PrismPageActi
 import { PrismBrandLogo } from "../brand";
 import { cn } from "../utils";
 import { portalHref } from "../portal-path";
+import { TruncatedText } from "../truncated-text";
 import { substringCommandFilter } from "./command-filter";
 import {
   Breadcrumb,
@@ -473,7 +474,7 @@ export function PrismPortalShell({
                   <React.Fragment key={label}>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
-                      {index === trail.length - 1 ? <BreadcrumbPage>{label}</BreadcrumbPage> : <span>{label}</span>}
+                      {index === trail.length - 1 ? <BreadcrumbPage>{label}</BreadcrumbPage> : <TruncatedText className="min-w-0 max-w-64">{label}</TruncatedText>}
                     </BreadcrumbItem>
                   </React.Fragment>
                 ))}
@@ -498,7 +499,7 @@ export function PrismPortalShell({
           </header>
           <div className={cn("mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", contentClassName)}>
             <div className={cn("mb-6 grid gap-1", titleClassName)}>
-              <h1 className="font-heading text-2xl font-bold leading-tight text-foreground">{title}</h1>
+              <h1 className="min-w-0 font-heading text-2xl font-bold leading-tight text-foreground"><TruncatedText>{title}</TruncatedText></h1>
               {description ? <p className="max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
             </div>
             {children}

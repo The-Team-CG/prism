@@ -1,11 +1,15 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { PrismEvent } from "@prism/types";
 import type { PmcmCalendarEntry } from "@/features/pmcm-overview";
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
 
 afterEach(() => cleanup());
+
+// jsdom has no ResizeObserver; the popover that lists a crowded day's hidden items measures itself with one.
+beforeAll(() => vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} }));
+afterAll(() => vi.unstubAllGlobals());
 
 const entry = (id: string, kind: PmcmCalendarEntry["kind"], target: PmcmCalendarEntry["target"], title: string, detail: string): PmcmCalendarEntry => ({
   id, kind, target, title, detail, date: "2026-11-10", eventId: "evt_1", chipLabel: title,

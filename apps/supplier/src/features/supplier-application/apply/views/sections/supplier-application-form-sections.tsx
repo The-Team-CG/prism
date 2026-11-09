@@ -6,7 +6,7 @@ import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName }
 import { CheckCircle2, Send } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@prism/ui/components/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
 import {
   Select,
@@ -33,10 +33,10 @@ type UpdateFn = <K extends keyof SupplierApplicationForm>(key: K, value: Supplie
 /** One labelled section of the application; the legend names it for screen readers and keeps the page scannable. */
 function FormSection({ legend, children }: { legend: string; children: ReactNode }) {
   return (
-    <fieldset className="flex min-w-0 flex-col gap-5 border-0 p-0">
-      <legend className="mb-1 text-base font-semibold text-foreground">{legend}</legend>
+    <FieldSet className="min-w-0 gap-5">
+      <FieldLegend className="mb-1 font-semibold text-foreground">{legend}</FieldLegend>
       {children}
-    </fieldset>
+    </FieldSet>
   );
 }
 
@@ -249,8 +249,8 @@ export function SupplierApplicationScreen({
         <FormSection legend="Certifications and notes">
           <CertificationsFields form={form} update={update} />
         </FormSection>
-        <fieldset className="flex min-w-0 flex-col gap-5 border-0 p-0">
-          <legend className="sr-only">Consent and submission</legend>
+        <FieldSet className="min-w-0 gap-5">
+          <FieldLegend className="sr-only">Consent and submission</FieldLegend>
           <label htmlFor="privacyConsentAccepted" className="flex items-start gap-3 text-sm leading-6 text-foreground">
             <input id="privacyConsentAccepted" type="checkbox" checked={form.privacyConsentAccepted} onChange={(event) => update("privacyConsentAccepted", event.target.checked)} required className="mt-1 size-5 shrink-0 accent-primary" />
             <span>
@@ -273,7 +273,7 @@ export function SupplierApplicationScreen({
               <FieldDescription className="text-center">Still needed: {missingItems.join(", ")}.</FieldDescription>
             ) : null}
           </div>
-        </fieldset>
+        </FieldSet>
       </form>
     </PrismAuthShell>
   );

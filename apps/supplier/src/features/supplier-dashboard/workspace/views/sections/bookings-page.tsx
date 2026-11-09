@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { BadgeCheck, CheckCircle2, ChevronRight, Circle, FileText, LockKeyhole, PackageCheck, Truck } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Circle, FileText, LockKeyhole, PackageCheck, Truck } from "lucide-react";
 import type { PrismAuthenticatedSession, PrismSupplierReadinessItem, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
@@ -12,7 +12,7 @@ import { supplierNextStep } from "../../model/supplier-next-step";
 import { EVENT_STATUS_ACTIONS, buildBookingSteps, canReportSupplierEventDayStatus, isEventStatusStepAllowed, statusLabel } from "../../model/supplier-workspace-rules";
 import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "../../model/supplier-workspace-types";
 import { useSupplierWorkTarget } from "../../view-models/use-supplier-work-target";
-import { Card, CardBody } from "./shell-ui";
+import { Card, CardBody, Disclosure } from "./shell-ui";
 
 type PanelState = "current" | "done" | "locked";
 type Contract = PrismSupplierWorkflowWorkspace["contracts"][number];
@@ -52,13 +52,9 @@ function BookingStepPanel({ title, state, summary, children }: { title: string; 
   );
   if (state === "locked" || !children) return <div className="rounded-lg border border-border px-4 py-3">{heading}</div>;
   return (
-    <details open={state === "current"} className="group/step rounded-lg border border-border">
-      <summary className="flex cursor-pointer list-none items-start gap-2 px-4 py-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden">
-        {heading}
-        <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open/step:rotate-90" aria-hidden="true" />
-      </summary>
-      <div className="border-t border-border px-4 py-4">{children}</div>
-    </details>
+    <Disclosure defaultOpen={state === "current"} className="rounded-lg border border-border" trigger={heading}>
+      {children}
+    </Disclosure>
   );
 }
 
@@ -73,8 +69,7 @@ function BookingSummary({ request, readiness }: { request: PrismSupplierQuoteReq
       ? `Event ${formatPortalDate(readiness.eventDate)}`
       : "Schedule not set yet";
   return (
-    <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-5 [&::-webkit-details-marker]:hidden">
-      <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden="true" />
+    <span className="flex min-w-0 flex-1 items-start gap-3">
       <span className="grid min-w-0 flex-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6">
         <span className="min-w-0">
           <span className="block text-sm font-semibold text-foreground">{title}</span>
@@ -87,7 +82,7 @@ function BookingSummary({ request, readiness }: { request: PrismSupplierQuoteReq
           <span className={done === steps.length ? "font-medium text-success" : "text-foreground"}>{done} of {steps.length} steps done</span>
         </span>
       </span>
-    </summary>
+    </span>
   );
 }
 
@@ -300,10 +295,10 @@ export function BookingsPage({ selectedRequests, readinessBoard, readinessNotes,
   return (
     <div className="space-y-5">
       {selectedRequests.map((req) => (
-        <details key={req.id} id={`supplier-work-${encodeURIComponent(req.id)}`} className="group scroll-mt-6 rounded-lg border border-border bg-card" open={selectedRequests.length === 1 ? true : undefined}>
-          <BookingSummary request={req} readiness={readinessBoard?.items.find((item) => item.requestId === req.id)} />
+        <Disclosure key={req.id} id={`supplier-work-${encodeURIComponent(req.id)}`} className="scroll-mt-6 rounded-lg border border-border bg-card" defaultOpen={selectedRequests.length === 1}
+          trigger={<BookingSummary request={req} readiness={readinessBoard?.items.find((item) => item.requestId === req.id)} />}>
           <BookingDetail req={req} workflowWorkspace={workflowWorkspace} readinessNote={readinessNotes[req.id]} statusNote={statusNotes[req.id]} busy={busy} handlers={handlers} />
-        </details>
+        </Disclosure>
       ))}
     </div>
   );

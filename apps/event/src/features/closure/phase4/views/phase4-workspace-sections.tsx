@@ -1,4 +1,5 @@
 import { Button } from "@prism/ui/components/button";
+import { Empty, EmptyDescription, EmptyHeader } from "@prism/ui/components/empty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { Input } from "@prism/ui/components/input";
@@ -129,9 +130,11 @@ export function Phase4ComplianceSection({
 
       <div className="mt-5 grid gap-4">
         {checks.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
-            No compliance checks generated yet. Pick the phase and run checks for the event record.
-          </div>
+          <Empty className="border-0 p-4 md:p-4">
+            <EmptyHeader>
+              <EmptyDescription>No compliance checks generated yet. Pick the phase and run checks for the event record.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <>
             {/* Open checks need a decision, grouped by phase; settled ones stay one click away. */}
@@ -326,7 +329,7 @@ export function Phase4CloseGatesSection({
           );
         })}
         {!closeGates && (
-          <div className="rounded-md border border-dashed border-border bg-muted p-5 text-sm text-muted-foreground">
+          <div className="rounded-md bg-muted/40 p-5 text-sm text-muted-foreground">
             Loading close-gate status for this selected event.
           </div>
         )}
@@ -413,9 +416,11 @@ export function Phase4InsightsSection({
           </div>
         </div>
       ) : (
-        <div className="mt-5 rounded-md border border-dashed border-border bg-muted p-6 text-sm text-muted-foreground">
-          Generate the first insights summary after close data is ready.
-        </div>
+        <Empty className="mt-5 border-0 p-4 md:p-4">
+          <EmptyHeader>
+            <EmptyDescription>Generate the first insights summary after close data is ready.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       )}
     </section>
   );

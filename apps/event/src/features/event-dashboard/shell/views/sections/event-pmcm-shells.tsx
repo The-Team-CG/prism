@@ -8,7 +8,6 @@ import { PrismDashboardShell } from "@prism/ui";
 import { buildPmcmCommandGroups, inquiryLogHref } from "../../model/event-command-index";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
-import { supplierWorkspaceStyles } from "@/features/suppliers/directory";
 import { EventDashboardSkeleton, eventDashboardSkeletonVariant } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
 import { useDocumentTitle } from "@/app/components/document-title";
 import type { EventSession } from "@/app/lib/session";
@@ -67,9 +66,6 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
   return (
     <PrismDashboardShell
       portal="event"
-      className={viewModel.section === "suppliers" ? supplierWorkspaceStyles.shell : undefined}
-      contentClassName={viewModel.section === "suppliers" ? "max-w-none p-0 sm:p-0" : undefined}
-      titleClassName={viewModel.section === "suppliers" ? "px-4 pt-6 sm:px-6 lg:px-8" : undefined}
       productLabel="P.R.I.S.M"
       roleLabel="PMCM Event Command"
       eyebrow={viewModel.shellCopy.eyebrow}

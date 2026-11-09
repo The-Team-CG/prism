@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { monthOfDateKey } from "./calendar-grid";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import {
   AGENDA_DAYS,
   CALENDAR_VIEWS,
@@ -91,6 +92,7 @@ type ViewProps<Item extends PortalCalendarItem> = {
   renderItem: PortalCalendarItemRenderer<Item>;
 };
 
+const chipBase = "w-full min-w-0 line-clamp-2 break-words rounded px-1.5 py-0.5 text-left text-xs font-medium";
 const kindOf = (kinds: Record<string, PortalCalendarKind>, kind: string) => kinds[kind] ?? { label: kind, chip: "bg-muted text-foreground", dot: "bg-muted-foreground" };
 const timeRange = (item: PortalCalendarItem) => (item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : "All day");
 const tooltip = (item: PortalCalendarItem) => [item.title, item.startTime ? timeRange(item) : null, item.detail].filter(Boolean).join(" · ");
@@ -126,7 +128,12 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
   }, [selectedId]);
 
   const selectChip: PortalCalendarItemRenderer<Item> = ({ item, className: chipClass, style, title, children }) => (
-    <button type="button" title={title} style={style} className={chipClass} aria-haspopup="dialog" onClick={() => setSelectedId(item.id)}>{children}</button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button type="button" style={style} className={chipClass} aria-haspopup="dialog" onClick={() => setSelectedId(item.id)}>{children}</button>
+      </TooltipTrigger>
+      <TooltipContent>{title}</TooltipContent>
+    </Tooltip>
   );
 
   const range = visibleRange(view, anchor);
@@ -141,6 +148,7 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
   const viewProps = { items, kinds, today, renderItem: renderItem ?? selectChip };
 
   return (
+    <TooltipProvider delayDuration={300}>
     <section aria-labelledby={headingId} className={cn("min-w-0 overflow-hidden rounded-lg border border-border bg-card", className)}>
       <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-3 sm:gap-3 sm:px-4">
         <Button type="button" variant="outline" size="sm" onClick={() => setAnchor(today)}>Today</Button>
@@ -165,6 +173,7 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
 
       {detail ? <ItemPanel item={selected} kinds={kinds} detail={detail} onClose={() => setSelectedId(null)} /> : null}
     </section>
+    </TooltipProvider>
   );
 }
 
@@ -223,7 +232,7 @@ function MonthView<Item extends PortalCalendarItem>({ items, kinds, today, rende
         item,
         variant: "chip",
         title: tooltip(item),
-        className: cn("block w-full min-w-0 truncate rounded px-1.5 py-0.5 text-left text-xs font-medium", kindOf(kinds, item.kind).chip, outside && "opacity-60"),
+        className: cn(chipBase, kindOf(kinds, item.kind).chip, outside && "opacity-60"),
         children: <>{item.startTime ? <span className="mr-1 font-normal opacity-70">{clockLabel(item.startTime)}</span> : null}{item.chipLabel ?? item.title}</>,
       })}
     </Fragment>
@@ -316,7 +325,7 @@ function TimeGridView<Item extends PortalCalendarItem>({ items, kinds, today, re
             {dates.map((dateKey) => (
               <div key={dateKey} className="flex min-w-0 flex-col gap-1 border-l border-border p-1">
                 {(byDate.get(dateKey) ?? []).filter((item) => !item.startTime).map((item) => (
-                  <Fragment key={item.id}>{renderItem({ item, variant: "chip", title: tooltip(item), className: cn("block w-full min-w-0 truncate rounded px-1.5 py-0.5 text-left text-xs font-medium", kindOf(kinds, item.kind).chip), children: item.title })}</Fragment>
+                  <Fragment key={item.id}>{renderItem({ item, variant: "chip", title: tooltip(item), className: cn(chipBase, kindOf(kinds, item.kind).chip), children: item.title })}</Fragment>
                 ))}
               </div>
             ))}

@@ -446,7 +446,7 @@ export function PrismStatusTimeline({ items }: { items: PrismTimelineItem[] }) {
               <span
                 className={cn(
                   "absolute bottom-0 left-3 top-6 w-px",
-                  done ? "bg-primary/30" : "bg-border",
+                  done ? "bg-success/30" : "bg-border",
                 )}
                 aria-hidden="true"
               />
@@ -454,7 +454,7 @@ export function PrismStatusTimeline({ items }: { items: PrismTimelineItem[] }) {
             <span
               className={cn(
                 "relative z-10 mt-1 grid size-6 place-items-center rounded-full",
-                done ? "bg-primary shadow-sm" : "bg-card ring-1 ring-border",
+                done ? "bg-success shadow-sm" : "bg-card ring-1 ring-border",
               )}
             >
               <span className={cn("rounded-full", done ? "size-2.5 bg-white" : "size-2 bg-muted-foreground/40")} />

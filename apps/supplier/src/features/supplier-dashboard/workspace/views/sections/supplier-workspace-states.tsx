@@ -1,7 +1,9 @@
 "use client";
 
 import { ShieldCheck } from "lucide-react";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
+import { Card } from "@prism/ui/components/card";
 
 export function SupplierWorkspaceLoading() {
   return (
@@ -17,10 +19,10 @@ export function SupplierWorkspaceSkeleton() {
     <div aria-busy="true" aria-label="Loading your workspace" className="grid gap-4">
       <div className="grid gap-4 md:grid-cols-3">
         {[0, 1, 2].map((key) => (
-          <div key={key} className="h-24 animate-pulse rounded-lg border border-border bg-card" />
+          <Card key={key} className="h-24 animate-pulse" />
         ))}
       </div>
-      <div className="h-72 animate-pulse rounded-lg border border-border bg-card" />
+      <Card className="h-72 animate-pulse" />
     </div>
   );
 }
@@ -28,7 +30,7 @@ export function SupplierWorkspaceSkeleton() {
 export function SupplierWrongPortalView({ onSignIn }: { onSignIn: () => void }) {
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
+      <Card className="w-full max-w-md p-8">
         <ShieldCheck className="size-12 rounded-xl bg-attention-soft p-2.5 text-attention" />
         <h1 className="mt-5 text-xl font-bold text-foreground">Wrong portal for this account.</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -37,7 +39,7 @@ export function SupplierWrongPortalView({ onSignIn }: { onSignIn: () => void }) 
         <Button className="mt-5 rounded-xl font-bold" onClick={onSignIn}>
           Use supplier sign-in
         </Button>
-      </div>
+      </Card>
     </main>
   );
 }
@@ -46,14 +48,14 @@ export function SupplierWorkspaceBanners({ error, notice }: { error: string | nu
   return (
     <>
       {error ? (
-        <div role="alert" className="rounded-xl border border-danger/25 bg-danger/8 px-5 py-3.5 text-sm font-semibold text-danger">
-          {error}
-        </div>
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
       {notice ? (
-        <div role="status" className="rounded-xl border border-success/25 bg-success/8 px-5 py-3.5 text-sm font-semibold text-success">
-          {notice}
-        </div>
+        <Alert role="status" className="border-success/25 bg-success/8 text-success">
+          <AlertDescription className="text-success">{notice}</AlertDescription>
+        </Alert>
       ) : null}
     </>
   );

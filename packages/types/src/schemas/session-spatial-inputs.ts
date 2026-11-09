@@ -5,12 +5,10 @@ export const supplierWithdrawalSchema = z.object({
   reason: z.string().trim().min(1).max(500).optional(),
 });
 export type SupplierWithdrawalInput = z.infer<typeof supplierWithdrawalSchema>;
-const canvasObject = z.object({ id: z.string(), kind: z.enum(['table','chair','stage','led-wall','podium','lights-sounds','reg-desk','entrance-arch','photo-wall','photo-booth','signage','emergency-exit','wall','door','window','bar','booth','decor','label','custom-image']), label: z.string().optional(), position: z.object({ x: z.number(), y: z.number() }), size: z.object({ width: z.number(), height: z.number() }), rotation: z.number(), zIndex: z.number(), locked: z.boolean().optional(), svgMarkup: z.string().optional(), metadata: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional() });
-const canvasObjects = z.array(canvasObject).optional();
-// Plan saves accept the floorplan editor shape; the legacy kernel shape stays accepted so plans saved before that alignment still save.
-const planObjects = z.array(z.union([floorPlanCanvasObjectSchema, canvasObject])).optional();
-const planGuests = z.array(z.union([floorPlanGuestSchema, canvasObject])).optional();
-const planSuppliers = z.array(z.union([floorPlanSupplierSchema, canvasObject])).optional();
+// Plan saves accept only the floorplan editor shape (x, y, w, h); the editor is the sole writer of plan objects.
+const planObjects = z.array(floorPlanCanvasObjectSchema).optional();
+const planGuests = z.array(floorPlanGuestSchema).optional();
+const planSuppliers = z.array(floorPlanSupplierSchema).optional();
 export const createEventFromTemplateSchema = z.object({ templateId: z.string().trim().min(1), name: z.string().trim().min(2).max(120), startsAt: z.string().datetime() });
 export type CreateEventFromTemplateInput = z.infer<typeof createEventFromTemplateSchema>;
 const templateFields = { name: z.string().trim().min(2).max(120), description: z.string().trim().max(400).optional(), venue: z.string().trim().max(160).optional(), venueRules: z.string().trim().max(2000).optional(), permanentFeatures: planObjects, objects: planObjects, width: z.number().int().positive().optional(), height: z.number().int().positive().optional(), gridSize: z.number().int().positive().optional(), pax: z.number().int().nonnegative().optional(), includeGuests: z.boolean().optional(), includeSuppliers: z.boolean().optional(), guests: planGuests, suppliers: planSuppliers, sourceType: z.string().trim().max(40).optional() };
