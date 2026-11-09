@@ -30,7 +30,7 @@ jobs:
 
   rollback-api:
     needs: reject-rollback-during-schema-cutover
-    uses: The-Team-CG/.github/.github/workflows/rollback-render.yml@f5986c05d92dd3cb61a880efc3cab5ddba25cd35
+    uses: The-Team-CG/.github/.github/workflows/rollback-render.yml@e8b7bc1c60895906a0d5e463690852e2edb6acab
     with:
       environment: ${{ inputs.environment }}
       image_name: the-team-cg/prism-api
