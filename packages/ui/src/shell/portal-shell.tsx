@@ -6,6 +6,7 @@ import type { PrismAppShellProps, PrismCommandGroup, PrismNavItem, PrismPageActi
 import { PrismBrandLogo } from "../brand";
 import { cn } from "../utils";
 import { portalHref } from "../portal-path";
+import { useDocumentTitle } from "../document-title";
 import { TruncatedText } from "../truncated-text";
 import { substringCommandFilter } from "./command-filter";
 import {
@@ -437,6 +438,7 @@ export function PrismPortalShell({
 }: PrismPortalShellProps) {
   const select = React.useCallback((id: string) => onNavSelect?.(id), [onNavSelect]);
   const trail = breadcrumb ?? findTrail(navItems, activeItemId);
+  useDocumentTitle(title ? `${title} · ${productLabel}` : undefined);
   return (
     <TooltipProvider delayDuration={300}>
       <SidebarProvider className={cn("prism-shell", className)} data-portal={portal}>
