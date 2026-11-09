@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
+import { useId, useState, type Dispatch, type ReactNode, type RefObject, type SetStateAction } from "react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@prism/ui/components/sheet";
@@ -18,8 +18,11 @@ import {
 
 import { Input } from "@prism/ui/components/input";
 import { Button } from "@prism/ui/components/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@prism/ui/components/empty";
 import type { PrismInquiry } from "@prism/types";
 import { CompanyNameEditor } from "@/features/inquiries/company-name/views/company-name-editor";
 import { BiddingPathEditor } from "@/features/inquiries/bidding-path/views/bidding-path-editor";
@@ -149,19 +152,19 @@ export function InquiryIntakeFilters({
         </div>
         <div className="min-w-0">
           <label htmlFor={statusId} className="sr-only">Status</label>
-          <select
-            id={statusId}
-            value={status}
-            onChange={(event) => onStatus(event.target.value)}
-            className="h-11 w-full min-w-0 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-9"
-          >
-            <option value={AWAITING_REVIEW}>Awaiting review</option>
-            <option value="all">All statuses</option>
-            <option value="new">New</option>
-            <option value="accepted">Accepted</option>
-            <option value="pending">Pending</option>
-            <option value="declined">Declined</option>
-          </select>
+          <Select value={status} onValueChange={onStatus}>
+            <SelectTrigger id={statusId} className="h-11 w-full min-w-0 rounded-lg bg-card sm:h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={AWAITING_REVIEW}>Awaiting review</SelectItem>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="declined">Declined</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <Button
           type="button"
@@ -186,16 +189,16 @@ export function InquiryIntakeFilters({
           return (
             <div key={sel.key} className="min-w-0">
               <label htmlFor={selectId} className="mb-1.5 block text-xs font-medium text-muted-foreground">{sel.label}</label>
-              <select
-                id={selectId}
-                value={sel.value}
-                onChange={(event) => sel.onChange(event.target.value)}
-                className="h-11 w-full min-w-0 rounded-lg border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:h-9"
-              >
-                {sel.options.map(([val, optionLabel]) => (
-                  <option key={val} value={val}>{optionLabel}</option>
-                ))}
-              </select>
+              <Select value={sel.value} onValueChange={sel.onChange}>
+                <SelectTrigger id={selectId} className="h-11 w-full min-w-0 rounded-lg bg-card sm:h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {sel.options.map(([val, optionLabel]) => (
+                    <SelectItem key={val} value={val}>{optionLabel}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           );
         })}
@@ -214,34 +217,40 @@ export function InquiryIntakeList({
   if (inquiries.length === 0) {
     return (
       <div className="px-6 py-8">
-        <EmptyState icon={ClipboardList} title="No inquiries match" description="Adjust the filters above to see more inquiries." />
+        <Empty className="border-0 p-6">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><ClipboardList aria-hidden /></EmptyMedia>
+            <EmptyTitle>No inquiries match</EmptyTitle>
+            <EmptyDescription>Adjust the filters above to see more inquiries.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       </div>
     );
   }
 
   return (
     <div className="min-w-0">
-      <table className="w-full table-fixed text-sm">
+      <Table className="table-fixed">
         <colgroup className="hidden lg:table-column-group">
           <col />
           <col className="w-32" />
           <col className="w-40 xl:w-48" />
           <col className="w-28" />
         </colgroup>
-        <thead className="hidden border-b border-border bg-muted/25 text-left text-xs text-muted-foreground lg:table-header-group">
-          <tr>
-            <th scope="col" className="px-6 py-3 font-medium">Event and contact</th>
-            <th scope="col" className="px-3 py-3 font-medium">Event date</th>
-            <th scope="col" className="px-3 py-3 font-medium">Status</th>
-            <th scope="col" className="px-6 py-3"><span className="sr-only">Action</span></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border">
+        <TableHeader className="hidden border-b border-border bg-muted/25 text-left text-xs text-muted-foreground lg:table-header-group">
+          <TableRow>
+            <TableHead className="h-auto whitespace-normal px-6 py-3 font-medium">Event and contact</TableHead>
+            <TableHead className="h-auto whitespace-normal px-3 py-3 font-medium">Event date</TableHead>
+            <TableHead className="h-auto whitespace-normal px-3 py-3 font-medium">Status</TableHead>
+            <TableHead className="h-auto whitespace-normal px-6 py-3"><span className="sr-only">Action</span></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y divide-border">
           {inquiries.map((inquiry) => (
             <InquiryIntakeRow key={inquiry.id} inquiry={inquiry} onOpen={onOpen} />
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -261,8 +270,8 @@ function InquiryIntakeRow({
 }) {
   const next = inquiryNextStep(inquiry);
   return (
-    <tr className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-3 hover:bg-surface-raised sm:px-6 lg:table-row lg:p-0">
-      <td className="col-span-2 min-w-0 align-top lg:px-6 lg:py-2.5">
+    <TableRow className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-3 hover:bg-surface-raised sm:px-6 lg:table-row lg:p-0">
+      <TableCell className="p-0 whitespace-normal col-span-2 min-w-0 align-top lg:px-6 lg:py-2.5">
         <p className="break-words font-semibold text-foreground" title={inquiry.eventName}>{inquiry.eventName}</p>
         <p className="mt-0.5 truncate text-xs text-muted-foreground" title={`${inquiry.clientName} · ${inquiry.email}`}>
           {inquiry.clientName} · {inquiry.email} · Received {compactTimestamp(inquiry.createdAt)}
@@ -270,24 +279,24 @@ function InquiryIntakeRow({
         </p>
         {inquiry.previouslyDeclined ? <p className="mt-0.5 text-xs font-semibold text-destructive">Previously declined</p> : null}
         {inquiry.pendingFullDetails ? <p className="mt-0.5 text-xs font-semibold text-attention">Pending Full Details</p> : null}
-      </td>
-      <td className="col-start-1 row-start-2 whitespace-nowrap align-top text-foreground lg:px-3 lg:py-2.5">
+      </TableCell>
+      <TableCell className="p-0 whitespace-normal col-start-1 row-start-2 whitespace-nowrap align-top text-foreground lg:px-3 lg:py-2.5">
         <span className="block text-xs text-muted-foreground lg:hidden">Event date</span>
         {formatPortalDate(inquiry.eventDate)}
-      </td>
-      <td className="col-start-1 row-start-3 min-w-0 align-top lg:px-3 lg:py-2.5">
+      </TableCell>
+      <TableCell className="p-0 whitespace-normal col-start-1 row-start-3 min-w-0 align-top lg:px-3 lg:py-2.5">
         <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
         {inquiry.status === "accepted" ? (
           <p className={`mt-1 text-xs leading-5 ${NEXT_STEP_TONE[next.tone]}`}>{next.label}</p>
         ) : null}
-      </td>
-      <td className="col-start-2 row-span-2 row-start-2 self-center align-top lg:py-2 lg:pl-0 lg:pr-6 lg:text-right">
+      </TableCell>
+      <TableCell className="p-0 whitespace-normal col-start-2 row-span-2 row-start-2 self-center align-top lg:py-2 lg:pl-0 lg:pr-6 lg:text-right">
         <button type="button" onClick={() => onOpen(inquiry)} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border border-border px-3 text-sm font-semibold text-primary hover:bg-primary/5 hover:text-primary-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary lg:border-transparent lg:px-2">
           Review<span className="sr-only"> inquiry {inquiry.eventName}</span>
           <ChevronRight aria-hidden className="size-3.5" />
         </button>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -471,18 +480,18 @@ function InquiryMergeForm({
       <label className="block text-xs font-bold text-muted-foreground" htmlFor="inquiry-merge-primary">
         Merge this inquiry into
       </label>
-      <select
-        id="inquiry-merge-primary"
-        value={primary?.id ?? ""}
-        onChange={(event) => setPrimaryId(event.target.value)}
-        className="h-9 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground"
-      >
-        {candidates.map((candidate) => (
-          <option key={candidate.id} value={candidate.id}>
-            {candidate.clientName} - {candidate.eventName} ({candidate.status})
-          </option>
-        ))}
-      </select>
+      <Select value={primary?.id ?? ""} onValueChange={setPrimaryId}>
+        <SelectTrigger id="inquiry-merge-primary" className="h-9 w-full min-w-0 rounded-lg bg-card">
+          <SelectValue placeholder="Choose an inquiry" />
+        </SelectTrigger>
+        <SelectContent>
+          {candidates.map((candidate) => (
+            <SelectItem key={candidate.id} value={candidate.id}>
+              {candidate.clientName} - {candidate.eventName} ({candidate.status})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Input
         aria-label="Merge reason"
         placeholder="Reason for merging (kept in the audit trail)"
@@ -574,29 +583,32 @@ export function InquiryDeclineDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  const titleId = useId();
   const reasonId = useId();
   return (
-    <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/40 px-4">
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-        <h3 id={titleId} className="text-base font-bold text-foreground">Decline inquiry from {clientName}?</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          A declined inquiry can&apos;t be reopened. The reason is optional and is kept on the inquiry and in the audit log.
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">We&apos;ll email {clientEmail} to let them know.</p>
-        <label htmlFor={reasonId} className="mt-4 block text-sm font-medium text-foreground">
-          Decline reason <span className="font-normal text-muted-foreground">(optional)</span>
-        </label>
-        <select
-          id={reasonId}
-          value={declineReason}
-          onChange={(event) => onReason(event.target.value)}
-          className="mt-1 h-11 w-full rounded-xl border border-border bg-background px-3 text-sm"
-        >
-          <option value="">No reason given</option>
-          {declineReasons.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
-        </select>
-        <div className="mt-5 flex justify-end gap-2">
+    <Dialog open onOpenChange={(open) => { if (!open && !busy) onCancel(); }}>
+      <DialogContent className="sm:max-w-md" showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Decline inquiry from {clientName}?</DialogTitle>
+          <DialogDescription>
+            A declined inquiry can&apos;t be reopened. The reason is optional and is kept on the inquiry and in the audit log.
+          </DialogDescription>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">We&apos;ll email {clientEmail} to let them know.</p>
+        <div className="grid gap-1.5">
+          <label htmlFor={reasonId} className="block text-sm font-medium text-foreground">
+            Decline reason <span className="font-normal text-muted-foreground">(optional)</span>
+          </label>
+          <Select value={declineReason || NO_DECLINE_REASON} onValueChange={(value) => onReason(value === NO_DECLINE_REASON ? "" : value)}>
+            <SelectTrigger id={reasonId} className="h-11 w-full rounded-xl bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_DECLINE_REASON}>No reason given</SelectItem>
+              {declineReasons.map((reason) => <SelectItem key={reason} value={reason}>{reason}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <DialogFooter className="mt-5">
           <Button variant="outline" className="rounded-lg font-bold" onClick={onCancel} disabled={busy}>
             Keep inquiry
           </Button>
@@ -607,11 +619,14 @@ export function InquiryDeclineDialog({
           >
             Decline inquiry
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
+
+/** Radix Select cannot take an empty-string item value, so "no reason" uses this sentinel. */
+const NO_DECLINE_REASON = "__no_decline_reason__";
 
 function RequiredMark() {
   return <span aria-hidden="true" className="ml-0.5 text-destructive">*</span>;
@@ -636,35 +651,26 @@ export function InquiryLogOnBehalfForm({
   onClose: () => void;
   onSubmit: () => void;
 }) {
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && logPhase !== "submitting") onClose();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [logPhase, onClose]);
-
-  useEffect(() => {
-    firstFieldRef.current?.focus();
-  }, [firstFieldRef]);
-
   const missingFields = inquiryLogMissingFields(logForm);
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/40 px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Log inquiry on behalf of a client"
-    >
-      <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-6 shadow-xl">
+    <Dialog open onOpenChange={(open) => { if (!open && logPhase !== "submitting") onClose(); }}>
+      <DialogContent
+        className="max-w-2xl"
+        showCloseButton={false}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          firstFieldRef.current?.focus();
+        }}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-base font-bold text-foreground">Log inquiry on behalf</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+          <DialogHeader className="gap-1">
+            <DialogTitle className="text-base font-bold text-foreground">Log inquiry on behalf</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
               Record an inquiry a client gave you by phone or in person. Nothing is emailed to the client.
-            </p>
-          </div>
+            </DialogDescription>
+          </DialogHeader>
           <button
             type="button"
             onClick={onClose}
@@ -710,8 +716,8 @@ export function InquiryLogOnBehalfForm({
             {logPhase === "submitting" ? "Saving…" : "Save inquiry"}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -743,7 +749,6 @@ function LogField({
   );
 }
 
-const SELECT_CLASS = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground";
 
 function InquiryLogFormFields({
   logForm,
@@ -788,20 +793,24 @@ function InquiryLogFormFields({
         />
       </LogField>
       <LogField id="log-channel" label="Channel" required>
-        <select id="log-channel" aria-required="true" value={logForm.channel} onChange={(event) => update({ channel: event.target.value })} className={SELECT_CLASS}>
-          <option value="" disabled>Select…</option>
-          {logFormChannels.map((channelOption) => (
-            <option key={channelOption} value={channelOption}>{channelOption}</option>
-          ))}
-        </select>
+        <Select value={logForm.channel} onValueChange={(value) => update({ channel: value })}>
+          <SelectTrigger id="log-channel" aria-required="true" className="w-full min-w-0">
+            <SelectValue placeholder="Select…" />
+          </SelectTrigger>
+          <SelectContent>
+            {logFormChannels.map((channelOption) => <SelectItem key={channelOption} value={channelOption}>{channelOption}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </LogField>
       <LogField id="log-referral-source" label="Referral source" required>
-        <select id="log-referral-source" aria-required="true" value={logForm.source} onChange={(event) => update({ source: event.target.value })} className={SELECT_CLASS}>
-          <option value="" disabled>Select…</option>
-          {logFormReferralSources.map((sourceOption) => (
-            <option key={sourceOption} value={sourceOption}>{sourceOption}</option>
-          ))}
-        </select>
+        <Select value={logForm.source} onValueChange={(value) => update({ source: value })}>
+          <SelectTrigger id="log-referral-source" aria-required="true" className="w-full min-w-0">
+            <SelectValue placeholder="Select…" />
+          </SelectTrigger>
+          <SelectContent>
+            {logFormReferralSources.map((sourceOption) => <SelectItem key={sourceOption} value={sourceOption}>{sourceOption}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </LogField>
       <LogField id="log-event-name" label="Event name" required>
         <Input
@@ -813,12 +822,14 @@ function InquiryLogFormFields({
         />
       </LogField>
       <LogField id="log-event-type" label="Event type" required>
-        <select id="log-event-type" aria-required="true" value={logForm.eventType} onChange={(event) => update({ eventType: event.target.value })} className={SELECT_CLASS}>
-          <option value="" disabled>Select event type</option>
-          {logFormEventTypes.map((eventTypeOption) => (
-            <option key={eventTypeOption} value={eventTypeOption}>{eventTypeOption}</option>
-          ))}
-        </select>
+        <Select value={logForm.eventType} onValueChange={(value) => update({ eventType: value })}>
+          <SelectTrigger id="log-event-type" aria-required="true" className="w-full min-w-0">
+            <SelectValue placeholder="Select event type" />
+          </SelectTrigger>
+          <SelectContent>
+            {logFormEventTypes.map((eventTypeOption) => <SelectItem key={eventTypeOption} value={eventTypeOption}>{eventTypeOption}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </LogField>
       <LogField id="log-event-date" label="Event date" required>
         <DatePicker
@@ -831,12 +842,14 @@ function InquiryLogFormFields({
         />
       </LogField>
       <LogField id="log-client-type" label="Client type" required>
-        <select id="log-client-type" aria-required="true" value={logForm.clientType} onChange={(event) => update({ clientType: event.target.value })} className={SELECT_CLASS}>
-          <option value="" disabled>Select client type</option>
-          {logFormClientTypes.map((clientTypeOption) => (
-            <option key={clientTypeOption} value={clientTypeOption}>{clientTypeOption}</option>
-          ))}
-        </select>
+        <Select value={logForm.clientType} onValueChange={(value) => update({ clientType: value })}>
+          <SelectTrigger id="log-client-type" aria-required="true" className="w-full min-w-0">
+            <SelectValue placeholder="Select client type" />
+          </SelectTrigger>
+          <SelectContent>
+            {logFormClientTypes.map((clientTypeOption) => <SelectItem key={clientTypeOption} value={clientTypeOption}>{clientTypeOption}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </LogField>
       <LogField id="log-referral-details" label="Referral details" optional className="sm:col-span-2">
         <Input

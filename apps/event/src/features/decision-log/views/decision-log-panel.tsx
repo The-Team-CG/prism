@@ -1,7 +1,8 @@
 "use client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 
-import type { PrismDecisionLogEntry, PrismDecisionLogKind } from "@prism/types";
+import type { PrismDecisionLogEntry } from "@prism/types";
 import { DECISION_LOG_KIND_LABELS, formatDecisionActor, formatDecisionToken } from "../model/decision-log-kinds";
 import { useDecisionLogViewModel } from "../view-models/use-decision-log-view-model";
 
@@ -57,20 +58,27 @@ function DecisionLogStatus({ vm }: { vm: DecisionLogViewModel }) {
 
 function DecisionKindFilter({ vm }: { vm: DecisionLogViewModel }) {
   return (
-    <label className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">
+    <div className="flex flex-col gap-1 text-xs font-semibold text-muted-foreground">
       Type
-      <select
+      <Select
         value={vm.kind ?? "all"}
-        onChange={(event) => vm.setKind(event.target.value as PrismDecisionLogKind | "all")}
-        className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+        onValueChange={(value) => {
+          const option = vm.kindOptions.find((candidate) => candidate.value === value);
+          if (option) vm.setKind(option.value);
+        }}
       >
-        {vm.kindOptions.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label} ({option.count})
-          </option>
-        ))}
-      </select>
-    </label>
+        <SelectTrigger aria-label="Type" className="w-full min-w-0 text-sm font-normal text-foreground">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {vm.kindOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label} ({option.count})
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 

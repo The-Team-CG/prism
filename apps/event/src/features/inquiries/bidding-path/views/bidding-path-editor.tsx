@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { INQUIRY_BID_STATUSES, parseContract, setInquiryIntakePathSchema, type PrismInquiry } from "@prism/types";
 import { biddingPathRepository } from "../data/bidding-path-repository";
 
@@ -56,7 +57,17 @@ export function BiddingPathEditor({ inquiry }: { inquiry: PrismInquiry }) {
       </label>
       {bidding ? (
         <div className="flex flex-wrap items-end gap-2">
-          <label>Bid status<select value={status} onChange={(event) => setStatus(event.target.value as BidStatus)} className={field}>{INQUIRY_BID_STATUSES.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <div className="grid gap-1">
+            <span>Bid status</span>
+            <Select value={status} onValueChange={(value) => { const next = INQUIRY_BID_STATUSES.find((candidate) => candidate === value); if (next) setStatus(next); }}>
+              <SelectTrigger aria-label="Bid status" className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INQUIRY_BID_STATUSES.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <label>Bid due<input type="date" value={dueAt} onChange={(event) => setDueAt(event.target.value)} className={field} /></label>
           <button type="button" disabled={busy} onClick={() => void save(true)} className="rounded-md border border-border px-3 py-1.5 font-semibold">{busy ? "Saving…" : "Save bid"}</button>
           {!inquiry.conformeSignedAt && inquiry.status !== "declined" ? (

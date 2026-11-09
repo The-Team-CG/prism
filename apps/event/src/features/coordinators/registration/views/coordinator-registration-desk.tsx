@@ -1,5 +1,8 @@
 "use client";
 import { formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
+import { Button } from "@prism/ui/components/button";
+import { Empty, EmptyDescription, EmptyHeader } from "@prism/ui/components/empty";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
 
 import type { FormEvent } from "react";
 import type { PrismCoordinatorRegistrationEntry } from "@prism/types";
@@ -7,7 +10,6 @@ import { canCheckInRegistrationEntry, canFlagRegistrationEntry, canRejectRegistr
 import { useCoordinatorRegistrationDeskViewModel } from "../view-models/use-coordinator-registration-desk-view-model";
 import { QrScanCheckIn } from "@/features/registration/qr-passes/views/qr-scan-check-in";
 
-const buttonClass = "min-h-10 rounded-md border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground hover:bg-secondary/50 disabled:cursor-not-allowed disabled:opacity-50";
 const inputClass = "min-h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground";
 
 function checkedInLabel(entry: PrismCoordinatorRegistrationEntry): string {
@@ -68,12 +70,12 @@ export function CoordinatorRegistrationDesk({
             placeholder="Search guest names"
             autoComplete="off"
           />
-          <button className={`${buttonClass} sm:min-w-36`} type="submit" disabled={vm.status === "loading" || vm.query.trim().length < 2}>
+          <Button variant="outline" className="h-10 sm:min-w-36" type="submit" disabled={vm.status === "loading" || vm.query.trim().length < 2}>
             {vm.status === "loading" ? "Searching…" : "Search guests"}
-          </button>
-          <button className={buttonClass} type="button" onClick={() => void vm.loadPendingReviews()} disabled={vm.status === "loading"}>
+          </Button>
+          <Button variant="outline" className="h-10" type="button" onClick={() => void vm.loadPendingReviews()} disabled={vm.status === "loading"}>
             Pending reviews
-          </button>
+          </Button>
         </form>
 
         <RegistrationRoster vm={vm} />
@@ -96,9 +98,9 @@ export function CoordinatorRegistrationDesk({
             />
             <span>The guest received the privacy notice and confirmed consent to event registration.</span>
           </label>
-          <button type="submit" className={buttonClass} disabled={vm.walkInBusy}>
+          <Button variant="outline" type="submit" className="h-10" disabled={vm.walkInBusy}>
             {vm.walkInBusy ? "Registering…" : "Register walk-in"}
-          </button>
+          </Button>
         </form>
 
         {vm.error ? <p className="rounded-md bg-danger/10 px-3 py-2 text-sm font-semibold text-danger" role="alert">{vm.error}</p> : null}
@@ -111,26 +113,50 @@ export function CoordinatorRegistrationDesk({
 type RegistrationDeskViewModel = ReturnType<typeof useCoordinatorRegistrationDeskViewModel>;
 function RegistrationRoster({ vm }: { vm: RegistrationDeskViewModel }) {
   if (vm.status !== "ready") return <p className="text-sm text-muted-foreground">{vm.pendingQueue ? "Loading pending reviews." : "Enter at least two letters, then search the roster."}</p>;
-  if (!vm.entries.length) return <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">{vm.pendingQueue ? "No pending reviews." : "No guests match this search."}</p>;
-  return <div className="overflow-x-auto rounded-lg border border-border"><table className="w-full min-w-[760px] text-left text-sm">
-    <thead className="bg-muted/40 text-xs text-muted-foreground"><tr><th scope="col" className="px-3 py-2.5">Guest</th><th scope="col" className="px-3 py-2.5">Category</th><th scope="col" className="px-3 py-2.5">Table</th><th scope="col" className="px-3 py-2.5">Eligibility</th><th scope="col" className="px-3 py-2.5">Verification</th>{vm.pendingQueue ? <th scope="col" className="px-3 py-2.5">Submitted</th> : null}<th scope="col" className="px-3 py-2.5">Arrival</th><th scope="col" className="px-3 py-2.5">Actions</th></tr></thead>
-    <tbody className="divide-y divide-border">{vm.entries.map((entry) => <RegistrationEntryRow key={entry.id} entry={entry} vm={vm} />)}</tbody>
-  </table></div>;
+  if (!vm.entries.length) return (
+    <Empty className="border-0 p-4">
+      <EmptyHeader>
+        <EmptyDescription>{vm.pendingQueue ? "No pending reviews." : "No guests match this search."}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+  return (
+    <Table className="min-w-[760px] text-left">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Guest</TableHead>
+          <TableHead>Category</TableHead>
+          <TableHead>Table</TableHead>
+          <TableHead>Eligibility</TableHead>
+          <TableHead>Verification</TableHead>
+          {vm.pendingQueue ? <TableHead>Submitted</TableHead> : null}
+          <TableHead>Arrival</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>{vm.entries.map((entry) => <RegistrationEntryRow key={entry.id} entry={entry} vm={vm} />)}</TableBody>
+    </Table>
+  );
 }
 
 function RegistrationEntryRow({ entry, vm }: { entry: PrismCoordinatorRegistrationEntry; vm: RegistrationDeskViewModel }) {
   const rowBusy = vm.busyEntryId === entry.id;
   const disabled = vm.busyEntryId !== null;
-  return <tr>
-    <th scope="row" className="px-3 py-3 font-semibold text-foreground">{entry.guestName}</th><td className="px-3 py-3 text-muted-foreground">{entry.category || "—"}</td><td className="px-3 py-3 text-muted-foreground">{entry.table || "—"}</td><td className="px-3 py-3 text-muted-foreground">{entry.eligibility}</td><td className="px-3 py-3 text-muted-foreground">{verificationLabel(entry)}</td>
+  return <TableRow>
+    <TableCell className="font-semibold text-foreground">{entry.guestName}</TableCell>
+    <TableCell className="text-muted-foreground">{entry.category || "—"}</TableCell>
+    <TableCell className="text-muted-foreground">{entry.table || "—"}</TableCell>
+    <TableCell className="text-muted-foreground">{entry.eligibility}</TableCell>
+    <TableCell className="text-muted-foreground">{verificationLabel(entry)}</TableCell>
     <RegistrationSubmittedCell entry={entry} visible={vm.pendingQueue} />
-    <td className="px-3 py-3 text-muted-foreground">{checkedInLabel(entry)}</td><td className="px-3 py-3"><RegistrationActions entry={entry} vm={vm} disabled={disabled} rowBusy={rowBusy} /></td>
-  </tr>;
+    <TableCell className="text-muted-foreground">{checkedInLabel(entry)}</TableCell>
+    <TableCell><RegistrationActions entry={entry} vm={vm} disabled={disabled} rowBusy={rowBusy} /></TableCell>
+  </TableRow>;
 }
 
 function RegistrationSubmittedCell({ entry, visible }: { entry: PrismCoordinatorRegistrationEntry; visible: boolean }) {
   if (!visible) return null;
-  return <td className="px-3 py-3 text-muted-foreground">{entry.reviewSubmittedAt ? <time dateTime={entry.reviewSubmittedAt}>{submittedLabel(entry)}</time> : "—"}</td>;
+  return <TableCell className="text-muted-foreground">{entry.reviewSubmittedAt ? <time dateTime={entry.reviewSubmittedAt}>{submittedLabel(entry)}</time> : "—"}</TableCell>;
 }
 
 function busyLabel(rowBusy: boolean, label: string) {
@@ -139,9 +165,9 @@ function busyLabel(rowBusy: boolean, label: string) {
 
 function RegistrationActions({ entry, vm, disabled, rowBusy }: { entry: PrismCoordinatorRegistrationEntry; vm: RegistrationDeskViewModel; disabled: boolean; rowBusy: boolean }) {
   return <div className="flex flex-wrap gap-2">
-    {canVerifyRegistrationEntry(entry) ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.updateVerification(entry, "verified")} aria-label={`Mark ${entry.guestName} verified`}>{busyLabel(rowBusy, "Verify")}</button> : null}
-    {canRejectRegistrationEntry(entry) ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.updateVerification(entry, "rejected")} aria-label={`Reject ${entry.guestName}`}>Reject</button> : null}
-    {canFlagRegistrationEntry(entry) ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.flagForVerification(entry)} aria-label={`Flag ${entry.guestName} for verification`}>{busyLabel(rowBusy, "Flag for verification")}</button> : null}
-    {canCheckInRegistrationEntry(entry) ? <button type="button" className={buttonClass} disabled={disabled} onClick={() => void vm.checkIn(entry)} aria-label={`Check in ${entry.guestName}`}>{busyLabel(rowBusy, "Check in")}</button> : null}
+    {canVerifyRegistrationEntry(entry) ? <Button variant="outline" type="button" className="h-10" disabled={disabled} onClick={() => void vm.updateVerification(entry, "verified")} aria-label={`Mark ${entry.guestName} verified`}>{busyLabel(rowBusy, "Verify")}</Button> : null}
+    {canRejectRegistrationEntry(entry) ? <Button variant="outline" type="button" className="h-10" disabled={disabled} onClick={() => void vm.updateVerification(entry, "rejected")} aria-label={`Reject ${entry.guestName}`}>Reject</Button> : null}
+    {canFlagRegistrationEntry(entry) ? <Button variant="outline" type="button" className="h-10" disabled={disabled} onClick={() => void vm.flagForVerification(entry)} aria-label={`Flag ${entry.guestName} for verification`}>{busyLabel(rowBusy, "Flag for verification")}</Button> : null}
+    {canCheckInRegistrationEntry(entry) ? <Button variant="outline" type="button" className="h-10" disabled={disabled} onClick={() => void vm.checkIn(entry)} aria-label={`Check in ${entry.guestName}`}>{busyLabel(rowBusy, "Check in")}</Button> : null}
   </div>;
 }

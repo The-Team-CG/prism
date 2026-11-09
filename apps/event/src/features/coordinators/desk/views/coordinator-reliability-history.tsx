@@ -3,7 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import type { PrismCoordinatorAssignment, PrismCoordinator, PrismCoordinatorReliabilityHistoryEntry } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
-import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
+import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 
 type HistoryStatus = "idle" | "loading" | "loaded" | "error";
 
@@ -51,25 +52,27 @@ export function CoordinatorReliabilityHistory({
       <CardHeader>
         <h2 className="text-sm font-bold text-foreground">Coordinator reliability history</h2>
       </CardHeader>
-      <CardBody className="space-y-4">
+      <CardContent className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="min-w-60 flex-1 text-sm font-semibold text-foreground">
-            Coordinator
-            <select
-              aria-label="Coordinator reliability profile"
+          <div className="grid min-w-60 flex-1 gap-2 text-sm font-semibold text-foreground">
+            <span>Coordinator</span>
+            <Select
               value={coordinatorId}
-              onChange={(event) => {
+              onValueChange={(value) => {
                 requestId.current += 1;
-                setCoordinatorId(event.target.value);
+                setCoordinatorId(value);
                 setEntries([]);
                 setStatus("idle");
               }}
-              className="mt-2 h-10 w-full rounded-xl border border-border bg-background px-3"
             >
-              <option value="">Choose a coordinator</option>
-              {options.map((coordinator) => <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>)}
-            </select>
-          </label>
+              <SelectTrigger aria-label="Coordinator reliability profile" className="h-10 w-full min-w-0 rounded-xl">
+                <SelectValue placeholder="Choose a coordinator" />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((coordinator) => <SelectItem key={coordinator.id} value={coordinator.id}>{coordinator.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <Button type="button" disabled={!coordinatorId || status === "loading"} onClick={() => void loadHistory()}>
             {status === "loading" ? "Loading history…" : "Load history"}
           </Button>
@@ -97,7 +100,7 @@ export function CoordinatorReliabilityHistory({
             ))}
           </ol>
         )}
-      </CardBody>
+      </CardContent>
     </Card>
   );
 }

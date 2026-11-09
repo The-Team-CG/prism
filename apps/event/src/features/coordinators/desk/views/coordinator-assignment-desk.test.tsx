@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CoordinatorAssignmentDesk } from "./coordinator-assignment-desk";
+import { chooseSelectOption, openSelect } from "../../../../test-utils/radix-select";
 
 afterEach(cleanup);
 
@@ -62,7 +63,7 @@ describe("CoordinatorAssignmentDesk skill suggestions", () => {
     );
     const props = renderDesk({ coordinators: skillfulCoordinators, onLoadSuggestions });
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
+    chooseSelectOption(screen.getByRole("combobox", { name: "Coordinator role filter" }), "Usher");
     fireEvent.click(screen.getByLabelText("registration"));
     fireEvent.click(screen.getByLabelText("first aid"));
     fireEvent.click(screen.getByRole("button", { name: "Find skill matches" }));
@@ -78,7 +79,7 @@ describe("CoordinatorAssignmentDesk skill suggestions", () => {
   it("shows an empty state when no server candidates match the selected role", async () => {
     renderDesk();
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
+    chooseSelectOption(screen.getByRole("combobox", { name: "Coordinator role filter" }), "Usher");
     fireEvent.click(screen.getByRole("button", { name: "Find skill matches" }));
 
     expect(await screen.findByText("No coordinators match this role and skill selection.")).toBeTruthy();
@@ -87,7 +88,7 @@ describe("CoordinatorAssignmentDesk skill suggestions", () => {
   it("keeps the desk usable and reports a failed suggestions request", async () => {
     renderDesk({ onLoadSuggestions: vi.fn(async () => { throw new Error("Offline"); }) });
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
+    chooseSelectOption(screen.getByRole("combobox", { name: "Coordinator role filter" }), "Usher");
     fireEvent.click(screen.getByRole("button", { name: "Find skill matches" }));
 
     expect(await screen.findByText("Could not load skill matches. Try again.")).toBeTruthy();
@@ -111,7 +112,7 @@ describe("CoordinatorAssignmentDesk skill suggestions", () => {
     });
 
     await waitFor(() => expect(props.onLoadOperator).toHaveBeenCalled());
-    fireEvent.change(screen.getByRole("combobox", { name: "Coordinator role filter" }), { target: { value: "Usher" } });
+    chooseSelectOption(screen.getByRole("combobox", { name: "Coordinator role filter" }), "Usher");
     const availableOnly = screen.getByRole("checkbox", { name: "Available only" }) as HTMLInputElement;
     expect(availableOnly.checked).toBe(true);
     fireEvent.click(availableOnly);
@@ -142,14 +143,14 @@ describe("CoordinatorAssignmentDesk availability", () => {
   it("warns PMCM when an assigned coordinator is unavailable on the event date", async () => {
     renderDesk({ onLoadAvailability: vi.fn(async () => [availabilityEntry]) });
 
-    fireEvent.change(screen.getByLabelText("Coordinator availability"), { target: { value: "coord_1" } });
+    chooseSelectOption(screen.getByLabelText("Coordinator availability"), "Jordan Lee");
 
     expect(await screen.findByText(/unavailable date overlaps this event assignment/i)).toBeTruthy();
   });
 
   it("records unavailable dates as whole days and refreshes the list", async () => {
     const props = renderDesk();
-    fireEvent.change(screen.getByLabelText("Coordinator availability"), { target: { value: "coord_1" } });
+    chooseSelectOption(screen.getByLabelText("Coordinator availability"), "Jordan Lee");
     await waitFor(() => expect(props.onLoadAvailability).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByLabelText("First unavailable day"), { target: { value: "12/10/2026" } });
@@ -166,7 +167,7 @@ describe("CoordinatorAssignmentDesk availability", () => {
 
   it("keeps what PMCM typed when the API refuses the dates", async () => {
     const props = renderDesk({ onCreateAvailability: vi.fn(async () => false) });
-    fireEvent.change(screen.getByLabelText("Coordinator availability"), { target: { value: "coord_1" } });
+    chooseSelectOption(screen.getByLabelText("Coordinator availability"), "Jordan Lee");
     await waitFor(() => expect(props.onLoadAvailability).toHaveBeenCalledTimes(1));
 
     fireEvent.change(screen.getByLabelText("First unavailable day"), { target: { value: "12/10/2026" } });
@@ -180,7 +181,7 @@ describe("CoordinatorAssignmentDesk availability", () => {
 
   it("shows entries as day ranges and removes one", async () => {
     const props = renderDesk({ onLoadAvailability: vi.fn(async () => [availabilityEntry]) });
-    fireEvent.change(screen.getByLabelText("Coordinator availability"), { target: { value: "coord_1" } });
+    chooseSelectOption(screen.getByLabelText("Coordinator availability"), "Jordan Lee");
 
     expect(await screen.findByText(/2026-10-01 · Personal leave/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Remove" }));
@@ -192,7 +193,7 @@ describe("CoordinatorAssignmentDesk availability", () => {
 describe("CoordinatorAssignmentDesk acknowledgment reminders", () => {
   it("lists only this event's pending coordinators and reports who was reminded", async () => {
     const props = renderDesk();
-    const panel = screen.getByRole("button", { name: "Collapse pending acknowledgments" }).closest("div.rounded-2xl") as HTMLElement;
+    const panel = screen.getByRole("button", { name: "Collapse pending acknowledgments" }).closest('[data-slot="card"]') as HTMLElement;
 
     expect(within(panel).getByText("Sam Cruz")).toBeTruthy();
     expect(within(panel).queryByText("Ana Reyes")).toBeNull();
@@ -238,13 +239,12 @@ describe("CoordinatorAssignmentDesk Event Day System Operator", () => {
     expect(await screen.findByText("Current operator: Jordan Lee.")).toBeTruthy();
 
     const select = screen.getByLabelText("Event Day System Operator");
-    expect(within(select).getAllByRole("option").map((option) => option.textContent)).toEqual([
-      "Select a coordinator",
+    openSelect(select);
+    expect(within(screen.getByRole("listbox")).getAllByRole("option").map((option) => option.textContent)).toEqual([
       "Jordan Lee · Floor Director",
       "Sam Cruz · Stage Director",
     ]);
-
-    fireEvent.change(select, { target: { value: "coord_2" } });
+    fireEvent.click(screen.getByRole("option", { name: "Sam Cruz · Stage Director" }));
     fireEvent.click(screen.getByRole("button", { name: "Designate operator" }));
 
     await waitFor(() => expect(props.onDesignateOperator).toHaveBeenCalledWith("coord_2"));
@@ -255,7 +255,7 @@ describe("CoordinatorAssignmentDesk Event Day System Operator", () => {
     const props = renderDesk({ onDesignateOperator: vi.fn(async () => false) });
     await screen.findByText("No operator designated yet.");
 
-    fireEvent.change(screen.getByLabelText("Event Day System Operator"), { target: { value: "coord_2" } });
+    chooseSelectOption(screen.getByLabelText("Event Day System Operator"), "Sam Cruz · Stage Director");
     fireEvent.click(screen.getByRole("button", { name: "Designate operator" }));
 
     expect(await screen.findByText(/operator was not changed/i)).toBeTruthy();
@@ -267,7 +267,7 @@ describe("CoordinatorAssignmentDesk Event Day System Operator", () => {
 
     expect(await screen.findByText(/could not load the current operator/i)).toBeTruthy();
     expect(screen.queryByText("No operator designated yet.")).toBeNull();
-    fireEvent.change(screen.getByLabelText("Event Day System Operator"), { target: { value: "coord_2" } });
+    chooseSelectOption(screen.getByLabelText("Event Day System Operator"), "Sam Cruz · Stage Director");
     expect((screen.getByRole("button", { name: "Designate operator" }) as HTMLButtonElement).disabled).toBe(true);
     expect(props.onDesignateOperator).not.toHaveBeenCalled();
   });
@@ -285,7 +285,7 @@ describe("CoordinatorAssignmentDesk coverage targets", () => {
   it("saves a new target with its skills", async () => {
     const props = renderDesk();
 
-    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "Floor Director" } });
+    chooseSelectOption(screen.getByLabelText("Role"), "Floor Director");
     fireEvent.change(screen.getByLabelText("Required coordinators"), { target: { value: "2" } });
     fireEvent.change(screen.getByLabelText("Required skills, comma separated"), { target: { value: "first aid, registration" } });
     fireEvent.click(screen.getByRole("button", { name: "Save target" }));
@@ -326,7 +326,7 @@ describe("CoordinatorAssignmentDesk coverage targets", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Edit target" }));
 
-    expect((screen.getByLabelText("Role") as HTMLSelectElement).value).toBe("Usher");
+    expect(screen.getByLabelText("Role").textContent).toBe("Usher");
     expect((screen.getByLabelText("Required coordinators") as HTMLInputElement).value).toBe("3");
     fireEvent.change(screen.getByLabelText("Required coordinators"), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: "Save target" }));
@@ -345,7 +345,7 @@ describe("CoordinatorAssignmentDesk coverage targets", () => {
     expect((screen.getByLabelText("Role") as HTMLSelectElement).value).toBe("");
     expect((screen.getByRole("button", { name: "Save target" }) as HTMLButtonElement).disabled).toBe(true);
 
-    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "Floor Director" } });
+    chooseSelectOption(screen.getByLabelText("Role"), "Floor Director");
     fireEvent.click(screen.getByRole("button", { name: "Save target" }));
     await waitFor(() => expect(props.onSaveCoverage).toHaveBeenCalledWith({ role: "Floor Director", mapFromRole: "Legacy Floor Lead", required: 3, requiredSkills: ["registration"] }));
     expect(await screen.findByText("Coverage target mapped from Legacy Floor Lead to Floor Director.")).toBeTruthy();
@@ -354,7 +354,7 @@ describe("CoordinatorAssignmentDesk coverage targets", () => {
   it("explains a rejected target instead of sending it", async () => {
     const props = renderDesk();
 
-    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "Floor Director" } });
+    chooseSelectOption(screen.getByLabelText("Role"), "Floor Director");
     fireEvent.change(screen.getByLabelText("Required coordinators"), { target: { value: "1.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Save target" }));
 

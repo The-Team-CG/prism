@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { EVENT_FILE_CATEGORIES, eventFileCategoryOf, type PrismStoredObject } from "@prism/types";
 import { PRE_CONFORME_CATEGORIES, preConformeDocumentsRepository, type PreConformeCategory } from "../data/pre-conforme-documents-repository";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 
 /** FR-54: PMCM attaches NDAs and other required documents to an inquiry before the conforme; they stay PMCM-only. */
 export function PreConformeDocuments({ inquiryId, conformeSigned }: { inquiryId: string; conformeSigned: boolean }) {
@@ -60,7 +61,17 @@ export function PreConformeDocuments({ inquiryId, conformeSigned }: { inquiryId:
         ))}
       </ul>
       <div className="flex flex-wrap items-end gap-2">
-        <label>Type<select value={category} onChange={(event) => setCategory(event.target.value as PreConformeCategory)} className="mt-1 block rounded-md border border-border bg-background px-2 py-1.5 text-sm">{PRE_CONFORME_CATEGORIES.map((value) => <option key={value} value={value}>{EVENT_FILE_CATEGORIES[value]}</option>)}</select></label>
+        <div className="mt-1 grid gap-1">
+          <span>Type</span>
+          <Select value={category} onValueChange={(value) => { const next = PRE_CONFORME_CATEGORIES.find((candidate) => candidate === value); if (next) setCategory(next); }}>
+            <SelectTrigger aria-label="Document type" className="w-full min-w-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PRE_CONFORME_CATEGORIES.map((value) => <SelectItem key={value} value={value}>{EVENT_FILE_CATEGORIES[value]}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         <label>Attach<input type="file" disabled={busy} onChange={(event) => void upload(event.currentTarget.files?.[0])} className="mt-1 block text-xs" /></label>
       </div>
       {error ? <p role="alert" className="text-destructive">{error}</p> : null}

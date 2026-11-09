@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
 import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
 import { CoordinatorView } from "./coordinator-view";
+import { chooseSelectOption, openSelect } from "../../../../test-utils/radix-select";
 
 // Sidebar items render as anchors with their href, as the real shell does; a plain click keeps the in-app selection.
 vi.mock("@prism/ui", () => ({
@@ -75,9 +76,10 @@ describe("CoordinatorEventSwitcher", () => {
       />,
     );
 
+    openSelect(screen.getByLabelText("Assigned event"));
     expect(screen.getByRole("option", { name: "Leadership Forum — Aug 1, 2026" })).toBeTruthy();
     expect(screen.queryByRole("option", { name: /^Private Event\b/ })).toBeNull();
-    fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_past" } });
+    chooseSelectOption(screen.getByLabelText("Assigned event"), "Leadership Forum — Aug 1, 2026");
 
     expect(onSelect).toHaveBeenCalledWith("evt_past");
   });
@@ -103,19 +105,19 @@ it("keeps archived coordinator actions disabled while the event switcher remains
   render(<CoordinatorView session={session}
     state={{ events, assignments: assignments.map((item) => ({ ...item, status: "pending_acknowledgement" })) } as never}
     onRefresh={async () => {}} />);
-  fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_past" } });
+  chooseSelectOption(screen.getByLabelText("Assigned event"), "Leadership Forum — Aug 1, 2026");
   await waitFor(() => expect(screen.getByText("Archived event: operational records are read-only.")).toBeTruthy());
   const archivedActionButtons = [...document.querySelectorAll('fieldset button')];
   expect(archivedActionButtons.length).toBeGreaterThan(0);
   expect(archivedActionButtons.every((button) => button.matches(':disabled'))).toBe(true);
-  fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_current" } });
+  chooseSelectOption(screen.getByLabelText("Assigned event"), "Summit 2026 — Oct 4, 2026");
   await waitFor(() => expect(screen.queryByText("Archived event: operational records are read-only.")).toBeNull());
   expect([...document.querySelectorAll('fieldset')].every((fieldset) => !fieldset.disabled)).toBe(true);
 });
 
 it("keeps the chosen event and work view in the URL", async () => {
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
-  fireEvent.change(screen.getByLabelText("Assigned event"), { target: { value: "evt_current" } });
+  chooseSelectOption(screen.getByLabelText("Assigned event"), "Summit 2026 — Oct 4, 2026");
   fireEvent.click(screen.getByRole("link", { name: "Tasks" }));
   expect(new URLSearchParams(window.location.search).get("event")).toBe("evt_current");
   expect(new URLSearchParams(window.location.search).get("view")).toBe("tasks");

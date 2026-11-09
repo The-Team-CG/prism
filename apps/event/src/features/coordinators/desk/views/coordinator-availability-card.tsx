@@ -11,7 +11,8 @@ import {
 import { Button } from "@prism/ui/components/button";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { availabilityRangeFromDates, formatAvailabilityRange, isCoordinatorAssignmentActive } from "../model/coordinators-desk-rules";
-import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
+import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 
 const FIELD_CLASS = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -111,11 +112,15 @@ export function CoordinatorAvailabilityCard({ eventId, eventDate, coordinators, 
   return (
     <Card>
       <CardHeader><h2 className="text-sm font-bold text-foreground">Coordinator unavailability</h2></CardHeader>
-      <CardBody className="space-y-3">
-        <select aria-label="Coordinator availability" value={coordinatorId} onChange={(event) => void select(event.target.value)} className={FIELD_CLASS}>
-          <option value="">Select coordinator</option>
-          {coordinators.filter((coordinator) => coordinator.active).map((coordinator) => <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>)}
-        </select>
+      <CardContent className="space-y-3">
+        <Select value={coordinatorId} onValueChange={(value) => void select(value)}>
+          <SelectTrigger aria-label="Coordinator availability" className="w-full min-w-0">
+            <SelectValue placeholder="Select coordinator" />
+          </SelectTrigger>
+          <SelectContent>
+            {coordinators.filter((coordinator) => coordinator.active).map((coordinator) => <SelectItem key={coordinator.id} value={coordinator.id}>{coordinator.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
         {loading && <p className="text-xs text-muted-foreground">Loading dates…</p>}
         {coordinatorId && hasUnavailableAssignmentConflict(eventId, eventDate, coordinatorId, assignments, entries) && (
           <p role="alert" className="rounded-lg border border-attention/25 bg-attention/8 px-3 py-2 text-xs font-semibold text-attention">
@@ -136,7 +141,7 @@ export function CoordinatorAvailabilityCard({ eventId, eventDate, coordinators, 
           <Button type="submit" size="sm" disabled={busy || loading || !coordinatorId}>Add unavailable dates</Button>
         </form>
         {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
-      </CardBody>
+      </CardContent>
     </Card>
   );
 }

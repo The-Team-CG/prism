@@ -1,4 +1,5 @@
 import type { PrismCoordinatorAssignment, PrismEvent } from "@prism/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { isCoordinatorAssignmentActive } from "../model/coordinators-desk-rules";
 
@@ -49,15 +50,14 @@ export function CoordinatorEventSwitcher({
   return (
     <div className="grid gap-1 rounded-lg border border-border bg-card px-3 py-2">
       <label htmlFor="coordinator-assigned-event" className="text-xs text-muted-foreground">Assigned event</label>
-      <select
-        id="coordinator-assigned-event"
-        value={selectedEventId ?? ""}
-        onChange={(event) => onSelect(event.target.value)}
-        className="w-full truncate rounded-md border-0 bg-transparent p-0 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      >
-        <option value="" disabled>Choose an event</option>
-        {cards.map(({ event }) => <option key={event.id} value={event.id}>{event.eventName} — {formatPortalDate(event.eventDate)}</option>)}
-      </select>
+      <Select value={selectedEventId ?? ""} onValueChange={onSelect}>
+        <SelectTrigger id="coordinator-assigned-event" aria-label="Assigned event" className="h-auto w-full min-w-0 border-0 bg-transparent px-0 py-0 text-sm font-semibold shadow-none">
+          <SelectValue placeholder="Choose an event" />
+        </SelectTrigger>
+        <SelectContent>
+          {cards.map(({ event }) => <SelectItem key={event.id} value={event.id}><span className="truncate">{event.eventName} — {formatPortalDate(event.eventDate)}</span></SelectItem>)}
+        </SelectContent>
+      </Select>
       {selected ? <p className="text-xs text-muted-foreground">{formatPortalDate(selected.event.eventDate)} · {selected.assignment.role}</p> : null}
     </div>
   );
