@@ -6,6 +6,7 @@ import type { PrismRetentionPolicy, PrismRetentionReviewItem } from "@prism/type
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { compactTimestamp, label, Panel } from "@/features/pmcm-kit";
 import { retentionPeriodCopy, reviewStatusLabel } from "../model/retention-rules";
 import { usePrivacyRetentionViewModel, type PrivacyRetentionViewModel } from "../view-models/use-privacy-retention-view-model";
@@ -40,16 +41,16 @@ export function PrivacyRetentionView({ vm }: { vm: PrivacyRetentionViewModel }) 
         <section className="space-y-3" aria-labelledby="retention-review-title">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 id="retention-review-title" className="font-black text-foreground">Review queue</h3>
-            <select
-              aria-label="Review status filter"
-              value={vm.statusFilter}
-              onChange={(event) => vm.setStatusFilter(event.target.value as ReviewStatusFilter)}
-              className="h-9 rounded-md border border-border bg-white px-3 text-sm"
-            >
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>{label(status)}</option>
-              ))}
-            </select>
+            <Select value={vm.statusFilter} onValueChange={(value) => vm.setStatusFilter(value as ReviewStatusFilter)}>
+              <SelectTrigger aria-label="Review status filter" className="h-9 w-48 min-w-0 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map((status) => (
+                  <SelectItem key={status} value={status}>{label(status)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           {vm.items.length === 0 ? <p className="text-sm text-muted-foreground">No review items match this filter.</p> : null}
           {vm.items.map((item) => (

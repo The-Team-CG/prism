@@ -6,6 +6,10 @@ import { complianceReadinessReport } from "../model/compliance-readiness-report"
 import { complianceRunSummary } from "../model/compliance-run-summary";
 import { useComplianceReviewViewModel } from "../view-models/use-compliance-review-view-model";
 import { ComplianceAdvisory } from "@/features/ai-advisory/views/ai-advisory-panels";
+import { Button } from "@prism/ui/components/button";
+import { Field, FieldLabel } from "@prism/ui/components/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
 
 const RISK_STATUS: Record<string, string> = { open: "Open", mitigated: "Mitigated", accepted: "Accepted", closed: "Closed" };
 const RISK_SEVERITY: Record<string, string> = { low: "Low", medium: "Medium", high: "High", critical: "Critical" };
@@ -46,14 +50,30 @@ export function ComplianceReviewPanel({ eventId }: { eventId: string }) {
       <h3 className="mt-5 text-sm font-semibold text-foreground">Readiness</h3>
       <p role="status" className="mt-1 text-sm text-foreground">{readiness.headline}</p>
       {readiness.layers.length > 0 ? (
-        <table className="mt-2 w-full text-left text-xs">
-          <thead className="text-muted-foreground"><tr><th className="py-1 font-medium">Layer</th><th className="font-medium">Checks</th><th className="font-medium">Outstanding</th><th className="font-medium">Resolved</th><th className="font-medium">Overridden</th></tr></thead>
-          <tbody>
-            {readiness.layers.map((row) => (
-              <tr key={row.layer} className="border-t border-border"><th scope="row" className="py-1 font-medium">{row.layer}</th><td>{row.total}</td><td>{row.outstanding}</td><td>{row.resolved}</td><td>{row.overridden}</td></tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="mt-2 overflow-hidden rounded-md border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">Layer</TableHead>
+                <TableHead scope="col" className="text-right">Checks</TableHead>
+                <TableHead scope="col" className="text-right">Outstanding</TableHead>
+                <TableHead scope="col" className="text-right">Resolved</TableHead>
+                <TableHead scope="col" className="text-right">Overridden</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {readiness.layers.map((row) => (
+                <TableRow key={row.layer}>
+                  <TableHead scope="row" className="h-auto font-medium text-foreground">{row.layer}</TableHead>
+                  <TableCell className="text-right tabular-nums">{row.total}</TableCell>
+                  <TableCell className="text-right tabular-nums">{row.outstanding}</TableCell>
+                  <TableCell className="text-right tabular-nums">{row.resolved}</TableCell>
+                  <TableCell className="text-right tabular-nums">{row.overridden}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
       {readiness.blockers.length > 0 ? (
         <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-foreground">
@@ -86,23 +106,33 @@ export function ComplianceReviewPanel({ eventId }: { eventId: string }) {
           <label htmlFor="compliance-risk-mitigation" className="text-sm font-medium">Mitigation</label>
           <textarea id="compliance-risk-mitigation" value={riskMitigation} onChange={(event) => setRiskMitigation(event.target.value)} className="min-h-16 rounded-md border border-border bg-card p-3 text-sm" />
           <div className="grid grid-cols-2 gap-2">
-            <label className="grid gap-1 text-sm font-medium">
-              Likelihood
-              <select aria-label="Likelihood" value={likelihood} onChange={(event) => setLikelihood(event.target.value as RiskRating)} className="h-10 rounded-md border border-border bg-card px-2 text-sm">
-                {RISK_RATINGS.map((rating) => <option key={rating} value={rating}>{RATING_LABEL[rating]}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-1 text-sm font-medium">
-              Impact
-              <select aria-label="Impact" value={impact} onChange={(event) => setImpact(event.target.value as RiskRating)} className="h-10 rounded-md border border-border bg-card px-2 text-sm">
-                {RISK_RATINGS.map((rating) => <option key={rating} value={rating}>{RATING_LABEL[rating]}</option>)}
-              </select>
-            </label>
+            <Field>
+              <FieldLabel htmlFor="compliance-risk-likelihood">Likelihood</FieldLabel>
+              <Select value={likelihood} onValueChange={(value) => setLikelihood(value as RiskRating)}>
+                <SelectTrigger id="compliance-risk-likelihood" className="w-full min-w-0 bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RISK_RATINGS.map((rating) => <SelectItem key={rating} value={rating}>{RATING_LABEL[rating]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="compliance-risk-impact">Impact</FieldLabel>
+              <Select value={impact} onValueChange={(value) => setImpact(value as RiskRating)}>
+                <SelectTrigger id="compliance-risk-impact" className="w-full min-w-0 bg-card">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RISK_RATINGS.map((rating) => <SelectItem key={rating} value={rating}>{RATING_LABEL[rating]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Field>
           </div>
           <p className="text-xs text-muted-foreground">Recorded as {RISK_SEVERITY[riskSeverityFromRatings(likelihood, impact)]} severity.</p>
-          <button disabled={vm.busy || !riskTitle.trim() || !riskMitigation.trim()} onClick={() => void saveRisk()} className="w-fit rounded-md bg-ink px-3 py-2 text-sm font-semibold text-ink-foreground disabled:opacity-60">
+          <Button className="w-fit" disabled={vm.busy || !riskTitle.trim() || !riskMitigation.trim()} onClick={() => void saveRisk()}>
             Record risk
-          </button>
+          </Button>
         </div>
       </details>
     </section>

@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { chooseSelectOption } from "@/test-support/select-test-utils";
 import type { PrismCoordinatorAssignment, PrismEventEodReport, PrismEventSchedule } from "@prism/types";
 import { LiveOpsScheduleDesk } from "./live-ops-schedule-desk";
 
@@ -242,7 +243,7 @@ describe("LiveOpsScheduleDesk", () => {
     render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule={false} canReplyToReports={false} canSubmitReports />);
 
     await screen.findByText("Doors open");
-    fireEvent.change(screen.getByLabelText("Role"), { target: { value: "Floor Director" } });
+    chooseSelectOption(screen.getByLabelText("Role"), "Floor Director");
     fireEvent.change(screen.getByLabelText("Outstanding items (one per line)"), { target: { value: "Confirm cue\nCheck radio" } });
     fireEvent.click(screen.getByRole("button", { name: "Record handoff" }));
 
