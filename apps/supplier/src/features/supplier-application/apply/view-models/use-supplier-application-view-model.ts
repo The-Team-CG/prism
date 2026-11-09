@@ -3,10 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { supplierApplicationRepository } from "../data/supplier-application-repository";
 import {
-  isSupplierApplicationStepValid,
+  isSupplierApplicationReady,
   mapSupplierApplicationSubmitError,
-  nextSupplierApplicationStep,
-  previousSupplierApplicationStep,
+  missingSupplierApplicationItems,
 } from "../model/supplier-application-rules";
 import {
   INITIAL_SUPPLIER_APPLICATION_FORM,
@@ -17,7 +16,6 @@ import { submitSupplierApplication } from "../use-cases/submit-supplier-applicat
 
 export function useSupplierApplicationViewModel() {
   const [form, setForm] = useState<SupplierApplicationForm>(INITIAL_SUPPLIER_APPLICATION_FORM);
-  const [currentStep, setCurrentStep] = useState(0);
   const [status, setStatus] = useState<SupplierApplicationSubmitStatus>("idle");
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -45,26 +43,11 @@ export function useSupplierApplicationViewModel() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function canContinue(step = currentStep) {
-    return isSupplierApplicationStepValid(form, step);
-  }
-
-  function nextStep() {
-    if (!canContinue()) return;
-    setCurrentStep((step) => nextSupplierApplicationStep(step));
-  }
-
-  function previousStep() {
-    setCurrentStep((step) => previousSupplierApplicationStep(step));
-  }
-
-  /** Review-step "Edit" links only move backwards, so validation gates stay intact. */
-  function goToStep(step: number) {
-    if (step >= 0 && step < currentStep) setCurrentStep(step);
-  }
+  const canSubmit = isSupplierApplicationReady(form);
+  const missingItems = missingSupplierApplicationItems(form);
 
   async function submit() {
-    if (!canContinue(3) || busy) return;
+    if (!canSubmit || busy) return;
     setStatus("loading");
     setError(null);
     try {
@@ -75,7 +58,6 @@ export function useSupplierApplicationViewModel() {
       setApplicationId(application.id.trim());
       setStatus("submitted");
       setForm(INITIAL_SUPPLIER_APPLICATION_FORM);
-      setCurrentStep(0);
     } catch (err) {
       setStatus("error");
       setError(mapSupplierApplicationSubmitError(err));
@@ -88,13 +70,8 @@ export function useSupplierApplicationViewModel() {
     setError(null);
   }
 
-  function resolveCategoryName(categoryId: string): string | undefined {
-    return categories.find((c) => c.id === categoryId)?.name;
-  }
-
   return {
     form,
-    currentStep,
     status,
     submitted,
     applicationId,
@@ -104,12 +81,9 @@ export function useSupplierApplicationViewModel() {
     categoriesError,
     categoriesLoading,
     update,
-    canContinue,
-    nextStep,
-    previousStep,
-    goToStep,
+    canSubmit,
+    missingItems,
     submit,
     resetSubmitted,
-    resolveCategoryName,
   };
 }

@@ -6,10 +6,14 @@ import { Input } from "@prism/ui/components/input";
 import type { PrismGuestSession } from "@prism/types";
 import { PrismSectionPanel } from "@prism/ui";
 import { Textarea } from "@prism/ui/components/textarea";
-import { checkInModeButtonClass, guestPassDetails } from "../../model/guest-dashboard-rules";
+import { ToggleGroup, ToggleGroupItem } from "@prism/ui/components/toggle-group";
+import { guestPassDetails } from "../../model/guest-dashboard-rules";
+import type { CheckInMode } from "../../model/guest-dashboard-types";
 import type { useGuestDashboardViewModel } from "../../view-models/use-guest-dashboard-view-model";
 
 type GuestDashboardVm = ReturnType<typeof useGuestDashboardViewModel>;
+
+const CHECK_IN_MODES: readonly CheckInMode[] = ["name_search", "headcount"];
 
 function GuestCheckInSubmit({ vm }: { vm: GuestDashboardVm }) {
   const showGuidance = !vm.canCheckIn && !vm.busy;
@@ -42,22 +46,28 @@ export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
   return (
     <PrismSectionPanel title="Check in" icon={ClipboardCheck} description="Choose how to record your attendance. Ask the registration team if you need help.">
       <div className="flex flex-col gap-4">
-        {/* A two-way choice is a radio group, so the only check-in button on the page is the one that submits. */}
-        <fieldset disabled={vm.checkedIn} className="flex flex-col gap-1 rounded-lg border border-border bg-secondary/40 p-1 sm:flex-row">
-          <legend className="sr-only">Check-in method</legend>
-          {([
-            ["name_search", "Check in with my name", ClipboardCheck],
-            ["headcount", "Check in without my name", Users],
-          ] as const).map(([mode, text, Icon]) => (
-            <label
-              key={mode}
-              className={`flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-md px-3 py-2 text-sm font-semibold has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary ${checkInModeButtonClass(vm.checkInMode === mode)}`}
-            >
-              <input type="radio" name="guest-check-in-mode" value={mode} checked={vm.checkInMode === mode} onChange={() => vm.setCheckInMode(mode)} className="sr-only" />
-              <Icon className="mr-1.5 inline size-3.5" aria-hidden="true" /> {text}
-            </label>
-          ))}
-        </fieldset>
+        {/* A two-way choice is a single-select group, so the only check-in button on the page is the one that submits. */}
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          aria-label="Check-in method"
+          value={vm.checkInMode}
+          disabled={vm.checkedIn}
+          onValueChange={(value) => {
+            const mode = CHECK_IN_MODES.find((item) => item === value);
+            if (mode) vm.setCheckInMode(mode);
+          }}
+          className="w-full"
+        >
+          <ToggleGroupItem value="name_search" className="min-h-11 flex-1 gap-1.5 px-3 text-sm font-semibold">
+            <ClipboardCheck className="size-4" aria-hidden="true" />
+            Check in with my name
+          </ToggleGroupItem>
+          <ToggleGroupItem value="headcount" className="min-h-11 flex-1 gap-1.5 px-3 text-sm font-semibold">
+            <Users className="size-4" aria-hidden="true" />
+            Check in without my name
+          </ToggleGroupItem>
+        </ToggleGroup>
         <p className="text-sm leading-6 text-muted-foreground">
           {vm.checkInMode === "name_search"
             ? "Enter the name on the event list. The registration team may need to review a match."

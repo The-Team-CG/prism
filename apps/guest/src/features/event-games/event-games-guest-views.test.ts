@@ -111,6 +111,25 @@ describe("guest event-game views", () => {
     expect(markup).not.toContain("Upload a photo");
   });
 
+  it("gives a guest whose game session cannot open a way to join with a PIN or go back", () => {
+    viewModels.play.mockReturnValue({
+      state: null,
+      status: "error",
+      error: "This game session is not available on this device.",
+      refresh: vi.fn(),
+      exitGames: vi.fn(),
+      participantAlias: null,
+    });
+
+    const markup = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-gone" }));
+
+    expect(markup).toContain("This game session is not available on this device.");
+    expect(markup).toContain("Game session unavailable");
+    expect(markup).toContain('href="/games/join"');
+    expect(markup).toContain("Join with a PIN");
+    expect(markup).toContain("Back");
+  });
+
   it("renders Live Trivia answer choices without exposing the answer key", () => {
     viewModels.play.mockReturnValue({
       state: {
@@ -291,7 +310,8 @@ describe("guest event-game views", () => {
     expect(markup).toContain("Unscrambled word");
     expect(markup).toContain("Submit answer");
     expect(markup).not.toContain("Shared results");
-    expect(markup).not.toContain("cat");
+    // Match the answer as a word: class names such as "truncate" contain its letters.
+    expect(markup).not.toMatch(/cat/);
   });
 
   it("renders a Singleplayer picture reveal and answer form without exposing accepted answers", () => {
