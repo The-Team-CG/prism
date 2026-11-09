@@ -67,7 +67,7 @@
         "test:shared": "vitest run --config vitest.shared.config.ts"
     },
     "dependencies": {
-        "@anthropic-ai/sdk": "^1.3.0",
+        "@anthropic-ai/sdk": "^1.6.0",
         "@nestjs/common": "^12.3.2",
         "@nestjs/config": "^12.0.1",
         "@nestjs/core": "^12.3.2",
@@ -94,8 +94,8 @@
         "@types/express": "^5.0.6",
         "@types/node": "^24.19.2",
         "@types/pg": "^8.23.1",
-        "@vitest/coverage-v8": "5.0.5",
+        "@vitest/coverage-v8": "5.1.0",
         "typescript": "^6.0.3",
-        "vitest": "^5.0.5"
+        "vitest": "^5.1.0"
     }
 }
