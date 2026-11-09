@@ -8,7 +8,7 @@ import {
   List,
   Search,
 } from "lucide-react";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { formatShortDate, humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import type { PrismBillingStatement, PrismBriefing, PrismComplianceCheck, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPostEventDocument, PrismSupplierQuoteRequest } from "@prism/types";
@@ -182,7 +182,7 @@ export function EventFileHub({
   }
 
   if (!items.length) {
-    return <EmptyState icon={FileText} title="No files yet" description="Documents will appear after briefing, floorplan, supplier, billing, or closeout records are created." />;
+    return <Empty><EmptyHeader><EmptyMedia variant="icon"><FileText /></EmptyMedia><EmptyTitle>No files yet</EmptyTitle><EmptyDescription>Documents will appear after briefing, floorplan, supplier, billing, or closeout records are created.</EmptyDescription></EmptyHeader></Empty>;
   }
 
   return (

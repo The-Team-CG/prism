@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { cx, useListFilter } from "@/features/pmcm-kit";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@prism/ui/components/tabs";
 
 export type WorkspaceSubTab = {
   id: string;
@@ -14,19 +15,9 @@ export type WorkspaceSubTab = {
   render: () => ReactNode;
 };
 
-function subTabClassName(isActive: boolean) {
-  return cx(
-    "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-    isActive ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-  );
-}
-
-/** The segmented strip shared by the state-backed and route-backed tab components below. */
-const TAB_LIST_CLASS = "-mx-1 flex max-w-full flex-wrap gap-1 rounded-lg bg-muted p-1 sm:flex-nowrap sm:overflow-x-auto";
-
 /**
- * One section of an event tab at a time, chosen from a segmented switcher instead of stacked
- * accordions. The choice lives in the URL (`?part=`) so links, refreshes and Back keep it.
+ * One section of an event tab at a time, chosen from a Tabs strip instead of stacked accordions.
+ * The choice lives in the URL (`?part=`) so links, refreshes and Back keep it.
  */
 export function WorkspaceSubTabs({
   label,
@@ -50,64 +41,47 @@ export function WorkspaceSubTabs({
   const active = tabs.find((tab) => tab.id === selected) ?? tabs[0];
   if (!active) return null;
   return (
-    <div className="space-y-4">
+    <Tabs value={active.id} onValueChange={setSelected} className="gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label={label} className={TAB_LIST_CLASS}>
-          {tabs.map((tab) => {
-            const isActive = tab.id === active.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                id={`subtab-${tab.id}`}
-                aria-selected={isActive}
-                aria-controls={`subtab-panel-${tab.id}`}
-                onClick={() => setSelected(tab.id)}
-                className={subTabClassName(isActive)}
-              >
-                {tab.label}
-                {tab.count ? (
-                  <span
-                    className={cx(
-                      "rounded-full px-1.5 text-xs tabular-nums",
-                      tab.attention ? "bg-attention-soft text-attention" : "bg-background text-muted-foreground",
-                    )}
-                  >
-                    {tab.count}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
+        <TabsList aria-label={label} className="h-auto max-w-full flex-wrap justify-start overflow-x-auto">
+          {tabs.map((tab) => (
+            <TabsTrigger key={tab.id} value={tab.id} className="flex-none">
+              {tab.label}
+              {tab.count ? (
+                <span
+                  className={cx(
+                    "rounded-full px-1.5 text-xs tabular-nums",
+                    tab.attention ? "bg-attention-soft text-attention" : "bg-background text-muted-foreground",
+                  )}
+                >
+                  {tab.count}
+                </span>
+              ) : null}
+            </TabsTrigger>
+          ))}
+        </TabsList>
         {intro}
       </div>
-      <div role="tabpanel" id={`subtab-panel-${active.id}`} aria-labelledby={`subtab-${active.id}`}>
-        {active.render()}
-      </div>
-    </div>
+      <TabsContent value={active.id}>{active.render()}</TabsContent>
+    </Tabs>
   );
 }
 
 export type WorkspaceRouteTab = { id: string; label: string; href: string };
 
-/** The same tab strip for views that each have their own URL. The current view is `aria-current`. */
+/** The same Tabs strip for views that each have their own URL. Each trigger is a link; the current view is the active tab. */
 export function WorkspaceRouteTabs({ label, tabs, activeId }: { label: string; tabs: WorkspaceRouteTab[]; activeId: string }) {
   return (
-    <nav aria-label={label}>
-      <ul className={TAB_LIST_CLASS}>
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeId;
-          return (
-            <li key={tab.id}>
-              <Link href={tab.href} aria-current={isActive ? "page" : undefined} className={subTabClassName(isActive)}>
-                {tab.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <Tabs value={activeId} className="gap-0">
+      <TabsList aria-label={label} className="h-auto max-w-full flex-wrap justify-start overflow-x-auto">
+        {tabs.map((tab) => (
+          <TabsTrigger key={tab.id} value={tab.id} asChild className="flex-none">
+            <Link href={tab.href} aria-current={tab.id === activeId ? "page" : undefined}>
+              {tab.label}
+            </Link>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }

@@ -4,13 +4,14 @@ import { useId, useState, type ReactNode } from "react";
 import { Database } from "lucide-react";
 import type { PrismPrivacyLegalHold, PrismPrivacyRequest, PrismUser } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Field, FieldDescription, FieldGroup } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Textarea } from "@prism/ui/components/textarea";
 import { compactTimestamp, cx, label, Panel } from "@/features/pmcm-kit";
 import { privacyDeadlineLabel } from "../model/privacy-console-rules";
 import type { PrivacyCorrectionDraft } from "../model/privacy-correction";
 import type { PrivacyConsoleViewModel } from "../view-models/use-privacy-console-view-model";
-
-const selectClassName = "h-10 rounded-md border border-border bg-white px-3 text-sm";
 
 export function PrivacyFilterBar({ vm }: { vm: PrivacyConsoleViewModel }) {
   const { filters } = vm;
@@ -22,40 +23,40 @@ export function PrivacyFilterBar({ vm }: { vm: PrivacyConsoleViewModel }) {
       </button>
       <div className={cx("min-w-0 gap-3 rounded-md border border-border bg-background p-3 sm:grid sm:grid-cols-2 xl:grid-cols-3", open ? "grid" : "hidden")}>
       <FilterSelect label="Event" value={filters.eventId} onChange={(value) => vm.updateFilters({ eventId: value })}>
-        <option value="all">All events</option>
-        {vm.events.map((event) => <option key={event.id} value={event.id}>{event.eventName}</option>)}
+        <SelectItem value="all">All events</SelectItem>
+        {vm.events.map((event) => <SelectItem key={event.id} value={event.id}>{event.eventName}</SelectItem>)}
       </FilterSelect>
       <FilterSelect label="Status" value={filters.status} onChange={(value) => vm.updateFilters({ status: value as typeof filters.status })}>
-        <option value="all">All statuses</option>
-        <option value="open">Open (submitted or approved)</option>
-        <option value="submitted">Submitted</option>
-        <option value="approved">Approved</option>
-        <option value="executed">Executed</option>
-        <option value="rejected">Rejected</option>
+        <SelectItem value="all">All statuses</SelectItem>
+        <SelectItem value="open">Open (submitted or approved)</SelectItem>
+        <SelectItem value="submitted">Submitted</SelectItem>
+        <SelectItem value="approved">Approved</SelectItem>
+        <SelectItem value="executed">Executed</SelectItem>
+        <SelectItem value="rejected">Rejected</SelectItem>
       </FilterSelect>
       <FilterSelect label="Request type" value={filters.requestType} onChange={(value) => vm.updateFilters({ requestType: value as typeof filters.requestType })}>
-        <option value="all">All request types</option>
-        <option value="access">Access</option>
-        <option value="correction">Correction</option>
-        <option value="deletion">Deletion</option>
-        <option value="export">Export</option>
+        <SelectItem value="all">All request types</SelectItem>
+        <SelectItem value="access">Access</SelectItem>
+        <SelectItem value="correction">Correction</SelectItem>
+        <SelectItem value="deletion">Deletion</SelectItem>
+        <SelectItem value="export">Export</SelectItem>
       </FilterSelect>
       <FilterSelect label="Subject" value={filters.subjectType} onChange={(value) => vm.updateFilters({ subjectType: value as typeof filters.subjectType })}>
-        <option value="all">All subjects</option>
-        <option value="client">Client</option>
-        <option value="supplier">Supplier</option>
-        <option value="guest">Guest</option>
-        <option value="account">Account</option>
+        <SelectItem value="all">All subjects</SelectItem>
+        <SelectItem value="client">Client</SelectItem>
+        <SelectItem value="supplier">Supplier</SelectItem>
+        <SelectItem value="guest">Guest</SelectItem>
+        <SelectItem value="account">Account</SelectItem>
       </FilterSelect>
       <FilterSelect label="Deadline" value={filters.deadline} onChange={(value) => vm.updateFilters({ deadline: value as typeof filters.deadline })}>
-        <option value="all">Any deadline</option>
-        <option value="overdue">Overdue</option>
-        <option value="on-track">Within 30-day SLA</option>
+        <SelectItem value="all">Any deadline</SelectItem>
+        <SelectItem value="overdue">Overdue</SelectItem>
+        <SelectItem value="on-track">Within 30-day SLA</SelectItem>
       </FilterSelect>
       <FilterSelect label="Owner" value={filters.assignment} onChange={(value) => vm.updateFilters({ assignment: value as typeof filters.assignment })}>
-        <option value="all">Any owner</option>
-        <option value="mine">Assigned to me</option>
-        <option value="unassigned">Unassigned</option>
+        <SelectItem value="all">Any owner</SelectItem>
+        <SelectItem value="mine">Assigned to me</SelectItem>
+        <SelectItem value="unassigned">Unassigned</SelectItem>
       </FilterSelect>
       </div>
     </>
@@ -68,9 +69,12 @@ function FilterSelect({ label: caption, value, onChange, children }: { label: st
   return (
     <div className="grid min-w-0 gap-1">
       <label htmlFor={id} className="text-xs font-medium text-muted-foreground">{caption}</label>
-      <select id={id} value={value} onChange={(event) => onChange(event.target.value)} className={`${selectClassName} w-full min-w-0`}>
-        {children}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={id} className="h-10 w-full min-w-0 bg-white">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>{children}</SelectContent>
+      </Select>
     </div>
   );
 }
@@ -197,42 +201,47 @@ export function PrivacyCorrectionForm({ busy, isGuest, onApply }: { busy: boolea
 export function PrivacyLogRequestForm({ vm }: { vm: PrivacyConsoleViewModel }) {
   const form = vm.privacyForm;
   return (
-    <div className="grid gap-2 rounded-md border border-border bg-background p-3 sm:grid-cols-2">
-      <select
-        aria-label="Subject type for new request"
-        value={form.subjectType}
-        onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, subjectType: event.target.value as typeof form.subjectType }))}
-        className={selectClassName}
-      >
-        <option value="client">Client</option>
-        <option value="supplier">Supplier</option>
-        <option value="guest">Guest</option>
-        <option value="account">Native account</option>
-      </select>
-      <select
-        aria-label="Request type for new request"
-        value={form.requestType}
-        onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, requestType: event.target.value as typeof form.requestType }))}
-        className={selectClassName}
-      >
-        <option value="access">Access</option>
-        <option value="correction">Correction</option>
-        <option value="deletion">Deletion</option>
-        <option value="export">Export</option>
-      </select>
-      <Input aria-label="New request subject email" value={form.subjectEmail} onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, subjectEmail: event.target.value }))} className="h-10 bg-white" placeholder="Subject email" />
-      <Input aria-label="New request subject name" value={form.subjectName} onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, subjectName: event.target.value }))} className="h-10 bg-white" placeholder="Subject name" />
-      <textarea
+    <FieldGroup className="grid gap-3 rounded-md border border-border bg-background p-3 sm:grid-cols-2">
+      <Select value={form.subjectType} onValueChange={(value) => vm.setPrivacyForm((current) => ({ ...current, subjectType: value as typeof form.subjectType }))}>
+        <SelectTrigger aria-label="Subject type for new request" className="w-full min-w-0">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="client">Client</SelectItem>
+          <SelectItem value="supplier">Supplier</SelectItem>
+          <SelectItem value="guest">Guest</SelectItem>
+          <SelectItem value="account">Native account</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={form.requestType} onValueChange={(value) => vm.setPrivacyForm((current) => ({ ...current, requestType: value as typeof form.requestType }))}>
+        <SelectTrigger aria-label="Request type for new request" className="w-full min-w-0">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="access">Access</SelectItem>
+          <SelectItem value="correction">Correction</SelectItem>
+          <SelectItem value="deletion">Deletion</SelectItem>
+          <SelectItem value="export">Export</SelectItem>
+        </SelectContent>
+      </Select>
+      <Input aria-label="New request subject email" value={form.subjectEmail} onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, subjectEmail: event.target.value }))} placeholder="Subject email" />
+      <Input aria-label="New request subject name" value={form.subjectName} onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, subjectName: event.target.value }))} placeholder="Subject name" />
+      <Textarea
         aria-label="New request notes"
         value={form.requestNotes}
         onChange={(event) => vm.setPrivacyForm((current) => ({ ...current, requestNotes: event.target.value }))}
-        className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm sm:col-span-2"
+        className="min-h-20 sm:col-span-2"
         placeholder="Request notes"
       />
-      <Button type="button" disabled={vm.busy || (!form.subjectEmail && !form.subjectName)} onClick={vm.logPrivacyRequest} className="h-10 rounded-md font-black sm:col-span-2">
-        Log privacy request
-      </Button>
-    </div>
+      <Field className="sm:col-span-2">
+        <div>
+          <Button type="button" disabled={vm.busy || (!form.subjectEmail && !form.subjectName)} onClick={vm.logPrivacyRequest}>
+            Log privacy request
+          </Button>
+        </div>
+        {form.subjectEmail || form.subjectName ? null : <FieldDescription>Add a subject email or name to log the request.</FieldDescription>}
+      </Field>
+    </FieldGroup>
   );
 }
 
@@ -249,26 +258,26 @@ export function PrivacyLegalHoldControls({ vm }: { vm: PrivacyConsoleViewModel }
         </p>
       </div>
       <div className="grid gap-2 sm:grid-cols-2">
-        <select
-          aria-label="Legal hold subject type"
-          value={form.subjectType}
-          onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, subjectType: event.target.value as typeof current.subjectType }))}
-          className={selectClassName}
-        >
-          <option value="client">Client</option>
-          <option value="supplier">Supplier</option>
-          <option value="guest">Guest</option>
-        <option value="account">Native account</option>
-        </select>
-        <select
-          aria-label="Legal hold event scope"
-          value={form.eventScope}
-          onChange={(event) => vm.setLegalHoldForm((current) => ({ ...current, eventScope: event.target.value as typeof current.eventScope }))}
-          className={selectClassName}
-        >
-          <option value="subject">All events for this subject</option>
-          <option value="event" disabled={vm.filters.eventId === "all"}>Selected event only</option>
-        </select>
+        <Select value={form.subjectType} onValueChange={(value) => vm.setLegalHoldForm((current) => ({ ...current, subjectType: value as typeof current.subjectType }))}>
+          <SelectTrigger aria-label="Legal hold subject type" className="w-full min-w-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="client">Client</SelectItem>
+            <SelectItem value="supplier">Supplier</SelectItem>
+            <SelectItem value="guest">Guest</SelectItem>
+            <SelectItem value="account">Native account</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={form.eventScope} onValueChange={(value) => vm.setLegalHoldForm((current) => ({ ...current, eventScope: value as typeof current.eventScope }))}>
+          <SelectTrigger aria-label="Legal hold event scope" className="w-full min-w-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="subject">All events for this subject</SelectItem>
+            <SelectItem value="event" disabled={vm.filters.eventId === "all"}>Selected event only</SelectItem>
+          </SelectContent>
+        </Select>
         {form.subjectType === "guest" ? (
           <Input
             aria-label="Guest name for legal hold"
@@ -293,14 +302,18 @@ export function PrivacyLegalHoldControls({ vm }: { vm: PrivacyConsoleViewModel }
           className="h-10 bg-white sm:col-span-2"
           placeholder="Reason for placing the hold"
         />
-        <Button
-          type="button"
-          disabled={vm.busy || !(identity ?? "").trim() || !form.reason.trim() || (eventScope && vm.filters.eventId === "all")}
-          onClick={vm.placePrivacyLegalHold}
-          className="h-10 rounded-md font-black sm:col-span-2"
-        >
-          Place legal hold
-        </Button>
+        <Field className="sm:col-span-2">
+          <div>
+            <Button
+              type="button"
+              disabled={vm.busy || !(identity ?? "").trim() || !form.reason.trim() || (eventScope && vm.filters.eventId === "all")}
+              onClick={vm.placePrivacyLegalHold}
+            >
+              Place legal hold
+            </Button>
+          </div>
+          {eventScope && vm.filters.eventId === "all" ? <FieldDescription>Choose a single event in the filters to hold for that event only.</FieldDescription> : null}
+        </Field>
       </div>
       {vm.legalHolds.length === 0 ? <p className="text-sm text-muted-foreground">No active legal holds.</p> : null}
       <div className="space-y-2">

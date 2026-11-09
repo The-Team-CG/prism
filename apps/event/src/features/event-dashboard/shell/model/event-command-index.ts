@@ -18,7 +18,7 @@ export const PALETTE_EVENT_TABS: ReadonlyArray<{ tab: DetailTab; label: string }
   { tab: "closure", label: "Closure" },
   { tab: "decisions", label: "Decisions" },
   { tab: "files", label: "Files" },
-  { tab: "activity", label: "Activity" },
+  { tab: "messages", label: "Messages" },
 ];
 
 export type PmcmCommandTargets = {

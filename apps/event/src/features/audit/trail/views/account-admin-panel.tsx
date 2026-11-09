@@ -6,7 +6,8 @@ import { formatPortalDate } from "@prism/ui/format-date";
 import { Search, UserRound } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
-import { Panel, cx, roleLabel } from "@/features/pmcm-kit";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
+import { Panel, SegmentedControl, cx, roleLabel } from "@/features/pmcm-kit";
 import { adminAccountActionsFor, canManageAccounts, isAccountLocked } from "../model/audit-trail-rules";
 import type { useAccountAdminViewModel } from "../view-models/use-account-admin-view-model";
 import { usePagedItems } from "../view-models/use-paged-items";
@@ -50,30 +51,17 @@ export function AccountAdminPanel({
   const paged = usePagedItems(visible, ACCOUNT_PAGE_SIZE);
   if (!canManageAccounts(viewerRole)) return null;
   const now = new Date();
+  const roleOptions = ROLE_FILTERS.map((filter) => ({
+    value: filter.value,
+    label: filter.label,
+    count: filter.value === "all" ? users.length : users.filter((user) => user.role === filter.value).length,
+  }));
 
   return (
     <Panel title="Accounts" icon={UserRound}>
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          <div role="group" aria-label="Filter accounts by role" className="flex flex-wrap gap-1 rounded-md bg-muted p-1">
-            {ROLE_FILTERS.map((filter) => {
-              const count = filter.value === "all" ? users.length : users.filter((user) => user.role === filter.value).length;
-              return (
-                <button
-                  key={filter.value}
-                  type="button"
-                  aria-pressed={role === filter.value}
-                  onClick={() => setRole(filter.value)}
-                  className={cx(
-                    "rounded px-2.5 py-1 text-xs font-medium transition-colors",
-                    role === filter.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {filter.label} <span className="tabular-nums text-muted-foreground">{count}</span>
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedControl label="Filter accounts by role" options={roleOptions} value={role} onChange={(value) => setRole(value as "all" | PrismUserRole)} />
           <label className="relative min-w-52 flex-1">
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, email or organization" aria-label="Search accounts" className="h-9 bg-white pl-9" />
@@ -84,11 +72,23 @@ export function AccountAdminPanel({
           {visible.length === 0 ? (
             <p className="px-4 py-5 text-sm text-muted-foreground">{users.length === 0 ? "No accounts loaded." : "No account matches these filters."}</p>
           ) : (
-            <ul className="divide-y divide-border">
-              {paged.pageItems.map((user) => (
-                <AccountRow key={user.id} user={user} locked={isAccountLocked(user, now)} actions={adminAccountActionsFor(user, viewerRole, now)} vm={vm} />
-              ))}
-            </ul>
+            <Table>
+              <caption className="sr-only">Accounts with their role, sign-in status and available actions</caption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Account</TableHead>
+                  <TableHead scope="col">Role</TableHead>
+                  <TableHead scope="col">Status</TableHead>
+                  {/* Fixed width keeps the role and status columns still when a row has more or fewer actions. */}
+                  <TableHead scope="col" className="w-56 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paged.pageItems.map((user) => (
+                  <AccountRow key={user.id} user={user} locked={isAccountLocked(user, now)} actions={adminAccountActionsFor(user, viewerRole, now)} vm={vm} />
+                ))}
+              </TableBody>
+            </Table>
           )}
           <ListPager
             label="Account pages"
@@ -126,28 +126,28 @@ function AccountRow({
   const state = accountState(user, locked);
 
   return (
-    <li className="grid gap-2 px-4 py-3 text-sm sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1.1fr)_auto] sm:items-center sm:gap-4">
-      <div className="flex min-w-0 items-center gap-3">
-        <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
-          {initials(user.name)}
-        </span>
-        <div className="min-w-0">
-          <p className="truncate font-semibold text-foreground">{user.name}</p>
-          <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+    <TableRow>
+      <TableCell className="min-w-0 whitespace-normal">
+        <div className="flex min-w-0 items-center gap-3">
+          <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+            {initials(user.name)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-foreground">{user.name}</p>
+            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            {feedback ? <p className={cx("mt-1 text-xs", feedback.tone === "success" ? "text-success" : "text-danger")}>{feedback.text}</p> : null}
+          </div>
         </div>
-      </div>
-      <p className="pl-11 text-muted-foreground sm:pl-0">
+      </TableCell>
+      <TableCell className="text-muted-foreground whitespace-normal">
         {roleLabel(user.role)}
         {user.organization && user.organization !== user.name ? <span className="block truncate text-xs">{user.organization}</span> : null}
-      </p>
-      <p className={cx("pl-11 text-xs sm:pl-0", state.tone)}>{state.text}</p>
-      <div className="pl-11 sm:pl-0">
+      </TableCell>
+      <TableCell className={cx("text-xs", state.tone)}>{state.text}</TableCell>
+      <TableCell className="w-56 text-right">
         <AccountRowActions user={user} actions={actions} vm={vm} />
-      </div>
-      {feedback ? (
-        <p className={cx("pl-11 text-xs sm:col-span-4 sm:pl-11", feedback.tone === "success" ? "text-success" : "text-danger")}>{feedback.text}</p>
-      ) : null}
-    </li>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -164,7 +164,7 @@ function AccountRowActions({
   if (!(actions.unlockAccount || actions.resetTwoFactor || actions.resendInvitation)) return null;
 
   return (
-    <div className="flex flex-wrap justify-start gap-1 sm:justify-end">
+    <div className="flex flex-wrap justify-end gap-1">
       {actions.unlockAccount ? (
         <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => vm.unlockAccount(user)}>
           Unlock
@@ -183,4 +183,3 @@ function AccountRowActions({
     </div>
   );
 }
-

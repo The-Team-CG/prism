@@ -7,6 +7,8 @@ import {
   type PrismEventGameTemplateConfiguration,
 } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Field, FieldLabel } from "@prism/ui/components/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { AudienceGameFields, audienceDraftFrom, buildAudienceConfiguration, emptyAudienceDraft, isAudienceDraft, type AudienceDraft } from "./audience-game-configuration";
 
 type TriviaRoundDraft = {
@@ -429,9 +431,18 @@ export function EventGameTemplateConfigurationEditor({ game, busy, onSave, onUpl
         <label className="grid gap-1 text-xs font-semibold">Seconds between calls
           <input type="number" min={5} max={120} value={draft.callIntervalSeconds} onChange={(event) => setDraft({ ...draft, callIntervalSeconds: event.target.value })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
         </label>
-        <label className="grid gap-1 text-xs font-semibold">Winning pattern
-          <select value={draft.winPattern} onChange={(event) => setDraft({ ...draft, winPattern: event.target.value as "line" | "full-card" })} className="min-h-9 rounded border border-border bg-background px-2 text-sm"><option value="line">Any line</option><option value="full-card">Full card</option></select>
-        </label>
+        <Field>
+          <FieldLabel htmlFor="event-game-winning-pattern" className="text-xs">Winning pattern</FieldLabel>
+          <Select value={draft.winPattern} onValueChange={(value) => setDraft({ ...draft, winPattern: value as "line" | "full-card" })}>
+            <SelectTrigger id="event-game-winning-pattern" className="w-full min-w-0 bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="line">Any line</SelectItem>
+              <SelectItem value="full-card">Full card</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
         <label className="grid gap-1 text-xs font-semibold">Points for a verified win
           <input type="number" min={0} max={100000} value={draft.points} onChange={(event) => setDraft({ ...draft, points: event.target.value })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
         </label>

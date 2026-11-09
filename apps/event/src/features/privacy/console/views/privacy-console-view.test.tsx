@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { chooseSelectOption } from "@/test-support/select-test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismPrivacyRequest } from "@prism/types";
 import { PrivacyConsoleView } from "./privacy-console-view";
@@ -90,7 +91,7 @@ describe("PrivacyConsoleView", () => {
     render(<PrivacyConsoleView />);
     await screen.findByText("No privacy requests match these filters.");
 
-    fireEvent.change(screen.getByLabelText("Owner"), { target: { value: "mine" } });
+    chooseSelectOption(screen.getByLabelText("Owner"), "Assigned to me");
 
     await waitFor(() => expect(repository.queue).toHaveBeenLastCalledWith(expect.objectContaining({ assignedTo: "usr_maxine", page: 0 })));
   });

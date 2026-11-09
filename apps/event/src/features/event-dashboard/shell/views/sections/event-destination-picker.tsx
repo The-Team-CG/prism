@@ -1,9 +1,14 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
-import { RouteLink } from "@/features/pmcm-kit";
+import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent, type PrismLifecycleStage } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@prism/ui/components/empty";
+import { Input } from "@prism/ui/components/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
+import { RouteLink, SegmentedControl, type SegmentedOption } from "@/features/pmcm-kit";
 import type { SummaryLabel } from "@/features/pmcm-overview";
 import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 
@@ -16,6 +21,8 @@ type PickerEvent = Pick<PrismEvent, "id" | "eventName" | "clientName" | "eventDa
 
 const isFinished = (event: PickerEvent) => derivePrismLifecycleStage(event) === "closure_archive";
 
+const PAGE_SIZE = 10;
+
 /** Events still being run come first, soonest first; finished events follow, most recent first. */
 export function orderPickerEvents<Event extends PickerEvent>(events: Event[]): Event[] {
   const byDate = (a: Event, b: Event) => (a.eventDate ?? "").localeCompare(b.eventDate ?? "");
@@ -24,9 +31,14 @@ export function orderPickerEvents<Event extends PickerEvent>(events: Event[]): E
   return [...active, ...finished];
 }
 
+function matchesQuery(event: PickerEvent, query: string) {
+  const text = `${event.eventName} ${event.clientName ?? ""}`.toLowerCase();
+  return text.includes(query.trim().toLowerCase());
+}
+
 /**
  * Inline event chooser for global PMCM destinations (Finance, Files, Messages) that only work inside one
- * event. Choosing a row opens that event's matching workspace section directly.
+ * event. A searchable, stage-filterable table: choosing a row opens that event's matching workspace section.
  */
 export function EventDestinationPicker({
   events,
@@ -45,39 +57,114 @@ export function EventDestinationPicker({
   /** An extra line under each event, such as what it owes; absent or null shows nothing. */
   rowDetail?: (event: PickerEvent) => SummaryLabel | null;
 }) {
-  const sorted = orderPickerEvents(events);
+  const [query, setQuery] = useState("");
+  const [stage, setStage] = useState<"all" | PrismLifecycleStage>("all");
+  const [visible, setVisible] = useState(PAGE_SIZE);
+
+  const stageOptions = useMemo<SegmentedOption[]>(() => {
+    const counts = new Map<PrismLifecycleStage, number>();
+    for (const event of events) {
+      const current = derivePrismLifecycleStage(event);
+      counts.set(current, (counts.get(current) ?? 0) + 1);
+    }
+    return [
+      { value: "all", label: "All", count: events.length },
+      ...PRISM_LIFECYCLE_STAGES.filter((item) => counts.has(item)).map((item) => ({
+        value: item,
+        label: PRISM_LIFECYCLE_STAGE_LABELS[item],
+        count: counts.get(item),
+      })),
+    ];
+  }, [events]);
+
+  const rows = orderPickerEvents(events).filter(
+    (event) => matchesQuery(event, query) && (stage === "all" || derivePrismLifecycleStage(event) === stage),
+  );
+  const shown = rows.slice(0, visible);
+  const hasEvents = events.length > 0;
+
   return (
-    <section aria-labelledby="event-destination-picker-title" className="min-w-0 rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-5 py-4">
+    <section aria-labelledby="event-destination-picker-title" className="grid min-w-0 gap-4">
+      <div className="grid gap-1">
         <h2 id="event-destination-picker-title" className="text-lg font-semibold text-foreground">Choose an event</h2>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </div>
-      {sorted.length === 0 ? (
-        <p className="px-5 py-4 text-sm text-muted-foreground">No active events yet. Events appear here after an accepted inquiry has a signed conforme.</p>
+
+      {hasEvents ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SegmentedControl label="Filter events by stage" options={stageOptions} value={stage} onChange={(value) => { setStage(value as "all" | PrismLifecycleStage); setVisible(PAGE_SIZE); }} />
+          <label className="relative w-full max-w-72">
+            <span className="sr-only">Find an event or client</span>
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => { setQuery(event.target.value); setVisible(PAGE_SIZE); }}
+              placeholder="Find an event or client"
+              className="pl-9"
+            />
+          </label>
+        </div>
+      ) : null}
+
+      {!hasEvents || rows.length === 0 ? (
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>{hasEvents ? "No event matches" : "No active events yet"}</EmptyTitle>
+            <EmptyDescription>
+              {hasEvents ? "Try another name, client or stage." : "Events appear here after an accepted inquiry has a signed conforme."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : (
-        <ul className="divide-y divide-border">
-          {sorted.map((event) => (
-            <li key={event.id}>
-              <RouteLink
-                href={eventWorkspaceHref(event.id, tab)}
-                onNavigate={() => onOpenEvent(event.id)}
-                title={event.eventName}
-                aria-label={`${actionLabel}: ${event.eventName}`}
-                className="flex min-h-11 w-full min-w-0 items-center gap-3 px-5 py-3 text-left transition hover:bg-muted/40"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block break-words text-sm font-semibold text-foreground">{event.eventName}</span>
-                  <span className="mt-0.5 block break-words text-xs text-muted-foreground">
-                    {event.clientName || "—"} · <span className="tabular-nums">{formatPortalDate(event.eventDate, "—")}</span> · {PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}
-                  </span>
-                  <RowDetail label={rowDetail?.(event) ?? null} />
-                </span>
-                <span className="hidden shrink-0 text-sm font-medium text-primary sm:inline">{actionLabel}</span>
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-              </RouteLink>
-            </li>
-          ))}
-        </ul>
+        <>
+          <p role="status" className="text-xs text-muted-foreground">
+            Showing {shown.length} of {rows.length} event{rows.length === 1 ? "" : "s"}
+          </p>
+          <div className="overflow-hidden rounded-lg border border-border bg-card">
+            <Table>
+              <caption className="sr-only">{description}</caption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead scope="col">Event</TableHead>
+                  <TableHead scope="col" className="hidden sm:table-cell">Date</TableHead>
+                  <TableHead scope="col">Stage</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shown.map((event) => {
+                  const stageLabel = PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)];
+                  return (
+                    <TableRow key={event.id} className="hover:bg-surface-raised">
+                      <TableCell className="relative min-w-0 whitespace-normal">
+                        <RouteLink
+                          href={eventWorkspaceHref(event.id, tab)}
+                          onNavigate={() => onOpenEvent(event.id)}
+                          aria-label={`${actionLabel}: ${event.eventName}`}
+                          className="font-semibold text-foreground after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          {event.eventName}
+                        </RouteLink>
+                        <span className="mt-0.5 block break-words text-xs text-muted-foreground">
+                          {event.clientName || "—"}
+                          <span className="sm:hidden"> · {formatPortalDate(event.eventDate, "—")}</span>
+                        </span>
+                        <RowDetail label={rowDetail?.(event) ?? null} />
+                      </TableCell>
+                      <TableCell className="hidden whitespace-nowrap tabular-nums sm:table-cell">{formatPortalDate(event.eventDate, "—")}</TableCell>
+                      <TableCell className="whitespace-nowrap">{stageLabel}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          {rows.length > visible ? (
+            <Button variant="outline" className="justify-self-center" onClick={() => setVisible((count) => count + PAGE_SIZE)}>
+              Show more
+            </Button>
+          ) : null}
+        </>
       )}
     </section>
   );

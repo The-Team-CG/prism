@@ -5,7 +5,7 @@ import { CheckCircle2, Circle, FileCheck2 } from "lucide-react";
 import type { PrismInquiry } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 import { onboardingTimelineSteps, reminderEvidenceCopy } from "../model/client-onboarding-rules";
 import { usePortalInvitationResendViewModel } from "../view-models/use-portal-invitation-resend-view-model";
@@ -72,11 +72,15 @@ export function ClientOnboardingTracker({
       <BiddingPathList inquiries={inquiries} />
       {tracked.length === 0 ? (
         <div className="px-6 py-8">
-          <EmptyState
-            icon={FileCheck2}
-            title="No onboarding in progress"
-            description="Accepted inquiries will appear here after PMCM begins onboarding."
-          />
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileCheck2 />
+              </EmptyMedia>
+              <EmptyTitle>No onboarding in progress</EmptyTitle>
+              <EmptyDescription>Accepted inquiries will appear here after PMCM begins onboarding.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </div>
       ) : (
         <div className="divide-y divide-border">

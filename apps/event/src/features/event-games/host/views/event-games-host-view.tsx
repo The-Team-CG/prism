@@ -14,7 +14,8 @@ import type {
   PrismUpdateEventGameInput,
 } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
 import { EVENT_GAME_OPTIONS, eventGameModeLabel, eventGameOption } from "../model/event-game-catalog";
@@ -57,7 +58,7 @@ export function EventGamesHostView({ eventId, role, eventStatus, archived, actua
     return (
       <Card>
         <CardBody>
-          <EmptyState icon={Gamepad2} title="Select an event" description="Open an event workspace to create and host games." />
+          <Empty><EmptyHeader><EmptyMedia variant="icon"><Gamepad2 /></EmptyMedia><EmptyTitle>Select an event</EmptyTitle><EmptyDescription>Open an event workspace to create and host games.</EmptyDescription></EmptyHeader></Empty>
         </CardBody>
       </Card>
     );
@@ -67,7 +68,7 @@ export function EventGamesHostView({ eventId, role, eventStatus, archived, actua
     return (
       <Card>
         <CardBody>
-          <EmptyState icon={AlertCircle} title="Host access unavailable" description="Game host controls are available to PMCM Admins and event-assigned Coordinators." />
+          <Empty><EmptyHeader><EmptyMedia variant="icon"><AlertCircle /></EmptyMedia><EmptyTitle>Host access unavailable</EmptyTitle><EmptyDescription>Game host controls are available to PMCM Admins and event-assigned Coordinators.</EmptyDescription></EmptyHeader></Empty>
         </CardBody>
       </Card>
     );
@@ -312,6 +313,13 @@ function GameScheduleAction({
 function GameInstructionsPanel({ instructions }: { instructions?: string }) {
   if (!instructions) return null;
   return <details className="mt-3 text-xs text-muted-foreground"><summary className="cursor-pointer font-semibold">Game instructions</summary><p className="mt-2 whitespace-pre-wrap">{instructions}</p></details>;
+}
+
+/** Radix Select items cannot be empty strings, so a recipient-less entry uses this sentinel and maps back to "". */
+const NO_AWARD_RECIPIENT = "none";
+
+function awardRecipientOptionValue(recipient: PrismGameLeaderboardEntry["awardRecipient"]): string {
+  return awardRecipientValue(recipient) || NO_AWARD_RECIPIENT;
 }
 
 function awardRecipientValue(recipient: PrismGameLeaderboardEntry["awardRecipient"]): string {
@@ -752,31 +760,31 @@ function AwardAssignmentSection({
         <form className="mt-3 grid gap-3 sm:grid-cols-2" onSubmit={submit}>
           <label className="grid gap-1 text-sm font-semibold text-foreground">
             Award recipient
-            <select
-              aria-label="Award recipient"
-              value={awardRecipientValue(selected?.awardRecipient)}
-              onChange={(event) => setRecipientKey(event.target.value)}
-              className="min-h-10 rounded-lg border border-border bg-background px-3"
-            >
-              {recipients.map((entry) => (
-                <option key={awardRecipientValue(entry.awardRecipient)} value={awardRecipientValue(entry.awardRecipient)}>
-                  {entry.label}{entry.teamLabel && entry.teamLabel !== entry.label ? " · " + entry.teamLabel : ""}
-                </option>
-              ))}
-            </select>
+            <Select value={awardRecipientOptionValue(selected?.awardRecipient)} onValueChange={(value) => setRecipientKey(value === NO_AWARD_RECIPIENT ? "" : value)}>
+              <SelectTrigger aria-label="Award recipient" className="min-h-10 w-full min-w-0 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {recipients.map((entry) => (
+                  <SelectItem key={awardRecipientOptionValue(entry.awardRecipient)} value={awardRecipientOptionValue(entry.awardRecipient)}>
+                    {entry.label}{entry.teamLabel && entry.teamLabel !== entry.label ? " · " + entry.teamLabel : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </label>
           <label className="grid gap-1 text-sm font-semibold text-foreground">
             Award type
-            <select
-              aria-label="Award type"
-              value={kind}
-              onChange={(event) => setKind(event.target.value as typeof kind)}
-              className="min-h-10 rounded-lg border border-border bg-background px-3"
-            >
-              <option value="points">Points</option>
-              <option value="badge">Badge</option>
-              <option value="prize">Prize</option>
-            </select>
+            <Select value={kind} onValueChange={(value) => setKind(value as typeof kind)}>
+              <SelectTrigger aria-label="Award type" className="min-h-10 w-full min-w-0 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="points">Points</SelectItem>
+                <SelectItem value="badge">Badge</SelectItem>
+                <SelectItem value="prize">Prize</SelectItem>
+              </SelectContent>
+            </Select>
           </label>
           <label className="grid gap-1 text-sm font-semibold text-foreground sm:col-span-2">
             Award label
@@ -839,9 +847,14 @@ function ResponseReviewSection({
       <CardBody>
         <div className="flex flex-wrap gap-2">
           <label className="sr-only" htmlFor="review-game-session">Game session</label>
-          <select id="review-game-session" value={selected} onChange={(event) => onSessionChange(event.target.value)} className="min-h-10 rounded-lg border border-border bg-background px-3">
-            {sessions.map((session) => <option key={session.sessionId} value={session.sessionId}>{session.gameTitle} · {session.status}</option>)}
-          </select>
+          <Select value={selected} onValueChange={onSessionChange}>
+            <SelectTrigger id="review-game-session" className="min-h-10 w-auto min-w-64 bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {sessions.map((session) => <SelectItem key={session.sessionId} value={session.sessionId}>{session.gameTitle} · {session.status}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Button type="button" variant="outline" disabled={!selected || busy} onClick={() => onLoad(selected)}>Load responses</Button>
         </div>
         <div className="mt-4 space-y-3">

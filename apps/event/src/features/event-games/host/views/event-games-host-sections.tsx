@@ -14,6 +14,7 @@ import type {
 import { portalUrlFor } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { StatusBadge } from "@prism/ui/components/status-badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
 import { EVENT_GAME_OPTIONS, eventGameModeLabel } from "../model/event-game-catalog";
 import { resolveGuestGameLobbyUrl } from "../model/guest-lobby-url";
@@ -111,9 +112,14 @@ export function EventGameDraftCard({
         <form className="grid gap-4 md:grid-cols-2" onSubmit={submit}>
           <label className="grid gap-1.5 text-sm font-semibold text-foreground">
             Game template
-            <select aria-label="Game template" value={kind} onChange={(event) => setKind(event.target.value as PrismCreateEventGameInput["kind"])} className="min-h-10 rounded-lg border border-border bg-background px-3">
-              {EVENT_GAME_OPTIONS.map((option) => <option key={option.kind} value={option.kind}>{option.label} — {eventGameModeLabel(option.entryMode)}</option>)}
-            </select>
+            <Select value={kind} onValueChange={(value) => setKind(value as PrismCreateEventGameInput["kind"])}>
+              <SelectTrigger aria-label="Game template" className="min-h-10 w-full min-w-0 bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EVENT_GAME_OPTIONS.map((option) => <SelectItem key={option.kind} value={option.kind}>{option.label} — {eventGameModeLabel(option.entryMode)}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </label>
           <label className="grid gap-1.5 text-sm font-semibold text-foreground">
             Game title
@@ -234,9 +240,14 @@ export function GuestGameLobbyCard({
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label htmlFor="event-game-lobby-theme" className="mb-1 block text-sm font-semibold text-foreground">Guest lobby theme</label>
-            <select id="event-game-lobby-theme" aria-label="Guest lobby theme" value={theme} onChange={(event) => setTheme(event.target.value as PrismEventGameBrandTheme)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground">
-              {Object.entries(LOBBY_THEME_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
+            <Select value={theme} onValueChange={(value) => setTheme(value as PrismEventGameBrandTheme)}>
+              <SelectTrigger id="event-game-lobby-theme" aria-label="Guest lobby theme" className="w-full min-w-0 bg-background text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(LOBBY_THEME_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <p className="mt-1 text-xs text-muted-foreground">Choose an event-wide theme, then adjust its colors.</p>
           </div>
           <label className="grid gap-1 text-sm font-semibold text-foreground" htmlFor="event-game-lobby-primary-color">

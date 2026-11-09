@@ -48,7 +48,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
     await test.step('PMCM prepares the immutable conforme; client signs; PMCM countersigns to create the event', async () => {
       await pmcm.page.goto(`${origins.event}/dashboard/inquiries`);
-      await pmcm.page.getByRole('button', { name: 'Onboarding', exact: true }).click();
+      await pmcm.page.getByRole('radio', { name: 'Onboarding', exact: true }).click();
       await pmcm.page.getByRole('article', { name: `Onboarding ${inquiry.eventName}`, exact: true }).getByRole('button', { name: 'Upload signed conforme', exact: true }).click();
       const modal = pmcm.page.getByRole('dialog', { name: 'Upload signed conforme', exact: true });
       await modal.getByRole('button', { name: 'Prepare in-app conforme', exact: true }).click();
@@ -300,7 +300,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await logistics.getByRole('button', { name: 'Record logistics completion', exact: true }).click();
       await expect(logistics.getByText(/revision 1/)).toBeVisible();
 
-      await pmcm.page.getByRole('tab', { name: /^4\. Deliverables/ }).click();
+      await pmcm.page.getByRole('tab', { name: /^Deliverables/ }).click();
       const deliverables = pmcm.page.getByRole('region', { name: 'Post-event deliverables', exact: true });
       const markComplete = deliverables.getByRole('button', { name: 'Mark complete', exact: true });
       await expect(markComplete).toHaveCount(2);
@@ -332,7 +332,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
       await expect.poll(async () => (await api('GET', `/events/${eventId}/close-gates`)).missingKeys).toEqual([]);
       await pmcm.page.goto(path('closure'));
-      await pmcm.page.getByRole('tab', { name: '5. Archive', exact: true }).click();
+      await pmcm.page.getByRole('tab', { name: 'Archive', exact: true }).click();
       await expect(pmcm.page.getByText('All close gates passed', { exact: true })).toBeVisible();
       await expect(pmcm.page.getByPlaceholder('Required PMCM override reason if gates are not complete')).toHaveCount(0);
       await pmcm.page.getByRole('button', { name: 'Archive event', exact: true }).click();

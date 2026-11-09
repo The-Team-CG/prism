@@ -1,5 +1,6 @@
 "use client";
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
@@ -226,9 +227,14 @@ function ScheduleSegmentForm({ day, busy, onCreate }: {
       <Field label="Starts"><DateTimePicker value={start} onValueChange={(next) => setStart(next)} required /></Field>
       <Field label="Ends"><DateTimePicker value={end} onValueChange={(next) => setEnd(next)} required /></Field>
       <Field label="Owner role">
-        <select value={ownerRole} onChange={(event) => setOwnerRole(event.target.value as CoordinatorRole)} className={inputClass}>
-          {COORDINATOR_ROLES.map((role) => <option key={role} value={role}>{role}</option>)}
-        </select>
+        <Select value={ownerRole} onValueChange={(value) => setOwnerRole(value as CoordinatorRole)}>
+          <SelectTrigger className="w-full min-w-0 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {COORDINATOR_ROLES.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </Field>
       <div className="flex items-end gap-2">
         <Field label="Location" className="min-w-0 flex-1"><input value={location} onChange={(event) => setLocation(event.target.value)} className={inputClass} /></Field>
@@ -273,24 +279,44 @@ function HandoffForm({ days, assignments, busy, onCreate }: {
   return (
     <form onSubmit={submit} className="grid gap-3 rounded-lg border border-border bg-background p-4 sm:grid-cols-2 xl:grid-cols-5">
       <Field label="Schedule day">
-        <select value={selectedDayId} onChange={(event) => setDayId(event.target.value)} className={inputClass}>
-          {days.map((day) => <option key={day.id} value={day.id}>{day.label || formatDate(day.dayDate)}</option>)}
-        </select>
+        <Select value={selectedDayId} onValueChange={setDayId}>
+          <SelectTrigger className="w-full min-w-0 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {days.map((day) => <SelectItem key={day.id} value={day.id}>{day.label || formatDate(day.dayDate)}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </Field>
       <Field label="Role">
-        <select value={role} onChange={(event) => { setRole(event.target.value as CoordinatorRole); setFromId(""); setToId(""); }} className={inputClass}>
-          {COORDINATOR_ROLES.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
+        <Select value={role} onValueChange={(value) => { setRole(value as CoordinatorRole); setFromId(""); setToId(""); }}>
+          <SelectTrigger className="w-full min-w-0 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {COORDINATOR_ROLES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </Field>
       <Field label="From coordinator">
-        <select required value={selectedFromId} onChange={(event) => setFromId(event.target.value)} className={inputClass}>
-          {candidates.map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.coordinatorName}</option>)}
-        </select>
+        <Select value={selectedFromId} onValueChange={setFromId}>
+          <SelectTrigger className="w-full min-w-0 bg-background" aria-required="true">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {candidates.map((assignment) => <SelectItem key={assignment.id} value={assignment.id}>{assignment.coordinatorName}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </Field>
       <Field label="To coordinator">
-        <select required value={selectedToId} onChange={(event) => setToId(event.target.value)} className={inputClass}>
-          {candidates.filter((assignment) => assignment.id !== selectedFromId).map((assignment) => <option key={assignment.id} value={assignment.id}>{assignment.coordinatorName}</option>)}
-        </select>
+        <Select value={selectedToId} onValueChange={setToId}>
+          <SelectTrigger className="w-full min-w-0 bg-background" aria-required="true">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {candidates.filter((assignment) => assignment.id !== selectedFromId).map((assignment) => <SelectItem key={assignment.id} value={assignment.id}>{assignment.coordinatorName}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </Field>
       <Field label="Outstanding items (one per line)" className="sm:col-span-2 xl:col-span-4">
         <textarea rows={2} value={items} onChange={(event) => setItems(event.target.value)} className={inputClass} />
@@ -324,9 +350,14 @@ function EodReportForm({ days, reports, busy, onSubmit }: {
   return (
     <div className="space-y-3">
       <Field label="Schedule day">
-        <select value={selectedDayId} onChange={(event) => setDayId(event.target.value)} className={inputClass}>
-          {reportableDays.map((day) => <option key={day.id} value={day.id}>{day.label || formatDate(day.dayDate)}</option>)}
-        </select>
+        <Select value={selectedDayId} onValueChange={setDayId}>
+          <SelectTrigger className="w-full min-w-0 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {reportableDays.map((day) => <SelectItem key={day.id} value={day.id}>{day.label || formatDate(day.dayDate)}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </Field>
       {existingReport ? <p className="text-sm text-muted-foreground">Your report is saved. Changes here will update your report.</p> : null}
       <EodReportFields
