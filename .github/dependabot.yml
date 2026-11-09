@@ -1,11 +1,126 @@
-﻿version: 2
+# Dependency updates for the monorepo, set up like AlphaCI's.
+#
+# npm: one root lockfile covers every workspace (apps/*, packages/*). Updates
+# arrive weekly in grouped pull requests, one per family, majors included.
+#
+# docker: the Node base image in the root Dockerfile. A Node major also moves
+# CI's node-version, .nvmrc, .node-version, the root engines and @types/node,
+# so finish such a pull request by hand before merging it, and close odd majors
+# (not LTS). The same goes for an @types/node major in the npm groups.
+#
+# A version must be public for 3 days before Dependabot proposes it, so a
+# compromised or quickly yanked release is less likely to reach a pull request.
+#
+# Keep this file plain UTF-8 without a byte-order mark: the previous copy had
+# one and Dependabot never opened a pull request from it.
+version: 2
 updates:
   - package-ecosystem: npm
-    directory: "/"
+    directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+      day: monday
+      time: '06:00'
+      timezone: Asia/Manila
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 8
+    commit-message:
+      prefix: chore
+      prefix-development: chore
+      include: scope
+    ignore:
+      # `typescript` stays on 6: Nest's build and `next build` use its programmatic
+      # API. TypeScript 7 is the `@typescript/native` alias, used for typechecking,
+      # and gets its updates under that name. Lift this when 7 ships the API.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
+    groups:
+      nestjs:
+        patterns:
+          - '@nestjs/*'
+          - reflect-metadata
+          - rxjs
+          - class-transformer
+          - class-validator
+      prisma:
+        patterns:
+          - prisma
+          - '@prisma/*'
+          - pg
+          - '@types/pg'
+      next-and-react:
+        patterns:
+          - next
+          - next-themes
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
+          - eslint-plugin-react-hooks
+          - '@tanstack/react-query'
+      ui:
+        patterns:
+          - '@radix-ui/*'
+          - tailwindcss
+          - '@tailwindcss/*'
+          - tailwind-merge
+          - tw-animate-css
+          - class-variance-authority
+          - clsx
+          - cmdk
+          - lucide-react
+          - sonner
+          - react-day-picker
+      typescript-and-lint:
+        patterns:
+          - typescript
+          - '@typescript/native'
+          - typescript-eslint
+          - eslint
+          - 'eslint-*'
+          - oxlint
+          - 'oxlint-*'
+      test-tooling:
+        patterns:
+          - vitest
+          - '@vitest/*'
+          - '@playwright/test'
+          - '@testing-library/*'
+          - jsdom
+      build-tooling:
+        patterns:
+          - turbo
+          - concurrently
+          - bun
+          - supabase
+      production:
+        dependency-type: production
+      development:
+        dependency-type: development
+
   - package-ecosystem: github-actions
-    directory: "/"
+    directories:
+      - /
+      - /.github/actions/*
     schedule:
-      interval: weekly
+      interval: monthly
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: ci
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 3
+    commit-message:
+      prefix: build
+    groups:
+      base-images:
+        patterns: ['*']
