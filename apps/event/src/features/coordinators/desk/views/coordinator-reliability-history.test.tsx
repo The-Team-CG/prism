@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CoordinatorReliabilityHistory } from "./coordinator-reliability-history";
+import { chooseSelectOption, openSelect } from "../../../../test-utils/radix-select";
 
 afterEach(cleanup);
 
@@ -28,7 +29,7 @@ describe("CoordinatorReliabilityHistory", () => {
       />,
     );
 
-    fireEvent.change(screen.getByRole("combobox", { name: "Coordinator reliability profile" }), { target: { value: "coord_1" } });
+    chooseSelectOption(screen.getByRole("combobox", { name: "Coordinator reliability profile" }), "Jordan Lee");
     fireEvent.click(screen.getByRole("button", { name: "Load history" }));
 
     expect(await screen.findByText(entry.note)).toBeTruthy();
@@ -46,6 +47,7 @@ describe("CoordinatorReliabilityHistory", () => {
       />,
     );
 
+    openSelect(screen.getByRole("combobox", { name: "Coordinator reliability profile" }));
     expect(screen.getByRole("option", { name: "Past Coordinator" })).toBeTruthy();
   });
 });

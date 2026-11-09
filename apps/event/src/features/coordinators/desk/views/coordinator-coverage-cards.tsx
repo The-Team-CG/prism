@@ -13,8 +13,9 @@ import {
   type PrismCoordinatorRoleRequirement,
 } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
-import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 
 export type CoverageRequirement = PrismCoordinatorRoleRequirement | PrismCoordinatorCoverage;
 
@@ -70,9 +71,15 @@ export function StaffingSummary({ roleRequirements, assignmentCounts, eventEnded
           <h2 className="text-sm font-bold text-foreground">Staffing summary</h2>
         </div>
       </CardHeader>
-      <CardBody>
+      <CardContent>
         {roleRequirements.length === 0 ? (
-          <EmptyState icon={UsersRound} title="No role requirements" description="Add role requirements to start tracking staffing coverage." />
+          <Empty className="border-0 p-4">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><UsersRound aria-hidden /></EmptyMedia>
+              <EmptyTitle>No role requirements</EmptyTitle>
+              <EmptyDescription>Add role requirements to start tracking staffing coverage.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {roleRequirements.map((requirement) => (
@@ -80,7 +87,7 @@ export function StaffingSummary({ roleRequirements, assignmentCounts, eventEnded
             ))}
           </div>
         )}
-      </CardBody>
+      </CardContent>
     </Card>
   );
 }
@@ -169,14 +176,18 @@ export function CoverageTargetCard({ busy, roleOptions, editing, onSave, onClear
           {editing ? <Button type="button" size="sm" variant="ghost" onClick={onClearEdit}>New target</Button> : null}
         </div>
       </CardHeader>
-      <CardBody className="space-y-3">
+      <CardContent className="space-y-3">
         <form className="space-y-3" onSubmit={(event) => void submit(event)}>
           <label className={LABEL_CLASS}>
             Role
-            <select aria-label="Role" required value={role} onChange={(event) => setRole(event.target.value)} className={INPUT_CLASS}>
-              <option value="">Choose a coordinator role</option>
-              {roleOptions.map((option) => <option key={option} value={option}>{option}</option>)}
-            </select>
+            <Select required value={role} onValueChange={setRole}>
+              <SelectTrigger aria-label="Role" className="w-full min-w-0">
+                <SelectValue placeholder="Choose a coordinator role" />
+              </SelectTrigger>
+              <SelectContent>
+                {roleOptions.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </label>
           {editing && !canonicalCoordinatorRole(editing.role) && (
             <p role="status" className="text-xs text-muted-foreground">
@@ -194,7 +205,7 @@ export function CoverageTargetCard({ busy, roleOptions, editing, onSave, onClear
           <Button type="submit" size="sm" disabled={busy || !role.trim()}>Save target</Button>
         </form>
         {message && <p role="status" className="text-xs text-muted-foreground">{message}</p>}
-      </CardBody>
+      </CardContent>
     </Card>
   );
 }
