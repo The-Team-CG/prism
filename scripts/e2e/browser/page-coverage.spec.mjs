@@ -144,8 +144,10 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
         await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeEnabled();
         await page.locator('#supplier-page-size').focus();
         await page.keyboard.press('Enter');
-        await expect(page.getByRole('option', { name: '50', exact: true })).toBeVisible();
-        await page.keyboard.type('50');
+        // Radix moves focus onto the current option after the list opens; keys sent before that are lost.
+        await expect(page.getByRole('option', { name: '25', exact: true })).toBeFocused();
+        await page.keyboard.press('ArrowDown');
+        await expect(page.getByRole('option', { name: '50', exact: true })).toBeFocused();
         await page.keyboard.press('Enter');
         await expect(page.locator('#supplier-page-size')).toHaveText('50');
         await expect(rows).toHaveCount(26);
