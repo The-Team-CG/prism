@@ -21,14 +21,16 @@ describe("readReviewRoom", () => {
     expect(room.objects.map((object) => object.name)).toEqual(["Table 1", "Stage", "No id"]);
   });
 
-  it("draws plans saved in the older canvas shape, reading their box from position and size", () => {
+  it("draws a submitted plan's canvas objects at their saved box", () => {
     const room = readReviewRoom({
       width: 1200,
       height: 800,
-      objects: [{ id: "coverage-table", kind: "table", position: { x: 100, y: 100 }, size: { width: 80, height: 80 }, rotation: 0, zIndex: 1 }],
+      objects: [
+        { id: "coverage-table", name: "Table", kind: "ellipse", category: "furniture", x: 100, y: 100, w: 80, h: 80, rotation: 0, fill: "#FFFFFF", stroke: "#000000", strokeWidth: 1, locked: false, hidden: false },
+      ],
     });
 
-    expect(room.objects).toMatchObject([{ id: "coverage-table", x: 100, y: 100, w: 80, h: 80 }]);
+    expect(room.objects).toMatchObject([{ id: "coverage-table", name: "Table", kind: "ellipse", x: 100, y: 100, w: 80, h: 80 }]);
   });
 
   it("falls back to the objects' extent, then to a default room, when the plan carries no size", () => {
