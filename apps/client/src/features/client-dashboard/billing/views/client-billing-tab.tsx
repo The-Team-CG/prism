@@ -5,6 +5,7 @@ import { CheckCircle2, FileText, MessageSquareText, ReceiptText, WalletCards } f
 import { BILLING_DISCREPANCY_SEVERITIES, BILLING_DISCREPANCY_SEVERITY_LABELS, type PrismBillingStatement, type PrismClientBillingDispute, type PrismPaymentMilestone } from "@prism/types";
 import Link from "next/link";
 import { Button } from "@prism/ui/components/button";
+import { Card } from "@prism/ui/components/card";
 import { Field, FieldLabel } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
@@ -69,7 +70,7 @@ export function ClientBillingTab({
           action={<Button asChild variant="outline" size="sm"><Link href={messagesHref}>Message PMCM about billing</Link></Button>}
         />
       ) : (
-        <section aria-labelledby="client-payment-schedule" className="overflow-hidden rounded-lg border border-border bg-card">
+        <Card role="region" aria-labelledby="client-payment-schedule" className="gap-0 overflow-hidden py-0">
           <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <h2 id="client-payment-schedule" className="flex items-center gap-2 text-sm font-semibold text-foreground">
               Payment schedule <span className="font-normal tabular-nums text-muted-foreground">{activePayments.length}</span>
@@ -80,7 +81,7 @@ export function ClientBillingTab({
               <PaymentRow key={payment.id} payment={payment} todayKey={todayKey} onReceipt={(record) => downloadReceipt(record, payment.label)} />
             ))}
           </ul>
-        </section>
+        </Card>
       )}
 
       {billing && eventId ? (
@@ -88,7 +89,8 @@ export function ClientBillingTab({
       ) : null}
 
       {historicalPayments.length > 0 ? (
-        <details className="group overflow-hidden rounded-lg border border-border bg-card">
+        <Card className="gap-0 overflow-hidden py-0">
+          <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-foreground">
             Earlier statement payments <span className="font-normal tabular-nums text-muted-foreground">{historicalPayments.length}</span>
           </summary>
@@ -98,7 +100,8 @@ export function ClientBillingTab({
               <PaymentRow key={payment.id} payment={payment} todayKey={todayKey} onReceipt={(record) => downloadReceipt(record, payment.label)} superseded />
             ))}
           </ul>
-        </details>
+          </details>
+        </Card>
       ) : null}
     </div>
   );
@@ -174,7 +177,7 @@ function eventBillingFigures(summary: { totalAmount: number; totalPaid: number; 
 
 function StatementBar({ billing, messagesHref, statementDownload }: { billing: PrismBillingStatement; messagesHref: string; statementDownload: ReturnType<typeof useClientStatementDownload> }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card px-4 py-3">
+    <Card className="flex-row flex-wrap items-center justify-between gap-3 px-4 py-3">
       <div className="flex min-w-0 items-center gap-3">
         <span aria-hidden className="grid size-8 place-items-center rounded-md bg-muted text-muted-foreground"><FileText className="size-4" /></span>
         <div className="min-w-0">
@@ -190,7 +193,7 @@ function StatementBar({ billing, messagesHref, statementDownload }: { billing: P
           </Button>
         ) : null}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -203,7 +206,7 @@ const WHOLE_STATEMENT = "whole-statement";
 function BillingDisputes({ billing, activePayments, disputeForm }:{ billing: PrismBillingStatement; activePayments: PrismPaymentMilestone[]; disputeForm: DisputeForm }) {
   const canSubmit = !disputeForm.submitting && Boolean(disputeForm.amount) && Number(disputeForm.amount) <= billing.totalAmount && Boolean(disputeForm.reason.trim());
   return (
-    <section aria-labelledby="client-billing-disputes" className="overflow-hidden rounded-lg border border-border bg-card">
+    <Card role="region" aria-labelledby="client-billing-disputes" className="gap-0 overflow-hidden py-0">
       <details className="group">
         <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-4 py-3">
           <span>
@@ -269,6 +272,6 @@ function BillingDisputes({ billing, activePayments, disputeForm }:{ billing: Pri
           ))}
         </ul>
       ) : null}
-    </section>
+    </Card>
   );
 }

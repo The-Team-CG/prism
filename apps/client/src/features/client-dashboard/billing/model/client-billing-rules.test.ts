@@ -23,7 +23,7 @@ describe("client-billing-rules", () => {
       ["Summit", 300],
       ["Gala", 50],
     ]);
-    expect(titles("billing-invoices")).toEqual(["Statement B-1"]);
+    expect(titles("billing-statements")).toEqual(["Statement B-1"]);
   });
 
   it("reconciles paid and remaining across partially paid milestones", () => {

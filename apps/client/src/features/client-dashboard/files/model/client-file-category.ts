@@ -11,14 +11,9 @@ const FILE_VIEW_PATTERNS: Partial<Record<FileView, RegExp>> = {
   "files-event-layouts": /layout|floor/i,
 };
 
-export type ClientFileFilter = {
-  documents: PrismDocument[];
-  /** False when the records carry no field that can answer this route's question. */
-  filtered: boolean;
-};
-
-export function filterClientFiles(documents: PrismDocument[], view: ClientPortalView | undefined): ClientFileFilter {
+/** All files, or only the records a named file route is about. */
+export function filterClientFiles(documents: PrismDocument[], view: ClientPortalView | undefined): { documents: PrismDocument[] } {
   const pattern = view ? FILE_VIEW_PATTERNS[view as FileView] : undefined;
-  if (!pattern) return { documents, filtered: view === "files-all" || !view?.startsWith("files-") };
-  return { documents: documents.filter((document) => pattern.test(document.type) || pattern.test(document.fileName)), filtered: true };
+  if (!pattern) return { documents };
+  return { documents: documents.filter((document) => pattern.test(document.type) || pattern.test(document.fileName)) };
 }

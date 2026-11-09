@@ -46,8 +46,7 @@ type PortalBillingSource = {
 type PortalBillingPaymentSource = Pick<PrismPaymentMilestone, "id" | "eventId" | "label" | "amount" | "amountPaid" | "remainingBalance" | "dueDate" | "status" | "supersededAt" | "history">;
 
 const PORTAL_BILLING_VIEWS_WITH_ROWS = new Set<string>([
-  "billing-quotations",
-  "billing-invoices",
+  "billing-statements",
   "billing-payment-schedule",
   "dashboard-payment-reminders",
   "billing-receipts",
@@ -64,7 +63,7 @@ export function portalBillingRows(view: string | undefined, source: PortalBillin
   const active = source.payments.filter((payment) => eventName.has(payment.eventId) && !payment.supersededAt);
   const byDueDate = (a: { date: string | null }, b: { date: string | null }) => (a.date ?? "").localeCompare(b.date ?? "");
 
-  if (view === "billing-quotations" || view === "billing-invoices") {
+  if (view === "billing-statements") {
     return source.statements
       .filter((statement) => eventName.has(statement.eventId))
       .map((statement) => ({
