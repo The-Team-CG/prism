@@ -6,13 +6,14 @@ import {
 
 /** Pure supplier directory rules. */
 
+/** Category slugs as the Prism supplier-category seeds write them. */
 const SUPPLIER_VIEW_CATEGORY_SLUGS: Record<string, string> = {
   venues: "venues",
-  catering: "food-and-beverages",
-  "photography-videography": "documentation",
-  "lights-sounds": "technicals",
+  catering: "catering",
+  "photography-videography": "photo-and-video",
+  "lights-sounds": "lights-and-sound",
   decorations: "decorations",
-  transportation: "logistics",
+  transportation: "transportation",
 };
 
 const KNOWN_SUPPLIER_VIEWS = new Set([
