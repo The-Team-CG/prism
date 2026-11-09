@@ -8,7 +8,7 @@ export const name = "Floorplans, files, compliance, change control";
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const PDF = (tag) => Buffer.from(`%PDF-1.4\n% e2e ${tag} ${randomUUID()}\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n`);
-const table = (id = "t1") => ({ id, kind: "table", position: { x: 100, y: 100 }, size: { width: 80, height: 80 }, rotation: 0, zIndex: 1 });
+const table = (id = "t1") => ({ id, kind: "ellipse", name: "Table", category: "furniture", x: 100, y: 100, w: 80, h: 80, rotation: 0, fill: "#FFFFFF", stroke: "#000000", strokeWidth: 1, locked: false, hidden: false });
 const pdfType = "application/pdf";
 
 /** Posts raw bytes (the shared helper only sends JSON). Returns the HTTP status. */
@@ -247,7 +247,7 @@ export async function run(ctx) {
   await step("PMCM revises and resubmits; the old snapshot hash can no longer be approved", async () => {
     if (!s.d1) blocked("no revision request");
     const plan = expectStatus(await http("GET", `/plans/${s.d1.floorPlanId}`, { token: s.admin }), 200);
-    expectStatus(await http("PUT", `/plans/${s.d1.floorPlanId}`, { token: s.admin, body: { expectedUpdatedAt: plan.updatedAt, objects: [...plan.objects, { ...table("reg-desk"), kind: "reg-desk", position: { x: 400, y: 50 } }] } }), 200);
+    expectStatus(await http("PUT", `/plans/${s.d1.floorPlanId}`, { token: s.admin, body: { expectedUpdatedAt: plan.updatedAt, objects: [...plan.objects, { ...table("reg-desk"), kind: "rect", name: "Registration desk", category: "registration", x: 400, y: 50 }] } }), 200);
     expectStatus(await http("POST", `${base()}/floorplans/${s.d1.id}/submit`, { token: s.admin }), 200);
     const review = expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/client-review`, { token: s.client }), 200);
     expect(review.snapshotHash !== s.hash1, "resubmitted snapshot has the same hash as the first one");

@@ -5,9 +5,10 @@ import { ArrowRight, MapPinned, MessageSquareText, Send } from "lucide-react";
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
 import { Button } from "@prism/ui/components/button";
+import { Card } from "@prism/ui/components/card";
 import { Input } from "@prism/ui/components/input";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { ClientListEmpty } from "../../../shared/client-list-ui";
 import { FieldGroup, LayoutPreview, formatStatusLabel } from "../../../workspace/shared";
 import type { PreferenceForm } from "../../../workspace/shared";
 import {
@@ -33,7 +34,7 @@ export function OfficialFloorPlanCard({
   onOpenEditor: (draft: PrismFloorPlanDraft, readOnly: boolean) => void;
 }) {
   return (
-    <section aria-labelledby="client-official-floorplan" className="rounded-2xl border border-border bg-card shadow-sm">
+    <Card role="region" aria-labelledby="client-official-floorplan" className="gap-0 overflow-hidden py-0">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-5">
         <div className="min-w-0">
           <h2 id="client-official-floorplan" className="text-xl font-black text-foreground">Official floorplan</h2>
@@ -50,7 +51,7 @@ export function OfficialFloorPlanCard({
       <div className="p-6">
         <LayoutPreview project={officialProject} />
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -95,7 +96,7 @@ export function FloorPlanDraftPanel({
   onOpenEditor: (draft: PrismFloorPlanDraft, readOnly: boolean) => void;
 }) {
   if (!activeDraft) {
-    return <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start from a saved layout template or send guided notes below." />;
+    return <ClientListEmpty icon={MapPinned} title="No floor plan draft yet" description="Start from a saved layout template or send guided notes below." />;
   }
 
   const readOnly = approved || isOfficial || !canEditClientFloorPlanPreference(activeDraft);
@@ -128,7 +129,7 @@ export function FloorPlanRevisionCommentCard({ draft, event }: { draft?: PrismFl
   const submittedComment = floorPlanRevisionComment(draft);
   if (draft?.status === "revision_requested" || (draft?.status === "in_review" && !editable && !submittedComment)) {
     return (
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <Card className="gap-0 py-0">
         <header className="border-b border-border px-6 py-4">
           <p className="text-sm font-bold text-foreground">Floorplan review</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{floorPlanReviewHeadline(draft)}</p>
@@ -146,7 +147,7 @@ export function FloorPlanRevisionCommentCard({ draft, event }: { draft?: PrismFl
             <p className="text-sm text-muted-foreground">PMCM has not submitted a plan for your review yet.</p>
           )}
         </div>
-      </div>
+      </Card>
     );
   }
   return null;
@@ -209,7 +210,7 @@ export function GuidedLayoutNotes({
   if (approved) return null;
   if (!canEditClientFloorPlanPreference(preferenceDraft)) {
     return (
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <Card className="gap-0 py-0">
         <header className="border-b border-border px-6 py-4">
           <p className="text-sm font-bold text-foreground">Layout preference submitted</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
@@ -220,12 +221,12 @@ export function GuidedLayoutNotes({
           <p className="font-semibold text-foreground">{preferenceDraft?.name}</p>
           {preferenceDraft?.revisionComment ? <p className="mt-2">PMCM note: {preferenceDraft.revisionComment}</p> : null}
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm">
+    <Card className="gap-0 py-0">
       <header className="border-b border-border px-6 py-4">
         <p className="text-sm font-bold text-foreground">
           {preferenceDraft ? "Revise layout notes" : "Guided layout notes"}
@@ -276,6 +277,6 @@ export function GuidedLayoutNotes({
           <Send className="size-4" /> {preferenceDraft ? "Resubmit layout notes" : "Save layout notes"}
         </Button>
       </form>
-    </div>
+    </Card>
   );
 }

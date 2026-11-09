@@ -20,13 +20,32 @@ export type ClientCalendarView =
   | "calendar-payment-due-dates"
   | "calendar-approval-deadlines";
 
-const VIEW_KINDS: Record<ClientCalendarView, ClientCalendarItemKind[]> = {
-  "calendar-event-dates": ["event"],
-  "calendar-meetings": ["visit"],
-  "calendar-deadlines": ["payment"],
-  "calendar-payment-due-dates": ["payment"],
-  "calendar-approval-deadlines": ["approval"],
+/**
+ * Due dates lists the payment dates still open; payment due dates is the whole schedule, paid milestones
+ * included. Both are payment dates, so the open-only rule is what separates them.
+ */
+const VIEW_FILTERS: Record<ClientCalendarView, (item: ClientCalendarItem) => boolean> = {
+  "calendar-event-dates": (item) => item.kind === "event",
+  "calendar-meetings": (item) => item.kind === "visit",
+  "calendar-deadlines": (item) => item.kind === "payment" && item.status !== "paid",
+  "calendar-payment-due-dates": (item) => item.kind === "payment",
+  "calendar-approval-deadlines": (item) => item.kind === "approval",
 };
+
+const VIEW_EMPTY_COPY: Record<ClientCalendarView, { title: string; description: string }> = {
+  "calendar-event-dates": { title: "No event dates yet", description: "Event dates appear here once PMCM confirms the date of each event." },
+  "calendar-meetings": { title: "No site visits scheduled", description: "Ocular visits PMCM schedules with you appear here." },
+  "calendar-deadlines": { title: "No open due dates", description: "Payments that are still due appear here with their date." },
+  "calendar-payment-due-dates": { title: "No payment due dates yet", description: "Your payment schedule appears here once PMCM posts it." },
+  "calendar-approval-deadlines": { title: "No layout approvals yet", description: "The day each event layout is approved appears here." },
+};
+
+export const ALL_CALENDAR_EMPTY_COPY = { title: "Nothing scheduled yet", description: "Event dates, payment due dates, site visits and layout approvals appear here once they're set." };
+
+/** Copy for an empty calendar view, so each tab says what would appear in it. */
+export function clientCalendarEmptyCopy(view?: string): { title: string; description: string } {
+  return view && view in VIEW_EMPTY_COPY ? VIEW_EMPTY_COPY[view as ClientCalendarView] : ALL_CALENDAR_EMPTY_COPY;
+}
 
 /** Calendar dates keep their day; timestamps land on their Philippine date. */
 function isoDay(value: string) {
@@ -73,8 +92,8 @@ function layoutApprovals(state: CalendarState, byId: Map<string, CalendarEvent>)
 export function buildClientCalendarItems(state: CalendarState, events: CalendarEvent[], view?: string): ClientCalendarItem[] {
   const byId = new Map(events.map((event) => [event.id, event]));
   const items = [...eventDates(events), ...paymentDates(state, byId), ...siteVisits(state, byId), ...layoutApprovals(state, byId)];
-  const kinds = view && view in VIEW_KINDS ? VIEW_KINDS[view as ClientCalendarView] : null;
+  const matches = view && view in VIEW_FILTERS ? VIEW_FILTERS[view as ClientCalendarView] : () => true;
   return items
-    .filter((item) => !kinds || kinds.includes(item.kind))
+    .filter(matches)
     .sort((a, b) => a.date.localeCompare(b.date));
 }

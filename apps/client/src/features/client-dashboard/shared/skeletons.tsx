@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Card } from "@prism/ui/components/card";
 import { Skeleton } from "@prism/ui/components/skeleton";
 
 export type DashboardSkeletonVariant =
@@ -17,12 +18,12 @@ export function SkeletonLine({ className }: { className?: string }) {
 
 export function SkeletonCard({ children, className }: { children?: ReactNode; className?: string }) {
   return (
-    <div
-      className={`relative overflow-hidden rounded-xl border border-border/80 bg-card/95 p-4 shadow-sm ring-1 ring-black/5 sm:p-5 ${className ?? ""}`}
+    <Card
+      className={`relative gap-0 overflow-hidden p-4 sm:p-5 ${className ?? ""}`}
     >
       <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-primary/60 via-transparent to-transparent" />
       {children}
-    </div>
+    </Card>
   );
 }
 
@@ -273,7 +274,7 @@ export function DashboardRightRailSkeleton() {
 export function DashboardSessionSkeleton() {
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
-      <section className="w-full max-w-sm rounded-xl border border-border/80 bg-card/95 p-5 shadow-sm ring-1 ring-black/5">
+      <Card className="w-full max-w-sm gap-0 p-5">
         <div className="flex items-center gap-3">
           <SkeletonLine className="size-11 rounded-md" />
           <div className="min-w-0 flex-1">
@@ -283,7 +284,7 @@ export function DashboardSessionSkeleton() {
         </div>
         <SkeletonLine className="mt-5 h-3 w-full rounded-md" />
         <SkeletonLine className="mt-2 h-3 w-4/5 rounded-md" />
-      </section>
+      </Card>
     </main>
   );
 }

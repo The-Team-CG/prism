@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import { Check, MessageSquareText } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
+import { Field, FieldLabel } from "@prism/ui/components/field";
+import { RadioGroup, RadioGroupItem } from "@prism/ui/components/radio-group";
+import { Textarea } from "@prism/ui/components/textarea";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
 import { BUDGET_EXPECTATION_LABELS, type PrismClientReviewItem } from "@prism/types";
@@ -13,13 +16,25 @@ type BudgetExpectation = keyof typeof BUDGET_EXPECTATION_LABELS;
 
 /** FR-09 Budget vs Expectation Check, shown before a styling option is sent back. */
 function BudgetExpectationCheck({ budgetRange, value, onChange }: { budgetRange?: string; value: BudgetExpectation | ""; onChange: (value: BudgetExpectation) => void }) {
+  const keys = Object.keys(BUDGET_EXPECTATION_LABELS) as BudgetExpectation[];
   return (
-    <fieldset className="mb-2 rounded-lg border border-border p-2 text-xs">
-      <legend className="px-1 font-semibold text-foreground">If you ask for changes, how should PMCM handle the budget?</legend>
-      {budgetRange ? <p className="mb-1 text-muted-foreground">This option is priced at {budgetRange}.</p> : null}
-      {(Object.keys(BUDGET_EXPECTATION_LABELS) as BudgetExpectation[]).map((key) => (
-        <label key={key} className="flex items-center gap-2 py-0.5"><input type="radio" name="budget-expectation" checked={value === key} onChange={() => onChange(key)} />{BUDGET_EXPECTATION_LABELS[key]}</label>
-      ))}
+    <fieldset className="space-y-2">
+      <legend className="text-sm font-semibold text-foreground">If you ask for changes, how should PMCM handle the budget?</legend>
+      {budgetRange ? <p className="text-xs text-muted-foreground">This option is priced at {budgetRange}.</p> : null}
+      <RadioGroup
+        value={value}
+        onValueChange={(next) => {
+          const key = keys.find((candidate) => candidate === next);
+          if (key) onChange(key);
+        }}
+      >
+        {keys.map((key) => (
+          <div key={key} className="flex items-center gap-2">
+            <RadioGroupItem id={`budget-expectation-${key}`} value={key} />
+            <FieldLabel htmlFor={`budget-expectation-${key}`} className="font-normal">{BUDGET_EXPECTATION_LABELS[key]}</FieldLabel>
+          </div>
+        ))}
+      </RadioGroup>
     </fieldset>
   );
 }
@@ -90,7 +105,7 @@ function ReviewItemCard({
 }) {
   const decision = item.clientDecision;
   return (
-    <article className="rounded-xl border border-border bg-muted/20 p-4">
+    <article className="space-y-3 border-t border-border pt-4 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-bold text-foreground">{item.title}</p>
@@ -117,10 +132,11 @@ function ReviewItemDecisionForm({ item, busy, onDecide }: {
   const canRequestRevision = !busy && Boolean(comment.trim()) && (!styling || Boolean(budgetExpectation));
   return (
     <div className="mt-4 space-y-3">
-      <label className="block text-xs font-semibold text-muted-foreground">Note for PMCM (required to request a revision)
-        {styling ? <BudgetExpectationCheck budgetRange={item.budgetRange} value={budgetExpectation} onChange={setBudgetExpectation} /> : null}
-        <textarea value={comment} onChange={(event) => setComment(event.target.value)} maxLength={4000} className="mt-1.5 min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal text-foreground" placeholder="Add a comment or explain what should change." />
-      </label>
+      {styling ? <BudgetExpectationCheck budgetRange={item.budgetRange} value={budgetExpectation} onChange={setBudgetExpectation} /> : null}
+      <Field>
+        <FieldLabel htmlFor={`review-note-${item.id}`}>Note for PMCM (required to request a revision)</FieldLabel>
+        <Textarea id={`review-note-${item.id}`} value={comment} onChange={(event) => setComment(event.target.value)} maxLength={4000} placeholder="Add a comment or explain what should change." />
+      </Field>
       <div className="flex flex-wrap gap-2">
         <Button disabled={busy} onClick={() => void onDecide(item, "approve", comment)} className="rounded-lg font-bold"><Check className="size-4" /> Approve option</Button>
         <Button disabled={!canRequestRevision} variant="outline" onClick={() => void onDecide(item, "request_revision", comment, budgetExpectation || undefined)} className="rounded-lg font-semibold">Request revision</Button>

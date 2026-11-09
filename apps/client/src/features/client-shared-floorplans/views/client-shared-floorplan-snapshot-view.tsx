@@ -1,8 +1,14 @@
 "use client";
 
+import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { PrismDashboardShell } from "@prism/ui";
+import { Button } from "@prism/ui/components/button";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { MapPinned } from "lucide-react";
+import { CLIENT_ACCOUNT_MENU_ITEMS, clientPortalSidebarItems, clientSidebarLinkHref } from "@/features/client-dashboard/workspace/model/client-dashboard-navigation";
 import { useClientSharedFloorplanSnapshotViewModel } from "../view-models/use-client-shared-floorplans-view-model";
 
 const EditorShell = dynamic(
@@ -44,26 +50,56 @@ export function ClientSharedFloorplanSnapshotView({
     );
   }
 
+  // Loading and unavailable snapshots keep the portal frame, so the client can still reach the rest of the portal.
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <main className="px-5 py-8 md:px-10">
-        <div className="mx-auto max-w-4xl">
-          <Link
-            href="/dashboard/shared-floorplans"
-            className="text-sm font-medium text-primary hover:text-primary/80"
-          >
-            Back to shared floorplans
-          </Link>
-          <h1 className="mt-4 text-2xl font-bold">Shared floorplan snapshot</h1>
-          {vm.loading ? (
-            <p role="status" className="mt-4 text-sm text-muted-foreground">Loading floorplan snapshot…</p>
-          ) : vm.error ? (
-            <p role="alert" className="mt-4 rounded-lg border border-border bg-card p-4 text-sm text-destructive">
-              {vm.error}
-            </p>
-          ) : null}
-        </div>
-      </main>
-    </div>
+    <SnapshotFrame session={vm.session} onNavigate={(href) => router.push(href)}>
+      {vm.loading ? (
+        <p role="status" className="text-sm text-muted-foreground">Loading floorplan snapshot…</p>
+      ) : vm.error ? (
+        <Empty className="gap-6 p-8 md:p-8">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <MapPinned aria-hidden />
+            </EmptyMedia>
+            <EmptyTitle className="text-lg font-semibold">This floorplan is not available</EmptyTitle>
+            <EmptyDescription>{vm.error}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button asChild variant="outline"><Link href="/dashboard/shared-floorplans">Back to shared floorplans</Link></Button>
+          </EmptyContent>
+        </Empty>
+      ) : null}
+    </SnapshotFrame>
+  );
+}
+
+function SnapshotFrame({
+  session,
+  onNavigate,
+  children,
+}: {
+  session: ReturnType<typeof useClientSharedFloorplanSnapshotViewModel>["session"];
+  onNavigate: (href: string) => void;
+  children: ReactNode;
+}) {
+  const navItems = clientPortalSidebarItems(2).map((item) => ({ ...item, href: clientSidebarLinkHref(item.id) }));
+  return (
+    <PrismDashboardShell
+      portal="client"
+      productLabel="P.R.I.S.M"
+      roleLabel="Client Portal"
+      title="Shared floorplan"
+      breadcrumb={["Shared floorplans"]}
+      activeItemId="my-events"
+      navItems={navItems}
+      onNavSelect={(id) => {
+        const href = clientSidebarLinkHref(id);
+        if (href) onNavigate(href);
+      }}
+      user={session ? { name: session.name, detail: session.organization, initials: session.name.slice(0, 2).toUpperCase() } : undefined}
+      accountMenuItems={CLIENT_ACCOUNT_MENU_ITEMS}
+    >
+      <div className="mx-auto max-w-3xl">{children}</div>
+    </PrismDashboardShell>
   );
 }

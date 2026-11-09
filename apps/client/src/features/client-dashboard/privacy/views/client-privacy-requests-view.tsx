@@ -2,8 +2,12 @@
 
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
-import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
+import { Card, CardContent, CardHeader, CardTitle } from "@prism/ui/components/card";
+import { Field, FieldDescription, FieldLabel } from "@prism/ui/components/field";
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@prism/ui/components/item";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Textarea } from "@prism/ui/components/textarea";
+import { ClientListEmpty } from "../../shared/client-list-ui";
 import {
   PRIVACY_REQUEST_EXPLANATION,
   PRIVACY_REQUEST_TYPES,
@@ -28,8 +32,10 @@ function PrivacyRequestForm({ vm }: { vm: ClientPrivacyRequestsViewModel }) {
   const selected = PRIVACY_REQUEST_TYPES.find((option) => option.value === vm.requestType);
   return (
     <Card>
-      <CardHeader>Submit a privacy request</CardHeader>
-      <CardBody>
+      <CardHeader>
+        <CardTitle className="text-base">Submit a privacy request</CardTitle>
+      </CardHeader>
+      <CardContent>
         <form
           className="space-y-4"
           onSubmit={(event) => {
@@ -38,35 +44,42 @@ function PrivacyRequestForm({ vm }: { vm: ClientPrivacyRequestsViewModel }) {
           }}
         >
           <p className="text-sm text-muted-foreground">{PRIVACY_REQUEST_EXPLANATION}</p>
-          <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
-            Request type
-            <select
+          <Field>
+            <FieldLabel htmlFor="privacy-request-type">Request type</FieldLabel>
+            <Select
               value={vm.requestType}
-              onChange={(event) => vm.setRequestType(event.target.value as typeof vm.requestType)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-normal text-foreground"
+              onValueChange={(value) => {
+                const option = PRIVACY_REQUEST_TYPES.find((candidate) => candidate.value === value);
+                if (option) vm.setRequestType(option.value);
+              }}
             >
-              {PRIVACY_REQUEST_TYPES.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <span className="block font-normal">{selected?.description}</span>
-          </label>
-          <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
-            Details{vm.requestType === "correction" ? " (required)" : " (optional)"}
-            <textarea
+              <SelectTrigger id="privacy-request-type" className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIVACY_REQUEST_TYPES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selected?.description ? <FieldDescription>{selected.description}</FieldDescription> : null}
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="privacy-request-details">{vm.requestType === "correction" ? "Details (required)" : "Details (optional)"}</FieldLabel>
+            <Textarea
+              id="privacy-request-details"
               value={vm.details}
               onChange={(event) => vm.setDetails(event.target.value)}
               maxLength={1000}
               rows={3}
-              className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-normal text-foreground"
             />
-          </label>
+          </Field>
           {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
-          <Button type="submit" disabled={vm.busy} className="rounded-xl font-bold">
+          <Button type="submit" disabled={vm.busy}>
             {vm.busy ? "Submitting…" : "Submit request"}
           </Button>
         </form>
-      </CardBody>
+      </CardContent>
     </Card>
   );
 }
@@ -76,7 +89,7 @@ function PrivacyRequestList({ vm }: { vm: ClientPrivacyRequestsViewModel }) {
   if (vm.loadError) return <p role="alert" className="text-sm text-destructive">{vm.loadError}</p>;
   if (vm.requests.length === 0) {
     return (
-      <EmptyState
+      <ClientListEmpty
         icon={ShieldCheck}
         title="No privacy requests yet"
         description="Requests you submit appear here with their status and due date."
@@ -85,12 +98,14 @@ function PrivacyRequestList({ vm }: { vm: ClientPrivacyRequestsViewModel }) {
   }
   return (
     <Card>
-      <CardHeader>Your requests</CardHeader>
-      <CardBody>
-        <ul className="divide-y divide-border">
+      <CardHeader>
+        <CardTitle className="text-base">Your requests</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ItemGroup>
           {vm.requests.map((request) => <PrivacyRequestRow key={request.id} request={request} />)}
-        </ul>
-      </CardBody>
+        </ItemGroup>
+      </CardContent>
     </Card>
   );
 }
@@ -98,16 +113,15 @@ function PrivacyRequestList({ vm }: { vm: ClientPrivacyRequestsViewModel }) {
 function PrivacyRequestRow({ request }: { request: PrismOwnPrivacyRequest }) {
   const closed = request.completedAt !== null;
   return (
-    <li className="space-y-1 py-3 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-semibold text-foreground">{privacyRequestTypeLabel(request.type)} request</p>
-        <p className="font-semibold text-foreground">{privacyRequestStatusLabel(request.status)}</p>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Submitted {privacyRequestDateLabel(request.submittedAt)}
-        {closed ? ` · Closed ${privacyRequestDateLabel(request.completedAt ?? request.dueAt)}` : ` · Due ${privacyRequestDateLabel(request.dueAt)}`}
-      </p>
-      <p className="text-xs text-muted-foreground">{request.outcomeMessage}</p>
-    </li>
+    <Item variant="outline" size="sm">
+      <ItemContent>
+        <ItemTitle>{privacyRequestTypeLabel(request.type)} request · {privacyRequestStatusLabel(request.status)}</ItemTitle>
+        <ItemDescription>
+          Submitted {privacyRequestDateLabel(request.submittedAt)}
+          {closed ? ` · Closed ${privacyRequestDateLabel(request.completedAt ?? request.dueAt)}` : ` · Due ${privacyRequestDateLabel(request.dueAt)}`}
+        </ItemDescription>
+        {request.outcomeMessage ? <ItemDescription>{request.outcomeMessage}</ItemDescription> : null}
+      </ItemContent>
+    </Item>
   );
 }

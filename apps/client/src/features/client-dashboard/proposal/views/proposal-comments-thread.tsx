@@ -1,6 +1,7 @@
 "use client";
 
 import { formatPortalDateTime } from "@prism/ui/format-date";
+import { Card } from "@prism/ui/components/card";
 import { useProposalComments } from "../view-models/use-proposal-comments";
 
 /** FR-60: comments on the issued proposal. Commenting never approves or requests a revision. */
@@ -8,7 +9,7 @@ export function ProposalCommentsThread({ eventId, enabled }: { eventId: string; 
   const vm = useProposalComments(eventId, enabled);
   if (!enabled) return null;
   return (
-    <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="proposal-comments-heading">
+    <Card role="region" className="gap-3 p-5" aria-labelledby="proposal-comments-heading">
       <h2 id="proposal-comments-heading" className="text-lg font-bold">Proposal comments</h2>
       <p className="mt-1 text-sm text-muted-foreground">Ask PMCM about the proposal. Comments do not approve it or use a revision round.</p>
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
@@ -28,6 +29,6 @@ export function ProposalCommentsThread({ eventId, enabled }: { eventId: string; 
         <textarea id="proposal-comment" rows={3} maxLength={2000} value={vm.draft} onChange={(event) => vm.setDraft(event.target.value)} className="rounded-md border border-border bg-background p-3 text-sm" />
         <div><button type="submit" disabled={vm.busy || !vm.draft.trim()} className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{vm.busy ? "Sending…" : "Send comment"}</button></div>
       </form>
-    </section>
+    </Card>
   );
 }

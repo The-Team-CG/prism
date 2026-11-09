@@ -2,6 +2,12 @@
 
 import { useId, useState, type FormEvent } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
+import { Button } from "@prism/ui/components/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@prism/ui/components/card";
+import { Field, FieldLabel } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Textarea } from "@prism/ui/components/textarea";
 import type { PrismClientChangeRequest, ScopeChangeCategory, SubmitScopeChangeRequestInput } from "@prism/types";
 import { canWithdrawClientChangeRequest, clientChangeRequestStatusLabel, scopeChangeCategoryOptions } from "../model/client-change-request-rules";
 import { useClientChangeRequestsViewModel } from "../view-models/use-client-change-requests-view-model";
@@ -11,30 +17,34 @@ export function ClientChangeRequestsPanel({ eventId }: { eventId: string }) {
   const [formOpen, setFormOpen] = useState(false);
 
   return (
-    <section aria-labelledby="client-change-requests-heading" className="space-y-3 rounded-lg border border-border bg-card p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="client-change-requests-heading" className="text-base font-semibold">Change requests</h2>
-          <p className="text-sm text-muted-foreground">Scope changes that affect your event and where each one stands.</p>
-        </div>
-        {vm.status === "ready" && !formOpen ? (
-          <button type="button" onClick={() => setFormOpen(true)} aria-expanded={false} className="min-h-11 rounded-md border border-border px-3 text-sm font-medium text-foreground hover:bg-muted/40">
-            Request a change
-          </button>
-        ) : null}
-      </div>
-      <ChangeRequestList vm={vm} />
-      {vm.status === "ready" && formOpen ? (
-        <ScopeChangeForm
-          busy={vm.busy}
-          onCancel={() => setFormOpen(false)}
-          onSubmit={async (draft) => {
-            const saved = await vm.submitScopeChange(draft);
-            if (saved) setFormOpen(false);
-            return saved;
-          }}
-        />
-      ) : null}
+    <section aria-labelledby="client-change-requests-heading">
+      <Card>
+        <CardHeader>
+          <CardTitle id="client-change-requests-heading" className="text-base">Change requests</CardTitle>
+          <CardDescription>Scope changes that affect your event and where each one stands.</CardDescription>
+          {vm.status === "ready" && !formOpen ? (
+            <CardAction>
+              <Button type="button" variant="outline" onClick={() => setFormOpen(true)} aria-expanded={false}>
+                Request a change
+              </Button>
+            </CardAction>
+          ) : null}
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <ChangeRequestList vm={vm} />
+          {vm.status === "ready" && formOpen ? (
+            <ScopeChangeForm
+              busy={vm.busy}
+              onCancel={() => setFormOpen(false)}
+              onSubmit={async (draft) => {
+                const saved = await vm.submitScopeChange(draft);
+                if (saved) setFormOpen(false);
+                return saved;
+              }}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
     </section>
   );
 }
@@ -72,9 +82,9 @@ function ChangeRequestRow({ request, busy, onWithdraw }: { request: PrismClientC
       </div>
       {request.clientResponse ? <p className="text-muted-foreground">{request.clientResponse}</p> : null}
       {canWithdrawClientChangeRequest(request) ? (
-        <button type="button" disabled={busy} onClick={() => void onWithdraw()} className="min-h-11 text-sm font-medium text-foreground hover:text-primary disabled:opacity-50">
+        <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => void onWithdraw()} className="px-0">
           Withdraw request
-        </button>
+        </Button>
       ) : null}
     </li>
   );
@@ -95,27 +105,38 @@ function ScopeChangeForm({ busy, onSubmit, onCancel }: { busy: boolean; onSubmit
   return (
     <form onSubmit={submit} aria-labelledby={`${ids}-title`} className="space-y-3 border-t border-border pt-4">
       <h3 id={`${ids}-title`} className="text-sm font-semibold text-foreground">Request a scope change</h3>
-      <label className="block text-sm">
-        <span className="text-muted-foreground">What would you like to change?</span>
-        <input required value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 h-11 w-full rounded-md border border-border bg-card px-3 text-sm" />
-      </label>
-      <label className="block text-sm">
-        <span className="text-muted-foreground">Details</span>
-        <textarea required value={description} onChange={(event) => setDescription(event.target.value)} rows={3} className="mt-1 w-full rounded-md border border-border bg-card px-3 py-2 text-sm" />
-      </label>
-      <label className="block text-sm">
-        <span className="text-muted-foreground">Area</span>
-        <select value={category} onChange={(event) => setCategory(event.target.value as ScopeChangeCategory)} className="mt-1 h-11 w-full rounded-md border border-border bg-card px-3 text-sm sm:w-auto">
-          {scopeChangeCategoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-        </select>
-      </label>
+      <Field>
+        <FieldLabel htmlFor={`${ids}-title-input`}>What would you like to change?</FieldLabel>
+        <Input id={`${ids}-title-input`} required value={title} onChange={(event) => setTitle(event.target.value)} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${ids}-details`}>Details</FieldLabel>
+        <Textarea id={`${ids}-details`} required value={description} onChange={(event) => setDescription(event.target.value)} rows={3} />
+      </Field>
+      <Field>
+        <FieldLabel htmlFor={`${ids}-area`}>Area</FieldLabel>
+        <Select
+          value={category}
+          onValueChange={(value) => {
+            const option = scopeChangeCategoryOptions.find((candidate) => candidate.value === value);
+            if (option) setCategory(option.value);
+          }}
+        >
+          <SelectTrigger id={`${ids}-area`} className="w-full min-w-0 sm:w-auto">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {scopeChangeCategoryOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </Field>
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={busy || !title.trim() || !description.trim()} className="h-11 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+        <Button type="submit" disabled={busy || !title.trim() || !description.trim()}>
           Send request
-        </button>
-        <button type="button" onClick={onCancel} className="h-11 rounded-md px-4 text-sm text-muted-foreground hover:text-foreground">
+        </Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

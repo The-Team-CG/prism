@@ -4,9 +4,11 @@ import { WalletCards, FileText } from "lucide-react";
 import { PrismStatusTimeline } from "@prism/ui/blocks";
 import { PrismBillingMilestoneList } from "@prism/ui/blocks";
 import { StatusBadge } from "@prism/ui/components/status-badge";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@prism/ui/components/item";
 import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS } from "@prism/types";
 import { Card, CardHeader, CardBody } from "@/features/client-dashboard/shared/tab-ui";
 import { ClientActionGroup } from "@/features/client-dashboard/shared/client-action-group";
+import { ClientEventStepper, type ClientStepperStep } from "@/features/client-dashboard/shared/client-event-stepper";
 import { useEventProgressView } from "../view-models/use-event-progress-view";
 
 export function EventProgressView() {
@@ -21,6 +23,11 @@ export function EventProgressView() {
   const waiting = clientActions.filter((a) => a.tone === "neutral");
   const completedActions = clientActions.filter((a) => a.tone === "success");
   const doneCheckpoints = progress.checkpoints.filter((c) => c.done).length;
+  const lifecycleSteps: ClientStepperStep[] = PRISM_LIFECYCLE_STAGES.map((stage, index) => ({
+    key: stage,
+    label: PRISM_LIFECYCLE_STAGE_LABELS[stage],
+    state: index < progress.lifecycleIndex ? "done" : index === progress.lifecycleIndex ? "current" : "upcoming",
+  }));
 
   return (
     <div className="space-y-5">
@@ -32,32 +39,12 @@ export function EventProgressView() {
           </p>
         </CardHeader>
         <CardBody>
-          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-6" aria-label="Event lifecycle">
-            {PRISM_LIFECYCLE_STAGES.map((stage, i) => {
-              const done = i < progress.lifecycleIndex;
-              const current = i === progress.lifecycleIndex;
-              return (
-                <div
-                  key={stage}
-                  aria-current={current ? "step" : undefined}
-                  className={`rounded-xl border px-3 py-3 text-center text-sm font-semibold ${
-                    done
-                      ? "border-success/30 bg-success/5 text-success"
-                      : current
-                        ? "border-primary/30 bg-primary/5 text-primary"
-                        : "border-border bg-muted/30 text-muted-foreground"
-                  }`}
-                >
-                  {PRISM_LIFECYCLE_STAGE_LABELS[stage]}
-                </div>
-              );
-            })}
-          </div>
+          <ClientEventStepper steps={lifecycleSteps} label="Event lifecycle" />
         </CardBody>
       </Card>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
+        <Card className="flex-row items-center gap-3 px-5 py-4">
           <div className="flex size-10 items-center justify-center rounded-xl bg-success/10 text-success">
             <FileText size={18} />
           </div>
@@ -67,8 +54,8 @@ export function EventProgressView() {
             </p>
             <p className="text-xs text-muted-foreground">Checkpoints done</p>
           </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-5 py-4 shadow-sm">
+        </Card>
+        <Card className="flex-row items-center gap-3 px-5 py-4">
           <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <WalletCards size={18} />
           </div>
@@ -76,7 +63,7 @@ export function EventProgressView() {
             <p className="text-2xl font-bold text-foreground">{progress.paymentMilestones.length}</p>
             <p className="text-xs text-muted-foreground">Payment milestones</p>
           </div>
-        </div>
+        </Card>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -86,20 +73,20 @@ export function EventProgressView() {
               <h2 className="text-base font-bold text-foreground">Planning checkpoints</h2>
             </CardHeader>
             <CardBody>
-              <div className="space-y-3">
+              <ItemGroup>
                 {progress.checkpoints.map((cp) => (
-                  <div key={cp.id} className="flex items-start gap-3 rounded-xl border border-border px-4 py-3">
-                    <div className={`mt-0.5 size-2.5 shrink-0 rounded-full ${cp.done ? "bg-success" : "bg-muted-foreground/30"}`} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold text-foreground">{cp.label}</p>
-                        <StatusBadge status={cp.status} />
-                      </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{cp.detail}</p>
-                    </div>
-                  </div>
+                  <Item key={cp.id} variant="outline" size="sm">
+                    <span aria-hidden className={`mt-1 size-2.5 shrink-0 self-start rounded-full ${cp.done ? "bg-success" : "bg-muted-foreground/30"}`} />
+                    <ItemContent>
+                      <ItemTitle>{cp.label}</ItemTitle>
+                      <ItemDescription>{cp.detail}</ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                      <StatusBadge status={cp.status} />
+                    </ItemActions>
+                  </Item>
                 ))}
-              </div>
+              </ItemGroup>
             </CardBody>
           </Card>
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismClientEventTimeline } from "@prism/types";
-import { buildClientCalendarItems } from "./client-calendar-items";
+import { ALL_CALENDAR_EMPTY_COPY, buildClientCalendarItems, clientCalendarEmptyCopy } from "./client-calendar-items";
 
 const events = [
   { id: "evt_1", eventName: "Ayala Tech Summit", eventDate: "2026-12-10", status: "planning" },
@@ -48,5 +48,20 @@ describe("buildClientCalendarItems", () => {
     expect(buildClientCalendarItems(state, events, "calendar-meetings").map((item) => item.title)).toEqual(["Site visit"]);
     expect(buildClientCalendarItems(state, events, "calendar-deadlines").map((item) => item.title)).toEqual(["Balance"]);
     expect(buildClientCalendarItems(state, events, "calendar-approval-deadlines").map((item) => item.title)).toEqual(["Layout approved"]);
+  });
+
+  it("keeps paid milestones in the payment schedule but out of open due dates", () => {
+    const withPaid = {
+      ...state,
+      paymentMilestones: [...state.paymentMilestones, { id: "pay_deposit", eventId: "evt_1", label: "Deposit", dueDate: "2026-10-01", status: "paid" }],
+    } as typeof state;
+    expect(buildClientCalendarItems(withPaid, events, "calendar-payment-due-dates").map((item) => item.title)).toEqual(["Deposit", "Balance"]);
+    expect(buildClientCalendarItems(withPaid, events, "calendar-deadlines").map((item) => item.title)).toEqual(["Balance"]);
+  });
+
+  it("gives every empty calendar view its own copy", () => {
+    const views = ["calendar-event-dates", "calendar-meetings", "calendar-deadlines", "calendar-payment-due-dates", "calendar-approval-deadlines"];
+    expect(new Set(views.map((view) => clientCalendarEmptyCopy(view).title)).size).toBe(views.length);
+    expect(clientCalendarEmptyCopy("calendar").title).toBe(ALL_CALENDAR_EMPTY_COPY.title);
   });
 });

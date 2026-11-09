@@ -1,7 +1,7 @@
 import type { PrismFloorPlanSnapshot } from "@prism/types";
 import type { Project } from "@prism/floorplan-canvas";
 
-/** Saved arrays pass through unchanged: the API still accepts plans saved in the older canvas shape. */
+/** Saved arrays pass through unchanged; they are already canonical canvas objects. */
 export type ApiFloorPlanSnapshot = Omit<PrismFloorPlanSnapshot, "objects" | "guests" | "suppliers"> &
   Partial<Pick<Project, "objects" | "guests" | "suppliers">>;
 

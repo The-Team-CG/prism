@@ -1,6 +1,9 @@
 "use client";
 import { useEffect } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
+import { Card } from "@prism/ui/components/card";
+import { Checkbox } from "@prism/ui/components/checkbox";
+import { FieldLabel } from "@prism/ui/components/field";
 
 import type { PrismAddendum } from "@prism/types";
 import { addendaAwaitingClientAcknowledgment, addendumConformeStatusLabel, addendumStatusLabel } from "../model/client-addenda-rules";
@@ -20,7 +23,7 @@ export function ClientAddendaStatus({ eventId }: { eventId: string }) {
   if (vm.status === "ready" && !vm.error && vm.addenda.length === 0) return null;
 
   return (
-    <section aria-labelledby="client-addenda-status" className="space-y-3 rounded-xl border border-border bg-card p-5">
+    <Card role="region" aria-labelledby="client-addenda-status" className="gap-3 p-5">
       <div>
         <h2 id="client-addenda-status" className="text-lg font-semibold">Addendum status</h2>
         <p className="text-sm text-muted-foreground">Review the scope changes issued for your event. Acknowledge each addendum conforme once you have read the version PMCM issued.</p>
@@ -43,7 +46,7 @@ export function ClientAddendaStatus({ eventId }: { eventId: string }) {
           ))}
         </ul>
       ) : null}
-    </section>
+    </Card>
   );
 }
 
@@ -76,10 +79,12 @@ function AddendumRow({
       {awaiting && addendum.conforme ? (
         <div className="space-y-2">
           <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background p-3 text-xs">{addendum.conforme.documentContent}</pre>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={consentAccepted} onChange={(event) => onConsentChange(event.target.checked)} className="mt-1" />
-            <span>I have reviewed this addendum conforme and acknowledge the scope and financial changes it describes.</span>
-          </label>
+          <div className="flex items-start gap-3">
+            <Checkbox id={`addendum-consent-${addendum.id}`} checked={consentAccepted} onCheckedChange={(checked) => onConsentChange(checked === true)} className="mt-0.5" />
+            <FieldLabel htmlFor={`addendum-consent-${addendum.id}`} className="font-normal leading-5">
+              I have reviewed this addendum conforme and acknowledge the scope and financial changes it describes.
+            </FieldLabel>
+          </div>
           <button
             type="button"
             disabled={!consentAccepted || signing}

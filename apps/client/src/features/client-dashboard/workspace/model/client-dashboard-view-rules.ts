@@ -21,19 +21,11 @@ export function draftIsOfficial(draft: PrismFloorPlanDraft) {
 }
 
 export function objectBox(object: VenueObject, project: Project) {
-  const loose = object as VenueObject & {
-    position?: { x?: number; y?: number };
-    size?: { width?: number; height?: number };
-  };
-  const x = typeof object.x === "number" ? object.x : loose.position?.x ?? 0;
-  const y = typeof object.y === "number" ? object.y : loose.position?.y ?? 0;
-  const w = typeof object.w === "number" ? object.w : loose.size?.width ?? 2;
-  const h = typeof object.h === "number" ? object.h : loose.size?.height ?? 1;
   return {
-    left: `${Math.max(0, Math.min(96, (x / Math.max(1, project.widthM)) * 100))}%`,
-    top: `${Math.max(0, Math.min(94, (y / Math.max(1, project.heightM)) * 100))}%`,
-    width: `${Math.max(4, Math.min(80, (w / Math.max(1, project.widthM)) * 100))}%`,
-    height: `${Math.max(4, Math.min(70, (h / Math.max(1, project.heightM)) * 100))}%`,
+    left: `${Math.max(0, Math.min(96, (object.x / Math.max(1, project.widthM)) * 100))}%`,
+    top: `${Math.max(0, Math.min(94, (object.y / Math.max(1, project.heightM)) * 100))}%`,
+    width: `${Math.max(4, Math.min(80, (object.w / Math.max(1, project.widthM)) * 100))}%`,
+    height: `${Math.max(4, Math.min(70, (object.h / Math.max(1, project.heightM)) * 100))}%`,
   };
 }
 
