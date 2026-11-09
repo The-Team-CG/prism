@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@prism/ui/components/button";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { useSupplierGaps } from "../view-models/use-supplier-gaps";
 
@@ -23,7 +24,7 @@ export function PmcmSupplierGapWarning({ eventId, refreshKey }: { eventId: strin
                 <label className="grow text-xs font-semibold text-muted-foreground">Reason for proceeding
                   <input value={vm.reasons[gap.categoryId] ?? ""} maxLength={500} onChange={(event) => vm.setReason(gap.categoryId, event.target.value)} className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-normal text-foreground" />
                 </label>
-                <button type="submit" disabled={vm.busy === gap.categoryId || !(vm.reasons[gap.categoryId] ?? "").trim()} className="rounded-md border border-border px-3 py-2 text-sm font-semibold disabled:opacity-50">{vm.busy === gap.categoryId ? "Saving…" : "Acknowledge risk"}</button>
+                <Button type="submit" variant="outline" disabled={vm.busy === gap.categoryId || !(vm.reasons[gap.categoryId] ?? "").trim()}>{vm.busy === gap.categoryId ? "Saving…" : "Acknowledge risk"}</Button>
               </form>
             )}
           </li>

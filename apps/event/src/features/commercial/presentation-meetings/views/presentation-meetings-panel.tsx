@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Button } from "@prism/ui/components/button";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { presentationMeetingIcs, type PrismPresentationMeeting, type PrismPresentationMeetings } from "@prism/types";
 import { presentationMeetingsRepository } from "../data/presentation-meetings-repository";
@@ -78,7 +79,7 @@ export function PresentationMeetingsPanel({ eventId }: { eventId: string }) {
       </div>
       <div className="mt-3 flex gap-2">
         {slots.length < 4 ? <button type="button" onClick={() => setSlots([...slots, ""])} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">Add a time</button> : null}
-        <button type="button" disabled={slots.filter(Boolean).length < 2} onClick={() => void propose()} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50">{data.meetings.length ? "Send new times" : "Send times to the client"}</button>
+        <Button type="button" size="sm" disabled={slots.filter(Boolean).length < 2} onClick={() => void propose()}>{data.meetings.length ? "Send new times" : "Send times to the client"}</Button>
       </div>
     </section>
   );

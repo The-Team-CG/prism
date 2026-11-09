@@ -4,6 +4,12 @@ import type { CreateSupplierReviewInput, PrismEvent, PrismSupplier, PrismSupplie
 import { describe, expect, it, vi } from "vitest";
 import { SupplierReviewPromptList } from "./supplier-review-prompt-list";
 
+/** Picks a dimension rating from its Radix Select the way a keyboard user does. */
+function chooseRating(dimensionName: string, rating: string) {
+  fireEvent.keyDown(screen.getByRole("combobox", { name: dimensionName }), { key: "Enter" });
+  fireEvent.click(screen.getByRole("option", { name: rating }));
+}
+
 const event = { id: "evt_close_1", eventName: "Leadership Forum" } as unknown as PrismEvent;
 const category = {
   id: "cat_av",
@@ -50,7 +56,7 @@ describe("SupplierReviewPromptList", () => {
     fireEvent.change(screen.getByPlaceholderText("Private review notes"), {
       target: { value: "Strong event-day recovery." },
     });
-    fireEvent.change(screen.getByLabelText("Reliability"), { target: { value: "5" } });
+    chooseRating("Reliability", "5");
     fireEvent.click(screen.getByRole("button", { name: "Add review" }));
 
     await waitFor(() => expect(onAddReview).toHaveBeenCalledWith(
@@ -70,7 +76,7 @@ describe("SupplierReviewPromptList", () => {
     render(<SupplierReviewPromptList {...promptProps} onAddReview={onAddReview} />);
 
     fireEvent.change(screen.getByPlaceholderText("Private review notes"), { target: { value: "Retry this note." } });
-    fireEvent.change(screen.getByLabelText("Reliability"), { target: { value: "3" } });
+    chooseRating("Reliability", "3");
     fireEvent.click(screen.getByRole("button", { name: "Add review" }));
     await waitFor(() => expect(onAddReview).toHaveBeenCalledTimes(1));
     expect(screen.getByPlaceholderText("Private review notes")).toBeTruthy();
@@ -91,7 +97,7 @@ describe("SupplierReviewPromptList", () => {
     expect(screen.queryByText(/Too small/)).toBeNull();
 
     fireEvent.change(screen.getByPlaceholderText("Private review notes"), { target: { value: "Notes without a dimension." } });
-    fireEvent.change(screen.getByLabelText("Reliability"), { target: { value: "4" } });
+    chooseRating("Reliability", "4");
     fireEvent.click(screen.getByRole("button", { name: "Add review" }));
     await waitFor(() => expect(onAddReview).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Review saved")).toBeTruthy();

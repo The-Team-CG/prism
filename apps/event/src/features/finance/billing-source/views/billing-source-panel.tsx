@@ -4,11 +4,14 @@ import { useId, useState } from "react";
 import { ReceiptText } from "lucide-react";
 import { createBillingSourceSchema, type CreateBillingSourceInput, type PrismBillingSource, type PrismBillingStatement, type PrismDocument } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { label, money } from "@/features/pmcm-kit";
 import { DEFAULT_MILESTONES, MAX_PAYMENT_MILESTONES, MIN_DOWNPAYMENT_PERCENT, checkPaymentTerms, type MilestoneDraft, type PaymentTermsCheck } from "../model/payment-terms-form";
 
 const fieldClass = "h-10 rounded-md border border-border bg-white px-3 text-sm font-normal text-foreground";
+/** Radix Select cannot hold an empty-string item, so "none" stands for "no proposal document chosen yet". */
+const NO_DOCUMENT = "none";
 const labelClass = "grid gap-1 text-xs font-semibold text-muted-foreground";
 
 /** With no source, say whether statements were already issued without one rather than asking PMCM to create one. */
@@ -208,11 +211,16 @@ export function BillingSourcePanel({
         {amountInvalid ? <p role="alert" className="text-xs text-danger">Enter a whole peso amount from 1 to 2,147,483,647.</p> : null}
         {/* A select nested in its label would include the chosen option in its name, so it is labelled by id. */}
         <div className={labelClass}>
-          <label htmlFor={evidenceId}>Proposal evidence</label>
-          <select id={evidenceId} value={sourceDocumentId} onChange={(event) => setSourceDocumentId(event.target.value)} className={fieldClass}>
-            <option value="">Select a proposal document</option>
-            {proposalDocuments.map((document) => <option key={document.id} value={document.id}>{document.fileName}</option>)}
-          </select>
+          <span id={`${evidenceId}-label`}>Proposal evidence</span>
+          <Select value={sourceDocumentId || NO_DOCUMENT} onValueChange={(next) => setSourceDocumentId(next === NO_DOCUMENT ? "" : next)}>
+            <SelectTrigger id={evidenceId} aria-labelledby={`${evidenceId}-label`} className={`${fieldClass} w-full min-w-0`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_DOCUMENT}>Select a proposal document</SelectItem>
+              {proposalDocuments.map((document) => <SelectItem key={document.id} value={document.id}>{document.fileName}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <PaymentTermsFields
           milestones={milestones}

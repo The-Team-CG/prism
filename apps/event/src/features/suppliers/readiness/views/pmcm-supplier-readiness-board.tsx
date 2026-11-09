@@ -4,7 +4,7 @@ import { formatPortalDateTime } from "@prism/ui/format-date";
 import { ClipboardCheck } from "lucide-react";
 import type { PrismPmcmSupplierReadinessItem } from "@prism/types";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { concernLabel, orderSupplierSchedule, scheduleConflictItemIds, setupStatusLabel } from "../model/pmcm-supplier-readiness-rules";
 import { usePmcmSupplierReadinessViewModel } from "../view-models/use-pmcm-supplier-readiness-view-model";
@@ -38,7 +38,13 @@ export function PmcmSupplierReadinessBoard({ eventId, refreshKey }: { eventId: s
       {vm.loading && !vm.board ? <p role="status" className="px-6 py-4 text-sm text-muted-foreground">Loading supplier readiness…</p> : null}
       {vm.board && items.length === 0 ? (
         <div className="px-6 py-6">
-          <EmptyState icon={ClipboardCheck} title="No supplier requests yet" description="Request quotes to track assignment and readiness for this event." />
+          <Empty className="border-0 p-6">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><ClipboardCheck /></EmptyMedia>
+              <EmptyTitle>No supplier requests yet</EmptyTitle>
+              <EmptyDescription>Request quotes to track assignment and readiness for this event.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </div>
       ) : null}
       {items.length > 0 ? (

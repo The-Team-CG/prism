@@ -1,4 +1,6 @@
 import { Star } from "lucide-react";
+import { Button } from "@prism/ui/components/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 
 export type SupplierReviewForm = { rating: string; notes: string };
 
@@ -16,6 +18,10 @@ export type SupplierReviewPanelProps = {
   validationMessage?: string | null;
 };
 
+/** Radix Select cannot hold an empty-string item, so "none" stands for an unrated dimension. */
+const NOT_RATED = "none";
+const RATINGS = ["5", "4", "3", "2", "1"];
+
 export function SupplierReviewPanel({
   reviewForm,
   reviewDimensionRatings,
@@ -32,14 +38,14 @@ export function SupplierReviewPanel({
     <div className="rounded-lg border border-border bg-muted p-4">
       <p className="text-sm text-muted-foreground">Private PMCM Review</p>
       <div className="mt-3 grid gap-2">
-        <select
-          aria-label="Overall supplier rating"
-          value={reviewForm.rating}
-          onChange={(event) => onReviewForm({ rating: event.target.value })}
-          className="h-10 rounded-md border border-border bg-white px-3 text-sm"
-        >
-          {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value} stars</option>)}
-        </select>
+        <Select value={reviewForm.rating} onValueChange={(rating) => onReviewForm({ rating })}>
+          <SelectTrigger aria-label="Overall supplier rating" className="h-10 w-full min-w-0 bg-white text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {RATINGS.map((value) => <SelectItem key={value} value={value}>{value} stars</SelectItem>)}
+          </SelectContent>
+        </Select>
         <textarea
           aria-label="Private supplier review notes"
           value={reviewForm.notes}
@@ -53,16 +59,16 @@ export function SupplierReviewPanel({
           <p className="text-xs font-medium text-muted-foreground">Category dimensions</p>
           {dimensions.map((dimension) => (
             <div key={dimension.id} className="flex items-center justify-between gap-3">
-              <span className="text-sm">{dimension.name}</span>
-              <select
-                aria-label={dimension.name}
-                value={reviewDimensionRatings[dimension.id] ?? ""}
-                onChange={(event) => onReviewDimension(dimension.id, event.target.value)}
-                className="h-9 rounded-md border border-border bg-white px-2 text-sm"
-              >
-                <option value="">Not rated</option>
-                {[5, 4, 3, 2, 1].map((value) => <option key={value} value={value}>{value}</option>)}
-              </select>
+              <span className="min-w-0 truncate text-sm" title={dimension.name}>{dimension.name}</span>
+              <Select value={reviewDimensionRatings[dimension.id] || NOT_RATED} onValueChange={(value) => onReviewDimension(dimension.id, value === NOT_RATED ? "" : value)}>
+                <SelectTrigger aria-label={dimension.name} className="h-9 w-24 min-w-0 bg-white text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NOT_RATED}>Not rated</SelectItem>
+                  {RATINGS.map((value) => <SelectItem key={value} value={value}>{value}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
           ))}
         </div>
@@ -71,14 +77,9 @@ export function SupplierReviewPanel({
         <p className="mt-3 text-xs text-muted-foreground">Rate every dimension to submit: {missingDimensionNames.join(", ")}.</p>
       )}
       {validationMessage && <p className="mt-3 text-xs text-muted-foreground">{validationMessage}</p>}
-      <button
-        type="button"
-        disabled={busy || !canSubmit}
-        onClick={onSubmitReview}
-        className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-ink-foreground disabled:opacity-60"
-      >
+      <Button type="button" size="sm" disabled={busy || !canSubmit} onClick={onSubmitReview} className="mt-3">
         <Star className="size-4" /> Add review
-      </button>
+      </Button>
     </div>
   );
 }
