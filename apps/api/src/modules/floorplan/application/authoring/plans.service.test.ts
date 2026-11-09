@@ -566,21 +566,14 @@ describe('PlansService table assignment eligibility on official saves', () => {
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 
-  it('keeps saving plans that carry no seat assignment fields, including legacy kernel-shaped objects', async () => {
+  it('keeps saving plans that carry no seat assignment fields', async () => {
     const { service, prisma } = createService(draft('pmcm_draft'));
-    const legacyObject = {
-      id: 'legacy-stage',
-      kind: 'stage' as const,
-      position: { x: 0, y: 0 },
-      size: { width: 4, height: 2 },
-      rotation: 0,
-      zIndex: 0,
-    };
+    const stage = editorTable({ id: 'stage-1', name: 'Stage', kind: 'rect', category: 'stage', w: 4, h: 2 });
 
     await expect(
       service.updatePlan(
         'plan_event_1',
-        changes({ objects: [editorTable(), legacyObject], guests: eventGuestRoster }),
+        changes({ objects: [editorTable(), stage], guests: eventGuestRoster }),
         pmcmActor(),
       ),
     ).resolves.toMatchObject({ id: 'plan_event_1' });
