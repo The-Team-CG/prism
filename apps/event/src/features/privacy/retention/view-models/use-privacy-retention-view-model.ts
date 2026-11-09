@@ -17,6 +17,7 @@ function errorText(error: unknown) {
 export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCases) {
   const [policies, setPolicies] = useState<PrismRetentionPolicy[]>([]);
   const [items, setItems] = useState<PrismRetentionReviewItem[]>([]);
+  const [hasMore, setHasMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>("pending");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<RetentionMessage | null>(null);
@@ -30,6 +31,7 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
       const loaded = await useCases.load(status);
       setPolicies(loaded.policies);
       setItems(loaded.items);
+      setHasMore(loaded.hasMore);
     } catch (error) {
       setMessage({ tone: "error", text: errorText(error) });
     } finally {
@@ -50,6 +52,22 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
       const loaded = await useCases.load(statusFilter);
       setPolicies(loaded.policies);
       setItems(loaded.items);
+      setHasMore(loaded.hasMore);
+    } catch (error) {
+      setMessage({ tone: "error", text: errorText(error) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const loadMore = async () => {
+    const last = items[items.length - 1];
+    if (!last) return;
+    setBusy(true);
+    try {
+      const page = await useCases.loadMore(statusFilter, last.id);
+      setItems((current) => [...current, ...page.items]);
+      setHasMore(page.hasMore);
     } catch (error) {
       setMessage({ tone: "error", text: errorText(error) });
     } finally {
@@ -94,6 +112,8 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
   return {
     policies,
     items,
+    hasMore,
+    loadMore: () => void loadMore(),
     statusFilter,
     busy,
     message,

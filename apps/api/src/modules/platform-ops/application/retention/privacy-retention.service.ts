@@ -32,7 +32,6 @@ import {
 } from './privacy-retention.policy';
 import { PrivacyRetentionExecutorService } from './privacy-retention-executor.service';
 
-const REVIEW_QUEUE_LIMIT = 200;
 
 export type RetentionReviewItemRow = {
   id: string;
@@ -164,7 +163,8 @@ export class PrivacyRetentionService {
         ...(query.eventId ? { eventId: query.eventId } : {}),
       },
       orderBy: [{ dueSince: 'asc' }, { id: 'asc' }],
-      take: REVIEW_QUEUE_LIMIT,
+      take: query.limit,
+      ...(query.after ? { cursor: { id: query.after }, skip: 1 } : {}),
     });
     return rows.map(mapRetentionReviewItem);
   }

@@ -3,6 +3,7 @@ import {
   executePrivacyRetentionReviewItemSchema,
   listPrivacyRetentionReviewItemsQuerySchema,
   parseContract,
+  PRIVACY_RETENTION_REVIEW_PAGE_SIZE,
   updatePrivacyRetentionPolicySchema,
   type ListPrivacyRetentionReviewItemsQuery,
   type PrismRetentionPolicy,
@@ -15,10 +16,17 @@ export type ReviewStatusFilter = NonNullable<ListPrivacyRetentionReviewItemsQuer
 /** Validates every write with the shared @prism/types schema before it reaches the data layer. */
 export function createRetentionUseCases(commands: RetentionCommands = retentionCommands) {
   return {
-    async load(status: ReviewStatusFilter): Promise<{ policies: PrismRetentionPolicy[]; items: PrismRetentionReviewItem[] }> {
+    async load(status: ReviewStatusFilter): Promise<{ policies: PrismRetentionPolicy[]; items: PrismRetentionReviewItem[]; hasMore: boolean }> {
       const query = parseContract(listPrivacyRetentionReviewItemsQuerySchema, { status }, "Retention review filter");
       const [policies, items] = await Promise.all([commands.listPolicies(), commands.listReviewItems(query)]);
-      return { policies, items };
+      return { policies, items, hasMore: items.length === PRIVACY_RETENTION_REVIEW_PAGE_SIZE };
+    },
+
+    /** The next page after the last loaded item. */
+    async loadMore(status: ReviewStatusFilter, afterId: string): Promise<{ items: PrismRetentionReviewItem[]; hasMore: boolean }> {
+      const query = parseContract(listPrivacyRetentionReviewItemsQuerySchema, { status, after: afterId }, "Retention review filter");
+      const items = await commands.listReviewItems(query);
+      return { items, hasMore: items.length === PRIVACY_RETENTION_REVIEW_PAGE_SIZE };
     },
 
     updatePolicy(policy: PrismRetentionPolicy, change: { enabled?: boolean; periodDays?: number; reason: string }) {
