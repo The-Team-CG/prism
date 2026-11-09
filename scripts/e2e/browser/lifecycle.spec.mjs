@@ -181,8 +181,10 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
       await pmcm.page.locator('select').first().selectOption('supcat_digital_registration');
       await pmcm.page.getByRole('button', { name: 'Request quotes', exact: true }).click();
-      const existingSupplier = pmcm.page.getByRole('checkbox', { name: /XPERTO Registration/ });
-      if (await existingSupplier.isChecked()) await existingSupplier.uncheck();
+      // The dialog preselects every free Tier 1 supplier in the category, which grows when other journeys share this
+      // database (the route sweep adds 26). Clear them all so the request goes only to the applicant under test.
+      const preselected = pmcm.page.locator('div.fixed.inset-0').getByRole('checkbox', { checked: true });
+      while (await preselected.count()) await preselected.first().uncheck();
       await pmcm.page.getByRole('checkbox', { name: new RegExp(supplierCompany) }).check();
       await pmcm.page.getByLabel('Quote deadline', { exact: true }).fill(quoteDeadline);
       await expect(pmcm.page.getByLabel('Quote deadline', { exact: true })).toHaveValue(quoteDeadline);

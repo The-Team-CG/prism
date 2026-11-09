@@ -64,7 +64,7 @@ export async function run(ctx) {
     if (!s.A) blocked("no event");
     const path = `/events/${E()}/start-event-day`;
     rejected(await http("POST", path, { token: admin, body: {} }), "no approved official plan");
-    await ctx.prepareEventDay(E());
+    await ctx.prepareEventDay(E(), s.clientA);
     for (const token of [s.clientA, coordinator, supplier]) denied(await http("POST", path, { token, body: {} }), "non-PMCM stage transition");
     expect((await http("POST", path, { body: {} })).status === 401, "anonymous stage transition was not 401");
     expectStatus(await http("POST", path, { token: admin, body: {} }), 200);
@@ -120,9 +120,12 @@ export async function run(ctx) {
     const r = await http("PATCH", `/events/${E()}/urgent-issues/${s.issue}`, { token: admin, body: { status: "vaporised" } });
     expect(r.status === 400, `returned ${r.status}: ${msg(r)}`);
   });
-  await step("coordinator Marco marks himself present, PMCM can set attendance, an unknown status is a 400", async () => {
+  // Coordinators mark attendance from the day before through the day after the event; this event is years ahead, so PMCM records it.
+  await step("coordinator Marco is refused outside the attendance window, PMCM can set attendance, an unknown status is a 400", async () => {
     if (!s.assignment) blocked("no assignment");
-    expectStatus(await http("PATCH", `/events/${E()}/coordinators/${s.assignment}/status`, { token: coordinator, body: { status: "present" } }), 200);
+    const early = await http("PATCH", `/events/${E()}/coordinators/${s.assignment}/status`, { token: coordinator, body: { status: "present" } });
+    expect(early.status === 400 && /day before through the day after the event/.test(msg(early)), `coordinator outside the window: ${early.status} ${msg(early)}`);
+    expectStatus(await http("PATCH", `/events/${E()}/coordinators/${s.assignment}/status`, { token: admin, body: { status: "present" } }), 200);
     const late = expectStatus(await http("PATCH", `/events/${E()}/coordinators/${s.assignment}/status`, { token: admin, body: { status: "late", notes: "Traffic" } }), 200);
     expect(late.attendanceStatus === "late", `attendance is ${late.attendanceStatus}`);
     rejected(await http("PATCH", `/events/${E()}/coordinators/${s.assignment}/status`, { token: admin, body: { status: "bogus" } }), "bogus attendance");
@@ -260,12 +263,13 @@ export async function run(ctx) {
     const logs = expectStatus(await http("GET", `/audit/logs?eventId=${E()}`, { token: admin }), 200);
     expect(logs.some((l) => /Corrected actual event end/.test(l.action) && l.metadata?.correctionReason), "no audit entry with the correction reason");
   });
-  await step("wrap-up is closed to PMCM until an end is recorded, and opens a 24h window after it", async () => {
+  // FR-22 decision: PMCM has five days (120 hours) after the recorded end to complete the wrap-up.
+  await step("wrap-up is closed to PMCM until an end is recorded, and opens a 120h window after it", async () => {
     const before = await http("POST", `/events/${E()}/wrap-up`, { token: admin, body: {} });
     if (!s.endedAt) { expect(before.status === 400, `wrap-up without a recorded end returned ${before.status}: ${msg(before)}`); blocked(`wrap-up correctly refused (${before.status}); cannot test the 24h deadline and 12h/24h reminders without a recorded end`); }
     const w = expectStatus(before, 200, 201);
     const hours = (new Date(w.deadlineAt) - new Date(s.endedAt)) / 3600_000;
-    expect(Math.abs(hours - 24) < 0.1, `deadline is ${hours}h after the end`);
+    expect(Math.abs(hours - 120) < 0.1, `deadline is ${hours}h after the end`);
     return `deadline ${w.deadlineAt}`;
   });
 
@@ -376,7 +380,7 @@ export async function run(ctx) {
   });
   await step("archive cannot be triggered by elapsed time alone", async () => {
     s.C = await ctx.newEvent({ label: "Archive comparison", eventDate: await ctx.reserveDate() });
-    await ctx.prepareEventDay(s.C.eventId);
+    await ctx.prepareEventDay(s.C.eventId, await s.C.as());
     expectStatus(await http("POST", `/events/${s.C.eventId}/start-event-day`, { token: admin, body: {} }), 200);
     expectStatus(await http("POST", `/events/${s.C.eventId}/actual-end`, { token: admin, body: { actualEndedAt: hoursAgo(24 * 8) } }), 200, 201);
     const event = expectStatus(await http("GET", `/events/${s.C.eventId}`, { token: admin }), 200);

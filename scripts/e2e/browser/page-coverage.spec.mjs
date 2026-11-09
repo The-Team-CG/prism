@@ -6,6 +6,16 @@ import { pageCoverageCases } from './page-coverage-cases.mjs';
 import { assertPageCoverageComplete, pageCoverageApps } from './page-coverage-report.mjs';
 import { selectClientRecords } from '../../../apps/event/src/features/event-dashboard/shell/model/event-dashboard-selectors.ts';
 
+/** BROWSER_SCREENSHOTS=1 keeps a full-page screenshot of every route in the private run directory. */
+async function screenshot(page, project, app, path, failed, order) {
+  if (process.env.BROWSER_SCREENSHOTS !== '1') return;
+  const directory = join(process.env.BROWSER_RUN_DIRECTORY, 'screenshots', project, app);
+  mkdirSync(directory, { recursive: true });
+  const name = path.replace(/^\//, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '') || 'home';
+  // Numbered in visit order, so routes sharing a path keep their own screenshot.
+  await page.screenshot({ path: join(directory, `${failed ? 'FAILED-' : ''}${String(order).padStart(3, '0')}-${name}.png`), fullPage: true }).catch(() => {});
+}
+
 async function pageFixture(app) {
   if (app === 'guest') return {};
   const fixture = await freshEvent();
@@ -74,7 +84,7 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
     }
     const cases = pageCoverageCases(app, fixture);
     console.log(`Page coverage ${info.project.name}: checking ${cases.length} ${app} routes`);
-    for (const item of cases) {
+    for (const [order, item] of cases.entries()) {
       const errors = [];
       const badResponses = [];
       const onError = error => errors.push(error.message);
@@ -95,7 +105,9 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
         if (item.path.startsWith('/dashboard') && !new URL(page.url()).pathname.startsWith('/dashboard')) throw new Error('Signed-in page unexpectedly redirected out of its portal');
         if (errors.length || badResponses.length) throw new Error(JSON.stringify({ errors, badResponses }));
         records.push({ app, template: item.template, path: redact(item.path), expectedState: item.state, result: 'passed' });
+        await screenshot(page, info.project.name, app, redact(item.path), false, order + 1);
       } catch (error) {
+        await screenshot(page, info.project.name, app, redact(item.path), true, order + 1);
         const failure = { app, template: item.template, path: redact(item.path), error: redact(error.message) };
         records.push({ ...failure, result: 'failed' });
         failures.push(failure);

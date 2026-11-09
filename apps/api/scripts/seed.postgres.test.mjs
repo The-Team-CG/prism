@@ -68,7 +68,8 @@ test('migrated PostgreSQL: prerequisites, atomic failure, reruns, edits, collisi
         assert.equal(await count('event_lifecycle.events'), 5);
       });
       await t.test('Manila schedule and account/event access links match the chosen scenario', async () => {
-        const date = (await client.query("SELECT to_char(event_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD HH24:MI') AS local FROM event_lifecycle.events WHERE id='evt_uat_live_261024'")).rows[0].local;
+        // Event dates are calendar dates, stored at UTC midnight like the dates the app writes.
+        const date = (await client.query("SELECT to_char(event_date, 'YYYY-MM-DD HH24:MI') AS local FROM event_lifecycle.events WHERE id='evt_uat_live_261024'")).rows[0].local;
         assert.equal(date, '2027-03-12 00:00');
         const links = await client.query("SELECT a.id FROM operations.coordinator_assignments a JOIN operations.coordinators c ON c.id=a.coordinator_id JOIN identity_access.users u ON u.id=c.user_id WHERE u.id='usr_coord' AND a.event_id='evt_uat_live_261024'");
         assert.equal(links.rowCount, 1);
