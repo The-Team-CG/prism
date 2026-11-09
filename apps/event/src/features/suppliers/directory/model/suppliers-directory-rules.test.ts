@@ -17,14 +17,17 @@ describe("suppliers-directory-rules", () => {
     expect(normalizeSupplierName("  Acme   Lights ")).toBe("Acme Lights");
   });
 
-  it("maps supplier presets to Prism category IDs and keeps missing presets empty", () => {
+  it("maps each supplier category route to its seeded category and keeps missing presets empty", () => {
     const categories = [
-      { id: "cat-food", slug: "food-and-beverages", name: "Food and beverages", sortOrder: 1, active: true, reviewDimensions: [] },
-      { id: "cat-tech", slug: "technicals", name: "Technicals", sortOrder: 2, active: true, reviewDimensions: [] },
+      { id: "cat-catering", slug: "catering", name: "Catering", sortOrder: 1, active: true, reviewDimensions: [] },
+      { id: "cat-photo", slug: "photo-and-video", name: "Photo and Video", sortOrder: 2, active: true, reviewDimensions: [] },
+      { id: "cat-lights", slug: "lights-and-sound", name: "Lights and Sound", sortOrder: 3, active: true, reviewDimensions: [] },
     ];
-    expect(normalizeSupplierDirectoryRoute("catering", new URLSearchParams(), categories).query.categoryId).toBe("cat-food");
-    expect(normalizeSupplierDirectoryRoute("lights-sounds", new URLSearchParams(), categories).query.categoryId).toBe("cat-tech");
-    expect(normalizeSupplierDirectoryRoute("venues", new URLSearchParams(), categories).query.categoryId).toBe("unmatched-preset:venues");
+    const categoryFor = (view: string) => normalizeSupplierDirectoryRoute(view, new URLSearchParams(), categories).query.categoryId;
+    expect(categoryFor("catering")).toBe("cat-catering");
+    expect(categoryFor("photography-videography")).toBe("cat-photo");
+    expect(categoryFor("lights-sounds")).toBe("cat-lights");
+    expect(categoryFor("venues")).toBe("unmatched-preset:venues");
   });
 
   it("normalizes malformed URL filters and retains explicit filters over route presets", () => {
