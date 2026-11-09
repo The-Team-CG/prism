@@ -1,4 +1,5 @@
 "use client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { formatPortalDate } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
@@ -96,13 +97,17 @@ function RiskAssessmentForm({
   return (
     <form onSubmit={submit} aria-label="Record event risk level" className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block text-sm">
+        <div className="block text-sm">
           <span className="text-muted-foreground">Recorded level</span>
-          <select required aria-label="Recorded level" value={level} onChange={(event) => setLevel(event.target.value as RiskLevel | "")} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            <option value="">Choose a level…</option>
-            {riskLevelOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
-        </label>
+          <Select required value={level} onValueChange={(value) => setLevel(riskLevelOptions.find((option) => option.value === value)?.value ?? "")}>
+            <SelectTrigger aria-label="Recorded level" className="mt-1 w-full min-w-0">
+              <SelectValue placeholder="Choose a level…" />
+            </SelectTrigger>
+            <SelectContent>
+              {riskLevelOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         <label className="block text-sm">
           <span className="text-muted-foreground">Summary</span>
           <input required value={summary} onChange={(event) => setSummary(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm" />

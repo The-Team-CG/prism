@@ -252,7 +252,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const logTask = coordinator.page.locator('details', { has: coordinator.page.locator('summary', { hasText: 'Log a task' }) });
       if ((await logTask.getAttribute('open')) === null) await logTask.locator('summary').click();
       await coordinator.page.getByLabel('Task title (required)', { exact: true }).fill('Browser lifecycle venue sweep');
-      await coordinator.page.getByLabel('Assigned role (required)', { exact: true }).selectOption('General Coordinator');
+      await coordinator.page.getByLabel('Assigned role (required)', { exact: true }).click();
+      await coordinator.page.getByRole('option', { name: 'General Coordinator', exact: true }).click();
       await coordinator.page.getByRole('checkbox', { name: /Assign to me|Assign to my queue/ }).check();
       await coordinator.page.getByRole('button', { name: 'Log task', exact: true }).click();
       await expect(coordinator.page.getByText('Browser lifecycle venue sweep', { exact: true }).first()).toBeVisible();

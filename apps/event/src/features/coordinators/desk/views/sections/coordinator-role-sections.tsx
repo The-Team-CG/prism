@@ -30,7 +30,9 @@ import {
 import { recordedAttendanceLabel, type CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
 import { liveOpsPillClass } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
 import type { CoordinatorRole, PrismCoordinatorAssignment, PrismCoordinatorRoleView } from "@prism/types";
-import { CCard, CCardBody, CCardHeader, FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
+import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
 import { CoordinatorRoleBriefCard } from "@/features/coordinators/role-briefs/views/coordinator-role-brief-card";
 import {
   CoordinatorRoleActions,
@@ -118,14 +120,14 @@ export function CoordinatorRoleBadgeCard({
   attendanceForm: CoordinatorAttendanceFormModel;
 }) {
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <BadgeCheck className="size-4 text-primary" />
           <h3 className="text-base font-semibold text-foreground">Your assignment and attendance</h3>
         </div>
-      </CCardHeader>
-      <CCardBody id="coordinator-attendance" className="scroll-mt-24">
+      </CardHeader>
+      <CardContent id="coordinator-attendance" className="scroll-mt-24">
         {assignment ? (
           <CoordinatorAssignedBadge
             assignmentStatus={assignment.status}
@@ -139,8 +141,8 @@ export function CoordinatorRoleBadgeCard({
         )}
         {/* EP-11-S03 AC1: the coordinator marks their own attendance here. */}
         <CoordinatorAttendanceControl attendanceForm={attendanceForm} />
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -323,14 +325,14 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
   const copy = coordinatorTaskFormCopy(taskForm.busy, taskForm.routesAway);
   const fieldId = useId();
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Log an event-day task</h3>
         </div>
-      </CCardHeader>
-      <CCardBody className="space-y-3">
+      </CardHeader>
+      <CardContent className="space-y-3">
         <label className="grid gap-1.5">
           <span className={FIELD_LABEL}>Task title (required)</span>
           <input
@@ -344,32 +346,31 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <label htmlFor={`${fieldId}-role`} className={FIELD_LABEL}>Assigned role (required)</label>
-            <select
-              id={`${fieldId}-role`}
-              value={taskForm.role}
-              onChange={(e) => taskForm.setRole(e.target.value)}
-              required
-              className={FIELD_INPUT}
-            >
-              {taskForm.roleOptions.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
+            <Select value={taskForm.role} onValueChange={taskForm.setRole} required>
+              <SelectTrigger id={`${fieldId}-role`} className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {taskForm.roleOptions.map((role) => (
+                  <SelectItem key={role} value={role}>
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-1.5">
             <label htmlFor={`${fieldId}-priority`} className={FIELD_LABEL}>Priority</label>
-            <select
-              id={`${fieldId}-priority`}
-              value={taskForm.priority}
-              onChange={(e) => taskForm.setPriority(e.target.value)}
-              className={FIELD_INPUT}
-            >
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
+            <Select value={taskForm.priority} onValueChange={taskForm.setPriority}>
+              <SelectTrigger id={`${fieldId}-priority`} className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <label className="grid gap-1.5">
@@ -418,8 +419,8 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
         >
           {copy.submitLabel}
         </button>
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -427,14 +428,14 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
   const copy = coordinatorIssueFormCopy(issueForm.busy);
   const fieldId = useId();
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Report an issue</h3>
         </div>
-      </CCardHeader>
-      <CCardBody className="space-y-3">
+      </CardHeader>
+      <CardContent className="space-y-3">
         <label className="grid gap-1.5">
           <span className={FIELD_LABEL}>Issue title (required)</span>
           <input
@@ -448,17 +449,17 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="grid gap-1.5">
             <label htmlFor={`${fieldId}-severity`} className={FIELD_LABEL}>Severity</label>
-            <select
-              id={`${fieldId}-severity`}
-              value={issueForm.severity}
-              onChange={(e) => issueForm.setSeverity(e.target.value)}
-              className={FIELD_INPUT}
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
+            <Select value={issueForm.severity} onValueChange={issueForm.setSeverity}>
+              <SelectTrigger id={`${fieldId}-severity`} className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <label className="grid gap-1.5">
             <span className={FIELD_LABEL}>Affected area</span>
@@ -505,8 +506,8 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
         >
           {copy.submitLabel}
         </button>
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -553,8 +554,8 @@ export function CoordinatorRoleData({
 
 function CoordinatorRoleLoadingCard() {
   return (
-    <CCard>
-      <CCardBody className="flex items-center gap-3">
+    <Card>
+      <CardContent className="flex items-center gap-3">
         <ShieldCheck className="size-5 shrink-0 text-primary" />
         <div>
           <p className="text-sm font-bold text-foreground">Loading role-safe data</p>
@@ -562,15 +563,15 @@ function CoordinatorRoleLoadingCard() {
             Assignment-safe tasks, supplier signals, attendance counts, and urgent issues are loading.
           </p>
         </div>
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
 function CoordinatorRoleErrorCard({ message }: { message: string }) {
   return (
-    <CCard>
-      <CCardBody className="flex items-start gap-3">
+    <Card>
+      <CardContent className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 size-5 shrink-0 text-attention" />
         <div>
           <p className="text-sm font-bold text-foreground">Role-safe data unavailable</p>
@@ -578,8 +579,8 @@ function CoordinatorRoleErrorCard({ message }: { message: string }) {
             {message}. Refresh the coordinator portal or ask PMCM to confirm this assignment.
           </p>
         </div>
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -654,14 +655,14 @@ function CoordinatorDisclosure({ title, description, open, children }: {
 
 function CoordinatorBriefingCard({ roleView }: { roleView: PrismCoordinatorRoleView }) {
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <LayoutGrid className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Floor and stage briefing</h3>
         </div>
-      </CCardHeader>
-      <CCardBody className="space-y-2">
+      </CardHeader>
+      <CardContent className="space-y-2">
         {roleView.briefing ? (
           <>
             <p className="text-sm font-semibold text-foreground">{roleView.briefing.venue || "Venue briefing pending"}</p>
@@ -678,21 +679,21 @@ function CoordinatorBriefingCard({ roleView }: { roleView: PrismCoordinatorRoleV
         ) : (
           <p className="text-sm text-muted-foreground">PMCM has not submitted the event briefing yet.</p>
         )}
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
 function CoordinatorOpenIssues({ roleView }: { roleView: PrismCoordinatorRoleView }) {
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Open issues</h3>
         </div>
-      </CCardHeader>
-      <CCardBody id="coordinator-live-data" className="scroll-mt-24">
+      </CardHeader>
+      <CardContent id="coordinator-live-data" className="scroll-mt-24">
         <CompactRecordList
           emptyText="No open issues."
           items={roleView.urgentIssues.map((issue) => ({
@@ -704,8 +705,8 @@ function CoordinatorOpenIssues({ roleView }: { roleView: PrismCoordinatorRoleVie
             icon: Radio,
           }))}
         />
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -730,14 +731,14 @@ function CoordinatorCheckIns({ roleView, registrationRole }: { roleView: PrismCo
 
 export function CoordinatorAssignmentHistory({ assignments }: { assignments: PrismCoordinatorAssignment[] }) {
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <CalendarClock className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Assignment history</h3>
         </div>
-      </CCardHeader>
-      <CCardBody>
+      </CardHeader>
+      <CardContent>
         <CompactRecordList
           emptyText="No coordinator assignments found."
           items={assignments.map((item) => ({
@@ -749,7 +750,7 @@ export function CoordinatorAssignmentHistory({ assignments }: { assignments: Pri
             icon: CalendarClock,
           }))}
         />
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }

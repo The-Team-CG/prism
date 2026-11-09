@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CoordinatorRoleBadgeCard, CoordinatorRoleData, type CoordinatorAttendanceFormModel } from "./coordinator-role-sections";
 import { COORDINATOR_ATTENDANCE_CHOICES } from "../../model/coordinators-desk-rules";
+import { chooseSelectOption, openSelect } from "../../../../../test-utils/radix-select";
 
 afterEach(cleanup);
 
@@ -125,11 +126,12 @@ describe("Event Day System Operator controls", () => {
     const prompt = vi.spyOn(window, "prompt");
     const models = renderRoleData(operatorView());
 
-    fireEvent.change(screen.getByLabelText("Task to reassign"), { target: { value: "cue" } });
-    fireEvent.change(screen.getByLabelText("New owner role"), { target: { value: "Stage Director" } });
-    const owners = within(screen.getByLabelText("New owner coordinator")).getAllByRole("option").map((option) => option.textContent);
+    chooseSelectOption(screen.getByLabelText("Task to reassign"), "Stage cue check");
+    chooseSelectOption(screen.getByLabelText("New owner role"), "Stage Director");
+    openSelect(screen.getByLabelText("New owner coordinator"));
+    const owners = within(screen.getByRole("listbox")).getAllByRole("option").map((option) => option.textContent);
     expect(owners).toEqual(["Any coordinator in this role", "Sam Cruz · Stage Director"]);
-    fireEvent.change(screen.getByLabelText("New owner coordinator"), { target: { value: "Sam Cruz" } });
+    fireEvent.click(screen.getByRole("option", { name: "Sam Cruz · Stage Director" }));
     fireEvent.change(screen.getByLabelText("Reassignment reason"), { target: { value: "Marco is on the floor" } });
     fireEvent.click(screen.getByRole("button", { name: "Request reassignment" }));
 

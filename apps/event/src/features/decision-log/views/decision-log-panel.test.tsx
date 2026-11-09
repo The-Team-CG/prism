@@ -1,8 +1,10 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { PRISM_DECISION_LOG_KINDS, type PrismDecisionLog, type PrismDecisionLogEntry, type PrismDecisionLogKind } from "@prism/types";
 import { DecisionLogPanel } from "./decision-log-panel";
+import { DECISION_LOG_KIND_LABELS } from "../model/decision-log-kinds";
+import { chooseSelectOption, openSelect } from "../../../test-utils/radix-select";
 
 const { repository } = vi.hoisted(() => ({ repository: { load: vi.fn() } }));
 vi.mock("../data/decision-log-repository", () => ({ decisionLogRepository: repository }));
@@ -60,14 +62,18 @@ describe("DecisionLogPanel", () => {
     render(<DecisionLogPanel eventId="evt_1" />);
     await screen.findByText("Archive override: archived with override");
 
-    const select = screen.getByLabelText("Type") as HTMLSelectElement;
-    expect(Array.from(select.options).map((option) => option.value)).toEqual(["all", "archive_override", "ocular_waiver"]);
+    const select = screen.getByRole("combobox", { name: "Type" });
+    openSelect(select);
+    const optionNames = within(screen.getByRole("listbox")).getAllByRole("option").map((option) => option.textContent?.replace(/ \(\d+\)$/, ""));
+    expect(optionNames).toEqual(["All decisions", DECISION_LOG_KIND_LABELS.archive_override, DECISION_LOG_KIND_LABELS.ocular_waiver]);
+    fireEvent.keyDown(document, { key: "Escape" });
 
     fireEvent.click(screen.getByRole("button", { name: "Older" }));
     await waitFor(() => expect(repository.load).toHaveBeenLastCalledWith("evt_1", { page: 1, pageSize: 25 }));
 
     repository.load.mockResolvedValue(log([], { kind: "ocular_waiver" }));
-    fireEvent.change(select, { target: { value: "ocular_waiver" } });
+    openSelect(select);
+    fireEvent.click(screen.getByRole("option", { name: new RegExp(`^${DECISION_LOG_KIND_LABELS.ocular_waiver} \\(`) }));
 
     await waitFor(() => expect(repository.load).toHaveBeenLastCalledWith("evt_1", { kind: "ocular_waiver", page: 0, pageSize: 25 }));
     expect(await screen.findByText("No ocular visit waiver decisions recorded.")).toBeTruthy();

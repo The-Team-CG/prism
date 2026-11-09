@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismGuestRosterEntry } from "@prism/types";
 import { EventRegistrationTab } from "./event-registration-tab";
+import { chooseSelectOption } from "../../../test-utils/radix-select";
 
 afterEach(cleanup);
 
@@ -47,7 +48,7 @@ describe("EventRegistrationTab", () => {
     const update = vi.fn().mockResolvedValue(true);
     renderRegistrationTab({ onUpdateGuestPrivacyClassification: update });
 
-    expect((screen.getByRole("radio", { name: /Not set/ }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByRole("radio", { name: /Not set/ }).getAttribute("aria-checked")).toBe("true");
     const save = screen.getByRole("button", { name: "Save changes" }) as HTMLButtonElement;
     expect(save.disabled).toBe(true);
     fireEvent.click(screen.getByRole("radio", { name: /Private/ }));
@@ -87,9 +88,7 @@ describe("EventRegistrationTab", () => {
     renderRegistrationTab({ onSearchRoster, onVerifyRoster, onCheckInRoster });
 
     await screen.findByText("Anonymous headcount");
-    fireEvent.change(screen.getByLabelText("Verification for Anonymous headcount"), {
-      target: { value: "verified" },
-    });
+    chooseSelectOption(screen.getByLabelText("Verification for Anonymous headcount"), "Verified");
 
     await waitFor(() => expect(onVerifyRoster).toHaveBeenCalledWith("gre_review_1", "verified"));
     await waitFor(() => expect((screen.getByRole("button", { name: "Check in" }) as HTMLButtonElement).disabled).toBe(false));

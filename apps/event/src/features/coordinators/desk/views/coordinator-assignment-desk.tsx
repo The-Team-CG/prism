@@ -18,7 +18,9 @@ import type {
 import { COORDINATOR_ROLES, canonicalCoordinatorRole, hasEventDatePassed, prismCalendarDateKey } from "@prism/types";
 import { Avatar, AvatarFallback } from "@prism/ui/components/avatar";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { dateKey } from "@/features/pmcm-kit";
 import {
   activeAssignmentForRole,
@@ -32,7 +34,9 @@ import { PendingAcknowledgmentsPanel } from "./coordinator-acknowledgment-panel"
 import { CoordinatorAvailabilityCard } from "./coordinator-availability-card";
 import { CoordinatorReliabilityHistory } from "./coordinator-reliability-history";
 import { CoverageTargetCard, EmergencyWithdrawalsNotice, PoolAvailabilityNote, StaffingSummary, type CoverageRequirement } from "./coordinator-coverage-cards";
-import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@prism/ui/components/card";
+import { FieldDescription } from "@prism/ui/components/field";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@prism/ui/components/item";
 import { OperatorDesignationCard } from "./coordinator-operator-card";
 
 type SuggestionLoadStatus = "idle" | "loading" | "loaded" | "empty" | "error";
@@ -204,28 +208,31 @@ export function CoordinatorAssignmentDesk({
             <h2 className="text-sm font-bold text-foreground">Coordinator assignment</h2>
           </div>
         </CardHeader>
-        <CardBody>
+        <CardContent>
           <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">
             {/* Filters */}
             <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
               <div>
                 <p className="text-sm font-medium text-foreground">Role</p>
-                <select
-                  aria-label="Coordinator role filter"
+                <Select
                   value={roleFilter}
                   disabled={skillSuggestionStatus === "loading"}
-                  onChange={(e) => {
-                    const nextRole = e.target.value === "all" ? "all" : canonicalCoordinatorRole(e.target.value) ?? "all";
+                  onValueChange={(value) => {
+                    const nextRole = value === "all" ? "all" : canonicalCoordinatorRole(value) ?? "all";
                     setRoleFilter(nextRole);
                     setSelectedSkills([]);
                     setSkillSuggestions([]);
                     setSkillSuggestionStatus("idle");
                   }}
-                  className="mt-2 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm"
                 >
-                  <option value="all">All roles</option>
-                  {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
+                  <SelectTrigger aria-label="Coordinator role filter" className="mt-2 w-full min-w-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All roles</SelectItem>
+                    {roleOptions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
               <label className="flex items-center gap-2.5 rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-semibold text-foreground">
                 <input
@@ -237,100 +244,66 @@ export function CoordinatorAssignmentDesk({
                 Available only
               </label>
               <CoordinatorSkillFilters roleFilter={roleFilter} status={skillSuggestionStatus} options={skillOptions} selected={selectedSkills} onChange={updateSelectedSkill} />
-              <Button
-                type="button"
-                size="sm"
-                disabled={roleFilter === "all" || skillSuggestionStatus === "loading"}
-                onClick={() => void findSkillSuggestions()}
-                className="w-full"
-              >
-                Find skill matches
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={roleFilter === "all" || skillSuggestionStatus === "loading"}
+                  onClick={() => void findSkillSuggestions()}
+                  className="w-full"
+                >
+                  Find skill matches
+                </Button>
+                {roleFilter === "all" ? (
+                  <FieldDescription>Choose a role above to search by skill.</FieldDescription>
+                ) : null}
+              </div>
             </div>
 
             {/* Coordinator list */}
             <div className="space-y-5">
               <CoordinatorSkillResults status={skillSuggestionStatus} suggestions={skillSuggestions} busy={busy} onAssign={assign} />
               {filteredCoordinators.length === 0 ? (
-                <EmptyState icon={UserCheck} title="No coordinators match" description="Adjust role or availability filters to see more coordinators." />
+                <Empty className="border-0 p-6">
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon"><UserCheck aria-hidden /></EmptyMedia>
+                    <EmptyTitle>No coordinators match</EmptyTitle>
+                    <EmptyDescription>Adjust role or availability filters to see more coordinators.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               ) : (
                 groupedRoles.map((role) => {
                   const roleCoords = filteredCoordinators.filter((c) => coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === role));
                   if (roleCoords.length === 0) return null;
                   return (
-                    <div key={role}>
-                      <div className="mb-3 flex items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold text-foreground">{role}</h3>
-                        <span className="text-xs text-muted-foreground">{roleCoords.length} match{roleCoords.length === 1 ? "" : "es"}</span>
-                      </div>
-                      <div className="grid gap-3 lg:grid-cols-2">
-                        {roleCoords.map((coord) => {
-                          const conflict = conflictFor(coord.id);
-                          const assignedHere = Boolean(activeAssignmentForRole(eventAssignments, coord.id, role));
-                          return (
-                            <div key={`${role}-${coord.id}`} role="group" aria-label={`${role}: ${coord.name}`} className="rounded-2xl border border-border bg-muted/30 p-4">
-                              <div className="flex items-start gap-3">
-                                <Avatar className="size-10 border border-border">
-                                  <AvatarFallback className="bg-card text-xs font-bold text-foreground">
-                                    {coord.name.slice(0, 2).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <p className="text-sm font-bold text-foreground">{coord.name}</p>
-                                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${conflict ? "text-attention" : "text-success"}`}>
-                                      <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                                      {conflict ? "Has conflict" : "Available"}
-                                    </span>
-                                  </div>
-                                  <p className="mt-0.5 text-xs text-muted-foreground">{coord.email}</p>
-                                  <p className="mt-2 text-xs text-foreground">{coordinatorRoleTags(coord).join(" · ")}</p>
-                                  {coord.skillsTags.length > 0 && (
-                                    <p className="mt-0.5 text-xs text-muted-foreground">Skills: {coord.skillsTags.join(", ")}</p>
-                                  )}
-                                  {conflict && (
-                                    <p className="mt-2 text-xs font-semibold text-attention">
-                                      Assigned to {conflict.conflictEventName ?? "another event"} on {eventDate}.
-                                    </p>
-                                  )}
-                                  <Button
-                                    size="sm"
-                                    disabled={busy || assignedHere}
-                                    onClick={() => assign(coord, role)}
-                                    className="mt-3 rounded-xl font-bold"
-                                    variant={assignedHere ? "outline" : "default"}
-                                  >
-                                    <UserCheck className="size-3.5" />
-                                    {assignedHere ? "Assigned" : conflict ? "Review conflict" : "Quick assign"}
-                                  </Button>
-                                  {(() => {
-                                    const holding = activeAssignmentForRole(eventAssignments, coord.id, role);
-                                    if (!holding) {
-                                      const other = otherActiveRoleAssignment(eventAssignments, coord.id, role);
-                                      return other ? <p className="mt-2 text-xs text-muted-foreground">Assigned as {canonicalCoordinatorRole(other.role) ?? other.role}</p> : null;
-                                    }
-                                    if (holding.status !== "pending_acknowledgement" && holding.status !== "acknowledged") return null;
-                                    const isPending = holding.status === "pending_acknowledgement";
-                                    return (
-                                      <p className={`mt-2 inline-flex items-center gap-1.5 text-xs font-semibold ${isPending ? "text-attention" : "text-success"}`}>
-                                        <span aria-hidden className="size-1.5 rounded-full bg-current" />
-                                        {isPending ? "Awaiting acknowledgement" : "Acknowledged"}
-                                      </p>
-                                    );
-                                  })()}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    <Card key={role}>
+                      <CardHeader>
+                        <CardTitle className="text-sm font-semibold text-foreground">{role}</CardTitle>
+                        <CardAction className="text-xs text-muted-foreground">{roleCoords.length} match{roleCoords.length === 1 ? "" : "es"}</CardAction>
+                      </CardHeader>
+                      <CardContent>
+                        <ItemGroup className="gap-2">
+                          {roleCoords.map((coord) => (
+                            <CoordinatorCandidateItem
+                              key={`${role}-${coord.id}`}
+                              coordinator={coord}
+                              role={role}
+                              conflict={conflictFor(coord.id)}
+                              eventAssignments={eventAssignments}
+                              eventDate={eventDate}
+                              busy={busy}
+                              onAssign={assign}
+                            />
+                          ))}
+                        </ItemGroup>
+                      </CardContent>
+                    </Card>
                   );
                 })
               )}
             </div>
           </div>
-        </CardBody>
+        </CardContent>
       </Card>
 
       {/* Planning tools are used occasionally; assigning people is the main job of this tab. */}
@@ -382,15 +355,17 @@ export function CoordinatorAssignmentDesk({
 
       {/* Conflict modal */}
       {pendingConflict && (
-        <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
-            <h3 className="text-base font-bold text-foreground">Double booking: choose another coordinator</h3>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {pendingConflict.coordinator.name} is already assigned to{" "}
-              {pendingConflict.conflict.conflictEventName ?? "another event"} on this date. Assign a free
-              same-role coordinator instead.
-            </p>
-            <div className="mt-4 space-y-2">
+        <Dialog open onOpenChange={(open) => { if (!open) setPendingConflict(null); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Double booking: choose another coordinator</DialogTitle>
+              <DialogDescription>
+                {pendingConflict.coordinator.name} is already assigned to{" "}
+                {pendingConflict.conflict.conflictEventName ?? "another event"} on this date. Assign a free
+                same-role coordinator instead.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
               {conflictSuggestionStatus === "loading" && <p role="status" className="text-sm text-muted-foreground">Finding available {pendingConflict.role.toLowerCase()} coordinators…</p>}
               {conflictSuggestionStatus === "error" && <p role="status" className="text-sm text-destructive">Could not load coordinator suggestions. You can cancel or keep the explicit override.</p>}
               {conflictSuggestionStatus === "empty" && <p role="status" className="text-sm text-muted-foreground">No available same-role coordinators were found.</p>}
@@ -421,7 +396,7 @@ export function CoordinatorAssignmentDesk({
                 );
               })}
             </div>
-            <div className="mt-5 flex justify-end gap-2">
+            <DialogFooter className="mt-5">
               <Button variant="outline" className="rounded-xl font-bold" onClick={() => setPendingConflict(null)}>
                 Cancel
               </Button>
@@ -437,9 +412,9 @@ export function CoordinatorAssignmentDesk({
               >
                 Override and assign anyway
               </Button>
-            </div>
-          </div>
-        </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
@@ -518,4 +493,97 @@ function CoordinatorSkillResults({ status, suggestions, busy, onAssign }: {
                 </section>
               )}
   </>;
+}
+
+type CandidateAssignmentState = {
+  assignedHere: boolean;
+  otherRole: PrismCoordinatorAssignment | undefined;
+  acknowledgement: { label: string; tone: string } | null;
+};
+
+function candidateAssignmentState(
+  eventAssignments: PrismCoordinatorAssignment[],
+  coordinatorId: string,
+  role: CoordinatorRole,
+): CandidateAssignmentState {
+  const holding = activeAssignmentForRole(eventAssignments, coordinatorId, role);
+  if (!holding) {
+    return { assignedHere: false, otherRole: otherActiveRoleAssignment(eventAssignments, coordinatorId, role) ?? undefined, acknowledgement: null };
+  }
+  if (holding.status === "pending_acknowledgement") {
+    return { assignedHere: true, otherRole: undefined, acknowledgement: { label: "Awaiting acknowledgement", tone: "text-attention" } };
+  }
+  if (holding.status === "acknowledged") {
+    return { assignedHere: true, otherRole: undefined, acknowledgement: { label: "Acknowledged", tone: "text-success" } };
+  }
+  return { assignedHere: true, otherRole: undefined, acknowledgement: null };
+}
+
+function candidateActionLabel(assignedHere: boolean, hasConflict: boolean) {
+  if (assignedHere) return "Assigned";
+  return hasConflict ? "Review conflict" : "Quick assign";
+}
+
+function CoordinatorCandidateItem({
+  coordinator,
+  role,
+  conflict,
+  eventAssignments,
+  eventDate,
+  busy,
+  onAssign,
+}: {
+  coordinator: PrismCoordinator;
+  role: CoordinatorRole;
+  conflict: PrismCoordinatorAssignment | undefined;
+  eventAssignments: PrismCoordinatorAssignment[];
+  eventDate: string;
+  busy: boolean;
+  onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole) => void;
+}) {
+  const { assignedHere, otherRole, acknowledgement } = candidateAssignmentState(eventAssignments, coordinator.id, role);
+  const actionLabel = candidateActionLabel(assignedHere, Boolean(conflict));
+  return (
+    <Item role="group" aria-label={`${role}: ${coordinator.name}`} variant="outline" className="items-start">
+      <ItemMedia>
+        <Avatar className="size-10 border border-border">
+          <AvatarFallback className="bg-card text-xs font-bold text-foreground">
+            {coordinator.name.slice(0, 2).toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      </ItemMedia>
+      <ItemContent className="min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <ItemTitle className="min-w-0 truncate">{coordinator.name}</ItemTitle>
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${conflict ? "text-attention" : "text-success"}`}>
+            <span aria-hidden className="size-1.5 rounded-full bg-current" />
+            {conflict ? "Has conflict" : "Available"}
+          </span>
+        </div>
+        <ItemDescription className="truncate">{coordinator.email}</ItemDescription>
+        <p className="text-xs text-foreground">{coordinatorRoleTags(coordinator).join(" · ")}</p>
+        {coordinator.skillsTags.length > 0 && (
+          <p className="text-xs text-muted-foreground">Skills: {coordinator.skillsTags.join(", ")}</p>
+        )}
+        {conflict && (
+          <p className="text-xs font-semibold text-attention">
+            Assigned to {conflict.conflictEventName ?? "another event"} on {eventDate}.
+          </p>
+        )}
+        {otherRole ? <p className="text-xs text-muted-foreground">Assigned as {canonicalCoordinatorRole(otherRole.role) ?? otherRole.role}</p> : null}
+        {acknowledgement ? (
+          <p className={`inline-flex items-center gap-1.5 text-xs font-semibold ${acknowledgement.tone}`}>
+            <span aria-hidden className="size-1.5 rounded-full bg-current" />
+            {acknowledgement.label}
+          </p>
+        ) : null}
+      </ItemContent>
+      <ItemActions>
+        <Button size="sm" disabled={busy || assignedHere} onClick={() => onAssign(coordinator, role)} variant={assignedHere ? "outline" : "default"}>
+          <UserCheck className="size-3.5" />
+          {actionLabel}
+        </Button>
+      </ItemActions>
+    </Item>
+  );
 }

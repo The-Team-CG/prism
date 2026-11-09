@@ -20,6 +20,7 @@ import { PrismBrandLogo } from "@prism/ui";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Badge } from "@prism/ui/components/badge";
 import { Button } from "@prism/ui/components/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@prism/ui/components/dialog";
 import { Input } from "@prism/ui/components/input";
 import type { EventSession } from "@/app/lib/session";
 import { useEventCommandLandingViewModel } from "../view-models/use-event-command-landing-view-model";
@@ -441,8 +442,11 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
       </footer>
 
       {vm.accessOpen && (
-        <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-[rgba(23,18,22,0.55)] p-5 backdrop-blur-sm">
-          <section id="event-sign-in" className="w-full max-w-md rounded-lg border border-border bg-card p-5 text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.28)]">
+        <Dialog open onOpenChange={(open) => { if (!open) vm.setAccessOpen(false); }}>
+          <DialogContent className="max-w-md border-0 bg-transparent p-0 shadow-none" showCloseButton={false}>
+            <DialogTitle className="sr-only">Sign in</DialogTitle>
+            <DialogDescription className="sr-only">Use an approved PMCM or coordinator account.</DialogDescription>
+          <section id="event-sign-in" className="w-full rounded-lg border border-border bg-card p-5 text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.28)]">
             <form onSubmit={submit}>
               <div className="flex items-start justify-between gap-4">
                 <span className="grid size-11 place-items-center rounded-md bg-secondary text-primary">
@@ -466,7 +470,8 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
               </div>
             </form>
           </section>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </main>
   );
