@@ -22,6 +22,8 @@ function queryString(query: ListPrivacyRetentionReviewItemsQuery) {
   if (query.status) params.set("status", query.status);
   if (query.category) params.set("category", query.category);
   if (query.eventId) params.set("eventId", query.eventId);
+  params.set("limit", String(query.limit));
+  if (query.after) params.set("after", query.after);
   const text = params.toString();
   return text ? `?${text}` : "";
 }

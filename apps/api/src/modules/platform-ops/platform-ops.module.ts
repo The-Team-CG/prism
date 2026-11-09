@@ -19,6 +19,17 @@ import { SecurityOperationsService } from './application/trust/security-operatio
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
 import { NOTIFICATION_DELIVERY } from './contracts/notifications/notification-delivery.port';
 import { MailNotificationDeliveryAdapter } from './infrastructure/notifications/mail-notification-delivery.adapter';
+import { ChannelNotificationDeliveryAdapter } from './infrastructure/notifications/channel-notification-delivery.adapter';
+import { ViberBotClient } from './infrastructure/notifications/viber-bot.client';
+import { resolveViberConfig } from '@prism/kernel/shared';
+import { VIBER_BOT } from './contracts/notifications/viber.port';
+import { NotificationPreferenceService } from './application/notifications/notification-preference.service';
+import { NotificationPreferencesController, ViberWebhookController } from './api/notifications/notification-preferences.controller';
+import { CanvaController } from './api/integrations/canva.controller';
+import { CANVA_API_CLIENT, CanvaConnectionService } from './application/integrations/canva-connection.service';
+import { CanvaApiClient } from './infrastructure/integrations/canva-api.client';
+import { CANVA_DESIGNS } from './contracts/integrations/canva-designs.port';
+import { PortalUrlsModule, resolveCanvaConfig } from '@prism/kernel/shared';
 import { MailModule } from '@prism/kernel/mail';
 import { AiGovernanceService } from './application/ai-governance/ai-governance.service';
 import { AiGatewayService } from './application/ai-governance/gateway/ai-gateway.service';
@@ -137,8 +148,8 @@ export function createAiProviderAdapters(
  * capabilities rather than writing their tables from Platform.
  */
 @Module({
-  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, MailModule],
-  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController],
+  imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, MailModule, PortalUrlsModule],
+  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController, NotificationPreferencesController, ViberWebhookController, CanvaController],
   providers: [
     AuditService,
     AuditReadService,
@@ -149,7 +160,27 @@ export function createAiProviderAdapters(
     NotificationOutboxService,
     NotificationOutboxWriterAdapter,
     notificationOutboxWriterProvider,
-    { provide: NOTIFICATION_DELIVERY, useClass: MailNotificationDeliveryAdapter },
+    MailNotificationDeliveryAdapter,
+    {
+      provide: VIBER_BOT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const viber = resolveViberConfig((name) => config.get<string>(name));
+        return viber ? new ViberBotClient(viber) : null;
+      },
+    },
+    NotificationPreferenceService,
+    { provide: NOTIFICATION_DELIVERY, useClass: ChannelNotificationDeliveryAdapter },
+    {
+      provide: CANVA_API_CLIENT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const canva = resolveCanvaConfig((name) => config.get<string>(name));
+        return canva ? new CanvaApiClient(canva) : null;
+      },
+    },
+    CanvaConnectionService,
+    { provide: CANVA_DESIGNS, useExisting: CanvaConnectionService },
     AiGovernanceService,
     ConformeCommsDraftService,
     InquiryTriageService,
@@ -203,6 +234,7 @@ export function createAiProviderAdapters(
     STORED_REQUIREMENT_UPLOAD_READER,
     GUEST_FEEDBACK_MEDIA_STORE,
     STORAGE_ADAPTER,
+    CANVA_DESIGNS,
   ],
 })
 export class PlatformOpsModule {}

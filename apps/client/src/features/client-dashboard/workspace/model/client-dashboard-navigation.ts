@@ -9,6 +9,7 @@ import {
   MessageSquareText,
   PackageCheck,
   ShieldCheck,
+  Bell,
   TicketCheck,
   WalletCards,
   type LucideIcon,
@@ -165,11 +166,13 @@ export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, stri
   billing: "billing-payments",
   messages: "messages",
   privacy: "privacy-requests",
+  notifications: "notification-settings",
 };
 
 /** Privacy requests live in the account menu, not the sidebar; the id matches that menu entry. */
 export const CLIENT_ACCOUNT_MENU_ITEMS: PrismAccountMenuItem[] = [
   { id: "privacy-requests", label: "Privacy requests", icon: ShieldCheck, href: "/dashboard/privacy" },
+  { id: "notification-settings", label: "Notifications", icon: Bell, href: "/dashboard/notifications" },
 ];
 
 export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
@@ -342,6 +345,7 @@ const PORTAL_HREFS: Partial<Record<ClientDashboardRoute, string>> = {
   files: "/dashboard/files",
   billing: "/dashboard/billing",
   privacy: "/dashboard/privacy",
+  notifications: "/dashboard/notifications",
 };
 
 const EVENT_PATH_SEGMENT: Partial<Record<ClientDashboardRoute, string>> = {

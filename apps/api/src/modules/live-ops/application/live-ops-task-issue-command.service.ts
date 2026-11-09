@@ -568,7 +568,7 @@ export class LiveOpsTaskIssueCommandService {
             severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
             metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? task.assignedRole, ownerName: input.ownerName ?? task.ownerName },
           }),
-          writeNotification(notificationOutboxWriter, eventId, recipient, `Event-day task escalated: ${task.title}`, 'viber'),
+          writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(recipient)) ?? 'PMCM Admin', `Event-day task escalated: ${task.title}`, 'viber'),
         ]);
       },
     });
@@ -636,7 +636,7 @@ export class LiveOpsTaskIssueCommandService {
             severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
             metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? issue.ownerRole, ownerName: input.ownerName ?? issue.ownerName },
           }),
-          writeNotification(notificationOutboxWriter, eventId, recipient, `Urgent issue escalated: ${issue.title}`, 'viber'),
+          writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(recipient)) ?? 'PMCM Admin', `Urgent issue escalated: ${issue.title}`, 'viber'),
         ]);
       },
     });

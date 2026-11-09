@@ -43,10 +43,15 @@ export const updatePrivacyRetentionPolicySchema = z.object({
 });
 export type UpdatePrivacyRetentionPolicyInput = z.infer<typeof updatePrivacyRetentionPolicySchema>;
 
+/** New-SEC2: the review queue pages by item id instead of stopping at a fixed cap. */
+export const PRIVACY_RETENTION_REVIEW_PAGE_SIZE = 50;
 export const listPrivacyRetentionReviewItemsQuerySchema = z.object({
   status: z.enum([...PRIVACY_RETENTION_ITEM_STATUSES, "all"]).optional(),
   category: privacyRetentionCategorySchema.optional(),
   eventId: optionalTrimmedStringSchema,
+  limit: z.coerce.number().int().min(1).max(200).default(PRIVACY_RETENTION_REVIEW_PAGE_SIZE),
+  /** The last item id of the previous page. */
+  after: optionalTrimmedStringSchema,
 });
 export type ListPrivacyRetentionReviewItemsQuery = z.infer<typeof listPrivacyRetentionReviewItemsQuerySchema>;
 

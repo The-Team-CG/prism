@@ -271,7 +271,7 @@ export class InquiriesService {
             actorEmail: verifiedActor.email,
             metadata: { actorId: verifiedActor.id },
           }),
-            this.notify(undefined, inquiry.clientName, 'Conforme sent by PMCM', 'viber'),
+            this.notify(undefined, inquiry.email, 'Conforme sent by PMCM', 'viber'),
           ]);
           // The client needs the account to read and sign the conforme, so the invitation goes out with the acceptance.
           const invitation = await this.sendClientPortalInvitationAfterCommit(inquiry.id, this.invitationActorFor(verifiedActor));
@@ -890,7 +890,7 @@ export class InquiriesService {
             now,
             messages: [
               { recipient: inquiry!.email, message: conformeReminderText(clientLanguageOf(inquiry!)), channel: 'email' },
-              { recipient: inquiry!.clientName, message: conformeReminderText(clientLanguageOf(inquiry!)), channel: 'viber' },
+              { recipient: inquiry!.email, message: conformeReminderText(clientLanguageOf(inquiry!)), channel: 'viber' },
             ],
           },
         ));

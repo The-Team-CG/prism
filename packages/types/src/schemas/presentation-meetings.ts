@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/* FR-61 Presentation meeting scheduler. Zoom meetings are not created here; PMCM pastes its own meeting link. */
+/* FR-61 Presentation meeting scheduler. PMCM pastes a meeting link, or asks for a Zoom meeting created when the client books. */
 const slotSchema = z.object({ startsAt: z.string().datetime(), endsAt: z.string().datetime() }).strict()
   .refine((slot) => Date.parse(slot.endsAt) > Date.parse(slot.startsAt), "A slot must end after it starts");
 
@@ -8,7 +8,9 @@ export const proposePresentationMeetingSchema = z.object({
   title: z.string().trim().min(1).max(160),
   slots: z.array(slotSchema).min(2).max(4),
   meetingLink: z.string().trim().url().max(500).optional(),
-}).strict();
+  /** Create the Zoom meeting for the booked time; needs the deployment's Zoom account. */
+  createZoomMeeting: z.boolean().optional(),
+}).strict().refine((input) => !(input.createZoomMeeting && input.meetingLink), { message: "Paste a meeting link or create a Zoom meeting, not both", path: ["meetingLink"] });
 export type ProposePresentationMeetingInput = z.infer<typeof proposePresentationMeetingSchema>;
 
 export const choosePresentationSlotSchema = z.object({ startsAt: z.string().datetime() }).strict();
@@ -26,6 +28,8 @@ export interface PrismPresentationMeeting {
   slots: Array<{ startsAt: string; endsAt: string }>;
   chosen: { startsAt: string; endsAt: string } | null;
   meetingLink: string | null;
+  /** The Zoom meeting is created when the client books; meetingLink is its join link once booked. */
+  zoomMeeting: boolean;
   status: PresentationMeetingStatus;
   createdAt: string;
 }

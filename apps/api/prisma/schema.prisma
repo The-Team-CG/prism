@@ -1336,6 +1336,8 @@ model OpsPresentationMeeting {
   chosenStartAt DateTime? @map("chosen_start_at")
   chosenEndAt   DateTime? @map("chosen_end_at")
   meetingLink   String?   @map("meeting_link")
+  createZoomMeeting Boolean @default(false) @map("create_zoom_meeting")
+  zoomMeetingId String?   @map("zoom_meeting_id")
   status        String    @default("proposed")
   createdBy     String    @map("created_by")
   createdAt     DateTime  @default(now()) @map("created_at")
@@ -2714,6 +2716,47 @@ model OpsAuditLog {
   @@index([actionType, createdAt], map: "audit_logs_action_type_created_at_idx")
   @@index([severity, createdAt], map: "audit_logs_severity_created_at_idx")
   @@map("audit_logs")
+  @@schema("platform_ops")
+}
+
+/// FR-59 and New-P3: PMCM's single Canva connection. Tokens are sealed with CANVA_TOKEN_KEY (AES-256-GCM).
+model OpsCanvaConnection {
+  id                 String   @id
+  accessTokenSealed  String   @map("access_token_sealed")
+  refreshTokenSealed String   @map("refresh_token_sealed")
+  accessExpiresAt    DateTime @map("access_expires_at")
+  connectedBy        String   @map("connected_by")
+  connectedAt        DateTime @map("connected_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("canva_connections")
+  @@schema("platform_ops")
+}
+
+/// A pending Canva OAuth request: the state's hash and the sealed PKCE verifier, single use and short lived.
+model OpsCanvaOauthState {
+  stateHash          String   @id @map("state_hash")
+  codeVerifierSealed String   @map("code_verifier_sealed")
+  actorId            String   @map("actor_id")
+  expiresAt          DateTime @map("expires_at")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([expiresAt], map: "canva_oauth_states_expires_at_idx")
+  @@map("canva_oauth_states")
+  @@schema("platform_ops")
+}
+
+/// FR-25: an account's notification channels, keyed by its email (what outbox recipients resolve to). Email always stays on.
+model OpsNotificationChannelPreference {
+  email             String    @id
+  viberUserId       String?   @unique @map("viber_user_id")
+  viberEnabled      Boolean   @default(false) @map("viber_enabled")
+  viberLinkedAt     DateTime? @map("viber_linked_at")
+  linkCodeHash      String?   @unique @map("link_code_hash")
+  linkCodeExpiresAt DateTime? @map("link_code_expires_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("notification_channel_preferences")
   @@schema("platform_ops")
 }
 

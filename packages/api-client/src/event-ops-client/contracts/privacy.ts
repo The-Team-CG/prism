@@ -1,4 +1,15 @@
-import type { PrismOwnPrivacyRequest, SubmitOwnPrivacyRequestInput } from "@prism/types";
+import type { PrismNotificationPreferences, PrismOwnPrivacyRequest, PrismViberLink, SubmitOwnPrivacyRequestInput, UpdateNotificationPreferencesInput } from "@prism/types";
+
+export interface EventOpsNotificationPreferencesContract {
+  /** FR-25: the signed-in account's own channels; email always stays on. */
+  notificationPreferences: {
+    mine(): Promise<PrismNotificationPreferences>;
+    setViberEnabled(input: UpdateNotificationPreferencesInput): Promise<PrismNotificationPreferences>;
+    /** A one-time code and the deep link that opens the P.R.I.S.M Viber bot with it. */
+    startViberLink(): Promise<PrismViberLink>;
+    unlinkViber(): Promise<PrismNotificationPreferences>;
+  };
+}
 
 export interface EventOpsPrivacyContract {
   privacy: {
