@@ -32,18 +32,10 @@ const positive = (value: unknown): number | null => (finite(value) && value > 0 
 
 type Box = { x: number; y: number; w: number; h: number };
 
-/**
- * Where an object sits. Plans saved in the older canvas shape keep the box under `position` and `size`, which the
- * approved plan already reads, so the review reads both shapes rather than dropping the older objects.
- */
+/** Where an object sits: the canonical canvas box. Objects without a finite box are not drawable. */
 function boxOf(item: Record<string, unknown>): Box | null {
-  const position = typeof item.position === "object" && item.position !== null ? (item.position as Record<string, unknown>) : {};
-  const size = typeof item.size === "object" && item.size !== null ? (item.size as Record<string, unknown>) : {};
-  const x = finite(item.x) ? item.x : finite(position.x) ? position.x : null;
-  const y = finite(item.y) ? item.y : finite(position.y) ? position.y : null;
-  const w = finite(item.w) ? item.w : finite(size.width) ? size.width : null;
-  const h = finite(item.h) ? item.h : finite(size.height) ? size.height : null;
-  return x === null || y === null || w === null || h === null ? null : { x, y, w, h };
+  if (!finite(item.x) || !finite(item.y) || !finite(item.w) || !finite(item.h)) return null;
+  return { x: item.x, y: item.y, w: item.w, h: item.h };
 }
 
 /** The label the editor shows, falling back to the object's name. */
