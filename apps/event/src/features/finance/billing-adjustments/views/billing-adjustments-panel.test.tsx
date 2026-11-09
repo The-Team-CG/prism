@@ -104,8 +104,9 @@ describe("BillingAdjustmentsPanel creation flows", () => {
     expect(screen.queryByLabelText("Linked urgent issue")).toBeNull();
     fireEvent.click(buttonFor("Issue additional billing"));
 
-    const picker = screen.getByLabelText("Linked urgent issue") as HTMLSelectElement;
-    expect(Array.from(picker.options).map((option) => option.textContent)).toEqual(["No linked issue", "Walk-in queue"]);
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Linked urgent issue" }), { key: "Enter" });
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual(["No linked issue", "Walk-in queue"]);
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
     expect(buttonFor("Close form").getAttribute("aria-expanded")).toBe("true");
   });
 });

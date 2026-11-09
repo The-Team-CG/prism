@@ -17,7 +17,9 @@ describe("SupplierQuotePlanner", () => {
       supplierName: "Previous category supplier", message: "", accessToken: "", confidentialBid: false, status: "open", createdAt: "2026-10-01",
     }]} busy={false} onRequestQuotes={vi.fn()} onSelectQuote={vi.fn()} onCompareRound={() => comparison} onSetAvailability={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Round 1" }));
-    fireEvent.change(screen.getAllByRole("combobox")[0], { target: { value: "Catering" } });
+    const categoryTrigger = screen.getByRole("combobox", { name: "Supplier category" });
+    fireEvent.keyDown(categoryTrigger, { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "Catering" }));
     await act(async () => {
       if (!finish) throw new Error("Comparison did not start");
       finish({ id: "round-a", eventId: "event-a", category: "Production", roundNumber: 1, status: "open", bids: [{
@@ -26,6 +28,6 @@ describe("SupplierQuotePlanner", () => {
       await comparison;
     });
     expect(screen.queryByText("Previous category supplier")).toBeNull();
-    expect(screen.getAllByRole("combobox")[0]).toHaveProperty("value", "Catering");
+    expect(categoryTrigger.textContent).toBe("Catering");
   });
 });

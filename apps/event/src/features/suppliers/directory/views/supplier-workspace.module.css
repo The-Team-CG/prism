@@ -65,15 +65,7 @@
   background: var(--background);
 }
 
-.table table { font-size: 12px; }
-.table thead { background: var(--prism-surface-raised); }
-.table tbody tr { height: 36px; }
-.table tbody tr:hover { background: var(--prism-page); }
 .selectedRow { background: var(--prism-magenta-soft); }
-.table select { height: 30px; font-size: 11px; border-color: var(--border); }
-.table [id="supplier-category-filter"] { max-width: 150px; }
-.table [id="supplier-tier-filter"] { max-width: 135px; }
-.table button { font-size: 11px; }
 
 .drawer {
   width: min(560px, 100vw);

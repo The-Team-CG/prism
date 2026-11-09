@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { VENUE_SCOUTING_MIN_OPTIONS, type PrismVenueScoutingOption } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
 import { useVenueScoutingPanel } from "../view-models/use-venue-scouting-panel";
 
 const field = "mt-1 block w-full rounded-md border border-border bg-background px-3 py-2";
@@ -44,7 +45,7 @@ export function VenueScoutingPanel({ eventId }: { eventId: string }) {
           </li>
         ))}
       </ul>
-      <button type="button" disabled={vm.busy || !vm.canPublish} onClick={() => void vm.publish()} className="mt-3 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">Share new options with the client</button>
+      <Button type="button" className="mt-3" disabled={vm.busy || !vm.canPublish} onClick={() => void vm.publish()}>Share new options with the client</Button>
       <form onSubmit={submit} className="mt-4 grid gap-3 md:grid-cols-2">
         <label className="text-sm">Venue name<input required value={form.name} onChange={set("name")} className={field} /></label>
         <label className="text-sm">Location<input required value={form.location} onChange={set("location")} className={field} /></label>

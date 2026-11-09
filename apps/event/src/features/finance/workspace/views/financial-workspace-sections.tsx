@@ -1,17 +1,20 @@
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards, X } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock3, Download, MailCheck, ReceiptText, Send, WalletCards } from "lucide-react";
 
 import type { MarkPaymentInput, PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { FieldDescription } from "@prism/ui/components/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { EmptyState } from "@prism/ui/components/empty-state";
 import { label, money } from "@/features/pmcm-kit";
 import { countNoun, isMilestoneSettled, paymentHistoryLabel, paymentOverdueDays, sortPaymentsByDueDate } from "../model/finance-workspace-rules";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-2xl border border-border bg-card shadow-sm ${className}`}>{children}</div>;
+  return <div className={`rounded-2xl border border-border bg-card ${className}`}>{children}</div>;
 }
 function CardHeader({ children }: { children: React.ReactNode }) {
   return <div className="border-b border-border px-6 py-4">{children}</div>;
@@ -148,11 +151,13 @@ export function BillingStatementCard({
         />
       ) : (
         <CardBody>
-          <EmptyState
-            icon={ReceiptText}
-            title="No billing statement yet"
-            description="Approve a billing source in Closure, then generate the statement for this event."
-          />
+          <Empty className="border-0 p-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><ReceiptText /></EmptyMedia>
+              <EmptyTitle>No billing statement yet</EmptyTitle>
+              <EmptyDescription>Approve a billing source in Closure, then generate the statement for this event.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </CardBody>
       )}
     </Card>
@@ -265,7 +270,13 @@ export function PaymentTracker({
       </CardHeader>
       <CardBody className="space-y-3">
         {payments.length === 0 ? (
-          <EmptyState icon={WalletCards} title="No milestones yet" description="Milestones appear after the billing statement is posted." />
+          <Empty className="border-0 p-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><WalletCards /></EmptyMedia>
+              <EmptyTitle>No milestones yet</EmptyTitle>
+              <EmptyDescription>Milestones appear after the billing statement is posted.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           sortPaymentsByDueDate(payments).map((payment) => (
             <PaymentMilestoneCard key={payment.id} payment={payment} busy={busy} onRecord={onRecord} onMarkPayment={onMarkPayment} />
@@ -391,17 +402,12 @@ export function RecordPaymentModal({
   onSubmit: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/40 px-4">
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-card shadow-xl">
-        <div className="flex items-start justify-between gap-3 border-b border-border px-6 py-4">
-          <div>
-            <SectionAccent>Record payment</SectionAccent>
-            <h3 className="mt-1 text-base font-bold text-foreground">{activePayment.label}</h3>
-          </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
-            <X className="size-4" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-lg gap-0 p-0">
+        <DialogHeader className="gap-1 border-b border-border px-6 py-4 pr-12 text-left">
+          <DialogDescription>Record payment</DialogDescription>
+          <DialogTitle className="truncate text-base font-bold">{activePayment.label}</DialogTitle>
+        </DialogHeader>
         <div className="grid gap-4 px-6 py-5">
           <label className="block text-sm font-bold text-foreground">
             Amount received
@@ -418,18 +424,19 @@ export function RecordPaymentModal({
               <DatePicker value={paymentDate} onValueChange={onDate} aria-label="Payment date" className="h-10" />
             </span>
           </label>
-          <label className="block text-sm font-bold text-foreground">
-            Payment method
-            <select
-              value={paymentMethod}
-              onChange={(e) => onMethod(e.target.value as RecordPaymentInput["paymentMethod"])}
-              className="mt-1.5 h-10 w-full rounded-xl border border-border bg-background px-3 text-sm"
-            >
-              <option>Bank Transfer</option>
-              <option>GCash</option>
-              <option>Cheque</option>
-            </select>
-          </label>
+          <div className="grid gap-1.5 text-sm font-bold text-foreground">
+            <span id="payment-method-label">Payment method</span>
+            <Select value={paymentMethod} onValueChange={(value) => onMethod(value as RecordPaymentInput["paymentMethod"])}>
+              <SelectTrigger aria-labelledby="payment-method-label" className="h-10 w-full rounded-xl text-sm font-normal">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                <SelectItem value="GCash">GCash</SelectItem>
+                <SelectItem value="Cheque">Cheque</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <label className="block text-sm font-bold text-foreground">
             Reference number
             <input
@@ -439,7 +446,8 @@ export function RecordPaymentModal({
             />
           </label>
         </div>
-        <div className="flex justify-end gap-2 border-t border-border px-6 py-4">
+        <DialogFooter className="border-t border-border px-6 py-4 sm:justify-between">
+          {Number(amountReceived) <= 0 ? <FieldDescription className="mr-auto">Enter an amount above zero to save.</FieldDescription> : null}
           <Button variant="outline" className="rounded-xl font-bold" onClick={onClose}>
             Cancel
           </Button>
@@ -450,8 +458,8 @@ export function RecordPaymentModal({
           >
             <CheckCircle2 className="size-4" /> Save payment
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,12 +1,20 @@
 import { formatPortalDate } from "@prism/ui/format-date";
 import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, RefreshCw, Search } from "lucide-react";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Badge } from "@prism/ui/components/badge";
 import { Button } from "@prism/ui/components/button";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@prism/ui/components/empty";
+import { ScrollArea, ScrollBar } from "@prism/ui/components/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@prism/ui/components/tooltip";
 import type { PmcmSupplierDirectoryQuery, PrismPmcmSupplierDirectoryPage, PrismSupplierCategory } from "@prism/types";
-import { BNI_TITLE, SegmentedMeter, SupplierAvatar, SupplierTags } from "./supplier-visuals";
+import { BNI_TITLE, SupplierAvatar, supplierTierLabel } from "./supplier-visuals";
 import styles from "./supplier-workspace.module.css";
 
 type SupplierRow = PrismPmcmSupplierDirectoryPage["items"][number];
 type QueryChange = (patch: Partial<PmcmSupplierDirectoryQuery>) => void;
+type Tier = NonNullable<PmcmSupplierDirectoryQuery["tier"]>;
 
 type SupplierDirectoryTableProps = {
   directory: PrismPmcmSupplierDirectoryPage | null;
@@ -23,6 +31,10 @@ type SupplierDirectoryTableProps = {
   onRefresh: () => void;
   onRetry: () => void;
 };
+
+/** Radix Select cannot hold an empty-string item, so "all" stands for "no filter". */
+const ALL = "all";
+const PAGE_SIZES = [25, 50] as const;
 
 function dateLabel(value: string | null) {
   if (!value) return "Never";
@@ -55,46 +67,48 @@ export function SupplierDirectoryTable(props: SupplierDirectoryTableProps) {
   const canGoNext = Boolean(props.directory?.hasNextPage);
 
   return (
-    <section aria-label="Supplier directory" className={`${styles.table} min-w-0 overflow-hidden`}>
-      <SupplierDirectoryFilters {...props} />
-      {props.view === "contracts" || props.view === "payments" ? <PortalScopeNotice view={props.view} /> : null}
-      {props.error ? <DirectoryError message={props.error} onRetry={props.onRetry} /> : null}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1000px] table-fixed border-collapse text-left text-sm">
-          <colgroup>{[17, 16, 12, 20, 12, 12, 11].map((width, index) => <col key={index} style={{ width: `${width}%` }} />)}</colgroup>
-          <thead className="sticky top-0 z-10 text-2xs font-medium text-muted-foreground">
-            <tr className="h-9 border-b border-border">
-              <th scope="col" className="px-4">Supplier</th>
-              <th scope="col" className="px-3">Category</th>
-              <th scope="col" className="px-3">Tier</th>
-              <th scope="col" className="px-3">Contact</th>
-              <th scope="col" className="px-3">Rating</th>
-              <th scope="col" className="px-3">Certifications</th>
-              <th scope="col" className="px-3">Last review</th>
-            </tr>
-          </thead>
-          <tbody>
-            {props.directory?.items.map((supplier) => (
-              <SupplierDirectoryRow
-                key={supplier.id}
-                supplier={supplier}
-                selected={props.selectedSupplierId === supplier.id}
-                onSelect={props.onSelectSupplier}
-              />
-            ))}
-            {!props.directory?.items.length ? <DirectoryEmptyRow loading={props.loading} /> : null}
-          </tbody>
-        </table>
-      </div>
-      <DirectoryPagination
-        directory={props.directory}
-        query={props.query}
-        loading={props.loading}
-        canGoPrevious={canGoPrevious}
-        canGoNext={canGoNext}
-        onQueryChange={props.onQueryChange}
-      />
-    </section>
+    <TooltipProvider>
+      <section aria-label="Supplier directory" className={`${styles.table} min-w-0 overflow-hidden`}>
+        <SupplierDirectoryFilters {...props} />
+        {props.view === "contracts" || props.view === "payments" ? <PortalScopeNotice view={props.view} /> : null}
+        {props.error ? <DirectoryError message={props.error} onRetry={props.onRetry} /> : null}
+        <ScrollArea className="w-full">
+          <Table className="min-w-[880px]">
+            <TableHeader className="bg-muted/60 text-xs text-muted-foreground">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="sticky left-0 z-10 min-w-[200px] bg-muted/60 pl-4">Supplier</TableHead>
+                <TableHead className="min-w-[150px]">Category</TableHead>
+                <TableHead className="min-w-[150px]">Tier</TableHead>
+                <TableHead className="min-w-[200px]">Contact</TableHead>
+                <TableHead className="min-w-[130px]">Rating</TableHead>
+                <TableHead className="min-w-[140px]">Certifications</TableHead>
+                <TableHead className="min-w-[110px]">Last review</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {props.directory?.items.map((supplier) => (
+                <SupplierDirectoryRow
+                  key={supplier.id}
+                  supplier={supplier}
+                  selected={props.selectedSupplierId === supplier.id}
+                  onSelect={props.onSelectSupplier}
+                />
+              ))}
+              {!props.directory?.items.length ? <DirectoryEmptyRow loading={props.loading} /> : null}
+            </TableBody>
+          </Table>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+        <DirectoryPagination
+          directory={props.directory}
+          query={props.query}
+          loading={props.loading}
+          canGoPrevious={canGoPrevious}
+          canGoNext={canGoNext}
+          onQueryChange={props.onQueryChange}
+        />
+      </section>
+    </TooltipProvider>
   );
 }
 
@@ -105,38 +119,61 @@ function SupplierDirectoryFilters({ categories, query, searchDraft, loading, onS
     ["last_review", "Last review"],
     ["certifications", "Certifications"],
   ];
+  const tierOptions: Array<[Tier, string]> = [
+    ["tier_1", "Tier 1"],
+    ["tier_2", "Tier 2"],
+    ["pending_first_event", "First event pending"],
+  ];
+  const ratingOptions: Array<[PmcmSupplierDirectoryQuery["rating"], string]> = [
+    ["all", "Any rating"],
+    ["4.5", "4.5 and above"],
+    ["4.0", "4.0 and above"],
+    ["unrated", "Not reviewed"],
+  ];
+  const presetCategoryMissing = Boolean(query.categoryId && !categories.some((category) => category.id === query.categoryId));
 
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
       <label className="relative min-w-[180px] flex-1 sm:max-w-[220px]">
         <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <span className="sr-only">Search suppliers</span>
-        <input value={searchDraft} onChange={(event) => onSearch(event.target.value)} placeholder="Search suppliers" className="h-8 w-full rounded-md border border-border bg-card pl-9 pr-3 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/35" />
+        <input value={searchDraft} onChange={(event) => onSearch(event.target.value)} placeholder="Search suppliers" className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/35" />
       </label>
-      <label className="sr-only" htmlFor="supplier-category-filter">Category</label>
-      <select id="supplier-category-filter" value={query.categoryId ?? ""} onChange={(event) => onQueryChange({ categoryId: event.target.value || undefined, page: 0 })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm">
-        <option value="">All categories</option>
-        {query.categoryId && !categories.some((category) => category.id === query.categoryId) ? <option value={query.categoryId}>No matching category for this view</option> : null}
-        {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-      </select>
-      <label className="sr-only" htmlFor="supplier-tier-filter">Tier</label>
-      <select id="supplier-tier-filter" value={query.tier ?? ""} onChange={(event) => onQueryChange({ tier: (event.target.value || undefined) as PmcmSupplierDirectoryQuery["tier"], page: 0 })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm">
-        <option value="">All tiers</option>
-        <option value="tier_1">Tier 1</option>
-        <option value="tier_2">Tier 2</option>
-        <option value="pending_first_event">Pending first event</option>
-      </select>
-      <label className="sr-only" htmlFor="supplier-rating-filter">Rating</label>
-      <select id="supplier-rating-filter" value={query.rating} onChange={(event) => onQueryChange({ rating: event.target.value as PmcmSupplierDirectoryQuery["rating"], page: 0 })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm">
-        <option value="all">Any rating</option>
-        <option value="4.5">4.5 and above</option>
-        <option value="4.0">4.0 and above</option>
-        <option value="unrated">Not reviewed</option>
-      </select>
-      <label className="sr-only" htmlFor="supplier-sort">Sort suppliers</label>
-      <select id="supplier-sort" value={query.sort} onChange={(event) => onQueryChange({ sort: event.target.value as PmcmSupplierDirectoryQuery["sort"], page: 0 })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm">
-        {sortOptions.map(([value, label]) => <option key={value} value={value}>Sort: {label}</option>)}
-      </select>
+      <Select value={query.categoryId ?? ALL} onValueChange={(value) => onQueryChange({ categoryId: value === ALL ? undefined : value, page: 0 })}>
+        <SelectTrigger id="supplier-category-filter" aria-label="Category" className="h-9 w-40 min-w-0 text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All categories</SelectItem>
+          {presetCategoryMissing && query.categoryId ? <SelectItem value={query.categoryId}>No category set up for this view</SelectItem> : null}
+          {categories.map((category) => <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={query.tier ?? ALL} onValueChange={(value) => onQueryChange({ tier: value === ALL ? undefined : tierOptions.find(([option]) => option === value)?.[0], page: 0 })}>
+        <SelectTrigger id="supplier-tier-filter" aria-label="Tier" className="h-9 w-36 min-w-0 text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL}>All tiers</SelectItem>
+          {tierOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={query.rating} onValueChange={(value) => onQueryChange({ rating: ratingOptions.find(([option]) => option === value)?.[0] ?? query.rating, page: 0 })}>
+        <SelectTrigger id="supplier-rating-filter" aria-label="Rating" className="h-9 w-36 min-w-0 text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {ratingOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+        </SelectContent>
+      </Select>
+      <Select value={query.sort} onValueChange={(value) => onQueryChange({ sort: sortOptions.find(([option]) => option === value)?.[0] ?? query.sort, page: 0 })}>
+        <SelectTrigger id="supplier-sort" aria-label="Sort suppliers" className="h-9 w-40 min-w-0 text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {sortOptions.map(([value, label]) => <SelectItem key={value} value={value}>Sort: {label}</SelectItem>)}
+        </SelectContent>
+      </Select>
       <Button type="button" variant="outline" size="sm" aria-label={`Sort ${query.direction === "asc" ? "descending" : "ascending"}`} onClick={() => onQueryChange({ direction: query.direction === "asc" ? "desc" : "asc" })}>
         {query.direction === "asc" ? <ArrowUp /> : <ArrowDown />}
       </Button>
@@ -149,53 +186,116 @@ function SupplierDirectoryFilters({ categories, query, searchDraft, loading, onS
 
 function PortalScopeNotice({ view }: { view: string }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3 text-sm">
-      <p>Supplier {view} are managed inside an event workspace.</p>
-      <a href="/dashboard/events" className="font-semibold text-primary underline-offset-4 hover:underline">Open an event workspace</a>
-    </div>
+    <Alert className="rounded-none border-x-0 border-t-0">
+      <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+        <span>Supplier {view} are managed inside an event workspace.</span>
+        <Button asChild variant="link" size="sm" className="h-auto p-0">
+          <a href="/dashboard/events">Open an event workspace</a>
+        </Button>
+      </AlertDescription>
+    </Alert>
   );
 }
 
 function DirectoryError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div role="alert" className="flex flex-wrap items-center justify-between gap-3 border-b border-destructive/20 bg-destructive/5 px-4 py-3 text-sm">
-      <p>{message}</p>
-      <Button type="button" variant="outline" size="sm" onClick={onRetry}>Retry</Button>
-    </div>
+    <Alert variant="destructive" role="alert" className="rounded-none border-x-0 border-t-0">
+      <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+        <span>{message}</span>
+        <Button type="button" variant="outline" size="sm" onClick={onRetry}>Retry</Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+function TruncatedText({ value, className = "" }: { value: string; className?: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className={`block min-w-0 truncate ${className}`}>{value}</span>
+      </TooltipTrigger>
+      <TooltipContent>{value}</TooltipContent>
+    </Tooltip>
   );
 }
 
 function SupplierDirectoryRow({ supplier, selected, onSelect }: { supplier: SupplierRow; selected: boolean; onSelect: SupplierDirectoryTableProps["onSelectSupplier"] }) {
-  const contact = supplier.contactName || "No contact on file";
-  const contactValue = supplier.email || supplier.phone || "";
-
   return (
-    <tr className={`border-b border-border/55 transition-colors ${selected ? styles.selectedRow : ""}`}>
-      <th scope="row" className="px-4 font-medium">
-        <div className="flex items-center gap-1.5">
-          <button title={supplier.name} type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="group flex min-h-6 min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <span className="truncate">{supplier.name}</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
-          </button>
-          {supplier.bniMember ? <span title={BNI_TITLE} className="text-[9px] text-primary">BNI</span> : null}
+    <TableRow data-state={selected ? "selected" : undefined} className={selected ? styles.selectedRow : undefined}>
+      <SupplierNameCell supplier={supplier} onSelect={onSelect} />
+      <TableCell>
+        <Badge variant="secondary" className="max-w-full min-w-0"><TruncatedText value={supplier.categoryName} /></Badge>
+      </TableCell>
+      <TableCell>
+        <Badge variant={supplier.tier === "pending_first_event" ? "outline" : "success"} className="whitespace-nowrap">{supplierTierLabel(supplier.tier)}</Badge>
+      </TableCell>
+      <SupplierContactCell supplier={supplier} />
+      <TableCell className="whitespace-nowrap text-sm">{ratingLabel(supplier.rating)}</TableCell>
+      <TableCell className="whitespace-nowrap text-muted-foreground">
+        <span className={`mr-1.5 inline-block size-1.5 rounded-full ${certificationDotClass(supplier.certifications.attention)}`} />{certificationLabel(supplier.certifications.attention, supplier.certifications)}
+      </TableCell>
+      <SupplierReviewDateCell lastReviewedAt={supplier.lastReviewedAt} />
+    </TableRow>
+  );
+}
+
+function SupplierNameCell({ supplier, onSelect }: { supplier: SupplierRow; onSelect: SupplierDirectoryTableProps["onSelectSupplier"] }) {
+  return (
+    <TableCell className="sticky left-0 z-[1] bg-card pl-4 font-medium">
+      <div className="flex min-w-0 items-center gap-1.5">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="group flex min-h-6 min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="truncate">{supplier.name}</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>{supplier.name}</TooltipContent>
+        </Tooltip>
+        {supplier.bniMember ? <Tooltip><TooltipTrigger asChild><Badge variant="info" className="shrink-0">BNI</Badge></TooltipTrigger><TooltipContent>{BNI_TITLE}</TooltipContent></Tooltip> : null}
+      </div>
+    </TableCell>
+  );
+}
+
+function SupplierContactCell({ supplier }: { supplier: SupplierRow }) {
+  const contactValue = supplier.email || supplier.phone || "";
+  return (
+    <TableCell className="text-muted-foreground">
+      <div className="flex min-w-0 items-center gap-2">
+        <SupplierAvatar name={supplier.contactName || supplier.name} />
+        <div className="min-w-0">
+          <TruncatedText value={supplier.contactName || "No contact on file"} />
+          {contactValue ? <TruncatedText value={contactValue} className="text-xs" /> : null}
         </div>
-      </th>
-      <td className="px-3"><SupplierTags category={supplier.categoryName} /></td>
-      <td className="px-3"><SupplierTags tier={supplier.tier} /></td>
-      <td className="max-w-[190px] px-3 text-muted-foreground">
-        <div className="flex items-center gap-2"><SupplierAvatar name={supplier.contactName || supplier.name} /><div className="min-w-0">
-          <span className="block truncate">{contact}</span>
-          <span className="block truncate text-3xs">{contactValue}</span>
-        </div></div>
-      </td>
-      <td className="min-w-[130px] whitespace-nowrap px-3"><span className="mb-1.5 block text-2xs">{ratingLabel(supplier.rating)}</span><div className="max-w-24"><SegmentedMeter value={supplier.rating.average} segments={24} /></div></td>
-      <td className="whitespace-nowrap px-3 text-muted-foreground"><span className={`mr-1.5 inline-block size-1.5 rounded-full ${certificationDotClass(supplier.certifications.attention)}`} />{certificationLabel(supplier.certifications.attention, supplier.certifications)}</td>
-      <td className="whitespace-nowrap px-3 text-muted-foreground"><span title={supplier.lastReviewedAt ? formatPortalDate(supplier.lastReviewedAt) : undefined} className="flex items-center gap-1.5"><CalendarDays aria-hidden="true" className="size-3" />{dateLabel(supplier.lastReviewedAt)}</span></td>
-    </tr>
+      </div>
+    </TableCell>
+  );
+}
+
+function SupplierReviewDateCell({ lastReviewedAt }: { lastReviewedAt: string | null }) {
+  return (
+    <TableCell className="whitespace-nowrap text-muted-foreground">
+      <span className="flex items-center gap-1.5">
+        <CalendarDays aria-hidden="true" className="size-3" />
+        {lastReviewedAt ? <time dateTime={lastReviewedAt} title={formatPortalDate(lastReviewedAt)}>{dateLabel(lastReviewedAt)}</time> : dateLabel(null)}
+      </span>
+    </TableCell>
   );
 }
 
 function DirectoryEmptyRow({ loading }: { loading: boolean }) {
-  return <tr><td colSpan={7} className="px-4 py-14 text-center text-sm text-muted-foreground">{loading ? "Loading supplier directory…" : "No suppliers match these filters."}</td></tr>;
+  return (
+    <TableRow className="hover:bg-transparent">
+      <TableCell colSpan={7} className="p-0">
+        <Empty className="border-0 p-10">
+          <EmptyHeader>
+            <EmptyTitle>{loading ? "Loading supplier directory" : "No suppliers match these filters"}</EmptyTitle>
+            {loading ? null : <EmptyDescription>Clear a filter or search term to widen the directory.</EmptyDescription>}
+          </EmptyHeader>
+        </Empty>
+      </TableCell>
+    </TableRow>
+  );
 }
 
 function DirectoryPagination({ directory, query, loading, canGoPrevious, canGoNext, onQueryChange }: {
@@ -211,10 +311,15 @@ function DirectoryPagination({ directory, query, loading, canGoPrevious, canGoNe
     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-xs text-muted-foreground">
       <span>{resultCount}</span>
       <div className="flex items-center gap-2">
-        <label htmlFor="supplier-page-size">Rows</label>
-        <select id="supplier-page-size" value={query.pageSize} onChange={(event) => onQueryChange({ pageSize: Number(event.target.value) as 25 | 50, page: 0 })} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
-          <option value={25}>25</option><option value={50}>50</option>
-        </select>
+        <span id="supplier-page-size-label">Rows</span>
+        <Select value={String(query.pageSize)} onValueChange={(value) => onQueryChange({ pageSize: PAGE_SIZES.find((size) => String(size) === value) ?? query.pageSize, page: 0 })}>
+          <SelectTrigger id="supplier-page-size" aria-labelledby="supplier-page-size-label" className="h-8 w-20 min-w-0 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PAGE_SIZES.map((size) => <SelectItem key={size} value={String(size)}>{size}</SelectItem>)}
+          </SelectContent>
+        </Select>
         <span className="min-w-20 text-center">Page {query.page + 1}</span>
         <Button type="button" variant="outline" size="sm" disabled={!canGoPrevious || loading} onClick={() => onQueryChange({ page: query.page - 1 })}>Previous</Button>
         <Button type="button" variant="outline" size="sm" disabled={!canGoNext || loading} onClick={() => onQueryChange({ page: query.page + 1 })}>Next</Button>

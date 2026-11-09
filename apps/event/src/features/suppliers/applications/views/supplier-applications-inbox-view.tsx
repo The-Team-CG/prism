@@ -3,7 +3,7 @@
 import { useId } from "react";
 import { Inbox } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { Input } from "@prism/ui/components/input";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { applicationActionLabel, applicationReviewActions } from "../model/supplier-applications-rules";
@@ -27,7 +27,13 @@ export function SupplierApplicationsInboxView() {
       <div className="space-y-3 px-6 py-5">
         {error ? <p className="text-sm font-semibold text-attention">{error}</p> : null}
         {items.length === 0 ? (
-          <EmptyState icon={Inbox} title="No applications yet" description="Public supplier applications appear here for PMCM review." />
+          <Empty className="border-0 p-6">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><Inbox /></EmptyMedia>
+              <EmptyTitle>No applications yet</EmptyTitle>
+              <EmptyDescription>Public supplier applications appear here for PMCM review.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           items.map((item) => (
             <div key={item.id} className="rounded-xl border border-border bg-muted/30 p-4">

@@ -3,11 +3,13 @@
 import { useState, type ReactNode } from "react";
 import type { PrismBillingSource, PrismBillingStatement, PrismPaymentMilestone, PrismUrgentIssue } from "@prism/types";
 import { money } from "@/features/pmcm-kit";
+import { Button } from "@prism/ui/components/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { BILLING_DISCREPANCY_SEVERITIES, BILLING_DISCREPANCY_SEVERITY_LABELS, type BillingDiscrepancySeverity } from "@prism/types";
 import { useBillingAdjustmentsPanel } from "../view-models/use-billing-adjustments-panel";
 
 const fieldClass = "mt-1 block w-full rounded-md border border-border bg-white px-3 py-2 text-sm";
-const buttonClass = "h-9 rounded-md bg-ink px-4 text-xs font-black text-ink-foreground disabled:opacity-50";
+const actionButtonClass = "bg-ink font-black text-ink-foreground hover:bg-ink/90";
 const toggleClass = "h-9 rounded-md border border-border bg-background px-4 text-xs font-bold text-foreground";
 
 type BillingAdjustmentsVm = ReturnType<typeof useBillingAdjustmentsPanel>;
@@ -56,13 +58,22 @@ function CreateToggle({ label, open, controls, onToggle }: { label: string; open
   );
 }
 
+/** Radix Select cannot hold an empty-string item, so "none" stands for an unset optional choice. */
+const NO_CHOICE = "none";
+
 function SeveritySelect({ value, onChange }: { value: BillingDiscrepancySeverity; onChange: (value: BillingDiscrepancySeverity) => void }) {
   return (
-    <label className="block text-xs font-semibold">Discrepancy severity
-      <select className={fieldClass} value={value} onChange={(e) => onChange(e.target.value as BillingDiscrepancySeverity)}>
-        {BILLING_DISCREPANCY_SEVERITIES.map((severity) => <option key={severity} value={severity}>{BILLING_DISCREPANCY_SEVERITY_LABELS[severity]}</option>)}
-      </select>
-    </label>
+    <div className="block text-xs font-semibold">
+      <span>Discrepancy severity</span>
+      <Select value={value} onValueChange={(next) => onChange(next as BillingDiscrepancySeverity)}>
+        <SelectTrigger aria-label="Discrepancy severity" className="mt-1 h-9 w-full text-sm">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {BILLING_DISCREPANCY_SEVERITIES.map((severity) => <SelectItem key={severity} value={severity}>{BILLING_DISCREPANCY_SEVERITY_LABELS[severity]}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -94,27 +105,33 @@ function DisputeSection({ vm }: { vm: BillingAdjustmentsVm }) {
             onChange={(e) => vm.setResolutionNotes({ ...vm.resolutionNotes, [dispute.id]: e.target.value })}
           />
           <div className="flex gap-2">
-            <button type="button" className={buttonClass} disabled={vm.busy || !(vm.resolutionNotes[dispute.id] ?? "").trim()} onClick={() => void vm.resolveDispute(dispute.id, "resolve")}>Resolve</button>
-            <button type="button" className={buttonClass} disabled={vm.busy || !(vm.resolutionNotes[dispute.id] ?? "").trim()} onClick={() => void vm.resolveDispute(dispute.id, "reject")}>Reject</button>
+            <Button size="sm" type="button" className={actionButtonClass} disabled={vm.busy || !(vm.resolutionNotes[dispute.id] ?? "").trim()} onClick={() => void vm.resolveDispute(dispute.id, "resolve")}>Resolve</Button>
+            <Button size="sm" type="button" className={actionButtonClass} disabled={vm.busy || !(vm.resolutionNotes[dispute.id] ?? "").trim()} onClick={() => void vm.resolveDispute(dispute.id, "reject")}>Reject</Button>
           </div>
         </div>
       ))}
       {creating ? (
         <form id="billing-dispute-form" className="space-y-3 rounded-xl border border-border p-3" onSubmit={(event) => { event.preventDefault(); void vm.submitDispute(); }}>
           <SeveritySelect value={vm.disputeDraft.severity} onChange={(severity) => vm.setDisputeDraft({ ...vm.disputeDraft, severity })} />
-          <label className="block text-xs font-semibold">Milestone (optional)
-            <select className={fieldClass} value={vm.disputeDraft.milestoneId} onChange={(e) => vm.setDisputeDraft({ ...vm.disputeDraft, milestoneId: e.target.value })}>
-              <option value="">Whole statement</option>
-              {vm.payments.map((payment) => <option key={payment.id} value={payment.id}>{payment.label}</option>)}
-            </select>
-          </label>
+          <div className="block text-xs font-semibold">
+            <span>Milestone (optional)</span>
+            <Select value={vm.disputeDraft.milestoneId || NO_CHOICE} onValueChange={(next) => vm.setDisputeDraft({ ...vm.disputeDraft, milestoneId: next === NO_CHOICE ? "" : next })}>
+              <SelectTrigger aria-label="Milestone" className="mt-1 h-9 w-full text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_CHOICE}>Whole statement</SelectItem>
+                {vm.payments.map((payment) => <SelectItem key={payment.id} value={payment.id}>{payment.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <label className="block text-xs font-semibold">Disputed amount
             <input className={fieldClass} inputMode="numeric" value={vm.disputeDraft.amount} onChange={(e) => vm.setDisputeDraft({ ...vm.disputeDraft, amount: e.target.value })} />
           </label>
           <label className="block text-xs font-semibold">Reason
             <textarea className={fieldClass} rows={2} value={vm.disputeDraft.reason} onChange={(e) => vm.setDisputeDraft({ ...vm.disputeDraft, reason: e.target.value })} />
           </label>
-          <button type="submit" className={buttonClass} disabled={vm.busy || !vm.statement || !vm.disputeDraft.reason.trim()}>Record dispute</button>
+          <Button size="sm" type="submit" className={actionButtonClass} disabled={vm.busy || !vm.statement || !vm.disputeDraft.reason.trim()}>Record dispute</Button>
         </form>
       ) : null}
     </div>
@@ -144,8 +161,8 @@ function CorrectionSection({ vm }: { vm: BillingAdjustmentsVm }) {
                 <p className="text-xs text-muted-foreground">You requested this correction. Another PMCM user must approve it; you can still reject it.</p>
               ) : null}
               <div className="flex gap-2">
-                <button type="button" className={buttonClass} disabled={vm.busy || !vm.canApproveCorrection(correction)} onClick={() => void vm.resolveCorrection(correction.id, "approve")}>Approve</button>
-                <button type="button" className={buttonClass} disabled={vm.busy || !(vm.correctionNotes[correction.id] ?? "").trim()} onClick={() => void vm.resolveCorrection(correction.id, "reject")}>Reject</button>
+                <Button size="sm" type="button" className={actionButtonClass} disabled={vm.busy || !vm.canApproveCorrection(correction)} onClick={() => void vm.resolveCorrection(correction.id, "approve")}>Approve</Button>
+                <Button size="sm" type="button" className={actionButtonClass} disabled={vm.busy || !(vm.correctionNotes[correction.id] ?? "").trim()} onClick={() => void vm.resolveCorrection(correction.id, "reject")}>Reject</Button>
               </div>
             </>
           ) : null}
@@ -162,7 +179,7 @@ function CorrectionSection({ vm }: { vm: BillingAdjustmentsVm }) {
             <input className={fieldClass} inputMode="numeric" disabled={vm.correctionDraft.severity === "typo_correction"} value={vm.correctionDraft.correctedTotalAmount} onChange={(e) => vm.setCorrectionDraft({ ...vm.correctionDraft, correctedTotalAmount: e.target.value })} />
             {vm.correctionDraft.severity === "typo_correction" ? <span className="mt-1 block font-normal text-muted-foreground">A typo correction cannot change the amount.</span> : null}
           </label>
-          <button type="submit" className={buttonClass} disabled={vm.busy || !vm.statement || !vm.correctionDraft.reason.trim()}>Request correction</button>
+          <Button size="sm" type="submit" className={actionButtonClass} disabled={vm.busy || !vm.statement || !vm.correctionDraft.reason.trim()}>Request correction</Button>
         </form>
       ) : null}
     </div>
@@ -187,7 +204,7 @@ function AdditionalBillingSection({ vm, urgentIssues }: { vm: BillingAdjustments
                 value={vm.waiverReasons[billing.id] ?? ""}
                 onChange={(e) => vm.setWaiverReasons({ ...vm.waiverReasons, [billing.id]: e.target.value })}
               />
-              <button type="button" className={buttonClass} disabled={vm.busy || !(vm.waiverReasons[billing.id] ?? "").trim()} onClick={() => void vm.waiveAdditionalBilling(billing.id)}>Waive</button>
+              <Button size="sm" type="button" className={actionButtonClass} disabled={vm.busy || !(vm.waiverReasons[billing.id] ?? "").trim()} onClick={() => void vm.waiveAdditionalBilling(billing.id)}>Waive</Button>
             </div>
           ) : null}
         </div>
@@ -195,25 +212,37 @@ function AdditionalBillingSection({ vm, urgentIssues }: { vm: BillingAdjustments
       {creating ? (
         <form id="billing-additional-form" className="space-y-3 rounded-xl border border-border p-3" onSubmit={(event) => { event.preventDefault(); void vm.submitAdditionalBilling(); }}>
           <p className="text-xs text-muted-foreground">Only approved billing sources can carry additional billing for this event.</p>
-          <label className="block text-xs font-semibold">Approved source
-            <select className={fieldClass} value={vm.additionalDraft.billingSourceId} onChange={(e) => vm.setAdditionalDraft({ ...vm.additionalDraft, billingSourceId: e.target.value })}>
-              <option value="">Select an approved source</option>
-              {vm.approvedSources.map((source) => <option key={source.id} value={source.id}>{source.sourceLabel}</option>)}
-            </select>
-          </label>
-          <label className="block text-xs font-semibold">Linked urgent issue (optional)
-            <select aria-label="Linked urgent issue" className={fieldClass} value={vm.additionalDraft.urgentIssueId} onChange={(e) => vm.setAdditionalDraft({ ...vm.additionalDraft, urgentIssueId: e.target.value })}>
-              <option value="">No linked issue</option>
-              {urgentIssues.map((issue) => <option key={issue.id} value={issue.id}>{issue.title}</option>)}
-            </select>
-          </label>
+          <div className="block text-xs font-semibold">
+            <span>Approved source</span>
+            <Select value={vm.additionalDraft.billingSourceId || NO_CHOICE} onValueChange={(next) => vm.setAdditionalDraft({ ...vm.additionalDraft, billingSourceId: next === NO_CHOICE ? "" : next })}>
+              <SelectTrigger aria-label="Approved source" className="mt-1 h-9 w-full text-sm">
+                <SelectValue placeholder="Select an approved source" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_CHOICE}>Select an approved source</SelectItem>
+                {vm.approvedSources.map((source) => <SelectItem key={source.id} value={source.id}>{source.sourceLabel}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="block text-xs font-semibold">
+            <span>Linked urgent issue (optional)</span>
+            <Select value={vm.additionalDraft.urgentIssueId || NO_CHOICE} onValueChange={(next) => vm.setAdditionalDraft({ ...vm.additionalDraft, urgentIssueId: next === NO_CHOICE ? "" : next })}>
+              <SelectTrigger aria-label="Linked urgent issue" className="mt-1 h-9 w-full text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_CHOICE}>No linked issue</SelectItem>
+                {urgentIssues.map((issue) => <SelectItem key={issue.id} value={issue.id}>{issue.title}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <label className="block text-xs font-semibold">Description
             <input className={fieldClass} value={vm.additionalDraft.description} onChange={(e) => vm.setAdditionalDraft({ ...vm.additionalDraft, description: e.target.value })} />
           </label>
           <label className="block text-xs font-semibold">Amount
             <input className={fieldClass} inputMode="numeric" value={vm.additionalDraft.amount} onChange={(e) => vm.setAdditionalDraft({ ...vm.additionalDraft, amount: e.target.value })} />
           </label>
-          <button type="submit" className={buttonClass} disabled={vm.busy || !vm.additionalDraft.billingSourceId || !vm.additionalDraft.description.trim()}>Issue additional billing</button>
+          <Button size="sm" type="submit" className={actionButtonClass} disabled={vm.busy || !vm.additionalDraft.billingSourceId || !vm.additionalDraft.description.trim()}>Issue additional billing</Button>
         </form>
       ) : null}
     </div>

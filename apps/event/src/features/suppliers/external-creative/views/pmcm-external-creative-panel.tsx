@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import type { PrismDocument, PrismExternalCreativeTicket } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { useExternalCreative } from "../view-models/use-external-creative";
 
 const FIELD = "mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
 const STATUS_LABEL: Record<PrismExternalCreativeTicket["status"], string> = { requested: "Requested", in_progress: "In progress", delivered: "Delivered", completed: "Completed" };
+/** Radix Select cannot hold an empty-string item, so "none" stands for "no file chosen yet". */
+const NO_FILE = "none";
 
 /** FR-87: outsourced creative designers are tracked by PMCM only; no supplier entry or portal account. */
 export function PmcmExternalCreativePanel({ eventId, documents }: { eventId: string; documents: PrismDocument[] }) {
@@ -26,7 +30,10 @@ export function PmcmExternalCreativePanel({ eventId, documents }: { eventId: str
         <label className="text-sm">Contact<input value={form.designerContact} onChange={(event) => set("designerContact")(event.target.value)} className={FIELD} /></label>
         <label className="text-sm md:col-span-2">Deliverable<textarea rows={2} value={form.deliverable} onChange={(event) => set("deliverable")(event.target.value)} className={FIELD} /></label>
         <label className="text-sm">Due date<input type="date" value={form.dueDate} onChange={(event) => set("dueDate")(event.target.value)} className={FIELD} /></label>
-        <div className="self-end"><button type="submit" disabled={vm.busy || !form.designerName.trim() || !form.deliverable.trim()} className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">Open ticket</button></div>
+        <div className="self-end">
+          <Button type="submit" size="sm" disabled={vm.busy || !form.designerName.trim() || !form.deliverable.trim()}>Open ticket</Button>
+          {!form.designerName.trim() || !form.deliverable.trim() ? <p className="mt-2 text-xs text-muted-foreground">Add a designer and deliverable to open the ticket.</p> : null}
+        </div>
       </form>
     </section>
   );
@@ -50,16 +57,22 @@ function TicketRow({ ticket, documents, busy, onUpdate, onComplete }: {
         <div className="mt-2 grid gap-2 md:grid-cols-2">
           <label className="text-xs">Progress note<input value={note} onChange={(event) => setNote(event.target.value)} className={FIELD} /></label>
           <div className="flex items-end gap-2">
-            <button type="button" disabled={busy} onClick={() => void onUpdate(ticket.id, "in_progress", note)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">In progress</button>
-            <button type="button" disabled={busy} onClick={() => void onUpdate(ticket.id, "delivered", note)} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Delivered</button>
+            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void onUpdate(ticket.id, "in_progress", note)}>In progress</Button>
+            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void onUpdate(ticket.id, "delivered", note)}>Delivered</Button>
           </div>
-          <label className="text-xs">Finished output in event files
-            <select value={documentId} onChange={(event) => setDocumentId(event.target.value)} className={FIELD}>
-              <option value="">Choose a file</option>
-              {documents.map((document) => <option key={document.id} value={document.id}>{document.fileName}</option>)}
-            </select>
-          </label>
-          <div className="flex items-end"><button type="button" disabled={busy || !documentId} onClick={() => void onComplete(ticket.id, documentId)} className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">Mark complete</button></div>
+          <div className="grid gap-1 text-xs">
+            <span id={`finished-output-${ticket.id}`}>Finished output in event files</span>
+            <Select value={documentId || NO_FILE} onValueChange={(next) => setDocumentId(next === NO_FILE ? "" : next)}>
+              <SelectTrigger aria-labelledby={`finished-output-${ticket.id}`} className="mt-1 h-9 w-full min-w-0 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_FILE}>Choose a file</SelectItem>
+                {documents.map((document) => <SelectItem key={document.id} value={document.id}>{document.fileName}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-end"><Button type="button" size="sm" disabled={busy || !documentId} onClick={() => void onComplete(ticket.id, documentId)}>Mark complete</Button></div>
         </div>
       )}
     </li>
