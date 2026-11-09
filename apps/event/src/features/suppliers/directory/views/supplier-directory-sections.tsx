@@ -4,7 +4,10 @@ import { BNI_TITLE } from "./supplier-visuals";
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { Badge } from "@prism/ui/components/badge";
+import { Button } from "@prism/ui/components/button";
+import { FieldDescription } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { cx, RatingStars, SupplierTierBadge } from "@/features/pmcm-kit";
 import {
   SupplierReviewPanel,
@@ -131,24 +134,37 @@ export function SupplierDirectoryList({
             placeholder="Search supplier name, contact, email..."
           />
         </div>
-        <select value={categoryId} onChange={(event) => onCategoryId(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-          <option value="all">All categories</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>{category.name}</option>
-          ))}
-        </select>
-        <select value={tier} onChange={(event) => onTier(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-          <option value="all">All tiers</option>
-          <option value="tier_1">Tier 1</option>
-          <option value="tier_2">Tier 2</option>
-          <option value="pending_first_event">Pending First Event</option>
-        </select>
-        <select value={rating} onChange={(event) => onRating(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-          <option value="all">All ratings</option>
-          <option value="4.5">4.5 and up</option>
-          <option value="4.0">4.0 and up</option>
-          <option value="unrated">Unrated</option>
-        </select>
+        <Select value={categoryId} onValueChange={onCategoryId}>
+          <SelectTrigger aria-label="Category" className="h-10 w-44 min-w-0 bg-white text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {categories.map((category) => <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={tier} onValueChange={onTier}>
+          <SelectTrigger aria-label="Tier" className="h-10 w-40 min-w-0 bg-white text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All tiers</SelectItem>
+            <SelectItem value="tier_1">Tier 1</SelectItem>
+            <SelectItem value="tier_2">Tier 2</SelectItem>
+            <SelectItem value="pending_first_event">Pending First Event</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={rating} onValueChange={onRating}>
+          <SelectTrigger aria-label="Rating" className="h-10 w-40 min-w-0 bg-white text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All ratings</SelectItem>
+            <SelectItem value="4.5">4.5 and up</SelectItem>
+            <SelectItem value="4.0">4.0 and up</SelectItem>
+            <SelectItem value="unrated">Unrated</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -203,22 +219,33 @@ function SupplierCreateFormFields({
         <Input value={createForm.contactName} onChange={(event) => onCreateForm({ contactName: event.target.value })} className="h-10 bg-white" placeholder="Contact person" />
         <Input value={createForm.email} onChange={(event) => onCreateForm({ email: event.target.value })} className="h-10 bg-white" placeholder="Email" />
         <Input value={createForm.phone} onChange={(event) => onCreateForm({ phone: event.target.value })} className="h-10 bg-white" placeholder="Phone" />
-        <select value={createForm.categoryId} onChange={(event) => onCreateForm({ categoryId: event.target.value })} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-          {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-        </select>
-        <select value={createForm.tier} onChange={(event) => onCreateForm({ tier: event.target.value as SupplierCreateForm["tier"] })} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-          <option value="pending_first_event">Pending First Event</option>
-          <option value="tier_1">Tier 1</option>
-          <option value="tier_2">Tier 2</option>
-        </select>
+        <Select value={createForm.categoryId} onValueChange={(categoryId) => onCreateForm({ categoryId })}>
+          <SelectTrigger aria-label="New supplier category" className="h-10 min-w-0 bg-white text-sm">
+            <SelectValue placeholder="Choose category" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((category) => <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={createForm.tier} onValueChange={(tier) => onCreateForm({ tier: tier as SupplierCreateForm["tier"] })}>
+          <SelectTrigger aria-label="New supplier tier" className="h-10 min-w-0 bg-white text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pending_first_event">Pending First Event</SelectItem>
+            <SelectItem value="tier_1">Tier 1</SelectItem>
+            <SelectItem value="tier_2">Tier 2</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="mt-2 grid gap-2 md:grid-cols-2">
         <textarea value={createForm.serviceInclusions} onChange={(event) => onCreateForm({ serviceInclusions: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Service inclusions" />
         <textarea value={createForm.performanceNotes} onChange={(event) => onCreateForm({ performanceNotes: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Private performance notes" />
       </div>
-      <button type="button" disabled={busy || !createForm.name.trim()} onClick={onSubmitCreate} className="mt-3 inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
+      {!createForm.name.trim() ? <FieldDescription className="mt-3">Enter a supplier name to save.</FieldDescription> : null}
+      <Button type="button" disabled={busy || !createForm.name.trim()} onClick={onSubmitCreate} className="mt-3">
         <Check className="size-4" /> Save supplier
-      </button>
+      </Button>
     </div>
   );
 }
@@ -425,9 +452,10 @@ function SupplierEditProfileForm({
         <textarea value={editForm.serviceInclusions} onChange={(event) => onEditForm({ serviceInclusions: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Service inclusions" />
         <textarea value={editForm.performanceNotes} onChange={(event) => onEditForm({ performanceNotes: event.target.value })} className="min-h-20 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Private PMCM performance notes" />
       </div>
-      <button type="button" disabled={busy || !editForm.name.trim()} onClick={onSaveProfile} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-ink-foreground disabled:opacity-60">
+      {!editForm.name.trim() ? <FieldDescription className="mt-3">Enter a supplier name to save the profile.</FieldDescription> : null}
+      <Button type="button" size="sm" disabled={busy || !editForm.name.trim()} onClick={onSaveProfile} className="mt-3">
         <Check className="size-4" /> Save profile
-      </button>
+      </Button>
     </div>
   );
 }
@@ -447,16 +475,22 @@ function SupplierTierChangeForm({
     <div className="rounded-lg border border-border bg-muted p-4">
       <p className="text-sm text-muted-foreground">Tier Change</p>
       <div className="mt-3 grid gap-2">
-        <select value={tierForm.tier} onChange={(event) => onTierForm({ tier: event.target.value as SupplierTierForm["tier"] })} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-          <option value="tier_1">Tier 1</option>
-          <option value="tier_2">Tier 2</option>
-          <option value="pending_first_event">Pending First Event</option>
-        </select>
+        <Select value={tierForm.tier} onValueChange={(tier) => onTierForm({ tier: tier as SupplierTierForm["tier"] })}>
+          <SelectTrigger aria-label="New tier" className="h-10 min-w-0 bg-white text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="tier_1">Tier 1</SelectItem>
+            <SelectItem value="tier_2">Tier 2</SelectItem>
+            <SelectItem value="pending_first_event">Pending First Event</SelectItem>
+          </SelectContent>
+        </Select>
         <textarea value={tierForm.reason} onChange={(event) => onTierForm({ reason: event.target.value })} className="min-h-16 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Required reason for audit trail" />
       </div>
-      <button type="button" disabled={busy || !tierForm.reason.trim()} onClick={onSubmitTier} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-ink-foreground disabled:opacity-60">
+      {!tierForm.reason.trim() ? <FieldDescription className="mt-3">Add a reason for the audit trail to change the tier.</FieldDescription> : null}
+      <Button type="button" size="sm" disabled={busy || !tierForm.reason.trim()} onClick={onSubmitTier} className="mt-3">
         <Check className="size-4" /> Change tier
-      </button>
+      </Button>
     </div>
   );
 }
@@ -482,17 +516,23 @@ function SupplierCertificationForm({
           <Input value={certForm.issuer} onChange={(event) => onCertForm({ issuer: event.target.value })} className="h-10 bg-white" placeholder="Issuer" />
           <DatePicker aria-label="Certification expiry date" value={certForm.expiresAt} onValueChange={(value) => onCertForm({ expiresAt: value })} className="h-10 bg-white" />
         </div>
-        <select value={certForm.status} onChange={(event) => onCertForm({ status: event.target.value as SupplierCertForm["status"] })} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-          <option value="submitted">Submitted</option>
-          <option value="verified">Verified</option>
-          <option value="expired">Expired</option>
-          <option value="rejected">Rejected</option>
-        </select>
+        <Select value={certForm.status} onValueChange={(status) => onCertForm({ status: status as SupplierCertForm["status"] })}>
+          <SelectTrigger aria-label="Certification status" className="h-10 min-w-0 bg-white text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="submitted">Submitted</SelectItem>
+            <SelectItem value="verified">Verified</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
+          </SelectContent>
+        </Select>
         <textarea value={certForm.notes} onChange={(event) => onCertForm({ notes: event.target.value })} className="min-h-16 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Metadata notes" />
       </div>
-      <button type="button" disabled={busy || !certForm.fileName.trim() || !certForm.documentType.trim()} onClick={onSubmitCertification} className="mt-3 inline-flex h-9 items-center gap-2 rounded-md bg-ink px-3 text-xs font-black text-ink-foreground disabled:opacity-60">
+      {!certForm.fileName.trim() || !certForm.documentType.trim() ? <FieldDescription className="mt-3">Enter a file name and document type to add the certification.</FieldDescription> : null}
+      <Button type="button" size="sm" disabled={busy || !certForm.fileName.trim() || !certForm.documentType.trim()} onClick={onSubmitCertification} className="mt-3">
         <FilePlus2 className="size-4" /> Add certification
-      </button>
+      </Button>
     </div>
   );
 }
