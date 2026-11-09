@@ -192,7 +192,7 @@ const DOSSIER_EVENT_SECTIONS: Record<string, { title: string; tab: DetailTab; no
   files: { title: "Files", tab: "files", note: "Files are kept in each event's workspace." },
   contracts: { title: "Contracts", tab: "files", note: "Conforme and contract files are kept in each event's files." },
   invoices: { title: "Invoices", tab: "billing", note: "Statements and payments are kept in each event's billing." },
-  messages: { title: "Messages", tab: "activity", note: "Client conversations are kept in each event's activity." },
+  messages: { title: "Messages", tab: "messages", note: "Client conversations are kept in each event's Messages." },
 };
 
 export function ClientDossier({

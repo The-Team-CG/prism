@@ -73,7 +73,7 @@ describe("global event-scoped destinations without a selected event", () => {
   it.each([
     ["Finance", EventDashboardFinanceSectionView, "Open billing", "billing"],
     ["Files", EventDashboardFilesSectionView, "Open files", "files"],
-    ["Messages", EventDashboardMessagesSectionView, "Open messages", "activity"],
+    ["Messages", EventDashboardMessagesSectionView, "Open messages", "messages"],
   ] as const)("%s lists events and opens the chosen event's matching section in one selection", async (_name, View, action, tab) => {
     render(<PortalQueryProvider actorKey="pmcm:test"><View /></PortalQueryProvider>);
 

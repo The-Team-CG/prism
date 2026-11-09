@@ -36,7 +36,6 @@ const EVENT_ALIAS_REDIRECTS: Array<{ from: string; to: string }> = [
   { from: "timeline", to: "live-ops" },
   { from: "staff", to: "coordinators" },
   { from: "budget", to: "billing" },
-  { from: "messages", to: "activity" },
   { from: "post-event-report", to: "closure" },
 ];
 

@@ -3,7 +3,7 @@ import { EventDashboardRouteView } from "@/features/event-dashboard/shell/views/
 
 export default function EventDashboardRoutePage() {
   return (
-    <EventDashboardRouteView section="messages" tab="activity" view="inbox">
+    <EventDashboardRouteView section="messages" tab="messages" view="inbox">
       <EventDashboardMessagesSectionView />
     </EventDashboardRouteView>
   );

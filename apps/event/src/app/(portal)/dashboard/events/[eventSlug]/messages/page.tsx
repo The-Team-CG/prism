@@ -4,7 +4,7 @@ import { EventDashboardRouteView } from "@/features/event-dashboard/shell/views/
 export default async function EventDashboardRoutePage({ params }: { params: Promise<{ eventSlug: string }> }) {
   const { eventSlug } = await params;
   return (
-    <EventDashboardRouteView section="events" tab="activity" eventId={eventSlug} view="activity">
+    <EventDashboardRouteView section="events" tab="messages" eventId={eventSlug} view="messages">
       <EventDashboardEventWorkspaceView />
     </EventDashboardRouteView>
   );
