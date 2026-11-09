@@ -5,9 +5,9 @@ import { PostEventDeliverablesPanel } from "@/features/closure/deliverables/view
 
 import { FileCheck2, Gavel } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { PAREPanel } from "@/features/pare/panel";
-import { Phase4Workspace, numberedClosureTabs, type CloseGateDestination, type ClosureStep, type ClosureTabId } from "@/features/closure/phase4";
+import { CLOSURE_TABS, Phase4Workspace, type CloseGateDestination, type ClosureStep, type ClosureTabId } from "@/features/closure/phase4";
 import { useListFilter } from "@/features/pmcm-kit";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { PostponementImpactPanel } from "@/features/event-decisions/postponement-impact";
@@ -171,12 +171,20 @@ function BriefingNotes({ entries }: { entries: Array<{ label: string; text?: str
 function BriefingSummary({ briefing, canSubmit, busy, onSubmit }: { briefing?: PrismBriefing | null; canSubmit: boolean; busy: boolean; onSubmit: () => void }) {
   if (!briefing) {
     return (
-      <EmptyState
-        icon={FileCheck2}
-        title="No briefing yet"
-        description="The client's briefing sets the venue, guest count, budget and services PMCM plans against."
-        action={canSubmit ? <Button size="sm" disabled={busy} onClick={onSubmit}>Submit briefing</Button> : undefined}
-      />
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <FileCheck2 />
+          </EmptyMedia>
+          <EmptyTitle>No briefing yet</EmptyTitle>
+          <EmptyDescription>The client's briefing sets the venue, guest count, budget and services PMCM plans against.</EmptyDescription>
+        </EmptyHeader>
+        {canSubmit ? (
+          <EmptyContent>
+            <Button size="sm" disabled={busy} onClick={onSubmit}>Submit briefing</Button>
+          </EmptyContent>
+        ) : null}
+      </Empty>
     );
   }
   return (
@@ -454,7 +462,7 @@ export function EventWorkspaceClosureTab() {
     },
     archive: { render: () => closureStep("archive") },
   };
-  const tabs: WorkspaceSubTab[] = numberedClosureTabs().map((tab) => ({ ...tab, ...panels[tab.id] }));
+  const tabs: WorkspaceSubTab[] = CLOSURE_TABS.map((tab) => ({ id: tab.id, label: tab.label, ...panels[tab.id] }));
   return <WorkspaceSubTabs label="Closure steps" tabs={tabs} selectedId={closurePart} onSelect={setClosurePart} />;
 }
 
@@ -463,7 +471,7 @@ export function EventWorkspaceDecisionsTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   if (!isPmcmAdmin(vm.session.role)) {
-    return <EmptyState icon={Gavel} title="Decision log is PMCM-only" description="Overrides, approvals, and scope decisions are visible to PMCM administrators." />;
+    return <Empty><EmptyHeader><EmptyMedia variant="icon"><Gavel /></EmptyMedia><EmptyTitle>Decision log is PMCM-only</EmptyTitle><EmptyDescription>Overrides, approvals, and scope decisions are visible to PMCM administrators.</EmptyDescription></EmptyHeader></Empty>;
   }
   return <DecisionLogPanel eventId={vm.selectedEvent.id} />;
 }

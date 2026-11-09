@@ -1,7 +1,7 @@
 import { FileCheck2 } from "lucide-react";
 
 import type { PrismBriefing } from "@prism/types";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { Panel } from "@/features/pmcm-kit";
 
 export function EventBriefingPanel({ briefing }: { briefing: PrismBriefing | null }) {
@@ -22,11 +22,15 @@ export function EventBriefingPanel({ briefing }: { briefing: PrismBriefing | nul
           ))}
         </div>
       ) : (
-        <EmptyState
-          icon={FileCheck2}
-          title="No briefing submitted yet"
-          description="Use the quick action above to submit a briefing for this event."
-        />
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FileCheck2 />
+            </EmptyMedia>
+            <EmptyTitle>No briefing submitted yet</EmptyTitle>
+            <EmptyDescription>Use the quick action above to submit a briefing for this event.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       )}
     </Panel>
   );

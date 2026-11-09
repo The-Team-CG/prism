@@ -3,7 +3,7 @@
 import { Archive } from "lucide-react";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { archiveComparisonHint } from "../model/archive-comparison-rules";
 import { useEventArchiveSearchViewModel } from "../view-models/use-event-archive-search-view-model";
 import { ArchiveComparisonTable } from "./archive-comparison-table";
@@ -57,7 +57,15 @@ export function EventArchiveSearchView() {
           </div>
         </div>
         {vm.hits.length === 0 ? (
-          <EmptyState icon={Archive} title="No archived events" description={vm.emptyCopy ?? "Archived events will appear here after close."} />
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Archive />
+              </EmptyMedia>
+              <EmptyTitle>No archived events</EmptyTitle>
+              <EmptyDescription>{vm.emptyCopy ?? "Archived events will appear here after close."}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <div className="divide-y divide-border rounded-xl border border-border">
             {vm.visible.map((hit) => (

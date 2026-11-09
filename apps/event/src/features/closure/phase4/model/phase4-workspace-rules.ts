@@ -40,11 +40,6 @@ export const CLOSURE_TABS = [
 
 export type ClosureTabId = (typeof CLOSURE_TABS)[number]["id"];
 
-/** The closure tabs in order, numbered 1–5 from their position. */
-export function numberedClosureTabs() {
-  return CLOSURE_TABS.map((tab, index) => ({ id: tab.id, label: `${index + 1}. ${tab.label}` }));
-}
-
 /** Where a close gate is resolved: a closure tab, or another event tab. */
 export type CloseGateDestination =
   | { kind: "closure-tab"; tabId: ClosureTabId; label: string }
