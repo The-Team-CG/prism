@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
-import { BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, Radio, UsersRound } from "lucide-react";
+import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, Radio, UsersRound } from "lucide-react";
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { Button } from "@/app/components/ui/button";
@@ -34,6 +34,7 @@ import {
   CoordinatorTimelineCard,
 } from "./sections/coordinator-view-sections";
 import { CoordinatorAssignmentHistory, CoordinatorRoleBadgeCard, CoordinatorRoleData } from "./sections/coordinator-role-sections";
+import { AccountNotificationsView } from "@/features/account-notifications/views/account-notifications-view";
 
 type CoordinatorVm = ReturnType<typeof useCoordinatorViewModel>;
 type NavigateTo = (view: CoordinatorViewId) => void;
@@ -142,6 +143,7 @@ function CoordinatorViewContent({ vm, view, sessionName, roleName, onNavigate, o
   onOpenItem: (view: CoordinatorViewId, eventId: string) => void;
 }) {
   if (view === "calendar") return <CoordinatorCalendarSection vm={vm} onOpen={onOpenItem} />;
+  if (view === "notifications") return <AccountNotificationsView />;
   if (!vm.event) return <p role="status" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">{vm.selectedEventId ? "That event is not available to this account. Choose an assigned event." : "Choose an assigned event to see your work."}</p>;
   switch (view) {
     case "shift": return <CoordinatorShift vm={vm} roleName={roleName} onNavigate={onNavigate} />;
@@ -237,6 +239,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       alwaysShowHeaderActions
       user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       onSignOut={onSignOut}
+      accountMenuItems={[{ id: "notifications", label: "Notifications", icon: Bell, onSelect: () => navigateTo("notifications") }]}
       searchPlaceholder="Search tasks and issues..."
       commandSectionLabel="Actions"
       commandActions={buildCoordinatorCommandActions(

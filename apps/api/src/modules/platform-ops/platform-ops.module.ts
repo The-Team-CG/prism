@@ -19,6 +19,12 @@ import { SecurityOperationsService } from './application/trust/security-operatio
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
 import { NOTIFICATION_DELIVERY } from './contracts/notifications/notification-delivery.port';
 import { MailNotificationDeliveryAdapter } from './infrastructure/notifications/mail-notification-delivery.adapter';
+import { ChannelNotificationDeliveryAdapter } from './infrastructure/notifications/channel-notification-delivery.adapter';
+import { ViberBotClient } from './infrastructure/notifications/viber-bot.client';
+import { resolveViberConfig } from '@prism/kernel/shared';
+import { VIBER_BOT } from './contracts/notifications/viber.port';
+import { NotificationPreferenceService } from './application/notifications/notification-preference.service';
+import { NotificationPreferencesController, ViberWebhookController } from './api/notifications/notification-preferences.controller';
 import { MailModule } from '@prism/kernel/mail';
 import { AiGovernanceService } from './application/ai-governance/ai-governance.service';
 import { AiGatewayService } from './application/ai-governance/gateway/ai-gateway.service';
@@ -138,7 +144,7 @@ export function createAiProviderAdapters(
  */
 @Module({
   imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, MailModule],
-  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController],
+  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController, NotificationPreferencesController, ViberWebhookController],
   providers: [
     AuditService,
     AuditReadService,
@@ -149,7 +155,17 @@ export function createAiProviderAdapters(
     NotificationOutboxService,
     NotificationOutboxWriterAdapter,
     notificationOutboxWriterProvider,
-    { provide: NOTIFICATION_DELIVERY, useClass: MailNotificationDeliveryAdapter },
+    MailNotificationDeliveryAdapter,
+    {
+      provide: VIBER_BOT,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const viber = resolveViberConfig((name) => config.get<string>(name));
+        return viber ? new ViberBotClient(viber) : null;
+      },
+    },
+    NotificationPreferenceService,
+    { provide: NOTIFICATION_DELIVERY, useClass: ChannelNotificationDeliveryAdapter },
     AiGovernanceService,
     ConformeCommsDraftService,
     InquiryTriageService,

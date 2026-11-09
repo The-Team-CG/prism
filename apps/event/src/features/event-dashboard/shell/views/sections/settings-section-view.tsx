@@ -4,6 +4,7 @@ import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
 import { EventModulesControl } from "@/features/event-settings/modules/views/event-modules-control";
 import { ComplianceRulesSettings } from "@/features/compliance/rules";
+import { AccountNotificationsView } from "@/features/account-notifications/views/account-notifications-view";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 
 export function EventDashboardSettingsSectionView() {
@@ -29,6 +30,7 @@ export function EventDashboardSettingsSectionView() {
       {isPmcmAdmin(session.role) ? (
         <ComplianceRulesSettings rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} />
       ) : null}
+      <AccountNotificationsView />
     </div>
   );
 }

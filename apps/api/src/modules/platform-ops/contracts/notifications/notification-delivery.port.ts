@@ -4,7 +4,9 @@ export const NOTIFICATION_DELIVERY = Symbol('NOTIFICATION_DELIVERY');
 export type NotificationDeliveryResult =
   | { status: 'accepted'; receipt: string }
   | { status: 'retryable_failure'; reason?: string }
-  | { status: 'permanent_failure'; reason: string };
+  | { status: 'permanent_failure'; reason: string }
+  /** Nothing to send on this channel (for example no recipient turned Viber on); the row closes without an alert. */
+  | { status: 'skipped'; reason: string };
 
 /** Adapters must use the stable notification ID as the provider idempotency key.
  * Accepted means the provider accepted delivery, not that a human read it.
