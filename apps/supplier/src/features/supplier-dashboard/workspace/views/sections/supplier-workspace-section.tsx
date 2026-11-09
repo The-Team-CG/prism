@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import type { PrismAuthenticatedSession } from "@prism/types";
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type {
@@ -109,7 +109,7 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
     />
   ),
   calendar: (p) => <CalendarPage workspace={p.workspace} readinessBoard={p.readinessBoard} workflowWorkspace={p.workflowWorkspace} />,
-  quotations: (p) => <QuotationsPage workspace={p.workspace} quoteByRequest={p.quoteByRequest} />,
+  quotations: (p) => <QuotationsPage workspace={p.workspace} readinessBoard={p.readinessBoard} />,
   messages: (p) => <MessagesPage session={p.session} selectedRequests={p.selectedRequests} readinessBoard={p.readinessBoard} />,
   payments: (p) => <PaymentsPage workspace={p.workspace} workflowWorkspace={p.workflowWorkspace} selectedQuotes={p.selectedQuotes} readinessBoard={p.readinessBoard} />,
   files: (p) => <FilesPage workspace={p.workspace} session={p.session} workflowWorkspace={p.workflowWorkspace} readinessBoard={p.readinessBoard} onDownloadObject={p.onDownloadObject} />,
@@ -124,7 +124,13 @@ export function SupplierWorkspaceSection(props: SupplierWorkspaceSectionProps) {
     return props.error ? (
       <Card>
         <CardBody>
-          <EmptyState icon={ShieldCheck} title="Unable to load workspace" description={props.error} />
+          <Empty className="border-0 p-6 md:p-8">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><ShieldCheck /></EmptyMedia>
+              <EmptyTitle>Unable to load workspace</EmptyTitle>
+              <EmptyDescription>{props.error}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         </CardBody>
       </Card>
     ) : null;

@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { MessageSquare } from "lucide-react";
 import { ChatWorkspace } from "@prism/ui/chat";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Card, CardContent } from "@prism/ui/components/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { Field, FieldLabel } from "@prism/ui/components/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { supplierMessageEvents } from "../../model/supplier-workspace-rules";
 import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "../../model/supplier-workspace-types";
 import type { PrismAuthenticatedSession } from "@prism/types";
@@ -11,22 +14,21 @@ import { useSupplierMessagesViewModel } from "../../view-models/use-supplier-mes
 
 type MessageEvent = ReturnType<typeof supplierMessageEvents>[number];
 
-/** One labelled native select keeps long event names readable and never widens the page. */
+/** One labelled select keeps long event names readable and never widens the page. */
 function MessageEventSelect({ events, selectedId, onChoose }: { events: MessageEvent[]; selectedId?: string; onChoose: (id: string) => void }) {
   if (events.length < 2) return null;
   return (
-    <div className="grid gap-1.5">
-      <label htmlFor="supplier-message-event" className="text-sm text-muted-foreground">Event</label>
-      <select
-        id="supplier-message-event"
-        value={selectedId ?? ""}
-        onChange={(event) => onChoose(event.target.value)}
-        className="h-11 w-full min-w-0 rounded-md border border-border bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 sm:max-w-md"
-      >
-        <option value="" disabled>Choose an event</option>
-        {events.map((item) => <option key={item.eventId} value={item.eventId}>{item.eventName}</option>)}
-      </select>
-    </div>
+    <Field className="max-w-md">
+      <FieldLabel htmlFor="supplier-message-event">Event</FieldLabel>
+      <Select value={selectedId} onValueChange={onChoose}>
+        <SelectTrigger id="supplier-message-event" className="h-11 w-full min-w-0">
+          <SelectValue placeholder="Choose an event" />
+        </SelectTrigger>
+        <SelectContent>
+          {events.map((item) => <SelectItem key={item.eventId} value={item.eventId}>{item.eventName}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </Field>
   );
 }
 
@@ -47,11 +49,17 @@ export function MessagesPage({ session, selectedRequests, readinessBoard }: { se
         </p>
       )}
       {choiceRequired || !event ? (
-        <EmptyState
-          icon={MessageSquare}
-          title={choiceRequired ? "Choose an event" : "No messages yet"}
-          description={choiceRequired ? "You have bookings for several events. Choose one above to see its messages." : "Messages appear after a booking is linked to an event."}
-        />
+        <Card>
+          <CardContent>
+            <Empty className="border-0 p-6 md:p-8">
+              <EmptyHeader>
+                <EmptyMedia variant="icon"><MessageSquare /></EmptyMedia>
+                <EmptyTitle>{choiceRequired ? "Choose an event" : "No messages yet"}</EmptyTitle>
+                <EmptyDescription>{choiceRequired ? "You have bookings for several events. Choose one above to see its messages." : "Messages appear after a booking is linked to an event."}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </CardContent>
+        </Card>
       ) : (
         <ChatWorkspace
           ariaLabel={`Messages for ${event.eventName}`}

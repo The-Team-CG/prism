@@ -1,6 +1,9 @@
 "use client";
 
 import { Button } from "@prism/ui/components/button";
+import { Field, FieldDescription, FieldLabel } from "@prism/ui/components/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Textarea } from "@prism/ui/components/textarea";
 import { Card, CardBody } from "../../workspace/views/sections/shell-ui";
 import type { PrismOwnPrivacyRequest } from "@prism/types";
 import {
@@ -36,29 +39,31 @@ function PrivacyRequestForm({ vm }: { vm: SupplierPrivacyRequestsViewModel }) {
           }}
         >
           <p className="text-sm text-muted-foreground">{PRIVACY_REQUEST_EXPLANATION}</p>
-          <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
-            Request type
-            <select
-              value={vm.requestType}
-              onChange={(event) => vm.setRequestType(event.target.value as typeof vm.requestType)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-normal text-foreground"
-            >
-              {PRIVACY_REQUEST_TYPES.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <span className="block font-normal">{selected?.description}</span>
-          </label>
-          <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
-            Details{vm.requestType === "correction" ? " (required)" : " (optional)"}
-            <textarea
+          <Field>
+            <FieldLabel htmlFor="privacy-request-type">Request type</FieldLabel>
+            <Select value={vm.requestType} onValueChange={(value) => vm.setRequestType(value as typeof vm.requestType)}>
+              <SelectTrigger id="privacy-request-type" className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIVACY_REQUEST_TYPES.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>{selected?.description}</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="privacy-request-details">Details{vm.requestType === "correction" ? " (required)" : " (optional)"}</FieldLabel>
+            <Textarea
+              id="privacy-request-details"
               value={vm.details}
               onChange={(event) => vm.setDetails(event.target.value)}
               maxLength={1000}
               rows={3}
-              className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2 text-sm font-normal text-foreground"
+              className="min-h-20"
             />
-          </label>
+          </Field>
           {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
           <Button type="submit" disabled={vm.busy} className="rounded-xl font-bold">
             {vm.busy ? "Submitting…" : "Submit request"}

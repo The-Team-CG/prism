@@ -93,12 +93,6 @@ export function buildFeedbackPayload(input: {
   return payload;
 }
 
-export function checkInModeButtonClass(active: boolean) {
-  return active
-    ? "bg-primary text-primary-foreground shadow-sm"
-    : "text-muted-foreground hover:text-foreground";
-}
-
 export function mapGuestDashboardError(
   error: unknown,
   fallback = "Something went wrong.",

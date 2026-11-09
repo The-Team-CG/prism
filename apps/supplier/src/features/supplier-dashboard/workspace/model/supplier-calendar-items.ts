@@ -32,7 +32,7 @@ function deadlineItems(requests: PrismSupplierQuoteRequest[], isLive: IsLive, ev
     id: `deadline:${request.id}`,
     date: request.dueDate as string,
     title: `Quote due: ${request.category}`,
-    chipLabel: `${request.category} quote due`,
+    chipLabel: eventName(request.eventId),
     detail: eventName(request.eventId),
     kind: "deadline",
     href: supplierWorkTargetHref("requests", request.id),
