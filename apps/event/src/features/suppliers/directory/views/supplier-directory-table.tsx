@@ -242,7 +242,7 @@ function SupplierDirectoryRow({ supplier, selected, onSelect }: { supplier: Supp
 function SupplierNameCell({ supplier, onSelect }: { supplier: SupplierRow; onSelect: SupplierDirectoryTableProps["onSelectSupplier"] }) {
   return (
     <TableCell className="sticky left-0 z-[1] bg-card pl-4 font-medium">
-      <div className="flex min-w-0 items-center gap-1.5">
+      <div className="flex min-w-0 max-w-[18rem] items-center gap-1.5">
         <Tooltip>
           <TooltipTrigger asChild>
             <button type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="group flex min-h-6 min-w-0 flex-1 items-center justify-between gap-1 text-left text-foreground hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
