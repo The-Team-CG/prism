@@ -83,7 +83,7 @@ export function PaymentsPage({ workspace, workflowWorkspace, selectedQuotes, rea
                 { label: "Released", value: formatMoney(milestone.amountReleased), status: milestone.amountReleased > 0 ? "released" : "pending" },
                 { label: "Remaining", value: formatMoney(milestone.remainingBalance), status: milestone.remainingBalance === 0 ? "released" : "pending" },
               ].map(({ label, value, status }) => (
-                <div key={label} className="rounded-xl border border-border bg-muted/30 p-4">
+                <div key={label} className="rounded-md bg-muted/40 p-4">
                   <p className="text-xs font-medium text-muted-foreground">{label}</p>
                   <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">{value}</p>
                   <div className="mt-2"><StatusBadge status={status} /></div>
@@ -91,7 +91,7 @@ export function PaymentsPage({ workspace, workflowWorkspace, selectedQuotes, rea
               ))}
             </div>
             {milestone.dueDate ? <p className="mt-3 text-xs text-muted-foreground">Due {formatPortalDate(milestone.dueDate)}</p> : null}
-            <div className="mt-4 divide-y divide-border rounded-xl border border-border">
+            <div className="mt-4 divide-y divide-border rounded-md bg-muted/40">
               {milestone.history.length ? milestone.history.map((record) => <div key={record.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-xs">
                 <span className="font-semibold">{record.kind === "reversal" ? "Reversal" : "Payment release"} · {formatMoney(record.amount)}</span>
                 <span className="text-muted-foreground">{record.paymentDate ? formatPortalDate(record.paymentDate) : formatPortalDate(record.recordedAt)} · {record.method}{record.referenceNumber ? ` · ${record.referenceNumber}` : ""}{record.notes ? ` · ${record.notes}` : ""}</span>

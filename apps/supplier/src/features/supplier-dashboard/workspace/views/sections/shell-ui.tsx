@@ -1,10 +1,32 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { ChevronRight, type LucideIcon } from "lucide-react";
+import { Button } from "@prism/ui/components/button";
+import { Card as SharedCard } from "@prism/ui/components/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@prism/ui/components/collapsible";
 
-/** Flat surface: one hairline border on the page ground, no resting shadow. */
+/** A section that folds: the trigger is a ghost button with a chevron, the body is the collapsible content. */
+export function Disclosure({
+  trigger, defaultOpen = false, className, id, children,
+}: { trigger: ReactNode; defaultOpen?: boolean; className?: string; id?: string; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Collapsible id={id} open={open} onOpenChange={setOpen} className={className}>
+      <CollapsibleTrigger asChild>
+        <Button type="button" variant="ghost" className="h-auto w-full justify-start gap-3 whitespace-normal px-4 py-3 text-left font-normal">
+          <ChevronRight className={`mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`} aria-hidden="true" />
+          {trigger}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="border-t border-border px-4 py-4">{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+/** The shared card surface; `gap-0` keeps the header/body stacking these pages were laid out with. */
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`min-w-0 rounded-lg border border-border bg-card ${className}`}>{children}</div>;
+  return <SharedCard className={`min-w-0 gap-0 ${className}`}>{children}</SharedCard>;
 }
 export function CardHeader({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`border-b border-border px-4 py-4 sm:px-6 ${className}`}>{children}</div>;
@@ -22,10 +44,10 @@ export function StatCell({
   label, value, sub,
 }: { label: string; value: string | number; sub?: string; icon?: LucideIcon; accent?: boolean }) {
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-card px-5 py-4">
+    <SharedCard className="min-w-0 gap-0 px-5 py-4">
       <p className="text-sm text-muted-foreground">{label}</p>
       <p className="mt-1 text-2xl font-semibold leading-tight tabular-nums text-foreground">{value}</p>
       {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
-    </div>
+    </SharedCard>
   );
 }
