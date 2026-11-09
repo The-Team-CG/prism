@@ -13,6 +13,7 @@ import type {
 } from "@prism/types";
 import { portalUrlFor } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Empty, EmptyDescription, EmptyHeader } from "@prism/ui/components/empty";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
@@ -176,7 +177,13 @@ export function EventGameCatalogCard({
         <p className="mt-1 text-sm text-muted-foreground">Drafts stay unpublished until their template rules and configuration are implemented.</p>
       </CardHeader>
       <CardBody>
-        {games.length ? <div className="space-y-3">{games.map(renderGame)}</div> : <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">No game drafts exist for this event yet.</p>}
+        {games.length ? <div className="space-y-3">{games.map(renderGame)}</div> : (
+          <Empty className="border-0 p-4 md:p-4">
+            <EmptyHeader>
+              <EmptyDescription>No game drafts exist for this event yet.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        )}
       </CardBody>
     </Card>
   );

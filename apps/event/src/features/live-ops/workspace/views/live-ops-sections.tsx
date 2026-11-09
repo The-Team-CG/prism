@@ -612,7 +612,7 @@ type CoordinatorRowVm = ReturnType<typeof useCoordinatorRowViewModel>;
 
 function CoordinatorReplacement({ vm, busy }: { vm: CoordinatorRowVm; busy: boolean }) {
   return vm.attendanceStatus !== "replaced" ? (
-        <div className="mt-3 grid gap-2 rounded-md border border-dashed border-border bg-white p-3">
+        <div className="mt-3 grid gap-2 rounded-md bg-muted/40 p-3">
           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
             <UserPlus className="size-4 text-attention" />
             Replacement
