@@ -165,11 +165,11 @@ export function SupplierSignInView() {
         </Button>
       </form>
 
-      <div className="mt-6 flex flex-col gap-2 text-sm">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
         <a href={portalHref("/apply")} className="text-primary transition-colors hover:text-primary/80">
           Apply to become a PMCM supplier
         </a>
-        <a href={portalHref("/status")} className="text-primary transition-colors hover:text-primary/80">
+        <a href={portalHref("/status")} className="text-muted-foreground transition-colors hover:text-foreground">
           Check an application
         </a>
       </div>

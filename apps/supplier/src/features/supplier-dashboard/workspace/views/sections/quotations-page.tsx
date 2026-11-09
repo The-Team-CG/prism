@@ -1,121 +1,114 @@
 "use client";
 
-import { FormEvent, useMemo } from "react";
-import {
-  BadgeCheck,
-  CalendarClock,
-  CalendarDays,
-  CheckCircle2,
-  Circle,
-  ClipboardList,
-  Clock3,
-  FileCheck2,
-  FileText,
-  HelpCircle,
-  LockKeyhole,
-  LogOut,
-  MessageSquare,
-  PackageCheck,
-  RefreshCcw,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Truck,
-  User,
-  Wallet,
-  Warehouse,
-  type LucideIcon,
-} from "lucide-react";
-import { Badge } from "@prism/ui/components/badge";
+import { useState } from "react";
+import { FileText } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
-import { Input } from "@prism/ui/components/input";
+import { Card, CardContent } from "@prism/ui/components/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { EmptyState } from "@prism/ui/components/empty-state";
-import { PrismDashboardShell } from "@prism/ui";
-import {
-  EVENT_STATUS_ACTIONS,
-  buildBookingSteps,
-  closedRequestReason,
-  firstNameFrom,
-  formatDate,
-  formatMoney,
-  fmt,
-  greetingForHour,
-  initialForm,
-  isPastDate,
-  isRequestClosed,
-  readinessTone,
-} from "../../model/supplier-workspace-rules";
-import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
-import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
+import { formatDate, formatMoney } from "../../model/supplier-workspace-rules";
+import type { PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
 
+export function QuotationsPage({ workspace, readinessBoard }: { workspace: SupplierWorkspace; readinessBoard: PrismSupplierReadinessBoard | null }) {
+  const [openQuoteId, setOpenQuoteId] = useState<string | null>(null);
 
-import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
-
-export function QuotationsPage({ workspace, quoteByRequest }: { workspace: SupplierWorkspace; quoteByRequest: Map<string, PrismSupplierQuote> }) {
   if (!workspace.supplierQuotes.length) {
     return (
-      <Card><CardBody>
-        <EmptyState icon={FileText} title="No quotations on file." description="Submitted quotes will appear here with their full history." />
-      </CardBody></Card>
+      <Card>
+        <CardContent>
+          <Empty className="border-0 p-6 md:p-8">
+            <EmptyHeader>
+              <EmptyMedia variant="icon"><FileText /></EmptyMedia>
+              <EmptyTitle>No quotations on file.</EmptyTitle>
+              <EmptyDescription>Submitted quotes will appear here with their full history.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </CardContent>
+      </Card>
     );
   }
 
+  const rows = workspace.supplierQuotes.map((quote) => {
+    const request = workspace.quoteRequests.find((item) => item.id === quote.requestId);
+    const eventName = readinessBoard?.items.find((item) => item.requestId === quote.requestId)?.eventName ?? request?.category ?? "Quote request";
+    return { quote, request, eventName };
+  });
+  const openRow = rows.find((row) => row.quote.id === openQuoteId) ?? null;
+
   return (
-    <div className="space-y-4">
-      {workspace.supplierQuotes.map((q) => {
-        const req = workspace.quoteRequests.find((r) => r.id === q.requestId);
-        return (
-          <Card key={q.id}>
-            <CardHeader>
-              <div className="flex flex-wrap items-start justify-between gap-3">
+    <>
+      <Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="px-4">Event</TableHead>
+              <TableHead className="px-4">Amount</TableHead>
+              <TableHead className="px-4">Terms</TableHead>
+              <TableHead className="px-4">Status</TableHead>
+              <TableHead className="px-4">Last revised</TableHead>
+              <TableHead className="px-4"><span className="sr-only">Details</span></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map(({ quote, eventName }) => (
+              <TableRow key={quote.id}>
+                <TableCell className="max-w-[16rem] px-4 whitespace-normal">
+                  <span className="block break-words font-semibold text-foreground">{eventName}</span>
+                  <span className="block text-xs text-muted-foreground">{quote.category} · Revision #{quote.revisionNumber ?? 1}</span>
+                </TableCell>
+                <TableCell className="px-4 font-semibold tabular-nums">{formatMoney(quote.amount)}</TableCell>
+                <TableCell className="max-w-[14rem] px-4 whitespace-normal break-words text-muted-foreground">{quote.paymentTerms || "—"}</TableCell>
+                <TableCell className="px-4"><StatusBadge status={quote.status} /></TableCell>
+                <TableCell className="px-4 text-muted-foreground">{quote.revisedAt ? formatDate(quote.revisedAt) : "—"}</TableCell>
+                <TableCell className="px-4 text-right">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setOpenQuoteId(quote.id)} aria-label={`View quote details for ${eventName}`}>
+                    Details
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <Sheet open={openRow !== null} onOpenChange={(open) => { if (!open) setOpenQuoteId(null); }}>
+        <SheetContent className="overflow-y-auto">
+          {openRow ? (
+            <>
+              <SheetHeader>
+                <SheetTitle className="break-words">{openRow.eventName}</SheetTitle>
+                <SheetDescription>{openRow.quote.category} · {openRow.request?.message ?? "Quote request"}</SheetDescription>
+              </SheetHeader>
+              <dl className="grid gap-4 px-4 pb-6 text-sm">
                 <div>
-                  <SectionAccent>{q.category}</SectionAccent>
-                  <p className="mt-1 text-xs text-muted-foreground">{req?.message ?? "Quote request"}</p>
-                </div>
-                <StatusBadge status={q.status} />
-              </div>
-            </CardHeader>
-            <div className="grid grid-cols-2 divide-x divide-border border-b border-border sm:grid-cols-4">
-              {[
-                { label: "Amount", value: formatMoney(q.amount) },
-                { label: "Revision", value: `#${q.revisionNumber ?? 1}` },
-                { label: "Submitted", value: formatDate(q.createdAt) },
-                { label: "Last revised", value: q.revisedAt ? formatDate(q.revisedAt) : "—" },
-              ].map(({ label, value }) => (
-                <div key={label} className="px-5 py-3">
-                  <p className="text-xs font-medium text-muted-foreground">{label}</p>
-                  <p className="mt-1 text-sm font-bold text-foreground">{value}</p>
-                </div>
-              ))}
-            </div>
-            <CardBody>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">Payment terms</p>
-                  <p className="mt-1.5 text-sm text-foreground">{q.paymentTerms || "—"}</p>
+                  <dt className="text-muted-foreground">Submitted</dt>
+                  <dd className="font-medium text-foreground">{formatDate(openRow.quote.createdAt)}</dd>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-muted-foreground">Inclusions</p>
-                  {q.inclusions.length ? (
-                    <ul className="mt-1.5 space-y-0.5">
-                      {q.inclusions.map((inc, i) => (
-                        <li key={i} className="flex items-center gap-1.5 text-sm text-foreground">
-                          <span className="size-1.5 shrink-0 rounded-full bg-primary" /> {inc}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : <p className="mt-1.5 text-sm text-muted-foreground">—</p>}
+                  <dt className="text-muted-foreground">Payment terms</dt>
+                  <dd className="break-words text-foreground">{openRow.quote.paymentTerms || "—"}</dd>
                 </div>
-              </div>
-              {q.notes && (
-                <div className="mt-4 rounded-xl bg-muted/40 px-4 py-3 text-xs leading-5 text-muted-foreground">{q.notes}</div>
-              )}
-            </CardBody>
-          </Card>
-        );
-      })}
-    </div>
+                <div>
+                  <dt className="text-muted-foreground">Inclusions</dt>
+                  <dd className="text-foreground">
+                    {openRow.quote.inclusions.length ? (
+                      <ul className="mt-1 space-y-1">
+                        {openRow.quote.inclusions.map((inclusion, index) => <li key={index} className="break-words">{inclusion}</li>)}
+                      </ul>
+                    ) : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Notes</dt>
+                  <dd className="break-words text-foreground">{openRow.quote.notes || "—"}</dd>
+                </div>
+              </dl>
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
-

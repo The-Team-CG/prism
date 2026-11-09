@@ -5,7 +5,7 @@ import { BadgeCheck, CheckCircle2, ChevronRight, Circle, FileText, LockKeyhole, 
 import type { PrismAuthenticatedSession, PrismSupplierReadinessItem, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { Input } from "@prism/ui/components/input";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { supplierNextStep } from "../../model/supplier-next-step";
@@ -286,7 +286,13 @@ export function BookingsPage({ selectedRequests, readinessBoard, readinessNotes,
   if (!selectedRequests.length) {
     return (
       <Card><CardBody>
-        <EmptyState icon={BadgeCheck} title="No active bookings." description="When PMCM selects your quote, the booking appears here for handoff." />
+        <Empty className="border-0 p-6 md:p-8">
+          <EmptyHeader>
+            <EmptyMedia variant="icon"><BadgeCheck /></EmptyMedia>
+            <EmptyTitle>No active bookings.</EmptyTitle>
+            <EmptyDescription>When PMCM selects your quote, the booking appears here for handoff.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       </CardBody></Card>
     );
   }

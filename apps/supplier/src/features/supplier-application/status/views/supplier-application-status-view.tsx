@@ -5,8 +5,12 @@ import { PrismAccountHelp } from "@prism/ui/account-help";
 import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import type { FormEvent } from "react";
 import type { PrismSupplierApplicationStatusResult } from "@prism/types";
+import { portalHref } from "@prism/ui/portal-path";
+import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { SUPPLIER_PORTAL_POINTS, SUPPLIER_PORTAL_STATEMENT } from "@/features/supplier-auth/sign-in/model/supplier-portal-copy";
 import { Alert, AlertDescription, AlertTitle } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
+import { Field, FieldLabel } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
 import { useSupplierApplicationStatusViewModel } from "../view-models/use-supplier-application-status-view-model";
 import {
@@ -54,7 +58,7 @@ function StatusResultCard({
 }) {
   const isTerminal = isTerminalSupplierApplicationStatus(result.status);
   return (
-    <section aria-live="polite" className="mt-6 rounded-2xl border border-border bg-muted/30 p-5">
+    <section aria-live="polite" className="mt-6 rounded-lg border border-border bg-card p-5">
       <p className="text-sm text-muted-foreground">{result.companyName}</p>
       <h2 className="mt-1 text-xl font-semibold">{supplierApplicationStatusLabel(result.status)}</h2>
       <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -94,54 +98,60 @@ export function SupplierApplicationStatusView() {
   }
 
   return (
-    <main className="min-h-dvh bg-background px-6 py-16 text-foreground">
-      <section className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-8 shadow-sm">
-        <p className="text-sm text-muted-foreground">Supplier network</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Check application status</h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Use the application reference and submitting email to view the latest review status.
+    <PrismAuthShell
+      portal="supplier"
+      portalName="Supplier portal"
+      statement={SUPPLIER_PORTAL_STATEMENT}
+      points={SUPPLIER_PORTAL_POINTS}
+      title="Check application status"
+      description="Use the application reference and submitting email to view the latest review status."
+      homeHref={portalHref("/")}
+      footer={
+        <p>
+          Not applied yet?{" "}
+          <a href={portalHref("/apply")} className="text-primary hover:text-primary/80">Apply to become a PMCM supplier</a>
         </p>
+      }
+    >
+      <form className="flex flex-col gap-5" onSubmit={submit}>
+        <Field>
+          <FieldLabel htmlFor="applicationId">Application reference</FieldLabel>
+          <Input
+            id="applicationId"
+            required
+            value={viewModel.applicationId}
+            onChange={(event) => viewModel.setApplicationId(event.target.value)}
+            placeholder="sap_…"
+            autoComplete="off"
+            className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
+          />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="applicationEmail">Submitting email</FieldLabel>
+          <Input
+            id="applicationEmail"
+            required
+            type="email"
+            value={viewModel.email}
+            onChange={(event) => viewModel.setEmail(event.target.value)}
+            placeholder="you@company.com"
+            autoComplete="email"
+            className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
+          />
+        </Field>
+        <Button type="submit" disabled={viewModel.busy} className={prismAuthSubmitClassName("supplier")}>
+          {viewModel.phase === "refreshing" ? "Refreshing…" : viewModel.busy ? "Checking…" : "Check status"}
+        </Button>
+      </form>
 
-        <form className="mt-8 space-y-5" onSubmit={submit}>
-          <label className="block text-sm font-medium" htmlFor="applicationId">
-            Application reference
-            <Input
-              id="applicationId"
-              required
-              value={viewModel.applicationId}
-              onChange={(event) => viewModel.setApplicationId(event.target.value)}
-              className="mt-2"
-              placeholder="sap_…"
-              autoComplete="off"
-            />
-          </label>
-          <label className="block text-sm font-medium" htmlFor="applicationEmail">
-            Submitting email
-            <Input
-              id="applicationEmail"
-              required
-              type="email"
-              value={viewModel.email}
-              onChange={(event) => viewModel.setEmail(event.target.value)}
-              className="mt-2"
-              placeholder="you@company.com"
-              autoComplete="email"
-            />
-          </label>
-          <Button type="submit" disabled={viewModel.busy} className="w-full">
-            {viewModel.phase === "refreshing" ? "Refreshing…" : viewModel.busy ? "Checking…" : "Check status"}
-          </Button>
-        </form>
-
-        <StatusFailureAlert
-          failure={viewModel.failure}
-          busy={viewModel.busy}
-          onRetry={() => void viewModel.retry()}
-        />
-        {viewModel.result ? (
-          <StatusResultCard result={viewModel.result} lastCheckedAt={viewModel.lastCheckedAt} />
-        ) : null}
-      </section>
-    </main>
+      <StatusFailureAlert
+        failure={viewModel.failure}
+        busy={viewModel.busy}
+        onRetry={() => void viewModel.retry()}
+      />
+      {viewModel.result ? (
+        <StatusResultCard result={viewModel.result} lastCheckedAt={viewModel.lastCheckedAt} />
+      ) : null}
+    </PrismAuthShell>
   );
 }

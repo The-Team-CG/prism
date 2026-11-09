@@ -30,7 +30,7 @@ import { Badge } from "@prism/ui/components/badge";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { EmptyState } from "@prism/ui/components/empty-state";
+
 import { PrismDashboardShell } from "@prism/ui";
 import {
   EVENT_STATUS_ACTIONS,

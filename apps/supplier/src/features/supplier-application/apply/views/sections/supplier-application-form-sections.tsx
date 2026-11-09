@@ -1,10 +1,9 @@
 "use client";
 
+import type { FormEvent, ReactNode } from "react";
 import { portalHref } from "@prism/ui/portal-path";
 import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
-
-import type { FormEvent, ReactNode } from "react";
-import { ArrowRight, CheckCircle2, ChevronLeft, Send } from "lucide-react";
+import { CheckCircle2, Send } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@prism/ui/components/field";
@@ -19,25 +18,27 @@ import {
 } from "@prism/ui/components/select";
 import { Textarea } from "@prism/ui/components/textarea";
 import { cn } from "@/app/components/ui/utils";
-import { APPLICATION_PRICE_RANGES, APPLICATION_WIZARD_STEPS, type SupplierApplicationForm } from "../../model/supplier-application-types";
+import { APPLICATION_PRICE_RANGES, type SupplierApplicationForm } from "../../model/supplier-application-types";
 
-const wizardSteps = APPLICATION_WIZARD_STEPS;
 const priceRanges = APPLICATION_PRICE_RANGES;
 
 const APPLY_STATEMENT = "Join PMCM's supplier network.";
 const APPLY_POINTS = ["No account required", "Reviewed by PMCM", "Response within 5 business days"] as const;
 
-const STEP_COPY: readonly { title: string; description: string }[] = [
-  { title: "Company details", description: "Tell PMCM who you are and how to reach you." },
-  { title: "Services and portfolio", description: "Describe what you offer and the events you have supplied." },
-  { title: "Certifications", description: "Share credentials and anything else PMCM should know." },
-  { title: "Review and submit", description: "Check your details before sending them to PMCM." },
-];
-
 const controlClass = cn("h-11 bg-card", PRISM_AUTH_INPUT_CLASS_NAME);
 const textareaClass = cn("min-h-28 bg-card", PRISM_AUTH_INPUT_CLASS_NAME);
 
 type UpdateFn = <K extends keyof SupplierApplicationForm>(key: K, value: SupplierApplicationForm[K]) => void;
+
+/** One labelled section of the application; the legend names it for screen readers and keeps the page scannable. */
+function FormSection({ legend, children }: { legend: string; children: ReactNode }) {
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-5 border-0 p-0">
+      <legend className="mb-1 text-base font-semibold text-foreground">{legend}</legend>
+      {children}
+    </fieldset>
+  );
+}
 
 export function SupplierApplicationSubmitted({ applicationId, onReset }: { applicationId: string; onReset: () => void }) {
   return (
@@ -69,31 +70,7 @@ export function SupplierApplicationSubmitted({ applicationId, onReset }: { appli
   );
 }
 
-function SummaryItem({ label, value }: { label: string; value?: string | boolean }) {
-  const display = value === true ? "Yes" : value === false ? "No" : value;
-  return (
-    <div className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)] gap-3 py-2.5 text-sm">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className={cn("min-w-0 break-words", display ? "text-foreground" : "text-muted-foreground")}>{display || "—"}</dd>
-    </div>
-  );
-}
-
-function SummarySection({ title, step, onEdit, children }: { title: string; step: number; onEdit: (step: number) => void; children: ReactNode }) {
-  return (
-    <section className="rounded-lg border border-border bg-card px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        <button type="button" onClick={() => onEdit(step)} className="min-h-11 px-2 text-sm text-primary transition-colors hover:text-primary/80">
-          Edit
-        </button>
-      </div>
-      <dl className="divide-y divide-border">{children}</dl>
-    </section>
-  );
-}
-
-function CompanyStep({ form, update }: { form: SupplierApplicationForm; update: UpdateFn }) {
+function CompanyFields({ form, update }: { form: SupplierApplicationForm; update: UpdateFn }) {
   return (
     <FieldGroup className="gap-5">
       <Field>
@@ -125,7 +102,7 @@ function CompanyStep({ form, update }: { form: SupplierApplicationForm; update: 
   );
 }
 
-function ServicesStep({
+function ServicesFields({
   form,
   update,
   categories,
@@ -195,7 +172,7 @@ function ServicesStep({
   );
 }
 
-function CertificationsStep({ form, update }: { form: SupplierApplicationForm; update: UpdateFn }) {
+function CertificationsFields({ form, update }: { form: SupplierApplicationForm; update: UpdateFn }) {
   return (
     <FieldGroup className="gap-5">
       <Field>
@@ -223,151 +200,38 @@ function CertificationsStep({ form, update }: { form: SupplierApplicationForm; u
   );
 }
 
-function ReviewStep({
-  form,
-  update,
-  error,
-  resolveCategoryName,
-  onEdit,
-}: {
-  form: SupplierApplicationForm;
-  update: UpdateFn;
-  error: string | null;
-  resolveCategoryName: (categoryId: string) => string | undefined;
-  onEdit: (step: number) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-4">
-      <SummarySection title="Company" step={0} onEdit={onEdit}>
-        <SummaryItem label="Company name" value={form.companyName} />
-        <SummaryItem label="Contact person" value={form.contactName} />
-        <SummaryItem label="Email" value={form.email} />
-        <SummaryItem label="Phone" value={form.phone} />
-        <SummaryItem label="BNI member" value={form.bniMember} />
-      </SummarySection>
-      <SummarySection title="Services" step={1} onEdit={onEdit}>
-        <SummaryItem label="Category" value={resolveCategoryName(form.categoryId)} />
-        <SummaryItem label="Price range" value={form.priceRange} />
-        <SummaryItem label="Past events" value={form.pastEvents} />
-        <SummaryItem label="Inclusions" value={form.serviceInclusions} />
-      </SummarySection>
-      <SummarySection title="Certifications" step={2} onEdit={onEdit}>
-        <SummaryItem label="Certifications" value={form.certifications} />
-        <SummaryItem label="Portfolio link" value={form.portfolioUrl} />
-        <SummaryItem label="Notes" value={form.additionalNotes} />
-      </SummarySection>
-      <label htmlFor="privacyConsentAccepted" className="flex items-start gap-3 text-sm leading-6 text-foreground">
-        <input id="privacyConsentAccepted" type="checkbox" checked={form.privacyConsentAccepted} onChange={(event) => update("privacyConsentAccepted", event.target.checked)} required className="mt-0.5 size-5 shrink-0 accent-primary" />
-        <span>
-          These details are accurate, and PMCM may use them only to evaluate this supplier application.{" "}
-          <a href={portalHref("/privacy")} className="text-primary hover:text-primary/80">Privacy notice</a>
-        </span>
-      </label>
-      {error ? (
-        <Alert variant="destructive" className="rounded-lg">
-          <AlertTitle>Submission failed</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-    </div>
-  );
-}
-
-export function ApplicationStepBody({
-  currentStep,
+export function SupplierApplicationScreen({
   form,
   update,
   categories,
   categoriesError,
   categoriesLoading,
   error,
-  resolveCategoryName,
-  onEdit = () => undefined,
+  busy,
+  canSubmit,
+  missingItems,
+  onSubmit,
 }: {
-  currentStep: number;
   form: SupplierApplicationForm;
   update: UpdateFn;
   categories: { id: string; name: string }[];
   categoriesError?: string | null;
   categoriesLoading?: boolean;
   error: string | null;
-  resolveCategoryName: (categoryId: string) => string | undefined;
-  onEdit?: (step: number) => void;
-}) {
-  if (currentStep === 0) return <CompanyStep form={form} update={update} />;
-  if (currentStep === 1)
-    return (
-      <ServicesStep
-        form={form}
-        update={update}
-        categories={categories}
-        categoriesError={categoriesError}
-        categoriesLoading={categoriesLoading}
-      />
-    );
-  if (currentStep === 2) return <CertificationsStep form={form} update={update} />;
-  return <ReviewStep form={form} update={update} error={error} resolveCategoryName={resolveCategoryName} onEdit={onEdit} />;
-}
-
-export function ApplicationWizardFooter({
-  currentStep,
-  busy,
-  canSubmit,
-  onBack,
-  onContinue,
-}: {
-  currentStep: number;
   busy: boolean;
   canSubmit: boolean;
-  onBack: () => void;
-  onContinue: () => void;
-}) {
-  const isLast = currentStep >= wizardSteps.length - 1;
-  return (
-    <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
-      {currentStep > 0 ? (
-        <Button type="button" variant="outline" onClick={onBack} disabled={busy} className="h-12 rounded-lg sm:w-auto sm:px-5">
-          <ChevronLeft className="size-4" aria-hidden="true" />
-          Back
-        </Button>
-      ) : null}
-      {isLast ? (
-        <Button type="submit" disabled={!canSubmit || busy} className={cn(prismAuthSubmitClassName("supplier"), "sm:flex-1")}>
-          {busy ? "Submitting…" : "Submit application"}
-          <Send className="size-4" aria-hidden="true" />
-        </Button>
-      ) : (
-        <Button type="button" onClick={onContinue} disabled={busy} className={cn(prismAuthSubmitClassName("supplier"), "sm:flex-1")}>
-          Continue
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Button>
-      )}
-    </div>
-  );
-}
-
-export function ApplicationFormShell({
-  currentStep,
-  onSubmit,
-  children,
-  footer,
-}: {
-  currentStep: number;
+  missingItems: string[];
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  children: ReactNode;
-  footer: ReactNode;
 }) {
-  const copy = STEP_COPY[currentStep] ?? STEP_COPY[STEP_COPY.length - 1];
   return (
     <PrismAuthShell
       portal="supplier"
       portalName="Supplier portal"
       statement={APPLY_STATEMENT}
       points={APPLY_POINTS}
-      title={copy.title}
-      description={copy.description}
+      title="Apply to become a PMCM supplier"
+      description="Everything without “(optional)” is required."
       homeHref={portalHref("/")}
-      steps={{ current: currentStep + 1, total: wizardSteps.length, label: copy.title }}
       footer={
         <p>
           Already applied?{" "}
@@ -375,9 +239,41 @@ export function ApplicationFormShell({
         </p>
       }
     >
-      <form onSubmit={onSubmit}>
-        {children}
-        {footer}
+      <form onSubmit={onSubmit} className="flex flex-col gap-10">
+        <FormSection legend="Company">
+          <CompanyFields form={form} update={update} />
+        </FormSection>
+        <FormSection legend="Services and portfolio">
+          <ServicesFields form={form} update={update} categories={categories} categoriesError={categoriesError} categoriesLoading={categoriesLoading} />
+        </FormSection>
+        <FormSection legend="Certifications and notes">
+          <CertificationsFields form={form} update={update} />
+        </FormSection>
+        <fieldset className="flex min-w-0 flex-col gap-5 border-0 p-0">
+          <legend className="sr-only">Consent and submission</legend>
+          <label htmlFor="privacyConsentAccepted" className="flex items-start gap-3 text-sm leading-6 text-foreground">
+            <input id="privacyConsentAccepted" type="checkbox" checked={form.privacyConsentAccepted} onChange={(event) => update("privacyConsentAccepted", event.target.checked)} required className="mt-1 size-5 shrink-0 accent-primary" />
+            <span>
+              These details are accurate, and PMCM may use them only to evaluate this supplier application.{" "}
+              <a href={portalHref("/privacy")} className="text-primary hover:text-primary/80">Privacy notice</a>
+            </span>
+          </label>
+          {error ? (
+            <Alert variant="destructive" className="rounded-lg">
+              <AlertTitle>Submission failed</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="flex flex-col gap-2">
+            <Button type="submit" disabled={!canSubmit || busy} className={prismAuthSubmitClassName("supplier")}>
+              {busy ? "Submitting…" : "Submit application"}
+              <Send className="size-4" aria-hidden="true" />
+            </Button>
+            {!canSubmit ? (
+              <FieldDescription className="text-center">Still needed: {missingItems.join(", ")}.</FieldDescription>
+            ) : null}
+          </div>
+        </fieldset>
       </form>
     </PrismAuthShell>
   );

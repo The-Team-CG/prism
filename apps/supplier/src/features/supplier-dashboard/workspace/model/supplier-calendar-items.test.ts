@@ -43,9 +43,9 @@ describe("buildSupplierCalendarItems", () => {
       ["arrival", "06:00"],
       ["departure", "18:00"],
     ]);
-    // Month-cell labels name the subject, so a chip reads on its own without opening it.
+    // Month-cell labels name the event, so a chip reads on its own without opening it.
     expect(items.map((item) => [item.kind, item.chipLabel])).toEqual([
-      ["deadline", "Lights quote due"],
+      ["deadline", "Gala"],
       ["deliverable", "Slides"],
       ["payment", "Deposit"],
       ["event", "Gala"],
