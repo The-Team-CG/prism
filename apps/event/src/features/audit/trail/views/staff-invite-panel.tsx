@@ -5,6 +5,8 @@ import { UserPlus } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { cx } from "@/features/pmcm-kit";
 import { Input } from "@prism/ui/components/input";
+import { Field, FieldLabel } from "@prism/ui/components/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import type { useAccountAdminViewModel } from "../view-models/use-account-admin-view-model";
 
 type AccountAdminVm = ReturnType<typeof useAccountAdminViewModel>;
@@ -40,17 +42,18 @@ export function StaffInviteForm({ vm, onCancel }: { vm: AccountAdminVm; onCancel
         Organization
         <Input value={vm.draft.organization} onChange={(event) => vm.updateDraft("organization", event.target.value)} placeholder="PMCM" className="h-10 bg-white" />
       </label>
-      <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-        Role
-        <select
-          value={vm.draft.role}
-          onChange={(event) => vm.updateDraft("role", event.target.value)}
-          className="h-10 w-full rounded-md border border-border bg-white px-3 text-sm text-foreground"
-        >
-          <option value="coordinator">Coordinator</option>
-          <option value="pmcm-admin">PMCM administrator</option>
-        </select>
-      </label>
+      <Field>
+        <FieldLabel htmlFor="staff-invite-role">Role</FieldLabel>
+        <Select value={vm.draft.role} onValueChange={(value) => vm.updateDraft("role", value)}>
+          <SelectTrigger id="staff-invite-role" className="w-full min-w-0 bg-white">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="coordinator">Coordinator</SelectItem>
+            <SelectItem value="pmcm-admin">PMCM administrator</SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
       <div className="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-4">
         <Button type="submit" disabled={vm.inviteBusy}>
           {vm.inviteBusy ? "Sending…" : "Send invitation"}

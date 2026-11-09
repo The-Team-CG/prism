@@ -13,8 +13,6 @@ import { privacyDeadlineLabel } from "../model/privacy-console-rules";
 import type { PrivacyCorrectionDraft } from "../model/privacy-correction";
 import type { PrivacyConsoleViewModel } from "../view-models/use-privacy-console-view-model";
 
-const selectClassName = "h-10 rounded-md border border-border bg-white px-3 text-sm";
-
 export function PrivacyFilterBar({ vm }: { vm: PrivacyConsoleViewModel }) {
   const { filters } = vm;
   const [open, setOpen] = useState(false);
@@ -25,40 +23,40 @@ export function PrivacyFilterBar({ vm }: { vm: PrivacyConsoleViewModel }) {
       </button>
       <div className={cx("min-w-0 gap-3 rounded-md border border-border bg-background p-3 sm:grid sm:grid-cols-2 xl:grid-cols-3", open ? "grid" : "hidden")}>
       <FilterSelect label="Event" value={filters.eventId} onChange={(value) => vm.updateFilters({ eventId: value })}>
-        <option value="all">All events</option>
-        {vm.events.map((event) => <option key={event.id} value={event.id}>{event.eventName}</option>)}
+        <SelectItem value="all">All events</SelectItem>
+        {vm.events.map((event) => <SelectItem key={event.id} value={event.id}>{event.eventName}</SelectItem>)}
       </FilterSelect>
       <FilterSelect label="Status" value={filters.status} onChange={(value) => vm.updateFilters({ status: value as typeof filters.status })}>
-        <option value="all">All statuses</option>
-        <option value="open">Open (submitted or approved)</option>
-        <option value="submitted">Submitted</option>
-        <option value="approved">Approved</option>
-        <option value="executed">Executed</option>
-        <option value="rejected">Rejected</option>
+        <SelectItem value="all">All statuses</SelectItem>
+        <SelectItem value="open">Open (submitted or approved)</SelectItem>
+        <SelectItem value="submitted">Submitted</SelectItem>
+        <SelectItem value="approved">Approved</SelectItem>
+        <SelectItem value="executed">Executed</SelectItem>
+        <SelectItem value="rejected">Rejected</SelectItem>
       </FilterSelect>
       <FilterSelect label="Request type" value={filters.requestType} onChange={(value) => vm.updateFilters({ requestType: value as typeof filters.requestType })}>
-        <option value="all">All request types</option>
-        <option value="access">Access</option>
-        <option value="correction">Correction</option>
-        <option value="deletion">Deletion</option>
-        <option value="export">Export</option>
+        <SelectItem value="all">All request types</SelectItem>
+        <SelectItem value="access">Access</SelectItem>
+        <SelectItem value="correction">Correction</SelectItem>
+        <SelectItem value="deletion">Deletion</SelectItem>
+        <SelectItem value="export">Export</SelectItem>
       </FilterSelect>
       <FilterSelect label="Subject" value={filters.subjectType} onChange={(value) => vm.updateFilters({ subjectType: value as typeof filters.subjectType })}>
-        <option value="all">All subjects</option>
-        <option value="client">Client</option>
-        <option value="supplier">Supplier</option>
-        <option value="guest">Guest</option>
-        <option value="account">Account</option>
+        <SelectItem value="all">All subjects</SelectItem>
+        <SelectItem value="client">Client</SelectItem>
+        <SelectItem value="supplier">Supplier</SelectItem>
+        <SelectItem value="guest">Guest</SelectItem>
+        <SelectItem value="account">Account</SelectItem>
       </FilterSelect>
       <FilterSelect label="Deadline" value={filters.deadline} onChange={(value) => vm.updateFilters({ deadline: value as typeof filters.deadline })}>
-        <option value="all">Any deadline</option>
-        <option value="overdue">Overdue</option>
-        <option value="on-track">Within 30-day SLA</option>
+        <SelectItem value="all">Any deadline</SelectItem>
+        <SelectItem value="overdue">Overdue</SelectItem>
+        <SelectItem value="on-track">Within 30-day SLA</SelectItem>
       </FilterSelect>
       <FilterSelect label="Owner" value={filters.assignment} onChange={(value) => vm.updateFilters({ assignment: value as typeof filters.assignment })}>
-        <option value="all">Any owner</option>
-        <option value="mine">Assigned to me</option>
-        <option value="unassigned">Unassigned</option>
+        <SelectItem value="all">Any owner</SelectItem>
+        <SelectItem value="mine">Assigned to me</SelectItem>
+        <SelectItem value="unassigned">Unassigned</SelectItem>
       </FilterSelect>
       </div>
     </>
@@ -71,9 +69,12 @@ function FilterSelect({ label: caption, value, onChange, children }: { label: st
   return (
     <div className="grid min-w-0 gap-1">
       <label htmlFor={id} className="text-xs font-medium text-muted-foreground">{caption}</label>
-      <select id={id} value={value} onChange={(event) => onChange(event.target.value)} className={`${selectClassName} w-full min-w-0`}>
-        {children}
-      </select>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={id} className="h-10 w-full min-w-0 bg-white">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>{children}</SelectContent>
+      </Select>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { chooseSelectOption } from "@/test-support/select-test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const viewModel = vi.hoisted(() => ({
@@ -267,7 +268,7 @@ describe("EventGamesHostView", () => {
     });
     render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
 
-    fireEvent.change(screen.getByLabelText("Guest lobby theme"), { target: { value: "forest" } });
+    chooseSelectOption(screen.getByLabelText("Guest lobby theme"), "Forest");
     fireEvent.change(screen.getByLabelText("Primary brand color"), { target: { value: "#14532D" } });
     fireEvent.change(screen.getByLabelText("Secondary brand color"), { target: { value: "#166534" } });
     fireEvent.click(screen.getByRole("button", { name: "Save branding" }));

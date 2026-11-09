@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { chooseSelectOption } from "@/test-support/select-test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const addRisk = vi.fn(async (_input: Record<string, unknown>) => undefined);
@@ -46,8 +47,8 @@ describe("ComplianceReviewPanel risks", () => {
 
     fireEvent.change(screen.getByLabelText("Risk"), { target: { value: "Venue power cut" } });
     fireEvent.change(screen.getByLabelText("Mitigation"), { target: { value: "Generator on site" } });
-    fireEvent.change(screen.getByLabelText("Likelihood"), { target: { value: "high" } });
-    fireEvent.change(screen.getByLabelText("Impact"), { target: { value: "low" } });
+    chooseSelectOption(screen.getByLabelText("Likelihood"), "High");
+    chooseSelectOption(screen.getByLabelText("Impact"), "Low");
     expect(screen.getByText("Recorded as Medium severity.")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Record risk" }));
 

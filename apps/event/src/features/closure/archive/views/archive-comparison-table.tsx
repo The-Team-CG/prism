@@ -2,6 +2,7 @@
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 
 import type { PrismArchiveComparisonRow } from "@prism/types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
 
 type ComparisonAttribute = { label: string; value: (row: PrismArchiveComparisonRow) => string };
 
@@ -30,28 +31,26 @@ export function ArchiveComparisonTable({ rows, onClose }: { rows: PrismArchiveCo
           Close comparison
         </button>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[40rem] border-collapse text-left text-xs">
-          <thead>
-            <tr className="border-b border-border">
-              <th scope="col" className="py-2 pr-4 font-semibold text-muted-foreground">Attribute</th>
-              {rows.map((row) => (
-                <th key={row.id} scope="col" className="py-2 pr-4 font-bold text-foreground">{row.eventName}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {attributes.map((attribute) => (
-              <tr key={attribute.label} className="border-b border-border last:border-0">
-                <th scope="row" className="py-2 pr-4 font-semibold text-muted-foreground">{attribute.label}</th>
-                {rows.map((row) => (
-                  <td key={row.id} className="py-2 pr-4 text-foreground">{attribute.value(row)}</td>
-                ))}
-              </tr>
+      <Table className="min-w-[40rem] text-xs">
+        <TableHeader>
+          <TableRow>
+            <TableHead scope="col" className="font-semibold text-muted-foreground">Attribute</TableHead>
+            {rows.map((row) => (
+              <TableHead key={row.id} scope="col" className="font-bold text-foreground">{row.eventName}</TableHead>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {attributes.map((attribute) => (
+            <TableRow key={attribute.label}>
+              <TableHead scope="row" className="h-auto whitespace-normal font-semibold text-muted-foreground">{attribute.label}</TableHead>
+              {rows.map((row) => (
+                <TableCell key={row.id} className="whitespace-normal text-foreground">{attribute.value(row)}</TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </section>
   );
 }

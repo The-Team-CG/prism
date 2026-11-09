@@ -1,5 +1,6 @@
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { Empty, EmptyDescription, EmptyHeader } from "@prism/ui/components/empty";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { BellRing, ChevronRight, Plus, RefreshCw, UserPlus, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
@@ -87,6 +88,9 @@ function Disclosure({ title, summary, children }: { title: string; summary?: str
     </details>
   );
 }
+
+/** Radix Select items cannot be empty strings; this sentinel stands for "not chosen yet" and maps back to "". */
+const NO_REPLACEMENT = "none";
 
 /** A compact empty state for a list inside a section card: one sentence, no title of its own. */
 function LiveOpsEmpty({ label: emptyLabel }: { label: string }) {
@@ -452,18 +456,28 @@ function LiveOpsIssuesPanel({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Severity</span>
-            <select value={vm.issueSeverity} onChange={(event) => vm.setIssueSeverity(event.target.value as typeof vm.issueSeverity)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
+            <Select value={vm.issueSeverity} onValueChange={(value) => vm.setIssueSeverity(value as typeof vm.issueSeverity)}>
+              <SelectTrigger className="h-11 w-full min-w-0 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
           </label>
           <label className="grid gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Owner role</span>
-            <select value={vm.issueOwnerRole} onChange={(event) => vm.setIssueOwnerRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
-              {COORDINATOR_ROLES.map((role) => <option key={role}>{role}</option>)}
-            </select>
+            <Select value={vm.issueOwnerRole} onValueChange={vm.setIssueOwnerRole}>
+              <SelectTrigger className="h-11 w-full min-w-0 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {COORDINATOR_ROLES.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </label>
         </div>
         <label className="grid gap-1.5">
@@ -534,17 +548,27 @@ function LiveOpsTasksPanel({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="grid gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Role</span>
-            <select value={vm.taskRole} onChange={(event) => vm.setTaskRole(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
-              {COORDINATOR_ROLES.map((role) => <option key={role}>{role}</option>)}
-            </select>
+            <Select value={vm.taskRole} onValueChange={vm.setTaskRole}>
+              <SelectTrigger className="h-11 w-full min-w-0 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {COORDINATOR_ROLES.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </label>
           <label className="grid gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Priority</span>
-            <select value={vm.taskPriority} onChange={(event) => vm.setTaskPriority(event.target.value)} className="h-11 rounded-md border border-border bg-white px-3 text-sm">
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
-            </select>
+            <Select value={vm.taskPriority} onValueChange={vm.setTaskPriority}>
+              <SelectTrigger className="h-11 w-full min-w-0 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="critical">Critical</SelectItem>
+              </SelectContent>
+            </Select>
           </label>
         </div>
         <label className="grid gap-1.5">
@@ -597,21 +621,24 @@ function CoordinatorReplacement({ vm, busy }: { vm: CoordinatorRowVm; busy: bool
             Replacement marks this assignment as replaced, creates a pending assignment for the selected coordinator, and keeps the reason in the live log context.
           </p>
           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
-            <select
-              aria-label="Replacement coordinator"
-              value={vm.replacementCoordinatorId}
-              onChange={(event) => vm.selectReplacementCoordinator(event.target.value)}
-              className="h-10 rounded-md border border-border bg-white px-2 text-xs"
-            >
-              <option value="">Select coordinator</option>
-              {vm.eligibleCoordinators.map((coordinator) => (
-                <option key={coordinator.id} value={coordinator.id}>{coordinator.name}</option>
-              ))}
-            </select>
-            <select aria-label="Replacement role" value={vm.replacementRole} onChange={(event) => vm.setReplacementRole(event.target.value)} className="h-10 rounded-md border border-border bg-white px-2 text-xs">
-              <option value="">Select role</option>
-              {vm.replacementRoleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
-            </select>
+            <Select value={vm.replacementCoordinatorId || NO_REPLACEMENT} onValueChange={(value) => vm.selectReplacementCoordinator(value === NO_REPLACEMENT ? "" : value)}>
+              <SelectTrigger aria-label="Replacement coordinator" className="h-10 w-full min-w-0 bg-white text-xs">
+                <SelectValue placeholder="Select coordinator" />
+              </SelectTrigger>
+              <SelectContent>
+                {vm.eligibleCoordinators.map((coordinator) => (
+                  <SelectItem key={coordinator.id} value={coordinator.id}>{coordinator.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={vm.replacementRole || NO_REPLACEMENT} onValueChange={(value) => vm.setReplacementRole(value === NO_REPLACEMENT ? "" : value)}>
+              <SelectTrigger aria-label="Replacement role" className="h-10 w-full min-w-0 bg-white text-xs">
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {vm.replacementRoleOptions.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <button
             type="button"

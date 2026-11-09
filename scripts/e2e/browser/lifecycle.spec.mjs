@@ -48,7 +48,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
     await test.step('PMCM prepares the immutable conforme; client signs; PMCM countersigns to create the event', async () => {
       await pmcm.page.goto(`${origins.event}/dashboard/inquiries`);
-      await pmcm.page.getByRole('button', { name: 'Onboarding', exact: true }).click();
+      await pmcm.page.getByRole('radio', { name: 'Onboarding', exact: true }).click();
       await pmcm.page.getByRole('article', { name: `Onboarding ${inquiry.eventName}`, exact: true }).getByRole('button', { name: 'Upload signed conforme', exact: true }).click();
       const modal = pmcm.page.getByRole('dialog', { name: 'Upload signed conforme', exact: true });
       await modal.getByRole('button', { name: 'Prepare in-app conforme', exact: true }).click();

@@ -1,4 +1,5 @@
 import { Button } from "@prism/ui/components/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { Input } from "@prism/ui/components/input";
 import { formatPortalDateTime } from "@prism/ui/format-date";
@@ -109,12 +110,17 @@ export function Phase4ComplianceSection({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label htmlFor="phase4-run-phase" className="text-sm text-muted-foreground">Phase</label>
-          <select id="phase4-run-phase" value={phase} onChange={(event) => { if (isCompliancePhase(event.target.value)) onPhase(event.target.value); }} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
-            <option value="planning">Planning</option>
-            <option value="pre_event">Pre-event</option>
-            <option value="event_day">Event day</option>
-            <option value="closure">Closure</option>
-          </select>
+          <Select value={phase} onValueChange={(value) => { if (isCompliancePhase(value)) onPhase(value); }}>
+            <SelectTrigger id="phase4-run-phase" className="h-10 w-48 min-w-0 bg-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="planning">Planning</SelectItem>
+              <SelectItem value="pre_event">Pre-event</SelectItem>
+              <SelectItem value="event_day">Event day</SelectItem>
+              <SelectItem value="closure">Closure</SelectItem>
+            </SelectContent>
+          </Select>
           <button disabled={busy} onClick={onRunCompliance} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
             Run checks
           </button>
