@@ -26,8 +26,9 @@ temp
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 
-.env
-.env.*
+# Env files in every folder: a bare .env matches only the context root.
+**/.env
+**/.env.*
 !.env.docker.example
 
 prism-api
