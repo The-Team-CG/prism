@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@prism/ui/components/button";
 import { DatePicker } from "@prism/ui/components/date-picker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 
 import type { PrismSupplier, PrismSupplierCategory, PrismSupplierQuoteRoundComparison, SupplierAvailabilityInput } from "@prism/types";
 import { money } from "@/features/pmcm-kit";
@@ -15,6 +17,9 @@ import {
   QuoteRequestModal,
   SupplierTierColumns,
 } from "./quote-planner-sections";
+
+/** Radix Select cannot hold an empty-string item, so "none" stands for an unset choice. */
+const NONE = "none";
 
 export function SupplierQuotePlanner({
   categories,
@@ -143,37 +148,43 @@ export function SupplierQuotePlanner({
         onRequest={openRequestModal}
       />
       <section className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
-        <label className="grid gap-1 text-xs font-semibold">Supplier availability
-          <select aria-label="Supplier availability supplier" value={availabilitySupplierId} onChange={(event) => setAvailabilitySupplierId(event.target.value)} className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm">
-            <option value="">Choose supplier</option>
-            {categorySuppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
-          </select>
-        </label>
+        <div className="grid gap-1 text-xs font-semibold">
+          <span>Supplier availability</span>
+          <Select value={availabilitySupplierId || NONE} onValueChange={(next) => setAvailabilitySupplierId(next === NONE ? "" : next)}>
+            <SelectTrigger aria-label="Supplier availability supplier" className="h-10 w-full min-w-0 bg-background text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Choose supplier</SelectItem>
+              {categorySuppliers.map((supplier) => <SelectItem key={supplier.id} value={supplier.id}>{supplier.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           <label className="grid gap-1 text-xs font-semibold">Available on<DatePicker aria-label="Availability date" value={availabilityDate} onValueChange={setAvailabilityDate} className="h-10 bg-white" /></label>
           <label className="grid gap-1 text-xs font-semibold">Capacity<input aria-label="Availability capacity" type="number" min="0" max="1000" step="1" value={availabilityCapacity} onChange={(event) => setAvailabilityCapacity(event.target.value)} className="h-10 rounded-md border border-border bg-background px-3 text-sm" /></label>
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={availabilityBlocked} onChange={(event) => setAvailabilityBlocked(event.target.checked)} />Blocked</label>
-          <button type="button" disabled={busy || !availabilitySupplierId || !availabilityDate || !Number.isInteger(Number(availabilityCapacity)) || Number(availabilityCapacity) < 0} onClick={() => {
+          <Button type="button" disabled={busy || !availabilitySupplierId || !availabilityDate || !Number.isInteger(Number(availabilityCapacity)) || Number(availabilityCapacity) < 0} onClick={() => {
             setAvailabilityNotice(null);
             void onSetAvailability(availabilitySupplierId, { availableOn: availabilityDate, capacity: Number(availabilityCapacity), blocked: availabilityBlocked })
               .then((result) => setAvailabilityNotice(result ? "Availability saved for this supplier and date." : "Unable to save availability. Check the event workspace alert."))
               .catch((cause: unknown) => setAvailabilityNotice(cause instanceof Error ? cause.message : "Unable to save availability."));
-          }} className="h-10 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground disabled:opacity-50">Save</button>
+          }}>Save</Button>
         </div>
         {availabilityNotice ? <p role="status" className="text-xs text-muted-foreground md:col-span-3">{availabilityNotice}</p> : null}
       </section>
       {roundIds.length ? <div className="flex flex-wrap items-center gap-2" aria-label="Supplier quote rounds">
         <span className="text-xs font-semibold text-muted-foreground">Compare bid round:</span>
-        {roundIds.map((roundId, index) => <button key={roundId} type="button" disabled={comparisonBusy} onClick={() => {
+        {roundIds.map((roundId, index) => <Button key={roundId} type="button" variant="outline" size="sm" disabled={comparisonBusy} onClick={() => {
           const request = ++comparisonRequest.current;
           setComparisonBusy(true); setComparisonError(null);
           void onCompareRound(roundId)
             .then((result) => { if (request === comparisonRequest.current) setComparison(result); })
             .catch((cause: unknown) => { if (request === comparisonRequest.current) setComparisonError(cause instanceof Error ? cause.message : "Unable to load quote comparison."); })
             .finally(() => { if (request === comparisonRequest.current) setComparisonBusy(false); });
-        }} className="rounded-md border border-border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50">{comparisonBusy ? "Loading…" : `Round ${roundNumbers.get(roundId) ?? index + 1}`}</button>)}
+        }}>{comparisonBusy ? "Loading…" : `Round ${roundNumbers.get(roundId) ?? index + 1}`}</Button>)}
         {comparison ? <span className="text-xs text-muted-foreground">Loaded {comparison.bids.length} bids from round {comparison.roundNumber}</span> : null}
         {comparisonError ? <span role="alert" className="text-xs text-destructive">{comparisonError}</span> : null}
       </div> : null}

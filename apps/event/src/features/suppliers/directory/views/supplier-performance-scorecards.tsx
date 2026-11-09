@@ -1,5 +1,6 @@
 import type { PrismPmcmSupplierProfile } from "@prism/types";
 import { Clock3 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { RatingStars, SupplierAvatar } from "./supplier-visuals";
 import styles from "./supplier-workspace.module.css";
 
@@ -16,14 +17,16 @@ export function SupplierPerformanceScorecards({
     <section aria-labelledby="supplier-scorecards-heading" className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <h3 id="supplier-scorecards-heading" className="text-xs font-semibold">Performance scorecards</h3>
-        <label className="text-xs text-muted-foreground">
-          <span className="sr-only">Scorecard period</span>
-          <select value={period} onChange={(event) => onPeriodChange(event.target.value as typeof period)} className="h-8 rounded-md border border-input bg-background px-2">
-            <option value="all">All time</option>
-            <option value="90d">Last 90 days</option>
-            <option value="30d">Last 30 days</option>
-          </select>
-        </label>
+        <Select value={period} onValueChange={(next) => onPeriodChange(next as typeof period)}>
+          <SelectTrigger aria-label="Scorecard period" className="h-8 w-40 min-w-0 bg-background text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All time</SelectItem>
+            <SelectItem value="90d">Last 90 days</SelectItem>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="space-y-2">
         {profile.scorecards.map((scorecard) => (

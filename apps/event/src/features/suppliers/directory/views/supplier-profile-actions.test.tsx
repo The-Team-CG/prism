@@ -26,20 +26,26 @@ const engagements = {
   hasNextPage: false,
 } as never;
 
+/** Chooses an item in a Radix Select the way a keyboard user does: open the trigger, then pick the option. */
+function chooseOption(trigger: HTMLElement, option: string) {
+  fireEvent.keyDown(trigger, { key: "Enter" });
+  fireEvent.click(screen.getByRole("option", { name: option }));
+}
+
 describe("SupplierProfileActions", () => {
   it("saves the capacity rating with the profile, and sends null when it is set back to not rated", async () => {
     const onSubmit = vi.fn(async (_action: SupplierActionDraft) => ({ saved: true as const, refreshFailed: false, message: "Saved" }));
     render(<SupplierProfileActions profile={profile} categories={[]} engagements={engagements} actionSaving={false} actionResult={null} onSubmit={onSubmit} />);
 
     fireEvent.click(screen.getByText("Edit supplier profile"));
-    const rating = screen.getByLabelText("Capacity or scale rating") as HTMLSelectElement;
-    expect(rating.value).toBe("");
-    fireEvent.change(rating, { target: { value: "large" } });
+    const rating = screen.getByRole("combobox", { name: "Capacity or scale rating" });
+    expect(rating.textContent).toBe("Not rated");
+    chooseOption(rating, "Large");
     fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({ kind: "update", supplierId: "supplier-1", input: { capacityRating: "large" } });
 
-    fireEvent.change(rating, { target: { value: "" } });
+    chooseOption(rating, "Not rated");
     fireEvent.click(screen.getByRole("button", { name: "Save profile" }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
     expect(onSubmit.mock.calls[1]?.[0]).toMatchObject({ input: { capacityRating: null } });
@@ -52,7 +58,7 @@ describe("SupplierProfileActions", () => {
     const reviewDetails = screen.getByText("Add private review").closest("details");
     if (!reviewDetails) throw new Error("Review disclosure was not rendered");
     fireEvent.click(screen.getByText("Add private review"));
-    fireEvent.change(within(reviewDetails).getByLabelText("Completed event"), { target: { value: "evt-b" } });
+    chooseOption(within(reviewDetails).getByRole("combobox", { name: "Completed event" }), "Event B · 2026-09-01");
     fireEvent.change(within(reviewDetails).getByLabelText("Review notes"), { target: { value: "Delivered on time" } });
     fireEvent.click(within(reviewDetails).getByRole("button", { name: "Save review" }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));

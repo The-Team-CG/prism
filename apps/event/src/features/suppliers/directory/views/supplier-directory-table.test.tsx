@@ -46,4 +46,22 @@ describe("SupplierDirectoryTable", () => {
     expect(onSelectSupplier).toHaveBeenCalledWith("supplier-1", supplierButton);
     expect(onQueryChange).toHaveBeenCalledWith({ page: 1 });
   });
+
+  it("filters by tier from the select and clears the tier filter when 'All tiers' is chosen", () => {
+    const onQueryChange = vi.fn();
+    const table = (tierQuery: typeof query & { tier?: "tier_1" }) => (
+      <SupplierDirectoryTable directory={directory} categories={[]} query={tierQuery} searchDraft="" loading={false} error={null} view="all" onSearch={vi.fn()} onQueryChange={onQueryChange} onSelectSupplier={vi.fn()} onRefresh={vi.fn()} onRetry={vi.fn()} />
+    );
+    const { rerender } = render(table(query));
+
+    const tierTrigger = screen.getByRole("combobox", { name: "Tier" });
+    fireEvent.keyDown(tierTrigger, { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "Tier 1" }));
+    expect(onQueryChange).toHaveBeenLastCalledWith({ tier: "tier_1", page: 0 });
+
+    rerender(table({ ...query, tier: "tier_1" }));
+    fireEvent.keyDown(screen.getByRole("combobox", { name: "Tier" }), { key: "Enter" });
+    fireEvent.click(screen.getByRole("option", { name: "All tiers" }));
+    expect(onQueryChange).toHaveBeenLastCalledWith({ tier: undefined, page: 0 });
+  });
 });
