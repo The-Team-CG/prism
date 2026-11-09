@@ -1,6 +1,7 @@
 "use client";
 
 import { StatusBadge } from "@prism/ui/components/status-badge";
+import { Card } from "@prism/ui/components/card";
 import type { ClientDashboardAction } from "../workspace/model/client-dashboard-view-rules";
 
 export function ClientActionGroup({
@@ -17,7 +18,7 @@ export function ClientActionGroup({
   showDetailsAndCta?: boolean;
 }) {
   return (
-    <div className="min-w-0 rounded-lg border border-border bg-card">
+    <Card className="min-w-0 gap-0 overflow-hidden py-0">
       <header className="border-b border-border px-4 py-4 sm:px-5">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
@@ -62,6 +63,6 @@ export function ClientActionGroup({
           <p className="px-4 py-5 text-sm text-muted-foreground sm:px-5">Nothing here right now.</p>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

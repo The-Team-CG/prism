@@ -1,5 +1,6 @@
 "use client";
 
+import { Card } from "@prism/ui/components/card";
 import { useClientWorkspace } from "../../workspace/shared";
 import {
   OfficialFloorPlanCard,
@@ -39,7 +40,7 @@ export function ClientFloorPlanView() {
       ) : null}
       <FloorPlanRevisionCommentCard draft={officialPlan ?? activeDraft} event={selectedEvent} />
       {showPreferenceCard ? (
-        <div className="rounded-2xl border border-border bg-card shadow-sm">
+        <Card className="gap-0 py-0">
           <FloorPlanCardHeader approved={draftApproved} isOfficial={isOfficial} activeDraft={activeDraft} />
           <div className="p-6">
             <FloorPlanDraftPanel
@@ -56,7 +57,7 @@ export function ClientFloorPlanView() {
               onCreate={createEditorDraft}
             />
           </div>
-        </div>
+        </Card>
       ) : null}
       <GuidedLayoutNotes
         approved={approved}
