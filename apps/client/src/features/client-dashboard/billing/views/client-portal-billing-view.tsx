@@ -14,8 +14,7 @@ import { portalBillingRows } from "../model/client-billing-rules";
 
 const BILLING_TABS: Array<{ id: string; view?: ClientPortalView; label: string; href: string }> = [
   { id: "billing-overview", label: "Overview", href: "/dashboard/billing" },
-  { id: "billing-quotations", view: "billing-quotations", label: "Quotations", href: CLIENT_PORTAL_VIEW_HREFS["billing-quotations"] },
-  { id: "billing-invoices", view: "billing-invoices", label: "Invoices", href: CLIENT_PORTAL_VIEW_HREFS["billing-invoices"] },
+  { id: "billing-statements", view: "billing-statements", label: "Statements", href: CLIENT_PORTAL_VIEW_HREFS["billing-statements"] },
   { id: "billing-payment-schedule", view: "billing-payment-schedule", label: "Payment schedule", href: CLIENT_PORTAL_VIEW_HREFS["billing-payment-schedule"] },
   { id: "dashboard-payment-reminders", view: "dashboard-payment-reminders", label: "Reminders", href: CLIENT_PORTAL_VIEW_HREFS["billing-payment-reminders"] },
   { id: "billing-receipts", view: "billing-receipts", label: "Receipts", href: CLIENT_PORTAL_VIEW_HREFS["billing-receipts"] },

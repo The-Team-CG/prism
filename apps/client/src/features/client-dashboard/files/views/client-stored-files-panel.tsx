@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRef } from "react";
+import { Card } from "@prism/ui/components/card";
 import { CheckCircle2, Download, FileText, LoaderCircle, Upload } from "lucide-react";
 import { cn } from "@/app/components/ui/utils";
 import type { PrismStoredObject } from "@prism/types";
@@ -176,7 +177,7 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
   };
 
   return (
-    <section id="event-files" aria-labelledby="client-documents-title" className="scroll-mt-6 overflow-hidden rounded-lg border border-border bg-card">
+    <Card id="event-files" role="region" aria-labelledby="client-documents-title" className="scroll-mt-6 gap-0 overflow-hidden py-0">
       <header className="border-b border-border px-4 py-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="client-documents-title" className="text-sm font-semibold text-foreground">Documents for this event</h2>
@@ -216,6 +217,6 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
           <OtherFiles files={checklist.otherFiles} vm={vm} onUpload={startUpload} />
         </>
       )}
-    </section>
+    </Card>
   );
 }
