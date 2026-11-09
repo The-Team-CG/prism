@@ -1,5 +1,7 @@
 "use client";
 
+import { canvaRepository } from "@/features/event-settings/canva/data/canva-repository";
+import { OpenInCanvaButton } from "@/features/event-settings/canva/views/open-in-canva-button";
 import { useState } from "react";
 import { downloadProposalDeck } from "../model/proposal-deck";
 import type { PrismPreviousCostEstimate } from "@prism/types";
@@ -43,6 +45,7 @@ export function PmcmProposalIssuerPanel({ eventId }: { eventId: string }) {
 
       <IssuedProposal proposal={vm.latest} />
       {vm.latest ? <button type="button" onClick={() => { const latest = vm.latest; if (latest) void downloadProposalDeck(latest); }} className="mt-2 text-xs font-semibold text-primary">Download as PowerPoint</button> : null}
+      {vm.latest ? <div className="mt-2"><OpenInCanvaButton label="Open in Canva" fill={() => canvaRepository.proposal(eventId)} /></div> : null}
 
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
       {vm.notice ? <p role="status" className="mt-3 text-sm font-medium text-success">{vm.notice}</p> : null}

@@ -8,6 +8,9 @@ import {
   PRISM_SESSION_TTL_ROLE_ENV_PREFIX,
 } from '../event-session/session-config';
 import { mailTransportProblems } from '../mail/mail-config';
+import { viberConfigProblems } from './viber-config';
+import { zoomConfigProblems } from './zoom-config';
+import { canvaConfigProblems } from './canva-config';
 import { portalUrlProblems } from './portal-urls';
 
 /**
@@ -95,7 +98,7 @@ function addMailAndPortalIssues(env: RuntimeEnv, context: z.RefinementCtx) {
     const value = env[name];
     return typeof value === 'string' ? value : undefined;
   };
-  for (const problem of [...mailTransportProblems(read), ...portalUrlProblems(read)]) {
+  for (const problem of [...mailTransportProblems(read), ...portalUrlProblems(read), ...viberConfigProblems(read), ...zoomConfigProblems(read), ...canvaConfigProblems(read)]) {
     context.addIssue({ code: 'custom', path: [problem.name], message: problem.message });
   }
 }

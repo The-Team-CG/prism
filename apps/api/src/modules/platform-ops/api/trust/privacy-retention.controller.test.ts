@@ -39,7 +39,7 @@ describe('privacy retention controller', () => {
     const { controller, retentionService } = createController();
 
     await expect(controller.retentionPolicies(verified())).resolves.toEqual([{ surface: 'inquiry', category: 'inquiry' }]);
-    await expect(controller.retentionReviewItems({ status: 'pending' }, verified('system'))).resolves.toEqual([{ id: 'retention_1' }]);
+    await expect(controller.retentionReviewItems({ status: 'pending', limit: 50 }, verified('system'))).resolves.toEqual([{ id: 'retention_1' }]);
     await expect(controller.executeRetentionReviewItem('retention_1', { executionNotes: 'ok' }, verified())).resolves.toEqual({ id: 'retention_1', status: 'executed' });
     await expect(controller.dismissRetentionReviewItem('retention_1', { reason: 'kept' }, verified())).resolves.toEqual({ id: 'retention_1', status: 'dismissed' });
 
@@ -50,7 +50,7 @@ describe('privacy retention controller', () => {
     const { controller, retentionService, auditService } = createController();
 
     await expect(controller.retentionPolicies(verified(role))).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(controller.retentionReviewItems({ status: 'pending' }, verified(role))).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(controller.retentionReviewItems({ status: 'pending', limit: 50 }, verified(role))).rejects.toBeInstanceOf(ForbiddenException);
     await expect(controller.executeRetentionReviewItem('retention_1', {}, verified(role))).rejects.toBeInstanceOf(ForbiddenException);
     await expect(controller.dismissRetentionReviewItem('retention_1', { reason: 'x' }, verified(role))).rejects.toBeInstanceOf(ForbiddenException);
 

@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import type { OpsPresentationMeeting } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
@@ -14,6 +14,7 @@ import type {
   RecordPresentationOutcomeInput,
 } from '@prism/types';
 import { isPrimaryClientContact } from '../../domain/proposal-client-review.policy';
+import { ZOOM_MEETINGS, type ZoomMeetings } from '../../contracts/zoom-meetings.port';
 
 type Slot = { startsAt: string; endsAt: string };
 
@@ -21,7 +22,7 @@ function mapMeeting(row: OpsPresentationMeeting): PrismPresentationMeeting {
   return {
     id: row.id, eventId: row.eventId, title: row.title, slots: (Array.isArray(row.slots) ? row.slots : []) as Slot[],
     chosen: row.chosenStartAt && row.chosenEndAt ? { startsAt: row.chosenStartAt.toISOString(), endsAt: row.chosenEndAt.toISOString() } : null,
-    meetingLink: row.meetingLink, status: row.status as PrismPresentationMeeting['status'], createdAt: row.createdAt.toISOString(),
+    meetingLink: row.meetingLink, zoomMeeting: row.createZoomMeeting, status: row.status as PrismPresentationMeeting['status'], createdAt: row.createdAt.toISOString(),
   };
 }
 
@@ -40,6 +41,7 @@ export class PresentationMeetingService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly events: OperationsEventReferenceReader,
     @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notifications: NotificationOutboxWriter,
+    @Optional() @Inject(ZOOM_MEETINGS) private readonly zoom?: ZoomMeetings | null,
   ) {}
 
   async list(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismPresentationMeetings> {
@@ -54,12 +56,17 @@ export class PresentationMeetingService {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'presentation meetings', eventId);
     const event = await this.events.findEventReadAccess(eventId);
     if (!event) throw new NotFoundException('Event not found');
-    const row = await this.prisma.$transaction(async (tx) => {
+    if (input.createZoomMeeting && !this.zoom) throw new ServiceUnavailableException('Zoom is not configured for this deployment; paste a meeting link instead');
+    const { row, replacedZoomIds } = await this.prisma.$transaction(async (tx) => {
+      const open = await tx.opsPresentationMeeting.findMany({ where: { eventId, status: { in: ['proposed', 'scheduled'] } }, select: { zoomMeetingId: true } });
       await tx.opsPresentationMeeting.updateMany({ where: { eventId, status: { in: ['proposed', 'scheduled'] } }, data: { status: 'superseded' } });
-      return tx.opsPresentationMeeting.create({ data: {
-        id: `pmeet_${randomUUID()}`, eventId, title: input.title, slots: toPrismaJson(input.slots), meetingLink: input.meetingLink ?? null, createdBy: actor.id ?? actor.name,
+      const created = await tx.opsPresentationMeeting.create({ data: {
+        id: `pmeet_${randomUUID()}`, eventId, title: input.title, slots: toPrismaJson(input.slots), meetingLink: input.meetingLink ?? null,
+        createZoomMeeting: Boolean(input.createZoomMeeting), createdBy: actor.id ?? actor.name,
       } });
+      return { row: created, replacedZoomIds: open.flatMap((meeting) => (meeting.zoomMeetingId ? [meeting.zoomMeetingId] : [])) };
     });
+    await this.removeReplacedZoomMeetings(eventId, actor, replacedZoomIds);
     if (event.inquiry?.email) {
       await writeNotification(this.notifications, eventId, event.inquiry.email, `PMCM proposed times for "${input.title}". Choose one in your client portal.`, 'email', { idempotencyKey: `presentation-proposed:${row.id}` });
     }
@@ -73,9 +80,19 @@ export class PresentationMeetingService {
     const meeting = await this.requireMeeting(eventId, meetingId, ['proposed']);
     const slot = mapMeeting(meeting).slots.find((candidate) => Date.parse(candidate.startsAt) === Date.parse(input.startsAt));
     if (!slot) throw new BadRequestException('Choose one of the offered times');
-    const row = await this.prisma.opsPresentationMeeting.update({ where: { id: meetingId }, data: { status: 'scheduled', chosenStartAt: new Date(slot.startsAt), chosenEndAt: new Date(slot.endsAt) } });
-    await this.audit(eventId, actor, `Client chose a presentation time: ${slot.startsAt}`, row.id);
-    return mapMeeting(row);
+    const zoom = meeting.createZoomMeeting ? await this.createZoomMeeting(meeting, slot) : null;
+    try {
+      const row = await this.prisma.opsPresentationMeeting.update({ where: { id: meetingId }, data: {
+        status: 'scheduled', chosenStartAt: new Date(slot.startsAt), chosenEndAt: new Date(slot.endsAt),
+        ...(zoom ? { meetingLink: zoom.joinUrl, zoomMeetingId: zoom.meetingId } : {}),
+      } });
+      await this.audit(eventId, actor, `Client chose a presentation time: ${slot.startsAt}`, row.id);
+      return mapMeeting(row);
+    } catch (error) {
+      // The booking did not save, so the Zoom meeting made for it would be orphaned.
+      if (zoom) await this.zoom?.remove(zoom.meetingId).catch(() => undefined);
+      throw error;
+    }
   }
 
   async recordOutcome(eventId: string, meetingId: string, input: RecordPresentationOutcomeInput, actor: ResolvedEventOpsActor): Promise<PrismPresentationMeeting> {
@@ -84,6 +101,24 @@ export class PresentationMeetingService {
     const row = await this.prisma.opsPresentationMeeting.update({ where: { id: meetingId }, data: { status: input.outcome } });
     await this.audit(eventId, actor, input.outcome === 'no_show' ? 'Client did not attend the presentation' : 'Presentation held', row.id);
     return mapMeeting(row);
+  }
+
+  private async createZoomMeeting(meeting: OpsPresentationMeeting, slot: Slot) {
+    if (!this.zoom) throw new ServiceUnavailableException('Zoom is not configured for this deployment');
+    const durationMinutes = Math.max(15, Math.round((Date.parse(slot.endsAt) - Date.parse(slot.startsAt)) / 60_000));
+    return this.zoom.create({ topic: meeting.title, startsAt: new Date(slot.startsAt), durationMinutes });
+  }
+
+  /** A rescheduled presentation's old Zoom meeting is deleted; if Zoom refuses, the audit tells PMCM to remove it by hand. */
+  private async removeReplacedZoomMeetings(eventId: string, actor: ResolvedEventOpsActor, meetingIds: string[]) {
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: provider calls only, at most the one or two open meetings of one event.
+    for (const meetingId of meetingIds) {
+      try {
+        await this.zoom?.remove(meetingId);
+      } catch {
+        await this.audit(eventId, actor, `Could not delete replaced Zoom meeting ${meetingId}; delete it in Zoom`, meetingId);
+      }
+    }
   }
 
   private async requireMeeting(eventId: string, meetingId: string, statuses: string[]) {

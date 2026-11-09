@@ -4,7 +4,7 @@
  */
 export const COORDINATOR_HOME_PATH = "/dashboard";
 
-export const COORDINATOR_VIEWS = ["shift", "tasks", "issues", "run-sheet", "calendar", "assignments", "registration"] as const;
+export const COORDINATOR_VIEWS = ["shift", "tasks", "issues", "run-sheet", "calendar", "assignments", "registration", "notifications"] as const;
 export type CoordinatorViewId = (typeof COORDINATOR_VIEWS)[number];
 
 export const COORDINATOR_VIEW_LABELS: Record<CoordinatorViewId, string> = {
@@ -15,6 +15,7 @@ export const COORDINATOR_VIEW_LABELS: Record<CoordinatorViewId, string> = {
   calendar: "Calendar",
   assignments: "Assignments",
   registration: "Registration",
+  notifications: "Notifications",
 };
 
 /** The section ids that older links and bookmarks carry. */

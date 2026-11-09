@@ -507,6 +507,8 @@ export {
   type RecordEventRiskAssessmentInput,
 } from "./scope-change-risk-inputs.js";
 export * from "./ai-governance.js";
+export * from "./notification-preferences.js";
+export * from "./canva.js";
 export * from "./event-risk-register.js";
 export * from "./venue-scouting.js";
 export * from "./pre-event-records.js";

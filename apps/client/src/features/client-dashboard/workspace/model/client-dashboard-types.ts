@@ -36,6 +36,7 @@ export type ClientDashboardRoute =
   | "messages"
   | "changes"
   | "privacy"
+  | "notifications"
   | "summary";
 
 export type ClientPortalView =

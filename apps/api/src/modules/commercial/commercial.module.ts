@@ -74,6 +74,11 @@ import { UnresponsiveSupplierService } from './application/suppliers/unresponsiv
 import { SupplierReliabilityScoreController } from './api/suppliers/supplier-reliability-score.controller';
 import { PresentationMeetingController } from './api/quotes/presentation-meeting.controller';
 import { PresentationMeetingService } from './application/quotes/presentation-meeting.service';
+import { ProposalCanvaExportService } from './application/quotes/proposal-canva-export.service';
+import { ZOOM_MEETINGS } from './contracts/zoom-meetings.port';
+import { ZoomMeetingsClient } from './infrastructure/zoom/zoom-meetings.client';
+import { resolveZoomConfig } from '@prism/kernel/shared';
+import { ConfigService } from '@nestjs/config';
 import { SupplierReliabilityScoreService } from './application/suppliers/supplier-reliability-score.service';
 import { LogisticsBookingService } from './application/billing/logistics-booking.service';
 
@@ -167,6 +172,15 @@ const supplierCommandsProvider = {
     UnresponsiveSupplierService,
     SupplierReliabilityScoreService,
     PresentationMeetingService,
+    ProposalCanvaExportService,
+    {
+      provide: ZOOM_MEETINGS,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const zoom = resolveZoomConfig((name) => config.get<string>(name));
+        return zoom ? new ZoomMeetingsClient(zoom) : null;
+      },
+    },
     { provide: PAYMENT_STATUS_READER, useExisting: PaymentOperationsService },
   ],
   exports: [

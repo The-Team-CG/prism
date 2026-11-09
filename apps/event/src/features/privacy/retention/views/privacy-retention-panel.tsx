@@ -55,6 +55,7 @@ export function PrivacyRetentionView({ vm }: { vm: PrivacyRetentionViewModel }) 
           {vm.items.map((item) => (
             <ReviewItemRow key={item.id} item={item} vm={vm} />
           ))}
+          {vm.hasMore ? <button type="button" disabled={vm.busy} onClick={vm.loadMore} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">Load more</button> : null}
         </section>
       </div>
     </Panel>
