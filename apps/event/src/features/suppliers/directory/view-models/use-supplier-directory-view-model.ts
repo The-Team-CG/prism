@@ -75,6 +75,21 @@ function routeQueryString(query: PmcmSupplierDirectoryQuery, supplierId: string 
   return params.toString();
 }
 
+/**
+ * Settles one router-reported URL against the URLs this view wrote. A URL the view wrote earlier than its latest
+ * write is superseded: adopting it would undo a newer change. A URL the view never wrote is outside navigation,
+ * which wins and clears the pending writes.
+ */
+export function isSupersededUrlWrite(pending: string[], incoming: string) {
+  const index = pending.indexOf(incoming);
+  if (index < 0) {
+    pending.length = 0;
+    return false;
+  }
+  pending.splice(0, index + 1);
+  return pending.length > 0;
+}
+
 export function useSupplierDirectoryViewModel({ view, session }: { view: string; session: EventSession | null }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -104,6 +119,8 @@ export function useSupplierDirectoryViewModel({ view, session }: { view: string;
   const activeRequestIds = useRef<Record<string, number>>({});
   const refreshController = useRef<AbortController | null>(null);
   const supplierId = searchParams.get("supplierId") || null;
+  // URLs this view wrote and the router has not reported back yet, oldest first.
+  const pendingUrlWrites = useRef<string[]>([]);
 
   const route = useMemo(
     () => normalizeSupplierDirectoryRoute(view, new URLSearchParams(searchKey), categories),
@@ -120,6 +137,7 @@ export function useSupplierDirectoryViewModel({ view, session }: { view: string;
 
   function replaceUrl(nextQuery: PmcmSupplierDirectoryQuery, nextSupplierId = supplierId, mode: "push" | "replace" = "replace") {
     const queryString = routeQueryString(nextQuery, nextSupplierId);
+    pendingUrlWrites.current.push(queryString);
     const url = queryString ? `${pathname}?${queryString}` : pathname;
     if (mode === "push") router.push(url, { scroll: false });
     else router.replace(url, { scroll: false });
@@ -179,9 +197,10 @@ export function useSupplierDirectoryViewModel({ view, session }: { view: string;
 
   useEffect(() => {
     if (!categoriesLoaded) return;
+    if (isSupersededUrlWrite(pendingUrlWrites.current, routeQueryString(route.query, supplierId))) return;
     queryRef.current = route.query;
     setQuery((current) => Object.keys(route.query).every((key) => current[key as keyof PmcmSupplierDirectoryQuery] === route.query[key as keyof PmcmSupplierDirectoryQuery]) ? current : route.query);
-  }, [categoriesLoaded, route.query, searchKey]);
+  }, [categoriesLoaded, route.query, searchKey, supplierId]);
 
   useEffect(() => {
     if (categoriesLoaded) setSearchDraft(route.query.q);
