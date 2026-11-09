@@ -27,7 +27,7 @@ import { recordedAttendanceLabel } from "../../model/coordinators-desk-rules";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk } from "@/features/live-ops/schedule";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
-import { CCard, CCardBody, CCardHeader } from "./coordinator-view-primitives";
+import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
 import type {
   CoordinatorIssueFormModel,
   CoordinatorTaskFormModel,
@@ -253,8 +253,8 @@ function CoordinatorAssignmentActions({
 
 export function CoordinatorBoundaryNotice() {
   return (
-    <CCard>
-      <CCardBody className="flex items-start gap-3">
+    <Card>
+      <CardContent className="flex items-start gap-3">
         <LockKeyhole className="mt-0.5 size-5 shrink-0 text-attention" />
         <div>
           <p className="text-sm font-bold text-foreground">Coordinator information boundary</p>
@@ -263,8 +263,8 @@ export function CoordinatorBoundaryNotice() {
             Registration details are limited to the assigned registration role only.
           </p>
         </div>
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -329,14 +329,14 @@ export function CoordinatorEventDayActions({
   const issueCopy = coordinatorIssueActionCopy(roleViewLoading, roleViewError, roleView?.urgentIssues.filter((issue) => !["resolved", "cancelled", "closed"].includes(issue.status)).length ?? 0);
 
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <h2 className="text-base font-bold text-foreground">What needs attention</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Review your tasks, issues and attendance for this event.
         </p>
-      </CCardHeader>
-      <CCardBody>
+      </CardHeader>
+      <CardContent>
         <EventDayActionGroup
           actions={[
             {
@@ -357,8 +357,8 @@ export function CoordinatorEventDayActions({
             },
           ]}
         />
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -382,8 +382,8 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false, onCheckAga
 }) {
   const [view, setView] = useState<"run-sheet" | "brief" | "reports">("run-sheet");
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <CalendarClock className="size-4 text-primary" />
           <h2 className="text-base font-semibold text-foreground">Run sheet and shift records</h2>
@@ -408,8 +408,8 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false, onCheckAga
             </button>
           ))}
         </div>
-      </CCardHeader>
-      <CCardBody id="coordinator-timeline" className="scroll-mt-24 space-y-3">
+      </CardHeader>
+      <CardContent id="coordinator-timeline" className="scroll-mt-24 space-y-3">
         <fieldset disabled={readOnly} hidden={view !== "run-sheet"} className="min-w-0">{roleView?.schedule?.authored ? <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} /> : roleView ? <RunSheetNotPublished onCheckAgain={onCheckAgain} /> : (
           <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">Loading the run sheet.</p>
         )}</fieldset>
@@ -424,7 +424,7 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false, onCheckAga
             coordinatorScope
           />
         </fieldset> : null}
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }

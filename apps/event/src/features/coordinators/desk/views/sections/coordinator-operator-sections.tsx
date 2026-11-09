@@ -26,7 +26,9 @@ import {
   taskAssignedRoleOptions,
   type CoordinatorAttendanceChoice,
 } from "../../model/coordinators-desk-rules";
-import { CCard, CCardBody, CCardHeader, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
+import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
 
 export type CoordinatorReassignmentModel = {
   busy: boolean;
@@ -55,6 +57,8 @@ export type CoordinatorOperatorActionsModel = {
 type RoleViewTask = PrismCoordinatorRoleView["tasks"][number];
 type SupplierStatus = PrismCoordinatorRoleView["supplierStatuses"][number];
 
+/** Radix Select cannot take an empty-string item value, so "any coordinator" uses this sentinel. */
+const ANY_OWNER_COORDINATOR = "__any_owner_coordinator__";
 const SELECT_FIELD = "h-10 rounded-md border border-border bg-background px-2 text-sm text-foreground";
 const FIELD_CAPTION = "grid gap-1 text-xs font-semibold text-muted-foreground";
 
@@ -75,8 +79,8 @@ export function CoordinatorRoleActions({ roleView, reassignment, operatorActions
 
 export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: PrismCoordinatorRoleView; taskActions: CoordinatorTaskActionsModel }) {
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Assigned to you</h3>
@@ -84,8 +88,8 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
             <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-3xs font-bold text-primary">{roleView.tasks.length}</span>
           )}
         </div>
-      </CCardHeader>
-      <CCardBody id="coordinator-role-queue" className="scroll-mt-24">
+      </CardHeader>
+      <CardContent id="coordinator-role-queue" className="scroll-mt-24">
         {roleView.tasks.length === 0 && <p className="text-sm text-muted-foreground">No tasks assigned to you yet.</p>}
         <div className="space-y-2">
           {roleView.tasks.map((task) => (
@@ -93,8 +97,8 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
           ))}
         </div>
         {taskActions.error && <p role="alert" className={FORM_ALERT}>{taskActions.error}</p>}
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -199,14 +203,14 @@ function CoordinatorOperatorControls({ roleView, reassignment, operatorActions }
 }) {
   const pending = (roleView.taskReassignmentRequests ?? []).filter((request) => request.status === "pending");
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <UserCheck className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Operator controls</h3>
         </div>
-      </CCardHeader>
-      <CCardBody className="space-y-3">
+      </CardHeader>
+      <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
           You are the designated Event Day System Operator. You may request task reassignment and mark attendance for other coordinators; PMCM approves reassignment decisions.
         </p>
@@ -217,8 +221,8 @@ function CoordinatorOperatorControls({ roleView, reassignment, operatorActions }
         {reassignment.error ? <p role="alert" className={FORM_ALERT}>{reassignment.error}</p> : null}
         <DelegatedAttendanceList roleView={roleView} operatorActions={operatorActions} />
         {operatorActions.error ? <p role="alert" className={FORM_ALERT}>{operatorActions.error}</p> : null}
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -245,24 +249,37 @@ function ReassignmentRequestForm({ roleView, reassignment }: { roleView: PrismCo
     <form className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-2" onSubmit={submit}>
       <label className={FIELD_CAPTION}>
         Task
-        <select aria-label="Task to reassign" required value={taskId} onChange={(event) => setTaskId(event.target.value)} className={SELECT_FIELD}>
-          <option value="">Select task</option>
-          {openTasks.map((task) => <option key={task.id} value={task.id}>{task.title}</option>)}
-        </select>
+        <Select required value={taskId} onValueChange={setTaskId}>
+          <SelectTrigger aria-label="Task to reassign" className="w-full min-w-0">
+            <SelectValue placeholder="Select task" />
+          </SelectTrigger>
+          <SelectContent>
+            {openTasks.map((task) => <SelectItem key={task.id} value={task.id}><span className="truncate">{task.title}</span></SelectItem>)}
+          </SelectContent>
+        </Select>
       </label>
       <label className={FIELD_CAPTION}>
         New owner role
-        <select aria-label="New owner role" required value={toOwnerRole} onChange={(event) => { setToOwnerRole(event.target.value); setToOwnerName(""); }} className={SELECT_FIELD}>
-          <option value="">Select role</option>
-          {taskAssignedRoleOptions(roleView).map((role) => <option key={role} value={role}>{role}</option>)}
-        </select>
+        <Select required value={toOwnerRole} onValueChange={(role) => { setToOwnerRole(role); setToOwnerName(""); }}>
+          <SelectTrigger aria-label="New owner role" className="w-full min-w-0">
+            <SelectValue placeholder="Select role" />
+          </SelectTrigger>
+          <SelectContent>
+            {taskAssignedRoleOptions(roleView).map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </label>
       <label className={FIELD_CAPTION}>
         Coordinator (optional)
-        <select aria-label="New owner coordinator" value={toOwnerName} onChange={(event) => setToOwnerName(event.target.value)} className={SELECT_FIELD}>
-          <option value="">Any coordinator in this role</option>
-          {owners.map((item) => <option key={item.id} value={item.coordinatorName}>{item.coordinatorName} · {item.role}</option>)}
-        </select>
+        <Select value={toOwnerName || ANY_OWNER_COORDINATOR} onValueChange={(name) => setToOwnerName(name === ANY_OWNER_COORDINATOR ? "" : name)}>
+          <SelectTrigger aria-label="New owner coordinator" className="w-full min-w-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ANY_OWNER_COORDINATOR}>Any coordinator in this role</SelectItem>
+            {owners.map((item) => <SelectItem key={item.id} value={item.coordinatorName}>{item.coordinatorName} · {item.role}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </label>
       <label className={FIELD_CAPTION}>
         Reason
@@ -343,14 +360,14 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
   }
 
   return (
-    <CCard>
-      <CCardHeader>
+    <Card>
+      <CardHeader>
         <div className="flex items-center gap-2">
           <Truck className="size-4 text-primary" />
           <h3 className="text-sm font-bold text-foreground">Supplier setup checks</h3>
         </div>
-      </CCardHeader>
-      <CCardBody className="space-y-2">
+      </CardHeader>
+      <CardContent className="space-y-2">
         {suppliers.length === 0 ? (
           <p className="text-sm text-muted-foreground">No confirmed suppliers to check yet.</p>
         ) : (
@@ -363,8 +380,8 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
           <SupplierCheckRow key={supplier.id} supplier={supplier} busy={actions.supplierBusy} onCheck={(status) => check(supplier, status)} onReport={(status) => report(supplier, status)} />
         ))}
         {actions.supplierError ? <p role="alert" className={FORM_ALERT}>{actions.supplierError}</p> : null}
-      </CCardBody>
-    </CCard>
+      </CardContent>
+    </Card>
   );
 }
 

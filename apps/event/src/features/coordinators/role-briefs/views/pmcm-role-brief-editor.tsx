@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { COORDINATOR_ROLES, type CoordinatorRole } from "@prism/types";
+import { COORDINATOR_ROLES, canonicalCoordinatorRole, type CoordinatorRole } from "@prism/types";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { callTimeToLocalInput } from "../model/role-brief-rules";
 import { useRoleBriefs, type RoleBriefForm } from "../view-models/use-role-briefs";
 
@@ -33,9 +34,14 @@ export function PmcmRoleBriefEditor({ eventId }: { eventId: string }) {
       {vm.notice ? <p aria-live="polite" className="mt-3 text-sm text-muted-foreground">{vm.notice}</p> : null}
       <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={(event) => { event.preventDefault(); void vm.save(role, form); }}>
         <label className="text-sm">Role
-          <select value={role} onChange={(event) => setRole(event.target.value as CoordinatorRole)} className={FIELD}>
-            {COORDINATOR_ROLES.map((option) => <option key={option} value={option}>{option}</option>)}
-          </select>
+          <Select value={role} onValueChange={(value) => { const next = canonicalCoordinatorRole(value); if (next) setRole(next); }}>
+            <SelectTrigger aria-label="Role" className="mt-1 w-full min-w-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {COORDINATOR_ROLES.map((option) => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </label>
         <label className="text-sm">Call time
           <input type="datetime-local" value={form.callTime} onChange={(event) => set("callTime")(event.target.value)} className={FIELD} />
