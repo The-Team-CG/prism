@@ -59,8 +59,8 @@ export function GuestAccessOpenView() {
             autoCapitalize="characters"
             autoComplete="off"
             spellCheck={false}
-            placeholder="PMCM EVENT CODE"
-            className={`h-12 rounded-lg bg-card text-2xl font-semibold uppercase tracking-[0.18em] ${PRISM_AUTH_INPUT_CLASS_NAME}`}
+            placeholder="Enter the event code"
+            className={`h-12 rounded-lg bg-card text-base uppercase placeholder:normal-case placeholder:text-muted-foreground ${PRISM_AUTH_INPUT_CLASS_NAME}`}
           />
         </Field>
 
