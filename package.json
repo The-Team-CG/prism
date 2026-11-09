@@ -79,7 +79,7 @@
     "typescript-eslint": "^8.72.1",
     "@typescript/native": "npm:typescript@7.0.2",
     "oxlint": "1.90.0",
-    "oxlint-tsgolint": "7.0.2005",
+    "oxlint-tsgolint": "7.0.2006",
     "bun": "1.4.4"
   },
   "overrides": {
