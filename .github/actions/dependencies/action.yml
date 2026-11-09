@@ -16,7 +16,7 @@ runs:
   steps:
     - uses: actions/setup-node@v7
       with:
-        node-version: '24'
+        node-version: '26'
         check-latest: true
         cache: ${{ inputs.populate == 'true' && 'npm' || '' }}
         package-manager-cache: ${{ inputs.populate == 'true' }}
