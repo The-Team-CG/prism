@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Dependabot now runs (its config had a byte-order mark and never opened a pull request): weekly grouped npm updates (Nest, Prisma, Next and React, UI, TypeScript and lint, test and build tooling, production, development) on Monday 06:00 Manila with a 3-day release cooldown, and monthly grouped GitHub Actions and Node base-image updates. The Dockerfile names its Node image directly so Dependabot can update it.
+
 - Seeded calendar dates (event, briefing, milestone and schedule-day dates) are stored at UTC midnight like the dates the app writes. Before, `portal-uat` fixtures stored Manila midnight, so every seeded event showed one day early and the "live today" event read as ended. Existing seeded databases keep the old dates until reseeded.
 - The PMCM event archive shows 25 events at a time with Show more, instead of every archived event in one list.
 - On phones, the PMCM suppliers page no longer grows wider than the screen when supplier names are long (its selects now shrink), which had pushed the quote request dialog and its Send button off-screen. Dialogs (quote requests, conforme upload, coordinator assignment, inquiry and finance) stay within the screen, and long supplier names wrap.
