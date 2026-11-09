@@ -201,7 +201,7 @@ export type PmcmDetailTab =
   | "billing"
   | "closure"
   | "decisions"
-  | "activity";
+  | "messages";
 
 export interface PmcmWorkflowTabItem {
   id: PmcmDetailTab;
@@ -237,7 +237,7 @@ export function buildEventWorkflowTabs({
     { id: "billing", label: "Finance", icon: ReceiptText, badge: paymentsCount || undefined },
     { id: "closure", label: "Closure", icon: Archive, badge: openChecksCount || undefined },
     { id: "decisions", label: "Decision log", icon: Gavel },
-    { id: "activity", label: "Messages", icon: MessageSquareText },
+    { id: "messages", label: "Messages", icon: MessageSquareText },
   ];
   // The decision log is PMCM-only (FL-019); the API refuses every other role as well.
   return isPmcmAdmin(role)

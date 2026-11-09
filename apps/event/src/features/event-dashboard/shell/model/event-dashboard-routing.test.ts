@@ -140,10 +140,10 @@ describe("event-dashboard-routing", () => {
       // Tasks, Files, Messages and Finance have no sidebar entry outside an event, so nothing is highlighted.
       [{ section: "tasks", tab: "overview" }, undefined],
       [{ section: "files", tab: "floorplans" }, undefined],
-      [{ section: "messages", tab: "activity" }, undefined],
+      [{ section: "messages", tab: "messages" }, undefined],
       [{ section: "finance", tab: "billing" }, undefined],
       [{ section: "files", tab: "floorplans", eventId: "event-42" }, "event-files"],
-      [{ section: "messages", tab: "activity", eventId: "event-42" }, "event-messages"],
+      [{ section: "messages", tab: "messages", eventId: "event-42" }, "event-messages"],
       [{ section: "finance", tab: "billing", eventId: "event-42" }, "event-budget"],
       // Event workspace pages highlight the nav item of their canonical tab.
       [{ section: "events", tab: "overview", eventId: "event-42", view: "overview" }, "event-overview"],
@@ -234,7 +234,7 @@ describe("event-dashboard-routing", () => {
       [{ section: "calendar", tab: "overview" }, "Calendar"],
       [{ section: "tasks", tab: "overview" }, "Tasks"],
       [{ section: "files", tab: "floorplans", view: "all" }, "Files"],
-      [{ section: "messages", tab: "activity", view: "inbox" }, "Messages"],
+      [{ section: "messages", tab: "messages", view: "inbox" }, "Messages"],
       [{ section: "finance", tab: "billing", view: "overview" }, "Finance"],
     ];
     for (const [routeState, expectedTitle] of sectionTitles) {
@@ -281,7 +281,6 @@ describe("event-dashboard-routing", () => {
       ["timeline", "/dashboard/events/evt-1/live-ops"],
       ["staff", "/dashboard/events/evt-1/coordinators"],
       ["budget", "/dashboard/events/evt-1/billing"],
-      ["messages", "/dashboard/events/evt-1/activity"],
       ["post-event-report", "/dashboard/events/evt-1/closure"],
     ];
     for (const [alias, target] of cases) {

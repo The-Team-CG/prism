@@ -476,7 +476,7 @@ export function EventWorkspaceDecisionsTab() {
   return <DecisionLogPanel eventId={vm.selectedEvent.id} />;
 }
 
-export function EventWorkspaceActivityTab() {
+export function EventWorkspaceMessagesTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   if (!vm.selectedEvent) return null;
   return (

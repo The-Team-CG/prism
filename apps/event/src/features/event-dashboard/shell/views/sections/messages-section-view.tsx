@@ -27,8 +27,8 @@ export function EventDashboardMessagesSectionView() {
               events={events}
               description="Client, supplier, coordinator, and internal threads belong to one event. Choose one to open its messages."
               actionLabel="Open messages"
-              tab="activity"
-              onOpenEvent={(eventId) => navigateEvent(eventId, "activity")}
+              tab="messages"
+              onOpenEvent={(eventId) => navigateEvent(eventId, "messages")}
               rowDetail={(event) => (summaries.status === "ready" ? messagesSummaryLabel(byEvent.get(event.id)) : null)}
             />
           )
