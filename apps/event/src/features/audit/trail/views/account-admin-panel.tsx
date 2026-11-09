@@ -5,11 +5,12 @@ import type { PrismUser, PrismUserRole } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { Search, UserRound } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
 import { Input } from "@prism/ui/components/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
 import { Panel, SegmentedControl, cx, roleLabel } from "@/features/pmcm-kit";
 import { adminAccountActionsFor, canManageAccounts, isAccountLocked } from "../model/audit-trail-rules";
-import type { useAccountAdminViewModel } from "../view-models/use-account-admin-view-model";
+import { pendingActionCopy, type useAccountAdminViewModel } from "../view-models/use-account-admin-view-model";
 import { usePagedItems } from "../view-models/use-paged-items";
 import { ListPager } from "./list-pager";
 
@@ -100,7 +101,27 @@ export function AccountAdminPanel({
           />
         </div>
       </div>
+      <AccountActionConfirmation vm={vm} />
     </Panel>
+  );
+}
+
+/** Asks the admin to confirm an unlock or two-factor reset; neither runs until they choose to. */
+function AccountActionConfirmation({ vm }: { vm: AccountAdminVm }) {
+  const copy = vm.pendingAction ? pendingActionCopy(vm.pendingAction) : null;
+  return (
+    <Dialog open={copy !== null} onOpenChange={(open) => { if (!open) vm.cancelPendingAction(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{copy?.title}</DialogTitle>
+          <DialogDescription>{copy?.description}</DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={vm.cancelPendingAction}>Cancel</Button>
+          <Button type="button" onClick={vm.confirmPendingAction}>{copy?.confirmLabel}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -166,12 +187,12 @@ function AccountRowActions({
   return (
     <div className="flex flex-wrap justify-end gap-1">
       {actions.unlockAccount ? (
-        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => vm.unlockAccount(user)}>
+        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => vm.requestUnlock(user)}>
           Unlock
         </Button>
       ) : null}
       {actions.resetTwoFactor ? (
-        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => vm.resetTwoFactor(user)}>
+        <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => vm.requestResetTwoFactor(user)}>
           Reset two-factor
         </Button>
       ) : null}
