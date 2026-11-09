@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { parseContract, updateWalkInPolicySchema, type WalkInPolicy } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@prism/ui/components/card";
+import { Field, FieldDescription, FieldLabel } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { RadioGroup, RadioGroupItem } from "@prism/ui/components/radio-group";
 import { walkInPolicyRepository } from "../data/walk-in-policy-repository";
 
 const OPTIONS: Array<{ value: WalkInPolicy; label: string; help: string }> = [
@@ -44,26 +49,33 @@ export function ClientWalkInPolicyCard({ eventId }: { eventId: string }) {
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5" aria-labelledby="client-walk-in-heading">
-      <h2 id="client-walk-in-heading" className="text-sm font-bold text-foreground">Walk-in guests</h2>
-      <p className="mt-0.5 text-xs text-muted-foreground">For private events under 200 guests. You can change this until event day.</p>
-      <fieldset className="mt-3 space-y-2" disabled={saving}>
-        <legend className="sr-only">Walk-in policy</legend>
-        {OPTIONS.map((option) => (
-          <label key={option.value} className="flex items-start gap-2 text-sm">
-            <input type="radio" name="walk-in-policy" value={option.value} checked={policy === option.value} onChange={() => setPolicy(option.value)} className="mt-1" />
-            <span><span className="font-semibold text-foreground">{option.label}</span><span className="block text-xs text-muted-foreground">{option.help}</span></span>
-          </label>
-        ))}
+    <Card aria-labelledby="client-walk-in-heading">
+      <CardHeader>
+        <CardTitle id="client-walk-in-heading" className="text-sm font-bold">Walk-in guests</CardTitle>
+        <CardDescription>For private events under 200 guests. You can change this until event day.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <RadioGroup value={policy} onValueChange={(value) => setPolicy(value as WalkInPolicy)} disabled={saving} aria-label="Walk-in policy">
+          {OPTIONS.map((option) => (
+            <div key={option.value} className="flex items-start gap-3">
+              <RadioGroupItem id={`walk-in-${option.value}`} value={option.value} className="mt-1" />
+              <FieldLabel htmlFor={`walk-in-${option.value}`} className="flex flex-col items-start gap-0.5 font-normal">
+                <span className="font-semibold text-foreground">{option.label}</span>
+                <span className="text-xs text-muted-foreground">{option.help}</span>
+              </FieldLabel>
+            </div>
+          ))}
+        </RadioGroup>
         {policy === "threshold" ? (
-          <label className="block text-xs font-semibold text-muted-foreground">Walk-in limit
-            <input type="number" min={1} value={threshold} onChange={(event) => setThreshold(event.target.value)} className="mt-1 block w-32 rounded-xl border border-border bg-background px-3 py-2 text-sm font-normal text-foreground" />
-          </label>
+          <Field className="max-w-40">
+            <FieldLabel htmlFor="walk-in-limit">Walk-in limit</FieldLabel>
+            <Input id="walk-in-limit" type="number" min={1} value={threshold} onChange={(event) => setThreshold(event.target.value)} disabled={saving} />
+          </Field>
         ) : null}
-      </fieldset>
-      {error ? <p role="alert" className="mt-2 text-xs text-destructive">{error}</p> : null}
-      {message ? <p aria-live="polite" className="mt-2 text-xs text-muted-foreground">{message}</p> : null}
-      <button type="button" onClick={() => void save()} disabled={saving} className="mt-3 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{saving ? "Saving…" : "Save walk-in policy"}</button>
-    </section>
+        {error ? <FieldDescription role="alert" className="text-destructive">{error}</FieldDescription> : null}
+        {message ? <FieldDescription aria-live="polite">{message}</FieldDescription> : null}
+        <Button type="button" onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save walk-in policy"}</Button>
+      </CardContent>
+    </Card>
   );
 }

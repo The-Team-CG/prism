@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, type LucideIcon } from "lucide-react";
+import { Card } from "@prism/ui/components/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { cn } from "@/app/components/ui/utils";
 
 /**
@@ -39,7 +41,8 @@ export function ClientFigureStrip({ figures, label }: { figures: ClientFigure[];
   if (figures.length === 0) return null;
   const columns = figures.length >= 4 ? "sm:grid-cols-4" : figures.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2";
   return (
-    <dl aria-label={label} className={cn("grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-card sm:divide-x sm:divide-border", columns)}>
+    <Card className="gap-0 overflow-hidden py-0">
+    <dl aria-label={label} className={cn("grid grid-cols-2 sm:divide-x sm:divide-border", columns)}>
       {figures.map((figure) => {
         const body = (
           <>
@@ -55,6 +58,7 @@ export function ClientFigureStrip({ figures, label }: { figures: ClientFigure[];
         );
       })}
     </dl>
+    </Card>
   );
 }
 
@@ -74,18 +78,20 @@ export function ClientListSection({
   children: ReactNode;
 }) {
   return (
-    <section aria-labelledby={id} className="overflow-hidden rounded-lg border border-border bg-card">
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-        <div className="min-w-0">
-          <h2 id={id} className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            {title}
-            {count !== undefined ? <span className="text-sm font-normal tabular-nums text-muted-foreground">{count}</span> : null}
-          </h2>
-          {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
-        </div>
-        {action}
-      </header>
-      <ul className="divide-y divide-border">{children}</ul>
+    <section aria-labelledby={id}>
+      <Card className="gap-0 overflow-hidden py-0">
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <h2 id={id} className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              {title}
+              {count !== undefined ? <span className="text-sm font-normal tabular-nums text-muted-foreground">{count}</span> : null}
+            </h2>
+            {description ? <p className="text-xs text-muted-foreground">{description}</p> : null}
+          </div>
+          {action}
+        </header>
+        <ul className="divide-y divide-border">{children}</ul>
+      </Card>
     </section>
   );
 }
@@ -135,7 +141,7 @@ export function ClientListRow({
         </p>
         {meta ? <p className="truncate text-xs text-muted-foreground">{meta}</p> : null}
       </div>
-      <p title={statusTitle} className={cn("col-start-2 whitespace-nowrap text-xs tabular-nums sm:col-start-auto sm:text-sm", STATUS[tone])}>{status}</p>
+      <p title={statusTitle} className={cn("col-start-2 whitespace-nowrap text-xs tabular-nums sm:col-start-auto sm:text-center sm:text-sm", STATUS[tone])}>{status}</p>
       <span className="hidden items-center justify-end gap-1 whitespace-nowrap text-sm font-medium text-primary sm:flex">
         {action && (href || onOpen) ? (
           <>
@@ -169,11 +175,17 @@ function RowTitle({ title, href, onOpen }: { title: string; href?: string; onOpe
 /** Calm empty state used inside a list or on its own. */
 export function ClientListEmpty({ icon: Icon, title, description, action }: { icon: LucideIcon; title: string; description: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-lg border border-dashed border-border px-6 py-10 text-center">
-      <Icon aria-hidden className="size-5 text-muted-foreground" />
-      <h3 className="mt-3 text-sm font-semibold text-foreground">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
-      {action ? <div className="mt-4">{action}</div> : null}
-    </div>
+    <Empty className="gap-4 p-8 md:p-8">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Icon aria-hidden />
+        </EmptyMedia>
+        <EmptyTitle className="text-sm font-semibold text-foreground">
+          <h3>{title}</h3>
+        </EmptyTitle>
+        <EmptyDescription>{description}</EmptyDescription>
+      </EmptyHeader>
+      {action ? <div>{action}</div> : null}
+    </Empty>
   );
 }

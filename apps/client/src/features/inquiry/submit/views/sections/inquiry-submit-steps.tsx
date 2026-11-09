@@ -1,5 +1,7 @@
 "use client";
 
+import { Checkbox } from "@prism/ui/components/checkbox";
+import { FieldLabel } from "@prism/ui/components/field";
 import {
   ArrowLeft,
   ArrowRight,
@@ -251,23 +253,23 @@ function ReviewStep({
         ))}
       </div>
 
-      <label className="flex items-start gap-3 text-base text-foreground">
-        <input
-          type="checkbox"
+      <div className="flex items-start gap-3 text-base text-foreground">
+        <Checkbox
+          id="inquiry-privacy-consent"
           checked={form.privacyConsentAccepted}
-          onChange={(event) => update("privacyConsentAccepted", event.target.checked)}
+          onCheckedChange={(checked) => update("privacyConsentAccepted", checked === true)}
           required
           aria-invalid={consentInvalid}
           aria-describedby={consentInvalid ? "inquiry-validation-error" : undefined}
-          className="mt-1 size-5 shrink-0 accent-primary"
+          className="mt-1 size-5 shrink-0"
         />
-        <span>
+        <FieldLabel htmlFor="inquiry-privacy-consent" className="font-normal leading-normal text-foreground">
           PMCM may use these details to review this inquiry and contact me about it.{" "}
           <a href="/privacy" className="font-semibold text-primary hover:text-primary-strong">
             Privacy notice
           </a>
-        </span>
-      </label>
+        </FieldLabel>
+      </div>
 
       {error ? (
         <Alert variant="destructive" className="rounded-lg">

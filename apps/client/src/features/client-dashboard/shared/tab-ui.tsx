@@ -4,6 +4,8 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PrismAuditLog, PrismEvent } from "@prism/types";
 import { StatusBadge } from "@prism/ui/components/status-badge";
+import { Card as UiCard } from "@prism/ui/components/card";
+import { cn } from "@/app/components/ui/utils";
 
 export const money = new Intl.NumberFormat("en-PH", {
   style: "currency",
@@ -71,12 +73,9 @@ export function formatDayLabel(day: string) {
 
 /* ── Shared primitives ─────────────────────────────────────── */
 
+/** The portal card: the shared Card with its header and body sections laid out inside, never nested in another card. */
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div className={`min-w-0 rounded-lg border border-border bg-card ${className}`}>
-      {children}
-    </div>
-  );
+  return <UiCard className={cn("min-w-0 gap-0 overflow-hidden py-0", className)}>{children}</UiCard>;
 }
 
 export function CardHeader({ children }: { children: React.ReactNode }) {
