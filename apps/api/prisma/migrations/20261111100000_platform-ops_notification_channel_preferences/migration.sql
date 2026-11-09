@@ -1,6 +1,6 @@
 -- prism-owner: platform-ops
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 
 -- FR-25: per-account notification channels. An account links Viber with a one-time code opened in the P.R.I.S.M bot;
 -- email stays on for everyone. Only the code's SHA-256 is stored.

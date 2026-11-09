@@ -5,6 +5,7 @@ import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { ProposalLifecycleService } from '../../application/quotes/proposal-lifecycle.service';
 import { ProposalCommentsService } from '../../application/quotes/proposal-comments.service';
+import { ProposalCanvaExportService } from '../../application/quotes/proposal-canva-export.service';
 
 @Controller('events')
 export class ProposalLifecycleController {
@@ -12,7 +13,15 @@ export class ProposalLifecycleController {
     private readonly service: ProposalLifecycleService,
     private readonly comments: ProposalCommentsService,
     private readonly access: EventAccessPolicyService,
+    private readonly canva: ProposalCanvaExportService,
   ) {}
+
+  /** FR-59: the latest issued proposal, filled into PMCM's Canva proposal template. */
+  @Post(':eventId/proposal/canva')
+  @UseGuards(EventSessionGuard)
+  sendToCanva(@Param('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.canva.exportLatest(eventId, this.access.resolveActor({}, verified));
+  }
 
   @Get(':eventId/proposal/comments')
   @UseGuards(EventSessionGuard)

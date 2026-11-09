@@ -74,6 +74,7 @@ import { UnresponsiveSupplierService } from './application/suppliers/unresponsiv
 import { SupplierReliabilityScoreController } from './api/suppliers/supplier-reliability-score.controller';
 import { PresentationMeetingController } from './api/quotes/presentation-meeting.controller';
 import { PresentationMeetingService } from './application/quotes/presentation-meeting.service';
+import { ProposalCanvaExportService } from './application/quotes/proposal-canva-export.service';
 import { ZOOM_MEETINGS } from './contracts/zoom-meetings.port';
 import { ZoomMeetingsClient } from './infrastructure/zoom/zoom-meetings.client';
 import { resolveZoomConfig } from '@prism/kernel/shared';
@@ -171,6 +172,7 @@ const supplierCommandsProvider = {
     UnresponsiveSupplierService,
     SupplierReliabilityScoreService,
     PresentationMeetingService,
+    ProposalCanvaExportService,
     {
       provide: ZOOM_MEETINGS,
       inject: [ConfigService],

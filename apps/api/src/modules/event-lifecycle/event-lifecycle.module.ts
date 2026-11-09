@@ -76,6 +76,7 @@ import { ProposalReviewOwnerService } from './application/onboarding/proposal-re
 import { PROPOSAL_REVIEW_OWNER } from './contracts/proposal-review-owner.port';
 import { ClientCloseoutController } from './api/closure/client-closeout.controller';
 import { ClientCloseoutService } from './application/closure/client-closeout.service';
+import { TestimonialCanvaService } from './application/closure/testimonial-canva.service';
 import { ConformeSigningController } from './api/onboarding/conforme-signing.controller';
 import { ConformeSigningService } from './application/onboarding/conforme-signing.service';
 import { EventDayStartController } from './api/onboarding/event-day-start.controller';
@@ -173,6 +174,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     LifecyclePrivacyRedactorService,
     { provide: LIFECYCLE_PRIVACY_REDACTOR, useExisting: LifecyclePrivacyRedactorService },
     ClientCloseoutService,
+    TestimonialCanvaService,
     ConformeSigningService,
   ],
   exports: [

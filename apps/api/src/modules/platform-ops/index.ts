@@ -15,3 +15,4 @@ export * from './application/ai-governance/pare/pare-dispatch-outbox.service';
 export * from './contracts/ai-governance/pare-dispatch-writer.port';
 export * from './contracts/ai-governance/pare-approval-governance.port';
 export * from './contracts/ai-governance/pare-ops.tokens';
+export * from './contracts/integrations/canva-designs.port';

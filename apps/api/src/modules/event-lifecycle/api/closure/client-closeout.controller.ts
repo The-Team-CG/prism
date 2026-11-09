@@ -12,13 +12,22 @@ import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
 import { ClientCloseoutService } from '../../application/closure/client-closeout.service';
+import { TestimonialCanvaService } from '../../application/closure/testimonial-canva.service';
 
 @Controller('events/:eventId/client-closeout')
 export class ClientCloseoutController {
   constructor(
     private readonly clientCloseoutService: ClientCloseoutService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    private readonly testimonialCanva: TestimonialCanvaService,
   ) {}
+
+  /** New-P3: the approved testimonial, filled into PMCM's Canva testimonial template. */
+  @Post('testimonial/canva')
+  @UseGuards(EventSessionGuard)
+  testimonialToCanva(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.testimonialCanva.fill(eventId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
 
   @Get()
   @UseGuards(EventSessionGuard)

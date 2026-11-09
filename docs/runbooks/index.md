@@ -12,6 +12,7 @@
 * [Deployment secrets](deployment-secrets.md) - GitHub Actions secrets, variables, provider targets, and deployment verification.
 * [Vercel services](vercel-services.md) - proposed single-project service routes, API bindings, builds and operational limits.
 * [AI provider routing](ai-provider-routing.md) - local provider/model selection, synthetic-only limits, and production gates.
+* [External integrations](external-integrations.md) - Viber bot, Zoom meetings and Canva templates: variables, provider setup and verification.
 
 Runbooks describe current procedures and required evidence. They do not
 authorize destructive database actions or imply staging/production deployment.

@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 148,
+    "totalTables": 150,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
@@ -56,8 +56,8 @@
       {
         "domain": "platform-ops",
         "schema": "platform_ops",
-        "tables": 17,
-        "columns": 236
+        "tables": 19,
+        "columns": 248
       },
       {
         "domain": "event-games",
@@ -783,6 +783,24 @@
       "domain": "platform-ops",
       "targetSchema": "platform_ops",
       "columnCount": 18
+    },
+    {
+      "model": "OpsCanvaConnection",
+      "currentSchema": "platform_ops",
+      "table": "canva_connections",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsCanvaOauthState",
+      "currentSchema": "platform_ops",
+      "table": "canva_oauth_states",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 5,
+      "introducedAfterCutover": true
     },
     {
       "model": "OpsNotificationChannelPreference",
