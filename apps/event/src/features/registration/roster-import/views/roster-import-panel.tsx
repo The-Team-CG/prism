@@ -1,3 +1,5 @@
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
 import { useId, useState } from "react";
 import { ChevronRight, Download, FileUp } from "lucide-react";
 import { cx } from "@/features/pmcm-kit";
@@ -14,6 +16,9 @@ const TEMPLATE_HREF = `data:text/csv;charset=utf-8,${encodeURIComponent(buildRos
  * check the preview, then import. Raw JSON stays available under Advanced.
  */
 /** Load the chosen file, then clear the input so choosing the same file again re-reads it. */
+/** Radix Select cannot take an empty-string item value, so "ignore this column" uses this sentinel. */
+const NO_ROSTER_COLUMN = "__ignore_column__";
+
 function pickRosterFile(input: HTMLInputElement, loadFile: (file: File) => Promise<void> | void) {
   const file = input.files?.[0];
   if (file) void loadFile(file);
@@ -173,18 +178,22 @@ function RosterColumnMatching({ preview, onMatch, disabled }: { preview: RosterP
       <legend className="text-xs font-medium text-muted-foreground">Columns</legend>
       <div className="mt-1 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {preview.headers.map((header, index) => (
-          <label key={`${index}-${header}`} className="grid gap-1 text-sm">
+          <div key={`${index}-${header}`} className="grid min-w-0 gap-1 text-sm">
             <span className="truncate text-foreground" title={header}>{header || `Column ${index + 1}`}</span>
-            <select
-              value={preview.mapping[index] ?? ""}
+            <Select
+              value={preview.mapping[index] ?? NO_ROSTER_COLUMN}
               disabled={disabled}
-              onChange={(event) => onMatch(index, (event.target.value || null) as RosterColumn | null)}
-              className="h-9 rounded-md border border-border bg-white px-3 text-sm"
+              onValueChange={(value) => onMatch(index, ROSTER_TEMPLATE_COLUMNS.find((column) => column === value) ?? null)}
             >
-              <option value="">Ignore this column</option>
-              {ROSTER_TEMPLATE_COLUMNS.map((column) => <option key={column} value={column}>{ROSTER_COLUMN_LABELS[column]}</option>)}
-            </select>
-          </label>
+              <SelectTrigger aria-label={`Roster column ${index + 1} maps to`} className="h-9 w-full min-w-0 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_ROSTER_COLUMN}>Ignore this column</SelectItem>
+                {ROSTER_TEMPLATE_COLUMNS.map((column) => <SelectItem key={column} value={column}>{ROSTER_COLUMN_LABELS[column]}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         ))}
       </div>
     </fieldset>
@@ -202,35 +211,35 @@ function RosterPreview({ preview }: { preview: RosterPreviewModel }) {
         {preview.ignoredHeaders.length > 0 ? <span className="text-muted-foreground"> · Ignored columns: {preview.ignoredHeaders.join(", ")}</span> : null}
       </p>
       <div className="mt-2 max-h-80 overflow-auto rounded-md border border-border">
-        <table className="w-full min-w-[36rem] text-left text-sm">
-          <caption className="sr-only">Roster preview</caption>
-          <thead className="sticky top-0 bg-card">
-            <tr className="border-b border-border text-xs text-muted-foreground">
-              <th scope="col" className="px-3 py-2 text-right font-normal">Line</th>
-              {PREVIEW_COLUMNS.map((column) => <th key={column} scope="col" className="px-3 py-2 font-normal">{ROSTER_COLUMN_LABELS[column]}</th>)}
-              <th scope="col" className="px-3 py-2 font-normal">Check</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="min-w-[36rem] text-left">
+          <TableCaption className="sr-only">Roster preview</TableCaption>
+          <TableHeader className="sticky top-0 bg-card">
+            <TableRow className="border-b border-border text-xs text-muted-foreground">
+              <TableHead className="h-auto whitespace-normal px-3 py-2 text-right font-normal">Line</TableHead>
+              {PREVIEW_COLUMNS.map((column) => <TableHead key={column} className="h-auto whitespace-normal px-3 py-2 font-normal">{ROSTER_COLUMN_LABELS[column]}</TableHead>)}
+              <TableHead className="h-auto whitespace-normal px-3 py-2 font-normal">Check</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {preview.rows.map((row) => (
-              <tr key={row.line} className="border-b border-border last:border-b-0 align-top">
-                <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{row.line}</td>
+              <TableRow key={row.line} className="border-b border-border last:border-b-0 align-top">
+                <TableCell className="whitespace-normal px-3 py-2 text-right tabular-nums text-muted-foreground">{row.line}</TableCell>
                 {PREVIEW_COLUMNS.map((column) => (
-                  <td key={column} className="px-3 py-2">
+                  <TableCell key={column} className="whitespace-normal px-3 py-2">
                     {row.values[column] ? row.values[column] : <span className="text-muted-foreground">{EM_DASH}</span>}
-                  </td>
+                  </TableCell>
                 ))}
-                <td className="px-3 py-2">
+                <TableCell className="whitespace-normal px-3 py-2">
                   {row.errors.length === 0 ? (
                     <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success">Ready</span>
                   ) : (
                     <span className="text-xs text-danger">{row.errors.join("; ")}</span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

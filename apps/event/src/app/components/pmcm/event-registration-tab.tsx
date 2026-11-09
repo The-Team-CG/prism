@@ -18,10 +18,12 @@ import type {
   UpdateGuestVerificationInput,
 } from "@prism/types";
 import { GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES, createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { Panel } from "@/features/pmcm-kit/primitives";
 import { cx, label } from "@/features/pmcm-kit";
 import { Button } from "@prism/ui/components/button";
+import { RadioGroup, RadioGroupItem } from "@prism/ui/components/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { RosterImportPanel } from "@/features/registration/roster-import";
 import { QrPassSheet } from "@/features/registration/qr-passes/views/qr-pass-sheet";
 import { QrScanCheckIn } from "@/features/registration/qr-passes/views/qr-scan-check-in";
@@ -47,6 +49,9 @@ const STATUS_COLORS: Record<string, string> = {
   closed: "border-l-secondary bg-secondary/10",
 };
 
+/** Radix Select cannot take an empty-string item value, so "no supplier" uses this sentinel. */
+const NO_SUPPLIER = "__no_supplier__";
+
 function getNextStatus(status: string): string {
   if (status === "not_started") return "configuring";
   if (status === "configuring") return "live";
@@ -62,20 +67,22 @@ function getNextStatusLabel(status: string): string {
 function PlatformEmptyState({ onEdit }: { onEdit: () => void }) {
   return (
     <Panel title="Registration Platform" icon={QrCode}>
-      <EmptyState
-        icon={QrCode}
-        title="No registration platform configured"
-        description="Configure the digital registration platform for large events (200-250+ pax). PRISM does not process ticket sales."
-        action={
-          <button
-            type="button"
-            onClick={onEdit}
-            className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
-          >
+      <Empty className="border-0 p-4 md:p-6">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <QrCode aria-hidden />
+          </EmptyMedia>
+          <EmptyTitle>No registration platform configured</EmptyTitle>
+          <EmptyDescription>
+            Configure the digital registration platform for large events (200-250+ pax). PRISM does not process ticket sales.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button type="button" onClick={onEdit}>
             Configure platform
-          </button>
-        }
-      />
+          </Button>
+        </EmptyContent>
+      </Empty>
     </Panel>
   );
 }
@@ -235,34 +242,36 @@ function PlatformForm({
     <Panel title="Registration Platform" icon={QrCode}>
       <form onSubmit={handleSave} className="flex flex-col gap-3">
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1.5">
+          <div className="grid min-w-0 gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Platform type</span>
-            <select
-              value={platformType}
-              onChange={(ev) => setPlatformType(ev.target.value)}
-              className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-            >
-              <option value="none">No platform</option>
-              <option value="xperto">XPERTO Registration</option>
-              <option value="clickpass">Click Pass</option>
-              <option value="custom">Custom platform</option>
-            </select>
-          </label>
-          <label className="grid gap-1.5">
+            <Select value={platformType} onValueChange={setPlatformType}>
+              <SelectTrigger aria-label="Platform type" className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No platform</SelectItem>
+                <SelectItem value="xperto">XPERTO Registration</SelectItem>
+                <SelectItem value="clickpass">Click Pass</SelectItem>
+                <SelectItem value="custom">Custom platform</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid min-w-0 gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Linked supplier</span>
-            <select
-              value={supplierId}
-              onChange={(ev) => setSupplierId(ev.target.value)}
-              className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-            >
-              <option value="">None</option>
-              {suppliers.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </label>
+            <Select value={supplierId || NO_SUPPLIER} onValueChange={(value) => setSupplierId(value === NO_SUPPLIER ? "" : value)}>
+              <SelectTrigger aria-label="Linked supplier" className="w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_SUPPLIER}>None</SelectItem>
+                {suppliers.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    <span className="truncate">{s.name}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <label className="grid gap-1.5">
             <span className="text-xs font-medium text-muted-foreground">Min guests</span>
             <input
@@ -523,6 +532,12 @@ const ATTENDANCE_FILTERS: ReadonlyArray<{ value: AttendanceFilter; label: string
   { value: "yes", label: "Checked in" },
 ];
 
+const VERIFICATION_STATUS_OPTIONS = [
+  { value: "pending", label: "Pending check" },
+  { value: "verified", label: "Verified" },
+  { value: "rejected", label: "Rejected" },
+] as const satisfies ReadonlyArray<{ value: UpdateGuestVerificationInput["status"]; label: string }>;
+
 const VERIFICATION_TONE: Record<string, string> = {
   pending: "bg-attention-soft text-attention",
   verified: "bg-success-soft text-success",
@@ -606,6 +621,7 @@ function GuestRosterSection({ eventId, busy, onSearch, onImport, onCheckIn, onVe
 }
 
 type EligibilityFilter = "eligible" | "ineligible" | "";
+const ANY_ELIGIBILITY = "any";
 
 function RosterToolbar({
   query,
@@ -651,16 +667,19 @@ function RosterToolbar({
           </button>
         ))}
       </div>
-      <select
-        value={eligibility}
-        onChange={(e) => onEligibility(e.target.value as EligibilityFilter)}
-        aria-label="Eligibility"
-        className="h-10 rounded-md border border-border bg-white px-3 text-sm text-foreground"
+      <Select
+        value={eligibility || ANY_ELIGIBILITY}
+        onValueChange={(value) => onEligibility(value === "eligible" || value === "ineligible" ? value : "")}
       >
-        <option value="">Any eligibility</option>
-        <option value="eligible">Eligible</option>
-        <option value="ineligible">Not eligible</option>
-      </select>
+        <SelectTrigger aria-label="Eligibility" className="h-10 w-auto min-w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ANY_ELIGIBILITY}>Any eligibility</SelectItem>
+          <SelectItem value="eligible">Eligible</SelectItem>
+          <SelectItem value="ineligible">Not eligible</SelectItem>
+        </SelectContent>
+      </Select>
       <Button type="button" variant={importOpen ? "outline" : "default"} size="sm" className="h-10" onClick={onToggleImport} aria-expanded={importOpen}>
         <Upload className="size-4" aria-hidden /> {importOpen ? "Close import" : "Import guests"}
       </Button>
@@ -713,17 +732,23 @@ function RosterRow({
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         {needsVerification && !row.checkedInAt ? (
-          <select
-            aria-label={`Verification for ${row.guestName}`}
+          <Select
             value={row.verificationStatus}
             disabled={busy}
-            onChange={(event) => void onVerify(row.id, event.target.value as UpdateGuestVerificationInput["status"])}
-            className="h-8 rounded-md border border-border bg-white px-2 text-xs"
+            onValueChange={(value) => {
+              const status = VERIFICATION_STATUS_OPTIONS.find((option) => option.value === value);
+              if (status) void onVerify(row.id, status.value);
+            }}
           >
-            <option value="pending">Pending check</option>
-            <option value="verified">Verified</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            <SelectTrigger aria-label={`Verification for ${row.guestName}`} size="sm" className="h-8 w-auto min-w-36 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VERIFICATION_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ) : null}
         {row.checkedInAt ? (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-success">
@@ -753,32 +778,39 @@ const WALK_IN_OPTIONS: ReadonlyArray<{ value: "closed" | "open" | "threshold"; l
 
 function ChoiceCards<T extends string>({ name, legend, options, value, onChange, disabled }: { name: string; legend: string; options: ReadonlyArray<{ value: T; label: string; detail: string }>; value: T; onChange: (value: T) => void; disabled: boolean }) {
   return (
-    <fieldset>
+    <fieldset className="min-w-0">
       <legend className="text-sm font-semibold text-foreground">{legend}</legend>
-      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+      <RadioGroup
+        name={name}
+        value={value}
+        disabled={disabled}
+        onValueChange={(next) => {
+          const option = options.find((candidate) => candidate.value === next);
+          if (option) onChange(option.value);
+        }}
+        className="mt-2 grid gap-2 sm:grid-cols-3"
+      >
         {options.map((option) => {
+          const id = `${name}-${option.value}`;
           const checked = option.value === value;
           return (
-            <label
+            <div
               key={option.value}
               className={cx(
-                "relative flex cursor-pointer flex-col gap-0.5 rounded-lg border px-3 py-2.5 transition-colors has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-ring/40",
+                "relative flex min-w-0 items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors has-[[role=radio]:focus-visible]:ring-2 has-[[role=radio]:focus-visible]:ring-ring/40",
                 checked ? "border-primary bg-primary/5" : "border-border bg-white hover:border-primary/40",
-                disabled ? "cursor-not-allowed opacity-60" : "",
+                disabled ? "opacity-60" : "",
               )}
             >
-              <input type="radio" name={name} value={option.value} checked={checked} disabled={disabled} onChange={() => onChange(option.value)} className="sr-only" />
-              <span className="flex items-center justify-between gap-2 text-sm font-semibold text-foreground">
-                {option.label}
-                <span aria-hidden className={cx("grid size-4 place-items-center rounded-full border", checked ? "border-primary" : "border-border")}>
-                  {checked ? <span className="size-2 rounded-full bg-primary" /> : null}
-                </span>
-              </span>
-              <span className="text-xs text-muted-foreground">{option.detail}</span>
-            </label>
+              <label htmlFor={id} className={cx("flex min-w-0 flex-1 flex-col gap-0.5 after:absolute after:inset-0 after:content-['']", disabled ? "cursor-not-allowed" : "cursor-pointer")}>
+                <span className="text-sm font-semibold text-foreground">{option.label}</span>
+                <span className="text-xs text-muted-foreground">{option.detail}</span>
+              </label>
+              <RadioGroupItem id={id} value={option.value} aria-label={option.label} className="relative mt-0.5" />
+            </div>
           );
         })}
-      </div>
+      </RadioGroup>
     </fieldset>
   );
 }
