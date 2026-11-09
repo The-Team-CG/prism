@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClientOwnedSupplierSchema, parseContract, type PrismClientOwnedSupplier } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { ownSuppliersRepository } from "../data/own-suppliers-repository";
 
 const field = "mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm";

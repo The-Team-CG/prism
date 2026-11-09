@@ -18,10 +18,10 @@ import type {
   UpdateGuestVerificationInput,
 } from "@prism/types";
 import { GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES, createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { Panel } from "@/features/pmcm-kit/primitives";
 import { cx, label } from "@/features/pmcm-kit";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { RosterImportPanel } from "@/features/registration/roster-import";
 import { QrPassSheet } from "@/features/registration/qr-passes/views/qr-pass-sheet";
 import { QrScanCheckIn } from "@/features/registration/qr-passes/views/qr-scan-check-in";

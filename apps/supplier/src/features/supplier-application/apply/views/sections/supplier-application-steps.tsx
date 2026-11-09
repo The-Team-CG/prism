@@ -5,10 +5,10 @@ import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName }
 
 import type { FormEvent, ReactNode } from "react";
 import { ArrowRight, CheckCircle2, ChevronLeft, Send } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/app/components/ui/field";
-import { Input } from "@/app/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
 import {
   Select,
   SelectContent,
@@ -16,8 +16,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/app/components/ui/select";
-import { Textarea } from "@/app/components/ui/textarea";
+} from "@prism/ui/components/select";
+import { Textarea } from "@prism/ui/components/textarea";
 import { cn } from "@/app/components/ui/utils";
 import { APPLICATION_PRICE_RANGES, APPLICATION_WIZARD_STEPS, type SupplierApplicationForm } from "../../model/supplier-application-types";
 

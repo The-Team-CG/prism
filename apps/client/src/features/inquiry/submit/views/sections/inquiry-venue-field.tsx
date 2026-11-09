@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Check, ChevronDown } from "lucide-react";
-import { Input } from "@/app/components/ui/input";
+import { Input } from "@prism/ui/components/input";
 import { cn } from "@/app/components/ui/utils";
 import { INQUIRY_CITY_SUGGESTIONS } from "../../model/inquiry-submit-types";
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { MapPin } from "lucide-react";
 import type { PrismVenueScoutingOption } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
 import { useVenueScouting } from "../view-models/use-venue-scouting";
 

@@ -1,8 +1,8 @@
 "use client";
 
 import { Send } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { FieldGroup } from "../../workspace/shared";
 import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";

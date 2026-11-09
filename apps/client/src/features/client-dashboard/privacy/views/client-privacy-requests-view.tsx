@@ -1,8 +1,8 @@
 "use client";
 
 import { ShieldCheck } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Button } from "@prism/ui/components/button";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
 import {
   PRIVACY_REQUEST_EXPLANATION,

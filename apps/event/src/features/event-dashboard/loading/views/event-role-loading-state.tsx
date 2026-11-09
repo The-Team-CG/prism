@@ -1,6 +1,6 @@
 import { Radio } from "lucide-react";
 
-import { Card } from "@/app/components/ui/card";
+import { Card } from "@prism/ui/components/card";
 
 export function EventRoleLoadingState({ role }: { role: "pmcm-admin" | "coordinator" | string }) {
   const isCoordinator = role === "coordinator";

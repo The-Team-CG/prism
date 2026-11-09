@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { CalendarDays, Search } from "lucide-react";
 import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { cn } from "@/app/components/ui/utils";
 
 const VIEWS = [

@@ -3,8 +3,8 @@
 import { useId, useState, type ReactNode } from "react";
 import { Database } from "lucide-react";
 import type { PrismPrivacyLegalHold, PrismPrivacyRequest, PrismUser } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import { compactTimestamp, cx, label, Panel } from "@/features/pmcm-kit";
 import { privacyDeadlineLabel } from "../model/privacy-console-rules";
 import type { PrivacyCorrectionDraft } from "../model/privacy-correction";

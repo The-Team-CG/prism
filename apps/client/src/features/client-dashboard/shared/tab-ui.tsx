@@ -3,7 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PrismAuditLog, PrismEvent } from "@prism/types";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 
 export const money = new Intl.NumberFormat("en-PH", {
   style: "currency",

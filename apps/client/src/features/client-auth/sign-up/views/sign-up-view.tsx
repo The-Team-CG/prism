@@ -2,7 +2,7 @@
 
 import { PrismAuthShell } from "@prism/ui/auth-shell";
 import { portalHref } from "@prism/ui/portal-path";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { CLIENT_PORTAL_POINTS, CLIENT_PORTAL_STATEMENT } from "../../sign-in/model/client-portal-copy";
 
 export function SignUpView() {

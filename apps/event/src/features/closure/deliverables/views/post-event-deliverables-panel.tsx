@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { PrismPostEventDocument } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { wrapUpDeadlineCountdown } from "../model/wrap-up-deadline";
 import { usePostEventDeliverablesViewModel } from "../view-models/use-post-event-deliverables-view-model";
 

@@ -14,8 +14,8 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { label } from "@/features/pmcm-kit";
 import {
   coordinatorAttendanceSummary,

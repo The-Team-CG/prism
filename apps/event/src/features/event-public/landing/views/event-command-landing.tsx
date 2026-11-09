@@ -17,10 +17,10 @@ import {
 } from "lucide-react";
 import { PrismBrandLogo } from "@prism/ui";
 
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Badge } from "@/app/components/ui/badge";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Badge } from "@prism/ui/components/badge";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
 import type { EventSession } from "@/app/lib/session";
 import { useEventCommandLandingViewModel } from "../view-models/use-event-command-landing-view-model";
 

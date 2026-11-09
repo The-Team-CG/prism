@@ -8,8 +8,8 @@ import {
   ThumbsUp,
 } from "lucide-react";
 import type { PrismBillingStatement, PrismBriefing, PrismEvent, PrismFloorPlanDraft, PrismIssuedProposalSummary, PrismPaymentMilestone } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import {
   Card,
   CardBody,

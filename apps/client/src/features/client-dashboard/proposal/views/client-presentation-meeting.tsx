@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CalendarClock } from "lucide-react";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { presentationMeetingIcs, type PrismPresentationMeeting } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
 import { presentationMeetingsRepository } from "../data/presentation-meetings-repository";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Badge } from "@/app/components/ui/badge";
+import { Badge } from "@prism/ui/components/badge";
 import { useClientWorkspace } from "../../workspace/shared";
 
 export function ClientGuestsView() {

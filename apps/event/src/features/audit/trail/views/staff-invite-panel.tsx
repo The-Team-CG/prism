@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { UserPlus } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { cx } from "@/features/pmcm-kit";
-import { Input } from "@/app/components/ui/input";
+import { Input } from "@prism/ui/components/input";
 import type { useAccountAdminViewModel } from "../view-models/use-account-admin-view-model";
 
 type AccountAdminVm = ReturnType<typeof useAccountAdminViewModel>;

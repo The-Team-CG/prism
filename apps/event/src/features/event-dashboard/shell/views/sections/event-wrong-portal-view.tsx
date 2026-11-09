@@ -1,7 +1,7 @@
 "use client";
 
 import { ShieldCheck } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { wrongEventPortalCopy } from "../../model/event-dashboard-shell-copy";
 import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
 import type { EventSession } from "@/app/lib/session";

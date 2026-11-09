@@ -4,13 +4,8 @@ import { portalHref } from "./portal-path";
 
 import type { HTMLAttributes, ReactNode } from "react";
 import { ArrowRight, CheckCircle2, ClipboardList, LockKeyhole, ShieldCheck, type LucideIcon } from "lucide-react";
-import {
-  PrismBadge,
-  PrismCard,
-  PrismCardContent,
-  PrismCardHeader,
-  PrismCardTitle,
-} from "./primitives";
+import { Badge } from "./components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
 import { cn } from "./utils";
 
 export interface PrismPublicRoleCard {
@@ -39,17 +34,17 @@ export function PrismPublicRoleGrid({ roles }: { roles: PrismPublicRoleCard[] })
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {roles.map((role) => (
-        <PrismCard key={role.title} className="h-full">
-          <PrismCardHeader>
+        <Card key={role.title} className="h-full">
+          <CardHeader>
             <div className="flex items-start justify-between gap-3">
               <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 {role.icon ?? <ShieldCheck className="size-5" />}
               </div>
-              <PrismBadge tone="info">{role.badge}</PrismBadge>
+              <Badge variant="info">{role.badge}</Badge>
             </div>
-            <PrismCardTitle className="mt-3 text-base">{role.title}</PrismCardTitle>
-          </PrismCardHeader>
-          <PrismCardContent>
+            <CardTitle className="mt-3 text-base">{role.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
             <p className="text-sm leading-6 text-muted-foreground">{role.description}</p>
             {role.href && role.actionLabel ? (
               <a
@@ -60,8 +55,8 @@ export function PrismPublicRoleGrid({ roles }: { roles: PrismPublicRoleCard[] })
                 <ArrowRight className="size-4" />
               </a>
             ) : null}
-          </PrismCardContent>
-        </PrismCard>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );

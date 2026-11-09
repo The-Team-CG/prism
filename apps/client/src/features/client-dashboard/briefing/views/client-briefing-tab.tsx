@@ -22,9 +22,9 @@ import {
 import type { PrismAuditLog, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { TimePicker } from "@prism/ui/components/time-picker";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import {
   Card,
   CardBody,

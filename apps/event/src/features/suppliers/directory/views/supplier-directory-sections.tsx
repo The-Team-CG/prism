@@ -3,8 +3,8 @@ import { BNI_TITLE } from "./supplier-visuals";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
-import { Badge } from "@/app/components/ui/badge";
-import { Input } from "@/app/components/ui/input";
+import { Badge } from "@prism/ui/components/badge";
+import { Input } from "@prism/ui/components/input";
 import { cx, RatingStars, SupplierTierBadge } from "@/features/pmcm-kit";
 import {
   SupplierReviewPanel,

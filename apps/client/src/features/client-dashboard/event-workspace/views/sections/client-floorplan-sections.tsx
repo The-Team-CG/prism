@@ -4,10 +4,10 @@ import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { ArrowRight, MapPinned, MessageSquareText, Send } from "lucide-react";
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
+import { StatusBadge } from "@prism/ui/components/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { FieldGroup, LayoutPreview, formatStatusLabel } from "../../../workspace/shared";
 import type { PreferenceForm } from "../../../workspace/shared";
 import {

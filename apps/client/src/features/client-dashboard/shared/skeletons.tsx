@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Skeleton } from "@/app/components/ui/skeleton";
+import { Skeleton } from "@prism/ui/components/skeleton";
 
 export type DashboardSkeletonVariant =
   | "home"

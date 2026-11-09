@@ -2,8 +2,8 @@
 
 import { formatPortalDate } from "@prism/ui/format-date";
 import { ArrowLeft, ChevronRight, CircleUserRound, Search } from "lucide-react";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { RouteLink, label, useListFilter } from "@/features/pmcm-kit";
 import type { EventClientRecord } from "../../model/event-dashboard-selectors";
 import { CLIENT_DOSSIER_VIEWS, clientDossierHref, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";

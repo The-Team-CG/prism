@@ -5,7 +5,7 @@ import { Card, CardHeader } from "./shell-ui";
 import { CommandHomeSelectedEvent } from "./command-home-selected-event";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { ShieldCheck } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { useEventDashboardScopedRouteViewModel } from "../event-dashboard-route-context";
 
 export function EventDashboardHomeSectionView() {

@@ -1,7 +1,7 @@
 "use client";
 
 import { formatPortalDateTime } from "@prism/ui/format-date";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { useInquiryEditViewModel } from "../view-models/use-inquiry-edit-view-model";
 
 const field = "mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm";

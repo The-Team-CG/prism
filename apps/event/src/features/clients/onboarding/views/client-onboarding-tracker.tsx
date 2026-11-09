@@ -3,9 +3,9 @@
 import { CheckCircle2, Circle, FileCheck2 } from "lucide-react";
 
 import type { PrismInquiry } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 import { onboardingTimelineSteps, reminderEvidenceCopy } from "../model/client-onboarding-rules";
 import { usePortalInvitationResendViewModel } from "../view-models/use-portal-invitation-resend-view-model";

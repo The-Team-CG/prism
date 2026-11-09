@@ -1,9 +1,9 @@
 import { ShieldCheck } from "lucide-react";
 import type { PrismApprovalRequest } from "@prism/types";
 import { PrismSectionPanel } from "@prism/ui";
-import { Button } from "@/app/components/ui/button";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { EmptyState } from "@prism/ui/components/empty-state";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { label } from "@/features/pmcm-kit";
 
 export function AdminApprovalsPanel({
