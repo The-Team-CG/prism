@@ -27,7 +27,7 @@
         "domain": "commercial",
         "schema": "commercial",
         "tables": 42,
-        "columns": 513
+        "columns": 515
       },
       {
         "domain": "operations",
@@ -1203,7 +1203,7 @@
       "table": "presentation_meetings",
       "domain": "commercial",
       "targetSchema": "commercial",
-      "columnCount": 11,
+      "columnCount": 13,
       "introducedAfterCutover": true
     },
     {
