@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismInquiry } from "@prism/types";
 import { InquiryIntakeLog } from "./inquiry-intake-log";
+import { chooseSelectOption } from "../../../../test-utils/radix-select";
 
 afterEach(cleanup);
 
@@ -52,11 +53,11 @@ describe("InquiryIntakeLog decisions", () => {
     const dialog = screen.getByRole("dialog", { name: "Decline inquiry from Ana Cruz?" });
     expect(within(dialog).getByText("We'll email ana@acme.test to let them know.")).toBeTruthy();
     const confirm = within(dialog).getByRole("button", { name: "Decline inquiry" });
-    const reason = within(dialog).getByLabelText(/^Decline reason/) as HTMLSelectElement;
-    expect(reason.value).toBe("");
+    const reason = within(dialog).getByLabelText(/^Decline reason/);
+    expect(reason.textContent).toBe("No reason given");
     expect((confirm as HTMLButtonElement).disabled).toBe(false);
 
-    if (chosen) fireEvent.change(reason, { target: { value: chosen } });
+    if (chosen) chooseSelectOption(reason, chosen);
     fireEvent.click(confirm);
 
     await waitFor(() => expect(onDecline).toHaveBeenCalledWith(expect.objectContaining({ id: "inq_1" }), sent));
@@ -78,9 +79,9 @@ describe("InquiryIntakeLog log-on-behalf form", () => {
     renderLog();
     fireEvent.click(screen.getByRole("button", { name: "Log inquiry" }));
 
-    const dialog = screen.getByRole("dialog", { name: "Log inquiry on behalf of a client" });
-    expect((within(dialog).getByLabelText(/^Channel/) as HTMLSelectElement).value).toBe("");
-    expect((within(dialog).getByLabelText(/^Referral source/) as HTMLSelectElement).value).toBe("");
+    const dialog = screen.getByRole("dialog", { name: "Log inquiry on behalf" });
+    expect(within(dialog).getByLabelText(/^Channel/).textContent).toBe("Select…");
+    expect(within(dialog).getByLabelText(/^Referral source/).textContent).toBe("Select…");
     expect((within(dialog).getByRole("button", { name: "Save inquiry" }) as HTMLButtonElement).disabled).toBe(true);
     expect(within(dialog).getByText(/Fill in Client name, Email, Event name/)).toBeTruthy();
   });

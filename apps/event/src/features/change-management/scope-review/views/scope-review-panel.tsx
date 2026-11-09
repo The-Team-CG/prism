@@ -1,4 +1,5 @@
 "use client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { formatPortalDate } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
@@ -7,6 +8,9 @@ import { impactLabels, isOpenScopeChange, scopeChangeCategoryLabels, scopeChange
 import { useScopeReviewViewModel, type ApprovalDraft } from "../view-models/use-scope-review-view-model";
 
 /** PMCM decides scope changes. Clients see only the status and the client response written here. */
+/** Radix Select cannot take an empty-string item value, so "no addendum" uses this sentinel. */
+const NO_ADDENDUM = "__no_addendum__";
+
 export function ScopeChangeReviewPanel({ eventId, frozen }: { eventId: string; frozen: boolean }) {
   const vm = useScopeReviewViewModel(eventId, { frozen });
 
@@ -157,22 +161,31 @@ function ApproveForm({
         </label>
       </fieldset>
       {frozen ? (
-        <label className="block text-sm">
+        <div className="block text-sm">
           <span className="text-muted-foreground">Approved freeze exception</span>
-          <select required value={freezeExceptionId} onChange={(event) => setFreezeExceptionId(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            <option value="">Choose an exception</option>
-            {approvedExceptions.map((exception) => <option key={exception.id} value={exception.id}>{exception.requestedChange}</option>)}
-          </select>
-        </label>
+          <Select required value={freezeExceptionId} onValueChange={setFreezeExceptionId}>
+            <SelectTrigger aria-label="Approved freeze exception" className="mt-1 w-full min-w-0">
+              <SelectValue placeholder="Choose an exception" />
+            </SelectTrigger>
+            <SelectContent>
+              {approvedExceptions.map((exception) => <SelectItem key={exception.id} value={exception.id}>{exception.requestedChange}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       ) : null}
       {impacts.billing ? (
-        <label className="block text-sm">
+        <div className="block text-sm">
           <span className="text-muted-foreground">Linked addendum (optional)</span>
-          <select value={addendumId} onChange={(event) => setAddendumId(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            <option value="">No addendum yet</option>
-            {addenda.map((addendum) => <option key={addendum.id} value={addendum.id}>Addendum v{addendum.versionNumber}: {addendum.title}</option>)}
-          </select>
-        </label>
+          <Select value={addendumId || NO_ADDENDUM} onValueChange={(value) => setAddendumId(value === NO_ADDENDUM ? "" : value)}>
+            <SelectTrigger aria-label="Linked addendum" className="mt-1 w-full min-w-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_ADDENDUM}>No addendum yet</SelectItem>
+              {addenda.map((addendum) => <SelectItem key={addendum.id} value={addendum.id}>Addendum v{addendum.versionNumber}: {addendum.title}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       ) : null}
       <label className="block text-sm">
         <span className="text-muted-foreground">Response for the client (optional)</span>
