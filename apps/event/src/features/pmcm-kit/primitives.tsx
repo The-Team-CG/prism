@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@prism/ui/components/card";
+import { ToggleGroup, ToggleGroupItem } from "@prism/ui/components/toggle-group";
 
 export function Panel({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: ReactNode }) {
   return (
@@ -33,8 +34,8 @@ export function Metric({ label, value, icon: Icon }: { label: string; value: str
 export type SegmentedOption = { value: string; label: string; count?: number };
 
 /**
- * The one segmented filter/tab style for PMCM views: a muted track with a raised active segment.
- * Each segment is a toggle button (aria-pressed), so filters stay plain buttons for keyboard and screen readers.
+ * The one segmented filter/mode style for PMCM views, built on the shared single-selection ToggleGroup.
+ * Choosing the active option again keeps it selected, so the group always has a value.
  */
 export function SegmentedControl({
   label,
@@ -50,25 +51,25 @@ export function SegmentedControl({
   className?: string;
 }) {
   return (
-    <div role="group" aria-label={label} className={cx("flex max-w-full flex-wrap gap-1 rounded-lg bg-muted p-1", className)}>
-      {options.map((option) => {
-        const active = option.value === value;
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={active}
-            onClick={() => onChange(option.value)}
-            className={cx(
-              "inline-flex min-h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-              active ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {option.label}
-            {option.count ? <span className="rounded-full bg-background px-1.5 text-xs tabular-nums text-muted-foreground">{option.count}</span> : null}
-          </button>
-        );
-      })}
-    </div>
+    <ToggleGroup
+      type="single"
+      aria-label={label}
+      value={value}
+      onValueChange={(next) => {
+        if (next) onChange(next);
+      }}
+      className={cx("max-w-full flex-wrap rounded-lg bg-muted p-1", className)}
+    >
+      {options.map((option) => (
+        <ToggleGroupItem
+          key={option.value}
+          value={option.value}
+          className="min-h-8 gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-transparent hover:text-foreground data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-sm"
+        >
+          {option.label}
+          {option.count ? <span className="rounded-full bg-background px-1.5 text-xs tabular-nums text-muted-foreground">{option.count}</span> : null}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
   );
 }

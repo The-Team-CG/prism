@@ -1,10 +1,22 @@
 "use client";
 
 import { CoordinatorRoster } from "./coordinator-roster";
+import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { StaffInvitePanel } from "@/features/audit/trail/views/staff-invite-panel";
 import { useAccountAdminViewModel } from "@/features/audit/trail/view-models/use-account-admin-view-model";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
+
+/** Each team view has its own URL; the tab strip links between them. */
+const TEAM_VIEW_TABS = [
+  { id: "all", label: "All", href: "/dashboard/team" },
+  { id: "roles", label: "Roles", href: "/dashboard/team/roles" },
+  { id: "availability", label: "Availability", href: "/dashboard/team/availability" },
+  { id: "assignments", label: "Assignments", href: "/dashboard/team/assignments" },
+  { id: "workload", label: "Workload", href: "/dashboard/team/workload" },
+  { id: "departments", label: "Departments", href: "/dashboard/team/departments" },
+  { id: "archived", label: "Archived", href: "/dashboard/team/archived" },
+];
 
 const TEAM_VIEW_NOTES: Record<string, string> = {
   roles: "Role tags are shown on each coordinator below.",
@@ -43,6 +55,7 @@ export function EventDashboardTeamSectionView() {
   const unbackedViewNote = TEAM_VIEW_NOTES[teamView];
   return (
     <div className="grid gap-5">
+      <WorkspaceRouteTabs label="Team views" tabs={TEAM_VIEW_TABS} activeId={teamView} />
       <StaffInvitePanel vm={invitations} />
       {selectedEvent ? (
         <CoordinatorAssignmentDesk
@@ -68,6 +81,7 @@ export function EventDashboardTeamSectionView() {
         <CoordinatorRoster
           title={teamView === "archived" ? "Archived coordinators" : "Coordinator roster"}
           note={unbackedViewNote}
+          archived={teamView === "archived"}
           coordinators={roster}
           assignments={reference.coordinatorAssignments}
           events={reference.events}
