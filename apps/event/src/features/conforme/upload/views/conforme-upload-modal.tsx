@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, FileUp, X } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@prism/ui/components/dialog";
 import type { PrismConformeExecution, PrismInquiry } from "@prism/types";
 import { readDocxText } from "@/features/conforme/signing/model/docx-template-text";
 
@@ -42,20 +43,6 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
   const selectButtonRef = useRef<HTMLButtonElement>(null);
   const refreshDigitalRef = useRef(onRefreshDigital);
   refreshDigitalRef.current = onRefreshDigital;
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && phase !== "uploading" && phase !== "success") {
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, phase]);
-
-  useEffect(() => {
-    selectButtonRef.current?.focus();
-  }, []);
 
   useEffect(() => {
     let active = true;
@@ -152,12 +139,22 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
     finally { setDigitalBusy(false); }
   }
 
-  return <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-label="Upload signed conforme">
-    <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+  return <Dialog open onOpenChange={(open) => { if (!open && phase !== "uploading" && phase !== "success") onClose(); }}>
+    <DialogContent
+      className="max-w-md"
+      showCloseButton={false}
+      onOpenAutoFocus={(event) => {
+        event.preventDefault();
+        selectButtonRef.current?.focus();
+      }}
+      onInteractOutside={(event) => event.preventDefault()}
+    >
+      <DialogTitle className="sr-only">Upload signed conforme</DialogTitle>
+      <DialogDescription className="sr-only">Upload the signed conforme or prepare an in-app conforme for the client.</DialogDescription>
       <DigitalExecutionPanel execution={digitalExecution} busy={digitalBusy} consent={digitalConsent} onConsent={setDigitalConsent} onRefresh={refreshDigital} onPrepare={prepareDigital} onSign={signDigital} />
       {phase === "success" ? <UploadSuccess inquiry={inquiry} /> : <ConformeUploadForm inquiry={inquiry} phase={phase} file={file} validationError={validationError} apiError={apiError} digitalBusy={digitalBusy} fileInputRef={fileInputRef} selectButtonRef={selectButtonRef} onClose={onClose} onFileChange={handleFileChange} onPrepareDigital={prepareDigital} onDownloadPdf={downloadPdf} onSubmit={handleSubmit} wordTemplateControl={<WordTemplatePicker template={wordTemplate} disabled={digitalBusy} onChoose={(templateFile) => void chooseWordTemplate(templateFile)} />} />}
-    </div>
-  </div>;
+    </DialogContent>
+  </Dialog>;
 }
 
 /** FR-67: PMCM reuses its own Word conforme template; {{clientName}}, {{companyName}}, {{email}}, {{eventName}}, {{eventType}} and {{eventDate}} are prefilled. */

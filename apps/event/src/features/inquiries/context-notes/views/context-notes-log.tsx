@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { createInquiryContextNoteSchema, INQUIRY_CONTEXT_NOTE_KINDS, INQUIRY_CONTEXT_NOTE_LABELS, parseContract, type PrismInquiryContextNote } from "@prism/types";
 import { contextNotesRepository } from "../data/context-notes-repository";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 
 type Kind = (typeof INQUIRY_CONTEXT_NOTE_KINDS)[number];
 const field = "mt-1 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm";
@@ -49,7 +50,17 @@ export function ContextNotesLog({ inquiryId }: { inquiryId: string }) {
       <p className="font-semibold text-foreground">Pre-conforme notes</p>
       <ContextNoteList notes={notes} />
       <div className="flex flex-wrap items-end gap-2">
-        <label>Type<select value={kind} onChange={(event) => setKind(event.target.value as Kind)} className={field}>{INQUIRY_CONTEXT_NOTE_KINDS.map((value) => <option key={value} value={value}>{INQUIRY_CONTEXT_NOTE_LABELS[value]}</option>)}</select></label>
+        <div className="grid gap-1">
+          <span>Type</span>
+          <Select value={kind} onValueChange={(value) => { const next = INQUIRY_CONTEXT_NOTE_KINDS.find((candidate) => candidate === value); if (next) setKind(next); }}>
+            <SelectTrigger aria-label="Note type" className="w-full min-w-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {INQUIRY_CONTEXT_NOTE_KINDS.map((value) => <SelectItem key={value} value={value}>{INQUIRY_CONTEXT_NOTE_LABELS[value]}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
         {kind === "follow_up" ? <label>Follow up on<input type="date" value={followUpAt} onChange={(event) => setFollowUpAt(event.target.value)} className={field} /></label> : null}
         <label className="grow">Note<input value={body} maxLength={2000} onChange={(event) => setBody(event.target.value)} className={field} /></label>
         <button type="button" disabled={!body.trim()} onClick={() => void add()} className="rounded-md border border-border px-3 py-1.5 font-semibold disabled:opacity-50">Add</button>

@@ -1,5 +1,6 @@
 "use client";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { useState, type FormEvent } from "react";
 import type { PrismCancellationSummary, RecordEventDecisionInput, PrismEventFreezeException } from "@prism/types";
 import { useCancellationSummary } from "../view-models/use-cancellation-summary";
@@ -91,13 +92,17 @@ export function RecordDecisionForm({
       <form onSubmit={submit} className="mt-4 space-y-4" aria-label="Record cancellation or postponement">
         <p className="text-xs text-muted-foreground">Recording a cancellation or postponement releases or keeps coordinator and supplier obligations. Choose the decision explicitly.</p>
 
-        <label className="block text-sm">
+        <div className="block text-sm">
           <span className="text-muted-foreground">Decision</span>
-          <select required aria-label="Decision" value={decision} onChange={(event) => setDecision(event.target.value as DecisionValue | "")} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-            <option value="">Choose a decision…</option>
-            {decisionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-          </select>
-        </label>
+          <Select required value={decision} onValueChange={(value) => setDecision(decisionOptions.find((option) => option.value === value)?.value ?? "")}>
+            <SelectTrigger aria-label="Decision" className="mt-1 w-full min-w-0">
+              <SelectValue placeholder="Choose a decision…" />
+            </SelectTrigger>
+            <SelectContent>
+              {decisionOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
 
         <label className="block text-sm">
           <span className="text-muted-foreground">Reason</span>
@@ -112,25 +117,34 @@ export function RecordDecisionForm({
         ) : null}
 
         {needsException ? (
-          <label className="block text-sm">
+          <div className="block text-sm">
             <span className="text-muted-foreground">Approved freeze exception (used once)</span>
-            <select required value={freezeExceptionId} onChange={(event) => setFreezeExceptionId(event.target.value)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              <option value="">Choose an approved exception</option>
-              {approvedExceptions.map((exception) => <option key={exception.id} value={exception.id}>{exception.requestedChange}</option>)}
-            </select>
+            <Select required value={freezeExceptionId} onValueChange={setFreezeExceptionId}>
+              <SelectTrigger aria-label="Approved freeze exception" className="mt-1 w-full min-w-0">
+                <SelectValue placeholder="Choose an approved exception" />
+              </SelectTrigger>
+              <SelectContent>
+                {approvedExceptions.map((exception) => <SelectItem key={exception.id} value={exception.id}>{exception.requestedChange}</SelectItem>)}
+              </SelectContent>
+            </Select>
             {approvedExceptions.length === 0 ? <span className="mt-1 block text-xs text-muted-foreground">No unused approved exception. Request and approve one first.</span> : null}
-          </label>
+          </div>
         ) : null}
 
         <fieldset className="space-y-3 rounded-lg border border-border p-3">
           <legend className="px-1 text-sm font-semibold text-foreground">Impact review</legend>
           <p className="text-xs text-muted-foreground">Coordinator assignments on this event are released or kept when the decision is recorded. Check the coordinator desk first.</p>
-          <label className="block text-sm">
+          <div className="block text-sm">
             <span className="text-muted-foreground">Supplier obligations</span>
-            <select value={supplierImpact} onChange={(event) => setSupplierImpact(event.target.value as typeof supplierImpact)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              {supplierImpactOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>
+            <Select value={supplierImpact} onValueChange={(value) => setSupplierImpact(supplierImpactOptions.find((option) => option.value === value)?.value ?? supplierImpact)}>
+              <SelectTrigger aria-label="Supplier obligations" className="mt-1 w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {supplierImpactOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           {cancelling ? (
             <label className="block text-sm">
               <span className="text-muted-foreground">Cancellation fee (PHP)</span>
@@ -140,12 +154,17 @@ export function RecordDecisionForm({
           ) : (
             <p className="text-xs text-muted-foreground">Postponements never carry a cancellation fee; the downpayment carries over to the new date.</p>
           )}
-          <label className="block text-sm">
+          <div className="block text-sm">
             <span className="text-muted-foreground">Deposit treatment</span>
-            <select value={depositTreatment} onChange={(event) => setDepositTreatment(event.target.value as typeof depositTreatment)} className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              {depositTreatmentOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-          </label>
+            <Select value={depositTreatment} onValueChange={(value) => setDepositTreatment(depositTreatmentOptions.find((option) => option.value === value)?.value ?? depositTreatment)}>
+              <SelectTrigger aria-label="Deposit treatment" className="mt-1 w-full min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {depositTreatmentOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={impactReviewed} onChange={(event) => setImpactReviewed(event.target.checked)} className="mt-1" />
             <span>I have reviewed the coordinator, supplier, and billing impact for this decision.</span>
