@@ -70,7 +70,7 @@ An explicit per-request `baseUrl` remains an override.
 ## Project and environment setup
 
 Use one Vercel project with the repository root as its Root Directory. The
-service roots come from `vercel.json`. Use Node 24 and npm workspaces. The Services build/dev wrapper enables that flag automatically. Existing
+service roots come from `vercel.json`. Use Node 26 and npm workspaces. The Services build/dev wrapper enables that flag automatically. Existing
 standalone Vercel projects do not enable it. Each
 service runs `node "$(npm prefix)/scripts/vercel-service.mjs" install <service>`.
 Vercel may run an install command below the service root (the API install runs

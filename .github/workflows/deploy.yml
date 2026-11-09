@@ -129,7 +129,7 @@ jobs:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
       working_directory: apps/client
-      node_version: "24"
+      node_version: "26"
       vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_CLIENT }}
       run_smoke: true
       smoke_path: /
@@ -146,7 +146,7 @@ jobs:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
       working_directory: apps/event
-      node_version: "24"
+      node_version: "26"
       vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_EVENT }}
       run_smoke: true
       smoke_path: /
@@ -163,7 +163,7 @@ jobs:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
       working_directory: apps/guest
-      node_version: "24"
+      node_version: "26"
       vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_GUEST }}
       run_smoke: true
       smoke_path: /
@@ -180,7 +180,7 @@ jobs:
       environment: staging
       ref: ${{ github.event.workflow_run.head_sha }}
       working_directory: apps/supplier
-      node_version: "24"
+      node_version: "26"
       vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER }}
       run_smoke: true
       smoke_path: /
@@ -197,7 +197,7 @@ jobs:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}
       working_directory: apps/client
-      node_version: "24"
+      node_version: "26"
       vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_CLIENT }}
       run_smoke: true
       smoke_path: /
@@ -214,7 +214,7 @@ jobs:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}
       working_directory: apps/event
-      node_version: "24"
+      node_version: "26"
       vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_EVENT }}
       run_smoke: true
       smoke_path: /
@@ -231,7 +231,7 @@ jobs:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}
       working_directory: apps/guest
-      node_version: "24"
+      node_version: "26"
       vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_GUEST }}
       run_smoke: true
       smoke_path: /
@@ -248,7 +248,7 @@ jobs:
       environment: production
       ref: ${{ github.event.workflow_run.head_sha }}
       working_directory: apps/supplier
-      node_version: "24"
+      node_version: "26"
       vercel_project_id: ${{ vars.PRISM_VERCEL_PROJECT_ID_SUPPLIER }}
       run_smoke: true
       smoke_path: /

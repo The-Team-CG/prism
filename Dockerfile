@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 # A literal base image so Dependabot can propose Node updates (see .github/dependabot.yml).
-FROM node:24-bookworm-slim AS base
+FROM node:26-bookworm-slim AS base
 WORKDIR /app
 ENV CI=1 NEXT_TELEMETRY_DISABLED=1
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates openssl && rm -rf /var/lib/apt/lists/*

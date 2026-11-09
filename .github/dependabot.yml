@@ -4,7 +4,8 @@
 # arrive weekly in grouped pull requests, one per family, majors included.
 #
 # docker: the Node base image in the root Dockerfile. A Node major also moves
-# CI's node-version, .nvmrc, .node-version, the root engines and @types/node,
+# CI's node-version, the deploy workflow's node_version, .nvmrc, .node-version,
+# the root engines and @types/node,
 # so finish such a pull request by hand before merging it, and close odd majors
 # (not LTS). The same goes for an @types/node major in the npm groups.
 #
