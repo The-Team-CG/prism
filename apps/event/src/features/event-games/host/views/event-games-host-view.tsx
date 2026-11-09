@@ -14,7 +14,7 @@ import type {
   PrismUpdateEventGameInput,
 } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
 import { EVENT_GAME_OPTIONS, eventGameModeLabel, eventGameOption } from "../model/event-game-catalog";
@@ -57,7 +57,7 @@ export function EventGamesHostView({ eventId, role, eventStatus, archived, actua
     return (
       <Card>
         <CardBody>
-          <EmptyState icon={Gamepad2} title="Select an event" description="Open an event workspace to create and host games." />
+          <Empty><EmptyHeader><EmptyMedia variant="icon"><Gamepad2 /></EmptyMedia><EmptyTitle>Select an event</EmptyTitle><EmptyDescription>Open an event workspace to create and host games.</EmptyDescription></EmptyHeader></Empty>
         </CardBody>
       </Card>
     );
@@ -67,7 +67,7 @@ export function EventGamesHostView({ eventId, role, eventStatus, archived, actua
     return (
       <Card>
         <CardBody>
-          <EmptyState icon={AlertCircle} title="Host access unavailable" description="Game host controls are available to PMCM Admins and event-assigned Coordinators." />
+          <Empty><EmptyHeader><EmptyMedia variant="icon"><AlertCircle /></EmptyMedia><EmptyTitle>Host access unavailable</EmptyTitle><EmptyDescription>Game host controls are available to PMCM Admins and event-assigned Coordinators.</EmptyDescription></EmptyHeader></Empty>
         </CardBody>
       </Card>
     );

@@ -1,4 +1,5 @@
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
+import { Empty, EmptyDescription, EmptyHeader } from "@prism/ui/components/empty";
 import { BellRing, ChevronRight, Plus, RefreshCw, UserPlus, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
@@ -87,8 +88,15 @@ function Disclosure({ title, summary, children }: { title: string; summary?: str
   );
 }
 
-function Empty({ label: emptyLabel }: { label: string }) {
-  return <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">{emptyLabel}</p>;
+/** A compact empty state for a list inside a section card: one sentence, no title of its own. */
+function LiveOpsEmpty({ label: emptyLabel }: { label: string }) {
+  return (
+    <Empty className="border-0 p-4 md:p-4">
+      <EmptyHeader>
+        <EmptyDescription>{emptyLabel}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
 }
 
 /** Compact desk header: noun title, refresh, and live counts as one readable row. */
@@ -166,7 +174,7 @@ function LiveOpsStatusFeed({ feed }: { feed: PrismEventDayStatusFeed }) {
             ) : null}
           </div>
         ))}
-        {feed.items.length === 0 ? <Empty label="No role-safe live signals yet." /> : null}
+        {feed.items.length === 0 ? <LiveOpsEmpty label="No role-safe live signals yet." /> : null}
       </div>
     </div>
   );
@@ -242,7 +250,7 @@ export function LiveOpsDesk({
 
       <Disclosure title="Event-day log" summary={`${liveOps.eventDayLogs.length} entries`}>
         <div className="grid gap-3 md:grid-cols-2">
-          {liveOps.eventDayLogs.length === 0 ? <Empty label="No event-day log entries yet." /> : null}
+          {liveOps.eventDayLogs.length === 0 ? <LiveOpsEmpty label="No event-day log entries yet." /> : null}
           {liveOps.eventDayLogs.map((entry) => (
             <div key={entry.id} className="rounded-md border border-border bg-background p-3 text-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -299,7 +307,7 @@ function LiveOpsSetupDisclosure({
           <h3 className="text-base font-semibold">Supplier setup</h3>
           <p className="text-xs text-muted-foreground">Self-reported status and PMCM verification.</p>
           <div className="mt-3 space-y-3">
-            {liveOps.supplierStatuses.length === 0 ? <Empty label="No supplier event-day statuses yet." /> : null}
+            {liveOps.supplierStatuses.length === 0 ? <LiveOpsEmpty label="No supplier event-day statuses yet." /> : null}
             {liveOps.supplierStatuses.map((request) => (
               <SupplierRow
                 key={request.id}
@@ -316,7 +324,7 @@ function LiveOpsSetupDisclosure({
           <h3 className="text-base font-semibold">Coordinator attendance</h3>
           <p className="text-xs text-muted-foreground">Present, late, absent, or replaced.</p>
           <div className="mt-3 space-y-3">
-            {liveOps.coordinatorAssignments.length === 0 ? <Empty label="No coordinator assignments yet." /> : null}
+            {liveOps.coordinatorAssignments.length === 0 ? <LiveOpsEmpty label="No coordinator assignments yet." /> : null}
             {liveOps.coordinatorAssignments.map((assignment) => (
               <CoordinatorRow
                 key={assignment.id}
@@ -410,7 +418,7 @@ function LiveOpsIssuesPanel({
         action={readOnly ? null : <FormToggle open={vm.issueFormOpen} controls="live-ops-issue-form" label="Log issue" onToggle={vm.toggleIssueForm} />}
       />
       <div className="mt-3 space-y-3">
-        {issues.length === 0 ? <Empty label="No urgent issues open." /> : null}
+        {issues.length === 0 ? <LiveOpsEmpty label="No urgent issues open." /> : null}
         {issues.map((issue) => (
           <IssueRow
             key={issue.id}
@@ -497,7 +505,7 @@ function LiveOpsTasksPanel({
         action={readOnly ? null : <FormToggle open={vm.taskFormOpen} controls="live-ops-task-form" label="Add task" onToggle={vm.toggleTaskForm} />}
       />
       <div className="mt-3 space-y-3">
-        {liveOps.tasks.length === 0 ? <Empty label="No event-day tasks yet." /> : null}
+        {liveOps.tasks.length === 0 ? <LiveOpsEmpty label="No event-day tasks yet." /> : null}
         {liveOps.tasks.map((task) => (
           <div key={task.id} id={`event-day-task-${task.id}`} className="scroll-mt-6">
             <TaskRow

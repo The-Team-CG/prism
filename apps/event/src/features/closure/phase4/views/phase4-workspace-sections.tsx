@@ -1,4 +1,6 @@
+import { Button } from "@prism/ui/components/button";
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
+import { Input } from "@prism/ui/components/input";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, ShieldCheck, XCircle } from "lucide-react";
 import { useState } from "react";
@@ -256,7 +258,15 @@ export function ActualEventEndSection({ event, busy, onRecord }: { event: PrismE
   return <section className="rounded-lg border border-border bg-card p-5">
     <div className="flex items-start justify-between gap-3"><h3 className="text-lg font-semibold">Record actual end</h3><span className="text-xs text-muted-foreground">{event.actualEndedAt ? formatPortalDateTime(event.actualEndedAt) : "Not recorded"}</span></div>
     <p className="mt-2 text-sm text-muted-foreground">This timestamp opens the seven-day guest feedback window and supports final registration imports.</p>
-    <div className="mt-4 flex flex-wrap items-end gap-3"><label className="text-sm font-semibold">Actual ended at<DateTimePicker value={endedAt} onValueChange={(next) => setEndedAt(next)} className="mt-1 w-64" /></label>{hasRecorded && <label className="text-sm font-semibold">Correction reason<input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is the end changing?" className="mt-1 block h-10 rounded-md border border-border bg-white px-3" /></label>}<button disabled={busy || !endedAt || (hasRecorded && !reason.trim())} onClick={() => void submit()} className="h-10 rounded-md bg-ink px-4 text-sm font-black text-ink-foreground disabled:opacity-60">{hasRecorded ? "Correct actual end" : "Record actual end"}</button></div>
+    <div className="mt-4 flex flex-wrap items-end gap-3">
+      <label className="grid gap-1 text-sm font-semibold">Actual ended at<DateTimePicker value={endedAt} onValueChange={(next) => setEndedAt(next)} className="w-64" /></label>
+      {hasRecorded ? (
+        <label className="grid gap-1 text-sm font-semibold">Correction reason<Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why is the end changing?" className="w-64 font-normal" /></label>
+      ) : null}
+      <Button disabled={busy || !endedAt || (hasRecorded && !reason.trim())} onClick={() => void submit()}>
+        {hasRecorded ? "Correct actual end" : "Record actual end"}
+      </Button>
+    </div>
   </section>;
 }
 
