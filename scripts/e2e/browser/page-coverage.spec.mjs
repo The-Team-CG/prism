@@ -140,6 +140,8 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
         await expect(rows.first()).toContainText(`${supplierPrefix} 00`);
         await expect(page.getByRole('button', { name: 'Previous', exact: true })).toBeDisabled();
         await page.getByPlaceholder('Search suppliers', { exact: true }).fill(supplierPrefix);
+        await expect(rows).toHaveCount(25);
+        await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeEnabled();
         await page.locator('#supplier-page-size').focus();
         await page.keyboard.press('Enter');
         await expect(page.getByRole('option', { name: '50', exact: true })).toBeVisible();
