@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { RouteLink, useListFilter } from "@/features/pmcm-kit";
 import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Search } from "lucide-react";
 import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { EmptyState } from "@prism/ui/components/empty-state";
-import { cn } from "@/app/components/ui/utils";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
+import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
 
 const VIEWS = [
   { href: "/dashboard/events", label: "All events" },
@@ -55,24 +55,11 @@ export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; o
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <nav aria-label="Event views" className="flex flex-wrap gap-1">
-          {VIEWS.map((view) => {
-            const active = pathname === view.href;
-            return (
-              <Link
-                key={view.href}
-                href={view.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                  active ? "bg-card text-foreground ring-1 ring-border" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {view.label}
-              </Link>
-            );
-          })}
-        </nav>
+        <WorkspaceRouteTabs
+          label="Event views"
+          tabs={VIEWS.map((view) => ({ id: view.href, label: view.label, href: view.href }))}
+          activeId={pathname}
+        />
         <label className="relative w-full max-w-72">
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -88,53 +75,55 @@ export function EventRegister({ events, onOpenEvent }: { events: PrismEvent[]; o
       <p role="status" className="text-xs text-muted-foreground">{rows.length} event{rows.length === 1 ? "" : "s"} in this view{query ? ` matching “${query}”` : ""}</p>
       <div className="overflow-x-auto rounded-lg border border-border bg-card">
         {rows.length === 0 ? (
-          <div className="p-6">
-            <EmptyState
-              icon={CalendarDays}
-              title={query ? "No event matches" : "No events in this view"}
-              description={query ? "Try a client, venue or part of the event name." : "Accepted inquiries become events once the conforme is signed."}
-            />
-          </div>
+          <Empty>
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <CalendarDays />
+              </EmptyMedia>
+              <EmptyTitle>{query ? "No event matches" : "No events in this view"}</EmptyTitle>
+              <EmptyDescription>{query ? "Try a client, venue or part of the event name." : "Accepted inquiries become events once the conforme is signed."}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
-          <table className="w-full text-sm">
+          <Table>
             <caption className="sr-only">Events by month, with their client, date and lifecycle stage</caption>
-            <thead className="border-b border-border text-left text-xs text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-4 py-2.5 font-medium">Event</th>
-                <th scope="col" className="hidden px-4 py-2.5 font-medium sm:table-cell">Date</th>
-                <th scope="col" className="px-4 py-2.5 font-medium">Stage</th>
-                <th scope="col" className="px-4 py-2.5"><span className="sr-only">Open</span></th>
-              </tr>
-            </thead>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col">Event</TableHead>
+                <TableHead scope="col" className="hidden sm:table-cell">Date</TableHead>
+                <TableHead scope="col">Stage</TableHead>
+                <TableHead scope="col" className="w-28 text-right"><span className="sr-only">Open</span></TableHead>
+              </TableRow>
+            </TableHeader>
             {groups.map((group) => (
-              <tbody key={group.month} className="divide-y divide-border border-b border-border last:border-b-0">
-                <tr className="bg-muted/40">
-                  <th scope="rowgroup" colSpan={4} className="px-4 py-2 text-left text-xs font-semibold text-foreground">
+              <TableBody key={group.month} className="[&_tr:last-child]:border-b">
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead scope="rowgroup" colSpan={4} className="h-auto py-2 text-left text-xs font-semibold text-foreground">
                     {group.month} <span className="font-normal text-muted-foreground">· {group.events.length}</span>
-                  </th>
-                </tr>
+                  </TableHead>
+                </TableRow>
                 {group.events.map((event) => (
-                  <tr key={event.id} className="hover:bg-surface-raised">
-                    <td className="px-4 py-2.5">
+                  <TableRow key={event.id}>
+                    <TableCell className="min-w-0 whitespace-normal">
                       <p className="font-semibold text-foreground">{event.eventName}</p>
                       <p className="text-xs text-muted-foreground">
                         {event.clientName}
                         {event.venue ? <> · {event.venue}</> : null}
                         <span className="sm:hidden"> · {formatPortalDate(event.eventDate)}</span>
                       </p>
-                    </td>
-                    <td className="hidden whitespace-nowrap px-4 py-2.5 text-foreground sm:table-cell">{formatPortalDate(event.eventDate)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-foreground">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</td>
-                    <td className="px-4 py-2.5 text-right">
+                    </TableCell>
+                    <TableCell className="hidden whitespace-nowrap tabular-nums sm:table-cell">{formatPortalDate(event.eventDate)}</TableCell>
+                    <TableCell className="whitespace-nowrap">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</TableCell>
+                    <TableCell className="text-right">
                       <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
                         Open event<span className="sr-only"> {event.eventName}</span>
                       </RouteLink>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
+              </TableBody>
             ))}
-          </table>
+          </Table>
         )}
       </div>
       {rows.length > visible ? (
