@@ -138,12 +138,9 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await applicant.getByLabel('Company name', { exact: true }).fill(supplierCompany);
       await applicant.getByLabel('Contact person', { exact: true }).fill('Browser Supplier Contact');
       await applicant.getByLabel('Email address', { exact: true }).fill(supplierEmail);
-      await applicant.getByRole('button', { name: 'Continue', exact: true }).click();
       await applicant.getByRole('combobox', { name: 'Service category', exact: true }).click();
       await applicant.getByRole('option', { name: 'Digital Registration', exact: true }).click();
       await applicant.getByLabel(/Service inclusions/).fill('Registration equipment and on-site support');
-      await applicant.getByRole('button', { name: 'Continue', exact: true }).click();
-      await applicant.getByRole('button', { name: 'Continue', exact: true }).click();
       await applicant.getByRole('checkbox', { name: /These details are accurate/ }).check();
       await applicant.getByRole('button', { name: 'Submit application', exact: true }).click();
       await expect(applicant.getByRole('heading', { name: 'Application submitted', exact: true })).toBeVisible();
