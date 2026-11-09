@@ -3,9 +3,10 @@
 import { PrismAccountHelp } from "@prism/ui/account-help";
 import { portalHref } from "@prism/ui/portal-path";
 import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
-import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { ArrowRight, ChevronDown, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@prism/ui/components/collapsible";
 import { Field } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
 import { Label } from "@prism/ui/components/label";
@@ -44,18 +45,17 @@ function ApprovalRequestPanel({
   onRequest: () => void;
 }) {
   return (
-    <div className="border-t border-border pt-5">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={showApproval}
-        className="flex w-full items-center justify-between text-left text-sm font-medium text-foreground transition-colors hover:text-primary"
-      >
-        <span>Need supplier access?</span>
-        <span className="text-muted-foreground">{showApproval ? "Close" : "Request"}</span>
-      </button>
-      {showApproval ? (
-        <div className="mt-4 flex flex-col gap-4">
+    <Collapsible open={showApproval} onOpenChange={onToggle} className="border-t border-border pt-5">
+      <CollapsibleTrigger asChild>
+        <Button type="button" variant="ghost" className="h-auto w-full justify-between px-0 text-sm font-medium text-foreground hover:text-primary">
+          <span>Need supplier access?</span>
+          <span className="flex items-center gap-1.5 font-normal text-muted-foreground">
+            {showApproval ? "Close" : "Request"}
+            <ChevronDown className={`size-4 transition-transform ${showApproval ? "rotate-180" : ""}`} aria-hidden="true" />
+          </span>
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-4 flex flex-col gap-4">
           <p className="text-sm leading-6 text-muted-foreground">
             Request PMCM approval for a new supplier account. A coordinator will review and activate your access.
           </p>
@@ -77,9 +77,8 @@ function ApprovalRequestPanel({
           >
             <ShieldCheck className="size-4" /> Request PMCM approval
           </Button>
-        </div>
-      ) : null}
-    </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
