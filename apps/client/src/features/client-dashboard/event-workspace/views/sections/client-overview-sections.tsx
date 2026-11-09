@@ -12,6 +12,7 @@ import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecy
 import type { PrismAuditLog, PrismClientActionItem, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { StatusBadge } from "@prism/ui/components/status-badge";
+import { ClientEventStepper } from "../../../shared/client-event-stepper";
 import {
   Card,
   CardBody,
@@ -42,7 +43,7 @@ export function overviewLifecycleSteps(selectedEvent: PrismEvent) {
   const current = PRISM_LIFECYCLE_STAGES.indexOf(derivePrismLifecycleStage(selectedEvent));
   return PRISM_LIFECYCLE_STAGES.map((stage, index) => ({
     label: PRISM_LIFECYCLE_STAGE_LABELS[stage],
-    state: index < current ? ("done" as const) : index === current ? ("current" as const) : ("pending" as const),
+    state: index < current ? ("done" as const) : index === current ? ("current" as const) : ("upcoming" as const),
   }));
 }
 
@@ -63,19 +64,7 @@ export function OverviewNextDecision({
           <p className="text-sm text-muted-foreground">Stage {currentIndex + 1} of {steps.length}</p>
           <h2 className="mt-0.5 text-lg font-semibold text-foreground">{steps[currentIndex]?.label}</h2>
         </div>
-        <ol className="flex gap-1" aria-label="Planning progress">
-          {steps.map((step) => (
-            <li key={step.label} className="flex-1" title={step.label}>
-              <span
-                aria-hidden="true"
-                className={`block h-1.5 rounded-full ${step.state === "done" ? "bg-success" : step.state === "current" ? "bg-primary" : "bg-muted"}`}
-              />
-              <span className="sr-only">
-                {step.label}: {step.state === "done" ? "done" : step.state === "current" ? "current stage" : "not started"}
-              </span>
-            </li>
-          ))}
-        </ol>
+        <ClientEventStepper steps={steps.map((step) => ({ key: step.label, label: step.label, state: step.state }))} label="Planning progress" />
         {nextAction ? (
           <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
@@ -86,12 +75,11 @@ export function OverviewNextDecision({
               {nextAction.description ? <p className="mt-0.5 text-sm text-muted-foreground">{nextAction.description}</p> : null}
             </div>
             {nextAction.href ? (
-              <a
-                href={nextAction.href}
-                className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-              >
-                Open <ArrowRight className="size-4" aria-hidden="true" />
-              </a>
+              <Button asChild className="shrink-0 font-semibold">
+                <a href={nextAction.href}>
+                  Open <ArrowRight className="size-4" aria-hidden="true" />
+                </a>
+              </Button>
             ) : null}
           </div>
         ) : (

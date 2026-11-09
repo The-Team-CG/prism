@@ -73,7 +73,7 @@ const APPROVAL_VIEW_FILTERS: Partial<Record<ClientPortalView, (item: ApprovalIte
   "approvals-final-confirmation": (item) => item.title === "Final Confirmation",
 };
 
-export function filterApprovalItems(items: ApprovalItem[], portalView?: ClientPortalView) {
+export function filterApprovalItems<T extends ApprovalItem>(items: T[], portalView?: ClientPortalView): T[] {
   const filter = portalView ? APPROVAL_VIEW_FILTERS[portalView] : undefined;
   if (!filter) return items;
   return items.filter(filter);

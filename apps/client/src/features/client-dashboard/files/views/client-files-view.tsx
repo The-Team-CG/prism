@@ -1,14 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { FileText } from "lucide-react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
-import { cn } from "@/app/components/ui/utils";
 import { CLIENT_PORTAL_VIEW_META, dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
 import { CLIENT_PORTAL_VIEW_HREFS } from "../../workspace/model/client-dashboard-navigation";
 import type { ClientPortalView } from "../../workspace/model/client-dashboard-types";
 import { ClientAccountEventPicker } from "../../workspace/views/sections/client-account-event-picker";
 import { ClientListEmpty, ClientListRow, ClientListSection, type ClientRowTone } from "../../shared/client-list-ui";
+import { ClientRouteTabs } from "../../shared/client-route-tabs";
 import { filterClientFiles } from "../model/client-file-category";
 
 const FILTERS: ClientPortalView[] = ["files-all", "files-contracts", "files-quotations", "files-invoices-receipts", "files-event-layouts"];
@@ -34,19 +33,16 @@ export function ClientFilesView() {
 
   return (
     <div className="space-y-4">
-      <nav className="-mx-1 flex gap-1 overflow-x-auto px-1" aria-label="File filters">
-        {FILTERS.map((view) => (
-          <Link
-            key={view}
-            href={CLIENT_PORTAL_VIEW_HREFS[view]}
-            aria-current={view === active ? "page" : undefined}
-            className={cn("inline-flex h-9 shrink-0 items-center gap-2 rounded-md px-3 text-sm transition-colors", view === active ? "bg-muted font-semibold text-foreground" : "text-muted-foreground hover:text-foreground")}
-          >
-            {view === "files-all" ? "All" : CLIENT_PORTAL_VIEW_META[view].title}
-            <span className="tabular-nums text-muted-foreground">{filterClientFiles(eventFiles, view).documents.length}</span>
-          </Link>
-        ))}
-      </nav>
+      <ClientRouteTabs
+        label="File filters"
+        activeId={active}
+        tabs={FILTERS.map((view) => ({
+          id: view,
+          label: view === "files-all" ? "All" : CLIENT_PORTAL_VIEW_META[view].title,
+          href: CLIENT_PORTAL_VIEW_HREFS[view],
+          count: filterClientFiles(eventFiles, view).documents.length,
+        }))}
+      />
 
       {files.length ? (
         <ClientListSection id="client-files-list" title={active === "files-all" ? "All files" : title} count={files.length} description="Open a file's event to download it or upload a replacement.">

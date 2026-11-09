@@ -2,122 +2,129 @@
 
 import { Send } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
-import { Input } from "@prism/ui/components/input";
+import { Card, CardContent } from "@prism/ui/components/card";
+import { Checkbox } from "@prism/ui/components/checkbox";
 import { DatePicker } from "@prism/ui/components/date-picker";
-import { FieldGroup } from "../../workspace/shared";
-import { CLIENT_PORTAL_VIEW_META } from "../../workspace/shared";
+import { Field, FieldDescription, FieldLabel } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Textarea } from "@prism/ui/components/textarea";
 import { useClientWorkspace } from "../../workspace/shared";
 
+/**
+ * The request form. The page title and description come from the portal shell, so the form does not repeat them.
+ * The submit button explains itself while it is disabled.
+ */
 export function ClientRequestView() {
-  const {
-    portalView,
-    session,
-    requestForm,
-    setRequestForm,
-    submitNewEventRequest,
-    busy,
-  } = useClientWorkspace();
-  const portalViewMeta = portalView ? CLIENT_PORTAL_VIEW_META[portalView] : undefined;
+  const { session, requestForm, setRequestForm, submitNewEventRequest, busy } = useClientWorkspace();
+  const submitting = busy === "event-request";
+  const consentMissing = !requestForm.privacyConsentAccepted;
 
   return (
-  <div className="mx-auto max-w-2xl space-y-6">
-    <div>
-      <h1 className="text-2xl font-black text-foreground">{portalViewMeta?.title ?? "New event request"}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {portalViewMeta?.description ?? "Tell PMCM about your next event. Your account details are pre-filled. PMCM reviews all requests before activating the workspace."}
-      </p>
+    <div className="mx-auto max-w-2xl">
+      <Card>
+        <CardContent>
+          <form className="space-y-5" onSubmit={submitNewEventRequest}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="client-request-name">Client name</FieldLabel>
+                <Input id="client-request-name" value={session.name} readOnly className="bg-muted/40" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="client-request-company">Company</FieldLabel>
+                <Input id="client-request-company" value={session.organization} readOnly className="bg-muted/40" />
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="client-request-event-name">Event name</FieldLabel>
+              <Input
+                id="client-request-event-name"
+                required
+                value={requestForm.eventName}
+                onChange={(ev) => setRequestForm({ ...requestForm, eventName: ev.target.value })}
+                placeholder="e.g. Leadership Summit 2026"
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel>Event date</FieldLabel>
+                <DatePicker
+                  required
+                  value={requestForm.eventDate}
+                  onValueChange={(value) => setRequestForm({ ...requestForm, eventDate: value })}
+                  aria-label="Event date"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="client-request-event-type">Event type</FieldLabel>
+                <Input
+                  id="client-request-event-type"
+                  value={requestForm.eventType}
+                  onChange={(ev) => setRequestForm({ ...requestForm, eventType: ev.target.value })}
+                />
+              </Field>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="client-request-venue">Venue or city</FieldLabel>
+                <Input
+                  id="client-request-venue"
+                  value={requestForm.venueCity}
+                  onChange={(ev) => setRequestForm({ ...requestForm, venueCity: ev.target.value })}
+                  placeholder="Venue, city, or TBD"
+                />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="client-request-budget">Budget range</FieldLabel>
+                <Input
+                  id="client-request-budget"
+                  value={requestForm.budgetRange}
+                  onChange={(ev) => setRequestForm({ ...requestForm, budgetRange: ev.target.value })}
+                />
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="client-request-notes">Planning notes</FieldLabel>
+              <Textarea
+                id="client-request-notes"
+                required
+                value={requestForm.message}
+                onChange={(ev) => setRequestForm({ ...requestForm, message: ev.target.value })}
+                rows={5}
+                placeholder="Share goals, estimated guests, event format, program notes, or early constraints."
+              />
+            </Field>
+
+            <div className="rounded-lg border border-primary/15 bg-primary-soft p-4 text-sm">
+              <p className="font-bold text-foreground">What happens next</p>
+              <ol className="mt-2 space-y-1 text-muted-foreground">
+                <li>1. PMCM reviews fit and scope.</li>
+                <li>2. PMCM accepts, pends, or declines.</li>
+                <li>3. Signed conforme unlocks the event workspace.</li>
+              </ol>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="client-request-consent"
+                required
+                checked={requestForm.privacyConsentAccepted}
+                onCheckedChange={(checked) => setRequestForm({ ...requestForm, privacyConsentAccepted: checked === true })}
+                className="mt-0.5"
+              />
+              <FieldLabel htmlFor="client-request-consent" className="font-normal leading-5 text-muted-foreground">
+                I consent to PMCM processing this request to review and plan the event.
+              </FieldLabel>
+            </div>
+
+            <Field>
+              <Button type="submit" disabled={submitting || consentMissing} className="self-start font-bold">
+                Submit request <Send aria-hidden />
+              </Button>
+              {consentMissing ? <FieldDescription>Accept the privacy consent above to submit this request.</FieldDescription> : null}
+            </Field>
+          </form>
+        </CardContent>
+      </Card>
     </div>
-
-    <div className="rounded-2xl border border-border bg-card shadow-sm">
-      <form className="space-y-5 p-6" onSubmit={submitNewEventRequest}>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldGroup label="Client name">
-            <Input value={session.name} readOnly className="rounded-lg bg-muted/40" />
-          </FieldGroup>
-          <FieldGroup label="Company">
-            <Input value={session.organization} readOnly className="rounded-lg bg-muted/40" />
-          </FieldGroup>
-        </div>
-        <FieldGroup label="Event name">
-          <Input
-            required
-            value={requestForm.eventName}
-            onChange={(ev) => setRequestForm({ ...requestForm, eventName: ev.target.value })}
-            placeholder="e.g. Leadership Summit 2026"
-            className="rounded-lg"
-          />
-        </FieldGroup>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldGroup label="Event date">
-            <DatePicker
-              required
-              value={requestForm.eventDate}
-              onValueChange={(value) => setRequestForm({ ...requestForm, eventDate: value })}
-              aria-label="Event date"
-              className="rounded-lg"
-            />
-          </FieldGroup>
-          <FieldGroup label="Event type">
-            <Input
-              value={requestForm.eventType}
-              onChange={(ev) => setRequestForm({ ...requestForm, eventType: ev.target.value })}
-              className="rounded-lg"
-            />
-          </FieldGroup>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldGroup label="Venue or city">
-            <Input
-              value={requestForm.venueCity}
-              onChange={(ev) => setRequestForm({ ...requestForm, venueCity: ev.target.value })}
-              placeholder="Venue, city, or TBD"
-              className="rounded-lg"
-            />
-          </FieldGroup>
-          <FieldGroup label="Budget range">
-            <Input
-              value={requestForm.budgetRange}
-              onChange={(ev) => setRequestForm({ ...requestForm, budgetRange: ev.target.value })}
-              className="rounded-lg"
-            />
-          </FieldGroup>
-        </div>
-        <FieldGroup label="Planning notes">
-          <textarea
-            required
-            value={requestForm.message}
-            onChange={(ev) => setRequestForm({ ...requestForm, message: ev.target.value })}
-            rows={5}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
-            placeholder="Share goals, estimated guests, event format, program notes, or early constraints."
-          />
-        </FieldGroup>
-
-        <div className="rounded-xl border border-primary/15 bg-primary-soft p-4 text-sm">
-          <p className="font-bold text-foreground">What happens next</p>
-          <ol className="mt-2 space-y-1 text-muted-foreground">
-            <li>1. PMCM reviews fit and scope.</li>
-            <li>2. PMCM accepts, pends, or declines.</li>
-            <li>3. Signed conforme unlocks the event workspace.</li>
-          </ol>
-        </div>
-
-        <label className="flex items-start gap-3 text-sm leading-5 text-muted-foreground">
-          <input
-            type="checkbox"
-            checked={requestForm.privacyConsentAccepted}
-            onChange={(event) => setRequestForm({ ...requestForm, privacyConsentAccepted: event.target.checked })}
-            required
-            className="mt-0.5 size-4 accent-primary"
-          />
-          <span>I consent to PMCM processing this request to review and plan the event.</span>
-        </label>
-
-        <Button type="submit" disabled={busy === "event-request" || !requestForm.privacyConsentAccepted} className="w-full rounded-lg font-bold">
-          Submit request <Send className="size-4" />
-        </Button>
-      </form>
-    </div>
-  </div>
   );
 }

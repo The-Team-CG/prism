@@ -48,6 +48,7 @@ import {
   sidebarActiveItemId,
 } from "../model/client-dashboard-navigation";
 import {
+  clientBreadcrumbTrail,
   clientShellDescription,
   clientShellEyebrow,
   clientShellTitle,
@@ -536,8 +537,9 @@ export function ClientDashboardWorkspaceView({
         productLabel="P.R.I.S.M"
         roleLabel="Client Portal"
         eyebrow={clientShellEyebrow({ isEventScopedView, route })}
-        title={clientShellTitle({ isEventScopedView, eventName: selectedEvent?.eventName, portalView, route })}
-        description={clientShellDescription({ portalView, route, selectedEvent })}
+        title={clientShellTitle({ isEventScopedView, portalView, route })}
+        description={clientShellDescription({ isEventScopedView, portalView, route, selectedEvent })}
+        breadcrumb={clientBreadcrumbTrail({ isEventScopedView, portalView, route })}
         activeItemId={activeShellItemId}
         navItems={sidebarNavItems}
         onNavSelect={handleShellNavSelect}

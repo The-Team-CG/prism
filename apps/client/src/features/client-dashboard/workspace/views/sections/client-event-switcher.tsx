@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@prism/ui/components/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@prism/ui/components/tooltip";
 import { formatStatusLabel } from "../../shared";
 
 type SwitcherEvent = Pick<PrismEvent, "id" | "eventName" | "eventDate" | "status">;
@@ -32,7 +33,7 @@ export function ClientEventSwitcher({
     <DropdownMenu>
       <DropdownMenuTrigger className="mt-1 flex w-full items-center gap-2 rounded-md border border-border bg-background px-2.5 py-2 text-left outline-none transition-colors hover:border-border-strong focus-visible:ring-2 focus-visible:ring-ring">
         <span className="grid min-w-0 flex-1">
-          <span className="truncate text-sm font-semibold text-foreground">{selected.eventName}</span>
+          <Tooltip><TooltipTrigger asChild><span className="truncate text-sm font-semibold text-foreground">{selected.eventName}</span></TooltipTrigger><TooltipContent side="right">{selected.eventName}</TooltipContent></Tooltip>
           <span className="truncate text-xs text-muted-foreground">
             {formatPortalDate(selected.eventDate)} · {formatStatusLabel(selected.status)}
           </span>
@@ -46,7 +47,7 @@ export function ClientEventSwitcher({
         {ordered.map((event) => (
           <DropdownMenuItem key={event.id} onSelect={() => onSwitch(event.id)} className="items-start">
             <span className="grid min-w-0 flex-1">
-              <span className="truncate font-medium">{event.eventName}</span>
+              <Tooltip><TooltipTrigger asChild><span className="truncate font-medium">{event.eventName}</span></TooltipTrigger><TooltipContent side="right">{event.eventName}</TooltipContent></Tooltip>
               <span className="truncate text-xs text-muted-foreground">
                 {formatPortalDate(event.eventDate)} · {formatStatusLabel(event.status)}
               </span>

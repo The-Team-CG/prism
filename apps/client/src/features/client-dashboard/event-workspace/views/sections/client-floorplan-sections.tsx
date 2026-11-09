@@ -7,7 +7,7 @@ import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { ClientListEmpty } from "../../../shared/client-list-ui";
 import { FieldGroup, LayoutPreview, formatStatusLabel } from "../../../workspace/shared";
 import type { PreferenceForm } from "../../../workspace/shared";
 import {
@@ -95,7 +95,7 @@ export function FloorPlanDraftPanel({
   onOpenEditor: (draft: PrismFloorPlanDraft, readOnly: boolean) => void;
 }) {
   if (!activeDraft) {
-    return <EmptyState icon={MapPinned} title="No floor plan draft yet" description="Start from a saved layout template or send guided notes below." />;
+    return <ClientListEmpty icon={MapPinned} title="No floor plan draft yet" description="Start from a saved layout template or send guided notes below." />;
   }
 
   const readOnly = approved || isOfficial || !canEditClientFloorPlanPreference(activeDraft);

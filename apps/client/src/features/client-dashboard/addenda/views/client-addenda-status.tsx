@@ -1,6 +1,8 @@
 "use client";
 import { useEffect } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
+import { Checkbox } from "@prism/ui/components/checkbox";
+import { FieldLabel } from "@prism/ui/components/field";
 
 import type { PrismAddendum } from "@prism/types";
 import { addendaAwaitingClientAcknowledgment, addendumConformeStatusLabel, addendumStatusLabel } from "../model/client-addenda-rules";
@@ -76,10 +78,12 @@ function AddendumRow({
       {awaiting && addendum.conforme ? (
         <div className="space-y-2">
           <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background p-3 text-xs">{addendum.conforme.documentContent}</pre>
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" checked={consentAccepted} onChange={(event) => onConsentChange(event.target.checked)} className="mt-1" />
-            <span>I have reviewed this addendum conforme and acknowledge the scope and financial changes it describes.</span>
-          </label>
+          <div className="flex items-start gap-3">
+            <Checkbox id={`addendum-consent-${addendum.id}`} checked={consentAccepted} onCheckedChange={(checked) => onConsentChange(checked === true)} className="mt-0.5" />
+            <FieldLabel htmlFor={`addendum-consent-${addendum.id}`} className="font-normal leading-5">
+              I have reviewed this addendum conforme and acknowledge the scope and financial changes it describes.
+            </FieldLabel>
+          </div>
           <button
             type="button"
             disabled={!consentAccepted || signing}
