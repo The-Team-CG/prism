@@ -382,7 +382,7 @@ export function CoordinatorAssignmentDesk({
 
       {/* Conflict modal */}
       {pendingConflict && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
+        <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
             <h3 className="text-base font-bold text-foreground">Double booking: choose another coordinator</h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">

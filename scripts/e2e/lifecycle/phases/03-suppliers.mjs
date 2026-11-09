@@ -441,7 +441,7 @@ export async function run(ctx) {
     const bad = [];
     const expectNot2xx = (label, r) => { if (r.status < 400 || r.status >= 500) bad.push(`${label}=${r.status}`); };
     expectNot2xx("upload request", await call("POST", "/storage/objects/upload-request", A(), { eventId: E(), ownerRecordType: "supplier", ownerRecordId: apps.A.supplierId, logicalTarget: `supplier-contract:${s.reqA.id}:${randomUUID()}`, usage: "supplier_document", fileName: "c.pdf", contentType: "application/pdf", declaredByteSize: 10, checksumSha256: "a".repeat(64) }));
-    expectNot2xx("bind contract", await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: "obj_nope", checksumSha256: "a".repeat(64) }));
+    expectNot2xx("bind contract", await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: "obj_nope", checksumSha256: "a".repeat(64), contractTotal: 78500 }));
     expectNot2xx("schedule", await call("POST", `/events/${E()}/supplier-schedules`, admin, { requestId: s.reqA.id, ingressAt: "2027-06-15T06:00:00+08:00", egressAt: "2027-06-15T22:00:00+08:00" }));
     expectNot2xx("readiness", await call("PATCH", `/supplier/quote-requests/${s.reqA.id}/readiness/confirm`, A(), { notes: "ready" }));
     expectNot2xx("event status", await call("PATCH", `/supplier/quote-requests/${s.reqA.id}/event-status`, A(), { status: "arrived" }));
@@ -474,8 +474,7 @@ export async function run(ctx) {
     const tries = [
       ["readiness", "PATCH", `/supplier/quote-requests/${id}/readiness/confirm`, {}],
       ["event status", "PATCH", `/supplier/quote-requests/${id}/event-status`, { status: "arrived" }],
-      ["bind contract", "POST", `/supplier/quote-requests/${id}/contracts`, { storedObjectId: "obj_x", checksumSha256: "a".repeat(64) }],
-      ["metadata contract", "POST", `/supplier/quote-requests/${id}/contract`, { fileName: "c.pdf", idempotencyKey: "k1" }],
+      ["bind contract", "POST", `/supplier/quote-requests/${id}/contracts`, { storedObjectId: "obj_x", checksumSha256: "a".repeat(64), contractTotal: 1000 }],
       ["ack schedule", "POST", `/supplier/quote-requests/${id}/schedule/acknowledgement`, { expectedRevision: 1 }],
       ["change request", "POST", `/supplier/quote-requests/${id}/schedule/change-request`, { expectedRevision: 1, reason: "x" }],
     ];
@@ -490,18 +489,18 @@ export async function run(ctx) {
     need(s.assigned);
     const up = await uploadSupplierDocument(A(), { eventId: E(), supplierId: apps.A.supplierId, target: `supplier-contract:${s.reqA.id}:${randomUUID()}` });
     expect(up.object, `upload failed (${up.status}): ${up.error}`);
-    const bad = await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: up.object.id, checksumSha256: "b".repeat(64) });
+    const bad = await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: up.object.id, checksumSha256: "b".repeat(64), contractTotal: 78500 });
     expect(bad.status === 400, `bind with a wrong checksum returned ${bad.status}`);
-    const extra = await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: up.object.id, checksumSha256: up.checksum, extra: 1 });
+    const extra = await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: up.object.id, checksumSha256: up.checksum, extra: 1, contractTotal: 78500 });
     expect(extra.status === 400, `bind with an unknown field returned ${extra.status}`);
-    const r = is(await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: up.object.id, checksumSha256: up.checksum }), 200, 201);
+    const r = is(await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: up.object.id, checksumSha256: up.checksum, contractTotal: 78500 }), 200, 201);
     contractV1 = r.contract ?? r;
     s.contractObj1 = up;
     return `${text(Object.keys(r)).slice(0, 80)}`;
   });
   await step("binding the same file twice returns the same version", async () => {
     need(contractV1, s.contractObj1);
-    const r = is(await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: s.contractObj1.object.id, checksumSha256: s.contractObj1.checksum }), 200, 201);
+    const r = is(await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: s.contractObj1.object.id, checksumSha256: s.contractObj1.checksum, contractTotal: 78500 }), 200, 201);
     const again = r.contract ?? r;
     expect(again.id === contractV1.id || again.version === contractV1.version, `second bind created ${again.id} v${again.version}`);
   });
@@ -524,7 +523,7 @@ export async function run(ctx) {
     is(await call("PATCH", rv(contractV1.id), admin, { decision: "changes_requested", reason: "Payment terms clause is missing" }), 200);
     const up = await uploadSupplierDocument(A(), { eventId: E(), supplierId: apps.A.supplierId, target: `supplier-contract:${s.reqA.id}:${randomUUID()}`, fileName: "contract-v2.pdf" });
     expect(up.object, `v2 upload failed (${up.status}): ${up.error}`);
-    const r = is(await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: up.object.id, checksumSha256: up.checksum }), 200, 201);
+    const r = is(await call("POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: up.object.id, checksumSha256: up.checksum, contractTotal: 78500 }), 200, 201);
     contractV2 = r.contract ?? r;
     expect(contractV2.version === 2, `second upload is version ${contractV2.version}`);
     const stale = await call("PATCH", rv(contractV1.id), admin, { decision: "accepted", reason: "" });
@@ -946,8 +945,7 @@ export async function run(ctx) {
   await step("malformed bodies on supplier routes return 400, never 500", async () => {
     need(s.m1, s.task, A());
     const tries = [
-      ["POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: 5, checksumSha256: "zz" }],
-      ["POST", `/supplier/quote-requests/${s.reqA.id}/contract`, A(), { fileName: 5, idempotencyKey: {} }],
+      ["POST", `/supplier/quote-requests/${s.reqA.id}/contracts`, A(), { storedObjectId: 5, checksumSha256: "zz", contractTotal: 78500 }],
       ["POST", `/supplier/quote-requests/${s.reqA.id}/schedule/acknowledgement`, A(), { expectedRevision: -1 }],
       ["POST", `/supplier/quote-requests/${s.reqA.id}/schedule/change-request`, A(), { expectedRevision: 1, reason: "x".repeat(2001) }],
       ["PATCH", `/supplier/creative-tasks/${s.task.id}/progress`, A(), { note: "x".repeat(2001) }],

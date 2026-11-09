@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { accountRows } from '../src/fixtures/seed-accounts.mjs';
+import { historyRows } from '../src/fixtures/history-rows.mjs';
 import { inspectMigrationHistory } from './db-migration-history.mjs';
 
 export const portalRows = JSON.parse(readFileSync(new URL('../src/fixtures/portal-uat.json', import.meta.url), 'utf8'));
+/** Scenario profiles seeded on top of the accounts profile. */
+const SCENARIO_ROWS = { 'portal-uat': portalRows, history: historyRows };
 const quote = value => `"${value}"`;
 
 function expectedQuery(row) {
@@ -38,10 +41,10 @@ export async function seedProfile(client, { profile, anchor, mode = 'apply', pas
     if (history.issues.length) throw new Error('Migration history needs review. Run db:doctor -- --mode=runtime --migration-history before seeding.');
     const accounts = await inspectRows(client, accountRows, anchor);
     const prerequisites = accounts.filter(item => !item.present);
-    if (profile === 'portal-uat' && prerequisites.length) {
+    if (profile !== 'accounts' && prerequisites.length) {
       throw new Error(`Missing account/profile prerequisites: ${prerequisites.map(item => item.key).join(', ')}. Run the accounts profile first.`);
     }
-    const inspected = profile === 'accounts' ? accounts : await inspectRows(client, portalRows, anchor);
+    const inspected = profile === 'accounts' ? accounts : await inspectRows(client, SCENARIO_ROWS[profile], anchor);
     const missing = inspected.filter(item => !item.present);
     // Resolve every required password before the first write. Existing users are never updated.
     const passwords = new Map(await Promise.all(missing.filter(item => item.row.passwordKey).map(async item => [item.key, readOnly ? '' : await passwordFor(item.row.passwordKey)])));

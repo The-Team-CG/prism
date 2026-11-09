@@ -102,7 +102,8 @@ export function createContext() {
     return { version, document };
   }
 
-  async function prepareEventDay(eventId) {
+  /** Event-day prerequisites: waived ocular visit, approved official plan, and an issued proposal the primary client approved. */
+  async function prepareEventDay(eventId, clientToken) {
     const admin = await as("admin");
     const base = `/events/${eventId}`;
     expectStatus(await http("POST", `${base}/ocular-visit/waive`, { token: admin, body: { reason: "Synthetic lifecycle verification" } }), 200, 201);
@@ -113,6 +114,10 @@ export function createContext() {
     const draft = expectStatus(await http("POST", `${base}/floorplans`, { token: admin, body: { name: "Official lifecycle layout", sourceType: "template", venueTemplateId: template.id } }), 201);
     expectStatus(await http("POST", `${base}/floorplans/${draft.id}/submit`, { token: admin }), 200);
     expectStatus(await http("POST", `${base}/floorplans/${draft.id}/approve`, { token: admin }), 200);
+    if (!clientToken) return;
+    const proposal = expectStatus(await http("GET", `${base}/proposal`, { token: admin }), 200);
+    if (!proposal.proposal) await issueMinimalProposal(eventId);
+    expectStatus(await http("PATCH", `${base}/proposal/review`, { token: clientToken, body: { action: "approve" } }), 200);
   }
 
   return { as, newEvent, issueMinimalProposal, prepareEventDay, reserveDate, ensureCoordinator, accounts: ACCOUNTS };

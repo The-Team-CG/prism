@@ -39,7 +39,7 @@ export function QuotePlannerToolbar({
           <p className="mt-1 text-sm text-muted-foreground">{rangeCopy.summary}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <select value={categoryId} onChange={(event) => onCategory(event.target.value)} className="h-10 rounded-md border border-border bg-white px-3 text-sm">
+          <select value={categoryId} onChange={(event) => onCategory(event.target.value)} className="h-10 min-w-0 max-w-full rounded-md border border-border bg-white px-3 text-sm">
             {categories.map((category) => (
               <option key={category.id} value={category.id}>{category.name}</option>
             ))}
@@ -193,8 +193,8 @@ export function SupplierTierColumns({
         <p className="text-xs font-medium text-success">Auto-suggested Tier 1</p>
         <div className="mt-3 space-y-2">
           {tierOne.map((supplier) => (
-            <div key={supplier.id} className="w-full rounded-md border border-success/25 bg-success-soft p-3 text-left text-sm">
-              <span className="block font-black">{supplier.name}</span>
+            <div key={supplier.id} className="w-full min-w-0 break-words rounded-md border border-success/25 bg-success-soft p-3 text-left text-sm">
+              <span className="block break-words font-black">{supplier.name}</span>
               <span className="mt-1 flex items-center gap-2 text-xs text-success"><RatingStars rating={supplier.aggregateRating} /></span>
             </div>
           ))}
@@ -205,8 +205,8 @@ export function SupplierTierColumns({
         <p className="text-xs font-medium text-brand-blue">Backup suppliers</p>
         <div className="mt-3 space-y-2">
           {tierTwo.map((supplier) => (
-            <div key={supplier.id} className="w-full rounded-md border border-border bg-secondary p-3 text-left text-sm">
-              <span className="block font-black">{supplier.name}</span>
+            <div key={supplier.id} className="w-full min-w-0 break-words rounded-md border border-border bg-secondary p-3 text-left text-sm">
+              <span className="block break-words font-black">{supplier.name}</span>
               <span className="mt-1 text-xs text-muted-foreground">{supplier.bniMember ? "BNI member · auto-trust" : "Manual backup"}</span>
             </div>
           ))}
@@ -217,8 +217,8 @@ export function SupplierTierColumns({
         <p className="text-sm text-muted-foreground">First event, manual select</p>
         <div className="mt-3 space-y-2">
           {pending.map((supplier) => (
-            <div key={supplier.id} className="w-full rounded-md border border-brand-orange/25 bg-accent p-3 text-left text-sm">
-              <span className="block font-black">{supplier.name}</span>
+            <div key={supplier.id} className="w-full min-w-0 break-words rounded-md border border-brand-orange/25 bg-accent p-3 text-left text-sm">
+              <span className="block break-words font-black">{supplier.name}</span>
               <span className="mt-1 text-xs text-attention">Excluded from auto-suggestions</span>
             </div>
           ))}
@@ -265,7 +265,7 @@ export function QuoteRequestModal({
   onSubmit: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+    <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/35 p-4">
       <div className="flex max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border p-5">
           <div>
@@ -379,7 +379,7 @@ function QuoteRequestSupplierRow({
         className="mt-1 size-4"
       />
       <span className="min-w-0">
-        <span className="block font-black">{supplier.name}</span>
+        <span className="block break-words font-black">{supplier.name}</span>
         <span className="text-xs text-muted-foreground">{hint}</span>
       </span>
     </label>

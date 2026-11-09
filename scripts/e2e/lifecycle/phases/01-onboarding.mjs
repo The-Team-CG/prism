@@ -55,10 +55,11 @@ export async function run(ctx) {
     const r = await http("GET", "/inquiries", { token: t });
     expect(r.status === 403, `expected 403, got ${r.status}`);
   });
-  await step("declining requires a reason", async () => {
+  // The decline reason is optional (83b16021); an unknown reason is still refused, and refusing it leaves the inquiry open.
+  await step("declining with an unknown reason is refused", async () => {
     if (!s.inquiry) blocked("no inquiry");
-    const r = await http("PATCH", `/inquiries/${s.inquiry.id}/status`, { token: s.admin, body: { status: "declined" } });
-    expect(r.status === 400, `expected 400 without a reason, got ${r.status}: ${msg(r)}`);
+    const r = await http("PATCH", `/inquiries/${s.inquiry.id}/status`, { token: s.admin, body: { status: "declined", declineReason: "Because" } });
+    expect(r.status === 400, `expected 400 for an unknown reason, got ${r.status}: ${msg(r)}`);
   });
   await step("PMCM accepts the inquiry", async () => {
     if (!s.inquiry) blocked("no inquiry");

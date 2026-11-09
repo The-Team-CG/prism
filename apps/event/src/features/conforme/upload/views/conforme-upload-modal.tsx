@@ -152,7 +152,7 @@ export function ConformeUploadModal({ inquiry, onUpload, onPrepareDigital, onRef
     finally { setDigitalBusy(false); }
   }
 
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-label="Upload signed conforme">
+  return <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-label="Upload signed conforme">
     <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
       <DigitalExecutionPanel execution={digitalExecution} busy={digitalBusy} consent={digitalConsent} onConsent={setDigitalConsent} onRefresh={refreshDigital} onPrepare={prepareDigital} onSign={signDigital} />
       {phase === "success" ? <UploadSuccess inquiry={inquiry} /> : <ConformeUploadForm inquiry={inquiry} phase={phase} file={file} validationError={validationError} apiError={apiError} digitalBusy={digitalBusy} fileInputRef={fileInputRef} selectButtonRef={selectButtonRef} onClose={onClose} onFileChange={handleFileChange} onPrepareDigital={prepareDigital} onDownloadPdf={downloadPdf} onSubmit={handleSubmit} wordTemplateControl={<WordTemplatePicker template={wordTemplate} disabled={digitalBusy} onChoose={(templateFile) => void chooseWordTemplate(templateFile)} />} />}

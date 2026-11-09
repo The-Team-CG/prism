@@ -577,7 +577,7 @@ export function InquiryDeclineDialog({
   const titleId = useId();
   const reasonId = useId();
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4">
+    <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/40 px-4">
       <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
         <h3 id={titleId} className="text-base font-bold text-foreground">Decline inquiry from {clientName}?</h3>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -652,7 +652,7 @@ export function InquiryLogOnBehalfForm({
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/40 px-4"
+      className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/40 px-4"
       role="dialog"
       aria-modal="true"
       aria-label="Log inquiry on behalf of a client"

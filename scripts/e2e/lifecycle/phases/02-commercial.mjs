@@ -310,6 +310,8 @@ export async function run(ctx) {
   });
   await step("PMCM issues a styling option and the client only sees published options", async () => {
     need("venue");
+    // FR-31: styling options wait for the styling budget the primary client confirms in the briefing.
+    expectStatus(await clientCall("POST", `/events/${E()}/briefing`, { venue: "Makati Shangri-La Ballroom", guestCount: 150, budgetRange: "PHP 500k-1M", serviceRequirements: ["Catering", "AV"], notes: "e2e", confirmedDate: s.ev.eventDate.slice(0, 10), confirmedStartTime: "09:00", confirmedEndTime: "17:00", program: [{ time: "09:00", activity: "Opening" }], moodAndStyling: "Modern, brand colours", stylingBudget: 50000 }), 200, 201);
     const styling = expectStatus(await pmcm("POST", `/events/${E()}/client-review-items`, { kind: "styling", title: "Modern palette", summary: "Brand colours, 50k styling budget.", idempotencyKey: idem("styling") }), 201, 200);
     expect(styling.version === 1, `styling version ${styling.version}`);
     const mine = asList(expectStatus(await clientCall("GET", `/events/${E()}/client-review-items`), 200));
@@ -327,9 +329,9 @@ export async function run(ctx) {
       ["POST send statement", "POST", `/events/${e}/billing-statements/bill_x/send`, undefined],
       ["PATCH mark payment", "PATCH", `/events/${e}/payments/pay_x`, { status: "paid" }],
       ["POST record payment", "POST", `/events/${e}/payments/pay_x/records`, { amountReceived: 1, paymentDate: "2026-10-28", paymentMethod: "GCash" }],
-      ["POST correction", "POST", `/events/${e}/billing-corrections`, { statementId: "bill_x", reason: "x", idempotencyKey: "k" }],
+      ["POST correction", "POST", `/events/${e}/billing-corrections`, { statementId: "bill_x", reason: "x", severity: "typo_correction", idempotencyKey: "k" }],
       ["PATCH correction", "PATCH", `/events/${e}/billing-corrections/corr_x`, { action: "approve" }],
-      ["POST dispute", "POST", `/events/${e}/billing-disputes`, { statementId: "bill_x", amount: 1, reason: "x", idempotencyKey: "k" }],
+      ["POST dispute", "POST", `/events/${e}/billing-disputes`, { statementId: "bill_x", amount: 1, reason: "x", severity: "amount_discrepancy", idempotencyKey: "k" }],
       ["PATCH dispute", "PATCH", `/events/${e}/billing-disputes/dispute_x`, { action: "resolve", resolutionNotes: "x" }],
       ["POST additional billing", "POST", `/events/${e}/additional-billing`, { urgentIssueId: "u", billingSourceId: "b", description: "x", amount: 1, idempotencyKey: "k" }],
       ["PATCH waive", "PATCH", `/events/${e}/additional-billing/addbill_x/waive`, { reason: "x" }],
@@ -612,7 +614,7 @@ export async function run(ctx) {
   await step("correction requests validate input and stay inside the event", async () => {
     need("statement");
     const bad = [];
-    const cases = [["missing key", { statementId: s.statement.id, reason: "x" }, 400], ["empty reason", { statementId: s.statement.id, reason: "", idempotencyKey: "k" }, 400], ["negative amount", { statementId: s.statement.id, reason: "x", correctedTotalAmount: -1, idempotencyKey: "k" }, 400], ["unknown statement", { statementId: "bill_nope", reason: "x", idempotencyKey: idem("c") }, 404], ["statement from another event", { statementId: s.statement.id, reason: "x", idempotencyKey: idem("c") }, 404]];
+    const cases = [["missing key", { statementId: s.statement.id, reason: "x", severity: "typo_correction" }, 400], ["empty reason", { statementId: s.statement.id, reason: "", severity: "typo_correction", idempotencyKey: "k" }, 400], ["negative amount", { statementId: s.statement.id, reason: "x", severity: "amount_discrepancy", correctedTotalAmount: -1, idempotencyKey: "k" }, 400], ["unknown statement", { statementId: "bill_nope", reason: "x", severity: "typo_correction", idempotencyKey: idem("c") }, 404], ["statement from another event", { statementId: s.statement.id, reason: "x", severity: "typo_correction", idempotencyKey: idem("c") }, 404]];
     for (const [label, body, want] of cases) {
       const path = label === "statement from another event" ? `/events/${s.other.eventId}/billing-corrections` : `/events/${E()}/billing-corrections`;
       const r = await pmcm("POST", path, body);
@@ -623,7 +625,7 @@ export async function run(ctx) {
   await step("admin requests a correction; the same key replays, other content is refused", async () => {
     need("statement");
     s.corrKey = idem("corr");
-    const body = { statementId: s.statement.id, reason: "Venue line double counted", correctedTotalAmount: 450000, idempotencyKey: s.corrKey };
+    const body = { statementId: s.statement.id, reason: "Venue line double counted", severity: "amount_discrepancy", correctedTotalAmount: 450000, idempotencyKey: s.corrKey };
     s.correction = expectStatus(await pmcm("POST", `/events/${E()}/billing-corrections`, body), 201);
     expect(s.correction.status === "pending", `status ${s.correction.status}`);
     const replay = expectStatus(await pmcm("POST", `/events/${E()}/billing-corrections`, body), 201);
@@ -641,7 +643,7 @@ export async function run(ctx) {
   });
   await step("a correction below received payments is refused without approving it", async () => {
     need("statement");
-    const correction = expectStatus(await pmcm("POST", `/events/${E()}/billing-corrections`, { statementId: s.statement.id, reason: "Would exceed the received total", correctedTotalAmount: 1, idempotencyKey: idem("underpayment-correction") }), 201);
+    const correction = expectStatus(await pmcm("POST", `/events/${E()}/billing-corrections`, { statementId: s.statement.id, reason: "Would exceed the received total", severity: "amount_discrepancy", correctedTotalAmount: 1, idempotencyKey: idem("underpayment-correction") }), 201);
     const result = await pmcm("PATCH", `/events/${E()}/billing-corrections/${correction.id}`, { action: "approve" }, T.admin2);
     expect(result.status === 400, `invalid correction returned ${result.status}: ${msg(result)}`);
     const ws = expectStatus(await pmcm("GET", "/billing"), 200);
@@ -677,13 +679,13 @@ export async function run(ctx) {
   await step("dispute input is validated and PMCM can raise one against a statement milestone", async () => {
     need("statement", "balance");
     const bad = [];
-    for (const [label, body, want] of [["amount over the statement total", { statementId: s.statement.id, amount: 99999999, reason: "x", idempotencyKey: idem("d") }, 400], ["negative amount", { statementId: s.statement.id, amount: -1, reason: "x", idempotencyKey: idem("d") }, 400], ["unknown milestone", { statementId: s.statement.id, milestoneId: "pay_nope", amount: 10, reason: "x", idempotencyKey: idem("d") }, 404], ["missing reason", { statementId: s.statement.id, amount: 10, idempotencyKey: idem("d") }, 400]]) {
+    for (const [label, body, want] of [["amount over the statement total", { statementId: s.statement.id, amount: 99999999, reason: "x", severity: "amount_discrepancy", idempotencyKey: idem("d") }, 400], ["negative amount", { statementId: s.statement.id, amount: -1, reason: "x", severity: "amount_discrepancy", idempotencyKey: idem("d") }, 400], ["unknown milestone", { statementId: s.statement.id, milestoneId: "pay_nope", amount: 10, reason: "x", severity: "amount_discrepancy", idempotencyKey: idem("d") }, 404], ["missing reason", { statementId: s.statement.id, amount: 10, severity: "amount_discrepancy", idempotencyKey: idem("d") }, 400]]) {
       const r = await pmcm("POST", `/events/${E()}/billing-disputes`, body);
       if (r.status !== want) bad.push(`${label} -> ${r.status} (wanted ${want})`);
     }
     expect(!bad.length, bad.join("; "));
     const key = idem("dispute");
-    const body = { statementId: s.statement.id, milestoneId: s.balance.id, amount: 50000, reason: "Client disputes the AV charge", idempotencyKey: key };
+    const body = { statementId: s.statement.id, milestoneId: s.balance.id, amount: 50000, reason: "Client disputes the AV charge", severity: "amount_discrepancy", idempotencyKey: key };
     s.dispute = expectStatus(await pmcm("POST", `/events/${E()}/billing-disputes`, body), 201);
     const replay = expectStatus(await pmcm("POST", `/events/${E()}/billing-disputes`, body), 201);
     expect(replay.id === s.dispute.id, "a retry opened a second dispute");
@@ -709,7 +711,7 @@ export async function run(ctx) {
   });
   await step("the client can raise a billing dispute themselves", async () => {
     need("statement");
-    const r = await clientCall("POST", `/events/${E()}/billing-disputes`, { statementId: s.statement.id, amount: 1000, reason: "I disagree with this charge", idempotencyKey: idem("cd") });
+    const r = await clientCall("POST", `/events/${E()}/billing-disputes`, { statementId: s.statement.id, amount: 1000, reason: "I disagree with this charge", severity: "amount_discrepancy", idempotencyKey: idem("cd") });
     if (r.status === 403) gap("only a PMCM admin can open a billing dispute (403 for the client); the client has no route to dispute a statement, PMCM must record it on their behalf");
     expect(r.status < 300, `${r.status}: ${msg(r)}`);
   });
