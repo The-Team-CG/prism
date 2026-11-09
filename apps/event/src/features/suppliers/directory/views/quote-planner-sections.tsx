@@ -1,8 +1,11 @@
-import { CalendarDays, Check, ChevronDown, Flag, Send, X } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, Flag, Send } from "lucide-react";
 
 import type { PrismSupplier, PrismSupplierCategory } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { Button } from "@prism/ui/components/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
+import { FieldDescription } from "@prism/ui/components/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { cx, label, money, RatingStars, tierLabel } from "@/features/pmcm-kit";
 import type { SupplierQuoteRow } from "@/features/pmcm-kit";
 import {
@@ -39,11 +42,16 @@ export function QuotePlannerToolbar({
           <p className="mt-1 text-sm text-muted-foreground">{rangeCopy.summary}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <select value={categoryId} onChange={(event) => onCategory(event.target.value)} className="h-10 min-w-0 max-w-full rounded-md border border-border bg-white px-3 text-sm">
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.name}</option>
-            ))}
-          </select>
+          <Select value={categoryId} onValueChange={onCategory}>
+            <SelectTrigger aria-label="Supplier category" className="h-10 w-56 min-w-0 max-w-full text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button type="button" disabled={busy || !canRequest} onClick={onRequest} className="h-10 gap-2 rounded-md px-3 text-sm font-bold">
             <Send className="size-4" /> Request quotes
           </Button>
@@ -163,17 +171,15 @@ function QuoteComparisonCard({
           <p className="mt-1 line-clamp-3 text-sm text-foreground">{quote.notes || "No notes"}</p>
         </div>
       </div>
-      <button
+      <Button
+        type="button"
         disabled={busy || closed}
         onClick={onSelect}
-        className={cx(
-          "mt-4 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md px-3 text-sm font-black disabled:opacity-60",
-          quoteSelectButtonClass(quote.status),
-        )}
+        className={cx("mt-4 h-10 w-full gap-2 text-sm font-black", quoteSelectButtonClass(quote.status))}
       >
         <Check className="size-4" />
         {quoteSelectLabel(quote.status)}
-      </button>
+      </Button>
     </article>
   );
 }
@@ -265,17 +271,12 @@ export function QuoteRequestModal({
   onSubmit: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-black/35 p-4">
-      <div className="flex max-h-[calc(100dvh-2rem)] w-full min-w-0 max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-xl">
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border p-5">
-          <div>
-            <p className="text-sm text-muted-foreground">Request quotes</p>
-            <h3 className="mt-1 text-xl font-black">{categoryName}</h3>
-          </div>
-          <button onClick={onClose} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted">
-            <X className="size-4" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0">
+        <DialogHeader className="shrink-0 gap-1 border-b border-border p-5 pr-12 text-left">
+          <DialogDescription>Request quotes</DialogDescription>
+          <DialogTitle className="truncate text-xl font-black">{categoryName}</DialogTitle>
+        </DialogHeader>
         <div className="min-h-0 space-y-5 overflow-y-auto p-5">
           <div className="space-y-2">
             {groups.map((group) => (
@@ -310,18 +311,17 @@ export function QuoteRequestModal({
             </label>
           ) : null}
         </div>
-        <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-border p-5">
-          <button onClick={onClose} className="h-10 rounded-md border border-border bg-white px-3 text-sm font-black">Cancel</button>
-          <button
-            disabled={busy || !canSubmit}
-            onClick={onSubmit}
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60"
-          >
-            <Send className="size-4" /> Send Requests
-          </button>
-        </div>
-      </div>
-    </div>
+        <DialogFooter className="shrink-0 flex-wrap items-center gap-2 border-t border-border p-5 sm:justify-between">
+          {!canSubmit ? <FieldDescription className="mr-auto">Select at least one available supplier to send requests.</FieldDescription> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
+            <Button type="button" disabled={busy || !canSubmit} onClick={onSubmit}>
+              <Send className="size-4" /> Send Requests
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -140,7 +140,16 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
         await expect(rows.first()).toContainText(`${supplierPrefix} 00`);
         await expect(page.getByRole('button', { name: 'Previous', exact: true })).toBeDisabled();
         await page.getByPlaceholder('Search suppliers', { exact: true }).fill(supplierPrefix);
-        await page.locator('#supplier-page-size').selectOption('50');
+        await expect(rows).toHaveCount(25);
+        await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeEnabled();
+        await page.locator('#supplier-page-size').focus();
+        await page.keyboard.press('Enter');
+        // Radix moves focus onto the current option after the list opens; keys sent before that are lost.
+        await expect(page.getByRole('option', { name: '25', exact: true })).toBeFocused();
+        await page.keyboard.press('ArrowDown');
+        await expect(page.getByRole('option', { name: '50', exact: true })).toBeFocused();
+        await page.keyboard.press('Enter');
+        await expect(page.locator('#supplier-page-size')).toHaveText('50');
         await expect(rows).toHaveCount(26);
         await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeDisabled();
         records.push({ app, template: 'supplier pagination controls', path: '/dashboard/suppliers', result: 'passed' });

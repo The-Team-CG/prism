@@ -115,7 +115,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('tab', { name: /^Billing sources/ }).click();
       const billing = pmcm.page.getByRole('region', { name: 'Billing source', exact: true });
       await billing.getByLabel('Amount (PHP)', { exact: true }).fill('105000');
-      await billing.getByLabel('Proposal evidence', { exact: true }).selectOption({ index: 1 });
+      await billing.getByLabel('Proposal evidence', { exact: true }).click();
+      await pmcm.page.getByRole('option').filter({ hasNotText: 'Select a proposal document' }).first().click();
       const sourceCreation = pmcm.page.waitForResponse(response => response.url().endsWith(`/events/${eventId}/billing-source`) && response.request().method() === 'POST');
       await billing.getByRole('button', { name: 'Create billing source', exact: true }).click();
       const createdSource = await sourceCreation;
@@ -178,11 +179,12 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
     await test.step('PMCM requests a supplier quote; the applicant supplier replies; PMCM selects the quote', async () => {
       await pmcm.page.goto(path('suppliers'));
       await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
-      await pmcm.page.locator('select').first().selectOption('supcat_digital_registration');
+      await pmcm.page.getByRole('combobox', { name: 'Supplier category', exact: true }).click();
+      await pmcm.page.getByRole('option', { name: 'Digital Registration', exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Request quotes', exact: true }).click();
       // The dialog preselects every free Tier 1 supplier in the category, which grows when other journeys share this
       // database (the route sweep adds 26). Clear them all so the request goes only to the applicant under test.
-      const preselected = pmcm.page.locator('div.fixed.inset-0').getByRole('checkbox', { checked: true });
+      const preselected = pmcm.page.getByRole('dialog').getByRole('checkbox', { checked: true });
       while (await preselected.count()) await preselected.first().uncheck();
       await pmcm.page.getByRole('checkbox', { name: new RegExp(supplierCompany) }).check();
       await pmcm.page.getByLabel('Quote deadline', { exact: true }).fill(quoteDeadline);

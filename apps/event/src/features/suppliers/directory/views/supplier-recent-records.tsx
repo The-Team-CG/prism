@@ -1,6 +1,7 @@
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismPmcmSupplierRecordsPage } from "@prism/types";
 import { Activity, FileCheck2, MessageSquareText, Star } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import styles from "./supplier-workspace.module.css";
 
 function recordKindLabel(kind: string) {
@@ -33,14 +34,16 @@ export function SupplierRecentRecords({
     <section aria-labelledby="supplier-records-heading" className="space-y-2">
       <div className="flex items-center justify-between gap-3">
         <h3 id="supplier-records-heading" className="text-xs font-semibold">Activity trend</h3>
-        <label className="text-xs text-muted-foreground">
-          <span className="sr-only">Recent records period</span>
-          <select value={period} onChange={(event) => onPeriodChange(event.target.value as typeof period)} className="h-7 rounded-md border border-input bg-background px-2">
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
-            <option value="all">All time</option>
-          </select>
-        </label>
+        <Select value={period} onValueChange={(next) => onPeriodChange(next as typeof period)}>
+          <SelectTrigger aria-label="Recent records period" className="h-7 w-36 min-w-0 bg-background text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="30d">Last 30 days</SelectItem>
+            <SelectItem value="90d">Last 90 days</SelectItem>
+            <SelectItem value="all">All time</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       {error ? <div role="alert" className="flex items-center justify-between gap-3 rounded-md bg-destructive/5 p-3 text-sm"><span>{error}</span><button type="button" onClick={onRetry} className="font-medium text-primary">Retry</button></div> : null}
       {loading && !records ? <p className="text-sm text-muted-foreground">Loading supplier records…</p> : null}

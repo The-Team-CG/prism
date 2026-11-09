@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { parseContract, raiseClientSupplierRiskSchema, SUPPLIER_RESPONSE_WINDOW_HOURS, type PrismClientOwnedSupplier, type PrismUnresponsiveSupplier } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
 import { supplierFollowUpsRepository } from "../data/supplier-follow-ups-repository";
 
 /** FR-76: suppliers that have not answered a quote request within the response window, with a one-tap Viber follow-up. */
@@ -65,7 +66,7 @@ export function ClientOwnedSuppliersPanel({ eventId }: { eventId: string }) {
             {item.riskWarning ? <p className="text-xs text-destructive">Risk: {item.riskWarning} ({item.riskRaisedBy})</p> : null}
             <div className="mt-2 flex gap-2">
               <input aria-label={`Risk warning for ${item.supplierName}`} value={warnings[item.id] ?? ""} onChange={(event) => setWarnings((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="e.g. No ingress pass yet" className="grow rounded-md border border-border bg-background px-2 py-1 text-xs" />
-              <button type="button" disabled={!(warnings[item.id] ?? "").trim()} onClick={() => void raise(item.id)} className="rounded-md border border-border px-2 py-1 text-xs font-semibold disabled:opacity-50">Raise risk</button>
+              <Button type="button" variant="outline" size="sm" disabled={!(warnings[item.id] ?? "").trim()} onClick={() => void raise(item.id)}>Raise risk</Button>
             </div>
           </li>
         ))}

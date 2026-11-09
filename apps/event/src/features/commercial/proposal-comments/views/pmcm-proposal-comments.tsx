@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@prism/ui/components/button";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { useProposalComments } from "../view-models/use-proposal-comments";
 
@@ -24,7 +25,7 @@ export function PmcmProposalComments({ eventId }: { eventId: string }) {
       <form className="mt-4 grid gap-2" onSubmit={(event) => { event.preventDefault(); void vm.reply(); }}>
         <label className="text-sm font-semibold" htmlFor="pmcm-proposal-reply">Reply to the client</label>
         <textarea id="pmcm-proposal-reply" rows={3} maxLength={2000} value={vm.draft} onChange={(event) => vm.setDraft(event.target.value)} className="rounded-md border border-border bg-background p-3 text-sm" />
-        <div><button type="submit" disabled={vm.busy || !vm.draft.trim()} className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">{vm.busy ? "Sending…" : "Send reply"}</button></div>
+        <div><Button type="submit" disabled={vm.busy || !vm.draft.trim()}>{vm.busy ? "Sending…" : "Send reply"}</Button></div>
       </form>
     </section>
   );

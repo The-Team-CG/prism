@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import type { PrismFileRequirementItem } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import {
   draftFromFileRequirementItem,
   emptyFileRequirementDraft,
@@ -61,14 +62,17 @@ export function FileRequirementEditorForm({
           <input required maxLength={120} value={draft.label} onChange={(event) => update("label", event.target.value)} className={FIELD_CLASS} />
         </label>
       ) : null}
-      <label className="text-sm">
-        Owner
-        <select value={draft.ownerRole} onChange={(event) => update("ownerRole", event.target.value)} className={FIELD_CLASS}>
-          {FILE_REQUIREMENT_ROLE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-      </label>
+      <div className="text-sm">
+        <span id="file-requirement-owner">Owner</span>
+        <Select value={draft.ownerRole} onValueChange={(next) => update("ownerRole", next)}>
+          <SelectTrigger aria-labelledby="file-requirement-owner" className="mt-1 h-10 w-full min-w-0 bg-background px-3 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {FILE_REQUIREMENT_ROLE_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="text-sm">
         <label className="text-sm" htmlFor="file-requirement-due-date">Due date</label>
         <DatePicker id="file-requirement-due-date" value={draft.dueDate} onValueChange={(value) => update("dueDate", value)} aria-label="Due date" className={FIELD_CLASS} />
