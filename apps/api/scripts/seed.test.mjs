@@ -78,3 +78,22 @@ test('Windows/Linux newline variants are reported separately from changed migrat
   assert.deepEqual(compareMigrationHistory(local, applied).lineEndingOnly, ['migration']);
   assert.equal(compareMigrationHistory(new Map([['migration', migrationChecksums('SELECT 2;\n')]]), applied).issues[0].issue, 'checksum-mismatch');
 });
+
+test('history profile: five deterministic years covering every lifecycle stage, with unique keys and the CLI profile', async () => {
+  const { historyEvents, historyRows, historyStage, HISTORY_WINDOW } = await import('../src/fixtures/history-rows.mjs');
+  const events = historyEvents();
+  const span = Math.max(...events.map((event) => event.days)) - Math.min(...events.map((event) => event.days));
+  assert.ok(span >= 365 * (HISTORY_WINDOW.monthsBack + HISTORY_WINDOW.monthsAhead) / 12 - 40, 'covers about five years');
+  const stages = new Set(events.map((event) => event.stage));
+  for (const stage of ['archived', 'closure', 'live', 'planning', 'briefing', 'inquiry', 'declined']) assert.ok(stages.has(stage), `has ${stage} events`);
+  assert.equal(events.filter((event) => event.days === 0).length, 2, 'two live events today');
+  assert.ok(events.some((event) => event.days === 0 && event.client.email === 'ana@ayala.test'), 'the client fixture account has a live event');
+  assert.deepEqual([historyStage(-46), historyStage(-1), historyStage(0), historyStage(75), historyStage(200), historyStage(201)], ['archived', 'closure', 'live', 'planning', 'briefing', 'inquiry']);
+  const keys = historyRows.map((row) => `${row.table}/${row.select.split(',')[0]}`);
+  assert.equal(new Set(keys).size, keys.length, 'every seeded key is unique');
+  assert.ok(historyRows.every((row) => row.identity.every((column) => row.columns.includes(column))), 'identity columns are always seeded');
+  assert.ok(historyRows.every((row) => !/\bNULL\b/.test(row.select)), 'no untyped NULL reaches the seed SELECT');
+  const again = await import(`../src/fixtures/history-rows.mjs?again=${Date.now()}`);
+  assert.deepEqual(again.historyRows.map((row) => row.select), historyRows.map((row) => row.select), 'the same rows every run');
+  assert.equal(parseSeedOptions(['--profile', 'history', '--scenario-date', '2026-11-11']).profile, 'history');
+});

@@ -441,7 +441,7 @@ export function EventCommandLanding({ onSignedIn }: { onSignedIn: (session: Even
       </footer>
 
       {vm.accessOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-[rgba(23,18,22,0.55)] p-5 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)] place-items-center bg-[rgba(23,18,22,0.55)] p-5 backdrop-blur-sm">
           <section id="event-sign-in" className="w-full max-w-md rounded-lg border border-border bg-card p-5 text-foreground shadow-[0_28px_90px_rgba(0,0,0,0.28)]">
             <form onSubmit={submit}>
               <div className="flex items-start justify-between gap-4">

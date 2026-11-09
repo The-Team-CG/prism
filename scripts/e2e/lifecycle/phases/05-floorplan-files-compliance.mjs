@@ -738,6 +738,9 @@ export async function run(ctx) {
   await step("a third event is ready for postponement and cancellation", async () => {
     s.dc = await ctx.newEvent({ label: "FFC Decision" });
     s.dcClient = await s.dc.as();
+    // The cancellation fee is 10-15% of the issued proposal; a PHP 250,000 proposal makes the PHP 25,000 fee below valid.
+    const estimate = expectStatus(await http("POST", `/events/${s.dc.eventId}/cost-estimates`, { token: s.admin, body: { budgetAmount: 250000, lines: [{ category: "Venue", description: "Event scope", quantity: 1, unitAmount: 250000 }], notes: "" } }), 201);
+    expectStatus(await http("POST", `/events/${s.dc.eventId}/proposal/versions`, { token: s.admin, body: { costEstimateId: estimate.id, title: "Decision event proposal", summary: "Agreed scope", revisionNote: "" } }), 201);
   });
   const dc = () => `/events/${s.dc.eventId}`;
   await step("decisions validate impact review, dates and role", async () => {
@@ -782,7 +785,9 @@ export async function run(ctx) {
   });
   await step("cancelling or postponing is also reachable from a portal screen", async () => {
     const source = readFileSync(new URL("../../../../apps/event/src/features/change-management/register/views/record-decision-form.tsx", import.meta.url), "utf8");
-    expect(source.includes("cancellationFeeAmount"), "PMCM decision screen does not expose fee confirmation");
+    const rules = readFileSync(new URL("../../../../apps/event/src/features/change-management/register/model/change-register-rules.ts", import.meta.url), "utf8");
+    // The form takes the fee in pesos; its rules turn it into the cancellationFeeAmount the API confirms.
+    expect(source.includes("cancellationFeePesos") && rules.includes("cancellationFeeAmount"), "PMCM decision screen does not expose fee confirmation");
   });
 
   // ---------------------------------------------------------------- notifications

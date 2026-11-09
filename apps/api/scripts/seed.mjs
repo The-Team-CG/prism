@@ -14,7 +14,7 @@ export function parseSeedOptions(args) {
   } });
   if (values.help) return values;
   if (values['dry-run'] && values.verify) throw new Error('Choose --dry-run or --verify.');
-  if (!values['show-target'] && !['accounts', 'portal-uat'].includes(values.profile)) throw new Error('Choose --profile accounts or portal-uat.');
+  if (!values['show-target'] && !['accounts', 'portal-uat', 'history'].includes(values.profile)) throw new Error('Choose --profile accounts, portal-uat or history.');
   return values;
 }
 
@@ -29,7 +29,7 @@ function passwordProvider(env) {
 export async function main(args = process.argv.slice(2)) {
   const options = parseSeedOptions(args);
   if (options.help) {
-    console.log('db:seed -- --profile accounts|portal-uat --env-file <absolute-private-file> [--scenario-date YYYY-MM-DD] [--dry-run|--verify]\nUse --show-target to inspect/pin the configured target without connecting. See docs/runbooks/environments-and-fixtures.md.');
+    console.log('db:seed -- --profile accounts|portal-uat|history --env-file <absolute-private-file> [--scenario-date YYYY-MM-DD] [--dry-run|--verify]\nUse --show-target to inspect/pin the configured target without connecting. See docs/runbooks/environments-and-fixtures.md.');
     return;
   }
   const env = loadSeedEnvironment(options['env-file'] ?? process.env.PRISM_ENV_FILE);
@@ -37,7 +37,7 @@ export async function main(args = process.argv.slice(2)) {
   console.log(`Target: ${target.database.target}/${target.name}; fingerprint=${target.fingerprint}; environment=${env.PRISM_SEED_ENV ?? 'unset'}`);
   if (options['show-target']) return;
   assertSeedTarget(env, target);
-  const anchor = options.profile === 'portal-uat' ? scenarioAnchor(options['scenario-date']) : '2000-01-01T00:00:00+08:00';
+  const anchor = options.profile === 'accounts' ? '2000-01-01T00:00:00+08:00' : scenarioAnchor(options['scenario-date']);
   const mode = options.verify ? 'verify' : options['dry-run'] ? 'dry-run' : 'apply';
   const pool = new Pool({ connectionString: target.database.connectionString, ssl: target.database.ssl, max: 1, connectionTimeoutMillis: 10000 });
   try {

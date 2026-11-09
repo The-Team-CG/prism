@@ -60,7 +60,7 @@ export function EventArchiveSearchView() {
           <EmptyState icon={Archive} title="No archived events" description={vm.emptyCopy ?? "Archived events will appear here after close."} />
         ) : (
           <div className="divide-y divide-border rounded-xl border border-border">
-            {vm.hits.map((hit) => (
+            {vm.visible.map((hit) => (
               <label key={hit.id} className="flex cursor-pointer flex-wrap items-start justify-between gap-3 px-4 py-3">
                 <span className="flex items-start gap-3">
                   <input
@@ -82,6 +82,11 @@ export function EventArchiveSearchView() {
             ))}
           </div>
         )}
+        {vm.remaining > 0 ? (
+          <Button variant="outline" className="h-9 rounded-lg font-bold" onClick={vm.showMore}>
+            Show {Math.min(vm.remaining, 25)} more of {vm.remaining}
+          </Button>
+        ) : null}
         {vm.hits.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">{archiveComparisonHint(vm.selectedIds)}</p>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ArchiveSearchFilters, PrismArchiveComparisonRow, PrismArchivedEventSearchHit } from "@prism/types";
 import { archiveSearchRepository } from "../data/archive-search-repository";
-import { archiveSearchEmptyCopy } from "../model/archive-search-rules";
+import { ARCHIVE_PAGE_SIZE, archiveSearchEmptyCopy, visibleArchiveHits } from "../model/archive-search-rules";
 import { canCompareArchivedEvents, toggleArchiveComparisonSelection } from "../model/archive-comparison-rules";
 
 export function useEventArchiveSearchViewModel() {
@@ -13,6 +13,7 @@ export function useEventArchiveSearchViewModel() {
   const [clientName, setClientName] = useState("");
   const [month, setMonth] = useState("");
   const [hits, setHits] = useState<PrismArchivedEventSearchHit[]>([]);
+  const [shown, setShown] = useState(ARCHIVE_PAGE_SIZE);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -24,6 +25,7 @@ export function useEventArchiveSearchViewModel() {
     setError(null);
     try {
       setHits(await archiveSearchRepository.search(filters));
+      setShown(ARCHIVE_PAGE_SIZE);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not search the archive.");
     } finally {
@@ -69,6 +71,8 @@ export function useEventArchiveSearchViewModel() {
     month,
     setMonth,
     hits,
+    ...visibleArchiveHits(hits, shown),
+    showMore: () => setShown((current) => current + ARCHIVE_PAGE_SIZE),
     busy,
     error,
     emptyCopy: archiveSearchEmptyCopy({ venue, eventType, eventName, clientName, month }, hits),

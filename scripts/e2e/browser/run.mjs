@@ -131,7 +131,9 @@ export async function main(args = process.argv.slice(2)) {
     console.log(`Browser acceptance: disposable ${dbName}; test inbox ${values.PRISM_MAILPIT_URL}`);
     const apiDir = join(root, 'apps/api');
     await run(join(root, 'node_modules/prisma/build/index.js'), ['migrate', 'deploy'], apiDir, env, 'migrate');
-    for (const profile of ['accounts', 'portal-uat']) await run(join(apiDir, 'scripts/seed.mjs'), ['--profile', profile, '--scenario-date', new Date().toISOString().slice(0, 10), '--env-file', envFile], apiDir, env, `seed-${profile}`);
+    // BROWSER_SEED_HISTORY=1 adds the five-year history profile, so lists, calendars and archives look lived in.
+    const profiles = ['accounts', 'portal-uat', ...(process.env.BROWSER_SEED_HISTORY === '1' ? ['history'] : [])];
+    for (const profile of profiles) await run(join(apiDir, 'scripts/seed.mjs'), ['--profile', profile, '--scenario-date', new Date().toISOString().slice(0, 10), '--env-file', envFile], apiDir, env, `seed-${profile}`);
     if (execution.buildApi) await run(createRequire(join(apiDir, 'package.json')).resolve('@nestjs/cli/bin/nest.js'), ['build', 'api', '--path', 'tsconfig.e2e.json'], apiDir, env, 'build-api');
     for (const asset of ['kernel/database/db-connection-config.cjs', 'kernel/database/migration-ledger-compatibility.cjs', 'modules/identity-access/application/auth/password-hash.cjs']) {
       const destination = join(apiDir, '.e2e-dist/apps/api/src', asset);
