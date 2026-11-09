@@ -62,7 +62,7 @@ jobs:
           throw new Error('Isolated API did not become healthy');
           JS
       - run: node --env-file="$PRISM_ENV_FILE" scripts/e2e/lifecycle/run.mjs
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: lifecycle-report
