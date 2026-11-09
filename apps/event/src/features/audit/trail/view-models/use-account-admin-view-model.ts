@@ -8,6 +8,15 @@ import { inviteStaffAccount, type StaffInvitationDraft } from "../use-cases/invi
 
 type AccountFeedback = InvitationOutcomeFeedback & { userId: string };
 
+/** An account action that waits for the admin's confirmation before it runs. */
+export type PendingAccountAction = { kind: "unlock" | "reset-two-factor"; user: PrismUser };
+
+export function pendingActionCopy({ kind, user }: PendingAccountAction) {
+  return kind === "unlock"
+    ? { title: `Unlock ${user.name}'s account?`, description: "This clears the lock and the failed-attempt count.", confirmLabel: "Unlock account" }
+    : { title: `Reset two-factor for ${user.name}?`, description: "Their open sessions end and they set up two-factor again at next sign-in.", confirmLabel: "Reset two-factor" };
+}
+
 const emptyDraft: StaffInvitationDraft = { name: "", email: "", organization: "", role: "coordinator" };
 
 function errorMessage(err: unknown, fallback: string) {
@@ -18,6 +27,7 @@ export function useAccountAdminViewModel({ onAccountsChanged }: { onAccountsChan
   const repository = useMemo(() => createAuditTrailRepository(), []);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [accountFeedback, setAccountFeedback] = useState<AccountFeedback | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAccountAction | null>(null);
   const [draft, setDraft] = useState<StaffInvitationDraft>(emptyDraft);
   const [inviteBusy, setInviteBusy] = useState(false);
   const [inviteFeedback, setInviteFeedback] = useState<InvitationOutcomeFeedback | null>(null);
@@ -36,17 +46,21 @@ export function useAccountAdminViewModel({ onAccountsChanged }: { onAccountsChan
     }
   }, [onAccountsChanged]);
 
-  const unlockAccount = (user: PrismUser) => {
-    if (!window.confirm(`Unlock ${user.name}'s account? This clears the lock and the failed-attempt count.`)) return;
-    return runAccountAction(user, async () => {
-      await repository.unlockUser(user.id);
-      return { tone: "success", text: "Account unlocked." };
-    });
-  };
+  const requestUnlock = (user: PrismUser) => setPendingAction({ kind: "unlock", user });
+  const requestResetTwoFactor = (user: PrismUser) => setPendingAction({ kind: "reset-two-factor", user });
+  const cancelPendingAction = () => setPendingAction(null);
 
-  const resetTwoFactor = (user: PrismUser) => {
-    if (!window.confirm(`Reset two-factor for ${user.name}? Their open sessions end and they set up two-factor again at next sign-in.`)) return;
+  /** Runs the action the admin just confirmed, and closes the confirmation before it starts. */
+  const confirmPendingAction = () => {
+    const action = pendingAction;
+    setPendingAction(null);
+    if (!action) return;
+    const { user } = action;
     return runAccountAction(user, async () => {
+      if (action.kind === "unlock") {
+        await repository.unlockUser(user.id);
+        return { tone: "success", text: "Account unlocked." };
+      }
       await repository.resetUserTwoFactor(user.id);
       return { tone: "success", text: "Two-factor reset. Open sessions were ended." };
     });
@@ -80,8 +94,11 @@ export function useAccountAdminViewModel({ onAccountsChanged }: { onAccountsChan
   return {
     busyUserId,
     accountFeedback,
-    unlockAccount,
-    resetTwoFactor,
+    pendingAction,
+    requestUnlock,
+    requestResetTwoFactor,
+    cancelPendingAction,
+    confirmPendingAction,
     resendInvitation,
     draft,
     updateDraft,
