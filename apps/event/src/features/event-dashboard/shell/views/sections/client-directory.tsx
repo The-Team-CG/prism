@@ -2,13 +2,25 @@
 
 import { formatPortalDate } from "@prism/ui/format-date";
 import { ArrowLeft, ChevronRight, CircleUserRound, Search } from "lucide-react";
-import { EmptyState } from "@prism/ui/components/empty-state";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { RouteLink, label, useListFilter } from "@/features/pmcm-kit";
 import type { EventClientRecord } from "../../model/event-dashboard-selectors";
 import { CLIENT_DOSSIER_VIEWS, clientDossierHref, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 import { portalHref } from "@prism/ui/portal-path";
 import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@prism/ui/components/tooltip";
+import type { ReactElement } from "react";
+
+/** One line that never wraps mid-word: the value is truncated, and the full text shows on hover and focus. */
+function FullValueTooltip({ value, children }: { value: string; children: ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent className="max-w-80 break-all">{value}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 const CLOSED_EVENT_STATUSES = ["completed", "cancelled", "closed"];
 const STATUS_ORDER: Record<string, number> = { active: 0, prospect: 1, "past client": 2 };
@@ -85,9 +97,15 @@ export function ClientDirectory({
       </div>
       <div className="overflow-hidden rounded-lg border border-border bg-card">
         {rows.length === 0 ? (
-          <div className="p-6">
-            <EmptyState icon={CircleUserRound} title={needle ? "No client matches" : "No clients yet"} description={needle ? "Try a company, a contact's name or an email address." : "Clients appear here once PMCM logs or receives an inquiry."} />
-          </div>
+          <Empty className="border-0">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <CircleUserRound />
+              </EmptyMedia>
+              <EmptyTitle>{needle ? "No client matches" : "No clients yet"}</EmptyTitle>
+              <EmptyDescription>{needle ? "Try a company, a contact's name or an email address." : "Clients appear here once PMCM logs or receives an inquiry."}</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <>
             <div aria-hidden="true" className={`hidden border-b border-border px-4 py-2.5 text-xs text-muted-foreground ${ROW_GRID}`}>
@@ -211,7 +229,11 @@ export function ClientDossier({
           {facts.map((fact) => (
             <div key={fact.label}>
               <dt className="text-xs text-muted-foreground">{fact.label}</dt>
-              <dd className="mt-0.5 break-words font-semibold text-foreground">{fact.value}</dd>
+              <dd className="mt-0.5 min-w-0 font-semibold text-foreground">
+                <FullValueTooltip value={fact.value}>
+                  <span className="block truncate">{fact.value}</span>
+                </FullValueTooltip>
+              </dd>
             </div>
           ))}
         </dl>
@@ -355,7 +377,9 @@ function DossierContacts({ client }: { client: EventClientRecord }) {
           {contacts.map((contact) => (
             <li key={contact.email} className="px-4 py-3 text-sm">
               <span className="block font-semibold text-foreground">{contact.name}</span>
-              <a href={`mailto:${contact.email}`} className="break-all text-primary hover:text-primary/80">{contact.email}</a>
+              <FullValueTooltip value={contact.email}>
+                <a href={`mailto:${contact.email}`} className="block truncate text-primary hover:text-primary/80">{contact.email}</a>
+              </FullValueTooltip>
             </li>
           ))}
         </ul>

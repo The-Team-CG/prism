@@ -369,7 +369,7 @@ export function routeShellCopy(
       description: event
         ? [sectionLabel, `${event.clientName} · ${formatPortalDate(event.eventDate)}`].filter(Boolean).join(" · ")
         : "Select an event or accept an inquiry to begin.",
-      breadcrumb: sectionLabel ? [sectionLabel] : [],
+      breadcrumb: ["Events", event?.eventName, sectionLabel].filter((part): part is string => Boolean(part)),
       documentTitle: pageDocumentTitle([sectionLabel, event?.eventName]),
     };
   }
