@@ -19,7 +19,6 @@
     "@prism/tokens": "*",
     "@prism/types": "*",
     "@prism/ui": "*",
-    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.70.0",
     "next": "^16.4.5",

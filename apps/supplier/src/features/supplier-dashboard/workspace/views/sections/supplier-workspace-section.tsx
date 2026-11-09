@@ -3,7 +3,7 @@
 import type { FormEvent } from "react";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import type { PrismAuthenticatedSession } from "@prism/types";
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import type {

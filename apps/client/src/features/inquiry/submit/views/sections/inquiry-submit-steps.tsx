@@ -17,10 +17,10 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { Textarea } from "@/app/components/ui/textarea";
+import { Alert, AlertDescription, AlertTitle } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
+import { Textarea } from "@prism/ui/components/textarea";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { INQUIRY_SEATING_ARRANGEMENTS, INQUIRY_STAGE_POSITIONS } from "@prism/types";
 import { formatInquiryDate, formatInquiryPhone, inquiryEventTypeLabel, inquirySourceLabel } from "../../model/inquiry-submit-rules";

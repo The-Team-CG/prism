@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { PrismDashboardShell } from "@prism/ui";
 import { DashboardSkeleton } from "../dashboard-tabs";
 import {

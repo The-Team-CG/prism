@@ -1,8 +1,8 @@
 import { Eye, EyeOff } from "lucide-react";
 import { PRISM_AUTH_INPUT_CLASS_NAME } from "@prism/ui/auth-shell";
-import { Field } from "@/app/components/ui/field";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
+import { Field } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Label } from "@prism/ui/components/label";
 import { newPasswordChecks, passwordsMatch } from "../model/new-password-rules";
 
 export interface SupplierNewPasswordFieldsProps {

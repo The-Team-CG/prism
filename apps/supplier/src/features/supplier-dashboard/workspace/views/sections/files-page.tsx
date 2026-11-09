@@ -1,9 +1,9 @@
 "use client";
 
 import { FileCheck2, FileText, ShieldCheck } from "lucide-react";
-import { Badge } from "@/app/components/ui/badge";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Badge } from "@prism/ui/components/badge";
+import { StatusBadge } from "@prism/ui/components/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { buildSupplierContractRequirements, formatDate } from "../../model/supplier-workspace-rules";
 import type { PrismAuthenticatedSession } from "@prism/types";
 import type { PrismSupplierReadinessBoard, PrismSupplierWorkflowWorkspace } from "@prism/types";

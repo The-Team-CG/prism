@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronDown, UserCheck } from "lucide-react";
 
 import type { PrismAcknowledgementReminderResult, PrismCoordinatorAssignment } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { describeReminderResult } from "../model/coordinators-desk-rules";
 import { Card, CardBody, CardHeader } from "./coordinator-desk-primitives";
 

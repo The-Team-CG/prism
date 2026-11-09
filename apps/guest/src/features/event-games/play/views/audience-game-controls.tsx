@@ -2,7 +2,7 @@
 
 import { useState, type ReactElement } from "react";
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 
 /** FR-40: guest controls for Live Poll, Word Cloud and Open Q and A. */
 type GameData = NonNullable<PrismGamePublicState["participant"]["gameData"]>;

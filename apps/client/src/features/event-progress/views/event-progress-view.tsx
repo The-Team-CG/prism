@@ -3,7 +3,7 @@
 import { WalletCards, FileText } from "lucide-react";
 import { PrismStatusTimeline } from "@prism/ui/blocks";
 import { PrismBillingMilestoneList } from "@prism/ui/blocks";
-import { PrismStatusBadge } from "@prism/ui/status-badge";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS } from "@prism/types";
 import { Card, CardHeader, CardBody } from "@/features/client-dashboard/shared/tab-ui";
 import { ClientActionGroup } from "@/features/client-dashboard/shared/client-action-group";
@@ -93,7 +93,7 @@ export function EventProgressView() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-bold text-foreground">{cp.label}</p>
-                        <PrismStatusBadge status={cp.status} />
+                        <StatusBadge status={cp.status} />
                       </div>
                       <p className="mt-0.5 text-xs text-muted-foreground">{cp.detail}</p>
                     </div>

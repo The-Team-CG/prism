@@ -3,8 +3,8 @@ import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { ClipboardCheck } from "lucide-react";
 import type { PrismPmcmSupplierReadinessItem } from "@prism/types";
-import { StatusBadge } from "@/app/components/ui/status-badge";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { StatusBadge } from "@prism/ui/components/status-badge";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { concernLabel, orderSupplierSchedule, scheduleConflictItemIds, setupStatusLabel } from "../model/pmcm-supplier-readiness-rules";
 import { usePmcmSupplierReadinessViewModel } from "../view-models/use-pmcm-supplier-readiness-view-model";

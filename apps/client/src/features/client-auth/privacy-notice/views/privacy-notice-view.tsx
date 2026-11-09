@@ -3,7 +3,7 @@
 import { PRISM_PRIVACY_NOTICE } from "@prism/types";
 import { PrismAuthShell } from "@prism/ui/auth-shell";
 import { PrismPrivacyNoticeContent } from "@prism/ui/privacy-notice";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { CLIENT_PORTAL_POINTS, CLIENT_PORTAL_STATEMENT } from "../../sign-in/model/client-portal-copy";
 import { usePrivacyNoticeViewModel } from "../view-models/use-privacy-notice-view-model";
 

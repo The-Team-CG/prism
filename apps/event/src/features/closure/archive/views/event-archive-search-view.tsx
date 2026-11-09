@@ -2,8 +2,8 @@
 
 import { Archive } from "lucide-react";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { Button } from "@/app/components/ui/button";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Button } from "@prism/ui/components/button";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { archiveComparisonHint } from "../model/archive-comparison-rules";
 import { useEventArchiveSearchViewModel } from "../view-models/use-event-archive-search-view-model";
 import { ArchiveComparisonTable } from "./archive-comparison-table";

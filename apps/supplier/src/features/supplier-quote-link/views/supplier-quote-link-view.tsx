@@ -3,10 +3,10 @@
 import type { FormEvent } from "react";
 import type { PrismSupplierQuoteRequestTokenDetail } from "@prism/types";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
-import { Alert } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Input } from "@/app/components/ui/input";
-import { Textarea } from "@/app/components/ui/textarea";
+import { Alert } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
+import { Textarea } from "@prism/ui/components/textarea";
 import { Card, CardBody, CardHeader } from "@/features/supplier-dashboard/workspace/views/sections/shell-ui";
 import { closedRequestReason, formatMoney, isQuoteLocked } from "@/features/supplier-dashboard/workspace/model/supplier-workspace-rules";
 import { QuoteReadOnly } from "@/features/supplier-dashboard/workspace/views/sections/request-quote-card";

@@ -28,8 +28,8 @@ import type * as React from "react";
 import type { PrismDefenseReadiness, PrismEvent, PrismFloorPlanDraft, PrismUserRole } from "@prism/types";
 import { PRISM_LIFECYCLE_STAGE_LABELS } from "@prism/types";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { label, pluralize } from "@/features/pmcm-kit";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { Card, CardBody } from "../../workspace/views/sections/shell-ui";
 import type { PrismOwnPrivacyRequest } from "@prism/types";
 import {

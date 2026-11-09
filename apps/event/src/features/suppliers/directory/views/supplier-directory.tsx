@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ChevronDown, Plus, Users } from "lucide-react";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
 import { SegmentedControl } from "@/features/pmcm-kit";
 import type { CreateSupplierInput, PrismSupplierCategory } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
@@ -172,12 +172,12 @@ function SupplierCreateForm({ form, categories, actionSaving, actionResult, onCh
 }) {
   return (
     <form onSubmit={onSubmit} className="grid gap-3 border-b border-border bg-card p-5 md:grid-cols-2">
-      <label className="grid gap-1 text-xs text-muted-foreground">Supplier name<input required value={form.name} onChange={(event) => onChange({ name: event.target.value })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground" /></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Category<select required value={form.categoryId} onChange={(event) => onChange({ categoryId: event.target.value })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground"><option value="">Choose category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Contact name<input value={form.contactName ?? ""} onChange={(event) => onChange({ contactName: event.target.value })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground" /></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Email<input type="email" value={form.email ?? ""} onChange={(event) => onChange({ email: event.target.value || undefined })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground" /></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Phone<input value={form.phone ?? ""} onChange={(event) => onChange({ phone: event.target.value || undefined })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground" /></label>
-      <label className="grid gap-1 text-xs text-muted-foreground">Initial tier<select value={form.tier ?? "pending_first_event"} onChange={(event) => onChange({ tier: event.target.value as CreateSupplierInput["tier"] })} className="h-9 rounded-md border border-border bg-input px-2 text-sm text-foreground"><option value="pending_first_event">Pending first event</option><option value="tier_1">Tier 1</option><option value="tier_2">Tier 2</option></select></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Supplier name<input required value={form.name} onChange={(event) => onChange({ name: event.target.value })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm text-foreground" /></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Category<select required value={form.categoryId} onChange={(event) => onChange({ categoryId: event.target.value })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm text-foreground"><option value="">Choose category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Contact name<input value={form.contactName ?? ""} onChange={(event) => onChange({ contactName: event.target.value })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm text-foreground" /></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Email<input type="email" value={form.email ?? ""} onChange={(event) => onChange({ email: event.target.value || undefined })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm text-foreground" /></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Phone<input value={form.phone ?? ""} onChange={(event) => onChange({ phone: event.target.value || undefined })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm text-foreground" /></label>
+      <label className="grid gap-1 text-xs text-muted-foreground">Initial tier<select value={form.tier ?? "pending_first_event"} onChange={(event) => onChange({ tier: event.target.value as CreateSupplierInput["tier"] })} className="h-9 rounded-md border border-border bg-input-background px-2 text-sm text-foreground"><option value="pending_first_event">Pending first event</option><option value="tier_1">Tier 1</option><option value="tier_2">Tier 2</option></select></label>
       <div className="flex flex-wrap items-center gap-3 md:col-span-2"><Button type="submit" disabled={actionSaving || Boolean(actionResult?.saved && actionResult.refreshFailed) || !form.name.trim() || !form.categoryId}>Create supplier</Button>{actionResult && !actionResult.saved ? <span role="alert" className="text-xs text-destructive">{actionResult.message}</span> : null}</div>
     </form>
   );

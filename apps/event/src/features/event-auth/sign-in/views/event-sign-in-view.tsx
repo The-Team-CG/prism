@@ -6,11 +6,11 @@ import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName }
 import { FormEvent, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
-import { Field } from "@/app/components/ui/field";
-import { Input } from "@/app/components/ui/input";
-import { Label } from "@/app/components/ui/label";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
+import { Field } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Label } from "@prism/ui/components/label";
 import { EVENT_PORTAL_POINTS, EVENT_PORTAL_STATEMENT } from "../model/event-portal-copy";
 import { signInSubmitLabel, twoFactorCopy } from "../model/event-sign-in-copy";
 import { eventSignInProgress } from "../model/event-sign-in-steps";

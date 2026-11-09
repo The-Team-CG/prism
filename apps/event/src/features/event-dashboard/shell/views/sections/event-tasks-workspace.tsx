@@ -5,7 +5,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
 } from "lucide-react";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { pluralize } from "@/features/pmcm-kit";
 import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEvent, PrismPmcmCommandInbox, PrismPmcmOcularVisit, ScheduleOcularVisitInput, WaiveOcularVisitInput } from "@prism/types";
 import { selectEventActionCenter } from "@/features/command-inbox/list/model/event-action-center";

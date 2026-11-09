@@ -3,8 +3,8 @@
 import { useId, useState } from "react";
 import { ReceiptText } from "lucide-react";
 import { createBillingSourceSchema, type CreateBillingSourceInput, type PrismBillingSource, type PrismBillingStatement, type PrismDocument } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { label, money } from "@/features/pmcm-kit";
 import { DEFAULT_MILESTONES, MAX_PAYMENT_MILESTONES, MIN_DOWNPAYMENT_PERCENT, checkPaymentTerms, type MilestoneDraft, type PaymentTermsCheck } from "../model/payment-terms-form";
 

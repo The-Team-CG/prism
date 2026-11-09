@@ -4,8 +4,8 @@ import { PostEventDeliverablesPanel } from "@/features/closure/deliverables/view
 
 
 import { FileCheck2, Gavel } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Button } from "@prism/ui/components/button";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { PAREPanel } from "@/features/pare/panel";
 import { Phase4Workspace, numberedClosureTabs, type CloseGateDestination, type ClosureStep, type ClosureTabId } from "@/features/closure/phase4";
 import { useListFilter } from "@/features/pmcm-kit";

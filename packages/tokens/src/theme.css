@@ -83,7 +83,7 @@
   --destructive-foreground: var(--prism-surface);
   --border: var(--prism-line);
   --border-strong: var(--prism-line-strong);
-  --input: var(--prism-surface);
+  --input: var(--prism-line-strong);
   --input-background: var(--prism-surface);
   --switch-background: var(--prism-muted-soft);
   --ring: var(--prism-magenta);

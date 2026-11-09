@@ -1,7 +1,7 @@
 "use client";
 
 import type { PrismEventGameDefinition, PrismEventGameTemplateConfiguration } from "@prism/types";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 
 /** FR-40: editor drafts for Live Poll, Word Cloud and Open Q and A. Fields stay strings until the shared schema parses them. */
 export type AudienceKind = "live-poll" | "word-cloud" | "open-qa";

@@ -1,7 +1,7 @@
 import { FileCheck2 } from "lucide-react";
 
 import type { PrismBriefing } from "@prism/types";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { Panel } from "@/features/pmcm-kit";
 
 export function EventBriefingPanel({ briefing }: { briefing: PrismBriefing | null }) {

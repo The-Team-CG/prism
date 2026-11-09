@@ -1,8 +1,8 @@
 "use client";
 
 import { ArrowRight, LogOut, RefreshCw, Sparkles } from "lucide-react";
-import { Alert, AlertDescription } from "@/app/components/ui/alert";
-import { Button } from "@/app/components/ui/button";
+import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { Button } from "@prism/ui/components/button";
 import { useEventGameLobbyViewModel } from "../view-models/use-event-game-lobby-view-model";
 
 type LobbyViewModel = ReturnType<typeof useEventGameLobbyViewModel>;

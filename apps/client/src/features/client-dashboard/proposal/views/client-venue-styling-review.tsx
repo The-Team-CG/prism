@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Check, MessageSquareText } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { Button } from "@prism/ui/components/button";
+import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
 import { BUDGET_EXPECTATION_LABELS, type PrismClientReviewItem } from "@prism/types";
 import { useClientReviewItems } from "../view-models/use-client-review-items";

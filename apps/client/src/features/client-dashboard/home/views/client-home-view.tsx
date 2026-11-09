@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FileSignature, Send } from "lucide-react";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { CLIENT_CONFORME_REVIEW_HREF } from "../../workspace/model/client-dashboard-navigation";
 import { selectClientAccountActions } from "../../workspace/model/client-dashboard-selectors";
 import { money } from "../../workspace/model/client-dashboard-view-rules";

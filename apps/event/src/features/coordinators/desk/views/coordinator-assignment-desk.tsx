@@ -16,9 +16,9 @@ import type {
   PrismEventOperatorDesignation,
 } from "@prism/types";
 import { COORDINATOR_ROLES, canonicalCoordinatorRole, hasEventDatePassed, prismCalendarDateKey } from "@prism/types";
-import { Avatar, AvatarFallback } from "@/app/components/ui/avatar";
-import { Button } from "@/app/components/ui/button";
-import { EmptyState } from "@/app/components/ui/empty-state";
+import { Avatar, AvatarFallback } from "@prism/ui/components/avatar";
+import { Button } from "@prism/ui/components/button";
+import { EmptyState } from "@prism/ui/components/empty-state";
 import { dateKey } from "@/features/pmcm-kit";
 import {
   activeAssignmentForRole,

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createSupplierReliabilityNoteSchema, createSupplierReviewSchema, type PrismPmcmSupplierEngagement, type PrismPmcmSupplierProfile, type PrismSupplierCategory } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import type { SupplierActionDraft } from "../use-cases/submit-supplier-action";
 import type { SupplierActionResult } from "../use-cases/save-supplier-action";
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BadgeCheck, CalendarCheck, FileSignature, MapPinned, ReceiptText, type LucideIcon } from "lucide-react";
-import { Button } from "@/app/components/ui/button";
+import { Button } from "@prism/ui/components/button";
 import { dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
 import { ClientAccountEventPicker } from "../../workspace/views/sections/client-account-event-picker";
 import { ClientFigureStrip, ClientListEmpty, ClientListRow, ClientListSection, type ClientRowTone } from "../../shared/client-list-ui";
