@@ -30,28 +30,40 @@ const finite = (value: unknown): value is number => typeof value === "number" &&
 const text = (value: unknown, fallback: string) => (typeof value === "string" ? value : fallback);
 const positive = (value: unknown): number | null => (finite(value) && value > 0 ? value : null);
 
-type PlacedItem = Record<string, unknown> & { x: number; y: number; w: number; h: number };
+type Box = { x: number; y: number; w: number; h: number };
 
-/** A visible object with a finite position and size; the PMCM can hide objects from the drawn plan. */
-function isPlaced(item: Record<string, unknown>): item is PlacedItem {
-  return finite(item.x) && finite(item.y) && finite(item.w) && finite(item.h) && item.hidden !== true;
+/**
+ * Where an object sits. Plans saved in the older canvas shape keep the box under `position` and `size`, which the
+ * approved plan already reads, so the review reads both shapes rather than dropping the older objects.
+ */
+function boxOf(item: Record<string, unknown>): Box | null {
+  const position = typeof item.position === "object" && item.position !== null ? (item.position as Record<string, unknown>) : {};
+  const size = typeof item.size === "object" && item.size !== null ? (item.size as Record<string, unknown>) : {};
+  const x = finite(item.x) ? item.x : finite(position.x) ? position.x : null;
+  const y = finite(item.y) ? item.y : finite(position.y) ? position.y : null;
+  const w = finite(item.w) ? item.w : finite(size.width) ? size.width : null;
+  const h = finite(item.h) ? item.h : finite(size.height) ? size.height : null;
+  return x === null || y === null || w === null || h === null ? null : { x, y, w, h };
 }
 
 /** The label the editor shows, falling back to the object's name. */
 const objectName = (item: Record<string, unknown>) => (typeof item.label === "string" && item.label ? item.label : text(item.name, ""));
 
+/** A drawable object; the PMCM can hide objects from the drawn plan, and those are left out. */
 function readObject(value: unknown): ReviewObject | null {
   if (typeof value !== "object" || value === null) return null;
   const item = value as Record<string, unknown>;
-  if (!isPlaced(item)) return null;
+  if (item.hidden === true) return null;
+  const box = boxOf(item);
+  if (!box) return null;
   return {
     id: typeof item.id === "string" ? item.id : undefined,
     name: objectName(item),
     kind: text(item.kind, "rect"),
-    x: item.x,
-    y: item.y,
-    w: Math.max(0, item.w),
-    h: Math.max(0, item.h),
+    x: box.x,
+    y: box.y,
+    w: Math.max(0, box.w),
+    h: Math.max(0, box.h),
     fill: text(item.fill, "#FFF4EC"),
     stroke: text(item.stroke, "#9060A0"),
   };

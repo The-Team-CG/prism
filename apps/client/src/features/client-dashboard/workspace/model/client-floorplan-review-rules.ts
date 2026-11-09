@@ -51,7 +51,7 @@ export function selectClientFloorPlanLayout(officialDraft: PrismFloorPlanDraft |
     isOfficial,
     draftApproved,
     approved: officialPlan?.status === "approved" || draftApproved,
-    showReview: officialPlan !== undefined && officialPlan.status !== "revision_requested",
+    showReview: officialPlan?.status === "in_review",
     showPreferenceCard: !officialPlan || activeDraft !== undefined,
   };
 }

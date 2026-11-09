@@ -74,7 +74,10 @@ describe("official floorplan first", () => {
     const preference = { ...draftWith("client_submitted"), id: "fpd_pref", sourceType: "client_preference" };
     expect(selectClientFloorPlanLayout(official, [preference])).toMatchObject({ officialPlan: official, activeDraft: preference, isOfficial: false, approved: true });
     // With nothing of the client's own to show, only the official plan appears.
-    expect(selectClientFloorPlanLayout(official, [])).toMatchObject({ showPreferenceCard: false, showReview: true });
+    expect(selectClientFloorPlanLayout(official, [])).toMatchObject({ showPreferenceCard: false });
+    // Approve and revise are offered only while the submitted version awaits the client; an approved plan has none.
+    expect(selectClientFloorPlanLayout(official, [])).toMatchObject({ showReview: false });
+    expect(selectClientFloorPlanLayout({ ...draftWith("in_review"), sourceType: "template" }, [])).toMatchObject({ showReview: true });
     // Before PMCM shares a plan, the page works from the client's preference alone.
     expect(selectClientFloorPlanLayout(undefined, [preference])).toMatchObject({ officialPlan: undefined, activeDraft: preference, showPreferenceCard: true });
   });

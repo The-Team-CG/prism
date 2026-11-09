@@ -56,7 +56,7 @@ type MoneyFormat = (amount: number) => string;
 function needsYouFigure(own: ClientDashboardAction[]): Figure {
   const blocking = own.filter((action) => action.blocking).length;
   if (blocking) return { label: "Needs you", value: own.length, detail: `${blocking} blocking now`, tone: "urgent" };
-  if (own.length) return { label: "Needs you", value: own.length, detail: "Nothing blocking", tone: "attention" };
+  if (own.length) return { label: "Needs you", value: own.length, detail: `${own.length === 1 ? "1 item" : `${own.length} items`}, none blocking`, tone: "attention" };
   return { label: "Needs you", value: 0, detail: "All caught up" };
 }
 
