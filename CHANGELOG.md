@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Dependencies updated to releases at least 3 days old: Next 16.4.5, TanStack Query 5.106.1, Tailwind CSS 4.3.4, lucide-react 1.70.0, Vitest 5.1.0, jsdom 31, the Anthropic SDK 1.6.0 and pptxgenjs 4.0.1 (proposal decks). Nest stays on 12.3.2 until Dependabot proposes a release past the cooldown.
+
 - Dependabot now runs (its config had a byte-order mark and never opened a pull request): weekly grouped npm updates (Nest, Prisma, Next and React, UI, TypeScript and lint, test and build tooling, production, development) on Monday 06:00 Manila with a 3-day release cooldown, and monthly grouped GitHub Actions and Node base-image updates. The Dockerfile names its Node image directly so Dependabot can update it.
 
 - Seeded calendar dates (event, briefing, milestone and schedule-day dates) are stored at UTC midnight like the dates the app writes. Before, `portal-uat` fixtures stored Manila midnight, so every seeded event showed one day early and the "live today" event read as ended. Existing seeded databases keep the old dates until reseeded.
