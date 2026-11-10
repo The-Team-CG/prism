@@ -5,6 +5,7 @@ import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { PrivacyRetentionPanel as RetentionReviewPanel } from "@/features/privacy/retention/views/privacy-retention-panel";
 import { Panel } from "@/features/pmcm-kit";
 import { usePrivacyConsoleViewModel } from "../view-models/use-privacy-console-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 import {
   PrivacyFilterBar,
   PrivacyLegalHoldControls,
@@ -18,7 +19,7 @@ export function PrivacyConsoleView() {
   const vm = usePrivacyConsoleViewModel();
 
   if (!vm.session) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading privacy console...</div>;
+    return <LoadingState label="Loading privacy console..." className="p-6" />;
   }
 
   return (

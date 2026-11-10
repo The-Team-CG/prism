@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { formatPortalDate, formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 import type { PrismHandoffBrief } from "@prism/types";
 import { useHandoffBriefViewModel } from "../view-models/use-handoff-brief-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 type Brief = PrismHandoffBrief;
 
@@ -52,7 +53,7 @@ export function HandoffBriefPanel({ eventId, defaultOpen = false }: { eventId: s
         </div>
       </header>
 
-      {vm.loading && !brief ? <p role="status" className="text-sm text-muted-foreground">Loading handoff brief…</p> : null}
+      {vm.loading && !brief ? <LoadingState label="Loading handoff brief…" /> : null}
       {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
 
       <div id="handoff-brief-body" hidden={!open} className="space-y-4">

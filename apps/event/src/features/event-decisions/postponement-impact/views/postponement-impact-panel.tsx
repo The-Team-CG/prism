@@ -2,6 +2,7 @@
 
 import { usePostponementImpactViewModel } from "../view-models/use-postponement-impact-view-model";
 import { rescheduleDateLabel } from "../model/postponement-impact-rules";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function PostponementImpactPanel({ eventId }: { eventId: string }) {
   const vm = usePostponementImpactViewModel(eventId);
@@ -13,7 +14,7 @@ export function PostponementImpactPanel({ eventId }: { eventId: string }) {
         <p className="mt-1 text-sm text-muted-foreground">Review the recorded coordinator conflict check for the latest event date change.</p>
       </header>
 
-      {vm.status === "loading" ? <p role="status" className="mt-4 text-sm text-muted-foreground">Loading postponement impact…</p> : null}
+      {vm.status === "loading" ? <LoadingState label="Loading postponement impact…" className="mt-4" /> : null}
       {vm.status === "error" ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <p role="alert" className="text-sm text-destructive">{vm.error}</p>
