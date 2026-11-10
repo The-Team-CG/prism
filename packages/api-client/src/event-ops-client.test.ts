@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PRISM_PRIVACY_NOTICE_VERSION, PrismContractError, type PrismEventOpsActorContext } from "@prism/types";
-import { PrismApiError, createEventOpsClient, normalizePrismApiProblem, prismRequest, toQueryString } from "./index";
+import { PRISM_API_OFFLINE_MESSAGE, PrismApiError, PrismApiOfflineError, createEventOpsClient, normalizePrismApiProblem, prismRequest, toQueryString } from "./index";
 
 let fixtureUuidSequence = 0;
 
@@ -27,6 +27,19 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("tells the user the API is unreachable when the request cannot be sent, through the client too, but lets a cancel through", async () => {
+    vi.stubGlobal("window", undefined);
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+
+    await expect(prismRequest("/health", { baseUrl: "https://api.example.test/api" })).rejects.toBeInstanceOf(PrismApiOfflineError);
+    await expect(client.events.list()).rejects.toThrow(PRISM_API_OFFLINE_MESSAGE);
+
+    const abort = new DOMException("The operation was aborted.", "AbortError");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw abort; }));
+    await expect(prismRequest("/health", { baseUrl: "https://api.example.test/api" })).rejects.toBe(abort);
+  });
+
   it("sends event-game host commands to the scoped API route with bearer auth", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ status: "live" }), { status: 200 }));
