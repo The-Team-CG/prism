@@ -50,7 +50,7 @@ export async function createTaskAndRefreshRoleView(input: {
   eventId: string;
   input: CreateEventDayTaskInput;
 }) {
-  await coordinatorsRepository.createEventDayTask(input.session, input.eventId, input.input);
+  await coordinatorsRepository.createEventDayTask(input.eventId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 
@@ -59,7 +59,7 @@ export async function createUrgentIssueAndRefreshRoleView(input: {
   eventId: string;
   input: CreateUrgentIssueInput;
 }) {
-  await coordinatorsRepository.createUrgentIssue(input.session, input.eventId, input.input);
+  await coordinatorsRepository.createUrgentIssue(input.eventId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 
@@ -69,7 +69,7 @@ export async function requestTaskReassignmentAndRefreshRoleView(input: {
   taskId: string;
   input: CreateEventTaskReassignmentInput;
 }) {
-  await coordinatorsRepository.requestTaskReassignment(input.session, input.eventId, input.taskId, input.input);
+  await coordinatorsRepository.requestTaskReassignment(input.eventId, input.taskId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 
@@ -79,7 +79,7 @@ export async function decideTaskReassignmentAndRefreshRoleView(input: {
   requestId: string;
   input: DecideEventTaskReassignmentInput;
 }) {
-  await coordinatorsRepository.decideTaskReassignment(input.session, input.eventId, input.requestId, input.input);
+  await coordinatorsRepository.decideTaskReassignment(input.eventId, input.requestId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 
@@ -91,7 +91,6 @@ export async function markAttendanceAndRefreshRoleView(input: {
   input: UpdateCoordinatorAttendanceInput;
 }) {
   await coordinatorsRepository.updateOwnAttendance(
-    input.session,
     input.eventId,
     input.assignmentId,
     input.input,
@@ -105,7 +104,7 @@ export async function blockOwnTaskAndRefreshRoleView(input: {
   taskId: string;
   input: BlockEventDayTaskInput;
 }) {
-  await coordinatorsRepository.blockOwnTask(input.session, input.eventId, input.taskId, input.input);
+  await coordinatorsRepository.blockOwnTask(input.eventId, input.taskId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 
@@ -114,7 +113,7 @@ export async function unblockOwnTaskAndRefreshRoleView(input: {
   eventId: string;
   taskId: string;
 }) {
-  await coordinatorsRepository.unblockOwnTask(input.session, input.eventId, input.taskId);
+  await coordinatorsRepository.unblockOwnTask(input.eventId, input.taskId);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 
@@ -124,7 +123,7 @@ export async function updateOwnTaskAndRefreshRoleView(input: {
   taskId: string;
   input: UpdateEventDayTaskInput;
 }) {
-  await coordinatorsRepository.updateOwnTask(input.session, input.eventId, input.taskId, input.input);
+  await coordinatorsRepository.updateOwnTask(input.eventId, input.taskId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 
@@ -134,7 +133,7 @@ export async function updateDelegatedAttendanceAndRefreshRoleView(input: {
   assignmentId: string;
   input: UpdateCoordinatorAttendanceInput;
 }) {
-  await coordinatorsRepository.updateDelegatedAttendance(input.session, input.eventId, input.assignmentId, input.input);
+  await coordinatorsRepository.updateDelegatedAttendance(input.eventId, input.assignmentId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 

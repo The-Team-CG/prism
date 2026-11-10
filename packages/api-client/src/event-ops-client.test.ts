@@ -76,6 +76,28 @@ describe("prismRequest", () => {
     expect(fetchMock.mock.calls.every(([, init]) => (init?.headers as Record<string, string>).Authorization === "Bearer token")).toBe(true);
   });
 
+  it("routes the event-day operator, escalation and issue commands to their API endpoints", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+
+    await client.liveOps.operatorDesignation("evt 1");
+    await client.liveOps.revokeOperator("evt 1");
+    await client.liveOps.escalateTask("evt 1", "task-1", { reason: "Late" } as never);
+    await client.liveOps.updateUrgentIssue("evt 1", "issue-1", { status: "resolved" } as never);
+    await client.liveOps.escalateUrgentIssue("evt 1", "issue-1", { reason: "Unsafe" } as never);
+
+    const calls = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${url}`);
+    expect(calls).toEqual([
+      "GET https://api.example.test/api/events/evt 1/operator-designation",
+      "DELETE https://api.example.test/api/events/evt 1/operator-designation",
+      "POST https://api.example.test/api/events/evt 1/event-day/tasks/task-1/escalate",
+      "PATCH https://api.example.test/api/events/evt 1/urgent-issues/issue-1",
+      "POST https://api.example.test/api/events/evt 1/urgent-issues/issue-1/escalate",
+    ]);
+  });
+
   it("sends every commercial command to its endpoint with the body the API expects", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));

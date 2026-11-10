@@ -12,6 +12,7 @@ import type {
   PrismEventHandoff,
   PrismEventEodReport,
   PrismHandoffBrief,
+  PrismEventOperatorDesignation,
 } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -80,6 +81,16 @@ export function createLiveOpsClient(
           actorPath(`/events/${eventId}/operator-designation`, actor),
           withBase(options, { method: "POST", body: input }),
         ),
+      operatorDesignation: (eventId, actor = {}) =>
+        prismRequest<PrismEventOperatorDesignation>(
+          actorPath(`/events/${eventId}/operator-designation`, actor),
+          withBase(options),
+        ),
+      revokeOperator: (eventId, actor = {}) =>
+        prismRequest<PrismEventOperatorDesignation>(
+          actorPath(`/events/${eventId}/operator-designation`, actor),
+          withBase(options, { method: "DELETE" }),
+        ),
       createHandoff: (eventId, input, actor = {}) =>
         prismRequest<PrismEventHandoff>(
           actorPath(`/events/${eventId}/handoffs`, actor),
@@ -140,6 +151,21 @@ export function createLiveOpsClient(
         prismRequest<PrismEventDayTask>(
           actorPath(`/events/${eventId}/event-day/tasks/${taskId}/unblock`, actor),
           withBase(options, { method: "POST" }),
+        ),
+      escalateTask: (eventId, taskId, input, actor = {}) =>
+        prismRequest<PrismEventDayTask>(
+          actorPath(`/events/${eventId}/event-day/tasks/${taskId}/escalate`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      updateUrgentIssue: (eventId, issueId, input, actor = {}) =>
+        prismRequest<PrismUrgentIssue>(
+          actorPath(`/events/${eventId}/urgent-issues/${issueId}`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      escalateUrgentIssue: (eventId, issueId, input, actor = {}) =>
+        prismRequest<PrismUrgentIssue>(
+          actorPath(`/events/${eventId}/urgent-issues/${issueId}/escalate`, actor),
+          withBase(options, { method: "POST", body: input }),
         ),
       listTaskReassignmentRequests: (eventId, actor = {}) =>
         prismRequest<PrismEventTaskReassignmentRequest[]>(
