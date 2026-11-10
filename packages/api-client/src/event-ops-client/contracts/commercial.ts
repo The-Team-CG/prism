@@ -1,4 +1,21 @@
 import type {
+  ClientMessageDraftRequest,
+  CommsDraftResult,
+  CreateClientReviewItemInput,
+  CreateCostEstimateInput,
+  CreateProposalCommentInput,
+  IssueProposalVersionInput,
+  PrismClientMessageTriggerState,
+  PrismClientReviewItem,
+  PrismCostEstimate,
+  PrismEstimateLineSource,
+  PrismEventProposalResponse,
+  PrismPreviousCostEstimate,
+  PrismProposalComment,
+  PrismProposalVersion,
+  ProposalDraftRequest,
+  ProposalDraftResponse,
+  SendClientMessageInput,
   ChangeSupplierTierInput,
   CreateAdditionalBillingInput,
   CreateBillingDisputeInput,
@@ -59,5 +76,18 @@ export interface EventOpsCommercialContract {
     compareQuoteRound(eventId: string, roundId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRoundComparison>;
     verifySupplierStatus(eventId: string, requestId: string, input: VerifySupplierStatusInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
     selectSupplierQuote(eventId: string, quoteId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierQuote>;
+    proposal(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventProposalResponse>;
+    createCostEstimate(eventId: string, input: CreateCostEstimateInput, actor?: EventOpsActorQuery): Promise<PrismCostEstimate>;
+    issueProposalVersion(eventId: string, input: IssueProposalVersionInput, actor?: EventOpsActorQuery): Promise<PrismProposalVersion>;
+    selectedQuoteLines(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEstimateLineSource[]>;
+    previousCostEstimates(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPreviousCostEstimate[]>;
+    draftProposalWording(input: ProposalDraftRequest, actor?: EventOpsActorQuery): Promise<ProposalDraftResponse>;
+    proposalComments(eventId: string, actor?: EventOpsActorQuery): Promise<PrismProposalComment[]>;
+    addProposalComment(eventId: string, input: CreateProposalCommentInput, actor?: EventOpsActorQuery): Promise<PrismProposalComment>;
+    clientReviewItems(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientReviewItem[]>;
+    issueClientReviewItem(eventId: string, input: CreateClientReviewItemInput, actor?: EventOpsActorQuery): Promise<PrismClientReviewItem>;
+    clientMessageTriggers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientMessageTriggerState[]>;
+    draftClientMessage(input: ClientMessageDraftRequest, actor?: EventOpsActorQuery): Promise<{ draft: CommsDraftResult; requestId: string; modelVersion: string }>;
+    sendClientMessage(input: SendClientMessageInput, actor?: EventOpsActorQuery): Promise<{ sent: boolean }>;
   };
 }
