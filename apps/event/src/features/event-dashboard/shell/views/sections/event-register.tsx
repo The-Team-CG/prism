@@ -102,7 +102,7 @@ export function EventRegister({ events, attention, onOpenEvent }: { events: Pris
               <TableRow>
                 <TableHead scope="col">Event</TableHead>
                 <TableHead scope="col" className="hidden sm:table-cell">Date</TableHead>
-                <TableHead scope="col">Stage</TableHead>
+                <TableHead scope="col" className="hidden sm:table-cell">Stage</TableHead>
                 <TableHead scope="col" className="hidden md:table-cell">Needs attention</TableHead>
                 <TableHead scope="col" className="w-28 text-right"><span className="sr-only">Open</span></TableHead>
               </TableRow>
@@ -117,16 +117,16 @@ export function EventRegister({ events, attention, onOpenEvent }: { events: Pris
                 {group.events.map((event) => (
                   <TableRow key={event.id}>
                     <TableCell className="min-w-0 whitespace-normal">
-                      <p className="font-semibold text-foreground">{event.eventName}</p>
+                      <p className="break-words font-semibold text-foreground">{event.eventName}</p>
                       <p className="text-xs text-muted-foreground">
                         {event.clientName}
                         {event.venue ? <> · {event.venue}</> : null}
-                        <span className="sm:hidden"> · {formatPortalDate(event.eventDate)}</span>
+                        <span className="sm:hidden"> · {formatPortalDate(event.eventDate)} · {PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</span>
                       </p>
                       <AttentionLabels labels={attention?.get(event.id)} className="mt-1 md:hidden" />
                     </TableCell>
                     <TableCell className="hidden whitespace-nowrap tabular-nums sm:table-cell">{formatPortalDate(event.eventDate)}</TableCell>
-                    <TableCell className="whitespace-nowrap">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</TableCell>
+                    <TableCell className="hidden whitespace-nowrap sm:table-cell">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</TableCell>
                     <TableCell className="hidden whitespace-normal md:table-cell"><AttentionLabels labels={attention?.get(event.id)} quietWhenClear /></TableCell>
                     <TableCell className="text-right">
                       <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
