@@ -1,10 +1,10 @@
 import { eventFileLogicalTarget, type EventFileCategory, type PrismStoredObject } from '@prism/types';
 import { getStorageObjectDownload, uploadStorageObject } from '@prism/api-client';
-import { eventApiRequest, storedEventAccessToken } from '@/lib/prism-api';
+import { eventApi, storedEventAccessToken } from '@/lib/prism-api';
 
 export const pmcmDocumentRepository = {
   list(eventId: string): Promise<PrismStoredObject[]> {
-    return eventApiRequest(`/api/storage/objects/events/${encodeURIComponent(eventId)}`);
+    return eventApi.events.storageObjects(eventId);
   },
 
   upload(file: File, eventId: string, category: EventFileCategory, attemptId: string) {

@@ -1,8 +1,7 @@
-import type { PrismCompanyNameChange, UpdateInquiryCompanyNameInput } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
+import type { UpdateInquiryCompanyNameInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const companyNameRepository = {
-  history: (inquiryId: string) => eventApiRequest<PrismCompanyNameChange[]>(`/api/inquiries/${inquiryId}/company-name-changes`),
-  update: (inquiryId: string, input: UpdateInquiryCompanyNameInput) =>
-    eventApiRequest<PrismCompanyNameChange>(`/api/inquiries/${inquiryId}/company-name`, { method: "PATCH", body: input }),
+  history: (inquiryId: string) => eventApi.inquiries.companyNameChanges(inquiryId),
+  update: (inquiryId: string, input: UpdateInquiryCompanyNameInput) => eventApi.inquiries.updateCompanyName(inquiryId, input),
 };

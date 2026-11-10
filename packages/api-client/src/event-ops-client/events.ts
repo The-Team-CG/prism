@@ -124,6 +124,11 @@ export function createEventsClient(
           actorPath(`/events/${eventId}/documents`, actor),
           withBase(options),
         ),
+      storageObjects: (eventId, actor = {}) =>
+        prismRequest<PrismStoredObject[]>(
+          actorPath(`/storage/objects/events/${encodeURIComponent(eventId)}`, actor),
+          withBase(options),
+        ),
       requestDocumentUpload: (input, actor = {}) =>
         prismRequest(
           actorPath(`/events/${input.eventId}/documents/upload-request`, actor),
