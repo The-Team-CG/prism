@@ -15,7 +15,7 @@ export function LiveOpsControlSurface({ eventId, schedule, timer }: { eventId: s
       <Card>
         <CardHeader>
           <CardTitle>Run window</CardTitle>
-          <CardDescription>{timer?.label ?? (schedule.authored ? 'Schedule loaded' : 'No schedule authored')}</CardDescription>
+          {timer?.label || schedule.authored ? <CardDescription>{timer?.label ?? 'Schedule loaded'}</CardDescription> : null}
         </CardHeader>
         <CardContent className="grid gap-4">
           {timer && schedule.authored ? <p className="text-sm tabular-nums" role="status">{timerStatusLine(timer)}</p> : null}
@@ -24,8 +24,8 @@ export function LiveOpsControlSurface({ eventId, schedule, timer }: { eventId: s
           ) : (
             <Empty className="border-0 p-4 md:p-4">
               <EmptyHeader>
-                <EmptyTitle>No run sheet yet</EmptyTitle>
-                <EmptyDescription>The run sheet is available once the schedule is authored.</EmptyDescription>
+                <EmptyTitle>No schedule yet</EmptyTitle>
+                <EmptyDescription>Author the schedule under “Schedule and reports” below and the run sheet appears here.</EmptyDescription>
               </EmptyHeader>
             </Empty>
           )}
