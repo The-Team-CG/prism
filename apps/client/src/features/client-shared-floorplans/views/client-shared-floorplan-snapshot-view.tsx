@@ -10,6 +10,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTi
 import { MapPinned } from "lucide-react";
 import { CLIENT_ACCOUNT_MENU_ITEMS, clientPortalSidebarItems, clientSidebarLinkHref } from "@/features/client-dashboard/workspace/model/client-dashboard-navigation";
 import { useClientSharedFloorplanSnapshotViewModel } from "../view-models/use-client-shared-floorplans-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 const EditorShell = dynamic(
   () => import("@/features/floorplan/editor").then((module) => module.EditorShell),
@@ -54,7 +55,7 @@ export function ClientSharedFloorplanSnapshotView({
   return (
     <SnapshotFrame session={vm.session} onNavigate={(href) => router.push(href)}>
       {vm.loading ? (
-        <p role="status" className="text-sm text-muted-foreground">Loading floorplan snapshot…</p>
+        <LoadingState label="Loading floorplan snapshot…" />
       ) : vm.error ? (
         <Empty className="gap-6 p-8 md:p-8">
           <EmptyHeader>

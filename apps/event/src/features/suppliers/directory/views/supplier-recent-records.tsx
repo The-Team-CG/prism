@@ -3,6 +3,7 @@ import type { PrismPmcmSupplierRecordsPage } from "@prism/types";
 import { Activity, FileCheck2, MessageSquareText, Star } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import styles from "./supplier-workspace.module.css";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 function recordKindLabel(kind: string) {
   if (kind === "reliability_note") return "Reliability note";
@@ -46,7 +47,7 @@ export function SupplierRecentRecords({
         </Select>
       </div>
       {error ? <div role="alert" className="flex items-center justify-between gap-3 rounded-md bg-destructive/5 p-3 text-sm"><span>{error}</span><button type="button" onClick={onRetry} className="font-medium text-primary">Retry</button></div> : null}
-      {loading && !records ? <p className="text-sm text-muted-foreground">Loading supplier records…</p> : null}
+      {loading && !records ? <LoadingState label="Loading supplier records…" /> : null}
       {records ? (
         <>
           <div>
