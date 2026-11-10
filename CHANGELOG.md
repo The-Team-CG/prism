@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM commands in the event portal confirm with a toast naming the action (for example "Record payment · Done.") instead of finishing silently. Errors still show inline. `toast` is re-exported from `@prism/ui/components/sonner`.
 - Billing, payments, supplier records and quote commands in the event portal (about 40 calls across the shell, finance and supplier directory) go through a new `commercial` group in the shared `@prism/api-client` instead of hand-written paths. A test pins every endpoint, method and body, including the two bodies the API reads by field name.
 - 25 hand-built card containers in the event, supplier and guest portals now use the shared `Card` from `@prism/ui`, so a future card restyle reaches them. Layout is unchanged; they gain the shared card's hairline shadow. Containers that are `<section>` or `<article>` keep their element.
 - When the API cannot be reached, every screen says "Can't reach P.R.I.S.M right now. Try again in a moment." Screens that used the shared `@prism/api-client` showed the browser's raw "Failed to fetch" instead; the message now comes from the shared transport (`PrismApiOfflineError`).
