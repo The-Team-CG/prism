@@ -27,6 +27,28 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("routes the event-day operator, escalation and issue commands to their API endpoints", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+
+    await client.liveOps.operatorDesignation("evt 1");
+    await client.liveOps.revokeOperator("evt 1");
+    await client.liveOps.escalateTask("evt 1", "task-1", { reason: "Late" } as never);
+    await client.liveOps.updateUrgentIssue("evt 1", "issue-1", { status: "resolved" } as never);
+    await client.liveOps.escalateUrgentIssue("evt 1", "issue-1", { reason: "Unsafe" } as never);
+
+    const calls = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${url}`);
+    expect(calls).toEqual([
+      "GET https://api.example.test/api/events/evt 1/operator-designation",
+      "DELETE https://api.example.test/api/events/evt 1/operator-designation",
+      "POST https://api.example.test/api/events/evt 1/event-day/tasks/task-1/escalate",
+      "PATCH https://api.example.test/api/events/evt 1/urgent-issues/issue-1",
+      "POST https://api.example.test/api/events/evt 1/urgent-issues/issue-1/escalate",
+    ]);
+  });
+
   it("tells the user the API is unreachable when the request cannot be sent, through the client too, but lets a cancel through", async () => {
     vi.stubGlobal("window", undefined);
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));
