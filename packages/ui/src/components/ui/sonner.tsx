@@ -22,4 +22,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
   );
 };
 
+/** Portals raise toasts through this re-export, so only `@prism/ui` depends on sonner. */
+export { toast } from "sonner";
 export { Toaster };
