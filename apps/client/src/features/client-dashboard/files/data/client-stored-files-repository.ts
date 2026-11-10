@@ -1,14 +1,14 @@
 import type { PrismFileRequirementItem, PrismFileRequirementsMatrix, PrismStoredObject, StorageUsage } from "@prism/types";
 import { getStorageObjectDownload, uploadStorageObject } from "@prism/api-client";
-import { clientApiRequest, storedClientAccessToken } from "@/lib/prism-api";
+import { clientApi, storedClientAccessToken } from "@/lib/prism-api";
 
 export const clientStoredFilesRepository = {
   list(eventId: string): Promise<PrismStoredObject[]> {
-    return clientApiRequest(`/storage/objects/events/${encodeURIComponent(eventId)}`);
+    return clientApi.events.storageObjects(eventId);
   },
 
   requirements(eventId: string): Promise<PrismFileRequirementsMatrix> {
-    return clientApiRequest(`/events/${encodeURIComponent(eventId)}/file-requirements`);
+    return clientApi.events.fileRequirements(eventId);
   },
 
   upload(file: File, eventId: string, usage: Extract<StorageUsage, "client_document">, attemptId: string) {
@@ -22,7 +22,7 @@ export const clientStoredFilesRepository = {
   },
 
   bindRequirementUpload(eventId: string, key: string, objectId: string): Promise<PrismFileRequirementItem> {
-    return clientApiRequest(`/events/${encodeURIComponent(eventId)}/file-requirements/${encodeURIComponent(key)}/upload`, { method: "POST", body: { objectId } });
+    return clientApi.events.bindFileRequirementUpload(eventId, key, { objectId });
   },
 
   download(objectId: string) {

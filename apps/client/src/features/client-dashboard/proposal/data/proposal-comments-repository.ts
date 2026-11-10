@@ -1,11 +1,11 @@
-import type { CreateProposalCommentInput, PrismProposalComment } from "@prism/types";
-import { clientApiRequest } from "@/lib/prism-api";
+import type { CreateProposalCommentInput } from "@prism/types";
+import { clientApi } from "@/lib/prism-api";
 
 export const proposalCommentsRepository = {
   list(eventId: string) {
-    return clientApiRequest<PrismProposalComment[]>(`/events/${eventId}/proposal/comments`);
+    return clientApi.commercial.proposalComments(eventId);
   },
   create(eventId: string, input: CreateProposalCommentInput) {
-    return clientApiRequest<PrismProposalComment>(`/events/${eventId}/proposal/comments`, { method: "POST", body: input });
+    return clientApi.commercial.addProposalComment(eventId, input);
   },
 };

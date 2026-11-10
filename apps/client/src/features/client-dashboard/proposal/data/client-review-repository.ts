@@ -1,15 +1,12 @@
-import type { DecideClientReviewItemInput, PrismClientReviewItem } from "@prism/types";
-import { clientApiRequest } from "@/lib/prism-api";
+import type { DecideClientReviewItemInput } from "@prism/types";
+import { clientApi } from "@/lib/prism-api";
 
 export const clientReviewRepository = {
   list(eventId: string) {
-    return clientApiRequest<PrismClientReviewItem[]>(`/events/${eventId}/client-review-items`);
+    return clientApi.commercial.clientReviewItems(eventId);
   },
 
   decide(eventId: string, itemId: string, input: DecideClientReviewItemInput) {
-    return clientApiRequest(`/events/${eventId}/client-review-items/${itemId}/decisions`, {
-      method: "POST",
-      body: input,
-    });
+    return clientApi.commercial.decideClientReviewItem(eventId, itemId, input);
   },
 };

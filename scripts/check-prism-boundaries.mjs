@@ -37,6 +37,12 @@ const handBuiltApiPathExceptionPattern = /^apps\/event\/src\/features\/conforme\
 /** Logout overrides the 401 handling for one call; the floorplan template store takes an injected request function; the helper itself lives in lib. */
 const eventApiRequestExceptionPattern =
   /^apps\/event\/src\/(?:lib\/prism-api\.ts|features\/event-dashboard\/shell\/data\/session-commands\.ts|features\/floorplan\/editor\/data\/templates-repository\.ts)$/;
+// The client app reaches the API the same way. Its helper adds the /api prefix itself, so a literal /api/ in a path is a bug.
+const clientPortalSourcePattern = /^apps\/client\/src\/.*\.tsx?$/;
+const clientApiRequestUsePattern = /clientApiRequest/;
+/** Logout overrides the 401 handling for one call; the floorplan template store takes an injected request function; the helper itself lives in lib. */
+const clientApiRequestExceptionPattern =
+  /^apps\/client\/src\/(?:lib\/prism-api\.ts|features\/client-dashboard\/workspace\/data\/client-dashboard-repository\.ts|features\/floorplan\/editor\/data\/templates-repository\.ts)$/;
 const aiProviderImportExceptionPattern =
   /^apps\/api\/src\/modules\/platform-ops\/infrastructure\/ai-governance\//;
 
@@ -141,6 +147,23 @@ export const boundaryRules = [
     check(normalized, source) {
       if (testFilePattern.test(normalized)) return false;
       return eventApiRequestUsePattern.test(source);
+    },
+  },
+  {
+    name: "client app must call the API through @prism/api-client, not hand-written /api/ paths",
+    filePattern: clientPortalSourcePattern,
+    check(normalized, source) {
+      if (testFilePattern.test(normalized)) return false;
+      return handBuiltApiPathPattern.test(source);
+    },
+  },
+  {
+    name: "client app must not use the hand-built clientApiRequest helper outside logout and the floorplan template store",
+    filePattern: clientPortalSourcePattern,
+    allowedFilePattern: clientApiRequestExceptionPattern,
+    check(normalized, source) {
+      if (testFilePattern.test(normalized)) return false;
+      return clientApiRequestUsePattern.test(source);
     },
   },
   {

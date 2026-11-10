@@ -6,7 +6,7 @@ import {
   type PrismUser,
 } from "@prism/types";
 import type { Project } from "@/features/floorplan/editor";
-import { clientApiRequest } from "@/lib/prism-api";
+import { clientApi } from "@/lib/prism-api";
 import { projectFromSnapshot, type ApiFloorPlanSnapshot } from "@/features/floorplan/snapshot-project";
 
 type ClientSession = PrismUser & { signedInAt: string };
@@ -16,7 +16,7 @@ export const clientSharedFloorplansRepository = {
   },
 
   listSharedFloorplans(): Promise<PrismClientSharedFloorplanEntry[]> {
-    return clientApiRequest<PrismClientSharedFloorplanEntry[]>("/client/shared-floorplans");
+    return clientApi.clientPortal.sharedFloorplans();
   },
 
   async loadSnapshot(
@@ -24,9 +24,7 @@ export const clientSharedFloorplansRepository = {
     draftId: string,
     snapshotType: PrismClientFloorplanSnapshotType,
   ): Promise<Project> {
-    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(
-      `/events/${encodeURIComponent(eventId)}/floorplans/${encodeURIComponent(draftId)}/snapshot?type=${snapshotType}`,
-    );
+    const plan = await clientApi.clientPortal.floorplanSnapshot<ApiFloorPlanSnapshot>(eventId, draftId, snapshotType);
     return projectFromSnapshot(plan);
   },
 };
