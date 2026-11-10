@@ -530,6 +530,15 @@ const READINESS_CONCERN_LABELS: Record<PrismSupplierReadinessConcernKind, string
   event_day_note: "Your event-day note",
 };
 
+/** How soon a quote is due: past due or within three days is worth the eye, anything later is ordinary text. */
+export function quoteDeadlineUrgency(item: Pick<PrismSupplierReadinessItem, "quoteStatus" | "dueAt">, now = new Date()): "overdue" | "soon" | null {
+  if (item.quoteStatus === "selected" || !item.dueAt) return null;
+  const due = new Date(item.dueAt).getTime();
+  if (!Number.isFinite(due)) return null;
+  if (due < now.getTime()) return "overdue";
+  return due - now.getTime() <= 3 * 24 * 60 * 60 * 1000 ? "soon" : null;
+}
+
 export function readinessConcernLabel(kind: PrismSupplierReadinessConcernKind): string {
   return READINESS_CONCERN_LABELS[kind];
 }
