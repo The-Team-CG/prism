@@ -30,6 +30,7 @@ import {
   pareResultCountLabel,
   pareRiskColor,
 } from "../model/pare-panel-rules";
+import { Card } from "@prism/ui/components/card";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ function PAREApprovalCard({
 }) {
   const { pareResult: r } = record;
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+    <Card className="gap-0 block rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       <PareApprovalHeader record={record} />
       <div className="space-y-5 p-5">
         <div className="flex items-start gap-3 rounded-xl border border-danger/25 bg-danger-soft px-4 py-3">
@@ -121,7 +122,7 @@ function PAREApprovalCard({
         </div>
         <PareReviewFooter record={record} busy={busy} onApprove={onApprove} onReject={onReject} />
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -337,7 +338,7 @@ export function PAREPanel({
       {assignedRequests.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-medium text-muted-foreground">Assigned Suppliers</p>
-          <div className="divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <Card className="gap-0 block divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
             {assignedRequests.map((req) => {
               const supplier = suppliers.find((s) => s.id === req.supplierId);
               const tierLabel = supplier?.tier?.replace("tier_", "Tier ") ?? null;
@@ -393,7 +394,7 @@ export function PAREPanel({
               </div>
               );
             })}
-          </div>
+          </Card>
         </div>
       )}
 

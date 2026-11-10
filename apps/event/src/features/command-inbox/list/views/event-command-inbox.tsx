@@ -26,6 +26,7 @@ import { COMMAND_INBOX_ACTION_LABEL, COMMAND_INBOX_AREA_LABEL } from "../model/c
 import { Button } from "@prism/ui/components/button";
 import { cx } from "@/features/pmcm-kit";
 import { LoadingState } from "@prism/ui/components/loading-state";
+import { Card } from "@prism/ui/components/card";
 
 const KIND_ICON: Record<PrismCommandInboxKind, LucideIcon> = {
   inquiry: FileSignature,
@@ -239,7 +240,7 @@ function InboxList({ triage, groupBy, todayKey }: { triage: InboxTriage; groupBy
   if (groupBy === "event") {
     const actionable = [...triage.urgent, ...triage.needsAction];
     return (
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
         {groupByEvent(actionable).map((group) => (
           <InboxGroup
             key={group.key}
@@ -254,11 +255,11 @@ function InboxList({ triage, groupBy, todayKey }: { triage: InboxTriage; groupBy
         {triage.reference.length > 0 ? (
           <InboxGroup id="command-inbox-reference" title="Updates and reference" count={triage.reference.length} items={triage.reference} todayKey={todayKey} collapsible />
         ) : null}
-      </div>
+      </Card>
     );
   }
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
       {triage.urgent.length > 0 ? (
         <InboxGroup id="command-inbox-urgent" title="Urgent blockers" count={triage.urgent.length} items={triage.urgent} todayKey={todayKey} />
       ) : null}
@@ -268,7 +269,7 @@ function InboxList({ triage, groupBy, todayKey }: { triage: InboxTriage; groupBy
       {triage.reference.length > 0 ? (
         <InboxGroup id="command-inbox-reference" title="Updates and reference" count={triage.reference.length} items={triage.reference} todayKey={todayKey} collapsible />
       ) : null}
-    </div>
+    </Card>
   );
 }
 

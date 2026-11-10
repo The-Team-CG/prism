@@ -27,6 +27,7 @@ import {
   type CloseGateDestination,
   type CompliancePhase,
 } from "../model/phase4-workspace-rules";
+import { Card } from "@prism/ui/components/card";
 
 const money = new Intl.NumberFormat("en-PH", {
   style: "currency",
@@ -297,7 +298,7 @@ export function Phase4CloseGatesSection({
   onOpenDestination: (destination: CloseGateDestination) => void;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <Card className="gap-0 block rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <Archive className="mt-1 size-5 text-attention" />
@@ -355,7 +356,7 @@ export function Phase4CloseGatesSection({
       <button disabled={busy || (!closeGates?.ready && !overrideReason)} onClick={onArchive} className="mt-4 h-10 w-full rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
         Archive event
       </button>
-    </div>
+    </Card>
   );
 }
 
