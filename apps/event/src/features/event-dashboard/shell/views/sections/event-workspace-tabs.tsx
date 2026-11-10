@@ -5,7 +5,7 @@ import { PostEventDeliverablesPanel } from "@/features/closure/deliverables/view
 
 import { FileCheck2, Gavel } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { PAREPanel } from "@/features/pare/panel";
 import { CLOSURE_TABS, Phase4Workspace, type CloseGateDestination, type ClosureStep, type ClosureTabId } from "@/features/closure/phase4";
 import { useListFilter } from "@/features/pmcm-kit";
@@ -78,7 +78,6 @@ export function EventWorkspaceOverviewTab() {
       canStartEventDay={isPmcmAdmin(vm.session.role) && canStartEventDay(vm.selectedEvent)}
       busy={Boolean(vm.busy)}
       onStartEventDay={() => void vm.startEventDay()}
-      onSubmitBriefing={() => void vm.submitBriefing()}
       onRunCompliance={() => void vm.runPlanningCompliance()}
       onOpenTab={(tab) => vm.navigateEventTab(tab)}
       ocularVisit={visitOpen ? (
@@ -168,7 +167,8 @@ function BriefingNotes({ entries }: { entries: Array<{ label: string; text?: str
   );
 }
 
-function BriefingSummary({ briefing, canSubmit, busy, onSubmit }: { briefing?: PrismBriefing | null; canSubmit: boolean; busy: boolean; onSubmit: () => void }) {
+/** The client owns the briefing; PMCM reads it here and plans against it. */
+function BriefingSummary({ briefing }: { briefing?: PrismBriefing | null }) {
   if (!briefing) {
     return (
       <Empty>
@@ -177,13 +177,8 @@ function BriefingSummary({ briefing, canSubmit, busy, onSubmit }: { briefing?: P
             <FileCheck2 />
           </EmptyMedia>
           <EmptyTitle>No briefing yet</EmptyTitle>
-          <EmptyDescription>The client's briefing sets the venue, guest count, budget and services PMCM plans against.</EmptyDescription>
+          <EmptyDescription>The client submits the briefing from their portal. It sets the venue, guest count, budget and services PMCM plans against.</EmptyDescription>
         </EmptyHeader>
-        {canSubmit ? (
-          <EmptyContent>
-            <Button size="sm" disabled={busy} onClick={onSubmit}>Submit briefing</Button>
-          </EmptyContent>
-        ) : null}
       </Empty>
     );
   }
@@ -194,7 +189,6 @@ function BriefingSummary({ briefing, canSubmit, busy, onSubmit }: { briefing?: P
           <h2 className="font-semibold text-foreground">Client briefing</h2>
           <p className="text-xs text-muted-foreground">Submitted {formatPortalDateTime(briefing.submittedAt)}</p>
         </div>
-        {canSubmit ? <Button size="sm" variant="outline" disabled={busy} onClick={onSubmit}>Resubmit briefing</Button> : null}
       </div>
       <dl className="grid gap-x-6 gap-y-4 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4">
         {briefingFacts(briefing).map((fact) => (
@@ -220,7 +214,7 @@ export function EventWorkspaceBriefingTab() {
       id: "briefing",
       label: "Briefing",
       attention: !briefing,
-      render: () => <BriefingSummary briefing={briefing} canSubmit busy={Boolean(vm.busy)} onSubmit={() => void vm.submitBriefing()} />,
+      render: () => <BriefingSummary briefing={briefing} />,
     },
     ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PresentationMeetingsPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
     { id: "reviews", label: "Client reviews", render: () => <div className="space-y-5">{admin && isEventModuleEnabled(selectedEvent, "venue_scouting") ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}{admin ? <ThemeSuggestionsPanel eventId={selectedEvent.id} /> : null}<PmcmClientReviewPanel eventId={selectedEvent.id} /></div> },

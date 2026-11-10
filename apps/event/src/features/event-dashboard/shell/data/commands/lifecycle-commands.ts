@@ -1,6 +1,6 @@
 import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
 import { parseContract, setEventModulesSchema, type SetEventModulesInput } from "@prism/types";
-import type { LogInquiryOnBehalfInput, PrismBriefing, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, SetEventPrivacyInput, WaiveOcularVisitInput } from "@prism/types";
+import type { LogInquiryOnBehalfInput, PrismDocument, PrismEvent, PrismInquiry, PrismInquiryMergeRecord,PrismPmcmOcularVisit, RecordActualEventEndInput, ScheduleOcularVisitInput, SetClientEventDayViewInput, SetEventPrivacyInput, WaiveOcularVisitInput } from "@prism/types";
 import { liveOpsScheduleRepository } from "@/features/live-ops/schedule/data/live-ops-schedule-repository";
 
 export const lifecycleCommands = {
@@ -82,17 +82,6 @@ uploadConforme: (
         fileName: meta.fileName,
         mimeType: meta.mimeType,
         sizeBytes: meta.sizeBytes,
-      },
-    }),
-submitBriefing: (eventId: string) =>
-    request<PrismBriefing>(`/api/events/${eventId}/briefing`, {
-      method: "POST",
-      body: {
-        venue: "Shangri-La Grand Ballroom",
-        guestCount: 240,
-        budgetRange: "PHP 450,000 - 520,000",
-        serviceRequirements: ["Digital Registration", "Stage and Technicals", "Documentation"],
-        notes: "Client prefers a polished technology summit setup with clear ingress flow.",
       },
     }),
 };
