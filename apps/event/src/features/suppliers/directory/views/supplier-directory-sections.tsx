@@ -16,6 +16,7 @@ import {
   type SupplierReviewForm,
 } from "@/features/suppliers/reviews";
 import { supplierContactFallback } from "../model/suppliers-directory-rules";
+import { Card } from "@prism/ui/components/card";
 
 export type SupplierCreateForm = {
   categoryId: string;
@@ -167,7 +168,7 @@ export function SupplierDirectoryList({
         </Select>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <Card className="gap-0 block mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <div className="overflow-x-auto">
           <div className="grid min-w-[1040px] grid-cols-[minmax(260px,1.6fr)_minmax(160px,1fr)_9rem_7rem_10rem_8rem] gap-4 border-b border-border bg-secondary/45 px-4 py-3 text-xs font-medium text-muted-foreground">
             <span>Name</span>
@@ -193,7 +194,7 @@ export function SupplierDirectoryList({
             )}
           </div>
         </div>
-      </div>
+      </Card>
     </section>
   );
 }
