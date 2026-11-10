@@ -6,7 +6,9 @@ import {
 } from "lucide-react";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import type { EventSession } from "@/app/lib/session";
-import type { PrismEvent } from "@prism/types";
+import type { PrismEvent, PrismNotificationPreferences } from "@prism/types";
+import { notificationChannelSummary } from "@/features/account-notifications/model/notification-channel-summary";
+import { notificationPreferencesRepository } from "@/features/account-notifications/data/notification-preferences-repository";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 
@@ -78,6 +80,14 @@ export function EventSettingsWorkspace({
   const [savingClientEventDayView, setSavingClientEventDayView] = useState(false);
   const [clientEventDayViewSaveFailed, setClientEventDayViewSaveFailed] = useState(false);
   const canManageClientEventDayView = isPmcmAdmin(session.role) && Boolean(selectedEvent);
+  const [notificationPreferences, setNotificationPreferences] = useState<PrismNotificationPreferences | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    // The summary only describes what the account's own settings say; if they cannot be read it keeps to the email claim.
+    notificationPreferencesRepository.mine().then((next) => { if (alive) setNotificationPreferences(next); }, () => undefined);
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     setClientEventDayViewEnabled(selectedEvent?.clientEventDayViewEnabled === true);
@@ -106,7 +116,7 @@ export function EventSettingsWorkspace({
       {[
         { label: "Signed in as", value: session.name, detail: humanizeToken(session.role) },
         { label: "Default workspace", value: selectedEvent?.eventName ?? "No event selected", detail: selectedEvent?.clientName ?? "Pick an event from Events." },
-        { label: "Notifications", value: "Email + Viber", detail: "Live sending isn't connected yet." },
+        { label: "Notifications", ...notificationChannelSummary(notificationPreferences, session.email) },
       ].map((item) => (
         <Card key={item.label}>
           <CardBody>

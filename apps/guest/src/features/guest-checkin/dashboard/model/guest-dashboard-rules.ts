@@ -15,10 +15,6 @@ export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_DURATION_S = 60;
 export { GUEST_API_OFFLINE_MESSAGE as GUEST_DASHBOARD_API_OFFLINE_MESSAGE } from "@/features/guest-shared/guest-messages";
 
-export function guestApiPath(session: PrismGuestSession, suffix = ""): string {
-  return `/api/guest/events/${encodeURIComponent(session.guestAccessCode)}${suffix}`;
-}
-
 export function buildCheckInPayload(input: {
   session: PrismGuestSession;
   checkInMode: CheckInMode;

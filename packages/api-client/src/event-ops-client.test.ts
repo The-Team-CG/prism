@@ -27,6 +27,54 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("keeps a session token off the public supplier quote link requests, and on the signed-in ones", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "supplier-session" });
+
+    await client.supplierWorkspace.submitQuoteByLink("link/1", { amount: 1 } as never);
+    await client.supplierWorkspace.reviseQuoteByLink("link/1", { amount: 2 } as never);
+    await client.supplierWorkspace.detail();
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual(["POST /quote-requests/link%2F1/quote", "PATCH /quote-requests/link%2F1/quote", "GET /supplier/workspace"]);
+    const authorization = (index: number) => (fetchMock.mock.calls[index]?.[1]?.headers as Record<string, string>).Authorization;
+    expect(authorization(0)).toBeUndefined();
+    expect(authorization(1)).toBeUndefined();
+    expect(authorization(2)).toBe("Bearer supplier-session");
+  });
+
+  it("sends the guest requests by access code with no token, and a feedback file as raw bytes with its own headers", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({ data: { id: "x" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const guest = createEventOpsClient({ baseUrl: "https://api.example.test/api" }).guest;
+    const file = new File([new Uint8Array([1, 2, 3])], "party pic.png", { type: "image/png" });
+    const any = {} as never;
+
+    await guest.eventPass("AYALA/1");
+    await guest.watermark("AYALA-1");
+    await guest.checkIn("AYALA-1", any);
+    await guest.feedback("AYALA-1", any);
+    await guest.withdrawFeedbackConsent("AYALA-1", "f/1", any);
+    await guest.uploadFeedbackMedia("AYALA-1", file);
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "GET /guest/events/AYALA%2F1",
+      "GET /guest/events/AYALA-1/watermark",
+      "POST /guest/events/AYALA-1/check-ins",
+      "POST /guest/events/AYALA-1/feedback",
+      "POST /guest/events/AYALA-1/feedback/f%2F1/consent-withdrawal",
+      "POST /guest/events/AYALA-1/feedback-media",
+    ]);
+    expect(fetchMock.mock.calls.every(([, init]) => (init?.headers as Record<string, string>).Authorization === undefined)).toBe(true);
+    const upload = fetchMock.mock.calls[5]?.[1];
+    expect(upload?.body).toBe(file);
+    expect(upload?.headers).toMatchObject({ "Content-Type": "image/png", "x-prism-file-name": encodeURIComponent("party pic.png") });
+  });
+
   it("sends the client's closeout, floorplan, briefing, conforme, inquiry-link and shared-record requests to their endpoints", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
