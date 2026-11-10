@@ -74,4 +74,39 @@ describe("PMCM dashboard command transport", () => {
       overrideReason: "archive approved by PMCM",
     });
   });
+
+  it("sends inquiry decisions and the conforme upload with the bodies the API reads", async () => {
+    await eventDashboardCommands.acceptInquiry("inq_1");
+    await eventDashboardCommands.declineInquiry("inq_1", "Budget Too Low");
+    await eventDashboardCommands.declineInquiry("inq_1", "");
+    await eventDashboardCommands.pendInquiry("inq_1");
+    await eventDashboardCommands.uploadConforme("inq_1", { fileName: "conforme.pdf", mimeType: "application/pdf", sizeBytes: 1024 });
+
+    const sent = vi.mocked(fetch).mock.calls.map(([url, init]) => ({ call: `${init?.method} ${String(url).replace("http://localhost:4000/api", "")}`, body: JSON.parse(String(init?.body)) }));
+    expect(sent).toEqual([
+      { call: "PATCH /inquiries/inq_1/status", body: { status: "accepted" } },
+      { call: "PATCH /inquiries/inq_1/status", body: { status: "declined", declineReason: "Budget Too Low" } },
+      { call: "PATCH /inquiries/inq_1/status", body: { status: "declined" } },
+      { call: "PATCH /inquiries/inq_1/status", body: { status: "pending" } },
+      { call: "POST /inquiries/inq_1/conforme", body: { type: "signed_conforme", fileName: "conforme.pdf", mimeType: "application/pdf", sizeBytes: 1024 } },
+    ]);
+  });
+
+  it("refuses a decline reason the API does not accept before anything is sent", () => {
+    expect(() => eventDashboardCommands.declineInquiry("inq_1", "Not interested")).toThrow();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("sends coordinator staffing commands to the event-scoped staffing routes", async () => {
+    await eventDashboardCommands.loadCoordinatorSuggestions("evt_1", { role: "Registration Lead", skills: ["Check-in", "Ushering"] } as never);
+    await eventDashboardCommands.sendCoordinatorAcknowledgementReminders("evt_1");
+    await eventDashboardCommands.deleteCoordinatorAvailability("evt_1", "coord_1", "avail_1");
+
+    const sent = vi.mocked(fetch).mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("http://localhost:4000/api", "")}`);
+    expect(sent).toEqual([
+      "GET /events/evt_1/staffing/coordinator-suggestions?role=Registration+Lead&skills=Check-in&skills=Ushering",
+      "POST /events/evt_1/staffing/acknowledgement-reminders",
+      "DELETE /events/evt_1/coordinators/coord_1/availability/avail_1",
+    ]);
+  });
 });
