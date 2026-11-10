@@ -28,6 +28,8 @@ export function createAuthClient(
           withBase(options, { method: "POST", body: input }),
         ),
       me: () => prismRequest("/auth/me", withBase(options, { method: "GET" })),
+      approvalRequests: () =>
+        prismRequest<PrismApprovalRequest[]>("/auth/approval-requests", withBase(options)),
       approveApprovalRequest: (requestId) =>
         prismRequest<PrismApprovalRequest>(
           `/auth/approval-requests/${encodeURIComponent(requestId)}/approve`,

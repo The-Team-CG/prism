@@ -1,14 +1,14 @@
 import type { CreateComplianceRiskInput, PrismComplianceRisk, PrismComplianceRun } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 
 export const complianceReviewRepository = {
   listRuns(eventId: string): Promise<PrismComplianceRun[]> {
-    return eventApiRequest<PrismComplianceRun[]>(`/api/events/${eventId}/compliance/runs`);
+    return eventApi.compliance.runs(eventId);
   },
   listRisks(eventId: string): Promise<PrismComplianceRisk[]> {
-    return eventApiRequest<PrismComplianceRisk[]>(`/api/events/${eventId}/compliance/risks`);
+    return eventApi.compliance.risks(eventId);
   },
   createRisk(eventId: string, input: CreateComplianceRiskInput): Promise<PrismComplianceRisk> {
-    return eventApiRequest<PrismComplianceRisk>(`/api/events/${eventId}/compliance/risks`, { method: "POST", body: input });
+    return eventApi.compliance.createRisk(eventId, input);
   },
 };

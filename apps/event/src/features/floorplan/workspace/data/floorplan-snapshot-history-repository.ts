@@ -1,8 +1,8 @@
 import type { PrismFloorPlanSnapshotVersion } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 
 export const floorplanSnapshotHistoryRepository = {
   list(eventId: string, draftId: string): Promise<PrismFloorPlanSnapshotVersion[]> {
-    return eventApiRequest(`/api/events/${encodeURIComponent(eventId)}/floorplans/${encodeURIComponent(draftId)}/history`);
+    return eventApi.floorplans.history(eventId, draftId);
   },
 };
