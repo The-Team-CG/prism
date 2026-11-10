@@ -15,7 +15,7 @@ import type {
   PrismSecurityAlert,
   PrismUser,
 } from "@prism/types";
-import { eventApi, eventApiRequest } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 import { identityCommands } from "@/features/event-dashboard/shell/data/commands/identity-commands";
 
 export type AuditTrailData = {
@@ -44,33 +44,18 @@ export type AuditTrailCommands = {
   inviteStaff(input: CreateAccountInvitationInput): Promise<PrismAccountInvitationOutcome>;
 };
 
-function eventScope(eventId?: string) {
-  return eventId && eventId !== "all" ? `?eventId=${encodeURIComponent(eventId)}` : "";
-}
-
 const auditTrailCommands = {
-  approvalRequests: () => eventApiRequest<PrismApprovalRequest[]>("/api/auth/approval-requests"),
-  auditIntegrity: () => eventApiRequest<PrismAuditIntegrity>("/api/audit/integrity"),
-  auditLogs: (filters: AuditLogFilters) => {
-    const params = new URLSearchParams();
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value && value !== "all") params.set(key, value);
-    });
-    const query = params.toString();
-    return eventApiRequest<PrismAuditLog[]>(`/api/audit/logs${query ? `?${query}` : ""}`);
-  },
-  exportAuditLogs: (filters: AuditLogFilters) =>
-    eventApiRequest<PrismAuditExport>("/api/audit/export", { method: "POST", body: filters }),
-  loginHistory: (userId: string) => eventApiRequest<PrismLoginHistory[]>(`/api/auth/users/${userId}/login-history`),
+  approvalRequests: () => eventApi.auth.approvalRequests(),
+  auditIntegrity: () => eventApi.audit.integrity(),
+  auditLogs: (filters: AuditLogFilters) => eventApi.audit.logs(filters),
+  exportAuditLogs: (filters: AuditLogFilters) => eventApi.audit.exportLogs(filters),
+  loginHistory: (userId: string) => eventApi.audit.loginHistory(userId),
   pmcmReference: () => eventApi.pmcm.reference(),
-  privacyInventory: (eventId?: string) => eventApiRequest<PrismPrivacyInventory>(`/api/privacy/inventory${eventScope(eventId)}`),
+  privacyInventory: (eventId?: string) => eventApi.audit.privacyInventory(eventId),
   // Only the total is used here; the privacy console owns the full paged queue.
-  privacyRequestQueue: (eventId?: string) => {
-    const params = new URLSearchParams({ status: "submitted", limit: "1" });
-    if (eventId && eventId !== "all") params.set("eventId", eventId);
-    return eventApiRequest<PrismPrivacyRequestPage>(`/api/privacy/requests?${params.toString()}`);
-  },
-  securityAlerts: () => eventApiRequest<PrismSecurityAlert[]>("/api/audit/alerts"),
+  privacyRequestQueue: (eventId?: string) =>
+    eventApi.privacyAdmin.requests({ status: "submitted", limit: 1, ...(eventId && eventId !== "all" ? { eventId } : {}) }),
+  securityAlerts: () => eventApi.audit.alerts(),
   unlockUser: identityCommands.unlockUser,
   resetUserTwoFactor: identityCommands.resetUserTwoFactor,
   resendAccountInvitation: identityCommands.resendAccountInvitation,

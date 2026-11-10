@@ -7,7 +7,7 @@ import type {
   PrismRetentionReviewItem,
   UpdatePrivacyRetentionPolicyInput,
 } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 
 export type RetentionCommands = {
   listPolicies(): Promise<PrismRetentionPolicy[]>;
@@ -17,34 +17,10 @@ export type RetentionCommands = {
   dismissReviewItem(itemId: string, input: DismissPrivacyRetentionReviewItemInput): Promise<PrismRetentionReviewItem>;
 };
 
-function queryString(query: ListPrivacyRetentionReviewItemsQuery) {
-  const params = new URLSearchParams();
-  if (query.status) params.set("status", query.status);
-  if (query.category) params.set("category", query.category);
-  if (query.eventId) params.set("eventId", query.eventId);
-  params.set("limit", String(query.limit));
-  if (query.after) params.set("after", query.after);
-  const text = params.toString();
-  return text ? `?${text}` : "";
-}
-
 export const retentionCommands: RetentionCommands = {
-  listPolicies: () => eventApiRequest<PrismRetentionPolicy[]>("/api/privacy/retention-policies"),
-  updatePolicy: (category, input) =>
-    eventApiRequest<PrismRetentionPolicy>(`/api/privacy/retention-policies/${encodeURIComponent(category)}`, {
-      method: "PATCH",
-      body: input,
-    }),
-  listReviewItems: (query) =>
-    eventApiRequest<PrismRetentionReviewItem[]>(`/api/privacy/retention-review-items${queryString(query)}`),
-  executeReviewItem: (itemId, input) =>
-    eventApiRequest<PrismRetentionExecutionResult>(`/api/privacy/retention-review-items/${encodeURIComponent(itemId)}/execute`, {
-      method: "POST",
-      body: input,
-    }),
-  dismissReviewItem: (itemId, input) =>
-    eventApiRequest<PrismRetentionReviewItem>(`/api/privacy/retention-review-items/${encodeURIComponent(itemId)}/dismiss`, {
-      method: "POST",
-      body: input,
-    }),
+  listPolicies: () => eventApi.privacyAdmin.retentionPolicies(),
+  updatePolicy: (category, input) => eventApi.privacyAdmin.updateRetentionPolicy(category, input),
+  listReviewItems: (query) => eventApi.privacyAdmin.retentionReviewItems(query),
+  executeReviewItem: (itemId, input) => eventApi.privacyAdmin.executeRetentionReviewItem(itemId, input),
+  dismissReviewItem: (itemId, input) => eventApi.privacyAdmin.dismissRetentionReviewItem(itemId, input),
 };
