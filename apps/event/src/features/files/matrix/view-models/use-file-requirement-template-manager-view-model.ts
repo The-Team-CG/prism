@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FileRequirementTemplateItemInput, FileRequirementRole, PrismFileRequirementTemplate } from "@prism/types";
 import { applyFileRequirementTemplate, loadFileRequirementTemplates, saveFileRequirementTemplate } from "../use-cases/file-requirement-template-actions";
+import { toast } from "@prism/ui/components/sonner";
 
 const emptyItem = (): FileRequirementTemplateItemInput => ({ key: "", label: "", ownerRole: "client", visibleToRoles: ["pmcm-admin", "client"], required: true });
 
@@ -11,12 +12,12 @@ export function useFileRequirementTemplateManagerViewModel(eventId: string, onAp
   const [eventType, setEventType] = useState("");
   const [requirements, setRequirements] = useState<FileRequirementTemplateItemInput[]>([emptyItem()]);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     void loadFileRequirementTemplates().then((rows) => { if (active) setTemplates(rows); })
-      .catch((error: unknown) => { if (active) setMessage(error instanceof Error ? error.message : "Unable to load templates."); });
+      .catch((error: unknown) => { if (active) setError(error instanceof Error ? error.message : "Unable to load templates."); });
     return () => { active = false; };
   }, []);
 
@@ -39,25 +40,25 @@ export function useFileRequirementTemplateManagerViewModel(eventId: string, onAp
   const removeRequirement = useCallback((index: number) => setRequirements((current) => current.filter((_, itemIndex) => itemIndex !== index)), []);
 
   const save = useCallback(async () => {
-    setBusy(true); setMessage(null);
+    setBusy(true); setError(null);
     try {
       const saved = await saveFileRequirementTemplate({ eventType, requirements });
       setTemplates((current) => [...current.filter((item) => item.eventType !== saved.eventType), saved].sort((a, b) => a.eventType.localeCompare(b.eventType)));
       setEventType(saved.eventType); setRequirements(saved.requirements);
-      setMessage(`Saved ${saved.requirements.length} requirements for ${saved.eventType}.`);
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to save template."); }
+      toast.success(`Saved ${saved.requirements.length} requirements for ${saved.eventType}.`);
+    } catch (error) { setError(error instanceof Error ? error.message : "Unable to save template."); }
     finally { setBusy(false); }
   }, [eventType, requirements]);
 
   const apply = useCallback(async () => {
-    setBusy(true); setMessage(null);
+    setBusy(true); setError(null);
     try {
       const result = await applyFileRequirementTemplate(eventId);
-      setMessage(`Applied ${result.createdKeys.length} requirement${result.createdKeys.length === 1 ? "" : "s"}; ${result.skippedExistingCount} already existed.`);
+      toast.success(`Applied ${result.createdKeys.length} requirement${result.createdKeys.length === 1 ? "" : "s"}; ${result.skippedExistingCount} already existed.`);
       onApplied();
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Unable to apply the event template."); }
+    } catch (error) { setError(error instanceof Error ? error.message : "Unable to apply the event template."); }
     finally { setBusy(false); }
   }, [eventId, onApplied]);
 
-  return { templates, eventType, requirements, busy, message, setEventType: chooseEventType, changeRequirement, addRequirement, removeRequirement, save, apply };
+  return { templates, eventType, requirements, busy, error, setEventType: chooseEventType, changeRequirement, addRequirement, removeRequirement, save, apply };
 }

@@ -29,7 +29,7 @@ export function FileRequirementTemplateManager({ eventId, onClose, onApplied }: 
         </Card>)}
       </div>
       <div className="flex flex-wrap gap-2"><Button type="button" variant="outline" size="sm" onClick={vm.addRequirement}>Add row</Button><Button type="button" variant="outline" size="sm" disabled={vm.busy} onClick={() => void vm.save()}>{vm.busy ? "Saving…" : "Save template"}</Button><Button type="button" size="sm" disabled={vm.busy} onClick={() => void vm.apply()}>Apply to this event</Button></div>
-      {vm.message ? <p role="status" className="text-xs text-muted-foreground">{vm.message}</p> : null}
+      {vm.error ? <p role="alert" className="text-xs text-danger">{vm.error}</p> : null}
     </section>
   );
 }

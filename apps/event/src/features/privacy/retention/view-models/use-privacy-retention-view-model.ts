@@ -5,8 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { PrismRetentionPolicy, PrismRetentionReviewItem } from "@prism/types";
 import { canDismissReviewItem, canEnablePolicy, canExecuteReviewItem, parsePeriodDays } from "../model/retention-rules";
 import { retentionUseCases, type ReviewStatusFilter } from "../use-cases/retention-use-cases";
-
-export type RetentionMessage = { tone: "error" | "notice"; text: string };
+import { toast } from "@prism/ui/components/sonner";
 
 type UseCases = typeof retentionUseCases;
 
@@ -20,7 +19,7 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
   const [hasMore, setHasMore] = useState(false);
   const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>("pending");
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<RetentionMessage | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [periodDrafts, setPeriodDrafts] = useState<Record<string, string>>({});
   const [reasonDrafts, setReasonDrafts] = useState<Record<string, string>>({});
   const [notesDrafts, setNotesDrafts] = useState<Record<string, string>>({});
@@ -33,7 +32,7 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
       setItems(loaded.items);
       setHasMore(loaded.hasMore);
     } catch (error) {
-      setMessage({ tone: "error", text: errorText(error) });
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -45,16 +44,16 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
 
   const runAndReload = async (action: () => Promise<unknown>, success: string) => {
     setBusy(true);
-    setMessage(null);
+    setError(null);
     try {
       await action();
-      setMessage({ tone: "notice", text: success });
+      toast.success(success);
       const loaded = await useCases.load(statusFilter);
       setPolicies(loaded.policies);
       setItems(loaded.items);
       setHasMore(loaded.hasMore);
     } catch (error) {
-      setMessage({ tone: "error", text: errorText(error) });
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -69,7 +68,7 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
       setItems((current) => [...current, ...page.items]);
       setHasMore(page.hasMore);
     } catch (error) {
-      setMessage({ tone: "error", text: errorText(error) });
+      setError(errorText(error));
     } finally {
       setBusy(false);
     }
@@ -78,14 +77,14 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
   const savePolicy = (policy: PrismRetentionPolicy, change: { enabled?: boolean; usePeriodDraft?: boolean }) => {
     const reason = (reasonDrafts[policy.category] ?? "").trim();
     if (!reason) {
-      setMessage({ tone: "error", text: "Enter a reason before changing this policy." });
+      setError("Enter a reason before changing this policy.");
       return;
     }
     let periodDays: number | undefined;
     if (change.usePeriodDraft) {
       const parsed = parsePeriodDays(periodDrafts[policy.category] ?? String(policy.periodDays));
       if (parsed === null) {
-        setMessage({ tone: "error", text: "Retention periods must be whole days between 30 and 3650." });
+        setError("Retention periods must be whole days between 30 and 3650.");
         return;
       }
       periodDays = parsed;
@@ -103,7 +102,7 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
   const dismissItem = (item: PrismRetentionReviewItem) => {
     const reason = (reasonDrafts[item.id] ?? "").trim();
     if (!reason) {
-      setMessage({ tone: "error", text: "A dismissal reason is required." });
+      setError("A dismissal reason is required.");
       return;
     }
     void runAndReload(() => useCases.dismissItem(item, reason), "Review item dismissed.");
@@ -116,7 +115,7 @@ export function usePrivacyRetentionViewModel(useCases: UseCases = retentionUseCa
     loadMore: () => void loadMore(),
     statusFilter,
     busy,
-    message,
+    error,
     setStatusFilter,
     periodDrafts,
     setPeriodDraft: (category: string, value: string) => setPeriodDrafts((current) => ({ ...current, [category]: value })),

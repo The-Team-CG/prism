@@ -24,6 +24,8 @@ const { repository } = vi.hoisted(() => ({
 }));
 
 vi.mock("../data/live-ops-schedule-repository", () => ({ liveOpsScheduleRepository: repository }));
+const { toastSuccess } = vi.hoisted(() => ({ toastSuccess: vi.fn() }));
+vi.mock("@prism/ui/components/sonner", () => ({ toast: { success: toastSuccess } }));
 
 afterEach(() => cleanup());
 
@@ -178,7 +180,7 @@ describe("LiveOpsScheduleDesk", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Start" }));
     await waitFor(() => expect(repository.updateSegmentStatus).toHaveBeenCalledWith("evt_1", "segment_1", { action: "start" }));
-    expect(await screen.findByText("Schedule segment updated.")).toBeTruthy();
+    await waitFor(() => expect(toastSuccess).toHaveBeenCalledWith("Schedule segment updated."));
   });
 
   it("reads a coordinator's run sheet through the coordinator-scoped schedule and never the PMCM event record", async () => {

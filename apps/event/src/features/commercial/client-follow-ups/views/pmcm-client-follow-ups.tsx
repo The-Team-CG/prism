@@ -19,7 +19,6 @@ export function PmcmClientFollowUps({ eventId }: { eventId: string }) {
       <h2 id="client-follow-ups-heading" className="text-lg font-bold">Client follow-ups</h2>
       <p className="mt-1 text-sm text-muted-foreground">Suggested when a proposal waits 3 days, a balance is due within 48 hours, or a floor plan waits 2 days for approval.</p>
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
-      {vm.notice ? <p aria-live="polite" className="mt-3 text-sm text-muted-foreground">{vm.notice}</p> : null}
       {vm.triggers.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">No follow-ups are due for this event.</p> : null}
       <ul className="mt-4 space-y-4">
         {vm.triggers.map((item) => {

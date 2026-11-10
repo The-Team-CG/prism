@@ -20,7 +20,7 @@ import { FileRequirementTemplateManager } from "./file-requirement-template-mana
 import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
-  const { matrix, status, error, reload, remindersBusy, reminderMessage, sendReminders } = useFileRequirementsMatrixViewModel(eventId);
+  const { matrix, status, error, reload, remindersBusy, reminderError, sendReminders } = useFileRequirementsMatrixViewModel(eventId);
   const editor = useFileRequirementEditorViewModel(eventId, reload);
   const counts = fileRequirementCounts(matrix);
   const items = sortFileRequirementItems(matrix?.items ?? []);
@@ -83,7 +83,7 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
           </div>
         ) : null}
       </div>
-      {reminderMessage ? <p role="status" className="border-b border-border px-6 py-2 text-xs text-muted-foreground">{reminderMessage}</p> : null}
+      {reminderError ? <p role="alert" className="border-b border-border px-6 py-2 text-xs text-danger">{reminderError}</p> : null}
       {templatesOpen && eventId ? <FileRequirementTemplateManager eventId={eventId} onClose={() => setTemplatesOpen(false)} onApplied={reload} /> : null}
       {editor.target?.mode === "create" ? (
         <div className="px-6 py-4">

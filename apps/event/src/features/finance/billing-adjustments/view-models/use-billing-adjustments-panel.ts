@@ -21,6 +21,7 @@ import {
   submitCorrectionResolution,
   submitDisputeResolution,
 } from "../use-cases/submit-billing-adjustment";
+import { toast } from "@prism/ui/components/sonner";
 
 export function useBillingAdjustmentsPanel({
   eventId,
@@ -38,7 +39,6 @@ export function useBillingAdjustmentsPanel({
   const [additionalBillings, setAdditionalBillings] = useState<PrismAdditionalBilling[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [viewer, setViewer] = useState<EventSession | null>(null);
   const currentEventId = useRef(eventId);
   currentEventId.current = eventId;
@@ -78,12 +78,11 @@ export function useBillingAdjustmentsPanel({
     const requestedEventId = eventId;
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       await command();
       if (currentEventId.current !== requestedEventId) return;
       onDone?.();
-      setNotice(`${label} recorded.`);
+      toast.success(`${label} recorded.`);
       await load();
     } catch (cause) {
       if (currentEventId.current === requestedEventId) setError(cause instanceof Error ? cause.message : `Could not record ${label.toLowerCase()}.`);
@@ -101,7 +100,6 @@ export function useBillingAdjustmentsPanel({
     additionalBillings,
     busy,
     error,
-    notice,
     disputeDraft,
     setDisputeDraft,
     correctionDraft,

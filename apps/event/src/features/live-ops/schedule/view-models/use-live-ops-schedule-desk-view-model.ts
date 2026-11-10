@@ -15,6 +15,7 @@ import {
   type PrismEventSchedule,
 } from "@prism/types";
 import { liveOpsScheduleRepository } from "../data/live-ops-schedule-repository";
+import { toast } from "@prism/ui/components/sonner";
 
 type LocalScheduleSegmentInput = {
   title: string;
@@ -46,7 +47,6 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string, { coordinatorSc
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const requestVersion = useRef(0);
 
   const reload = useCallback(async () => {
@@ -85,11 +85,10 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string, { coordinatorSc
   const run = useCallback(async (action: () => Promise<unknown>, savedMessage: string) => {
     setBusy(true);
     setError(null);
-    setNotice(null);
     try {
       await action();
       await reload();
-      setNotice(savedMessage);
+      toast.success(savedMessage);
       return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save the event-day update.");
@@ -154,7 +153,6 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string, { coordinatorSc
     status,
     busy,
     error,
-    notice,
     reload,
     createDay,
     createSegment,
