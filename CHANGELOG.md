@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Fixed: the PMCM event overview and Briefing tab no longer offer "Submit briefing" and "Resubmit briefing". Those buttons filed a hard-coded placeholder briefing (Shangri-La Grand Ballroom, 240 guests, PHP 450,000 - 520,000) on the real event, over whatever the client had or had not submitted, and moved it to planning. The client submits the briefing; PMCM reads it.
 - Event-day operations in the event portal (tasks, urgent issues, task reassignment, operator designation and coordinator attendance) call the API through the shared `@prism/api-client` instead of hand-written paths. `liveOps` gains `operatorDesignation`, `revokeOperator`, `escalateTask`, `updateUrgentIssue` and `escalateUrgentIssue`.
 - PMCM commands in the event portal confirm with a toast naming the action (for example "Record payment · Done.") instead of finishing silently. Errors still show inline. `toast` is re-exported from `@prism/ui/components/sonner`.
 - Billing, payments, supplier records and quote commands in the event portal (about 40 calls across the shell, finance and supplier directory) go through a new `commercial` group in the shared `@prism/api-client` instead of hand-written paths. A test pins every endpoint, method and body, including the two bodies the API reads by field name.

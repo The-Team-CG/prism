@@ -542,7 +542,6 @@ export function useEventDashboardShellViewModel({
     changeCommandInboxPage,
     approveApprovalRequest: (requestId: string) => run("approve account", () => commands.approveApprovalRequest(requestId)),
     declineApprovalRequest: (requestId: string) => run("decline account", () => commands.declineApprovalRequest(requestId)),
-    submitBriefing: () => selectedEvent ? run("briefing", () => commands.submitBriefing(selectedEvent.id)) : Promise.resolve(),
     runPlanningCompliance: () => selectedEvent ? run("compliance", () => commands.runCompliance(selectedEvent.id, "planning")) : Promise.resolve(),
     submitFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("submit draft", () => commands.submitFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
     approveFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("approve draft", () => commands.approveFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
