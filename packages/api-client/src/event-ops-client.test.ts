@@ -27,6 +27,51 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends closure reads and writes, compliance runs and risks, decisions and status reads to their endpoints", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+
+    await client.closure.compareArchived(["e1", "e2"]);
+    await client.closure.completePostEventDocument("e/1", "d1");
+    await client.closure.logisticsCompletion("e1");
+    await client.closure.recordLogisticsCompletion("e1", any);
+    await client.closure.clientCloseoutModeration("e1");
+    await client.closure.moderateClientCloseout("e1", any);
+    await client.compliance.runs("e1");
+    await client.compliance.risks("e1");
+    await client.compliance.createRisk("e1", any);
+    await client.lifecycle.defenseReadiness("e1");
+    await client.lifecycle.eventDayStatusFeed("e1");
+    await client.lifecycle.cancellationSummary("e1");
+    await client.lifecycle.venueConfirmations("e1");
+    await client.lifecycle.resolveVenueConfirmation("e1", "t1", any);
+    await client.floorplans.history("e/1", "d/1");
+    await client.auth.approvalRequests();
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "GET /events/archive/compare?eventIds=e1%2Ce2",
+      "PATCH /events/e%2F1/post-event-documents/d1/complete",
+      "GET /events/e1/logistics-completion",
+      "POST /events/e1/logistics-completion",
+      "GET /events/e1/client-closeout/moderation",
+      "PATCH /events/e1/client-closeout/moderation",
+      "GET /events/e1/compliance/runs",
+      "GET /events/e1/compliance/risks",
+      "POST /events/e1/compliance/risks",
+      "GET /events/e1/defense-readiness",
+      "GET /events/e1/event-day/status-feed",
+      "GET /events/e1/decisions/cancellation-summary",
+      "GET /events/e1/decisions/venue-confirmations",
+      "POST /events/e1/decisions/venue-confirmations/t1/resolve",
+      "GET /events/e%2F1/floorplans/d%2F1/history",
+      "GET /auth/approval-requests",
+    ]);
+  });
+
   it("sends event and inquiry lifecycle, staffing and supplier-status commands to their endpoints", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));

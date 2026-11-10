@@ -1,4 +1,4 @@
-import { eventApi, eventApiRequest } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 import type {
   DecideFreezeExceptionInput,
   PrismAddendumConformeExecution,
@@ -6,7 +6,6 @@ import type {
   RecordEventDecisionInput,
   FreezeEventInput,
   PrismAddendum,
-  PrismCancellationSummary,
   PrismEventFreezeException,
   RequestFreezeExceptionInput,
   WithdrawAddendumInput,
@@ -30,7 +29,7 @@ export const changeRegisterRepository = {
     return eventApi.events.decideFreezeException(eventId, exceptionId, input);
   },
   cancellationSummary(eventId: string) {
-    return eventApiRequest<PrismCancellationSummary>(`/api/events/${eventId}/decisions/cancellation-summary`);
+    return eventApi.lifecycle.cancellationSummary(eventId);
   },
   recordDecision(eventId: string, input: RecordEventDecisionInput) {
     return eventApi.events.recordDecision(eventId, input);
