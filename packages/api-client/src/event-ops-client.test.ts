@@ -27,6 +27,70 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends audit, privacy and retention requests with the filters the operator set and nothing else", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+
+    await client.audit.integrity();
+    await client.audit.logs({ category: "all", actor: "Maxine", eventId: "" } as never);
+    await client.audit.logs({} as never);
+    await client.audit.exportLogs({ category: "finance" } as never);
+    await client.audit.alerts();
+    await client.audit.loginHistory("u1");
+    await client.audit.privacyInventory("all");
+    await client.audit.privacyInventory("e 1");
+    await client.privacyAdmin.requests({ status: "open", page: 2, limit: 25, assignedTo: "" } as never);
+    await client.privacyAdmin.requests();
+    await client.privacyAdmin.createRequest(any);
+    await client.privacyAdmin.assignRequest("r1", any);
+    await client.privacyAdmin.reviewRequest("r1", any);
+    await client.privacyAdmin.executeRequest("r1", "done");
+    await client.privacyAdmin.executeRequest("r1", "fixed", { name: "New" } as never);
+    await client.privacyAdmin.legalHolds();
+    await client.privacyAdmin.legalHolds("e1");
+    await client.privacyAdmin.createLegalHold(any);
+    await client.privacyAdmin.releaseLegalHold("h1", any);
+    await client.privacyAdmin.retentionPolicies();
+    await client.privacyAdmin.updateRetentionPolicy("guest records", any);
+    await client.privacyAdmin.retentionReviewItems({ status: "pending", limit: 20, after: "cur" } as never);
+    await client.privacyAdmin.executeRetentionReviewItem("i/1", any);
+    await client.privacyAdmin.dismissRetentionReviewItem("i1", any);
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "GET /audit/integrity",
+      "GET /audit/logs?actor=Maxine",
+      "GET /audit/logs",
+      "POST /audit/export",
+      "GET /audit/alerts",
+      "GET /auth/users/u1/login-history",
+      "GET /privacy/inventory",
+      "GET /privacy/inventory?eventId=e+1",
+      "GET /privacy/requests?status=open&page=2&limit=25",
+      "GET /privacy/requests",
+      "POST /privacy/requests",
+      "PATCH /privacy/requests/r1/assignment",
+      "PATCH /privacy/requests/r1/review",
+      "POST /privacy/requests/r1/execute",
+      "POST /privacy/requests/r1/execute",
+      "GET /privacy/legal-holds",
+      "GET /privacy/legal-holds?eventId=e1",
+      "POST /privacy/legal-holds",
+      "POST /privacy/legal-holds/h1/release",
+      "GET /privacy/retention-policies",
+      "PATCH /privacy/retention-policies/guest%20records",
+      "GET /privacy/retention-review-items?status=pending&limit=20&after=cur",
+      "POST /privacy/retention-review-items/i%2F1/execute",
+      "POST /privacy/retention-review-items/i1/dismiss",
+    ]);
+    // A correction is sent only when there is one.
+    expect(JSON.parse(String(fetchMock.mock.calls[13]?.[1]?.body))).toEqual({ executionNotes: "done" });
+    expect(JSON.parse(String(fetchMock.mock.calls[14]?.[1]?.body))).toEqual({ executionNotes: "fixed", correction: { name: "New" } });
+  });
+
   it("sends inquiry intake, notes, conforme execution, triage and event storage requests to their endpoints", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
