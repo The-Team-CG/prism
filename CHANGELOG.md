@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Fixed: the PMCM event overview and Briefing tab no longer offer "Submit briefing" and "Resubmit briefing". Those buttons filed a hard-coded placeholder briefing (Shangri-La Grand Ballroom, 240 guests, PHP 450,000 - 520,000) on the real event, over whatever the client had or had not submitted, and moved it to planning. The client submits the briefing; PMCM reads it.
 - 25 hand-built card containers in the event, supplier and guest portals now use the shared `Card` from `@prism/ui`, so a future card restyle reaches them. Layout is unchanged; they gain the shared card's hairline shadow. Containers that are `<section>` or `<article>` keep their element.
 - When the API cannot be reached, every screen says "Can't reach P.R.I.S.M right now. Try again in a moment." Screens that used the shared `@prism/api-client` showed the browser's raw "Failed to fetch" instead; the message now comes from the shared transport (`PrismApiOfflineError`).
 - The supplier Today list is shorter: each step has one "Details" toggle beside its action instead of a separate "Show details" line, and a quote due within three days or past due shows in a warning colour.
