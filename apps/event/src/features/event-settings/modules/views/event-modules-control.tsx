@@ -26,7 +26,7 @@ export function EventModulesControl({ selectedEvent, onSave }: { selectedEvent?:
   return (
     <fieldset className="rounded-md border border-border bg-muted/20 px-4 py-3" disabled={saving}>
       <legend className="sr-only">Event modules</legend>
-      <p className="text-sm font-black text-foreground">Modules</p>
+      <p className="text-sm font-semibold text-foreground">Modules</p>
       <p className="mt-1 text-xs text-muted-foreground">Switch off what this event does not need. Nothing is deleted; switching a module back on brings its screens back.</p>
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {EVENT_MODULES.map((module) => (

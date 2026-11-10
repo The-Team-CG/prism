@@ -9,8 +9,8 @@ export function PmcmSupplierGapWarning({ eventId, refreshKey }: { eventId: strin
   const vm = useSupplierGaps(eventId, refreshKey);
   if (vm.gaps.length === 0 && !vm.error) return null;
   return (
-    <section role="alert" aria-labelledby="supplier-gap-heading" className="rounded-2xl border border-destructive/40 bg-destructive/5 p-5">
-      <h2 id="supplier-gap-heading" className="text-sm font-bold text-destructive">Supplier gap</h2>
+    <section role="alert" aria-labelledby="supplier-gap-heading" className="rounded-lg border border-destructive/40 bg-destructive/5 p-5">
+      <h2 id="supplier-gap-heading" className="text-sm font-semibold text-destructive">Supplier gap</h2>
       <p className="mt-1 text-xs text-muted-foreground">No Tier 1 or Tier 2 supplier is available on the event date for these categories. Event day cannot start until a supplier is booked or PMCM acknowledges the risk.</p>
       {vm.error ? <p className="mt-2 text-sm text-destructive">{vm.error}</p> : null}
       <ul className="mt-3 space-y-3">

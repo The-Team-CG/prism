@@ -65,7 +65,7 @@ export function ClientActivityTab({ audit }: { audit: PrismAuditLog[] }) {
       <CardHeader>
         <div className="flex items-center gap-2">
           <Activity className="size-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Event activity</h2>
+          <h2 className="text-sm font-semibold text-foreground">Event activity</h2>
         </div>
       </CardHeader>
       <CardBody>
@@ -82,10 +82,10 @@ export function ClientActivityTab({ audit }: { audit: PrismAuditLog[] }) {
               <div className="space-y-3">
                 {items.map((item) => (
                   <div key={item.id} className="flex items-start gap-3">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-bold text-foreground">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-foreground">
                       {actorInitials(item.actor)}
                     </span>
-                    <div className="min-w-0 flex-1 rounded-xl bg-muted/40 px-4 py-3">
+                    <div className="min-w-0 flex-1 rounded-lg bg-muted/40 px-4 py-3">
                       <p className="text-sm font-semibold text-foreground">
                         {clientActivityTitle(item.action)}
                       </p>

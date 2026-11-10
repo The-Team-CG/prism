@@ -6,6 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./blocks": "./src/blocks.tsx",
+    "./page-blocks": "./src/page-blocks.tsx",
+    "./figures": "./src/figures.ts",
     "./account-help": "./src/account-help.tsx",
     "./document-title": "./src/document-title.tsx",
     "./portal-status-pages": "./src/portal-status-pages.tsx",

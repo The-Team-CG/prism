@@ -133,6 +133,8 @@ export function clientShellDescription(input: {
       ? `${input.selectedEvent.eventName} · ${formatPortalDate(input.selectedEvent.eventDate)}`
       : "Loading event workspace…";
   }
+  // Home opens with its own greeting and summary line, so the shell adds no second description.
+  if (input.route === "home" && (!input.portalView || input.portalView === "dashboard-overview")) return undefined;
   if (input.portalView) return CLIENT_PORTAL_VIEW_META[input.portalView].description;
   const portalDescription = PORTAL_DESCRIPTIONS[input.route];
   if (portalDescription) return portalDescription;

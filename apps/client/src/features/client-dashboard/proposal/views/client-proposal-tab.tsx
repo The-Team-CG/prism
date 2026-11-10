@@ -65,14 +65,14 @@ function ProposalStatusHero({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <SectionLabel>Proposal status</SectionLabel>
-            <h2 className="mt-1 text-xl font-black text-foreground">{headline}</h2>
+            <h2 className="mt-1 text-xl font-semibold text-foreground">{headline}</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
               Only the primary client contact on the inquiry can approve or request a revision. Internal cost estimation stays with PMCM. Up to three revisions.
             </p>
             {canApprove ? (
               <div className="mt-4 space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  <Button className="rounded-lg font-bold" disabled={reviewing} onClick={onApprove}>
+                  <Button className="rounded-lg font-semibold" disabled={reviewing} onClick={onApprove}>
                     <ThumbsUp className="size-4" /> Approve proposal
                   </Button>
                   <Button
@@ -133,7 +133,7 @@ function ProposalPackageCard({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Presentation className="size-4 text-primary" />
-            <h3 className="text-sm font-bold text-foreground">Proposal package</h3>
+            <h3 className="text-sm font-semibold text-foreground">Proposal package</h3>
           </div>
           <StatusBadge
             status={proposalReady ? "ready" : "pending"}
@@ -236,7 +236,7 @@ function ProposalReviewChecklist({
       <CardHeader>
         <div className="flex items-center gap-2">
           <MessageSquareText className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Review checklist</h3>
+          <h3 className="text-sm font-semibold text-foreground">Review checklist</h3>
         </div>
       </CardHeader>
       <div className="divide-y divide-border">

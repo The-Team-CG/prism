@@ -16,7 +16,6 @@ export function InquiryViews({ intake, onboarding, followUp }: { intake: ReactNo
   const [view, setView] = useState<InquiryView>("intake");
   return (
     <div className="grid gap-4">
-      <p className="text-sm text-muted-foreground">Review new requests here. Accepted inquiries continue in Onboarding and Conforme follow-up.</p>
       <SegmentedControl
         label="Inquiry views"
         options={VIEWS.map((entry) => ({ value: entry.id, label: entry.label }))}

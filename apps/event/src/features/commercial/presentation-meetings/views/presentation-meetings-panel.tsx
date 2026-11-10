@@ -49,7 +49,7 @@ export function PresentationMeetingsPanel({ eventId }: { eventId: string }) {
 
   return (
     <section className="rounded-lg border border-border bg-card p-5 text-sm">
-      <h2 className="text-lg font-bold">Presentation meeting</h2>
+      <h2 className="text-lg font-semibold">Presentation meeting</h2>
       {data.atRisk ? <p role="alert" className="mt-2 rounded-md bg-destructive/10 px-3 py-2 text-destructive">At risk: the client missed the last two presentations.</p> : null}
       {error ? <p role="alert" className="mt-2 text-destructive">{error}</p> : null}
       <ul className="mt-3 space-y-2">

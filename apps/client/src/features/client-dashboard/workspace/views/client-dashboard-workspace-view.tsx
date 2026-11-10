@@ -40,6 +40,8 @@ import {
   dashboardHref,
   clientEventWorkspaceAvailable,
   clientEventSidebarItems,
+  clientOpenEventSidebarItems,
+  openEventIdFromNavItem,
   clientSidebarLinkHref,
   findClientEventNavItem,
   CLIENT_ACCOUNT_MENU_ITEMS,
@@ -113,18 +115,21 @@ const EVENT_PREFETCH_ROUTES = [
   "messages",
 ] as const satisfies ClientDashboardRoute[];
 
+/** Screens that need the full width: a canvas, a calendar grid and the two-pane chat. Every other page keeps to a reading width. */
+const WIDE_CLIENT_ROUTES: ReadonlySet<ClientDashboardRoute> = new Set(["floorplan", "calendar", "messages"]);
+
 function disableEventNav(requiresEvent: boolean | undefined, hasEvent: boolean) {
   return Boolean(requiresEvent) && !hasEvent;
 }
 
-function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, eventCount }: {
+function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events }: {
   route: ClientDashboardRoute;
   portalView?: ClientPortalView;
   isEventScopedView: boolean;
   selectedEvent?: PrismEvent;
-  eventCount: number;
+  events: PrismEvent[];
 }) {
-  const shellNavItems = clientPortalSidebarItems(eventCount).map((item) => ({
+  const shellNavItems = clientPortalSidebarItems(events.length).map((item) => ({
     ...item,
     href: clientSidebarLinkHref(item.id, selectedEvent?.id),
     disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
@@ -142,7 +147,7 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
       : sidebarActiveItemId(route, isEventScopedView, portalView),
     sidebarNavItems: inEventWorkspace && selectedEvent
       ? clientEventSidebarItems(selectedEvent.id, selectedEvent)
-      : shellNavItems,
+      : [...shellNavItems, ...clientOpenEventSidebarItems(events)],
   };
 }
 
@@ -463,10 +468,15 @@ export function ClientDashboardWorkspaceView({
   }
 
   const { inEventWorkspace, activeShellItemId, sidebarNavItems } = clientWorkspaceShellNavigation({
-    route, portalView, isEventScopedView, selectedEvent, eventCount: events.length,
+    route, portalView, isEventScopedView, selectedEvent, events,
   });
 
   function handleShellNavSelect(id: string) {
+    const openEventId = openEventIdFromNavItem(id);
+    if (openEventId) {
+      router.push(dashboardHref("overview", openEventId));
+      return;
+    }
     const eventItem = findClientEventNavItem(id);
     if (eventItem) {
       navigateToEventRoute(eventItem.route);
@@ -563,7 +573,7 @@ export function ClientDashboardWorkspaceView({
         accountMenuItems={CLIENT_ACCOUNT_MENU_ITEMS}
         onSignOut={signOut}
       >
-        <div className="space-y-5">
+        <div className={WIDE_CLIENT_ROUTES.has(route) ? "space-y-5" : "max-w-5xl space-y-5"}>
           <ClientWorkspaceBanners error={error} notice={notice} />
           <ClientDashboardRouteBody route={route} isEventScopedView={isEventScopedView} />
         </div>

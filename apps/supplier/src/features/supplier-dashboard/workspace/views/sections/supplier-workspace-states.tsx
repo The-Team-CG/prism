@@ -8,7 +8,7 @@ import { Card } from "@prism/ui/components/card";
 export function SupplierWorkspaceLoading() {
   return (
     <main className="grid min-h-screen place-items-center bg-background">
-      <div className="h-8 w-48 animate-pulse rounded-xl bg-muted" />
+      <div className="h-8 w-48 animate-pulse rounded-lg bg-muted" />
     </main>
   );
 }
@@ -31,12 +31,12 @@ export function SupplierWrongPortalView({ onSignIn }: { onSignIn: () => void }) 
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
       <Card className="w-full max-w-md p-8">
-        <ShieldCheck className="size-12 rounded-xl bg-attention-soft p-2.5 text-attention" />
-        <h1 className="mt-5 text-xl font-bold text-foreground">Wrong portal for this account.</h1>
+        <ShieldCheck className="size-12 rounded-lg bg-attention-soft p-2.5 text-attention" />
+        <h1 className="mt-5 text-xl font-semibold text-foreground">Wrong portal for this account.</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           Supplier dashboard access requires an approved supplier account.
         </p>
-        <Button className="mt-5 rounded-xl font-bold" onClick={onSignIn}>
+        <Button className="mt-5 rounded-lg font-semibold" onClick={onSignIn}>
           Use supplier sign-in
         </Button>
       </Card>

@@ -1,17 +1,10 @@
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { PrismEvent } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
 
-const mine = vi.hoisted(() => vi.fn());
-vi.mock("@/features/account-notifications/data/notification-preferences-repository", () => ({ notificationPreferencesRepository: { mine } }));
-
-beforeEach(() => {
-  mine.mockReset();
-  mine.mockRejectedValue(new Error("offline"));
-});
 afterEach(cleanup);
 
 const session: EventSession = {
@@ -150,28 +143,5 @@ describe("EventSettingsWorkspace client event-day view", () => {
     );
 
     expect(screen.queryByRole("switch", { name: "Client event-day view" })).toBeNull();
-  });
-});
-
-describe("EventSettingsWorkspace notifications summary", () => {
-  const prefs = { email: "ana@pmcm.test", viberConfigured: true, viberLinked: true, viberEnabled: true, viberLinkedAt: "2026-11-01T00:00:00.000Z" };
-
-  it("says only what the account's own settings support, and never claims delivery is unavailable", async () => {
-    mine.mockResolvedValue({ ...prefs, viberConfigured: false, viberLinked: false, viberEnabled: false, viberLinkedAt: null });
-    renderSettings();
-    expect(await screen.findByText("Updates go to ana@pmcm.test. Viber isn't set up for this deployment.")).toBeTruthy();
-    expect(screen.queryByText(/Live sending isn't connected yet/)).toBeNull();
-  });
-
-  it("adds Viber once it is set up, linked and on", async () => {
-    mine.mockResolvedValue(prefs);
-    renderSettings();
-    expect(await screen.findByText("Email + Viber")).toBeTruthy();
-  });
-
-  it("keeps to the email claim when the settings cannot be read", async () => {
-    renderSettings();
-    await waitFor(() => expect(mine).toHaveBeenCalled());
-    expect(screen.getByText(`Updates go to ${session.email}.`)).toBeTruthy();
   });
 });

@@ -51,7 +51,7 @@ export function CoordinatorReliabilityHistory({
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-sm font-bold text-foreground">Coordinator reliability history</h2>
+        <h2 className="text-sm font-semibold text-foreground">Coordinator reliability history</h2>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -66,7 +66,7 @@ export function CoordinatorReliabilityHistory({
                 setStatus("idle");
               }}
             >
-              <SelectTrigger aria-label="Coordinator reliability profile" className="h-10 w-full min-w-0 rounded-xl">
+              <SelectTrigger aria-label="Coordinator reliability profile" className="h-10 w-full min-w-0 rounded-lg">
                 <SelectValue placeholder="Choose a coordinator" />
               </SelectTrigger>
               <SelectContent>
@@ -84,7 +84,7 @@ export function CoordinatorReliabilityHistory({
           <p role="status" className="text-sm text-muted-foreground">No reliability history recorded.</p>
         )}
         {entries.length > 0 && (
-          <ol aria-label="Reliability notes" className="divide-y divide-border rounded-xl border border-border">
+          <ol aria-label="Reliability notes" className="divide-y divide-border rounded-lg border border-border">
             {entries.map((entry) => (
               <li key={entry.id} className="space-y-1.5 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">

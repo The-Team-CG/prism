@@ -144,7 +144,7 @@ function ConformeDraftCard({ inquiry }: { inquiry: PrismInquiry }) {
     ? formatPortalDateTime(new Date(Date.parse(reminderWindowBaseAt) + CONFORME_DRAFT_DELAY_MS).toISOString())
     : 'after the conforme is sent';
   return (
-    <article className="rounded-xl border border-border bg-card p-4 shadow-sm">
+    <article className="rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold text-foreground">{inquiry.eventName}</h3>

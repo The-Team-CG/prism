@@ -98,14 +98,14 @@ function AuditTrailHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h2 className="text-xl font-bold text-foreground">Audit trail</h2>
+        <h2 className="text-xl font-semibold text-foreground">Audit trail</h2>
         <p className="mt-1 text-sm text-muted-foreground">Every user, system, access, supplier, finance and document action. Visible to PMCM only.</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={onExport} className="h-10 rounded-md font-black">
+        <Button type="button" variant="outline" disabled={busy} onClick={onExport} className="h-10 rounded-md font-semibold">
           <Download className="size-4" /> Export log
         </Button>
-        <Button type="button" variant="outline" onClick={onToggleFilters} className="h-10 rounded-md font-black">
+        <Button type="button" variant="outline" onClick={onToggleFilters} className="h-10 rounded-md font-semibold">
           <Filter className="size-4" /> More filters
         </Button>
       </div>
@@ -137,7 +137,7 @@ function AuditIntegrityCards({
           <p className="text-xs font-medium">Audit integrity</p>
           <ShieldCheck className="size-4" />
         </div>
-        <p className="mt-2 text-2xl font-black">{integrity.headline}</p>
+        <p className="mt-2 text-2xl font-semibold">{integrity.headline}</p>
         <p className="mt-1 text-xs">{integrity.detail}</p>
       </div>
       <div className="rounded-lg border border-border bg-white p-4">
@@ -145,7 +145,7 @@ function AuditIntegrityCards({
           <p className="text-xs font-medium text-muted-foreground">Privacy records</p>
           <Database className="size-4 text-attention" />
         </div>
-        <p className="mt-2 text-2xl font-black text-foreground">{privacyRecordCount}</p>
+        <p className="mt-2 text-2xl font-semibold text-foreground">{privacyRecordCount}</p>
         <p className="mt-1 text-xs text-muted-foreground">{privacySurfaceCount} personal-data surfaces indexed</p>
       </div>
       <div className={cx(
@@ -156,7 +156,7 @@ function AuditIntegrityCards({
           <p className="text-xs font-medium">Consent gaps</p>
           <AlertTriangle className="size-4" />
         </div>
-        <p className="mt-2 text-2xl font-black">{missingConsentCount}</p>
+        <p className="mt-2 text-2xl font-semibold">{missingConsentCount}</p>
         <p className="mt-1 text-xs">{retentionNote}</p>
       </div>
     </div>
@@ -356,7 +356,7 @@ export function PrivacyConsoleLinkPanel() {
         <p className="text-muted-foreground">
           Privacy requests, deadlines, owners, legal holds, and retention policies are managed in the privacy console.
         </p>
-        <Link href="/dashboard/privacy" className="inline-flex h-10 items-center rounded-md border border-border bg-white px-4 font-black text-foreground hover:bg-background">
+        <Link href="/dashboard/privacy" className="inline-flex h-10 items-center rounded-md border border-border bg-white px-4 font-semibold text-foreground hover:bg-background">
           Open privacy console
         </Link>
       </div>
@@ -373,7 +373,7 @@ export function SecurityAlertsPanel({ alerts }: { alerts: PrismSecurityAlert[] }
           <div key={alert.id} className="rounded-md border border-border bg-background p-3 text-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="font-black">{alert.title}</p>
+                <p className="font-semibold">{alert.title}</p>
                 <p className="mt-1 text-muted-foreground">{alert.description}</p>
               </div>
               <span className={cx("rounded-full px-2 py-1 text-2xs font-semibold capitalize", severityTone(alert.severity))}>{alert.severity}</span>
@@ -394,7 +394,7 @@ export function LoginHistoryPanel({ loginHistory }: { loginHistory: PrismLoginHi
         {loginHistory.map((entry) => (
           <div key={entry.id} className="rounded-md bg-background p-3 text-sm">
             <div className="flex items-center justify-between gap-3">
-              <p className="font-black capitalize">{label(entry.status)}</p>
+              <p className="font-semibold capitalize">{label(entry.status)}</p>
               <span className={cx("rounded-full px-2 py-1 text-2xs font-semibold capitalize", entry.status === "success" ? severityTone("info") : severityTone("warning"))}>
                 {roleLabel(entry.userRole)}
               </span>

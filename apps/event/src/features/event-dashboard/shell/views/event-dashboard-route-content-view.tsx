@@ -16,7 +16,7 @@ export function EventDashboardRouteContentView({
     <EventDashboardRouteProvider viewModel={viewModel}>
       <div className="space-y-5">
         {viewModel.error && (
-          <Alert variant="destructive" className="rounded-xl">
+          <Alert variant="destructive" className="rounded-lg">
             <AlertDescription>{viewModel.error}</AlertDescription>
           </Alert>
         )}

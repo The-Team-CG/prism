@@ -6,6 +6,8 @@ import {
   dashboardLoadingVariant,
   findClientSidebarLink,
   clientPortalSidebarItems,
+  clientOpenEventSidebarItems,
+  openEventIdFromNavItem,
   clientEventWorkspaceAvailable,
   sidebarActiveItemId,
 } from "./client-dashboard-navigation";
@@ -39,6 +41,25 @@ describe("client-dashboard navigation", () => {
   it("keeps event-owned sections inside the event when the client has one event", () => {
     expect(clientPortalSidebarItems(1).map((item) => item.label)).toEqual(["Home", "Events", "Calendar"]);
     expect(clientPortalSidebarItems(2).map((item) => item.id)).toContain("billing-payments");
+  });
+
+  it("lists upcoming events in the portal sidebar, soonest first, without past ones", () => {
+    const event = (id: string, eventDate: string, status: string, archived = false) =>
+      ({ id, eventName: `Event ${id}`, eventDate, status, archived }) as Parameters<typeof clientOpenEventSidebarItems>[0][number];
+    const items = clientOpenEventSidebarItems([
+      event("late", "2026-12-20", "planning"),
+      event("done", "2026-10-01", "completed"),
+      event("soon", "2026-11-23", "planning"),
+      event("archived", "2026-11-01", "planning", true),
+      event("a", "2027-01-01", "planning"),
+      event("b", "2027-02-01", "planning"),
+      event("c", "2027-03-01", "planning"),
+    ]);
+    // Capped at four: the Events page holds the full list.
+    expect(items.map((item) => item.label)).toEqual(["Event soon", "Event late", "Event a", "Event b"]);
+    expect(items[0]).toMatchObject({ href: "/dashboard/events/soon/overview", section: "Your events" });
+    expect(openEventIdFromNavItem(items[0].id)).toBe("soon");
+    expect(openEventIdFromNavItem("my-events")).toBeUndefined();
   });
 
   it("maps loading variants", () => {

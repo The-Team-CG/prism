@@ -15,7 +15,7 @@ export function ClientVenueScouting({ eventId }: { eventId: string }) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2"><MapPin className="size-4 text-primary" /><h2 className="text-sm font-bold text-foreground">Venue options</h2></div>
+        <div className="flex items-center gap-2"><MapPin className="size-4 text-primary" /><h2 className="text-sm font-semibold text-foreground">Venue options</h2></div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">PMCM scouted these venues for your event. Mark the one you prefer. You can change it until PMCM confirms the venue.</p>
       </CardHeader>
       <CardBody>
@@ -35,8 +35,8 @@ export function ClientVenueScouting({ eventId }: { eventId: string }) {
 
 function VenueOptionCard({ option, preferred, busy, onChoose }: { option: PrismVenueScoutingOption; preferred: boolean; busy: boolean; onChoose: () => void }) {
   return (
-    <article className={`rounded-xl border p-4 ${preferred ? "border-primary bg-primary/5" : "border-border bg-muted/20"}`}>
-      <p className="font-bold text-foreground">{option.name}</p>
+    <article className={`rounded-lg border p-4 ${preferred ? "border-primary bg-primary/5" : "border-border bg-muted/20"}`}>
+      <p className="font-semibold text-foreground">{option.name}</p>
       <p className="mt-1 text-xs text-muted-foreground">{option.location}</p>
       <dl className="mt-3 space-y-1 text-xs">
         <div><dt className="inline font-semibold">Capacity: </dt><dd className="inline">{option.capacity} guests</dd></div>
@@ -45,7 +45,7 @@ function VenueOptionCard({ option, preferred, busy, onChoose }: { option: PrismV
       </dl>
       {option.notes ? <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">{option.notes}</p> : null}
       {preferred
-        ? <p className="mt-3 text-xs font-bold text-primary">Your preferred venue{option.clientPreferenceNote ? ` · ${option.clientPreferenceNote}` : ""}</p>
+        ? <p className="mt-3 text-xs font-semibold text-primary">Your preferred venue{option.clientPreferenceNote ? ` · ${option.clientPreferenceNote}` : ""}</p>
         : <Button disabled={busy} onClick={onChoose} variant="outline" className="mt-3 rounded-lg font-semibold">Prefer this venue</Button>}
     </article>
   );

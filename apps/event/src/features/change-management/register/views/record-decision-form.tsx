@@ -87,7 +87,7 @@ export function RecordDecisionForm({
   }
 
   return (
-    <details className="rounded-xl border border-danger/40 bg-danger-soft/30 p-4">
+    <details className="rounded-lg border border-danger/40 bg-danger-soft/30 p-4">
       <summary className="min-h-11 cursor-pointer text-sm font-semibold text-danger">Cancel or postpone this event</summary>
       <form onSubmit={submit} className="mt-4 space-y-4" aria-label="Record cancellation or postponement">
         <p className="text-xs text-muted-foreground">Recording a cancellation or postponement releases or keeps coordinator and supplier obligations. Choose the decision explicitly.</p>

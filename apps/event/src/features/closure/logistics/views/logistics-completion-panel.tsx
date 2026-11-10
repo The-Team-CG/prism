@@ -16,7 +16,7 @@ export function LogisticsCompletionPanel({ eventId }: { eventId: string }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold text-muted-foreground">Logistics completion</p>
-          <h2 className="text-lg font-black">Asset returns and site clearance</h2>
+          <h2 className="text-lg font-semibold">Asset returns and site clearance</h2>
         </div>
         {vm.record ? (
           <span className="text-sm text-muted-foreground">

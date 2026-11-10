@@ -10,7 +10,7 @@ import { isGuestCheckInOpen } from "../model/guest-dashboard-rules";
 import { LoadingState } from "@prism/ui/components/loading-state";
 import {
   GuestCheckInPanel,
-  GuestEventDetailsPanel,
+  GuestPassCard,
   GuestFeedbackPanel,
 } from "./sections/guest-dashboard-panels";
 
@@ -41,7 +41,7 @@ function GuestPassNav({ checkInOpen, feedbackOpen }: { checkInOpen: boolean; fee
   return (
     <nav aria-label="Guest pass sections" className="flex flex-wrap gap-2">
       {checkInOpen ? <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#check-in">Check in</a></Button> : null}
-      <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#event-details">Event details</a></Button>
+      <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#event-details">Your pass</a></Button>
       <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href={portalHref("/games/join")}>Join a game</a></Button>
       {feedbackOpen ? <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#feedback">Feedback</a></Button> : null}
     </nav>
@@ -60,11 +60,7 @@ export function GuestDashboardView() {
   return (
     <PrismGuestShell
       eventName={session.eventName}
-      detail={
-        <>
-          {formatPortalDate(session.eventDate)} · Hosted by {session.clientName}
-        </>
-      }
+      lead={<GuestPassCard session={session} checkedIn={vm.checkedIn} />}
       actions={
         <button type="button" onClick={() => vm.leave()} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-muted-foreground transition hover:text-foreground">
           <LogOut aria-hidden="true" className="size-4" />
@@ -76,15 +72,9 @@ export function GuestDashboardView() {
           <GuestDashboardNotices vm={vm} />
           <GuestPassNav checkInOpen={checkInOpen} feedbackOpen={feedbackOpen} />
           {checkInOpen ? (
-            <>
-              <div id="check-in"><GuestCheckInPanel vm={vm} /></div>
-              <div id="event-details"><GuestEventDetailsPanel session={session} /></div>
-            </>
+            <div id="check-in"><GuestCheckInPanel vm={vm} /></div>
           ) : (
-            <>
-              <PrismNoticeBanner role="status" tone="info">Check-in opens on {formatPortalDate(session.eventDate)}. Keep this pass to show the registration team when you arrive.</PrismNoticeBanner>
-              <div id="event-details"><GuestEventDetailsPanel session={session} /></div>
-            </>
+            <PrismNoticeBanner role="status" tone="info">Check-in opens on {formatPortalDate(session.eventDate)}. Keep this pass to show the registration team when you arrive.</PrismNoticeBanner>
           )}
           {feedbackOpen ? <div id="feedback"><GuestFeedbackPanel vm={vm} /></div> : null}
         </div>

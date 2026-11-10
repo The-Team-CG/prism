@@ -20,9 +20,9 @@ export function ClientRequestView() {
   const consentMissing = !requestForm.privacyConsentAccepted;
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-2xl">
       <Card>
-        <CardContent>
+        <CardContent className="py-6">
           <form className="space-y-5" onSubmit={submitNewEventRequest}>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
@@ -94,8 +94,8 @@ export function ClientRequestView() {
               />
             </Field>
 
-            <div className="rounded-lg border border-primary/15 bg-primary-soft p-4 text-sm">
-              <p className="font-bold text-foreground">What happens next</p>
+            <div className="rounded-lg bg-muted p-4 text-sm">
+              <p className="font-semibold text-foreground">What happens next</p>
               <ol className="mt-2 space-y-1 text-muted-foreground">
                 <li>1. PMCM reviews fit and scope.</li>
                 <li>2. PMCM accepts, pends, or declines.</li>
@@ -117,7 +117,7 @@ export function ClientRequestView() {
             </div>
 
             <Field>
-              <Button type="submit" disabled={submitting || consentMissing} className="self-start font-bold">
+              <Button type="submit" disabled={submitting || consentMissing} className="self-start font-semibold">
                 Submit request <Send aria-hidden />
               </Button>
               {consentMissing ? <FieldDescription>Accept the privacy consent above to submit this request.</FieldDescription> : null}

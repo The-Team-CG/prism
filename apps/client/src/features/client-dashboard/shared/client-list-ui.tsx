@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Card } from "@prism/ui/components/card";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
+import { PrismEmptyLine } from "@prism/ui/page-blocks";
+import { isZeroFigure } from "@prism/ui/figures";
 import { cn } from "@/app/components/ui/utils";
 
 /**
@@ -35,7 +36,8 @@ const STATUS: Record<ClientRowTone, string> = {
   neutral: "text-muted-foreground",
 };
 
-export type ClientFigure = { label: string; value: ReactNode; detail?: string; tone?: ClientRowTone; href?: string };
+/** `empty` marks a figure with nothing to report (a zero, "none yet"), so a stat row can leave it out. */
+export type ClientFigure = { label: string; value: ReactNode; detail?: string; tone?: ClientRowTone; href?: string; empty?: boolean };
 
 export function ClientFigureStrip({ figures, label }: { figures: ClientFigure[]; label: string }) {
   if (figures.length === 0) return null;
@@ -47,7 +49,7 @@ export function ClientFigureStrip({ figures, label }: { figures: ClientFigure[];
         const body = (
           <>
             <dt className="text-xs text-muted-foreground">{figure.label}</dt>
-            <dd className={cn("mt-0.5 truncate text-xl font-semibold tabular-nums text-foreground", figure.tone && figure.tone !== "neutral" && STATUS[figure.tone])}>{figure.value}</dd>
+            <dd className={cn("mt-0.5 truncate text-xl font-semibold tabular-nums text-foreground", figure.tone && figure.tone !== "neutral" && STATUS[figure.tone], (figure.empty || isZeroFigure(figure.value)) && "text-muted-foreground/60")}>{figure.value}</dd>
             {figure.detail ? <dd className="truncate text-xs text-muted-foreground">{figure.detail}</dd> : null}
           </>
         );
@@ -172,20 +174,14 @@ function RowTitle({ title, href, onOpen }: { title: string; href?: string; onOpe
   return <span className="truncate">{title}</span>;
 }
 
-/** Calm empty state used inside a list or on its own. */
-export function ClientListEmpty({ icon: Icon, title, description, action }: { icon: LucideIcon; title: string; description: string; action?: ReactNode }) {
+/** Nothing here yet: one compact card holding the message and, when there is one, the way forward. */
+export function ClientListEmpty({ icon, title, description, action }: { icon: LucideIcon; title: string; description: string; action?: ReactNode }) {
   return (
-    <Empty className="gap-4 p-8 md:p-8">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <Icon aria-hidden />
-        </EmptyMedia>
-        <EmptyTitle className="text-sm font-semibold text-foreground">
-          <h3>{title}</h3>
-        </EmptyTitle>
-        <EmptyDescription>{description}</EmptyDescription>
-      </EmptyHeader>
-      {action ? <div>{action}</div> : null}
-    </Empty>
+    <Card className="px-5 py-5">
+      <PrismEmptyLine icon={icon} action={action}>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+        <span className="mt-0.5 block">{description}</span>
+      </PrismEmptyLine>
+    </Card>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { isZeroFigure } from "@prism/ui/figures";
+
 import { useState, type ReactNode } from "react";
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
@@ -29,7 +31,7 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
   return <SharedCard className={`min-w-0 gap-0 ${className}`}>{children}</SharedCard>;
 }
 export function CardHeader({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`border-b border-border px-4 py-4 sm:px-6 ${className}`}>{children}</div>;
+  return <div className={`border-b border-border px-4 py-4 sm:px-6 [&_h2]:text-base! [&_h2]:font-semibold! [&_h3]:text-base! [&_h3]:font-semibold! ${className}`}>{children}</div>;
 }
 export function CardBody({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`px-4 py-5 sm:px-6 ${className}`}>{children}</div>;
@@ -46,7 +48,7 @@ export function StatCell({
   return (
     <SharedCard className="min-w-0 gap-0 px-5 py-4">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold leading-tight tabular-nums text-foreground">{value}</p>
+      <p className={`mt-1 text-2xl font-semibold leading-tight tabular-nums ${isZeroFigure(value) ? "text-muted-foreground/60" : "text-foreground"}`}>{value}</p>
       {sub && <p className="mt-1 text-xs text-muted-foreground">{sub}</p>}
     </SharedCard>
   );

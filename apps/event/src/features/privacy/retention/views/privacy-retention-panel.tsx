@@ -33,14 +33,14 @@ export function PrivacyRetentionView({ vm }: { vm: PrivacyRetentionViewModel }) 
             <AlertDescription>{vm.error}</AlertDescription>
           </Alert>
         ) : null}
-        <div className="grid min-w-0 gap-2">
+        <div className="grid min-w-0 items-start gap-3 lg:grid-cols-2">
           {vm.policies.map((policy) => (
             <PolicyRow key={policy.category} policy={policy} vm={vm} />
           ))}
         </div>
         <section className="space-y-3" aria-labelledby="retention-review-title">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 id="retention-review-title" className="font-black text-foreground">Review queue</h3>
+            <h3 id="retention-review-title" className="font-semibold text-foreground">Review queue</h3>
             <Select value={vm.statusFilter} onValueChange={(value) => vm.setStatusFilter(value as ReviewStatusFilter)}>
               <SelectTrigger aria-label="Review status filter" className="h-9 w-48 min-w-0 bg-white">
                 <SelectValue />
@@ -69,7 +69,7 @@ function PolicyRow({ policy, vm }: { policy: PrismRetentionPolicy; vm: PrivacyRe
   return (
     <div className="space-y-2 rounded-md bg-background p-3 text-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-black text-foreground">{policy.label}</p>
+        <p className="font-semibold text-foreground">{policy.label}</p>
         <p className="text-muted-foreground">{policy.enabled ? "Enabled" : "Disabled"} · revision {policy.revision}</p>
       </div>
       <p className="text-muted-foreground">{retentionPeriodCopy(policy)}</p>
@@ -110,7 +110,7 @@ function ReviewItemRow({ item, vm }: { item: PrismRetentionReviewItem; vm: Priva
   return (
     <div className="space-y-2 rounded-md border border-border bg-background p-3 text-xs">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-black text-foreground">{label(item.category)}</p>
+        <p className="font-semibold text-foreground">{label(item.category)}</p>
         <p className="text-muted-foreground">{reviewStatusLabel(item.status)}</p>
       </div>
       <p className="text-muted-foreground">

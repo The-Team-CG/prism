@@ -52,7 +52,7 @@ export function QuotePlannerToolbar({
               ))}
             </SelectContent>
           </Select>
-          <Button type="button" disabled={busy || !canRequest} onClick={onRequest} className="h-10 gap-2 rounded-md px-3 text-sm font-bold">
+          <Button type="button" disabled={busy || !canRequest} onClick={onRequest} className="h-10 gap-2 rounded-md px-3 text-sm font-semibold">
             <Send className="size-4" /> Request quotes
           </Button>
         </div>
@@ -79,20 +79,20 @@ export function QuoteComparisonSection({
   onSelectQuote: (id: string) => void;
 }) {
   return (
-    <section className="rounded-xl border border-primary/15 bg-card p-4 shadow-sm">
+    <section className="rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">Quote comparison</p>
-          <h3 className="mt-1 text-lg font-black text-foreground">{categoryName}</h3>
+          <h3 className="mt-1 text-lg font-semibold text-foreground">{categoryName}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{submittedBidCopy(quotes.length)}</p>
         </div>
-        <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs font-black text-muted-foreground">
+        <span className="rounded-full border border-border bg-secondary px-3 py-1 text-xs font-semibold text-muted-foreground">
           {rangeCopy.badge}
         </span>
       </div>
       {quotes.length === 0 ? (
         <div className="mt-4 rounded-lg border border-dashed border-border bg-background p-5">
-          <p className="font-black text-foreground">No submitted quotes yet</p>
+          <p className="font-semibold text-foreground">No submitted quotes yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Send quote requests to available suppliers, then compare returned bids here.
           </p>
@@ -130,19 +130,19 @@ function QuoteComparisonCard({
 }) {
   const closed = isQuoteClosed(quote.status);
   return (
-    <article className={cx("rounded-lg border bg-background p-4 shadow-sm", quoteCardAccentClass(quote))}>
+    <article className={cx("rounded-lg border bg-background p-4", quoteCardAccentClass(quote))}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             {quote.outsideAcceptableRange && <Flag className="size-4 shrink-0 fill-danger text-danger" />}
-            <h4 className="truncate text-base font-black text-foreground">{quote.supplierName}</h4>
+            <h4 className="truncate text-base font-semibold text-foreground">{quote.supplierName}</h4>
           </div>
           <p className="mt-1 text-xs font-medium text-muted-foreground">{label(quote.status)}</p>
         </div>
-        <p className="shrink-0 text-lg font-black text-foreground">{money.format(quote.amount)}</p>
+        <p className="shrink-0 text-lg font-semibold text-foreground">{money.format(quote.amount)}</p>
       </div>
       {quote.outsideAcceptableRange && (
-        <div className="mt-3 rounded-md border border-danger/25 bg-white px-2.5 py-2 text-xs font-black text-danger">
+        <div className="mt-3 rounded-md border border-danger/25 bg-white px-2.5 py-2 text-xs font-semibold text-danger">
           Outside budget range
         </div>
       )}
@@ -151,7 +151,7 @@ function QuoteComparisonCard({
           <p className="text-xs font-medium text-muted-foreground">Inclusions</p>
           <button
             onClick={onToggle}
-            className="mt-1 inline-flex items-center gap-1 rounded-md border border-border bg-white px-2 py-1 text-xs font-black"
+            className="mt-1 inline-flex items-center gap-1 rounded-md border border-border bg-white px-2 py-1 text-xs font-semibold"
           >
             {inclusionCountLabel(quote.inclusions.length)}
             <ChevronDown className={cx("size-3.5 transition", expanded && "rotate-180")} />
@@ -175,7 +175,7 @@ function QuoteComparisonCard({
         type="button"
         disabled={busy || closed}
         onClick={onSelect}
-        className={cx("mt-4 h-10 w-full gap-2 text-sm font-black", quoteSelectButtonClass(quote.status))}
+        className={cx("mt-4 h-10 w-full gap-2 text-sm font-semibold", quoteSelectButtonClass(quote.status))}
       >
         <Check className="size-4" />
         {quoteSelectLabel(quote.status)}
@@ -200,7 +200,7 @@ export function SupplierTierColumns({
         <div className="mt-3 space-y-2">
           {tierOne.map((supplier) => (
             <div key={supplier.id} className="w-full min-w-0 break-words rounded-md border border-success/25 bg-success-soft p-3 text-left text-sm">
-              <span className="block break-words font-black">{supplier.name}</span>
+              <span className="block break-words font-semibold">{supplier.name}</span>
               <span className="mt-1 flex items-center gap-2 text-xs text-success"><RatingStars rating={supplier.aggregateRating} /></span>
             </div>
           ))}
@@ -212,7 +212,7 @@ export function SupplierTierColumns({
         <div className="mt-3 space-y-2">
           {tierTwo.map((supplier) => (
             <div key={supplier.id} className="w-full min-w-0 break-words rounded-md border border-border bg-secondary p-3 text-left text-sm">
-              <span className="block break-words font-black">{supplier.name}</span>
+              <span className="block break-words font-semibold">{supplier.name}</span>
               <span className="mt-1 text-xs text-muted-foreground">{supplier.bniMember ? "BNI member · auto-trust" : "Manual backup"}</span>
             </div>
           ))}
@@ -224,7 +224,7 @@ export function SupplierTierColumns({
         <div className="mt-3 space-y-2">
           {pending.map((supplier) => (
             <div key={supplier.id} className="w-full min-w-0 break-words rounded-md border border-brand-orange/25 bg-accent p-3 text-left text-sm">
-              <span className="block break-words font-black">{supplier.name}</span>
+              <span className="block break-words font-semibold">{supplier.name}</span>
               <span className="mt-1 text-xs text-attention">Excluded from auto-suggestions</span>
             </div>
           ))}
@@ -275,7 +275,7 @@ export function QuoteRequestModal({
       <DialogContent className="flex max-h-[calc(100dvh-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 gap-1 border-b border-border p-5 pr-12 text-left">
           <DialogDescription>Request quotes</DialogDescription>
-          <DialogTitle className="truncate text-xl font-black">{categoryName}</DialogTitle>
+          <DialogTitle className="truncate text-xl font-semibold">{categoryName}</DialogTitle>
         </DialogHeader>
         <div className="min-h-0 space-y-5 overflow-y-auto p-5">
           <div className="space-y-2">
@@ -292,12 +292,12 @@ export function QuoteRequestModal({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-md border border-border bg-background p-3 text-sm">
-              <span className="flex items-center gap-2 font-black"><CalendarDays className="size-4" /> Deadline</span>
+              <span className="flex items-center gap-2 font-semibold"><CalendarDays className="size-4" /> Deadline</span>
               <DatePicker aria-label="Quote deadline" value={deadline} onValueChange={onDeadline} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3" />
             </div>
             <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background p-3 text-sm">
               <span>
-                <span className="block font-black">Confidential Bid</span>
+                <span className="block font-semibold">Confidential Bid</span>
                 <span className="text-xs text-muted-foreground">Hide client details from request</span>
               </span>
               <input type="checkbox" checked={confidentialBid} onChange={(event) => onConfidential(event.target.checked)} className="size-5" />
@@ -305,7 +305,7 @@ export function QuoteRequestModal({
           </div>
           {tier2Selected ? (
             <label className="block rounded-md border border-border bg-background p-3 text-sm">
-              <span className="block font-black">Reason for asking a backup (Tier 2) supplier</span>
+              <span className="block font-semibold">Reason for asking a backup (Tier 2) supplier</span>
               <span className="text-xs text-muted-foreground">Needed when a free Tier 1 supplier is rated for this event&apos;s size. Recorded in the audit trail.</span>
               <input value={tierOverrideReason} maxLength={500} onChange={(event) => onTierOverrideReason(event.target.value)} className="mt-2 h-10 w-full rounded-md border border-border bg-white px-3" />
             </label>
@@ -340,7 +340,7 @@ function QuoteRequestGroup({
 }) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-black text-muted-foreground">{title}</p>
+      <p className="text-xs font-semibold text-muted-foreground">{title}</p>
       {suppliers.map((supplier) => (
         <QuoteRequestSupplierRow
           key={supplier.id}
@@ -379,7 +379,7 @@ function QuoteRequestSupplierRow({
         className="mt-1 size-4"
       />
       <span className="min-w-0">
-        <span className="block break-words font-black">{supplier.name}</span>
+        <span className="block break-words font-semibold">{supplier.name}</span>
         <span className="text-xs text-muted-foreground">{hint}</span>
       </span>
     </label>

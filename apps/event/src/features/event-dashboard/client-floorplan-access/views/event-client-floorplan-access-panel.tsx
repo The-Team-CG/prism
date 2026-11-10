@@ -13,10 +13,10 @@ export function EventClientFloorplanAccessPanel({
   const [query, setQuery] = useState("");
 
   return (
-    <section aria-labelledby="client-floorplan-access-title" className="rounded-xl border border-border bg-card p-5">
+    <section aria-labelledby="client-floorplan-access-title" className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="client-floorplan-access-title" className="text-lg font-bold text-foreground">
+          <h2 id="client-floorplan-access-title" className="text-lg font-semibold text-foreground">
             Shared floorplan access
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -57,11 +57,11 @@ function PrimaryContactCard({ name, email }: { name: string; email: string }) {
 }
 
 function SecondaryContacts({ contacts, busyUserId, onRevoke }: { contacts: AccessContact[]; busyUserId: string | null; onRevoke: (userId: string) => Promise<void> }) {
-  return <div className="mt-4"><h3 className="text-sm font-bold text-foreground">Secondary contacts</h3>{contacts.length ? <ul className="mt-2 divide-y divide-border rounded-lg border border-border">{contacts.map((contact) => <li key={contact.id} className="flex flex-wrap items-center justify-between gap-3 p-3"><div><p className="text-sm font-semibold text-foreground">{contact.name}</p><p className="text-xs text-muted-foreground">{contact.email}</p></div><button type="button" onClick={() => void onRevoke(contact.id)} disabled={Boolean(busyUserId)} className="rounded-md border border-border px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-50">{busyUserId === contact.id ? "Removing…" : "Remove access"}</button></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No secondary contacts have access.</p>}</div>;
+  return <div className="mt-4"><h3 className="text-sm font-semibold text-foreground">Secondary contacts</h3>{contacts.length ? <ul className="mt-2 divide-y divide-border rounded-lg border border-border">{contacts.map((contact) => <li key={contact.id} className="flex flex-wrap items-center justify-between gap-3 p-3"><div><p className="text-sm font-semibold text-foreground">{contact.name}</p><p className="text-xs text-muted-foreground">{contact.email}</p></div><button type="button" onClick={() => void onRevoke(contact.id)} disabled={Boolean(busyUserId)} className="rounded-md border border-border px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-50">{busyUserId === contact.id ? "Removing…" : "Remove access"}</button></li>)}</ul> : <p className="mt-2 text-sm text-muted-foreground">No secondary contacts have access.</p>}</div>;
 }
 
 function EligibleContacts({ eventId, query, setQuery, vm }: { eventId: string; query: string; setQuery: (value: string) => void; vm: AccessViewModel }) {
-  return <><form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void vm.search(query); }}><label htmlFor={`client-floorplan-access-search-${eventId}`} className="sr-only">Search approved Client accounts</label><input id={`client-floorplan-access-search-${eventId}`} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search approved Client accounts" className="h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm text-foreground" /><button type="submit" disabled={vm.searching || !query.trim()} className="rounded-md bg-foreground px-4 py-2 text-sm font-bold text-background disabled:opacity-50">{vm.searching ? "Searching…" : "Search"}</button></form>
+  return <><form className="mt-5 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); void vm.search(query); }}><label htmlFor={`client-floorplan-access-search-${eventId}`} className="sr-only">Search approved Client accounts</label><input id={`client-floorplan-access-search-${eventId}`} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search approved Client accounts" className="h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm text-foreground" /><button type="submit" disabled={vm.searching || !query.trim()} className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background disabled:opacity-50">{vm.searching ? "Searching…" : "Search"}</button></form>
     {vm.candidates.length ? <ul aria-label="Eligible Client accounts" className="mt-3 divide-y divide-border rounded-lg border border-border">{vm.candidates.map((candidate) => <li key={candidate.id} className="flex flex-wrap items-center justify-between gap-3 p-3"><div><p className="text-sm font-semibold text-foreground">{candidate.name}</p><p className="text-xs text-muted-foreground">{candidate.email}</p></div><button type="button" onClick={() => void vm.grant(candidate.id)} disabled={Boolean(vm.busyUserId)} className="rounded-md border border-border px-3 py-2 text-sm font-semibold text-foreground disabled:opacity-50">{vm.busyUserId === candidate.id ? "Adding…" : "Grant access"}</button></li>)}</ul> : null}
   </>;
 }

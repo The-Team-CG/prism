@@ -41,11 +41,11 @@ export function SupplierReviewPromptList({
           <ClipboardCheck className="mt-1 size-5 text-attention" />
           <div>
             <p className="text-sm text-muted-foreground">Supplier reviews</p>
-            <h3 className="mt-1 text-xl font-black">Close the loop with assigned suppliers</h3>
+            <h3 className="mt-1 text-xl font-semibold">Close the loop with assigned suppliers</h3>
             <p className="mt-1 text-sm text-muted-foreground">Private PMCM evidence for {event.eventName}.</p>
           </div>
         </div>
-        <p className="text-sm font-black text-muted-foreground">{dueSubjects.length} due · {completedCount} completed</p>
+        <p className="text-sm font-semibold text-muted-foreground">{dueSubjects.length} due · {completedCount} completed</p>
       </div>
 
       {subjects.length === 0 ? (
@@ -92,11 +92,11 @@ function SupplierReviewPromptCard({
     <article className="rounded-lg border border-border bg-background p-4">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-black">{subject.supplier.name}</p>
+          <p className="font-semibold">{subject.supplier.name}</p>
           <p className="mt-1 text-sm text-muted-foreground">{subject.requestCategory}</p>
         </div>
         {completed && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-xs font-black text-success">
+          <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success">
             <CheckCircle2 className="size-3.5" /> Review saved
           </span>
         )}

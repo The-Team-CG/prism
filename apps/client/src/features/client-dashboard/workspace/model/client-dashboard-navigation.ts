@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  CalendarClock,
   CalendarDays,
   ClipboardList,
   FileText,
@@ -18,6 +19,7 @@ import {
 import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
 import type { PrismAccountMenuItem } from "@prism/ui";
 import type { PrismEvent } from "@prism/types";
+import { isPastClientEvent, orderClientEvents } from "../../home/model/client-home-summary";
 
 export const CLIENT_CONFORME_REVIEW_HREF = "/conforme";
 
@@ -121,26 +123,47 @@ const EVENT_NAV_ICONS: Record<string, LucideIcon> = {
 };
 
 /**
- * Inside one event the sidebar is that event's workspace, with Events and Home as the way back,
- * instead of the portal sidebar plus a second row of tabs. The event switcher above already names
- * the event, so the group is labelled "This event" rather than repeating the name.
+ * Inside one event the sidebar is that event's workspace instead of the portal sidebar plus a second
+ * row of tabs. The event switcher above names the event and carries the way back to all events, so
+ * the pages sit in the unlabelled portal group.
  */
 export function clientEventSidebarItems(eventId?: string, event?: Pick<PrismEvent, "actualEndedAt" | "archived">) {
   const closeoutAvailable = Boolean(event?.actualEndedAt || event?.archived);
   const eventItems = EVENT_WORKSPACE_NAV_ITEMS.filter((item) =>
     event?.archived ? item.route === "summary" : item.route !== "summary" || closeoutAvailable,
   );
-  return [
-    ...eventItems.map((item) => ({
-      id: item.id,
-      label: item.label,
-      icon: EVENT_NAV_ICONS[item.id] ?? LayoutGrid,
-      section: "This event",
-      href: eventId ? dashboardHref(item.route, eventId) : undefined,
-    })),
-    { id: "my-events", label: "All events", icon: CalendarDays, section: "Back to", href: clientSidebarLinkHref("my-events") },
-    { id: "client-dashboard", label: "Home", icon: Home, section: "Back to", href: clientSidebarLinkHref("client-dashboard") },
-  ];
+  return eventItems.map((item) => ({
+    id: item.id,
+    label: item.label,
+    icon: EVENT_NAV_ICONS[item.id] ?? LayoutGrid,
+    section: "Client Portal",
+    href: eventId ? dashboardHref(item.route, eventId) : undefined,
+  }));
+}
+
+const OPEN_EVENT_NAV_PREFIX = "open-event:";
+const OPEN_EVENT_NAV_LIMIT = 4;
+
+/**
+ * Outside an event the portal sidebar lists the client's upcoming events, soonest first, so any page
+ * is one click from an event and the name clicked is the one the event switcher then shows.
+ * The Events page holds the full list, so this stays short.
+ */
+export function clientOpenEventSidebarItems(events: Pick<PrismEvent, "id" | "eventName" | "eventDate" | "status" | "archived">[]) {
+  return orderClientEvents(events.filter((event) => !isPastClientEvent(event)))
+    .slice(0, OPEN_EVENT_NAV_LIMIT)
+    .map((event) => ({
+      id: `${OPEN_EVENT_NAV_PREFIX}${event.id}`,
+      label: event.eventName,
+      icon: CalendarClock,
+      section: "Your events",
+      href: dashboardHref("overview", event.id),
+    }));
+}
+
+/** The event a "Your events" sidebar entry opens. */
+export function openEventIdFromNavItem(id: string): string | undefined {
+  return id.startsWith(OPEN_EVENT_NAV_PREFIX) ? id.slice(OPEN_EVENT_NAV_PREFIX.length) : undefined;
 }
 
 /** The route a portal sidebar entry opens, so the shell can render it as a real link. */

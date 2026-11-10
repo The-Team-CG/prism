@@ -18,7 +18,7 @@ function TimelineStep({ title, done, meta }: { title: string; done: boolean; met
         {done ? <CheckCircle2 className="size-3" /> : <Circle className="size-3" />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className={`text-xs font-bold ${done ? "text-success" : "text-muted-foreground"}`}>{title}</p>
+        <p className={`text-xs font-semibold ${done ? "text-success" : "text-muted-foreground"}`}>{title}</p>
         {meta && <p className="mt-0.5 text-3xs text-muted-foreground">{meta}</p>}
       </div>
     </div>
@@ -31,7 +31,7 @@ function BiddingPathList({ inquiries }: { inquiries: PrismInquiry[] }) {
   if (bids.length === 0) return null;
   return (
     <div className="border-b border-border px-6 py-4">
-      <p className="text-xs font-bold text-foreground">Bidding path ({bids.length})</p>
+      <p className="text-xs font-semibold text-foreground">Bidding path ({bids.length})</p>
       <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
         {bids.map((bid) => (
           <li key={bid.id}><span className="font-semibold text-foreground">{bid.eventName}</span> · {bid.clientName} · bid {bid.bidStatus ?? "preparing"}{bid.bidDueAt ? ` · due ${compactTimestamp(bid.bidDueAt)}` : ""}</li>
@@ -59,11 +59,11 @@ export function ClientOnboardingTracker({
     .sort((a, b) => new Date(b.acceptedAt ?? b.createdAt).getTime() - new Date(a.acceptedAt ?? a.createdAt).getTime());
 
   return (
-    <Card className="gap-0 block rounded-2xl border border-border bg-card shadow-sm">
+    <Card className="gap-0 block rounded-lg border border-border bg-card">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
           <FileCheck2 className="size-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Client onboarding</h2>
+          <h2 className="text-sm font-semibold text-foreground">Client onboarding</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           Conforme, portal invitation, and briefing readiness.
@@ -92,7 +92,7 @@ export function ClientOnboardingTracker({
               <article key={inq.id} aria-label={`Onboarding ${inq.eventName}`} className="px-6 py-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground">{inq.eventName}</p>
+                    <p className="text-sm font-semibold text-foreground">{inq.eventName}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {inq.clientName} — follow up every {inq.followUpIntervalDays ?? 3} days
                     </p>
@@ -108,7 +108,7 @@ export function ClientOnboardingTracker({
                         variant="outline"
                         disabled={invitations.busyInquiryId === inq.id}
                         onClick={() => void invitations.resend(inq)}
-                        className="rounded-lg font-bold"
+                        className="rounded-lg font-semibold"
                       >
                         {invitations.busyInquiryId === inq.id ? "Sending…" : "Resend invitation"}
                       </Button>
@@ -128,7 +128,7 @@ export function ClientOnboardingTracker({
                 </div>
 
                 {!inq.conformeSignedAt && (
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-attention/20 bg-attention/5 px-4 py-3">
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-attention/20 bg-attention/5 px-4 py-3">
                     <p className="text-xs text-muted-foreground">
                       {reminderEvidenceCopy(inq, compactTimestamp)}
                     </p>
@@ -139,7 +139,7 @@ export function ClientOnboardingTracker({
                           variant="outline"
                           disabled={busy}
                           onClick={() => onSendReminder(inq)}
-                          className="rounded-lg border-attention/25 font-bold text-attention hover:bg-attention/8"
+                          className="rounded-lg border-attention/25 font-semibold text-attention hover:bg-attention/8"
                         >
                           Send reminder
                         </Button>
@@ -148,7 +148,7 @@ export function ClientOnboardingTracker({
                         size="sm"
                         disabled={busy}
                         onClick={() => onUploadConforme(inq)}
-                        className="rounded-lg font-bold"
+                        className="rounded-lg font-semibold"
                       >
                         Upload signed conforme
                       </Button>

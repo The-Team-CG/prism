@@ -186,12 +186,12 @@ export function EventFileHub({
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="grid min-h-[760px] lg:grid-cols-[25rem_minmax(0,1fr)]">
         <aside className="min-w-0 border-b border-border bg-card lg:border-b-0 lg:border-r">
           <div className="border-b border-border px-4 py-4">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-black text-foreground">{filteredItems.length} {filteredItems.length === 1 ? "result" : "results"}</p>
+              <p className="text-sm font-semibold text-foreground">{filteredItems.length} {filteredItems.length === 1 ? "result" : "results"}</p>
               <div className="flex rounded-md border border-border bg-background p-0.5">
                 <button type="button" data-active={view === "grid"} onClick={() => setView("grid")} className="grid size-7 place-items-center rounded-sm text-muted-foreground data-[active=true]:bg-primary/10 data-[active=true]:text-primary" aria-label="Grid view">
                   <Grid2X2 className="size-3.5" />
@@ -206,13 +206,13 @@ export function EventFileHub({
               <input value={query} onChange={(event) => setQuery(event.target.value)} className="h-10 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary" placeholder="Search event files..." />
             </label>
             <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground"><Eye className="size-3.5" /> Open</button>
+              <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-semibold text-foreground"><Eye className="size-3.5" /> Open</button>
             </div>
             <p className="mt-2 text-2xs text-muted-foreground">Open jumps to the owning workflow. Binary deliverables can be uploaded and downloaded in the stored event files panel.</p>
           </div>
 
           <div className="px-4 py-4">
-            <p className="mb-3 text-xs font-black text-foreground">Relevance</p>
+            <p className="mb-3 text-xs font-semibold text-foreground">Relevance</p>
             <div className={view === "grid" ? "grid grid-cols-2 gap-3" : "space-y-2"}>
               {filteredItems.map((item) => {
                 const active = item.id === selected?.id;
@@ -222,15 +222,15 @@ export function EventFileHub({
                     type="button"
                     data-active={active}
                     onClick={() => setSelectedId(item.id)}
-                    className={view === "grid" ? "group min-w-0 rounded-lg border border-transparent bg-background p-2 text-left transition hover:border-primary/20 data-[active=true]:border-primary data-[active=true]:bg-primary/5" : "group flex w-full min-w-0 items-center gap-3 rounded-lg border border-transparent bg-background p-2 text-left transition hover:border-primary/20 data-[active=true]:border-primary data-[active=true]:bg-primary/5"}
+                    className={view === "grid" ? "group min-w-0 rounded-lg border border-transparent bg-background p-2 text-left transition hover:border-border data-[active=true]:border-primary data-[active=true]:bg-primary/5" : "group flex w-full min-w-0 items-center gap-3 rounded-lg border border-transparent bg-background p-2 text-left transition hover:border-border data-[active=true]:border-primary data-[active=true]:bg-primary/5"}
                   >
                     {view === "grid" ? (
                       <EventFileThumbnail item={item} active={active} />
                     ) : (
-                      <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-white text-3xs font-black text-primary">{item.extension}</span>
+                      <span className="grid size-10 shrink-0 place-items-center rounded-md border border-border bg-white text-3xs font-semibold text-primary">{item.extension}</span>
                     )}
                     <span className={view === "grid" ? "mt-2 block min-w-0" : "block min-w-0 flex-1"}>
-                      <span className="block truncate text-sm font-black text-foreground">{item.title}</span>
+                      <span className="block truncate text-sm font-semibold text-foreground">{item.title}</span>
                       <span className="mt-0.5 block truncate text-xs text-muted-foreground">{item.extension} - {item.owner}</span>
                     </span>
                   </button>
@@ -245,10 +245,10 @@ export function EventFileHub({
             <div className="border-b border-border bg-card">
               <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                 <div className="min-w-0">
-                  <p className="truncate text-base font-black text-foreground">{selected.title}</p>
+                  <p className="truncate text-base font-semibold text-foreground">{selected.title}</p>
                   <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{selected.extension} - {selected.category} - {selected.date}</p>
                 </div>
-                <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-black text-foreground">Open</button>
+                <button type="button" onClick={openSelected} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-xs font-semibold text-foreground">Open</button>
               </div>
             </div>
             <EventFilePreview event={event} item={selected} />

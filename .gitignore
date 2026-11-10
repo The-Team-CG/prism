@@ -88,6 +88,9 @@ handoffs_archive/
 
 .taste-skill/
 
+# Supabase CLI cache
+/supabase/.temp/
+
 # Isolated lifecycle API compilation
 /apps/api/.e2e-dist/
 

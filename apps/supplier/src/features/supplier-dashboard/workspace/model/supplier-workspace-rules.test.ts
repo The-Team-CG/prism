@@ -33,7 +33,7 @@ import {
   supplierReadinessSection,
   supplierMessageEvents,
 } from "./supplier-workspace-rules";
-import { splitSupplierNextSteps } from "./supplier-next-step";
+import { splitSupplierNextSteps, supplierStepFigure, supplierTodaySummary } from "./supplier-next-step";
 import type { PrismFileRequirementsMatrix, PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
 import { supplierBookingHref, supplierWorkHref } from "./supplier-next-step";
@@ -251,6 +251,26 @@ describe("supplier-workspace-rules", () => {
     const steps = splitSupplierNextSteps(items, (entry) => entry.id === "sent");
     expect(steps.yourTurn.map((entry) => entry.id)).toEqual(["quote-sooner", "booked", "quote-later", "undated"]);
     expect(steps.waiting.map((entry) => entry.id)).toEqual(["sent"]);
+  });
+
+  it("shows the Today lead's number: days overdue or left on a quote deadline, else days to the event", () => {
+    const now = new Date("2026-11-11T04:00:00Z");
+    const item = (quoteStatus: string, dueAt: string | null, eventDate: string | null) => ({ quoteStatus, dueAt, eventDate }) as unknown as PrismSupplierReadinessItem;
+
+    expect(supplierStepFigure(item("open", "2026-11-04T00:00:00Z", "2026-11-23"), now)).toEqual({ value: "7", label: "days overdue" });
+    expect(supplierStepFigure(item("open", "2026-11-10T20:00:00Z", null), now)).toEqual({ value: "1", label: "day overdue" });
+    expect(supplierStepFigure(item("open", "2026-11-14T00:00:00Z", null), now)).toEqual({ value: "3", label: "days left" });
+    // Once selected the deadline no longer matters; the event date does.
+    expect(supplierStepFigure(item("selected", "2026-11-04T00:00:00Z", "2026-11-23T00:00:00Z"), now)).toEqual({ value: "12", label: "days to event" });
+    expect(supplierStepFigure(item("open", null, null), now)).toBeUndefined();
+    expect(supplierStepFigure(item("selected", null, "2026-10-01"), now)).toBeUndefined();
+  });
+
+  it("sums up Today in one sentence", () => {
+    expect(supplierTodaySummary(0, 0)).toBe("Nothing needs you right now.");
+    expect(supplierTodaySummary(1, 0)).toBe("1 thing needs you.");
+    expect(supplierTodaySummary(2, 1)).toBe("2 things need you · 1 waiting on PMCM.");
+    expect(supplierTodaySummary(0, 2)).toBe("Nothing needs you right now · 2 waiting on PMCM.");
   });
 
   it("lists requests still being bid, live before closed and soonest first, leaving won work to Bookings", () => {

@@ -37,13 +37,13 @@ export function OfficialFloorPlanCard({
     <Card role="region" aria-labelledby="client-official-floorplan" className="gap-0 overflow-hidden py-0">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-5">
         <div className="min-w-0">
-          <h2 id="client-official-floorplan" className="text-xl font-black text-foreground">Official floorplan</h2>
+          <h2 id="client-official-floorplan" className="text-xl font-semibold text-foreground">Official floorplan</h2>
           <p className="mt-1 break-words text-sm text-foreground">{draft.name}</p>
           <p className="mt-0.5 text-sm text-muted-foreground">{officialPlanStatusLine(draft)}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           <StatusBadge status={draft.status} label={formatStatusLabel(draft.status)} />
-          <Button className="rounded-lg font-bold" onClick={() => onOpenEditor(draft, true)}>
+          <Button className="rounded-lg font-semibold" onClick={() => onOpenEditor(draft, true)}>
             View official floorplan <ArrowRight className="size-4" />
           </Button>
         </div>
@@ -74,7 +74,7 @@ export function FloorPlanCardHeader({
     <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-5">
       <div>
         <p className="text-sm text-muted-foreground">Floor plan workspace</p>
-        <h2 className="mt-1 text-xl font-black text-foreground">{title}</h2>
+        <h2 className="mt-1 text-xl font-semibold text-foreground">{title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
       {activeDraft ? <StatusBadge status={activeDraft.status} label={formatStatusLabel(activeDraft.status)} /> : null}
@@ -103,9 +103,9 @@ export function FloorPlanDraftPanel({
   const actionLabel = isOfficial ? "View official floorplan" : readOnly ? "View submitted preference" : "Edit preference";
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4 rounded-xl bg-muted/40 p-4">
+      <div className="flex items-start justify-between gap-4 rounded-lg bg-muted/40 p-4">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">{activeDraft.name}</p>
+          <p className="text-sm font-semibold text-foreground">{activeDraft.name}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {readOnly
               ? isOfficial
@@ -114,7 +114,7 @@ export function FloorPlanDraftPanel({
               : "Open the preference editor to share seating, flow, and stage notes with PMCM."}
           </p>
         </div>
-        <Button className="shrink-0 rounded-lg font-bold" onClick={() => onOpenEditor(activeDraft, readOnly)}>
+        <Button className="shrink-0 rounded-lg font-semibold" onClick={() => onOpenEditor(activeDraft, readOnly)}>
           {actionLabel} <ArrowRight className="size-4" />
         </Button>
       </div>
@@ -131,12 +131,12 @@ export function FloorPlanRevisionCommentCard({ draft, event }: { draft?: PrismFl
     return (
       <Card className="gap-0 py-0">
         <header className="border-b border-border px-6 py-4">
-          <p className="text-sm font-bold text-foreground">Floorplan review</p>
+          <p className="text-sm font-semibold text-foreground">Floorplan review</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{floorPlanReviewHeadline(draft)}</p>
         </header>
         <div className="space-y-3 p-6">
           {submittedComment ? (
-            <div className="flex gap-3 rounded-xl bg-muted/40 p-4">
+            <div className="flex gap-3 rounded-lg bg-muted/40 p-4">
               <MessageSquareText className="size-5 shrink-0 text-primary" />
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Your revision comment</p>
@@ -176,15 +176,15 @@ export function FloorPlanTemplates({
               key={template.id}
               disabled={busy === `editor-${template.id}`}
               onClick={() => onCreate(template)}
-              className="rounded-xl border border-border bg-background p-3.5 text-left transition hover:border-primary/40 hover:bg-primary-soft disabled:opacity-60"
+              className="rounded-lg border border-border bg-background p-3.5 text-left transition hover:border-primary/40 hover:bg-primary-soft disabled:opacity-60"
             >
-              <p className="text-sm font-bold text-foreground">{template.name}</p>
+              <p className="text-sm font-semibold text-foreground">{template.name}</p>
               <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{templateSubtitle(template)}</p>
             </button>
           ))}
         </div>
       ) : (
-        <p className="rounded-xl border border-dashed border-border bg-background p-3.5 text-xs text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border bg-background p-3.5 text-xs text-muted-foreground">
           No saved templates yet. Send guided layout notes and PMCM can save reusable templates from confirmed plans.
         </p>
       )}
@@ -212,7 +212,7 @@ export function GuidedLayoutNotes({
     return (
       <Card className="gap-0 py-0">
         <header className="border-b border-border px-6 py-4">
-          <p className="text-sm font-bold text-foreground">Layout preference submitted</p>
+          <p className="text-sm font-semibold text-foreground">Layout preference submitted</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             PMCM has your preference. You can revise it after PMCM reopens this request.
           </p>
@@ -228,7 +228,7 @@ export function GuidedLayoutNotes({
   return (
     <Card className="gap-0 py-0">
       <header className="border-b border-border px-6 py-4">
-        <p className="text-sm font-bold text-foreground">
+        <p className="text-sm font-semibold text-foreground">
           {preferenceDraft ? "Revise layout notes" : "Guided layout notes"}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
@@ -273,7 +273,7 @@ export function GuidedLayoutNotes({
             className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
           />
         </FieldGroup>
-        <Button disabled={busy === "layout-preference"} className="w-full rounded-lg font-bold" type="submit">
+        <Button disabled={busy === "layout-preference"} className="w-full rounded-lg font-semibold" type="submit">
           <Send className="size-4" /> {preferenceDraft ? "Resubmit layout notes" : "Save layout notes"}
         </Button>
       </form>

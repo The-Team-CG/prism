@@ -58,7 +58,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
       onSignOut={() => void vm.signOut()}
       headerActions={
         <>
-          <Button variant="outline" size="icon" disabled={busy === "refresh"} onClick={() => void vm.refresh()} className="size-9 rounded-xl" aria-label="Refresh">
+          <Button variant="outline" size="icon" disabled={busy === "refresh"} onClick={() => void vm.refresh()} className="size-9 rounded-lg" aria-label="Refresh">
             <RefreshCcw className="size-3.5" />
           </Button>
         </>
@@ -68,7 +68,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
       {loading ? (
         <SupplierWorkspaceSkeleton />
       ) : (
-      <div className="space-y-5">
+      <div className={section === "calendar" || section === "messages" ? "space-y-5" : "max-w-5xl space-y-5"}>
         <SupplierWorkspaceBanners error={error} notice={notice} />
         <SupplierWorkspaceSection
           section={section}

@@ -54,13 +54,13 @@ function StatusSummary({ items }: { items: StatusSummaryItem[] }) {
           <div key={item.id} className="rounded-lg border border-border bg-background/80 p-3.5">
             <div className="flex items-start gap-3">
               {Icon ? (
-                <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
                   <Icon className="size-4" />
                 </span>
               ) : null}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium text-muted-foreground">{item.label}</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-black text-foreground">
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
                   <span className="min-w-0 truncate">{item.value}</span>
                   {item.status ? <StatusBadge status={item.status} /> : null}
                 </div>
@@ -101,13 +101,13 @@ function CompactRecordList({ items, emptyText = "No records available.", classNa
         const content = (
           <span className="flex w-full items-start gap-3 text-left">
             {Icon ? (
-              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
                 <Icon className="size-4" />
               </span>
             ) : null}
             <span className="min-w-0 flex-1">
               <span className="flex flex-wrap items-center gap-2">
-                <span className="truncate text-sm font-black text-foreground">{item.title}</span>
+                <span className="truncate text-sm font-semibold text-foreground">{item.title}</span>
                 {item.status ? <StatusBadge status={item.status} /> : null}
               </span>
               {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
@@ -133,7 +133,7 @@ type WorkflowTabItem = {
 
 function WorkflowTabs({ items, activeId, onSelect }: { items: WorkflowTabItem[]; activeId: string; onSelect: (id: string) => void }) {
   return (
-    <Card className="gap-0 block overflow-x-auto rounded-lg border border-border bg-card p-1.5 shadow-sm">
+    <Card className="gap-0 block overflow-x-auto rounded-lg border border-border bg-card p-1.5">
       <div className="flex min-w-max gap-1">
         {items.map((item) => {
           const Icon = item.icon;
@@ -144,12 +144,12 @@ function WorkflowTabs({ items, activeId, onSelect }: { items: WorkflowTabItem[];
               disabled={item.disabled}
               data-active={item.id === activeId}
               onClick={() => onSelect(item.id)}
-              className="flex h-9 shrink-0 items-center gap-2 rounded-md px-3.5 text-sm font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:font-black data-[active=true]:text-primary-foreground"
+              className="flex h-9 shrink-0 items-center gap-2 rounded-md px-3.5 text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:font-semibold data-[active=true]:text-primary-foreground"
             >
               {Icon ? <Icon className="size-4" /> : null}
               <span>{item.label}</span>
               {item.badge ? (
-                <span className="rounded-full bg-background/70 px-1.5 text-3xs font-black text-current">{item.badge}</span>
+                <span className="rounded-full bg-background/70 px-1.5 text-3xs font-semibold text-current">{item.badge}</span>
               ) : null}
             </button>
           );
@@ -167,11 +167,11 @@ function PageHeader({ eyebrow, title, description, meta, action }: {
   action?: React.ReactNode;
 }) {
   return (
-    <section className="rounded-md border border-border bg-card px-4 py-3 shadow-sm">
+    <section className="rounded-md border border-border bg-card px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           {eyebrow ? <p className="text-xs font-medium text-muted-foreground">{eyebrow}</p> : null}
-          <h2 className="mt-0.5 text-lg font-black leading-tight text-foreground sm:text-xl">{title}</h2>
+          <h2 className="mt-0.5 text-lg font-semibold leading-tight text-foreground sm:text-xl">{title}</h2>
           {description ? <p className="mt-1 max-w-3xl text-sm leading-5 text-muted-foreground">{description}</p> : null}
           {meta?.length ? (
             <div className="mt-2 flex flex-wrap gap-2">
@@ -256,7 +256,7 @@ export function EventQueuePanel({
   onSelectEvent: (eventId: string) => void;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-card p-3 shadow-sm">
+    <section className="rounded-lg border border-border bg-card p-3">
       <div className="flex items-center justify-between gap-3 px-2 pb-2">
         <div>
           <p className="text-sm text-muted-foreground">Event queue</p>
@@ -324,9 +324,9 @@ export function SelectedEventCockpit({
           { label: "Event readiness", value: readinessLabel, detail: defenseReadiness ? `Stage: ${PRISM_LIFECYCLE_STAGE_LABELS[defenseReadiness.lifecycleStage]}` : "Loading readiness check" },
           { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal access" : "Generated after event setup" },
         ].map((item) => (
-          <Card key={item.label} className="gap-0 block rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+          <Card key={item.label} className="gap-0 block rounded-lg border border-border bg-card px-4 py-3">
             <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
-            <p className="mt-1 truncate text-sm font-black text-foreground">{item.value}</p>
+            <p className="mt-1 truncate text-sm font-semibold text-foreground">{item.value}</p>
             <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.detail}</p>
           </Card>
         ))}
@@ -388,11 +388,11 @@ export function DefenseControlPanel({
   ];
 
   return (
-    <section className="rounded-lg border border-primary/15 bg-card px-4 py-4 shadow-sm sm:px-5">
+    <section className="rounded-lg border border-border bg-card px-4 py-4 sm:px-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="max-w-2xl">
           <p className="text-sm text-muted-foreground">Readiness control</p>
-          <h3 className="mt-1 text-lg font-black text-foreground">{defenseReadiness.score}% lifecycle ready</h3>
+          <h3 className="mt-1 text-lg font-semibold text-foreground">{defenseReadiness.score}% lifecycle ready</h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             Current stage: {PRISM_LIFECYCLE_STAGE_LABELS[defenseReadiness.lifecycleStage]}. The checklist keeps the selected event ready across briefing, floorplans, suppliers, finance, and closure.
           </p>
@@ -400,11 +400,11 @@ export function DefenseControlPanel({
         <div className="grid min-w-[220px] grid-cols-2 gap-4 border-l border-border bg-background/60 px-3 py-2.5">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Guests</p>
-            <p className="mt-1 text-xl font-black text-foreground">{defenseReadiness.summary.guestAttendanceCount}</p>
+            <p className="mt-1 text-xl font-semibold text-foreground">{defenseReadiness.summary.guestAttendanceCount}</p>
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground">Open ops</p>
-            <p className="mt-1 text-xl font-black text-foreground">{defenseReadiness.summary.openLiveOpsItems}</p>
+            <p className="mt-1 text-xl font-semibold text-foreground">{defenseReadiness.summary.openLiveOpsItems}</p>
           </div>
         </div>
       </div>
@@ -412,7 +412,7 @@ export function DefenseControlPanel({
         <div className="mt-4 flex flex-wrap items-start gap-3 border-l border-attention bg-attention/8 px-3 py-2.5 text-sm">
           <WifiOff className="mt-0.5 size-4 shrink-0 text-attention" />
           <div className="min-w-0">
-            <p className="font-black text-foreground">Local-only operations mode</p>
+            <p className="font-semibold text-foreground">Local-only operations mode</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
               Live AI, QR scanning, SendGrid/Viber, OAuth, external auth, and production adapters remain blocked for this pass.
               {defenseReadiness.deferredScope.length > 0 ? ` Deferred scope: ${defenseReadiness.deferredScope.map(label).join(", ")}.` : null}
@@ -429,12 +429,12 @@ export function DefenseControlPanel({
             className="w-full border-l-2 border-l-transparent px-3 py-3 text-left transition hover:border-l-primary hover:bg-muted/50"
           >
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+              <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
                 {item.ready ? <CheckCircle2 className="size-4" /> : <CircleDot className="size-4" />}
               </span>
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-black text-foreground">{item.label}</span>
+                  <span className="text-sm font-semibold text-foreground">{item.label}</span>
                   <StatusBadge status={item.ready ? "completed" : "pending"} label={item.ready ? "Ready" : "Needs work"} />
                 </span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">{item.detail}</span>
@@ -458,7 +458,7 @@ export function DefenseControlPanel({
             className="w-full border-l-2 border-l-transparent px-3 py-3 text-left transition hover:border-l-primary hover:bg-muted/50"
           >
             <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-black text-foreground">{action.label}</p>
+              <p className="text-sm font-semibold text-foreground">{action.label}</p>
               <StatusBadge
                 status={action.status === "done" ? "completed" : action.status === "blocked" ? "open" : "pending"}
                 label={label(action.status)}

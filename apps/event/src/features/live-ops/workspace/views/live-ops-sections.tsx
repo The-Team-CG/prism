@@ -394,7 +394,7 @@ export function ReassignmentReviewPanel({
           </div>
         ))}
       </div>
-      {error ? <p role="alert" className="mt-3 rounded-md bg-danger/10 px-3 py-2 text-xs font-bold text-danger">{error}</p> : null}
+      {error ? <p role="alert" className="mt-3 rounded-md bg-danger/10 px-3 py-2 text-xs font-semibold text-danger">{error}</p> : null}
     </section>
   );
 }
@@ -646,7 +646,7 @@ function CoordinatorReplacement({ vm, busy }: { vm: CoordinatorRowVm; busy: bool
             type="button"
             disabled={busy || !vm.replacementRole || vm.suggestionStatus === "loading"}
             onClick={() => void vm.findReplacementSuggestions()}
-            className="h-9 rounded-md border border-border bg-background px-3 text-xs font-bold disabled:opacity-60"
+            className="h-9 rounded-md border border-border bg-background px-3 text-xs font-semibold disabled:opacity-60"
           >
             {vm.suggestionStatus === "loading" ? "Finding replacement matches…" : "Find replacement matches"}
           </button>
@@ -654,14 +654,14 @@ function CoordinatorReplacement({ vm, busy }: { vm: CoordinatorRowVm; busy: bool
           {vm.suggestionStatus === "empty" ? <p role="status" className="text-xs text-muted-foreground">No available skill matches for this role and event date.</p> : null}
           {vm.replacementSuggestions.map((suggestion) => (
             <div key={suggestion.id} className="rounded-md border border-border bg-background p-2">
-              <p className="text-xs font-bold">{suggestion.name} · {suggestion.matchedSkillCount}/{suggestion.requiredSkillCount} skills</p>
+              <p className="text-xs font-semibold">{suggestion.name} · {suggestion.matchedSkillCount}/{suggestion.requiredSkillCount} skills</p>
               <p className="mt-1 text-xs text-muted-foreground">Matched: {suggestion.matchedSkills.join(", ") || "None"}</p>
               <p className="mt-1 text-xs text-muted-foreground">Missing: {suggestion.missingSkills.join(", ") || "None"}</p>
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => vm.selectReplacementCoordinator(suggestion.id)}
-                className="mt-2 h-8 rounded-md border border-border px-3 text-xs font-bold disabled:opacity-60"
+                className="mt-2 h-8 rounded-md border border-border px-3 text-xs font-semibold disabled:opacity-60"
               >
                 Use {suggestion.name}
               </button>

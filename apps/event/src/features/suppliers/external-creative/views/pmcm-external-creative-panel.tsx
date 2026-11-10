@@ -18,7 +18,7 @@ export function PmcmExternalCreativePanel({ eventId, documents }: { eventId: str
   const set = (key: keyof typeof form) => (value: string) => setForm((current) => ({ ...current, [key]: value }));
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5" aria-labelledby="external-creative-heading">
+    <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="external-creative-heading">
       <h2 id="external-creative-heading" className="font-semibold text-foreground">Outsourced creative</h2>
       <p className="mt-0.5 text-sm text-muted-foreground">Track an external designer's deliverable. Upload the finished file to the event's files, then complete the ticket against it.</p>
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}

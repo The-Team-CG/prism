@@ -43,7 +43,7 @@ export function ThemeSuggestionsPanel({ eventId }: { eventId: string }) {
   return (
     <section className="rounded-lg border border-border bg-card p-5 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold">Theme ideas</h2>
+        <h2 className="text-lg font-semibold">Theme ideas</h2>
         <button type="button" disabled={vm.busy} onClick={() => void vm.run()} className={button}>{vm.busy ? "Thinking…" : "Suggest themes with AI"}</button>
       </div>
       <p className="mt-1 text-muted-foreground">Built from the briefing&apos;s mood, guest count, venue type and styling budget. A starting point for the stylist, not a design.</p>

@@ -35,7 +35,7 @@ export function EventDayCopilotPanel({ eventId }: { eventId: string }) {
   return (
     <section className="space-y-3 rounded-lg border border-border bg-card p-4 text-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-base font-bold">Event-day copilot</h2>
+        <h2 className="text-base font-semibold">Event-day copilot</h2>
         <button type="button" onClick={() => setWatching(!watching)} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">{watching ? "Stop watching" : "Start watching"}</button>
       </div>
       <p className="text-xs text-muted-foreground">Checks suppliers, tasks, coordinators, check-in and issues every minute and suggests what to do. It does not change anything; you act on the board.</p>
@@ -87,7 +87,7 @@ export function OperationsAssistantPanel({ eventId }: { eventId: string }) {
 
   return (
     <section className="space-y-3 rounded-lg border border-border bg-card p-4 text-sm">
-      <h2 className="text-base font-bold">Ask P.R.I.S.M</h2>
+      <h2 className="text-base font-semibold">Ask P.R.I.S.M</h2>
       <p className="text-xs text-muted-foreground">Answers come from this event's counts and statuses only. The assistant cannot change records or send messages.</p>
       <ol className="space-y-3">
         {turns.map((turn, index) => (

@@ -3,6 +3,7 @@ import { BillingWordTemplate } from "@/features/finance/billing-template/views/b
 import type { MarkPaymentInput } from "@prism/types";
 import { remainingPaymentCopy, sumPaymentAmounts } from "../model/finance-workspace-rules";
 import { useFinancialWorkspaceViewModel } from "../view-models/use-financial-workspace-view-model";
+import { PrismPageColumn } from "@prism/ui/page-blocks";
 import { PendingAddendaNote } from "./pending-addenda-note";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";
 import {
@@ -41,8 +42,12 @@ export function FinancialWorkspace({
   const balance = payments.find((p) => p.label.toLowerCase().includes("balance"));
   const paymentAtRisk = Boolean(balance && balance.status === "at_risk");
 
+  // With nothing billed yet the page is two short notes, so it keeps to the reading column instead of two wide empty boxes.
+  const hasBilling = Boolean(statement) || payments.length > 0;
+  const Layout = hasBilling ? WideLayout : PrismPageColumn;
+
   return (
-    <div className="space-y-5">
+    <Layout>
       <FinancialSummaryStats
         statement={statement}
         totalDue={totalDue}
@@ -55,7 +60,7 @@ export function FinancialWorkspace({
       {paymentAtRisk ? <PaymentAtRiskAlert /> : null}
       <PendingAddendaNote eventId={event.id} />
       {notificationLogs.length > 0 ? <NotificationEvidence logs={notificationLogs} /> : null}
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className={hasBilling ? "grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "space-y-6"}>
         <BillingStatementCard
           event={event}
           inquiry={inquiry}
@@ -83,6 +88,10 @@ export function FinancialWorkspace({
           onSubmit={vm.submitRecordPayment}
         />
       ) : null}
-    </div>
+    </Layout>
   );
+}
+
+function WideLayout({ children }: { children: React.ReactNode }) {
+  return <div className="space-y-6">{children}</div>;
 }

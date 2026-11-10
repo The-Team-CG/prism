@@ -8,6 +8,7 @@ import {
   PRISM_APPS,
   PRISM_BASE_PORTS,
   assignPortSlots,
+  apiUrlFor,
   corsOriginFor,
   derivePortOffset,
   describeCheckout,
@@ -200,6 +201,22 @@ describe("checkout discovery", () => {
 });
 
 describe("portal origins", () => {
+  it("uses the public host for browser URLs while keeping localhost in CORS", () => {
+    const ports = { api: 4010, client: 3011, supplier: 3012, guest: 3013, event: 3014 };
+    for (const [configured, host] of [[undefined, "localhost"], ["  ", "localhost"], [" prism.example.test ", "prism.example.test"]]) {
+      const env = { PRISM_PUBLIC_HOST: configured };
+      assert.equal(apiUrlFor(ports, env), `http://${host}:4010`);
+      const urls = portalUrlsFor(ports, env);
+      const origins = corsOriginFor(ports, env).split(",");
+      assert.equal(new Set(origins).size, origins.length);
+      for (const app of ["client", "supplier", "guest", "event"]) {
+        assert.equal(urls[`NEXT_PUBLIC_${app.toUpperCase()}_PORTAL_URL`], `http://${host}:${ports[app]}`);
+        assert.ok(origins.includes(`http://${host}:${ports[app]}`));
+        assert.ok(origins.includes(`http://localhost:${ports[app]}`));
+      }
+    }
+  });
+
   it("builds every portal origin from the live port set", () => {
     assert.deepEqual(portalUrlsFor({ api: 4010, client: 3011, supplier: 3012, guest: 3013, event: 3014 }), {
       NEXT_PUBLIC_CLIENT_PORTAL_URL: "http://localhost:3011",

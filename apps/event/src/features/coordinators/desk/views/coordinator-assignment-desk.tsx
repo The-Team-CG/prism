@@ -206,13 +206,13 @@ export function CoordinatorAssignmentDesk({
         <CardHeader>
           <div className="flex items-center gap-2">
             <UserCheck className="size-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">Coordinator assignment</h2>
+            <h2 className="text-sm font-semibold text-foreground">Coordinator assignment</h2>
           </div>
         </CardHeader>
         <CardContent>
           <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">
             {/* Filters */}
-            <div className="space-y-4 rounded-2xl border border-border bg-muted/30 p-4">
+            <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
               <div>
                 <p className="text-sm font-medium text-foreground">Role</p>
                 <Select
@@ -235,7 +235,7 @@ export function CoordinatorAssignmentDesk({
                   </SelectContent>
                 </Select>
               </div>
-              <label className="flex items-center gap-2.5 rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-semibold text-foreground">
+              <label className="flex items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-semibold text-foreground">
                 <input
                   type="checkbox"
                   checked={onlyAvailable}
@@ -308,7 +308,7 @@ export function CoordinatorAssignmentDesk({
       </Card>
 
       {/* Planning tools are used occasionally; assigning people is the main job of this tab. */}
-      <details open={editingTarget ? true : undefined} className="group rounded-xl border border-border bg-card">
+      <details open={editingTarget ? true : undefined} className="group rounded-lg border border-border bg-card">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4">
           <span>
             <span className="block text-sm font-semibold text-foreground">Staffing tools</span>
@@ -374,7 +374,7 @@ export function CoordinatorAssignmentDesk({
                 const suggestionRole = canonicalCoordinatorRole(suggestion.role);
                 if (!suggestionRole) return null;
                 return (
-                  <div key={suggestion.id} className="rounded-xl border border-border bg-muted/30 p-3">
+                  <div key={suggestion.id} className="rounded-lg border border-border bg-muted/30 p-3">
                     <p className="text-sm font-semibold text-foreground">{suggestion.name}</p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {suggestion.matchedSkillCount} of {suggestion.requiredSkillCount} required skills matched
@@ -385,7 +385,7 @@ export function CoordinatorAssignmentDesk({
                       type="button"
                       size="sm"
                       disabled={busy}
-                      className="mt-2 w-full justify-start rounded-xl font-bold"
+                      className="mt-2 w-full justify-start rounded-lg font-semibold"
                       onClick={async () => {
                         setPendingConflict(null);
                         await onAssign({ id: suggestion.id, name: suggestion.name }, suggestionRole);
@@ -398,13 +398,13 @@ export function CoordinatorAssignmentDesk({
               })}
             </div>
             <DialogFooter className="mt-5">
-              <Button variant="outline" className="rounded-xl font-bold" onClick={() => setPendingConflict(null)}>
+              <Button variant="outline" className="rounded-lg font-semibold" onClick={() => setPendingConflict(null)}>
                 Cancel
               </Button>
               <Button
                 variant="outline"
                 disabled={busy}
-                className="rounded-xl font-bold"
+                className="rounded-lg font-semibold"
                 onClick={async () => {
                   const next = pendingConflict;
                   setPendingConflict(null);
@@ -465,13 +465,13 @@ function CoordinatorSkillResults({ status, suggestions, busy, onAssign }: {
               {status === "error" && <p role="status" className="text-sm text-destructive">Could not load skill matches. Try again.</p>}
               {status === "empty" && <p role="status" className="text-sm text-muted-foreground">No coordinators match this role and skill selection.</p>}
               {status === "loaded" && (
-                <section aria-labelledby="coordinator-skill-suggestions-title" className="space-y-3 rounded-2xl border border-border bg-card p-4">
-                  <h3 id="coordinator-skill-suggestions-title" className="text-sm font-bold text-foreground">Skill match suggestions</h3>
+                <section aria-labelledby="coordinator-skill-suggestions-title" className="space-y-3 rounded-lg border border-border bg-card p-4">
+                  <h3 id="coordinator-skill-suggestions-title" className="text-sm font-semibold text-foreground">Skill match suggestions</h3>
                   {suggestions.map((suggestion) => {
                     const suggestionRole = canonicalCoordinatorRole(suggestion.role);
                     if (!suggestionRole) return null;
                     return (
-                      <div key={suggestion.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
+                      <div key={suggestion.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
                         <div className="space-y-1">
                           <p className="text-sm font-semibold text-foreground">{suggestion.name}</p>
                           <p className="text-xs text-muted-foreground">
@@ -548,7 +548,7 @@ function CoordinatorCandidateItem({
     <Item role="group" aria-label={`${role}: ${coordinator.name}`} variant="outline" className="items-start">
       <ItemMedia>
         <Avatar className="size-10 border border-border">
-          <AvatarFallback className="bg-card text-xs font-bold text-foreground">
+          <AvatarFallback className="bg-card text-xs font-semibold text-foreground">
             {coordinator.name.slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>

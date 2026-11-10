@@ -49,9 +49,9 @@ export function CoordinatorRegistrationDesk({
   }
 
   return (
-    <section id="coordinator-registration-desk" aria-labelledby="coordinator-registration-title" className="scroll-mt-24 rounded-2xl border border-border bg-card shadow-sm">
+    <section id="coordinator-registration-desk" aria-labelledby="coordinator-registration-title" className="scroll-mt-24 rounded-lg border border-border bg-card">
       <header className="border-b border-border px-5 py-4">
-        <h2 id="coordinator-registration-title" className="text-base font-bold text-foreground">Registration desk</h2>
+        <h2 id="coordinator-registration-title" className="text-base font-semibold text-foreground">Registration desk</h2>
         <p className="mt-1 text-sm text-muted-foreground">Search assigned-event guests, verify roster details, and record arrivals.</p>
         <p className="mt-2 text-sm font-semibold text-foreground" aria-live="polite" aria-atomic="true">
           {guestAttendanceCount === undefined ? "Attendance count unavailable." : `${guestAttendanceCount} guests checked in.`}
@@ -80,9 +80,9 @@ export function CoordinatorRegistrationDesk({
 
         <RegistrationRoster vm={vm} />
 
-        <form onSubmit={submitWalkIn} className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+        <form onSubmit={submitWalkIn} className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
           <div>
-            <h3 className="text-sm font-bold text-foreground">Register a walk-in</h3>
+            <h3 className="text-sm font-semibold text-foreground">Register a walk-in</h3>
             <p className="mt-1 text-xs text-muted-foreground">Walk-ins follow event policy and join the roster pending verification. Verify them before check-in.</p>
           </div>
           <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground" htmlFor="coordinator-walk-in-name">

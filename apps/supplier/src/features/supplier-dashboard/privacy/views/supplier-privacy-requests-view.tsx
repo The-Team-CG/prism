@@ -66,7 +66,7 @@ function PrivacyRequestForm({ vm }: { vm: SupplierPrivacyRequestsViewModel }) {
             />
           </Field>
           {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
-          <Button type="submit" disabled={vm.busy} className="rounded-xl font-bold">
+          <Button type="submit" disabled={vm.busy} className="rounded-lg font-semibold">
             {vm.busy ? "Submitting…" : "Submit request"}
           </Button>
         </form>

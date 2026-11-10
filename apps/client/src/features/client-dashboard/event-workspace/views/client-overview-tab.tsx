@@ -26,7 +26,10 @@ export function ClientOverviewTab({
   preferenceDraftCount,
   onOpenOfficialFloorplan,
   setTab,
+  afterLead,
 }: {
+  /** Shown straight after the lead block, such as an open site-visit request. */
+  afterLead?: React.ReactNode;
   selectedEvent: PrismEvent;
   briefing?: PrismBriefing;
   payments: PrismPaymentMilestone[];
@@ -46,6 +49,7 @@ export function ClientOverviewTab({
   return (
     <div className="space-y-5">
       <OverviewNextDecision selectedEvent={selectedEvent} nextAction={nextAction} />
+      {afterLead}
       <OverviewStats selectedEvent={selectedEvent} payments={payments} documents={documents} />
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <OverviewEventDetails selectedEvent={selectedEvent} briefing={briefing} />

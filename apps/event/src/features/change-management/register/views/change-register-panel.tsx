@@ -16,9 +16,9 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
   const vm = useChangeRegisterViewModel(eventId, { frozen });
 
   return (
-    <section aria-labelledby="change-register-heading" className="space-y-5 rounded-xl border border-border bg-card p-5">
+    <section aria-labelledby="change-register-heading" className="space-y-5 rounded-lg border border-border bg-card p-5">
       <header>
-        <h2 id="change-register-heading" className="text-base font-bold text-foreground">Risk and change register</h2>
+        <h2 id="change-register-heading" className="text-base font-semibold text-foreground">Risk and change register</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {frozen
             ? "Scope is frozen. Scope changes need an approved freeze exception with a reason before a decision or addendum is recorded."
@@ -74,7 +74,7 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
 function RegisterGroup({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section aria-label={title} className="space-y-4">
-      <h3 className="text-sm font-bold text-foreground">{title}</h3>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       {children}
     </section>
   );

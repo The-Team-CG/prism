@@ -71,13 +71,13 @@ function StatusSummaryCard({ item }: { item: StatusSummaryItem }) {
   const body = (
     <div className="flex items-start gap-3">
       {Icon ? (
-        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
           <Icon className="size-4" />
         </span>
       ) : null}
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
-        <div className="mt-1 text-sm font-black text-foreground">{item.value}</div>
+        <div className="mt-1 text-sm font-semibold text-foreground">{item.value}</div>
         {item.detail ? <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.detail}</p> : null}
       </div>
     </div>
@@ -129,12 +129,12 @@ function EventDayActionButton({ action }: { action: EventDayAction }) {
       className="min-h-24 rounded-lg border border-border bg-background/75 p-4 text-left transition hover:border-primary/30 hover:bg-secondary/35 disabled:cursor-not-allowed disabled:opacity-55 data-[active=true]:border-primary/45 data-[active=true]:bg-secondary"
     >
       <span className="flex items-start gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+        <span className="grid size-10 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
           <Icon className="size-5" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-black text-foreground">{action.label}</span>
+            <span className="text-sm font-semibold text-foreground">{action.label}</span>
             {action.status ? <StatusBadge status={action.status} /> : null}
           </span>
           {action.description ? <span className="mt-1 block text-xs leading-5 text-muted-foreground">{action.description}</span> : null}
@@ -258,7 +258,7 @@ export function CoordinatorBoundaryNotice() {
       <CardContent className="flex items-start gap-3">
         <LockKeyhole className="mt-0.5 size-5 shrink-0 text-attention" />
         <div>
-          <p className="text-sm font-bold text-foreground">Coordinator information boundary</p>
+          <p className="text-sm font-semibold text-foreground">Coordinator information boundary</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             This portal excludes billing, audit trail, internal cost data, and private supplier review notes.
             Registration details are limited to the assigned registration role only.
@@ -332,7 +332,7 @@ export function CoordinatorEventDayActions({
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-base font-bold text-foreground">What needs attention</h2>
+        <h2 className="text-base font-semibold text-foreground">What needs attention</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Review your tasks, issues and attendance for this event.
         </p>
@@ -365,7 +365,7 @@ export function CoordinatorEventDayActions({
 
 function RunSheetNotPublished({ onCheckAgain }: { onCheckAgain?: () => void }) {
   return (
-    <div className="rounded-xl bg-muted/40 p-4">
+    <div className="rounded-lg bg-muted/40 p-4">
       <p className="text-sm font-semibold text-foreground">PMCM hasn&apos;t published the run sheet for this event yet.</p>
       {onCheckAgain ? (
         <Button variant="outline" className="mt-3 min-h-11 rounded-md" onClick={onCheckAgain}>
@@ -412,7 +412,7 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false, onCheckAga
       </CardHeader>
       <CardContent id="coordinator-timeline" className="scroll-mt-24 space-y-3">
         <fieldset disabled={readOnly} hidden={view !== "run-sheet"} className="min-w-0">{roleView?.schedule?.authored ? <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} /> : roleView ? <RunSheetNotPublished onCheckAgain={onCheckAgain} /> : (
-          <LoadingState label="Loading the run sheet." className="rounded-xl bg-muted/40 p-4" />
+          <LoadingState label="Loading the run sheet." className="rounded-lg bg-muted/40 p-4" />
         )}</fieldset>
         {roleView ? <fieldset disabled={readOnly} hidden={view !== "brief"} className="min-w-0"><HandoffBriefPanel eventId={roleView.event.id} defaultOpen /></fieldset> : null}
         {roleView ? <fieldset disabled={readOnly} hidden={view !== "reports"} className="min-w-0">

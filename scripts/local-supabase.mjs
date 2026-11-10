@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from 
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { resolveLivePortSet, normalizeWorktreePath, corsOriginFor, portalUrlsFor } from './prism-ports.mjs';
+import { resolveLivePortSet, normalizeWorktreePath, corsOriginFor, portalUrlsFor, apiUrlFor, publicHostFor } from './prism-ports.mjs';
 import { resolveDatabaseUrl } from '../apps/api/src/kernel/database/database-target.ts';
 import { startMailpit, stopMailpit } from './local-mailpit.mjs';
 
@@ -68,9 +68,9 @@ export function developmentEnv(url, project, ports, sessionSecret, { storage, ma
     DB_SSL: 'false', DB_SSL_CA_FILE: '', ALLOW_POOLER_FOR_PRISMA: '', NODE_ENV: 'development',
     PRISMA_MIGRATIONS_PATH: '', PRISM_SCHEMA_COMPATIBILITY_MODE: 'exact', PRISM_SCHEMA_REQUIRED_HEAD: project.migrationHead || '',
     PORT: String(ports.api), CORS_ORIGIN: corsOriginFor(ports),
-    NEXT_PUBLIC_API_URL: `http://localhost:${ports.api}`,
-    NEXT_PUBLIC_PRISM_API_BASE_URL: `http://localhost:${ports.api}/api`,
-    NEXT_PUBLIC_CLIENT_ORIGIN: `http://localhost:${ports.client}`,
+    NEXT_PUBLIC_API_URL: apiUrlFor(ports),
+    NEXT_PUBLIC_PRISM_API_BASE_URL: `${apiUrlFor(ports)}/api`,
+    NEXT_PUBLIC_CLIENT_ORIGIN: `http://${publicHostFor()}:${ports.client}`,
     ...portalUrlsFor(ports),
     // Local mail is written to the API log instead of sent. Production rejects this transport.
     PRISM_MAIL_TRANSPORT: mailpit ? 'mailpit' : 'log',

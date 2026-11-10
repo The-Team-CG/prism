@@ -14,11 +14,11 @@ export function SupplierApplicationsInboxView() {
     useSupplierApplicationsInboxViewModel();
 
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm">
+    <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
           <Inbox className="size-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Supplier applications</h2>
+          <h2 className="text-sm font-semibold text-foreground">Supplier applications</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           Request a proposal, schedule a meeting, or decline. Applicants never see your review notes.
@@ -36,10 +36,10 @@ export function SupplierApplicationsInboxView() {
           </Empty>
         ) : (
           items.map((item) => (
-            <div key={item.id} className="rounded-xl border border-border bg-muted/30 p-4">
+            <div key={item.id} className="rounded-lg border border-border bg-muted/30 p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-sm font-bold text-foreground">{item.companyName}</p>
+                  <p className="text-sm font-semibold text-foreground">{item.companyName}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {item.contactName} · {item.email}
                   </p>
@@ -54,7 +54,7 @@ export function SupplierApplicationsInboxView() {
                       key={action}
                       size="sm"
                       disabled={busy || item.status === "declined"}
-                      className="rounded-lg font-bold"
+                      className="rounded-lg font-semibold"
                       onClick={() => void review(item.id, action)}
                     >
                       {applicationActionLabel(action)}
@@ -64,7 +64,7 @@ export function SupplierApplicationsInboxView() {
                   size="sm"
                   variant="outline"
                   disabled={busy || item.status === "declined" || decliningId === item.id}
-                  className="rounded-lg font-bold"
+                  className="rounded-lg font-semibold"
                   onClick={() => startDecline(item.id)}
                 >
                   {applicationActionLabel("decline")}

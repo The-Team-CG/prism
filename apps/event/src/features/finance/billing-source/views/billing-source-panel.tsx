@@ -118,7 +118,7 @@ function BillingSourceItem({
     <li aria-label={`Billing source ${source.sourceLabel}`} className="rounded-md border border-border bg-background p-4 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-black">{source.sourceLabel}</p>
+          <p className="font-semibold">{source.sourceLabel}</p>
           <p className="mt-1 text-muted-foreground">{money.format(source.totalAmount)} · {source.lineItems.length} line item(s)</p>
         </div>
         <StatusBadge status={source.status} label={label(source.status)} />
@@ -182,11 +182,11 @@ export function BillingSourcePanel({
   }
 
   return (
-    <section aria-labelledby="billing-source-title" className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+    <section aria-labelledby="billing-source-title" className="rounded-lg border border-border bg-card p-5">
       <div className="flex items-start gap-3">
         <ReceiptText aria-hidden="true" className="mt-1 size-5 text-primary" />
         <div>
-          <h2 id="billing-source-title" className="text-lg font-black text-foreground">Billing source</h2>
+          <h2 id="billing-source-title" className="text-lg font-semibold text-foreground">Billing source</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Bill the issued proposal: create the source, approve it, then generate the statement and send it to the client below.
           </p>

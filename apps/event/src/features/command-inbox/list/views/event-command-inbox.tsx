@@ -288,7 +288,7 @@ function SummaryStrip({ inbox, triage }: { inbox: PrismPmcmCommandInbox; triage:
         const body = (
           <>
             <dt className="text-xs text-muted-foreground">{stat.label}</dt>
-            <dd className={cx("mt-0.5 text-xl font-semibold tabular-nums text-foreground", stat.tone)}>{stat.value}</dd>
+            <dd className={cx("mt-0.5 text-xl font-semibold tabular-nums", stat.value === 0 ? "text-muted-foreground/60" : "text-foreground", stat.tone)}>{stat.value}</dd>
           </>
         );
         return stat.href ? (
@@ -325,7 +325,7 @@ function InboxToolbar({
             onClick={() => onGroupBy(value)}
             className={cx(
               "rounded px-3 py-1 text-xs font-medium transition-colors",
-              groupBy === value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              groupBy === value ? "bg-card text-foreground" : "text-muted-foreground hover:text-foreground",
             )}
           >
             {value === "priority" ? "By priority" : "By event"}

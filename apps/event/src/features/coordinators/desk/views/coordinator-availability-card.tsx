@@ -112,7 +112,7 @@ export function CoordinatorAvailabilityCard({ eventId, eventDate, coordinators, 
 
   return (
     <Card>
-      <CardHeader><h2 className="text-sm font-bold text-foreground">Coordinator unavailability</h2></CardHeader>
+      <CardHeader><h2 className="text-sm font-semibold text-foreground">Coordinator unavailability</h2></CardHeader>
       <CardContent className="space-y-3">
         <Select value={coordinatorId} onValueChange={(value) => void select(value)}>
           <SelectTrigger aria-label="Coordinator availability" className="w-full min-w-0">

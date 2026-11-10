@@ -183,7 +183,7 @@ function BriefingSummary({ briefing }: { briefing?: PrismBriefing | null }) {
     );
   }
   return (
-    <section className="rounded-xl border border-border bg-card">
+    <section className="rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
         <div>
           <h2 className="font-semibold text-foreground">Client briefing</h2>
@@ -262,7 +262,7 @@ export function EventWorkspaceSuppliersTab() {
       id: "emergency",
       label: "Replace a supplier",
       render: () => (
-        <section className="rounded-xl border border-border bg-card p-5">
+        <section className="rounded-lg border border-border bg-card p-5">
           <h2 className="font-semibold text-foreground">Replace a supplier</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">If an assigned supplier drops out, withdraw them here and review suggested replacements.</p>
           <div className="mt-4">

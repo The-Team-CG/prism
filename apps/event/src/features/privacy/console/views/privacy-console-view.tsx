@@ -29,7 +29,7 @@ export function PrivacyConsoleView() {
           <AlertDescription>{vm.error}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
           <Panel title="Privacy request queue" icon={Database}>
             <div className="space-y-3">
@@ -54,9 +54,13 @@ export function PrivacyConsoleView() {
         </div>
         <div className="space-y-5">
           {vm.isPmcmAdmin ? <PrivacyLegalHoldControls vm={vm} /> : null}
-          {vm.isPmcmAdmin ? <RetentionReviewPanel /> : null}
         </div>
       </div>
+      {vm.isPmcmAdmin ? (
+        <section aria-label="Retention policies">
+          <RetentionReviewPanel />
+        </section>
+      ) : null}
     </div>
   );
 }

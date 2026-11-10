@@ -9,7 +9,7 @@ export function PmcmProposalComments({ eventId }: { eventId: string }) {
   const vm = useProposalComments(eventId);
   return (
     <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="pmcm-proposal-comments-heading">
-      <h2 id="pmcm-proposal-comments-heading" className="text-lg font-bold">Proposal comments</h2>
+      <h2 id="pmcm-proposal-comments-heading" className="text-lg font-semibold">Proposal comments</h2>
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
       <ol className="mt-4 space-y-3">
         {vm.comments.length === 0 ? <li className="text-sm text-muted-foreground">No comments on the issued proposal yet.</li> : null}

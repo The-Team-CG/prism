@@ -20,7 +20,7 @@ export function RiskRegisterPanel({ eventId }: { eventId: string }) {
   const [draft, setDraft] = useState({ phase: "planning" as EventRiskPhase, title: "", likelihood: 3, impact: 3, mitigation: "", owner: "" });
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5" aria-labelledby="risk-register-heading">
+    <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="risk-register-heading">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="risk-register-heading" className="font-semibold text-foreground">Risk register</h2>
         <button type="button" disabled={vm.busy} onClick={() => void vm.loadStandard()} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-50">Add standard risks</button>

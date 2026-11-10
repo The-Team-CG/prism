@@ -69,8 +69,6 @@ type SectionRenderer = (props: SupplierWorkspaceSectionProps & { workspace: Supp
 const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
   dashboard: (p) => (
     <DashboardPage
-      quoteNeedingSubmission={p.quoteNeedingSubmission}
-      handoffPending={p.handoffPending}
       readinessBoard={p.readinessBoard}
       quoteByRequest={p.quoteByRequest}
     />

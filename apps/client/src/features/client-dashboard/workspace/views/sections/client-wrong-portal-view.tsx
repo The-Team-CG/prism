@@ -28,21 +28,21 @@ export function ClientWrongPortalView({
   return (
     <main className="grid min-h-screen place-items-center bg-background px-6">
       <Card role="region" className="w-full max-w-md gap-4 p-8">
-        <span className="grid size-12 place-items-center rounded-xl bg-attention-soft text-attention">
+        <span className="grid size-12 place-items-center rounded-lg bg-attention-soft text-attention">
           <ShieldCheck className="size-5" />
         </span>
-        <h1 className="mt-5 text-xl font-bold text-foreground">Wrong portal for this account.</h1>
+        <h1 className="mt-5 text-xl font-semibold text-foreground">Wrong portal for this account.</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{destination}</p>
         <div className="mt-5 flex flex-wrap gap-2">
           {eventTeam ? (
-            <Button asChild className="rounded-lg font-bold">
+            <Button asChild className="rounded-lg font-semibold">
               <a href={portalUrlFor("event", portalUrlsFromEnvironment())}>
                 Open event portal <ArrowRight className="size-4" />
               </a>
             </Button>
           ) : null}
           {supplier ? (
-            <Button asChild className="rounded-lg font-bold">
+            <Button asChild className="rounded-lg font-semibold">
               <a href={portalUrlFor("supplier", portalUrlsFromEnvironment())}>
                 Open supplier portal <ArrowRight className="size-4" />
               </a>

@@ -11,13 +11,13 @@ export function EventRoleLoadingState({ role }: { role: "pmcm-admin" | "coordina
   const skeletonItems = isCoordinator ? ["Assignment", "Assigned to you", "Issues"] : ["Events", "Finance", "Closure"];
 
   return (
-    <Card className="min-h-[420px] rounded-lg border-primary/12 bg-card p-6" aria-live="polite">
+    <Card className="min-h-[420px] rounded-lg border-border bg-card p-6" aria-live="polite">
       <div className="mx-auto grid max-w-2xl gap-4 py-10 text-center">
         <span className="mx-auto grid size-11 place-items-center rounded-lg bg-secondary text-primary">
           <Radio className="size-5" />
         </span>
         <div>
-          <p className="text-sm font-black text-foreground">{title}</p>
+          <p className="text-sm font-semibold text-foreground">{title}</p>
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
         <div className="grid gap-2 sm:grid-cols-3">

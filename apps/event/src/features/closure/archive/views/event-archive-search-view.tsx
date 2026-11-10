@@ -12,11 +12,11 @@ export function EventArchiveSearchView() {
   const vm = useEventArchiveSearchViewModel();
 
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm">
+    <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
           <Archive className="size-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Archived events</h2>
+          <h2 className="text-sm font-semibold text-foreground">Archived events</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">Search closed records by venue, event type, or month. Full-record retain stays on the event record.</p>
       </div>
@@ -28,17 +28,17 @@ export function EventArchiveSearchView() {
             <input
               value={vm.venue}
               onChange={(event) => vm.setVenue(event.target.value)}
-              className="mt-1 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+              className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
             />
           </label>
-          <label className="text-xs font-semibold text-muted-foreground">Event name<input value={vm.eventName} onChange={(event) => vm.setEventName(event.target.value)} className="mt-1 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>
-          <label className="text-xs font-semibold text-muted-foreground">Client name<input value={vm.clientName} onChange={(event) => vm.setClientName(event.target.value)} className="mt-1 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground" /></label>
+          <label className="text-xs font-semibold text-muted-foreground">Event name<input value={vm.eventName} onChange={(event) => vm.setEventName(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground" /></label>
+          <label className="text-xs font-semibold text-muted-foreground">Client name<input value={vm.clientName} onChange={(event) => vm.setClientName(event.target.value)} className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground" /></label>
           <label className="text-xs font-semibold text-muted-foreground">
             Event type
             <input
               value={vm.eventType}
               onChange={(event) => vm.setEventType(event.target.value)}
-              className="mt-1 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+              className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
             />
           </label>
           <label className="text-xs font-semibold text-muted-foreground">
@@ -47,11 +47,11 @@ export function EventArchiveSearchView() {
               type="month"
               value={vm.month}
               onChange={(event) => vm.setMonth(event.target.value)}
-              className="mt-1 h-9 w-full rounded-xl border border-border bg-background px-3 text-sm text-foreground"
+              className="mt-1 h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground"
             />
           </label>
           <div className="flex items-end">
-            <Button className="h-9 rounded-lg font-bold" disabled={vm.busy} onClick={vm.search}>
+            <Button className="h-9 rounded-lg font-semibold" disabled={vm.busy} onClick={vm.search}>
               Search archive
             </Button>
           </div>
@@ -67,7 +67,7 @@ export function EventArchiveSearchView() {
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="divide-y divide-border rounded-xl border border-border">
+          <div className="divide-y divide-border rounded-lg border border-border">
             {vm.visible.map((hit) => (
               <label key={hit.id} className="flex cursor-pointer flex-wrap items-start justify-between gap-3 px-4 py-3">
                 <span className="flex items-start gap-3">
@@ -79,7 +79,7 @@ export function EventArchiveSearchView() {
                     className="mt-1"
                   />
                   <span>
-                    <span className="block text-sm font-bold text-foreground">{hit.eventName}</span>
+                    <span className="block text-sm font-semibold text-foreground">{hit.eventName}</span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">
                       {hit.clientName} · {hit.eventType || "Type pending"} · {hit.venue || "Venue pending"}
                     </span>
@@ -91,14 +91,14 @@ export function EventArchiveSearchView() {
           </div>
         )}
         {vm.remaining > 0 ? (
-          <Button variant="outline" className="h-9 rounded-lg font-bold" onClick={vm.showMore}>
+          <Button variant="outline" className="h-9 rounded-lg font-semibold" onClick={vm.showMore}>
             Show {Math.min(vm.remaining, 25)} more of {vm.remaining}
           </Button>
         ) : null}
         {vm.hits.length > 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">{archiveComparisonHint(vm.selectedIds)}</p>
-            <Button className="h-9 rounded-lg font-bold" disabled={!vm.canCompare || vm.comparing} onClick={() => void vm.compareSelected()}>
+            <Button className="h-9 rounded-lg font-semibold" disabled={!vm.canCompare || vm.comparing} onClick={() => void vm.compareSelected()}>
               Compare selected
             </Button>
           </div>

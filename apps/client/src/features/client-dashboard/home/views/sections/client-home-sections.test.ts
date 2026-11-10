@@ -31,7 +31,7 @@ describe('ClientHomeActionCenter', () => {
     ]);
   });
 
-  it('groups the client actions by event and keeps current blockers apart from later requirements', () => {
+  it('lists actions most urgent first, grouped by event, and leaves out the step the hero shows', () => {
     const base = loaded.items[0];
     const center: PrismClientActionCenter = {
       ...loaded,
@@ -41,12 +41,18 @@ describe('ClientHomeActionCenter', () => {
         { ...base, id: 'briefing:evt_two', eventId: 'evt_two', eventName: 'Second event' },
       ],
     };
-    const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, {
-      actionCenter: center, clientActions: selectClientAccountActions(center), runClientAction: vi.fn(), todayKey: '2026-10-19',
-    }));
-    const headings = [...markup.matchAll(/<h2[^>]*>(Needs your action[^<]*)</g)].map((match) => match[1]);
-    expect(headings).toEqual(['Needs your action · First event', 'Needs your action · Second event']);
+    const props = { actionCenter: center, clientActions: selectClientAccountActions(center), runClientAction: vi.fn(), todayKey: '2026-10-19' };
+    const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, props));
+    const groupLabels = (html: string) => [...html.matchAll(/<h3[^>]*>([^<]*)</g)].map((match) => match[1]);
+    // The blocker's event comes first; each event's items sit under its label.
+    expect(groupLabels(markup)).toEqual(['First event', 'Second event']);
     expect(markup.indexOf('Pay the deposit')).toBeLessThan(markup.indexOf('Upload signed venue permit'));
+    expect(markup).toContain('>Needs you<');
+
+    const withoutLead = renderToStaticMarkup(createElement(ClientHomeActionCenter, { ...props, leadActionId: 'billing:evt_one' }));
+    expect(withoutLead).not.toContain('Pay the deposit');
+    expect(withoutLead).toContain('>Also needs you<');
+    expect(groupLabels(withoutLead)).toEqual(['Second event', 'First event']);
   });
 
   it('renders the empty state when the loaded action center has nothing for the selected event', () => {
@@ -57,7 +63,7 @@ describe('ClientHomeActionCenter', () => {
     }));
 
     expect(markup).toContain('all caught up');
-    expect(markup).not.toContain('Needs your action');
+    expect(markup).not.toContain('Needs you');
   });
 
   it('lists next required actions without the empty state or empty groups', () => {
@@ -68,7 +74,7 @@ describe('ClientHomeActionCenter', () => {
     }));
 
     expect(markup).toContain('Complete event briefing');
-    expect(markup).toContain('Needs your action');
+    expect(markup).toContain('>Needs you<');
     expect(markup).not.toContain('Waiting for PMCM');
     expect(markup).not.toContain('New to review');
     expect(markup).not.toContain('all caught up');

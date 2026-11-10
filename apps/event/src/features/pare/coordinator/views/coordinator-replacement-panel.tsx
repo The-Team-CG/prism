@@ -8,7 +8,7 @@ import { useCoordinatorReplacements } from "../view-models/use-coordinator-repla
 export function CoordinatorReplacementPanel({ eventId }: { eventId: string }) {
   const vm = useCoordinatorReplacements(eventId);
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
+    <section className="rounded-lg border border-border bg-card p-5">
       <h2 className="font-semibold text-foreground">Emergency coordinator replacements</h2>
       <p className="mt-0.5 text-sm text-muted-foreground">When a coordinator withdraws within 48 hours of the event, PARE prepares a replacement package. Approve a coordinator to assign them, or reject the package.</p>
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}

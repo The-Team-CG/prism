@@ -38,7 +38,7 @@ export function PmcmProposalIssuerPanel({ eventId }: { eventId: string }) {
 
   return (
     <section className="rounded-lg border border-border bg-card p-5">
-      <h2 className="text-lg font-bold">Commercial proposal</h2>
+      <h2 className="text-lg font-semibold">Commercial proposal</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Build the cost estimate, then issue it as a numbered version. The client reviews the issued version and sees its title, summary and total, not the estimate lines. A new version replaces the previous one and keeps its history.
       </p>
@@ -93,7 +93,7 @@ function ProposalIssueForm({ vm }: { vm: ProposalIssuerVm }) {
       }}
       className="mt-5 grid gap-4"
     >
-      <h3 className="text-sm font-bold">{vm.latest ? "Issue a new version" : "Issue the first version"}</h3>
+      <h3 className="text-sm font-semibold">{vm.latest ? "Issue a new version" : "Issue the first version"}</h3>
 
       <BudgetField vm={vm} />
 
@@ -199,7 +199,7 @@ function EstimateTotal({ vm }: { vm: ProposalIssuerVm }) {
   const overBudget = Number.isFinite(budget) && budget > 0 && vm.total > budget;
   return (
     <p className="text-sm">
-      Total <span className="font-bold tabular-nums">{formatPeso(vm.total)}</span>
+      Total <span className="font-semibold tabular-nums">{formatPeso(vm.total)}</span>
       {overBudget ? <span className="ml-2 font-medium text-attention">{formatPeso(vm.total - budget)} over budget</span> : null}
     </p>
   );
