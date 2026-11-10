@@ -1,4 +1,7 @@
 import type {
+  PrismCoordinatorRoleBrief,
+  PrismCoordinatorRoleView,
+  PrismSupplierQuoteRequest,
   PrismCoordinatorWorkspace,
   PrismCoordinatorEventSchedule,
   PrismLiveOps,
@@ -33,6 +36,20 @@ export function createLiveOpsClient(
           actorPath(`/coordinator/events/${eventId}/schedule`, actor),
           withBase(options),
         ),
+      focusRoleView: (init = {}) =>
+        prismRequest<PrismCoordinatorRoleView | null>("/coordinator/focus-role-view", withBase(options, { signal: init.signal })),
+      roleView: (eventId, actor = {}) =>
+        prismRequest<PrismCoordinatorRoleView>(actorPath(`/coordinator/events/${eventId}/role-view`, actor), withBase(options)),
+      acknowledgeAssignment: (eventId, assignmentId, input, actor = {}) =>
+        prismRequest<PrismCoordinatorAssignment>(actorPath(`/events/${eventId}/coordinators/${assignmentId}/acknowledge`, actor), withBase(options, { method: "PATCH", body: input })),
+      withdrawAssignment: (eventId, assignmentId, input, actor = {}) =>
+        prismRequest<PrismCoordinatorAssignment>(actorPath(`/events/${eventId}/coordinators/${assignmentId}/withdraw`, actor), withBase(options, { method: "PATCH", body: input })),
+      reportSupplierStatus: (eventId, requestId, input, actor = {}) =>
+        prismRequest<PrismSupplierQuoteRequest>(actorPath(`/events/${eventId}/supplier-status/${requestId}/report`, actor), withBase(options, { method: "PATCH", body: input })),
+      roleBriefs: (eventId, actor = {}) =>
+        prismRequest<PrismCoordinatorRoleBrief[]>(actorPath(`/events/${eventId}/coordinator-role-briefs`, actor), withBase(options)),
+      saveRoleBrief: (eventId, role, input, actor = {}) =>
+        prismRequest<PrismCoordinatorRoleBrief>(actorPath(`/events/${eventId}/coordinator-role-briefs/${encodeURIComponent(role)}`, actor), withBase(options, { method: "PUT", body: input })),
     },
     liveOps: {
       eventDayWorkspace: (eventId, actor = {}) =>

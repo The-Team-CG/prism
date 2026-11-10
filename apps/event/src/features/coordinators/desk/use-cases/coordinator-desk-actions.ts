@@ -15,7 +15,7 @@ import type {
 import { coordinatorsRepository } from "../data/coordinators-repository";
 
 export async function loadCoordinatorRoleView(session: EventSession, eventId: string) {
-  return coordinatorsRepository.loadRoleView(session, eventId);
+  return coordinatorsRepository.loadRoleView(eventId);
 }
 
 export async function acknowledgeCoordinatorAssignment(
@@ -42,7 +42,7 @@ export async function withdrawAndRefreshWorkspace(input: {
   assignmentId: string;
   input: WithdrawCoordinatorAssignmentInput;
 }) {
-  await coordinatorsRepository.withdraw(input.session, input.eventId, input.assignmentId, input.input);
+  await coordinatorsRepository.withdraw(input.eventId, input.assignmentId, input.input);
 }
 
 export async function createTaskAndRefreshRoleView(input: {
@@ -143,7 +143,7 @@ export async function verifySupplierStatusAndRefreshRoleView(input: {
   requestId: string;
   input: VerifySupplierStatusInput;
 }) {
-  await coordinatorsRepository.verifySupplierStatus(input.session, input.eventId, input.requestId, input.input);
+  await coordinatorsRepository.verifySupplierStatus(input.eventId, input.requestId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }
 
@@ -153,6 +153,6 @@ export async function reportSupplierStatusAndRefreshRoleView(input: {
   requestId: string;
   input: ReportSupplierSiteStatusInput;
 }) {
-  await coordinatorsRepository.reportSupplierStatus(input.session, input.eventId, input.requestId, input.input);
+  await coordinatorsRepository.reportSupplierStatus(input.eventId, input.requestId, input.input);
   return loadCoordinatorRoleView(input.session, input.eventId);
 }

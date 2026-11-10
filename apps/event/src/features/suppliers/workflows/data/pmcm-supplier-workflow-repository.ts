@@ -10,13 +10,13 @@ import type {
   ReverseSupplierPayoutInput,
   UpdateSupplierCreativeTaskInput,
 } from "@prism/types";
-import { eventApi, eventApiRequest } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 import { getStorageObjectDownload } from "@prism/api-client";
 import { storedEventAccessToken } from "@/lib/prism-api";
 
 export const pmcmSupplierWorkflowRepository = {
   load: (eventId: string): Promise<PrismPmcmSupplierWorkflowWorkspace[]> => eventApi.supplierWorkflows.pmcmWorkspace(eventId),
-  listSchedules: (eventId: string): Promise<PrismSupplierSchedule[]> => eventApiRequest<PrismSupplierSchedule[]>(`/api/events/${encodeURIComponent(eventId)}/supplier-schedules`),
+  listSchedules: (eventId: string): Promise<PrismSupplierSchedule[]> => eventApi.commercial.supplierSchedules(eventId),
   download: (objectId: string) => getStorageObjectDownload(objectId, { authToken: storedEventAccessToken() }),
   createSchedule: (eventId: string, input: CreateSupplierScheduleInput) => eventApi.supplierWorkflows.createSchedule(eventId, input),
   reviewContract: (versionId: string, input: ReviewSupplierContractInput) => eventApi.supplierWorkflows.reviewContract(versionId, input),

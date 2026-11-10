@@ -1,4 +1,12 @@
 import type {
+  CoordinatorAssignmentAcknowledgementInput,
+  CoordinatorRole,
+  PrismCoordinatorRoleBrief,
+  PrismCoordinatorRoleView,
+  PrismSupplierQuoteRequest,
+  ReportSupplierSiteStatusInput,
+  UpsertCoordinatorRoleBriefInput,
+  WithdrawCoordinatorAssignmentInput,
   BlockEventDayTaskInput,
   EscalateEventDayTaskInput,
   EscalateLiveOpsInput,
@@ -32,7 +40,7 @@ import type {
   PrismEventEodReport,
   PrismHandoffBrief,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
+import type { EventOpsActorQuery, EventOpsReadInit } from "./primitives";
 
 export interface EventOpsLiveOpsContract {
   coordinator: {
@@ -41,6 +49,14 @@ export interface EventOpsLiveOpsContract {
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismCoordinatorEventSchedule>;
+    /** The signed-in coordinator's focus role view; the API picks the focus event. */
+    focusRoleView(init?: EventOpsReadInit): Promise<PrismCoordinatorRoleView | null>;
+    roleView(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorRoleView>;
+    acknowledgeAssignment(eventId: string, assignmentId: string, input: CoordinatorAssignmentAcknowledgementInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
+    withdrawAssignment(eventId: string, assignmentId: string, input: WithdrawCoordinatorAssignmentInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
+    reportSupplierStatus(eventId: string, requestId: string, input: ReportSupplierSiteStatusInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
+    roleBriefs(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorRoleBrief[]>;
+    saveRoleBrief(eventId: string, role: CoordinatorRole, input: UpsertCoordinatorRoleBriefInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorRoleBrief>;
   };
 
   liveOps: {

@@ -1,8 +1,8 @@
-import type { AcknowledgeSupplierGapInput, PrismSupplierGap } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
+import type { AcknowledgeSupplierGapInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const supplierGapsRepository = {
-  list: (eventId: string) => eventApiRequest<PrismSupplierGap[]>(`/api/events/${eventId}/supplier-gaps`),
+  list: (eventId: string) => eventApi.commercial.supplierGaps(eventId),
   acknowledge: (eventId: string, categoryId: string, input: AcknowledgeSupplierGapInput) =>
-    eventApiRequest<PrismSupplierGap>(`/api/events/${eventId}/supplier-gaps/${categoryId}/acknowledge`, { method: "POST", body: input }),
+    eventApi.commercial.acknowledgeSupplierGap(eventId, categoryId, input),
 };

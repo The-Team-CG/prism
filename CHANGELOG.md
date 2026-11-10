@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Coordinator role views and briefs, supplier directory reads (which can be cancelled), supplier gaps and schedules, AI advisory, the Canva connection, PARE approvals and starting the event day in the event portal call the API through the shared `@prism/api-client` (`coordinator`, `commercial`, `advisory`, `canva` and `pare` groups). Client read methods accept an optional abort signal.
 - Proposals and cost estimates, proposal comments, client review items and client follow-up messages in the event portal call the API through the shared `@prism/api-client` `commercial` group.
 - The audit trail, privacy console (requests, legal holds) and data retention screens in the event portal call the API through a new `audit` and `privacyAdmin` group in the shared `@prism/api-client`, which builds the filter and queue queries (empty and "all" filters are not sent). The privacy queue query tests now use the client's own query builder.
 - Inquiry intake path, language, company name, context notes, pre-conforme workspace, the PMCM conforme execution (prepare, latest, sign), AI triage and event storage listings in the event portal call the API through the shared `@prism/api-client`. The conforme PDF download keeps its own request, because it returns a file and not JSON.
