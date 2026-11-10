@@ -13,6 +13,7 @@ import { SUPPLIER_PORTAL_POINTS, SUPPLIER_PORTAL_STATEMENT } from "@/features/su
 import { closedRequestReason, formatMoney, isQuoteLocked } from "@/features/supplier-dashboard/workspace/model/supplier-workspace-rules";
 import { QuoteReadOnly } from "@/features/supplier-dashboard/workspace/views/sections/request-quote-card";
 import { useSupplierQuoteLinkViewModel } from "../view-models/use-supplier-quote-link-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function SupplierQuoteLinkView({ token }: { token: string }) {
   const vm = useSupplierQuoteLinkViewModel(token);
@@ -39,7 +40,7 @@ export function SupplierQuoteLinkView({ token }: { token: string }) {
       {vm.complete ? (
         <p role="status" className="text-base font-medium text-foreground">Your quote has been sent to PMCM for review.</p>
       ) : vm.loading ? (
-        <p className="text-base text-muted-foreground" role="status">Loading secure quote request…</p>
+        <LoadingState label="Loading secure quote request…" />
       ) : vm.detail ? (
         <>
           <QuoteRequestContext detail={vm.detail} />

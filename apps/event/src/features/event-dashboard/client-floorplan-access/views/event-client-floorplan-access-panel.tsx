@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useClientFloorplanAccessViewModel } from "../view-models/use-client-floorplan-access-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function EventClientFloorplanAccessPanel({
   eventId,
@@ -42,7 +43,7 @@ export function EventClientFloorplanAccessPanel({
 type AccessViewModel = ReturnType<typeof useClientFloorplanAccessViewModel>;
 type AccessContact = NonNullable<AccessViewModel["access"]>["secondaryContacts"][number];
 function FloorplanAccessContents({ vm, eventId, query, setQuery }: { vm: AccessViewModel; eventId: string; query: string; setQuery: (value: string) => void }) {
-  if (vm.loading && !vm.access) return <p role="status" className="mt-4 text-sm text-muted-foreground">Loading floorplan access…</p>;
+  if (vm.loading && !vm.access) return <LoadingState label="Loading floorplan access…" className="mt-4" />;
   if (!vm.access) return <p className="mt-4 text-sm text-muted-foreground">Floorplan access is unavailable.</p>;
   return <>
     <PrimaryContactCard name={vm.access.primaryContact.name} email={vm.access.primaryContact.email} />

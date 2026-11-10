@@ -10,6 +10,7 @@ import { Field, FieldDescription, FieldLabel } from "@prism/ui/components/field"
 import { Input } from "@prism/ui/components/input";
 import { Textarea } from "@prism/ui/components/textarea";
 import { useInquiryEditViewModel, type InquiryEditClosedReason } from "../view-models/use-inquiry-edit-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 /** FR-50: change an inquiry within 24 hours of sending it, until PMCM reviews it. */
 export function InquiryEditView({ token }: { token: string }) {
@@ -57,7 +58,7 @@ type EditVm = ReturnType<typeof useInquiryEditViewModel>;
 
 function EditForm({ vm }: { vm: EditVm }) {
   if (!vm.inquiry) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <LoadingState label="Loading…" />;
   }
   return (
     <form className="space-y-5" onSubmit={(event) => { event.preventDefault(); void vm.save(); }}>

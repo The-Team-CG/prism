@@ -20,6 +20,7 @@ import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/vie
 import { EVENT_GAME_OPTIONS, eventGameModeLabel } from "../model/event-game-catalog";
 import { resolveGuestGameLobbyUrl } from "../model/guest-lobby-url";
 import { portalUrlsFromEnvironment } from "@/lib/portal-urls";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 const LOBBY_THEME_LABELS: Record<PrismEventGameBrandTheme, string> = {
   prism: "Prism",
@@ -55,7 +56,7 @@ export function EventGamesHeaderCard({
         </Button>
       </div>
       {error ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{error}</p> : null}
-      {loading ? <p role="status" className="text-sm text-muted-foreground">Loading event games…</p> : null}
+      {loading ? <LoadingState label="Loading event games…" /> : null}
     </header>
   );
 }

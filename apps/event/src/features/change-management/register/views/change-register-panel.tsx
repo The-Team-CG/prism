@@ -10,6 +10,7 @@ import { ScopeChangeReviewPanel } from "../../scope-review";
 import { RiskAssessmentPanel } from "../../risk-assessment";
 import { RiskRegisterPanel } from "@/features/change-management/risk-register/views/risk-register-panel";
 import { RecordDecisionForm } from "./record-decision-form";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; frozen: boolean }) {
   const vm = useChangeRegisterViewModel(eventId, { frozen });
@@ -25,7 +26,7 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
         </p>
       </header>
 
-      {vm.status === "loading" ? <p role="status" className="text-sm text-muted-foreground">Loading register…</p> : null}
+      {vm.status === "loading" ? <LoadingState label="Loading register…" /> : null}
       {vm.status === "error" ? (
         <div className="flex flex-wrap items-center gap-3">
           <p role="alert" className="text-sm text-destructive">{vm.error}</p>
