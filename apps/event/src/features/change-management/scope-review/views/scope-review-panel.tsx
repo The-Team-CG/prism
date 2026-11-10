@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import type { PrismAddendum, PrismEventFreezeException, PrismScopeChangeRequest } from "@prism/types";
 import { impactLabels, isOpenScopeChange, scopeChangeCategoryLabels, scopeChangeStatusLabel } from "../model/scope-review-rules";
 import { useScopeReviewViewModel, type ApprovalDraft } from "../view-models/use-scope-review-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 /** PMCM decides scope changes. Clients see only the status and the client response written here. */
 /** Radix Select cannot take an empty-string item value, so "no addendum" uses this sentinel. */
@@ -22,7 +23,7 @@ export function ScopeChangeReviewPanel({ eventId, frozen }: { eventId: string; f
           Approval requires the impact review{frozen ? " and an approved freeze exception, because the scope is frozen" : ""}. A rejection needs a reason, which stays internal.
         </p>
       </div>
-      {vm.status === "loading" ? <p role="status" className="text-sm text-muted-foreground">Loading scope change requests…</p> : null}
+      {vm.status === "loading" ? <LoadingState label="Loading scope change requests…" /> : null}
       {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
       {vm.status === "ready" && vm.requests.length === 0 ? <p className="text-sm text-muted-foreground">No scope change requests for this event.</p> : null}
       {vm.status === "ready" && vm.requests.length > 0 ? (

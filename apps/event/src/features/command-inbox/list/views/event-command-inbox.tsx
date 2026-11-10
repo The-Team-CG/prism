@@ -10,7 +10,6 @@ import {
   FileSignature,
   FileText,
   Inbox,
-  Loader2,
   MapPinned,
   MessageSquareText,
   Radio,
@@ -26,6 +25,7 @@ import { selectCommandInboxTriage } from "../model/command-inbox-selectors";
 import { COMMAND_INBOX_ACTION_LABEL, COMMAND_INBOX_AREA_LABEL } from "../model/command-inbox-labels";
 import { Button } from "@prism/ui/components/button";
 import { cx } from "@/features/pmcm-kit";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 const KIND_ICON: Record<PrismCommandInboxKind, LucideIcon> = {
   inquiry: FileSignature,
@@ -377,8 +377,7 @@ function InboxBody({
   if (!inbox && !loadFailed) {
     return (
       <section className="rounded-lg border border-border bg-card p-6 text-center">
-        <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" aria-hidden />
-        <p className="mt-2 text-sm font-semibold text-foreground">Loading command inbox...</p>
+        <LoadingState label="Loading command inbox..." />
       </section>
     );
   }

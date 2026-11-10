@@ -7,6 +7,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 - On phones the PMCM Events list gives the event name the full width: the stage moves into the line under the name, so long names no longer wrap onto five lines.
+- Loading states across the four portals show placeholder lines in the shape of the content instead of a line of "Loading…" text, through a shared `LoadingState` in `@prism/ui`. Screen readers still hear the same message.
 - Unlocking an account and resetting two-factor in the event portal ask for confirmation in a dialog that names the person and the consequence, instead of a browser pop-up.
 - The PMCM Events list has a "Needs attention" column showing overdue payments, overdue file requirements and unread messages per event, so a problem event is visible without opening it.
 - The client, supplier and guest tabs are named after the open page (for example "Approvals · P.R.I.S.M.") instead of one title on every page. The event and client portals now show a clear error and "page not found" screen instead of a blank or framework default, using shared pages from `@prism/ui`.
