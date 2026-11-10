@@ -1,4 +1,9 @@
 import type {
+  ChoosePresentationSlotInput,
+  ChooseVenueScoutingPreferenceInput,
+  CreateClientOwnedSupplierInput,
+  DecideClientReviewItemInput,
+  PrismClientBillingDispute,
   CompleteExternalCreativeTicketInput,
   CreateExternalCreativeTicketInput,
   CreateVenueScoutingOptionInput,
@@ -129,6 +134,13 @@ export interface EventOpsCommercialContract {
     presentationMeetings(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPresentationMeetings>;
     proposePresentationMeeting(eventId: string, input: ProposePresentationMeetingInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;
     recordPresentationOutcome(eventId: string, meetingId: string, input: RecordPresentationOutcomeInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;
+    /** The client raises a dispute on their own statement; the API returns the client's view of it. */
+    createClientBillingDispute(eventId: string, input: CreateBillingDisputeInput, actor?: EventOpsActorQuery): Promise<PrismClientBillingDispute>;
+    decideClientReviewItem(eventId: string, itemId: string, input: DecideClientReviewItemInput, actor?: EventOpsActorQuery): Promise<unknown>;
+    chooseVenueScoutingPreference(eventId: string, input: ChooseVenueScoutingPreferenceInput, actor?: EventOpsActorQuery): Promise<PrismVenueScouting>;
+    choosePresentationSlot(eventId: string, meetingId: string, input: ChoosePresentationSlotInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;
+    createClientOwnedSupplier(eventId: string, input: CreateClientOwnedSupplierInput, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier>;
+    confirmClientOwnedSupplier(eventId: string, supplierId: string, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier>;
     unresponsiveSuppliers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismUnresponsiveSupplier[]>;
     clientOwnedSuppliers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier[]>;
     raiseClientSupplierRisk(eventId: string, supplierId: string, input: RaiseClientSupplierRiskInput, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier>;

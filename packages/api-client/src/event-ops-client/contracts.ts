@@ -20,6 +20,7 @@ import type { EventOpsLifecycleContract } from "./contracts/lifecycle";
 import type { EventOpsStaffingContract } from "./contracts/staffing";
 import type { EventOpsTrustContract } from "./contracts/trust";
 import type { EventOpsPlatformContract } from "./contracts/platform";
+import type { EventOpsClientPortalContract } from "./contracts/client-portal";
 
 /**
  * Re-export write DTOs from `@prism/types` (Zod schemas + `z.infer`).
@@ -70,4 +71,5 @@ export interface EventOpsClient
     EventOpsLifecycleContract,
     EventOpsStaffingContract,
     EventOpsTrustContract,
-    EventOpsPlatformContract {}
+    EventOpsPlatformContract,
+    EventOpsClientPortalContract {}
