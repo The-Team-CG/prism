@@ -13,7 +13,7 @@ export function ClientEventDetailsView() {
     <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-bold text-foreground">Event details</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground">Event details</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <div className="flex justify-between gap-3"><span className="text-muted-foreground">Event name</span><span className="font-semibold text-foreground">{selectedEvent?.eventName}</span></div>
@@ -24,7 +24,7 @@ export function ClientEventDetailsView() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm font-bold text-foreground">Briefing basis</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground">Briefing basis</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <div className="flex justify-between gap-3"><span className="text-muted-foreground">Venue</span><span className="font-semibold text-foreground">{briefing?.venue ?? "To be confirmed"}</span></div>

@@ -43,8 +43,8 @@ export function EmergencyWithdrawalsNotice({ assignments }: { assignments: Prism
   const emergencies = assignments.filter((assignment) => assignment.emergencyChange);
   if (emergencies.length === 0) return null;
   return (
-    <div role="alert" className="rounded-xl border border-danger/25 bg-danger/8 px-4 py-3">
-      <p className="text-sm font-bold text-danger">Emergency change: a coordinator withdrew within 48 hours of the event</p>
+    <div role="alert" className="rounded-lg border border-danger/25 bg-danger/8 px-4 py-3">
+      <p className="text-sm font-semibold text-danger">Emergency change: a coordinator withdrew within 48 hours of the event</p>
       <ul className="mt-1.5 space-y-1 text-xs text-foreground">
         {emergencies.map((assignment) => (
           <li key={assignment.id}>
@@ -68,7 +68,7 @@ export function StaffingSummary({ roleRequirements, assignmentCounts, eventEnded
       <CardHeader>
         <div className="flex items-center gap-2">
           <UsersRound className="size-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Staffing summary</h2>
+          <h2 className="text-sm font-semibold text-foreground">Staffing summary</h2>
         </div>
       </CardHeader>
       <CardContent>
@@ -119,10 +119,10 @@ function RequirementTile({ requirement, assignedFallback, eventEnded, onEdit }: 
   const acknowledged = "acknowledged" in requirement ? requirement.acknowledged : 0;
   const complete = "satisfied" in requirement ? requirement.satisfied : assigned >= requirement.required;
   return (
-    <div className="rounded-xl border border-border bg-muted/30 p-3.5">
+    <div className="rounded-lg border border-border bg-muted/30 p-3.5">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-bold text-foreground">{requirement.role}</p>
-        <span className={"rounded-full px-2 py-0.5 text-xs font-bold " + (complete ? "bg-success/10 text-success" : "bg-attention/10 text-attention")}>
+        <p className="text-sm font-semibold text-foreground">{requirement.role}</p>
+        <span className={"rounded-full px-2 py-0.5 text-xs font-semibold " + (complete ? "bg-success/10 text-success" : "bg-attention/10 text-attention")}>
           {assigned} of {requirement.required} assigned{"acknowledged" in requirement ? ` · ${acknowledged} acknowledged` : ""}
         </span>
       </div>
@@ -172,7 +172,7 @@ export function CoverageTargetCard({ busy, roleOptions, editing, onSave, onClear
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-foreground">{editing ? "Edit coverage target" : "Coverage targets"}</h2>
+          <h2 className="text-sm font-semibold text-foreground">{editing ? "Edit coverage target" : "Coverage targets"}</h2>
           {editing ? <Button type="button" size="sm" variant="ghost" onClick={onClearEdit}>New target</Button> : null}
         </div>
       </CardHeader>

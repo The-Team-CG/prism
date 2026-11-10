@@ -9,7 +9,7 @@ export function VenueConfirmationsPanel({ eventId }: { eventId: string }) {
   const vm = useVenueConfirmations(eventId);
   if (vm.tasks.length === 0 && !vm.error) return null;
   return (
-    <section className="rounded-xl border border-border bg-card p-5" aria-labelledby="venue-confirmations-heading">
+    <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="venue-confirmations-heading">
       <h2 id="venue-confirmations-heading" className="font-semibold text-foreground">Venue confirmation</h2>
       <p className="mt-0.5 text-sm text-muted-foreground">Confirm the venue can host the new date. No cancellation fee applies to a postponement; the downpayment carries over.</p>
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}

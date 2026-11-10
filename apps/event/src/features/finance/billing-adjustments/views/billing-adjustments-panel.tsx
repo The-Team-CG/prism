@@ -9,8 +9,8 @@ import { BILLING_DISCREPANCY_SEVERITIES, BILLING_DISCREPANCY_SEVERITY_LABELS, ty
 import { useBillingAdjustmentsPanel } from "../view-models/use-billing-adjustments-panel";
 
 const fieldClass = "mt-1 block w-full rounded-md border border-border bg-white px-3 py-2 text-sm";
-const actionButtonClass = "bg-ink font-black text-ink-foreground hover:bg-ink/90";
-const toggleClass = "h-9 rounded-md border border-border bg-background px-4 text-xs font-bold text-foreground";
+const actionButtonClass = "bg-ink font-semibold text-ink-foreground hover:bg-ink/90";
+const toggleClass = "h-9 rounded-md border border-border bg-background px-4 text-xs font-semibold text-foreground";
 
 type BillingAdjustmentsVm = ReturnType<typeof useBillingAdjustmentsPanel>;
 
@@ -31,9 +31,9 @@ export function BillingAdjustmentsPanel({
   const vm = useBillingAdjustmentsPanel({ eventId, statements, billingSources, payments });
 
   return (
-    <section className="space-y-5 rounded-2xl border border-border bg-card p-6 shadow-sm">
+    <section className="space-y-5 rounded-lg border border-border bg-card p-6">
       <div>
-        <h2 className="text-sm font-bold text-foreground">Billing adjustments</h2>
+        <h2 className="text-sm font-semibold text-foreground">Billing adjustments</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           Disputes, corrections, and additional billing are recorded by PMCM. Clients see dispute status only.
         </p>
@@ -79,7 +79,7 @@ function SeveritySelect({ value, onChange }: { value: BillingDiscrepancySeverity
 function SectionHeader({ title, action }: { title: string; action: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h3 className="text-xs font-bold text-foreground">{title}</h3>
+      <h3 className="text-xs font-semibold text-foreground">{title}</h3>
       {action}
     </div>
   );
@@ -94,7 +94,7 @@ function DisputeSection({ vm }: { vm: BillingAdjustmentsVm }) {
       <SectionHeader title="Open disputes" action={<CreateToggle label="Record dispute" open={creating} controls="billing-dispute-form" onToggle={() => setCreating((open) => !open)} />} />
       {openDisputes.length === 0 ? <p className="text-xs text-muted-foreground">No open disputes.</p> : null}
       {openDisputes.map((dispute) => (
-        <div key={dispute.id} className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
+        <div key={dispute.id} className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
           <p className="text-xs font-semibold">{money.format(dispute.amount)} disputed: {dispute.reason}</p>
           <p className="text-xs text-muted-foreground">Severity: {BILLING_DISCREPANCY_SEVERITY_LABELS[dispute.severity]}</p>
           <input
@@ -110,7 +110,7 @@ function DisputeSection({ vm }: { vm: BillingAdjustmentsVm }) {
         </div>
       ))}
       {creating ? (
-        <form id="billing-dispute-form" className="space-y-3 rounded-xl border border-border p-3" onSubmit={(event) => { event.preventDefault(); void vm.submitDispute(); }}>
+        <form id="billing-dispute-form" className="space-y-3 rounded-lg border border-border p-3" onSubmit={(event) => { event.preventDefault(); void vm.submitDispute(); }}>
           <SeveritySelect value={vm.disputeDraft.severity} onChange={(severity) => vm.setDisputeDraft({ ...vm.disputeDraft, severity })} />
           <div className="block text-xs font-semibold">
             <span>Milestone (optional)</span>
@@ -145,7 +145,7 @@ function CorrectionSection({ vm }: { vm: BillingAdjustmentsVm }) {
       <SectionHeader title="Correction requests" action={<CreateToggle label="Request correction" open={creating} controls="billing-correction-form" onToggle={() => setCreating((open) => !open)} />} />
       {vm.corrections.length === 0 ? <p className="text-xs text-muted-foreground">No correction requests.</p> : null}
       {vm.corrections.map((correction) => (
-        <div key={correction.id} className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
+        <div key={correction.id} className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
           <p className="text-xs font-semibold">{correction.reason} ({correction.status})</p>
           <p className="text-xs text-muted-foreground">Severity: {BILLING_DISCREPANCY_SEVERITY_LABELS[correction.severity]}</p>
           {correction.status === "pending" ? (
@@ -168,7 +168,7 @@ function CorrectionSection({ vm }: { vm: BillingAdjustmentsVm }) {
         </div>
       ))}
       {creating ? (
-        <form id="billing-correction-form" className="space-y-3 rounded-xl border border-border p-3" onSubmit={(event) => { event.preventDefault(); void vm.submitCorrection(); }}>
+        <form id="billing-correction-form" className="space-y-3 rounded-lg border border-border p-3" onSubmit={(event) => { event.preventDefault(); void vm.submitCorrection(); }}>
           <p className="text-xs text-muted-foreground">The original statement is kept; the correction is recorded alongside it.</p>
           <label className="block text-xs font-semibold">Reason
             <textarea className={fieldClass} rows={2} value={vm.correctionDraft.reason} onChange={(e) => vm.setCorrectionDraft({ ...vm.correctionDraft, reason: e.target.value })} />
@@ -193,7 +193,7 @@ function AdditionalBillingSection({ vm, urgentIssues }: { vm: BillingAdjustments
       <SectionHeader title="Issued additional billing" action={<CreateToggle label="Issue additional billing" open={creating} controls="billing-additional-form" onToggle={() => setCreating((open) => !open)} />} />
       {vm.additionalBillings.length === 0 ? <p className="text-xs text-muted-foreground">No additional billing issued.</p> : null}
       {vm.additionalBillings.map((billing) => (
-        <div key={billing.id} className="space-y-2 rounded-xl border border-border bg-muted/30 p-3">
+        <div key={billing.id} className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
           <p className="text-xs font-semibold">{billing.description}: {money.format(billing.amount)} ({billing.status})</p>
           {billing.status === "issued" ? (
             <div className="flex gap-2">
@@ -209,7 +209,7 @@ function AdditionalBillingSection({ vm, urgentIssues }: { vm: BillingAdjustments
         </div>
       ))}
       {creating ? (
-        <form id="billing-additional-form" className="space-y-3 rounded-xl border border-border p-3" onSubmit={(event) => { event.preventDefault(); void vm.submitAdditionalBilling(); }}>
+        <form id="billing-additional-form" className="space-y-3 rounded-lg border border-border p-3" onSubmit={(event) => { event.preventDefault(); void vm.submitAdditionalBilling(); }}>
           <p className="text-xs text-muted-foreground">Only approved billing sources can carry additional billing for this event.</p>
           <div className="block text-xs font-semibold">
             <span>Approved source</span>

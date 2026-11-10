@@ -61,18 +61,18 @@ export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; se
         <CardHeader>
           <div className="flex items-center gap-2">
             <User className="size-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">Supplier profile</h2>
+            <h2 className="text-sm font-semibold text-foreground">Supplier profile</h2>
           </div>
         </CardHeader>
         <CardBody>
           <div className="flex items-center gap-4">
-            <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-primary to-primary-deep text-xl font-black text-white">
+            <span className="grid size-16 shrink-0 place-items-center rounded-lg bg-linear-to-br from-primary to-primary-deep text-xl font-semibold text-white">
               {supplier.name.slice(0, 2).toUpperCase()}
             </span>
             <div>
-              <h3 className="text-lg font-bold text-foreground">{supplier.name}</h3>
+              <h3 className="text-lg font-semibold text-foreground">{supplier.name}</h3>
               <p className="text-sm text-muted-foreground">{supplier.categoryName}</p>
-              <span className="mt-1 inline-block rounded-full bg-attention/10 px-2.5 py-0.5 text-xs font-bold capitalize text-attention">
+              <span className="mt-1 inline-block rounded-full bg-attention/10 px-2.5 py-0.5 text-xs font-semibold capitalize text-attention">
                 {fmt(supplier.tier)}
               </span>
             </div>
@@ -98,7 +98,7 @@ export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; se
         <CardHeader>
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">Service inclusions</h2>
+            <h2 className="text-sm font-semibold text-foreground">Service inclusions</h2>
           </div>
         </CardHeader>
         <CardBody>
@@ -116,7 +116,7 @@ export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; se
           <div className="flex items-start gap-3">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
             <div>
-              <p className="text-sm font-bold text-foreground">Supplier privacy boundary</p>
+              <p className="text-sm font-semibold text-foreground">Supplier privacy boundary</p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
                 This portal shows only your assigned request records and your submitted quote. PMCM comparison, acceptable-range review, private ratings, and other supplier quotes remain private to the PMCM command app. Portal actions update your workspace for PMCM review only.
               </p>

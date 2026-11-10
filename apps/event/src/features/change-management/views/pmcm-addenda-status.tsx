@@ -20,7 +20,7 @@ export function PmcmAddendaStatus({
   onWithdraw?: (addendum: PrismAddendum, reason: string) => Promise<boolean>;
 }) {
   return (
-    <section aria-labelledby="pmcm-addenda-status" className="space-y-4 rounded-xl border border-border bg-card p-5">
+    <section aria-labelledby="pmcm-addenda-status" className="space-y-4 rounded-lg border border-border bg-card p-5">
       <div>
         <h2 id="pmcm-addenda-status" className="text-lg font-semibold">Scope freeze and addenda</h2>
         <p className="text-sm text-muted-foreground">An issued version can't be edited. Billing and quote amounts change only when the addendum is countersigned.</p>

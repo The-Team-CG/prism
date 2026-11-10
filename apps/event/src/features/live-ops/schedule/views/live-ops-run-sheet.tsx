@@ -63,11 +63,11 @@ export function LiveOpsRunSheetView(props: LiveOpsRunSheetViewProps) {
   return (
     <section
       aria-labelledby="run-sheet-heading"
-      className={`space-y-4 ${props.printable ? "prism-print-region rounded-xl border border-border bg-card p-5 print:border-0 print:p-0" : ""}`}
+      className={`space-y-4 ${props.printable ? "prism-print-region rounded-lg border border-border bg-card p-5 print:border-0 print:p-0" : ""}`}
     >
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="run-sheet-heading" className="text-lg font-bold text-foreground">Event day run sheet</h2>
+          <h2 id="run-sheet-heading" className="text-lg font-semibold text-foreground">Event day run sheet</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {runSheet ? [runSheet.day.label, formatRunSheetDate(runSheet.day.dayDate)].filter(Boolean).join(" · ") : "Time-ordered program, supplier windows, task deadlines and open issues."}
           </p>

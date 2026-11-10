@@ -22,7 +22,7 @@ import {
 
 export function NoticeBanner({ tone, children }: { tone: "danger" | "success"; children: React.ReactNode }) {
   const cls = tone === "danger"
-    ? "border-primary/20 bg-primary/8 text-primary border-l-primary"
+    ? "border-border bg-primary/8 text-primary border-l-primary"
     : "border-success/20 bg-success/8 text-success border-l-success";
   return (
     <div className={`rounded-lg border border-l-4 px-4 py-3 text-sm leading-6 ${cls}`}>{children}</div>
@@ -57,13 +57,13 @@ export function EventSummaryCard({
       <div className="bg-ink px-4 py-4 text-white">
         <div className="flex items-start justify-between gap-3">
           <div className="rounded-md bg-white px-3 py-2 text-center text-ink">
-            <p className="text-lg font-black leading-none">{dateParts.day}</p>
+            <p className="text-lg font-semibold leading-none">{dateParts.day}</p>
             <p className="mt-1 text-xs font-medium leading-none">{dateParts.month}</p>
           </div>
           <StatusBadge status={event.status} label={formatStatusLabel(event.status)} />
         </div>
         <div className="mt-8">
-          <h3 className="line-clamp-2 text-lg font-black leading-tight">{event.eventName}</h3>
+          <h3 className="line-clamp-2 text-lg font-semibold leading-tight">{event.eventName}</h3>
           <p className="mt-1 text-xs font-semibold text-white/70">{event.clientName}</p>
         </div>
       </div>
@@ -103,11 +103,11 @@ export function EventSummaryCard({
           ))}
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Button className="w-full rounded-lg font-bold" onClick={onOpen}>
+          <Button className="w-full rounded-lg font-semibold" onClick={onOpen}>
             Open workspace <ArrowRight className="size-3.5" />
           </Button>
           {onOpenFloorplan && (
-            <Button variant="outline" className="w-full rounded-lg font-bold" onClick={onOpenFloorplan}>
+            <Button variant="outline" className="w-full rounded-lg font-semibold" onClick={onOpenFloorplan}>
               {floorplanActionLabel} <MapPinned className="size-3.5" />
             </Button>
           )}

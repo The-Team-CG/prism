@@ -33,7 +33,7 @@ export function AccreditationPanel({ eventId }: { eventId: string }) {
 
   return (
     <section className="rounded-lg border border-border bg-card p-5 text-sm">
-      <h2 className="text-lg font-bold">Accreditation documents</h2>
+      <h2 className="text-lg font-semibold">Accreditation documents</h2>
       <p className="mt-1 text-muted-foreground">For clients that require agency or supplier accreditation. Each document has its own deadline; planning does not wait for it.</p>
       {error ? <p role="alert" className="mt-2 text-destructive">{error}</p> : null}
       <ul className="mt-3 space-y-2">

@@ -45,7 +45,7 @@ export function tierTone(tier: string) {
 
 export function SupplierTierBadge({ tier }: { tier: string }) {
   return (
-    <span className={cx("inline-flex w-fit items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-black", tierTone(tier))}>
+    <span className={cx("inline-flex w-fit items-center whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-semibold", tierTone(tier))}>
       {tierLabel(tier)}
     </span>
   );
@@ -68,7 +68,7 @@ export function RatingStars({ rating }: { rating?: number | null }) {
           )}
         />
       ))}
-      <span className="ml-1 text-xs font-black text-foreground">{rating.toFixed(1)}</span>
+      <span className="ml-1 text-xs font-semibold text-foreground">{rating.toFixed(1)}</span>
     </span>
   );
 }

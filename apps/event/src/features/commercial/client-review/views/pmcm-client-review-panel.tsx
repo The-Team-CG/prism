@@ -10,7 +10,7 @@ export function PmcmClientReviewPanel({ eventId }: { eventId: string }) {
   const vm = usePmcmClientReviewPanel(eventId);
   return (
     <section className="rounded-lg border border-border bg-card p-5">
-      <h2 className="text-lg font-bold">Client venue and styling reviews</h2>
+      <h2 className="text-lg font-semibold">Client venue and styling reviews</h2>
       <p className="mt-1 text-sm text-muted-foreground">Issue a new version when a proposal changes. Each client decision is tied to the version shown.</p>
       {vm.error && <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p>}
       <div className="mt-4 grid gap-3 md:grid-cols-2">

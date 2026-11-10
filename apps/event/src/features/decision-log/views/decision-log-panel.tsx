@@ -17,10 +17,10 @@ export function DecisionLogPanel({ eventId }: { eventId: string }) {
   const vm = useDecisionLogViewModel(eventId);
 
   return (
-    <section aria-labelledby="decision-log-heading" className="space-y-4 rounded-xl border border-border bg-card p-5">
+    <section aria-labelledby="decision-log-heading" className="space-y-4 rounded-lg border border-border bg-card p-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="decision-log-heading" className="text-lg font-bold text-foreground">Decision log</h2>
+          <h2 id="decision-log-heading" className="text-lg font-semibold text-foreground">Decision log</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Overrides, approvals, waivers, and scope changes for this event, newest first. Reasons come from each source record.
           </p>

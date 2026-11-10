@@ -6,9 +6,7 @@ import {
 } from "lucide-react";
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import type { EventSession } from "@/app/lib/session";
-import type { PrismEvent, PrismNotificationPreferences } from "@prism/types";
-import { notificationChannelSummary } from "@/features/account-notifications/model/notification-channel-summary";
-import { notificationPreferencesRepository } from "@/features/account-notifications/data/notification-preferences-repository";
+import type { PrismEvent } from "@prism/types";
 import { Card, CardBody, CardHeader } from "./shell-ui";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 
@@ -42,7 +40,7 @@ function EventPrivacyControl({ selectedEvent, onSetEventPrivacy }: {
   return (
     <fieldset className="rounded-md border border-border bg-muted/20 px-4 py-3" disabled={saving}>
       <legend className="sr-only">Event privacy</legend>
-      <p className="text-sm font-black text-foreground">Event privacy</p>
+      <p className="text-sm font-semibold text-foreground">Event privacy</p>
       <p id="event-privacy-description" className="mt-1 text-xs text-muted-foreground">
         Private events under 200 guests can use table assignment and the seating list.
       </p>
@@ -80,15 +78,6 @@ export function EventSettingsWorkspace({
   const [savingClientEventDayView, setSavingClientEventDayView] = useState(false);
   const [clientEventDayViewSaveFailed, setClientEventDayViewSaveFailed] = useState(false);
   const canManageClientEventDayView = isPmcmAdmin(session.role) && Boolean(selectedEvent);
-  const [notificationPreferences, setNotificationPreferences] = useState<PrismNotificationPreferences | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    // The summary only describes what the account's own settings say; if they cannot be read it keeps to the email claim.
-    notificationPreferencesRepository.mine().then((next) => { if (alive) setNotificationPreferences(next); }, () => undefined);
-    return () => { alive = false; };
-  }, []);
-
   useEffect(() => {
     setClientEventDayViewEnabled(selectedEvent?.clientEventDayViewEnabled === true);
     setClientEventDayViewSaveFailed(false);
@@ -112,26 +101,25 @@ export function EventSettingsWorkspace({
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2">
       {[
         { label: "Signed in as", value: session.name, detail: humanizeToken(session.role) },
         { label: "Default workspace", value: selectedEvent?.eventName ?? "No event selected", detail: selectedEvent?.clientName ?? "Pick an event from Events." },
-        { label: "Notifications", ...notificationChannelSummary(notificationPreferences, session.email) },
       ].map((item) => (
         <Card key={item.label}>
           <CardBody>
             <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
-            <p className="mt-2 text-lg font-black text-foreground">{item.value}</p>
+            <p className="mt-2 text-lg font-semibold text-foreground">{item.value}</p>
             <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
           </CardBody>
         </Card>
       ))}
       {canManageClientEventDayView ? (
-      <Card className="lg:col-span-3">
+      <Card className="md:col-span-2">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Settings className="size-4 text-primary" />
-            <h2 className="text-sm font-black text-foreground">Workspace controls</h2>
+            <h2 className="text-sm font-semibold text-foreground">Workspace controls</h2>
           </div>
         </CardHeader>
         <CardBody className="grid gap-3 md:grid-cols-3">
@@ -140,7 +128,7 @@ export function EventSettingsWorkspace({
             <div className="rounded-md border border-border bg-muted/20 px-4 py-3">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p id="client-event-day-view-label" className="text-sm font-black text-foreground">
+                  <p id="client-event-day-view-label" className="text-sm font-semibold text-foreground">
                     Client event-day view
                   </p>
                   <p id="client-event-day-view-description" className="mt-1 text-xs text-muted-foreground">
@@ -160,7 +148,7 @@ export function EventSettingsWorkspace({
                 >
                   <span
                     aria-hidden="true"
-                    className="size-4 translate-x-1 rounded-full bg-background shadow-sm transition-transform data-[checked=true]:translate-x-6"
+                    className="size-4 translate-x-1 rounded-full bg-background transition-transform data-[checked=true]:translate-x-6"
                     data-checked={clientEventDayViewEnabled ? "true" : "false"}
                   />
                 </button>

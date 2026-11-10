@@ -55,14 +55,14 @@ export function ClientVenueStylingReview({ eventId }: { eventId: string }) {
       <CardHeader>
         <div className="flex items-center gap-2">
           <MessageSquareText className="size-4 text-primary" />
-          <h2 className="text-sm font-bold text-foreground">Venue and styling review</h2>
+          <h2 className="text-sm font-semibold text-foreground">Venue and styling review</h2>
         </div>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">Review the options issued by PMCM. Your decision applies to that version only; a revised option will have its own review.</p>
       </CardHeader>
       <CardBody>
         {loading ? <LoadingState label="Loading client review items…" /> : null}
         {error ? <p role="alert" className="mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
-        {!loading && items.length === 0 ? <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">PMCM has not issued venue or styling options for review yet.</p> : null}
+        {!loading && items.length === 0 ? <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">PMCM has not issued venue or styling options for review yet.</p> : null}
         <div className="space-y-5">
           {venues.length ? <ReviewGroup title="Venue options" items={venues} latestVersion={latestVersions.get("venue") ?? 0} busyItemId={busyItemId} onDecide={decide} /> : null}
           {styling.length ? <ReviewGroup title="Styling options" items={styling} latestVersion={latestVersions.get("styling") ?? 0} busyItemId={busyItemId} onDecide={decide} /> : null}
@@ -87,7 +87,7 @@ function ReviewGroup({
 }) {
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-bold text-foreground">{title}</h3>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       {items.map((item) => <ReviewItemCard key={item.id} item={item} isLatest={item.version === latestVersion} busy={busyItemId === item.id} onDecide={onDecide} />)}
     </section>
   );
@@ -109,7 +109,7 @@ function ReviewItemCard({
     <article className="space-y-3 border-t border-border pt-4 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-bold text-foreground">{item.title}</p>
+          <p className="font-semibold text-foreground">{item.title}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">Version {item.version}{item.budgetRange ? ` · ${item.budgetRange}` : ""}</p>
         </div>
         {decision ? <StatusBadge status={decision.action === "approve" ? "approved" : "attention"} label={decision.action === "approve" ? "Approved by you" : "Revision requested"} /> : isLatest ? <StatusBadge status="ready" label="Your review needed" /> : <StatusBadge status="pending" label="Earlier version" />}
@@ -139,7 +139,7 @@ function ReviewItemDecisionForm({ item, busy, onDecide }: {
         <Textarea id={`review-note-${item.id}`} value={comment} onChange={(event) => setComment(event.target.value)} maxLength={4000} placeholder="Add a comment or explain what should change." />
       </Field>
       <div className="flex flex-wrap gap-2">
-        <Button disabled={busy} onClick={() => void onDecide(item, "approve", comment)} className="rounded-lg font-bold"><Check className="size-4" /> Approve option</Button>
+        <Button disabled={busy} onClick={() => void onDecide(item, "approve", comment)} className="rounded-lg font-semibold"><Check className="size-4" /> Approve option</Button>
         <Button disabled={!canRequestRevision} variant="outline" onClick={() => void onDecide(item, "request_revision", comment, budgetExpectation || undefined)} className="rounded-lg font-semibold">Request revision</Button>
       </div>
     </div>

@@ -55,7 +55,7 @@ export function ComplianceRulesSettings({
           <span className="text-sm tabular-nums text-muted-foreground">{active.length} active</span>
         </CardAction>
       </CardHeader>
-      <CardContent className="grid gap-6 p-5 lg:grid-cols-2 lg:gap-8">
+      <CardContent className="grid gap-6 p-5">
         <section aria-label="Active workspace rules" className="grid content-start gap-3">
           <h3 className="text-sm font-semibold text-foreground">Active workspace rules</h3>
           {active.length === 0 ? (
@@ -88,7 +88,7 @@ export function ComplianceRulesSettings({
           }}
         >
           <h3 className="text-sm font-semibold text-foreground">Add a rule</h3>
-          <FieldGroup className="gap-4">
+          <FieldGroup className="gap-4 sm:grid sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="compliance-rule-title">Rule title</FieldLabel>
               <Input id="compliance-rule-title" value={draft.title} onChange={(event) => set({ title: event.target.value })} placeholder="Venue power capacity confirmed" />
@@ -97,7 +97,7 @@ export function ComplianceRulesSettings({
               <FieldLabel htmlFor="compliance-rule-key">Check identifier</FieldLabel>
               <Input id="compliance-rule-key" value={draft.conditionKey} onChange={(event) => set({ conditionKey: event.target.value })} placeholder="e.g. venue_power_capacity" />
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="compliance-rule-phase">Phase</FieldLabel>
                 <Select value={draft.phase} onValueChange={(phase) => set({ phase })}>
@@ -121,7 +121,7 @@ export function ComplianceRulesSettings({
                 </Select>
               </Field>
             </div>
-            <Field>
+            <Field className="sm:col-span-2">
               <FieldLabel htmlFor="compliance-rule-note">PMCM note</FieldLabel>
               <Textarea id="compliance-rule-note" value={draft.note} onChange={(event) => set({ note: event.target.value })} className="min-h-20" />
             </Field>

@@ -74,13 +74,13 @@ function CompactRecordRow({ item }: { item: CompactRecordItem }) {
   const content = (
     <span className="flex w-full items-start gap-3 text-left">
       {Icon ? (
-        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
           <Icon className="size-4" />
         </span>
       ) : null}
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-center gap-2">
-          <span className="truncate text-sm font-black text-foreground">{item.title}</span>
+          <span className="truncate text-sm font-semibold text-foreground">{item.title}</span>
           {/* PA-291: the shared StatusBadge STATUS_MAP has no entry for in_progress,
               done, or blocked. Keep its shared markup and add the live-ops color
               classes for those statuses. */}
@@ -166,7 +166,7 @@ export type CoordinatorAttendanceFormModel = {
 };
 
 const ATTENDANCE_CHOICE_BUTTON =
-  "h-11 rounded-md border border-border bg-background text-sm font-bold transition hover:border-primary/40 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-55 data-[active=true]:border-primary/45 data-[active=true]:bg-secondary";
+  "h-11 rounded-md border border-border bg-background text-sm font-semibold transition hover:border-primary/40 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-55 data-[active=true]:border-primary/45 data-[active=true]:bg-secondary";
 
 function CoordinatorAttendanceControl({
   attendanceForm,
@@ -223,7 +223,7 @@ function CoordinatorAttendanceControl({
       )}
       {copy.confirmPrompt ? (
         <div className="mt-3 rounded-md border border-danger/25 bg-danger/8 px-3 py-3">
-          <p className="text-xs font-bold text-danger">{copy.confirmPrompt}</p>
+          <p className="text-xs font-semibold text-danger">{copy.confirmPrompt}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button
               type="button"
@@ -236,7 +236,7 @@ function CoordinatorAttendanceControl({
             <button
               type="button"
               onClick={attendanceForm.cancel}
-              className="h-11 rounded-md border border-border px-3 text-sm font-bold"
+              className="h-11 rounded-md border border-border px-3 text-sm font-semibold"
             >
               {copy.cancelLabel}
             </button>
@@ -330,7 +330,7 @@ function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel 
       <CardHeader>
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Log an event-day task</h3>
+          <h3 className="text-sm font-semibold text-foreground">Log an event-day task</h3>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -433,7 +433,7 @@ function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormMo
       <CardHeader>
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Report an issue</h3>
+          <h3 className="text-sm font-semibold text-foreground">Report an issue</h3>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -575,7 +575,7 @@ function CoordinatorRoleErrorCard({ message }: { message: string }) {
       <CardContent className="flex items-start gap-3">
         <AlertTriangle className="mt-0.5 size-5 shrink-0 text-attention" />
         <div>
-          <p className="text-sm font-bold text-foreground">Role-safe data unavailable</p>
+          <p className="text-sm font-semibold text-foreground">Role-safe data unavailable</p>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {message}. Refresh the coordinator portal or ask PMCM to confirm this assignment.
           </p>
@@ -660,7 +660,7 @@ function CoordinatorBriefingCard({ roleView }: { roleView: PrismCoordinatorRoleV
       <CardHeader>
         <div className="flex items-center gap-2">
           <LayoutGrid className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Floor and stage briefing</h3>
+          <h3 className="text-sm font-semibold text-foreground">Floor and stage briefing</h3>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -691,7 +691,7 @@ function CoordinatorOpenIssues({ roleView }: { roleView: PrismCoordinatorRoleVie
       <CardHeader>
         <div className="flex items-center gap-2">
           <Radio className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Open issues</h3>
+          <h3 className="text-sm font-semibold text-foreground">Open issues</h3>
         </div>
       </CardHeader>
       <CardContent id="coordinator-live-data" className="scroll-mt-24">
@@ -736,7 +736,7 @@ export function CoordinatorAssignmentHistory({ assignments }: { assignments: Pri
       <CardHeader>
         <div className="flex items-center gap-2">
           <CalendarClock className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Assignment history</h3>
+          <h3 className="text-sm font-semibold text-foreground">Assignment history</h3>
         </div>
       </CardHeader>
       <CardContent>

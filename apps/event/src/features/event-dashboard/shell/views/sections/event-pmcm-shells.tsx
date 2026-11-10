@@ -44,7 +44,7 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
       onSignOut={() => void viewModel.signOut()}
     >
       {viewModel.error ? (
-        <Alert variant="destructive" className="max-w-md rounded-xl"><AlertDescription>{viewModel.error}</AlertDescription></Alert>
+        <Alert variant="destructive" className="max-w-md rounded-lg"><AlertDescription>{viewModel.error}</AlertDescription></Alert>
       ) : (
         <EventDashboardSkeleton variant={loadingVariant} />
       )}

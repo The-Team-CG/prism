@@ -6,8 +6,6 @@ import {
   ArrowRight,
   CalendarDays,
   CheckCircle2,
-  ClipboardList,
-  FileCheck2,
   FileText,
   LockKeyhole,
   MapPinned,
@@ -28,13 +26,9 @@ import { Input } from "@prism/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Textarea } from "@prism/ui/components/textarea";
-import { ClientListEmpty } from "../../shared/client-list-ui";
+import { PrismPageColumn, PrismSection } from "@prism/ui/page-blocks";
 import {
-  Card,
-  CardBody,
-  CardHeader,
   DataRow,
-  InfoGrid,
   SectionLabel,
   actorInitials,
   clientActivityActor,
@@ -111,30 +105,35 @@ export function ClientBriefingTab({
     });
   }
 
-  return <div className="space-y-4">
-    <BriefingStatus complete={isComplete} />
-    <BriefingSummary briefing={briefing} />
-    <ClientWalkInPolicyCard eventId={eventId} />
-    {ownSuppliersEnabled ? <ClientOwnSuppliers eventId={eventId} /> : null}
+  // The form is the client's task on this page, so it comes first; before a first submission there is
+  // nothing on file to report, so the status and summary appear only once a briefing exists.
+  return <PrismPageColumn>
+    {briefing ? <BriefingStatus complete={isComplete} /> : null}
+    {briefing ? <BriefingSummary briefing={briefing} /> : null}
     <BriefingSubmissionForm
       briefing={briefing} busy={busy} onSubmit={handleSubmit}
       values={{ venue, venueType, guestCount, budgetRange, serviceRequirements, notes, confirmedDate, confirmedStartTime, confirmedEndTime, moodAndStyling, stylingBudget }}
       setters={{ setVenue, setVenueType, setGuestCount, setBudgetRange, setServiceRequirements, setNotes, setConfirmedDate, setConfirmedStartTime, setConfirmedEndTime, setMoodAndStyling, setStylingBudget }}
     />
-  </div>;
+    <ClientWalkInPolicyCard eventId={eventId} />
+    {ownSuppliersEnabled ? <ClientOwnSuppliers eventId={eventId} /> : null}
+  </PrismPageColumn>;
 }
 
 function BriefingStatus({ complete }: { complete: boolean }) {
-  return <div className={`rounded-2xl border px-5 py-4 ${complete ? "border-success/25 bg-success/8" : "border-attention/25 bg-attention-soft"}`}>
-    <p className={`text-sm font-bold ${complete ? "text-success" : "text-attention"}`}>{complete ? "Briefing complete" : "Briefing in progress"}</p>
+  return <div className={`rounded-lg border px-5 py-4 ${complete ? "border-success/25 bg-success/8" : "border-attention/25 bg-attention-soft"}`}>
+    <p className={`text-sm font-semibold ${complete ? "text-success" : "text-attention"}`}>{complete ? "Briefing complete" : "Briefing in progress"}</p>
     <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{complete ? "All core briefing details are on file." : "Your event team is still confirming the venue, guest count, and service requirements."}</p>
   </div>;
 }
 
-function BriefingSummary({ briefing }: { briefing?: PrismBriefing }) {
-  return <Card><CardHeader><div className="flex items-center gap-2"><FileCheck2 className="size-4 text-primary" /><h2 className="text-sm font-bold text-foreground">Event briefing</h2></div><p className="mt-0.5 text-xs text-muted-foreground">Confirmed details from your PMCM event team</p></CardHeader><CardBody>
-    {briefing ? <InfoGrid items={[{ label: "Venue", value: briefing.venue }, { label: "Guest count", value: `${briefing.guestCount} guests` }, { label: "Budget range", value: briefing.budgetRange }, { label: "Service requirements", value: briefing.serviceRequirements.join(", ") }]} /> : <ClientListEmpty icon={FileCheck2} title="No briefing yet" description="Confirmed venue, schedule, guest count, budget, and service notes will appear here." />}
-  </CardBody></Card>;
+function BriefingSummary({ briefing }: { briefing: PrismBriefing }) {
+  return <PrismSection id="client-briefing-summary" title="On file" description="The briefing details PMCM is working from.">
+    <DataRow label="Venue" value={briefing.venue} />
+    <DataRow label="Guest count" value={`${briefing.guestCount} guests`} />
+    <DataRow label="Budget range" value={briefing.budgetRange} />
+    <DataRow label="Service requirements" value={briefing.serviceRequirements.join(", ")} />
+  </PrismSection>;
 }
 
 /** Radix selects cannot hold an empty value, so "no venue type yet" is this sentinel in the list. */
@@ -149,8 +148,8 @@ function BriefingSubmissionForm({ briefing, busy, onSubmit, values, setters }: {
   values: BriefingValues;
   setters: BriefingSetters;
 }) {
-  return <Card><CardHeader><div className="flex items-center gap-2"><ClipboardList className="size-4 text-primary" /><h2 className="text-sm font-bold text-foreground">Submit briefing details</h2></div><p className="mt-0.5 text-xs text-muted-foreground">Share your event requirements with PMCM. Each submission is kept in the event history.</p></CardHeader><CardBody>
-    <form onSubmit={onSubmit} className="space-y-4"><div className="grid gap-3 sm:grid-cols-2">
+  return <PrismSection id="client-briefing-form" title={briefing ? "Update your briefing" : "Your briefing"} description="Share your event requirements with PMCM. Each submission is kept in the event history.">
+    <form onSubmit={onSubmit} className="space-y-4"><div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
       <BriefingField label="Venue preference" required value={values.venue} onChange={setters.setVenue} />
       <Field>
         <FieldLabel htmlFor="briefing-venue-type">Venue type</FieldLabel>
@@ -192,8 +191,8 @@ function BriefingSubmissionForm({ briefing, busy, onSubmit, values, setters }: {
       <FieldLabel htmlFor="briefing-notes">Additional notes <span aria-hidden="true">*</span></FieldLabel>
       <Textarea id="briefing-notes" required value={values.notes} onChange={(event) => setters.setNotes(event.target.value)} placeholder="Share constraints, priorities, or questions for your event team" />
     </Field>
-    <Button type="submit" disabled={busy} className="rounded-xl font-bold">{busy ? "Submitting…" : briefing ? "Submit updated briefing" : "Submit briefing"}<ArrowRight className="ml-2 size-4" /></Button></form>
-  </CardBody></Card>;
+    <Button type="submit" disabled={busy}>{busy ? "Submitting…" : briefing ? "Submit updated briefing" : "Submit briefing"}<ArrowRight className="size-4" /></Button></form>
+  </PrismSection>;
 }
 
 function BriefingField({

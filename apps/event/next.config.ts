@@ -40,6 +40,7 @@ const EVENT_ALIAS_REDIRECTS: Array<{ from: string; to: string }> = [
 ];
 
 const nextConfig: NextConfig = {
+  ...(process.env.PRISM_PUBLIC_HOST ? { allowedDevOrigins: [process.env.PRISM_PUBLIC_HOST] } : {}),
   ...(process.env.PRISM_NEXT_DIST_DIR ? { distDir: process.env.PRISM_NEXT_DIST_DIR } : {}),
   basePath,
   ...(serviceMode ? { env: {

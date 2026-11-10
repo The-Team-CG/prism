@@ -63,7 +63,7 @@ export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOpera
 
   return (
     <Card>
-      <CardHeader><h2 className="text-sm font-bold text-foreground">Event Day System Operator</h2></CardHeader>
+      <CardHeader><h2 className="text-sm font-semibold text-foreground">Event Day System Operator</h2></CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">Choose the coordinator working this event who will control delegated attendance and operator actions. Designating someone replaces the current operator.</p>
         <p role="status" className="text-sm font-semibold text-foreground">{loadError ? "Could not load the current operator. Reload the page to try again." : currentOperatorText(current)}</p>

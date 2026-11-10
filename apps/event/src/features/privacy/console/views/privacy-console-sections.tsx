@@ -110,12 +110,12 @@ export function PrivacyRequestCard({ request, vm }: { request: PrismPrivacyReque
     <article className="rounded-md border border-border bg-background p-3 text-sm" aria-label={`${label(request.requestType)} request for ${request.subjectEmail || request.subjectName}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="font-black capitalize">{label(request.requestType)} request · {label(request.subjectType)}</p>
+          <p className="font-semibold capitalize">{label(request.requestType)} request · {label(request.subjectType)}</p>
           <p className="mt-1 text-muted-foreground">{request.subjectEmail || request.subjectName || "Unnamed subject"}</p>
         </div>
-        <p className="text-xs font-bold capitalize text-foreground">{label(request.status)}</p>
+        <p className="text-xs font-semibold capitalize text-foreground">{label(request.status)}</p>
       </div>
-      <p className={cx("mt-2 text-xs", request.overdue ? "font-black text-danger" : "text-muted-foreground")}>
+      <p className={cx("mt-2 text-xs", request.overdue ? "font-semibold text-danger" : "text-muted-foreground")}>
         {privacyDeadlineLabel(request, vm.now)}
       </p>
       <p className="mt-1 text-xs text-muted-foreground">
@@ -252,7 +252,7 @@ export function PrivacyLegalHoldControls({ vm }: { vm: PrivacyConsoleViewModel }
   return (
     <section className="space-y-3 rounded-md border border-border bg-background p-3" aria-labelledby="privacy-legal-holds-title">
       <div>
-        <h3 id="privacy-legal-holds-title" className="font-black text-foreground">Legal holds</h3>
+        <h3 id="privacy-legal-holds-title" className="font-semibold text-foreground">Legal holds</h3>
         <p className="mt-1 text-xs text-muted-foreground">
           Active holds stop matching deletion and correction requests. Guest identity uses the full name; an all-events hold applies to matching names across events.
         </p>
@@ -333,7 +333,7 @@ function PrivacyLegalHoldCard({ hold, vm }: { hold: PrismPrivacyLegalHold; vm: P
   return (
     <div className="rounded-md border border-border bg-white p-3 text-sm">
       <div>
-        <p className="font-black capitalize">{hold.subjectType} · {hold.subjectEmail || hold.subjectName}</p>
+        <p className="font-semibold capitalize">{hold.subjectType} · {hold.subjectEmail || hold.subjectName}</p>
         <p className="mt-1 text-xs text-muted-foreground">{eventName} · Placed by {hold.placedByName} · {compactTimestamp(hold.placedAt)}</p>
         <p className="mt-2 text-xs text-muted-foreground">{hold.reason}</p>
       </div>

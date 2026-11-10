@@ -7,6 +7,7 @@ import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardL
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { Button } from "@prism/ui/components/button";
+import { PrismHero } from "@prism/ui/page-blocks";
 import { useDocumentTitle } from "@/app/components/document-title";
 import { roleLabel } from "@/features/pmcm-kit";
 import { CoordinatorRegistrationDesk } from "@/features/coordinators/registration";
@@ -80,21 +81,17 @@ function CoordinatorShift({ vm, roleName, onNavigate }: {
     .sort((left, right) => (left.dueAt ?? "9999").localeCompare(right.dueAt ?? "9999"))[0];
   return (
     <div className="space-y-5">
-      <div>
-        <ReportIssueButton onReport={() => onNavigate("issues")} />
-      </div>
       {nextTask && !vm.roleViewError ? (
-        <section className="rounded-lg bg-primary-soft p-5" aria-label="Next task for your role">
-          <p className="text-sm font-medium text-primary">Next task for your role</p>
-          <h2 className="mt-2 text-xl font-semibold text-foreground">{nextTask.title}</h2>
-          {nextTask.notes ? <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{nextTask.notes}</p> : null}
-          <p className="mt-3 text-sm text-muted-foreground">
-            Owner: {nextTask.ownerName || nextTask.assignedRole} · {nextTask.dueAt ? `Due ${formatPortalDateTime(nextTask.dueAt)}` : "No deadline set"}
-          </p>
-          <button type="button" onClick={() => onNavigate("tasks")} className="mt-3 min-h-11 rounded-md px-1 text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">
-            Open task queue
-          </button>
-        </section>
+        <PrismHero
+          label="Next task for your role"
+          title={nextTask.title}
+          meta={`Owner: ${nextTask.ownerName || nextTask.assignedRole} · ${nextTask.dueAt ? `Due ${formatPortalDateTime(nextTask.dueAt)}` : "No deadline set"}`}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+            <p className="min-w-0 flex-1 basis-64 text-sm text-ink-foreground/70">{nextTask.notes || "Open the task queue to see what is waiting on you."}</p>
+            <Button type="button" onClick={() => onNavigate("tasks")}>Open task queue</Button>
+          </div>
+        </PrismHero>
       ) : null}
       <CoordinatorEventDayActions
         roleViewLoading={vm.roleViewLoading}

@@ -100,7 +100,8 @@ describe("EventRegistrationTab", () => {
     const onImportRoster = vi.fn().mockResolvedValue([{ ...anonymousReview, id: "gre_1", guestName: "Ada Lovelace", sourceKey: "A-1" }]);
     renderRegistrationTab({ onImportRoster });
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Import guests" })[0]);
+    await screen.findByText("No guests on the roster yet");
+    fireEvent.click(screen.getByRole("button", { name: "Import guests" }));
     const panel = within(screen.getByRole("region", { name: "Import guests" }));
     expect(panel.getByRole("link", { name: /Template/ }).getAttribute("download")).toBe("guest-roster-template.csv");
     const sheet = panel.getByLabelText("Or paste rows, header first");

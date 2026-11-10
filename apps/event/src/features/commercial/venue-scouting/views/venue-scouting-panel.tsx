@@ -31,7 +31,7 @@ export function VenueScoutingPanel({ eventId }: { eventId: string }) {
 
   return (
     <section className="rounded-lg border border-border bg-card p-5">
-      <h2 className="text-lg font-bold">Venue scouting</h2>
+      <h2 className="text-lg font-semibold">Venue scouting</h2>
       <p className="mt-1 text-sm text-muted-foreground">For a client without a venue: add at least {VENUE_SCOUTING_MIN_OPTIONS} options, then share them. The client marks one preference.</p>
       {vm.error && <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p>}
       <ul className="mt-4 grid gap-3 md:grid-cols-3">

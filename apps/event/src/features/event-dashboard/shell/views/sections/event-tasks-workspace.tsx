@@ -124,17 +124,17 @@ export function EventTasksWorkspace({
           <CardHeader>
             <div className="flex items-center gap-2">
               <ClipboardCheck className="size-4 text-primary" />
-              <h2 className="text-sm font-black text-foreground">Task queue</h2>
+              <h2 className="text-sm font-semibold text-foreground">Task queue</h2>
             </div>
           </CardHeader>
           <div className="divide-y divide-border">
             {tasks.map((task) => (
               <button key={task.id} type="button" onClick={task.action} className="flex w-full items-center justify-between gap-4 px-6 py-4 text-left transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset">
                 <span className="min-w-0">
-                  <span className="block text-sm font-black text-foreground">{task.label}</span>
+                  <span className="block text-sm font-semibold text-foreground">{task.label}</span>
                   <span className="mt-1 block text-xs text-muted-foreground">{task.detail}</span>
                 </span>
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-black text-primary">{task.count}</span>
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{task.count}</span>
               </button>
             ))}
           </div>
@@ -142,14 +142,14 @@ export function EventTasksWorkspace({
 
         <Card>
           <CardHeader>
-            <h2 className="text-sm font-black text-foreground">Event next actions</h2>
+            <h2 className="text-sm font-semibold text-foreground">Event next actions</h2>
           </CardHeader>
           <CardBody className="space-y-3">
             {!selectedEvent ? (
               <Empty><EmptyHeader><EmptyMedia variant="icon"><CalendarDays /></EmptyMedia><EmptyTitle>Select an event</EmptyTitle><EmptyDescription>Open an event to see its readiness actions here.</EmptyDescription></EmptyHeader></Empty>
             ) : nextActions.length ? nextActions.slice(0, 5).map((action) => (
               <div key={action.key} className="rounded-md border border-border bg-muted/20 px-3 py-2">
-                <p className="text-xs font-black text-foreground">{action.label}</p>
+                <p className="text-xs font-semibold text-foreground">{action.label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{action.detail}</p>
               </div>
             )) : (
@@ -159,11 +159,11 @@ export function EventTasksWorkspace({
         </Card>
 
         <Card>
-          <CardHeader><h2 className="text-sm font-black text-foreground">PMCM action center</h2></CardHeader>
+          <CardHeader><h2 className="text-sm font-semibold text-foreground">PMCM action center</h2></CardHeader>
           <CardBody className="space-y-2">
             {actionCenter.length ? actionCenter.slice(0, 6).map((action) => (
               <div key={action.id} className="border-l border-primary bg-muted/20 px-3 py-2">
-                <p className="text-xs font-black text-foreground">{action.label}</p>
+                <p className="text-xs font-semibold text-foreground">{action.label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{action.detail}</p>
               </div>
             )) : <Empty><EmptyHeader><EmptyMedia variant="icon"><CheckCircle2 /></EmptyMedia><EmptyTitle>No persisted action items</EmptyTitle><EmptyDescription>Command and readiness sources have no current PMCM actions.</EmptyDescription></EmptyHeader></Empty>}

@@ -104,7 +104,7 @@ export function InquiryIntakeLog({
   }
 
   return (
-    <Card className="gap-0 block min-w-0 rounded-2xl border border-border bg-card">
+    <Card className="gap-0 block min-w-0 rounded-lg border border-border bg-card">
       <InquiryIntakeHeader
         unreviewedCount={unreviewedCount}
         onLog={() => setLoggingOnBehalf(true)}

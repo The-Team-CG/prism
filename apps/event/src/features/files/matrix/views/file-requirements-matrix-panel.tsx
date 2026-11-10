@@ -61,12 +61,12 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card shadow-sm">
+    <section className="rounded-lg border border-border bg-card">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-4">
         <div>
           <div className="flex items-center gap-2">
             <FileCheck2 className="size-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">File requirements matrix</h2>
+            <h2 className="text-sm font-semibold text-foreground">File requirements matrix</h2>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">{FILE_HUB_HELP_COPY}</p>
           <FileRequirementCountLine counts={counts} />
@@ -127,7 +127,7 @@ function FileRequirementRow({ item, editable, editor }: { item: PrismFileRequire
     <div className="px-6 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">{item.label}</p>
+          <p className="text-sm font-semibold text-foreground">{item.label}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>
           <p className="mt-1 text-2xs text-muted-foreground">
             {fileRequirementMetadataLine(item)}

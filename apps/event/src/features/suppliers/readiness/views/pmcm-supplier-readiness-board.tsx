@@ -20,17 +20,17 @@ export function PmcmSupplierReadinessBoard({ eventId, refreshKey }: { eventId: s
   const conflictIds = scheduleConflictItemIds(items);
 
   return (
-    <section aria-labelledby="pmcm-supplier-readiness-heading" className="rounded-2xl border border-border bg-card shadow-sm">
+    <section aria-labelledby="pmcm-supplier-readiness-heading" className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
           <ClipboardCheck className="size-4 text-primary" />
-          <h2 id="pmcm-supplier-readiness-heading" className="text-sm font-bold text-foreground">Supplier readiness</h2>
+          <h2 id="pmcm-supplier-readiness-heading" className="text-sm font-semibold text-foreground">Supplier readiness</h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
           The same readiness the supplier sees: quote lock, assignment, contract, ingress, concerns, and setup. PMCM review notes stay off the supplier portal.
         </p>
         {vm.gapCopy ? (
-          <p className="mt-3 rounded-xl border border-attention/30 bg-attention/8 px-3 py-2 text-xs font-semibold text-attention">
+          <p className="mt-3 rounded-lg border border-attention/30 bg-attention/8 px-3 py-2 text-xs font-semibold text-attention">
             {vm.gapCopy}
           </p>
         ) : null}
@@ -62,7 +62,7 @@ function ReadinessRow({ item, scheduleConflict }: { item: PrismPmcmSupplierReadi
     <li className="space-y-2 px-6 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-foreground">{item.supplierName}</p>
+          <p className="text-sm font-semibold text-foreground">{item.supplierName}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">{item.category}</p>
         </div>
         <ReadinessBadges item={item} />

@@ -15,7 +15,7 @@ export function PmcmDocumentHubView({ eventId }: { eventId: string }) {
     <section aria-label="PMCM event file hub" className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-base font-black text-foreground">Stored event files</h2>
+          <h2 className="text-base font-semibold text-foreground">Stored event files</h2>
           <p className="mt-1 text-xs text-muted-foreground">Files shared with clients are available in their event workspace after upload completes.</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">

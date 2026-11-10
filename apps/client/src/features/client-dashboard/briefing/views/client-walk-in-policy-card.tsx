@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { parseContract, updateWalkInPolicySchema, type WalkInPolicy } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@prism/ui/components/card";
+import { PrismSection } from "@prism/ui/page-blocks";
 import { Field, FieldDescription, FieldLabel } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
 import { RadioGroup, RadioGroupItem } from "@prism/ui/components/radio-group";
@@ -49,12 +49,8 @@ export function ClientWalkInPolicyCard({ eventId }: { eventId: string }) {
   }
 
   return (
-    <Card aria-labelledby="client-walk-in-heading">
-      <CardHeader>
-        <CardTitle id="client-walk-in-heading" className="text-sm font-bold">Walk-in guests</CardTitle>
-        <CardDescription>For private events under 200 guests. You can change this until event day.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <PrismSection id="client-walk-in-heading" title="Walk-in guests" description="For private events under 200 guests. You can change this until event day.">
+      <div className="space-y-4">
         <RadioGroup value={policy} onValueChange={(value) => setPolicy(value as WalkInPolicy)} disabled={saving} aria-label="Walk-in policy">
           {OPTIONS.map((option) => (
             <div key={option.value} className="flex items-start gap-3">
@@ -74,8 +70,8 @@ export function ClientWalkInPolicyCard({ eventId }: { eventId: string }) {
         ) : null}
         {error ? <FieldDescription role="alert" className="text-destructive">{error}</FieldDescription> : null}
         {message ? <FieldDescription aria-live="polite">{message}</FieldDescription> : null}
-        <Button type="button" onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save walk-in policy"}</Button>
-      </CardContent>
-    </Card>
+        <Button type="button" variant="outline" onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save walk-in policy"}</Button>
+      </div>
+    </PrismSection>
   );
 }

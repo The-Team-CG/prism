@@ -36,10 +36,10 @@ export function CommandHomeSelectedEvent({
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-bold text-foreground">{event.eventName}</h2>
+            <h2 className="truncate text-sm font-semibold text-foreground">{event.eventName}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Selected event{event.clientName ? ` for ${event.clientName}` : ""}</p>
           </div>
-          <Button asChild size="sm" variant="outline" className="rounded-lg font-bold">
+          <Button asChild size="sm" variant="outline" className="rounded-lg font-semibold">
             <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)}>
               Open workspace <ArrowRight className="size-4" />
             </RouteLink>

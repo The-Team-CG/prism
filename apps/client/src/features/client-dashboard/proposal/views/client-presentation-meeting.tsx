@@ -40,7 +40,7 @@ export function ClientPresentationMeeting({ eventId }: { eventId: string }) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2"><CalendarClock className="size-4 text-primary" /><h2 className="text-sm font-bold text-foreground">{meeting.title}</h2></div>
+        <div className="flex items-center gap-2"><CalendarClock className="size-4 text-primary" /><h2 className="text-sm font-semibold text-foreground">{meeting.title}</h2></div>
       </CardHeader>
       <CardBody>
         {error ? <p role="alert" className="mb-2 text-sm text-destructive">{error}</p> : null}

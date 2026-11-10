@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { chooseSelectOption } from "@/test-support/select-test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismPrivacyRequest } from "@prism/types";
@@ -80,7 +80,7 @@ describe("PrivacyConsoleView", () => {
     render(<PrivacyConsoleView />);
 
     expect(await screen.findByText(/^Overdue by \d+ days? \(due 2026-10-01\)$/)).toBeTruthy();
-    expect(await screen.findByText("Retention policies and review queue")).toBeTruthy();
+    expect(within(await screen.findByRole("region", { name: "Retention policies" })).getByText("Retention policies and review queue")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Assign to me" }));
 
     await waitFor(() => expect(repository.assignRequest).toHaveBeenCalledWith("priv_overdue", { assignedTo: "usr_maxine" }));

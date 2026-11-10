@@ -327,7 +327,7 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   messages: "Client, supplier, coordinator, and internal PMCM communication threads.",
   finance: "Billing statements, payment milestones, balances, and statement delivery.",
   settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
-  inquiries: "One intake queue, from first contact to the client's portal account.",
+  inquiries: "One intake queue, from first contact to the client's portal account. Accepted inquiries continue in Onboarding and Conforme follow-up.",
   "events-list": "Every confirmed event. Open one to work inside it.",
   dashboard: "Decisions and blockers across your events. Every item opens the work it belongs to.",
 };

@@ -34,10 +34,12 @@ export function AuditTrailPanel({
   return (
     <div className="space-y-5">
       <AuditTrailOverview vm={vm} events={events} users={users} />
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <PrivacyConsoleLinkPanel />
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="flex flex-col gap-5">
+          <PrivacyConsoleLinkPanel />
+          <LoginHistoryPanel loginHistory={vm.loginHistory} />
+        </div>
         <SecurityAlertsPanel alerts={vm.alerts} />
-        <LoginHistoryPanel loginHistory={vm.loginHistory} />
       </div>
       <AccountAdminPanel users={users} viewerRole={session.role} vm={accounts} />
     </div>

@@ -117,20 +117,29 @@ export function resolvePortSet(options = {}) {
   return Object.fromEntries(PRISM_APPS.map((app) => [app, resolvePort(app, options)]));
 }
 
-/** The API only accepts browser origins it is told about, so CORS follows the offset. */
-export function corsOriginFor(ports) {
-  return PRISM_PORTAL_APPS.map((app) => `http://localhost:${ports[app]}`).join(",");
+/**
+ * Host the browser uses to reach the dev stack. PRISM_PUBLIC_HOST (for example a
+ * Tailscale name) lets another device open the portals; localhost stays the default.
+ */
+export function publicHostFor(env = process.env) {
+  return env.PRISM_PUBLIC_HOST?.trim() || "localhost";
 }
 
-export function apiUrlFor(ports) {
-  return `http://localhost:${ports.api}`;
+/** The API only accepts browser origins it is told about, so CORS follows the offset. localhost stays allowed beside a public host. */
+export function corsOriginFor(ports, env = process.env) {
+  const hosts = [...new Set(["localhost", publicHostFor(env)])];
+  return hosts.flatMap((host) => PRISM_PORTAL_APPS.map((app) => `http://${host}:${ports[app]}`)).join(",");
+}
+
+export function apiUrlFor(ports, env = process.env) {
+  return `http://${publicHostFor(env)}:${ports.api}`;
 }
 
 /** Each portal's browser-facing origin on the live port set. The API reads the client, supplier and event origins as PRISM_*_PORTAL_URL. */
-export function portalUrlsFor(ports) {
+export function portalUrlsFor(ports, env = process.env) {
   return Object.fromEntries(PRISM_PORTAL_APPS.map((app) => [
     `NEXT_PUBLIC_${app.toUpperCase()}_PORTAL_URL`,
-    `http://localhost:${ports[app]}`,
+    `http://${publicHostFor(env)}:${ports[app]}`,
   ]));
 }
 

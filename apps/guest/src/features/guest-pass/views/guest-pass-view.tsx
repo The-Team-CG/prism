@@ -42,10 +42,10 @@ export function GuestPassView({ token }: { token: string }) {
   const valid = guestQrCheckInSchema.safeParse({ token }).success;
   return (
     <main className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col items-center justify-center gap-5 px-4 py-8 text-center">
-      <h1 className="text-xl font-bold text-foreground">Your event pass</h1>
+      <h1 className="text-xl font-semibold text-foreground">Your event pass</h1>
       {valid ? (
         <>
-          <div className="rounded-lg bg-white p-4 shadow-sm">
+          <div className="rounded-lg bg-white p-4">
             <QRCodeSVG value={`${GUEST_QR_PASS_PREFIX}${token}`} size={240} aria-label="Guest QR pass" />
           </div>
           <p className="text-base leading-6 text-muted-foreground">Show this QR code at registration. If it does not scan, staff can type this code:</p>

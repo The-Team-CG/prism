@@ -132,7 +132,7 @@ export function overviewNextActions(pending: PrismDefenseReadinessAction[], clos
 
 function NextStepsSection({ event, readiness, pending, onOpenTab }: { event: PrismEvent; readiness: PrismDefenseReadiness | null; pending: PrismDefenseReadinessAction[]; onOpenTab: (tab: DetailTab) => void }) {
   return (
-    <section aria-labelledby="overview-next-steps" className="rounded-xl border border-border bg-card">
+    <section aria-labelledby="overview-next-steps" className="rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3">
         <h2 id="overview-next-steps" className="font-semibold text-foreground">Next steps</h2>
         <span className="text-xs text-muted-foreground">{readiness ? `${plural(pending.length, "item")} open` : "Loading…"}</span>
@@ -174,7 +174,7 @@ function NextStepsSection({ event, readiness, pending, onOpenTab }: { event: Pri
 function ReadinessSection({ readiness, busy, onRunCompliance }: { readiness: PrismDefenseReadiness | null; busy: boolean; onRunCompliance: () => void }) {
   const score = readiness?.score ?? null;
   return (
-    <section aria-labelledby="overview-readiness" className="flex flex-col rounded-xl border border-border bg-card px-5 py-4">
+    <section aria-labelledby="overview-readiness" className="flex flex-col rounded-lg border border-border bg-card px-5 py-4">
       <h2 id="overview-readiness" className="font-semibold text-foreground">Readiness</h2>
       <p className="mt-3 flex items-baseline gap-2">
         <span className={cx("text-3xl font-semibold tabular-nums", score === null ? "text-muted-foreground" : score >= 80 ? "text-success" : "text-attention")}>
@@ -267,7 +267,7 @@ export function EventWorkspaceOverview({
   return (
     <div className="space-y-5">
       {showEventDayBanner ? (
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-primary/25 bg-primary/5 px-5 py-4">
+        <section className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-primary/25 bg-primary/5 px-5 py-4">
           <div>
             <h2 className="font-semibold text-foreground">Event day is here</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -278,7 +278,7 @@ export function EventWorkspaceOverview({
         </section>
       ) : null}
 
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border border-border bg-card px-5 py-4 sm:grid-cols-3 lg:grid-cols-5">
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-lg border border-border bg-card px-5 py-4 sm:grid-cols-3 lg:grid-cols-5">
         {facts.map((fact) => (
           <div key={fact.label} className="min-w-0">
             <dt className="text-xs text-muted-foreground">{fact.label}</dt>
@@ -303,7 +303,7 @@ export function EventWorkspaceOverview({
               <RouteLink
                 href={eventWorkspaceHref(event.id, card.tab)}
                 onNavigate={() => onOpenTab(card.tab)}
-                className="group flex h-full items-start gap-3 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors hover:border-primary/30 hover:bg-surface-raised"
+                className="group flex h-full items-start gap-3 rounded-lg border border-border bg-card px-4 py-3.5 transition-colors hover:border-primary/30 hover:bg-surface-raised"
               >
                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-foreground">
                   <card.icon className="size-4" aria-hidden />

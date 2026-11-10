@@ -22,7 +22,7 @@ export function CanvaConnectionCard() {
   if (!connection) return null;
   return (
     <section className="space-y-2 rounded-lg border border-border bg-card p-5 text-sm">
-      <h2 className="text-base font-bold">Canva</h2>
+      <h2 className="text-base font-semibold">Canva</h2>
       {returned === "failed" ? <p role="alert" className="text-destructive">Canva was not connected. Try again.</p> : null}
       {error ? <p role="alert" className="text-destructive">{error}</p> : null}
       {!connection.configured ? <p className="text-muted-foreground">Canva is not set up for this deployment.</p> : connection.connected ? (

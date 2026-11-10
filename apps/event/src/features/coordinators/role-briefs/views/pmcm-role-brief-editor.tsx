@@ -28,7 +28,7 @@ export function PmcmRoleBriefEditor({ eventId }: { eventId: string }) {
 
   return (
     <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="role-brief-heading">
-      <h2 id="role-brief-heading" className="text-lg font-bold">Role briefs</h2>
+      <h2 id="role-brief-heading" className="text-lg font-semibold">Role briefs</h2>
       <p className="mt-1 text-sm text-muted-foreground">Each assigned coordinator sees only the brief for their own role.</p>
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
       <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={(event) => { event.preventDefault(); void vm.save(role, form); }}>

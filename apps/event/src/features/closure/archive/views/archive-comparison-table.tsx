@@ -24,9 +24,9 @@ const attributes: ComparisonAttribute[] = [
 
 export function ArchiveComparisonTable({ rows, onClose }: { rows: PrismArchiveComparisonRow[]; onClose: () => void }) {
   return (
-    <section className="space-y-3 rounded-xl border border-border p-4">
+    <section className="space-y-3 rounded-lg border border-border p-4">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-bold text-foreground">Side-by-side comparison</h3>
+        <h3 className="text-sm font-semibold text-foreground">Side-by-side comparison</h3>
         <button type="button" onClick={onClose} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
           Close comparison
         </button>
@@ -36,7 +36,7 @@ export function ArchiveComparisonTable({ rows, onClose }: { rows: PrismArchiveCo
           <TableRow>
             <TableHead scope="col" className="font-semibold text-muted-foreground">Attribute</TableHead>
             {rows.map((row) => (
-              <TableHead key={row.id} scope="col" className="font-bold text-foreground">{row.eventName}</TableHead>
+              <TableHead key={row.id} scope="col" className="font-semibold text-foreground">{row.eventName}</TableHead>
             ))}
           </TableRow>
         </TableHeader>

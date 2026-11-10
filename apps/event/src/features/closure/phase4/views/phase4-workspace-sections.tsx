@@ -57,7 +57,7 @@ export function Phase4ClosureBoard({
 }) {
   const archive = phase4ArchiveStatus(event.archived, closeGates?.ready);
   return (
-    <section className="rounded-lg border border-primary/15 bg-card p-5 shadow-sm">
+    <section className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Close out this event</h2>
@@ -71,7 +71,7 @@ export function Phase4ClosureBoard({
         {cards.map((card) => (
           <div key={card.label} className="rounded-lg border border-border bg-secondary/35 px-3 py-2 sm:px-4 sm:py-3">
             <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
-            <p className={cx("mt-1 text-lg font-black", card.tone)}>{card.value}</p>
+            <p className={cx("mt-1 text-lg font-semibold", card.tone)}>{card.value}</p>
             <p className="mt-1 hidden text-xs text-muted-foreground sm:block">{card.detail}</p>
           </div>
         ))}
@@ -107,7 +107,7 @@ export function Phase4ComplianceSection({
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-1 size-5 text-attention" />
           <div>
-            <h3 className="text-xl font-black">Compliance checks</h3>
+            <h3 className="text-xl font-semibold">Compliance checks</h3>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -123,7 +123,7 @@ export function Phase4ComplianceSection({
               <SelectItem value="closure">Closure</SelectItem>
             </SelectContent>
           </Select>
-          <button disabled={busy} onClick={onRunCompliance} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
+          <button disabled={busy} onClick={onRunCompliance} className="h-10 rounded-md bg-ink px-3 text-sm font-semibold text-ink-foreground disabled:opacity-60">
             Run checks
           </button>
         </div>
@@ -307,7 +307,7 @@ export function Phase4CloseGatesSection({
             <p className="mt-0.5 text-sm text-muted-foreground">Every gate must pass, or be overridden with a reason, before archiving.</p>
           </div>
         </div>
-        <button disabled={busy} onClick={onRefresh} className="h-9 rounded-md border border-border bg-white px-3 text-xs font-black disabled:opacity-60">Refresh</button>
+        <button disabled={busy} onClick={onRefresh} className="h-9 rounded-md border border-border bg-white px-3 text-xs font-semibold disabled:opacity-60">Refresh</button>
       </div>
       <div className="mt-4 space-y-2">
         {closeGates?.gates.map((gate) => {
@@ -317,7 +317,7 @@ export function Phase4CloseGatesSection({
               <div className="flex min-w-0 items-start gap-3">
                 {gate.passed ? <BadgeCheck className="mt-0.5 size-4 text-success" /> : <XCircle className="mt-0.5 size-4 text-danger" />}
                 <div>
-                  <p className="font-black">{gate.label}</p>
+                  <p className="font-semibold">{gate.label}</p>
                   <p className="mt-1 text-muted-foreground">{gate.detail}</p>
                 </div>
               </div>
@@ -338,7 +338,7 @@ export function Phase4CloseGatesSection({
           <div className="flex items-start gap-3 rounded-md border border-success/25 bg-success-soft p-3 text-sm text-success">
             <CheckCircle2 className="mt-0.5 size-4" />
             <div>
-              <p className="font-black">All close gates passed</p>
+              <p className="font-semibold">All close gates passed</p>
               <p className="mt-1">Archive can proceed without an override reason.</p>
             </div>
           </div>
@@ -353,7 +353,7 @@ export function Phase4CloseGatesSection({
           <textarea value={overrideReason} onChange={(event) => onOverrideReason(event.target.value)} placeholder="Required PMCM override reason if gates are not complete" className="min-h-20 w-full rounded-md border border-border bg-white p-3 text-sm" />
         </div>
       )}
-      <button disabled={busy || (!closeGates?.ready && !overrideReason)} onClick={onArchive} className="mt-4 h-10 w-full rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
+      <button disabled={busy || (!closeGates?.ready && !overrideReason)} onClick={onArchive} className="mt-4 h-10 w-full rounded-md bg-ink px-3 text-sm font-semibold text-ink-foreground disabled:opacity-60">
         Archive event
       </button>
     </Card>
@@ -379,27 +379,27 @@ export function Phase4InsightsSection({
             <p className="mt-0.5 text-sm text-muted-foreground">A summary of what happened, kept for planning future events.</p>
           </div>
         </div>
-        <button disabled={busy} onClick={onGenerate} className="h-10 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground disabled:opacity-60">
+        <button disabled={busy} onClick={onGenerate} className="h-10 rounded-md bg-ink px-3 text-sm font-semibold text-ink-foreground disabled:opacity-60">
           Generate insights
         </button>
       </div>
       {latestInsight ? (
         <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
           <div className="rounded-md border border-border bg-background p-4">
-            <p className="font-black">{latestInsight.summary}</p>
+            <p className="font-semibold">{latestInsight.summary}</p>
             <div className="mt-3 space-y-2 text-sm text-muted-foreground">
               {latestInsight.highlights.map((item) => <p key={item}>{item}</p>)}
             </div>
           </div>
           <div className="rounded-md border border-border bg-background p-4 text-sm">
-            <p className="font-black">Financial snapshot</p>
+            <p className="font-semibold">Financial snapshot</p>
             <p className="mt-2 text-muted-foreground">Billed: {money.format(latestInsight.financialSummary.totalBilled ?? 0)}</p>
             <p className="text-muted-foreground">Outstanding: {money.format(latestInsight.financialSummary.outstandingAmount ?? 0)}</p>
             <p className="mt-3 text-xs text-muted-foreground">PMCM-only notes. These never appear on client, supplier, or guest portals.</p>
             <p className="mt-3 text-xs text-muted-foreground">{latestInsight.privateNotes}</p>
           </div>
           <div className="rounded-md border border-border bg-background p-4 text-sm lg:col-span-2">
-            <p className="font-black">Coordinator staffing</p>
+            <p className="font-semibold">Coordinator staffing</p>
             {latestInsight.dimensions?.coordinators ? (
               <>
                 <p className="mt-2 text-muted-foreground">{latestInsight.dimensions.coordinators.summary}</p>

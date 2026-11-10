@@ -9,16 +9,16 @@ const phpMoney = new Intl.NumberFormat("en-PH", { style: "currency", currency: "
 export function EventFilePreview({ event, item }: { event: PrismEvent; item: EventFileHubItem }) {
   return (
     <div className="min-h-[30rem] bg-[#f8fbf8] p-5">
-      <div className="mx-auto max-w-3xl rounded-md border border-border bg-white p-7 shadow-sm">
+      <div className="mx-auto max-w-3xl rounded-md border border-border bg-white p-7">
         <div className="flex items-start justify-between gap-6">
           <div>
-            <p className="text-2xl font-black text-foreground">
+            <p className="text-2xl font-semibold text-foreground">
               {item.kind === "invoice" ? "Invoice" : item.kind === "floorplan" ? "Floor Plan" : item.category}
             </p>
             <p className="mt-1 text-xs font-semibold text-muted-foreground">{item.meta}</p>
           </div>
           <div className="text-right">
-            <p className="text-sm font-black text-primary">P.R.I.S.M.</p>
+            <p className="text-sm font-semibold text-primary">P.R.I.S.M.</p>
             <p className="mt-1 text-xs text-muted-foreground">PMCM Event Operations</p>
             <p className="text-xs text-muted-foreground">{event.eventDate}</p>
           </div>
@@ -27,12 +27,12 @@ export function EventFilePreview({ event, item }: { event: PrismEvent; item: Eve
         <div className="mt-8 grid gap-5 border-y border-border py-5 sm:grid-cols-2">
           <div>
             <p className="text-xs font-medium text-muted-foreground">Event</p>
-            <p className="mt-2 text-sm font-black text-foreground">{event.eventName}</p>
+            <p className="mt-2 text-sm font-semibold text-foreground">{event.eventName}</p>
             <p className="mt-1 text-xs text-muted-foreground">{event.clientName}</p>
           </div>
           <div>
             <p className="text-xs font-medium text-muted-foreground">File owner</p>
-            <p className="mt-2 text-sm font-black text-foreground">{item.owner}</p>
+            <p className="mt-2 text-sm font-semibold text-foreground">{item.owner}</p>
             <p className="mt-1 text-xs text-muted-foreground">{item.date}</p>
           </div>
         </div>
@@ -65,7 +65,7 @@ export function EventFilePreview({ event, item }: { event: PrismEvent; item: Eve
               <div key={labelText} className="grid grid-cols-[1fr_6rem_7rem] border-t border-border px-4 py-3 text-xs">
                 <span className="font-semibold text-foreground">{labelText}</span>
                 <span className="text-muted-foreground">{qty}</span>
-                <span className="text-right font-bold text-foreground">{amount}</span>
+                <span className="text-right font-semibold text-foreground">{amount}</span>
               </div>
             ))}
           </div>
@@ -75,7 +75,7 @@ export function EventFilePreview({ event, item }: { event: PrismEvent; item: Eve
           {["Status", "Category", "Source"].map((labelText) => (
             <div key={labelText} className="rounded-md border border-border bg-muted/20 px-3 py-2">
               <p className="text-xs font-medium text-muted-foreground">{labelText}</p>
-              <p className="mt-1 truncate text-xs font-black text-foreground">
+              <p className="mt-1 truncate text-xs font-semibold text-foreground">
                 {labelText === "Status" ? item.status : labelText === "Category" ? item.category : item.subtitle}
               </p>
             </div>

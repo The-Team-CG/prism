@@ -187,6 +187,28 @@
   --sidebar-ring: var(--prism-magenta);
 }
 
+/* Inside the signed-in portals the canvas, hairlines and quiet fills are neutral grey, so the brand
+   colours mark only actions, progress and status. Public and sign-in pages keep the warm page tone.
+   Menus and dialogs render outside the shell, so the page body takes the same values while a shell is mounted. */
+.prism-shell,
+body:has(.prism-shell) {
+  --prism-page: #f7f7f6;
+  --prism-page-strong: #efeeed;
+  --prism-surface-raised: #f6f5f4;
+  --prism-line: #e5e3e1;
+  --prism-line-strong: #d3d0cd;
+  --prism-tint: #efedeb;
+  --prism-muted: #5c575a;
+  --background: var(--prism-page);
+  --muted: var(--prism-tint);
+  --muted-foreground: var(--prism-muted);
+  --border: var(--prism-line);
+  --border-strong: var(--prism-line-strong);
+  --input: var(--prism-line-strong);
+  --sidebar-accent: var(--prism-page-strong);
+  --sidebar-border: var(--prism-line);
+}
+
 @layer base {
   * {
     border-color: var(--border);

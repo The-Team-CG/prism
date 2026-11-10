@@ -1,16 +1,17 @@
 import { cx } from "./helpers";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
+import { isZeroFigure } from "@prism/ui/figures";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@prism/ui/components/card";
 import { ToggleGroup, ToggleGroupItem } from "@prism/ui/components/toggle-group";
 
 export function Panel({ title, icon: Icon, children }: { title: string; icon: LucideIcon; children: ReactNode }) {
   return (
-    <Card className="gap-0 rounded-lg border-primary/12 bg-card shadow-none">
+    <Card className="gap-0 rounded-lg border-border bg-card shadow-none">
       <CardHeader className="flex min-h-12 flex-row items-center gap-2 border-b border-border px-4 py-0">
         <Icon className="size-4 text-attention" />
-        <CardTitle className="text-sm font-black text-foreground">{title}</CardTitle>
+        <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-4">{children}</CardContent>
     </Card>
@@ -19,12 +20,12 @@ export function Panel({ title, icon: Icon, children }: { title: string; icon: Lu
 
 export function Metric({ label, value, icon: Icon }: { label: string; value: string | number; icon: LucideIcon }) {
   return (
-    <Card className="gap-0 rounded-lg border-primary/12 bg-card p-4 shadow-none">
+    <Card className="gap-0 rounded-lg border-border bg-card p-4 shadow-none">
       <div className="flex items-center justify-between gap-3">
         <div className="grid size-10 place-items-center rounded-md bg-secondary text-foreground">
           <Icon className="size-5" />
         </div>
-        <p className="text-right text-2xl font-black text-foreground">{value}</p>
+        <p className={cx("text-right text-2xl font-semibold tabular-nums", isZeroFigure(value) ? "text-muted-foreground/60" : "text-foreground")}>{value}</p>
       </div>
       <p className="mt-3 text-xs font-medium text-muted-foreground">{label}</p>
     </Card>

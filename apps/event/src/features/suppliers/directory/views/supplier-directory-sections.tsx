@@ -94,22 +94,22 @@ export function SupplierDirectoryList({
   onSubmitCreate: () => void;
 }) {
   return (
-    <section className="min-w-0 rounded-lg border border-primary/12 bg-card p-4 shadow-none">
+    <section className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-none">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">Supplier Directory</p>
-          <h2 className="mt-2 text-2xl font-black">PMCM supplier database</h2>
+          <h2 className="mt-2 text-2xl font-semibold">PMCM supplier database</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Eight configurable categories, tier tags, BNI auto-trust, reviews, and reliability history.
           </p>
         </div>
-        <div className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-black">
+        <div className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-semibold">
           {suppliers.length} suppliers
         </div>
         <button
           type="button"
           onClick={onToggleCreate}
-          className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-black text-ink-foreground"
+          className="inline-flex h-10 items-center gap-2 rounded-md bg-ink px-3 text-sm font-semibold text-ink-foreground"
         >
           <Plus className="size-4" /> Add supplier
         </button>
@@ -168,7 +168,7 @@ export function SupplierDirectoryList({
         </Select>
       </div>
 
-      <Card className="gap-0 block mt-4 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <Card className="gap-0 block mt-4 overflow-hidden rounded-lg border border-border bg-card">
         <div className="overflow-x-auto">
           <div className="grid min-w-[1040px] grid-cols-[minmax(260px,1.6fr)_minmax(160px,1fr)_9rem_7rem_10rem_8rem] gap-4 border-b border-border bg-secondary/45 px-4 py-3 text-xs font-medium text-muted-foreground">
             <span>Name</span>
@@ -269,7 +269,7 @@ function SupplierDirectoryRow({
       )}
     >
       <span className="min-w-0">
-        <span className="block truncate text-[15px] font-black text-foreground">{supplier.name}</span>
+        <span className="block truncate text-[15px] font-semibold text-foreground">{supplier.name}</span>
         <span className="mt-1 block truncate text-xs font-medium text-muted-foreground">{supplierContactFallback(supplier)}</span>
       </span>
       <span className="truncate font-medium text-muted-foreground">{supplier.categoryName}</span>
@@ -278,9 +278,9 @@ function SupplierDirectoryRow({
       </span>
       <span>
         {supplier.bniMember ? (
-          <Badge variant="outline" title={BNI_TITLE} className="rounded-full border-brand-orange/30 bg-accent px-2.5 py-1 text-2xs font-black text-attention">BNI</Badge>
+          <Badge variant="outline" title={BNI_TITLE} className="rounded-full border-brand-orange/30 bg-accent px-2.5 py-1 text-2xs font-semibold text-attention">BNI</Badge>
         ) : (
-          <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-2xs font-black text-muted-foreground">No BNI</span>
+          <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-2xs font-semibold text-muted-foreground">No BNI</span>
         )}
       </span>
       <span>
@@ -342,7 +342,7 @@ export function SupplierProfile({
   }));
 
   return (
-    <section className="rounded-lg border border-primary/12 bg-card p-5 shadow-none">
+    <section className="rounded-lg border border-border bg-card p-5 shadow-none">
       <div className="space-y-5">
         <SupplierProfileHeader supplier={supplier} onBack={onBack} />
         <SupplierBniPanel supplier={supplier} busy={busy} onToggleBni={onToggleBni} />
@@ -376,12 +376,12 @@ function SupplierProfileHeader({ supplier, onBack }: { supplier: PrismSupplier; 
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">Supplier Profile</p>
-          <h3 className="mt-2 truncate text-2xl font-black">{supplier.name}</h3>
+          <h3 className="mt-2 truncate text-2xl font-semibold">{supplier.name}</h3>
         </div>
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-white px-3 text-xs font-black text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-md border border-border bg-white px-3 text-xs font-semibold text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
           Supplier list
@@ -411,14 +411,14 @@ function SupplierBniPanel({
     <div className="rounded-lg border border-border bg-muted p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="font-black">BNI Member</p>
+          <p className="font-semibold">BNI Member</p>
           <p className="mt-1 text-xs text-muted-foreground">Toggling this enables the system Auto-Trust flag.</p>
         </div>
         <button
           disabled={busy}
           onClick={onToggleBni}
           className={cx(
-            "h-9 rounded-full px-4 text-xs font-black",
+            "h-9 rounded-full px-4 text-xs font-semibold",
             supplier.bniMember ? "bg-ink text-ink-foreground" : "border border-border bg-white text-foreground",
           )}
         >
@@ -576,7 +576,7 @@ function SupplierPastEvents({
         {supplier.pastEvents.length === 0 && <p className="text-sm text-muted-foreground">No linked event records yet.</p>}
         {supplier.pastEvents.map((event) => (
           <button key={event.id} onClick={() => onOpenEvent(event.id)} className="w-full rounded-md border border-border bg-white p-3 text-left text-sm hover:border-primary/40">
-            <span className="block font-black">{event.eventName}</span>
+            <span className="block font-semibold">{event.eventName}</span>
             <span className="text-muted-foreground">{event.clientName} - {event.eventDate}</span>
           </button>
         ))}

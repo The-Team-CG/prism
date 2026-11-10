@@ -32,10 +32,10 @@ export function AdminApprovalsPanel({
       ) : (
         <div className="grid gap-3 xl:grid-cols-2">
           {approvals.map((request) => (
-            <div key={request.id} className="rounded-xl border border-border bg-secondary/40 p-4">
+            <div key={request.id} className="rounded-lg border border-border bg-secondary/40 p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-foreground">{request.name}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">{request.name}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{request.email}</p>
                   <p className="mt-1.5 text-xs font-medium text-attention">
                     {label(request.role)} - {request.organization}
@@ -48,7 +48,7 @@ export function AdminApprovalsPanel({
                   size="sm"
                   disabled={busy}
                   onClick={() => onApprove(request)}
-                  className="rounded-lg font-bold"
+                  className="rounded-lg font-semibold"
                 >
                   Approve
                 </Button>
@@ -57,7 +57,7 @@ export function AdminApprovalsPanel({
                   variant="outline"
                   disabled={busy}
                   onClick={() => onDecline(request)}
-                  className="rounded-lg font-bold"
+                  className="rounded-lg font-semibold"
                 >
                   Decline
                 </Button>

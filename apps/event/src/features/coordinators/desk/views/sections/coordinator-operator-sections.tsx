@@ -83,9 +83,9 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
       <CardHeader>
         <div className="flex items-center gap-2">
           <ClipboardList className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Assigned to you</h3>
+          <h3 className="text-sm font-semibold text-foreground">Assigned to you</h3>
           {roleView.tasks.length > 0 && (
-            <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-3xs font-bold text-primary">{roleView.tasks.length}</span>
+            <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-3xs font-semibold text-primary">{roleView.tasks.length}</span>
           )}
         </div>
       </CardHeader>
@@ -104,10 +104,10 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
 
 function CoordinatorTaskQueueRow({ task, taskActions, canUpdate }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel; canUpdate: boolean }) {
   return (
-    <div className="space-y-3 rounded-xl bg-muted/40 p-3.5">
+    <div className="space-y-3 rounded-lg bg-muted/40 p-3.5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-bold text-foreground">{task.title}</p>
+          <p className="text-sm font-semibold text-foreground">{task.title}</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {task.assignedRole}{task.notes ? " — " + task.notes : ""}{task.slaDueAt ? " · Due " + formatPortalDateTime(task.slaDueAt) : ""}
           </p>
@@ -207,7 +207,7 @@ function CoordinatorOperatorControls({ roleView, reassignment, operatorActions }
       <CardHeader>
         <div className="flex items-center gap-2">
           <UserCheck className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Operator controls</h3>
+          <h3 className="text-sm font-semibold text-foreground">Operator controls</h3>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -316,12 +316,12 @@ function DelegatedAttendanceList({ roleView, operatorActions }: { roleView: Pris
       ))}
       {confirmingTarget ? (
         <div className="rounded-md border border-danger/25 bg-danger/8 px-3 py-3">
-          <p className="text-xs font-bold text-danger">
+          <p className="text-xs font-semibold text-danger">
             Mark {confirmingTarget.coordinatorName} absent? This adds a permanent reliability note to their profile.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button type="button" disabled={operatorActions.busy} onClick={confirmAbsent} className={FORM_SUBMIT}>Confirm absent</button>
-            <button type="button" onClick={() => setConfirming(null)} className="h-11 rounded-md border border-border px-3 text-sm font-bold">Keep as is</button>
+            <button type="button" onClick={() => setConfirming(null)} className="h-11 rounded-md border border-border px-3 text-sm font-semibold">Keep as is</button>
           </div>
         </div>
       ) : null}
@@ -364,7 +364,7 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
       <CardHeader>
         <div className="flex items-center gap-2">
           <Truck className="size-4 text-primary" />
-          <h3 className="text-sm font-bold text-foreground">Supplier setup checks</h3>
+          <h3 className="text-sm font-semibold text-foreground">Supplier setup checks</h3>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">

@@ -8,9 +8,9 @@ export function PostponementImpactPanel({ eventId }: { eventId: string }) {
   const vm = usePostponementImpactViewModel(eventId);
 
   return (
-    <section aria-labelledby="postponement-impact-heading" className="rounded-xl border border-border bg-card p-5">
+    <section aria-labelledby="postponement-impact-heading" className="rounded-lg border border-border bg-card p-5">
       <header>
-        <h2 id="postponement-impact-heading" className="text-base font-bold text-foreground">Coordinator availability after postponement</h2>
+        <h2 id="postponement-impact-heading" className="text-base font-semibold text-foreground">Coordinator availability after postponement</h2>
         <p className="mt-1 text-sm text-muted-foreground">Review the recorded coordinator conflict check for the latest event date change.</p>
       </header>
 

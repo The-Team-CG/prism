@@ -332,7 +332,7 @@ export function InquiryDetailDrawer({
           <section className="rounded-lg border border-border bg-background px-4 py-3">
             <div className="flex items-center gap-2">
               <MessageSquareText className="size-4 text-primary" />
-              <h4 className="text-sm font-bold text-foreground">Inquiry message</h4>
+              <h4 className="text-sm font-semibold text-foreground">Inquiry message</h4>
             </div>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
               {inquiry.message || "No message provided."}
@@ -363,7 +363,7 @@ function InquiryDetailHeader({ inquiry, onClose }: { inquiry: PrismInquiry; onCl
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground">Inquiry</p>
-          <h3 className="mt-1 truncate text-xl font-black text-foreground">{inquiry.eventName}</h3>
+          <h3 className="mt-1 truncate text-xl font-semibold text-foreground">{inquiry.eventName}</h3>
           <p className="mt-1 text-sm text-muted-foreground">{inquiry.clientName} - {inquiry.companyName || inquiry.clientType}</p>
         </div>
         <Button type="button" size="icon" variant="ghost" onClick={onClose} aria-label="Close inquiry detail">
@@ -380,12 +380,12 @@ function InquiryDetailFlags({ inquiry }: { inquiry: PrismInquiry }) {
       <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
       {inquiry.pendingFullDetails ? <span className="text-xs font-semibold text-attention">Pending Full Details</span> : null}
       {inquiry.duplicate ? (
-        <span className="rounded-full border border-attention/25 bg-attention/10 px-2.5 py-1 text-xs font-bold text-attention">
+        <span className="rounded-full border border-attention/25 bg-attention/10 px-2.5 py-1 text-xs font-semibold text-attention">
           Duplicate
         </span>
       ) : null}
       {inquiry.previouslyDeclined ? (
-        <span className="rounded-full border border-destructive/25 bg-destructive/5 px-2.5 py-1 text-xs font-bold text-destructive">
+        <span className="rounded-full border border-destructive/25 bg-destructive/5 px-2.5 py-1 text-xs font-semibold text-destructive">
           Previously declined
         </span>
       ) : null}
@@ -433,7 +433,7 @@ function InquiryHistorySection({
       <PreConformeDocuments inquiryId={inquiry.id} conformeSigned={Boolean(inquiry.conformeSignedAt)} />
       <div className="flex items-center gap-2">
         <ClipboardList className="size-4 text-primary" />
-        <h4 className="text-sm font-bold text-foreground">Organization and history</h4>
+        <h4 className="text-sm font-semibold text-foreground">Organization and history</h4>
       </div>
       {cues.length === 0 ? (
         <p className="text-sm text-muted-foreground">No duplicate, decline, or organization history on record.</p>
@@ -477,7 +477,7 @@ function InquiryMergeForm({
 
   return (
     <div className="space-y-2 border-t border-border pt-3">
-      <label className="block text-xs font-bold text-muted-foreground" htmlFor="inquiry-merge-primary">
+      <label className="block text-xs font-semibold text-muted-foreground" htmlFor="inquiry-merge-primary">
         Merge this inquiry into
       </label>
       <Select value={primary?.id ?? ""} onValueChange={setPrimaryId}>
@@ -500,7 +500,7 @@ function InquiryMergeForm({
       />
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="flex justify-end">
-        <Button size="sm" variant="outline" disabled={busy || !reason.trim() || !primary} onClick={() => void submit()} className="rounded-lg font-bold">
+        <Button size="sm" variant="outline" disabled={busy || !reason.trim() || !primary} onClick={() => void submit()} className="rounded-lg font-semibold">
           Merge inquiry
         </Button>
       </div>
@@ -541,11 +541,11 @@ function InquiryDetailActions({
   }
   return (
     <>
-      <Button size="sm" disabled={busy} onClick={onAccept} className="rounded-lg font-bold">
+      <Button size="sm" disabled={busy} onClick={onAccept} className="rounded-lg font-semibold">
         Accept
       </Button>
       {status !== "pending" && (
-        <Button size="sm" variant="outline" disabled={busy} onClick={onPend} className="rounded-lg font-bold">
+        <Button size="sm" variant="outline" disabled={busy} onClick={onPend} className="rounded-lg font-semibold">
           Put on hold
         </Button>
       )}
@@ -554,7 +554,7 @@ function InquiryDetailActions({
         variant="outline"
         disabled={busy}
         onClick={onDecline}
-        className="rounded-lg border-destructive/25 font-bold text-destructive hover:bg-destructive/5"
+        className="rounded-lg border-destructive/25 font-semibold text-destructive hover:bg-destructive/5"
       >
         Decline
       </Button>
@@ -599,7 +599,7 @@ export function InquiryDeclineDialog({
             Decline reason <span className="font-normal text-muted-foreground">(optional)</span>
           </label>
           <Select value={declineReason || NO_DECLINE_REASON} onValueChange={(value) => onReason(value === NO_DECLINE_REASON ? "" : value)}>
-            <SelectTrigger id={reasonId} className="h-11 w-full rounded-xl bg-background">
+            <SelectTrigger id={reasonId} className="h-11 w-full rounded-lg bg-background">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -609,13 +609,13 @@ export function InquiryDeclineDialog({
           </Select>
         </div>
         <DialogFooter className="mt-5">
-          <Button variant="outline" className="rounded-lg font-bold" onClick={onCancel} disabled={busy}>
+          <Button variant="outline" className="rounded-lg font-semibold" onClick={onCancel} disabled={busy}>
             Keep inquiry
           </Button>
           <Button
             disabled={busy}
             onClick={onConfirm}
-            className="rounded-lg border-destructive/25 bg-destructive font-bold text-white hover:bg-destructive/90"
+            className="rounded-lg border-destructive/25 bg-destructive font-semibold text-white hover:bg-destructive/90"
           >
             Decline inquiry
           </Button>
@@ -666,7 +666,7 @@ export function InquiryLogOnBehalfForm({
       >
         <div className="flex items-start justify-between gap-3">
           <DialogHeader className="gap-1">
-            <DialogTitle className="text-base font-bold text-foreground">Log inquiry on behalf</DialogTitle>
+            <DialogTitle className="text-base font-semibold text-foreground">Log inquiry on behalf</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
               Record an inquiry a client gave you by phone or in person. Nothing is emailed to the client.
             </DialogDescription>
@@ -702,14 +702,14 @@ export function InquiryLogOnBehalfForm({
           ) : null}
           <Button
             variant="outline"
-            className="rounded-lg font-bold"
+            className="rounded-lg font-semibold"
             onClick={onClose}
             disabled={logPhase === "submitting"}
           >
             Cancel
           </Button>
           <Button
-            className="rounded-lg font-bold"
+            className="rounded-lg font-semibold"
             disabled={missingFields.length > 0 || logPhase === "submitting"}
             onClick={onSubmit}
           >

@@ -40,7 +40,7 @@ export function LiveOpsScheduleDesk({
   const days = vm.schedule?.days ?? [];
 
   return (
-    <section aria-labelledby="event-day-records-heading" className="space-y-5 rounded-xl border border-border bg-card p-5">
+    <section aria-labelledby="event-day-records-heading" className="space-y-5 rounded-lg border border-border bg-card p-5">
       <ScheduleDeskHeader vm={vm} canStartEventDay={canStartEventDay} />
 
       {vm.status === "loading" && !vm.schedule ? <LoadingState label="Loading schedule and reports…" /> : null}
@@ -55,7 +55,7 @@ export function LiveOpsScheduleDesk({
 
       <section aria-labelledby="handoffs-heading" className="space-y-4 border-t border-border pt-4">
         <div>
-          <h3 id="handoffs-heading" className="font-bold text-foreground">Shift handoffs</h3>
+          <h3 id="handoffs-heading" className="font-semibold text-foreground">Shift handoffs</h3>
           <p className="text-sm text-muted-foreground">Record who received the shift and the items still outstanding.</p>
         </div>
         {days.length ? (
@@ -76,7 +76,7 @@ export function LiveOpsScheduleDesk({
 
       <section aria-labelledby="eod-heading" className="space-y-4 border-t border-border pt-4">
         <div>
-          <h3 id="eod-heading" className="font-bold text-foreground">End-of-day reports</h3>
+          <h3 id="eod-heading" className="font-semibold text-foreground">End-of-day reports</h3>
           <p className="text-sm text-muted-foreground">Capture completed work, open issues, and risks to carry into tomorrow.</p>
         </div>
         {!canSubmitReports ? (
@@ -111,7 +111,7 @@ export function LiveOpsScheduleDesk({
 function ScheduleDeskHeader({ vm, canStartEventDay }: { vm: ReturnType<typeof useLiveOpsScheduleDeskViewModel>; canStartEventDay: boolean }) {
   return (
       <header>
-        <h2 id="event-day-records-heading" className="text-lg font-bold text-foreground">Event-day schedule and reports</h2>
+        <h2 id="event-day-records-heading" className="text-lg font-semibold text-foreground">Event-day schedule and reports</h2>
         <p className="mt-1 text-sm text-muted-foreground">Author the run sheet, record shift handoffs, and submit end-of-day notes.</p>
         {canStartEventDay && vm.eventStatus && !['event_day', 'archived', 'cancelled', 'postponed', 'date_to_be_confirmed', 'completed', 'closure'].includes(vm.eventStatus) ? (
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -522,7 +522,7 @@ function ScheduleAuthoringSection({ days, vm, canManageSchedule }: {
   return (
       <section aria-labelledby="schedule-authoring-heading" className="space-y-4 border-t border-border pt-4">
         <div>
-          <h3 id="schedule-authoring-heading" className="font-bold text-foreground">Schedule</h3>
+          <h3 id="schedule-authoring-heading" className="font-semibold text-foreground">Schedule</h3>
           <p className="text-sm text-muted-foreground">
             {canManageSchedule ? "Add event days and segments, then track their status during the event." : "Only the designated Event Day System Operator can edit the schedule."}
           </p>

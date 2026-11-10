@@ -42,24 +42,24 @@ export function EventDashboardHomeSectionView() {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <ShieldCheck className="size-4 text-primary" />
-                    <h2 className="text-sm font-bold text-foreground">Account approvals</h2>
+                    <h2 className="text-sm font-semibold text-foreground">Account approvals</h2>
                   </div>
                 </CardHeader>
                 <div className="divide-y divide-border">
                   {pendingApprovals.map((request) => (
                     <div key={request.id} className="flex items-start justify-between gap-4 px-6 py-4">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-foreground">{request.name}</p>
+                        <p className="truncate text-sm font-semibold text-foreground">{request.name}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">{request.email}</p>
                         <p className="mt-1 text-xs font-medium text-attention">
                           {humanizeToken(request.role)} — {request.organization}
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-wrap gap-2">
-                        <Button size="sm" disabled={!!busy} onClick={() => approveApprovalRequest(request.id)} className="rounded-lg font-bold">
+                        <Button size="sm" disabled={!!busy} onClick={() => approveApprovalRequest(request.id)} className="rounded-lg font-semibold">
                           Approve
                         </Button>
-                        <Button size="sm" variant="outline" disabled={!!busy} onClick={() => declineApprovalRequest(request.id)} className="rounded-lg font-bold">
+                        <Button size="sm" variant="outline" disabled={!!busy} onClick={() => declineApprovalRequest(request.id)} className="rounded-lg font-semibold">
                           Decline
                         </Button>
                       </div>

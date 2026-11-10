@@ -28,7 +28,7 @@ export function InquiryTriagePanel({ inquiryId }: { inquiryId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />
-          <h4 className="text-sm font-bold text-foreground">AI triage advice</h4>
+          <h4 className="text-sm font-semibold text-foreground">AI triage advice</h4>
         </div>
         <Button type="button" size="sm" variant="outline" disabled={running || model.status === 'loading'} onClick={() => void model.run()}>
           {running ? 'Reading inquiry…' : review ? 'Refresh advice' : 'Get advice'}

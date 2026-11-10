@@ -33,8 +33,8 @@ function renderOverview(ctx: ClientWorkspaceValue) {
   const visitOpen = !ctx.ocularVisit || !OCULAR_VISIT_DONE.has(ctx.ocularVisit.status);
   return (
     <div className="space-y-4">
-      {visitOpen ? <ClientOcularVisitPanel visit={ctx.ocularVisit} busy={ctx.busy === "ocular-visit"} onSubmit={ctx.submitOcularVisit} /> : null}
       <ClientOverviewTab
+        afterLead={visitOpen ? <ClientOcularVisitPanel visit={ctx.ocularVisit} busy={ctx.busy === "ocular-visit"} onSubmit={ctx.submitOcularVisit} /> : null}
         selectedEvent={selectedEvent}
         briefing={ctx.briefing}
         payments={ctx.payments}
@@ -59,7 +59,7 @@ function renderActions(ctx: ClientWorkspaceValue) {
   const waiting = ctx.clientActions.filter((a) => a.tone === "neutral");
   const completed = ctx.clientActions.filter((a) => a.tone === "success");
   return (
-    <div className="grid gap-4 xl:grid-cols-3">
+    <div className="space-y-6">
       <ClientActionGroup
         title="Needs your action"
         description="Client decisions that can move planning forward."

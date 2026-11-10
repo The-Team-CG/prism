@@ -79,7 +79,7 @@ export function PreConformeContextPanel({ eventId }: { eventId: string }) {
   }, [eventId]);
   return (
     <section className="rounded-lg border border-border bg-card p-5 text-sm">
-      <h2 className="text-lg font-bold">Pre-conforme context</h2>
+      <h2 className="text-lg font-semibold">Pre-conforme context</h2>
       <p className="mt-1 text-muted-foreground">Notes, scope flags and follow-ups PMCM logged on the inquiry before the conforme.</p>
       <div className="mt-3">{notes ? <ContextNoteList notes={notes} /> : <LoadingState label="Loading…" />}</div>
     </section>

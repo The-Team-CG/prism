@@ -26,7 +26,7 @@ function money(value: number) {
 export function PmcmSupplierWorkflowsPanel({ eventId, requests, quotes }: { eventId: string; requests: PrismSupplierQuoteRequest[]; quotes: PrismSupplierQuote[] }) {
   const vm = usePmcmSupplierWorkflows(eventId);
   return <Card>
-    <CardHeader><h2 className="text-sm font-bold text-foreground">Supplier delivery, contracts and payables</h2><p className="mt-1 text-xs text-muted-foreground">Publish ingress and egress times, review contract evidence, assign deliverables, and record actual supplier payment releases.</p></CardHeader>
+    <CardHeader><h2 className="text-sm font-semibold text-foreground">Supplier delivery, contracts and payables</h2><p className="mt-1 text-xs text-muted-foreground">Publish ingress and egress times, review contract evidence, assign deliverables, and record actual supplier payment releases.</p></CardHeader>
     <CardBody className="space-y-4">
       <WorkflowAlert error={vm.error} notice={vm.notice} busy={vm.busy} onReload={vm.load} />
       <SupplierScheduleList schedules={vm.schedules} />
@@ -37,7 +37,7 @@ export function PmcmSupplierWorkflowsPanel({ eventId, requests, quotes }: { even
 
 function SupplierScheduleList({ schedules }: { schedules: WorkflowViewModel["schedules"] }) {
   return <section aria-label="Supplier schedule list" className="rounded-lg border border-border p-3">
-    <h3 className="text-xs font-bold">Published supplier schedules</h3>
+    <h3 className="text-xs font-semibold">Published supplier schedules</h3>
     {schedules.length ? <ul className="mt-2 divide-y divide-border">{schedules.map((schedule) => <li key={schedule.id} className="flex flex-wrap justify-between gap-2 py-2 text-xs">
       <span className="font-semibold">{schedule.supplierName} · {schedule.location || "Location pending"}</span>
       <span className="text-muted-foreground">{formatPortalDateTime(schedule.ingressAt)} – {formatPortalDateTime(schedule.egressAt)} · {schedule.status}</span>
@@ -56,8 +56,8 @@ function WorkflowRows({ vm, requests, quotes }: { vm: WorkflowViewModel; request
 }
 
 function SupplierWorkflowRow({ row, vm, request, quote }: { row: WorkflowRow; vm: WorkflowViewModel; request?: PrismSupplierQuoteRequest; quote?: PrismSupplierQuote }) {
-  return <section className="space-y-3 rounded-xl border border-border p-4">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-bold">{row.supplierName} · {request?.category ?? "Supplier booking"}</p><p className="mt-1 text-xs text-muted-foreground">Assignment {row.assignmentStatus}</p></div>{quote ? <p className="text-sm font-bold">Selected quote {money(quote.amount)}</p> : null}</div>
+  return <section className="space-y-3 rounded-lg border border-border p-4">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold">{row.supplierName} · {request?.category ?? "Supplier booking"}</p><p className="mt-1 text-xs text-muted-foreground">Assignment {row.assignmentStatus}</p></div>{quote ? <p className="text-sm font-semibold">Selected quote {money(quote.amount)}</p> : null}</div>
     <ScheduleEditor row={row} vm={vm} />
     <StatusCorrection row={row} vm={vm} />
     <ContractVersions contracts={row.contracts} vm={vm} />
@@ -68,7 +68,7 @@ function SupplierWorkflowRow({ row, vm, request, quote }: { row: WorkflowRow; vm
 
 function ScheduleEditor({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel }) {
   const key = `schedule:${row.requestId}`;
-  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Ingress / egress schedule {row.schedule ? `· revision ${row.schedule.revision}` : ""}</p>
+  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-semibold">Ingress / egress schedule {row.schedule ? `· revision ${row.schedule.revision}` : ""}</p>
     {row.schedule ? <p className="mb-2 text-xs text-muted-foreground">Current: {formatPortalDateTime(row.schedule.ingressAt)} – {formatPortalDateTime(row.schedule.egressAt)} · {row.schedule.location}</p> : null}
     {row.schedule?.changeRequestNote ? <p className="mb-2 text-xs text-attention dark:text-amber-300">Supplier requested a change: {row.schedule.changeRequestNote}</p> : null}
     <div className="grid gap-2 sm:grid-cols-2"><label className="grid gap-1 text-xs font-semibold">Ingress<DateTimePicker value={vm.value(key, "ingressAt")} onValueChange={(next) => vm.setValue(key, "ingressAt", next)} /></label><label className="grid gap-1 text-xs font-semibold">Egress<DateTimePicker value={vm.value(key, "egressAt")} onValueChange={(next) => vm.setValue(key, "egressAt", next)} /></label><Input aria-label="Schedule location" placeholder="Location" value={vm.value(key, "location")} onChange={(e) => vm.setValue(key, "location", e.target.value)} /><Input aria-label="Schedule notes" placeholder="Notes for supplier" value={vm.value(key, "notes")} onChange={(e) => vm.setValue(key, "notes", e.target.value)} /></div>
@@ -84,14 +84,14 @@ function StatusCorrection({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel
   const key = `status:${row.requestId}`;
   const status = vm.value(key, "status");
   const reason = vm.value(key, "reason");
-  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Correct event-day status</p><div className="flex flex-wrap items-center gap-2">
+  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-semibold">Correct event-day status</p><div className="flex flex-wrap items-center gap-2">
     <Select value={status || NO_STATUS} onValueChange={(next) => vm.setValue(key, "status", next === NO_STATUS ? "" : next)}><SelectTrigger aria-label="Corrected event-day status" className="h-8 w-44 min-w-0 rounded-lg bg-background text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={NO_STATUS}>Choose status</SelectItem>{EVENT_DAY_STATUSES.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
     <Input className="h-8 max-w-xs" aria-label="Status correction reason" placeholder="Reason for correction" value={reason} onChange={(e) => vm.setValue(key, "reason", e.target.value)} />
     <Button size="sm" variant="outline" disabled={vm.busy || !status || !reason.trim()} onClick={() => void vm.correctStatus(row.requestId)}>Correct status</Button></div></div>;
 }
 
 function ContractVersions({ contracts, vm }: { contracts: ContractRow[]; vm: WorkflowViewModel }) {
-  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Contract versions</p>{contracts.length ? contracts.map((contract) => <ContractVersionRow key={contract.id} contract={contract} vm={vm} />) : <p className="text-xs text-muted-foreground">No contract submitted yet.</p>}</div>;
+  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-semibold">Contract versions</p>{contracts.length ? contracts.map((contract) => <ContractVersionRow key={contract.id} contract={contract} vm={vm} />) : <p className="text-xs text-muted-foreground">No contract submitted yet.</p>}</div>;
 }
 
 function ContractVersionRow({ contract, vm }: { contract: ContractRow; vm: WorkflowViewModel }) {
@@ -103,12 +103,12 @@ function CreativeTasks({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel })
   const key = `task:${row.requestId}`;
   const title = vm.value(key, "title");
   const brief = vm.value(key, "brief");
-  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Creative / production subtasks</p><div className="grid gap-2 sm:grid-cols-2"><Input placeholder="Deliverable title" value={title} onChange={(e) => vm.setValue(key, "title", e.target.value)} /><DateTimePicker value={vm.value(key, "dueAt")} onValueChange={(next) => vm.setValue(key, "dueAt", next)} aria-label="Deliverable due date" /></div><textarea className="mt-2 min-h-20 w-full rounded-lg border border-border bg-background p-2 text-sm" placeholder="Brief and acceptance criteria for this supplier" value={brief} onChange={(e) => vm.setValue(key, "brief", e.target.value)} /><Button className="mt-2" size="sm" disabled={vm.busy || !title.trim() || !brief.trim()} onClick={() => void vm.assignTask(row.requestId)}>Assign deliverable</Button><div className="mt-3 space-y-2">{row.creativeTasks.map((task) => <CreativeTaskCard key={task.id} task={task} vm={vm} />)}</div></div>;
+  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-semibold">Creative / production subtasks</p><div className="grid gap-2 sm:grid-cols-2"><Input placeholder="Deliverable title" value={title} onChange={(e) => vm.setValue(key, "title", e.target.value)} /><DateTimePicker value={vm.value(key, "dueAt")} onValueChange={(next) => vm.setValue(key, "dueAt", next)} aria-label="Deliverable due date" /></div><textarea className="mt-2 min-h-20 w-full rounded-lg border border-border bg-background p-2 text-sm" placeholder="Brief and acceptance criteria for this supplier" value={brief} onChange={(e) => vm.setValue(key, "brief", e.target.value)} /><Button className="mt-2" size="sm" disabled={vm.busy || !title.trim() || !brief.trim()} onClick={() => void vm.assignTask(row.requestId)}>Assign deliverable</Button><div className="mt-3 space-y-2">{row.creativeTasks.map((task) => <CreativeTaskCard key={task.id} task={task} vm={vm} />)}</div></div>;
 }
 
 function CreativeTaskCard({ task, vm }: { task: CreativeTask; vm: WorkflowViewModel }) {
   const reviewNote = vm.value(task.id, "reviewNote");
-  return <div className="rounded-lg border border-border bg-background p-3"><div className="flex flex-wrap justify-between gap-2"><p className="text-xs font-bold">{task.title}</p><StatusBadge status={task.status} /></div><p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{task.brief}</p>{task.supplierProgressNote ? <p className="mt-1 text-xs">Supplier progress: {task.supplierProgressNote}</p> : null}<TaskSubmissions task={task} vm={vm} />{task.status === "submitted" ? <div className="mt-2 flex flex-wrap gap-2"><Input className="h-8 max-w-xs" placeholder="Review note" value={reviewNote} onChange={(e) => vm.setValue(task.id, "reviewNote", e.target.value)} /><Button size="sm" disabled={vm.busy || !reviewNote.trim()} onClick={() => void vm.decideTask(task.id, "accepted")}>Accept</Button><Button size="sm" variant="outline" disabled={vm.busy || !reviewNote.trim()} onClick={() => void vm.decideTask(task.id, "changes_requested")}>Request revision</Button></div> : null}</div>;
+  return <div className="rounded-lg border border-border bg-background p-3"><div className="flex flex-wrap justify-between gap-2"><p className="text-xs font-semibold">{task.title}</p><StatusBadge status={task.status} /></div><p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{task.brief}</p>{task.supplierProgressNote ? <p className="mt-1 text-xs">Supplier progress: {task.supplierProgressNote}</p> : null}<TaskSubmissions task={task} vm={vm} />{task.status === "submitted" ? <div className="mt-2 flex flex-wrap gap-2"><Input className="h-8 max-w-xs" placeholder="Review note" value={reviewNote} onChange={(e) => vm.setValue(task.id, "reviewNote", e.target.value)} /><Button size="sm" disabled={vm.busy || !reviewNote.trim()} onClick={() => void vm.decideTask(task.id, "accepted")}>Accept</Button><Button size="sm" variant="outline" disabled={vm.busy || !reviewNote.trim()} onClick={() => void vm.decideTask(task.id, "changes_requested")}>Request revision</Button></div> : null}</div>;
 }
 
 function TaskSubmissions({ task, vm }: { task: CreativeTask; vm: WorkflowViewModel }) {
@@ -117,7 +117,7 @@ function TaskSubmissions({ task, vm }: { task: CreativeTask; vm: WorkflowViewMod
 
 function PayableMilestones({ row, quote, vm }: { row: WorkflowRow; quote?: PrismSupplierQuote; vm: WorkflowViewModel }) {
   const key = `payable:${row.requestId}`;
-  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-bold">Supplier payable milestones</p>{quote ? <><div className="grid gap-2 sm:grid-cols-3"><Input placeholder="Milestone name" value={vm.value(key, "label")} onChange={(e) => vm.setValue(key, "label", e.target.value)} /><Input type="number" min="1" step="1" placeholder="Amount" value={vm.value(key, "amount")} onChange={(e) => vm.setValue(key, "amount", e.target.value)} /><DatePicker aria-label="Payable due date" value={vm.value(key, "dueDate")} onValueChange={(value) => vm.setValue(key, "dueDate", value)} /></div><Button className="mt-2" size="sm" disabled={vm.busy || !vm.value(key, "label").trim() || !Number.isInteger(Number(vm.value(key, "amount"))) || Number(vm.value(key, "amount")) <= 0} onClick={() => void vm.addPayable(row.requestId, quote)}>Add milestone</Button></> : <p className="text-xs text-muted-foreground">A selected quote is required before adding a payable.</p>}<div className="mt-3 space-y-2">{row.payables.map((milestone) => <PayableMilestoneCard key={milestone.id} milestone={milestone} vm={vm} />)}</div></div>;
+  return <div className="rounded-lg bg-muted/30 p-3"><p className="mb-2 text-xs font-semibold">Supplier payable milestones</p>{quote ? <><div className="grid gap-2 sm:grid-cols-3"><Input placeholder="Milestone name" value={vm.value(key, "label")} onChange={(e) => vm.setValue(key, "label", e.target.value)} /><Input type="number" min="1" step="1" placeholder="Amount" value={vm.value(key, "amount")} onChange={(e) => vm.setValue(key, "amount", e.target.value)} /><DatePicker aria-label="Payable due date" value={vm.value(key, "dueDate")} onValueChange={(value) => vm.setValue(key, "dueDate", value)} /></div><Button className="mt-2" size="sm" disabled={vm.busy || !vm.value(key, "label").trim() || !Number.isInteger(Number(vm.value(key, "amount"))) || Number(vm.value(key, "amount")) <= 0} onClick={() => void vm.addPayable(row.requestId, quote)}>Add milestone</Button></> : <p className="text-xs text-muted-foreground">A selected quote is required before adding a payable.</p>}<div className="mt-3 space-y-2">{row.payables.map((milestone) => <PayableMilestoneCard key={milestone.id} milestone={milestone} vm={vm} />)}</div></div>;
 }
 
 function PayableMilestoneCard({ milestone, vm }: { milestone: PayableMilestone; vm: WorkflowViewModel }) {

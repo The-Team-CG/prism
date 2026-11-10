@@ -79,7 +79,7 @@ export function Card({ children, className = "" }: { children: React.ReactNode; 
 }
 
 export function CardHeader({ children }: { children: React.ReactNode }) {
-  return <div className="border-b border-border px-4 py-4 sm:px-6">{children}</div>;
+  return <div className="border-b border-border px-4 py-4 sm:px-6 [&_h2]:text-base! [&_h2]:font-semibold! [&_h3]:text-base! [&_h3]:font-semibold!">{children}</div>;
 }
 
 export function CardBody({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -96,9 +96,9 @@ export function InfoGrid({ items }: { items: Array<{ label: string; value: React
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {items.map((item) => (
-        <div key={item.label} className="rounded-xl bg-muted/40 p-4">
+        <div key={item.label} className="rounded-lg bg-muted/40 p-4">
           <p className="text-xs font-semibold text-muted-foreground">{item.label}</p>
-          <p className="mt-1.5 text-sm font-bold text-foreground">{item.value ?? "—"}</p>
+          <p className="mt-1.5 text-sm font-semibold text-foreground">{item.value ?? "—"}</p>
         </div>
       ))}
     </div>

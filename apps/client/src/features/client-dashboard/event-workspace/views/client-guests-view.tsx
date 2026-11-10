@@ -3,29 +3,23 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@prism/ui/components/card";
-import { Field, FieldDescription, FieldLabel } from "@prism/ui/components/field";
-import { Input } from "@prism/ui/components/input";
+import { PrismSection } from "@prism/ui/page-blocks";
 import { useClientWorkspace } from "../../workspace/shared";
 
 export function ClientGuestsView() {
   const { selectedEvent, briefing } = useClientWorkspace();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardDescription>Guests / attendees</CardDescription>
-        <CardTitle className="text-xl font-black text-foreground">
-          {briefing?.guestCount ? `${briefing.guestCount} expected guests` : "Guest count pending"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm leading-6 text-muted-foreground">
-          Guest registration details remain PMCM-managed. Client-visible attendee summaries will appear here once the event team publishes them.
-        </p>
-        {selectedEvent?.guestAccessCode ? <GuestAccessCode code={selectedEvent.guestAccessCode} /> : null}
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      {selectedEvent?.guestAccessCode ? <GuestAccessCode code={selectedEvent.guestAccessCode} /> : null}
+      <PrismSection
+        id="client-guests"
+        title={briefing?.guestCount ? `${briefing.guestCount} expected guests` : "Guest count pending"}
+        description="Guest registration details remain PMCM-managed. Client-visible attendee summaries will appear here once the event team publishes them."
+      >
+        <p className="text-sm text-muted-foreground">Guests open their pass with the access code above. Their check-in and feedback go to the PMCM registration team, not to this page.</p>
+      </PrismSection>
+    </div>
   );
 }
 
@@ -33,23 +27,23 @@ export function ClientGuestsView() {
 function GuestAccessCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <Field className="max-w-sm">
-      <FieldLabel htmlFor="client-guest-access-code">Guest access code</FieldLabel>
-      <div className="flex items-center gap-2">
-        <Input id="client-guest-access-code" readOnly value={code} className="font-mono tabular-nums" />
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          aria-label="Copy guest access code"
-          onClick={() => {
-            void navigator.clipboard.writeText(code).then(() => setCopied(true), () => setCopied(false));
-          }}
-        >
-          {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
-        </Button>
+    <section aria-label="Guest access code" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-lg bg-ink px-6 py-5 text-ink-foreground">
+      <div className="min-w-0">
+        <p className="text-sm text-ink-foreground/70">Guest access code</p>
+        <p id="client-guest-access-code" className="mt-1 break-all font-mono text-3xl font-semibold tracking-wider tabular-nums">{code}</p>
+        <p className="mt-1 text-sm text-ink-foreground/70">{copied ? "Copied to clipboard." : "Share this code with guests so they can open their pass."}</p>
       </div>
-      <FieldDescription>{copied ? "Copied to clipboard." : "Share this code with guests so they can open their pass."}</FieldDescription>
-    </Field>
+      <Button
+        type="button"
+        variant="secondary"
+        aria-label="Copy guest access code"
+        onClick={() => {
+          void navigator.clipboard.writeText(code).then(() => setCopied(true), () => setCopied(false));
+        }}
+      >
+        {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+        {copied ? "Copied" : "Copy code"}
+      </Button>
+    </section>
   );
 }

@@ -50,6 +50,44 @@ export function clientActionRowTone(action: ClientDashboardAction): ClientRowTon
   return "neutral";
 }
 
+/** The client's own actions, most urgent first: blockers, then what holds a stage back, then the rest. Order within each is kept. */
+export function orderClientActionsByUrgency(actions: ClientDashboardAction[]): ClientDashboardAction[] {
+  const rank = (action: ClientDashboardAction) => (action.priority === "critical" ? 0 : action.blocking || action.priority === "attention" ? 1 : 2);
+  return actions.map((action, index) => ({ action, index })).sort((a, b) => rank(a.action) - rank(b.action) || a.index - b.index).map((entry) => entry.action);
+}
+
+export type ClientHomeLead = { event: PrismEvent; action?: ClientDashboardAction; daysToGo: number | null };
+
+/**
+ * The event the client home leads with and that event's most urgent step.
+ * It is the next event still ahead on the calendar, so the page opens on what is coming up; a blocker
+ * on another event takes the lead instead, because that is what the client must see first.
+ */
+export function clientHomeLead(events: PrismEvent[], own: ClientDashboardAction[], todayKey: string): ClientHomeLead | null {
+  const ordered = orderClientActionsByUrgency(own);
+  const upcoming = orderClientEvents(events).filter((event) => !isPastClientEvent(event));
+  const daysTo = (event: PrismEvent) => (event.eventDate ? daysUntil(manilaCalendarKey(event.eventDate), todayKey) : null);
+  const blocker = ordered.find((action) => action.priority === "critical");
+  const blocked = blocker ? events.find((event) => event.id === blocker.eventId) : undefined;
+  const event = blocked ?? upcoming.find((candidate) => (daysTo(candidate) ?? -1) >= 0) ?? upcoming[0];
+  if (!event) return null;
+  return { event, action: ordered.find((action) => action.eventId === event.id), daysToGo: daysTo(event) };
+}
+
+/** "Good morning" before noon, "Good afternoon" until six, "Good evening" after. */
+export function timeOfDayGreeting(hour: number): string {
+  if (hour < 12) return "Good morning";
+  return hour < 18 ? "Good afternoon" : "Good evening";
+}
+
+/** One sentence under the Home title that says how much is waiting on the client. */
+export function clientHomeSummaryLine(own: ClientDashboardAction[]): string {
+  if (own.length === 0) return "Nothing needs you right now.";
+  const events = new Set(own.map((action) => action.eventId ?? "")).size;
+  const things = own.length === 1 ? "1 thing needs you" : `${own.length} things need you`;
+  return events > 1 ? `${things} across ${events} events.` : `${things}.`;
+}
+
 type HrefFor = (route: "overview" | "billing", eventId: string) => string;
 type MoneyFormat = (amount: number) => string;
 
@@ -57,19 +95,19 @@ function needsYouFigure(own: ClientDashboardAction[]): Figure {
   const blocking = own.filter((action) => action.blocking).length;
   if (blocking) return { label: "Needs you", value: own.length, detail: `${blocking} blocking now`, tone: "urgent" };
   if (own.length) return { label: "Needs you", value: own.length, detail: `${own.length === 1 ? "1 item" : `${own.length} items`}, none blocking`, tone: "attention" };
-  return { label: "Needs you", value: 0, detail: "All caught up" };
+  return { label: "Needs you", value: 0, detail: "All caught up", empty: true };
 }
 
 function nextEventFigure(events: PrismEvent[], todayKey: string, hrefFor: HrefFor, formatDate: (value: string) => string): Figure {
   const next = orderClientEvents(events).find((event) => !isPastClientEvent(event));
-  if (!next) return { label: "Next event", value: "—", detail: "No upcoming event" };
+  if (!next) return { label: "Next event", value: "—", detail: "No upcoming event", empty: true };
   return { label: "Next event", value: eventCountdown(next.eventDate, todayKey) ?? "Date pending", detail: `${next.eventName} · ${formatDate(next.eventDate)}`, href: hrefFor("overview", next.id) };
 }
 
 /** "Next payment" figure: the earliest unpaid milestone, red once it is overdue. */
 export function nextPaymentFigure(payments: PrismPaymentMilestone[], eventIds: ReadonlySet<string>, todayKey: string, formatMoney: MoneyFormat, hrefFor?: HrefFor): Figure {
   const payment = nextClientPayment(payments, eventIds);
-  if (!payment) return { label: "Next payment", value: "—", detail: "Nothing due" };
+  if (!payment) return { label: "Next payment", value: "—", detail: "Nothing due", empty: true };
   const due = dueState(payment.dueDate, todayKey);
   return {
     label: "Next payment",
@@ -95,7 +133,7 @@ export function clientHomeFigures(input: {
   const eventIds = new Set(input.events.map((event) => event.id));
   return [
     needsYouFigure(own),
-    { label: "With PMCM", value: withPmcm, detail: withPmcm ? "Waiting on PMCM" : "Nothing pending" },
+    { label: "With PMCM", value: withPmcm, detail: withPmcm ? "Waiting on PMCM" : "Nothing pending", empty: withPmcm === 0 },
     nextEventFigure(input.events, input.todayKey, input.hrefFor, input.formatDate),
     nextPaymentFigure(input.payments, eventIds, input.todayKey, input.formatMoney, input.hrefFor),
   ];

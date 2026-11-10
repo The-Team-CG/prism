@@ -13,7 +13,7 @@ export function FileRequirementTemplateManager({ eventId, onClose, onApplied }: 
   const vm = useFileRequirementTemplateManagerViewModel(eventId, onApplied);
   return (
     <section aria-label="Event type requirement templates" className="space-y-4 border-t border-border bg-secondary/30 px-6 py-4">
-      <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-bold text-foreground">Event type templates</h3><p className="mt-1 text-xs text-muted-foreground">PMCM manages reusable requirements. Applying a template adds missing keys only.</p></div><button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Close</button></div>
+      <div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-foreground">Event type templates</h3><p className="mt-1 text-xs text-muted-foreground">PMCM manages reusable requirements. Applying a template adds missing keys only.</p></div><button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-2 text-xs font-semibold">Close</button></div>
       <label className="grid max-w-lg gap-1 text-xs font-semibold text-muted-foreground">Event type
         <input list="file-requirement-template-types" value={vm.eventType} onChange={(event) => vm.setEventType(event.target.value)} className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground" placeholder="Wedding" />
         <datalist id="file-requirement-template-types">{vm.templates.map((template) => <option key={template.id} value={template.eventType} />)}</datalist>

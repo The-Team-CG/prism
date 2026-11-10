@@ -34,7 +34,7 @@ export function EventCoordinatorShell({
     return (
       <main className="grid min-h-screen place-items-center bg-background px-6">
         {error ? (
-          <Alert variant="destructive" className="max-w-md rounded-xl"><AlertDescription>{error}</AlertDescription></Alert>
+          <Alert variant="destructive" className="max-w-md rounded-lg"><AlertDescription>{error}</AlertDescription></Alert>
         ) : (
           <div className="w-full max-w-5xl">
             <SkeletonCard>

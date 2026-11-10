@@ -47,7 +47,7 @@ function StatusPill({ status }: { status: PAREApprovalRecord["status"] }) {
     : "bg-attention-soft text-attention border-attention/25";
   const Icon = status === "approved" ? CheckCircle2 : status === "rejected" ? ThumbsDown : Clock;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-bold ${cls}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
       <Icon className="size-3" />
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </span>
@@ -59,7 +59,7 @@ function StatusPill({ status }: { status: PAREApprovalRecord["status"] }) {
 function DraftMessage({ label, text }: { label: string; text: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="rounded-xl border border-border bg-muted/30 overflow-hidden">
+    <div className="rounded-lg border border-border bg-muted/30 overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -95,13 +95,13 @@ function PAREApprovalCard({
 }) {
   const { pareResult: r } = record;
   return (
-    <Card className="gap-0 block rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+    <Card className="gap-0 block rounded-lg border border-border bg-card overflow-hidden">
       <PareApprovalHeader record={record} />
       <div className="space-y-5 p-5">
-        <div className="flex items-start gap-3 rounded-xl border border-danger/25 bg-danger-soft px-4 py-3">
+        <div className="flex items-start gap-3 rounded-lg border border-danger/25 bg-danger-soft px-4 py-3">
           <UserX className="size-4 shrink-0 text-danger mt-0.5" />
           <div>
-            <p className="text-sm font-bold text-danger">Supplier withdrawn</p>
+            <p className="text-sm font-semibold text-danger">Supplier withdrawn</p>
             <p className="text-xs text-danger mt-0.5">
               {r.withdrawnSupplier.name} · {formatPareTier(r.withdrawnSupplier.tier)} · {money.format(r.withdrawnSupplier.quotedAmount)}
             </p>
@@ -132,11 +132,11 @@ function PareApprovalHeader({ record }: { record: PAREApprovalRecord }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
       <div className="flex items-center gap-3">
-        <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-white">
+        <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-white">
           <Bot className="size-4" />
         </span>
         <div>
-          <p className="text-sm font-black text-foreground">PARE · Emergency Replacement</p>
+          <p className="text-sm font-semibold text-foreground">PARE · Emergency Replacement</p>
           <p className="text-xs text-muted-foreground">
             {r.withdrawnSupplier.name} · {r.withdrawnSupplier.category} · {formatPortalDateTime(r.triggeredAt)}
           </p>
@@ -154,10 +154,10 @@ function PareApprovalHeader({ record }: { record: PAREApprovalRecord }) {
 
 function PareRiskPanel({ assessment }: { assessment: PAREApprovalRecord["pareResult"]["riskAssessment"] }) {
   return (
-    <div className={`rounded-xl border p-4 ${pareRiskColor(assessment.level)}`}>
+    <div className={`rounded-lg border p-4 ${pareRiskColor(assessment.level)}`}>
       <div className="flex items-center gap-2 mb-2">
         {riskIcon(assessment.level)}
-        <p className="text-sm font-black">{assessment.level} RISK</p>
+        <p className="text-sm font-semibold">{assessment.level} RISK</p>
       </div>
       <ul className="space-y-1">
         {assessment.factors.map((f, i) => (
@@ -174,10 +174,10 @@ function PareRiskPanel({ assessment }: { assessment: PAREApprovalRecord["pareRes
 function PareBudgetPanel({ analysis }: { analysis: PAREApprovalRecord["pareResult"]["budgetAnalysis"] }) {
   const tone = pareBudgetTone(analysis.feasible);
   return (
-    <div className={`rounded-xl border p-4 ${tone.box}`}>
+    <div className={`rounded-lg border p-4 ${tone.box}`}>
       <div className="flex items-center gap-2 mb-2">
         <PhilippinePeso className={`size-4 shrink-0 ${tone.icon}`} />
-        <p className={`text-sm font-black ${tone.title}`}>{tone.label}</p>
+        <p className={`text-sm font-semibold ${tone.title}`}>{tone.label}</p>
       </div>
       <p className="text-xs leading-5 opacity-90">{analysis.summary}</p>
     </div>
@@ -189,10 +189,10 @@ function PareReplacementPanel({ analysis }: { analysis: PAREApprovalRecord["pare
   return (
     <div>
       <p className="mb-2 text-xs font-medium text-muted-foreground">Recommended Replacement</p>
-      <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+      <div className="rounded-lg border border-border bg-muted/30 px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-black text-foreground">{candidate.supplierName}</p>
+            <p className="text-sm font-semibold text-foreground">{candidate.supplierName}</p>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
               <span>{formatPareTier(candidate.tier)}</span>
               <span>·</span>
@@ -202,7 +202,7 @@ function PareReplacementPanel({ analysis }: { analysis: PAREApprovalRecord["pare
               {candidate.halal ? <span className="text-success font-semibold">· Halal ✓</span> : null}
             </div>
           </div>
-          <span className="text-sm font-black text-foreground">{analysis.costDeltaLabel}</span>
+          <span className="text-sm font-semibold text-foreground">{analysis.costDeltaLabel}</span>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">{candidate.reason}</p>
       </div>
@@ -214,11 +214,11 @@ function PareOtherCandidates({ candidates }: { candidates: PAREApprovalRecord["p
   return (
     <div>
       <p className="mb-2 text-xs font-medium text-muted-foreground">Other Candidates ({candidates.length - 1})</p>
-      <div className="divide-y divide-border rounded-xl border border-border bg-muted/20 overflow-hidden">
+      <div className="divide-y divide-border rounded-lg border border-border bg-muted/20 overflow-hidden">
         {candidates.slice(1).map((c) => (
           <div key={c.supplierId} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5">
             <div>
-              <p className="text-xs font-bold text-foreground">{c.supplierName}</p>
+              <p className="text-xs font-semibold text-foreground">{c.supplierName}</p>
               <p className="text-2xs text-muted-foreground">{formatPareTier(c.tier)} · Reliability {Math.round(c.reliabilityScore * 100)}%</p>
             </div>
             <span className="text-xs font-semibold text-foreground">{money.format(c.quotedAmount)}</span>
@@ -247,7 +247,7 @@ function PareReviewFooter({
           type="button"
           disabled={busy}
           onClick={onApprove}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-success px-5 py-3 text-sm font-black text-white transition hover:opacity-90 disabled:opacity-50"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-success px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
         >
           <ThumbsUp className="size-4" />
           Approve — confirm replacement
@@ -256,7 +256,7 @@ function PareReviewFooter({
           type="button"
           disabled={busy}
           onClick={onReject}
-          className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-bold text-destructive transition hover:bg-danger-soft disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-lg border border-border bg-card px-5 py-3 text-sm font-semibold text-destructive transition hover:bg-danger-soft disabled:opacity-50"
         >
           <ThumbsDown className="size-4" />
           Reject
@@ -265,10 +265,10 @@ function PareReviewFooter({
     );
   }
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
       <CheckCircle2 className="size-4 shrink-0" />
       <span>
-        <span className="font-bold">{record.status === "approved" ? "Approved" : "Rejected"}</span>
+        <span className="font-semibold">{record.status === "approved" ? "Approved" : "Rejected"}</span>
         {record.reviewedBy ? ` by ${record.reviewedBy}` : ""}
         {record.reviewedAt ? ` · ${formatPortalDateTime(record.reviewedAt)}` : ""}
       </span>
@@ -313,7 +313,7 @@ export function PAREPanel({
             <Zap className="size-4" />
           </span>
           <div>
-            <p className="text-sm font-black text-foreground">Emergency supplier replacement</p>
+            <p className="text-sm font-semibold text-foreground">Emergency supplier replacement</p>
             <p className="text-xs text-muted-foreground">Withdraw an assigned supplier to trigger AI-powered replacement analysis</p>
           </div>
         </div>
@@ -329,7 +329,7 @@ export function PAREPanel({
       </div>
 
       {error && (
-        <div className="rounded-xl border border-danger/25 bg-danger-soft px-4 py-3 text-sm text-danger">
+        <div className="rounded-lg border border-danger/25 bg-danger-soft px-4 py-3 text-sm text-danger">
           {error}
         </div>
       )}
@@ -338,7 +338,7 @@ export function PAREPanel({
       {assignedRequests.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-medium text-muted-foreground">Assigned Suppliers</p>
-          <Card className="gap-0 block divide-y divide-border rounded-xl border border-border bg-card overflow-hidden">
+          <Card className="gap-0 block divide-y divide-border rounded-lg border border-border bg-card overflow-hidden">
             {assignedRequests.map((req) => {
               const supplier = suppliers.find((s) => s.id === req.supplierId);
               const tierLabel = supplier?.tier?.replace("tier_", "Tier ") ?? null;
@@ -349,7 +349,7 @@ export function PAREPanel({
                     <Truck className="size-4" />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-foreground truncate">{req.supplierName ?? "Supplier"}</p>
+                    <p className="text-sm font-semibold text-foreground truncate">{req.supplierName ?? "Supplier"}</p>
                     <p className="text-xs text-muted-foreground">{req.category}{tierLabel ? ` · ${tierLabel}` : ""}</p>
                   </div>
                 </div>
@@ -357,14 +357,14 @@ export function PAREPanel({
                   type="button"
                   disabled={parentBusy || withdrawingId === req.id || confirmingId === req.id}
                   onClick={() => setConfirmingId(req.id)}
-                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-danger/25 bg-danger-soft px-3 py-1.5 text-xs font-bold text-danger transition hover:bg-danger-soft disabled:opacity-50"
+                  className="flex shrink-0 items-center gap-1.5 rounded-lg border border-danger/25 bg-danger-soft px-3 py-1.5 text-xs font-semibold text-danger transition hover:bg-danger-soft disabled:opacity-50"
                 >
                   <UserX className="size-3.5" />
                   {withdrawingId === req.id ? "Finding a replacement…" : "Withdraw and find a replacement"}
                 </button>
                 {confirmingId === req.id ? (
                   <div role="alert" className="w-full rounded-lg border border-danger/25 bg-danger-soft p-3 text-xs text-danger">
-                    <p className="font-bold">Withdraw {req.supplierName ?? "this supplier"} from the event?</p>
+                    <p className="font-semibold">Withdraw {req.supplierName ?? "this supplier"} from the event?</p>
                     <p className="mt-1">
                       Their assignment is withdrawn and their supplier portal access is revoked. PARE then drafts a replacement for PMCM approval.
                       Nothing is confirmed until you approve it below.
@@ -377,7 +377,7 @@ export function PAREPanel({
                           setConfirmingId(null);
                           void handleWithdraw(req.id);
                         }}
-                        className="rounded-lg bg-danger px-3 py-1.5 font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+                        className="rounded-lg bg-danger px-3 py-1.5 font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
                       >
                         Withdraw and find a replacement
                       </button>
@@ -399,11 +399,11 @@ export function PAREPanel({
       )}
 
       {assignedRequests.length === 0 && eventApprovals.length === 0 && (
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-xl bg-muted">
+        <div className="rounded-lg border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
+          <span className="mx-auto grid size-12 place-items-center rounded-lg bg-muted">
             <Bot className="size-5 text-muted-foreground" />
           </span>
-          <p className="mt-3 text-sm font-bold text-foreground">No assigned suppliers yet</p>
+          <p className="mt-3 text-sm font-semibold text-foreground">No assigned suppliers yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Once a supplier is selected for this event, you can withdraw them here to get replacement suggestions.
           </p>
@@ -429,9 +429,9 @@ export function PAREPanel({
       )}
 
       {eventApprovals.length === 0 && assignedRequests.length > 0 && (
-        <div className="rounded-xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
+        <div className="rounded-lg border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
           <Bot className="mx-auto size-8 text-muted-foreground" />
-          <p className="mt-3 text-sm font-bold text-foreground">No PARE results yet</p>
+          <p className="mt-3 text-sm font-semibold text-foreground">No PARE results yet</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Choose "Withdraw and find a replacement" on an assigned supplier above to start.
           </p>

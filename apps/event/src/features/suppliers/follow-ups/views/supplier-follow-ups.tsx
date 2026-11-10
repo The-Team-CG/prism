@@ -13,8 +13,8 @@ export function UnresponsiveSuppliersPanel({ eventId }: { eventId: string }) {
   }, [eventId]);
   if (items.length === 0) return null;
   return (
-    <section role="alert" className="rounded-2xl border border-attention/40 bg-attention/5 p-5 text-sm">
-      <h2 className="font-bold">Suppliers not responding</h2>
+    <section role="alert" className="rounded-lg border border-attention/40 bg-attention/5 p-5 text-sm">
+      <h2 className="font-semibold">Suppliers not responding</h2>
       <p className="mt-1 text-xs text-muted-foreground">No quote after {SUPPLIER_RESPONSE_WINDOW_HOURS} hours. Backup (Tier 2) suppliers are suggested after a second window.</p>
       <ul className="mt-3 space-y-2">
         {items.map((item) => (
@@ -55,8 +55,8 @@ export function ClientOwnedSuppliersPanel({ eventId }: { eventId: string }) {
 
   if (items.length === 0) return null;
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 text-sm">
-      <h2 className="font-bold">Client-owned suppliers</h2>
+    <section className="rounded-lg border border-border bg-card p-5 text-sm">
+      <h2 className="font-semibold">Client-owned suppliers</h2>
       {error ? <p role="alert" className="mt-2 text-destructive">{error}</p> : null}
       <ul className="mt-3 space-y-2">
         {items.map((item) => (

@@ -1,4 +1,5 @@
 import type { PrismSupplierReadinessItem } from "@prism/types";
+import { daysUntil, manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
 import { readinessDeadline, supplierReadinessSection } from "./supplier-workspace-rules";
 import { supplierWorkTargetHref } from "./supplier-workspace-types";
 
@@ -39,4 +40,37 @@ export function supplierNextStep(item: PrismSupplierReadinessItem, hasQuote: boo
   if (item.readinessStatus !== "confirmed") return { title: "Confirm your readiness", detail: "Check the booking requirements and tell PMCM when your preparation is complete.", action: "Review preparation", owner: "Your next step" };
   if (item.contractStatus === "submitted") return { title: "Contract awaiting review", detail: "PMCM is reviewing your contract. Your schedule and event-day controls remain in the booking.", action: "View booking", owner: WAITING_FOR_PMCM };
   return { title: "Keep PMCM updated", detail: "Review the schedule and report arrival, setup or departure as it happens.", action: "Open booking", owner: "Event-day updates" };
+}
+
+/**
+ * The one number the Today lead shows: days overdue or left on a quote deadline while bidding,
+ * otherwise days to the event. Counted in Philippine calendar days, as every date in the portal is.
+ * Nothing when the item has no usable date.
+ */
+export function supplierStepFigure(
+  item: Pick<PrismSupplierReadinessItem, "quoteStatus" | "dueAt" | "eventDate">,
+  now = new Date(),
+): { value: string; label: string } | undefined {
+  const today = manilaDateKey(now);
+  const daysTo = (value: string | null | undefined) => (value && Number.isFinite(new Date(value).getTime()) ? daysUntil(manilaCalendarKey(value), today) : null);
+  const due = item.quoteStatus === "selected" ? null : daysTo(item.dueAt);
+  if (due !== null && item.dueAt) {
+    if (new Date(item.dueAt).getTime() < now.getTime()) {
+      const late = Math.max(1, -due);
+      return { value: String(late), label: late === 1 ? "day overdue" : "days overdue" };
+    }
+    return due <= 0 ? { value: "Today", label: "Quote due" } : { value: String(due), label: due === 1 ? "day left" : "days left" };
+  }
+  const toGo = daysTo(item.eventDate);
+  if (toGo === null || toGo < 0) return undefined;
+  return toGo === 0 ? { value: "Today", label: "Event day" } : { value: String(toGo), label: toGo === 1 ? "day to event" : "days to event" };
+}
+
+/** One line under the Today title: how much is the supplier's to do and how much sits with PMCM. */
+export function supplierTodaySummary(yourTurn: number, waiting: number): string {
+  const parts = [
+    yourTurn === 0 ? "Nothing needs you right now" : yourTurn === 1 ? "1 thing needs you" : `${yourTurn} things need you`,
+    waiting ? `${waiting} waiting on PMCM` : null,
+  ].filter(Boolean);
+  return `${parts.join(" · ")}.`;
 }

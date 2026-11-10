@@ -606,7 +606,7 @@ function GuestRosterSection({ eventId, busy, onSearch, onImport, onCheckIn, onVe
             <span className="hidden sm:inline">Walk-ins need verification before check-in</span>
           </div>
           {rows.length === 0 && !loading ? (
-            <RosterEmpty filtered={filtered} onImport={() => setImportOpen(true)} />
+            <RosterEmpty filtered={filtered} />
           ) : (
             <ul className="divide-y divide-border">
               {rows.map((row) => (
@@ -687,19 +687,13 @@ function RosterToolbar({
   );
 }
 
-function RosterEmpty({ filtered, onImport }: { filtered: boolean; onImport: () => void }) {
+function RosterEmpty({ filtered }: { filtered: boolean }) {
   return (
-    <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-      <span className="grid size-10 place-items-center rounded-full bg-muted text-muted-foreground"><UserRoundCheck className="size-5" aria-hidden /></span>
+    <div className="flex flex-col gap-1 px-4 py-4">
       <p className="text-sm font-semibold text-foreground">{filtered ? "No guest matches these filters" : "No guests on the roster yet"}</p>
-      <p className="max-w-sm text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {filtered ? "Try another name or clear the filters." : "Import the guest list from a spreadsheet. Coordinators can add walk-ins on the day."}
       </p>
-      {filtered ? null : (
-        <Button type="button" size="sm" className="mt-1" onClick={onImport}>
-          <Upload className="size-4" aria-hidden /> Import guests
-        </Button>
-      )}
     </div>
   );
 }
