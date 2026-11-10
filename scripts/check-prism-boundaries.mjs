@@ -27,6 +27,16 @@ const prismaMutationPattern =
 const rawQueryPattern = /\.\$queryRaw(?:Unsafe)?\b/;
 const aiProviderSdkImportPattern =
   /\b(?:from\s*|import\s*(?:\(\s*)?|require\s*\(\s*)["'](?:@anthropic-ai\/sdk(?:\/[^"']*)?|@openrouter\/[^"']+|openai(?:\/[^"']*)?|@google\/generative-ai(?:\/[^"']*)?|@google-cloud\/vertexai(?:\/[^"']*)?|@aws-sdk\/client-bedrock-runtime(?:\/[^"']*)?|@ai-sdk\/[^"']+|ai(?:\/[^"']*)?)["']/;
+// The event portal reaches the API through @prism/api-client. These are the only files that may build a request by hand.
+const eventPortalSourcePattern = /^apps\/event\/src\/.*\.tsx?$/;
+const testFilePattern = /\.test\.tsx?$/;
+const handBuiltApiPathPattern = /["'`]\/api\/[A-Za-z]/;
+const eventApiRequestUsePattern = /eventApiRequest/;
+/** The conforme PDF download returns a file, which the JSON transport cannot read. */
+const handBuiltApiPathExceptionPattern = /^apps\/event\/src\/features\/conforme\/signing\/data\/pmcm-conforme-repository\.ts$/;
+/** Logout overrides the 401 handling for one call; the floorplan template store takes an injected request function; the helper itself lives in lib. */
+const eventApiRequestExceptionPattern =
+  /^apps\/event\/src\/(?:lib\/prism-api\.ts|features\/event-dashboard\/shell\/data\/session-commands\.ts|features\/floorplan\/editor\/data\/templates-repository\.ts)$/;
 const aiProviderImportExceptionPattern =
   /^apps\/api\/src\/modules\/platform-ops\/infrastructure\/ai-governance\//;
 
@@ -114,6 +124,24 @@ export const boundaryRules = [
     filePattern: /^apps\/(?:client|event|supplier|guest)\//,
     importPattern:
       /["']prism:(?:client-session|mock-auth-session|supplier-session|guest-session|event-command-session)["']/,
+  },
+  {
+    name: "event app must call the API through @prism/api-client, not hand-written /api/ paths",
+    filePattern: eventPortalSourcePattern,
+    allowedFilePattern: handBuiltApiPathExceptionPattern,
+    check(normalized, source) {
+      if (testFilePattern.test(normalized)) return false;
+      return handBuiltApiPathPattern.test(source);
+    },
+  },
+  {
+    name: "event app must not use the hand-built eventApiRequest helper outside logout and the floorplan template store",
+    filePattern: eventPortalSourcePattern,
+    allowedFilePattern: eventApiRequestExceptionPattern,
+    check(normalized, source) {
+      if (testFilePattern.test(normalized)) return false;
+      return eventApiRequestUsePattern.test(source);
+    },
   },
   {
     name: "backend services must not inject Prisma as any",
