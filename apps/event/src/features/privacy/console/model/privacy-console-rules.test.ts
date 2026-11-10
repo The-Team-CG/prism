@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { PRISM_PRIVACY_REQUEST_UNASSIGNED, listPrivacyRequestsQuerySchema } from "@prism/types";
-import { initialPrivacyConsoleFilters, privacyDeadlineLabel, privacyQueueQuery, privacyQueueSearch } from "./privacy-console-rules";
+import { toQueryString } from "@prism/api-client";
+import { initialPrivacyConsoleFilters, privacyDeadlineLabel, privacyQueueQuery } from "./privacy-console-rules";
+
+/** The query string the client sends for a queue query. */
+const privacyQueueSearch = (query: Parameters<typeof toQueryString>[0]) => `?${toQueryString(query)}`;
 
 const now = new Date("2026-10-19T12:00:00.000Z");
 const request = (overrides: Partial<Parameters<typeof privacyDeadlineLabel>[0]>) => ({

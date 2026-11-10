@@ -13,8 +13,7 @@ import type {
   ReleasePrivacyLegalHoldInput,
   ReviewPrivacyRequestInput,
 } from "@prism/types";
-import { eventApi, eventApiRequest } from "@/lib/prism-api";
-import { privacyQueueSearch } from "../model/privacy-console-rules";
+import { eventApi } from "@/lib/prism-api";
 
 export type PrivacyConsoleCommands = {
   pmcmReference(): Promise<{ events: PrismEvent[]; users: PrismUser[] }>;
@@ -28,29 +27,17 @@ export type PrivacyConsoleCommands = {
   releaseLegalHold(holdId: string, input: ReleasePrivacyLegalHoldInput): Promise<PrismPrivacyLegalHold>;
 };
 
-function eventQuery(eventId?: string) {
-  return eventId && eventId !== "all" ? `?eventId=${encodeURIComponent(eventId)}` : "";
-}
-
 const privacyConsoleCommands = {
   pmcmReference: () => eventApi.pmcm.reference().then(({ events, users }) => ({ events, users })),
-  requestQueue: (query: ListPrivacyRequestsQueryInput) =>
-    eventApiRequest<PrismPrivacyRequestPage>(`/api/privacy/requests${privacyQueueSearch(query)}`),
-  createRequest: (input: CreatePrivacyRequestInput) =>
-    eventApiRequest<PrismPrivacyRequest>("/api/privacy/requests", { method: "POST", body: input }),
-  assignRequest: (requestId: string, input: AssignPrivacyRequestInput) =>
-    eventApiRequest<PrismPrivacyRequest>(`/api/privacy/requests/${requestId}/assignment`, { method: "PATCH", body: input }),
-  reviewRequest: (requestId: string, input: ReviewPrivacyRequestInput) =>
-    eventApiRequest<PrismPrivacyRequest>(`/api/privacy/requests/${requestId}/review`, { method: "PATCH", body: input }),
+  requestQueue: (query: ListPrivacyRequestsQueryInput) => eventApi.privacyAdmin.requests(query),
+  createRequest: (input: CreatePrivacyRequestInput) => eventApi.privacyAdmin.createRequest(input),
+  assignRequest: (requestId: string, input: AssignPrivacyRequestInput) => eventApi.privacyAdmin.assignRequest(requestId, input),
+  reviewRequest: (requestId: string, input: ReviewPrivacyRequestInput) => eventApi.privacyAdmin.reviewRequest(requestId, input),
   executeRequest: (requestId: string, notes: string, correction?: PrivacyCorrectionPatch) =>
-    eventApiRequest<PrismPrivacyExecutionResult>(`/api/privacy/requests/${requestId}/execute`, {
-      method: "POST", body: { executionNotes: notes, ...(correction ? { correction } : {}) },
-    }),
-  legalHolds: (eventId?: string) => eventApiRequest<PrismPrivacyLegalHold[]>(`/api/privacy/legal-holds${eventQuery(eventId)}`),
-  createLegalHold: (input: CreatePrivacyLegalHoldInput) =>
-    eventApiRequest<PrismPrivacyLegalHold>("/api/privacy/legal-holds", { method: "POST", body: input }),
-  releaseLegalHold: (holdId: string, input: ReleasePrivacyLegalHoldInput) =>
-    eventApiRequest<PrismPrivacyLegalHold>(`/api/privacy/legal-holds/${holdId}/release`, { method: "POST", body: input }),
+    eventApi.privacyAdmin.executeRequest(requestId, notes, correction),
+  legalHolds: (eventId?: string) => eventApi.privacyAdmin.legalHolds(eventId),
+  createLegalHold: (input: CreatePrivacyLegalHoldInput) => eventApi.privacyAdmin.createLegalHold(input),
+  releaseLegalHold: (holdId: string, input: ReleasePrivacyLegalHoldInput) => eventApi.privacyAdmin.releaseLegalHold(holdId, input),
 } satisfies PrivacyConsoleCommands;
 
 export function createPrivacyConsoleRepository(commands: PrivacyConsoleCommands = privacyConsoleCommands) {

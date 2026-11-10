@@ -52,15 +52,6 @@ export function privacyQueueQuery(
 }
 
 /** Query string for the queue endpoint; empty filters are omitted so the API applies its defaults. */
-export function privacyQueueSearch(query: ListPrivacyRequestsQueryInput): string {
-  const params = new URLSearchParams();
-  Object.entries(query).forEach(([key, value]) => {
-    if (value !== undefined && value !== null && value !== "") params.set(key, String(value));
-  });
-  const search = params.toString();
-  return search ? `?${search}` : "";
-}
-
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Human deadline copy. Closed requests (executed or rejected) never show a countdown. */
