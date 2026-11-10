@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Inquiry intake path, language, company name, context notes, pre-conforme workspace, the PMCM conforme execution (prepare, latest, sign), AI triage and event storage listings in the event portal call the API through the shared `@prism/api-client`. The conforme PDF download keeps its own request, because it returns a file and not JSON.
 - Closure (archive compare, post-event documents, logistics, client testimonial moderation, wrap-up), compliance runs and risks, venue confirmations, cancellation summary, floorplan history, readiness and status-feed reads, and the approval-request list in the event portal call the API through the shared `@prism/api-client`.
 - Event and inquiry lifecycle commands (ocular visit, modules, privacy, archive, actual end, inquiry accept/decline/merge/log, conforme upload and reminder), coordinator staffing and supplier-status verification in the event portal call the API through the shared `@prism/api-client` (new `lifecycle` and `staffing` groups, more `inquiries` methods). A decline reason is now checked against the API's allowed reasons before sending.
 - Event closure (close gates, insights, wrap-up), compliance checks, official floorplan drafts and plans, and account approval requests in the event portal call the API through the shared `@prism/api-client` (new `closure`, `compliance` and `floorplans` groups, and `auth.approveApprovalRequest`/`declineApprovalRequest`). A test pins each endpoint, method and body.
