@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismSupplierQuote, PrismSupplierReadinessItem, PrismSupplierReadinessBoard } from "@prism/types";
-import { readinessConcernLabel, readinessSetupLabel } from "../../model/supplier-workspace-rules";
+import { quoteDeadlineUrgency, readinessConcernLabel, readinessSetupLabel } from "../../model/supplier-workspace-rules";
 import { splitSupplierNextSteps, supplierNextStep, supplierWorkHref } from "../../model/supplier-next-step";
 import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@prism/ui/components/collapsible";
@@ -14,11 +15,7 @@ function ReadinessDetails({ item, hasQuote }: { item: PrismSupplierReadinessItem
   const selected = item.quoteStatus === "selected";
   return (
     <>
-      <CollapsibleTrigger className="group mt-1 inline-flex min-h-11 items-center text-sm text-muted-foreground transition-colors hover:text-foreground sm:min-h-9">
-        <span className="group-data-[state=open]:hidden">Show details</span>
-        <span className="hidden group-data-[state=open]:inline">Hide details</span>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-3 pb-1 text-sm">
+      <CollapsibleContent className="space-y-3 pb-3 text-sm">
         <p className="max-w-2xl leading-6 text-muted-foreground">{next.detail}</p>
         {selected ? (
           <dl className="grid gap-3 sm:grid-cols-3">
@@ -44,6 +41,8 @@ function nextStepWhen(item: PrismSupplierReadinessItem) {
 function ReadinessRow({ item, hasQuote }: { item: PrismSupplierReadinessItem; hasQuote: boolean }) {
   const next = supplierNextStep(item, hasQuote);
   const concern = item.concerns[0];
+  const urgency = quoteDeadlineUrgency(item);
+  const whenClass = item.ingressLate || urgency === "overdue" ? "text-sm font-medium text-danger" : urgency === "soon" ? "text-sm font-medium text-attention" : "text-sm text-muted-foreground";
   return (
     <li>
       <Collapsible>
@@ -51,16 +50,20 @@ function ReadinessRow({ item, hasQuote }: { item: PrismSupplierReadinessItem; ha
           <ItemContent className="min-w-0 gap-0.5">
             <ItemTitle className="text-sm font-semibold text-foreground">{next.title}</ItemTitle>
             <ItemDescription className="break-words text-sm text-muted-foreground">{item.eventName ?? "Assigned event"} · {item.category}</ItemDescription>
-            <p className={item.ingressLate ? "text-sm font-medium text-danger" : "text-sm text-muted-foreground"}>{nextStepWhen(item)}</p>
+            <p className={whenClass}>{nextStepWhen(item)}{urgency === "overdue" ? " · overdue" : ""}</p>
             {concern ? <p className="text-sm text-attention">{readinessConcernLabel(concern.kind)}: {concern.message}</p> : null}
           </ItemContent>
-          <ItemActions className="shrink-0">
+          <ItemActions className="shrink-0 flex-col items-end gap-0">
             <Link
               href={supplierWorkHref(item)}
               className="inline-flex min-h-11 items-center rounded-md text-sm font-semibold text-primary outline-none hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-primary sm:min-h-9"
             >
               {next.action}<span className="sr-only"> for {item.category} at {item.eventName}</span>
             </Link>
+            <CollapsibleTrigger className="group inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground sm:min-h-9">
+              Details<span className="sr-only"> for {item.category} at {item.eventName}</span>
+              <ChevronDown aria-hidden="true" className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
           </ItemActions>
         </Item>
         <ReadinessDetails item={item} hasQuote={hasQuote} />

@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The supplier Today list is shorter: each step has one "Details" toggle beside its action instead of a separate "Show details" line, and a quote due within three days or past due shows in a warning colour.
 - Live operations on an event with no schedule says once that there is no schedule and where to author it, and "Log issue" is the solid action while "Add task" is the quieter second one.
 - On phones the PMCM Events list gives the event name the full width: the stage moves into the line under the name, so long names no longer wrap onto five lines.
 - Loading states across the four portals show placeholder lines in the shape of the content instead of a line of "Loading…" text, through a shared `LoadingState` in `@prism/ui`. Screen readers still hear the same message.
