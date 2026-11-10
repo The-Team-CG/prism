@@ -28,9 +28,9 @@ export function PrivacyRetentionView({ vm }: { vm: PrivacyRetentionViewModel }) 
           Records past retention are queued for review. Nothing is deleted or anonymized until an operator executes an item,
           and active legal holds mark items as held.
         </p>
-        {vm.message ? (
-          <Alert variant={vm.message.tone === "error" ? "destructive" : "default"}>
-            <AlertDescription>{vm.message.text}</AlertDescription>
+        {vm.error ? (
+          <Alert variant="destructive">
+            <AlertDescription>{vm.error}</AlertDescription>
           </Alert>
         ) : null}
         <div className="grid min-w-0 gap-2">

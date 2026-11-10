@@ -24,7 +24,6 @@ export function VenueSurveyPanel() {
         <h3 className="text-sm font-bold text-foreground">Save this venue to the library</h3>
         <p className="mt-1 text-xs text-muted-foreground">Record what you measured on the visit. The walls, pillars, exits, stage side and loading bay load locked onto the next floor plan for this venue.</p>
         {vm.error ? <p role="alert" className="mt-2 text-sm text-destructive">{vm.error}</p> : null}
-        {vm.message ? <p role="status" className="mt-2 text-sm text-foreground">{vm.message}</p> : null}
         <form onSubmit={submit} className="mt-3 grid gap-3 md:grid-cols-3">
           <label className="text-sm md:col-span-3">Venue name<input required value={vm.form.venue} onChange={(event) => vm.setField("venue", event.target.value)} className={field} /></label>
           {numbers.map(([key, label]) => (

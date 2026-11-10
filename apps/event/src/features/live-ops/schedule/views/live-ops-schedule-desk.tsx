@@ -50,7 +50,6 @@ export function LiveOpsScheduleDesk({
           <button type="button" onClick={() => void vm.reload()} className="rounded-md border border-border px-3 py-1.5 text-sm font-semibold">Retry</button>
         </div>
       ) : null}
-      {vm.notice ? <p role="status" className="text-sm font-semibold text-success dark:text-emerald-300">{vm.notice}</p> : null}
 
       <ScheduleAuthoringSection days={days} vm={vm} canManageSchedule={canManageSchedule} />
 

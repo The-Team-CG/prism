@@ -31,7 +31,6 @@ export function PmcmRoleBriefEditor({ eventId }: { eventId: string }) {
       <h2 id="role-brief-heading" className="text-lg font-bold">Role briefs</h2>
       <p className="mt-1 text-sm text-muted-foreground">Each assigned coordinator sees only the brief for their own role.</p>
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
-      {vm.notice ? <p aria-live="polite" className="mt-3 text-sm text-muted-foreground">{vm.notice}</p> : null}
       <form className="mt-4 grid gap-3 md:grid-cols-2" onSubmit={(event) => { event.preventDefault(); void vm.save(role, form); }}>
         <label className="text-sm">Role
           <Select value={role} onValueChange={(value) => { const next = canonicalCoordinatorRole(value); if (next) setRole(next); }}>

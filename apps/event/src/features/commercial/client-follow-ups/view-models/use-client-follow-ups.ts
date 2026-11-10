@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { parseContract, sendClientMessageSchema, type ClientMessageTrigger, type PrismClientMessageTriggerState } from "@prism/types";
 import { clientFollowUpsRepository } from "../data/client-follow-ups-repository";
+import { toast } from "@prism/ui/components/sonner";
 
 type Draft = { subject: string; body: string };
 
@@ -11,7 +12,6 @@ export function useClientFollowUps(eventId: string) {
   const [drafts, setDrafts] = useState<Partial<Record<ClientMessageTrigger, Draft>>>({});
   const [busy, setBusy] = useState<ClientMessageTrigger | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const sendKeys = useRef<Partial<Record<ClientMessageTrigger, string>>>({});
 
   const load = useCallback(async () => {
@@ -52,7 +52,7 @@ export function useClientFollowUps(eventId: string) {
       await clientFollowUpsRepository.send(input);
       delete sendKeys.current[trigger];
       setDrafts((all) => ({ ...all, [trigger]: undefined }));
-      setNotice("Message queued for the client.");
+      toast.success("Message queued for the client.");
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not send the message.");
@@ -61,5 +61,5 @@ export function useClientFollowUps(eventId: string) {
     }
   }
 
-  return { triggers, drafts, busy, error, notice, draft, edit, send };
+  return { triggers, drafts, busy, error, draft, edit, send };
 }

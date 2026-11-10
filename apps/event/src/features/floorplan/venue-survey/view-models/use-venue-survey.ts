@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { venueSurveyFixtures, type VenueWall } from "@prism/floorplan-canvas";
 import { addTemplate } from "@/features/floorplan/editor/data/templates-repository";
+import { toast } from "@prism/ui/components/sonner";
 
 export const emptyVenueSurvey = {
   venue: "", widthM: "", lengthM: "", pillars: "0", emergencyExits: "2", doors: "1",
@@ -16,7 +17,6 @@ const whole = (value: string) => Math.max(0, Math.round(Number(value) || 0));
 export function useVenueSurvey() {
   const [form, setForm] = useState(emptyVenueSurvey);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function save() {
@@ -38,7 +38,7 @@ export function useVenueSurvey() {
         venueRules: form.venueRules, widthM, heightM: lengthM, pax: 0, objects,
         includeGuests: false, includeSuppliers: false, guests: [], suppliers: [],
       });
-      setMessage(`${form.venue.trim()} is in the venue library with ${objects.length} fixed features.`);
+      toast.success(`${form.venue.trim()} is in the venue library with ${objects.length} fixed features.`);
       setForm(emptyVenueSurvey);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save the venue.");
@@ -47,5 +47,5 @@ export function useVenueSurvey() {
     }
   }
 
-  return { form, setField: (key: keyof VenueSurveyForm, value: string) => setForm((current) => ({ ...current, [key]: value })), busy, message, error, save };
+  return { form, setField: (key: keyof VenueSurveyForm, value: string) => setForm((current) => ({ ...current, [key]: value })), busy, error, save };
 }
