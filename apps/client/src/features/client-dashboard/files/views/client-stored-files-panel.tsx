@@ -14,6 +14,7 @@ import {
 } from "../model/client-document-checklist";
 import { fileRequirementDueSummary } from "../model/file-requirement-due-summary";
 import { clientFileRequirementDestination, clientFileRequirementDetail } from "../model/client-file-requirement-copy";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 const ACCEPTED_FILES = ".pdf,.docx,.xlsx,.jpg,.jpeg,.png";
 
@@ -204,7 +205,7 @@ export function ClientStoredFilesPanel({ eventId }: { eventId?: string }) {
       {vm.notice ? <p role="status" className="mx-4 mt-3 text-sm text-success">{vm.notice}</p> : null}
 
       {vm.loading ? (
-        <p role="status" className="px-4 py-4 text-sm text-muted-foreground">Loading documents…</p>
+        <LoadingState label="Loading documents…" className="px-4 py-4" />
       ) : (
         <>
           {checklist.rows.length === 0 ? (

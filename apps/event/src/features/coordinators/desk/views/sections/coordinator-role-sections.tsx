@@ -34,6 +34,7 @@ import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
 import { CoordinatorRoleBriefCard } from "@/features/coordinators/role-briefs/views/coordinator-role-brief-card";
+import { LoadingState } from "@prism/ui/components/loading-state";
 import {
   CoordinatorRoleActions,
   CoordinatorTaskQueue,
@@ -558,7 +559,7 @@ function CoordinatorRoleLoadingCard() {
       <CardContent className="flex items-center gap-3">
         <ShieldCheck className="size-5 shrink-0 text-primary" />
         <div>
-          <p className="text-sm font-bold text-foreground">Loading role-safe data</p>
+          <LoadingState label="Loading role-safe data" />
           <p className="mt-0.5 text-sm text-muted-foreground">
             Assignment-safe tasks, supplier signals, attendance counts, and urgent issues are loading.
           </p>
