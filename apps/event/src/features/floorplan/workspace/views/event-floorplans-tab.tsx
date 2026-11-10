@@ -9,6 +9,7 @@ import type { FloorPlanTemplate } from "@/features/floorplan/editor";
 import { floorplanSourceLabel, roleLabel } from "@/features/pmcm-kit";
 import { floorplanDraftActions, groupFloorplanDrafts } from "../model/floorplan-workspace-rules";
 import { useFloorplanSnapshotHistoryViewModel } from "../view-models/use-floorplan-snapshot-history-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 const EM_DASH = "—";
 
@@ -241,7 +242,7 @@ function FloorplanSnapshotHistory({ eventId, draftId }: { eventId: string; draft
       </button>
       {open ? (
         <div className="mt-1 space-y-2" aria-live="polite">
-          {vm.loading ? <p className="text-xs text-muted-foreground">Loading snapshots…</p> : null}
+          {vm.loading ? <LoadingState label="Loading snapshots…" /> : null}
           {vm.error ? (
             <p role="alert" className="text-xs text-danger">
               {vm.error} <button type="button" className="font-semibold underline" onClick={() => void vm.load()}>Retry</button>

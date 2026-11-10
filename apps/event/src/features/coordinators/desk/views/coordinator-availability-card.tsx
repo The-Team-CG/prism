@@ -13,6 +13,7 @@ import { DatePicker } from "@prism/ui/components/date-picker";
 import { availabilityRangeFromDates, formatAvailabilityRange, isCoordinatorAssignmentActive } from "../model/coordinators-desk-rules";
 import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 const FIELD_CLASS = "h-10 w-full rounded-lg border border-border bg-background px-3 text-sm";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -121,7 +122,7 @@ export function CoordinatorAvailabilityCard({ eventId, eventDate, coordinators, 
             {coordinators.filter((coordinator) => coordinator.active).map((coordinator) => <SelectItem key={coordinator.id} value={coordinator.id}>{coordinator.name}</SelectItem>)}
           </SelectContent>
         </Select>
-        {loading && <p className="text-xs text-muted-foreground">Loading dates…</p>}
+        {loading && <LoadingState label="Loading dates…" />}
         {coordinatorId && hasUnavailableAssignmentConflict(eventId, eventDate, coordinatorId, assignments, entries) && (
           <p role="alert" className="rounded-lg border border-attention/25 bg-attention/8 px-3 py-2 text-xs font-semibold text-attention">
             An unavailable date overlaps this event assignment. Review coordinator coverage for {eventDate}.
