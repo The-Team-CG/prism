@@ -10,6 +10,7 @@ import { formatPortalDate } from "@prism/ui/format-date";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
 import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
+import { Card } from "@prism/ui/components/card";
 
 const VIEWS = [
   { href: "/dashboard/events", label: "All events" },
@@ -84,7 +85,7 @@ export function EventRegister({ events, attention, onOpenEvent }: { events: Pris
       </div>
 
       <p role="status" className="text-xs text-muted-foreground">{rows.length} event{rows.length === 1 ? "" : "s"} in this view{query ? ` matching “${query}”` : ""}</p>
-      <div className="overflow-x-auto rounded-lg border border-border bg-card">
+      <Card className="gap-0 block overflow-x-auto rounded-lg border border-border bg-card">
         {rows.length === 0 ? (
           <Empty>
             <EmptyHeader>
@@ -139,7 +140,7 @@ export function EventRegister({ events, attention, onOpenEvent }: { events: Pris
             ))}
           </Table>
         )}
-      </div>
+      </Card>
       {rows.length > visible ? (
         <button
           type="button"

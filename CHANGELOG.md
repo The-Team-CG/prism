@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- 25 hand-built card containers in the event, supplier and guest portals now use the shared `Card` from `@prism/ui`, so a future card restyle reaches them. Layout is unchanged; they gain the shared card's hairline shadow. Containers that are `<section>` or `<article>` keep their element.
 - The supplier Today list is shorter: each step has one "Details" toggle beside its action instead of a separate "Show details" line, and a quote due within three days or past due shows in a warning colour.
 - Live operations on an event with no schedule says once that there is no schedule and where to author it, and "Log issue" is the solid action while "Add task" is the quieter second one.
 - On phones the PMCM Events list gives the event name the full width: the stage moves into the line under the name, so long names no longer wrap onto five lines.

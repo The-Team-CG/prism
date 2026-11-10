@@ -19,6 +19,7 @@ import {
 import { Textarea } from "@prism/ui/components/textarea";
 import { cn } from "@/app/components/ui/utils";
 import { APPLICATION_PRICE_RANGES, type SupplierApplicationForm } from "../../model/supplier-application-types";
+import { Card } from "@prism/ui/components/card";
 
 const priceRanges = APPLICATION_PRICE_RANGES;
 
@@ -52,13 +53,13 @@ export function SupplierApplicationSubmitted({ applicationId, onReset }: { appli
       homeHref={portalHref("/")}
     >
       <div className="flex flex-col gap-5">
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+        <Card className="gap-0 flex-row flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
           <CheckCircle2 className="size-5 shrink-0 text-success" aria-hidden="true" />
           <div className="min-w-0">
             <p className="text-sm text-muted-foreground">Reference number</p>
             <p className="break-all font-mono text-sm font-semibold text-foreground">{applicationId}</p>
           </div>
-        </div>
+        </Card>
         <a href={portalHref("/status")} className={cn(prismAuthSubmitClassName("supplier"), "inline-flex items-center justify-center bg-primary text-primary-foreground")}>
           Check application status
         </a>

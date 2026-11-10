@@ -6,6 +6,7 @@ import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { useEventGameLobbyViewModel } from "../view-models/use-event-game-lobby-view-model";
 import { LoadingState } from "@prism/ui/components/loading-state";
+import { Card } from "@prism/ui/components/card";
 
 type LobbyViewModel = ReturnType<typeof useEventGameLobbyViewModel>;
 
@@ -82,11 +83,11 @@ function LobbyAvailability({ vm, lobby }: { vm: LobbyViewModel; lobby: LobbyView
   }
   if (vm.status === "error") {
     return (
-      <div className="mt-8 rounded-lg border border-border bg-card p-5">
+      <Card className="gap-0 block mt-8 rounded-lg border border-border bg-card p-5">
         <p className="text-sm text-foreground">The game list could not be opened.</p>
         <p className="mt-1 text-sm text-muted-foreground">{vm.error ?? "Check the event link and try again."}</p>
         <Button type="button" variant="outline" className="mt-4" onClick={() => void vm.reload()}>Try again</Button>
-      </div>
+      </Card>
     );
   }
   if (!lobby || lobby.games.length === 0) {
