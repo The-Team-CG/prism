@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { usePmcmSupplierWorkflows } from "../view-models/use-pmcm-supplier-workflows";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 type WorkflowViewModel = ReturnType<typeof usePmcmSupplierWorkflows>;
 type WorkflowRow = WorkflowViewModel["rows"][number];
@@ -49,7 +50,7 @@ function WorkflowAlert({ error, notice, busy, onReload }: { error: string | null
 }
 
 function WorkflowRows({ vm, requests, quotes }: { vm: WorkflowViewModel; requests: PrismSupplierQuoteRequest[]; quotes: PrismSupplierQuote[] }) {
-  if (vm.isLoading) return <p className="text-sm text-muted-foreground">Loading supplier workflows…</p>;
+  if (vm.isLoading) return <LoadingState label="Loading supplier workflows…" />;
   if (!vm.rows.length) return <p className="text-sm text-muted-foreground">No selected supplier assignments for this event.</p>;
   return <>{vm.rows.map((row) => <SupplierWorkflowRow key={row.requestId} row={row} vm={vm} request={requests.find((item) => item.id === row.requestId)} quote={quotes.find((item) => item.requestId === row.requestId && item.supplierId === row.supplierId && item.status === "selected")} />)}</>;
 }

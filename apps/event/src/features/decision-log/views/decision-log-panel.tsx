@@ -5,6 +5,7 @@ import { formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismDecisionLogEntry } from "@prism/types";
 import { DECISION_LOG_KIND_LABELS, formatDecisionActor, formatDecisionToken } from "../model/decision-log-kinds";
 import { useDecisionLogViewModel } from "../view-models/use-decision-log-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 function formatDecidedAt(iso: string) {
   return formatPortalDateTime(iso);
@@ -45,7 +46,7 @@ export function DecisionLogPanel({ eventId }: { eventId: string }) {
 function DecisionLogStatus({ vm }: { vm: DecisionLogViewModel }) {
   return (
     <>
-      {vm.loading && !vm.log ? <p role="status" className="text-sm text-muted-foreground">Loading decision log…</p> : null}
+      {vm.loading && !vm.log ? <LoadingState label="Loading decision log…" /> : null}
       {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
       {vm.log && vm.entries.length === 0 ? (
         <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">

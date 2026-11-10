@@ -8,6 +8,7 @@ import { FieldLabel } from "@prism/ui/components/field";
 import type { PrismAddendum } from "@prism/types";
 import { addendaAwaitingClientAcknowledgment, addendumConformeStatusLabel, addendumStatusLabel } from "../model/client-addenda-rules";
 import { useClientAddendaViewModel } from "../view-models/use-client-addenda-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function ClientAddendaStatus({ eventId }: { eventId: string }) {
   const vm = useClientAddendaViewModel(eventId);
@@ -28,7 +29,7 @@ export function ClientAddendaStatus({ eventId }: { eventId: string }) {
         <h2 id="client-addenda-status" className="text-lg font-semibold">Addendum status</h2>
         <p className="text-sm text-muted-foreground">Review the scope changes issued for your event. Acknowledge each addendum conforme once you have read the version PMCM issued.</p>
       </div>
-      {vm.status === "loading" ? <p role="status" className="text-sm text-muted-foreground">Loading addenda…</p> : null}
+      {vm.status === "loading" ? <LoadingState label="Loading addenda…" /> : null}
       {vm.status === "error" || vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
       {vm.status === "ready" && vm.addenda.length > 0 ? (
         <ul className="space-y-3">

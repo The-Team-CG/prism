@@ -5,6 +5,7 @@ import type { PrismCoordinatorAssignment, PrismCoordinator, PrismCoordinatorReli
 import { Button } from "@prism/ui/components/button";
 import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 type HistoryStatus = "idle" | "loading" | "loaded" | "error";
 
@@ -77,7 +78,7 @@ export function CoordinatorReliabilityHistory({
             {status === "loading" ? "Loading history…" : "Load history"}
           </Button>
         </div>
-        {status === "loading" && <p role="status" className="text-sm text-muted-foreground">Loading coordinator history…</p>}
+        {status === "loading" && <LoadingState label="Loading coordinator history…" />}
         {status === "error" && <p role="status" className="text-sm text-destructive">Could not load coordinator history. Try again.</p>}
         {status === "loaded" && entries.length === 0 && (
           <p role="status" className="text-sm text-muted-foreground">No reliability history recorded.</p>

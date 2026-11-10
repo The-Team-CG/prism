@@ -7,6 +7,7 @@ import { Button } from "@prism/ui/components/button";
 import { portalHref } from "@prism/ui/portal-path";
 import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
 import { isGuestCheckInOpen } from "../model/guest-dashboard-rules";
+import { LoadingState } from "@prism/ui/components/loading-state";
 import {
   GuestCheckInPanel,
   GuestEventDetailsPanel,
@@ -18,7 +19,7 @@ function GuestDashboardLoading() {
     <main className="grid min-h-screen place-items-center bg-background">
       <div className="flex flex-col items-center gap-3">
         <div className="h-8 w-48 animate-pulse rounded-lg bg-secondary" />
-        <p className="text-sm text-muted-foreground">Loading event pass…</p>
+        <LoadingState label="Loading event pass…" />
       </div>
     </main>
   );
