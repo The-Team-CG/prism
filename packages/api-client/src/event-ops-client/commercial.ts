@@ -1,4 +1,14 @@
 import type {
+  CommsDraftResult,
+  PrismClientMessageTriggerState,
+  PrismClientReviewItem,
+  PrismCostEstimate,
+  PrismEstimateLineSource,
+  PrismEventProposalResponse,
+  PrismPreviousCostEstimate,
+  PrismProposalComment,
+  PrismProposalVersion,
+  ProposalDraftResponse,
   PrismAdditionalBilling,
   PrismBillingCorrection,
   PrismBillingDispute,
@@ -67,6 +77,32 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismSupplierQuoteRoundComparison>(actorPath(event(eventId, `/quote-rounds/${encodeURIComponent(roundId)}/comparison`), actor), withBase(options)),
       verifySupplierStatus: (eventId, requestId, input, actor = {}) =>
         prismRequest<PrismSupplierQuoteRequest>(actorPath(event(eventId, `/supplier-status/${requestId}/verify`), actor), withBase(options, { method: "PATCH", body: input })),
+      proposal: (eventId, actor = {}) =>
+        prismRequest<PrismEventProposalResponse>(actorPath(event(eventId, "/proposal"), actor), withBase(options)),
+      createCostEstimate: (eventId, input, actor = {}) =>
+        prismRequest<PrismCostEstimate>(actorPath(event(eventId, "/cost-estimates"), actor), withBase(options, { method: "POST", body: input })),
+      issueProposalVersion: (eventId, input, actor = {}) =>
+        prismRequest<PrismProposalVersion>(actorPath(event(eventId, "/proposal/versions"), actor), withBase(options, { method: "POST", body: input })),
+      selectedQuoteLines: (eventId, actor = {}) =>
+        prismRequest<PrismEstimateLineSource[]>(actorPath(event(eventId, "/cost-estimates/supplier-quote-lines"), actor), withBase(options)),
+      previousCostEstimates: (eventId, actor = {}) =>
+        prismRequest<PrismPreviousCostEstimate[]>(actorPath(event(eventId, "/cost-estimates/previous"), actor), withBase(options)),
+      draftProposalWording: (input, actor = {}) =>
+        prismRequest<ProposalDraftResponse>(actorPath("/proposal-drafts", actor), withBase(options, { method: "POST", body: input })),
+      proposalComments: (eventId, actor = {}) =>
+        prismRequest<PrismProposalComment[]>(actorPath(event(eventId, "/proposal/comments"), actor), withBase(options)),
+      addProposalComment: (eventId, input, actor = {}) =>
+        prismRequest<PrismProposalComment>(actorPath(event(eventId, "/proposal/comments"), actor), withBase(options, { method: "POST", body: input })),
+      clientReviewItems: (eventId, actor = {}) =>
+        prismRequest<PrismClientReviewItem[]>(actorPath(event(eventId, "/client-review-items"), actor), withBase(options)),
+      issueClientReviewItem: (eventId, input, actor = {}) =>
+        prismRequest<PrismClientReviewItem>(actorPath(event(eventId, "/client-review-items"), actor), withBase(options, { method: "POST", body: input })),
+      clientMessageTriggers: (eventId, actor = {}) =>
+        prismRequest<PrismClientMessageTriggerState[]>(actorPath(event(eventId, "/client-message-triggers"), actor), withBase(options)),
+      draftClientMessage: (input, actor = {}) =>
+        prismRequest<{ draft: CommsDraftResult; requestId: string; modelVersion: string }>(actorPath("/client-message-drafts", actor), withBase(options, { method: "POST", body: input })),
+      sendClientMessage: (input, actor = {}) =>
+        prismRequest<{ sent: boolean }>(actorPath("/client-message-drafts/send", actor), withBase(options, { method: "POST", body: input })),
       selectSupplierQuote: (eventId, quoteId, actor = {}) =>
         prismRequest<PrismSupplierQuote>(actorPath(event(eventId, `/supplier-quotes/${quoteId}/select`), actor), withBase(options, { method: "PATCH" })),
     },
