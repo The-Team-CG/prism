@@ -49,6 +49,71 @@ describe("prismRequest", () => {
     ]);
   });
 
+  it("sends every commercial command to its endpoint with the body the API expects", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { commercial } = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+
+    await commercial.createBillingSource("e1", any);
+    await commercial.approveBillingSource("e1", "src1", "ok");
+    await commercial.generateBillingStatement("e1", "src1");
+    await commercial.sendBillingStatement("e1", "bill1");
+    await commercial.recordPayment("e1", "m1", any);
+    await commercial.markPayment("e1", "m1", any);
+    await commercial.createBillingDispute("e1", any);
+    await commercial.resolveBillingDispute("e1", "d1", any);
+    await commercial.requestBillingCorrection("e1", any);
+    await commercial.resolveBillingCorrection("e1", "c1", any);
+    await commercial.createAdditionalBilling("e1", any);
+    await commercial.waiveAdditionalBilling("e1", "a1", any);
+    await commercial.createSupplier(any);
+    await commercial.updateSupplier("s/1", any);
+    await commercial.changeSupplierTier("s/1", any);
+    await commercial.promoteSupplier("s1", any);
+    await commercial.addSupplierCertification("s1", any);
+    await commercial.addSupplierReliabilityNote("s1", any);
+    await commercial.addSupplierReview("s1", any);
+    await commercial.setSupplierAvailability("s1", any);
+    await commercial.requestSupplierQuotes("e1", any);
+    await commercial.withdrawQuoteRequest("e1", "r1");
+    await commercial.compareQuoteRound("e1", "round 1");
+    await commercial.selectSupplierQuote("e1", "q1");
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "POST /events/e1/billing-source",
+      "PATCH /events/e1/billing-source/src1/approve",
+      "POST /events/e1/billing-statements/generate",
+      "POST /events/e1/billing-statements/bill1/send",
+      "POST /events/e1/payments/m1/records",
+      "PATCH /events/e1/payments/m1",
+      "POST /events/e1/billing-disputes",
+      "PATCH /events/e1/billing-disputes/d1",
+      "POST /events/e1/billing-corrections",
+      "PATCH /events/e1/billing-corrections/c1",
+      "POST /events/e1/additional-billing",
+      "PATCH /events/e1/additional-billing/a1/waive",
+      "POST /suppliers",
+      "PATCH /suppliers/s%2F1",
+      "PATCH /suppliers/s%2F1/tier",
+      "POST /suppliers/s1/promote",
+      "POST /suppliers/s1/certifications",
+      "POST /suppliers/s1/reliability-notes",
+      "POST /suppliers/s1/reviews",
+      "POST /suppliers/s1/availability",
+      "POST /events/e1/quote-requests",
+      "PATCH /events/e1/quote-requests/r1/withdraw",
+      "GET /events/e1/quote-rounds/round%201/comparison",
+      "PATCH /events/e1/supplier-quotes/q1/select",
+    ]);
+    // The API reads these two bodies by field name, so an omitted argument must still send the field.
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toEqual({ approvalNotes: "ok" });
+    expect(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body))).toEqual({ sourceId: "src1" });
+    expect(fetchMock.mock.calls.every(([, init]) => (init?.headers as Record<string, string>).Authorization === "Bearer token")).toBe(true);
+  });
+
   it("tells the user the API is unreachable when the request cannot be sent, through the client too, but lets a cancel through", async () => {
     vi.stubGlobal("window", undefined);
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Failed to fetch"); }));

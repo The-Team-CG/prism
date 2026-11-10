@@ -13,6 +13,7 @@ import { createCommunicationClient } from "./event-ops-client/communication";
 import { createPrivacyClient } from "./event-ops-client/privacy";
 import { createEventGamesClient } from "./event-ops-client/event-games";
 import { createSupplierWorkflowsClient } from "./event-ops-client/supplier-workflows";
+import { createCommercialClient } from "./event-ops-client/commercial";
 
 export * from "./event-ops-client/contracts";
 
@@ -31,5 +32,6 @@ export function createEventOpsClient(
     ...createPrivacyClient(options),
     ...createEventGamesClient(options),
     ...createSupplierWorkflowsClient(options),
+    ...createCommercialClient(options),
   };
 }
