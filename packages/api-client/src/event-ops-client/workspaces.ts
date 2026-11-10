@@ -1,4 +1,5 @@
 import type {
+  PrismSupplierQuote,
   PrismBillingWorkspace,
   PrismClientActionCenter,
   PrismClientWorkspace,
@@ -76,6 +77,18 @@ export function createWorkspacesClient(
             actor,
           ),
           withBase(options, { method: "PATCH", body: input }),
+        ),
+      // The link's token is the credential, so an `authToken` of "" keeps a stored session token off the request
+      // (a session that has since expired must not trigger a sign-out on a public page).
+      submitQuoteByLink: (token, input) =>
+        prismRequest<PrismSupplierQuote>(
+          `/quote-requests/${encodeURIComponent(token)}/quote`,
+          withBase(options, { method: "POST", body: input, authToken: "" }),
+        ),
+      reviseQuoteByLink: (token, input) =>
+        prismRequest<PrismSupplierQuote>(
+          `/quote-requests/${encodeURIComponent(token)}/quote`,
+          withBase(options, { method: "PATCH", body: input, authToken: "" }),
         ),
     },
     billing: {
