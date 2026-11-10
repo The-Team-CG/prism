@@ -1,4 +1,5 @@
 import type {
+  StartEventDayResult,
   ClientTestimonialModerationInput,
   CreateComplianceRiskInput,
   PrismArchiveComparisonRow,
@@ -48,6 +49,8 @@ export interface EventOpsLifecycleContract {
     setClientEventDayView(eventId: string, input: SetClientEventDayViewInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     archive(eventId: string, overrideReason?: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     recordActualEnd(eventId: string, input: RecordActualEventEndInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+    /** Starts the event day; the API takes an empty body. */
+    startEventDay(eventId: string, actor?: EventOpsActorQuery): Promise<StartEventDayResult>;
     defenseReadiness(eventId: string, actor?: EventOpsActorQuery): Promise<PrismDefenseReadiness>;
     eventDayStatusFeed(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventDayStatusFeed>;
     cancellationSummary(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCancellationSummary>;

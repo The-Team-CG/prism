@@ -1,5 +1,5 @@
 import type { PAREApprovalRecord } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 
 export type PareCommands = {
   pareApprove(approvalRecordId: string): Promise<PAREApprovalRecord>;
@@ -8,11 +8,9 @@ export type PareCommands = {
 };
 
 const pareCommands = {
-  pareApprove: (approvalRecordId: string) =>
-    eventApiRequest<PAREApprovalRecord>(`/api/ai/pare/${approvalRecordId}/approve`, { method: "PATCH" }),
-  pareGetPending: () => eventApiRequest<PAREApprovalRecord[]>("/api/ai/pare/pending"),
-  pareReject: (approvalRecordId: string) =>
-    eventApiRequest<PAREApprovalRecord>(`/api/ai/pare/${approvalRecordId}/reject`, { method: "PATCH" }),
+  pareApprove: (approvalRecordId: string) => eventApi.pare.approve(approvalRecordId),
+  pareGetPending: () => eventApi.pare.pending(),
+  pareReject: (approvalRecordId: string) => eventApi.pare.reject(approvalRecordId),
 } satisfies PareCommands;
 
 export function createPareRepository(commands: PareCommands = pareCommands) {

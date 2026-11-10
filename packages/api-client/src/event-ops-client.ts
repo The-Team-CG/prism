@@ -17,6 +17,7 @@ import { createCommercialClient } from "./event-ops-client/commercial";
 import { createLifecycleClient } from "./event-ops-client/lifecycle";
 import { createStaffingClient } from "./event-ops-client/staffing";
 import { createTrustClient } from "./event-ops-client/trust";
+import { createPlatformClient } from "./event-ops-client/platform";
 
 export * from "./event-ops-client/contracts";
 
@@ -39,5 +40,6 @@ export function createEventOpsClient(
     ...createLifecycleClient(options),
     ...createStaffingClient(options),
     ...createTrustClient(options),
+    ...createPlatformClient(options),
   };
 }

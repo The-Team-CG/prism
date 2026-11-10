@@ -24,28 +24,18 @@ import type {
 /** The signed-in coordinator's focus role view; the API resolves the focus event so it loads with the workspace. */
 export const coordinatorFocusRoleView = defineResource({
   name: "coordinator.focus-role-view",
-  fetch: (_actor: "signed-in", signal) =>
-    eventApiRequest<PrismCoordinatorRoleView | null>("/api/coordinator/focus-role-view", { signal }),
+  fetch: (_actor: "signed-in", signal) => eventApi.coordinator.focusRoleView({ signal }),
 });
 
 export const coordinatorsRepository = {
-  loadRoleView(session: EventSession, eventId: string) {
-    return eventApiRequest<PrismCoordinatorRoleView>(
-      `/api/coordinator/events/${eventId}/role-view`,
-      { authToken: session.accessToken },
-    );
+  loadRoleView(eventId: string) {
+    return eventApi.coordinator.roleView(eventId);
   },
   acknowledge(eventId: string, assignmentId: string, input: CoordinatorAssignmentAcknowledgementInput) {
-    return eventApiRequest<PrismCoordinatorAssignment>(
-      `/api/events/${eventId}/coordinators/${assignmentId}/acknowledge`,
-      { method: "PATCH", body: input },
-    );
+    return eventApi.coordinator.acknowledgeAssignment(eventId, assignmentId, input);
   },
-  withdraw(session: EventSession, eventId: string, assignmentId: string, input: WithdrawCoordinatorAssignmentInput) {
-    return eventApiRequest<PrismCoordinatorAssignment>(
-      `/api/events/${eventId}/coordinators/${assignmentId}/withdraw`,
-      { method: "PATCH", body: input, authToken: session.accessToken },
-    );
+  withdraw(eventId: string, assignmentId: string, input: WithdrawCoordinatorAssignmentInput) {
+    return eventApi.coordinator.withdrawAssignment(eventId, assignmentId, input);
   },
   createEventDayTask(eventId: string, input: CreateEventDayTaskInput) {
     return eventApi.liveOps.createTask(eventId, input);
@@ -74,16 +64,10 @@ export const coordinatorsRepository = {
   updateDelegatedAttendance(eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput) {
     return eventApi.liveOps.updateCoordinatorAttendance(eventId, assignmentId, input);
   },
-  reportSupplierStatus(session: EventSession, eventId: string, requestId: string, input: ReportSupplierSiteStatusInput) {
-    return eventApiRequest<PrismSupplierQuoteRequest>(
-      `/api/events/${eventId}/supplier-status/${requestId}/report`,
-      { method: "PATCH", body: input, authToken: session.accessToken },
-    );
+  reportSupplierStatus(eventId: string, requestId: string, input: ReportSupplierSiteStatusInput) {
+    return eventApi.coordinator.reportSupplierStatus(eventId, requestId, input);
   },
-  verifySupplierStatus(session: EventSession, eventId: string, requestId: string, input: VerifySupplierStatusInput) {
-    return eventApiRequest<PrismSupplierQuoteRequest>(
-      `/api/events/${eventId}/supplier-status/${requestId}/verify`,
-      { method: "PATCH", body: input, authToken: session.accessToken },
-    );
+  verifySupplierStatus(eventId: string, requestId: string, input: VerifySupplierStatusInput) {
+    return eventApi.commercial.verifySupplierStatus(eventId, requestId, input);
   },
 };
