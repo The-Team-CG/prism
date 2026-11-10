@@ -258,4 +258,41 @@ describe("findBoundaryViolations", () => {
       ],
     );
   });
+
+  it("keeps the event portal on the shared API client, with only its documented exceptions", () => {
+    const pathRule = "event app must call the API through @prism/api-client, not hand-written /api/ paths";
+    const helperRule = "event app must not use the hand-built eventApiRequest helper outside logout and the floorplan template store";
+    const handBuilt = "apps/event/src/features/finance/data/billing-repository.ts";
+
+    assert.deepEqual(
+      findBoundaryViolations({
+        [handBuilt]: 'import { eventApiRequest } from "@/lib/prism-api";\nexport const list = () => eventApiRequest(`/api/events/${id}/billing`);',
+        "apps/event/src/features/closure/data/other.ts": 'const url = "/api/events/x";',
+      }),
+      [
+        `${handBuilt}: ${pathRule}`,
+        `${handBuilt}: ${helperRule}`,
+        `apps/event/src/features/closure/data/other.ts: ${pathRule}`,
+      ],
+    );
+
+    // The shared client call, a path without /api/, and test files that assert URLs are fine.
+    assert.deepEqual(findBoundaryViolations({
+      "apps/event/src/features/finance/data/billing-repository.ts": 'import { eventApi } from "@/lib/prism-api";\nexport const list = () => eventApi.billing.list();',
+      "apps/event/src/features/finance/data/billing-repository.test.ts": 'expect(url).toBe("http://localhost:4000/api/billing"); const x = "/api/billing";',
+    }), []);
+
+    // The documented exceptions: the conforme PDF download (returns a file), logout, the template store and the helper itself.
+    assert.deepEqual(findBoundaryViolations({
+      "apps/event/src/features/conforme/signing/data/pmcm-conforme-repository.ts": 'const url = apiUrl(`/api/inquiries/${id}/conforme-executions/latest/pdf`);',
+      "apps/event/src/features/event-dashboard/shell/data/session-commands.ts": 'import { eventApiRequest } from "@/lib/prism-api";',
+      "apps/event/src/features/floorplan/editor/data/templates-repository.ts": 'import { eventApiRequest } from "@/lib/prism-api";',
+      "apps/event/src/lib/prism-api.ts": "export function eventApiRequest() {}",
+    }), []);
+
+    // Other portals are not covered yet.
+    assert.deepEqual(findBoundaryViolations({
+      "apps/supplier/src/lib/prism-api.ts": 'const x = fetch("/api/events/1");',
+    }), []);
+  });
 });
