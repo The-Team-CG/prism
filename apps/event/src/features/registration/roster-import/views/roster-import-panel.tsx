@@ -142,7 +142,7 @@ export function RosterImportPanel({
 
       <RosterImportActions disabled={disabled} payloadRows={vm.payload?.rows.length ?? 0} errorCount={preview.errorCount} onImport={() => void vm.importSheet()} />
 
-      <RosterImportMessage message={vm.message} />
+      <RosterImportError error={vm.error} />
 
       <details className="group mt-3 border-t border-border pt-2">
         <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-semibold text-foreground">
@@ -245,12 +245,7 @@ function RosterPreview({ preview }: { preview: RosterPreviewModel }) {
   );
 }
 
-function RosterImportMessage({ message }: { message: ReturnType<typeof useRosterImportViewModel>["message"] }) {
-  if (!message) return null;
-  const error = message.tone === "error";
-  return (
-    <p role={error ? "alert" : "status"} className={error ? "mt-2 text-sm text-danger" : "mt-2 text-sm text-muted-foreground"}>
-      {message.text}
-    </p>
-  );
+function RosterImportError({ error }: { error: string | null }) {
+  if (!error) return null;
+  return <p role="alert" className="mt-2 text-sm text-danger">{error}</p>;
 }

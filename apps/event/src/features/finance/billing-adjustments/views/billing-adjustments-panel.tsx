@@ -39,7 +39,6 @@ export function BillingAdjustmentsPanel({
         </p>
       </div>
       {vm.error ? <p role="alert" className="text-xs font-semibold text-danger">{vm.error}</p> : null}
-      {vm.notice ? <p role="status" className="text-xs font-semibold text-success">{vm.notice}</p> : null}
 
       <div className="grid gap-5 xl:grid-cols-2">
         <DisputeSection vm={vm} />

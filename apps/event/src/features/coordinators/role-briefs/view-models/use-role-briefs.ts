@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { parseContract, upsertCoordinatorRoleBriefSchema, type CoordinatorRole, type PrismCoordinatorRoleBrief } from "@prism/types";
 import { roleBriefsRepository } from "../data/role-briefs-repository";
 import { callTimeToIso } from "../model/role-brief-rules";
+import { toast } from "@prism/ui/components/sonner";
 
 export type RoleBriefForm = { callTime: string; attire: string; script: string; instructions: string };
 
@@ -12,7 +13,6 @@ export function useRoleBriefs(eventId: string) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -31,11 +31,10 @@ export function useRoleBriefs(eventId: string) {
   async function save(role: CoordinatorRole, form: RoleBriefForm) {
     setSaving(true);
     setError(null);
-    setNotice(null);
     try {
       const input = parseContract(upsertCoordinatorRoleBriefSchema, { ...form, callTime: callTimeToIso(form.callTime) }, "Role brief");
       await roleBriefsRepository.save(eventId, role, input);
-      setNotice(`Saved the ${role} brief.`);
+      toast.success(`Saved the ${role} brief.`);
       await load();
       return true;
     } catch (caught) {
@@ -46,5 +45,5 @@ export function useRoleBriefs(eventId: string) {
     }
   }
 
-  return { briefs, loading, saving, error, notice, save };
+  return { briefs, loading, saving, error, save };
 }

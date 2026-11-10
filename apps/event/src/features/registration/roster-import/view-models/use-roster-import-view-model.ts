@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { importGuestRosterSchema, parseContract, type ImportGuestRosterInput, type PrismGuestRosterEntry } from "@prism/types";
 import { buildRosterImportPayload, previewRosterSpreadsheet, rosterSourceError, type RosterColumn, type RosterColumnOverrides } from "../model/roster-spreadsheet";
+import { toast } from "@prism/ui/components/sonner";
 
 export function useRosterImportViewModel(onImport: (input: ImportGuestRosterInput) => Promise<PrismGuestRosterEntry[]>, onImported: (rows: PrismGuestRosterEntry[]) => void) {
   const [source, setSource] = useState("spreadsheet");
@@ -8,7 +9,7 @@ export function useRosterImportViewModel(onImport: (input: ImportGuestRosterInpu
   const [overrides, setOverrides] = useState<RosterColumnOverrides>({});
   const [json, setJson] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const preview = useMemo(() => previewRosterSpreadsheet(sheet, overrides), [sheet, overrides]);
 
@@ -26,14 +27,14 @@ export function useRosterImportViewModel(onImport: (input: ImportGuestRosterInpu
 
   async function run(input: ImportGuestRosterInput, reset: () => void) {
     setSubmitting(true);
-    setMessage(null);
+    setError(null);
     try {
       const result = await onImport(input);
       onImported(result);
       reset();
-      setMessage({ tone: "success", text: `Imported ${result.length} roster rows from ${input.source}.` });
+      toast.success(`Imported ${result.length} roster rows from ${input.source}.`);
     } catch (error) {
-      setMessage({ tone: "error", text: error instanceof Error ? error.message : "Unable to import roster." });
+      setError(error instanceof Error ? error.message : "Unable to import roster.");
     } finally {
       setSubmitting(false);
     }
@@ -49,22 +50,22 @@ export function useRosterImportViewModel(onImport: (input: ImportGuestRosterInpu
     try {
       input = parseContract(importGuestRosterSchema, JSON.parse(json), "Guest roster import");
     } catch (error) {
-      setMessage({ tone: "error", text: error instanceof Error ? error.message : "The JSON payload is not valid." });
+      setError(error instanceof Error ? error.message : "The JSON payload is not valid.");
       return;
     }
     await run(input, () => setJson(""));
   }
 
   async function loadFile(file: File) {
-    setMessage(null);
+    setError(null);
     try {
       setSheet(await file.text());
     } catch {
-      setMessage({ tone: "error", text: "Could not read that file. Save it as CSV and try again." });
+      setError("Could not read that file. Save it as CSV and try again.");
     }
   }
 
-  return { source, setSource, sourceError, sheet, setSheet, json, setJson, preview, matchColumn, payload, submitting, message, importSheet, importJson, loadFile };
+  return { source, setSource, sourceError, sheet, setSheet, json, setJson, preview, matchColumn, payload, submitting, error, importSheet, importJson, loadFile };
 }
 
 function headerLine(text: string): string {
