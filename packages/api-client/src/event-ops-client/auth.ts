@@ -1,3 +1,4 @@
+import type { PrismApprovalRequest } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase } from "./shared";
@@ -27,6 +28,16 @@ export function createAuthClient(
           withBase(options, { method: "POST", body: input }),
         ),
       me: () => prismRequest("/auth/me", withBase(options, { method: "GET" })),
+      approveApprovalRequest: (requestId) =>
+        prismRequest<PrismApprovalRequest>(
+          `/auth/approval-requests/${encodeURIComponent(requestId)}/approve`,
+          withBase(options, { method: "PATCH" }),
+        ),
+      declineApprovalRequest: (requestId) =>
+        prismRequest<PrismApprovalRequest>(
+          `/auth/approval-requests/${encodeURIComponent(requestId)}/decline`,
+          withBase(options, { method: "PATCH" }),
+        ),
       unlockUser: (userId) =>
         prismRequest(
           `/auth/users/${encodeURIComponent(userId)}/unlock`,
