@@ -27,6 +27,45 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends proposal, cost estimate, client review and client message requests to their endpoints", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { commercial } = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+
+    await commercial.proposal("e1");
+    await commercial.createCostEstimate("e1", any);
+    await commercial.issueProposalVersion("e1", any);
+    await commercial.selectedQuoteLines("e1");
+    await commercial.previousCostEstimates("e1");
+    await commercial.draftProposalWording(any);
+    await commercial.proposalComments("e1");
+    await commercial.addProposalComment("e1", any);
+    await commercial.clientReviewItems("e1");
+    await commercial.issueClientReviewItem("e1", any);
+    await commercial.clientMessageTriggers("e1");
+    await commercial.draftClientMessage(any);
+    await commercial.sendClientMessage(any);
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "GET /events/e1/proposal",
+      "POST /events/e1/cost-estimates",
+      "POST /events/e1/proposal/versions",
+      "GET /events/e1/cost-estimates/supplier-quote-lines",
+      "GET /events/e1/cost-estimates/previous",
+      "POST /proposal-drafts",
+      "GET /events/e1/proposal/comments",
+      "POST /events/e1/proposal/comments",
+      "GET /events/e1/client-review-items",
+      "POST /events/e1/client-review-items",
+      "GET /events/e1/client-message-triggers",
+      "POST /client-message-drafts",
+      "POST /client-message-drafts/send",
+    ]);
+  });
+
   it("sends audit, privacy and retention requests with the filters the operator set and nothing else", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
