@@ -1,4 +1,5 @@
 import type {
+  PrismClientBillingDispute,
   PrismClientOwnedSupplier,
   PrismExternalCreativeTicket,
   PrismPresentationMeeting,
@@ -147,6 +148,18 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismPresentationMeeting>(actorPath(`/events/${encodeURIComponent(eventId)}/presentation-meetings`, actor), withBase(options, { method: "POST", body: input })),
       recordPresentationOutcome: (eventId, meetingId, input, actor = {}) =>
         prismRequest<PrismPresentationMeeting>(actorPath(`/events/${encodeURIComponent(eventId)}/presentation-meetings/${encodeURIComponent(meetingId)}/outcome`, actor), withBase(options, { method: "POST", body: input })),
+      createClientBillingDispute: (eventId, input, actor = {}) =>
+        prismRequest<PrismClientBillingDispute>(actorPath(event(eventId, "/billing-disputes"), actor), withBase(options, { method: "POST", body: input })),
+      decideClientReviewItem: (eventId, itemId, input, actor = {}) =>
+        prismRequest<unknown>(actorPath(event(eventId, `/client-review-items/${itemId}/decisions`), actor), withBase(options, { method: "POST", body: input })),
+      chooseVenueScoutingPreference: (eventId, input, actor = {}) =>
+        prismRequest<PrismVenueScouting>(actorPath(event(eventId, "/venue-scouting/preference"), actor), withBase(options, { method: "POST", body: input })),
+      choosePresentationSlot: (eventId, meetingId, input, actor = {}) =>
+        prismRequest<PrismPresentationMeeting>(actorPath(`/events/${encodeURIComponent(eventId)}/presentation-meetings/${encodeURIComponent(meetingId)}/choice`, actor), withBase(options, { method: "POST", body: input })),
+      createClientOwnedSupplier: (eventId, input, actor = {}) =>
+        prismRequest<PrismClientOwnedSupplier>(actorPath(`/events/${encodeURIComponent(eventId)}/client-owned-suppliers`, actor), withBase(options, { method: "POST", body: input })),
+      confirmClientOwnedSupplier: (eventId, supplierId, actor = {}) =>
+        prismRequest<PrismClientOwnedSupplier>(actorPath(`/events/${encodeURIComponent(eventId)}/client-owned-suppliers/${encodeURIComponent(supplierId)}/confirm`, actor), withBase(options, { method: "POST" })),
       unresponsiveSuppliers: (eventId, actor = {}) =>
         prismRequest<PrismUnresponsiveSupplier[]>(actorPath(`/events/${encodeURIComponent(eventId)}/unresponsive-suppliers`, actor), withBase(options)),
       clientOwnedSuppliers: (eventId, actor = {}) =>
