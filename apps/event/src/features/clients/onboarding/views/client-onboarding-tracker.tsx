@@ -9,6 +9,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@p
 import { compactTimestamp, label } from "@/features/pmcm-kit";
 import { onboardingTimelineSteps, reminderEvidenceCopy } from "../model/client-onboarding-rules";
 import { usePortalInvitationResendViewModel } from "../view-models/use-portal-invitation-resend-view-model";
+import { Card } from "@prism/ui/components/card";
 
 function TimelineStep({ title, done, meta }: { title: string; done: boolean; meta?: string }) {
   return (
@@ -58,7 +59,7 @@ export function ClientOnboardingTracker({
     .sort((a, b) => new Date(b.acceptedAt ?? b.createdAt).getTime() - new Date(a.acceptedAt ?? a.createdAt).getTime());
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm">
+    <Card className="gap-0 block rounded-2xl border border-border bg-card shadow-sm">
       <div className="border-b border-border px-6 py-4">
         <div className="flex items-center gap-2">
           <FileCheck2 className="size-4 text-primary" />
@@ -159,6 +160,6 @@ export function ClientOnboardingTracker({
           })}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
