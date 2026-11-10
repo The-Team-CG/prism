@@ -31,7 +31,8 @@ import {
 } from "../model/event-dashboard-routing";
 import { useEventDashboardWorkspaceViewModel } from "./use-event-dashboard-workspace-view-model";
 import { eventDashboardCommands } from "../data/event-dashboard-commands";
-import { refreshAfterDashboardCommand, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
+import { toast } from "@prism/ui/components/sonner";
+import { dashboardActionSuccessToast, runDashboardAction, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
 import { countersignConformeExecution, downloadConformePdf, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
 import { assignedSupplierRequests } from "@/features/suppliers/readiness";
 
@@ -166,14 +167,19 @@ export function useEventDashboardShellViewModel({
     };
   }
 
+  function announceSuccess(actionLabel: string) {
+    const { title, description } = dashboardActionSuccessToast(actionLabel);
+    toast.success(title, { description });
+  }
+
   async function run(actionLabel: string, action: () => Promise<unknown>) {
     setBusy(actionLabel);
     setError(null);
     try {
-      await action();
-      await refreshAfterDashboardCommand(commandRefreshers());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      await runDashboardAction(actionLabel, action, commandRefreshers(), {
+        reportError: setError,
+        announce: ({ title, description }) => toast.success(title, { description }),
+      });
     } finally {
       setBusy(null);
     }
@@ -215,6 +221,7 @@ export function useEventDashboardShellViewModel({
     setError(null);
     try {
       await action();
+      announceSuccess(actionLabel);
       await Promise.all([refresh(), loadLiveOps(true)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Action failed");
