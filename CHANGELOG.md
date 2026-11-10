@@ -7,6 +7,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 - PMCM commands in the event portal confirm with a toast naming the action (for example "Record payment · Done.") instead of finishing silently. Errors still show inline. `toast` is re-exported from `@prism/ui/components/sonner`.
+- When the API cannot be reached, every screen says "Can't reach P.R.I.S.M right now. Try again in a moment." Screens that used the shared `@prism/api-client` showed the browser's raw "Failed to fetch" instead; the message now comes from the shared transport (`PrismApiOfflineError`).
 - The supplier Today list is shorter: each step has one "Details" toggle beside its action instead of a separate "Show details" line, and a quote due within three days or past due shows in a warning colour.
 - Live operations on an event with no schedule says once that there is no schedule and where to author it, and "Log issue" is the solid action while "Add task" is the quieter second one.
 - On phones the PMCM Events list gives the event name the full width: the stage moves into the line under the name, so long names no longer wrap onto five lines.

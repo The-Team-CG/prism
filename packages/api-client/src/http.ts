@@ -160,6 +160,26 @@ function unwrapData<T>(responseBody: unknown): T {
   return responseBody as T;
 }
 
+export const PRISM_API_OFFLINE_MESSAGE = "Can't reach P.R.I.S.M right now. Try again in a moment.";
+
+/** The request never reached the API: the network is down or the API is unreachable. A cancelled request is not this. */
+export class PrismApiOfflineError extends Error {
+  constructor() {
+    super(PRISM_API_OFFLINE_MESSAGE);
+    this.name = "PrismApiOfflineError";
+  }
+}
+
+/** `fetch` rejects with a TypeError only when the request could not be sent; every portal shows the same message for that. */
+async function fetchApi(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (error) {
+    if (error instanceof TypeError) throw new PrismApiOfflineError();
+    throw error;
+  }
+}
+
 export async function prismRequest<T>(path: string, init: PrismRequestInit = {}): Promise<T> {
   const { authToken, baseUrl, body, headers, onUnauthorized, onPrivacyNoticeRequired, ...requestInit } = init;
   const request: RequestInit = {
@@ -175,7 +195,7 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
     request.body = JSON.stringify(body);
   }
 
-  const response = await fetch(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, request);
+  const response = await fetchApi(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, request);
   const responseBody = await parseResponseBody(response);
 
   if (!response.ok) handleErrorResponse(response.status, responseBody, { authToken, onUnauthorized, onPrivacyNoticeRequired });
@@ -214,7 +234,7 @@ function readSseChunk(state: SseBuffer, text: string, final = false): string[] {
 
 async function openSseBody(path: string, init: PrismRequestInit): Promise<ReadableStream<Uint8Array>> {
   const { authToken, baseUrl, body, headers, ...requestInit } = init;
-  const response = await fetch(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, {
+  const response = await fetchApi(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, {
     ...requestInit,
     headers: {
       Accept: 'text/event-stream',
