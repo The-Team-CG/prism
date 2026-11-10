@@ -2,7 +2,7 @@ import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/pr
 import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismCoordinatorPoolAvailability, PrismCoordinatorReliabilityHistoryEntry, PrismCoordinatorSuggestion, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, BlockEventDayTaskInput, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput, CoordinatorSuggestionsQueryInput } from "@prism/types";
 
 export const operationsCommands = {
-revokeEventDayOperator: (eventId: string) => request<PrismEventOperatorDesignation>(`/api/events/${eventId}/operator-designation`, { method: "DELETE" }),
+revokeEventDayOperator: (eventId: string) => eventOpsClient.liveOps.revokeOperator(eventId),
 loadCoordinatorReliabilityHistory: (coordinatorId: string) => request<PrismCoordinatorReliabilityHistoryEntry[]>(
   `/api/pmcm/coordinators/${encodeURIComponent(coordinatorId)}/reliability-history`,
 ),
@@ -25,51 +25,21 @@ loadCoordinatorSuggestions: (eventId: string, input: CoordinatorSuggestionsQuery
 },
 loadCoordinatorPoolAvailability: (eventId: string) =>
   request<PrismCoordinatorPoolAvailability>(`/api/events/${eventId}/staffing/pool-availability`),
-createEventDayTask: (eventId: string, input: CreateEventDayTaskInput) =>
-    request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks`, {
-      method: "POST",
-      body: input,
-    }),
-createUrgentIssue: (eventId: string, input: CreateUrgentIssueInput) =>
-    request<PrismUrgentIssue>(`/api/events/${eventId}/urgent-issues`, {
-      method: "POST",
-      body: input,
-    }),
-decidePmcmEventTaskReassignment: (eventId: string, requestId: string, input: DecideEventTaskReassignmentInput
-  ) => request<PrismEventTaskReassignmentRequest>(
-    `/api/events/${eventId}/event-day/task-reassignments/${requestId}`,
-    { method: "PATCH", body: input },
-  ),
+createEventDayTask: (eventId: string, input: CreateEventDayTaskInput) => eventOpsClient.liveOps.createTask(eventId, input),
+createUrgentIssue: (eventId: string, input: CreateUrgentIssueInput) => eventOpsClient.liveOps.createUrgentIssue(eventId, input),
+decidePmcmEventTaskReassignment: (eventId: string, requestId: string, input: DecideEventTaskReassignmentInput) =>
+    eventOpsClient.liveOps.decideTaskReassignment(eventId, requestId, input),
 deleteCoordinatorAvailability: (eventId: string, coordinatorId: string, availabilityId: string
   ) => request<{ id: string }>(
     `/api/events/${eventId}/coordinators/${coordinatorId}/availability/${availabilityId}`,
     { method: "DELETE" },
   ),
-designateEventDayOperator: (eventId: string, input: CreateEventOperatorDesignationInput
-  ) => request<unknown>(
-    `/api/events/${eventId}/operator-designation`,
-    { method: "POST", body: input },
-  ),
-getEventDayOperator: (eventId: string) => request<PrismEventOperatorDesignation>(
-    `/api/events/${eventId}/operator-designation`,
-  ),
-blockEventDayTask: (eventId: string, taskId: string, input: BlockEventDayTaskInput) =>
-    request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}/block`, {
-      method: "POST",
-      body: input,
-    }),
-unblockEventDayTask: (eventId: string, taskId: string) =>
-    request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}/unblock`, { method: "POST" }),
-escalateEventDayTask: (eventId: string, taskId: string, input: EscalateEventDayTaskInput) =>
-    request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}/escalate`, {
-      method: "POST",
-      body: input,
-    }),
-escalateUrgentIssue: (eventId: string, issueId: string, input: EscalateLiveOpsInput) =>
-    request<PrismUrgentIssue>(`/api/events/${eventId}/urgent-issues/${issueId}/escalate`, {
-      method: "POST",
-      body: input,
-    }),
+designateEventDayOperator: (eventId: string, input: CreateEventOperatorDesignationInput) => eventOpsClient.liveOps.designateOperator(eventId, input),
+getEventDayOperator: (eventId: string) => eventOpsClient.liveOps.operatorDesignation(eventId),
+blockEventDayTask: (eventId: string, taskId: string, input: BlockEventDayTaskInput) => eventOpsClient.liveOps.blockTask(eventId, taskId, input),
+unblockEventDayTask: (eventId: string, taskId: string) => eventOpsClient.liveOps.unblockTask(eventId, taskId),
+escalateEventDayTask: (eventId: string, taskId: string, input: EscalateEventDayTaskInput) => eventOpsClient.liveOps.escalateTask(eventId, taskId, input),
+escalateUrgentIssue: (eventId: string, issueId: string, input: EscalateLiveOpsInput) => eventOpsClient.liveOps.escalateUrgentIssue(eventId, issueId, input),
 listCoordinatorAvailability: (eventId: string, coordinatorId: string
   ) => request<PrismCoordinatorAvailability[]>(
     `/api/events/${eventId}/coordinators/${coordinatorId}/availability`,
@@ -88,20 +58,9 @@ sendCoordinatorAcknowledgementReminders: (eventId: string
     { method: "POST" },
   ),
 updateCoordinatorAttendance: (eventId: string, assignmentId: string, input: UpdateCoordinatorAttendanceInput) =>
-    request<PrismCoordinatorAssignment>(`/api/events/${eventId}/coordinators/${assignmentId}/status`, {
-      method: "PATCH",
-      body: input,
-    }),
-updateEventDayTask: (eventId: string, taskId: string, input: UpdateEventDayTaskInput) =>
-    request<PrismEventDayTask>(`/api/events/${eventId}/event-day/tasks/${taskId}`, {
-      method: "PATCH",
-      body: input,
-    }),
-updateUrgentIssue: (eventId: string, issueId: string, input: UpdateUrgentIssueInput) =>
-    request<PrismUrgentIssue>(`/api/events/${eventId}/urgent-issues/${issueId}`, {
-      method: "PATCH",
-      body: input,
-    }),
+    eventOpsClient.liveOps.updateCoordinatorAttendance(eventId, assignmentId, input),
+updateEventDayTask: (eventId: string, taskId: string, input: UpdateEventDayTaskInput) => eventOpsClient.liveOps.updateTask(eventId, taskId, input),
+updateUrgentIssue: (eventId: string, issueId: string, input: UpdateUrgentIssueInput) => eventOpsClient.liveOps.updateUrgentIssue(eventId, issueId, input),
 upsertCoordinatorCoverage: (eventId: string, input: CreateCoordinatorCoverageRequirementInput
   ) => request<unknown>(
     `/api/events/${eventId}/staffing/coverage`,
