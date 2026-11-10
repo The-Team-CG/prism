@@ -1,8 +1,8 @@
-import type { CreateInquiryContextNoteInput, PrismInquiryContextNote } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
+import type { CreateInquiryContextNoteInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const contextNotesRepository = {
-  list: (inquiryId: string) => eventApiRequest<PrismInquiryContextNote[]>(`/api/inquiries/${inquiryId}/context-notes`),
-  add: (inquiryId: string, input: CreateInquiryContextNoteInput) => eventApiRequest<PrismInquiryContextNote>(`/api/inquiries/${inquiryId}/context-notes`, { method: "POST", body: input }),
-  forEvent: (eventId: string) => eventApiRequest<PrismInquiryContextNote[]>(`/api/events/${eventId}/pre-conforme-context`),
+  list: (inquiryId: string) => eventApi.inquiries.contextNotes(inquiryId),
+  add: (inquiryId: string, input: CreateInquiryContextNoteInput) => eventApi.inquiries.addContextNote(inquiryId, input),
+  forEvent: (eventId: string) => eventApi.inquiries.preConformeContext(eventId),
 };

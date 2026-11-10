@@ -3,13 +3,13 @@ import {
   type PrismConformeExecution,
   signConformeExecutionSchema,
 } from "@prism/types";
-import { apiUrl, eventApiRequest, storedEventAccessToken } from "@/lib/prism-api";
+import { apiUrl, eventApi, storedEventAccessToken } from "@/lib/prism-api";
 
 const DEFAULT_CONFORME_TEMPLATE = `CONFORME — {{eventName}}\n\nClient: {{clientName}}\nCompany: {{companyName}}\nEvent type: {{eventType}}\nEvent date: {{eventDate}}\n\nPlease review the event details above. By acknowledging this conforme, you confirm that you have reviewed this version and agree to proceed with the arrangements described by PMCM. This in-app acknowledgment is recorded against this document version; PMCM must countersign before the client event workspace opens.`;
 
 export const pmcmConformeRepository = {
   latest(inquiryId: string): Promise<PrismConformeExecution> {
-    return eventApiRequest(`/api/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/latest`);
+    return eventApi.inquiries.latestConformeExecution(inquiryId);
   },
 
   /** PMCM-only printable copy of the latest conforme document, for physical signing. */
@@ -26,15 +26,13 @@ export const pmcmConformeRepository = {
   async prepare(inquiryId: string, templateContent: string = DEFAULT_CONFORME_TEMPLATE): Promise<PrismConformeExecution> {
     let templateVersion = 1;
     try {
-      const latest = await eventApiRequest<PrismConformeExecution>(`/api/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/latest`);
+      const latest = await eventApi.inquiries.latestConformeExecution(inquiryId);
       templateVersion = latest.templateVersion + 1;
     } catch (error) {
       if (!(error && typeof error === "object" && "status" in error && error.status === 404)) throw error;
     }
     const input = createConformeExecutionSchema.parse({ templateVersion, templateContent });
-    return eventApiRequest(`/api/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions`, {
-      method: "POST", body: input, authToken: storedEventAccessToken(),
-    });
+    return eventApi.inquiries.createConformeExecution(inquiryId, input);
   },
 
   sign(execution: PrismConformeExecution, inquiryId: string): Promise<PrismConformeExecution> {
@@ -44,8 +42,6 @@ export const pmcmConformeRepository = {
       documentSha256: execution.documentSha256,
       consentAccepted: true,
     });
-    return eventApiRequest(`/api/inquiries/${encodeURIComponent(inquiryId)}/conforme-executions/${encodeURIComponent(execution.id)}/sign`, {
-      method: "POST", body: input, authToken: storedEventAccessToken(),
-    });
+    return eventApi.inquiries.signConformeExecution(inquiryId, execution.id, input);
   },
 };

@@ -85,6 +85,8 @@ export interface EventOpsEventsContract {
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismStoredObject[]>;
+    /** Every stored object that belongs to an event, whatever record owns it. */
+    storageObjects(eventId: string, actor?: EventOpsActorQuery): Promise<PrismStoredObject[]>;
     requestDocumentUpload(
       input: RequestStorageUploadInput,
       actor?: EventOpsActorQuery,
