@@ -10,14 +10,13 @@ export type {
   SubmitSupplierQuoteInput as SubmitQuoteInput,
 } from "@prism/types";
 
-import { createEventOpsClient, prismRequest, resolvePrismApiOrigin } from "@prism/api-client";
+import { createEventOpsClient, prismRequest } from "@prism/api-client";
 import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, isPrismAuthenticatedSession, privacyNoticePath } from "@prism/types";
 import { portalAppPath, portalHref } from "@prism/ui/portal-path";
 import type {
   PrismAuthenticatedSession,
   PrismSupplierApplication,
   PrismSupplierApplicationStatusResult,
-  PrismSupplierQuote,
   PrismSupplierReadinessBoard,
   PrismSupplierWorkspace,
   CreateSupplierApplicationInput,
@@ -28,8 +27,6 @@ import type {
 export type { CreateSupplierApplicationInput, SupplierApplicationStatusQuery } from "@prism/types";
 
 export type SupplierWorkspace = PrismSupplierWorkspace;
-
-const API_OFFLINE_MESSAGE = "Can't reach P.R.I.S.M right now. Try again in a moment.";
 
 /**
  * Mirrors storedClientAccessToken in apps/client. Reads the persisted supplier
@@ -78,29 +75,6 @@ function actorFromSession(session: PrismAuthenticatedSession) {
   return { actorRole: "supplier" as const, actorName: session.name, actorEmail: session.email };
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(`${resolvePrismApiOrigin()}${path}`, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(init.headers ?? {}),
-      },
-    });
-  } catch (error) {
-    if (error instanceof TypeError) throw new Error(API_OFFLINE_MESSAGE);
-    throw error;
-  }
-
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = Array.isArray(body.message) ? body.message.join(", ") : body.message;
-    throw new Error(message || `Request failed: ${response.status}`);
-  }
-  return body.data as T;
-}
-
 export const prismApi = {
   /**
    * Revokes the stored session on the server. A 401 here must not run expireSupplierSession:
@@ -119,25 +93,14 @@ export const prismApi = {
   supplierWorkspace: (_session: PrismAuthenticatedSession) => eventOpsClient.supplierWorkspace.detail(),
   supplierReadinessBoard: (_session: PrismAuthenticatedSession): Promise<PrismSupplierReadinessBoard> =>
     eventOpsClient.supplierWorkspace.readinessBoard(),
-  submitQuote: (token: string, input: SubmitSupplierQuoteInput) =>
-    request<PrismSupplierQuote>(`/api/quote-requests/${encodeURIComponent(token)}/quote`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  reviseQuote: (token: string, input: SubmitSupplierQuoteInput) =>
-    request<PrismSupplierQuote>(`/api/quote-requests/${encodeURIComponent(token)}/quote`, {
-      method: "PATCH",
-      body: JSON.stringify(input),
-    }),
+  submitQuote: (token: string, input: SubmitSupplierQuoteInput) => eventOpsClient.supplierWorkspace.submitQuoteByLink(token, input),
+  reviseQuote: (token: string, input: SubmitSupplierQuoteInput) => eventOpsClient.supplierWorkspace.reviseQuoteByLink(token, input),
   confirmAssignment: (session: PrismAuthenticatedSession, requestId: string) =>
     eventOpsClient.supplierWorkspace.confirmAssignment(requestId, actorFromSession(session)),
   confirmReadiness: (session: PrismAuthenticatedSession, requestId: string, notes: string) =>
     eventOpsClient.supplierWorkspace.confirmReadiness(requestId, { notes }, actorFromSession(session)),
   createSupplierApplication: (input: CreateSupplierApplicationInput): Promise<PrismSupplierApplication> =>
-    request("/api/supplier-applications", {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
+    eventOpsClient.supplierApplications.create(input),
   getSupplierApplicationStatus: (
     input: SupplierApplicationStatusQuery,
     signal?: AbortSignal,
@@ -146,7 +109,7 @@ export const prismApi = {
   fileRequirements: (eventId: string, session: PrismAuthenticatedSession) =>
     eventOpsClient.events.fileRequirements(eventId, actorFromSession(session)),
   listSupplierCategories: (): Promise<{ id: string; name: string }[]> =>
-    request("/api/supplier-applications/categories"),
+    eventOpsClient.supplierApplications.listCategories(),
   communicationThreads: (eventId: string, session: PrismAuthenticatedSession) =>
     eventOpsClient.communication.listThreads(eventId, actorFromSession(session)),
   createCommunicationThread: (eventId: string, subject: string, session: PrismAuthenticatedSession) =>

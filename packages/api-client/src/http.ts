@@ -180,6 +180,15 @@ async function fetchApi(url: string, init: RequestInit): Promise<Response> {
   }
 }
 
+function isRawBody(body: unknown): body is Blob | ArrayBuffer | ArrayBufferView | FormData {
+  return (
+    (typeof Blob !== "undefined" && body instanceof Blob) ||
+    body instanceof ArrayBuffer ||
+    ArrayBuffer.isView(body) ||
+    (typeof FormData !== "undefined" && body instanceof FormData)
+  );
+}
+
 export async function prismRequest<T>(path: string, init: PrismRequestInit = {}): Promise<T> {
   const { authToken, baseUrl, body, headers, onUnauthorized, onPrivacyNoticeRequired, ...requestInit } = init;
   const request: RequestInit = {
@@ -192,7 +201,8 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
   };
 
   if (body !== undefined) {
-    request.body = JSON.stringify(body);
+    // A file or raw bytes go as they are, with the caller's own Content-Type; everything else is JSON.
+    request.body = (isRawBody(body) ? body : JSON.stringify(body)) as BodyInit;
   }
 
   const response = await fetchApi(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, request);
