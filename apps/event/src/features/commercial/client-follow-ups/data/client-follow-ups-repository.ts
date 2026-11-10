@@ -1,9 +1,8 @@
-import type { ClientMessageDraftRequest, CommsDraftResult, PrismClientMessageTriggerState, SendClientMessageInput } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
+import type { ClientMessageDraftRequest, SendClientMessageInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const clientFollowUpsRepository = {
-  triggers: (eventId: string) => eventApiRequest<PrismClientMessageTriggerState[]>(`/api/events/${eventId}/client-message-triggers`),
-  draft: (input: ClientMessageDraftRequest) =>
-    eventApiRequest<{ draft: CommsDraftResult; requestId: string; modelVersion: string }>("/api/client-message-drafts", { method: "POST", body: input }),
-  send: (input: SendClientMessageInput) => eventApiRequest<{ sent: boolean }>("/api/client-message-drafts/send", { method: "POST", body: input }),
+  triggers: (eventId: string) => eventApi.commercial.clientMessageTriggers(eventId),
+  draft: (input: ClientMessageDraftRequest) => eventApi.commercial.draftClientMessage(input),
+  send: (input: SendClientMessageInput) => eventApi.commercial.sendClientMessage(input),
 };
