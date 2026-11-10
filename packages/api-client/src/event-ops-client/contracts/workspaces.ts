@@ -1,4 +1,6 @@
 import type {
+  PrismSupplierQuote,
+  SubmitSupplierQuoteInput,
   ConfirmSupplierReadinessInput,
   CreateRegistrationPlatformInput,
   PrismBillingWorkspace,
@@ -99,5 +101,8 @@ export interface EventOpsWorkspacesContract {
       input: UpdateSupplierEventStatusInput,
       actor?: EventOpsActorQuery,
     ): Promise<PrismSupplierQuoteRequest>;
+    /** The emailed quote link carries its own token: no sign-in is needed and no session token is sent. */
+    submitQuoteByLink(token: string, input: SubmitSupplierQuoteInput): Promise<PrismSupplierQuote>;
+    reviseQuoteByLink(token: string, input: SubmitSupplierQuoteInput): Promise<PrismSupplierQuote>;
   };
 }

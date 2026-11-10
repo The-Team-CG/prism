@@ -5,7 +5,7 @@ const storage = vi.hoisted(() => ({
   save: vi.fn(),
 }));
 
-const http = vi.hoisted(() => ({ guestJson: vi.fn() }));
+const api = vi.hoisted(() => ({ checkIn: vi.fn() }));
 
 vi.mock("@prism/types", async (importOriginal) => {
   const original = await importOriginal<typeof import("@prism/types")>();
@@ -16,7 +16,7 @@ vi.mock("@prism/types", async (importOriginal) => {
   };
 });
 
-vi.mock("@/features/guest-shared/guest-http", () => ({ guestJson: http.guestJson }));
+vi.mock("@/lib/prism-api", () => ({ guestApi: { guest: { checkIn: api.checkIn } } }));
 
 import { guestDashboardRepository } from "./guest-dashboard-repository";
 import { guestAccessRepository } from "@/features/guest-access/open/data/guest-access-repository";
@@ -77,14 +77,14 @@ describe("guest dashboard session storage", () => {
       privacyNoticeVersion: "2026-05-01",
       marketingConsentAccepted: false,
     };
-    http.guestJson.mockRejectedValueOnce(new TypeError("Connection reset"));
-    http.guestJson.mockResolvedValueOnce({ accepted: true });
+    api.checkIn.mockRejectedValueOnce(new TypeError("Connection reset"));
+    api.checkIn.mockResolvedValueOnce({ accepted: true });
 
     await expect(guestDashboardRepository.checkIn(storedSession as never, payload)).rejects.toThrow("Connection reset");
-    const firstRequest = JSON.parse(http.guestJson.mock.calls[0]?.[1]?.body as string) as { idempotencyKey: string };
+    const firstRequest = api.checkIn.mock.calls[0]?.[1] as { idempotencyKey: string };
 
     await expect(guestDashboardRepository.checkIn(storedSession as never, payload)).resolves.toEqual({ accepted: true });
-    const retry = JSON.parse(http.guestJson.mock.calls[1]?.[1]?.body as string) as { idempotencyKey: string };
+    const retry = api.checkIn.mock.calls[1]?.[1] as { idempotencyKey: string };
 
     expect(firstRequest.idempotencyKey).toMatch(/^[0-9a-f-]{36}$/i);
     expect(retry.idempotencyKey).toBe(firstRequest.idempotencyKey);
