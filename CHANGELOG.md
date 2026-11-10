@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Event-day operations in the event portal (tasks, urgent issues, task reassignment, operator designation and coordinator attendance) call the API through the shared `@prism/api-client` instead of hand-written paths. `liveOps` gains `operatorDesignation`, `revokeOperator`, `escalateTask`, `updateUrgentIssue` and `escalateUrgentIssue`.
 - When the API cannot be reached, every screen says "Can't reach P.R.I.S.M right now. Try again in a moment." Screens that used the shared `@prism/api-client` showed the browser's raw "Failed to fetch" instead; the message now comes from the shared transport (`PrismApiOfflineError`).
 - The supplier Today list is shorter: each step has one "Details" toggle beside its action instead of a separate "Show details" line, and a quote due within three days or past due shows in a warning colour.
 - Live operations on an event with no schedule says once that there is no schedule and where to author it, and "Log issue" is the solid action while "Add task" is the quieter second one.
