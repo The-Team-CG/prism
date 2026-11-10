@@ -27,6 +27,88 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends coordinator, supplier directory, advisory, Canva and PARE requests to their endpoints, and passes an abort signal on", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+    const controller = new AbortController();
+
+    await client.coordinator.focusRoleView({ signal: controller.signal });
+    await client.coordinator.roleView("e1");
+    await client.coordinator.acknowledgeAssignment("e1", "a1", any);
+    await client.coordinator.withdrawAssignment("e1", "a1", any);
+    await client.coordinator.reportSupplierStatus("e1", "r1", any);
+    await client.coordinator.roleBriefs("e1");
+    await client.coordinator.saveRoleBrief("e1", "Registration Lead" as never, any);
+    await client.lifecycle.startEventDay("e1");
+    await client.commercial.supplierGaps("e1");
+    await client.commercial.acknowledgeSupplierGap("e1", "cat1", any);
+    await client.commercial.supplierSchedules("e/1");
+    await client.commercial.supplierCategories();
+    await client.commercial.supplierDirectory({ q: "bloom", page: 0, pageSize: 25, rating: "" } as never, { signal: controller.signal });
+    await client.commercial.supplierProfile("s/1", { period: "all" } as never);
+    await client.commercial.supplierReviews("s1", { page: 0 } as never);
+    await client.commercial.supplierCertifications("s1", {} as never);
+    await client.commercial.supplierRecords("s1", { period: "30d" } as never);
+    await client.commercial.supplierEngagements("s1", { page: 1 } as never);
+    await client.advisory.compliance({ eventId: "e1" } as never);
+    await client.advisory.themes({ eventId: "e1" } as never);
+    await client.advisory.eventIntelligence({ eventId: "e1" } as never);
+    await client.advisory.eventDayCopilot({ eventId: "e1" } as never);
+    await client.advisory.askAssistant("e/1", any);
+    await client.advisory.supplierReliabilityScore("s/1");
+    await client.canva.status();
+    await client.canva.authorize();
+    await client.canva.disconnect();
+    await client.canva.proposalDesign("e1");
+    await client.canva.testimonialDesign("e1");
+    await client.pare.pending();
+    await client.pare.approve("p1");
+    await client.pare.reject("p1");
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "GET /coordinator/focus-role-view",
+      "GET /coordinator/events/e1/role-view",
+      "PATCH /events/e1/coordinators/a1/acknowledge",
+      "PATCH /events/e1/coordinators/a1/withdraw",
+      "PATCH /events/e1/supplier-status/r1/report",
+      "GET /events/e1/coordinator-role-briefs",
+      "PUT /events/e1/coordinator-role-briefs/Registration%20Lead",
+      "POST /events/e1/start-event-day",
+      "GET /events/e1/supplier-gaps",
+      "POST /events/e1/supplier-gaps/cat1/acknowledge",
+      "GET /events/e%2F1/supplier-schedules",
+      "GET /suppliers/categories",
+      "GET /suppliers/directory?q=bloom&page=0&pageSize=25",
+      "GET /suppliers/s%2F1/profile?period=all",
+      "GET /suppliers/s1/reviews?page=0",
+      "GET /suppliers/s1/certifications",
+      "GET /suppliers/s1/records?period=30d",
+      "GET /pmcm/suppliers/s1/engagements?page=1",
+      "POST /ai-advisory/compliance",
+      "POST /ai-advisory/themes",
+      "POST /ai-advisory/event-intelligence",
+      "POST /ai-advisory/event-day-copilot",
+      "POST /ai-advisory/events/e%2F1/assistant",
+      "GET /suppliers/s%2F1/reliability-score",
+      "GET /integrations/canva",
+      "POST /integrations/canva/authorize",
+      "DELETE /integrations/canva",
+      "POST /events/e1/proposal/canva",
+      "POST /events/e1/client-closeout/testimonial/canva",
+      "GET /ai/pare/pending",
+      "PATCH /ai/pare/p1/approve",
+      "PATCH /ai/pare/p1/reject",
+    ]);
+    // The abort signal reaches fetch, so a screen can cancel a read, and the start-day body is empty.
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
+    expect(fetchMock.mock.calls[12]?.[1]?.signal).toBe(controller.signal);
+    expect(JSON.parse(String(fetchMock.mock.calls[7]?.[1]?.body))).toEqual({});
+  });
+
   it("sends proposal, cost estimate, client review and client message requests to their endpoints", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));

@@ -1,10 +1,10 @@
 import type { CreateEventEodReplyInput, CreateEventEodReportInput, SetEventEodIncompleteTasksInput, CreateEventHandoffInput, CreateEventScheduleDayInput, CreateEventScheduleSegmentInput, PrismCoordinatorEventSchedule, PrismEventEodReport, PrismEventHandoff, PrismEventRunSheetResult, PrismEventSchedule, PrismEventScheduleSegment, UpdateEventScheduleSegmentStatusInput } from '@prism/types';
-import { eventApi, eventApiRequest } from '@/lib/prism-api';
-import { startEventDaySchema, type PrismEvent, type StartEventDayResult } from '@prism/types';
+import { eventApi } from '@/lib/prism-api';
+import type { PrismEvent, StartEventDayResult } from '@prism/types';
 
 export const liveOpsScheduleRepository = {
-  getEvent(eventId: string) { return eventApiRequest<PrismEvent>(`/api/events/${eventId}`); },
-  startEventDay(eventId: string) { return eventApiRequest<StartEventDayResult>(`/api/events/${eventId}/start-event-day`, { method: 'POST', body: startEventDaySchema.parse({}) }); },
+  getEvent(eventId: string): Promise<PrismEvent> { return eventApi.events.detail(eventId); },
+  startEventDay(eventId: string): Promise<StartEventDayResult> { return eventApi.lifecycle.startEventDay(eventId); },
   getSchedule(eventId: string): Promise<PrismEventSchedule> { return eventApi.liveOps.schedule(eventId); },
   /** The published schedule and event status for a coordinator assigned to the event (the PMCM event read is refused to them). */
   getCoordinatorSchedule(eventId: string): Promise<PrismCoordinatorEventSchedule> { return eventApi.coordinator.eventSchedule(eventId); },

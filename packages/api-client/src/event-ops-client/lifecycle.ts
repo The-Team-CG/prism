@@ -1,4 +1,5 @@
 import type {
+  StartEventDayResult,
   PrismArchiveComparisonRow,
   PrismCancellationSummary,
   PrismClientCloseoutResponse,
@@ -45,6 +46,8 @@ export function createLifecycleClient(options: EventOpsClientOptions): Pick<Even
         prismRequest<PrismEvent>(actorPath(event(eventId, "/archive"), actor), withBase(options, { method: "POST", body: { overrideReason } })),
       recordActualEnd: (eventId, input, actor = {}) =>
         prismRequest<PrismEvent>(actorPath(event(eventId, "/actual-end"), actor), withBase(options, { method: "POST", body: input })),
+      startEventDay: (eventId, actor = {}) =>
+        prismRequest<StartEventDayResult>(actorPath(event(eventId, "/start-event-day"), actor), withBase(options, { method: "POST", body: {} })),
       defenseReadiness: (eventId, actor = {}) =>
         prismRequest<PrismDefenseReadiness>(actorPath(event(eventId, "/defense-readiness"), actor), withBase(options)),
       eventDayStatusFeed: (eventId, actor = {}) =>
