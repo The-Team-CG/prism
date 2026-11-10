@@ -27,6 +27,65 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends event and inquiry lifecycle, staffing and supplier-status commands to their endpoints", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+
+    await client.lifecycle.scheduleOcularVisit("e1", any);
+    await client.lifecycle.completeOcularVisit("e1");
+    await client.lifecycle.waiveOcularVisit("e1", any);
+    await client.lifecycle.setModules("e1", any);
+    await client.lifecycle.setPrivacy("e1", any);
+    await client.lifecycle.setClientEventDayView("e1", any);
+    await client.lifecycle.archive("e1", "reason");
+    await client.lifecycle.recordActualEnd("e1", any);
+    await client.inquiries.updateStatus("i1", { status: "pending" } as never);
+    await client.inquiries.merge("i1", { sourceInquiryId: "i2", reason: "duplicate" });
+    await client.inquiries.logOnBehalf(any);
+    await client.inquiries.sendConformeReminder("i1");
+    await client.inquiries.uploadConforme("i1", any);
+    await client.staffing.reliabilityHistory("c/1");
+    await client.staffing.assign("e1", any);
+    await client.staffing.replace("e1", "a1", any);
+    await client.staffing.poolAvailability("e1");
+    await client.staffing.listAvailability("e1", "c1");
+    await client.staffing.createAvailability("e1", "c1", any);
+    await client.staffing.deleteAvailability("e1", "c1", "v1");
+    await client.staffing.upsertCoverage("e1", any);
+    await client.commercial.verifySupplierStatus("e1", "r1", any);
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "PATCH /events/e1/ocular-visit/schedule",
+      "POST /events/e1/ocular-visit/complete",
+      "POST /events/e1/ocular-visit/waive",
+      "PATCH /events/e1/modules",
+      "PATCH /events/e1/privacy",
+      "PATCH /events/e1/client-event-day-view",
+      "POST /events/e1/archive",
+      "POST /events/e1/actual-end",
+      "PATCH /inquiries/i1/status",
+      "POST /inquiries/i1/merge",
+      "POST /inquiries/log-on-behalf",
+      "POST /inquiries/i1/conforme-reminders",
+      "POST /inquiries/i1/conforme",
+      "GET /pmcm/coordinators/c%2F1/reliability-history",
+      "POST /events/e1/coordinators",
+      "POST /events/e1/coordinators/a1/replace",
+      "GET /events/e1/staffing/pool-availability",
+      "GET /events/e1/coordinators/c1/availability",
+      "POST /events/e1/coordinators/c1/availability",
+      "DELETE /events/e1/coordinators/c1/availability/v1",
+      "POST /events/e1/staffing/coverage",
+      "PATCH /events/e1/supplier-status/r1/verify",
+    ]);
+    // Archiving sends its override reason under the field name the API reads, even when none is given.
+    expect(JSON.parse(String(fetchMock.mock.calls[6]?.[1]?.body))).toEqual({ overrideReason: "reason" });
+  });
+
   it("sends closure, compliance, floorplan and approval-request commands to their endpoints", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));

@@ -27,6 +27,7 @@ import type {
   RequestSupplierQuotesInput,
   SupplierAvailabilityInput,
   UpdateSupplierInput,
+  VerifySupplierStatusInput,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -56,6 +57,7 @@ export interface EventOpsCommercialContract {
     requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest[]>;
     withdrawQuoteRequest(eventId: string, requestId: string, actor?: EventOpsActorQuery): Promise<{ ok: boolean }>;
     compareQuoteRound(eventId: string, roundId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRoundComparison>;
+    verifySupplierStatus(eventId: string, requestId: string, input: VerifySupplierStatusInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest>;
     selectSupplierQuote(eventId: string, quoteId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierQuote>;
   };
 }

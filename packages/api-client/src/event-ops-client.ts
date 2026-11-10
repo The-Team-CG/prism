@@ -15,6 +15,7 @@ import { createEventGamesClient } from "./event-ops-client/event-games";
 import { createSupplierWorkflowsClient } from "./event-ops-client/supplier-workflows";
 import { createCommercialClient } from "./event-ops-client/commercial";
 import { createLifecycleClient } from "./event-ops-client/lifecycle";
+import { createStaffingClient } from "./event-ops-client/staffing";
 
 export * from "./event-ops-client/contracts";
 
@@ -35,5 +36,6 @@ export function createEventOpsClient(
     ...createSupplierWorkflowsClient(options),
     ...createCommercialClient(options),
     ...createLifecycleClient(options),
+    ...createStaffingClient(options),
   };
 }
