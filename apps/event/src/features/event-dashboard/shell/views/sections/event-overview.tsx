@@ -171,7 +171,7 @@ function NextStepsSection({ event, readiness, pending, onOpenTab }: { event: Pri
   );
 }
 
-function ReadinessSection({ readiness, busy, showSubmitBriefing, onRunCompliance, onSubmitBriefing }: { readiness: PrismDefenseReadiness | null; busy: boolean; showSubmitBriefing: boolean; onRunCompliance: () => void; onSubmitBriefing: () => void }) {
+function ReadinessSection({ readiness, busy, onRunCompliance }: { readiness: PrismDefenseReadiness | null; busy: boolean; onRunCompliance: () => void }) {
   const score = readiness?.score ?? null;
   return (
     <section aria-labelledby="overview-readiness" className="flex flex-col rounded-xl border border-border bg-card px-5 py-4">
@@ -187,9 +187,6 @@ function ReadinessSection({ readiness, busy, showSubmitBriefing, onRunCompliance
       </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-4">
         <Button size="sm" variant="outline" disabled={busy} onClick={onRunCompliance}>Run compliance check</Button>
-        {showSubmitBriefing ? (
-          <Button size="sm" disabled={busy} onClick={onSubmitBriefing}>Submit briefing</Button>
-        ) : null}
       </div>
     </section>
   );
@@ -235,7 +232,6 @@ export function EventWorkspaceOverview({
   canStartEventDay,
   busy,
   onStartEventDay,
-  onSubmitBriefing,
   onRunCompliance,
   onOpenTab,
   ocularVisit,
@@ -250,7 +246,6 @@ export function EventWorkspaceOverview({
   canStartEventDay: boolean;
   busy: boolean;
   onStartEventDay: () => void;
-  onSubmitBriefing: () => void;
   onRunCompliance: () => void;
   onOpenTab: (tab: DetailTab) => void;
   /** Ocular visit status and its collapsed controls; rendered under Readiness and Next steps. */
@@ -261,7 +256,6 @@ export function EventWorkspaceOverview({
   const stage = derivePrismLifecycleStage(event);
   const cards = areaCards({ readiness, activeDraft, draftCount: drafts.length, quoteCount, quoteRequestCount, openCheckCount, preEvent: isBeforePrismEventDay(stage) });
   const showEventDayBanner = canStartEventDay && isEventDayClose(event.eventDate) && !closeOut;
-  const showSubmitBriefing = Boolean(readiness && !readiness.summary.briefingSubmitted && !closeOut);
   const facts = [
     { label: "Event date", value: formatPortalDate(event.eventDate) },
     { label: "Client", value: event.clientName },
@@ -296,7 +290,7 @@ export function EventWorkspaceOverview({
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <NextStepsSection event={event} readiness={readiness} pending={pending} onOpenTab={onOpenTab} />
 
-        <ReadinessSection readiness={readiness} busy={busy} showSubmitBriefing={showSubmitBriefing} onRunCompliance={onRunCompliance} onSubmitBriefing={onSubmitBriefing} />
+        <ReadinessSection readiness={readiness} busy={busy} onRunCompliance={onRunCompliance} />
       </div>
 
       {ocularVisit}
