@@ -10,6 +10,7 @@ import { Button } from "@prism/ui/components/button";
 import { useServerRoundCountdown } from "../model/server-round-countdown";
 import { useEventGamePlayViewModel } from "../view-models/use-event-game-play-view-model";
 import { audienceControls } from "./audience-game-controls";
+import { Card } from "@prism/ui/components/card";
 
 const STATUS_LABELS = {
   scheduled: "Scheduled",
@@ -69,7 +70,7 @@ function SessionUnavailable({ message }: { message: string | null }) {
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       ) : null}
-      <div className="rounded-lg border border-border bg-card p-5">
+      <Card className="gap-0 block rounded-lg border border-border bg-card p-5">
         <h1 className="text-xl font-bold">Game session unavailable</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">Join again with the host’s PIN or go back to where you were.</p>
         <div className="mt-5 flex flex-wrap gap-2">
@@ -80,7 +81,7 @@ function SessionUnavailable({ message }: { message: string | null }) {
             Back
           </Button>
         </div>
-      </div>
+      </Card>
     </section>
   );
 }
@@ -161,11 +162,11 @@ function RoundCountdown({ state, secondsRemaining }: { state: PrismGamePublicSta
   const seconds = (secondsRemaining % 60).toString().padStart(2, "0");
   const display = `${minutes}:${seconds}`;
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm" role={secondsRemaining === 0 ? "status" : undefined}>
+    <Card className="gap-0 flex-row mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm" role={secondsRemaining === 0 ? "status" : undefined}>
       <span className="font-semibold">{state.status === "paused" ? "Round paused" : "Time remaining"}</span>
       <time aria-label={`Time remaining: ${display}`} className="font-mono font-bold tabular-nums">{display}</time>
       {secondsRemaining === 0 ? <span className="text-muted-foreground">The timer has ended. Your answers are closed until the game updates.</span> : null}
-    </div>
+    </Card>
   );
 }
 

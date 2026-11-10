@@ -14,6 +14,7 @@ import {
   type CoordinatorBooking,
   type CoordinatorBookings,
 } from "../../model/coordinator-bookings";
+import { Card } from "@prism/ui/components/card";
 
 function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0]?.toUpperCase()).join("") || "?";
@@ -77,7 +78,7 @@ export function CoordinatorRoster({
         </label>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
         {rows.length === 0 ? (
           <Empty className="border-0">
             <EmptyHeader>
@@ -107,7 +108,7 @@ export function CoordinatorRoster({
             </ul>
           </>
         )}
-      </div>
+      </Card>
     </section>
   );
 }
