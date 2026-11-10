@@ -27,6 +27,52 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends inquiry intake, notes, conforme execution, triage and event storage requests to their endpoints", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+
+    await client.inquiries.setIntakePath("i1", any);
+    await client.inquiries.setLanguage("i/1", any);
+    await client.inquiries.companyNameChanges("i1");
+    await client.inquiries.updateCompanyName("i1", any);
+    await client.inquiries.contextNotes("i1");
+    await client.inquiries.addContextNote("i1", any);
+    await client.inquiries.preConformeContext("e1");
+    await client.inquiries.existingPreConformeWorkspace("i1");
+    await client.inquiries.createPreConformeWorkspace("i1");
+    await client.inquiries.latestConformeExecution("i1");
+    await client.inquiries.createConformeExecution("i1", any);
+    await client.inquiries.signConformeExecution("i1", "x/1", any);
+    await client.inquiries.triageReview("i1");
+    await client.inquiries.runTriage("i1");
+    await client.events.storageObjects("e/1");
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "PATCH /inquiries/i1/intake-path",
+      "PATCH /inquiries/i%2F1/language",
+      "GET /inquiries/i1/company-name-changes",
+      "PATCH /inquiries/i1/company-name",
+      "GET /inquiries/i1/context-notes",
+      "POST /inquiries/i1/context-notes",
+      "GET /events/e1/pre-conforme-context",
+      "GET /inquiries/i1/pre-conforme-workspace",
+      "POST /inquiries/i1/pre-conforme-workspace",
+      "GET /inquiries/i1/conforme-executions/latest",
+      "POST /inquiries/i1/conforme-executions",
+      "POST /inquiries/i1/conforme-executions/x%2F1/sign",
+      "GET /inquiry-triage/i1",
+      "POST /inquiry-triage",
+      "GET /storage/objects/events/e%2F1",
+    ]);
+    // The triage run names the inquiry in its body, which is how the API finds it.
+    expect(JSON.parse(String(fetchMock.mock.calls[13]?.[1]?.body))).toEqual({ inquiryId: "i1" });
+    expect(fetchMock.mock.calls.every(([, init]) => (init?.headers as Record<string, string>).Authorization === "Bearer token")).toBe(true);
+  });
+
   it("sends closure reads and writes, compliance runs and risks, decisions and status reads to their endpoints", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
