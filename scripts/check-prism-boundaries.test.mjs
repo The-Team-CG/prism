@@ -295,4 +295,25 @@ describe("findBoundaryViolations", () => {
       "apps/supplier/src/lib/prism-api.ts": 'const x = fetch("/api/events/1");',
     }), []);
   });
+
+  it("keeps the client app on the shared API client, with only its documented exceptions", () => {
+    const pathRule = "client app must call the API through @prism/api-client, not hand-written /api/ paths";
+    const helperRule = "client app must not use the hand-built clientApiRequest helper outside logout and the floorplan template store";
+    const handBuilt = "apps/client/src/features/client-dashboard/billing/data/dispute-repository.ts";
+
+    assert.deepEqual(
+      findBoundaryViolations({
+        [handBuilt]: 'import { clientApiRequest } from "@/lib/prism-api";\nexport const create = () => clientApiRequest(`/api/events/${id}/billing-disputes`);',
+      }),
+      [`${handBuilt}: ${pathRule}`, `${handBuilt}: ${helperRule}`],
+    );
+
+    assert.deepEqual(findBoundaryViolations({
+      "apps/client/src/features/client-dashboard/billing/data/dispute-repository.ts": 'import { clientApi } from "@/lib/prism-api";\nexport const create = () => clientApi.commercial.createClientBillingDispute(id, input);',
+      "apps/client/src/features/client-dashboard/billing/data/dispute-repository.test.ts": 'expect(url).toBe("http://localhost:4000/api/events/e1/billing-disputes");',
+      "apps/client/src/features/client-dashboard/workspace/data/client-dashboard-repository.ts": 'import { clientApiRequest } from "@/lib/prism-api";',
+      "apps/client/src/features/floorplan/editor/data/templates-repository.ts": 'import { clientApiRequest } from "@/lib/prism-api";',
+      "apps/client/src/lib/prism-api.ts": "export function clientApiRequest() {}",
+    }), []);
+  });
 });

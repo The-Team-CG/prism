@@ -27,6 +27,71 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends the client's closeout, floorplan, briefing, conforme, inquiry-link and shared-record requests to their endpoints", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+
+    await client.commercial.createClientBillingDispute("e1", any);
+    await client.commercial.decideClientReviewItem("e1", "i1", any);
+    await client.commercial.chooseVenueScoutingPreference("e1", any);
+    await client.commercial.choosePresentationSlot("e/1", "m/1", { startsAt: "2026-12-01T09:00:00.000Z" } as never);
+    await client.commercial.createClientOwnedSupplier("e1", any);
+    await client.commercial.confirmClientOwnedSupplier("e1", "s/1");
+    await client.clientPortal.closeout("e1");
+    await client.clientPortal.acknowledgeWrapUp("e1", any);
+    await client.clientPortal.acknowledgeDeliverable("e1", "d1", any);
+    await client.clientPortal.submitCloseoutResponse("e1", any);
+    await client.clientPortal.revokeTestimonialConsent("e1");
+    await client.clientPortal.floorplanReview("e1", "d1");
+    await client.clientPortal.decideFloorplan("e1", "d1", any);
+    await client.clientPortal.annotateFloorplan("e1", "d1", any);
+    await client.clientPortal.submitOcularVisit("e1", any);
+    await client.clientPortal.submitBriefing("e1", any);
+    await client.clientPortal.createFloorplanPreference("e1", any);
+    await client.clientPortal.floorplanSnapshot("e/1", "d/1", "approved");
+    await client.clientPortal.sharedFloorplans();
+    await client.clientPortal.conformeExecutions();
+    await client.clientPortal.signConforme(any);
+    await client.clientPortal.saveInquiryDraft("t/1", any);
+    await client.clientPortal.inquiryDraft("t/1");
+    await client.clientPortal.discardInquiryDraft("t/1");
+    await client.clientPortal.inquiryEdit("t/2");
+    await client.clientPortal.saveInquiryEdit("t/2", any);
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "POST /events/e1/billing-disputes",
+      "POST /events/e1/client-review-items/i1/decisions",
+      "POST /events/e1/venue-scouting/preference",
+      "POST /events/e%2F1/presentation-meetings/m%2F1/choice",
+      "POST /events/e1/client-owned-suppliers",
+      "POST /events/e1/client-owned-suppliers/s%2F1/confirm",
+      "GET /events/e1/client-closeout",
+      "POST /events/e1/client-closeout/acknowledgement",
+      "POST /events/e1/client-closeout/deliverables/d1/acknowledgement",
+      "POST /events/e1/client-closeout/response",
+      "POST /events/e1/client-closeout/testimonial-consent/revoke",
+      "GET /events/e1/floorplans/d1/client-review",
+      "POST /events/e1/floorplans/d1/client-review",
+      "POST /events/e1/floorplans/d1/client-annotations",
+      "POST /events/e1/ocular-visit",
+      "POST /events/e1/briefing",
+      "POST /events/e1/floorplan-preferences",
+      "GET /events/e%2F1/floorplans/d%2F1/snapshot?type=approved",
+      "GET /client/shared-floorplans",
+      "GET /client/conforme-execution",
+      "POST /client/conforme-execution/sign",
+      "PUT /public-inquiries/drafts/t%2F1",
+      "GET /public-inquiries/drafts/t%2F1",
+      "DELETE /public-inquiries/drafts/t%2F1",
+      "GET /public-inquiries/edit/t%2F2",
+      "PATCH /public-inquiries/edit/t%2F2",
+    ]);
+  });
+
   it("sends ticket, venue, meeting, follow-up, risk, accreditation, floorplan-access, booking, replacement and QR requests to their endpoints", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
