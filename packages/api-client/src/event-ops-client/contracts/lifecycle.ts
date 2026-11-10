@@ -1,4 +1,14 @@
 import type {
+  CreateAccreditationRequirementInput,
+  CreateEventRiskInput,
+  CreateLogisticsBookingInput,
+  PrismAccreditationRequirement,
+  PrismApprovedClientAccount,
+  PrismEventClientAccess,
+  PrismEventRisk,
+  PrismLogisticsBooking,
+  UpdateAccreditationRequirementInput,
+  UpdateEventRiskInput,
   StartEventDayResult,
   ClientTestimonialModerationInput,
   CreateComplianceRiskInput,
@@ -57,6 +67,12 @@ export interface EventOpsLifecycleContract {
     venueConfirmations(eventId: string, actor?: EventOpsActorQuery): Promise<PrismVenueConfirmationTask[]>;
     resolveVenueConfirmation(eventId: string, taskId: string, input: ResolveVenueConfirmationInput, actor?: EventOpsActorQuery): Promise<PrismVenueConfirmationTask>;
   };
+  risks: {
+    list(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventRisk[]>;
+    loadStandard(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventRisk[]>;
+    create(eventId: string, input: CreateEventRiskInput, actor?: EventOpsActorQuery): Promise<PrismEventRisk>;
+    update(eventId: string, riskId: string, input: UpdateEventRiskInput, actor?: EventOpsActorQuery): Promise<PrismEventRisk>;
+  };
   closure: {
     closeGates(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCloseGates>;
     insights(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventInsight[]>;
@@ -64,6 +80,8 @@ export interface EventOpsLifecycleContract {
     wrapUp(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventWrapUp | null>;
     startWrapUp(eventId: string, input: StartEventWrapUpInput, actor?: EventOpsActorQuery): Promise<PrismEventWrapUp>;
     updateWrapUp(eventId: string, input: UpdateEventWrapUpInput, actor?: EventOpsActorQuery): Promise<PrismEventWrapUp>;
+    logisticsBookings(eventId: string, actor?: EventOpsActorQuery): Promise<PrismLogisticsBooking[]>;
+    createLogisticsBooking(eventId: string, input: CreateLogisticsBookingInput, actor?: EventOpsActorQuery): Promise<PrismLogisticsBooking>;
     /** Compares archived events side by side; the ids travel as one comma-separated query value. */
     compareArchived(eventIds: string[], actor?: EventOpsActorQuery): Promise<PrismArchiveComparisonRow[]>;
     completePostEventDocument(eventId: string, documentId: string, actor?: EventOpsActorQuery): Promise<PrismPostEventDocument>;
@@ -79,6 +97,9 @@ export interface EventOpsLifecycleContract {
     runs(eventId: string, actor?: EventOpsActorQuery): Promise<PrismComplianceRun[]>;
     risks(eventId: string, actor?: EventOpsActorQuery): Promise<PrismComplianceRisk[]>;
     createRisk(eventId: string, input: CreateComplianceRiskInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRisk>;
+    accreditationRequirements(eventId: string, actor?: EventOpsActorQuery): Promise<PrismAccreditationRequirement[]>;
+    createAccreditationRequirement(eventId: string, input: CreateAccreditationRequirementInput, actor?: EventOpsActorQuery): Promise<PrismAccreditationRequirement>;
+    updateAccreditationRequirement(eventId: string, requirementId: string, input: UpdateAccreditationRequirementInput, actor?: EventOpsActorQuery): Promise<PrismAccreditationRequirement>;
   };
   floorplans: {
     createDraft(eventId: string, input: CreateFloorPlanDraftInput, actor?: EventOpsActorQuery): Promise<PrismFloorPlanDraft>;
@@ -86,6 +107,10 @@ export interface EventOpsLifecycleContract {
     approveDraft(eventId: string, draftId: string, actor?: EventOpsActorQuery): Promise<PrismFloorPlanDraft>;
     reopenPreference(eventId: string, draftId: string, actor?: EventOpsActorQuery): Promise<PrismFloorPlanDraft>;
     history(eventId: string, draftId: string, actor?: EventOpsActorQuery): Promise<PrismFloorPlanSnapshotVersion[]>;
+    clientAccess(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventClientAccess>;
+    searchClientCandidates(eventId: string, query: string, actor?: EventOpsActorQuery): Promise<PrismApprovedClientAccount[]>;
+    grantClientAccess(eventId: string, userId: string, actor?: EventOpsActorQuery): Promise<PrismEventClientAccess>;
+    revokeClientAccess(eventId: string, userId: string, actor?: EventOpsActorQuery): Promise<PrismEventClientAccess>;
     /** A saved plan as the API returns it; the editor maps it to its own project shape. */
     plan<TPlan = unknown>(planId: string, actor?: EventOpsActorQuery): Promise<TPlan>;
     /** Saves the editor's plan; the API answers with the stored plan. */

@@ -1,4 +1,6 @@
 import type {
+  DecideCoordinatorReplacementInput,
+  PrismCoordinatorReplacementRecommendation,
   CoordinatorSuggestionsQueryInput,
   CreateCoordinatorAssignmentInput,
   CreateCoordinatorAvailabilityInput,
@@ -29,6 +31,8 @@ export interface EventOpsStaffingContract {
     listAvailability(eventId: string, coordinatorId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAvailability[]>;
     createAvailability(eventId: string, coordinatorId: string, input: CreateCoordinatorAvailabilityInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAvailability>;
     deleteAvailability(eventId: string, coordinatorId: string, availabilityId: string, actor?: EventOpsActorQuery): Promise<{ id: string }>;
+    replacementRecommendations(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorReplacementRecommendation[]>;
+    decideReplacement(eventId: string, recommendationId: string, input: DecideCoordinatorReplacementInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorReplacementRecommendation>;
     sendAcknowledgementReminders(eventId: string, actor?: EventOpsActorQuery): Promise<PrismAcknowledgementReminderResult>;
     upsertCoverage(eventId: string, input: CreateCoordinatorCoverageRequirementInput, actor?: EventOpsActorQuery): Promise<unknown>;
   };

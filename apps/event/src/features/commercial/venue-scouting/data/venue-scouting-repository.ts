@@ -1,11 +1,9 @@
-import type { CreateVenueScoutingOptionInput, PrismVenueScouting, PrismVenueScoutingOption } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
-
-const path = (eventId: string) => `/api/events/${eventId}/venue-scouting`;
+import type { CreateVenueScoutingOptionInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const venueScoutingRepository = {
-  get: (eventId: string) => eventApiRequest<PrismVenueScouting>(path(eventId)),
-  add: (eventId: string, input: CreateVenueScoutingOptionInput) => eventApiRequest<PrismVenueScoutingOption>(`${path(eventId)}/options`, { method: "POST", body: input }),
-  withdraw: (eventId: string, optionId: string) => eventApiRequest<PrismVenueScoutingOption>(`${path(eventId)}/options/${optionId}/withdraw`, { method: "POST" }),
-  publish: (eventId: string) => eventApiRequest<PrismVenueScouting>(`${path(eventId)}/publish`, { method: "POST" }),
+  get: (eventId: string) => eventApi.commercial.venueScouting(eventId),
+  add: (eventId: string, input: CreateVenueScoutingOptionInput) => eventApi.commercial.addVenueScoutingOption(eventId, input),
+  withdraw: (eventId: string, optionId: string) => eventApi.commercial.withdrawVenueScoutingOption(eventId, optionId),
+  publish: (eventId: string) => eventApi.commercial.publishVenueScouting(eventId),
 };

@@ -1,9 +1,7 @@
-import type { CreateLogisticsBookingInput, PrismLogisticsBooking } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
-
-const base = (eventId: string) => `/api/events/${eventId}/logistics-bookings`;
+import type { CreateLogisticsBookingInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const logisticsBookingsRepository = {
-  list: (eventId: string) => eventApiRequest<PrismLogisticsBooking[]>(base(eventId)),
-  create: (eventId: string, input: CreateLogisticsBookingInput) => eventApiRequest<PrismLogisticsBooking>(base(eventId), { method: "POST", body: input }),
+  list: (eventId: string) => eventApi.closure.logisticsBookings(eventId),
+  create: (eventId: string, input: CreateLogisticsBookingInput) => eventApi.closure.createLogisticsBooking(eventId, input),
 };

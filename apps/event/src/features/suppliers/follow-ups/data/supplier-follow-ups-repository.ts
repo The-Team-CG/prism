@@ -1,11 +1,8 @@
-import type { PrismClientOwnedSupplier, PrismUnresponsiveSupplier, RaiseClientSupplierRiskInput } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
-
-const base = (eventId: string) => `/api/events/${encodeURIComponent(eventId)}`;
+import type { RaiseClientSupplierRiskInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const supplierFollowUpsRepository = {
-  unresponsive: (eventId: string) => eventApiRequest<PrismUnresponsiveSupplier[]>(`${base(eventId)}/unresponsive-suppliers`),
-  clientOwned: (eventId: string) => eventApiRequest<PrismClientOwnedSupplier[]>(`${base(eventId)}/client-owned-suppliers`),
-  raiseRisk: (eventId: string, id: string, input: RaiseClientSupplierRiskInput) =>
-    eventApiRequest<PrismClientOwnedSupplier>(`${base(eventId)}/client-owned-suppliers/${encodeURIComponent(id)}/risk-warning`, { method: "POST", body: input }),
+  unresponsive: (eventId: string) => eventApi.commercial.unresponsiveSuppliers(eventId),
+  clientOwned: (eventId: string) => eventApi.commercial.clientOwnedSuppliers(eventId),
+  raiseRisk: (eventId: string, id: string, input: RaiseClientSupplierRiskInput) => eventApi.commercial.raiseClientSupplierRisk(eventId, id, input),
 };
