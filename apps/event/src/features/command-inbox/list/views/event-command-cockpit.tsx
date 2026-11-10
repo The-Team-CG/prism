@@ -32,6 +32,7 @@ import { Button } from "@prism/ui/components/button";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { label, pluralize } from "@/features/pmcm-kit";
+import { Card } from "@prism/ui/components/card";
 
 /* ── Inline primitives (replacing @prism/ui blocks) ────────────── */
 
@@ -132,7 +133,7 @@ type WorkflowTabItem = {
 
 function WorkflowTabs({ items, activeId, onSelect }: { items: WorkflowTabItem[]; activeId: string; onSelect: (id: string) => void }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-card p-1.5 shadow-sm">
+    <Card className="gap-0 block overflow-x-auto rounded-lg border border-border bg-card p-1.5 shadow-sm">
       <div className="flex min-w-max gap-1">
         {items.map((item) => {
           const Icon = item.icon;
@@ -154,7 +155,7 @@ function WorkflowTabs({ items, activeId, onSelect }: { items: WorkflowTabItem[];
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -323,11 +324,11 @@ export function SelectedEventCockpit({
           { label: "Event readiness", value: readinessLabel, detail: defenseReadiness ? `Stage: ${PRISM_LIFECYCLE_STAGE_LABELS[defenseReadiness.lifecycleStage]}` : "Loading readiness check" },
           { label: "Guest access", value: event.guestAccessCode ?? "Pending", detail: event.guestAccessCode ? "Ready for guest portal access" : "Generated after event setup" },
         ].map((item) => (
-          <div key={item.label} className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+          <Card key={item.label} className="gap-0 block rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
             <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
             <p className="mt-1 truncate text-sm font-black text-foreground">{item.value}</p>
             <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{item.detail}</p>
-          </div>
+          </Card>
         ))}
       </div>
     </div>

@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { RouteLink, SegmentedControl, type SegmentedOption } from "@/features/pmcm-kit";
 import type { SummaryLabel } from "@/features/pmcm-overview";
 import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
+import { Card } from "@prism/ui/components/card";
 
 function RowDetail({ label }: { label: SummaryLabel | null }) {
   if (!label) return null;
@@ -121,7 +122,7 @@ export function EventDestinationPicker({
           <p role="status" className="text-xs text-muted-foreground">
             Showing {shown.length} of {rows.length} event{rows.length === 1 ? "" : "s"}
           </p>
-          <div className="overflow-hidden rounded-lg border border-border bg-card">
+          <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
             <Table>
               <caption className="sr-only">{description}</caption>
               <TableHeader>
@@ -158,7 +159,7 @@ export function EventDestinationPicker({
                 })}
               </TableBody>
             </Table>
-          </div>
+          </Card>
           {rows.length > visible ? (
             <Button variant="outline" className="justify-self-center" onClick={() => setVisible((count) => count + PAGE_SIZE)}>
               Show more
