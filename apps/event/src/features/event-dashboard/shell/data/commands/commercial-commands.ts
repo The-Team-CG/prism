@@ -1,4 +1,4 @@
-import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
+import { eventApi as eventOpsClient } from "@/lib/prism-api";
 import type {
   ChangeSupplierTierInput,
   CreateBillingSourceInput,
@@ -21,71 +21,21 @@ import type {
 } from "@prism/types";
 
 export const commercialCommands = {
-addSupplierCertification: (supplierId: string, input: CreateSupplierCertificationInput) =>
-    request<PrismSupplier>(`/api/suppliers/${supplierId}/certifications`, {
-      method: "POST",
-      body: input,
-    }),
-addSupplierReview: (supplierId: string, input: CreateSupplierReviewInput) =>
-    request<PrismSupplier>(`/api/suppliers/${supplierId}/reviews`, {
-      method: "POST",
-      body: input,
-    }),
-approveBillingSource: (eventId: string, sourceId: string, approvalNotes?: string) =>
-    request<PrismBillingSource>(`/api/events/${eventId}/billing-source/${sourceId}/approve`, {
-      method: "PATCH",
-      body: { approvalNotes },
-    }),
-changeSupplierTier: (supplierId: string, input: ChangeSupplierTierInput) =>
-    request<PrismSupplier>(`/api/suppliers/${supplierId}/tier`, {
-      method: "PATCH",
-      body: input,
-    }),
-createBillingSource: (eventId: string, input: CreateBillingSourceInput) =>
-    request<PrismBillingSource>(`/api/events/${eventId}/billing-source`, {
-      method: "POST",
-      body: input,
-    }),
-createSupplier: (input: CreateSupplierInput) =>
-    request<PrismSupplier>("/api/suppliers", {
-      method: "POST",
-      body: input,
-    }),
-generateBillingStatement: (eventId: string, sourceId?: string) =>
-    request<PrismBillingStatement>(`/api/events/${eventId}/billing-statements/generate`, {
-      method: "POST",
-      body: { sourceId },
-    }),
-recordPayment: (eventId: string, milestoneId: string, input: RecordPaymentInput) =>
-    request<PrismPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}/records`, {
-      method: "POST",
-      body: input,
-    }),
-markPayment: (eventId: string, milestoneId: string, input: MarkPaymentInput) =>
-    request<PrismPaymentMilestone>(`/api/events/${eventId}/payments/${milestoneId}`, { method: "PATCH", body: input }),
-requestSupplierQuotes: (eventId: string, input: RequestSupplierQuotesInput) =>
-    request<PrismSupplierQuoteRequest[]>(`/api/events/${eventId}/quote-requests`, {
-      method: "POST",
-      body: input,
-    }),
-compareSupplierQuoteRound: (eventId: string, roundId: string) =>
-  request<PrismSupplierQuoteRoundComparison>(`/api/events/${eventId}/quote-rounds/${encodeURIComponent(roundId)}/comparison`),
-setSupplierAvailability: (supplierId: string, input: SupplierAvailabilityInput) =>
-  request<{ id: string }>(`/api/suppliers/${encodeURIComponent(supplierId)}/availability`, { method: "POST", body: input }),
-selectSupplierQuote: (eventId: string, quoteId: string) =>
-    request<PrismSupplierQuote>(`/api/events/${eventId}/supplier-quotes/${quoteId}/select`, { method: "PATCH" }),
-sendBillingStatement: (eventId: string, billingId: string) =>
-    request<PrismBillingStatement>(`/api/events/${eventId}/billing-statements/${billingId}/send`, { method: "POST" }),
-updateSupplier: (supplierId: string, input: UpdateSupplierInput) =>
-    request<PrismSupplier>(`/api/suppliers/${supplierId}`, {
-      method: "PATCH",
-      body: input,
-    }),
-promoteSupplier: (supplierId: string, input: PromoteSupplierInput) =>
-    request<PrismSupplier>(`/api/suppliers/${supplierId}/promote`, {
-      method: "POST",
-      body: input,
-    }),
-withdrawSupplier: (eventId: string, requestId: string) =>
-    request<{ ok: boolean }>(`/api/events/${eventId}/quote-requests/${requestId}/withdraw`, { method: "PATCH" }),
+addSupplierCertification: (supplierId: string, input: CreateSupplierCertificationInput) => eventOpsClient.commercial.addSupplierCertification(supplierId, input),
+addSupplierReview: (supplierId: string, input: CreateSupplierReviewInput) => eventOpsClient.commercial.addSupplierReview(supplierId, input),
+approveBillingSource: (eventId: string, sourceId: string, approvalNotes?: string) => eventOpsClient.commercial.approveBillingSource(eventId, sourceId, approvalNotes),
+changeSupplierTier: (supplierId: string, input: ChangeSupplierTierInput) => eventOpsClient.commercial.changeSupplierTier(supplierId, input),
+createBillingSource: (eventId: string, input: CreateBillingSourceInput) => eventOpsClient.commercial.createBillingSource(eventId, input),
+createSupplier: (input: CreateSupplierInput) => eventOpsClient.commercial.createSupplier(input),
+generateBillingStatement: (eventId: string, sourceId?: string) => eventOpsClient.commercial.generateBillingStatement(eventId, sourceId),
+recordPayment: (eventId: string, milestoneId: string, input: RecordPaymentInput) => eventOpsClient.commercial.recordPayment(eventId, milestoneId, input),
+markPayment: (eventId: string, milestoneId: string, input: MarkPaymentInput) => eventOpsClient.commercial.markPayment(eventId, milestoneId, input),
+requestSupplierQuotes: (eventId: string, input: RequestSupplierQuotesInput) => eventOpsClient.commercial.requestSupplierQuotes(eventId, input),
+compareSupplierQuoteRound: (eventId: string, roundId: string) => eventOpsClient.commercial.compareQuoteRound(eventId, roundId),
+setSupplierAvailability: (supplierId: string, input: SupplierAvailabilityInput) => eventOpsClient.commercial.setSupplierAvailability(supplierId, input),
+selectSupplierQuote: (eventId: string, quoteId: string) => eventOpsClient.commercial.selectSupplierQuote(eventId, quoteId),
+sendBillingStatement: (eventId: string, billingId: string) => eventOpsClient.commercial.sendBillingStatement(eventId, billingId),
+updateSupplier: (supplierId: string, input: UpdateSupplierInput) => eventOpsClient.commercial.updateSupplier(supplierId, input),
+promoteSupplier: (supplierId: string, input: PromoteSupplierInput) => eventOpsClient.commercial.promoteSupplier(supplierId, input),
+withdrawSupplier: (eventId: string, requestId: string) => eventOpsClient.commercial.withdrawQuoteRequest(eventId, requestId),
 };
