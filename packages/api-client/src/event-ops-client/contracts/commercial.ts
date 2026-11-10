@@ -1,4 +1,18 @@
 import type {
+  CompleteExternalCreativeTicketInput,
+  CreateExternalCreativeTicketInput,
+  CreateVenueScoutingOptionInput,
+  PrismClientOwnedSupplier,
+  PrismExternalCreativeTicket,
+  PrismPresentationMeeting,
+  PrismPresentationMeetings,
+  PrismUnresponsiveSupplier,
+  PrismVenueScouting,
+  PrismVenueScoutingOption,
+  ProposePresentationMeetingInput,
+  RaiseClientSupplierRiskInput,
+  RecordPresentationOutcomeInput,
+  UpdateExternalCreativeTicketInput,
   AcknowledgeSupplierGapInput,
   PmcmSupplierDirectoryQuery,
   PmcmSupplierHistoryQuery,
@@ -104,6 +118,20 @@ export interface EventOpsCommercialContract {
     clientMessageTriggers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientMessageTriggerState[]>;
     draftClientMessage(input: ClientMessageDraftRequest, actor?: EventOpsActorQuery): Promise<{ draft: CommsDraftResult; requestId: string; modelVersion: string }>;
     sendClientMessage(input: SendClientMessageInput, actor?: EventOpsActorQuery): Promise<{ sent: boolean }>;
+    externalCreativeTickets(eventId: string, actor?: EventOpsActorQuery): Promise<PrismExternalCreativeTicket[]>;
+    createExternalCreativeTicket(eventId: string, input: CreateExternalCreativeTicketInput, actor?: EventOpsActorQuery): Promise<PrismExternalCreativeTicket>;
+    updateExternalCreativeTicket(eventId: string, ticketId: string, input: UpdateExternalCreativeTicketInput, actor?: EventOpsActorQuery): Promise<PrismExternalCreativeTicket>;
+    completeExternalCreativeTicket(eventId: string, ticketId: string, input: CompleteExternalCreativeTicketInput, actor?: EventOpsActorQuery): Promise<PrismExternalCreativeTicket>;
+    venueScouting(eventId: string, actor?: EventOpsActorQuery): Promise<PrismVenueScouting>;
+    addVenueScoutingOption(eventId: string, input: CreateVenueScoutingOptionInput, actor?: EventOpsActorQuery): Promise<PrismVenueScoutingOption>;
+    withdrawVenueScoutingOption(eventId: string, optionId: string, actor?: EventOpsActorQuery): Promise<PrismVenueScoutingOption>;
+    publishVenueScouting(eventId: string, actor?: EventOpsActorQuery): Promise<PrismVenueScouting>;
+    presentationMeetings(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPresentationMeetings>;
+    proposePresentationMeeting(eventId: string, input: ProposePresentationMeetingInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;
+    recordPresentationOutcome(eventId: string, meetingId: string, input: RecordPresentationOutcomeInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;
+    unresponsiveSuppliers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismUnresponsiveSupplier[]>;
+    clientOwnedSuppliers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier[]>;
+    raiseClientSupplierRisk(eventId: string, supplierId: string, input: RaiseClientSupplierRiskInput, actor?: EventOpsActorQuery): Promise<PrismClientOwnedSupplier>;
     supplierGaps(eventId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierGap[]>;
     acknowledgeSupplierGap(eventId: string, categoryId: string, input: AcknowledgeSupplierGapInput, actor?: EventOpsActorQuery): Promise<PrismSupplierGap>;
     supplierSchedules(eventId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierSchedule[]>;

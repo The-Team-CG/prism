@@ -1,10 +1,7 @@
-import type { DecideCoordinatorReplacementInput, PrismCoordinatorReplacementRecommendation } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
-
-const path = (eventId: string) => `/api/events/${eventId}/coordinator-replacements`;
+import type { DecideCoordinatorReplacementInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const coordinatorReplacementRepository = {
-  list: (eventId: string) => eventApiRequest<PrismCoordinatorReplacementRecommendation[]>(path(eventId)),
-  decide: (eventId: string, id: string, input: DecideCoordinatorReplacementInput) =>
-    eventApiRequest<PrismCoordinatorReplacementRecommendation>(`${path(eventId)}/${id}/decision`, { method: "POST", body: input }),
+  list: (eventId: string) => eventApi.staffing.replacementRecommendations(eventId),
+  decide: (eventId: string, id: string, input: DecideCoordinatorReplacementInput) => eventApi.staffing.decideReplacement(eventId, id, input),
 };

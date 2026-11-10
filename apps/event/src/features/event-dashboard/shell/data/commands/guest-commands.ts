@@ -1,4 +1,4 @@
-import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
+import { eventApi as eventOpsClient } from "@/lib/prism-api";
 import type { CreateRegistrationPlatformInput, ImportHeadcountInput, ImportGuestRosterInput, UpdateWalkInPolicyInput, GuestRosterSearchInput, UpdateGuestVerificationInput, UpdateRegistrationPlatformInput, UpdateRegistrationPlatformSetupInput, UpdateGuestPrivacyClassificationInput } from "@prism/types";
 
 export const guestCommands = {

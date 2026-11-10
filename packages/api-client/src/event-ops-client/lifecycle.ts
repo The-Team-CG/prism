@@ -1,4 +1,9 @@
 import type {
+  PrismAccreditationRequirement,
+  PrismApprovedClientAccount,
+  PrismEventClientAccess,
+  PrismEventRisk,
+  PrismLogisticsBooking,
   StartEventDayResult,
   PrismArchiveComparisonRow,
   PrismCancellationSummary,
@@ -26,7 +31,7 @@ import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase, actorPath } from "./shared";
 
-export function createLifecycleClient(options: EventOpsClientOptions): Pick<EventOpsClient, "lifecycle" | "closure" | "compliance" | "floorplans"> {
+export function createLifecycleClient(options: EventOpsClientOptions): Pick<EventOpsClient, "lifecycle" | "risks" | "closure" | "compliance" | "floorplans"> {
   const event = (eventId: string, rest: string) => `/events/${eventId}${rest}`;
   return {
     lifecycle: {
@@ -59,6 +64,16 @@ export function createLifecycleClient(options: EventOpsClientOptions): Pick<Even
       resolveVenueConfirmation: (eventId, taskId, input, actor = {}) =>
         prismRequest<PrismVenueConfirmationTask>(actorPath(event(eventId, `/decisions/venue-confirmations/${taskId}/resolve`), actor), withBase(options, { method: "POST", body: input })),
     },
+    risks: {
+      list: (eventId, actor = {}) =>
+        prismRequest<PrismEventRisk[]>(actorPath(event(eventId, "/risks"), actor), withBase(options)),
+      loadStandard: (eventId, actor = {}) =>
+        prismRequest<PrismEventRisk[]>(actorPath(event(eventId, "/risks/standard"), actor), withBase(options, { method: "POST" })),
+      create: (eventId, input, actor = {}) =>
+        prismRequest<PrismEventRisk>(actorPath(event(eventId, "/risks"), actor), withBase(options, { method: "POST", body: input })),
+      update: (eventId, riskId, input, actor = {}) =>
+        prismRequest<PrismEventRisk>(actorPath(event(eventId, `/risks/${riskId}`), actor), withBase(options, { method: "PATCH", body: input })),
+    },
     closure: {
       closeGates: (eventId, actor = {}) =>
         prismRequest<PrismCloseGates>(actorPath(event(eventId, "/close-gates"), actor), withBase(options)),
@@ -72,6 +87,10 @@ export function createLifecycleClient(options: EventOpsClientOptions): Pick<Even
         prismRequest<PrismEventWrapUp>(actorPath(event(eventId, "/wrap-up"), actor), withBase(options, { method: "POST", body: input })),
       updateWrapUp: (eventId, input, actor = {}) =>
         prismRequest<PrismEventWrapUp>(actorPath(event(eventId, "/wrap-up"), actor), withBase(options, { method: "PATCH", body: input })),
+      logisticsBookings: (eventId, actor = {}) =>
+        prismRequest<PrismLogisticsBooking[]>(actorPath(event(eventId, "/logistics-bookings"), actor), withBase(options)),
+      createLogisticsBooking: (eventId, input, actor = {}) =>
+        prismRequest<PrismLogisticsBooking>(actorPath(event(eventId, "/logistics-bookings"), actor), withBase(options, { method: "POST", body: input })),
       compareArchived: (eventIds, actor = {}) =>
         prismRequest<PrismArchiveComparisonRow[]>(actorPath(`/events/archive/compare?eventIds=${encodeURIComponent(eventIds.join(","))}`, actor), withBase(options)),
       completePostEventDocument: (eventId, documentId, actor = {}) =>
@@ -96,6 +115,12 @@ export function createLifecycleClient(options: EventOpsClientOptions): Pick<Even
         prismRequest<PrismComplianceRun[]>(actorPath(event(eventId, "/compliance/runs"), actor), withBase(options)),
       risks: (eventId, actor = {}) =>
         prismRequest<PrismComplianceRisk[]>(actorPath(event(eventId, "/compliance/risks"), actor), withBase(options)),
+      accreditationRequirements: (eventId, actor = {}) =>
+        prismRequest<PrismAccreditationRequirement[]>(actorPath(event(eventId, "/accreditation"), actor), withBase(options)),
+      createAccreditationRequirement: (eventId, input, actor = {}) =>
+        prismRequest<PrismAccreditationRequirement>(actorPath(event(eventId, "/accreditation"), actor), withBase(options, { method: "POST", body: input })),
+      updateAccreditationRequirement: (eventId, requirementId, input, actor = {}) =>
+        prismRequest<PrismAccreditationRequirement>(actorPath(event(eventId, `/accreditation/${requirementId}`), actor), withBase(options, { method: "PATCH", body: input })),
       createRisk: (eventId, input, actor = {}) =>
         prismRequest<PrismComplianceRisk>(actorPath(event(eventId, "/compliance/risks"), actor), withBase(options, { method: "POST", body: input })),
     },
@@ -108,6 +133,14 @@ export function createLifecycleClient(options: EventOpsClientOptions): Pick<Even
         prismRequest<PrismFloorPlanDraft>(actorPath(event(eventId, `/floorplans/${draftId}/approve`), actor), withBase(options, { method: "POST" })),
       reopenPreference: (eventId, draftId, actor = {}) =>
         prismRequest<PrismFloorPlanDraft>(actorPath(event(eventId, `/floorplans/${draftId}/reopen-preference`), actor), withBase(options, { method: "POST" })),
+      clientAccess: (eventId, actor = {}) =>
+        prismRequest<PrismEventClientAccess>(actorPath(`/events/${encodeURIComponent(eventId)}/client-floorplan-access`, actor), withBase(options)),
+      searchClientCandidates: (eventId, query, actor = {}) =>
+        prismRequest<PrismApprovedClientAccount[]>(actorPath(`/events/${encodeURIComponent(eventId)}/client-floorplan-access/candidates?${new URLSearchParams({ query }).toString()}`, actor), withBase(options)),
+      grantClientAccess: (eventId, userId, actor = {}) =>
+        prismRequest<PrismEventClientAccess>(actorPath(`/events/${encodeURIComponent(eventId)}/client-floorplan-access`, actor), withBase(options, { method: "POST", body: { userId } })),
+      revokeClientAccess: (eventId, userId, actor = {}) =>
+        prismRequest<PrismEventClientAccess>(actorPath(`/events/${encodeURIComponent(eventId)}/client-floorplan-access/${encodeURIComponent(userId)}`, actor), withBase(options, { method: "DELETE" })),
       history: (eventId, draftId, actor = {}) =>
         prismRequest<PrismFloorPlanSnapshotVersion[]>(actorPath(`/events/${encodeURIComponent(eventId)}/floorplans/${encodeURIComponent(draftId)}/history`, actor), withBase(options)),
       plan: <TPlan = unknown>(planId: string, actor = {}) =>
