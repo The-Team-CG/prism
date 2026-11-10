@@ -6,7 +6,6 @@ import {
   buildFeedbackPayload,
   checkInButtonLabel,
   checkInSuccessNotice,
-  guestApiPath,
   guestPassDetails,
   isFileWithinSizeLimit,
   isGuestAccessEndedError,
@@ -36,13 +35,6 @@ describe("guest-dashboard-rules", () => {
     expect(bare).not.toHaveProperty("Venue");
     expect(bare.Date).toBe("Aug 1, 2026");
     expect(Object.fromEntries(guestPassDetails({ ...session, startTime: "00:05" })).Date).toContain("12:05 AM");
-  });
-
-  it("builds guest API paths from access code", () => {
-    expect(guestApiPath(session)).toBe("/api/guest/events/AYALA-TECH-YALA");
-    expect(guestApiPath(session, "/check-ins")).toBe(
-      "/api/guest/events/AYALA-TECH-YALA/check-ins",
-    );
   });
 
   it("builds only the fields allowed for the selected check-in mode", () => {
