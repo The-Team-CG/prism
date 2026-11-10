@@ -9,6 +9,7 @@ import { calendarWindow, pmcmCalendar, toCalendarEntries } from "@/features/pmcm
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 import { LoadingState } from "@prism/ui/components/loading-state";
+import { Card } from "@prism/ui/components/card";
 
 export function EventDashboardCalendarSectionView() {
   const { events, selectedEvent, navigateEvent } = useEventDashboardLoadedRouteViewModel();
@@ -26,10 +27,10 @@ export function EventDashboardCalendarSectionView() {
   return (
     <div className="space-y-3">
       {calendar.status === "error" ? (
-        <div role="alert" className="rounded-lg border border-border bg-card p-4 text-sm">
+        <Card role="alert" className="gap-0 block rounded-lg border border-border bg-card p-4 text-sm">
           <p className="text-foreground">We could not load these dates.</p>
           <button type="button" onClick={() => void invalidate(pmcmCalendar, window)} className="mt-1 min-h-11 text-sm font-semibold text-primary">Try again</button>
-        </div>
+        </Card>
       ) : null}
       {calendar.status === "pending" ? <LoadingState label="Loading dates…" /> : null}
       <EventCalendarWorkspace
