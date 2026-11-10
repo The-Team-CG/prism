@@ -1,9 +1,8 @@
 /**
- * Shared guest-portal HTTP helper (DRY across feature repositories).
+ * Maps the shared client's errors onto the guest portal's own error type, so the guest screens keep their messages.
  */
 
-import { resolvePrismApiOrigin } from "@prism/api-client";
-import { GUEST_API_OFFLINE_MESSAGE } from "./guest-messages";
+import { PrismApiError } from "@prism/api-client";
 
 export { GUEST_API_OFFLINE_MESSAGE } from "./guest-messages";
 
@@ -17,34 +16,24 @@ export class GuestApiError extends Error {
   }
 }
 
-function errorMessage(body: { message?: unknown }, fallback: string): string {
-  if (Array.isArray(body.message)) return body.message.join(", ");
-  if (typeof body.message === "string" && body.message.trim()) return body.message;
+function errorMessage(body: unknown, fallback: string): string {
+  const message = typeof body === "object" && body !== null ? (body as { message?: unknown }).message : undefined;
+  if (Array.isArray(message)) return message.join(", ");
+  if (typeof message === "string" && message.trim()) return message;
   return fallback;
 }
 
-export async function guestJson<T>(
-  path: string,
-  init: RequestInit = {},
-  fallbackError = `Request failed`,
-): Promise<T> {
-  let response: Response;
+/**
+ * Runs one guest request. An API refusal becomes a GuestApiError carrying the server's message, or "<fallback>: <status>"
+ * when it sent none; an unreachable API already carries the guest offline message and passes through unchanged.
+ */
+export async function guestCall<T>(call: () => Promise<T>, fallbackError = "Request failed"): Promise<T> {
   try {
-    response = await fetch(`${resolvePrismApiOrigin()}${path}`, {
-      ...init,
-      headers: {
-        ...(init.body ? { "Content-Type": "application/json" } : {}),
-        ...(init.headers ?? {}),
-      },
-    });
+    return await call();
   } catch (error) {
-    if (error instanceof TypeError) throw new Error(GUEST_API_OFFLINE_MESSAGE);
+    if (error instanceof PrismApiError) {
+      throw new GuestApiError(error.status, errorMessage(error.body, `${fallbackError}: ${error.status}`));
+    }
     throw error;
   }
-
-  const body = (await response.json().catch(() => ({}))) as { message?: unknown; data?: T };
-  if (!response.ok) {
-    throw new GuestApiError(response.status, errorMessage(body, `${fallbackError}: ${response.status}`));
-  }
-  return body.data as T;
 }
