@@ -6,6 +6,12 @@ export type DashboardActionRefreshers = {
   loadLiveOps?: () => Promise<unknown>;
 };
 
+/** What the PMCM sees when a command went through: the action's own name, so a save is never silent. */
+export function dashboardActionSuccessToast(actionLabel: string): { title: string; description: string } {
+  const label = actionLabel.trim();
+  return { title: label.charAt(0).toUpperCase() + label.slice(1), description: "Done." };
+}
+
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "Action failed";
 }
@@ -17,6 +23,30 @@ export async function refreshAfterDashboardCommand(refreshers: DashboardActionRe
     refreshers.refreshSelectedEventWorkspace(),
     refreshers.loadLiveOps?.().catch(() => undefined),
   ]);
+}
+
+/**
+ * Runs one PMCM command: says it went through as soon as it has, then refreshes what the screen shows. A failed
+ * command is reported and announces nothing; a refresh failure is reported but does not undo the announcement.
+ */
+export async function runDashboardAction(
+  actionLabel: string,
+  action: () => Promise<unknown>,
+  refreshers: DashboardActionRefreshers,
+  { reportError, announce }: { reportError: (message: string) => void; announce: (toast: { title: string; description: string }) => void },
+): Promise<void> {
+  try {
+    await action();
+  } catch (error) {
+    reportError(errorMessage(error));
+    return;
+  }
+  announce(dashboardActionSuccessToast(actionLabel));
+  try {
+    await refreshAfterDashboardCommand(refreshers);
+  } catch (error) {
+    reportError(errorMessage(error));
+  }
 }
 
 export async function runDashboardActionWithSuccess(
