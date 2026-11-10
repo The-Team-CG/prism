@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- `npm run check:boundaries` now fails on a hand-written `/api/` path or an `eventApiRequest` call in the event app, so new API calls must go through `@prism/api-client`. The conforme PDF download, logout and the floorplan template store are the documented exceptions.
 - The last event-portal repositories that built API paths by hand (external creative tickets, venue scouting, presentation meetings, supplier follow-ups, risk register, accreditation, client floorplan access, logistics bookings, coordinator replacements and QR passes) call the API through the shared `@prism/api-client`. Only logout (its own 401 handling) and the floorplan template store (which takes an injected request function) still use the event portal's request helper.
 - Coordinator role views and briefs, supplier directory reads (which can be cancelled), supplier gaps and schedules, AI advisory, the Canva connection, PARE approvals and starting the event day in the event portal call the API through the shared `@prism/api-client` (`coordinator`, `commercial`, `advisory`, `canva` and `pare` groups). Client read methods accept an optional abort signal.
 - Proposals and cost estimates, proposal comments, client review items and client follow-up messages in the event portal call the API through the shared `@prism/api-client` `commercial` group.
