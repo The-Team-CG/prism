@@ -1,4 +1,19 @@
 import type {
+  AcknowledgeSupplierGapInput,
+  PmcmSupplierDirectoryQuery,
+  PmcmSupplierHistoryQuery,
+  PmcmSupplierProfileQuery,
+  PmcmSupplierRecordsQuery,
+  PrismPmcmSupplierCertificationsPage,
+  PrismPmcmSupplierDirectoryPage,
+  PrismPmcmSupplierEngagement,
+  PrismPmcmSupplierPage,
+  PrismPmcmSupplierProfile,
+  PrismPmcmSupplierRecordsPage,
+  PrismPmcmSupplierReviewsPage,
+  PrismSupplierCategory,
+  PrismSupplierGap,
+  PrismSupplierSchedule,
   ClientMessageDraftRequest,
   CommsDraftResult,
   CreateClientReviewItemInput,
@@ -46,7 +61,7 @@ import type {
   UpdateSupplierInput,
   VerifySupplierStatusInput,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
+import type { EventOpsActorQuery, EventOpsReadInit } from "./primitives";
 
 /** Billing, payments, supplier records and quote requests: the PMCM commercial commands. */
 export interface EventOpsCommercialContract {
@@ -89,5 +104,15 @@ export interface EventOpsCommercialContract {
     clientMessageTriggers(eventId: string, actor?: EventOpsActorQuery): Promise<PrismClientMessageTriggerState[]>;
     draftClientMessage(input: ClientMessageDraftRequest, actor?: EventOpsActorQuery): Promise<{ draft: CommsDraftResult; requestId: string; modelVersion: string }>;
     sendClientMessage(input: SendClientMessageInput, actor?: EventOpsActorQuery): Promise<{ sent: boolean }>;
+    supplierGaps(eventId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierGap[]>;
+    acknowledgeSupplierGap(eventId: string, categoryId: string, input: AcknowledgeSupplierGapInput, actor?: EventOpsActorQuery): Promise<PrismSupplierGap>;
+    supplierSchedules(eventId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierSchedule[]>;
+    supplierCategories(init?: EventOpsReadInit): Promise<PrismSupplierCategory[]>;
+    supplierDirectory(query: PmcmSupplierDirectoryQuery, init?: EventOpsReadInit): Promise<PrismPmcmSupplierDirectoryPage>;
+    supplierProfile(supplierId: string, query: PmcmSupplierProfileQuery, init?: EventOpsReadInit): Promise<PrismPmcmSupplierProfile>;
+    supplierReviews(supplierId: string, query: PmcmSupplierHistoryQuery, init?: EventOpsReadInit): Promise<PrismPmcmSupplierReviewsPage>;
+    supplierCertifications(supplierId: string, query: PmcmSupplierHistoryQuery, init?: EventOpsReadInit): Promise<PrismPmcmSupplierCertificationsPage>;
+    supplierRecords(supplierId: string, query: PmcmSupplierRecordsQuery, init?: EventOpsReadInit): Promise<PrismPmcmSupplierRecordsPage>;
+    supplierEngagements(supplierId: string, query: PmcmSupplierHistoryQuery, init?: EventOpsReadInit): Promise<PrismPmcmSupplierPage<PrismPmcmSupplierEngagement>>;
   };
 }

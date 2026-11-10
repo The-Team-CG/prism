@@ -1,4 +1,14 @@
 import type {
+  PrismPmcmSupplierCertificationsPage,
+  PrismPmcmSupplierDirectoryPage,
+  PrismPmcmSupplierEngagement,
+  PrismPmcmSupplierPage,
+  PrismPmcmSupplierProfile,
+  PrismPmcmSupplierRecordsPage,
+  PrismPmcmSupplierReviewsPage,
+  PrismSupplierCategory,
+  PrismSupplierGap,
+  PrismSupplierSchedule,
   CommsDraftResult,
   PrismClientMessageTriggerState,
   PrismClientReviewItem,
@@ -20,13 +30,18 @@ import type {
   PrismSupplierQuoteRequest,
   PrismSupplierQuoteRoundComparison,
 } from "@prism/types";
-import { prismRequest } from "../http";
+import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase, actorPath } from "./shared";
 
 export function createCommercialClient(options: EventOpsClientOptions): Pick<EventOpsClient, "commercial"> {
   const event = (eventId: string, rest: string) => `/events/${eventId}${rest}`;
   const supplier = (supplierId: string, rest = "") => `/suppliers/${encodeURIComponent(supplierId)}${rest}`;
+  /** `?a=b` for a non-empty query, nothing otherwise. */
+  const search = (values: object) => {
+    const text = toQueryString(values as Record<string, string | number | boolean | null | undefined>);
+    return text ? `?${text}` : "";
+  };
   return {
     commercial: {
       createBillingSource: (eventId, input, actor = {}) =>
@@ -103,6 +118,26 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<{ draft: CommsDraftResult; requestId: string; modelVersion: string }>(actorPath("/client-message-drafts", actor), withBase(options, { method: "POST", body: input })),
       sendClientMessage: (input, actor = {}) =>
         prismRequest<{ sent: boolean }>(actorPath("/client-message-drafts/send", actor), withBase(options, { method: "POST", body: input })),
+      supplierGaps: (eventId, actor = {}) =>
+        prismRequest<PrismSupplierGap[]>(actorPath(event(eventId, "/supplier-gaps"), actor), withBase(options)),
+      acknowledgeSupplierGap: (eventId, categoryId, input, actor = {}) =>
+        prismRequest<PrismSupplierGap>(actorPath(event(eventId, `/supplier-gaps/${categoryId}/acknowledge`), actor), withBase(options, { method: "POST", body: input })),
+      supplierSchedules: (eventId, actor = {}) =>
+        prismRequest<PrismSupplierSchedule[]>(actorPath(`/events/${encodeURIComponent(eventId)}/supplier-schedules`, actor), withBase(options)),
+      supplierCategories: (init = {}) =>
+        prismRequest<PrismSupplierCategory[]>("/suppliers/categories", withBase(options, { signal: init.signal })),
+      supplierDirectory: (query, init = {}) =>
+        prismRequest<PrismPmcmSupplierDirectoryPage>(`/suppliers/directory${search(query)}`, withBase(options, { signal: init.signal })),
+      supplierProfile: (supplierId, query, init = {}) =>
+        prismRequest<PrismPmcmSupplierProfile>(`${supplier(supplierId, "/profile")}${search(query)}`, withBase(options, { signal: init.signal })),
+      supplierReviews: (supplierId, query, init = {}) =>
+        prismRequest<PrismPmcmSupplierReviewsPage>(`${supplier(supplierId, "/reviews")}${search(query)}`, withBase(options, { signal: init.signal })),
+      supplierCertifications: (supplierId, query, init = {}) =>
+        prismRequest<PrismPmcmSupplierCertificationsPage>(`${supplier(supplierId, "/certifications")}${search(query)}`, withBase(options, { signal: init.signal })),
+      supplierRecords: (supplierId, query, init = {}) =>
+        prismRequest<PrismPmcmSupplierRecordsPage>(`${supplier(supplierId, "/records")}${search(query)}`, withBase(options, { signal: init.signal })),
+      supplierEngagements: (supplierId, query, init = {}) =>
+        prismRequest<PrismPmcmSupplierPage<PrismPmcmSupplierEngagement>>(`/pmcm/suppliers/${encodeURIComponent(supplierId)}/engagements${search(query)}`, withBase(options, { signal: init.signal })),
       selectSupplierQuote: (eventId, quoteId, actor = {}) =>
         prismRequest<PrismSupplierQuote>(actorPath(event(eventId, `/supplier-quotes/${quoteId}/select`), actor), withBase(options, { method: "PATCH" })),
     },

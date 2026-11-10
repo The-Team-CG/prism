@@ -1,6 +1,7 @@
 export type {
   EventOpsActorQuery,
   EventOpsClientOptions,
+  EventOpsReadInit,
 } from "./contracts/primitives";
 
 import type { EventOpsAuthContract } from "./contracts/auth";
@@ -18,6 +19,7 @@ import type { EventOpsCommercialContract } from "./contracts/commercial";
 import type { EventOpsLifecycleContract } from "./contracts/lifecycle";
 import type { EventOpsStaffingContract } from "./contracts/staffing";
 import type { EventOpsTrustContract } from "./contracts/trust";
+import type { EventOpsPlatformContract } from "./contracts/platform";
 
 /**
  * Re-export write DTOs from `@prism/types` (Zod schemas + `z.infer`).
@@ -67,4 +69,5 @@ export interface EventOpsClient
     EventOpsCommercialContract,
     EventOpsLifecycleContract,
     EventOpsStaffingContract,
-    EventOpsTrustContract {}
+    EventOpsTrustContract,
+    EventOpsPlatformContract {}
