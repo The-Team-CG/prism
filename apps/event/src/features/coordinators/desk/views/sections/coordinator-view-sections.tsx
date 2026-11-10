@@ -28,6 +28,7 @@ import type { PrismCoordinatorRoleView } from "@prism/types";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk } from "@/features/live-ops/schedule";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
+import { LoadingState } from "@prism/ui/components/loading-state";
 import type {
   CoordinatorIssueFormModel,
   CoordinatorTaskFormModel,
@@ -411,7 +412,7 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false, onCheckAga
       </CardHeader>
       <CardContent id="coordinator-timeline" className="scroll-mt-24 space-y-3">
         <fieldset disabled={readOnly} hidden={view !== "run-sheet"} className="min-w-0">{roleView?.schedule?.authored ? <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} /> : roleView ? <RunSheetNotPublished onCheckAgain={onCheckAgain} /> : (
-          <p className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">Loading the run sheet.</p>
+          <LoadingState label="Loading the run sheet." className="rounded-xl bg-muted/40 p-4" />
         )}</fieldset>
         {roleView ? <fieldset disabled={readOnly} hidden={view !== "brief"} className="min-w-0"><HandoffBriefPanel eventId={roleView.event.id} defaultOpen /></fieldset> : null}
         {roleView ? <fieldset disabled={readOnly} hidden={view !== "reports"} className="min-w-0">

@@ -38,6 +38,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@prism/ui/
 import { FieldDescription } from "@prism/ui/components/field";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@prism/ui/components/item";
 import { OperatorDesignationCard } from "./coordinator-operator-card";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 type SuggestionLoadStatus = "idle" | "loading" | "loaded" | "empty" | "error";
 type CoordinatorIdentity = Pick<PrismCoordinator, "id" | "name">;
@@ -460,7 +461,7 @@ function CoordinatorSkillResults({ status, suggestions, busy, onAssign }: {
   onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole) => Promise<void>;
 }) {
   return <>
-              {status === "loading" && <p role="status" className="text-sm text-muted-foreground">Loading skill matches…</p>}
+              {status === "loading" && <LoadingState label="Loading skill matches…" />}
               {status === "error" && <p role="status" className="text-sm text-destructive">Could not load skill matches. Try again.</p>}
               {status === "empty" && <p role="status" className="text-sm text-muted-foreground">No coordinators match this role and skill selection.</p>}
               {status === "loaded" && (

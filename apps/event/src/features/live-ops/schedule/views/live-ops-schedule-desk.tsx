@@ -14,6 +14,7 @@ import {
 } from "@prism/types";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { useLiveOpsScheduleDeskViewModel } from "../view-models/use-live-ops-schedule-desk-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 type LiveOpsScheduleDeskProps = {
   eventId: string;
@@ -42,7 +43,7 @@ export function LiveOpsScheduleDesk({
     <section aria-labelledby="event-day-records-heading" className="space-y-5 rounded-xl border border-border bg-card p-5">
       <ScheduleDeskHeader vm={vm} canStartEventDay={canStartEventDay} />
 
-      {vm.status === "loading" && !vm.schedule ? <p role="status" className="text-sm text-muted-foreground">Loading schedule and reports…</p> : null}
+      {vm.status === "loading" && !vm.schedule ? <LoadingState label="Loading schedule and reports…" /> : null}
       {vm.error ? (
         <div className="flex flex-wrap items-center gap-3">
           <p role="alert" className="text-sm text-destructive">{vm.error}</p>

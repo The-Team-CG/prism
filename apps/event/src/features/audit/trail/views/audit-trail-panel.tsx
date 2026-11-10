@@ -4,6 +4,7 @@ import type { PrismAuthenticatedSession, PrismEvent, PrismUser } from "@prism/ty
 import { useAccountAdminViewModel } from "../view-models/use-account-admin-view-model";
 import { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-model";
 import { AccountAdminPanel } from "./account-admin-panel";
+import { LoadingState } from "@prism/ui/components/loading-state";
 import {
   AuditTrailOverview,
   LoginHistoryPanel,
@@ -27,7 +28,7 @@ export function AuditTrailPanel({
   const users = usersProp ?? vm.users;
 
   if (!session) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading audit trail...</div>;
+    return <LoadingState label="Loading audit trail..." className="p-6" />;
   }
 
   return (
