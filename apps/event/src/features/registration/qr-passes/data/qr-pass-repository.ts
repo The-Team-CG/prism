@@ -1,11 +1,8 @@
-import type { GuestQrCheckInInput, PrismGuestCheckIn, PrismGuestQrPass } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
-
-const base = (eventId: string) => `/api/guest/events/${eventId}`;
+import type { GuestQrCheckInInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const qrPassRepository = {
-  list: (eventId: string) => eventApiRequest<PrismGuestQrPass[]>(`${base(eventId)}/qr-passes`),
-  issue: (eventId: string) => eventApiRequest<PrismGuestQrPass[]>(`${base(eventId)}/qr-passes`, { method: "POST" }),
-  checkIn: (eventId: string, input: GuestQrCheckInInput) =>
-    eventApiRequest<PrismGuestCheckIn>(`${base(eventId)}/qr-check-in`, { method: "POST", body: input }),
+  list: (eventId: string) => eventApi.guest.qrPasses(eventId),
+  issue: (eventId: string) => eventApi.guest.issueQrPasses(eventId),
+  checkIn: (eventId: string, input: GuestQrCheckInInput) => eventApi.guest.qrCheckIn(eventId, input),
 };

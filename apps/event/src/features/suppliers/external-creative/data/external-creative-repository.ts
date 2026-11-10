@@ -1,16 +1,9 @@
-import type {
-  CompleteExternalCreativeTicketInput,
-  CreateExternalCreativeTicketInput,
-  PrismExternalCreativeTicket,
-  UpdateExternalCreativeTicketInput,
-} from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
-
-const path = (eventId: string) => `/api/events/${eventId}/external-creative-tickets`;
+import type { CompleteExternalCreativeTicketInput, CreateExternalCreativeTicketInput, UpdateExternalCreativeTicketInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const externalCreativeRepository = {
-  list: (eventId: string) => eventApiRequest<PrismExternalCreativeTicket[]>(path(eventId)),
-  create: (eventId: string, input: CreateExternalCreativeTicketInput) => eventApiRequest<PrismExternalCreativeTicket>(path(eventId), { method: "POST", body: input }),
-  update: (eventId: string, ticketId: string, input: UpdateExternalCreativeTicketInput) => eventApiRequest<PrismExternalCreativeTicket>(`${path(eventId)}/${ticketId}`, { method: "PATCH", body: input }),
-  complete: (eventId: string, ticketId: string, input: CompleteExternalCreativeTicketInput) => eventApiRequest<PrismExternalCreativeTicket>(`${path(eventId)}/${ticketId}/complete`, { method: "POST", body: input }),
+  list: (eventId: string) => eventApi.commercial.externalCreativeTickets(eventId),
+  create: (eventId: string, input: CreateExternalCreativeTicketInput) => eventApi.commercial.createExternalCreativeTicket(eventId, input),
+  update: (eventId: string, ticketId: string, input: UpdateExternalCreativeTicketInput) => eventApi.commercial.updateExternalCreativeTicket(eventId, ticketId, input),
+  complete: (eventId: string, ticketId: string, input: CompleteExternalCreativeTicketInput) => eventApi.commercial.completeExternalCreativeTicket(eventId, ticketId, input),
 };

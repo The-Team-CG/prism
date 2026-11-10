@@ -1,6 +1,6 @@
 import { defineResource } from "@prism/portal-query";
 import type { EventSession } from "@/app/lib/session";
-import { eventApi, eventApiRequest } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 import type {
   PrismCoordinatorAssignment,
   PrismCoordinatorRoleView,

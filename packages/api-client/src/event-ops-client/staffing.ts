@@ -1,4 +1,5 @@
 import type {
+  PrismCoordinatorReplacementRecommendation,
   PrismAcknowledgementReminderResult,
   PrismCoordinatorAssignment,
   PrismCoordinatorAvailability,
@@ -39,6 +40,10 @@ export function createStaffingClient(options: EventOpsClientOptions): Pick<Event
         prismRequest<PrismCoordinatorAvailability>(actorPath(event(eventId, `/coordinators/${coordinatorId}/availability`), actor), withBase(options, { method: "POST", body: input })),
       deleteAvailability: (eventId, coordinatorId, availabilityId, actor = {}) =>
         prismRequest<{ id: string }>(actorPath(event(eventId, `/coordinators/${coordinatorId}/availability/${availabilityId}`), actor), withBase(options, { method: "DELETE" })),
+      replacementRecommendations: (eventId, actor = {}) =>
+        prismRequest<PrismCoordinatorReplacementRecommendation[]>(actorPath(event(eventId, "/coordinator-replacements"), actor), withBase(options)),
+      decideReplacement: (eventId, recommendationId, input, actor = {}) =>
+        prismRequest<PrismCoordinatorReplacementRecommendation>(actorPath(event(eventId, `/coordinator-replacements/${recommendationId}/decision`), actor), withBase(options, { method: "POST", body: input })),
       sendAcknowledgementReminders: (eventId, actor = {}) =>
         prismRequest<PrismAcknowledgementReminderResult>(actorPath(event(eventId, "/staffing/acknowledgement-reminders"), actor), withBase(options, { method: "POST" })),
       upsertCoverage: (eventId, input, actor = {}) =>

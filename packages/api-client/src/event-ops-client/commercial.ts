@@ -1,4 +1,11 @@
 import type {
+  PrismClientOwnedSupplier,
+  PrismExternalCreativeTicket,
+  PrismPresentationMeeting,
+  PrismPresentationMeetings,
+  PrismUnresponsiveSupplier,
+  PrismVenueScouting,
+  PrismVenueScoutingOption,
   PrismPmcmSupplierCertificationsPage,
   PrismPmcmSupplierDirectoryPage,
   PrismPmcmSupplierEngagement,
@@ -118,6 +125,34 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<{ draft: CommsDraftResult; requestId: string; modelVersion: string }>(actorPath("/client-message-drafts", actor), withBase(options, { method: "POST", body: input })),
       sendClientMessage: (input, actor = {}) =>
         prismRequest<{ sent: boolean }>(actorPath("/client-message-drafts/send", actor), withBase(options, { method: "POST", body: input })),
+      externalCreativeTickets: (eventId, actor = {}) =>
+        prismRequest<PrismExternalCreativeTicket[]>(actorPath(event(eventId, "/external-creative-tickets"), actor), withBase(options)),
+      createExternalCreativeTicket: (eventId, input, actor = {}) =>
+        prismRequest<PrismExternalCreativeTicket>(actorPath(event(eventId, "/external-creative-tickets"), actor), withBase(options, { method: "POST", body: input })),
+      updateExternalCreativeTicket: (eventId, ticketId, input, actor = {}) =>
+        prismRequest<PrismExternalCreativeTicket>(actorPath(event(eventId, `/external-creative-tickets/${ticketId}`), actor), withBase(options, { method: "PATCH", body: input })),
+      completeExternalCreativeTicket: (eventId, ticketId, input, actor = {}) =>
+        prismRequest<PrismExternalCreativeTicket>(actorPath(event(eventId, `/external-creative-tickets/${ticketId}/complete`), actor), withBase(options, { method: "POST", body: input })),
+      venueScouting: (eventId, actor = {}) =>
+        prismRequest<PrismVenueScouting>(actorPath(event(eventId, "/venue-scouting"), actor), withBase(options)),
+      addVenueScoutingOption: (eventId, input, actor = {}) =>
+        prismRequest<PrismVenueScoutingOption>(actorPath(event(eventId, "/venue-scouting/options"), actor), withBase(options, { method: "POST", body: input })),
+      withdrawVenueScoutingOption: (eventId, optionId, actor = {}) =>
+        prismRequest<PrismVenueScoutingOption>(actorPath(event(eventId, `/venue-scouting/options/${optionId}/withdraw`), actor), withBase(options, { method: "POST" })),
+      publishVenueScouting: (eventId, actor = {}) =>
+        prismRequest<PrismVenueScouting>(actorPath(event(eventId, "/venue-scouting/publish"), actor), withBase(options, { method: "POST" })),
+      presentationMeetings: (eventId, actor = {}) =>
+        prismRequest<PrismPresentationMeetings>(actorPath(`/events/${encodeURIComponent(eventId)}/presentation-meetings`, actor), withBase(options)),
+      proposePresentationMeeting: (eventId, input, actor = {}) =>
+        prismRequest<PrismPresentationMeeting>(actorPath(`/events/${encodeURIComponent(eventId)}/presentation-meetings`, actor), withBase(options, { method: "POST", body: input })),
+      recordPresentationOutcome: (eventId, meetingId, input, actor = {}) =>
+        prismRequest<PrismPresentationMeeting>(actorPath(`/events/${encodeURIComponent(eventId)}/presentation-meetings/${encodeURIComponent(meetingId)}/outcome`, actor), withBase(options, { method: "POST", body: input })),
+      unresponsiveSuppliers: (eventId, actor = {}) =>
+        prismRequest<PrismUnresponsiveSupplier[]>(actorPath(`/events/${encodeURIComponent(eventId)}/unresponsive-suppliers`, actor), withBase(options)),
+      clientOwnedSuppliers: (eventId, actor = {}) =>
+        prismRequest<PrismClientOwnedSupplier[]>(actorPath(`/events/${encodeURIComponent(eventId)}/client-owned-suppliers`, actor), withBase(options)),
+      raiseClientSupplierRisk: (eventId, supplierId, input, actor = {}) =>
+        prismRequest<PrismClientOwnedSupplier>(actorPath(`/events/${encodeURIComponent(eventId)}/client-owned-suppliers/${encodeURIComponent(supplierId)}/risk-warning`, actor), withBase(options, { method: "POST", body: input })),
       supplierGaps: (eventId, actor = {}) =>
         prismRequest<PrismSupplierGap[]>(actorPath(event(eventId, "/supplier-gaps"), actor), withBase(options)),
       acknowledgeSupplierGap: (eventId, categoryId, input, actor = {}) =>

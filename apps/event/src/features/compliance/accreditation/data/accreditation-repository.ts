@@ -1,10 +1,8 @@
-import type { CreateAccreditationRequirementInput, PrismAccreditationRequirement, UpdateAccreditationRequirementInput } from "@prism/types";
-import { eventApiRequest } from "@/lib/prism-api";
-
-const base = (eventId: string) => `/api/events/${eventId}/accreditation`;
+import type { CreateAccreditationRequirementInput, UpdateAccreditationRequirementInput } from "@prism/types";
+import { eventApi } from "@/lib/prism-api";
 
 export const accreditationRepository = {
-  list: (eventId: string) => eventApiRequest<PrismAccreditationRequirement[]>(base(eventId)),
-  create: (eventId: string, input: CreateAccreditationRequirementInput) => eventApiRequest<PrismAccreditationRequirement>(base(eventId), { method: "POST", body: input }),
-  update: (eventId: string, id: string, input: UpdateAccreditationRequirementInput) => eventApiRequest<PrismAccreditationRequirement>(`${base(eventId)}/${id}`, { method: "PATCH", body: input }),
+  list: (eventId: string) => eventApi.compliance.accreditationRequirements(eventId),
+  create: (eventId: string, input: CreateAccreditationRequirementInput) => eventApi.compliance.createAccreditationRequirement(eventId, input),
+  update: (eventId: string, id: string, input: UpdateAccreditationRequirementInput) => eventApi.compliance.updateAccreditationRequirement(eventId, id, input),
 };

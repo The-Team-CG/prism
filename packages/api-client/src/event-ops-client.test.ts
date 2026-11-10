@@ -27,6 +27,85 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends ticket, venue, meeting, follow-up, risk, accreditation, floorplan-access, booking, replacement and QR requests to their endpoints", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+
+    await client.commercial.externalCreativeTickets("e1");
+    await client.commercial.createExternalCreativeTicket("e1", any);
+    await client.commercial.updateExternalCreativeTicket("e1", "t1", any);
+    await client.commercial.completeExternalCreativeTicket("e1", "t1", any);
+    await client.commercial.venueScouting("e1");
+    await client.commercial.addVenueScoutingOption("e1", any);
+    await client.commercial.withdrawVenueScoutingOption("e1", "o1");
+    await client.commercial.publishVenueScouting("e1");
+    await client.commercial.presentationMeetings("e/1");
+    await client.commercial.proposePresentationMeeting("e1", any);
+    await client.commercial.recordPresentationOutcome("e1", "m/1", any);
+    await client.commercial.unresponsiveSuppliers("e1");
+    await client.commercial.clientOwnedSuppliers("e1");
+    await client.commercial.raiseClientSupplierRisk("e1", "s/1", any);
+    await client.risks.list("e1");
+    await client.risks.loadStandard("e1");
+    await client.risks.create("e1", any);
+    await client.risks.update("e1", "r1", any);
+    await client.compliance.accreditationRequirements("e1");
+    await client.compliance.createAccreditationRequirement("e1", any);
+    await client.compliance.updateAccreditationRequirement("e1", "a1", any);
+    await client.floorplans.clientAccess("e/1");
+    await client.floorplans.searchClientCandidates("e1", "ana reyes");
+    await client.floorplans.grantClientAccess("e1", "u1");
+    await client.floorplans.revokeClientAccess("e1", "u/1");
+    await client.closure.logisticsBookings("e1");
+    await client.closure.createLogisticsBooking("e1", any);
+    await client.staffing.replacementRecommendations("e1");
+    await client.staffing.decideReplacement("e1", "x1", any);
+    await client.guest.qrPasses("e1");
+    await client.guest.issueQrPasses("e1");
+    await client.guest.qrCheckIn("e1", any);
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "GET /events/e1/external-creative-tickets",
+      "POST /events/e1/external-creative-tickets",
+      "PATCH /events/e1/external-creative-tickets/t1",
+      "POST /events/e1/external-creative-tickets/t1/complete",
+      "GET /events/e1/venue-scouting",
+      "POST /events/e1/venue-scouting/options",
+      "POST /events/e1/venue-scouting/options/o1/withdraw",
+      "POST /events/e1/venue-scouting/publish",
+      "GET /events/e%2F1/presentation-meetings",
+      "POST /events/e1/presentation-meetings",
+      "POST /events/e1/presentation-meetings/m%2F1/outcome",
+      "GET /events/e1/unresponsive-suppliers",
+      "GET /events/e1/client-owned-suppliers",
+      "POST /events/e1/client-owned-suppliers/s%2F1/risk-warning",
+      "GET /events/e1/risks",
+      "POST /events/e1/risks/standard",
+      "POST /events/e1/risks",
+      "PATCH /events/e1/risks/r1",
+      "GET /events/e1/accreditation",
+      "POST /events/e1/accreditation",
+      "PATCH /events/e1/accreditation/a1",
+      "GET /events/e%2F1/client-floorplan-access",
+      "GET /events/e1/client-floorplan-access/candidates?query=ana+reyes",
+      "POST /events/e1/client-floorplan-access",
+      "DELETE /events/e1/client-floorplan-access/u%2F1",
+      "GET /events/e1/logistics-bookings",
+      "POST /events/e1/logistics-bookings",
+      "GET /events/e1/coordinator-replacements",
+      "POST /events/e1/coordinator-replacements/x1/decision",
+      "GET /guest/events/e1/qr-passes",
+      "POST /guest/events/e1/qr-passes",
+      "POST /guest/events/e1/qr-check-in",
+    ]);
+    // Granting access names the user in the body, which is how the API finds who to add.
+    expect(JSON.parse(String(fetchMock.mock.calls[23]?.[1]?.body))).toEqual({ userId: "u1" });
+  });
+
   it("sends coordinator, supplier directory, advisory, Canva and PARE requests to their endpoints, and passes an abort signal on", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
