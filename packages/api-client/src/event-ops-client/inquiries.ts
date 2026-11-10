@@ -1,4 +1,4 @@
-import type { PrismInquiry, PrismPortalInvitationResend } from "@prism/types";
+import type { PrismDocument, PrismInquiry, PrismInquiryMergeRecord, PrismPortalInvitationResend } from "@prism/types";
 import { prismRequest, prismSse } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase, actorPath, parseCommsDraftStreamEvent } from "./shared";
@@ -22,6 +22,31 @@ export function createInquiriesClient(
         prismRequest<PrismPortalInvitationResend>(
           `/inquiries/${encodeURIComponent(inquiryId)}/portal-invitation/resend`,
           withBase(options, { method: "POST" }),
+        ),
+      updateStatus: (inquiryId, input, actor = {}) =>
+        prismRequest<PrismInquiry>(
+          actorPath(`/inquiries/${inquiryId}/status`, actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
+      merge: (primaryInquiryId, input, actor = {}) =>
+        prismRequest<PrismInquiryMergeRecord>(
+          actorPath(`/inquiries/${primaryInquiryId}/merge`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      logOnBehalf: (input, actor = {}) =>
+        prismRequest<PrismInquiry>(
+          actorPath("/inquiries/log-on-behalf", actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      sendConformeReminder: (inquiryId, actor = {}) =>
+        prismRequest<PrismInquiry>(
+          actorPath(`/inquiries/${inquiryId}/conforme-reminders`, actor),
+          withBase(options, { method: "POST" }),
+        ),
+      uploadConforme: (inquiryId, input, actor = {}) =>
+        prismRequest<PrismDocument>(
+          actorPath(`/inquiries/${inquiryId}/conforme`, actor),
+          withBase(options, { method: "POST", body: input }),
         ),
     },
     conformeDrafts: {
