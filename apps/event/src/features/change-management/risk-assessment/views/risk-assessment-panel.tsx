@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 import type { RecordEventRiskAssessmentInput, RiskLevel } from "@prism/types";
 import { isLoweringRiskLevel, riskLevelLabel, riskLevelOptions } from "../model/risk-assessment-rules";
 import { useRiskAssessmentViewModel } from "../view-models/use-risk-assessment-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 /** PMCM-only. The suggestion comes from open compliance risks; the recorded level is the authoritative one. */
 export function RiskAssessmentPanel({ eventId }: { eventId: string }) {
@@ -18,7 +19,7 @@ export function RiskAssessmentPanel({ eventId }: { eventId: string }) {
         <h3 id="risk-assessment-heading" className="text-sm font-semibold text-foreground">Event risk level</h3>
         <p className="mt-1 text-sm text-muted-foreground">Visible to PMCM only. Clients, suppliers, coordinators, and guests never see this level.</p>
       </div>
-      {vm.status === "loading" ? <p role="status" className="text-sm text-muted-foreground">Loading risk assessment…</p> : null}
+      {vm.status === "loading" ? <LoadingState label="Loading risk assessment…" /> : null}
       {vm.error ? <p role="alert" className="text-sm text-destructive">{vm.error}</p> : null}
       {view ? (
         <>

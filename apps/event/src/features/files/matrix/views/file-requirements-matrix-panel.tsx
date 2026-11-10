@@ -17,6 +17,7 @@ import {
 } from "../model/file-requirements-matrix-rules";
 import { FileRequirementEditorForm } from "./file-requirement-editor-form";
 import { FileRequirementTemplateManager } from "./file-requirement-template-manager";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
   const { matrix, status, error, reload, remindersBusy, reminderMessage, sendReminders } = useFileRequirementsMatrixViewModel(eventId);
@@ -38,7 +39,7 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
           </Empty>
         </div>
       ) : status === "loading" || status === "idle" ? (
-        <p className="px-6 py-6 text-sm text-muted-foreground">Loading file requirements…</p>
+        <LoadingState label="Loading file requirements…" className="px-6 py-6" />
       ) : items.length === 0 ? (
         <div className="px-6 py-6">
           <Empty className="border-0 p-6">

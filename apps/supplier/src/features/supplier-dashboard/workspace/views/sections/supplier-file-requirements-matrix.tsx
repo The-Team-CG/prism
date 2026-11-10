@@ -10,6 +10,7 @@ import { buildSupplierFileRequirementRows, formatDate } from "../../model/suppli
 import { supplierBookingHref } from "../../model/supplier-next-step";
 import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { useSupplierFileRequirementsViewModel } from "../../view-models/use-supplier-file-requirements-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function SupplierFileRequirementsMatrix({
   workspace,
@@ -38,7 +39,7 @@ export function SupplierFileRequirementsMatrix({
           Required files and due dates are shown for your selected bookings. Contract uploads and booking readiness actions are in Bookings.
         </CardDescription>
       </CardHeader>
-      {viewModel.status === "loading" ? <p role="status" className="px-6 text-xs text-muted-foreground">Loading your assigned file requirements…</p> : null}
+      {viewModel.status === "loading" ? <LoadingState label="Loading your assigned file requirements…" className="px-6" /> : null}
       {viewModel.status === "error" ? <p role="alert" className="px-6 text-xs text-destructive">Unable to load assigned file requirements. Refresh to try again.</p> : null}
       {viewModel.status === "ready" && rows.length === 0 ? (
         <CardContent>

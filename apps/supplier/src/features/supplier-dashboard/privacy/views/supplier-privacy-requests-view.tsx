@@ -14,6 +14,7 @@ import {
   privacyRequestTypeLabel,
 } from "../model/supplier-privacy-rules";
 import { useSupplierPrivacyRequestsViewModel, type SupplierPrivacyRequestsViewModel } from "../view-models/use-supplier-privacy-requests-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function SupplierPrivacyRequestsView() {
   const vm = useSupplierPrivacyRequestsViewModel();
@@ -75,7 +76,7 @@ function PrivacyRequestForm({ vm }: { vm: SupplierPrivacyRequestsViewModel }) {
 }
 
 function PrivacyRequestList({ vm }: { vm: SupplierPrivacyRequestsViewModel }) {
-  if (vm.status === "loading") return <p className="text-sm text-muted-foreground">Loading your privacy requests…</p>;
+  if (vm.status === "loading") return <LoadingState label="Loading your privacy requests…" />;
   if (vm.loadError) return <p role="alert" className="text-sm text-destructive">{vm.loadError}</p>;
   if (vm.requests.length === 0) return <p className="text-sm text-muted-foreground">No privacy requests yet. Requests you submit appear here with their status and due date.</p>;
   return (

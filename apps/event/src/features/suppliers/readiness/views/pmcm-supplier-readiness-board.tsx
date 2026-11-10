@@ -8,6 +8,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@p
 import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import { concernLabel, orderSupplierSchedule, scheduleConflictItemIds, setupStatusLabel } from "../model/pmcm-supplier-readiness-rules";
 import { usePmcmSupplierReadinessViewModel } from "../view-models/use-pmcm-supplier-readiness-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 function formatDateTime(iso: string) {
   return formatPortalDateTime(iso);
@@ -35,7 +36,7 @@ export function PmcmSupplierReadinessBoard({ eventId, refreshKey }: { eventId: s
         ) : null}
       </div>
       {vm.error ? <p role="alert" className="px-6 py-4 text-sm text-destructive">{vm.error}</p> : null}
-      {vm.loading && !vm.board ? <p role="status" className="px-6 py-4 text-sm text-muted-foreground">Loading supplier readiness…</p> : null}
+      {vm.loading && !vm.board ? <LoadingState label="Loading supplier readiness…" className="px-6 py-4" /> : null}
       {vm.board && items.length === 0 ? (
         <div className="px-6 py-6">
           <Empty className="border-0 p-6">

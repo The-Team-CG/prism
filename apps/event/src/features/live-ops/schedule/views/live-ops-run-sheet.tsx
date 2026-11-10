@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { PrismEventRunSheet, PrismRunSheetGuestOperations } from "@prism/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { useRunSheetViewModel } from "../view-models/use-run-sheet-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 import {
   RUN_SHEET_KIND_LABELS,
   formatRunSheetDate,
@@ -125,7 +126,7 @@ function RunSheetControls({ props }: { props: LiveOpsRunSheetViewProps }) {
 function RunSheetMessages({ props }: { props: LiveOpsRunSheetViewProps }) {
   return (
     <>
-      {props.loading && !props.runSheet && !props.unavailable ? <p role="status" className="text-sm text-muted-foreground">Loading run sheet…</p> : null}
+      {props.loading && !props.runSheet && !props.unavailable ? <LoadingState label="Loading run sheet…" /> : null}
       {props.error ? <p role="alert" className="text-sm text-destructive">{props.error}</p> : null}
       {props.unavailable ? (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-border p-4">

@@ -5,6 +5,7 @@ import { PrismBrandLogo } from "@prism/ui";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { useEventGameLobbyViewModel } from "../view-models/use-event-game-lobby-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 type LobbyViewModel = ReturnType<typeof useEventGameLobbyViewModel>;
 
@@ -77,7 +78,7 @@ export function EventGameLobbyView({ eventSlug }: { eventSlug: string }) {
 
 function LobbyAvailability({ vm, lobby }: { vm: LobbyViewModel; lobby: LobbyViewModel["lobby"] }) {
   if (vm.status === "loading") {
-    return <p role="status" className="mt-8 rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">Loading games…</p>;
+    return <LoadingState label="Loading games…" className="mt-8 rounded-lg border border-border bg-card p-5" />;
   }
   if (vm.status === "error") {
     return (

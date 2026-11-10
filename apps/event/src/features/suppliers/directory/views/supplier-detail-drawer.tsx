@@ -22,6 +22,7 @@ import { SupplierPerformanceSummary } from "./supplier-performance-summary";
 import { RatingStars, SupplierAvatar, SupplierTags } from "./supplier-visuals";
 import styles from "./supplier-workspace.module.css";
 import { SupplierReliabilityScoreLine } from "@/features/ai-advisory/views/ai-advisory-panels";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 function contactLine(value: string) {
   return value.trim() || "Not on file";
@@ -208,7 +209,7 @@ function ActionResultBanner({ result, onRetry }: { result: SupplierActionResult 
 
 function ProfileLoadingBanner({ loading }: { loading: boolean }) {
   if (!loading) return null;
-  return <div aria-live="polite" className="space-y-3"><p className="text-sm text-muted-foreground">Loading supplier details…</p><div className="h-24 animate-pulse rounded-lg bg-muted" /></div>;
+  return <div aria-live="polite" className="space-y-3"><LoadingState label="Loading supplier details…" /><div className="h-24 animate-pulse rounded-lg bg-muted" /></div>;
 }
 
 function SupplierProfileDetails(props: SupplierProfileDetailsProps) {
@@ -256,7 +257,7 @@ function SupplierReviewHistory({ reviews, loading, fallbackCount }: { reviews: P
   return (
     <section aria-labelledby="supplier-reviews-heading" className="space-y-3">
       <div className="flex items-center justify-between gap-2"><h3 id="supplier-reviews-heading" className="text-xs font-semibold">Private review history</h3><span className="text-2xs text-muted-foreground">{reviewCount} {reviewCount === 1 ? "review" : "reviews"}</span></div>
-      {loading && !reviews ? <p className="text-xs text-muted-foreground">Loading review history…</p> : null}
+      {loading && !reviews ? <LoadingState label="Loading review history…" /> : null}
       {!loading && !reviews?.items.length ? <p className={styles.empty}>No private reviews recorded. Add a review after an eligible event engagement.</p> : null}
       <div className="space-y-2">{reviews?.items.map((review) => <ReviewCard key={review.id} review={review} />)}</div>
     </section>
@@ -293,7 +294,7 @@ function SupplierEngagementHistory({ engagements, loading, error, page, onPageCh
         </div>
       </div>
       {error ? <div role="alert" className="flex items-center justify-between gap-2 rounded-md bg-destructive/5 p-3 text-sm"><span>{error}</span><button type="button" onClick={onRetry} className="font-medium text-primary">Retry</button></div> : null}
-      {loading && !engagements ? <p className="text-sm text-muted-foreground">Loading event engagements…</p> : null}
+      {loading && !engagements ? <LoadingState label="Loading event engagements…" /> : null}
       {!loading && !engagements?.items.length ? <p className="text-sm text-muted-foreground">No linked event requests are recorded.</p> : null}
       <div className="space-y-2">{engagements?.items.map((engagement) => <EngagementCard key={engagement.eventId} engagement={engagement} onOpenEvent={onOpenEvent} />)}</div>
     </section>
@@ -304,7 +305,7 @@ function SupplierCertificationHistory({ certifications, loading, fallbackCount }
   return (
     <section aria-labelledby="supplier-certifications-heading" className="space-y-3">
       <div className="flex items-center justify-between gap-2"><h3 id="supplier-certifications-heading" className="text-sm font-semibold">Certifications</h3><span className="text-xs text-muted-foreground">{certifications?.totalCount ?? fallbackCount} records</span></div>
-      {loading && !certifications ? <p className="text-sm text-muted-foreground">Loading certification records…</p> : null}
+      {loading && !certifications ? <LoadingState label="Loading certification records…" /> : null}
       {!loading && !certifications?.items.length ? <p className="text-sm text-muted-foreground">No certification metadata is recorded.</p> : null}
       <div className="space-y-2">{certifications?.items.map((certification) => <CertificationRecord key={certification.id} certification={certification} />)}</div>
     </section>
