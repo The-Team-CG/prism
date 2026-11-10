@@ -58,7 +58,8 @@ function Header({ title, count, action }: { title: string; count?: number; actio
 }
 
 /** Button that reveals an inline creation form, so the desk is not a stack of open forms. */
-function FormToggle({ open, controls, label: toggleLabel, onToggle }: { open: boolean; controls: string; label: string; onToggle: () => void }) {
+/** The issue form is the urgent action on event day and takes the solid colour; the task form is the quieter second action. */
+function FormToggle({ open, controls, label: toggleLabel, onToggle, quiet = false }: { open: boolean; controls: string; label: string; onToggle: () => void; quiet?: boolean }) {
   return (
     <button
       type="button"
@@ -67,7 +68,7 @@ function FormToggle({ open, controls, label: toggleLabel, onToggle }: { open: bo
       onClick={onToggle}
       className={cx(
         "inline-flex min-h-11 items-center gap-1.5 rounded-md px-4 text-sm font-semibold",
-        open ? "border border-border bg-background text-foreground" : "bg-primary text-primary-foreground",
+        open || quiet ? "border border-border bg-background text-foreground hover:bg-muted" : "bg-primary text-primary-foreground",
       )}
     >
       {open ? <X className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />}
@@ -516,7 +517,7 @@ function LiveOpsTasksPanel({
       <Header
         title="Event-day tasks"
         count={liveOps.tasks.filter((task) => task.status !== "done").length}
-        action={readOnly ? null : <FormToggle open={vm.taskFormOpen} controls="live-ops-task-form" label="Add task" onToggle={vm.toggleTaskForm} />}
+        action={readOnly ? null : <FormToggle open={vm.taskFormOpen} controls="live-ops-task-form" label="Add task" onToggle={vm.toggleTaskForm} quiet />}
       />
       <div className="mt-3 space-y-3">
         {liveOps.tasks.length === 0 ? <LiveOpsEmpty label="No event-day tasks yet." /> : null}
