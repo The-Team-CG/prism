@@ -1,5 +1,9 @@
 import type {
   BlockEventDayTaskInput,
+  EscalateEventDayTaskInput,
+  EscalateLiveOpsInput,
+  PrismEventOperatorDesignation,
+  UpdateUrgentIssueInput,
   CreateEventDayTaskInput,
   CreateEventTaskReassignmentInput,
   DecideEventTaskReassignmentInput,
@@ -75,6 +79,14 @@ export interface EventOpsLiveOpsContract {
       input: CreateEventOperatorDesignationInput,
       actor?: EventOpsActorQuery,
     ): Promise<unknown>;
+    operatorDesignation(
+      eventId: string,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventOperatorDesignation>;
+    revokeOperator(
+      eventId: string,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventOperatorDesignation>;
     createHandoff(
       eventId: string,
       input: CreateEventHandoffInput,
@@ -131,6 +143,24 @@ export interface EventOpsLiveOpsContract {
       taskId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismEventDayTask>;
+    escalateTask(
+      eventId: string,
+      taskId: string,
+      input: EscalateEventDayTaskInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismEventDayTask>;
+    updateUrgentIssue(
+      eventId: string,
+      issueId: string,
+      input: UpdateUrgentIssueInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismUrgentIssue>;
+    escalateUrgentIssue(
+      eventId: string,
+      issueId: string,
+      input: EscalateLiveOpsInput,
+      actor?: EventOpsActorQuery,
+    ): Promise<PrismUrgentIssue>;
     listTaskReassignmentRequests(
       eventId: string,
       actor?: EventOpsActorQuery,
