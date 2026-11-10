@@ -7,8 +7,6 @@ import {
 import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, isPrismAuthenticatedSession, privacyNoticePath } from "@prism/types";
 import { portalAppPath, portalHref } from "@prism/ui/portal-path";
 
-const API_OFFLINE_MESSAGE = "Can't reach P.R.I.S.M right now. Try again in a moment.";
-
 /** The API rejected the stored session: sign out locally and return here after sign-in. */
 function expireEventSession() {
   if (typeof window === "undefined") return;
@@ -58,8 +56,5 @@ export function eventApiRequest<T>(path: string, init: PrismRequestInit = {}) {
     authToken: init.authToken ?? storedEventAccessToken(),
     onUnauthorized: init.onUnauthorized ?? expireEventSession,
     onPrivacyNoticeRequired: init.onPrivacyNoticeRequired ?? showEventPrivacyNotice,
-  }).catch((error: unknown) => {
-    if (error instanceof TypeError) throw new Error(API_OFFLINE_MESSAGE);
-    throw error;
   });
 }
