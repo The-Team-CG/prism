@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  quoteDeadlineUrgency,
   isEventStatusStepAllowed,
   buildBookingSteps,
   buildSupplierContractRequirements,
@@ -387,5 +388,22 @@ describe("supplierMessageEvents", () => {
       { eventId: "evt_ops", eventName: "UAT Operations Supplier Booking" },
       { eventId: "evt_live", eventName: "Assigned event" },
     ]);
+  });
+});
+
+describe("quoteDeadlineUrgency", () => {
+  const now = new Date("2026-11-10T00:00:00Z");
+  const open = (dueAt: string | null) => ({ quoteStatus: "open", dueAt }) as never;
+
+  it("flags a quote that is past due or due within three days, and leaves later deadlines ordinary", () => {
+    expect(quoteDeadlineUrgency(open("2026-11-09T00:00:00Z"), now)).toBe("overdue");
+    expect(quoteDeadlineUrgency(open("2026-11-12T23:59:00Z"), now)).toBe("soon");
+    expect(quoteDeadlineUrgency(open("2026-11-14T00:00:00Z"), now)).toBeNull();
+  });
+
+  it("says nothing once PMCM has selected the supplier, or when there is no deadline to judge", () => {
+    expect(quoteDeadlineUrgency({ quoteStatus: "selected", dueAt: "2026-11-01T00:00:00Z" } as never, now)).toBeNull();
+    expect(quoteDeadlineUrgency(open(null), now)).toBeNull();
+    expect(quoteDeadlineUrgency(open("not a date"), now)).toBeNull();
   });
 });
