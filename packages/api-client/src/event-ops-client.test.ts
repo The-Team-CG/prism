@@ -27,6 +27,55 @@ afterEach(() => {
 });
 
 describe("prismRequest", () => {
+  it("sends closure, compliance, floorplan and approval-request commands to their endpoints", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "token" });
+    const any = {} as never;
+
+    await client.closure.closeGates("e1");
+    await client.closure.insights("e1");
+    await client.closure.generateInsights("e1");
+    await client.closure.wrapUp("e1");
+    await client.closure.startWrapUp("e1", any);
+    await client.closure.updateWrapUp("e1", any);
+    await client.compliance.createRule(any);
+    await client.compliance.resolve("e1", "c1", any);
+    await client.compliance.run("e1", { phase: "planning" } as never);
+    await client.floorplans.createDraft("e1", any);
+    await client.floorplans.submitDraft("e1", "d1");
+    await client.floorplans.approveDraft("e1", "d1");
+    await client.floorplans.reopenPreference("e1", "d1");
+    await client.floorplans.plan("p1");
+    await client.floorplans.savePlan("p1", { venue: "Hall" });
+    await client.auth.approveApprovalRequest("r/1");
+    await client.auth.declineApprovalRequest("r1");
+
+    const sent = fetchMock.mock.calls.map(([url, init]) => `${init?.method ?? "GET"} ${String(url).replace("https://api.example.test/api", "")}`);
+    expect(sent).toEqual([
+      "GET /events/e1/close-gates",
+      "GET /events/e1/insights",
+      "POST /events/e1/insights/generate",
+      "GET /events/e1/wrap-up",
+      "POST /events/e1/wrap-up",
+      "PATCH /events/e1/wrap-up",
+      "POST /compliance/rules",
+      "PATCH /events/e1/compliance/c1",
+      "POST /events/e1/compliance",
+      "POST /events/e1/floorplans",
+      "POST /events/e1/floorplans/d1/submit",
+      "POST /events/e1/floorplans/d1/approve",
+      "POST /events/e1/floorplans/d1/reopen-preference",
+      "GET /plans/p1",
+      "PUT /plans/p1",
+      "PATCH /auth/approval-requests/r%2F1/approve",
+      "PATCH /auth/approval-requests/r1/decline",
+    ]);
+    expect(JSON.parse(String(fetchMock.mock.calls[14]?.[1]?.body))).toEqual({ venue: "Hall" });
+    expect(fetchMock.mock.calls.every(([, init]) => (init?.headers as Record<string, string>).Authorization === "Bearer token")).toBe(true);
+  });
+
   it("routes the event-day operator, escalation and issue commands to their API endpoints", async () => {
     vi.stubGlobal("window", undefined);
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => new Response(JSON.stringify({}), { status: 200 }));
