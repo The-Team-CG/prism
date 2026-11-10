@@ -23,7 +23,9 @@ export {
 } from "./event-ops-client";
 export {
   DEFAULT_PRISM_API_BASE_URL,
+  PRISM_API_OFFLINE_MESSAGE,
   PrismApiError,
+  PrismApiOfflineError,
   normalizePrismApiProblem,
   prismRequest,
   prismSse,
