@@ -1,5 +1,13 @@
 import type {
   CreateComplianceRuleInput,
+  PrismEvent,
+  PrismPmcmOcularVisit,
+  RecordActualEventEndInput,
+  ScheduleOcularVisitInput,
+  SetClientEventDayViewInput,
+  SetEventModulesInput,
+  SetEventPrivacyInput,
+  WaiveOcularVisitInput,
   CreateFloorPlanDraftInput,
   PrismCloseGates,
   PrismComplianceCheck,
@@ -16,6 +24,16 @@ import type { EventOpsActorQuery } from "./primitives";
 
 /** Event closure, compliance checks and official floorplan drafts: the PMCM lifecycle commands. */
 export interface EventOpsLifecycleContract {
+  lifecycle: {
+    scheduleOcularVisit(eventId: string, input: ScheduleOcularVisitInput, actor?: EventOpsActorQuery): Promise<PrismPmcmOcularVisit>;
+    completeOcularVisit(eventId: string, actor?: EventOpsActorQuery): Promise<PrismPmcmOcularVisit>;
+    waiveOcularVisit(eventId: string, input: WaiveOcularVisitInput, actor?: EventOpsActorQuery): Promise<PrismPmcmOcularVisit>;
+    setModules(eventId: string, input: SetEventModulesInput, actor?: EventOpsActorQuery): Promise<{ eventId: string; disabledModules: SetEventModulesInput["disabledModules"] }>;
+    setPrivacy(eventId: string, input: SetEventPrivacyInput, actor?: EventOpsActorQuery): Promise<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>;
+    setClientEventDayView(eventId: string, input: SetClientEventDayViewInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+    archive(eventId: string, overrideReason?: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+    recordActualEnd(eventId: string, input: RecordActualEventEndInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
+  };
   closure: {
     closeGates(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCloseGates>;
     insights(eventId: string, actor?: EventOpsActorQuery): Promise<PrismEventInsight[]>;

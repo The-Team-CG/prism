@@ -1,4 +1,8 @@
 import type {
+  PrismEvent,
+  PrismPmcmOcularVisit,
+  SetEventModulesInput,
+  SetEventPrivacyInput,
   PrismCloseGates,
   PrismComplianceCheck,
   PrismComplianceRule,
@@ -10,9 +14,27 @@ import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase, actorPath } from "./shared";
 
-export function createLifecycleClient(options: EventOpsClientOptions): Pick<EventOpsClient, "closure" | "compliance" | "floorplans"> {
+export function createLifecycleClient(options: EventOpsClientOptions): Pick<EventOpsClient, "lifecycle" | "closure" | "compliance" | "floorplans"> {
   const event = (eventId: string, rest: string) => `/events/${eventId}${rest}`;
   return {
+    lifecycle: {
+      scheduleOcularVisit: (eventId, input, actor = {}) =>
+        prismRequest<PrismPmcmOcularVisit>(actorPath(event(eventId, "/ocular-visit/schedule"), actor), withBase(options, { method: "PATCH", body: input })),
+      completeOcularVisit: (eventId, actor = {}) =>
+        prismRequest<PrismPmcmOcularVisit>(actorPath(event(eventId, "/ocular-visit/complete"), actor), withBase(options, { method: "POST" })),
+      waiveOcularVisit: (eventId, input, actor = {}) =>
+        prismRequest<PrismPmcmOcularVisit>(actorPath(event(eventId, "/ocular-visit/waive"), actor), withBase(options, { method: "POST", body: input })),
+      setModules: (eventId, input, actor = {}) =>
+        prismRequest<{ eventId: string; disabledModules: SetEventModulesInput["disabledModules"] }>(actorPath(event(eventId, "/modules"), actor), withBase(options, { method: "PATCH", body: input })),
+      setPrivacy: (eventId, input, actor = {}) =>
+        prismRequest<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>(actorPath(event(eventId, "/privacy"), actor), withBase(options, { method: "PATCH", body: input })),
+      setClientEventDayView: (eventId, input, actor = {}) =>
+        prismRequest<PrismEvent>(actorPath(event(eventId, "/client-event-day-view"), actor), withBase(options, { method: "PATCH", body: input })),
+      archive: (eventId, overrideReason, actor = {}) =>
+        prismRequest<PrismEvent>(actorPath(event(eventId, "/archive"), actor), withBase(options, { method: "POST", body: { overrideReason } })),
+      recordActualEnd: (eventId, input, actor = {}) =>
+        prismRequest<PrismEvent>(actorPath(event(eventId, "/actual-end"), actor), withBase(options, { method: "POST", body: input })),
+    },
     closure: {
       closeGates: (eventId, actor = {}) =>
         prismRequest<PrismCloseGates>(actorPath(event(eventId, "/close-gates"), actor), withBase(options)),

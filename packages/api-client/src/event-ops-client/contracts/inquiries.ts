@@ -3,6 +3,11 @@ import type {
   CommsDraftRequest,
   CommsDraftResult,
   CreatePrismInquiryInput,
+  LogInquiryOnBehalfInput,
+  PrismDocument,
+  PrismInquiryMergeRecord,
+  UpdateInquiryStatusInput,
+  UploadConformeInput,
   PrismInquiry,
   PrismPortalInvitationResend,
 } from "@prism/types";
@@ -13,6 +18,11 @@ export interface EventOpsInquiryContract {
     list(actor?: EventOpsActorQuery): Promise<PrismInquiry[]>;
     create(input: CreatePrismInquiryInput): Promise<PrismInquiry>;
     resendPortalInvitation(inquiryId: string): Promise<PrismPortalInvitationResend>;
+    updateStatus(inquiryId: string, input: UpdateInquiryStatusInput, actor?: EventOpsActorQuery): Promise<PrismInquiry>;
+    merge(primaryInquiryId: string, input: { sourceInquiryId: string; reason: string }, actor?: EventOpsActorQuery): Promise<PrismInquiryMergeRecord>;
+    logOnBehalf(input: LogInquiryOnBehalfInput, actor?: EventOpsActorQuery): Promise<PrismInquiry>;
+    sendConformeReminder(inquiryId: string, actor?: EventOpsActorQuery): Promise<PrismInquiry>;
+    uploadConforme(inquiryId: string, input: UploadConformeInput, actor?: EventOpsActorQuery): Promise<PrismDocument>;
   };
 
   conformeDrafts: {
