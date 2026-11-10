@@ -1,12 +1,11 @@
-import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismCloseGates, PrismEventInsight, PrismEventWrapUp, StartEventWrapUpInput, UpdateEventWrapUpInput } from "@prism/types";
+import { eventApi as eventOpsClient } from "@/lib/prism-api";
+import type { StartEventWrapUpInput, UpdateEventWrapUpInput } from "@prism/types";
 
 export const closureCommands = {
-closeGates: (eventId: string) => request<PrismCloseGates>(`/api/events/${eventId}/close-gates`),
-eventInsights: (eventId: string) => request<PrismEventInsight[]>(`/api/events/${eventId}/insights`),
-generateEventInsights: (eventId: string) =>
-    request<PrismEventInsight>(`/api/events/${eventId}/insights/generate`, { method: "POST" }),
-getEventWrapUp: (eventId: string) => request<PrismEventWrapUp | null>(`/api/events/${eventId}/wrap-up`),
-startEventWrapUp: (eventId: string, input: StartEventWrapUpInput) => request<PrismEventWrapUp>(`/api/events/${eventId}/wrap-up`, { method: "POST", body: input }),
-updateEventWrapUp: (eventId: string, input: UpdateEventWrapUpInput) => request<PrismEventWrapUp>(`/api/events/${eventId}/wrap-up`, { method: "PATCH", body: input }),
+closeGates: (eventId: string) => eventOpsClient.closure.closeGates(eventId),
+eventInsights: (eventId: string) => eventOpsClient.closure.insights(eventId),
+generateEventInsights: (eventId: string) => eventOpsClient.closure.generateInsights(eventId),
+getEventWrapUp: (eventId: string) => eventOpsClient.closure.wrapUp(eventId),
+startEventWrapUp: (eventId: string, input: StartEventWrapUpInput) => eventOpsClient.closure.startWrapUp(eventId, input),
+updateEventWrapUp: (eventId: string, input: UpdateEventWrapUpInput) => eventOpsClient.closure.updateWrapUp(eventId, input),
 };

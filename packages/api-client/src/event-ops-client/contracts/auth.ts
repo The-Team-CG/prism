@@ -5,6 +5,7 @@ import type {
   LoginInput,
   PrismAccountActivationReceipt,
   PrismAccountInvitationOutcome,
+  PrismApprovalRequest,
   PrismApprovalRequestReceipt,
   PrismAuthResponse,
   PrismAuthenticatedSession,
@@ -24,6 +25,8 @@ export interface EventOpsAuthContract {
     logout(): Promise<void>;
     acknowledgePrivacyNotice(input: AcknowledgePrivacyNoticeInput): Promise<void>;
     me(): Promise<PrismCurrentUser>;
+    approveApprovalRequest(requestId: string): Promise<PrismApprovalRequest>;
+    declineApprovalRequest(requestId: string): Promise<PrismApprovalRequest>;
     unlockUser(userId: string): Promise<PrismIdentityAccountSummary>;
     resetUserTwoFactor(userId: string): Promise<PrismIdentityAccountSummary>;
     setupTwoFactor(token: string): Promise<PrismTwoFactorSetup>;

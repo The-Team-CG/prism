@@ -1,6 +1,6 @@
 import type { Project } from "@/features/floorplan/editor";
-import { eventApi as eventOpsClient, eventApiRequest as request } from "@/lib/prism-api";
-import type { PrismEventPrivacy, CreateFloorPlanDraftInput, PrismFloorPlanDraft } from "@prism/types";
+import { eventApi as eventOpsClient } from "@/lib/prism-api";
+import type { PrismEventPrivacy, CreateFloorPlanDraftInput } from "@prism/types";
 
 interface ApiFloorPlan {
   id: string;
@@ -36,34 +36,24 @@ function apiPlanToProject(plan: ApiFloorPlan): Project {
 }
 
 export const floorplanCommands = {
-approveFloorPlanDraft: (eventId: string, draftId: string) =>
-    request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/approve`, { method: "POST" }),
-reopenClientPreference: (eventId: string, draftId: string) =>
-    request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/reopen-preference`, { method: "POST" }),
-createFloorPlanDraft: (eventId: string, input: CreateFloorPlanDraftInput) =>
-    request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans`, {
-      method: "POST",
-      body: input,
-    }),
+approveFloorPlanDraft: (eventId: string, draftId: string) => eventOpsClient.floorplans.approveDraft(eventId, draftId),
+reopenClientPreference: (eventId: string, draftId: string) => eventOpsClient.floorplans.reopenPreference(eventId, draftId),
+createFloorPlanDraft: (eventId: string, input: CreateFloorPlanDraftInput) => eventOpsClient.floorplans.createDraft(eventId, input),
 loadPlan: (planId: string) =>
-    request<ApiFloorPlan>(`/api/plans/${planId}`).then((plan) => apiPlanToProject(plan)),
+    eventOpsClient.floorplans.plan<ApiFloorPlan>(planId).then((plan) => apiPlanToProject(plan)),
 savePlan: (project: Project) =>
-    request<ApiFloorPlan>(`/api/plans/${project.id}`, {
-      method: "PUT",
-      body: {
-        expectedUpdatedAt: new Date(project.updatedAt).toISOString(),
-        venue: project.venue,
-        width: Math.max(1, Math.round(project.widthM)),
-        height: Math.max(1, Math.round(project.heightM)),
-        gridSize: 1,
-        pax: Math.max(0, Math.round(project.pax)),
-        objects: project.objects,
-        guests: project.guests,
-        suppliers: project.suppliers,
-        seats: [],
-        seatCategories: [],
-      },
+    eventOpsClient.floorplans.savePlan<ApiFloorPlan>(project.id, {
+      expectedUpdatedAt: new Date(project.updatedAt).toISOString(),
+      venue: project.venue,
+      width: Math.max(1, Math.round(project.widthM)),
+      height: Math.max(1, Math.round(project.heightM)),
+      gridSize: 1,
+      pax: Math.max(0, Math.round(project.pax)),
+      objects: project.objects,
+      guests: project.guests,
+      suppliers: project.suppliers,
+      seats: [],
+      seatCategories: [],
     }).then((plan) => apiPlanToProject(plan)),
-submitFloorPlanDraft: (eventId: string, draftId: string) =>
-    request<PrismFloorPlanDraft>(`/api/events/${eventId}/floorplans/${draftId}/submit`, { method: "POST" }),
+submitFloorPlanDraft: (eventId: string, draftId: string) => eventOpsClient.floorplans.submitDraft(eventId, draftId),
 };
