@@ -5,6 +5,7 @@ import { formatPortalDateTime } from "@prism/ui/format-date";
 import { createInquiryContextNoteSchema, INQUIRY_CONTEXT_NOTE_KINDS, INQUIRY_CONTEXT_NOTE_LABELS, parseContract, type PrismInquiryContextNote } from "@prism/types";
 import { contextNotesRepository } from "../data/context-notes-repository";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 type Kind = (typeof INQUIRY_CONTEXT_NOTE_KINDS)[number];
 const field = "mt-1 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm";
@@ -80,7 +81,7 @@ export function PreConformeContextPanel({ eventId }: { eventId: string }) {
     <section className="rounded-lg border border-border bg-card p-5 text-sm">
       <h2 className="text-lg font-bold">Pre-conforme context</h2>
       <p className="mt-1 text-muted-foreground">Notes, scope flags and follow-ups PMCM logged on the inquiry before the conforme.</p>
-      <div className="mt-3">{notes ? <ContextNoteList notes={notes} /> : <p className="text-muted-foreground">Loading…</p>}</div>
+      <div className="mt-3">{notes ? <ContextNoteList notes={notes} /> : <LoadingState label="Loading…" />}</div>
     </section>
   );
 }

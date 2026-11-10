@@ -8,6 +8,7 @@ import type { PrismPmcmCalendarItem } from "@prism/types";
 import { calendarWindow, pmcmCalendar, toCalendarEntries } from "@/features/pmcm-overview";
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function EventDashboardCalendarSectionView() {
   const { events, selectedEvent, navigateEvent } = useEventDashboardLoadedRouteViewModel();
@@ -30,7 +31,7 @@ export function EventDashboardCalendarSectionView() {
           <button type="button" onClick={() => void invalidate(pmcmCalendar, window)} className="mt-1 min-h-11 text-sm font-semibold text-primary">Try again</button>
         </div>
       ) : null}
-      {calendar.status === "pending" ? <p role="status" className="text-sm text-muted-foreground">Loading dates…</p> : null}
+      {calendar.status === "pending" ? <LoadingState label="Loading dates…" /> : null}
       <EventCalendarWorkspace
         events={events}
         items={items}

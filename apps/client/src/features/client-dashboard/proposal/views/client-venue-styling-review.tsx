@@ -11,6 +11,7 @@ import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
 import { BUDGET_EXPECTATION_LABELS, type PrismClientReviewItem } from "@prism/types";
 import { useClientReviewItems } from "../view-models/use-client-review-items";
 import { StylingMoodboard } from "./styling-moodboard";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 type BudgetExpectation = keyof typeof BUDGET_EXPECTATION_LABELS;
 
@@ -59,7 +60,7 @@ export function ClientVenueStylingReview({ eventId }: { eventId: string }) {
         <p className="mt-1 text-xs leading-5 text-muted-foreground">Review the options issued by PMCM. Your decision applies to that version only; a revised option will have its own review.</p>
       </CardHeader>
       <CardBody>
-        {loading ? <p className="text-sm text-muted-foreground">Loading client review items…</p> : null}
+        {loading ? <LoadingState label="Loading client review items…" /> : null}
         {error ? <p role="alert" className="mb-3 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p> : null}
         {!loading && items.length === 0 ? <p className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">PMCM has not issued venue or styling options for review yet.</p> : null}
         <div className="space-y-5">

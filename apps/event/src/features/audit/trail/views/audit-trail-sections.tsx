@@ -34,6 +34,7 @@ import { auditIconKind, auditIntegrityCopy, groupRepeatedAuditLogs, type AuditLo
 import { usePagedItems } from "../view-models/use-paged-items";
 import { ListPager } from "./list-pager";
 import type { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 type AuditVm = ReturnType<typeof useAuditTrailViewModel>;
 
@@ -277,7 +278,7 @@ function AuditLogList({ logs, busy }: { logs: PrismAuditLog[]; busy: boolean }) 
   const paged = usePagedItems(groups, AUDIT_PAGE_SIZE);
   return (
     <div className="mt-4 overflow-hidden rounded-lg border border-border bg-white">
-      {busy && logs.length === 0 ? <div className="p-6 text-sm text-muted-foreground">Loading audit events…</div> : null}
+      {busy && logs.length === 0 ? <LoadingState label="Loading audit events…" className="p-6" /> : null}
       {!busy && logs.length === 0 ? <div className="p-6 text-sm text-muted-foreground">No audit logs match the active filters.</div> : null}
       {groups.length > 0 ? (
         <div aria-hidden="true" className={cx("hidden border-b border-border px-4 py-2 text-xs text-muted-foreground", AUDIT_ROW_GRID)}>

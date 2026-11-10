@@ -11,6 +11,7 @@ import { Textarea } from "@prism/ui/components/textarea";
 import type { PrismClientChangeRequest, ScopeChangeCategory, SubmitScopeChangeRequestInput } from "@prism/types";
 import { canWithdrawClientChangeRequest, clientChangeRequestStatusLabel, scopeChangeCategoryOptions } from "../model/client-change-request-rules";
 import { useClientChangeRequestsViewModel } from "../view-models/use-client-change-requests-view-model";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function ClientChangeRequestsPanel({ eventId }: { eventId: string }) {
   const vm = useClientChangeRequestsViewModel(eventId);
@@ -52,7 +53,7 @@ export function ClientChangeRequestsPanel({ eventId }: { eventId: string }) {
 type ChangeRequestsVm = ReturnType<typeof useClientChangeRequestsViewModel>;
 
 function ChangeRequestList({ vm }: { vm: ChangeRequestsVm }) {
-  if (vm.status === "loading") return <p role="status" className="text-sm text-muted-foreground">Loading change requests…</p>;
+  if (vm.status === "loading") return <LoadingState label="Loading change requests…" />;
   if (vm.status === "error") return <p role="alert" className="text-sm text-destructive">{vm.error}</p>;
   if (vm.status !== "ready") return null;
   return (

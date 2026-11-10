@@ -5,6 +5,7 @@ import type { PrismInquiry } from '@prism/types';
 import { Button } from '@prism/ui/components/button';
 import { canOfferConformeDraft, CONFORME_DRAFT_DELAY_MS, isCurrentConformeDraftWindow } from '../model/conforme-draft-review';
 import { useConformeDraftReviewViewModel } from '../view-models/use-conforme-draft-review-view-model';
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 function displayTimestamp(value: string | null | undefined) {
   if (!value) return 'No reminder recorded';
@@ -14,7 +15,7 @@ function displayTimestamp(value: string | null | undefined) {
 type DraftModel = ReturnType<typeof useConformeDraftReviewViewModel>;
 
 function DraftStatus({ model, currentWindowDraft }: { model: DraftModel; currentWindowDraft: boolean }) {
-  if (model.status === 'loading') return <p role="status" className="text-sm text-muted-foreground">Loading draft status…</p>;
+  if (model.status === 'loading') return <LoadingState label="Loading draft status…" />;
   if (model.status === 'starting' || model.status === 'generating') {
     return (
       <div className="flex items-center gap-3" role="status" aria-live="polite">

@@ -2,12 +2,13 @@
 
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { useRoleBriefs } from "../view-models/use-role-briefs";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 /** New-CO2: the signed-in coordinator's own role brief for the event. */
 export function CoordinatorRoleBriefCard({ eventId }: { eventId: string }) {
   const vm = useRoleBriefs(eventId);
   const brief = vm.briefs[0];
-  if (vm.loading) return <p className="text-sm text-muted-foreground">Loading your role brief…</p>;
+  if (vm.loading) return <LoadingState label="Loading your role brief…" />;
   if (vm.error) return <p role="alert" className="text-sm text-destructive">{vm.error}</p>;
   if (!brief) return <p className="text-sm text-muted-foreground">PMCM has not shared a brief for your role yet.</p>;
   return (

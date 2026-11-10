@@ -17,6 +17,7 @@ import {
 } from "../model/client-privacy-rules";
 import { useClientPrivacyRequestsViewModel, type ClientPrivacyRequestsViewModel } from "../view-models/use-client-privacy-requests-view-model";
 import type { PrismOwnPrivacyRequest } from "@prism/types";
+import { LoadingState } from "@prism/ui/components/loading-state";
 
 export function ClientPrivacyRequestsView() {
   const vm = useClientPrivacyRequestsViewModel();
@@ -85,7 +86,7 @@ function PrivacyRequestForm({ vm }: { vm: ClientPrivacyRequestsViewModel }) {
 }
 
 function PrivacyRequestList({ vm }: { vm: ClientPrivacyRequestsViewModel }) {
-  if (vm.status === "loading") return <p className="text-sm text-muted-foreground">Loading your privacy requests…</p>;
+  if (vm.status === "loading") return <LoadingState label="Loading your privacy requests…" />;
   if (vm.loadError) return <p role="alert" className="text-sm text-destructive">{vm.loadError}</p>;
   if (vm.requests.length === 0) {
     return (
