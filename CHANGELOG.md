@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Signed-in dashboards offer an optional Spotify playlist dock that stays open during dashboard navigation and stops when closed.
+
 - Local portal URLs and CORS can follow `PRISM_PUBLIC_HOST` for testing from another device, while localhost remains allowed. Supabase CLI cache files are excluded from source control.
 
 - PMCM Registration has a compact empty roster with one import entry point. Settings groups compliance fields without an empty side column and keeps notification information in its controls panel. Audit panels size to their content, and Privacy retention policies now have a full-width section below requests and legal holds.

@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./blocks": "./src/blocks.tsx",
+    "./spotify-music": "./src/spotify-music.tsx",
     "./page-blocks": "./src/page-blocks.tsx",
     "./figures": "./src/figures.ts",
     "./account-help": "./src/account-help.tsx",
