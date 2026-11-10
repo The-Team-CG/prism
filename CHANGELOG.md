@@ -6,6 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- The last event-portal repositories that built API paths by hand (external creative tickets, venue scouting, presentation meetings, supplier follow-ups, risk register, accreditation, client floorplan access, logistics bookings, coordinator replacements and QR passes) call the API through the shared `@prism/api-client`. Only logout (its own 401 handling) and the floorplan template store (which takes an injected request function) still use the event portal's request helper.
 - Coordinator role views and briefs, supplier directory reads (which can be cancelled), supplier gaps and schedules, AI advisory, the Canva connection, PARE approvals and starting the event day in the event portal call the API through the shared `@prism/api-client` (`coordinator`, `commercial`, `advisory`, `canva` and `pare` groups). Client read methods accept an optional abort signal.
 - Proposals and cost estimates, proposal comments, client review items and client follow-up messages in the event portal call the API through the shared `@prism/api-client` `commercial` group.
 - The audit trail, privacy console (requests, legal holds) and data retention screens in the event portal call the API through a new `audit` and `privacyAdmin` group in the shared `@prism/api-client`, which builds the filter and queue queries (empty and "all" filters are not sent). The privacy queue query tests now use the client's own query builder.

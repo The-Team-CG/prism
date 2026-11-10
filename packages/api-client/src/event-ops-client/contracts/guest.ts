@@ -1,4 +1,6 @@
 import type {
+  GuestQrCheckInInput,
+  PrismGuestQrPass,
   CreateGuestCheckInInput,
   CoordinatorWalkInCheckInInput,
   CreateGuestFeedbackInput,
@@ -89,6 +91,9 @@ export interface EventOpsGuestContract {
       rosterEntryId: string,
     ): Promise<PrismCoordinatorRegistrationEntry>;
     guestPrivacyClassification(eventId: string): Promise<PrismGuestPrivacyClassification>;
+    qrPasses(eventId: string): Promise<PrismGuestQrPass[]>;
+    issueQrPasses(eventId: string): Promise<PrismGuestQrPass[]>;
+    qrCheckIn(eventId: string, input: GuestQrCheckInInput): Promise<PrismGuestCheckIn>;
     updateGuestPrivacyClassification(
       eventId: string,
       input: UpdateGuestPrivacyClassificationInput,

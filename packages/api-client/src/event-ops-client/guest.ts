@@ -1,4 +1,5 @@
 import type {
+  PrismGuestQrPass,
   CoordinatorWalkInCheckInInput,
   PrismCoordinatorRegistrationEntry,
   PrismGuestCheckIn,
@@ -111,6 +112,12 @@ export function createGuestClient(
           `/guest/events/${eventId}/walk-ins`,
           withBase(options, { method: "POST", body: input }),
         ),
+      qrPasses: (eventId) =>
+        prismRequest<PrismGuestQrPass[]>(`/guest/events/${encodeURIComponent(eventId)}/qr-passes`, withBase(options)),
+      issueQrPasses: (eventId) =>
+        prismRequest<PrismGuestQrPass[]>(`/guest/events/${encodeURIComponent(eventId)}/qr-passes`, withBase(options, { method: "POST" })),
+      qrCheckIn: (eventId, input) =>
+        prismRequest<PrismGuestCheckIn>(`/guest/events/${encodeURIComponent(eventId)}/qr-check-in`, withBase(options, { method: "POST", body: input })),
       guestPrivacyClassification: (eventId) =>
         prismRequest<PrismGuestPrivacyClassification>(
           `/events/${encodeURIComponent(eventId)}/guest-privacy`,
