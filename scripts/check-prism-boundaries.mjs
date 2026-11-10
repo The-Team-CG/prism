@@ -43,6 +43,9 @@ const clientApiRequestUsePattern = /clientApiRequest/;
 /** Logout overrides the 401 handling for one call; the floorplan template store takes an injected request function; the helper itself lives in lib. */
 const clientApiRequestExceptionPattern =
   /^apps\/client\/src\/(?:lib\/prism-api\.ts|features\/client-dashboard\/workspace\/data\/client-dashboard-repository\.ts|features\/floorplan\/editor\/data\/templates-repository\.ts)$/;
+// The supplier and guest apps have no exceptions: no hand-written /api/ path and no direct fetch of the API.
+const supplierGuestSourcePattern = /^apps\/(?:supplier|guest)\/src\/.*\.tsx?$/;
+const directFetchPattern = /\b(?:await|return)\s+fetch\s*\(|=\s*fetch\s*\(/;
 const aiProviderImportExceptionPattern =
   /^apps\/api\/src\/modules\/platform-ops\/infrastructure\/ai-governance\//;
 
@@ -164,6 +167,14 @@ export const boundaryRules = [
     check(normalized, source) {
       if (testFilePattern.test(normalized)) return false;
       return clientApiRequestUsePattern.test(source);
+    },
+  },
+  {
+    name: "supplier and guest apps must call the API through @prism/api-client, with no hand-written /api/ paths or direct fetch",
+    filePattern: supplierGuestSourcePattern,
+    check(normalized, source) {
+      if (testFilePattern.test(normalized)) return false;
+      return handBuiltApiPathPattern.test(source) || directFetchPattern.test(source);
     },
   },
   {

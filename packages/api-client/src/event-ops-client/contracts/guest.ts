@@ -12,6 +12,9 @@ import type {
   PrismCoordinatorRegistrationEntry,
   PrismGuestRosterEntry,
   PrismGuestEventPass,
+  PrismGuestEventWatermark,
+  PrismGuestFeedbackMediaUpload,
+  PrismGuestFeedbackReceipt,
   PrismGuestFeedback,
   ImportGuestRosterInput,
   GuestRosterSearchInput,
@@ -24,19 +27,23 @@ import type { EventOpsActorQuery } from "./primitives";
 export interface EventOpsGuestContract {
   guest: {
     eventPass(accessCode: string): Promise<PrismGuestEventPass>;
+    watermark(accessCode: string): Promise<PrismGuestEventWatermark>;
     checkIn(
       accessCode: string,
       input: CreateGuestCheckInInput,
     ): Promise<PrismGuestCheckInReceipt>;
+    /** Sends a guest's feedback; the API answers with a minimal receipt, not the stored record. */
     feedback(
       accessCode: string,
       input: CreateGuestFeedbackInput,
-    ): Promise<PrismGuestFeedback>;
+    ): Promise<PrismGuestFeedbackReceipt>;
     withdrawFeedbackConsent(
       accessCode: string,
       feedbackId: string,
       input: WithdrawGuestFeedbackConsentInput,
-    ): Promise<PrismGuestFeedback>;
+    ): Promise<PrismGuestFeedbackReceipt>;
+    /** Sends the file bytes as they are; the API checks the file type and size before storing them. */
+    uploadFeedbackMedia(accessCode: string, file: File): Promise<PrismGuestFeedbackMediaUpload>;
     pendingFeedback(
       eventId: string,
       actor?: EventOpsActorQuery,

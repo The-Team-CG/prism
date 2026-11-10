@@ -289,11 +289,6 @@ describe("findBoundaryViolations", () => {
       "apps/event/src/features/floorplan/editor/data/templates-repository.ts": 'import { eventApiRequest } from "@/lib/prism-api";',
       "apps/event/src/lib/prism-api.ts": "export function eventApiRequest() {}",
     }), []);
-
-    // Other portals are not covered yet.
-    assert.deepEqual(findBoundaryViolations({
-      "apps/supplier/src/lib/prism-api.ts": 'const x = fetch("/api/events/1");',
-    }), []);
   });
 
   it("keeps the client app on the shared API client, with only its documented exceptions", () => {
@@ -314,6 +309,26 @@ describe("findBoundaryViolations", () => {
       "apps/client/src/features/client-dashboard/workspace/data/client-dashboard-repository.ts": 'import { clientApiRequest } from "@/lib/prism-api";',
       "apps/client/src/features/floorplan/editor/data/templates-repository.ts": 'import { clientApiRequest } from "@/lib/prism-api";',
       "apps/client/src/lib/prism-api.ts": "export function clientApiRequest() {}",
+    }), []);
+  });
+
+  it("keeps the supplier and guest apps on the shared API client", () => {
+    const rule = "supplier and guest apps must call the API through @prism/api-client, with no hand-written /api/ paths or direct fetch";
+    const pathFile = "apps/guest/src/features/guest-access/data/repo.ts";
+    const fetchFile = "apps/supplier/src/lib/prism-api.ts";
+
+    assert.deepEqual(
+      findBoundaryViolations({
+        [pathFile]: 'const path = `/api/guest/events/${code}`;',
+        [fetchFile]: 'const response = await fetch(url);',
+      }),
+      [`${pathFile}: ${rule}`, `${fetchFile}: ${rule}`],
+    );
+
+    assert.deepEqual(findBoundaryViolations({
+      "apps/guest/src/features/guest-access/data/repo.ts": 'import { guestApi } from "@/lib/prism-api";' + String.fromCharCode(10) + 'export const open = (code) => guestApi.guest.eventPass(code);',
+      "apps/supplier/src/features/supplier-dashboard/data/workflow.ts": 'export const repo = { fetch(session) { return load(session); } };',
+      "apps/guest/src/lib/prism-api.test.ts": 'vi.stubGlobal("fetch", vi.fn()); const url = "/api/guest/events/x";',
     }), []);
   });
 });

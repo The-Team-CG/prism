@@ -10,9 +10,9 @@ import {
   type PrismGuestSession,
   type WithdrawGuestFeedbackConsentInput,
 } from "@prism/types";
-import { guestJson } from "@/features/guest-shared/guest-http";
+import { guestCall } from "@/features/guest-shared/guest-http";
 import { guestSessionStorage } from "@/features/guest-shared/guest-session-storage";
-import { guestApiPath } from "../model/guest-dashboard-rules";
+import { guestApi } from "@/lib/prism-api";
 import type { CheckInPayload } from "../model/guest-dashboard-types";
 
 type PendingGuestCheckIn = {
@@ -119,41 +119,31 @@ export const guestDashboardRepository = {
   clearSession: guestSessionStorage.clear,
 
   fetchEvent(session: PrismGuestSession): Promise<PrismGuestEventPass> {
-    return guestJson<PrismGuestEventPass>(guestApiPath(session));
+    return guestCall(() => guestApi.guest.eventPass(session.guestAccessCode));
   },
 
   fetchWatermark(session: PrismGuestSession): Promise<PrismGuestEventWatermark> {
-    return guestJson<PrismGuestEventWatermark>(guestApiPath(session, "/watermark"));
+    return guestCall(() => guestApi.guest.watermark(session.guestAccessCode));
   },
 
   checkIn(session: PrismGuestSession, payload: CheckInPayload): Promise<PrismGuestCheckInReceipt> {
     const idempotencyKey = getPendingCheckInKey(session, payload);
-    return guestJson<PrismGuestCheckInReceipt>(guestApiPath(session, "/check-ins"), {
-      method: "POST",
-      body: JSON.stringify({ ...payload, idempotencyKey } satisfies CreateGuestCheckInInput),
-    }).then((receipt) => {
+    return guestCall(() => guestApi.guest.checkIn(session.guestAccessCode, { ...payload, idempotencyKey } satisfies CreateGuestCheckInInput)).then((receipt) => {
       clearPendingCheckIn(session, idempotencyKey);
       return receipt;
     });
   },
 
   withdrawFeedbackConsent(session: PrismGuestSession, feedbackId: string, payload: WithdrawGuestFeedbackConsentInput): Promise<unknown> {
-    return guestJson(guestApiPath(session, `/feedback/${encodeURIComponent(feedbackId)}/consent-withdrawal`), { method: "POST", body: JSON.stringify(payload) });
+    return guestCall(() => guestApi.guest.withdrawFeedbackConsent(session.guestAccessCode, feedbackId, payload));
   },
 
   /** Sends the file bytes; the API checks the file type and size before storing them. */
   uploadFeedbackMedia(session: PrismGuestSession, file: File): Promise<PrismGuestFeedbackMediaUpload> {
-    return guestJson<PrismGuestFeedbackMediaUpload>(guestApiPath(session, "/feedback-media"), {
-      method: "POST",
-      headers: { "Content-Type": file.type || "application/octet-stream", "x-prism-file-name": encodeURIComponent(file.name) },
-      body: file,
-    }, "Could not upload the file");
+    return guestCall(() => guestApi.guest.uploadFeedbackMedia(session.guestAccessCode, file), "Could not upload the file");
   },
 
   submitFeedback(session: PrismGuestSession, payload: CreateGuestFeedbackInput): Promise<PrismGuestFeedbackReceipt> {
-    return guestJson<PrismGuestFeedbackReceipt>(guestApiPath(session, "/feedback"), {
-      method: "POST",
-      body: JSON.stringify(payload),
-    });
+    return guestCall(() => guestApi.guest.feedback(session.guestAccessCode, payload));
   },
 };
