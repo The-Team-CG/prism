@@ -1,10 +1,8 @@
-import type { CreateClientOwnedSupplierInput, PrismClientOwnedSupplier } from "@prism/types";
-import { clientApiRequest } from "@/lib/prism-api";
-
-const base = (eventId: string) => `/events/${encodeURIComponent(eventId)}/client-owned-suppliers`;
+import type { CreateClientOwnedSupplierInput } from "@prism/types";
+import { clientApi } from "@/lib/prism-api";
 
 export const ownSuppliersRepository = {
-  list: (eventId: string) => clientApiRequest<PrismClientOwnedSupplier[]>(base(eventId)),
-  create: (eventId: string, input: CreateClientOwnedSupplierInput) => clientApiRequest<PrismClientOwnedSupplier>(base(eventId), { method: "POST", body: input }),
-  confirm: (eventId: string, id: string) => clientApiRequest<PrismClientOwnedSupplier>(`${base(eventId)}/${encodeURIComponent(id)}/confirm`, { method: "POST" }),
+  list: (eventId: string) => clientApi.commercial.clientOwnedSuppliers(eventId),
+  create: (eventId: string, input: CreateClientOwnedSupplierInput) => clientApi.commercial.createClientOwnedSupplier(eventId, input),
+  confirm: (eventId: string, id: string) => clientApi.commercial.confirmClientOwnedSupplier(eventId, id),
 };

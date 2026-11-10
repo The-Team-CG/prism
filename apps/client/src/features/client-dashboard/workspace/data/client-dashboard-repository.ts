@@ -88,17 +88,11 @@ export const clientDashboardRepository = {
     eventId: string,
     input: SubmitClientOcularVisitInput,
   ): Promise<PrismClientOcularVisit> {
-    return clientApiRequest<PrismClientOcularVisit>(
-      `/events/${eventId}/ocular-visit`,
-      { method: "POST", body: input },
-    );
+    return clientApi.clientPortal.submitOcularVisit(eventId, input);
   },
 
   submitBriefing(eventId: string, input: SubmitBriefingInput): Promise<PrismBriefing> {
-    return clientApiRequest<PrismBriefing>(`/events/${eventId}/briefing`, {
-      method: "POST",
-      body: input,
-    });
+    return clientApi.clientPortal.submitBriefing(eventId, input);
   },
 
   createInquiry(input: CreatePrismInquiryInput) {
@@ -109,10 +103,7 @@ export const clientDashboardRepository = {
     eventId: string,
     input: FloorPlanPreferenceInput,
   ): Promise<PrismFloorPlanDraft> {
-    return clientApiRequest<PrismFloorPlanDraft>(
-      `/events/${eventId}/floorplan-preferences`,
-      { method: "POST", body: input },
-    );
+    return clientApi.clientPortal.createFloorplanPreference(eventId, input);
   },
 
   async loadFloorPlanSnapshot(
@@ -120,33 +111,25 @@ export const clientDashboardRepository = {
     draftId: string,
     type: "submitted" | "approved" = "approved",
   ): Promise<Project> {
-    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(
-      `/events/${eventId}/floorplans/${draftId}/snapshot?type=${type}`,
-    );
+    const plan = await clientApi.clientPortal.floorplanSnapshot<ApiFloorPlanSnapshot>(eventId, draftId, type);
     return projectFromSnapshot(plan);
   },
 
   async loadPlan(planId: string): Promise<Project> {
-    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(`/plans/${planId}`);
+    const plan = await clientApi.floorplans.plan<ApiFloorPlanSnapshot>(planId);
     return projectFromSnapshot(plan);
   },
 
   async savePlan(project: Project): Promise<Project> {
-    const plan = await clientApiRequest<ApiFloorPlanSnapshot>(
-      `/plans/${project.id}`,
-      {
-        method: "PUT",
-        body: {
-          expectedUpdatedAt: new Date(project.updatedAt).toISOString(),
-          venue: project.venue,
-          width: Math.max(1, Math.round(project.widthM)),
-          height: Math.max(1, Math.round(project.heightM)),
-          gridSize: 1,
-          pax: Math.max(0, Math.round(project.pax)),
-          objects: project.objects,
-        },
-      },
-    );
+    const plan = await clientApi.floorplans.savePlan<ApiFloorPlanSnapshot>(project.id, {
+      expectedUpdatedAt: new Date(project.updatedAt).toISOString(),
+      venue: project.venue,
+      width: Math.max(1, Math.round(project.widthM)),
+      height: Math.max(1, Math.round(project.heightM)),
+      gridSize: 1,
+      pax: Math.max(0, Math.round(project.pax)),
+      objects: project.objects,
+    });
     return projectFromSnapshot(plan);
   },
 };

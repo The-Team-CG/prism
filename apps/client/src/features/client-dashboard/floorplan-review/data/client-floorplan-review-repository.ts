@@ -1,8 +1,8 @@
-import type { CreateClientFloorPlanAnnotationInput, DecideClientFloorPlanInput, PrismClientFloorPlanReview } from "@prism/types";
-import { clientApiRequest } from "@/lib/prism-api";
+import type { CreateClientFloorPlanAnnotationInput, DecideClientFloorPlanInput } from "@prism/types";
+import { clientApi } from "@/lib/prism-api";
 
 export const clientFloorplanReviewRepository = {
-  get: (eventId: string, draftId: string) => clientApiRequest<PrismClientFloorPlanReview>(`/events/${eventId}/floorplans/${draftId}/client-review`),
-  decide: (eventId: string, draftId: string, input: DecideClientFloorPlanInput) => clientApiRequest(`/events/${eventId}/floorplans/${draftId}/client-review`, { method: "POST", body: input }),
-  annotate: (eventId: string, draftId: string, input: CreateClientFloorPlanAnnotationInput) => clientApiRequest(`/events/${eventId}/floorplans/${draftId}/client-annotations`, { method: "POST", body: input }),
+  get: (eventId: string, draftId: string) => clientApi.clientPortal.floorplanReview(eventId, draftId),
+  decide: (eventId: string, draftId: string, input: DecideClientFloorPlanInput) => clientApi.clientPortal.decideFloorplan(eventId, draftId, input),
+  annotate: (eventId: string, draftId: string, input: CreateClientFloorPlanAnnotationInput) => clientApi.clientPortal.annotateFloorplan(eventId, draftId, input),
 };
