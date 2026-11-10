@@ -42,6 +42,14 @@ export function supplierNextStep(item: PrismSupplierReadinessItem, hasQuote: boo
   return { title: "Keep PMCM updated", detail: "Review the schedule and report arrival, setup or departure as it happens.", action: "Open booking", owner: "Event-day updates" };
 }
 
+function quoteDeadlineFigure(dueAt: string, due: number, now: Date): { value: string; label: string } {
+  if (new Date(dueAt).getTime() < now.getTime()) {
+    const late = Math.max(1, -due);
+    return { value: String(late), label: late === 1 ? "day overdue" : "days overdue" };
+  }
+  return due <= 0 ? { value: "Today", label: "Quote due" } : { value: String(due), label: due === 1 ? "day left" : "days left" };
+}
+
 /**
  * The one number the Today lead shows: days overdue or left on a quote deadline while bidding,
  * otherwise days to the event. Counted in Philippine calendar days, as every date in the portal is.
@@ -55,11 +63,7 @@ export function supplierStepFigure(
   const daysTo = (value: string | null | undefined) => (value && Number.isFinite(new Date(value).getTime()) ? daysUntil(manilaCalendarKey(value), today) : null);
   const due = item.quoteStatus === "selected" ? null : daysTo(item.dueAt);
   if (due !== null && item.dueAt) {
-    if (new Date(item.dueAt).getTime() < now.getTime()) {
-      const late = Math.max(1, -due);
-      return { value: String(late), label: late === 1 ? "day overdue" : "days overdue" };
-    }
-    return due <= 0 ? { value: "Today", label: "Quote due" } : { value: String(due), label: due === 1 ? "day left" : "days left" };
+    return quoteDeadlineFigure(item.dueAt, due, now);
   }
   const toGo = daysTo(item.eventDate);
   if (toGo === null || toGo < 0) return undefined;
