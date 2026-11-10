@@ -11,6 +11,7 @@ import { portalHref } from "@prism/ui/portal-path";
 import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@prism/ui/components/tooltip";
 import type { ReactElement } from "react";
+import { Card } from "@prism/ui/components/card";
 
 /** One line that never wraps mid-word: the value is truncated, and the full text shows on hover and focus. */
 function FullValueTooltip({ value, children }: { value: string; children: ReactElement }) {
@@ -95,7 +96,7 @@ export function ClientDirectory({
           {rows.length} {rows.length === 1 ? "client" : "clients"}
         </p>
       </div>
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
         {rows.length === 0 ? (
           <Empty className="border-0">
             <EmptyHeader>
@@ -123,7 +124,7 @@ export function ClientDirectory({
             </ul>
           </>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -260,7 +261,7 @@ export function ClientDossier({
       {showEvents ? (
       <section aria-labelledby="client-events-title" className="grid gap-3">
         <h3 id="client-events-title" className="text-base font-semibold text-foreground">Events</h3>
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
           {client.events.length === 0 ? (
             <p className="px-4 py-5 text-sm text-muted-foreground">No events yet. An accepted inquiry with a signed conforme becomes an event.</p>
           ) : (
@@ -281,7 +282,7 @@ export function ClientDossier({
               ))}
             </ul>
           )}
-        </div>
+        </Card>
       </section>
 
       ) : null}
@@ -289,7 +290,7 @@ export function ClientDossier({
       {showInquiries ? (
       <section aria-labelledby="client-inquiries-title" className="grid gap-3">
         <h3 id="client-inquiries-title" className="text-base font-semibold text-foreground">Inquiries</h3>
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
           {client.inquiries.length === 0 ? (
             <p className="px-4 py-5 text-sm text-muted-foreground">No inquiries on record for this client.</p>
           ) : (
@@ -307,7 +308,7 @@ export function ClientDossier({
               ))}
             </ul>
           )}
-        </div>
+        </Card>
       </section>
       ) : null}
     </div>

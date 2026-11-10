@@ -21,6 +21,7 @@ import {
   InquiryIntakeList,
   InquiryLogOnBehalfForm,
 } from "./inquiry-intake-sections";
+import { Card } from "@prism/ui/components/card";
 
 export type { LogInquiryOnBehalfInput };
 
@@ -103,7 +104,7 @@ export function InquiryIntakeLog({
   }
 
   return (
-    <div className="min-w-0 rounded-2xl border border-border bg-card">
+    <Card className="gap-0 block min-w-0 rounded-2xl border border-border bg-card">
       <InquiryIntakeHeader
         unreviewedCount={unreviewedCount}
         onLog={() => setLoggingOnBehalf(true)}
@@ -169,6 +170,6 @@ export function InquiryIntakeLog({
           onSubmit={submitLogOnBehalf}
         />
       )}
-    </div>
+    </Card>
   );
 }

@@ -34,6 +34,7 @@ import { useEventDayTaskTarget } from "../view-models/use-event-day-task-target"
 import type { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
 import Link from "next/link";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk, eventRunSheetHref } from "@/features/live-ops/schedule";
+import { Card } from "@prism/ui/components/card";
 
 type LiveOpsVm = ReturnType<typeof useLiveOperationsWorkspaceViewModel>;
 
@@ -275,14 +276,14 @@ function LiveOpsScheduleBlock({ eventId, liveOps, readOnly }: { eventId: string;
   const schedule = liveOps.schedule;
   if (!schedule) return null;
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-card p-4 sm:p-5">
+    <Card className="gap-0 block space-y-3 rounded-lg border border-border bg-card p-4 sm:p-5">
       {readOnly ? null : <LiveOpsControlSurface eventId={eventId} schedule={schedule} timer={liveOps.timer} />}
       {schedule.authored ? (
         <Link href={eventRunSheetHref(eventId)} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm font-semibold no-underline">
           Open printable run sheet
         </Link>
       ) : null}
-    </div>
+    </Card>
   );
 }
 
