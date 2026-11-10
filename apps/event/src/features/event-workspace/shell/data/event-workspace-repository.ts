@@ -1,5 +1,5 @@
 import type { PrismApprovalRequest, PrismDefenseReadiness, PrismEventDayStatusFeed, PrismGuestPrivacyClassification, PrismLiveOps, PrismPmcmEventWorkspace, PrismRegistrationPlatform } from "@prism/types";
-import { eventApi, eventApiRequest } from "@/lib/prism-api";
+import { eventApi } from "@/lib/prism-api";
 
 type TimedCache<T> = { value: T; loadedAt: number };
 export type EventCommandData = {
@@ -52,11 +52,11 @@ export const eventWorkspaceRepository = {
   },
 
   loadStatusFeed(eventId: string): Promise<PrismEventDayStatusFeed> {
-    return eventApiRequest<PrismEventDayStatusFeed>(`/api/events/${eventId}/event-day/status-feed`);
+    return eventApi.lifecycle.eventDayStatusFeed(eventId);
   },
 
   loadDefenseReadiness(eventId: string): Promise<PrismDefenseReadiness> {
-    return eventApiRequest<PrismDefenseReadiness>(`/api/events/${eventId}/defense-readiness`);
+    return eventApi.lifecycle.defenseReadiness(eventId);
   },
 
   getCachedApprovalRequests() {
@@ -69,7 +69,7 @@ export const eventWorkspaceRepository = {
     }
     if (!force && approvalRequestsRequest) return approvalRequestsRequest;
 
-    approvalRequestsRequest = eventApiRequest<PrismApprovalRequest[]>("/api/auth/approval-requests")
+    approvalRequestsRequest = eventApi.auth.approvalRequests()
       .then((next) => {
         approvalRequestsCache = { value: next, loadedAt: Date.now() };
         return next;
@@ -115,13 +115,13 @@ function settle<T>(errors: EventCommandDataErrors, label: keyof EventCommandData
 async function fetchPart(eventId: string, part: EventCommandPart): Promise<PartResult> {
   const errors: EventCommandDataErrors = {};
   if (part === "readiness") {
-    const defenseReadiness = await settle(errors, "defenseReadiness", eventApiRequest<PrismDefenseReadiness>(`/api/events/${eventId}/defense-readiness`));
+    const defenseReadiness = await settle(errors, "defenseReadiness", eventApi.lifecycle.defenseReadiness(eventId));
     return { data: { defenseReadiness }, errors };
   }
   if (part === "liveOps") {
     const [liveOps, statusFeed] = await Promise.all([
       settle(errors, "liveOps", eventApi.liveOps.eventDayWorkspace(eventId)),
-      settle(errors, "statusFeed", eventApiRequest<PrismEventDayStatusFeed>(`/api/events/${eventId}/event-day/status-feed`)),
+      settle(errors, "statusFeed", eventApi.lifecycle.eventDayStatusFeed(eventId)),
     ]);
     return { data: { liveOps, statusFeed }, errors };
   }

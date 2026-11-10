@@ -25,6 +25,7 @@ export interface EventOpsAuthContract {
     logout(): Promise<void>;
     acknowledgePrivacyNotice(input: AcknowledgePrivacyNoticeInput): Promise<void>;
     me(): Promise<PrismCurrentUser>;
+    approvalRequests(): Promise<PrismApprovalRequest[]>;
     approveApprovalRequest(requestId: string): Promise<PrismApprovalRequest>;
     declineApprovalRequest(requestId: string): Promise<PrismApprovalRequest>;
     unlockUser(userId: string): Promise<PrismIdentityAccountSummary>;
