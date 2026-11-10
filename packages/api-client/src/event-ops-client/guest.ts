@@ -1,4 +1,7 @@
 import type {
+  PrismGuestEventWatermark,
+  PrismGuestFeedbackMediaUpload,
+  PrismGuestFeedbackReceipt,
   PrismGuestQrPass,
   CoordinatorWalkInCheckInInput,
   PrismCoordinatorRegistrationEntry,
@@ -24,18 +27,32 @@ export function createGuestClient(
           `/guest/events/${encodeURIComponent(accessCode)}`,
           withBase(options),
         ),
+      watermark: (accessCode) =>
+        prismRequest<PrismGuestEventWatermark>(
+          `/guest/events/${encodeURIComponent(accessCode)}/watermark`,
+          withBase(options),
+        ),
       checkIn: (accessCode, input) =>
         prismRequest<PrismGuestCheckInReceipt>(
           `/guest/events/${encodeURIComponent(accessCode)}/check-ins`,
           withBase(options, { method: "POST", body: input }),
         ),
       feedback: (accessCode, input) =>
-        prismRequest<PrismGuestFeedback>(
+        prismRequest<PrismGuestFeedbackReceipt>(
           `/guest/events/${encodeURIComponent(accessCode)}/feedback`,
           withBase(options, { method: "POST", body: input }),
         ),
+      uploadFeedbackMedia: (accessCode, file) =>
+        prismRequest<PrismGuestFeedbackMediaUpload>(
+          `/guest/events/${encodeURIComponent(accessCode)}/feedback-media`,
+          withBase(options, {
+            method: "POST",
+            body: file,
+            headers: { "Content-Type": file.type || "application/octet-stream", "x-prism-file-name": encodeURIComponent(file.name) },
+          }),
+        ),
       withdrawFeedbackConsent: (accessCode, feedbackId, input) =>
-        prismRequest<PrismGuestFeedback>(
+        prismRequest<PrismGuestFeedbackReceipt>(
           `/guest/events/${encodeURIComponent(accessCode)}/feedback/${encodeURIComponent(feedbackId)}/consent-withdrawal`,
           withBase(options, { method: "POST", body: input }),
         ),
