@@ -538,3 +538,4 @@ export * from "./pmcm-overview-inputs.js";
 export * from "./payment-receipt-inputs.js";
 export * from "./planning-inputs.js";
 export * from "./date-change-inputs.js";
+export { spotifyPlaylistUrlSchema, spotifyPlaylistLinks } from "./portal-music.js";
