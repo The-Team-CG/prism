@@ -43,7 +43,10 @@ export class NotificationRecipientDeliveryService {
       rows = await this.prisma.opsNotificationDelivery.findMany({ where: { notificationId }, orderBy: { recipient: 'asc' } });
     }
 
-    await Promise.all(rows.map((row) => this.deliverToRow(row, currentlyAllowed, send)));
+    await Promise.all(
+      // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one step per recipient, and a notification with more than 200 recipients is refused above.
+      rows.map((row) => this.deliverToRow(row, currentlyAllowed, send)),
+    );
 
     const settled = await this.prisma.opsNotificationDelivery.findMany({ where: { notificationId }, orderBy: { recipient: 'asc' } });
     if (settled.some((row) => row.status === 'pending')) return { status: 'retryable_failure', reason: 'At least one recipient is awaiting provider acceptance' };

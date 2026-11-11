@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 150,
+    "totalTables": 152,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 126,
+    "targetSameDomainFks": 127,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -3927,6 +3927,21 @@
       "targetDomain": "floorplan",
       "targetCurrentSchema": "floorplan",
       "targetTable": "floor_plan_drafts",
+      "sameDomain": true
+    },
+    {
+      "schema": "platform_ops",
+      "table": "notification_deliveries",
+      "name": "notification_deliveries_notification_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (notification_id) REFERENCES platform_ops.notification_logs(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "notification_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "platform-ops",
+      "targetCurrentSchema": "platform_ops",
+      "targetTable": "notification_logs",
       "sameDomain": true
     }
   ]
