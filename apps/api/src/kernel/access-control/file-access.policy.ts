@@ -17,7 +17,7 @@ export type FileAccessObject = {
 };
 
 /** Supported file kinds. Game media and lobby branding are outside this policy. */
-export type FileAccessKind = 'signed_conforme' | 'client_document' | 'billing_statement' | 'proposal_deliverable' | 'styling_moodboard' | 'supplier_document' | 'guest_feedback_media';
+export type FileAccessKind = 'signed_conforme' | 'client_document' | 'billing_statement' | 'proposal_deliverable' | 'styling_moodboard' | 'supplier_document' | 'guest_feedback_media' | 'payment_receipt_evidence';
 
 export type FileAccessActor = { role: string; supplierId?: string | null };
 
@@ -49,6 +49,8 @@ const KIND_BY_OWNER_USAGE: ReadonlyMap<string, FileAccessKind> = new Map<string,
   ['supplier:supplier_document', 'supplier_document'],
   // New-SEC3: guest feedback photos and videos; only PMCM reviews them.
   ['event:guest_feedback_media', 'guest_feedback_media'],
+  // Proof of payment on a receipt: only PMCM and the system ever see it.
+  ['payment_receipt:payment_receipt_evidence', 'payment_receipt_evidence'],
 ]);
 
 export function fileAccessKindOf(object: Pick<FileAccessObject, 'usage' | 'ownerRecordType'>): FileAccessKind | null {
@@ -64,6 +66,7 @@ const KIND_ACCESS: Record<FileAccessKind, (actor: FileAccessActor, object: FileA
   styling_moodboard: (actor) => actor.role === OpsUserRole.Client,
   supplier_document: (actor, object) => actor.role === OpsUserRole.Supplier && Boolean(actor.supplierId) && object.ownerRecordId === actor.supplierId,
   guest_feedback_media: () => false,
+  payment_receipt_evidence: () => false,
 };
 
 /**

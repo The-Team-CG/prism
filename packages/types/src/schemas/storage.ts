@@ -9,6 +9,8 @@ export const storageUsageSchema = z.enum([
   "event_deliverable",
   "event_game_media",
   "event_game_branding",
+  /** Proof that money arrived (a bank statement line, a screenshot). PMCM finance only. */
+  "payment_receipt_evidence",
 ]);
 export type StorageUsage = z.infer<typeof storageUsageSchema>;
 

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   allocationStates,
   checkAllocation,
+  checkAttachEvidence,
+  checkEarmark,
   checkRefund,
   checkReject,
   checkReverseAllocation,
@@ -76,6 +78,28 @@ describe('payment receipt ledger rules', () => {
     expect(checkReverseReceipt({ status: 'verified', refunded: 0 })).toEqual({ ok: true });
     expect(checkReverseReceipt({ status: 'recorded', refunded: 1 })).toMatchObject({ ok: false, message: expect.stringContaining('refunds') });
     expect(fails(checkReverseReceipt({ status: 'rejected', refunded: 0 }))).toBe(true);
+  });
+
+  it('takes proof of payment only for a live receipt that is held for an event', () => {
+    expect(checkAttachEvidence({ status: 'recorded', hasEvent: true })).toEqual({ ok: true });
+    expect(checkAttachEvidence({ status: 'verified', hasEvent: true })).toEqual({ ok: true });
+    expect(checkAttachEvidence({ status: 'recorded', hasEvent: false })).toMatchObject({
+      ok: false,
+      message: expect.stringContaining('which event'),
+    });
+    expect(fails(checkAttachEvidence({ status: 'rejected', hasEvent: true }))).toBe(true);
+    expect(fails(checkAttachEvidence({ status: 'reversed', hasEvent: true }))).toBe(true);
+  });
+
+  it('assigns an event once to a live receipt that has none, and never moves one between events', () => {
+    expect(checkEarmark({ status: 'recorded', hasEvent: false })).toEqual({ ok: true });
+    expect(checkEarmark({ status: 'verified', hasEvent: false })).toEqual({ ok: true });
+    expect(checkEarmark({ status: 'recorded', hasEvent: true })).toMatchObject({
+      ok: false,
+      message: expect.stringContaining('already held'),
+    });
+    expect(fails(checkEarmark({ status: 'rejected', hasEvent: false }))).toBe(true);
+    expect(fails(checkEarmark({ status: 'reversed', hasEvent: false }))).toBe(true);
   });
 
   it('reverses a payment once, and never a reversal', () => {

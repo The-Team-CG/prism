@@ -1,12 +1,15 @@
-import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma, type OpsPaymentReceipt } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
+import { STORED_RECEIPT_EVIDENCE_READER, type StoredReceiptEvidenceReader } from '@prism/contexts/platform-ops';
 import type {
   AllocatePaymentReceiptInput,
+  AttachPaymentReceiptEvidenceInput,
+  EarmarkPaymentReceiptInput,
   ListPaymentReceiptsQuery,
   PrismPaymentAllocationTarget,
   PrismPaymentReceipt,
@@ -21,6 +24,8 @@ import {
   LIVE_RECEIPT_STATUSES,
   allocationStates,
   checkAllocation,
+  checkAttachEvidence,
+  checkEarmark,
   checkRefund,
   checkReject,
   checkReverseAllocation,
@@ -73,6 +78,7 @@ export class PaymentReceiptService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    @Optional() @Inject(STORED_RECEIPT_EVIDENCE_READER) private readonly evidenceReader?: StoredReceiptEvidenceReader,
   ) {}
 
   async recordReceipt(input: RecordPaymentReceiptInput, actor: BillingActor): Promise<PrismPaymentReceipt> {
@@ -188,6 +194,39 @@ export class PaymentReceiptService {
       }
       const receipt = await this.lockedReceipt(tx, receiptId);
       await this.applyAllocation(tx, context, receipt, input.milestoneId, input.amount, actor, { idempotencyKey: input.idempotencyKey, payloadHash });
+    });
+    return this.getReceipt(receiptId);
+  }
+
+  /**
+   * Bind an uploaded, confirmed proof of payment to a receipt. The file must have been uploaded as evidence for this exact
+   * receipt of its event, so a file cannot be pointed at a receipt it was never uploaded for. Attaching another replaces the
+   * link and leaves the earlier file in storage.
+   */
+  async attachEvidence(receiptId: string, input: AttachPaymentReceiptEvidenceInput, actor: BillingActor): Promise<PrismPaymentReceipt> {
+    actor = requireBillingActor(actor);
+    const reader = this.evidenceReader;
+    if (!reader) throw new ServiceUnavailableException('Evidence storage is unavailable');
+    await this.inTransaction(actor, `payment-receipt-evidence:${receiptId}`, async (tx, context) => {
+      const receipt = await this.lockedReceipt(tx, receiptId);
+      enforce(checkAttachEvidence({ status: receiptStatus(receipt.status), hasEvent: Boolean(receipt.eventId) }));
+      const evidence = await reader.findConfirmedReceiptEvidence({ eventId: receipt.eventId!, receiptId, objectId: input.objectId });
+      if (!evidence) throw new BadRequestException('That file was not uploaded as evidence for this receipt, or it has not finished uploading');
+      await tx.opsPaymentReceipt.update({ where: { id: receiptId }, data: { evidenceObjectId: input.objectId } });
+      await this.audit(context, actor, receipt, AuditActionType.Update, `Attached evidence to receipt ${receipt.referenceNumber || receipt.id}`, { objectId: input.objectId, fileName: evidence.fileName });
+    });
+    return this.getReceipt(receiptId);
+  }
+
+  /** Say which event money held with no event was meant for. It then shows on that client's statement and can take evidence. */
+  async earmark(receiptId: string, input: EarmarkPaymentReceiptInput, actor: BillingActor): Promise<PrismPaymentReceipt> {
+    actor = requireBillingActor(actor);
+    await this.inTransaction(actor, `payment-receipt-earmark:${receiptId}`, async (tx, context) => {
+      const receipt = await this.lockedReceipt(tx, receiptId);
+      enforce(checkEarmark({ status: receiptStatus(receipt.status), hasEvent: Boolean(receipt.eventId) }));
+      await this.requireEvent(tx, input.eventId);
+      await tx.opsPaymentReceipt.update({ where: { id: receiptId }, data: { eventId: input.eventId } });
+      await this.audit(context, actor, { ...receipt, eventId: input.eventId }, AuditActionType.Update, `Assigned receipt ${receipt.referenceNumber || receipt.id} to an event`, { eventId: input.eventId });
     });
     return this.getReceipt(receiptId);
   }
@@ -417,7 +456,8 @@ export class PaymentReceiptService {
       ? []
       : await db.opsPaymentMilestone.findMany({ where: { id: { in: milestoneIds } }, select: { id: true, label: true } });
     const labels = new Map(milestones.map((milestone) => [milestone.id, milestone.label]));
-    return receipts.map((receipt) => mapPaymentReceipt(receipt, labels));
+    const evidence = await this.evidenceReader?.describeReceiptEvidence(receipts.flatMap((receipt) => (receipt.evidenceObjectId ? [receipt.evidenceObjectId] : [])));
+    return receipts.map((receipt) => mapPaymentReceipt(receipt, labels, evidence));
   }
 
   private async requireEvent(tx: Tx, eventId: string) {
