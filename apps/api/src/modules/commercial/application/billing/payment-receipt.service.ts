@@ -381,6 +381,7 @@ export class PaymentReceiptService {
     return db.opsPaymentReceipt.findMany({
       where,
       orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+      // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: callers pass 1, the request limit (at most 100) or UNAPPLIED_SCAN_LIMIT (500).
       take,
       include: { records: { orderBy: [{ recordedAt: 'asc' }, { id: 'asc' }] }, refunds: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
     });
