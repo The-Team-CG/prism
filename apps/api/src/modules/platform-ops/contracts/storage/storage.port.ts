@@ -10,6 +10,7 @@ import type {
 export const STORAGE_ADAPTER = Symbol('STORAGE_ADAPTER');
 export const STORED_SUPPLIER_UPLOAD_READER = Symbol('STORED_SUPPLIER_UPLOAD_READER');
 export const STORED_REQUIREMENT_UPLOAD_READER = Symbol('STORED_REQUIREMENT_UPLOAD_READER');
+export const STORED_RECEIPT_EVIDENCE_READER = Symbol('STORED_RECEIPT_EVIDENCE_READER');
 export const GUEST_FEEDBACK_MEDIA_STORE = Symbol('GUEST_FEEDBACK_MEDIA_STORE');
 
 export type GuestFeedbackMediaReference = {
@@ -67,6 +68,16 @@ export type StoredRequirementUploadReference = {
 /** Lifecycle may bind only verified stored bytes from the same event to an event requirement. */
 export interface StoredRequirementUploadReader {
   findStoredRequirementUpload(input: { eventId: string; objectId: string; context?: PrismTransactionContext }): Promise<StoredRequirementUploadReference | null>;
+}
+
+export type StoredReceiptEvidence = { objectId: string; fileName: string; contentType: string; byteSize: number };
+
+/** Commercial binds proof of payment to a receipt only through verified stored bytes uploaded for that exact receipt. */
+export interface StoredReceiptEvidenceReader {
+  /** The confirmed object, only if it was uploaded as evidence for this receipt of this event. */
+  findConfirmedReceiptEvidence(input: { eventId: string; receiptId: string; objectId: string }): Promise<StoredReceiptEvidence | null>;
+  /** Display facts for evidence already bound to receipts; an object that was deleted or never confirmed is absent. */
+  describeReceiptEvidence(objectIds: string[]): Promise<Map<string, StoredReceiptEvidence>>;
 }
 
 export type StorageLifecycleState = PrismStoredObject['lifecycleState'];

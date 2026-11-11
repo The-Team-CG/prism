@@ -7,7 +7,7 @@ import { StatusBadge } from "@prism/ui/components/status-badge";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { PrismEmptyLine } from "@prism/ui/page-blocks";
 import { money } from "@/features/pmcm-kit";
-import { RECEIPT_STATUS_LABELS, receiptActions, receiptNotes, receiptOutcomes, receiptTitle } from "../model/receipt-rules";
+import { RECEIPT_STATUS_LABELS, fileSizeLabel, receiptActions, receiptNotes, receiptOutcomes, receiptTitle } from "../model/receipt-rules";
 import type { PaymentReceiptsViewModel, ReceiptDialog } from "../view-models/use-payment-receipts-view-model";
 
 function Heading({ children }: { children: string }) {
@@ -60,6 +60,31 @@ function Notes({ receipt }: { receipt: PrismPaymentReceipt }) {
   );
 }
 
+/** Proof of payment: the file that shows the money arrived. Only PMCM can open it; clients never see it. */
+function Evidence({ receipt, onView }: { receipt: PrismPaymentReceipt; onView: () => void }) {
+  const { evidence } = receipt;
+  const actions = receiptActions(receipt);
+  if (!evidence && !actions.attachEvidence && !actions.earmark) return null;
+  return (
+    <section className="space-y-2">
+      <Heading>Proof of payment</Heading>
+      {evidence ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <span className="min-w-0 break-words text-foreground">
+            {evidence.fileName}
+            <span className="block text-xs text-muted-foreground">{fileSizeLabel(evidence.byteSize)}</span>
+          </span>
+          <Button variant="outline" size="sm" onClick={onView}>Open</Button>
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          {actions.earmark ? "Set the event this money was meant for, then attach proof of payment." : "No proof is attached yet. Attach the bank statement line or wallet screenshot."}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function Allocations({ receipt, onUndo }: { receipt: PrismPaymentReceipt; onUndo: (recordId: string) => void }) {
   if (receipt.allocations.length === 0) return <p className="text-xs text-muted-foreground">Nothing has been applied to a milestone yet.</p>;
   return (
@@ -102,6 +127,8 @@ function Actions({ receipt, onOpen }: { receipt: PrismPaymentReceipt; onOpen: (d
   const actions = receiptActions(receipt);
   const buttons: Array<{ show: boolean; kind: ReceiptDialog["kind"]; label: string; primary?: boolean }> = [
     { show: actions.allocate, kind: "allocate", label: "Apply to a milestone", primary: true },
+    { show: actions.earmark, kind: "earmark", label: "Set event" },
+    { show: actions.attachEvidence, kind: "evidence", label: receipt.evidence ? "Replace proof" : "Attach proof" },
     { show: actions.verify, kind: "verify", label: "Verify" },
     { show: actions.refund, kind: "refund", label: "Record refund" },
     { show: actions.reject, kind: "reject", label: "Reject" },
@@ -124,6 +151,7 @@ export function ReceiptDetailPanel({ vm }: { vm: PaymentReceiptsViewModel }) {
       <DetailHeader receipt={receipt} />
       <Balances receipt={receipt} />
       <Notes receipt={receipt} />
+      <Evidence receipt={receipt} onView={() => void vm.openEvidence()} />
       <Allocations receipt={receipt} onUndo={(recordId) => vm.openDialog({ kind: "reverse-allocation", recordId })} />
       <Refunds receipt={receipt} />
       <Actions receipt={receipt} onOpen={vm.openDialog} />

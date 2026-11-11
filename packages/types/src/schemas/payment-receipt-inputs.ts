@@ -72,3 +72,20 @@ export type ListPaymentReceiptsQuery = z.infer<typeof listPaymentReceiptsQuerySc
 /** The open milestones of one event that a receipt can be applied to. */
 export const listPaymentAllocationTargetsQuerySchema = z.object({ eventId: idSchema }).strict();
 export type ListPaymentAllocationTargetsQuery = z.infer<typeof listPaymentAllocationTargetsQuerySchema>;
+
+/** Bind an uploaded, confirmed file as the proof for a receipt. The file must have been uploaded as that receipt's evidence. */
+export const attachPaymentReceiptEvidenceSchema = z.object({ objectId: idSchema }).strict();
+export type AttachPaymentReceiptEvidenceInput = z.infer<typeof attachPaymentReceiptEvidenceSchema>;
+
+/** Say which event money held with no event was meant for, so it can carry evidence and show on that client's statement. */
+export const earmarkPaymentReceiptSchema = z.object({ eventId: idSchema }).strict();
+export type EarmarkPaymentReceiptInput = z.infer<typeof earmarkPaymentReceiptSchema>;
+
+/** Proof of payment is a statement PDF or a screenshot: small, and never a document or a video. One list for the form and the API. */
+export const PAYMENT_RECEIPT_EVIDENCE_MAX_BYTES = 10 * 1024 * 1024;
+export const PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES = ["application/pdf", "image/jpeg", "image/png"] as const;
+
+/** Storage target for one proof of payment uploaded for a receipt; the attempt id keeps a re-upload from colliding with the first. */
+export function paymentReceiptEvidenceTarget(receiptId: string, attemptId: string): string {
+  return `payment-receipt-evidence:${receiptId}:${attemptId}`;
+}

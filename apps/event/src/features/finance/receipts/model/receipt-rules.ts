@@ -1,4 +1,10 @@
-import type { ListPaymentReceiptsQuery, PrismPaymentReceipt, PrismPaymentReceiptStatus } from "@prism/types";
+import {
+  PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES,
+  PAYMENT_RECEIPT_EVIDENCE_MAX_BYTES,
+  type ListPaymentReceiptsQuery,
+  type PrismPaymentReceipt,
+  type PrismPaymentReceiptStatus,
+} from "@prism/types";
 
 export const RECEIPT_STATUS_LABELS: Record<PrismPaymentReceiptStatus, string> = {
   recorded: "Recorded",
@@ -32,7 +38,17 @@ export function parsePesos(text: string): number | null {
   return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
 }
 
-export type ReceiptActions = { allocate: boolean; verify: boolean; reject: boolean; reverse: boolean; refund: boolean };
+export type ReceiptActions = {
+  allocate: boolean;
+  verify: boolean;
+  reject: boolean;
+  reverse: boolean;
+  refund: boolean;
+  /** Proof is filed under an event, so only a live receipt already held for one takes it. */
+  attachEvidence: boolean;
+  /** Money held with no event can be assigned one, once. */
+  earmark: boolean;
+};
 
 /**
  * Which actions a receipt offers. The server enforces the same rules; this only hides what would be refused.
@@ -48,6 +64,8 @@ export function receiptActions(receipt: PrismPaymentReceipt): ReceiptActions {
     verify: receipt.status === "recorded",
     reject: receipt.status === "recorded" && !receipt.allocations.some((slice) => !slice.reversed),
     reverse: live && receipt.refunded === 0,
+    attachEvidence: live && receipt.eventId !== null,
+    earmark: live && receipt.eventId === null,
   };
 }
 
@@ -76,4 +94,22 @@ export function receiptNotes(receipt: PrismPaymentReceipt): string[] {
   if (receipt.possibleDuplicateOfId) notes.push("Same amount, method, day and payer as another receipt. Check it is not a double entry.");
   if (receipt.status === "recorded" && !receipt.legacy) notes.push("Not yet checked against the bank or wallet statement.");
   return notes;
+}
+
+const EVIDENCE_TYPE_BY_EXTENSION: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" };
+
+/** What a proof of payment may be, in words. The server enforces the same list. */
+export const EVIDENCE_ACCEPT = PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES.join(",");
+export const EVIDENCE_HINT = "A PDF, JPG or PNG up to 10 MB, such as a bank statement line or a wallet screenshot.";
+
+/** Why a file cannot be proof of payment, or null when it can. Checked before anything is uploaded. */
+export function evidenceProblem(file: { name: string; size: number; type: string }): string | null {
+  const type = file.type.toLowerCase() || EVIDENCE_TYPE_BY_EXTENSION[file.name.split(".").pop()?.toLowerCase() ?? ""] || "";
+  if (!(PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES as readonly string[]).includes(type)) return "Proof must be a PDF, JPG or PNG.";
+  if (file.size === 0) return "That file is empty.";
+  return file.size > PAYMENT_RECEIPT_EVIDENCE_MAX_BYTES ? "Proof must be 10 MB or smaller." : null;
+}
+
+export function fileSizeLabel(bytes: number): string {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
