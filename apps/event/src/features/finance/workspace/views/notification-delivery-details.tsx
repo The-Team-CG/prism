@@ -11,6 +11,11 @@ function acknowledgmentCopy(row: DeliveryRow) {
   return row.acknowledgmentDueAt ? ` · Acknowledgment due ${new Date(row.acknowledgmentDueAt).toLocaleString()}` : "";
 }
 
+function escalationCopy(row: DeliveryRow) {
+  if (row.secondEscalatedAt) return " · Escalated to PMCM, then chased again with the event's coordinators";
+  return row.escalatedAt ? " · Escalated to PMCM" : "";
+}
+
 /** One line per recipient: what the provider reported, the channel's readiness, and where acknowledgment stands. */
 function deliverySummary(row: DeliveryRow) {
   const status = row.status === "accepted" ? "Accepted by provider" : row.status;
@@ -20,7 +25,7 @@ function deliverySummary(row: DeliveryRow) {
     row.providerOutcome ? ` · Provider outcome: ${row.providerOutcome}` : "",
     row.channelReadiness ? ` · Channel: ${row.channelReadiness}` : "",
     acknowledgmentCopy(row),
-    row.escalatedAt ? " · Escalated to PMCM" : "",
+    escalationCopy(row),
   ].join("");
 }
 

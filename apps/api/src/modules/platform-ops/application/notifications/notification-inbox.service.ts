@@ -81,7 +81,7 @@ export class NotificationInboxService {
       if (!row) throw new NotFoundException('Notification delivery not found');
       if (row.status === 'skipped') throw new ConflictException('A skipped recipient cannot receive an acknowledgment deadline');
       if (row.acknowledgedAt) throw new ConflictException('This recipient has already acknowledged the notice');
-      const changed = await tx.opsNotificationDelivery.updateMany({ where: { id, acknowledgedAt: null }, data: { acknowledgmentDueAt: dueAt, escalatedAt: null } });
+      const changed = await tx.opsNotificationDelivery.updateMany({ where: { id, acknowledgedAt: null }, data: { acknowledgmentDueAt: dueAt, escalatedAt: null, secondEscalatedAt: null } });
       if (changed.count !== 1) throw new ConflictException('Acknowledgment changed; refresh before setting its deadline');
       await writeAudit(this.audit, row.notification.eventId ?? undefined, actor.name, 'Requested notification acknowledgment', {
         actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update, category: AuditCategory.Events,

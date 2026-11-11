@@ -817,7 +817,7 @@
       "table": "notification_deliveries",
       "domain": "platform-ops",
       "targetSchema": "platform_ops",
-      "columnCount": 15,
+      "columnCount": 16,
       "introducedAfterCutover": true
     },
     {

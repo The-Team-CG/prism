@@ -103,6 +103,7 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
       ...(row.acknowledgedAt ? { acknowledgedAt: row.acknowledgedAt.toISOString() } : {}),
       ...(row.acknowledgmentDueAt ? { acknowledgmentDueAt: row.acknowledgmentDueAt.toISOString() } : {}),
       ...(row.escalatedAt ? { escalatedAt: row.escalatedAt.toISOString() } : {}),
+      ...(row.secondEscalatedAt ? { secondEscalatedAt: row.secondEscalatedAt.toISOString() } : {}),
       ...(readiness ? { channelReadiness: readiness.get(row.recipient) } : {}),
     }));
   }

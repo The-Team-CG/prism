@@ -101,10 +101,27 @@ describe.skipIf(!live)('durable notification delivery', () => {
       expect(results.reduce((sum, result) => sum + result.escalated, 0)).toBe(1);
       expect(await prisma.opsNotificationLog.count({ where: { idempotencyKey: { startsWith: `notification-escalation:${other.id}:` } } })).toBe(1);
       expect((await prisma.opsNotificationDelivery.findUniqueOrThrow({ where: { id: other.id } })).escalatedAt).toBeInstanceOf(Date);
-      expect(await escalation.escalateDue(now)).toEqual({ escalated: 0 });
+      expect(await escalation.escalateDue(now)).toEqual({ escalated: 0, secondEscalated: 0 });
+
+      // Second level: nothing inside the window, then exactly one chase however many sweeps race for it.
+      expect((await escalation.escalateDue(new Date(now.getTime() + 23 * 3_600_000))).secondEscalated).toBe(0);
+      const later = new Date(now.getTime() + 25 * 3_600_000);
+      const chased = await Promise.all([escalation.escalateDue(later), escalation.escalateDue(later)]);
+      expect(chased.reduce((sum, result) => sum + result.secondEscalated, 0)).toBe(1);
+      expect(await prisma.opsNotificationLog.count({ where: { idempotencyKey: { startsWith: `notification-escalation-2:${other.id}:` } } })).toBe(1);
+      expect((await prisma.opsNotificationDelivery.findUniqueOrThrow({ where: { id: other.id } })).secondEscalatedAt).toBeInstanceOf(Date);
+      expect(await escalation.escalateDue(later)).toEqual({ escalated: 0, secondEscalated: 0 });
+
+      // A new deadline earns a fresh chase at both levels.
+      const nextDue = new Date(later.getTime() + 60_000);
+      await inbox.requireAcknowledgment(other.id, { dueAt: nextDue.toISOString(), reason: 'Still needed' }, { id: 'admin', role: 'pmcm-admin', email: 'admin@example.test', name: 'PMCM' } as never);
+      expect(await prisma.opsNotificationDelivery.findUniqueOrThrow({ where: { id: other.id } })).toMatchObject({ escalatedAt: null, secondEscalatedAt: null });
     } finally {
       const deliveries = await prisma.opsNotificationDelivery.findMany({ where: { notificationId: row.id }, select: { id: true } });
-      await prisma.opsNotificationLog.deleteMany({ where: { OR: deliveries.map((entry) => ({ idempotencyKey: { startsWith: `notification-escalation:${entry.id}:` } })) } });
+      await prisma.opsNotificationLog.deleteMany({ where: { OR: deliveries.flatMap((entry) => [
+        { idempotencyKey: { startsWith: `notification-escalation:${entry.id}:` } },
+        { idempotencyKey: { startsWith: `notification-escalation-2:${entry.id}:` } },
+      ]) } });
       await prisma.opsNotificationLog.delete({ where: { id: row.id } });
       await prisma.$disconnect();
     }

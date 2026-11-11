@@ -208,6 +208,8 @@ export interface PrismNotificationRecipientDelivery {
   acknowledgmentDueAt?: string | null;
   acknowledgedAt?: string | null;
   escalatedAt?: string | null;
+  /** The second, final chase: PMCM again and the event's coordinators. */
+  secondEscalatedAt?: string | null;
 }
 
 export interface PrismApprovalRequest {

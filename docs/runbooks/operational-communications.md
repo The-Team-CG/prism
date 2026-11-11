@@ -103,8 +103,15 @@ deadline** takes a future time and a reason. It is audited.
   delivery escalated and queues one notice to PMCM naming the overdue recipient, linked to the event's billing tab where the delivery
   details are. The mark and the notice are written in one
   transaction, so concurrent sweeps or several API instances produce **one** escalation per deadline.
-- At most 50 overdue deadlines are handled per sweep; the rest follow on the next one.
-- Setting a new deadline on an unacknowledged delivery clears its escalation so it can escalate again.
+- **Second level.** A recipient still silent a window after that first escalation (`PRISM_NOTIFICATION_SECOND_ESCALATION_HOURS`,
+  whole hours from 1 to 720, default 24; anything else falls back to 24) is chased once more: PMCM gets a second notice, and the
+  event's assigned coordinators get one asking them to follow up with the recipient directly, linked to the event overview. The
+  coordinators are the backup who can reach the recipient on the ground. A notice that belongs to no event has no coordinators, so
+  only PMCM is told. It is also written in one transaction with its mark, so it happens **once** per deadline.
+- At most 50 overdue deadlines are handled per level per sweep; the rest follow on the next one.
+- Setting a new deadline on an unacknowledged delivery clears both escalations so it can escalate again from the start.
+- Acknowledging at any point stops both levels. There is no third level: after the second chase the delivery details still show who
+  has not acknowledged, and PMCM decides what to do next.
 - The sweep also removes provider outcome records older than 30 days.
 - Set `PRISM_DISABLE_NOTIFICATION_ESCALATION_JOB=1` to stop the sweep (for example while restoring a database). It never runs under
   `NODE_ENV=test`.
@@ -158,5 +165,6 @@ Portals: `npm --workspace @prism/client|@prism/supplier|@prism/event run typeche
 - **The Resend webhook has not received a real event.** Signature checking and the outcome order are covered by tests built on Resend's
   documented Svix format. To enable it: in Resend add a webhook for the `email.*` events at
   `https://<api-host>/api/integrations/resend/webhook`, then store its signing secret as `RESEND_WEBHOOK_SECRET` in the host's secret store.
-- **Escalation has one level.** An unacknowledged notice alerts PMCM once per deadline. Whether it should chase again, or reach a
-  named backup when PMCM does not respond, needs a decision about who that backup is.
+- **The backup is a default, not a confirmed policy.** The second level chases PMCM and the event's coordinators after 24 hours.
+  If the business wants a different backup (a named on-call person, a longer ladder, or the window per event), that is a rule change
+  in `notification-escalation.service.ts`; nothing about the current choice has been tested with real recipients.

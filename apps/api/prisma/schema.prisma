@@ -2809,6 +2809,8 @@ model OpsNotificationDelivery {
   providerOutcome  String? @map("provider_outcome")
   acknowledgmentDueAt DateTime? @map("acknowledgment_due_at")
   escalatedAt DateTime? @map("escalated_at")
+  /// Set when a recipient still unacknowledged after the first escalation was chased once more (PMCM and the event's coordinators).
+  secondEscalatedAt DateTime? @map("second_escalated_at")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -2819,6 +2821,7 @@ model OpsNotificationDelivery {
   @@index([recipient, createdAt, id], map: "notification_deliveries_recipient_created_idx")
   @@index([providerReceipt], map: "notification_deliveries_provider_receipt_idx")
   @@index([acknowledgedAt, escalatedAt, acknowledgmentDueAt], map: "notification_deliveries_ack_due_idx")
+  @@index([acknowledgedAt, secondEscalatedAt, escalatedAt], map: "notification_deliveries_second_escalation_idx")
   @@map("notification_deliveries")
   @@schema("platform_ops")
 }
