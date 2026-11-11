@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 152,
+    "totalTables": 154,
     "targetSchemas": 8,
     "tableMoves": 83,
-    "currentCrossSchemaFks": 50,
-    "targetSameDomainFks": 127,
+    "currentCrossSchemaFks": 51,
+    "targetSameDomainFks": 130,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -718,7 +718,25 @@
       "table": "payment_records",
       "domain": "commercial",
       "targetSchema": "commercial",
-      "columnCount": 10
+      "columnCount": 14
+    },
+    {
+      "model": "OpsPaymentReceipt",
+      "currentSchema": "commercial",
+      "table": "payment_receipts",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 27,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsPaymentRefund",
+      "currentSchema": "commercial",
+      "table": "payment_refunds",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 12,
+      "introducedAfterCutover": true
     },
     {
       "model": "OpsBillingCorrection",
@@ -3927,6 +3945,51 @@
       "targetDomain": "floorplan",
       "targetCurrentSchema": "floorplan",
       "targetTable": "floor_plan_drafts",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "payment_records",
+      "name": "payment_records_receipt_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (receipt_id) REFERENCES commercial.payment_receipts(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "receipt_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "payment_receipts",
+      "sameDomain": true
+    },
+    {
+      "schema": "finance_ops",
+      "table": "payment_records",
+      "name": "payment_records_reverses_record_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (reverses_record_id) REFERENCES finance_ops.payment_records(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "reverses_record_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "finance_ops",
+      "targetTable": "payment_records",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "payment_refunds",
+      "name": "payment_refunds_receipt_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (receipt_id) REFERENCES commercial.payment_receipts(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "receipt_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "payment_receipts",
       "sameDomain": true
     },
     {

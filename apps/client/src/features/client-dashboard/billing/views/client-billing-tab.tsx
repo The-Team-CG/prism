@@ -16,7 +16,7 @@ import { formatDayLabel, formatLabel, money } from "../../shared/tab-ui";
 import { dashboardHref } from "../../workspace/shared";
 import { ClientFigureStrip, ClientListEmpty, type ClientFigure } from "../../shared/client-list-ui";
 import { dueState, nextPaymentFigure } from "../../home/model/client-home-summary";
-import { clientBillingSummary, clientMilestoneRemaining } from "../model/client-billing-rules";
+import { clientBillingSummary, clientMilestoneRemaining, clientPaymentLines } from "../model/client-billing-rules";
 import { useClientBillingDisputeViewModel } from "../view-models/use-client-billing-dispute-view-model";
 import { useClientStatementDownload } from "../view-models/use-client-statement-download";
 import { createPaymentReceiptPdf, paymentReceiptFileName } from "../model/payment-receipt";
@@ -140,15 +140,20 @@ function PaymentRow({ payment, todayKey, onReceipt, superseded = false }: { paym
 }
 
 function PaymentReceipts({ history, onReceipt }: { history: PaymentRecord[]; onReceipt: (record: PaymentRecord) => void }) {
-  if (history.length === 0) return null;
+  const lines = clientPaymentLines(history);
+  if (lines.length === 0) return null;
   return (
     <ul className="mt-1.5 space-y-1">
-      {history.map((record) => (
+      {lines.map(({ record, reversed }) => (
         <li key={record.id} className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
           <span>{money.format(record.amountReceived)} received {formatPortalDate(record.paymentDate)}</span>
-          <button type="button" onClick={() => onReceipt(record)} className="inline-flex items-center gap-1 font-medium text-primary hover:text-primary/80">
-            <ReceiptText className="size-3" aria-hidden /> Receipt
-          </button>
+          {reversed ? (
+            <span>Reversed by PMCM</span>
+          ) : (
+            <button type="button" onClick={() => onReceipt(record)} className="inline-flex items-center gap-1 font-medium text-primary hover:text-primary/80">
+              <ReceiptText className="size-3" aria-hidden /> Receipt
+            </button>
+          )}
         </li>
       ))}
     </ul>

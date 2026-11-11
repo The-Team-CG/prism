@@ -306,7 +306,7 @@ function PaymentMilestoneCard({
             <div key={rec.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-semibold text-foreground">{money.format(rec.amountReceived)}</span>
               <span className="flex items-center gap-1 text-muted-foreground">
-                <Clock3 className="size-3" /> {formatPortalDate(rec.paymentDate)} — {rec.paymentMethod}
+                <Clock3 className="size-3" /> {formatPortalDate(rec.paymentDate)} — {rec.reversesRecordId ? "Reversal of an earlier payment — " : ""}{rec.paymentMethod}
                 {rec.referenceNumber ? ` — ${rec.referenceNumber}` : ""}
               </span>
             </div>

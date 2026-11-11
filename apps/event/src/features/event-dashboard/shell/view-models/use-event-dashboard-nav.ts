@@ -1,5 +1,6 @@
 import {
   Archive,
+  Banknote,
   Database,
   CalendarClock,
   CalendarDays,
@@ -114,6 +115,7 @@ export function eventPortalNavItems({
     { id: "calendar", icon: CalendarClock, label: "Calendar", section: "PMCM" },
     { id: "suppliers", icon: Tags, label: "Suppliers", section: "Network" },
     { id: "team", icon: Contact, label: "Team", section: "Network" },
+    { id: "finance-receipts", icon: Banknote, label: "Receipts", section: "Finance" },
     { id: "audit", icon: ShieldCheck, label: "Audit", section: "Administration" },
     { id: "privacy", icon: Database, label: "Privacy", section: "Administration" },
     { id: "settings", icon: Settings, label: "Settings", section: "Administration" },

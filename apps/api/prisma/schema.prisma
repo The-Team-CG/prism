@@ -2465,12 +2465,88 @@ model OpsPaymentRecord {
   idempotencyKey  String?  @unique(map: "payment_records_idempotency_key_key") @map("idempotency_key")
   payloadHash     String?  @map("payload_hash")
   recordedAt      DateTime @default(now()) @map("recorded_at")
+  /// The receipt this applied amount came from. Null only for records that predate the receipt ledger.
+  receiptId       String?  @map("receipt_id")
+  /// Set on a reversal: the record it undoes. A reversal carries a negative amount, so every sum over records stays correct.
+  reversesRecordId String? @unique(map: "payment_records_reverses_record_id_key") @map("reverses_record_id")
+  reversalReason  String?  @map("reversal_reason")
+  recordedBy      String?  @map("recorded_by")
 
   milestone OpsPaymentMilestone @relation(fields: [milestoneId, eventId], references: [id, eventId], onDelete: Restrict, map: "payment_records_milestone_event_fkey")
+  receipt   OpsPaymentReceipt?  @relation(fields: [receiptId], references: [id], onDelete: Restrict, map: "payment_records_receipt_fkey")
+  reverses  OpsPaymentRecord?   @relation("PaymentRecordReversal", fields: [reversesRecordId], references: [id], onDelete: Restrict, map: "payment_records_reverses_record_fkey")
+  reversedBy OpsPaymentRecord?  @relation("PaymentRecordReversal")
 
   @@index([eventId, recordedAt], map: "payment_records_event_id_recorded_at_idx")
   @@index([milestoneId, recordedAt], map: "payment_records_milestone_id_recorded_at_idx")
+  @@index([receiptId], map: "payment_records_receipt_id_idx")
   @@map("payment_records")
+  @@schema("commercial")
+}
+
+/// Money that arrived outside P.R.I.S.M (bank transfer, e-wallet, cash). Applied to milestones through payment records;
+/// whatever is not applied or refunded is unapplied funds. Amounts are whole PHP, as on milestones.
+model OpsPaymentReceipt {
+  id                    String    @id
+  amount                Int
+  receivedDate          DateTime  @map("received_date")
+  method                String
+  referenceNumber       String    @default("") @map("reference_number")
+  /// The reference with case and punctuation removed, unique per method. Null for legacy receipts, receipts without a
+  /// reference, and receipts that stopped counting (reversed or rejected), which give the reference up for a corrected entry.
+  referenceKey          String?   @map("reference_key")
+  payerName             String    @default("") @map("payer_name")
+  /// The event the client meant to pay for, when known. Allocation decides where the money actually goes.
+  eventId               String?   @map("event_id")
+  notes                 String    @default("")
+  status                String    @default("recorded")
+  evidenceObjectId      String?   @map("evidence_object_id")
+  verifiedAt            DateTime? @map("verified_at")
+  verifiedBy            String?   @map("verified_by")
+  verificationNotes     String?   @map("verification_notes")
+  rejectedAt            DateTime? @map("rejected_at")
+  rejectedBy            String?   @map("rejected_by")
+  rejectionReason       String?   @map("rejection_reason")
+  reversedAt            DateTime? @map("reversed_at")
+  reversedBy            String?   @map("reversed_by")
+  reversalReason        String?   @map("reversal_reason")
+  possibleDuplicateOfId String?   @map("possible_duplicate_of_id")
+  recordedBy            String    @map("recorded_by")
+  recordedById          String?   @map("recorded_by_id")
+  idempotencyKey        String?   @unique(map: "payment_receipts_idempotency_key_key") @map("idempotency_key")
+  payloadHash           String?   @map("payload_hash")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  records OpsPaymentRecord[]
+  refunds OpsPaymentRefund[]
+
+  @@index([status, receivedDate], map: "payment_receipts_status_received_date_idx")
+  @@index([eventId, receivedDate], map: "payment_receipts_event_id_received_date_idx")
+  @@unique([method, referenceKey], map: "payment_receipts_method_reference_key_key")
+  @@map("payment_receipts")
+  @@schema("commercial")
+}
+
+/// A refund of unapplied money, executed outside P.R.I.S.M and recorded here so the receipt balance stays true.
+model OpsPaymentRefund {
+  id              String   @id
+  receiptId       String   @map("receipt_id")
+  amount          Int
+  refundedDate    DateTime @map("refunded_date")
+  method          String
+  referenceNumber String   @default("") @map("reference_number")
+  reason          String
+  recordedBy      String   @map("recorded_by")
+  recordedById    String?  @map("recorded_by_id")
+  idempotencyKey  String?  @unique(map: "payment_refunds_idempotency_key_key") @map("idempotency_key")
+  payloadHash     String?  @map("payload_hash")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  receipt OpsPaymentReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict, map: "payment_refunds_receipt_fkey")
+
+  @@index([receiptId, createdAt], map: "payment_refunds_receipt_id_created_at_idx")
+  @@map("payment_refunds")
   @@schema("commercial")
 }
 
