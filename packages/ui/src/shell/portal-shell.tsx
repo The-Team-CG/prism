@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { portalBackgroundStyle } from "./portal-background";
 import { ChevronRight, ChevronsUpDown, LogOut, Search, ShieldCheck } from "lucide-react";
 import type { PrismAppShellProps, PrismCommandGroup, PrismNavItem, PrismPageAction } from "./types";
 import { PrismBrandLogo } from "../brand";
@@ -464,8 +465,8 @@ export function PrismPortalShell({
           </SidebarFooter>
           <SidebarRail />
         </Sidebar>
-        <SidebarInset className="min-w-0 md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-border md:peer-data-[variant=inset]:shadow-none">
-          <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4 sm:px-6">
+        <SidebarInset style={portalBackgroundStyle} className="min-w-0 md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-border md:peer-data-[variant=inset]:shadow-none">
+          <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 sm:px-6">
             <SidebarTrigger className="-ml-1.5" />
             <Separator orientation="vertical" className="hidden !h-4 sm:block" />
             <p className="min-w-0 truncate text-sm font-semibold text-foreground md:hidden">{trail[trail.length - 1] ?? roleLabel}</p>
