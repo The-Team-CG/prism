@@ -58,6 +58,10 @@ import { EventPrivacyService } from './application/onboarding/event-privacy.serv
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
+import { EventPlanController } from './api/planning/event-plan.controller';
+import { PlanningTemplatesController } from './api/planning/planning-templates.controller';
+import { EventPlanService } from './application/planning/event-plan.service';
+import { PlanningTemplatesService } from './application/planning/planning-templates.service';
 import { EventClientFloorplanAccessController } from './api/client-visibility/event-client-floorplan-access.controller';
 import { LifecyclePrivacyRedactorService } from './application/onboarding/lifecycle-privacy-redactor.service';
 import { LIFECYCLE_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
@@ -126,6 +130,8 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ClientEventDayViewController,
     EventPrivacyController,
     OcularVisitController,
+    PlanningTemplatesController,
+    EventPlanController,
     EventClientFloorplanAccessController,
     ClientCloseoutController,
     ConformeSigningController,
@@ -169,6 +175,8 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ClientEventDayViewService,
     EventPrivacyService,
     OcularVisitService,
+    PlanningTemplatesService,
+    EventPlanService,
     ProposalReviewOwnerService,
     { provide: PROPOSAL_REVIEW_OWNER, useExisting: ProposalReviewOwnerService },
     LifecyclePrivacyRedactorService,

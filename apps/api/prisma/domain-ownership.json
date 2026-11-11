@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 154,
+    "totalTables": 157,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 51,
-    "targetSameDomainFks": 130,
+    "targetSameDomainFks": 133,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -20,8 +20,8 @@
       {
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
-        "tables": 37,
-        "columns": 497
+        "tables": 40,
+        "columns": 529
       },
       {
         "domain": "commercial",
@@ -1358,6 +1358,33 @@
       "targetSchema": "floorplan",
       "columnCount": 11,
       "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsPlanningTemplate",
+      "currentSchema": "event_lifecycle",
+      "table": "planning_templates",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 8
+    },
+    {
+      "model": "OpsPlanningTemplateVersion",
+      "currentSchema": "event_lifecycle",
+      "table": "planning_template_versions",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 7
+    },
+    {
+      "model": "OpsEventPlanItem",
+      "currentSchema": "event_lifecycle",
+      "table": "event_plan_items",
+      "domain": "event-lifecycle",
+      "targetSchema": "event_lifecycle",
+      "introducedAfterCutover": true,
+      "columnCount": 17
     }
   ],
   "foreignKeys": [
@@ -1773,7 +1800,10 @@
       "name": "billing_statements_supersedes_statement_event_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (supersedes_statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
-      "columns": ["supersedes_statement_id", "event_id"],
+      "columns": [
+        "supersedes_statement_id",
+        "event_id"
+      ],
       "sourceDomain": "commercial",
       "targetDomain": "commercial",
       "targetCurrentSchema": "finance_ops",
@@ -1786,7 +1816,10 @@
       "name": "payment_milestones_statement_event_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
-      "columns": ["statement_id", "event_id"],
+      "columns": [
+        "statement_id",
+        "event_id"
+      ],
       "sourceDomain": "commercial",
       "targetDomain": "commercial",
       "targetCurrentSchema": "finance_ops",
@@ -1799,7 +1832,10 @@
       "name": "billing_corrections_replacement_statement_event_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (replacement_statement_id, event_id) REFERENCES finance_ops.billing_statements(id, event_id) ON UPDATE CASCADE ON DELETE RESTRICT",
-      "columns": ["replacement_statement_id", "event_id"],
+      "columns": [
+        "replacement_statement_id",
+        "event_id"
+      ],
       "sourceDomain": "commercial",
       "targetDomain": "commercial",
       "targetCurrentSchema": "finance_ops",
@@ -2071,7 +2107,10 @@
       "name": "floor_plan_snapshot_versions_draft_id_event_id_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (draft_id, event_id) REFERENCES floorplan.floor_plan_drafts(id, event_id) ON UPDATE CASCADE ON DELETE CASCADE",
-      "columns": ["draft_id", "event_id"],
+      "columns": [
+        "draft_id",
+        "event_id"
+      ],
       "sourceDomain": "floorplan",
       "targetDomain": "floorplan",
       "targetCurrentSchema": "floorplan",
@@ -4005,6 +4044,51 @@
       "targetDomain": "platform-ops",
       "targetCurrentSchema": "platform_ops",
       "targetTable": "notification_logs",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "planning_template_versions",
+      "name": "planning_template_versions_template_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (template_id) REFERENCES event_lifecycle.planning_templates(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "template_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "planning_templates",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "event_plan_items",
+      "name": "event_plan_items_event_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (event_id) REFERENCES event_lifecycle.events(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "event_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "events",
+      "sameDomain": true
+    },
+    {
+      "schema": "event_lifecycle",
+      "table": "event_plan_items",
+      "name": "event_plan_items_template_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (template_id) REFERENCES event_lifecycle.planning_templates(id) ON UPDATE CASCADE ON DELETE RESTRICT",
+      "columns": [
+        "template_id"
+      ],
+      "sourceDomain": "event-lifecycle",
+      "targetDomain": "event-lifecycle",
+      "targetCurrentSchema": "event_lifecycle",
+      "targetTable": "planning_templates",
       "sameDomain": true
     }
   ]
