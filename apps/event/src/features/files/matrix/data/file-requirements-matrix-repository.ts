@@ -1,5 +1,6 @@
 import type { CreateFileRequirementInput, PrismFileRequirementItem, PrismFileRequirementsMatrix, UpdateFileRequirementInput, UpsertFileRequirementTemplateInput } from "@prism/types";
-import { eventApi } from "@/lib/prism-api";
+import { getStorageObjectDownload } from "@prism/api-client";
+import { eventApi, storedEventAccessToken } from "@/lib/prism-api";
 
 export const fileRequirementsMatrixRepository = {
   load(eventId: string): Promise<PrismFileRequirementsMatrix> {
@@ -17,4 +18,8 @@ export const fileRequirementsMatrixRepository = {
   listTemplates() { return eventApi.events.listFileRequirementTemplates(); },
   saveTemplate(input: UpsertFileRequirementTemplateInput) { return eventApi.events.upsertFileRequirementTemplate(input); },
   applyTemplate(eventId: string) { return eventApi.events.applyFileRequirementTemplate(eventId); },
+  review(eventId: string, key: string, input: import("@prism/types").ReviewSupplierRequirementInput) {
+    return eventApi.events.reviewSupplierRequirement(eventId, key, input);
+  },
+  download(objectId: string) { return getStorageObjectDownload(objectId, { authToken: storedEventAccessToken() }); },
 };

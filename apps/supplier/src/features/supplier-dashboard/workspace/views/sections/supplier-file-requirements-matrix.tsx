@@ -36,6 +36,7 @@ export function SupplierFileRequirementsMatrix({
     >
       {viewModel.status === "loading" ? <LoadingState label="Loading your assigned file requirements…" /> : null}
       {viewModel.status === "error" ? <p role="alert" className="text-sm text-destructive">Unable to load assigned file requirements. Refresh to try again.</p> : null}
+      {viewModel.status !== "error" && viewModel.error ? <p role="alert" className="text-sm text-destructive">{viewModel.error}</p> : null}
       {viewModel.status === "ready" && rows.length === 0 ? (
         <PrismEmptyLine icon={FileCheck2}>No supplier file requirements yet. They appear after PMCM requests a contract or supporting file for your booking.</PrismEmptyLine>
       ) : null}
@@ -49,11 +50,23 @@ export function SupplierFileRequirementsMatrix({
                 <div className="min-w-0 flex-1">
                   <p className="break-words text-sm font-semibold text-foreground">{eventName}</p>
                   <p className="mt-0.5 text-sm text-muted-foreground">{item.label} · {item.detail}</p>
+                  {item.reviewReason ? <p className="mt-1 text-sm text-destructive">PMCM requested a replacement: {item.reviewReason}</p> : null}
+                  {(item.versions?.length ?? 0) > 1 ? <details className="mt-2 text-sm"><summary>Previous versions</summary><ul>{item.versions?.slice(1).map((version) => <li key={version.documentId}><button type="button" onClick={() => onDownloadObject(version.objectId)} className="text-primary">{version.fileName}</button> · {formatDate(version.uploadedAt)} · {version.status}{version.reviewReason ? ` · ${version.reviewReason}` : ""}</li>)}</ul></details> : null}
                   <p className="mt-1 text-sm text-muted-foreground">
                     {item.dueDate ? `Due ${formatDate(item.dueDate)}` : "No due date set"}{item.overdue ? <span className="font-semibold text-destructive"> · Overdue</span> : ""}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
                     {uploadedObjectId ? <button type="button" onClick={() => onDownloadObject(uploadedObjectId)} className="text-sm font-medium text-primary hover:underline">Download required file</button> : null}
+                    {item.origin === "custom" && item.ownerRole === "supplier" ? (
+                      <label className="cursor-pointer text-sm font-medium text-primary">
+                        {viewModel.uploading === `${eventId}:${item.key}` ? "Uploading..." : uploadedObjectId ? "Replace file" : "Upload file"}
+                        <input type="file" className="sr-only" aria-label={`Upload ${item.label} for ${eventName}`} disabled={viewModel.uploading !== null} onChange={(event) => {
+                          const file = event.currentTarget.files?.[0];
+                          event.currentTarget.value = "";
+                          if (file) void viewModel.upload(eventId, item.key, file);
+                        }} />
+                      </label>
+                    ) : null}
                     {requestIds.map((requestId) => {
                       const request = requestById.get(requestId);
                       return (

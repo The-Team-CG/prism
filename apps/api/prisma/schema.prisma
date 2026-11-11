@@ -2625,6 +2625,7 @@ model OpsFileRequirement {
   label          String
   ownerRole      String    @map("owner_role")
   visibleToRoles String[]  @default([]) @map("visible_to_roles")
+  targetSupplierIds String[] @default([]) @map("target_supplier_ids")
   required       Boolean   @default(true)
   dueAt          DateTime? @map("due_at")
   sourceWorkflow String    @map("source_workflow")

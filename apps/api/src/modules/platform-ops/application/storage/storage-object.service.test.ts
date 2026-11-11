@@ -81,6 +81,7 @@ function createStore() {
       supplierQuoteRequests: bookings.map((booking) => ({ supplierId: booking.supplierId, status: booking.status, supplier: { email: 'supplier@example.test' } })),
     }) : null),
     findFileRequirementVisibility: vi.fn(async () => requirementVisibility),
+    supplierMayUploadRequirement: vi.fn(async (_eventId: string, key: string) => key === 'insurance'),
     findStoredObjectRequirementBindings: vi.fn(async () => []),
   };
   return {
@@ -546,6 +547,23 @@ describe('StorageObjectService', () => {
     await expect(service.requestUpload({ ...declaration, ownerRecordId: 'sup_other', actor: supplier })).rejects.toThrow(/verified supplier/);
     const other = { id: 'other-user', role: 'supplier', email: 'other@example.test', name: 'Other supplier', explicit: true, verified: true } as never;
     await expect(service.issueDownloadAuthorization({ objectId: stored.id, actor: other })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('accepts requirement uploads only for a selected supplier and an eligible requirement', async () => {
+    const store = createStore();
+    const root = await mkdtemp(join(tmpdir(), 'prism-requirement-storage-'));
+    roots.push(root);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), new LocalFileSystemStorageAdapter(root), store.platformReferences as never);
+    const supplier = { id: 'supplier-user', role: 'supplier', email: 'supplier@example.test', name: 'Supplier', explicit: true, verified: true } as never;
+    const declaration = { ...request, usage: 'supplier_document' as const, ownerRecordType: 'supplier', ownerRecordId: 'sup_1', logicalTarget: 'supplier-requirement:insurance:123e4567-e89b-42d3-a456-426614174000' };
+    const result = await service.requestUpload({ ...declaration, actor: supplier });
+    if (result.status !== 'ready') throw new Error('expected upload location');
+    await service.writeAuthorizedUpload({ objectId: result.object.id, uploadUrl: result.location.uploadUrl, bytes, actor: supplier });
+    const stored = await service.confirmUpload({ objectId: result.object.id, byteSize: bytes.byteLength, checksumSha256, actor: supplier });
+    expect(stored.lifecycleState).toBe('stored');
+    await expect(service.requestUpload({ ...declaration, logicalTarget: declaration.logicalTarget.replace('insurance', 'unknown'), actor: supplier })).rejects.toBeInstanceOf(ForbiddenException);
+    store.bookings[0].status = 'declined';
+    await expect(service.requestUpload({ ...declaration, actor: supplier })).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('prevents a different actor from reusing the uploader logical target', async () => {

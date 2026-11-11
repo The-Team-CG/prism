@@ -168,6 +168,7 @@ function setup<A extends AiProviderAdapter = ScriptedPareAdapter>(
   gateway.onModuleInit();
   const platformReferences: PlatformReferenceReadModel = {
     findStorageEventScope: async () => null,
+    supplierMayUploadRequirement: async () => false,
     findEventReference: async () => null,
     findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
     findFileRequirementVisibility: async () => ({}),

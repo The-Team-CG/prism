@@ -107,6 +107,8 @@ export function createEventsClient(
           actorPath(`/events/${eventId}/file-requirements/apply-template`, actor), withBase(options, { method: "POST" })),
       bindFileRequirementUpload: (eventId, key, input, actor = {}) =>
         prismRequest<PrismFileRequirementItem>(actorPath(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}/upload`, actor), withBase(options, { method: "POST", body: input })),
+      reviewSupplierRequirement: (eventId, key, input, actor = {}) =>
+        prismRequest<PrismFileRequirementItem>(actorPath(`/events/${eventId}/file-requirements/${encodeURIComponent(key)}/review`, actor), withBase(options, { method: "POST", body: input })),
       reviewProposal: (eventId, input, actor = {}) =>
         prismRequest<PrismEvent>(
           actorPath(`/events/${eventId}/proposal/review`, actor),

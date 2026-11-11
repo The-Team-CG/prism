@@ -41,6 +41,8 @@ const visibleToRolesSchema = z
   .refine((roles) => roles.includes("pmcm-admin"), "PMCM must always see file requirements");
 
 const dueAtSchema = z.iso.datetime({ offset: true }).nullable();
+const targetSupplierIdsSchema = z.array(z.string().trim().min(1).max(200)).max(200)
+  .refine((ids) => new Set(ids).size === ids.length, "Supplier targets must be unique");
 
 export const createFileRequirementSchema = z
   .object({
@@ -52,6 +54,7 @@ export const createFileRequirementSchema = z
     dueAt: dueAtSchema.optional(),
     sourceWorkflow: fileRequirementSourceWorkflowSchema.default("custom"),
     notes: z.string().trim().max(1000).optional(),
+    targetSupplierIds: targetSupplierIdsSchema.optional(),
   })
   .strict()
   .refine((input) => input.visibleToRoles.includes(input.ownerRole), {
@@ -72,14 +75,24 @@ export const updateFileRequirementSchema = z
     required: z.boolean().optional(),
     dueAt: dueAtSchema.optional(),
     notes: z.string().trim().max(1000).nullable().optional(),
+    targetSupplierIds: targetSupplierIdsSchema.optional(),
     expectedRevision: z.number().int().nonnegative().optional(),
   })
   .strict()
   .refine(
-    (input) => ["label", "ownerRole", "visibleToRoles", "required", "dueAt", "notes"].some((field) => input[field as keyof typeof input] !== undefined),
+    (input) => ["label", "ownerRole", "visibleToRoles", "required", "dueAt", "notes", "targetSupplierIds"].some((field) => input[field as keyof typeof input] !== undefined),
     "Change at least one requirement field",
   );
 export type UpdateFileRequirementInput = z.infer<typeof updateFileRequirementSchema>;
 
 export const bindFileRequirementUploadSchema = z.object({ objectId: z.string().trim().min(1).max(200) }).strict();
 export type BindFileRequirementUploadInput = z.infer<typeof bindFileRequirementUploadSchema>;
+
+export const reviewSupplierRequirementSchema = z.object({
+  documentId: z.string().trim().min(1).max(200),
+  decision: z.enum(["approve", "reject"]),
+  reason: z.string().trim().max(1000).optional(),
+}).strict().refine((input) => input.decision !== "reject" || Boolean(input.reason), {
+  message: "Give the supplier a reason for rejection", path: ["reason"],
+});
+export type ReviewSupplierRequirementInput = z.infer<typeof reviewSupplierRequirementSchema>;
