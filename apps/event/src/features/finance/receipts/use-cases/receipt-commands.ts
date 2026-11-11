@@ -1,5 +1,7 @@
 import {
   allocatePaymentReceiptSchema,
+  attachPaymentReceiptEvidenceSchema,
+  earmarkPaymentReceiptSchema,
   parseContract,
   recordPaymentReceiptSchema,
   recordPaymentRefundSchema,
@@ -10,7 +12,7 @@ import {
   PAYMENT_RECEIPT_METHODS,
   type PrismPaymentReceipt,
 } from "@prism/types";
-import { parsePesos } from "../model/receipt-rules";
+import { evidenceProblem, parsePesos } from "../model/receipt-rules";
 import type { ReceiptCommands } from "../data/receipts-repository";
 
 export type ReceiptMethod = (typeof PAYMENT_RECEIPT_METHODS)[number];
@@ -85,6 +87,29 @@ export async function submitAllocationReversal(
 ): Promise<PrismPaymentReceipt> {
   const input = parseContract(reversePaymentAllocationSchema, { reason: requireText(reason, "Say why this payment is being undone.") }, "Reversal");
   return writer.reverseAllocation(receiptId, recordId, input);
+}
+
+/**
+ * Proof of payment is uploaded as a file of the receipt's event, then bound to the receipt. The file is checked here first
+ * so a wrong file never leaves the browser; the server checks it again, and refuses a file that was not uploaded for this receipt.
+ */
+export async function submitEvidence(
+  writer: Pick<ReceiptCommands, "uploadEvidence" | "attachEvidence">,
+  receipt: Pick<PrismPaymentReceipt, "id" | "eventId">,
+  file: File | null,
+): Promise<PrismPaymentReceipt> {
+  if (!file) throw new Error("Choose the file that proves the money arrived.");
+  const problem = evidenceProblem(file);
+  if (problem) throw new Error(problem);
+  if (!receipt.eventId) throw new Error("Say which event this money was meant for before attaching proof.");
+  const stored = await writer.uploadEvidence(file, receipt.eventId, receipt.id);
+  const input = parseContract(attachPaymentReceiptEvidenceSchema, { objectId: stored.id }, "Evidence");
+  return writer.attachEvidence(receipt.id, input);
+}
+
+export async function submitEarmark(writer: Pick<ReceiptCommands, "earmark">, receiptId: string, eventId: string): Promise<PrismPaymentReceipt> {
+  const input = parseContract(earmarkPaymentReceiptSchema, { eventId: requireText(eventId, "Choose the event this money was meant for.") }, "Event assignment");
+  return writer.earmark(receiptId, input);
 }
 
 export async function submitVerification(writer: Pick<ReceiptCommands, "verify">, receiptId: string, notes: string): Promise<PrismPaymentReceipt> {

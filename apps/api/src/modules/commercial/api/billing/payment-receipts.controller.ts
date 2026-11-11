@@ -5,6 +5,8 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { zodBody, zodQuery } from '@prism/kernel/shared';
 import {
   allocatePaymentReceiptSchema,
+  attachPaymentReceiptEvidenceSchema,
+  earmarkPaymentReceiptSchema,
   listPaymentAllocationTargetsQuerySchema,
   listPaymentReceiptsQuerySchema,
   recordPaymentReceiptSchema,
@@ -14,6 +16,8 @@ import {
   reversePaymentReceiptSchema,
   verifyPaymentReceiptSchema,
   type AllocatePaymentReceiptInput,
+  type AttachPaymentReceiptEvidenceInput,
+  type EarmarkPaymentReceiptInput,
   type ListPaymentAllocationTargetsQuery,
   type ListPaymentReceiptsQuery,
   type PrismVerifiedEventActor,
@@ -85,6 +89,26 @@ export class PaymentReceiptsController {
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.receipts.reverseAllocation(receiptId, recordId, dto, await this.requireFinanceActor(verifiedActor, 'payment allocation reversal'));
+  }
+
+  @Post(':receiptId/evidence')
+  @HttpCode(HttpStatus.OK)
+  async attachEvidence(
+    @Param('receiptId') receiptId: string,
+    @Body(zodBody(attachPaymentReceiptEvidenceSchema)) dto: AttachPaymentReceiptEvidenceInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    return this.receipts.attachEvidence(receiptId, dto, await this.requireFinanceActor(verifiedActor, 'payment receipt evidence'));
+  }
+
+  @Post(':receiptId/event')
+  @HttpCode(HttpStatus.OK)
+  async earmark(
+    @Param('receiptId') receiptId: string,
+    @Body(zodBody(earmarkPaymentReceiptSchema)) dto: EarmarkPaymentReceiptInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    return this.receipts.earmark(receiptId, dto, await this.requireFinanceActor(verifiedActor, 'payment receipt event assignment'));
   }
 
   @Post(':receiptId/verify')

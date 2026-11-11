@@ -92,6 +92,10 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismPaymentReceipt>(actorPath("/payment-receipts", actor), withBase(options, { method: "POST", body: input })),
       allocatePaymentReceipt: (receiptId, input, actor = {}) =>
         prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, "/allocations"), actor), withBase(options, { method: "POST", body: input })),
+      attachPaymentReceiptEvidence: (receiptId, input, actor = {}) =>
+        prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, "/evidence"), actor), withBase(options, { method: "POST", body: input })),
+      earmarkPaymentReceipt: (receiptId, input, actor = {}) =>
+        prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, "/event"), actor), withBase(options, { method: "POST", body: input })),
       reversePaymentAllocation: (receiptId, recordId, input, actor = {}) =>
         prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, `/allocations/${encodeURIComponent(recordId)}/reverse`), actor), withBase(options, { method: "POST", body: input })),
       verifyPaymentReceipt: (receiptId, input, actor = {}) =>

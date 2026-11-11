@@ -7,6 +7,7 @@ import { DatePicker } from "@prism/ui/components/date-picker";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
 import { manilaDateKey } from "@prism/ui/format-date";
 import { money } from "@/features/pmcm-kit";
+import { EVIDENCE_ACCEPT, EVIDENCE_HINT, evidenceProblem } from "../model/receipt-rules";
 import type { PaymentReceiptsViewModel } from "../view-models/use-payment-receipts-view-model";
 import type { ReceiptDraft, RefundDraft } from "../use-cases/receipt-commands";
 import { EventField, Field, INPUT_CLASS, MethodField, MilestoneField } from "./receipt-form-fields";
@@ -104,6 +105,35 @@ function AllocateDialog({ vm, receipt, events }: { vm: PaymentReceiptsViewModel;
   );
 }
 
+function EvidenceDialog({ vm, receipt }: { vm: PaymentReceiptsViewModel; receipt: PrismPaymentReceipt }) {
+  const [file, setFile] = useState<File | null>(null);
+  const problem = file ? evidenceProblem(file) : null;
+  return (
+    <DialogFrame
+      eyebrow="Only PMCM can open this file"
+      title={receipt.evidence ? "Replace proof of payment" : "Attach proof of payment"}
+      error={vm.error ?? problem}
+      busy={vm.busy}
+      submitLabel="Attach proof"
+      onClose={vm.closeDialog}
+      onSubmit={() => void vm.attachEvidence(file)}
+    >
+      <Field label="File" hint={receipt.evidence ? `${EVIDENCE_HINT} The earlier file stays in storage; this one becomes the proof shown here.` : EVIDENCE_HINT}>
+        <input type="file" accept={EVIDENCE_ACCEPT} onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="mt-1.5 block w-full text-sm font-normal file:mr-3 file:rounded-lg file:border file:border-border file:bg-background file:px-3 file:py-2 file:text-sm file:font-semibold" />
+      </Field>
+    </DialogFrame>
+  );
+}
+
+function EarmarkDialog({ vm, receipt, events }: { vm: PaymentReceiptsViewModel; receipt: PrismPaymentReceipt; events: PrismEvent[] }) {
+  const [eventId, setEventId] = useState("");
+  return (
+    <DialogFrame eyebrow={`${money.format(receipt.amount)} held with no event`} title="Set the event" error={vm.error} busy={vm.busy} submitLabel="Assign event" onClose={vm.closeDialog} onSubmit={() => void vm.earmark(eventId)}>
+      <EventField label="Event this money was meant for" hint="This is the event's own record of the receipt, and it lets you attach proof. It does not apply any money to a milestone, and it cannot be moved to another event afterwards." value={eventId} events={events} onChange={setEventId} />
+    </DialogFrame>
+  );
+}
+
 type ReasonConfig = { eyebrow: string; title: string; label: string; hint?: string; submitLabel: string; tone?: "destructive" };
 
 const REASON_DIALOGS: Record<"verify" | "reject" | "reverse" | "reverse-allocation", ReasonConfig> = {
@@ -159,6 +189,8 @@ export function ReceiptDialogs({ vm, events }: { vm: PaymentReceiptsViewModel; e
   if (!selected) return null;
   if (dialog.kind === "allocate") return <AllocateDialog vm={vm} receipt={selected} events={events} />;
   if (dialog.kind === "refund") return <RefundDialog vm={vm} receipt={selected} />;
+  if (dialog.kind === "evidence") return <EvidenceDialog vm={vm} receipt={selected} />;
+  if (dialog.kind === "earmark") return <EarmarkDialog vm={vm} receipt={selected} events={events} />;
   if (dialog.kind === "reverse-allocation") return <ReasonDialog vm={vm} kind="reverse-allocation" onSubmit={(text) => void vm.reverseAllocation(dialog.recordId, text)} />;
   const submit = { verify: vm.verify, reject: vm.reject, reverse: vm.reverse }[dialog.kind];
   return <ReasonDialog vm={vm} kind={dialog.kind} onSubmit={(text) => void submit(text)} />;

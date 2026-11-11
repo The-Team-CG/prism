@@ -1,5 +1,5 @@
 import type { OpsPaymentRecord, OpsPaymentReceipt, OpsPaymentRefund } from '@prisma/client';
-import type { PrismPaymentReceipt, PrismPaymentReceiptStatus, PrismPaymentRefund } from '@prism/types';
+import type { PrismPaymentReceipt, PrismPaymentReceiptEvidence, PrismPaymentReceiptStatus, PrismPaymentRefund } from '@prism/types';
 import { allocationStates, receiptBalance } from '../../domain/payment-receipt.policy';
 
 export type ReceiptWithLedger = OpsPaymentReceipt & { records: OpsPaymentRecord[]; refunds: OpsPaymentRefund[] };
@@ -25,7 +25,7 @@ export function mapPaymentRefund(refund: OpsPaymentRefund): PrismPaymentRefund {
 }
 
 /** `labels` maps milestone ids to their label so each allocation reads "Deposit", not an id. */
-export function mapPaymentReceipt(receipt: ReceiptWithLedger, labels: Map<string, string>): PrismPaymentReceipt {
+export function mapPaymentReceipt(receipt: ReceiptWithLedger, labels: Map<string, string>, evidence: Map<string, PrismPaymentReceiptEvidence> = new Map()): PrismPaymentReceipt {
   const balance = receiptBalance(receipt.amount, receipt.records, receipt.refunds);
   const status = receiptStatus(receipt.status);
   const states = allocationStates(receipt.records);
@@ -59,6 +59,7 @@ export function mapPaymentReceipt(receipt: ReceiptWithLedger, labels: Map<string
     status,
     legacy: receipt.id.startsWith(LEGACY_PREFIX),
     evidenceObjectId: receipt.evidenceObjectId,
+    evidence: receipt.evidenceObjectId ? evidence.get(receipt.evidenceObjectId) ?? null : null,
     verifiedAt: receipt.verifiedAt?.toISOString() ?? null,
     verifiedBy: receipt.verifiedBy,
     verificationNotes: receipt.verificationNotes,
