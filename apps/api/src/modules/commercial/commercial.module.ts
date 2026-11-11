@@ -43,6 +43,8 @@ import { BillingOperationsService } from './application/billing/billing-operatio
 import { BillingAdjustmentService } from './application/billing/billing-adjustment.service';
 import { PaymentOperationsService } from './application/billing/payment-operations.service';
 import { PaymentReceiptService } from './application/billing/payment-receipt.service';
+import { EventFinancialsService } from './application/billing/event-financials.service';
+import { EventFinancialsController } from './api/billing/event-financials.controller';
 import { PaymentReceiptsController } from './api/billing/payment-receipts.controller';
 import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
 import { CommunicationController } from './api/suppliers/communication.controller';
@@ -124,6 +126,7 @@ const supplierCommandsProvider = {
     OpsSupplierPareController,
     OpsEventBillingController,
     PaymentReceiptsController,
+    EventFinancialsController,
     CommunicationController,
     ProposalLifecycleController,
     SupplierGapController,
@@ -159,6 +162,7 @@ const supplierCommandsProvider = {
     BillingAdjustmentService,
     PaymentOperationsService,
     PaymentReceiptService,
+    EventFinancialsService,
     PaymentRiskScheduler,
     CommunicationService,
     ProposalLifecycleService,

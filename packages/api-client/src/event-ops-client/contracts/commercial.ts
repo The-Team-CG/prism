@@ -70,6 +70,7 @@ import type {
   PrismBillingSource,
   PrismBillingStatement,
   PrismPaymentMilestone,
+  PrismEventFinancialSummary,
   PrismPaymentAllocationTarget,
   PrismPaymentReceipt,
   PrismSupplier,
@@ -111,6 +112,8 @@ export interface EventOpsCommercialContract {
     /** Money that arrived outside P.R.I.S.M: recorded first, applied to milestones afterwards. PMCM finance only. */
     listPaymentReceipts(query: ListPaymentReceiptsQuery, init?: EventOpsReadInit): Promise<PrismPaymentReceipt[]>;
     paymentReceipt(receiptId: string, init?: EventOpsReadInit): Promise<PrismPaymentReceipt>;
+    /** Estimated and billed price, collections and how far to trust them, supplier cost and the margin. PMCM finance only. */
+    eventFinancialSummary(eventId: string, init?: EventOpsReadInit): Promise<PrismEventFinancialSummary>;
     paymentAllocationTargets(query: ListPaymentAllocationTargetsQuery, init?: EventOpsReadInit): Promise<PrismPaymentAllocationTarget[]>;
     recordPaymentReceipt(input: RecordPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
     allocatePaymentReceipt(receiptId: string, input: AllocatePaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;

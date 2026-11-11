@@ -285,6 +285,75 @@ export interface PrismPaymentReceipt {
   recordedAt: string;
 }
 
+/**
+ * One supplier category: what the proposal estimated for it (the price shown to the client), what the selected supplier
+ * quotes commit PMCM to, and what has been paid to suppliers so far. Whole pesos.
+ */
+export interface PrismFinancialCategoryLine {
+  category: string;
+  estimatedPrice: number;
+  committedCost: number;
+  actualCost: number;
+  /** Estimated price less committed cost: what this category is expected to leave. */
+  expectedMargin: number;
+}
+
+/**
+ * Where one event stands: the price (estimated and billed), what has been collected and how far to trust it, what supplier
+ * cost is committed and paid, and the margin that follows. Every figure is whole pesos; `notes` says where one is not yet reliable.
+ */
+export interface PrismEventFinancialSummary {
+  eventId: string;
+  eventName: string;
+  generatedAt: string;
+  price: {
+    /** The latest proposal cost estimate: the price PMCM told the client to expect. */
+    estimated: number | null;
+    estimateStatus: "draft" | "approved" | null;
+    /** The current billing statement total. */
+    billed: number | null;
+    statementNumber: string | null;
+  };
+  collections: {
+    /** All active payment milestones. */
+    scheduled: number;
+    /** Cash applied to milestones from receipts, reversals netted out. */
+    received: number;
+    /** Credit applied to milestones, which is not cash received. */
+    credit: number;
+    outstanding: number;
+    /** Outstanding on milestones already past due. */
+    overdue: number;
+    /** Part of what was received that comes from receipts verified against a statement. */
+    verifiedReceived: number;
+    /** The rest: recorded but not yet checked, or carried over from before receipts. */
+    unverifiedReceived: number;
+    /** Received for this event but not applied to any milestone. */
+    unapplied: number;
+  };
+  costs: {
+    /** Selected and locked supplier quotes. */
+    committed: number;
+    /** Payment schedules created for suppliers. */
+    scheduled: number;
+    /** Released to suppliers, reversals netted out. */
+    actual: number;
+    /** Committed less actual, never below zero. */
+    toPay: number;
+  };
+  margin: {
+    /** Price less committed cost. Null until there is a price. */
+    expected: number | null;
+    /** Which price the expected margin used. */
+    basis: "statement" | "estimate" | null;
+    /** Received less paid to suppliers so far. */
+    cashToDate: number;
+  };
+  categories: PrismFinancialCategoryLine[];
+  /** Plain statements of where the figures above should not be taken at face value. */
+  notes: string[];
+}
+
 /** A milestone a receipt can be applied to: still owed, not superseded. */
 export interface PrismPaymentAllocationTarget {
   milestoneId: string;
