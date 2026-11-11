@@ -24,7 +24,10 @@ sources:
     title: "Overdue acknowledgment escalation"
   - id: integration-test
     resource: "apps/api/test/integration/notification-delivery.database.test.ts"
-    title: "PostgreSQL and mail-capture delivery tests"
+    title: "PostgreSQL delivery tests"
+  - id: mail-capture-test
+    resource: "apps/api/src/modules/platform-ops/infrastructure/notifications/notification-mail-capture.mailpit.test.ts"
+    title: "Local mail-capture round trip"
 ---
 # Operational communications
 
@@ -127,13 +130,20 @@ npm run prisma:validate && npm run db:verify:offline
 ```
 
 The database-backed tests (independent acknowledgment per recipient, rejection of another recipient's acknowledgment, concurrent
-escalation without duplicates, and a queued email delivered through real local mail capture and then read and acknowledged) need the
-isolated PostgreSQL and mail capture. They run only against `127.0.0.1:55437/prism_p0` and the capture inbox on `127.0.0.1:55439`, and
-refuse any other target:
+escalation without duplicates, provider outcome ordering) need the isolated PostgreSQL. They run only against
+`127.0.0.1:55437/prism_p0` and refuse any other target. CI runs them in the `postgres-migrations` job:
+
+```bash
+P0_TEST_DATABASE_URL=<isolated url> DB_SSL=false npx vitest run test/integration/notification-delivery.database.test.ts
+```
+
+One more check is local only: a queued email delivered through a real mail-capture inbox and then read and acknowledged. It needs
+the isolated PostgreSQL and a Mailpit inbox on `127.0.0.1:55439`, which CI does not provide, so it lives outside the suites the CI
+database runner requires and is skipped without both:
 
 ```bash
 P0_TEST_DATABASE_URL=<isolated url> PRISM_COMMS_MAILPIT_URL=http://127.0.0.1:55439 DB_SSL=false \
-  npx vitest run test/integration/notification-delivery.database.test.ts
+  npx vitest run src/modules/platform-ops/infrastructure/notifications/notification-mail-capture.mailpit.test.ts
 ```
 
 Portals: `npm --workspace @prism/client|@prism/supplier|@prism/event run typecheck` and the same with `test`.

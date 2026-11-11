@@ -10,36 +10,12 @@ import { NotificationPreferenceService } from '../../src/modules/platform-ops/ap
 import { NotificationProviderOutcomeService } from '../../src/modules/platform-ops/application/notifications/notification-provider-outcome.service';
 import { ViberBotClient } from '../../src/modules/platform-ops/infrastructure/notifications/viber-bot.client';
 import { NotificationEscalationService } from '../../src/modules/platform-ops/application/notifications/notification-escalation.service';
-import { MailpitMailTransport } from '../../src/kernel/mail/mailpit-mail-transport';
-import { MailNotificationDeliveryAdapter } from '../../src/modules/platform-ops/infrastructure/notifications/mail-notification-delivery.adapter';
 
 const url = process.env.P0_TEST_DATABASE_URL?.trim();
 const live = Boolean(url && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/prism_p0(?:\?|$)/.test(url));
 if (url && !live) throw new Error('Notification tests require isolated 127.0.0.1:55437/prism_p0');
 
 describe.skipIf(!live)('durable notification delivery', () => {
-  it.skipIf(process.env.PRISM_COMMS_MAILPIT_URL !== 'http://127.0.0.1:55439')('delivers durable work through real local mail capture and records the recipient read and acknowledgment', async () => {
-    const prisma = new PrismaService();
-    const recipient = `comms-${randomUUID()}@example.test`;
-    const message = 'Your event instruction is ready for review.';
-    const adapter = new MailNotificationDeliveryAdapter(new MailpitMailTransport('http://127.0.0.1:55439'), {} as never, new NotificationRecipientDeliveryService(prisma));
-    const outbox = new NotificationOutboxService(prisma, adapter);
-    const row = await outbox.queue(undefined, recipient, message);
-    try {
-      expect((await outbox.processQueued()).find((entry) => entry.id === row.id)).toMatchObject({ status: 'sent' });
-      const delivery = await prisma.opsNotificationDelivery.findFirstOrThrow({ where: { notificationId: row.id } });
-      expect(delivery.providerReceipt).toMatch(/^mailpit:/);
-      const captured = await fetch(`http://127.0.0.1:55439/api/v1/message/${encodeURIComponent(delivery.providerReceipt!.slice('mailpit:'.length))}`);
-      expect(captured.ok).toBe(true);
-      expect(await captured.json()).toMatchObject({ Text: message });
-      const inbox = new NotificationInboxService(prisma, {} as never, { write: vi.fn() } as never);
-      const actor = { id: 'mail-test', role: 'client', email: recipient, name: 'Test recipient' } as never;
-      const [notice] = await inbox.mine(actor);
-      await inbox.markRead(notice.id, notice.version, actor);
-      await inbox.acknowledge(notice.id, notice.version, actor);
-      expect((await inbox.mine(actor))[0]).toMatchObject({ message, readAt: expect.any(String), acknowledgedAt: expect.any(String) });
-    } finally { await prisma.opsNotificationLog.delete({ where: { id: row.id } }); await prisma.$disconnect(); }
-  });
   it('reconciles signed Viber callbacks arriving before acceptance without rounding or status regression', async () => {
     const prisma = new PrismaService();
     const token = '4912661846655238145';
