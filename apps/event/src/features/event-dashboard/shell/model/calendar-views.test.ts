@@ -18,10 +18,12 @@ describe("calendar view navigation", () => {
     expect(shiftAnchor("day", "2026-11-05", -1)).toBe("2026-11-04");
     expect(shiftAnchor("agenda", "2026-11-05", 1)).toBe("2026-12-05");
 
+    expect(periodTitle("week", "2026-12-31")).toBe("Dec 27, 2026 – Jan 2, 2027");
+    expect(periodTitle("week", "2026-11-12")).toBe("Nov 8–14, 2026");
     expect(periodTitle("month", "2026-11-05")).toBe("November 2026");
-    expect(periodTitle("week", "2026-11-29")).toBe("Nov – Dec 2026");
-    expect(periodTitle("day", "2026-11-05")).toBe("Thursday, November 5, 2026");
-    expect(periodTitle("agenda", "2026-11-05")).toBe("Nov – Dec 2026");
+    expect(periodTitle("week", "2026-11-29")).toBe("Nov 29 – Dec 5, 2026");
+    expect(periodTitle("day", "2026-11-05")).toBe("Thu, Nov 5, 2026");
+    expect(periodTitle("agenda", "2026-11-05")).toBe("Nov 5 – Dec 4, 2026");
   });
 });
 

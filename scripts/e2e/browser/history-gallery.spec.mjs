@@ -29,21 +29,28 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
   const { context, page } = await persona(browser, role, info.project.use);
   const directory = join(process.env.BROWSER_RUN_DIRECTORY, 'screenshots', info.project.name, `history-${role}`);
   mkdirSync(directory, { recursive: true });
+  const capture = async (filename) => {
+    await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+    await page.screenshot({ path: join(directory, filename), fullPage: true, animations: 'disabled', style: 'nextjs-portal { visibility: hidden; }' });
+  };
   try {
-    for (const [index, path] of ROUTES[role].entries()) {
+    const routes = process.env.BROWSER_GALLERY_CALENDAR_ONLY === '1' ? ROUTES[role].filter(path => path.includes('calendar')) : ROUTES[role];
+    for (const [index, path] of routes.entries()) {
       await page.goto(`${origins[ORIGIN[role]]}${path}`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('main')).toBeVisible();
       await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-      if (path === '/dashboard/calendar') {
-        await expect(page.getByRole('button', { name: 'Calendar view: Week', exact: true })).toBeVisible();
+      if (path.includes('calendar')) {
+        // The history coordinator's opening date has only an event date, so it also uses the month overview.
+        const openingView = 'Month';
+        await expect(page.getByRole('button', { name: `Calendar view: ${openingView}`, exact: true })).toBeVisible();
         const search = page.getByRole('searchbox', { name: 'Search schedule' });
         await search.fill('no-matching-calendar-entry-9c03');
         await expect(page.getByRole('status')).toContainText('No matching entries');
         await search.clear();
-        await page.getByRole('button', { name: 'Filter schedule timing' }).click();
-        await page.getByRole('menuitem', { name: 'Timed entries', exact: true }).click();
-        await page.getByRole('button', { name: 'Filter schedule timing' }).click();
-        await page.getByRole('menuitem', { name: 'All entries', exact: true }).click();
+        await page.getByRole('button', { name: 'Filter schedule', exact: true }).click();
+        await page.getByRole('button', { name: 'Timed entries', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Timed entries', exact: true })).toHaveAttribute('aria-pressed', 'true');
+        await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
         const categories = page.getByRole('group', { name: 'Schedule categories' }).getByRole('button');
         if (await categories.count() > 1) {
           await categories.nth(1).click();
@@ -51,9 +58,33 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
           await categories.first().click();
         }
         if (info.project.name === 'mobile') expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+        await capture('calendar-filters.png');
+        if (role === 'client') {
+          const tabs = page.getByRole('tablist', { name: 'Calendar views' });
+          const eventDates = tabs.getByRole('tab', { name: /Event dates/ });
+          await eventDates.click();
+          await expect(page).toHaveURL(/calendar\/event-dates/);
+          await expect(page.getByRole('button', { name: 'Filter schedule', exact: true })).toHaveText('Filters1');
+          await page.getByRole('button', { name: 'Filter schedule', exact: true }).click();
+          await page.getByRole('button', { name: 'Timed entries', exact: true }).click();
+          await page.getByRole('link', { name: 'Clear filters', exact: true }).click();
+          await expect(page).toHaveURL(/\/dashboard\/calendar$/);
+          await expect(page.getByRole('button', { name: 'Filter schedule', exact: true })).toHaveText('Filters');
+          await expect(page.getByRole('button', { name: 'Calendar view: Month', exact: true })).toBeVisible();
+        } else await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'Manila time', exact: true }).click();
+        await expect(page.getByText('Asia/Manila · UTC+08:00')).toBeVisible();
+        await capture('calendar-timezone.png');
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: `Calendar view: ${openingView}`, exact: true }).click();
+        await page.getByRole('menuitem', { name: /^Week/ }).click();
+        await capture('calendar-week.png');
+        await page.getByRole('button', { name: 'Calendar view: Week', exact: true }).click();
+        await page.getByRole('menuitem', { name: new RegExp(`^${openingView}`) }).click();
+        if (info.project.name === 'mobile') expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       }
       const name = path.replace(/^\//, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '') || 'home';
-      await page.screenshot({ path: join(directory, `${String(index + 1).padStart(2, '0')}-${name}.png`), fullPage: true });
+      await capture(`${String(index + 1).padStart(2, '0')}-${name}.png`);
       await expect(page.locator('main')).not.toContainText(/Application error|Internal Server Error|This page could not be found/);
     }
   } finally {

@@ -48,15 +48,18 @@ export function shiftAnchor(view: CalendarViewId, anchor: string, direction: 1 |
 
 const shortMonth = (dateKey: string) => new Intl.DateTimeFormat("en-PH", { month: "short", timeZone: "UTC" }).format(new Date(utcOf(dateKey)));
 
-/** The heading for the visible period: a month, a week's month(s), one day, or the agenda's range. */
+/** Compact heading for the actual visible dates, including both years when the range crosses New Year. */
 export function periodTitle(view: CalendarViewId, anchor: string): string {
   if (view === "month") return monthLabel(monthOfDateKey(anchor));
-  if (view === "day") return new Intl.DateTimeFormat("en-PH", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(utcOf(anchor)));
+  if (view === "day") return new Intl.DateTimeFormat("en-PH", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(utcOf(anchor)));
   const start = view === "week" ? weekDateKeys(anchor)[0] : anchor;
   const end = view === "week" ? weekDateKeys(anchor)[6] : addDays(anchor, AGENDA_DAYS - 1);
   const year = end.slice(0, 4);
-  if (start.slice(0, 7) === end.slice(0, 7)) return monthLabel(monthOfDateKey(start));
-  return `${shortMonth(start)} – ${shortMonth(end)} ${year}`;
+  const first = `${shortMonth(start)} ${Number(start.slice(8))}`;
+  const last = `${shortMonth(end)} ${Number(end.slice(8))}`;
+  if (start.slice(0, 4) !== year) return `${first}, ${start.slice(0, 4)} – ${last}, ${year}`;
+  if (start.slice(0, 7) === end.slice(0, 7)) return `${first}–${Number(end.slice(8))}, ${year}`;
+  return `${first} – ${last}, ${year}`;
 }
 
 export type VisibleRange = { from: string; to: string };

@@ -21,6 +21,7 @@ const ACTIONS: Record<CoordinatorCalendarKind, string> = {
 /** The coordinator's events and the open event's deadlines on the shared portal calendar. */
 export function CoordinatorCalendar({ items, onOpen }: { items: CoordinatorCalendarItem[]; onOpen: (view: CoordinatorViewId, eventId: string) => void }) {
   const today = manilaDateKey();
+  const initialDate = items.find((item) => item.date >= today)?.date ?? today;
   if (items.length === 0) {
     return <p role="status" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">Nothing scheduled yet. Event days and task deadlines appear here once you are assigned.</p>;
   }
@@ -29,7 +30,8 @@ export function CoordinatorCalendar({ items, onOpen }: { items: CoordinatorCalen
       items={items}
       kinds={KINDS}
       today={today}
-      initialDate={items.find((item) => item.date >= today)?.date ?? today}
+      initialDate={initialDate}
+      initialView={items.some((item) => item.date === initialDate && item.startTime) ? "day" : "month"}
       detail={{
         action: (item) => <Button type="button" onClick={() => onOpen(item.view, item.eventId)}>{ACTIONS[item.kind]}</Button>,
       }}

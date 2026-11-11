@@ -6,7 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-- Portal calendars now open in week view with a compact scheduling toolbar, search, category and timing filters, real schedule highlights, date jumping and richer time blocks. Phones show an agenda for the selected period.
+- Portal calendars use a month overview for date-based schedules; coordinators open on Day when their opening date has timed work. A quieter toolbar groups navigation and filters, clearer dates and event blocks replace duplicate schedule lists, and a Manila time note explains the time zone. Phones keep a dated agenda for the selected period.
 
 - Portal audit fixes put Music in the top bar, keep mascot backgrounds quiet behind headings, and improve mobile tabs, tables and assignment cards. Client approvals and home emphasize the next action; PMCM navigation removes placeholder views and separates archives; supplier work is grouped and guest controls share the portal styling.
 
