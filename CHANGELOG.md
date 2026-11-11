@@ -6,6 +6,14 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Delivery outcomes are tracked beyond provider acceptance: PMCM can refresh an email's Resend status (delivered, bounced, complained and so on), and signed Viber callbacks record delivered, seen or failed against the right recipient even when they arrive before the send is recorded. Outcomes only move forward.
+- PMCM can require an acknowledgment by a deadline from the notification delivery details. A sweep escalates each overdue, unacknowledged recipient to PMCM exactly once per deadline, even with several API instances. A recipient still silent 24 hours later (`PRISM_NOTIFICATION_SECOND_ESCALATION_HOURS`) is chased once more: PMCM again and the event's coordinators, who are asked to follow up directly. The delivery details show which level was reached.
+- Notices now carry a link into the event area they are about (overview, briefing, proposal, floor plan, billing, files, scope changes or live operations), mapped to each portal's own page, from payment reminders, floor plan reviews, proposal comments, scope changes, briefing submissions, event-day escalations, file requests and schedule revisions. The operating guide is `docs/runbooks/operational-communications.md`; live provider delivery is not yet tested because no staging environment or linked Viber account exists.
+- Email delivery reports can arrive on their own: a signed Resend webhook (`/api/integrations/resend/webhook`, secret `RESEND_WEBHOOK_SECRET`) records delivered, bounced and complained against the right recipient, including reports that arrive before the send is recorded. Email outcomes only move forward, so a late delivered cannot hide a bounce.
+- PMCM can inspect recipient-level email and Viber provider acceptance and retry failed deliveries; recipients already accepted are not resent on retries.
+- Viber delivery receipts retain their full numeric identifier for accurate provider-event correlation.
+- Notification settings distinguish external email configuration from local mail capture, so test messages are not presented as mailbox delivery.
+- Signed-in clients, suppliers, coordinators, and PMCM can see their own notification receipts and acknowledge the exact notice independently; event access is rechecked before displaying or acknowledging it.
 - PMCM can assign file requirements to selected suppliers, review their uploads, and see fulfillment in supplier readiness; suppliers can submit replacements and see review reasons and previous versions.
 
 - Local portal URLs and CORS can follow `PRISM_PUBLIC_HOST` for testing from another device, while localhost remains allowed. Supabase CLI cache files are excluded from source control.

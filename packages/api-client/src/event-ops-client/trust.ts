@@ -29,6 +29,12 @@ const eventScope = (eventId?: string) => (eventId && eventId !== "all" ? search(
 export function createTrustClient(options: EventOpsClientOptions): Pick<EventOpsClient, "audit" | "privacyAdmin"> {
   return {
     audit: {
+      requestNotificationAcknowledgment: (deliveryId, input) => prismRequest<{ id: string; acknowledgmentDueAt: string }>(`/notification-inbox/${encodeURIComponent(deliveryId)}/deadline`, withBase(options, { method: 'POST', body: input })),
+      refreshNotificationOutcome: (notificationId, deliveryId) => prismRequest<{ id: string; providerOutcome: string }>(`/notification-provider-outcomes/${encodeURIComponent(notificationId)}/${encodeURIComponent(deliveryId)}/refresh`, withBase(options, { method: 'POST' })),
+      notificationDeliveries: (notificationId, actor = {}) =>
+        prismRequest<import("@prism/types").PrismNotificationRecipientDelivery[]>(actorPath(`/notifications/${encodeURIComponent(notificationId)}/deliveries`, actor), withBase(options)),
+      retryNotification: (notificationId, input, actor = {}) =>
+        prismRequest<{ id: string; status: "queued" }>(actorPath(`/notifications/${encodeURIComponent(notificationId)}/retry`, actor), withBase(options, { method: "POST", body: input })),
       integrity: (actor = {}) => prismRequest<PrismAuditIntegrity>(actorPath("/audit/integrity", actor), withBase(options)),
       logs: (filters, actor = {}) => {
         const set = Object.fromEntries(Object.entries(filters).filter(([, value]) => value && value !== "all"));

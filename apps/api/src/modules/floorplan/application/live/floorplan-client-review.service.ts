@@ -6,7 +6,7 @@ import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { isPrimaryClientContact } from '@prism/contexts/commercial';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction, writeNotification } from '@prism/contexts/platform-ops';
 import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReferenceReader } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
@@ -119,7 +119,7 @@ export class FloorPlanClientReviewService {
           affectedLabel: draft.name,
           metadata: { draftId, snapshotHash, action: input.action, comment: input.comment },
         }, { prisma: tx, correlationId: key, actorId: actor.id });
-        await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `${decisionEffects[input.action].notification}: ${draft.name}`, undefined, { idempotencyKey: key }, { prisma: tx, correlationId: key, actorId: actor.id });
+        await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `${decisionEffects[input.action].notification}: ${draft.name}`, undefined, { idempotencyKey: key, action: eventSectionAction(eventId, 'floorplans') }, { prisma: tx, correlationId: key, actorId: actor.id });
         return this.mapDecision(decision);
       });
     } catch (error) {
@@ -176,7 +176,7 @@ export class FloorPlanClientReviewService {
         affectedLabel: draft.name,
         metadata: { draftId, snapshotHash, objectId: input.objectId ?? null, anchorX: input.anchorX ?? null, anchorY: input.anchorY ?? null, nonBinding },
       }, { prisma: tx, correlationId: annotation.id, actorId: actor.id });
-      await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `${nonBinding ? 'Client added a non-binding floorplan note' : 'Client added a floorplan note'}: ${draft.name}`, undefined, { idempotencyKey: annotation.id }, { prisma: tx, correlationId: annotation.id, actorId: actor.id });
+      await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `${nonBinding ? 'Client added a non-binding floorplan note' : 'Client added a floorplan note'}: ${draft.name}`, undefined, { idempotencyKey: annotation.id, action: eventSectionAction(eventId, 'floorplans') }, { prisma: tx, correlationId: annotation.id, actorId: actor.id });
       return this.mapAnnotation(annotation);
     });
   }

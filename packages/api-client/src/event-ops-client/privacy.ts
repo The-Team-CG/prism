@@ -8,6 +8,9 @@ export function createPrivacyClient(
 ): Pick<EventOpsClient, "privacy" | "notificationPreferences"> {
   return {
     notificationPreferences: {
+      markNoticeRead: (id, input) => prismRequest<{ id: string; readAt: string }>(`/notification-inbox/${encodeURIComponent(id)}/read`, withBase(options, { method: 'POST', body: input })),
+      inbox: () => prismRequest<import('@prism/types').PrismNotificationInboxItem[]>("/notification-inbox/me", withBase(options)),
+      acknowledgeReceipt: (id, input) => prismRequest<{ id: string; acknowledged: true }>(`/notification-inbox/${encodeURIComponent(id)}/acknowledgment`, withBase(options, { method: 'POST', body: input })),
       mine: () => prismRequest<PrismNotificationPreferences>("/notification-preferences/me", withBase(options)),
       setViberEnabled: (input: UpdateNotificationPreferencesInput) =>
         prismRequest<PrismNotificationPreferences>("/notification-preferences/me", withBase(options, { method: "PATCH", body: input })),

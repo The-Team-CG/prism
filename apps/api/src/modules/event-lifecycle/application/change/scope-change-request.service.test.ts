@@ -83,7 +83,7 @@ describe('ScopeChangeRequestService submission and withdrawal', () => {
     const request = await service.submit('evt_1', submission, primaryClient);
 
     expect(request).toMatchObject({ eventId: 'evt_1', requestedByRole: 'client', status: 'submitted', category: 'schedule', title: 'Add a sunset slot' });
-    expect(notifications.write).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_1', recipient: 'PMCM Admin', idempotencyKey: `scope-change-submitted:${request.id}` }), expect.anything());
+    expect(notifications.write).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_1', recipient: 'PMCM Admin', idempotencyKey: `scope-change-submitted:${request.id}`, action: { kind: 'event_section', eventId: 'evt_1', section: 'changes' } }), expect.anything());
     expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_1', action: 'Submitted scope change request' }), expect.anything());
   });
 

@@ -491,7 +491,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     idempotencyKey: string,
   ): Promise<FileRequirementReminder[]> {
     try {
-      await writeNotification(this.notificationOutboxWriter, eventId, recipient, reminderMessage(reason, item.label, anchor), undefined, { idempotencyKey, correlationId: idempotencyKey });
+      await writeNotification(this.notificationOutboxWriter, eventId, recipient, reminderMessage(reason, item.label, anchor), undefined, { idempotencyKey, correlationId: idempotencyKey, action: { kind: 'event_section', eventId, section: 'files' } });
       return [{ eventId, key: item.key, reason, recipient, idempotencyKey }];
     } catch (error) {
       this.logger.warn(`File requirement reminder skipped for ${eventId}/${item.key}: ${error instanceof Error ? error.message : String(error)}`);

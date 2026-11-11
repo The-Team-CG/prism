@@ -2767,6 +2767,7 @@ model OpsNotificationLog {
   channel         String
   recipient       String
   message         String
+  action          Json?
   status          String    @default("queued")
   attempts        Int       @default(0)
   correlationId   String?   @map("correlation_id")
@@ -2782,12 +2783,55 @@ model OpsNotificationLog {
   acknowledgedAt  DateTime? @map("acknowledged_at")
   createdAt       DateTime  @default(now()) @map("created_at")
 
+  deliveries OpsNotificationDelivery[]
+
   @@index([eventId, createdAt], map: "notification_logs_event_id_created_at_idx")
   @@index([status, createdAt], map: "notification_logs_status_created_at_idx")
   @@index([status, createdAt, id], map: "notification_logs_status_created_at_id_idx")
   @@index([correlationId], map: "notification_logs_correlation_id_idx")
   @@index([status, nextAttemptAt], map: "notification_logs_status_next_attempt_at_idx")
   @@map("notification_logs")
+  @@schema("platform_ops")
+}
+
+/// A provider attempt for one resolved recipient of an outbox notification.
+model OpsNotificationDelivery {
+  id               String   @id
+  notificationId   String   @map("notification_id")
+  recipient        String
+  status           String   @default("pending")
+  attempts         Int      @default(0)
+  providerReceipt  String?  @map("provider_receipt")
+  failureReason    String?  @map("failure_reason")
+  acceptedAt       DateTime? @map("accepted_at")
+  readAt           DateTime? @map("read_at")
+  acknowledgedAt   DateTime? @map("acknowledged_at")
+  providerOutcome  String? @map("provider_outcome")
+  acknowledgmentDueAt DateTime? @map("acknowledgment_due_at")
+  escalatedAt DateTime? @map("escalated_at")
+  /// Set when a recipient still unacknowledged after the first escalation was chased once more (PMCM and the event's coordinators).
+  secondEscalatedAt DateTime? @map("second_escalated_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+
+  notification OpsNotificationLog @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@unique([notificationId, recipient], map: "notification_deliveries_notification_recipient_key")
+  @@index([notificationId, status], map: "notification_deliveries_notification_status_idx")
+  @@index([recipient, createdAt, id], map: "notification_deliveries_recipient_created_idx")
+  @@index([providerReceipt], map: "notification_deliveries_provider_receipt_idx")
+  @@index([acknowledgedAt, escalatedAt, acknowledgmentDueAt], map: "notification_deliveries_ack_due_idx")
+  @@index([acknowledgedAt, secondEscalatedAt, escalatedAt], map: "notification_deliveries_second_escalation_idx")
+  @@map("notification_deliveries")
+  @@schema("platform_ops")
+}
+
+model OpsNotificationProviderOutcome {
+  receipt String @id
+  outcome String
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+  @@index([updatedAt], map: "notification_provider_outcomes_updated_idx")
+  @@map("notification_provider_outcomes")
   @@schema("platform_ops")
 }
 

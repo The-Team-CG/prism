@@ -1,4 +1,10 @@
 import { Module } from '@nestjs/common';
+import { NotificationInboxController, NotificationProviderOutcomeController } from './api/notifications/notification-inbox.controller';
+import { NotificationInboxService } from './application/notifications/notification-inbox.service';
+import { NotificationProviderOutcomeService } from './application/notifications/notification-provider-outcome.service';
+import { NotificationEscalationService } from './application/notifications/notification-escalation.service';
+import { EMAIL_OUTCOME_READER } from './contracts/notifications/email-outcome-reader.port';
+import { ResendNotificationOutcomeReader } from './infrastructure/notifications/resend-notification-outcome.reader';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@prism/kernel/database';
 import { EventSessionModule } from '@prism/kernel/event-session';
@@ -17,6 +23,7 @@ import { AuditExportService } from './application/trust/audit-export.service';
 import { AuditReadService } from './application/trust/audit-read.service';
 import { SecurityOperationsService } from './application/trust/security-operations.service';
 import { NotificationOutboxService } from './application/notifications/notification-outbox.service';
+import { NotificationRecipientDeliveryService } from './application/notifications/notification-recipient-delivery.service';
 import { NOTIFICATION_DELIVERY } from './contracts/notifications/notification-delivery.port';
 import { MailNotificationDeliveryAdapter } from './infrastructure/notifications/mail-notification-delivery.adapter';
 import { ChannelNotificationDeliveryAdapter } from './infrastructure/notifications/channel-notification-delivery.adapter';
@@ -24,7 +31,8 @@ import { ViberBotClient } from './infrastructure/notifications/viber-bot.client'
 import { resolveViberConfig } from '@prism/kernel/shared';
 import { VIBER_BOT } from './contracts/notifications/viber.port';
 import { NotificationPreferenceService } from './application/notifications/notification-preference.service';
-import { NotificationPreferencesController, ViberWebhookController } from './api/notifications/notification-preferences.controller';
+import { NotificationPreferencesController, ResendWebhookController, ViberWebhookController } from './api/notifications/notification-preferences.controller';
+import { ResendWebhookService } from './application/notifications/resend-webhook.service';
 import { CanvaController } from './api/integrations/canva.controller';
 import { CANVA_API_CLIENT, CanvaConnectionService } from './application/integrations/canva-connection.service';
 import { CanvaApiClient } from './infrastructure/integrations/canva-api.client';
@@ -149,8 +157,13 @@ export function createAiProviderAdapters(
  */
 @Module({
   imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, MailModule, PortalUrlsModule],
-  controllers: [OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController, NotificationPreferencesController, ViberWebhookController, CanvaController],
+  controllers: [ResendWebhookController, NotificationProviderOutcomeController, NotificationInboxController, OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController, NotificationPreferencesController, ViberWebhookController, CanvaController],
   providers: [
+    NotificationInboxService,
+    NotificationProviderOutcomeService,
+    ResendWebhookService,
+    NotificationEscalationService,
+    { provide: EMAIL_OUTCOME_READER, useClass: ResendNotificationOutcomeReader },
     AuditService,
     AuditReadService,
     AuditExportService,
@@ -158,6 +171,7 @@ export function createAiProviderAdapters(
     AuditWriterAdapter,
     auditWriterProvider,
     NotificationOutboxService,
+    NotificationRecipientDeliveryService,
     NotificationOutboxWriterAdapter,
     notificationOutboxWriterProvider,
     MailNotificationDeliveryAdapter,

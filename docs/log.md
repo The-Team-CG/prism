@@ -6,6 +6,7 @@ implementation and verification history.
 
 ## 2026-11-11
 
+- Added the operational-communications runbook: per-recipient delivery and inbox, provider outcomes, acknowledgment deadlines, escalation, and the checks that prove them.
 - Added the external-integrations runbook for the optional Viber, Zoom and Canva integrations: all-or-none variables checked at startup, signed Viber webhooks, sealed Canva tokens, and the template field contract.
 
 ## 2026-11-07
