@@ -8,6 +8,7 @@ export type PersistedFileRequirement = {
   label: string;
   ownerRole: string;
   visibleToRoles: string[];
+  targetSupplierIds?: string[];
   required: boolean;
   dueAt: Date | null;
   sourceWorkflow: string;
@@ -21,7 +22,9 @@ export type FileRequirementDocumentFact = {
   type: string;
   status: string;
   validationStatus: string;
+  rejectionReason?: string | null;
   uploadedAt: Date;
+  fileName?: string;
   /** Stored object behind a bound upload, when the document came from storage. */
   storageKey?: string | null;
   /** Stored bytes may be removed independently of the document metadata. */
@@ -57,7 +60,7 @@ function validationOf(document: FileRequirementDocumentFact | undefined): PrismF
 
 function customItem(row: PersistedFileRequirement, documents: FileRequirementDocumentFact[]): DerivedFileRequirementItem {
   const latest = latestDocument(documents, row.key);
-  const rejected = latest?.validationStatus === 'rejected';
+  const rejected = latest?.validationStatus === 'rejected' || latest?.status === 'rejected';
   const status: PrismFileRequirementStatus = !latest || rejected ? 'missing' : latest.status === 'approved' ? 'approved' : 'submitted';
   const count = documents.filter((document) => document.type === row.key && document.available !== false).length;
   return {
@@ -86,6 +89,14 @@ function supplierFulfilment(
   const owned = documents.filter((document) => document.ownerSupplierId === supplier.supplierId);
   const { status, uploadedAssetId, uploadedObjectId } = customItem(row, owned);
   const validationStatus = validationOf(latestDocument(owned, row.key));
+  const latest = latestDocument(owned, row.key);
+  const versions = owned.filter((document) => document.type === row.key && document.available !== false && document.storageKey)
+    .sort((left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime() || left.id.localeCompare(right.id))
+    .map((document) => ({
+      documentId: document.id, objectId: document.storageKey!, fileName: document.fileName ?? 'Submitted file',
+      uploadedAt: document.uploadedAt.toISOString(), status: document.status,
+      ...(document.status === 'rejected' && document.rejectionReason ? { reviewReason: document.rejectionReason } : {}),
+    }));
   const fulfilment: PrismSupplierFileRequirementFulfilment = {
     supplierId: supplier.supplierId,
     supplierName: supplier.supplierName,
@@ -94,6 +105,8 @@ function supplierFulfilment(
     ...(validationStatus ? { validationStatus } : {}),
     ...(uploadedAssetId ? { uploadedAssetId } : {}),
     ...(uploadedObjectId ? { uploadedObjectId } : {}),
+    ...(latest?.status === 'rejected' && latest.rejectionReason ? { reviewReason: latest.rejectionReason } : {}),
+    versions,
   };
   return { ...fulfilment, overdue: isFileRequirementOverdue({ required: row.required, status, dueDate: row.dueAt?.toISOString() }, now) };
 }
@@ -113,7 +126,9 @@ function supplierOwnedItem(
   documents: FileRequirementDocumentFact[],
   now: Date,
 ): PrismFileRequirementItem {
-  const fulfilments = suppliers.map((supplier) => supplierFulfilment(row, supplier, documents, now));
+  const targets = row.targetSupplierIds ?? [];
+  const fulfilments = suppliers.filter((supplier) => targets.length === 0 || targets.includes(supplier.supplierId))
+    .map((supplier) => supplierFulfilment(row, supplier, documents, now));
   const satisfied = fulfilments.filter((fulfilment) => isFileRequirementSatisfied(fulfilment.status)).length;
   const item: PrismFileRequirementItem = {
     key: row.key,
@@ -128,6 +143,7 @@ function supplierOwnedItem(
     origin: 'custom',
     revision: row.revision,
     supplierFulfilments: fulfilments,
+    targetSupplierIds: targets,
     auditCategory: 'documents',
     detail: fulfilments.length === 0
       ? 'No supplier is selected on this event.'
@@ -187,13 +203,13 @@ export function visibleFileRequirementItems(items: PrismFileRequirementItem[], r
     .filter((item) => privileged || item.visibleToRoles.includes(role))
     .map((item) => {
       if (privileged) return item;
-      const { notes: _notes, ...shared } = item;
+      const { notes: _notes, targetSupplierIds: _targets, ...shared } = item;
       return shared;
     });
 }
 
 function ownFulfilmentDetail(fulfilment: PrismSupplierFileRequirementFulfilment) {
-  if (fulfilment.validationStatus === 'rejected') return 'The latest upload was rejected; a replacement file is required.';
+  if (fulfilment.validationStatus === 'rejected' || fulfilment.reviewReason) return 'The latest upload was rejected; a replacement file is required.';
   if (fulfilment.status === 'approved') return 'Your file has been approved.';
   return isFileRequirementSatisfied(fulfilment.status) ? 'Your file has been submitted.' : 'No file submitted yet.';
 }
@@ -222,6 +238,8 @@ export function scopeFileRequirementItemsForActor(
       ...(own.validationStatus ? { validationStatus: own.validationStatus } : {}),
       ...(own.uploadedAssetId ? { uploadedAssetId: own.uploadedAssetId } : {}),
       ...(own.uploadedObjectId ? { uploadedObjectId: own.uploadedObjectId } : {}),
+      ...(own.reviewReason ? { reviewReason: own.reviewReason } : {}),
+      ...(own.versions ? { versions: own.versions } : {}),
     }];
   });
 }

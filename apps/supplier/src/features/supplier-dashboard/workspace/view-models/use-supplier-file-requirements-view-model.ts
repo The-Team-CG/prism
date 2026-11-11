@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { PrismAuthenticatedSession, PrismFileRequirementsMatrix } from "@prism/types";
 import { buildQuoteByRequest, filterSelectedRequests } from "../model/supplier-workspace-rules";
 import type { SupplierWorkspace } from "../model/supplier-workspace-types";
-import { loadSupplierFileRequirements } from "../use-cases/supplier-workspace-actions";
+import { loadSupplierFileRequirements, uploadSupplierFileRequirement } from "../use-cases/supplier-workspace-actions";
 
 export function useSupplierFileRequirementsViewModel(
   workspace: SupplierWorkspace,
@@ -17,6 +17,7 @@ export function useSupplierFileRequirementsViewModel(
   const eventIdsKey = JSON.stringify(eventIds);
   const [matrices, setMatrices] = useState<PrismFileRequirementsMatrix[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [uploading, setUploading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,5 +40,21 @@ export function useSupplierFileRequirementsViewModel(
     return () => { active = false; };
   }, [eventIdsKey, session]);
 
-  return { matrices, status, error };
+  async function upload(eventId: string, key: string, file: File) {
+    if (uploading) return;
+    setUploading(`${eventId}:${key}`);
+    setError(null);
+    try {
+      const item = await uploadSupplierFileRequirement(session, workspace.supplier, eventId, key, file);
+      setMatrices((current) => current.map((matrix) => matrix.eventId === eventId
+        ? { ...matrix, items: matrix.items.map((existing) => existing.key === key ? item : existing) }
+        : matrix));
+    } catch {
+      setError("Could not upload this file. Check the file and try again.");
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  return { matrices, status, error, uploading, upload };
 }

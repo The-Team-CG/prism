@@ -24,6 +24,7 @@ import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { DecisionLogPanel } from "@/features/decision-log";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard, assignedSupplierRequests, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
+import { SupplierFileReadiness } from "@/features/files/matrix";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventGamesHostView } from "@/features/event-games/host";
@@ -255,7 +256,7 @@ export function EventWorkspaceSuppliersTab() {
         />
       ),
     },
-    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><UnresponsiveSuppliersPanel eventId={event.id} />{isEventModuleEnabled(event, "client_owned_suppliers") ? <ClientOwnedSuppliersPanel eventId={event.id} /> : null}<PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /></div> },
+    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><UnresponsiveSuppliersPanel eventId={event.id} />{isEventModuleEnabled(event, "client_owned_suppliers") ? <ClientOwnedSuppliersPanel eventId={event.id} /> : null}<PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><SupplierFileReadiness eventId={event.id} /></div> },
     { id: "bookings", label: "Bookings & contracts", count: assigned.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
     { id: "creative", label: "Outsourced creative", render: () => <PmcmExternalCreativePanel eventId={event.id} documents={vm.documents.filter((document) => document.eventId === event.id)} /> },
     {

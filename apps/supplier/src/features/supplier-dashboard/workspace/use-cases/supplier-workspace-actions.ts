@@ -37,6 +37,10 @@ export async function loadSupplierFileRequirements(
   }
   return matrices;
 }
+export function uploadSupplierFileRequirement(session: PrismAuthenticatedSession, supplier: PrismSupplier, eventId: string, key: string, file: File) {
+  return supplierWorkflowRepository.uploadRequirement(session, supplier, eventId, key, file);
+}
+
 export async function submitOrReviseQuote(input: {
   request: PrismSupplierQuoteRequest;
   form: QuoteFormState;

@@ -156,6 +156,7 @@ export interface PlatformReferenceReadModel {
   findStorageEventScope(eventId: string, transaction?: PrismTransactionContext): Promise<PlatformStorageEventScope | null>;
   /** PMCM visibility overrides keyed by file requirement key; keys without an override are absent. */
   findFileRequirementVisibility(eventId: string): Promise<Record<string, string[]>>;
+  supplierMayUploadRequirement(eventId: string, key: string, supplierId: string): Promise<boolean>;
   /** Document types that bind the given stored objects to a file requirement; a binding names the requirement key. */
   findStoredObjectRequirementBindings(eventId: string, objectIds: readonly string[]): Promise<Array<{ objectId: string; documentType: string }>>;
   findEventReference(eventId: string): Promise<{ id: string } | null>;

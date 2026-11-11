@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- PMCM can assign file requirements to selected suppliers, review their uploads, and see fulfillment in supplier readiness; suppliers can submit replacements and see review reasons and previous versions.
+
 - Local portal URLs and CORS can follow `PRISM_PUBLIC_HOST` for testing from another device, while localhost remains allowed. Supabase CLI cache files are excluded from source control.
 
 - PMCM Registration has a compact empty roster with one import entry point. Settings groups compliance fields without an empty side column and keeps notification information in its controls panel. Audit panels size to their content, and Privacy retention policies now have a full-width section below requests and legal holds.

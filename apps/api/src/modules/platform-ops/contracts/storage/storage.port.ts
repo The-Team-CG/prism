@@ -52,6 +52,7 @@ export interface StoredSupplierUploadReader {
 export type StoredRequirementUploadReference = {
   id: string;
   eventId: string;
+  logicalTarget: string;
   ownerRecordType: string;
   ownerRecordId: string;
   usage: StorageUsage;

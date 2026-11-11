@@ -218,6 +218,7 @@ function harness(gateway?: AiGateway, runtime?: AiGatewayRuntimeConfig) {
   };
   const platformReferences: PlatformReferenceReadModel = {
     findStorageEventScope: async () => null,
+    supplierMayUploadRequirement: async () => false,
     findEventReference: async () => null,
     findPrivacyInventory: async () => ({ events: [], approvalRequests: [] }),
     findFileRequirementVisibility: async () => ({}),

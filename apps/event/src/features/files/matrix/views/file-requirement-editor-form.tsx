@@ -13,6 +13,56 @@ import {
 
 const FIELD_CLASS = "mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
 
+function saveLabel(mode: "create" | "edit", busy: boolean) {
+  if (busy) return "Saving…";
+  return mode === "create" ? "Add requirement" : "Save requirement";
+}
+
+type SupplierOption = { supplierId: string; supplierName: string };
+
+/** Which suppliers a supplier-owned requirement is aimed at: all selected ones, or a chosen few. */
+function AssignedSuppliersField({
+  draft,
+  suppliers,
+  update,
+}: {
+  draft: FileRequirementDraft;
+  suppliers: SupplierOption[];
+  update: <K extends keyof FileRequirementDraft>(field: K, value: FileRequirementDraft[K]) => void;
+}) {
+  const targetIds = draft.targetSupplierIds ?? [];
+  const noLongerListed = targetIds.filter((id) => !suppliers.some((supplier) => supplier.supplierId === id));
+  return (
+    <fieldset className="text-sm md:col-span-2">
+      <legend>Assigned suppliers</legend>
+      <label className="mt-1 flex items-center gap-2">
+        <input type="checkbox" checked={Boolean(draft.targetSpecific)} onChange={(event) => update("targetSpecific", event.target.checked)} />
+        Choose specific suppliers
+      </label>
+      {draft.targetSpecific ? (
+        <div className="mt-2 flex flex-wrap gap-4">
+          {suppliers.map((supplier) => (
+            <label key={supplier.supplierId} className="flex items-center gap-2">
+              <input type="checkbox" checked={targetIds.includes(supplier.supplierId)} onChange={(event) => {
+                update("targetSupplierIds", event.target.checked ? [...targetIds, supplier.supplierId] : targetIds.filter((id) => id !== supplier.supplierId));
+              }} />
+              {supplier.supplierName}
+            </label>
+          ))}
+          {noLongerListed.map((id) => (
+            <label key={id} className="flex items-center gap-2">
+              <input type="checkbox" checked onChange={() => update("targetSupplierIds", targetIds.filter((target) => target !== id))} />
+              Previously assigned supplier ({id}); no longer selected
+            </label>
+          ))}
+          {suppliers.length === 0 ? <span>Select a supplier for the event first.</span> : null}
+          {targetIds.length === 0 ? <span className="text-destructive">Choose at least one supplier.</span> : null}
+        </div>
+      ) : <p className="mt-1 text-muted-foreground">Applies to all selected suppliers, including future selections.</p>}
+    </fieldset>
+  );
+}
+
 export function FileRequirementEditorForm({
   mode,
   item,
@@ -20,6 +70,7 @@ export function FileRequirementEditorForm({
   error,
   onSave,
   onCancel,
+  suppliers,
 }: {
   mode: "create" | "edit";
   item?: PrismFileRequirementItem;
@@ -27,6 +78,7 @@ export function FileRequirementEditorForm({
   error: string | null;
   onSave: (draft: FileRequirementDraft) => void;
   onCancel: () => void;
+  suppliers: Array<{ supplierId: string; supplierName: string }>;
 }) {
   const [draft, setDraft] = useState<FileRequirementDraft>(() => (item ? draftFromFileRequirementItem(item) : emptyFileRequirementDraft()));
   const isCustomEdit = mode === "edit" && item?.origin === "custom";
@@ -43,6 +95,7 @@ export function FileRequirementEditorForm({
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (draft.ownerRole === "supplier" && draft.targetSpecific && !draft.targetSupplierIds?.length) return;
     // PMCM and the owner must always see the requirement; the API rejects drafts that omit either.
     const visibleToRoles = [...new Set([...draft.visibleToRoles, draft.ownerRole, "pmcm-admin"])];
     onSave({ ...draft, visibleToRoles });
@@ -97,6 +150,7 @@ export function FileRequirementEditorForm({
         <input type="checkbox" checked={draft.required} onChange={(event) => update("required", event.target.checked)} />
         Required file
       </label>
+      {draft.ownerRole === "supplier" && canEditLabel ? <AssignedSuppliersField draft={draft} suppliers={suppliers} update={update} /> : null}
       <label className="text-sm md:col-span-2">
         PMCM notes (never shown to clients or suppliers)
         <textarea rows={2} maxLength={1000} value={draft.notes} onChange={(event) => update("notes", event.target.value)} className={FIELD_CLASS} />
@@ -104,7 +158,7 @@ export function FileRequirementEditorForm({
       {error ? <p role="alert" className="text-sm text-destructive md:col-span-2">{error}</p> : null}
       <div className="flex gap-2 md:col-span-2">
         <button type="submit" disabled={busy} className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">
-          {busy ? "Saving…" : mode === "create" ? "Add requirement" : "Save requirement"}
+          {saveLabel(mode, busy)}
         </button>
         <button type="button" onClick={onCancel} disabled={busy} className="rounded-md border border-border px-3 py-2 text-sm font-semibold">
           Cancel
