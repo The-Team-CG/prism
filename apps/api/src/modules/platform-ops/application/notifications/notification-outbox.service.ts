@@ -13,6 +13,25 @@ import { NotificationPreferenceService } from './notification-preference.service
 
 export type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 
+type QueuedContent = { eventId?: string; recipient: string; message: string; channel: string; action?: NotificationAction };
+
+/** A retry found by its pre-idempotency-key correlation id must carry exactly the content it was queued with. */
+function legacyRetryDiffers(legacy: OpsNotificationLog, next: QueuedContent) {
+  return legacy.eventId !== (next.eventId ?? null)
+    || legacy.recipient !== next.recipient
+    || legacy.message !== next.message
+    || legacy.channel !== next.channel
+    || Boolean(legacy.action && JSON.stringify(legacy.action) !== JSON.stringify(next.action ?? null));
+}
+
+/**
+ * The row saved under an idempotency key holds the content now being queued. Routing metadata added later must not
+ * resend an already queued notice that was stored without it, so a row without an action matches its original hash too.
+ */
+function holdsSameContent(saved: Pick<OpsNotificationLog, 'payloadHash' | 'action'>, payloadHash: string, originalHash: string) {
+  return saved.payloadHash === payloadHash || (saved.action == null && saved.payloadHash === originalHash);
+}
+
 @Injectable()
 export class NotificationOutboxService implements OnApplicationBootstrap, OnApplicationShutdown {
   private timer?: ReturnType<typeof setInterval>;
@@ -37,7 +56,7 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
     const correlationId = options.correlationId ?? options.idempotencyKey ?? null;
     const legacy = await this.findLegacyRetry(prisma, options.idempotencyKey);
     if (legacy) {
-      if (legacy.eventId !== (eventId ?? null) || legacy.recipient !== recipient || legacy.message !== message || legacy.channel !== channel || (legacy.action && JSON.stringify(legacy.action) !== JSON.stringify(options.action ?? null))) {
+      if (legacyRetryDiffers(legacy, { eventId, recipient, message, channel, action: options.action })) {
         throw new ConflictException('Notification idempotency key is bound to different content');
       }
       return legacy;
@@ -61,8 +80,7 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
     // A non-empty no-op update keeps Prisma on PostgreSQL's atomic ON CONFLICT path.
     const saved = await prisma.opsNotificationLog.upsert({ where: { idempotencyKey: options.idempotencyKey }, create: data, update: { idempotencyKey: options.idempotencyKey } });
     const originalHash = createHash('sha256').update(JSON.stringify([eventId ?? null, recipient, message, channel])).digest('hex');
-    // Routing metadata added later must not resend an already queued legacy notice.
-    if (saved.payloadHash !== payloadHash && !(saved.action == null && saved.payloadHash === originalHash)) throw new ConflictException('Notification idempotency key is bound to different content');
+    if (!holdsSameContent(saved, payloadHash, originalHash)) throw new ConflictException('Notification idempotency key is bound to different content');
     return saved;
   }
 

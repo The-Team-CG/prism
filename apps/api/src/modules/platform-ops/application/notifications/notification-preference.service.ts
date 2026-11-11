@@ -87,15 +87,24 @@ export class NotificationPreferenceService {
     catch { throw new BadRequestException('Invalid Viber callback'); }
     const receipt = viberDeliveryCallbackSchema.safeParse(parsed);
     if (receipt.success) {
-      const { message_token: token, event } = receipt.data;
-      // Keep early callbacks so acceptance settlement can reconcile them after the send response.
-      await this.prisma.opsNotificationProviderOutcome.upsert({ where: { receipt: token }, create: { receipt: token, outcome: event }, update: {} });
-      if (event === 'seen') await this.prisma.opsNotificationProviderOutcome.updateMany({ where: { receipt: token, outcome: 'delivered' }, data: { outcome: 'seen' } });
-      if (event === 'failed') await this.prisma.opsNotificationProviderOutcome.updateMany({ where: { receipt: token }, data: { outcome: 'failed' } });
-      const outcome = await this.prisma.opsNotificationProviderOutcome.findUniqueOrThrow({ where: { receipt: token } });
-      await this.prisma.opsNotificationDelivery.updateMany({ where: viberOutcomeWhere(token, outcome.outcome), data: { providerOutcome: outcome.outcome } });
+      await this.recordViberDeliveryReport(receipt.data.message_token, receipt.data.event);
       return {};
     }
+    return this.handleViberUserEvent(viber, parsed, now);
+  }
+
+  /** A delivery report for a sent message. It is kept even when early, only moves forward, then settles matching deliveries. */
+  private async recordViberDeliveryReport(token: string, event: string) {
+    // Keep early callbacks so acceptance settlement can reconcile them after the send response.
+    await this.prisma.opsNotificationProviderOutcome.upsert({ where: { receipt: token }, create: { receipt: token, outcome: event }, update: {} });
+    if (event === 'seen') await this.prisma.opsNotificationProviderOutcome.updateMany({ where: { receipt: token, outcome: 'delivered' }, data: { outcome: 'seen' } });
+    if (event === 'failed') await this.prisma.opsNotificationProviderOutcome.updateMany({ where: { receipt: token }, data: { outcome: 'failed' } });
+    const outcome = await this.prisma.opsNotificationProviderOutcome.findUniqueOrThrow({ where: { receipt: token } });
+    await this.prisma.opsNotificationDelivery.updateMany({ where: viberOutcomeWhere(token, outcome.outcome), data: { providerOutcome: outcome.outcome } });
+  }
+
+  /** Account events from the bot: unsubscribe, a conversation opening, or a message that may carry a link code. */
+  private async handleViberUserEvent(viber: ViberBot, parsed: unknown, now: Date): Promise<ViberWelcome> {
     const validated = viberCallbackSchema.safeParse(parsed);
     if (!validated.success || ['delivered', 'seen', 'failed'].includes(validated.data.event ?? '')) throw new BadRequestException('Invalid Viber callback');
     const callback = validated.data;

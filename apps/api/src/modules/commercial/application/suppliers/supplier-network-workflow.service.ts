@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
+import type { OpsSupplierQuoteRequest, OpsSupplierSchedule, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { createHash, randomUUID } from 'node:crypto';
 import {
@@ -88,6 +88,18 @@ function assertSupplierEventStatusStep(current: string, next: string): void {
   const expectedLabel = SUPPLIER_EVENT_STATUS_LABELS[expected];
   const direction = nextIndex < currentIndex ? 'cannot move backward to' : 'cannot skip ahead to';
   throw new BadRequestException(`Event-day status ${direction} "${nextLabel}". Report "${expectedLabel}" next, in order: arrived, set-up ready, done leaving.`);
+}
+
+/** True when a schedule already holds exactly these times, location and notes, so posting them again changes nothing. */
+function holdsSchedule(
+  current: OpsSupplierSchedule | null,
+  next: { ingressAt: Date; egressAt: Date; location: string; notes: string },
+): current is OpsSupplierSchedule {
+  return current !== null
+    && current.ingressAt.getTime() === next.ingressAt.getTime()
+    && current.egressAt.getTime() === next.egressAt.getTime()
+    && current.location === next.location
+    && current.notes === next.notes;
 }
 
 function requireLockedConfirmationRequest(
@@ -681,8 +693,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       const location = input.location ?? '';
       const notes = input.notes ?? '';
       const current = await tx.opsSupplierSchedule.findUnique({ where: { requestId: input.requestId } });
-      if (current && current.ingressAt.getTime() === ingressAt.getTime() && current.egressAt.getTime() === egressAt.getTime() &&
-        current.location === location && current.notes === notes) {
+      if (holdsSchedule(current, { ingressAt, egressAt, location, notes })) {
         return { schedule: current, supplierName: request.supplierName };
       }
       const schedule = await tx.opsSupplierSchedule.upsert({

@@ -15,6 +15,12 @@ export interface NotificationPreferencesActions {
   unlinkViber(): Promise<PrismNotificationPreferences>;
 }
 
+function emailStatusCopy(delivery: PrismNotificationPreferences["emailDelivery"] | undefined) {
+  if (delivery === "external") return "Email delivery is configured. Delivery depends on the provider and recipient mailbox.";
+  if (delivery === "captured") return "Email is captured locally and is not sent to your mailbox.";
+  return "Email delivery status is unavailable.";
+}
+
 /**
  * FR-25: account notification channels, shared by the client, supplier and event portals. Email is always on;
  * Viber is optional and linked by opening a one-time code in the P.R.I.S.M bot.
@@ -51,9 +57,7 @@ export function NotificationPreferencesPanel({ actions }: { actions: Notificatio
         <Item variant="outline">
           <ItemContent>
             <ItemTitle>Email</ItemTitle>
-            <ItemDescription>{preferences?.emailDelivery === "external" ? "Email delivery is configured. Delivery depends on the provider and recipient mailbox."
-              : preferences?.emailDelivery === "captured" ? "Email is captured locally and is not sent to your mailbox."
-                : "Email delivery status is unavailable."}</ItemDescription>
+            <ItemDescription>{emailStatusCopy(preferences?.emailDelivery)}</ItemDescription>
           </ItemContent>
           <ItemActions>
             <Switch aria-label="Email updates" checked disabled />
