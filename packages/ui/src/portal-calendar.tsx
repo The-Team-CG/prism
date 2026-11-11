@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { monthOfDateKey } from "./calendar-grid";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import {
@@ -27,7 +27,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuShortc
 import { formatPortalDate } from "./format-date";
 import { cn } from "./utils";
 
-const HOUR_PX = 56;
+type CalendarTiming = "all" | "timed" | "all-day";
+const TIMING_FILTERS = [{ id: "all", label: "All entries" }, { id: "timed", label: "Timed entries" }, { id: "all-day", label: "All-day entries" }] satisfies Array<{ id: CalendarTiming; label: string }>;
+
+const HOUR_PX = 72;
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MAX_MONTH_CHIPS = 3;
@@ -81,6 +84,8 @@ export type PortalCalendarProps<Item extends PortalCalendarItem> = PortalCalenda
   /** Singular name of what is counted, for the month cell labels. */
   noun?: string;
   className?: string;
+  /** Optional role-owned category navigation, including existing deep links. */
+  categoryControls?: ReactNode;
   /** Called with the dates on screen when the calendar opens and whenever the view or period changes. */
   onRangeChange?: (range: VisibleRange) => void;
 };
@@ -107,12 +112,21 @@ function itemsByDate<Item extends PortalCalendarItem>(items: Item[]) {
 const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 /** A calendar with month, week, day and agenda views. Role-neutral: portals decide which items exist and where each leads. */
-export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "month", className, onRangeChange, renderItem, detail }: PortalCalendarProps<Item>) {
+export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "week", className, categoryControls, onRangeChange, renderItem, detail }: PortalCalendarProps<Item>) {
   const headingId = useId();
   const [view, setView] = useState<CalendarViewId>(initialView);
   const [anchor, setAnchor] = useState(initialDate);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const byDate = useMemo(() => itemsByDate(items), [items]);
+  const [query, setQuery] = useState("");
+  const [activeKind, setActiveKind] = useState<string | null>(null);
+  const [timing, setTiming] = useState<CalendarTiming>("all");
+  const [showHighlights, setShowHighlights] = useState(true);
+  const matchingItems = useMemo(() => items.filter((item) => {
+    const matchesText = [item.title, item.detail, item.chipLabel, kindOf(kinds, item.kind).label].filter(Boolean).join(" ").toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+    return matchesText && (timing === "all" || (timing === "timed" ? Boolean(item.startTime) : !item.startTime));
+  }), [items, kinds, query, timing]);
+  const filteredItems = useMemo(() => matchingItems.filter((item) => activeKind === null || item.kind === activeKind), [matchingItems, activeKind]);
+  const byDate = useMemo(() => itemsByDate(filteredItems), [filteredItems]);
   const legend = Object.keys(kinds).filter((kind) => items.some((item) => item.kind === kind));
   const selected = detail ? items.find((item) => item.id === selectedId) ?? null : null;
 
@@ -137,6 +151,7 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
   );
 
   const range = visibleRange(view, anchor);
+  const rangeLabel = view === "week" || view === "agenda" ? `${formatPortalDate(range.from)} – ${formatPortalDate(range.to)}` : periodTitle(view, anchor);
   useEffect(() => {
     onRangeChange?.({ from: range.from, to: range.to });
   }, [range.from, range.to]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -145,31 +160,54 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
     setAnchor(dateKey);
     setView("day");
   };
-  const viewProps = { items, kinds, today, renderItem: renderItem ?? selectChip };
+  const renderCalendarItem = renderItem ?? selectChip;
+  const viewProps = { items: filteredItems, kinds, today, renderItem: renderCalendarItem };
+  const inPeriod = (item: Item) => view === "month" ? item.date.startsWith(anchor.slice(0, 7)) : item.date >= range.from && item.date <= range.to;
+  const highlights = [...filteredItems].filter(inPeriod).sort((a, b) => a.date.localeCompare(b.date) || (a.startTime ?? "").localeCompare(b.startTime ?? "")).slice(0, 4);
+  const periodItems = matchingItems.filter(inPeriod);
 
   return (
     <TooltipProvider delayDuration={300}>
     <section aria-labelledby={headingId} className={cn("min-w-0 overflow-hidden rounded-lg border border-border bg-card", className)}>
-      <header className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-3 sm:gap-3 sm:px-4">
-        <Button type="button" variant="outline" size="sm" onClick={() => setAnchor(today)}>Today</Button>
-        <div className="flex items-center gap-1" role="group" aria-label="Change period">
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Previous period" onClick={() => setAnchor((current) => shiftAnchor(view, current, -1))}><ChevronLeft className="size-4" aria-hidden /></Button>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Next period" onClick={() => setAnchor((current) => shiftAnchor(view, current, 1))}><ChevronRight className="size-4" aria-hidden /></Button>
+      <header className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4 sm:px-5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setAnchor(today)}>Today</Button>
+          <div className="flex items-center" role="group" aria-label="Change period">
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Previous period" onClick={() => setAnchor((current) => shiftAnchor(view, current, -1))}><ChevronLeft className="size-4" aria-hidden /></Button>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="Next period" onClick={() => setAnchor((current) => shiftAnchor(view, current, 1))}><ChevronRight className="size-4" aria-hidden /></Button>
+          </div>
+          <ViewSwitcher view={view} onChange={setView} />
+          <Popover>
+            <PopoverTrigger asChild><Button type="button" variant="outline" size="sm" aria-label="Choose calendar date" className="max-w-full"><CalendarDays aria-hidden className="size-4" /><span className="truncate">{rangeLabel}</span></Button></PopoverTrigger>
+            <PopoverContent align="start" className="w-64 space-y-2"><label htmlFor={`${headingId}-date`} className="text-sm font-medium">Jump to date</label><input id={`${headingId}-date`} type="date" min="1000-01-01" max="9998-12-31" value={anchor} onChange={(event) => { if (event.target.value && event.target.validity.valid) setAnchor(event.target.value); }} className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm" /></PopoverContent>
+          </Popover>
         </div>
-        <h2 id={headingId} aria-live="polite" className="order-last w-full font-heading text-lg font-semibold text-foreground sm:order-none sm:w-auto sm:min-w-0 sm:flex-1 sm:truncate sm:text-xl">{periodTitle(view, anchor)}</h2>
-        <div className="ml-auto sm:ml-0"><ViewSwitcher view={view} onChange={setView} /></div>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:max-w-sm">
+          <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-card px-3 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">
+            <Search aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+            <input type="search" aria-label="Search schedule" placeholder="Search schedule..." value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 w-full bg-transparent text-sm outline-none" />
+          </label>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button type="button" variant="outline" size="sm" aria-label="Filter schedule timing"><SlidersHorizontal aria-hidden className="size-4" />{timing === "all" ? "Filter" : timing === "timed" ? "Timed" : "All day"}</Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">{TIMING_FILTERS.map((option) => <DropdownMenuItem key={option.id} onSelect={() => setTiming(option.id)}>{option.label}{timing === option.id ? <Check aria-hidden className="ml-auto size-4" /> : null}</DropdownMenuItem>)}</DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <h2 id={headingId} aria-live="polite" className="sr-only">{rangeLabel}</h2>
       </header>
+      <div className="mx-4 mt-4 flex items-start gap-2 border-b border-border pb-3 sm:mx-5">
+        <div role="group" aria-label="Schedule categories" className="flex min-w-0 flex-1 flex-wrap gap-1">
+          {categoryControls ?? [{ id: null, label: "All scheduled" }, ...legend.map((id) => ({ id, label: kinds[id].label }))].map((kind) => <button key={kind.id ?? "all"} type="button" aria-pressed={activeKind === kind.id} onClick={() => setActiveKind(kind.id)} className="inline-flex min-h-8 items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted aria-pressed:bg-muted aria-pressed:text-foreground">{kind.id ? <span aria-hidden className={cn("size-1.5 rounded-full", kinds[kind.id].dot)} /> : null}{kind.label}<span className="tabular-nums text-muted-foreground">{periodItems.filter((item) => kind.id === null || item.kind === kind.id).length}</span></button>)}
+        </div>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label={showHighlights ? "Hide schedule highlights" : "Show schedule highlights"} aria-expanded={showHighlights} onClick={() => setShowHighlights((current) => !current)}><ChevronDown aria-hidden className={cn("size-4 transition-transform", showHighlights && "rotate-180")} /></Button>
+      </div>
+      {showHighlights && highlights.length > 0 ? <div role="region" aria-label="Schedule highlights" className="flex gap-3 overflow-x-auto px-4 py-4 sm:grid sm:grid-cols-2 sm:px-5 xl:grid-cols-4">{highlights.map((item) => <Fragment key={item.id}>{renderCalendarItem({ item, variant: "card", title: tooltip(item), className: "flex w-64 shrink-0 min-w-0 flex-col gap-2 rounded-lg border border-border bg-card p-3 sm:w-auto text-left transition-colors hover:bg-muted/30", children: <><span className="line-clamp-2 text-sm font-medium text-foreground">{item.title}</span><span className="text-xs text-muted-foreground">{formatPortalDate(item.date)} · {timeRange(item)}</span><span className={cn("mt-auto flex items-center gap-1.5 rounded px-2 py-1 text-xs", kindOf(kinds, item.kind).chip)}><span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", kindOf(kinds, item.kind).dot)} />{kindOf(kinds, item.kind).label}</span></> })}</Fragment>)}</div> : null}
+      {highlights.length === 0 ? <p role="status" className="px-5 py-4 text-sm text-muted-foreground">{query || activeKind || timing !== "all" ? "No matching entries in this period. Change the search or filters to see more." : "Nothing scheduled in this period."}</p> : null}
 
       {view === "month" ? <MonthView {...viewProps} anchor={anchor} onOpenDay={openDay} /> : null}
       {view === "week" ? <TimeGridView {...viewProps} dates={weekDateKeys(anchor)} byDate={byDate} onOpenDay={openDay} /> : null}
       {view === "day" ? <TimeGridView {...viewProps} dates={[anchor]} byDate={byDate} onOpenDay={openDay} /> : null}
       {view === "agenda" ? <AgendaView {...viewProps} anchor={anchor} byDate={byDate} /> : null}
 
-      {legend.length > 1 ? (
-        <div className="flex flex-wrap gap-4 border-t border-border px-4 py-3 text-xs text-muted-foreground">
-          {legend.map((kind) => <span key={kind} className="inline-flex items-center gap-1.5"><span aria-hidden className={cn("size-2 rounded-full", kinds[kind].dot)} />{kinds[kind].label}</span>)}
-        </div>
-      ) : null}
 
       {detail ? <ItemPanel item={selected} kinds={kinds} detail={detail} onClose={() => setSelectedId(null)} /> : null}
     </section>
@@ -308,7 +346,9 @@ function TimeGridView<Item extends PortalCalendarItem>({ items, kinds, today, re
   }, [dates.join(","), firstTimed.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="overflow-x-auto">
+    <>
+    <div className="sm:hidden"><AgendaList dates={dates} byDate={byDate} kinds={kinds} renderItem={renderItem} today={today} items={dates.flatMap((date) => byDate.get(date) ?? [])} emptyText="Nothing scheduled in this period." /></div>
+    <div className="hidden overflow-x-auto sm:block">
       <div className={cn(multi && "min-w-[44rem]")}>
         <div className="grid border-b border-border text-center text-xs" style={{ gridTemplateColumns: `3.5rem repeat(${dates.length}, minmax(0, 1fr))` }}>
           <span aria-hidden className="py-2 text-muted-foreground">GMT+8</span>
@@ -344,6 +384,7 @@ function TimeGridView<Item extends PortalCalendarItem>({ items, kinds, today, re
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -369,8 +410,8 @@ function DayColumn<Item extends PortalCalendarItem>({ dateKey, items, kinds, ren
               variant: "block",
               title: tooltip(item),
               style,
-              className: cn("absolute overflow-hidden rounded-md px-1.5 py-1 text-left text-xs", kindOf(kinds, item.kind).chip),
-              children: <><span className="block truncate font-medium">{item.title}</span><span className="block truncate opacity-70">{timeRange(item)}</span></>,
+              className: cn("absolute overflow-hidden rounded-md border border-white/60 px-2 py-2 text-left text-xs", kindOf(kinds, item.kind).chip),
+              children: <><span className="line-clamp-2 font-medium">{item.title}</span><span className="mt-1 block truncate opacity-70">{timeRange(item)}</span>{item.detail ? <span className="mt-2 block truncate opacity-70">{item.detail}</span> : null}</>,
             })}
           </Fragment>
         );

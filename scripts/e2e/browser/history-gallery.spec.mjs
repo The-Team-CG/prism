@@ -34,6 +34,24 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
       await page.goto(`${origins[ORIGIN[role]]}${path}`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('main')).toBeVisible();
       await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+      if (path === '/dashboard/calendar') {
+        await expect(page.getByRole('button', { name: 'Calendar view: Week', exact: true })).toBeVisible();
+        const search = page.getByRole('searchbox', { name: 'Search schedule' });
+        await search.fill('no-matching-calendar-entry-9c03');
+        await expect(page.getByRole('status')).toContainText('No matching entries');
+        await search.clear();
+        await page.getByRole('button', { name: 'Filter schedule timing' }).click();
+        await page.getByRole('menuitem', { name: 'Timed entries', exact: true }).click();
+        await page.getByRole('button', { name: 'Filter schedule timing' }).click();
+        await page.getByRole('menuitem', { name: 'All entries', exact: true }).click();
+        const categories = page.getByRole('group', { name: 'Schedule categories' }).getByRole('button');
+        if (await categories.count() > 1) {
+          await categories.nth(1).click();
+          await expect(categories.nth(1)).toHaveAttribute('aria-pressed', 'true');
+          await categories.first().click();
+        }
+        if (info.project.name === 'mobile') expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      }
       const name = path.replace(/^\//, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '') || 'home';
       await page.screenshot({ path: join(directory, `${String(index + 1).padStart(2, '0')}-${name}.png`), fullPage: true });
       await expect(page.locator('main')).not.toContainText(/Application error|Internal Server Error|This page could not be found/);

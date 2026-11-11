@@ -56,12 +56,12 @@ export function ClientCalendarView() {
 
   return (
     <div className="min-w-0 space-y-4">
-      <ClientRouteTabs label="Calendar views" activeId={activeTab.id} tabs={CALENDAR_TABS.map((tab) => ({ id: tab.id, label: tab.label, href: tab.href }))} />
       {items.length === 0 ? (
-        <ClientListEmpty icon={CalendarDays} {...clientCalendarEmptyCopy(portalView)} />
+        <><ClientRouteTabs label="Calendar views" activeId={activeTab.id} tabs={CALENDAR_TABS.map((tab) => ({ id: tab.id, label: tab.label, href: tab.href }))} /><ClientListEmpty icon={CalendarDays} {...clientCalendarEmptyCopy(portalView)} /></>
       ) : (
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
           <PortalCalendar
+            categoryControls={<ClientRouteTabs label="Calendar views" activeId={activeTab.id} tabs={CALENDAR_TABS.map((tab) => ({ id: tab.id, label: tab.label, href: tab.href }))} />}
             items={items}
             kinds={KIND}
             today={today}
