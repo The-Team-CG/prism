@@ -8,6 +8,7 @@ import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotific
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import type { RecordPaymentInput } from '@prism/types';
 import { nextPaymentMilestoneStatus } from '../../domain/payment-terms.policy';
+import { lockPaymentMilestone, paymentStatus, recordReceiptForPayment } from './payment-ledger.store';
 import type { BillingActor } from '../../contracts/billing-operations.types';
 import type { PaymentStatusReader } from '../../contracts/payment-status-reader.port';
 import { addDays, auditMetadata, isoDate, parseDate, requireBillingActor } from './billing-operations.utils';
@@ -46,20 +47,6 @@ function assertPaymentWithinBalance(milestone: OpsPaymentMilestone, history: Ops
 
 function assertPositivePayment(amount: number) {
   if (amount <= 0) throw new BadRequestException('Amount received must be greater than zero');
-}
-
-function paymentStatus(amountPaid: number, amount: number) {
-  if (amountPaid === amount) return 'paid';
-  if (amountPaid > 0) return 'partially_paid';
-  return 'pending';
-}
-
-async function lockPaymentMilestone(tx: Prisma.TransactionClient, milestoneId: string) {
-  if (tx.$queryRaw) {
-    // QUERY_AUDIT_RAW_SQL: lock the milestone row before applying a payment mutation.
-    await tx.$queryRaw<Array<{ id: string }>>`SELECT "id" FROM "commercial"."payment_milestones" WHERE "id" = ${milestoneId} FOR UPDATE`;
-  }
-  return tx.opsPaymentMilestone.findUnique({ where: { id: milestoneId } });
 }
 
 @Injectable()
@@ -293,6 +280,16 @@ export class PaymentOperationsService implements PaymentStatusReader {
             return duplicateReplay;
           }
           assertPaymentWithinBalance(lockedMilestone, history, input);
+          // Recording against a milestone records the money that arrived and applies all of it in one step.
+          const receipt = await recordReceiptForPayment(tx, {
+            eventId,
+            amount: input.amountReceived,
+            receivedDate: recordedPaymentDate,
+            method: input.paymentMethod,
+            referenceNumber: input.referenceNumber,
+            recordedBy: actor.name,
+            recordedById: actor.id,
+          });
           await tx.opsPaymentRecord.create({
             data: {
               id: `payrec_${randomUUID()}`,
@@ -302,6 +299,8 @@ export class PaymentOperationsService implements PaymentStatusReader {
               paymentDate: recordedPaymentDate,
               paymentMethod: input.paymentMethod,
               referenceNumber: input.referenceNumber ?? '',
+              receiptId: receipt.id,
+              recordedBy: actor.name,
               idempotencyKey: input.idempotencyKey ?? null,
               payloadHash: paymentPayloadHash,
             },

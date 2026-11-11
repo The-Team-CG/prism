@@ -55,6 +55,10 @@ function createPaymentService() {
     recordedAt: new Date('2026-06-20T01:00:00.000Z'),
   };
   const history = [existingRecord];
+  // A live receipt for another transfer, held by a different event: its reference must not be recordable again.
+  const receipts: Array<{ id: string; method: string; referenceNumber: string; referenceKey: string | null; amount: number; receivedDate: Date }> = [
+    { id: 'prcp_other', method: 'GCash', referenceNumber: 'GC-9001', referenceKey: 'gc9001', amount: 12000, receivedDate: new Date('2026-06-19T00:00:00.000Z') },
+  ];
   const billingSource = {
     id: 'bsrc_sample', eventId: 'evt_sample', sourceLabel: 'Signed conforme', status: 'pending',
     totalAmount: 100000, approvedBy: null, approvalNotes: '', createdAt: new Date(), updatedAt: new Date(),
@@ -81,6 +85,15 @@ function createPaymentService() {
         const record = { ...existingRecord, ...data, recordedAt: new Date('2026-06-21T00:00:00.000Z') };
         history.push(record as typeof existingRecord);
         return record;
+      }),
+    },
+    opsPaymentReceipt: {
+      findFirst: vi.fn(async ({ where }: { where: { method: string; referenceKey: string } }) =>
+        receipts.find((receipt) => receipt.method === where.method && receipt.referenceKey === where.referenceKey) ?? null),
+      create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        const receipt = { ...data, referenceNumber: data.referenceNumber, referenceKey: data.referenceKey } as (typeof receipts)[number];
+        receipts.push(receipt);
+        return receipt;
       }),
     },
     opsProposalVersion: { findFirst: vi.fn(async (): Promise<Record<string, unknown> | null> => null) },
@@ -110,7 +123,7 @@ function createPaymentService() {
   };
   const service = new BillingOperationsService(prisma, audit as any, notifications as any, createWorkflowCommandService(prisma), documentVault as any);
   const paymentService = new PaymentOperationsService(prisma, audit as any, notifications as any, new WorkflowCommandService());
-  return { service, paymentService, prisma, audit, notifications, history, milestone, documentVault };
+  return { service, paymentService, prisma, audit, notifications, history, milestone, documentVault, receipts };
 }
 
 function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number, storageObjectService?: StorageObjectService) {
@@ -608,6 +621,11 @@ describe('BillingOperationsService', () => {
     );
 
     expect(prisma.opsPaymentRecord.create).toHaveBeenCalledTimes(1);
+    // The money that arrived is kept as its own receipt, and the payment record is the amount applied from it.
+    expect(prisma.opsPaymentReceipt.create).toHaveBeenCalledTimes(1);
+    const receipt = prisma.opsPaymentReceipt.create.mock.calls[0][0].data;
+    expect(receipt).toMatchObject({ amount: 25000, method: 'Bank Transfer', referenceNumber: 'BNK-456', referenceKey: 'bnk456', eventId: 'evt_sample', recordedBy: 'Finance Operator' });
+    expect(prisma.opsPaymentRecord.create.mock.calls[0][0].data).toMatchObject({ receiptId: receipt.id, amountReceived: 25000 });
     expect(audit.write).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: 'evt_sample',
@@ -623,6 +641,22 @@ describe('BillingOperationsService', () => {
     expect(result.amountPaid).toBe(50000);
     expect(result.remainingBalance).toBe(50000);
   });
+  it('refuses a payment whose bank reference is already held by a live receipt, however it is written', async () => {
+    const { paymentService, prisma, audit, history } = createPaymentService();
+
+    await expect(paymentService.recordPayment(
+      'evt_sample',
+      'pay_downpayment',
+      { amountReceived: 12000, paymentDate: '2026-06-22', paymentMethod: 'GCash', referenceNumber: 'gc-9001' },
+      billingActor,
+    )).rejects.toThrow(/GC-9001.*already recorded.*prcp_other/);
+
+    expect(prisma.opsPaymentReceipt.create).not.toHaveBeenCalled();
+    expect(prisma.opsPaymentRecord.create).not.toHaveBeenCalled();
+    expect(audit.write).not.toHaveBeenCalled();
+    expect(history).toHaveLength(1);
+  });
+
   it('serves payment status through the payment status reader contract', async () => {
     const { paymentService, prisma } = createPaymentService();
 

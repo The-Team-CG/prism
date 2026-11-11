@@ -108,5 +108,8 @@ export function mapPaymentRecord(record: OpsPaymentRecord) {
     paymentMethod: record.paymentMethod,
     referenceNumber: record.referenceNumber,
     recordedAt: timestamp(record.recordedAt),
+    receiptId: record.receiptId ?? null,
+    // The reason for a reversal is PMCM-internal and travels only on the receipt view, never in this shared projection.
+    reversesRecordId: record.reversesRecordId ?? null,
   };
 }

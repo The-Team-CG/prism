@@ -6,6 +6,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- External-payment reconciliation, first slice (API): money that arrived outside P.R.I.S.M is kept as a **receipt** that PMCM finance can record, verify or reject, apply to one or more milestones (even of different events, when a client paid the wrong one), reverse, and refund. What is not applied or paid back is shown as unapplied funds. A reversal is a negative payment record that names the payment it undoes, so every existing balance stays correct and nothing is deleted. The same bank reference cannot be recorded twice, in any punctuation, and recording a payment from a milestone now creates its receipt; a likely duplicate without a reference is flagged, not blocked. Existing payments were carried over as legacy receipts. Clients see a reversed payment as "Reversed by PMCM" with no receipt and no reason. New routes under `/api/payment-receipts` (PMCM admin only); the PMCM screen, evidence upload, client statements, supplier settlement and margin reporting follow.
+
 - Local portal URLs and CORS can follow `PRISM_PUBLIC_HOST` for testing from another device, while localhost remains allowed. Supabase CLI cache files are excluded from source control.
 
 - PMCM Registration has a compact empty roster with one import entry point. Settings groups compliance fields without an empty side column and keeps notification information in its controls panel. Audit panels size to their content, and Privacy retention policies now have a full-width section below requests and legal holds.

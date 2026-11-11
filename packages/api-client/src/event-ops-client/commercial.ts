@@ -33,6 +33,7 @@ import type {
   PrismBillingSource,
   PrismBillingStatement,
   PrismPaymentMilestone,
+  PrismPaymentReceipt,
   PrismSupplier,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
@@ -45,6 +46,7 @@ import { withBase, actorPath } from "./shared";
 export function createCommercialClient(options: EventOpsClientOptions): Pick<EventOpsClient, "commercial"> {
   const event = (eventId: string, rest: string) => `/events/${eventId}${rest}`;
   const supplier = (supplierId: string, rest = "") => `/suppliers/${encodeURIComponent(supplierId)}${rest}`;
+  const receipt = (receiptId: string, rest = "") => `/payment-receipts/${encodeURIComponent(receiptId)}${rest}`;
   /** `?a=b` for a non-empty query, nothing otherwise. */
   const search = (values: object) => {
     const text = toQueryString(values as Record<string, string | number | boolean | null | undefined>);
@@ -76,6 +78,24 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismPaymentMilestone>(actorPath(event(eventId, `/payments/${milestoneId}/records`), actor), withBase(options, { method: "POST", body: input })),
       markPayment: (eventId, milestoneId, input, actor = {}) =>
         prismRequest<PrismPaymentMilestone>(actorPath(event(eventId, `/payments/${milestoneId}`), actor), withBase(options, { method: "PATCH", body: input })),
+      listPaymentReceipts: (query, init = {}) =>
+        prismRequest<PrismPaymentReceipt[]>(`/payment-receipts${search(query)}`, withBase(options, { signal: init.signal })),
+      paymentReceipt: (receiptId, init = {}) =>
+        prismRequest<PrismPaymentReceipt>(receipt(receiptId), withBase(options, { signal: init.signal })),
+      recordPaymentReceipt: (input, actor = {}) =>
+        prismRequest<PrismPaymentReceipt>(actorPath("/payment-receipts", actor), withBase(options, { method: "POST", body: input })),
+      allocatePaymentReceipt: (receiptId, input, actor = {}) =>
+        prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, "/allocations"), actor), withBase(options, { method: "POST", body: input })),
+      reversePaymentAllocation: (receiptId, recordId, input, actor = {}) =>
+        prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, `/allocations/${encodeURIComponent(recordId)}/reverse`), actor), withBase(options, { method: "POST", body: input })),
+      verifyPaymentReceipt: (receiptId, input, actor = {}) =>
+        prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, "/verify"), actor), withBase(options, { method: "POST", body: input })),
+      rejectPaymentReceipt: (receiptId, input, actor = {}) =>
+        prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, "/reject"), actor), withBase(options, { method: "POST", body: input })),
+      reversePaymentReceipt: (receiptId, input, actor = {}) =>
+        prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, "/reverse"), actor), withBase(options, { method: "POST", body: input })),
+      recordPaymentRefund: (receiptId, input, actor = {}) =>
+        prismRequest<PrismPaymentReceipt>(actorPath(receipt(receiptId, "/refunds"), actor), withBase(options, { method: "POST", body: input })),
       createSupplier: (input, actor = {}) =>
         prismRequest<PrismSupplier>(actorPath("/suppliers", actor), withBase(options, { method: "POST", body: input })),
       updateSupplier: (supplierId, input, actor = {}) =>

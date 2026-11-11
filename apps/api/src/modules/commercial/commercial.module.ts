@@ -42,6 +42,8 @@ import { SupplierWorkspaceReaderService } from './application/suppliers/supplier
 import { BillingOperationsService } from './application/billing/billing-operations.service';
 import { BillingAdjustmentService } from './application/billing/billing-adjustment.service';
 import { PaymentOperationsService } from './application/billing/payment-operations.service';
+import { PaymentReceiptService } from './application/billing/payment-receipt.service';
+import { PaymentReceiptsController } from './api/billing/payment-receipts.controller';
 import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
 import { CommunicationController } from './api/suppliers/communication.controller';
 import { CommunicationService } from './application/suppliers/communication.service';
@@ -121,6 +123,7 @@ const supplierCommandsProvider = {
     OpsSupplierWorkspaceCommandsController,
     OpsSupplierPareController,
     OpsEventBillingController,
+    PaymentReceiptsController,
     CommunicationController,
     ProposalLifecycleController,
     SupplierGapController,
@@ -155,6 +158,7 @@ const supplierCommandsProvider = {
     BillingOperationsService,
     BillingAdjustmentService,
     PaymentOperationsService,
+    PaymentReceiptService,
     PaymentRiskScheduler,
     CommunicationService,
     ProposalLifecycleService,

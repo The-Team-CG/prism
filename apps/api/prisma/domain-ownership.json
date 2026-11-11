@@ -718,7 +718,25 @@
       "table": "payment_records",
       "domain": "commercial",
       "targetSchema": "commercial",
-      "columnCount": 10
+      "columnCount": 14
+    },
+    {
+      "model": "OpsPaymentReceipt",
+      "currentSchema": "commercial",
+      "table": "payment_receipts",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 27,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsPaymentRefund",
+      "currentSchema": "commercial",
+      "table": "payment_refunds",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 12,
+      "introducedAfterCutover": true
     },
     {
       "model": "OpsBillingCorrection",

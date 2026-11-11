@@ -218,10 +218,70 @@ export interface PrismPaymentRecord {
   id: string;
   eventId: string;
   milestoneId: string;
+  /** Negative on a reversal, which undoes the payment named by reversesRecordId. */
   amountReceived: number;
   paymentDate: string;
   paymentMethod: string;
   referenceNumber: string;
+  recordedAt: string;
+  /** The receipt this amount was applied from. Absent on records that predate receipts. */
+  receiptId?: string | null;
+  reversesRecordId?: string | null;
+}
+
+export type PrismPaymentReceiptStatus = "recorded" | "verified" | "rejected" | "reversed";
+
+/** One slice of a receipt applied to a milestone. A reversed slice stays listed, with the reversal that undid it. */
+export interface PrismPaymentReceiptAllocation {
+  id: string;
+  eventId: string;
+  milestoneId: string;
+  milestoneLabel: string | null;
+  amount: number;
+  reversed: boolean;
+  reversalId: string | null;
+  reversalReason: string | null;
+  recordedAt: string;
+}
+
+export interface PrismPaymentRefund {
+  id: string;
+  amount: number;
+  refundedDate: string;
+  method: string;
+  referenceNumber: string;
+  reason: string;
+  recordedBy: string;
+  recordedAt: string;
+}
+
+/** Money that arrived outside P.R.I.S.M. `unapplied` is what is left after allocations and refunds. */
+export interface PrismPaymentReceipt {
+  id: string;
+  amount: number;
+  receivedDate: string;
+  method: string;
+  referenceNumber: string;
+  payerName: string;
+  eventId: string | null;
+  notes: string;
+  status: PrismPaymentReceiptStatus;
+  /** A receipt carried over from a payment recorded before receipts existed: no evidence, never checked. */
+  legacy: boolean;
+  evidenceObjectId: string | null;
+  verifiedAt: string | null;
+  verifiedBy: string | null;
+  verificationNotes: string | null;
+  rejectionReason: string | null;
+  reversalReason: string | null;
+  /** Another live receipt with the same amount, method, date and payer: worth a look, not a block. */
+  possibleDuplicateOfId: string | null;
+  applied: number;
+  refunded: number;
+  unapplied: number;
+  allocations: PrismPaymentReceiptAllocation[];
+  refunds: PrismPaymentRefund[];
+  recordedBy: string;
   recordedAt: string;
 }
 
