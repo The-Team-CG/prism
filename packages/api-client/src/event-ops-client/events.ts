@@ -6,6 +6,7 @@ import type {
   PrismFileRequirementsMatrix,
   PrismStoredObject,
   PrismAddendum,
+  PrismStatementOfAccount,
   PrismAddendumConformeExecution,
   PrismEventFreezeException,
   PrismEventDecision,
@@ -154,6 +155,8 @@ export function createEventsClient(
           actorPath(`/events/${eventId}/addenda`, actor),
           withBase(options),
         ),
+      statementOfAccount: (eventId, init = {}) =>
+        prismRequest<PrismStatementOfAccount>(`/events/${eventId}/statement-of-account`, withBase(options, { signal: init.signal })),
       freezeExceptions: (eventId, actor = {}) =>
         prismRequest<PrismEventFreezeException[]>(
           actorPath(`/events/${eventId}/freeze-exceptions`, actor),

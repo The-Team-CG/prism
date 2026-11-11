@@ -363,6 +363,45 @@ export interface PrismEventFinancialSummary {
   notes: string[];
 }
 
+/** One line of a statement of account. A reversed payment stays listed, marked, and is left out of every total. */
+export interface PrismStatementOfAccountLine {
+  id: string;
+  /** ISO date. */
+  date: string;
+  kind: "payment" | "credit" | "refund";
+  description: string;
+  method: string;
+  reference: string;
+  /** Always positive; the kind says which way the money went. */
+  amount: number;
+  reversed: boolean;
+}
+
+/**
+ * What a client sees of an event's money: billed, received, paid back, credit PMCM is holding, and what is still owed.
+ * It carries no reasons, notes or payer details, only amounts, dates, methods and the references the client used.
+ */
+export interface PrismStatementOfAccount {
+  eventId: string;
+  eventName: string;
+  generatedAt: string;
+  /** False until PMCM sends the billing statement: a client sees nothing before then. Everything below is then empty. */
+  available: boolean;
+  statementNumber: string | null;
+  billed: number;
+  /** Cash applied to the milestones plus credit carried from an earlier statement, reversals netted out. */
+  received: number;
+  /** Money paid back from what was held unapplied. */
+  refunded: number;
+  /** Received for this event and held, not applied to a milestone and not paid back. */
+  creditHeld: number;
+  /** Still owed on the current milestones. */
+  balance: number;
+  milestones: Array<{ id: string; label: string; dueDate: string; amount: number; paid: number; remaining: number; status: string }>;
+  /** Oldest first. */
+  lines: PrismStatementOfAccountLine[];
+}
+
 /** A milestone a receipt can be applied to: still owed, not superseded. */
 export interface PrismPaymentAllocationTarget {
   milestoneId: string;

@@ -9,6 +9,7 @@ import type {
   PrismFileRequirementTemplate,
   PrismStoredObject,
   PrismAddendum,
+  PrismStatementOfAccount,
   PrismAddendumConformeExecution,
   SignAddendumConformeExecutionInput,
   PrismEventFreezeException,
@@ -20,7 +21,7 @@ import type {
   PrismScopeChangeRequest,
   PrismEventRiskView,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
+import type { EventOpsActorQuery, EventOpsReadInit } from "./primitives";
 
 export interface EventOpsEventsContract {
   events: {
@@ -106,6 +107,8 @@ export interface EventOpsEventsContract {
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismAddendum[]>;
+    /** What a client sees of one event's money: billed, received, refunds, credit held and what is still owed. */
+    statementOfAccount(eventId: string, init?: EventOpsReadInit): Promise<PrismStatementOfAccount>;
     freezeExceptions(
       eventId: string,
       actor?: EventOpsActorQuery,
