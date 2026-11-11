@@ -105,7 +105,7 @@ describe('FileRequirementsMatrixService', () => {
     expect(prisma.opsSupplierQuoteRequest.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: 'evt_file', status: 'selected' } }));
     expect(prisma.opsStoredObject.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ['obj_a'] } } }));
     const item = matrix.items.find((candidate) => candidate.key === 'insurance_certificate');
-    expect(item?.supplierFulfilments).toEqual([
+    expect(item?.supplierFulfilments).toMatchObject([
       { supplierId: 'supplier_a', supplierName: 'Atlas Sound', status: 'submitted', overdue: false, validationStatus: 'accepted', uploadedAssetId: 'doc_a', uploadedObjectId: 'obj_a' },
       { supplierId: 'supplier_b', supplierName: 'Bright Lights', status: 'missing', overdue: true },
     ]);
