@@ -8,7 +8,7 @@ updated: "2026-11-11"
 authority: operational
 audience: [developers, reviewers, operators, agents]
 scope: "Recipient-level delivery tracking, in-app notices, acknowledgments, provider outcomes, escalation and the checks that prove them"
-last_verified: "2026-11-11; recipient inbox, acknowledgment, provider outcome and escalation behaviour covered by unit tests and PostgreSQL tests, plus a real local mail-capture round trip; no staging environment or linked Viber account exists, so no live provider delivery has been tested"
+last_verified: "2026-11-11; recipient inbox, acknowledgment, provider outcome and escalation behaviour covered by unit tests and PostgreSQL tests, a real local mail-capture round trip, and the PMCM delivery details panel exercised in a real browser against a local API (every recipient state, both escalation levels, setting a deadline); no staging environment or linked Viber account exists, so no live provider delivery has been tested"
 sources:
   - id: outbox
     resource: "apps/api/src/modules/platform-ops/application/notifications/notification-outbox.service.ts"
