@@ -4,29 +4,32 @@ title: "AI provider and model routing"
 description: "Configure Prism's live AI provider, understand which data may reach it, and switch providers or models."
 tags: [runbook, ai, providers, routing, privacy]
 status: canonical
-updated: "2026-11-09"
+updated: "2026-11-12"
 authority: operational
 audience: [developers, reviewers, agents]
 scope: "Live AI provider/model selection, the real-data gate, and the AI use cases that depend on it"
-last_verified: "2026-11-06; route selection and gateway gates reviewed in code and covered by unit tests; no live provider call has been made from this checkout"
+last_verified: "2026-11-12; static review of route configuration and existing gateway tests; live-provider qualification and deployment state not verified"
 sources:
   - id: ai-gateway
     resource: "apps/api/src/modules/platform-ops/application/ai-governance/gateway"
     title: "AI gateway route configuration, use-case registry, and enforcement"
   - id: ai-decision
-    resource: "docs/roadmap/ai-real-data-zdr-activation-decision.md"
-    title: "Real-data activation decision"
+    resource: "docs/product/ai-data-policy.md"
+    title: "Current AI data and activation policy"
+  - id: conforme-drafts
+    resource: "apps/api/src/modules/platform-ops/application/ai-governance/conforme-comms-draft.service.ts"
+    title: "Conforme draft approval, cancellation and reminder-window checks"
 ---
 # AI provider and model routing
 
 ## At a glance
 
 - **Purpose:** Configure the live AI provider and keep non-ZDR routes out of production.
-- **Authority:** Operational guide; the activation decision record owns the policy.
+- **Authority:** Operational guide; the [AI data policy](../product/ai-data-policy.md) owns activation conditions.
 - **Scope:** Provider and model selection, the real-data gate, and the use cases that use it.
 - **Use when:** Turning AI on, switching provider or model, or debugging a blocked AI call.
 - **Change when:** A provider, route profile, or use case is added or its data policy changes.
-- **Verify with:** `GET /api/health` (`aiGateway.profile`, `providerCallsEnabled`) and the gateway tests.
+- **Verify with:** `GET /health` (`aiGateway.profile`, `providerCallsEnabled`) and the gateway tests.
 
 There is no mock provider. With no provider configured, every AI call is blocked
 with `use_case_disabled`, no provider is contacted, and the health check reports
@@ -60,12 +63,13 @@ set ZDR (or use OpenRouter) before real client data is loaded.
 For a fixtures-only lockdown, set `AI_ROUTE_PROFILE=anthropic-synthetic`. It is
 never selected automatically and refuses real data.
 
-**Activation status:** on 2026-11-09 the maintainer confirmed that the Anthropic
-organization has a zero-data-retention agreement and that a provider key is in
-place. Production therefore runs the `anthropic-zdr` profile: set
-`AI_PROVIDER=anthropic`, `AI_ZDR_CONFIRMED=true` and `ANTHROPIC_API_KEY` in the
-deployment secret store and leave `AI_ALLOW_TEST_DATA_IN_PRODUCTION` unset. No
-code change is involved; local and UAT checkouts keep their own settings.
+The maintainer's recorded Anthropic ZDR attestation supports the `anthropic-zdr`
+configuration. It does not establish which settings are currently deployed.
+For an approved production route, set `AI_PROVIDER=anthropic`,
+`AI_ZDR_CONFIRMED=true` and `ANTHROPIC_API_KEY` in the deployment secret store,
+and leave `AI_ALLOW_TEST_DATA_IN_PRODUCTION` unset. Verify the deployed health
+response and runtime evidence separately. Local and UAT checkouts keep their own
+settings.
 
 Example (Anthropic with a ZDR agreement):
 
@@ -73,8 +77,10 @@ Example (Anthropic with a ZDR agreement):
     AI_ZDR_CONFIRMED=true
     ANTHROPIC_API_KEY=your-key
 
-To switch to OpenRouter, set `AI_PROVIDER=openrouter` and `OPENROUTER_API_KEY`,
-remove `AI_ZDR_CONFIRMED`, and restart. Nothing else changes.
+After qualifying the OpenRouter route below, set `AI_PROVIDER=openrouter` and
+`OPENROUTER_API_KEY`, remove `AI_ZDR_CONFIRMED`, and restart. Recheck any explicit
+`AI_ROUTE_PROFILE` and model overrides: an incompatible profile fails startup,
+and changing a model does not qualify its pinned endpoint.
 
 `AI_MODEL` replaces the model for all routes of the selected provider;
 `AI_MODEL_FAST` and `AI_MODEL_STRONG` override one tier and take precedence. The
@@ -83,7 +89,10 @@ startup sends no provider request; a request occurs only when a use case runs.
 Keep keys in the ignored local `.env` or the deployment secret store.
 
 `AI_LIVE_USE_CASES` is an optional allowlist. Empty means every registered use
-case is live once a provider is configured.
+case is live once a provider is configured; it does not disable calls. Remove
+provider configuration to block gateway calls, or use an explicit allowlist to
+narrow enabled use cases. Product approval and qualification remain separate
+from this technical selection.
 
 ## Use cases
 
@@ -121,6 +130,16 @@ placeholders filled (the supplier's own name; the client stays "our client").
 Applicant free text (an inquiry message) is untrusted input. The triage prompt
 tells the model to treat it as data, and the result is advisory with a fixed
 schema, so a hostile message can at worst skew advice a person then reads.
+
+## Conforme draft lifecycle
+
+The draft stream sends metadata while generating and reveals content after
+gateway validation. It is buffered generation, not token-by-token delivery.
+PMCM can edit a pending draft before approval, or write manually before a draft
+exists. Cancelling a saved draft records a rejection for that reminder window;
+it does not reopen generation for the same window. Failed or aborted generation
+that saved no draft can be retried. Approval rechecks eligibility and the current
+reminder window before writing to the notification outbox.
 
 ## PARE
 
@@ -173,3 +192,43 @@ audit or a stage from another request blocks approval.
 - OpenRouter's Fireworks endpoint has not been qualified against the gateway's
   forced-tool and ZDR conformance checks with a live key.
 - The only provider adapters are Anthropic and OpenRouter.
+
+## Qualification evidence
+
+Keep these outcomes separate. An implemented adapter or passing unit test does
+not prove a live route, acceptable advice, or provider interchangeability.
+
+| Outcome | Remaining evidence |
+| --- | --- |
+| Exact provider route | Provider, model, pinned endpoint, account privacy controls, processor locations, tool support, schema conformance, audit, timeout and abort behavior. Qualify OpenRouter/Fireworks with a live key before claiming its route is ready. |
+| Staging acceptance | Restore an approved database snapshot into an isolated rehearsal target, verify the AI audit and review/provenance schema changes, and record schema/invariant results, backup and rollback steps. Deploy the reviewed staging build with real client-data AI disabled and server-owned synthetic events only. Use the same fixed inputs per route and use case, full PARE orchestration, PMCM review, recorded failures, usage and measured latency. |
+| Production activation | Exact environment, data classes and use cases, provider privacy evidence, a reviewed spend cap, PMCM approval behavior, retention/access-export evidence, and an observed rollback. |
+| Provider interchangeability | Two independent providers qualified for the same data class and use case. Demonstrate a reviewed configuration-only switch, no provider fallback, complete audit evidence, and rollback without a feature or prompt change. |
+
+The retained pilot criteria are at least 20 measured calls per route and use
+case, including failed and blocked calls. All schema, provenance, privacy,
+role-denial, audit, abort and approval checks must pass. Reviewed drafts must
+contain no invented client/event facts, and at least 18 of 20 must be usable
+with no more than minor PMCM edits. The p95 latency must stay within the use
+case's timeout, and no call may exceed its output-token or daily budget. Record
+mean cost and a reviewed spend cap. Agree the fixed inputs and edit rubric with
+PMCM and the technical reviewer before measurement; these are acceptance
+criteria, not results.
+
+PMCM reviews every PARE recommendation and at least 20 communication drafts per
+route. Record schema/tool outcomes, failures, p50/p95 latency, tokens, cost and
+the exact endpoint/model. Retain technical, operational and UX acceptance
+without storing raw prompts or private client data in the report.
+
+The database rehearsal must cover both AI audit and review/provenance changes
+from the selected release. Use the current owner baselines and follow-on
+migrations; do not replay a retired migration ledger. Reconcile detected
+constraint, index or default drift before the pilot. Follow the
+[migration procedure](database-migrations.md) and verify the staging deployment
+hook or equivalent release trigger from [deployment secrets](deployment-secrets.md).
+Synthetic rehearsal, a restored staging database, and an observed deployment
+remain separate evidence.
+
+Keep a failed route disabled. Preserve `PARE_MODE` until a separate reviewed
+change makes route profiles and the use-case allowlist the sole controls.
+Changing this runbook does not retire runtime controls or activate a provider.
