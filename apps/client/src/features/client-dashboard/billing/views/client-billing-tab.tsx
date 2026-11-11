@@ -17,6 +17,7 @@ import { dashboardHref } from "../../workspace/shared";
 import { ClientFigureStrip, ClientListEmpty, type ClientFigure } from "../../shared/client-list-ui";
 import { dueState, nextPaymentFigure } from "../../home/model/client-home-summary";
 import { clientBillingSummary, clientMilestoneRemaining, clientPaymentLines } from "../model/client-billing-rules";
+import { StatementOfAccountCard } from "./statement-of-account-card";
 import { useClientBillingDisputeViewModel } from "../view-models/use-client-billing-dispute-view-model";
 import { useClientStatementDownload } from "../view-models/use-client-statement-download";
 import { createPaymentReceiptPdf, paymentReceiptFileName } from "../model/payment-receipt";
@@ -83,6 +84,8 @@ export function ClientBillingTab({
           </ul>
         </Card>
       )}
+
+      {eventId ? <StatementOfAccountCard eventId={eventId} /> : null}
 
       {billing && eventId ? (
         <BillingDisputes billing={billing} activePayments={activePayments} disputeForm={disputeForm} />
