@@ -44,14 +44,16 @@ export function NotificationPreferencesPanel({ actions }: { actions: Notificatio
     <Card className="w-full">
       <CardHeader>
         <CardTitle>Notifications</CardTitle>
-        <CardDescription>Event updates always go to {preferences?.email ?? "your account email"}. You can also get them on Viber.</CardDescription>
+        <CardDescription>Manage event updates for {preferences?.email ?? "your account email"} and Viber.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
         <Item variant="outline">
           <ItemContent>
             <ItemTitle>Email</ItemTitle>
-            <ItemDescription>Always on for every event update.</ItemDescription>
+            <ItemDescription>{preferences?.emailDelivery === "external" ? "Email delivery is configured. Delivery depends on the provider and recipient mailbox."
+              : preferences?.emailDelivery === "captured" ? "Email is captured locally and is not sent to your mailbox."
+                : "Email delivery status is unavailable."}</ItemDescription>
           </ItemContent>
           <ItemActions>
             <Switch aria-label="Email updates" checked disabled />
@@ -91,8 +93,8 @@ export function NotificationPreferencesPanel({ actions }: { actions: Notificatio
             {!preferences.viberLinked && link ? (
               <div className="w-full space-y-1 rounded-md bg-muted/50 p-3">
                 <a href={link.deepLink} className="font-semibold text-primary">Open the P.R.I.S.M chat in Viber</a>
-                <p className="text-xs text-muted-foreground">Or send this code to the P.R.I.S.M bot: <span className="font-mono font-semibold text-foreground">{link.code}</span>. It works for 15 minutes.</p>
-                <Button variant="link" size="sm" className="h-auto p-0" disabled={busy} onClick={() => void run(() => actions.mine())}>I have opened it, refresh</Button>
+                <p className="text-xs text-muted-foreground">Send this code to the P.R.I.S.M bot: <span className="font-mono font-semibold text-foreground">{link.code}</span>. It works for 15 minutes.</p>
+                <Button variant="link" size="sm" className="h-auto p-0" disabled={busy} onClick={() => void run(() => actions.mine())}>I have sent the code, refresh</Button>
               </div>
             ) : null}
           </Item>

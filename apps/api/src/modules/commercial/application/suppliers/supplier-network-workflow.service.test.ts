@@ -468,7 +468,7 @@ describe('SupplierNetworkWorkflowService', () => {
   });
 
   it('leaves an acknowledged schedule revision unchanged when PMCM republishes identical details', async () => {
-    const { service, request, prisma, audit, getSchedule } = createService();
+    const { service, request, prisma, audit, getSchedule, notify } = createService();
     request.status = 'selected';
     request.assignmentStatus = 'confirmed';
     const input = {
@@ -491,5 +491,7 @@ describe('SupplierNetworkWorkflowService', () => {
     expect(prisma.opsSupplierSchedule.upsert).toHaveBeenCalledTimes(1);
     expect(prisma.opsSupplierQuoteRequest.updateMany).toHaveBeenCalledTimes(1);
     expect(audit).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ action: { kind: 'supplier_schedule', requestId: request.id, revision: 1 } }), expect.anything());
   });
 });

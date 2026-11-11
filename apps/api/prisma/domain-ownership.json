@@ -812,6 +812,24 @@
       "introducedAfterCutover": true
     },
     {
+      "model": "OpsNotificationDelivery",
+      "currentSchema": "platform_ops",
+      "table": "notification_deliveries",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 15,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsNotificationProviderOutcome",
+      "currentSchema": "platform_ops",
+      "table": "notification_provider_outcomes",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 3,
+      "introducedAfterCutover": true
+    },
+    {
       "model": "OpsNotificationLog",
       "currentSchema": "trust_ops",
       "table": "notification_logs",

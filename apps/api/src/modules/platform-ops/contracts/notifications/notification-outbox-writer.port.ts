@@ -1,4 +1,5 @@
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import type { NotificationAction } from '@prism/types';
 
 export type NotificationOutboxChannel = 'email' | 'viber' | 'zoom' | 'canva' | 'storage' | 'ai';
 
@@ -9,6 +10,7 @@ export interface NotificationOutboxWriteInput {
   channel?: NotificationOutboxChannel;
   correlationId?: string;
   idempotencyKey?: string;
+  action?: NotificationAction;
 }
 
 export interface NotificationOutboxWriter {

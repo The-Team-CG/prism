@@ -1,15 +1,135 @@
-import { randomUUID } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '@prism/kernel/database';
 import type { Prisma } from '@prisma/client';
 import { NotificationOutboxService } from '../../src/modules/platform-ops/application/notifications/notification-outbox.service';
 import type { NotificationDeliveryPort } from '../../src/modules/platform-ops/contracts/notifications/notification-delivery.port';
+import { NotificationRecipientDeliveryService } from '../../src/modules/platform-ops/application/notifications/notification-recipient-delivery.service';
+import { NotificationInboxService } from '../../src/modules/platform-ops/application/notifications/notification-inbox.service';
+import { NotificationPreferenceService } from '../../src/modules/platform-ops/application/notifications/notification-preference.service';
+import { NotificationProviderOutcomeService } from '../../src/modules/platform-ops/application/notifications/notification-provider-outcome.service';
+import { ViberBotClient } from '../../src/modules/platform-ops/infrastructure/notifications/viber-bot.client';
+import { NotificationEscalationService } from '../../src/modules/platform-ops/application/notifications/notification-escalation.service';
+import { MailpitMailTransport } from '../../src/kernel/mail/mailpit-mail-transport';
+import { MailNotificationDeliveryAdapter } from '../../src/modules/platform-ops/infrastructure/notifications/mail-notification-delivery.adapter';
 
 const url = process.env.P0_TEST_DATABASE_URL?.trim();
 const live = Boolean(url && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/prism_p0(?:\?|$)/.test(url));
 if (url && !live) throw new Error('Notification tests require isolated 127.0.0.1:55437/prism_p0');
 
 describe.skipIf(!live)('durable notification delivery', () => {
+  it.skipIf(process.env.PRISM_COMMS_MAILPIT_URL !== 'http://127.0.0.1:55439')('delivers durable work through real local mail capture and records the recipient read and acknowledgment', async () => {
+    const prisma = new PrismaService();
+    const recipient = `comms-${randomUUID()}@example.test`;
+    const message = 'Your event instruction is ready for review.';
+    const adapter = new MailNotificationDeliveryAdapter(new MailpitMailTransport('http://127.0.0.1:55439'), {} as never, new NotificationRecipientDeliveryService(prisma));
+    const outbox = new NotificationOutboxService(prisma, adapter);
+    const row = await outbox.queue(undefined, recipient, message);
+    try {
+      expect((await outbox.processQueued()).find((entry) => entry.id === row.id)).toMatchObject({ status: 'sent' });
+      const delivery = await prisma.opsNotificationDelivery.findFirstOrThrow({ where: { notificationId: row.id } });
+      expect(delivery.providerReceipt).toMatch(/^mailpit:/);
+      const captured = await fetch(`http://127.0.0.1:55439/api/v1/message/${encodeURIComponent(delivery.providerReceipt!.slice('mailpit:'.length))}`);
+      expect(captured.ok).toBe(true);
+      expect(await captured.json()).toMatchObject({ Text: message });
+      const inbox = new NotificationInboxService(prisma, {} as never, { write: vi.fn() } as never);
+      const actor = { id: 'mail-test', role: 'client', email: recipient, name: 'Test recipient' } as never;
+      const [notice] = await inbox.mine(actor);
+      await inbox.markRead(notice.id, notice.version, actor);
+      await inbox.acknowledge(notice.id, notice.version, actor);
+      expect((await inbox.mine(actor))[0]).toMatchObject({ message, readAt: expect.any(String), acknowledgedAt: expect.any(String) });
+    } finally { await prisma.opsNotificationLog.delete({ where: { id: row.id } }); await prisma.$disconnect(); }
+  });
+  it('reconciles signed Viber callbacks arriving before acceptance without rounding or status regression', async () => {
+    const prisma = new PrismaService();
+    const token = '4912661846655238145';
+    const secret = 'isolated-viber-test-secret';
+    const bot = new ViberBotClient({ authToken: secret, botUri: 'test', senderName: 'Test' });
+    const preferences = new NotificationPreferenceService(prisma, bot);
+    const outcomes = new NotificationProviderOutcomeService(prisma, {} as never);
+    const row = await new NotificationOutboxService(prisma, { deliver: vi.fn() }).queue(undefined, 'viber@example.test', 'Test', 'viber');
+    async function callback(event: string) {
+      const raw = Buffer.from(`{"event":"${event}","message_token":${token}}`);
+      const signature = createHmac('sha256', secret).update(raw).digest('hex');
+      await preferences.handleViberCallback(raw, signature);
+    }
+    try {
+      const raw = Buffer.from(`{"event":"seen","message_token":${token}}`);
+      await expect(preferences.handleViberCallback(raw, '0'.repeat(64))).rejects.toThrow('signature');
+      expect(await prisma.opsNotificationProviderOutcome.count({ where: { receipt: token } })).toBe(0);
+      await callback('seen');
+      await new NotificationRecipientDeliveryService(prisma, outcomes).deliver(row.id, async () => ({ status: 'resolved', addresses: ['viber@example.test'] }), async () => ({ status: 'accepted', receipt: token }));
+      await callback('delivered');
+      expect(await prisma.opsNotificationDelivery.findFirstOrThrow({ where: { notificationId: row.id } })).toMatchObject({ providerReceipt: token, providerOutcome: 'seen', acknowledgedAt: null });
+      await callback('failed'); await callback('seen');
+      expect(await prisma.opsNotificationDelivery.findFirstOrThrow({ where: { notificationId: row.id } })).toMatchObject({ providerOutcome: 'failed', acknowledgedAt: null });
+    } finally {
+      await prisma.opsNotificationLog.delete({ where: { id: row.id } });
+      await prisma.opsNotificationProviderOutcome.deleteMany({ where: { receipt: token } });
+      await prisma.$disconnect();
+    }
+  });
+  it('persists independent version-bound recipient acknowledgments in PostgreSQL', async () => {
+    const prisma = new PrismaService();
+    const outbox = new NotificationOutboxService(prisma, { deliver: vi.fn() });
+    const row = await outbox.queue(undefined, 'PMCM Admin', 'Review the current instruction');
+    try {
+      await new NotificationRecipientDeliveryService(prisma).deliver(row.id, async () => ({ status: 'resolved', addresses: ['a@example.test', 'b@example.test'] }), async () => ({ status: 'accepted', receipt: randomUUID() }));
+      const audit = { write: vi.fn(async () => undefined) };
+      const inbox = new NotificationInboxService(prisma, {} as never, audit as never);
+      const actor = { id: 'test-user-a', role: 'client', email: 'a@example.test', name: 'A' } as never;
+      const [notice] = await inbox.mine(actor);
+      const other = await prisma.opsNotificationDelivery.findFirstOrThrow({ where: { notificationId: row.id, recipient: 'b@example.test' } });
+      await expect(inbox.acknowledge(other.id, notice.version, actor)).rejects.toThrow('not found');
+      await expect(inbox.acknowledge(notice.id, '0'.repeat(64), actor)).rejects.toThrow('changed');
+      const read = await inbox.markRead(notice.id, notice.version, actor);
+      expect((await prisma.opsNotificationDelivery.findUniqueOrThrow({ where: { id: notice.id } })).acknowledgedAt).toBeNull();
+      expect(await inbox.markRead(notice.id, notice.version, actor)).toEqual(read);
+      await inbox.acknowledge(notice.id, notice.version, actor);
+      await inbox.acknowledge(notice.id, notice.version, actor);
+      expect((await prisma.opsNotificationDelivery.findUniqueOrThrow({ where: { id: notice.id } })).acknowledgedAt).toBeInstanceOf(Date);
+      expect((await prisma.opsNotificationDelivery.findUniqueOrThrow({ where: { id: notice.id } })).readAt?.toISOString()).toBe(read.readAt);
+      expect((await prisma.opsNotificationDelivery.findUniqueOrThrow({ where: { id: other.id } })).acknowledgedAt).toBeNull();
+      expect(audit.write).toHaveBeenCalledTimes(1);
+      const dueAt = new Date(Date.now() + 60_000).toISOString();
+      await expect(inbox.requireAcknowledgment(other.id, { dueAt, reason: 'Critical instruction' }, actor)).rejects.toThrow('Only PMCM');
+      await inbox.requireAcknowledgment(other.id, { dueAt, reason: 'Critical instruction' }, { id: 'admin', role: 'pmcm-admin', email: 'admin@example.test', name: 'PMCM' } as never);
+      const escalation = new NotificationEscalationService(prisma, outbox, audit as never);
+      const now = new Date(Date.now() + 61_000);
+      const results = await Promise.all([escalation.escalateDue(now), escalation.escalateDue(now)]);
+      expect(results.reduce((sum, result) => sum + result.escalated, 0)).toBe(1);
+      expect(await prisma.opsNotificationLog.count({ where: { idempotencyKey: { startsWith: `notification-escalation:${other.id}:` } } })).toBe(1);
+      expect((await prisma.opsNotificationDelivery.findUniqueOrThrow({ where: { id: other.id } })).escalatedAt).toBeInstanceOf(Date);
+      expect(await escalation.escalateDue(now)).toEqual({ escalated: 0 });
+    } finally {
+      const deliveries = await prisma.opsNotificationDelivery.findMany({ where: { notificationId: row.id }, select: { id: true } });
+      await prisma.opsNotificationLog.deleteMany({ where: { OR: deliveries.map((entry) => ({ idempotencyKey: { startsWith: `notification-escalation:${entry.id}:` } })) } });
+      await prisma.opsNotificationLog.delete({ where: { id: row.id } });
+      await prisma.$disconnect();
+    }
+  });
+  it('persists recipient acceptance across retries in PostgreSQL', async () => {
+    const prisma = new PrismaService();
+    const key = `p1_recipients_${randomUUID()}`;
+    const outbox = new NotificationOutboxService(prisma, { deliver: vi.fn() });
+    const row = await outbox.queue(undefined, 'PMCM Admin', 'Test', 'email', { idempotencyKey: key });
+    const delivery = new NotificationRecipientDeliveryService(prisma);
+    const resolve = vi.fn(async () => ({ status: 'resolved' as const, addresses: ['a@example.test', 'b@example.test'] }));
+    const send = vi.fn(async (address: string) => address === 'a@example.test' ? { status: 'accepted' as const, receipt: 'accepted-a' } : { status: 'retryable_failure' as const });
+    try {
+      await expect(delivery.deliver(row.id, resolve, send)).resolves.toMatchObject({ status: 'retryable_failure' });
+      await expect(delivery.deliver(row.id, resolve, send)).resolves.toMatchObject({ status: 'retryable_failure' });
+      expect(resolve).toHaveBeenCalledTimes(2);
+      expect(send.mock.calls.filter(([address]) => address === 'a@example.test')).toHaveLength(1);
+      expect(await prisma.opsNotificationDelivery.findMany({ where: { notificationId: row.id }, orderBy: { recipient: 'asc' } })).toMatchObject([
+        { recipient: 'a@example.test', status: 'accepted', attempts: 1 },
+        { recipient: 'b@example.test', status: 'pending', attempts: 2 },
+      ]);
+    } finally {
+      await prisma.opsNotificationLog.delete({ where: { id: row.id } });
+      await prisma.$disconnect();
+    }
+  });
   it('claims once, binds content and retries with provider idempotency', async () => {
     const prisma = new PrismaService();
     const prefix = `p1_delivery_${randomUUID()}`;

@@ -716,6 +716,11 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
           lateFlagReset: lateFlagReset.count === 1,
         },
       }, { prisma: tx, actorId: actor.id, correlationId: `supplier-schedule:${schedule.id}` });
+      const contact = await tx.opsSupplier.findUnique({ where: { id: request.supplierId! }, select: { email: true } });
+      if (contact?.email?.trim()) await writeNotification(this.notificationOutboxWriter, eventId, contact.email.trim(),
+        `Supplier schedule revision ${schedule.revision} is ready. Review the ingress and egress times and confirm this revision in your supplier booking.`, 'email',
+        { idempotencyKey: `supplier-schedule:${schedule.id}:r${schedule.revision}`, action: { kind: 'supplier_schedule', requestId: request.id, revision: schedule.revision } },
+        { prisma: tx, actorId: actor.id, correlationId: `supplier-schedule:${schedule.id}:r${schedule.revision}` });
       return { schedule, supplierName: request.supplierName };
     });
     return mapSupplierSchedule(result.schedule, result.supplierName);

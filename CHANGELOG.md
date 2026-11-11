@@ -6,6 +6,13 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Delivery outcomes are tracked beyond provider acceptance: PMCM can refresh an email's Resend status (delivered, bounced, complained and so on), and signed Viber callbacks record delivered, seen or failed against the right recipient even when they arrive before the send is recorded. Outcomes only move forward.
+- PMCM can require an acknowledgment by a deadline from the notification delivery details. A sweep escalates each overdue, unacknowledged recipient to PMCM exactly once per deadline, even with several API instances.
+- Notices now carry a link into the event section they are about (billing, documents or floor plan for clients, the booking or Files for suppliers, the event workspace tab for PMCM) in each portal's Notifications page. The operating guide is `docs/runbooks/operational-communications.md`; live provider delivery is not yet tested because no staging environment or linked Viber account exists.
+- PMCM can inspect recipient-level email and Viber provider acceptance and retry failed deliveries; recipients already accepted are not resent on retries.
+- Viber delivery receipts retain their full numeric identifier for accurate provider-event correlation.
+- Notification settings distinguish external email configuration from local mail capture, so test messages are not presented as mailbox delivery.
+- Signed-in clients, suppliers, coordinators, and PMCM can see their own notification receipts and acknowledge the exact notice independently; event access is rechecked before displaying or acknowledging it.
 - PMCM can assign file requirements to selected suppliers, review their uploads, and see fulfillment in supplier readiness; suppliers can submit replacements and see review reasons and previous versions.
 
 - Local portal URLs and CORS can follow `PRISM_PUBLIC_HOST` for testing from another device, while localhost remains allowed. Supabase CLI cache files are excluded from source control.
