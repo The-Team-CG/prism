@@ -46,7 +46,7 @@ const TIER_CLASSES: Record<StatusTier, string> = {
 };
 
 export function statusClass(status: string): string {
-  return TIER_CLASSES[STATUS_MAP[status] ?? "default"];
+  return TIER_CLASSES[STATUS_MAP[status.trim().toLowerCase().replace(/[ -]/g, "_")] ?? "default"];
 }
 
 export interface StatusBadgeProps {

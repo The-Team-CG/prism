@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismEvent } from "@prism/types";
 
@@ -19,10 +19,20 @@ const events = [
 afterEach(() => cleanup());
 
 function rowFor(name: string) {
-  return screen.getAllByText(name, { selector: "p" })[0]!.closest("tr") as HTMLElement;
+  return screen.getByRole("link", { name }).closest("tr") as HTMLElement;
 }
 
 describe("EventRegister attention column", () => {
+  it("opens an event through its named row link while leaving attention labels distinct", () => {
+    const onOpenEvent = vi.fn();
+    render(<EventRegister events={events} onOpenEvent={onOpenEvent} />);
+    const link = screen.getByRole("link", { name: "Ayala Summit" });
+    expect(link.getAttribute("href")).toBe("/dashboard/events/evt_a/overview");
+    fireEvent.click(link);
+    expect(onOpenEvent).toHaveBeenCalledWith("evt_a");
+    expect(screen.queryByRole("link", { name: /Open event/ })).toBeNull();
+  });
+
   it("shows what is overdue on the event that has it, says nothing is overdue on a clear one, and stays blank until the data loads", () => {
     const attention = new Map([["evt_a", ["2 payments overdue", "1 unread message"]], ["evt_b", []]]);
     const { rerender } = render(<EventRegister events={events} attention={attention} onOpenEvent={() => undefined} />);

@@ -40,7 +40,7 @@ export function QrPassSheet({ eventId }: { eventId: string }) {
           <p className="text-xs text-muted-foreground">Optional: guests with an email get a QR pass. Name search and headcount check-in keep working for everyone else.</p>
         </div>
         <div className="flex gap-2">
-          <button type="button" disabled={busy} onClick={() => void run(() => qrPassRepository.issue(eventId))} className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground">Issue passes</button>
+          <button type="button" disabled={busy} onClick={() => void run(() => qrPassRepository.issue(eventId))} className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted">Issue passes</button>
           {passes.length ? <button type="button" onClick={() => window.print()} className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold">Print</button> : null}
         </div>
       </div>

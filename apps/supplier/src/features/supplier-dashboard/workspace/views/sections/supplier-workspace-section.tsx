@@ -137,7 +137,7 @@ export function SupplierWorkspaceSection(props: SupplierWorkspaceSectionProps) {
   if (props.section !== "requests" && props.section !== "quotations") return content;
   return (
     <div className="space-y-5">
-      <nav aria-label="Requests and quotes" className="flex flex-wrap gap-2">
+      <nav aria-label="Requests and quotes" className="flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-muted p-1">
         {([
           { section: "requests", label: "Requests" },
           { section: "quotations", label: "Submitted quotes" },
@@ -147,7 +147,7 @@ export function SupplierWorkspaceSection(props: SupplierWorkspaceSectionProps) {
             href={supplierSectionHref(item.section)}
             aria-current={props.section === item.section ? "page" : undefined}
             className={props.section === item.section
-              ? "rounded-md bg-foreground px-3 py-2 text-sm font-medium text-background"
+              ? "rounded-md bg-card px-3 py-2 text-sm font-medium text-foreground shadow-sm"
               : "rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"}
           >
             {item.label}

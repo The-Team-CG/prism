@@ -134,7 +134,6 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
 /** Planning is one sidebar item with five views; the tabs are the way between them. */
 const PLANNING_TABS: Array<{ route: ClientDashboardRoute; label: string }> = [
   { route: "progress", label: "Progress" },
-  { route: "schedule", label: "Schedule" },
   { route: "actions", label: "Actions" },
   { route: "details", label: "Details" },
   { route: "changes", label: "Changes" },

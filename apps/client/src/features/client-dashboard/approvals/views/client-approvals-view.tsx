@@ -84,7 +84,7 @@ export function ClientApprovalsView() {
                 title={item.title}
                 meta={item.detail}
                 status={formatStatusLabel(item.status)}
-                action="Review"
+                action={item.actionable ? "Review" : undefined}
                 href={selectedEvent ? dashboardHref(item.route, selectedEvent.id) : undefined}
               />
             );
@@ -140,7 +140,7 @@ function PortalApprovals({
               title={item.title}
               meta={`${item.event.eventName} · ${item.detail}`}
               status={formatStatusLabel(item.status)}
-              action="Review"
+              action={item.actionable ? "Review" : undefined}
               href={dashboardHref(item.route, item.event.id)}
             />
           ))}

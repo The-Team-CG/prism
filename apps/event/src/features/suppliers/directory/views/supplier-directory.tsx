@@ -6,7 +6,6 @@ import { ChevronDown, Plus, Users } from "lucide-react";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
-import { SegmentedControl } from "@/features/pmcm-kit";
 import type { CreateSupplierInput, PrismSupplierCategory } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { SupplierApplicationsInboxView } from "@/features/suppliers/applications";
@@ -141,20 +140,9 @@ function SupplierDirectoryToolbar({ tier, applicationsOpen, createOpen, createDi
   onToggleApplications: () => void;
   onToggleCreate: () => void;
 }) {
-  const tiers: Array<[CreateSupplierInput["tier"] | undefined, string]> = [
-    [undefined, "All suppliers"],
-    ["tier_1", "Tier 1"],
-    ["tier_2", "Tier 2"],
-    ["pending_first_event", "First event pending"],
-  ];
   return (
     <div id="supplier-directory-heading" tabIndex={-1} className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3 focus:outline-none">
-      <SegmentedControl
-        label="Supplier tier views"
-        options={tiers.map(([value, text]) => ({ value: value ?? "all", label: text }))}
-        value={tier ?? "all"}
-        onChange={(next) => onTierChange(next === "all" ? undefined : (next as CreateSupplierInput["tier"]))}
-      />
+      <h2 className="text-base font-semibold">Supplier directory</h2>
       <div className="flex items-center gap-2">
         <Button type="button" variant="ghost" size="sm" aria-expanded={applicationsOpen} aria-controls="supplier-applications-panel" onClick={onToggleApplications}><Users className="size-3.5" />Applications<ChevronDown className={`size-3.5 ${applicationsOpen ? "rotate-180" : ""}`} /></Button>
         <Button type="button" size="sm" variant={createOpen ? "outline" : "default"} disabled={createDisabled} onClick={onToggleCreate}>{createOpen ? "Cancel" : <><Plus className="size-3.5" />New supplier</>}</Button>

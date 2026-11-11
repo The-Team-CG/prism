@@ -117,7 +117,7 @@ export function clientBreadcrumbTrail(input: {
   route: ClientDashboardRoute;
 }): string[] {
   if (input.isEventScopedView) return ["My events", clientEventSectionLabel(input.route)];
-  const parent = input.portalView?.startsWith("dashboard-") ? "Home" : PORTAL_TRAIL_PARENT[input.route] ?? "Home";
+  const parent = PORTAL_TRAIL_PARENT[input.route] ?? "Home";
   const current = input.portalView ? CLIENT_PORTAL_VIEW_META[input.portalView].title : undefined;
   return current && current !== parent ? [parent, current] : [parent];
 }

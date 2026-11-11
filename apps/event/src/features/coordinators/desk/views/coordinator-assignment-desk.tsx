@@ -545,7 +545,7 @@ function CoordinatorCandidateItem({
   const { assignedHere, otherRole, acknowledgement } = candidateAssignmentState(eventAssignments, coordinator.id, role);
   const actionLabel = candidateActionLabel(assignedHere, Boolean(conflict));
   return (
-    <Item role="group" aria-label={`${role}: ${coordinator.name}`} variant="outline" className="items-start">
+    <Item role="group" aria-label={`${role}: ${coordinator.name}`} variant="outline" className="min-w-0 flex-wrap items-start">
       <ItemMedia>
         <Avatar className="size-10 border border-border">
           <AvatarFallback className="bg-card text-xs font-semibold text-foreground">
@@ -553,7 +553,7 @@ function CoordinatorCandidateItem({
           </AvatarFallback>
         </Avatar>
       </ItemMedia>
-      <ItemContent className="min-w-0">
+      <ItemContent className="min-w-0 basis-[calc(100%-4rem)] sm:basis-0">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <ItemTitle className="min-w-0 truncate">{coordinator.name}</ItemTitle>
           <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${conflict ? "text-attention" : "text-success"}`}>
@@ -579,8 +579,8 @@ function CoordinatorCandidateItem({
           </p>
         ) : null}
       </ItemContent>
-      <ItemActions>
-        <Button size="sm" disabled={busy || assignedHere} onClick={() => onAssign(coordinator, role)} variant={assignedHere ? "outline" : "default"}>
+      <ItemActions className="w-full justify-end sm:w-auto">
+        <Button size="sm" disabled={busy || assignedHere} onClick={() => onAssign(coordinator, role)} variant="outline">
           <UserCheck className="size-3.5" />
           {actionLabel}
         </Button>

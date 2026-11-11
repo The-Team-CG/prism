@@ -19,7 +19,7 @@ export function ClientFinalSummaryView() {
       <Card key={item.label} className="gap-1 px-4 py-4">
         <p className="text-xs font-semibold text-muted-foreground">{item.label}</p>
         <p className="mt-2 text-lg font-semibold text-foreground">{item.value}</p>
-        <div className="mt-3"><StatusBadge status={item.status} label={formatStatusLabel(item.status)} /></div>
+        {item.value !== formatStatusLabel(item.status) ? <div className="mt-3"><StatusBadge status={item.status} label={formatStatusLabel(item.status)} /></div> : null}
       </Card>
     ))}
   </div>

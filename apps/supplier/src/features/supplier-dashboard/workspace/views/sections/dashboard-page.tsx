@@ -5,7 +5,7 @@ import { ArrowRight, ChevronDown } from "lucide-react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismSupplierQuote, PrismSupplierReadinessItem, PrismSupplierReadinessBoard } from "@prism/types";
 import { quoteDeadlineUrgency, readinessConcernLabel, readinessSetupLabel } from "../../model/supplier-workspace-rules";
-import { splitSupplierNextSteps, supplierNextStep, supplierStepFigure, supplierTodaySummary, supplierWorkHref } from "../../model/supplier-next-step";
+import { groupSupplierNextSteps, splitSupplierNextSteps, supplierNextStep, supplierStepFigure, supplierStepGroupTitle, supplierTodaySummary, supplierWorkHref } from "../../model/supplier-next-step";
 import { Button } from "@prism/ui/components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@prism/ui/components/collapsible";
 import { PrismEmptyLine, PrismHero, PrismPageColumn, PrismSection } from "@prism/ui/page-blocks";
@@ -54,7 +54,7 @@ function ReadinessRow({ item, hasQuote }: { item: PrismSupplierReadinessItem; ha
           <div className="flex shrink-0 flex-col items-end">
             <Link
               href={supplierWorkHref(item)}
-              className="inline-flex min-h-11 items-center rounded-md text-sm font-semibold text-primary outline-none hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-primary sm:min-h-9"
+              className="inline-flex min-h-11 items-center rounded-md text-sm font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary sm:min-h-9"
             >
               {next.action}<span className="sr-only"> for {item.category} at {item.eventName}</span>
             </Link>
@@ -71,23 +71,38 @@ function ReadinessRow({ item, hasQuote }: { item: PrismSupplierReadinessItem; ha
 }
 
 /** The lead: the supplier's most urgent step, with how long it has left (or how late it is) and its one action. */
-function TodayLead({ item, hasQuote }: { item: PrismSupplierReadinessItem; hasQuote: boolean }) {
+function TodayLead({ item, hasQuote, count = 1 }: { item: PrismSupplierReadinessItem; hasQuote: boolean; count?: number }) {
   const next = supplierNextStep(item, hasQuote);
   const urgency = quoteDeadlineUrgency(item);
   return (
     <PrismHero
       label={["Your next step", nextStepWhen(item), urgency === "overdue" ? "overdue" : null].filter(Boolean).join(" · ")}
-      title={next.title}
-      meta={`${item.eventName ?? "Assigned event"} · ${item.category}`}
-      figure={supplierStepFigure(item)}
+      title={supplierStepGroupTitle(next.title, count)}
+      meta={count === 1 ? `${item.eventName ?? "Assigned event"} · ${item.category}` : "Choose a booking below to continue."}
+      figure={count === 1 ? supplierStepFigure(item) : undefined}
     >
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
         <p className="min-w-0 flex-1 basis-64 text-sm text-ink-foreground/70">{next.detail}</p>
-        <Button asChild>
+        {count === 1 ? <Button asChild>
           <Link href={supplierWorkHref(item)}>{next.action}<ArrowRight className="size-4" /><span className="sr-only"> for {item.category} at {item.eventName}</span></Link>
-        </Button>
+        </Button> : null}
       </div>
     </PrismHero>
+  );
+}
+
+function BookingChoices({ items, title, hasQuote }: {
+  items: PrismSupplierReadinessItem[];
+  title: string;
+  hasQuote: (item: PrismSupplierReadinessItem) => boolean;
+}) {
+  return (
+    <details className="rounded-lg bg-card">
+      <summary className="cursor-pointer px-5 py-4 text-sm font-semibold">{title}</summary>
+      <ul className="divide-y divide-border">
+        {items.map((item) => <ReadinessRow key={item.id} item={item} hasQuote={hasQuote(item)} />)}
+      </ul>
+    </details>
   );
 }
 
@@ -100,7 +115,8 @@ export function DashboardPage({ readinessBoard, quoteByRequest }: {
   if (!steps) {
     return <p role="status" className="text-sm text-muted-foreground">We could not load your work. Use Refresh above to try again.</p>;
   }
-  const [lead, ...more] = steps.yourTurn;
+  const [leadGroup, ...more] = groupSupplierNextSteps(steps.yourTurn, hasQuote);
+  const lead = leadGroup?.items[0];
   const nothingAtAll = !steps.yourTurn.length && !steps.waiting.length;
   return (
     <PrismPageColumn>
@@ -108,12 +124,23 @@ export function DashboardPage({ readinessBoard, quoteByRequest }: {
         <p className="text-base text-muted-foreground">{supplierTodaySummary(steps.yourTurn.length, steps.waiting.length)}</p>
         {readinessBoard ? <p className="text-xs text-muted-foreground">Updated {formatPortalDateTime(readinessBoard.generatedAt)}</p> : null}
       </div>
-      {lead ? <TodayLead item={lead} hasQuote={hasQuote(lead)} /> : null}
+      {lead ? <TodayLead item={lead} hasQuote={hasQuote(lead)} count={leadGroup.items.length} /> : null}
+      {leadGroup && leadGroup.items.length > 1 ? (
+        <div className="rounded-lg border border-border">
+          <BookingChoices items={leadGroup.items} title={`Choose from ${leadGroup.items.length} bookings`} hasQuote={hasQuote} />
+        </div>
+      ) : null}
       {nothingAtAll ? <PrismEmptyLine>No requests or booking updates to review. New work from PMCM will appear here.</PrismEmptyLine> : null}
       {more.length ? (
-        <PrismSection id="supplier-also-yours" title="Also needs you" count={more.length} flush>
+        <PrismSection id="supplier-also-yours" title="Also needs you" count={more.reduce((count, group) => count + group.items.length, 0)} flush>
           <ul className="divide-y divide-border">
-            {more.map((item) => <ReadinessRow key={item.id} item={item} hasQuote={hasQuote(item)} />)}
+            {more.map((group) => group.items.length === 1 ? (
+              <ReadinessRow key={group.title} item={group.items[0]} hasQuote={hasQuote(group.items[0])} />
+            ) : (
+              <li key={group.title}>
+                <BookingChoices items={group.items} title={supplierStepGroupTitle(group.title, group.items.length)} hasQuote={hasQuote} />
+              </li>
+            ))}
           </ul>
         </PrismSection>
       ) : null}

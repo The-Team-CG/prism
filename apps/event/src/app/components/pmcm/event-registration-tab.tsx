@@ -78,7 +78,7 @@ function PlatformEmptyState({ onEdit }: { onEdit: () => void }) {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button type="button" onClick={onEdit}>
+          <Button type="button" variant="outline" onClick={onEdit}>
             Configure platform
           </Button>
         </EmptyContent>

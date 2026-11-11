@@ -48,4 +48,15 @@ describe("client-approvals-rules", () => {
     expect(approvalStatusKind("pending review")).toBe("pending");
     expect(approvalStatusKind("in_review")).toBe("neutral");
   });
+
+  it("offers review only for an issued, open proposal and puts it first", () => {
+    const pendingEvent = event({ clientPortalStatus: "unlocked", proposalClientStatus: "pending" });
+    const issued = [{ id: "proposal-1", type: "proposal", status: "issued", uploadedAt: "2026-11-12T00:00:00Z" }] as PrismDocument[];
+    expect(buildApprovalItems(pendingEvent, []).some((item) => item.actionable)).toBe(false);
+    const open = buildApprovalItems(pendingEvent, issued);
+    expect(open.filter((item) => item.actionable).map((item) => item.title)).toEqual(["Proposal"]);
+    expect(filterApprovalItems([...open].reverse())[0].title).toBe("Proposal");
+    expect(buildApprovalItems({ ...pendingEvent, proposalClientStatus: "approved" }, issued).some((item) => item.actionable)).toBe(false);
+    expect(buildApprovalItems({ ...pendingEvent, archived: true }, issued).some((item) => item.actionable)).toBe(false);
+  });
 });

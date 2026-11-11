@@ -22,19 +22,24 @@ export function EventDashboardSettingsSectionView() {
   } = useEventDashboardLoadedRouteViewModel();
   return (
     <div className="space-y-5">
-      <EventSettingsWorkspace
+      <nav aria-label="Settings sections" className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+        <a href="#workspace-settings" className="hover:text-foreground">Workspace</a>
+        {isPmcmAdmin(session.role) ? <><a href="#event-controls" className="hover:text-foreground">Event controls</a><a href="#compliance-settings" className="hover:text-foreground">Compliance</a><a href="#planning-settings" className="hover:text-foreground">Planning templates</a><a href="#integrations-settings" className="hover:text-foreground">Integrations</a></> : null}
+        <a href="#notification-settings" className="hover:text-foreground">Notifications</a>
+      </nav>
+      <section id="workspace-settings" className="scroll-mt-6"><EventSettingsWorkspace
         session={session}
         selectedEvent={selectedEvent}
         onToggleClientEventDayView={toggleClientEventDayView}
         onSetEventPrivacy={setEventPrivacy}
-      />
-      {isPmcmAdmin(session.role) ? <EventModulesControl selectedEvent={selectedEvent} onSave={setEventModules} /> : null}
+      /></section>
+      {isPmcmAdmin(session.role) ? <section id="event-controls" className="scroll-mt-6"><EventModulesControl selectedEvent={selectedEvent} onSave={setEventModules} /></section> : null}
       {isPmcmAdmin(session.role) ? (
-        <ComplianceRulesSettings rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} />
+        <section id="compliance-settings" className="scroll-mt-6"><ComplianceRulesSettings rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} /></section>
       ) : null}
-      {isPmcmAdmin(session.role) ? <PlanningTemplatesSettings /> : null}
-      {isPmcmAdmin(session.role) ? <CanvaConnectionCard /> : null}
-      <AccountNotificationsView />
+      {isPmcmAdmin(session.role) ? <section id="planning-settings" className="scroll-mt-6"><PlanningTemplatesSettings /></section> : null}
+      {isPmcmAdmin(session.role) ? <section id="integrations-settings" className="scroll-mt-6"><CanvaConnectionCard /></section> : null}
+      <section id="notification-settings" className="scroll-mt-6"><AccountNotificationsView /></section>
     </div>
   );
 }

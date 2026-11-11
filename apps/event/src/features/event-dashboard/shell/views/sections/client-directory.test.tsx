@@ -21,14 +21,14 @@ const renderDossier = (ui: ReactElement) => render(<TooltipProvider>{ui}</Toolti
 
 describe("client dossier subviews", () => {
   it("reaches every dossier view from a tab strip, marking the current one", () => {
-    renderDossier(<ClientDossier client={client} balance="₱0" view="invoices" onBack={vi.fn()} onOpenEvent={vi.fn()} />);
+    renderDossier(<ClientDossier client={client} balance="₱0" view="contacts" onBack={vi.fn()} onOpenEvent={vi.fn()} />);
 
     const tabs = screen.getByRole("tablist", { name: "Client views" });
-    expect(within(tabs).getAllByRole("tab")).toHaveLength(9);
-    expect(within(tabs).getByRole("tab", { name: "Invoices" }).getAttribute("aria-selected")).toBe("true");
-    expect(within(tabs).getByRole("tab", { name: "Contacts" }).getAttribute("aria-selected")).toBe("false");
+    expect(within(tabs).getAllByRole("tab")).toHaveLength(3);
+    expect(within(tabs).queryByRole("tab", { name: "Invoices" })).toBeNull();
+    expect(within(tabs).getByRole("tab", { name: "Contacts" }).getAttribute("aria-selected")).toBe("true");
     expect(within(tabs).getByRole("tab", { name: "Overview" }).getAttribute("href")).toBe("/dashboard/clients/acme");
-    expect(within(tabs).getByRole("tab", { name: "Activity log" }).getAttribute("href")).toBe("/dashboard/clients/acme/activity-log");
+    expect(within(tabs).getByRole("tab", { name: "Events" }).getAttribute("href")).toBe("/dashboard/clients/acme/events");
   });
 
   it("shows inquiry dates in the portal date format rather than ISO", () => {

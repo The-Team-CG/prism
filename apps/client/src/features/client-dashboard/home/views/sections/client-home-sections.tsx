@@ -6,8 +6,8 @@ import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismClientActionCenter, PrismEvent } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Progress } from "@prism/ui/components/progress";
-import { PrismEmptyLine, PrismSection, PrismSectionGroupLabel } from "@prism/ui/page-blocks";
-import { ClientEventHero, ClientEventHeroStep, clientEventStage } from "../../../shared/client-event-hero";
+import { PrismEmptyLine, PrismHero, PrismSection, PrismSectionGroupLabel } from "@prism/ui/page-blocks";
+import { ClientEventHero, clientEventStage } from "../../../shared/client-event-hero";
 import { formatStatusLabel, type ClientDashboardAction } from "../../../workspace/shared";
 import { ClientListEmpty, ClientListRow } from "../../../shared/client-list-ui";
 import { groupClientActionsByEvent } from "../../model/client-home-action-groups";
@@ -29,6 +29,22 @@ export function ClientHomeHero({
   runClientAction: (action: ClientDashboardAction) => void;
 }) {
   const { event, action, daysToGo } = lead;
+  if (action) {
+    return (
+      <PrismHero
+        label="Your next step"
+        title={action.title}
+        meta={
+          <div className="space-y-2">
+            <p>{action.description}</p>
+            <p className="text-sm"><Link href={eventHref(event.id)} onClick={() => onOpen(event.id)} className="font-medium text-ink-foreground hover:underline">{event.eventName}</Link> · {formatPortalDate(event.eventDate)}{daysToGo !== null && daysToGo >= 0 ? ` · ${daysToGo === 0 ? "Today" : `${daysToGo} days to go`}` : ""}</p>
+          </div>
+        }
+      >
+        <Button type="button" onClick={() => runClientAction(action)}>{action.ctaLabel}<ArrowRight className="size-4" /></Button>
+      </PrismHero>
+    );
+  }
   return (
     <ClientEventHero
       event={event}
@@ -37,17 +53,10 @@ export function ClientHomeHero({
       eventHref={eventHref(event.id)}
       onOpen={() => onOpen(event.id)}
     >
-      {action ? (
-        <>
-          <ClientEventHeroStep title={action.title} description={action.description || undefined} />
-          <Button type="button" onClick={() => runClientAction(action)}>{action.ctaLabel}<ArrowRight className="size-4" /></Button>
-        </>
-      ) : (
         <>
           <p className="min-w-0 flex-1 basis-64 text-sm text-ink-foreground/70">Nothing needs you for this event right now. PMCM will let you know when something is ready.</p>
           <Button asChild variant="secondary"><Link href={eventHref(event.id)} onClick={() => onOpen(event.id)}>Open event<ArrowRight className="size-4" /></Link></Button>
         </>
-      )}
     </ClientEventHero>
   );
 }

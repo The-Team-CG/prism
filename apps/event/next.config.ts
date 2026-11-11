@@ -18,7 +18,11 @@ const DEAD_VIEW_REDIRECTS = [
   })),
   { source: `${DASHBOARD}/clients/:view(all|active|prospects|past|archived)`, destination: `${DASHBOARD}/clients` },
   { source: `${DASHBOARD}/calendar/:view`, destination: `${DASHBOARD}/calendar` },
-  { source: `${DASHBOARD}/tasks/:view`, destination: `${DASHBOARD}/tasks` },
+  { source: `${DASHBOARD}/tasks`, destination: DASHBOARD },
+  { source: `${DASHBOARD}/tasks/:view`, destination: DASHBOARD },
+  { source: `${DASHBOARD}/team/:view(roles|availability|assignments|workload|departments)`, destination: `${DASHBOARD}/team` },
+  { source: `${DASHBOARD}/clients/:clientId/:view(files|messages|contracts|invoices|notes|activity-log)`, destination: `${DASHBOARD}/clients/:clientId` },
+  { source: `${DASHBOARD}/suppliers/:view(contracts|payments)`, destination: `${DASHBOARD}/events` },
   { source: `${DASHBOARD}/messages/:view`, destination: `${DASHBOARD}/messages` },
   { source: `${DASHBOARD}/files/:view`, destination: `${DASHBOARD}/files` },
   // Receipts is a real page; every other finance path still falls back to the finance desk.

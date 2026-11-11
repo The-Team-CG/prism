@@ -7,6 +7,7 @@ import { GUEST_QR_PASS_PREFIX, guestQrCheckInSchema } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { portalHref } from "@prism/ui/portal-path";
+import { PrismBrandLogo } from "@prism/ui";
 
 /** Groups the fallback code in fours so staff can read it back and type it without losing their place. */
 function groupPassCode(token: string): string {
@@ -42,6 +43,7 @@ export function GuestPassView({ token }: { token: string }) {
   const valid = guestQrCheckInSchema.safeParse({ token }).success;
   return (
     <main className="mx-auto flex min-h-[70vh] w-full max-w-sm flex-col items-center justify-center gap-5 px-4 py-8 text-center">
+      <PrismBrandLogo href={portalHref("/")} title="P.R.I.S.M." detail="Guest pass" />
       <h1 className="text-xl font-semibold text-foreground">Your event pass</h1>
       {valid ? (
         <>

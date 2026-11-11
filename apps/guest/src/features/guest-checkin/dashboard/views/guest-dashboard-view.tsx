@@ -1,9 +1,9 @@
 "use client";
 
 import { LogOut } from "lucide-react";
+import { useState } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { PrismGuestShell, PrismNoticeBanner } from "@prism/ui";
-import { Button } from "@prism/ui/components/button";
 import { portalHref } from "@prism/ui/portal-path";
 import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
 import { isGuestCheckInOpen } from "../model/guest-dashboard-rules";
@@ -38,12 +38,16 @@ function GuestDashboardNotices({ vm }: { vm: GuestDashboardVm }) {
 }
 
 function GuestPassNav({ checkInOpen, feedbackOpen }: { checkInOpen: boolean; feedbackOpen: boolean }) {
+  const [selected, setSelected] = useState(checkInOpen ? "#check-in" : "#event-details");
+  const sections = [
+    ...(checkInOpen ? [{ href: "#check-in", label: "Check in" }] : []),
+    { href: "#event-details", label: "Your pass" },
+    { href: portalHref("/games/join"), label: "Join a game" },
+    ...(feedbackOpen ? [{ href: "#feedback", label: "Feedback" }] : []),
+  ];
   return (
-    <nav aria-label="Guest pass sections" className="flex flex-wrap gap-2">
-      {checkInOpen ? <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#check-in">Check in</a></Button> : null}
-      <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#event-details">Your pass</a></Button>
-      <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href={portalHref("/games/join")}>Join a game</a></Button>
-      {feedbackOpen ? <Button asChild variant="ghost" className="min-h-11 px-3 font-semibold"><a href="#feedback">Feedback</a></Button> : null}
+    <nav aria-label="Guest pass sections" className="flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-muted p-1">
+      {sections.map((section) => <a key={section.href} href={section.href} onClick={() => setSelected(section.href)} aria-current={selected === section.href ? "location" : undefined} className={`inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold ${selected === section.href ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{section.label}</a>)}
     </nav>
   );
 }

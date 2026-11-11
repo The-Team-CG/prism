@@ -60,7 +60,7 @@ export function ClientCalendarView() {
       {items.length === 0 ? (
         <ClientListEmpty icon={CalendarDays} {...clientCalendarEmptyCopy(portalView)} />
       ) : (
-        <div className="grid min-w-0 gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 2xl:grid-cols-[minmax(0,1fr)_22rem]">
           <PortalCalendar
             items={items}
             kinds={KIND}

@@ -72,6 +72,7 @@ export function SupplierDirectoryTable(props: SupplierDirectoryTableProps) {
         <SupplierDirectoryFilters {...props} />
         {props.view === "contracts" || props.view === "payments" ? <PortalScopeNotice view={props.view} /> : null}
         {props.error ? <DirectoryError message={props.error} onRetry={props.onRetry} /> : null}
+        <p className="px-4 py-2 text-xs text-muted-foreground lg:hidden">Scroll sideways to see contact, reviews and certifications.</p>
         <ScrollArea className="w-full">
           <Table className="min-w-[880px]">
             <TableHeader className="bg-muted/60 text-xs text-muted-foreground">
@@ -133,14 +134,14 @@ function SupplierDirectoryFilters({ categories, query, searchDraft, loading, onS
   const presetCategoryMissing = Boolean(query.categoryId && !categories.some((category) => category.id === query.categoryId));
 
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
-      <label className="relative min-w-[180px] flex-1 sm:max-w-[220px]">
+    <div className="grid grid-cols-2 items-center gap-2 border-b border-border px-4 py-3 sm:flex sm:flex-wrap">
+      <label className="relative col-span-2 min-w-0 flex-1 sm:min-w-[180px] sm:max-w-[220px]">
         <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <span className="sr-only">Search suppliers</span>
         <input value={searchDraft} onChange={(event) => onSearch(event.target.value)} placeholder="Search suppliers" className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/35" />
       </label>
       <Select value={query.categoryId ?? ALL} onValueChange={(value) => onQueryChange({ categoryId: value === ALL ? undefined : value, page: 0 })}>
-        <SelectTrigger id="supplier-category-filter" aria-label="Category" className="h-9 w-40 min-w-0 text-sm">
+        <SelectTrigger id="supplier-category-filter" aria-label="Category" className="h-9 w-full min-w-0 text-sm sm:w-40">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -150,7 +151,7 @@ function SupplierDirectoryFilters({ categories, query, searchDraft, loading, onS
         </SelectContent>
       </Select>
       <Select value={query.tier ?? ALL} onValueChange={(value) => onQueryChange({ tier: value === ALL ? undefined : tierOptions.find(([option]) => option === value)?.[0], page: 0 })}>
-        <SelectTrigger id="supplier-tier-filter" aria-label="Tier" className="h-9 w-36 min-w-0 text-sm">
+        <SelectTrigger id="supplier-tier-filter" aria-label="Tier" className="h-9 w-full min-w-0 text-sm sm:w-36">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -159,7 +160,7 @@ function SupplierDirectoryFilters({ categories, query, searchDraft, loading, onS
         </SelectContent>
       </Select>
       <Select value={query.rating} onValueChange={(value) => onQueryChange({ rating: ratingOptions.find(([option]) => option === value)?.[0] ?? query.rating, page: 0 })}>
-        <SelectTrigger id="supplier-rating-filter" aria-label="Rating" className="h-9 w-36 min-w-0 text-sm">
+        <SelectTrigger id="supplier-rating-filter" aria-label="Rating" className="h-9 w-full min-w-0 text-sm sm:w-36">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -167,7 +168,7 @@ function SupplierDirectoryFilters({ categories, query, searchDraft, loading, onS
         </SelectContent>
       </Select>
       <Select value={query.sort} onValueChange={(value) => onQueryChange({ sort: sortOptions.find(([option]) => option === value)?.[0] ?? query.sort, page: 0 })}>
-        <SelectTrigger id="supplier-sort" aria-label="Sort suppliers" className="h-9 w-40 min-w-0 text-sm">
+        <SelectTrigger id="supplier-sort" aria-label="Sort suppliers" className="h-9 w-full min-w-0 text-sm sm:w-40">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -230,7 +231,7 @@ function SupplierDirectoryRow({ supplier, selected, onSelect }: { supplier: Supp
         <Badge variant={supplier.tier === "pending_first_event" ? "outline" : "success"} className="whitespace-nowrap">{supplierTierLabel(supplier.tier)}</Badge>
       </TableCell>
       <SupplierContactCell supplier={supplier} />
-      <TableCell className="whitespace-nowrap text-sm">{ratingLabel(supplier.rating)}</TableCell>
+      <TableCell className={`whitespace-nowrap text-sm ${supplier.rating.average === null ? "text-muted-foreground" : ""}`}>{ratingLabel(supplier.rating)}</TableCell>
       <TableCell className="whitespace-nowrap text-muted-foreground">
         <span className={`mr-1.5 inline-block size-1.5 rounded-full ${certificationDotClass(supplier.certifications.attention)}`} />{certificationLabel(supplier.certifications.attention, supplier.certifications)}
       </TableCell>

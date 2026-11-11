@@ -65,8 +65,8 @@ function CoordinatorRoleSection({ vm, section }: { vm: CoordinatorVm; section: "
 /** Primary issue entry point. It sits in the top bar on every view, so reporting takes one step from anywhere. */
 function ReportIssueButton({ onReport }: { onReport: () => void }) {
   return (
-    <Button type="button" onClick={onReport} className="min-h-11 rounded-md font-semibold">
-      <Radio className="size-4" aria-hidden="true" /> Report an issue
+    <Button type="button" onClick={onReport} aria-label="Report an issue" className="min-h-11 rounded-md px-3 font-semibold">
+      <Radio className="size-4" aria-hidden="true" /><span className="hidden sm:inline">Report an issue</span>
     </Button>
   );
 }
@@ -173,7 +173,8 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
   const vm = useCoordinatorViewModel({ session, state, onRefresh });
   const pathname = usePathname() ?? COORDINATOR_HOME_PATH;
   const router = useRouter();
-  const [activeView, setActiveView] = useState<CoordinatorViewId>("shift");
+  const [requestedView, setActiveView] = useState<CoordinatorViewId>("shift");
+  const activeView = requestedView === "registration" && (!vm.registrationRole || vm.readOnly) ? "shift" : requestedView;
   const [outsideNotice, setOutsideNotice] = useState(false);
   const selectEventRef = useRef(vm.selectEvent);
   useEffect(() => { selectEventRef.current = vm.selectEvent; });

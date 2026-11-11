@@ -1,6 +1,7 @@
 "use client";
 
 import { useResource } from "@prism/portal-query";
+import { WorkspaceSubTabs } from "./workspace-sub-tabs";
 import { EventRegister } from "./event-register";
 import { EventArchiveSearchView } from "@/features/closure/archive";
 import { eventAttentionLabels, pmcmEventSummaries, pmcmFileSummaries, summariesByEvent } from "@/features/pmcm-overview";
@@ -17,9 +18,9 @@ export function EventDashboardEventsListSectionView() {
     ? new Map(eventsForView.map((event) => [event.id, eventAttentionLabels(financeByEvent.get(event.id), filesByEvent.get(event.id))]))
     : undefined;
   return (
-    <div className="grid gap-8">
-      <EventRegister events={eventsForView} attention={attention} onOpenEvent={(id) => navigateEvent(id, "overview")} />
-      <EventArchiveSearchView />
-    </div>
+    <WorkspaceSubTabs label="Event register" tabs={[
+      { id: "active", label: "Live register", render: () => <EventRegister events={eventsForView} attention={attention} onOpenEvent={(id) => navigateEvent(id, "overview")} /> },
+      { id: "archive", label: "Archive", render: () => <EventArchiveSearchView /> },
+    ]} />
   );
 }

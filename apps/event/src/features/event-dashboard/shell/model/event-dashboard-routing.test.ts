@@ -194,12 +194,12 @@ describe("event-dashboard-routing", () => {
     const event = { eventName: "Launch", clientName: "Acme", eventDate: "2026-09-01" };
     expect(routeShellCopy(eventRouteState("event-42", "briefing"), { activeNavLabel: "Planning & decisions", selectedEvent: event })).toEqual({
       eyebrow: "Event workspace",
-      title: "Launch",
-      description: "Planning & decisions · Acme · Sep 1, 2026",
+      title: "Planning & decisions",
+      description: "Launch · Acme · Sep 1, 2026",
       breadcrumb: ["Events", "Launch", "Planning & decisions"],
       documentTitle: "Planning & decisions · Launch · P.R.I.S.M",
     });
-    expect(routeShellCopy(eventRouteState("event-42", "overview"), { selectedEvent: event }).description).toBe("Acme · Sep 1, 2026");
+    expect(routeShellCopy(eventRouteState("event-42", "overview"), { selectedEvent: event }).description).toBe("Launch · Acme · Sep 1, 2026");
     expect(routeShellCopy({ section: "events", tab: "overview" })).toEqual({
       eyebrow: "Command home",
       title: "Event Manager",
@@ -209,7 +209,7 @@ describe("event-dashboard-routing", () => {
     });
     expect(routeShellCopy({ section: "events", tab: "overview", eventId: "event-42" })).toEqual({
       eyebrow: "Event workspace",
-      title: "Event Manager",
+      title: "Event workspace",
       description: "Select an event or accept an inquiry to begin.",
       breadcrumb: ["Events"],
       documentTitle: "P.R.I.S.M",
@@ -265,12 +265,15 @@ describe("event-dashboard-routing", () => {
       ["/dashboard/financial-summary", "/dashboard"],
       ["/dashboard/clients/active", "/dashboard/clients"],
       ["/dashboard/calendar/task-deadlines", "/dashboard/calendar"],
-      ["/dashboard/tasks/overdue", "/dashboard/tasks"],
+      ["/dashboard/tasks/overdue", "/dashboard"],
       ["/dashboard/messages/approvals", "/dashboard/messages"],
       ["/dashboard/files/event", "/dashboard/files"],
       ["/dashboard/finance/payments", "/dashboard/finance"],
       ["/dashboard/settings/roles", "/dashboard/settings"],
       ["/dashboard/settings/system-logs", "/dashboard/audit"],
+      ["/dashboard/team/availability", "/dashboard/team"],
+      ["/dashboard/clients/acme/invoices", "/dashboard/clients/acme"],
+      ["/dashboard/suppliers/contracts", "/dashboard/events"],
     ];
     for (const [from, to] of cases) {
       expect(redirectTarget(from, rules), from).toBe(to);
@@ -302,8 +305,8 @@ describe("event-dashboard-routing", () => {
     const rules = await loadRedirects();
     for (const pathname of [
       "/dashboard/clients/acme",
-      "/dashboard/clients/acme/invoices",
-      "/dashboard/team/availability",
+      "/dashboard/clients/acme/contacts",
+      "/dashboard/team/archived",
       "/dashboard/suppliers/preferred",
       "/dashboard/events/upcoming",
       "/dashboard/events/evt-1/registration",

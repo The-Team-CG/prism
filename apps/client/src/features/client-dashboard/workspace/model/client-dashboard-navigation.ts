@@ -51,11 +51,6 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     icon: BadgeCheck,
     section: "Client Portal",
     route: "approvals",
-    subItems: [
-      { id: "approvals-pending", label: "Pending", route: "approvals" },
-      { id: "approvals-approved", label: "Approved", route: "approvals" },
-      { id: "approvals-contracts", label: "Contracts", route: "files" },
-    ],
   },
   {
     id: "messages",

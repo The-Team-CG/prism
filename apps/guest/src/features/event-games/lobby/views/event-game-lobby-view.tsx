@@ -108,7 +108,6 @@ function LobbyAvailability({ vm, lobby }: { vm: LobbyViewModel; lobby: LobbyView
           <Button
             type="button"
             className="mt-5 h-11 justify-between"
-            style={{ backgroundColor: lobby.branding.primaryColor }}
             disabled={vm.startingGameId !== null}
             onClick={() => void vm.startGame(game.id)}
           >

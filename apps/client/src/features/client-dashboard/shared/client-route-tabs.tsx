@@ -12,7 +12,7 @@ export type ClientRouteTab = { id: string; label: string; href: string; count?: 
 export function ClientRouteTabs({ label, tabs, activeId }: { label: string; tabs: ClientRouteTab[]; activeId: string }) {
   return (
     <Tabs value={activeId} className="min-w-0">
-      <TabsList aria-label={label} className="h-auto max-w-full justify-start overflow-x-auto">
+      <TabsList aria-label={label} className="h-auto w-full flex-wrap justify-start gap-1">
         {tabs.map((tab) => (
           <TabsTrigger key={tab.id} value={tab.id} asChild>
             <Link href={tab.href} aria-current={tab.id === activeId ? "page" : undefined}>

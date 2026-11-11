@@ -24,6 +24,11 @@ export function PrivacyConsoleView() {
 
   return (
     <div className="space-y-5">
+      <nav aria-label="Privacy sections" className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+        <a href="#privacy-requests" className="hover:text-foreground">Request queue</a>
+        <a href="#privacy-log" className="hover:text-foreground">Log request</a>
+        {vm.isPmcmAdmin ? <><a href="#privacy-legal-holds" className="hover:text-foreground">Legal holds</a><a href="#privacy-retention" className="hover:text-foreground">Retention policies</a></> : null}
+      </nav>
       {vm.error ? (
         <Alert variant="destructive" className="rounded-md">
           <AlertDescription>{vm.error}</AlertDescription>
@@ -31,7 +36,7 @@ export function PrivacyConsoleView() {
       ) : null}
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
-          <Panel title="Privacy request queue" icon={Database}>
+          <section id="privacy-requests" className="scroll-mt-6"><Panel title="Privacy request queue" icon={Database}>
             <div className="space-y-3">
               <PrivacyFilterBar vm={vm} />
               <PrivacyQueuePager vm={vm} />
@@ -48,16 +53,16 @@ export function PrivacyConsoleView() {
               <PrivacyQueuePager vm={vm} />
             </div>
           </Panel>
-          <Panel title="Log a privacy request" icon={Database}>
+          </section><section id="privacy-log" className="scroll-mt-6"><Panel title="Log a privacy request" icon={Database}>
             <PrivacyLogRequestForm vm={vm} />
-          </Panel>
+          </Panel></section>
         </div>
-        <div className="space-y-5">
+        <div id="privacy-legal-holds" className="scroll-mt-6 space-y-5">
           {vm.isPmcmAdmin ? <PrivacyLegalHoldControls vm={vm} /> : null}
         </div>
       </div>
       {vm.isPmcmAdmin ? (
-        <section aria-label="Retention policies">
+        <section id="privacy-retention" aria-label="Retention policies" className="scroll-mt-6">
           <RetentionReviewPanel />
         </section>
       ) : null}
