@@ -12,6 +12,7 @@ import { useListFilter } from "@/features/pmcm-kit";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { PostponementImpactPanel } from "@/features/event-decisions/postponement-impact";
 import { ChangeRegisterPanel } from "@/features/change-management/register";
+import { EventPlanPanel } from "@/features/planning/event-plan";
 import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 import { EventWorkspaceOverview } from "./event-overview";
 import { EventOcularVisitTask } from "./event-ocular-visit-task";
@@ -219,6 +220,7 @@ export function EventWorkspaceBriefingTab() {
     },
     ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PresentationMeetingsPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
     { id: "reviews", label: "Client reviews", render: () => <div className="space-y-5">{admin && isEventModuleEnabled(selectedEvent, "venue_scouting") ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}{admin ? <ThemeSuggestionsPanel eventId={selectedEvent.id} /> : null}<PmcmClientReviewPanel eventId={selectedEvent.id} /></div> },
+    ...(admin ? [{ id: "plan", label: "Plan", render: () => <EventPlanPanel eventId={selectedEvent.id} archived={selectedEvent.archived} /> }] : []),
     ...(admin ? [{ id: "follow-ups", label: "Client follow-ups", render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> }] : []),
     ...(admin ? [{ id: "assistant", label: "Ask P.R.I.S.M", render: () => <OperationsAssistantPanel eventId={selectedEvent.id} /> }] : []),
     { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
