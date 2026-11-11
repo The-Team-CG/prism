@@ -22,6 +22,8 @@ export type FileRequirementDraft = {
   required: boolean;
   dueDate: string;
   notes: string;
+  targetSupplierIds?: string[];
+  targetSpecific?: boolean;
 };
 
 export function emptyFileRequirementDraft(): FileRequirementDraft {
@@ -37,6 +39,8 @@ export function draftFromFileRequirementItem(item: PrismFileRequirementItem): Fi
     required: item.required,
     dueDate: item.dueDate ? item.dueDate.slice(0, 10) : "",
     notes: item.notes ?? "",
+    targetSupplierIds: item.targetSupplierIds ?? [],
+    targetSpecific: Boolean(item.targetSupplierIds?.length),
   };
 }
 
@@ -73,6 +77,8 @@ export function buildFileRequirementUpdate(item: PrismFileRequirementItem, draft
   if (!sameMembers(draft.visibleToRoles, item.visibleToRoles)) changes.visibleToRoles = draft.visibleToRoles as UpdateFileRequirementInput["visibleToRoles"];
   if (draft.required !== item.required) changes.required = draft.required;
   if (draft.notes.trim() !== (item.notes ?? "")) changes.notes = draft.notes.trim() || null;
+  const targets = draft.ownerRole === "supplier" && draft.targetSpecific ? draft.targetSupplierIds ?? [] : [];
+  if (!sameMembers(targets, item.targetSupplierIds ?? [])) changes.targetSupplierIds = targets;
   if (Object.keys(changes).length === 0) return null;
   return { ...changes, expectedRevision: item.revision ?? 0 };
 }
@@ -87,6 +93,7 @@ export function buildFileRequirementCreate(draft: FileRequirementDraft): CreateF
     dueAt: dueDateToIso(draft.dueDate),
     sourceWorkflow: "custom",
     notes: draft.notes.trim() || undefined,
+    targetSupplierIds: draft.ownerRole === "supplier" && draft.targetSpecific ? draft.targetSupplierIds ?? [] : [],
   };
 }
 

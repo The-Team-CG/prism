@@ -49,6 +49,21 @@ export const supplierWorkflowRepository = {
     return result;
   },
 
+  async uploadRequirement(session: PrismAuthenticatedSession, supplier: PrismSupplier, eventId: string, requirementKey: string, file: File) {
+    const key = `requirement:${supplier.id}:${eventId}:${requirementKey}:${await contentFingerprint(file)}`;
+    const currentAttemptId = attemptId(key);
+    const stored = await uploadStorageObject(file, {
+      eventId,
+      ownerRecordType: 'supplier',
+      ownerRecordId: supplier.id,
+      logicalTarget: `supplier-requirement:${requirementKey}:${currentAttemptId}`,
+      usage: 'supplier_document',
+    }, { authToken: session.accessToken });
+    const result = await eventOpsClient.events.bindFileRequirementUpload(eventId, requirementKey, { objectId: stored.id });
+    uploadAttempts.delete(key);
+    return result;
+  },
+
   async submitCreativeTask(
     session: PrismAuthenticatedSession,
     supplier: PrismSupplier,

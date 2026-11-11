@@ -116,7 +116,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     const object = await this.database(input.context).opsStoredObject.findFirst({ where: { id: input.objectId, eventId: input.eventId, lifecycleState: 'stored', deletedAt: null } });
     if (!object) return null;
     return {
-      id: object.id, eventId: object.eventId, ownerRecordType: object.ownerRecordType, ownerRecordId: object.ownerRecordId,
+      id: object.id, eventId: object.eventId, logicalTarget: object.logicalTarget, ownerRecordType: object.ownerRecordType, ownerRecordId: object.ownerRecordId,
       usage: object.usage as StorageUsage, lifecycleState: object.lifecycleState as StorageLifecycleState,
       originalFileName: object.originalFileName, contentType: object.contentType, declaredByteSize: object.declaredByteSize,
       uploaderActorId: object.uploaderActorId, uploaderActorRole: object.uploaderActorRole,
@@ -717,6 +717,15 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     if (actor.role === OpsUserRole.Supplier && (!actor.supplierId || input.ownerRecordId !== actor.supplierId)) {
       await this.accessPolicy.recordForbiddenAccess(actor, 'request supplier document upload', input.eventId);
       throw new ForbiddenException('Supplier documents must belong to the verified supplier');
+    }
+    const requirement = /^supplier-requirement:([a-z][a-z0-9_]{1,62}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
+    if (requirement) {
+      const booking = await this.prisma.opsSupplierQuoteRequest.findFirst({
+        where: { eventId: input.eventId, supplierId: input.ownerRecordId, status: 'selected' }, select: { id: true },
+      });
+      const allowed = await this.platformReferences?.supplierMayUploadRequirement(input.eventId, requirement[1], input.ownerRecordId);
+      if (!booking || !allowed) throw new ForbiddenException('Supplier document target is outside the verified requirement');
+      return;
     }
     const match = /^supplier-(contract|creative):([A-Za-z0-9_-]{1,100}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
     if (!match) throw new ForbiddenException('Supplier document target is outside the verified booking');

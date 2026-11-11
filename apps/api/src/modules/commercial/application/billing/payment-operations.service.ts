@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import type { RecordPaymentInput } from '@prism/types';
 import { nextPaymentMilestoneStatus } from '../../domain/payment-terms.policy';
@@ -121,7 +121,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
           }, transactionContext);
           // Reminders are queue-only: enqueue in the notification outbox; no external provider is called here.
           await writeNotification(this.notificationOutboxWriter, event.id, 'Client', `Balance payment due soon for ${event.eventName}`, undefined, {
-            idempotencyKey: `payment-risk-reminder:${balance.id}`,
+            idempotencyKey: `payment-risk-reminder:${balance.id}`, action: eventSectionAction(event.id, 'billing'),
           }, transactionContext);
         },
       });
@@ -152,7 +152,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
       const threshold = reachedReminderThreshold(milestone.dueDate, now, daysBefore);
       if (!event || threshold === null) continue;
       await writeNotification(this.notificationOutboxWriter, event.id, 'Client', `${milestone.label} of PHP ${milestone.remainingBalance.toLocaleString('en-PH')} for ${event.eventName} is due ${milestone.dueDate.toISOString().slice(0, 10)}`, undefined, {
-        idempotencyKey: `payment-upcoming-reminder:${milestone.id}:${threshold}`,
+        idempotencyKey: `payment-upcoming-reminder:${milestone.id}:${threshold}`, action: eventSectionAction(event.id, 'billing'),
       });
     }
   }
@@ -181,7 +181,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
       const event = eventById.get(milestone.eventId);
       if (!event) continue;
       await writeNotification(this.notificationOutboxWriter, event.id, 'Client', `Payment overdue: ${milestone.label} for ${event.eventName}`, undefined, {
-        idempotencyKey: `payment-overdue-reminder:${milestone.id}`,
+        idempotencyKey: `payment-overdue-reminder:${milestone.id}`, action: eventSectionAction(event.id, 'billing'),
       });
     }
   }
@@ -219,7 +219,7 @@ export class PaymentOperationsService implements PaymentStatusReader {
             metadata: auditMetadata(actor),
           }),
           // No finance role exists yet; payment status goes to the PMCM Admin inbox.
-          writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `${payment.label} ${status}`),
+          writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `${payment.label} ${status}`, undefined, { action: eventSectionAction(eventId, 'billing') }),
         ]);
       },
       project: (payment) => mapPaymentMilestone(payment),

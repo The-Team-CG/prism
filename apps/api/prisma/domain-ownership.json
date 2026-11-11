@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 152,
+    "totalTables": 154,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 51,
-    "targetSameDomainFks": 129,
+    "targetSameDomainFks": 130,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -827,6 +827,24 @@
       "domain": "platform-ops",
       "targetSchema": "platform_ops",
       "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsNotificationDelivery",
+      "currentSchema": "platform_ops",
+      "table": "notification_deliveries",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 16,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsNotificationProviderOutcome",
+      "currentSchema": "platform_ops",
+      "table": "notification_provider_outcomes",
+      "domain": "platform-ops",
+      "targetSchema": "platform_ops",
+      "columnCount": 3,
       "introducedAfterCutover": true
     },
     {
@@ -3972,6 +3990,21 @@
       "targetDomain": "commercial",
       "targetCurrentSchema": "commercial",
       "targetTable": "payment_receipts",
+      "sameDomain": true
+    },
+    {
+      "schema": "platform_ops",
+      "table": "notification_deliveries",
+      "name": "notification_deliveries_notification_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (notification_id) REFERENCES platform_ops.notification_logs(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "notification_id"
+      ],
+      "sourceDomain": "platform-ops",
+      "targetDomain": "platform-ops",
+      "targetCurrentSchema": "platform_ops",
+      "targetTable": "notification_logs",
       "sameDomain": true
     }
   ]

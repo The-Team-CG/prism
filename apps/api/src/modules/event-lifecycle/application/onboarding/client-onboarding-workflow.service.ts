@@ -6,7 +6,7 @@ import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import { OcularVisitService } from '../ocular-visit/ocular-visit.service';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
@@ -50,7 +50,7 @@ export class ClientOnboardingWorkflowService {
         category: AuditCategory.Events, affectedType: 'briefing', affectedId: saved.id,
         metadata: { actorId: actor?.id ?? null, historyPreserved: true },
       }, context);
-      await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', 'Client briefing submitted', undefined, { idempotencyKey: `briefing:${saved.id}` }, context);
+      await writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', 'Client briefing submitted', undefined, { idempotencyKey: `briefing:${saved.id}`, action: eventSectionAction(eventId, 'briefing') }, context);
       return saved;
     }, { isolationLevel: 'Serializable' });
   }

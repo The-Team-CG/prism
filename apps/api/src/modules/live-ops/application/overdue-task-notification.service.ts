@@ -2,7 +2,7 @@ import { ConflictException, Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { LiveOpsSlaStatus, OpsUserRole } from '@prism/kernel/event-core';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction } from '@prism/contexts/platform-ops';
 import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 import { computeSlaStatus } from '../domain/live-ops-sla.policy';
 
@@ -69,6 +69,7 @@ export class LiveOpsOverdueTaskNotificationService {
             channel: 'email',
             correlationId: idempotencyKey,
             idempotencyKey,
+            action: eventSectionAction(task.eventId, 'live_ops'),
           });
           result.queued.push({ taskId: task.id, idempotencyKey });
         } catch (error) {

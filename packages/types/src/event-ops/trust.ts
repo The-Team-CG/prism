@@ -195,6 +195,23 @@ export interface PrismNotificationLog {
   createdAt: string;
 }
 
+/** Provider acceptance for one resolved address. This is not proof of delivery or reading. */
+export interface PrismNotificationRecipientDelivery {
+  id: string;
+  recipient: string;
+  status: string;
+  attempts: number;
+  failureReason: string | null;
+  acceptedAt: string | null;
+  providerOutcome?: string;
+  channelReadiness?: string;
+  acknowledgmentDueAt?: string | null;
+  acknowledgedAt?: string | null;
+  escalatedAt?: string | null;
+  /** The second, final chase: PMCM again and the event's coordinators. */
+  secondEscalatedAt?: string | null;
+}
+
 export interface PrismApprovalRequest {
   id: string;
   userId: string;

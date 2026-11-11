@@ -25,6 +25,8 @@ const sonic: HarnessSupplier = { supplierId: 'supplier_sonic', supplierName: 'So
 const insuranceRequirement = (dueAt = '2026-10-01T00:00:00.000Z') => ({
   id: 'freq_sup', eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'],
   required: true, dueAt: new Date(dueAt), sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm',
+  // The column defaults to an empty list and is never null: no target means every selected supplier.
+  targetSupplierIds: [] as string[],
 });
 
 function createHarness(options: {
@@ -82,7 +84,7 @@ function createHarness(options: {
       }),
     },
     opsSupplierQuoteRequest: {
-      findMany: vi.fn(async () => quoteRequests.map((supplier) => ({ supplierId: supplier.supplierId, supplierName: supplier.supplierName, supplier: { email: supplier.email } }))),
+      findMany: vi.fn(async (query?: { where?: { status?: string; supplierId?: { in: string[] } } }) => (query?.where?.status === 'selected' ? selectedSuppliers : quoteRequests).filter((supplier) => !query?.where?.supplierId?.in || query.where.supplierId.in.includes(supplier.supplierId)).map((supplier) => ({ supplierId: supplier.supplierId, supplierName: supplier.supplierName, supplier: { email: supplier.email } }))),
       findFirst: vi.fn(async ({ where }: { where: Row }) => (where.supplierId && selectedSuppliers.some((supplier) => supplier.supplierId === where.supplierId) ? { id: `sqr_${where.supplierId}` } : null)),
     },
     opsCoordinatorAssignment: { findMany: vi.fn(async () => []) },
@@ -90,6 +92,12 @@ function createHarness(options: {
       findMany: vi.fn(async () => options.rejectedDocuments ?? []),
       findFirst: vi.fn(async ({ where }: { where: Row }) => documents.find((row) => row.eventId === where.eventId && row.storageKey === where.storageKey) ?? null),
       create: vi.fn(async ({ data }: { data: Row }) => { documents.push(data); return data; }),
+      updateMany: vi.fn(async ({ where, data }: { where: Row; data: Row }) => {
+        const row = documents.find((document) => Object.entries(where).every(([key, value]) => document[key] === value));
+        if (!row) return { count: 0 };
+        Object.assign(row, data);
+        return { count: 1 };
+      }),
     },
   };
   const prisma = { ...tx, $transaction: vi.fn(async (work: (client: unknown) => Promise<unknown>) => work(tx)) };
@@ -102,7 +110,7 @@ function createHarness(options: {
         [
           ...(options.rejectedDocuments ?? []).map((document) => ({ id: document.id, type: document.type, status: 'submitted', validationStatus: 'rejected', uploadedAt: new Date('2026-10-10T00:00:00.000Z') })),
           ...(options.supplierDocuments ?? []).map((document) => ({ id: document.id, type: document.type, status: 'submitted', validationStatus: document.validationStatus ?? 'accepted', uploadedAt: new Date('2026-10-10T00:00:00.000Z'), ownerSupplierId: document.ownerSupplierId })),
-          ...documents.map((document) => ({ id: document.id, type: document.type, status: document.status, validationStatus: document.validationStatus, uploadedAt: document.uploadedAt, storageKey: document.storageKey, ownerSupplierId: supplierOwnerOf(document.storageKey) })),
+          ...documents.map((document) => ({ id: document.id, type: document.type, status: document.status, validationStatus: document.validationStatus, rejectionReason: document.rejectionReason, uploadedAt: document.uploadedAt, storageKey: document.storageKey, ownerSupplierId: supplierOwnerOf(document.storageKey) })),
         ],
         selectedSuppliers.map(({ supplierId, supplierName }) => ({ supplierId, supplierName })),
         now,
@@ -317,7 +325,7 @@ describe('FileRequirementCommandsService', () => {
   });
 
   it('binds only the requirement owner uploaded bytes from the same event and is idempotent', async () => {
-    const requirement = { id: 'freq_1', eventId, key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
+    const requirement = { id: 'freq_1', targetSupplierIds: [] as string[], eventId, key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
     const upload = { id: 'obj_1', eventId, ownerRecordType: 'event', ownerRecordId: eventId, usage: 'client_document', lifecycleState: 'stored', originalFileName: 'permit.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'client_1', uploaderActorRole: 'client' };
     const client = { id: 'client_1', role: 'client', name: 'Client', explicit: true, verified: true };
     const harness = createHarness({ rows: [requirement], storedUpload: upload });
@@ -339,8 +347,8 @@ describe('FileRequirementCommandsService', () => {
   });
 
   it("returns a supplier only its own fulfilment after it binds its own upload, never another supplier's object", async () => {
-    const requirement = { id: 'freq_2', eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
-    const upload = { id: 'obj_sonic', eventId, ownerRecordType: 'supplier', ownerRecordId: 'supplier_sonic', usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
+    const requirement = { id: 'freq_2', targetSupplierIds: [] as string[], eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
+    const upload = { id: 'obj_sonic', eventId, logicalTarget: 'supplier-requirement:insurance_certificate:123e4567-e89b-42d3-a456-426614174000', ownerRecordType: 'supplier', ownerRecordId: 'supplier_sonic', usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
     const suppliers = [
       { supplierId: 'supplier_sonic', supplierName: 'Sonic Line Events', email: 'sonic@example.test' },
       { supplierId: 'supplier_atlas', supplierName: 'Atlas Sound', email: 'atlas@example.test' },
@@ -358,8 +366,8 @@ describe('FileRequirementCommandsService', () => {
   });
 
   it('refuses a supplier without a selected booking before any upload is bound, and still binds for a selected one', async () => {
-    const requirement = { id: 'freq_3', eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm' };
-    const upload = { id: 'obj_sonic', eventId, ownerRecordType: 'supplier', ownerRecordId: 'supplier_sonic', usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
+    const requirement = { id: 'freq_3', targetSupplierIds: [] as string[], eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm' };
+    const upload = { id: 'obj_sonic', eventId, logicalTarget: 'supplier-requirement:insurance_certificate:123e4567-e89b-42d3-a456-426614174000', ownerRecordType: 'supplier', ownerRecordId: 'supplier_sonic', usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
     const sonic = { id: 'usr_sonic', role: 'supplier', name: 'Sonic', email: 'sonic@example.test', explicit: true, verified: true };
     const atlas = { supplierId: 'supplier_atlas', supplierName: 'Atlas Sound', email: 'atlas@example.test' };
 
@@ -378,6 +386,33 @@ describe('FileRequirementCommandsService', () => {
     const selected = createHarness({ rows: [requirement], storedUpload: upload, suppliers: [{ ...atlas }, { supplierId: 'supplier_sonic', supplierName: 'Sonic Line Events', email: 'sonic@example.test' }] });
     await expect(selected.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, sonic as never)).resolves.toMatchObject({ key: requirement.key, uploadedObjectId: 'obj_sonic' });
     expect(selected.documents).toHaveLength(1);
+    const wrongRequirement = createHarness({ rows: [requirement], storedUpload: { ...upload, logicalTarget: 'supplier-requirement:other:123e4567-e89b-42d3-a456-426614174000' }, suppliers: [{ supplierId: 'supplier_sonic', supplierName: 'Sonic Line Events', email: 'sonic@example.test' }] });
+    await expect(wrongRequirement.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, sonic as never)).rejects.toThrow('different file requirement');
+    expect(wrongRequirement.documents).toHaveLength(0);
+  });
+
+  it('rejects unselected targets and prevents an unassigned selected supplier binding a file', async () => {
+    const requirement = { ...insuranceRequirement(), targetSupplierIds: [atlas.supplierId] };
+    const upload = { id: 'obj_sonic', eventId, logicalTarget: 'supplier-requirement:insurance_certificate:123e4567-e89b-42d3-a456-426614174000', ownerRecordType: 'supplier', ownerRecordId: sonic.supplierId, usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
+    const harness = createHarness({ rows: [requirement], storedUpload: upload, suppliers: [atlas, sonic] });
+    await expect(harness.service.updateRequirement(eventId, requirement.key, { targetSupplierIds: ['unknown'] }, pmcm)).rejects.toBeInstanceOf(BadRequestException);
+    const actor = { id: 'usr_sonic', role: 'supplier', name: 'Sonic', email: sonic.email, explicit: true, verified: true };
+    await expect(harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, actor as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(harness.documents).toHaveLength(0);
+  });
+
+  it('allows PMCM to reject the current supplier upload with a reason and refuses stale or supplier reviews', async () => {
+    const requirement = { ...insuranceRequirement(), targetSupplierIds: [sonic.supplierId] };
+    const upload = { id: 'obj_sonic', eventId, logicalTarget: 'supplier-requirement:insurance_certificate:123e4567-e89b-42d3-a456-426614174000', ownerRecordType: 'supplier', ownerRecordId: sonic.supplierId, usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
+    const harness = createHarness({ rows: [requirement], storedUpload: upload, suppliers: [sonic] });
+    const actor = { id: 'usr_sonic', role: 'supplier', name: 'Sonic', email: sonic.email, explicit: true, verified: true };
+    const submitted = await harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, actor as never);
+    const documentId = submitted.uploadedAssetId!;
+    await expect(harness.service.reviewSupplierRequirement(eventId, requirement.key, { documentId, decision: 'approve' }, actor as never)).rejects.toBeInstanceOf(ForbiddenException);
+    const reviewed = await harness.service.reviewSupplierRequirement(eventId, requirement.key, { documentId, decision: 'reject', reason: 'Policy has expired' }, pmcm);
+    expect(reviewed.supplierFulfilments?.[0]).toMatchObject({ status: 'missing', reviewReason: 'Policy has expired' });
+    expect(harness.documents[0]).toMatchObject({ status: 'rejected', validationStatus: 'accepted' });
+    await expect(harness.service.reviewSupplierRequirement(eventId, requirement.key, { documentId, decision: 'approve' }, pmcm)).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('applies PMCM-configured event templates idempotently and offsets due dates from the event date', async () => {

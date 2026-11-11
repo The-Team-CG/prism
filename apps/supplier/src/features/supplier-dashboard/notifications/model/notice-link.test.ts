@@ -1,0 +1,15 @@
+import { describe, expect, it } from "vitest";
+import { supplierNoticeLink } from "./notice-link";
+
+describe("supplierNoticeLink", () => {
+  it("opens the booking for a schedule revision and Files for a file requirement", () => {
+    expect(supplierNoticeLink({ kind: "supplier_schedule", requestId: "booking", revision: 2 })).toEqual({ href: "/dashboard/bookings#supplier-work-booking", label: "Review schedule revision 2" });
+    expect(supplierNoticeLink({ kind: "event_section", eventId: "evt_1", section: "files" })).toEqual({ href: "/dashboard/files", label: "Open files" });
+  });
+
+  it("gives suppliers no link into the client's billing or floor plans", () => {
+    expect(supplierNoticeLink({ kind: "event_section", eventId: "evt_1", section: "billing" })).toBeNull();
+    expect(supplierNoticeLink({ kind: "event_section", eventId: "evt_1", section: "floorplans" })).toBeNull();
+    expect(supplierNoticeLink(undefined)).toBeNull();
+  });
+});

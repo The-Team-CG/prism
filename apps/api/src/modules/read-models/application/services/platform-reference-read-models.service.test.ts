@@ -3,6 +3,13 @@ import type { PrismaService } from '@prism/kernel/database';
 import { PlatformReferenceReadModelsService } from './platform-reference-read-models.service';
 
 describe('PlatformReferenceReadModelsService', () => {
+  it('permits only targeted suppliers to upload a custom supplier requirement', async () => {
+    const findUnique = vi.fn(async () => ({ isCustom: true, ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], targetSupplierIds: ['supplier_a'] }));
+    const service = new PlatformReferenceReadModelsService({ opsFileRequirement: { findUnique } } as unknown as PrismaService);
+    await expect(service.supplierMayUploadRequirement('event_1', 'insurance', 'supplier_a')).resolves.toBe(true);
+    await expect(service.supplierMayUploadRequirement('event_1', 'insurance', 'supplier_b')).resolves.toBe(false);
+    expect(findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId_key: { eventId: 'event_1', key: 'insurance' } } }));
+  });
   it('returns only the event id for privacy request reference validation', async () => {
     const findUnique = vi.fn(async () => ({ id: 'evt_1' }));
     const service = new PlatformReferenceReadModelsService({ opsEvent: { findUnique } } as unknown as PrismaService);

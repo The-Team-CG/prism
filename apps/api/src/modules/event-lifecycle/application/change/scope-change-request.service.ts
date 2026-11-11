@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction, writeNotification } from '@prism/contexts/platform-ops';
 import type {
   PrismClientChangeRequest,
   PrismScopeChangeRequest,
@@ -130,7 +130,7 @@ export class ScopeChangeRequestService {
       await writeAudit(this.audit, eventId, actor.name, 'Submitted scope change request', { actorRole: actor.role, actionType: 'create', category: 'events', affectedType: 'scope_change_request', affectedId: value.id, metadata: { requestedByRole, category: value.category } }, { prisma: tx, correlationId: value.id, actorId: actor.id });
       if (requestedByRole === 'client') {
         // PMCM is alerted to every client-originated request; the message names the request, not its details.
-        await writeNotification(this.notifications, eventId, 'PMCM Admin', `Scope change requested for ${event.eventName}: ${value.title}`, undefined, { idempotencyKey: `scope-change-submitted:${value.id}` }, { prisma: tx, correlationId: value.id });
+        await writeNotification(this.notifications, eventId, 'PMCM Admin', `Scope change requested for ${event.eventName}: ${value.title}`, undefined, { idempotencyKey: `scope-change-submitted:${value.id}`, action: eventSectionAction(eventId, 'changes') }, { prisma: tx, correlationId: value.id });
       }
       return mapScopeChangeRequest(value);
     }, { isolationLevel: 'Serializable' });
@@ -248,7 +248,7 @@ export class ScopeChangeRequestService {
     const idempotencyKey = `scope-change-decision:${requestId}:${outcome === 'approved' ? 'approved' : 'rejected'}`;
     const response = clientResponse?.trim();
     const message = `Your scope change request “${title}” was ${outcome}.${response ? ` PMCM response: ${response}` : ''}`;
-    return writeNotification(this.notifications, eventId, 'Client', message, undefined, { idempotencyKey }, { prisma: tx, correlationId: requestId });
+    return writeNotification(this.notifications, eventId, 'Client', message, undefined, { idempotencyKey, action: eventSectionAction(eventId, 'changes') }, { prisma: tx, correlationId: requestId });
   }
 
   private async requireTransition(tx: Prisma.TransactionClient, where: Prisma.OpsScopeChangeRequestWhereInput & { id: string; eventId: string }, data: Prisma.OpsScopeChangeRequestUncheckedUpdateManyInput) {

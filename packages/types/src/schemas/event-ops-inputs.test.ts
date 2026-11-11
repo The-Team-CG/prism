@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { acknowledgePrivacyNoticeSchema, requestApprovalSchema } from "./auth-inputs.js";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "../privacy.js";
-import { createFileRequirementSchema, updateFileRequirementSchema } from "./file-requirement-inputs.js";
+import { createFileRequirementSchema, updateFileRequirementSchema, reviewSupplierRequirementSchema } from "./file-requirement-inputs.js";
 import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import { blockEventDayTaskSchema } from "./live-ops-inputs.js";
 import { inquiryPendingFullDetails, logInquiryOnBehalfSchema } from "./event-lifecycle-inputs.js";
@@ -792,6 +792,12 @@ describe("event-ops write schemas", () => {
 
 describe("file requirement contracts", () => {
   const base = { key: "venue_permit", label: "Venue permit", ownerRole: "client", visibleToRoles: ["pmcm-admin", "client"] };
+
+  it("requires a reason for rejecting a supplier submission and rejects duplicate targets", () => {
+    expect(reviewSupplierRequirementSchema.safeParse({ documentId: "doc_1", decision: "reject", reason: "  " }).success).toBe(false);
+    expect(reviewSupplierRequirementSchema.parse({ documentId: "doc_1", decision: "reject", reason: " Expired " }).reason).toBe("Expired");
+    expect(updateFileRequirementSchema.safeParse({ targetSupplierIds: ["supplier_a", "supplier_a"] }).success).toBe(false);
+  });
 
   it("defaults custom requirements to required and custom source, and accepts an offset due date", () => {
     expect(createFileRequirementSchema.parse({ ...base, dueAt: "2026-10-25T23:59:59+08:00" })).toMatchObject({

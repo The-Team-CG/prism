@@ -3,6 +3,7 @@ import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism
 import { NotificationChannel } from '@prism/kernel/event-core';
 import { resolveNotificationRecipients } from '../../application/notifications/notification-recipient-resolver';
 import { NotificationPreferenceService } from '../../application/notifications/notification-preference.service';
+import { NotificationRecipientDeliveryService } from '../../application/notifications/notification-recipient-delivery.service';
 import type { NotificationDeliveryPort, NotificationDeliveryResult } from '../../contracts/notifications/notification-delivery.port';
 import { VIBER_BOT, type ViberBot } from '../../contracts/notifications/viber.port';
 import { MailNotificationDeliveryAdapter } from './mail-notification-delivery.adapter';
@@ -17,6 +18,7 @@ export class ChannelNotificationDeliveryAdapter implements NotificationDeliveryP
     private readonly mail: MailNotificationDeliveryAdapter,
     private readonly preferences: NotificationPreferenceService,
     @Inject(ACCOUNT_CONTACT_READ_MODEL) private readonly contacts: AccountContactReadModel,
+    private readonly recipients: NotificationRecipientDeliveryService,
     @Optional() @Inject(VIBER_BOT) private readonly viber?: ViberBot | null,
   ) {}
 
@@ -28,18 +30,17 @@ export class ChannelNotificationDeliveryAdapter implements NotificationDeliveryP
   private async deliverViber(input: Parameters<NotificationDeliveryPort['deliver']>[0]): Promise<NotificationDeliveryResult> {
     const viber = this.viber;
     if (!viber) return { status: 'permanent_failure', reason: 'No viber delivery provider' };
-    const resolved = await resolveNotificationRecipients(input.recipient, input.eventId, this.contacts);
-    if (resolved.status === 'failed') return { status: 'permanent_failure', reason: resolved.reason };
-    const recipients = await this.preferences.findViberRecipients(resolved.addresses);
-    if (recipients.length === 0) return { status: 'skipped', reason: 'No recipient has Viber updates on' };
-    const results = await Promise.all(recipients.map(async (recipient) => {
+    return this.recipients.deliver(input.idempotencyKey, () => resolveNotificationRecipients(input.recipient, input.eventId, this.contacts), async (email) => {
+      const [recipient] = await this.preferences.findViberRecipients([email]);
+      if (!recipient) return { status: 'skipped', reason: 'Recipient has not enabled Viber updates' };
       const result = await viber.sendText(recipient.viberUserId, input.message);
-      if (result.status === 'not_subscribed') await this.preferences.clearViberUser(recipient.viberUserId);
-      return result;
-    }));
-    if (results.some((result) => result.status === 'retryable_failure')) return { status: 'retryable_failure', reason: 'Viber did not accept every message; retry scheduled' };
-    const accepted = results.flatMap((result) => (result.status === 'accepted' ? [result.messageToken || 'accepted'] : []));
-    if (accepted.length === 0) return { status: 'permanent_failure', reason: `Viber refused all ${results.length} messages` };
-    return { status: 'accepted', receipt: accepted.join(',') };
+      if (result.status === 'not_subscribed') {
+        await this.preferences.clearViberUser(recipient.viberUserId);
+        return { status: 'permanent_failure', reason: 'Recipient is not subscribed to the Viber bot' };
+      }
+      if (result.status === 'accepted') return result.messageToken ? { status: 'accepted', receipt: result.messageToken }
+        : { status: 'permanent_failure', reason: 'Viber acceptance has no receipt; operator review required before retry' };
+      return { status: result.status, reason: 'Viber provider could not accept this recipient' };
+    });
   }
 }

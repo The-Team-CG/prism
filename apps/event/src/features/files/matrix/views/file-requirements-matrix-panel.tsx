@@ -18,10 +18,12 @@ import {
 import { FileRequirementEditorForm } from "./file-requirement-editor-form";
 import { FileRequirementTemplateManager } from "./file-requirement-template-manager";
 import { LoadingState } from "@prism/ui/components/loading-state";
+import { useSupplierRequirementReview } from "../view-models/use-supplier-requirement-review";
 
-export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
+export function FileRequirementsMatrixPanel({ eventId, suppliers = [] }: { eventId?: string; suppliers?: Array<{ supplierId: string; supplierName: string }> }) {
   const { matrix, status, error, reload, remindersBusy, reminderError, sendReminders } = useFileRequirementsMatrixViewModel(eventId);
   const editor = useFileRequirementEditorViewModel(eventId, reload);
+  const review = useSupplierRequirementReview(eventId, reload);
   const counts = fileRequirementCounts(matrix);
   const items = sortFileRequirementItems(matrix?.items ?? []);
   const editable = status === "success" && Boolean(eventId);
@@ -53,7 +55,7 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
       ) : (
         <div className="divide-y divide-border">
           {items.map((item) => (
-            <FileRequirementRow key={item.key} item={item} editable={editable} editor={editor} />
+            <FileRequirementRow key={item.key} item={item} editable={editable} editor={editor} suppliers={suppliers} review={review} />
           ))}
         </div>
       )}
@@ -84,10 +86,11 @@ export function FileRequirementsMatrixPanel({ eventId }: { eventId?: string }) {
         ) : null}
       </div>
       {reminderError ? <p role="alert" className="border-b border-border px-6 py-2 text-xs text-danger">{reminderError}</p> : null}
+      {review.error ? <p role="alert" className="border-b border-border px-6 py-2 text-xs text-destructive">{review.error}</p> : null}
       {templatesOpen && eventId ? <FileRequirementTemplateManager eventId={eventId} onClose={() => setTemplatesOpen(false)} onApplied={reload} /> : null}
       {editor.target?.mode === "create" ? (
         <div className="px-6 py-4">
-          <FileRequirementEditorForm mode="create" busy={editor.busy} error={editor.saveError} onSave={editor.save} onCancel={editor.cancel} />
+          <FileRequirementEditorForm mode="create" suppliers={suppliers} busy={editor.busy} error={editor.saveError} onSave={editor.save} onCancel={editor.cancel} />
         </div>
       ) : null}
       {renderRequirements()}
@@ -105,7 +108,7 @@ function FileRequirementCountLine({ counts }: { counts: ReturnType<typeof fileRe
   );
 }
 
-function SupplierFulfilmentList({ fulfilments }: { fulfilments: NonNullable<PrismFileRequirementItem["supplierFulfilments"]> }) {
+function SupplierFulfilmentList({ fulfilments, itemKey, review }: { fulfilments: NonNullable<PrismFileRequirementItem["supplierFulfilments"]>; itemKey: string; review: ReturnType<typeof useSupplierRequirementReview> }) {
   return (
     <ul className="mt-2 space-y-1">
       {fulfilments.map((fulfilment) => (
@@ -113,15 +116,28 @@ function SupplierFulfilmentList({ fulfilments }: { fulfilments: NonNullable<Pris
           <span className="font-semibold text-foreground">{fulfilment.supplierName}</span>
           <StatusBadge status={fulfilment.status} />
           {fulfilment.overdue ? <span className="font-semibold text-destructive">Overdue</span> : null}
+          {fulfilment.reviewReason ? <span>Rejected: {fulfilment.reviewReason}</span> : null}
+          {fulfilment.uploadedObjectId ? <button type="button" className="rounded border border-border px-2 py-1" onClick={() => void review.download(fulfilment.uploadedObjectId!)}>Download file</button> : null}
+          {(fulfilment.versions?.length ?? 0) > 1 ? <details><summary>Previous versions</summary><ul>{fulfilment.versions?.slice(1).map((version) => <li key={version.documentId}><button type="button" className="text-primary" onClick={() => void review.download(version.objectId)}>{version.fileName}</button> · {version.status}{version.reviewReason ? ` · ${version.reviewReason}` : ""}</li>)}</ul></details> : null}
+          {fulfilment.status === "submitted" && fulfilment.uploadedAssetId ? <SupplierReviewForm itemKey={itemKey} documentId={fulfilment.uploadedAssetId} review={review} /> : null}
         </li>
       ))}
     </ul>
   );
 }
 
+function SupplierReviewForm({ itemKey, documentId, review }: { itemKey: string; documentId: string; review: ReturnType<typeof useSupplierRequirementReview> }) {
+  const [reason, setReason] = useState("");
+  return <div className="flex flex-wrap items-center gap-2">
+    <button type="button" disabled={review.busy} onClick={() => void review.review(itemKey, documentId, "approve", "")} className="rounded border border-border px-2 py-1">Approve</button>
+    <input aria-label="Reason for rejection" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Reason for rejection" className="rounded border border-border bg-background px-2 py-1" />
+    <button type="button" disabled={review.busy || !reason.trim()} onClick={() => void review.review(itemKey, documentId, "reject", reason)} className="rounded border border-border px-2 py-1">Reject</button>
+  </div>;
+}
+
 type FileRequirementEditor = ReturnType<typeof useFileRequirementEditorViewModel>;
 
-function FileRequirementRow({ item, editable, editor }: { item: PrismFileRequirementItem; editable: boolean; editor: FileRequirementEditor }) {
+function FileRequirementRow({ item, editable, editor, suppliers, review }: { item: PrismFileRequirementItem; editable: boolean; editor: FileRequirementEditor; suppliers: Array<{ supplierId: string; supplierName: string }>; review: ReturnType<typeof useSupplierRequirementReview> }) {
   const editing = editor.target?.mode === "edit" && editor.target.item.key === item.key;
   return (
     <div className="px-6 py-3">
@@ -138,7 +154,7 @@ function FileRequirementRow({ item, editable, editor }: { item: PrismFileRequire
             {item.overdue ? <span className="text-destructive"> · Overdue</span> : null}
           </p>
           {item.notes ? <p className="mt-1 text-2xs text-muted-foreground">PMCM note: {item.notes}</p> : null}
-          {item.supplierFulfilments?.length ? <SupplierFulfilmentList fulfilments={item.supplierFulfilments} /> : null}
+          {item.supplierFulfilments?.length ? <SupplierFulfilmentList fulfilments={item.supplierFulfilments} itemKey={item.key} review={review} /> : null}
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={item.status} />
@@ -151,7 +167,7 @@ function FileRequirementRow({ item, editable, editor }: { item: PrismFileRequire
       </div>
       {editing ? (
         <div className="mt-3">
-          <FileRequirementEditorForm mode="edit" item={item} busy={editor.busy} error={editor.saveError} onSave={editor.save} onCancel={editor.cancel} />
+          <FileRequirementEditorForm mode="edit" item={item} suppliers={suppliers} busy={editor.busy} error={editor.saveError} onSave={editor.save} onCancel={editor.cancel} />
         </div>
       ) : null}
     </div>

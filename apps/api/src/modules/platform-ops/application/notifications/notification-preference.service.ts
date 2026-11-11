@@ -1,9 +1,13 @@
 import { BadRequestException, Inject, Injectable, Optional, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
+import { ConfigService } from '@nestjs/config';
 import type { OpsNotificationChannelPreference } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { VIBER_LINK_CODE_MINUTES, type PrismNotificationPreferences, type PrismViberLink, type PrismVerifiedEventActor } from '@prism/types';
 import { VIBER_BOT, type ViberBot } from '../../contracts/notifications/viber.port';
+import { viberDeliveryCallbackSchema, viberCallbackSchema, type ViberCallback } from '@prism/types';
+import { parseViberJson } from './viber-json';
+import { viberOutcomeWhere } from './notification-provider-outcome.service';
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const hashCode = (code: string) => createHash('sha256').update(code.trim().toUpperCase()).digest('hex');
@@ -14,14 +18,7 @@ const emailOf = (actor: PrismVerifiedEventActor) => {
 };
 
 /** A Viber callback, reduced to the fields this service reads. */
-export type ViberCallback = {
-  event?: string;
-  context?: string;
-  user?: { id?: string };
-  user_id?: string;
-  sender?: { id?: string };
-  message?: { text?: string };
-};
+export type { ViberCallback } from '@prism/types';
 
 /** Viber answers a conversation_started callback with this body as the welcome message. */
 export type ViberWelcome = { sender: { name: string }; type: 'text'; text: string } | Record<string, never>;
@@ -35,11 +32,22 @@ export class NotificationPreferenceService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() @Inject(VIBER_BOT) private readonly viber?: ViberBot | null,
+    @Optional() private readonly config?: ConfigService,
   ) {}
 
   async get(actor: PrismVerifiedEventActor): Promise<PrismNotificationPreferences> {
     const email = emailOf(actor);
     return this.map(email, await this.prisma.opsNotificationChannelPreference.findUnique({ where: { email } }));
+  }
+
+  async deliveryReadiness(emails: string[], channel: string): Promise<Map<string, string>> {
+    if (channel === 'viber') {
+      if (!this.viber) return new Map(emails.map((email) => [email, 'unconfigured']));
+      const enabled = new Set((await this.findViberRecipients(emails)).map((recipient) => recipient.email));
+      return new Map(emails.map((email) => [email, enabled.has(email) ? 'ready' : 'not linked or disabled']));
+    }
+    const status = this.map('', null).emailDelivery;
+    return new Map(emails.map((email) => [email, status]));
   }
 
   async startViberLink(actor: PrismVerifiedEventActor, now = new Date()): Promise<PrismViberLink> {
@@ -74,22 +82,45 @@ export class NotificationPreferenceService {
   async handleViberCallback(rawBody: Buffer | undefined, signature: string | undefined, now = new Date()): Promise<ViberWelcome> {
     const viber = this.requireViber();
     if (!rawBody || !viber.verifySignature(rawBody, signature)) throw new UnauthorizedException('Invalid Viber signature');
-    const callback = JSON.parse(rawBody.toString('utf8')) as ViberCallback;
+    let parsed: unknown;
+    try { parsed = parseViberJson(rawBody.toString('utf8')); }
+    catch { throw new BadRequestException('Invalid Viber callback'); }
+    const receipt = viberDeliveryCallbackSchema.safeParse(parsed);
+    if (receipt.success) {
+      await this.recordViberDeliveryReport(receipt.data.message_token, receipt.data.event);
+      return {};
+    }
+    return this.handleViberUserEvent(viber, parsed, now);
+  }
+
+  /** A delivery report for a sent message. It is kept even when early, only moves forward, then settles matching deliveries. */
+  private async recordViberDeliveryReport(token: string, event: string) {
+    // Keep early callbacks so acceptance settlement can reconcile them after the send response.
+    await this.prisma.opsNotificationProviderOutcome.upsert({ where: { receipt: token }, create: { receipt: token, outcome: event }, update: {} });
+    if (event === 'seen') await this.prisma.opsNotificationProviderOutcome.updateMany({ where: { receipt: token, outcome: 'delivered' }, data: { outcome: 'seen' } });
+    if (event === 'failed') await this.prisma.opsNotificationProviderOutcome.updateMany({ where: { receipt: token }, data: { outcome: 'failed' } });
+    const outcome = await this.prisma.opsNotificationProviderOutcome.findUniqueOrThrow({ where: { receipt: token } });
+    await this.prisma.opsNotificationDelivery.updateMany({ where: viberOutcomeWhere(token, outcome.outcome), data: { providerOutcome: outcome.outcome } });
+  }
+
+  /** Account events from the bot: unsubscribe, a conversation opening, or a message that may carry a link code. */
+  private async handleViberUserEvent(viber: ViberBot, parsed: unknown, now: Date): Promise<ViberWelcome> {
+    const validated = viberCallbackSchema.safeParse(parsed);
+    if (!validated.success || ['delivered', 'seen', 'failed'].includes(validated.data.event ?? '')) throw new BadRequestException('Invalid Viber callback');
+    const callback = validated.data;
     if (callback.event === 'unsubscribed' && callback.user_id) {
       await this.clearViberUser(callback.user_id);
       return {};
     }
-    if (callback.event === 'conversation_started') return this.welcome(viber, callback, now);
+    if (callback.event === 'conversation_started') return this.welcome(viber);
     if (callback.event === 'message') await this.linkFromMessage(viber, callback, now);
     return {};
   }
 
-  /** Opening the deep link carries the code as context; Viber shows the returned text as the welcome message. */
-  private async welcome(viber: ViberBot, callback: ViberCallback, now: Date): Promise<ViberWelcome> {
-    const linked = callback.context && callback.user?.id ? await this.link(callback.context, callback.user.id, now) : false;
-    const text = linked
-      ? 'Viber updates from P.R.I.S.M are on. You can turn them off from your portal account menu.'
-      : 'To get P.R.I.S.M updates here, open Notifications in your portal account menu and tap "Link Viber".';
+  /** The user must send the code so that linking also proves subscription to the bot. */
+  private async welcome(viber: ViberBot): Promise<ViberWelcome> {
+    // Opening a conversation does not subscribe the account. A message containing the code does.
+    const text = 'To turn on P.R.I.S.M updates, send the link code shown in your portal Notifications screen to this chat.';
     return { sender: { name: viber.senderName }, type: 'text', text };
   }
 
@@ -134,8 +165,11 @@ export class NotificationPreferenceService {
   }
 
   private map(email: string, row: OpsNotificationChannelPreference | null): PrismNotificationPreferences {
+    const mailTransport = this.config?.get<string>('PRISM_MAIL_TRANSPORT')?.trim().toLowerCase();
     return {
       email,
+      emailDelivery: mailTransport === 'resend' ? 'external'
+        : mailTransport === 'log' || mailTransport === 'mailpit' ? 'captured' : 'unavailable',
       viberConfigured: Boolean(this.viber),
       viberLinked: Boolean(row?.viberUserId),
       viberEnabled: Boolean(row?.viberEnabled && row.viberUserId),

@@ -16,6 +16,7 @@ import {
   type UpsertFileRequirementTemplateInput,
   type UpdateFileRequirementInput,
   type BindFileRequirementUploadInput,
+  type ReviewSupplierRequirementInput,
 } from '@prism/types';
 import type { FileRequirementCommands, FileRequirementReminder, FileRequirementReminderReason } from '../../contracts/file-requirement-commands.port';
 import { FileRequirementsMatrixService } from './file-requirements-matrix.service';
@@ -63,6 +64,7 @@ function overridePatch(input: UpdateFileRequirementInput, current: PrismFileRequ
     required: input.required ?? current.required,
     dueAt: nextDueAt(input.dueAt, current.dueDate),
     notes: input.notes === undefined ? (existing?.notes ?? null) : (input.notes || null),
+    targetSupplierIds: input.targetSupplierIds ?? existing?.targetSupplierIds ?? [],
   };
   if (!next.visibleToRoles.includes(OpsUserRole.PmcmAdmin) || !next.visibleToRoles.includes(next.ownerRole)) {
     throw new BadRequestException('PMCM and the owner role must both be able to see the requirement');
@@ -79,7 +81,7 @@ function reminderMessage(reason: FileRequirementReminderReason, label: string, a
 
 /** The upload a PMCM rejected reminder points at: the rejected supplier file for supplier-owned items, else the latest rejected file of the type. */
 function rejectedAnchor(item: PrismFileRequirementItem, rejectedByType: Map<string, string>) {
-  if (item.supplierFulfilments) return item.supplierFulfilments.find((fulfilment) => fulfilment.validationStatus === 'rejected')?.uploadedAssetId;
+  if (item.supplierFulfilments) return item.supplierFulfilments.find((fulfilment) => fulfilment.validationStatus === 'rejected' || fulfilment.reviewReason)?.uploadedAssetId;
   return item.validationStatus === 'rejected' ? rejectedByType.get(item.key) : undefined;
 }
 
@@ -105,6 +107,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     try {
       return await this.writeRequirement(async (tx) => {
         await this.requireWritableEvent(eventId, tx);
+        await this.validateSupplierTargets(tx, eventId, input.ownerRole, true, input.targetSupplierIds ?? []);
         if (await tx.opsFileRequirement.findUnique({ where: { eventId_key: { eventId, key: input.key } } })) {
           throw new ConflictException('A file requirement with this key already exists for the event');
         }
@@ -113,6 +116,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
             id: `freq_${randomUUID()}`, eventId, key: input.key, label: input.label, ownerRole: input.ownerRole,
             visibleToRoles: input.visibleToRoles, required: input.required, dueAt: input.dueAt ? new Date(input.dueAt) : null,
             sourceWorkflow: input.sourceWorkflow, isCustom: true, notes: input.notes || null, updatedBy: actor.id ?? actor.name,
+            targetSupplierIds: input.targetSupplierIds ?? [],
           },
         });
         await this.audit(tx, actor, row, 'Created file requirement', AuditActionType.Create, {
@@ -202,11 +206,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       const scopedActor = scoped.actor;
       const requirement = await tx.opsFileRequirement.findUnique({ where: { eventId_key: { eventId, key } } });
       if (!requirement || !requirement.isCustom) throw new NotFoundException('Custom file requirement not found');
-      await this.accessPolicy.requireActorRole(scopedActor, [requirement.ownerRole as OpsUserRoleValue, OpsUserRole.PmcmAdmin], 'fulfil file requirement', eventId);
-      if (!requirement.visibleToRoles.includes(scopedActor.role) && scopedActor.role !== OpsUserRole.PmcmAdmin) {
-        throw new BadRequestException('This role cannot fulfil the file requirement');
-      }
-      await this.requireSelectedSupplierBooking(tx, eventId, scopedActor);
+      await this.requireFulfilableRequirement(tx, eventId, requirement, scopedActor);
       const object = await this.requireBindingUpload(tx, eventId, key, input.objectId, scopedActor, requirement);
       const currentBinding = await tx.opsDocument.findFirst({ where: { eventId, storageKey: object.id } });
       if (currentBinding) {
@@ -233,6 +233,29 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     return scopedItem;
   }
 
+  async reviewSupplierRequirement(eventId: string, key: string, input: ReviewSupplierRequirementInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
+    await this.accessPolicy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], MANAGEMENT_RESOURCE, eventId);
+    return this.writeRequirement(async (tx) => {
+      await this.requireWritableEvent(eventId, tx);
+      const item = await this.itemFor(eventId, key, tx);
+      if (item.origin !== 'custom' || item.ownerRole !== 'supplier' ||
+          !item.supplierFulfilments?.some((entry) => entry.uploadedAssetId === input.documentId && entry.status === 'submitted')) {
+        throw new ConflictException('The submitted supplier file changed; refresh before reviewing');
+      }
+      const changed = await tx.opsDocument.updateMany({
+        where: { id: input.documentId, eventId, type: key, status: 'submitted' },
+        data: { status: input.decision === 'approve' ? 'approved' : 'rejected', rejectionReason: input.decision === 'reject' ? input.reason : null },
+      });
+      if (changed.count !== 1) throw new ConflictException('The submitted supplier file changed; refresh before reviewing');
+      await writeAudit(this.auditWriter, eventId, actor.name, 'Reviewed supplier requirement file', {
+        actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update, category: AuditCategory.Documents,
+        affectedType: 'document', affectedId: input.documentId, affectedLabel: key,
+        metadata: { decision: input.decision },
+      }, { prisma: tx, correlationId: `supplier-requirement-review:${input.documentId}` });
+      return this.itemFor(eventId, key, tx);
+    });
+  }
+
   private isRequirementUploadOwner(object: StoredRequirementUploadReference, eventId: string, actor: ResolvedEventOpsActor) {
     return ((object.usage === 'client_document' || object.usage === 'signed_conforme') && object.ownerRecordType === 'event' && object.ownerRecordId === eventId)
         || (object.usage === 'supplier_document' && object.ownerRecordType === 'supplier' && object.ownerRecordId === actor.supplierId)
@@ -240,6 +263,24 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
   }
 
   /** Suppliers may bind only when they hold a selected booking on the event; other roles pass through. */
+  /** The role must own the requirement (or be PMCM), be allowed to see it, and, for a supplier, be booked and assigned to it. */
+  private async requireFulfilableRequirement(tx: Prisma.TransactionClient, eventId: string, requirement: OpsFileRequirement, scopedActor: ResolvedEventOpsActor) {
+    await this.accessPolicy.requireActorRole(scopedActor, [requirement.ownerRole as OpsUserRoleValue, OpsUserRole.PmcmAdmin], 'fulfil file requirement', eventId);
+    if (!requirement.visibleToRoles.includes(scopedActor.role) && scopedActor.role !== OpsUserRole.PmcmAdmin) {
+      throw new BadRequestException('This role cannot fulfil the file requirement');
+    }
+    await this.requireSelectedSupplierBooking(tx, eventId, scopedActor);
+    await this.requireAssignedSupplier(requirement, eventId, scopedActor);
+  }
+
+  /** A requirement aimed at specific suppliers can be fulfilled only by one of them. */
+  private async requireAssignedSupplier(requirement: OpsFileRequirement, eventId: string, scopedActor: ResolvedEventOpsActor) {
+    if (scopedActor.role !== OpsUserRole.Supplier || requirement.targetSupplierIds.length === 0) return;
+    if (scopedActor.supplierId && requirement.targetSupplierIds.includes(scopedActor.supplierId)) return;
+    await this.accessPolicy.recordForbiddenAccess(scopedActor, 'fulfil unassigned file requirement', eventId);
+    throw new ForbiddenException('This file requirement is not assigned to your supplier');
+  }
+
   private async requireSelectedSupplierBooking(tx: Prisma.TransactionClient, eventId: string, scopedActor: ResolvedEventOpsActor) {
     if (scopedActor.role !== OpsUserRole.Supplier) return;
     // An unresolved supplierId must refuse outright: Prisma treats an undefined where-field as no filter.
@@ -255,6 +296,9 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     const object = await this.storedRequirementUploads.findStoredRequirementUpload({ eventId, objectId, context: { prisma: tx, correlationId: `file-requirement-upload:${eventId}:${key}:${objectId}` } });
     if (!object || object.lifecycleState !== 'stored' || object.eventId !== eventId) throw new BadRequestException('Upload must be stored for this event before it can fulfil a requirement');
     if (!this.isRequirementUploadOwner(object, eventId, scopedActor)) throw new BadRequestException('Upload owner does not match an allowed event requirement source');
+    if (scopedActor.role === OpsUserRole.Supplier && !object.logicalTarget.startsWith(`supplier-requirement:${key}:`)) {
+      throw new BadRequestException('Upload was requested for a different file requirement');
+    }
     if (scopedActor.role !== OpsUserRole.PmcmAdmin && (object.uploaderActorRole !== requirement.ownerRole || object.uploaderActorId !== scopedActor.id)) {
       await this.accessPolicy.recordForbiddenAccess(scopedActor, 'fulfil file requirement with another uploader file', eventId);
       throw new BadRequestException('Only the requirement owner can bind their uploaded file');
@@ -295,6 +339,9 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       throw new ConflictException('File requirement changed; refresh before saving');
     }
     const next = overridePatch(input, current, existing);
+    if (input.targetSupplierIds !== undefined || input.ownerRole !== undefined) {
+      await this.validateSupplierTargets(tx, eventId, next.ownerRole, current.origin === 'custom', next.targetSupplierIds);
+    }
     const row = await this.saveOverride(tx, eventId, key, current, existing, next, actor);
     await this.auditUpdate(tx, actor, row, input, current);
     return this.itemFor(eventId, key, tx);
@@ -307,7 +354,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     input: UpdateFileRequirementInput,
     current: PrismFileRequirementItem,
   ) {
-    const changed = (['label', 'ownerRole', 'required', 'dueAt', 'notes'] as const).filter((field) => input[field] !== undefined);
+    const changed = (['label', 'ownerRole', 'required', 'dueAt', 'notes', 'targetSupplierIds'] as const).filter((field) => input[field] !== undefined);
     await this.audit(tx, actor, row, 'Updated file requirement', AuditActionType.Update, {
       changedFields: changed, ownerRole: row.ownerRole, required: row.required, dueAt: row.dueAt?.toISOString() ?? null,
     });
@@ -328,7 +375,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
           archived: false,
           OR: [
             { fileRequirements: { some: { required: true, dueAt: { lte: now } } } },
-            { documents: { some: { validationStatus: 'rejected' } } },
+            { documents: { some: { OR: [{ validationStatus: 'rejected' }, { status: 'rejected' }] } } },
           ],
           ...(afterId ? { id: { gt: afterId } } : {}),
         },
@@ -396,7 +443,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     for (const fulfilment of item.supplierFulfilments ?? []) {
       const email = emailBySupplier.get(fulfilment.supplierId) ?? null;
       if (fulfilment.overdue && item.dueDate) reminders.push(...await this.queueSupplierReminder(eventId, item, 'overdue', item.dueDate, fulfilment.supplierId, email));
-      if (fulfilment.validationStatus === 'rejected' && fulfilment.uploadedAssetId) {
+      if ((fulfilment.validationStatus === 'rejected' || fulfilment.reviewReason) && fulfilment.uploadedAssetId) {
         reminders.push(...await this.queueSupplierReminder(eventId, item, 'rejected', fulfilment.uploadedAssetId, fulfilment.supplierId, email));
       }
     }
@@ -444,7 +491,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     idempotencyKey: string,
   ): Promise<FileRequirementReminder[]> {
     try {
-      await writeNotification(this.notificationOutboxWriter, eventId, recipient, reminderMessage(reason, item.label, anchor), undefined, { idempotencyKey, correlationId: idempotencyKey });
+      await writeNotification(this.notificationOutboxWriter, eventId, recipient, reminderMessage(reason, item.label, anchor), undefined, { idempotencyKey, correlationId: idempotencyKey, action: { kind: 'event_section', eventId, section: 'files' } });
       return [{ eventId, key: item.key, reason, recipient, idempotencyKey }];
     } catch (error) {
       this.logger.warn(`File requirement reminder skipped for ${eventId}/${item.key}: ${error instanceof Error ? error.message : String(error)}`);
@@ -458,7 +505,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     key: string,
     current: PrismFileRequirementItem,
     existing: OpsFileRequirement | null,
-    next: { label: string; ownerRole: string; visibleToRoles: string[]; required: boolean; dueAt: Date | null; notes: string | null },
+    next: { label: string; ownerRole: string; visibleToRoles: string[]; required: boolean; dueAt: Date | null; notes: string | null; targetSupplierIds: string[] },
     actor: ResolvedEventOpsActor,
   ) {
     const updatedBy = actor.id ?? actor.name;
@@ -468,6 +515,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
           id: `freq_${randomUUID()}`, eventId, key, sourceWorkflow: current.sourceWorkflow, isCustom: false,
           label: next.label, ownerRole: next.ownerRole, visibleToRoles: next.visibleToRoles, required: next.required,
           dueAt: next.dueAt, notes: next.notes, updatedBy,
+          targetSupplierIds: next.targetSupplierIds,
         },
       });
     }
@@ -483,6 +531,18 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     const event = await tx.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, archived: true } });
     if (!event) throw new NotFoundException('Event not found');
     if (event.archived) throw new BadRequestException('Archived event file requirements are read-only');
+  }
+
+  private async validateSupplierTargets(tx: Prisma.TransactionClient, eventId: string, ownerRole: string, isCustom: boolean, ids: string[]) {
+    if (ids.length === 0) return;
+    if (!isCustom || ownerRole !== OpsUserRole.Supplier) {
+      throw new BadRequestException('Supplier targets are available only for custom supplier requirements');
+    }
+    const bookings = await tx.opsSupplierQuoteRequest.findMany({
+      where: { eventId, status: 'selected', supplierId: { in: ids } }, select: { supplierId: true }, distinct: ['supplierId'], take: 200,
+    });
+    const selected = new Set(bookings.map((booking) => booking.supplierId));
+    if (ids.some((id) => !selected.has(id))) throw new BadRequestException('Each target must be a selected supplier on this event');
   }
 
   private async itemFor(eventId: string, key: string, tx: Prisma.TransactionClient, audience?: { role: string; supplierId?: string | null }) {
