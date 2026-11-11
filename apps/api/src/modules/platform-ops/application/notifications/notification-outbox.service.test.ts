@@ -4,6 +4,22 @@ import { NotificationOutboxService } from './notification-outbox.service';
 import { processNotificationQueue } from './notification-delivery-worker';
 import { resolveNotificationRecipients } from './notification-recipient-resolver';
 import { MailNotificationDeliveryAdapter } from '../../infrastructure/notifications/mail-notification-delivery.adapter';
+import { NotificationRecipientDeliveryService } from './notification-recipient-delivery.service';
+
+function recipientStore() {
+  const rows: Array<Record<string, any>> = [];
+  const prisma = { opsNotificationDelivery: {
+    findMany: vi.fn(async ({ where }: { where: { notificationId: string } }) => rows.filter((row) => row.notificationId === where.notificationId).sort((a, b) => a.recipient.localeCompare(b.recipient))),
+    createMany: vi.fn(async ({ data }: { data: Array<Record<string, any>> }) => { for (const row of data) if (!rows.some((existing) => existing.notificationId === row.notificationId && existing.recipient === row.recipient)) rows.push({ ...row, status: 'pending', attempts: 0 }); return { count: data.length }; }),
+    updateMany: vi.fn(async ({ where, data }: { where: { id: string }; data: Record<string, any> }) => {
+      const row = rows.find((entry) => entry.id === where.id);
+      if (!row || ['accepted', 'failed', 'skipped'].includes(row.status)) return { count: 0 };
+      Object.assign(row, { ...data, attempts: row.attempts + 1 });
+      return { count: 1 };
+    }),
+  } };
+  return { rows, service: new NotificationRecipientDeliveryService(prisma as never) };
+}
 
 const recipientLookups = {
   findApprovedPmcmAdminEmails: async () => ['admin-a@example.test', 'Admin-A@example.test', 'admin-b@example.test'],
@@ -31,7 +47,7 @@ describe('resolveNotificationRecipients', () => {
 describe('MailNotificationDeliveryAdapter', () => {
   function adapter(send: MailTransport['send'] = async () => ({ status: 'accepted', receipt: 'msg_1' })) {
     const mail = { send: vi.fn(send) };
-    return { mail, adapter: new MailNotificationDeliveryAdapter(mail, recipientLookups as never) };
+    return { mail, adapter: new MailNotificationDeliveryAdapter(mail, recipientLookups as never, recipientStore().service) };
   }
 
   it('fails a non-email channel permanently without sending mail', async () => {
@@ -49,6 +65,32 @@ describe('MailNotificationDeliveryAdapter', () => {
     expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_1:admin-a@example.test', subject: 'P.R.I.S.M: A <b>note</b> (Gala)' }));
     expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_1:admin-b@example.test', text: 'A <b>note</b>', html: expect.stringContaining('A &lt;b&gt;note&lt;/b&gt;') }));
     expect(mail.send.mock.calls.every(([message]) => !String(message.html).includes('<b>'))).toBe(true);
+  });
+
+  it('keeps the original recipients across a retry and does not resend provider-accepted mail', async () => {
+    const store = recipientStore();
+    const contacts = { ...recipientLookups, findApprovedPmcmAdminEmails: vi.fn().mockResolvedValueOnce(['a@example.test', 'b@example.test']).mockResolvedValue(['b@example.test', 'new@example.test']) };
+    const mail = { send: vi.fn(async ({ to }: { to: string }) => to === 'a@example.test' ? { status: 'accepted' as const, receipt: 'receipt-a' } : { status: 'retryable_failure' as const }) };
+    const adapter = new MailNotificationDeliveryAdapter(mail, contacts as never, store.service);
+    const input = { idempotencyKey: 'not_snapshot', channel: 'email', eventId: null, recipient: 'PMCM Admin', message: 'Action needed' };
+    await expect(adapter.deliver(input)).resolves.toMatchObject({ status: 'retryable_failure' });
+    await expect(adapter.deliver(input)).resolves.toMatchObject({ status: 'retryable_failure' });
+    expect(contacts.findApprovedPmcmAdminEmails).toHaveBeenCalledTimes(2);
+    expect(mail.send.mock.calls.filter(([message]) => message.to === 'a@example.test')).toHaveLength(1);
+    expect(mail.send.mock.calls.some(([message]) => message.to === 'new@example.test')).toBe(false);
+    expect(store.rows.map((row) => [row.recipient, row.status, row.attempts])).toEqual([['a@example.test', 'accepted', 1], ['b@example.test', 'pending', 2]]);
+  });
+
+  it('does not retry an address removed from a role recipient scope', async () => {
+    const store = recipientStore();
+    const contacts = { ...recipientLookups, findApprovedPmcmAdminEmails: vi.fn().mockResolvedValueOnce(['a@example.test', 'b@example.test']).mockResolvedValue(['a@example.test']) };
+    const mail = { send: vi.fn(async ({ to }: { to: string }) => to === 'a@example.test' ? { status: 'accepted' as const, receipt: 'receipt-a' } : { status: 'retryable_failure' as const }) };
+    const adapter = new MailNotificationDeliveryAdapter(mail, contacts as never, store.service);
+    const input = { idempotencyKey: 'not_removed', channel: 'email', eventId: null, recipient: 'PMCM Admin', message: 'Action needed' };
+    await adapter.deliver(input);
+    await expect(adapter.deliver(input)).resolves.toMatchObject({ status: 'accepted' });
+    expect(mail.send.mock.calls.filter(([message]) => message.to === 'b@example.test')).toHaveLength(1);
+    expect(store.rows.find((row) => row.recipient === 'b@example.test')).toMatchObject({ status: 'skipped' });
   });
 });
 
@@ -127,16 +169,53 @@ describe('processNotificationQueue with mail delivery', () => {
         : { status: 'retryable_failure' as const })),
     };
     const contacts = { findApprovedPmcmAdminEmails: async () => ['admin-a@example.test', 'admin-b@example.test'] };
-    const delivery = new MailNotificationDeliveryAdapter(mail, contacts as never);
+    const store = recipientStore();
+    const delivery = new MailNotificationDeliveryAdapter(mail, contacts as never, store.service);
 
     const processed = await processNotificationQueue(prisma as never, delivery);
 
-    expect(processed[0]).toMatchObject({ id: 'not_partial', status: 'queued', attempts: 1, failureReason: 'Mail was not accepted for 1 of 2 addresses; retry scheduled' });
+    expect(processed[0]).toMatchObject({ id: 'not_partial', status: 'queued', attempts: 1, failureReason: 'At least one recipient is awaiting provider acceptance' });
     expect(mail.send).toHaveBeenCalledWith(expect.objectContaining({ idempotencyKey: 'not_partial:admin-a@example.test' }));
+    expect(store.rows.map((entry) => entry.status)).toEqual(['accepted', 'pending']);
+    await processNotificationQueue(prisma as never, delivery);
+    expect(mail.send.mock.calls.filter(([message]) => message.to === 'admin-a@example.test')).toHaveLength(1);
   });
 });
 
 describe('NotificationOutboxService', () => {
+  it.each(['email', 'viber'])('requeues only failed %s recipients and audits a PMCM retry', async (channel) => {
+    const parent = { id: 'not_1', eventId: 'evt_1', channel, status: 'failed', leaseToken: null };
+    const rows = [{ status: 'accepted' }, { status: 'failed' }];
+    const tx = {
+      opsNotificationLog: {
+        findUnique: vi.fn(async () => parent),
+        updateMany: vi.fn(async ({ where, data }: { where: { status: string }; data: Record<string, unknown> }) => {
+          if (parent.status !== where.status) return { count: 0 };
+          Object.assign(parent, data); return { count: 1 };
+        }),
+      },
+      opsNotificationDelivery: { updateMany: vi.fn(async () => { rows.filter((row) => row.status === 'failed').forEach((row) => { row.status = 'pending'; }); return { count: 1 }; }) },
+    };
+    const prisma = { ...tx, $transaction: vi.fn(async (run: (client: typeof tx) => Promise<unknown>) => run(tx)) };
+    const audit = { write: vi.fn(async () => undefined) };
+    const service = new NotificationOutboxService(prisma as never, { deliver: vi.fn() }, audit as never);
+    const pmcm = { id: 'u_pmcm', role: 'pmcm-admin', name: 'PMCM', email: 'pmcm@example.test' } as never;
+    await expect(service.retryFailed('not_1', 'Mailbox corrected', { role: 'client' } as never)).rejects.toThrow(/Only PMCM/);
+    await expect(service.retryFailed('not_1', 'Mailbox corrected', pmcm)).resolves.toEqual({ id: 'not_1', status: 'queued' });
+    expect(rows.map((row) => row.status)).toEqual(['accepted', 'pending']);
+    expect(audit.write).toHaveBeenCalled();
+    await expect(service.retryFailed('not_1', 'Again', pmcm)).rejects.toThrow(/Only a failed/);
+  });
+  it('shows recipient delivery details only to PMCM', async () => {
+    const deliveries = { findMany: vi.fn(async () => [{ id: 'delivery_1', recipient: 'client@example.test', status: 'accepted', attempts: 1, failureReason: null, acceptedAt: new Date('2026-10-01T00:00:00Z') }]) };
+    const prisma = { opsNotificationLog: { findUnique: vi.fn(async () => ({ id: 'not_1' })) }, opsNotificationDelivery: deliveries };
+    const service = new NotificationOutboxService(prisma as never, { deliver: vi.fn() });
+    await expect(service.listRecipientDeliveries('not_1', { role: 'client' } as never)).rejects.toThrow(/Only PMCM/);
+    expect(deliveries.findMany).not.toHaveBeenCalled();
+    await expect(service.listRecipientDeliveries('not_1', { role: 'pmcm-admin' } as never)).resolves.toEqual([
+      { id: 'delivery_1', recipient: 'client@example.test', status: 'accepted', attempts: 1, failureReason: null, acceptedAt: '2026-10-01T00:00:00.000Z' },
+    ]);
+  });
   it('delivers and retains queued evidence when its optional event reference is absent', async () => {
     const row: Record<string, any> = {
       id: 'not_orphaned_event', eventId: 'evt_retired', channel: 'email', recipient: 'trust@example.test', message: 'Audit review required',
@@ -174,10 +253,10 @@ describe('NotificationOutboxService', () => {
     await expect(service.acknowledge('not_1', actor)).resolves.toMatchObject({ status: 'acknowledged' });
   });
 
-  it('denies a verified actor acknowledging another recipient notification', async () => {
+  it.each(['client', 'pmcm-admin'])('denies a verified %s acknowledging another recipient notification', async (role) => {
     const { service, notifications } = createService();
     notifications.push({ id: 'not_1', recipient: 'client@example.test', status: 'sent' });
-    const actor = { email: 'other@example.test', role: 'client' } as never;
+    const actor = { email: 'other@example.test', role } as never;
     await expect(service.acknowledge('not_1', actor)).rejects.toThrow(/recipient/);
   });
 

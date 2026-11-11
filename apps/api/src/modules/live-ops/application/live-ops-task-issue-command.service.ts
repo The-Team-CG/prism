@@ -13,7 +13,7 @@ import {
   WorkflowCommandService,
 } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction, writeNotification } from '@prism/contexts/platform-ops';
 import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 import type {
   BlockEventDayTaskInput,
@@ -333,7 +333,7 @@ export class LiveOpsTaskIssueCommandService {
             affectedLabel: task?.title ?? taskId,
             metadata: { taskId, toOwnerRole, toOwnerName, reason, autoApproveAt: request.autoApproveAt.toISOString() },
           }),
-          ...(pmcmEmail ? [writeNotification(notificationOutboxWriter, eventId, pmcmEmail, `Task reassignment requested: ${task?.title ?? taskId}. Approval required.`, 'viber')] : [writeAudit(auditWriter, eventId, actor.name, 'Task reassignment notification not queued: no approved PMCM email address', { actorRole: actor.role, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_task_reassignment', affectedId: request.id })]),
+          ...(pmcmEmail ? [writeNotification(notificationOutboxWriter, eventId, pmcmEmail, `Task reassignment requested: ${task?.title ?? taskId}. Approval required.`, 'viber', { action: eventSectionAction(eventId, 'live_ops') })] : [writeAudit(auditWriter, eventId, actor.name, 'Task reassignment notification not queued: no approved PMCM email address', { actorRole: actor.role, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_task_reassignment', affectedId: request.id })]),
         ]);
       },
       project: (request) => this.mapTaskReassignment(request),
@@ -389,7 +389,7 @@ export class LiveOpsTaskIssueCommandService {
         affectedId: decided.id,
         metadata: { taskId: decided.taskId, status, reason },
       }),
-      ...(await this.resolveUserEmailByName(request.requestedBy) ? [writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(request.requestedBy))!, `Task reassignment ${status.replace('_', ' ')} for ${request.taskId}`, 'viber')] : [writeAudit(auditWriter, eventId, actor.name, 'Task reassignment notification not queued: requester has no verified email address', { actorRole: actor.role, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_task_reassignment', affectedId: decided.id })]),
+      ...(await this.resolveUserEmailByName(request.requestedBy) ? [writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(request.requestedBy))!, `Task reassignment ${status.replace('_', ' ')} for ${request.taskId}`, 'viber', { action: eventSectionAction(eventId, 'live_ops') })] : [writeAudit(auditWriter, eventId, actor.name, 'Task reassignment notification not queued: requester has no verified email address', { actorRole: actor.role, actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'event_task_reassignment', affectedId: decided.id })]),
     ]);
     return this.mapTaskReassignment(decided);
   }
@@ -568,7 +568,7 @@ export class LiveOpsTaskIssueCommandService {
             severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
             metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? task.assignedRole, ownerName: input.ownerName ?? task.ownerName },
           }),
-          writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(recipient)) ?? 'PMCM Admin', `Event-day task escalated: ${task.title}`, 'viber'),
+          writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(recipient)) ?? 'PMCM Admin', `Event-day task escalated: ${task.title}`, 'viber', { action: eventSectionAction(eventId, 'live_ops') }),
         ]);
       },
     });
@@ -636,7 +636,7 @@ export class LiveOpsTaskIssueCommandService {
             severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
             metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? issue.ownerRole, ownerName: input.ownerName ?? issue.ownerName },
           }),
-          writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(recipient)) ?? 'PMCM Admin', `Urgent issue escalated: ${issue.title}`, 'viber'),
+          writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(recipient)) ?? 'PMCM Admin', `Urgent issue escalated: ${issue.title}`, 'viber', { action: eventSectionAction(eventId, 'live_ops') }),
         ]);
       },
     });

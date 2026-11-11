@@ -4,6 +4,7 @@ import type { MarkPaymentInput } from "@prism/types";
 import { remainingPaymentCopy, sumPaymentAmounts } from "../model/finance-workspace-rules";
 import { useFinancialWorkspaceViewModel } from "../view-models/use-financial-workspace-view-model";
 import { PrismPageColumn } from "@prism/ui/page-blocks";
+import { EventFinancialSummaryPanel } from "@/features/finance/financials";
 import { PendingAddendaNote } from "./pending-addenda-note";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";
 import {
@@ -59,6 +60,7 @@ export function FinancialWorkspace({
       />
       {paymentAtRisk ? <PaymentAtRiskAlert /> : null}
       <PendingAddendaNote eventId={event.id} />
+      <EventFinancialSummaryPanel eventId={event.id} />
       {notificationLogs.length > 0 ? <NotificationEvidence logs={notificationLogs} /> : null}
       <div className={hasBilling ? "grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "space-y-6"}>
         <BillingStatementCard

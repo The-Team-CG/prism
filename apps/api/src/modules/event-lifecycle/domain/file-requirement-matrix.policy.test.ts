@@ -141,7 +141,7 @@ describe('supplier-owned custom requirements', () => {
   it('fulfils each selected supplier separately: a document owned by A never satisfies B', () => {
     const [item] = mergeFileRequirementOverrides([], [insuranceRequirement], [atlasDocument], selectedSuppliers, now);
 
-    expect(item.supplierFulfilments).toEqual([
+    expect(item.supplierFulfilments).toMatchObject([
       { supplierId: 'supplier_a', supplierName: 'Atlas Sound', status: 'submitted', overdue: false, validationStatus: 'accepted', uploadedAssetId: 'doc_a', uploadedObjectId: 'obj_a' },
       { supplierId: 'supplier_b', supplierName: 'Bright Lights', status: 'missing', overdue: true },
     ]);
@@ -158,6 +158,25 @@ describe('supplier-owned custom requirements', () => {
 
     expect(item).toMatchObject({ status: 'submitted', overdue: false });
     expect(item.supplierFulfilments?.map((fulfilment) => fulfilment.overdue)).toEqual([false, false]);
+  });
+
+  it('assigns a targeted requirement only to the chosen supplier', () => {
+    const [item] = mergeFileRequirementOverrides([], [{ ...insuranceRequirement, targetSupplierIds: ['supplier_a'] }], [atlasDocument], selectedSuppliers, now);
+    expect(item.supplierFulfilments?.map((entry) => entry.supplierId)).toEqual(['supplier_a']);
+    expect(scopeFileRequirementItemsForActor(visibleFileRequirementItems([item], 'supplier'), { role: 'supplier', supplierId: 'supplier_b' })).toEqual([]);
+    const [own] = scopeFileRequirementItemsForActor(visibleFileRequirementItems([item], 'supplier'), { role: 'supplier', supplierId: 'supplier_a' });
+    expect(own.status).toBe('submitted');
+    expect(own).not.toHaveProperty('targetSupplierIds');
+  });
+
+  it('shows each supplier only its own upload history and rejection reason', () => {
+    const previous: FileRequirementDocumentFact = { ...atlasDocument, id: 'doc_old', storageKey: 'obj_old', status: 'rejected', rejectionReason: 'Expired policy', uploadedAt: new Date('2026-10-09T00:00:00.000Z') };
+    const other: FileRequirementDocumentFact = { ...atlasDocument, id: 'doc_other', storageKey: 'obj_other', ownerSupplierId: 'supplier_b' };
+    const [item] = mergeFileRequirementOverrides([], [insuranceRequirement], [previous, atlasDocument, other], selectedSuppliers, now);
+    const [own] = scopeFileRequirementItemsForActor(visibleFileRequirementItems([item], 'supplier'), { role: 'supplier', supplierId: 'supplier_a' });
+    expect(own.versions?.map((version) => version.objectId)).toEqual(['obj_a', 'obj_old']);
+    expect(own.versions?.[1]).toMatchObject({ reviewReason: 'Expired policy' });
+    expect(JSON.stringify(own)).not.toContain('obj_other');
   });
 
   it('reports the aggregate as approved only when every selected supplier is approved', () => {

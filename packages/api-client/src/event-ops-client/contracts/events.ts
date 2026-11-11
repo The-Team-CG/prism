@@ -9,6 +9,7 @@ import type {
   PrismFileRequirementTemplate,
   PrismStoredObject,
   PrismAddendum,
+  PrismStatementOfAccount,
   PrismAddendumConformeExecution,
   SignAddendumConformeExecutionInput,
   PrismEventFreezeException,
@@ -20,7 +21,7 @@ import type {
   PrismScopeChangeRequest,
   PrismEventRiskView,
 } from "@prism/types";
-import type { EventOpsActorQuery } from "./primitives";
+import type { EventOpsActorQuery, EventOpsReadInit } from "./primitives";
 
 export interface EventOpsEventsContract {
   events: {
@@ -72,6 +73,7 @@ export interface EventOpsEventsContract {
     upsertFileRequirementTemplate(input: UpsertFileRequirementTemplateInput, actor?: EventOpsActorQuery): Promise<PrismFileRequirementTemplate>;
     applyFileRequirementTemplate(eventId: string, actor?: EventOpsActorQuery): Promise<{ eventId: string; eventType: string; templateId: string; createdKeys: string[]; skippedExistingCount: number }>;
     bindFileRequirementUpload(eventId: string, key: string, input: import("@prism/types").BindFileRequirementUploadInput, actor?: EventOpsActorQuery): Promise<import("@prism/types").PrismFileRequirementItem>;
+    reviewSupplierRequirement(eventId: string, key: string, input: import("@prism/types").ReviewSupplierRequirementInput, actor?: EventOpsActorQuery): Promise<import("@prism/types").PrismFileRequirementItem>;
     reviewProposal(
       eventId: string,
       input: ReviewEventProposalInput,
@@ -105,6 +107,8 @@ export interface EventOpsEventsContract {
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismAddendum[]>;
+    /** What a client sees of one event's money: billed, received, refunds, credit held and what is still owed. */
+    statementOfAccount(eventId: string, init?: EventOpsReadInit): Promise<PrismStatementOfAccount>;
     freezeExceptions(
       eventId: string,
       actor?: EventOpsActorQuery,

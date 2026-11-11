@@ -12,6 +12,8 @@ import { useListFilter } from "@/features/pmcm-kit";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { PostponementImpactPanel } from "@/features/event-decisions/postponement-impact";
 import { ChangeRegisterPanel } from "@/features/change-management/register";
+import { EventPlanPanel } from "@/features/planning/event-plan";
+import { DateImpactPanel } from "@/features/planning/date-impact";
 import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 import { EventWorkspaceOverview } from "./event-overview";
 import { EventOcularVisitTask } from "./event-ocular-visit-task";
@@ -24,6 +26,7 @@ import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { DecisionLogPanel } from "@/features/decision-log";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
 import { PmcmSupplierReadinessBoard, assignedSupplierRequests, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
+import { SupplierFileReadiness } from "@/features/files/matrix";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
 import { EventRegistrationTab } from "@/app/components/pmcm/event-registration-tab";
 import { EventGamesHostView } from "@/features/event-games/host";
@@ -204,27 +207,33 @@ function BriefingSummary({ briefing }: { briefing?: PrismBriefing | null }) {
   );
 }
 
+/** A planning section; `adminOnly` sections are PMCM admin's, and `hidden` ones are switched off for this event. */
+type BriefingSubTab = WorkspaceSubTab & { adminOnly?: boolean; hidden?: boolean };
+
 export function EventWorkspaceBriefingTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   const { briefing, selectedEvent } = vm;
   if (!selectedEvent) return null;
   const admin = isPmcmAdmin(vm.session.role);
-  const tabs: WorkspaceSubTab[] = [
+  const entries: BriefingSubTab[] = [
     {
       id: "briefing",
       label: "Briefing",
       attention: !briefing,
       render: () => <BriefingSummary briefing={briefing} />,
     },
-    ...(admin ? [{ id: "proposal", label: "Proposal", render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PresentationMeetingsPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> }] : []),
+    { id: "proposal", label: "Proposal", adminOnly: true, render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PresentationMeetingsPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> },
     { id: "reviews", label: "Client reviews", render: () => <div className="space-y-5">{admin && isEventModuleEnabled(selectedEvent, "venue_scouting") ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}{admin ? <ThemeSuggestionsPanel eventId={selectedEvent.id} /> : null}<PmcmClientReviewPanel eventId={selectedEvent.id} /></div> },
-    ...(admin ? [{ id: "follow-ups", label: "Client follow-ups", render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> }] : []),
-    ...(admin ? [{ id: "assistant", label: "Ask P.R.I.S.M", render: () => <OperationsAssistantPanel eventId={selectedEvent.id} /> }] : []),
+    { id: "plan", label: "Plan", adminOnly: true, render: () => <EventPlanPanel eventId={selectedEvent.id} archived={selectedEvent.archived} /> },
+    { id: "date-change", label: "Date change", adminOnly: true, render: () => <DateImpactPanel eventId={selectedEvent.id} /> },
+    { id: "follow-ups", label: "Client follow-ups", adminOnly: true, render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> },
+    { id: "assistant", label: "Ask P.R.I.S.M", adminOnly: true, render: () => <OperationsAssistantPanel eventId={selectedEvent.id} /> },
     { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
-    ...(admin ? [{ id: "decisions", label: "Decision log", render: () => <DecisionLogPanel eventId={selectedEvent.id} /> }] : []),
-    ...(admin ? [{ id: "pre-conforme", label: "Pre-conforme context", render: () => <PreConformeContextPanel eventId={selectedEvent.id} /> }] : []),
-    ...(admin && isEventModuleEnabled(selectedEvent, "accreditation") ? [{ id: "accreditation", label: "Accreditation", render: () => <AccreditationPanel eventId={selectedEvent.id} /> }] : []),
+    { id: "decisions", label: "Decision log", adminOnly: true, render: () => <DecisionLogPanel eventId={selectedEvent.id} /> },
+    { id: "pre-conforme", label: "Pre-conforme context", adminOnly: true, render: () => <PreConformeContextPanel eventId={selectedEvent.id} /> },
+    { id: "accreditation", label: "Accreditation", adminOnly: true, hidden: !isEventModuleEnabled(selectedEvent, "accreditation"), render: () => <AccreditationPanel eventId={selectedEvent.id} /> },
   ];
+  const tabs: WorkspaceSubTab[] = entries.filter((entry) => !entry.hidden && (admin || !entry.adminOnly)).map(({ adminOnly: _adminOnly, hidden: _hidden, ...tab }) => tab);
   return <WorkspaceSubTabs label="Planning sections" tabs={tabs} />;
 }
 
@@ -255,7 +264,7 @@ export function EventWorkspaceSuppliersTab() {
         />
       ),
     },
-    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><UnresponsiveSuppliersPanel eventId={event.id} />{isEventModuleEnabled(event, "client_owned_suppliers") ? <ClientOwnedSuppliersPanel eventId={event.id} /> : null}<PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /></div> },
+    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><UnresponsiveSuppliersPanel eventId={event.id} />{isEventModuleEnabled(event, "client_owned_suppliers") ? <ClientOwnedSuppliersPanel eventId={event.id} /> : null}<PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><SupplierFileReadiness eventId={event.id} /></div> },
     { id: "bookings", label: "Bookings & contracts", count: assigned.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
     { id: "creative", label: "Outsourced creative", render: () => <PmcmExternalCreativePanel eventId={event.id} documents={vm.documents.filter((document) => document.eventId === event.id)} /> },
     {

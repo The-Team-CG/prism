@@ -42,6 +42,12 @@ import { SupplierWorkspaceReaderService } from './application/suppliers/supplier
 import { BillingOperationsService } from './application/billing/billing-operations.service';
 import { BillingAdjustmentService } from './application/billing/billing-adjustment.service';
 import { PaymentOperationsService } from './application/billing/payment-operations.service';
+import { PaymentReceiptService } from './application/billing/payment-receipt.service';
+import { EventFinancialsService } from './application/billing/event-financials.service';
+import { StatementOfAccountService } from './application/billing/statement-of-account.service';
+import { StatementOfAccountController } from './api/billing/statement-of-account.controller';
+import { EventFinancialsController } from './api/billing/event-financials.controller';
+import { PaymentReceiptsController } from './api/billing/payment-receipts.controller';
 import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
 import { CommunicationController } from './api/suppliers/communication.controller';
 import { CommunicationService } from './application/suppliers/communication.service';
@@ -121,6 +127,9 @@ const supplierCommandsProvider = {
     OpsSupplierWorkspaceCommandsController,
     OpsSupplierPareController,
     OpsEventBillingController,
+    PaymentReceiptsController,
+    EventFinancialsController,
+    StatementOfAccountController,
     CommunicationController,
     ProposalLifecycleController,
     SupplierGapController,
@@ -155,6 +164,9 @@ const supplierCommandsProvider = {
     BillingOperationsService,
     BillingAdjustmentService,
     PaymentOperationsService,
+    PaymentReceiptService,
+    EventFinancialsService,
+    StatementOfAccountService,
     PaymentRiskScheduler,
     CommunicationService,
     ProposalLifecycleService,

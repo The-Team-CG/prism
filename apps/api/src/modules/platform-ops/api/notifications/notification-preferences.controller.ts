@@ -4,6 +4,7 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { zodBody } from '@prism/kernel/shared';
 import { updateNotificationPreferencesSchema, type PrismVerifiedEventActor, type UpdateNotificationPreferencesInput } from '@prism/types';
 import { NotificationPreferenceService } from '../../application/notifications/notification-preference.service';
+import { ResendWebhookService } from '../../application/notifications/resend-webhook.service';
 
 /** FR-25: the signed-in account's own notification channels. */
 @Controller('notification-preferences')
@@ -30,6 +31,23 @@ export class NotificationPreferencesController {
   @Delete('viber')
   unlink(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.preferences.unlinkViber(actor);
+  }
+}
+
+/** Resend's delivery events. Public, but every request must carry Resend's signature and a fresh timestamp. */
+@Controller('integrations/resend')
+export class ResendWebhookController {
+  constructor(private readonly webhook: ResendWebhookService) {}
+
+  @Post('webhook')
+  @HttpCode(HttpStatus.OK)
+  callback(
+    @Req() request: RawBodyRequest<Request>,
+    @Headers('svix-id') id: string | undefined,
+    @Headers('svix-timestamp') timestamp: string | undefined,
+    @Headers('svix-signature') signature: string | undefined,
+  ) {
+    return this.webhook.handle(request.rawBody, { id, timestamp, signature });
   }
 }
 

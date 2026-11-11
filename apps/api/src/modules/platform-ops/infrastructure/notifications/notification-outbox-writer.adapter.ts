@@ -17,6 +17,7 @@ export class NotificationOutboxWriterAdapter implements NotificationOutboxWriter
       {
         correlationId: input.correlationId,
         idempotencyKey: input.idempotencyKey,
+        action: input.action,
       },
       context,
     );

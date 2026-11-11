@@ -1,4 +1,13 @@
-import type { PrismBillingStatement, PrismPaymentMilestone } from "@prism/types";
+import type { PrismBillingStatement, PrismPaymentMilestone, PrismPaymentRecord } from "@prism/types";
+
+/**
+ * What a client sees of a milestone's payments. A reversal is PMCM undoing a payment it had applied, so it is never
+ * listed itself: the payment it undid is listed as reversed, with no receipt, and no negative amount or reason shows.
+ */
+export function clientPaymentLines(history: PrismPaymentRecord[]) {
+  const undone = new Set(history.flatMap((record) => (record.reversesRecordId ? [record.reversesRecordId] : [])));
+  return history.filter((record) => !record.reversesRecordId).map((record) => ({ record, reversed: undone.has(record.id) }));
+}
 
 export function clientBillingSummary(
   payments: PrismPaymentMilestone[],
@@ -110,7 +119,7 @@ export function portalBillingRows(view: string | undefined, source: PortalBillin
   if (view === "billing-receipts") {
     return active
       .flatMap((payment) =>
-        payment.history.map((record) => ({
+        clientPaymentLines(payment.history).filter((line) => !line.reversed).map(({ record }) => ({
           id: record.id,
           eventId: payment.eventId,
           eventName: eventName.get(payment.eventId) ?? "",

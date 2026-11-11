@@ -32,7 +32,7 @@ export function EventDashboardFilesSectionView() {
               label="File sections"
               tabs={[
                 { id: "stored", label: "Stored files", render: () => <PmcmDocumentHubView eventId={selectedEvent.id} /> },
-                { id: "required", label: "Required files", render: () => <FileRequirementsMatrixPanel eventId={selectedEvent.id} /> },
+                { id: "required", label: "Required files", render: () => <FileRequirementsMatrixPanel eventId={selectedEvent.id} suppliers={Array.from(new Map(quoteRequests.filter((request) => request.eventId === selectedEvent.id && request.status === "selected" && request.supplierId).map((request) => [request.supplierId!, { supplierId: request.supplierId!, supplierName: request.supplierName }])).values())} /> },
                 {
                   id: "records",
                   label: "Records by area",

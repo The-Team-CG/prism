@@ -6,6 +6,7 @@ export const publicContextSeams = new Set([
   '@prism/contexts/read-models/account-contacts',
   '@prism/contexts/read-models/commercial-facts-reader',
   '@prism/contexts/read-models/lifecycle-facts',
+  '@prism/contexts/read-models/date-change-facts',
   '@prism/contexts/read-models/file-evidence',
   '@prism/contexts/event-lifecycle/conforme-reminder-window',
   '@prism/contexts/event-lifecycle/post-event-reference',

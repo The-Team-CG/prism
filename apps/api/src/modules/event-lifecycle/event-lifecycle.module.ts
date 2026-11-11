@@ -58,6 +58,10 @@ import { EventPrivacyService } from './application/onboarding/event-privacy.serv
 import { ClientEventDayViewService } from './application/client-visibility/client-event-day-view.service';
 import { OcularVisitController } from './api/ocular-visit/ocular-visit.controller';
 import { OcularVisitService } from './application/ocular-visit/ocular-visit.service';
+import { EventPlanController } from './api/planning/event-plan.controller';
+import { PlanningTemplatesController } from './api/planning/planning-templates.controller';
+import { EventPlanService } from './application/planning/event-plan.service';
+import { PlanningTemplatesService } from './application/planning/planning-templates.service';
 import { EventClientFloorplanAccessController } from './api/client-visibility/event-client-floorplan-access.controller';
 import { LifecyclePrivacyRedactorService } from './application/onboarding/lifecycle-privacy-redactor.service';
 import { LIFECYCLE_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
@@ -70,6 +74,9 @@ import { FloorplanReferenceModule } from './floorplan-reference.module';
 import { ClientFloorplanAccessModule } from './client-floorplan-access.module';
 import { LifecycleFactsReaderModule } from '@prism/contexts/read-models/lifecycle-facts';
 import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
+import { DateChangeFactsReaderModule } from '@prism/contexts/read-models/date-change-facts';
+import { EventDateImpactController } from './api/change/event-date-impact.controller';
+import { EventDateImpactService } from './application/change/event-date-impact.service';
 import { AccountContactReadModelModule } from '@prism/contexts/read-models/account-contacts';
 import { AccountInvitationReferenceModule } from '@prism/contexts/identity-access/account-invitation-reference';
 import { ProposalReviewOwnerService } from './application/onboarding/proposal-review-owner.service';
@@ -99,6 +106,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ClientFloorplanAccessModule,
     LifecycleFactsReaderModule,
     CommercialFactsReaderModule,
+    DateChangeFactsReaderModule,
     AccountContactReadModelModule,
     AccountInvitationReferenceModule,
     AccessControlModule,
@@ -126,6 +134,9 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ClientEventDayViewController,
     EventPrivacyController,
     OcularVisitController,
+    PlanningTemplatesController,
+    EventPlanController,
+    EventDateImpactController,
     EventClientFloorplanAccessController,
     ClientCloseoutController,
     ConformeSigningController,
@@ -169,6 +180,9 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ClientEventDayViewService,
     EventPrivacyService,
     OcularVisitService,
+    PlanningTemplatesService,
+    EventPlanService,
+    EventDateImpactService,
     ProposalReviewOwnerService,
     { provide: PROPOSAL_REVIEW_OWNER, useExisting: ProposalReviewOwnerService },
     LifecyclePrivacyRedactorService,

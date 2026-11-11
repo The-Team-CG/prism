@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clientBillingSummary, clientMilestoneFollowUpCopy, clientMilestoneRemaining, portalBillingRows } from "./client-billing-rules";
+import { clientBillingSummary, clientMilestoneFollowUpCopy, clientMilestoneRemaining, clientPaymentLines, portalBillingRows } from "./client-billing-rules";
 
 describe("client-billing-rules", () => {
   it("lists each account billing view from its own records", () => {
@@ -24,6 +24,21 @@ describe("client-billing-rules", () => {
       ["Gala", 50],
     ]);
     expect(titles("billing-statements")).toEqual(["Statement B-1"]);
+  });
+
+  it("shows a payment PMCM undid as reversed, without a receipt, a negative amount or a second line for the reversal", () => {
+    const record = (id: string, amountReceived: number, extra: Record<string, unknown> = {}) =>
+      ({ id, eventId: "e1", milestoneId: "m1", amountReceived, paymentDate: "2026-05-30", paymentMethod: "bank", referenceNumber: id, recordedAt: "2026-05-30", ...extra });
+    const history = [record("r1", 100), record("rev1", -100, { reversesRecordId: "r1" }), record("r2", 60)];
+
+    expect(clientPaymentLines(history).map(({ record: line, reversed }) => [line.id, reversed])).toEqual([["r1", true], ["r2", false]]);
+
+    const source = {
+      events: [{ id: "e1", eventName: "Summit" }],
+      payments: [{ id: "m1", eventId: "e1", label: "Deposit", amount: 100, amountPaid: 60, remainingBalance: 40, dueDate: "2026-06-01", status: "partially_paid", supersededAt: null, history }],
+      statements: [],
+    };
+    expect(portalBillingRows("billing-receipts", source)?.map((row) => [row.id, row.amount])).toEqual([["r2", 60]]);
   });
 
   it("reconciles paid and remaining across partially paid milestones", () => {

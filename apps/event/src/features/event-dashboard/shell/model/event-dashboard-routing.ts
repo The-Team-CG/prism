@@ -146,6 +146,7 @@ export const SECTION_ROUTE_ITEMS: Record<string, Record<string, string>> = {
     contracts: "suppliers-contracts",
     payments: "suppliers-payments",
   },
+  finance: { receipts: "finance-receipts" },
 };
 
 export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
@@ -188,6 +189,7 @@ export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
   "suppliers-transport": "/dashboard/suppliers/transportation",
   "suppliers-contracts": "/dashboard/suppliers/contracts",
   "suppliers-payments": "/dashboard/suppliers/payments",
+  "finance-receipts": "/dashboard/finance/receipts",
 };
 
 export const EVENT_DETAIL_ROUTES: Record<string, string> = {
@@ -288,6 +290,8 @@ export function routeStateForSidebarItem(id: string): RouteState | undefined {
 }
 
 export function activeSidebarItemFromRoute(routeState: RouteState): string | undefined {
+  // Receipts are not tied to an event, so this desk keeps its own highlight even if an event was selected before.
+  if (routeState.section === "finance" && routeState.view === "receipts") return "finance-receipts";
   const eventScopedItem = EVENT_SCOPED_SIDEBAR_ITEM[routeState.section];
   if (eventScopedItem && routeState.eventId) return eventScopedItem;
   const sectionItem = SECTION_SIDEBAR_ITEM[routeState.section];
@@ -330,6 +334,17 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   inquiries: "One intake queue, from first contact to the client's portal account. Accepted inquiries continue in Onboarding and Conforme follow-up.",
   "events-list": "Every confirmed event. Open one to work inside it.",
   dashboard: "Decisions and blockers across your events. Every item opens the work it belongs to.",
+};
+
+/** Copy for a view that has its own page inside a section, keyed `section:view`. */
+const VIEW_SHELL_COPY: Record<string, EventDashboardShellCopy> = {
+  "finance:receipts": {
+    eyebrow: "Finance",
+    title: "Payments received",
+    description: "Money clients paid outside P.R.I.S.M, checked against the statement and applied to the milestones it settles.",
+    breadcrumb: ["Finance", "Receipts"],
+    documentTitle: "Receipts · Finance · P.R.I.S.M",
+  },
 };
 
 const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
@@ -384,6 +399,9 @@ export function routeShellCopy(
       documentTitle: pageDocumentTitle(["Clients", clientName]),
     };
   }
+
+  const viewCopy = VIEW_SHELL_COPY[`${routeState.section}:${routeState.view}`];
+  if (viewCopy) return viewCopy;
 
   const title = ROUTE_TITLES[routeState.section] ?? sectionLabel ?? loadingCopy.title;
   return {
