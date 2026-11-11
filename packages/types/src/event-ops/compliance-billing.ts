@@ -255,6 +255,13 @@ export interface PrismPaymentRefund {
   recordedAt: string;
 }
 
+export interface PrismPaymentReceiptEvidence {
+  objectId: string;
+  fileName: string;
+  contentType: string;
+  byteSize: number;
+}
+
 /** Money that arrived outside P.R.I.S.M. `unapplied` is what is left after allocations and refunds. */
 export interface PrismPaymentReceipt {
   id: string;
@@ -269,6 +276,8 @@ export interface PrismPaymentReceipt {
   /** A receipt carried over from a payment recorded before receipts existed: no evidence, never checked. */
   legacy: boolean;
   evidenceObjectId: string | null;
+  /** The stored proof of payment (a bank statement line, a screenshot), when one was attached and is still held. */
+  evidence: PrismPaymentReceiptEvidence | null;
   verifiedAt: string | null;
   verifiedBy: string | null;
   verificationNotes: string | null;

@@ -8,6 +8,7 @@ const USAGE_LABELS: Record<StorageUsage, string> = {
   event_deliverable: "Event deliverable",
   event_game_media: "Event game media",
   event_game_branding: "Event game branding",
+  payment_receipt_evidence: "Proof of payment",
 };
 
 const LIFECYCLE_LABELS: Record<PrismStoredObject["lifecycleState"], string> = {

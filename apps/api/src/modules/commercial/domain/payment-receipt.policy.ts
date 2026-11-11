@@ -82,6 +82,18 @@ export function checkRefund(input: { status: ReceiptStatus; unapplied: number; a
   return ok;
 }
 
+/** Proof is attached to money held for an event: the file lives with that event's storage, and only a live receipt needs one. */
+export function checkAttachEvidence(input: { status: ReceiptStatus; hasEvent: boolean }): RuleResult {
+  if (!isLive(input.status)) return conflict(`A ${input.status} receipt cannot take evidence`);
+  return input.hasEvent ? ok : conflict('Say which event this money was meant for before attaching evidence');
+}
+
+/** Money held with no event can be assigned one once; moving it from one event to another is a reversal and a new receipt. */
+export function checkEarmark(input: { status: ReceiptStatus; hasEvent: boolean }): RuleResult {
+  if (!isLive(input.status)) return conflict(`A ${input.status} receipt cannot be assigned an event`);
+  return input.hasEvent ? conflict('This receipt is already held for an event') : ok;
+}
+
 export function checkVerify(status: ReceiptStatus): RuleResult {
   if (status === 'verified') return conflict('This receipt is already verified');
   return status === 'recorded' ? ok : conflict(`A ${status} receipt cannot be verified`);

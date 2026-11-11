@@ -20,6 +20,7 @@ const KINDS: Record<string, FileAccessObject> = {
   supplier_document: { usage: 'supplier_document', ownerRecordType: 'supplier', ownerRecordId: 'sup_1', lifecycleState: 'stored', deletedAt: null },
   guest_feedback_media: { usage: 'guest_feedback_media', ownerRecordType: 'guest_feedback', ownerRecordId: 'fb_1', lifecycleState: 'stored', deletedAt: null },
   event_game_media: { usage: 'event_game_media', ownerRecordType: 'event_game_definition', ownerRecordId: 'game_1', lifecycleState: 'stored', deletedAt: null },
+  payment_receipt_evidence: { usage: 'payment_receipt_evidence', ownerRecordType: 'payment_receipt', ownerRecordId: 'prcp_1', lifecycleState: 'stored', deletedAt: null },
 };
 
 const ACTORS: Record<string, { role: string; supplierId?: string }> = {
@@ -43,6 +44,8 @@ const ALLOWED_ACTORS: Record<string, readonly string[]> = {
   supplier_document: ['pmcm', 'system', 'supplierOwner'],
   guest_feedback_media: [],
   event_game_media: [],
+  // Proof of payment is finance paperwork: only PMCM and the system ever see it, never the client or a coordinator.
+  payment_receipt_evidence: ['pmcm', 'system'],
 };
 
 const KIND_ACTOR_ROWS = Object.keys(KINDS).flatMap((kind) =>

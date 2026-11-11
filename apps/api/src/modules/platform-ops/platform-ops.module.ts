@@ -59,7 +59,7 @@ import { PAREService } from './application/ai-governance/pare/pare.service';
 import { PareDispatchOutboxService } from './application/ai-governance/pare/pare-dispatch-outbox.service';
 import { PARE_APPROVAL_GOVERNANCE, PARE_DISPATCH_WRITER } from './contracts/ai-governance/pare-ops.tokens';
 import { StorageObjectService } from './application/storage/storage-object.service';
-import { STORED_REQUIREMENT_UPLOAD_READER } from './contracts/storage/storage.port';
+import { STORED_RECEIPT_EVIDENCE_READER, STORED_REQUIREMENT_UPLOAD_READER } from './contracts/storage/storage.port';
 import { StorageValidationService } from './application/storage/storage-validation.service';
 import { GUEST_FEEDBACK_MEDIA_STORE, STORAGE_ADAPTER, STORED_SUPPLIER_UPLOAD_READER } from './contracts/storage/storage.port';
 import { LocalFileSystemStorageAdapter } from './infrastructure/storage/local-filesystem-storage.adapter';
@@ -222,6 +222,7 @@ export function createAiProviderAdapters(
     StorageObjectService,
     { provide: STORED_SUPPLIER_UPLOAD_READER, useExisting: StorageObjectService },
     { provide: STORED_REQUIREMENT_UPLOAD_READER, useExisting: StorageObjectService },
+    { provide: STORED_RECEIPT_EVIDENCE_READER, useExisting: StorageObjectService },
     { provide: GUEST_FEEDBACK_MEDIA_STORE, useExisting: StorageObjectService },
     storageAdapterProvider,
   ],
@@ -246,6 +247,7 @@ export function createAiProviderAdapters(
     StorageObjectService,
     STORED_SUPPLIER_UPLOAD_READER,
     STORED_REQUIREMENT_UPLOAD_READER,
+    STORED_RECEIPT_EVIDENCE_READER,
     GUEST_FEEDBACK_MEDIA_STORE,
     STORAGE_ADAPTER,
     CANVA_DESIGNS,

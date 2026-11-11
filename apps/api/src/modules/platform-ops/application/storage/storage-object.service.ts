@@ -40,6 +40,8 @@ import {
   STORED_REQUIREMENT_UPLOAD_READER,
   type StoredRequirementUploadReader,
   type StoredRequirementUploadReference,
+  type StoredReceiptEvidence,
+  type StoredReceiptEvidenceReader,
 } from '../../contracts/storage/storage.port';
 import { StorageValidationService } from './storage-validation.service';
 
@@ -53,9 +55,16 @@ const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsag
   event: ['client_document', 'signed_conforme', 'guest_feedback_media'],
   event_game_definition: ['event_game_media'],
   event_game_lobby: ['event_game_branding'],
+  payment_receipt: ['payment_receipt_evidence'],
   proposal_version: ['event_deliverable'],
   supplier: ['supplier_document'],
 };
+
+const RECEIPT_EVIDENCE_LOOKUP_LIMIT = 500;
+
+function receiptEvidenceOf(object: OpsStoredObject): StoredReceiptEvidence {
+  return { objectId: object.id, fileName: object.originalFileName, contentType: object.contentType, byteSize: object.declaredByteSize };
+}
 
 function isConfirmedSupplierUpload(object: OpsStoredObject | null, input: StoredSupplierUploadLookup): object is OpsStoredObject {
   if (!object) return false;
@@ -90,7 +99,7 @@ function sameUploadContent(object: OpsStoredObject, input: StorageServiceRequest
 }
 
 @Injectable()
-export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader, GuestFeedbackMediaStore {
+export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader, StoredReceiptEvidenceReader, GuestFeedbackMediaStore {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accessPolicy: EventAccessPolicyService,
@@ -121,6 +130,22 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       originalFileName: object.originalFileName, contentType: object.contentType, declaredByteSize: object.declaredByteSize,
       uploaderActorId: object.uploaderActorId, uploaderActorRole: object.uploaderActorRole,
     };
+  }
+
+  async findConfirmedReceiptEvidence(input: { eventId: string; receiptId: string; objectId: string }): Promise<StoredReceiptEvidence | null> {
+    const object = await this.prisma.opsStoredObject.findFirst({
+      where: { id: input.objectId, eventId: input.eventId, usage: 'payment_receipt_evidence', ownerRecordType: 'payment_receipt', ownerRecordId: input.receiptId, lifecycleState: 'stored', deletedAt: null },
+    });
+    return object ? receiptEvidenceOf(object) : null;
+  }
+
+  async describeReceiptEvidence(objectIds: string[]): Promise<Map<string, StoredReceiptEvidence>> {
+    if (objectIds.length === 0) return new Map();
+    const objects = await this.prisma.opsStoredObject.findMany({
+      where: { id: { in: objectIds }, usage: 'payment_receipt_evidence', lifecycleState: 'stored', deletedAt: null },
+      take: RECEIPT_EVIDENCE_LOOKUP_LIMIT,
+    });
+    return new Map(objects.map((object) => [object.id, receiptEvidenceOf(object)]));
   }
 
   async requestUpload(input: StorageServiceRequest): Promise<StorageRequestResult> {
@@ -700,6 +725,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
   private async assertUploadOwner(input: StorageServiceRequest) {
     if (input.usage === 'supplier_document') await this.assertSupplierUploadOwner(input);
     if (input.usage === 'client_document' || input.usage === 'signed_conforme') await this.assertClientUploadOwner(input);
+    if (input.usage === 'payment_receipt_evidence') await this.assertReceiptEvidenceOwner(input);
     if (input.ownerRecordType === 'client_review_item') await this.assertStylingMoodboardOwner(input);
   }
 
@@ -742,6 +768,17 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       where: { requestId: match[2], eventId: input.eventId, supplierId: input.ownerRecordId }, select: { id: true },
     });
     if (!task) throw new ForbiddenException('Supplier creative upload is outside the verified task');
+  }
+
+  /** Evidence belongs to one live receipt held for this event, under its own target. */
+  private async assertReceiptEvidenceOwner(input: StorageServiceRequest) {
+    if (input.ownerRecordType !== 'payment_receipt') throw new BadRequestException('Receipt evidence must belong to a payment receipt');
+    const target = /^payment-receipt-evidence:([A-Za-z0-9_-]{1,100}):[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.exec(input.logicalTarget);
+    if (!target || target[1] !== input.ownerRecordId) throw new ForbiddenException('Receipt evidence must target its own receipt');
+    const receipt = await this.prisma.opsPaymentReceipt.findFirst({
+      where: { id: input.ownerRecordId, eventId: input.eventId, status: { in: ['recorded', 'verified'] } }, select: { id: true },
+    });
+    if (!receipt) throw new ForbiddenException('Receipt evidence must belong to a live receipt held for this event');
   }
 
   private async assertClientUploadOwner(input: StorageServiceRequest) {
@@ -809,6 +846,8 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       event_deliverable: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       event_game_media: [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator],
       event_game_branding: [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator],
+      // Proof of payment is finance's: no client, supplier, guest or coordinator uploads or reads it.
+      payment_receipt_evidence: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
     };
     await this.accessPolicy.requireActorRole(actor, roles[usage], resource, eventId);
   }

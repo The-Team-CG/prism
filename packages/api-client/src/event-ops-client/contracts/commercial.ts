@@ -78,6 +78,8 @@ import type {
   PrismSupplierQuoteRequest,
   PrismSupplierQuoteRoundComparison,
   AllocatePaymentReceiptInput,
+  AttachPaymentReceiptEvidenceInput,
+  EarmarkPaymentReceiptInput,
   ListPaymentAllocationTargetsQuery,
   ListPaymentReceiptsQuery,
   RecordPaymentInput,
@@ -117,6 +119,8 @@ export interface EventOpsCommercialContract {
     paymentAllocationTargets(query: ListPaymentAllocationTargetsQuery, init?: EventOpsReadInit): Promise<PrismPaymentAllocationTarget[]>;
     recordPaymentReceipt(input: RecordPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
     allocatePaymentReceipt(receiptId: string, input: AllocatePaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
+    attachPaymentReceiptEvidence(receiptId: string, input: AttachPaymentReceiptEvidenceInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
+    earmarkPaymentReceipt(receiptId: string, input: EarmarkPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
     reversePaymentAllocation(receiptId: string, recordId: string, input: ReversePaymentAllocationInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
     verifyPaymentReceipt(receiptId: string, input: VerifyPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
     rejectPaymentReceipt(receiptId: string, input: RejectPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;

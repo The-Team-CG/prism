@@ -9,6 +9,8 @@ import { filterToQuery, totalUnapplied, type ReceiptFilter } from "../model/rece
 import {
   submitAllocation,
   submitAllocationReversal,
+  submitEarmark,
+  submitEvidence,
   submitReceipt,
   submitReceiptReversal,
   submitRefund,
@@ -25,7 +27,18 @@ export type ReceiptDialog =
   | { kind: "reject" }
   | { kind: "reverse" }
   | { kind: "refund" }
+  | { kind: "evidence" }
+  | { kind: "earmark" }
   | { kind: "reverse-allocation"; recordId: string };
+
+function saveFile(file: { blob: Blob; fileName: string }) {
+  const url = URL.createObjectURL(file.blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.fileName;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export type PaymentReceiptsViewModel = ReturnType<typeof usePaymentReceiptsViewModel>;
 
@@ -73,6 +86,16 @@ export function usePaymentReceiptsViewModel() {
     }
   }, [invalidate]);
 
+  const openEvidence = useCallback(async () => {
+    const objectId = selected?.evidence?.objectId;
+    if (!objectId) return;
+    try {
+      saveFile(await receiptsRepository.downloadEvidence(objectId));
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Could not open the proof. Try again.");
+    }
+  }, [selected]);
+
   const onSelected = useCallback(
     (message: string, action: (receiptId: string) => Promise<PrismPaymentReceipt>) =>
       selected ? run(message, () => action(selected.id)) : Promise.resolve(false),
@@ -103,5 +126,8 @@ export function usePaymentReceiptsViewModel() {
     reject: (reason: string) => onSelected("Receipt rejected", (id) => submitRejection(receiptsRepository, id, reason)),
     reverse: (reason: string) => onSelected("Receipt reversed", (id) => submitReceiptReversal(receiptsRepository, id, reason)),
     refund: (draft: RefundDraft) => onSelected("Refund recorded", (id) => submitRefund(receiptsRepository, id, draft)),
+    attachEvidence: (file: File | null) => (selected ? run("Proof of payment attached", () => submitEvidence(receiptsRepository, selected, file)) : Promise.resolve(false)),
+    earmark: (eventId: string) => onSelected("Receipt assigned to the event", (id) => submitEarmark(receiptsRepository, id, eventId)),
+    openEvidence,
   };
 }

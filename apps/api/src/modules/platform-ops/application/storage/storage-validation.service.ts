@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import type { StorageUsage } from '@prism/types';
+import { PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES, PAYMENT_RECEIPT_EVIDENCE_MAX_BYTES, type StorageUsage } from '@prism/types';
 
 export type StorageValidationInput = {
   fileName: string;
@@ -54,6 +54,11 @@ export const STORAGE_USAGE_RULES: Record<StorageUsage, StorageUsageRule> = {
       'video/mp4',
       'video/quicktime',
     ],
+  },
+  // Proof of payment is a statement PDF or a screenshot: small, and never a document or a video.
+  payment_receipt_evidence: {
+    maxBytes: PAYMENT_RECEIPT_EVIDENCE_MAX_BYTES,
+    contentTypes: [...PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES],
   },
   event_game_media: {
     maxBytes: 8 * 1024 * 1024,
