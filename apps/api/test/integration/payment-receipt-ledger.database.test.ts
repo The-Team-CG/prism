@@ -102,6 +102,21 @@ describe.skipIf(!live)('payment receipt ledger against PostgreSQL', () => {
     expect(await milestone(balance)).toMatchObject({ amountPaid: 0, status: 'pending' });
   });
 
+  it('offers only milestones that are still owed and not superseded as places to apply money', async () => {
+    const owed = await newMilestone(ids.eventA, 'Still owed', 40000);
+    const settled = await newMilestone(ids.eventA, 'Settled', 10000);
+    const replaced = await newMilestone(ids.eventA, 'Replaced', 10000);
+    const receipt = await record(10000);
+    await receipts.allocate(receipt.id, { milestoneId: settled, amount: 10000 }, actor);
+    await prisma.opsPaymentMilestone.update({ where: { id: replaced }, data: { supersededAt: new Date() } });
+
+    const targets = await receipts.listAllocationTargets(ids.eventA);
+
+    const ours = targets.filter((target) => [owed, settled, replaced].includes(target.milestoneId));
+    expect(ours).toEqual([expect.objectContaining({ milestoneId: owed, eventName: 'Ledger Event A', label: 'Still owed', amount: 40000, remainingBalance: 40000 })]);
+    await expect(receipts.listAllocationTargets(`missing_${suffix}`)).rejects.toThrow(/Event not found/);
+  });
+
   it('lets only one of two concurrent allocations take money that cannot cover both', async () => {
     const first = await newMilestone(ids.eventA, 'Concurrent one', 50000);
     const second = await newMilestone(ids.eventB, 'Concurrent two', 80000);

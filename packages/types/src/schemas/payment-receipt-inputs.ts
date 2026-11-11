@@ -68,3 +68,7 @@ export const listPaymentReceiptsQuerySchema = z.object({
   limit: z.preprocess((value) => (value === undefined || value === "" ? undefined : Number(value)), z.number().int().min(1).max(100)).optional(),
 }).strict();
 export type ListPaymentReceiptsQuery = z.infer<typeof listPaymentReceiptsQuerySchema>;
+
+/** The open milestones of one event that a receipt can be applied to. */
+export const listPaymentAllocationTargetsQuerySchema = z.object({ eventId: idSchema }).strict();
+export type ListPaymentAllocationTargetsQuery = z.infer<typeof listPaymentAllocationTargetsQuerySchema>;

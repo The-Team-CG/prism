@@ -5,6 +5,7 @@ import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-sessi
 import { zodBody, zodQuery } from '@prism/kernel/shared';
 import {
   allocatePaymentReceiptSchema,
+  listPaymentAllocationTargetsQuerySchema,
   listPaymentReceiptsQuerySchema,
   recordPaymentReceiptSchema,
   recordPaymentRefundSchema,
@@ -13,6 +14,7 @@ import {
   reversePaymentReceiptSchema,
   verifyPaymentReceiptSchema,
   type AllocatePaymentReceiptInput,
+  type ListPaymentAllocationTargetsQuery,
   type ListPaymentReceiptsQuery,
   type PrismVerifiedEventActor,
   type RecordPaymentReceiptInput,
@@ -40,6 +42,16 @@ export class PaymentReceiptsController {
   async list(@Query(zodQuery(listPaymentReceiptsQuerySchema)) query: ListPaymentReceiptsQuery, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     await this.requireFinanceActor(verifiedActor, 'payment receipts');
     return this.receipts.listReceipts(query);
+  }
+
+  // Declared before ':receiptId' so the static path is not read as a receipt id.
+  @Get('allocation-targets')
+  async allocationTargets(
+    @Query(zodQuery(listPaymentAllocationTargetsQuerySchema)) query: ListPaymentAllocationTargetsQuery,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    await this.requireFinanceActor(verifiedActor, 'payment allocation targets');
+    return this.receipts.listAllocationTargets(query.eventId);
   }
 
   @Get(':receiptId')

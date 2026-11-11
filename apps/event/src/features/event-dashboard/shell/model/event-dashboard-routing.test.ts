@@ -6,6 +6,7 @@ import {
   EVENT_TAB_ROUTES,
   clientDossierHref,
   eventSidebarItemHref,
+  SIDEBAR_STATIC_ROUTES,
   activeSidebarItemFromRoute,
   dashboardRouteState,
   eventListRouteState,
@@ -117,6 +118,13 @@ describe("event-dashboard-routing", () => {
     expect(routeStateForSidebarItem("suppliers-preferred")).toEqual({ section: "suppliers", tab: "overview", view: "preferred" });
     expect(routeStateForSidebarItem("clients")).toEqual({ section: "clients", tab: "overview", view: "all" });
     expect(routeStateForSidebarItem("finance")).toEqual({ section: "finance", tab: "billing", view: "overview" });
+    // Receipts are money received outside any one event, so the desk has its own entry, route, highlight and header.
+    expect(routeStateForSidebarItem("finance-receipts")).toEqual({ section: "finance", tab: "overview", view: "receipts" });
+    expect(SIDEBAR_STATIC_ROUTES["finance-receipts"]).toBe("/dashboard/finance/receipts");
+    expect(activeSidebarItemFromRoute({ section: "finance", tab: "billing", view: "receipts" })).toBe("finance-receipts");
+    expect(activeSidebarItemFromRoute({ section: "finance", tab: "billing", view: "receipts", eventId: "event-42" })).toBe("finance-receipts");
+    expect(routeShellCopy({ section: "finance", tab: "billing", view: "receipts" })).toMatchObject({ title: "Payments received", breadcrumb: ["Finance", "Receipts"] });
+    expect(routeShellCopy({ section: "finance", tab: "billing", view: "overview" }).title).toBe("Finance");
 
     for (const retired of ["calendar-events", "clients-active", "tasks-overdue", "messages-client", "finance-invoices", "settings-system-logs", "dashboard-upcoming"]) {
       expect(routeStateForSidebarItem(retired)).toBeUndefined();

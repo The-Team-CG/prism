@@ -285,6 +285,18 @@ export interface PrismPaymentReceipt {
   recordedAt: string;
 }
 
+/** A milestone a receipt can be applied to: still owed, not superseded. */
+export interface PrismPaymentAllocationTarget {
+  milestoneId: string;
+  eventId: string;
+  eventName: string;
+  label: string;
+  amount: number;
+  remainingBalance: number;
+  dueDate: string;
+  status: string;
+}
+
 export interface PrismPaymentMilestone {
   overdue?: boolean;
   supersededAt?: string | null;

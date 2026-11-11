@@ -70,12 +70,14 @@ import type {
   PrismBillingSource,
   PrismBillingStatement,
   PrismPaymentMilestone,
+  PrismPaymentAllocationTarget,
   PrismPaymentReceipt,
   PrismSupplier,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
   PrismSupplierQuoteRoundComparison,
   AllocatePaymentReceiptInput,
+  ListPaymentAllocationTargetsQuery,
   ListPaymentReceiptsQuery,
   RecordPaymentInput,
   RecordPaymentReceiptInput,
@@ -109,6 +111,7 @@ export interface EventOpsCommercialContract {
     /** Money that arrived outside P.R.I.S.M: recorded first, applied to milestones afterwards. PMCM finance only. */
     listPaymentReceipts(query: ListPaymentReceiptsQuery, init?: EventOpsReadInit): Promise<PrismPaymentReceipt[]>;
     paymentReceipt(receiptId: string, init?: EventOpsReadInit): Promise<PrismPaymentReceipt>;
+    paymentAllocationTargets(query: ListPaymentAllocationTargetsQuery, init?: EventOpsReadInit): Promise<PrismPaymentAllocationTarget[]>;
     recordPaymentReceipt(input: RecordPaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
     allocatePaymentReceipt(receiptId: string, input: AllocatePaymentReceiptInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;
     reversePaymentAllocation(receiptId: string, recordId: string, input: ReversePaymentAllocationInput, actor?: EventOpsActorQuery): Promise<PrismPaymentReceipt>;

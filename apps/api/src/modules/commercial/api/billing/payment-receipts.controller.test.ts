@@ -11,6 +11,7 @@ function createController() {
   const receipt = { id: 'prcp_1' };
   const service = {
     listReceipts: vi.fn(async () => [receipt]),
+    listAllocationTargets: vi.fn(async () => []),
     getReceipt: vi.fn(async () => receipt),
     recordReceipt: vi.fn(async () => receipt),
     allocate: vi.fn(async () => receipt),
@@ -36,6 +37,7 @@ type Controller = PaymentReceiptsController;
 const dto = {} as never;
 const calls: Array<[string, (controller: Controller, actor: never) => Promise<unknown>, keyof ReturnType<typeof createController>['service']]> = [
   ['list', (c, a) => c.list(dto, a), 'listReceipts'],
+  ['allocationTargets', (c, a) => c.allocationTargets({ eventId: 'evt_1' }, a), 'listAllocationTargets'],
   ['get', (c, a) => c.get('prcp_1', a), 'getReceipt'],
   ['record', (c, a) => c.record(dto, a), 'recordReceipt'],
   ['allocate', (c, a) => c.allocate('prcp_1', dto, a), 'allocate'],

@@ -8,6 +8,7 @@ import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access
 import type {
   AllocatePaymentReceiptInput,
   ListPaymentReceiptsQuery,
+  PrismPaymentAllocationTarget,
   PrismPaymentReceipt,
   RecordPaymentReceiptInput,
   RecordPaymentRefundInput,
@@ -46,6 +47,8 @@ const DEFAULT_LIST_LIMIT = 50;
 /** Receipts read to filter by unapplied money, which is computed from records and refunds rather than stored. */
 const UNAPPLIED_SCAN_LIMIT = 500;
 const POSSIBLE_DUPLICATE_SCAN_LIMIT = 20;
+/** An event never has anywhere near this many open milestones; the cap only keeps the read bounded. */
+const MAX_ALLOCATION_TARGETS = 50;
 
 const hashOf = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -141,6 +144,27 @@ export class PaymentReceiptService {
     const receipts = await this.loadReceipts(this.prisma, where, query.unapplied ? UNAPPLIED_SCAN_LIMIT : limit);
     const mapped = await this.mapAll(this.prisma, receipts);
     return (query.unapplied ? mapped.filter((receipt) => receipt.unapplied > 0) : mapped).slice(0, limit);
+  }
+
+  /** What a receipt can be applied to for one event: milestones still owed, never a superseded one. */
+  async listAllocationTargets(eventId: string): Promise<PrismPaymentAllocationTarget[]> {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, eventName: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    const milestones = await this.prisma.opsPaymentMilestone.findMany({
+      where: { eventId, supersededAt: null, remainingBalance: { gt: 0 } },
+      orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+      take: MAX_ALLOCATION_TARGETS,
+    });
+    return milestones.map((milestone) => ({
+      milestoneId: milestone.id,
+      eventId,
+      eventName: event.eventName,
+      label: milestone.label,
+      amount: milestone.amount,
+      remainingBalance: milestone.remainingBalance,
+      dueDate: isoDate(milestone.dueDate),
+      status: milestone.status,
+    }));
   }
 
   async getReceipt(receiptId: string): Promise<PrismPaymentReceipt> {
