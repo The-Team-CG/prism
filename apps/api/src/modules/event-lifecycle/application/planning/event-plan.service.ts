@@ -12,6 +12,7 @@ import {
   type PrismEventPlanItem,
   type PrismPlanApplyResult,
   type PrismPlanPreview,
+  type SyncEventPlanInput,
   type UpdateEventPlanItemInput,
 } from '@prism/types';
 import { diffPlan, planPreviewToken, type PlanDiff } from '../../domain/plan-diff.policy';
@@ -70,26 +71,42 @@ export class EventPlanService {
 
   async apply(eventId: string, input: ApplyEventPlanInput, actor: PlanningActor): Promise<PrismPlanApplyResult> {
     return this.prisma.$transaction(async (tx) => {
-      // QUERY_AUDIT_RAW_SQL: row lock on one event so two applies of its plan run one after the other; Prisma has no delegate for FOR UPDATE.
-      await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.events WHERE id = ${eventId} FOR UPDATE`;
-      const event = await this.requireEvent(tx, eventId);
-      this.requireOpen(event);
+      const event = await this.lockOpenEvent(tx, eventId);
       const prepared = await this.prepare(tx, eventId, event.eventDate, input.templateId, input.version);
-      const current = this.toPreview(eventId, input.templateId, prepared);
-      if (current.previewToken !== input.previewToken) {
-        throw new ConflictException('The plan changed since you previewed it. Preview it again before applying');
-      }
-      await this.write(tx, eventId, input.templateId, prepared);
+      await this.applyPrepared(tx, eventId, input.templateId, prepared, input.previewToken, actor, false);
       const { diff } = prepared;
-      await this.audit(tx, actor, eventId, `Applied planning template ${prepared.templateName} v${prepared.version}`, AuditActionType.Update, {
-        templateId: input.templateId,
-        version: prepared.version,
-        added: diff.add.length,
-        updated: diff.update.length,
-        kept: diff.kept.length,
-        removedFromTemplate: diff.removedFromTemplate.length,
-      });
       return { added: diff.add.length, updated: diff.update.length, kept: diff.kept.length, items: await this.itemsOf(tx, eventId) };
+    });
+  }
+
+  /**
+   * What the plan would do to follow the event date: each template the event already follows, at the version it already has,
+   * so only dates move. `asOfDateKey` previews a date that is only being considered; such a preview cannot be applied.
+   */
+  async previewSync(eventId: string, asOfDateKey: string | null): Promise<PrismPlanPreview[]> {
+    const event = await this.requireEvent(this.prisma, eventId);
+    const pinned = await this.pinnedVersions(this.prisma, eventId);
+    const previews: PrismPlanPreview[] = [];
+    for (const { templateId, version } of pinned) {
+      const prepared = await this.prepare(this.prisma, eventId, event.eventDate, templateId, version, { allowArchived: true, eventDateKey: asOfDateKey ?? undefined });
+      previews.push(this.toPreview(eventId, templateId, prepared));
+    }
+    return previews;
+  }
+
+  /** Applies the previewed templates together or not at all: any one that changed since its preview refuses the lot. */
+  async applySync(eventId: string, input: SyncEventPlanInput, actor: PlanningActor): Promise<PrismPlanApplyResult> {
+    return this.prisma.$transaction(async (tx) => {
+      const event = await this.lockOpenEvent(tx, eventId);
+      const totals = { added: 0, updated: 0, kept: 0 };
+      for (const entry of input.templates) {
+        const prepared = await this.prepare(tx, eventId, event.eventDate, entry.templateId, entry.version, { allowArchived: true });
+        await this.applyPrepared(tx, eventId, entry.templateId, prepared, entry.previewToken, actor, true);
+        totals.added += prepared.diff.add.length;
+        totals.updated += prepared.diff.update.length;
+        totals.kept += prepared.diff.kept.length;
+      }
+      return { ...totals, items: await this.itemsOf(tx, eventId) };
     });
   }
 
@@ -120,6 +137,40 @@ export class EventPlanService {
     };
   }
 
+  /** Locks the event row so two applies of its plan run one after the other, and refuses a plan that can no longer change. */
+  private async lockOpenEvent(tx: Tx, eventId: string) {
+    // QUERY_AUDIT_RAW_SQL: row lock on one event so two applies of its plan run one after the other; Prisma has no delegate for FOR UPDATE.
+    await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM event_lifecycle.events WHERE id = ${eventId} FOR UPDATE`;
+    const event = await this.requireEvent(tx, eventId);
+    this.requireOpen(event);
+    return event;
+  }
+
+  /** The preview must still hold: it is refused if the plan moved since, so nothing unseen is written. */
+  private async applyPrepared(tx: Tx, eventId: string, templateId: string, prepared: Prepared, previewToken: string, actor: PlanningActor, sync: boolean) {
+    if (this.toPreview(eventId, templateId, prepared).previewToken !== previewToken) {
+      throw new ConflictException(`The plan changed since you previewed ${prepared.templateName}. Preview it again before applying`);
+    }
+    await this.write(tx, eventId, templateId, prepared);
+    const { diff } = prepared;
+    await this.audit(tx, actor, eventId, `${sync ? 'Moved plan tasks with the event date for' : 'Applied planning template'} ${prepared.templateName} v${prepared.version}`, AuditActionType.Update, {
+      templateId,
+      version: prepared.version,
+      sync,
+      added: diff.add.length,
+      updated: diff.update.length,
+      kept: diff.kept.length,
+      removedFromTemplate: diff.removedFromTemplate.length,
+    });
+  }
+
+  /** Each template the event follows, at the highest version any of its tasks carries. */
+  private async pinnedVersions(db: PrismaService | Tx, eventId: string): Promise<Array<{ templateId: string; version: number }>> {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: one row per template an event follows, a handful at most.
+    const groups = await db.opsEventPlanItem.groupBy({ by: ['templateId'], where: { eventId }, _max: { templateVersion: true }, orderBy: { templateId: 'asc' } });
+    return groups.flatMap((group) => (group._max.templateVersion ? [{ templateId: group.templateId, version: group._max.templateVersion }] : []));
+  }
+
   private requireOpen(event: { archived: boolean }) {
     if (event.archived) throw new ConflictException('This event is archived, so its plan can no longer change');
   }
@@ -130,10 +181,18 @@ export class EventPlanService {
     return event;
   }
 
-  private async prepare(db: PrismaService | Tx, eventId: string, eventDate: Date, templateId: string, requestedVersion?: number): Promise<Prepared> {
+  private async prepare(
+    db: PrismaService | Tx,
+    eventId: string,
+    eventDate: Date,
+    templateId: string,
+    requestedVersion?: number,
+    options: { allowArchived?: boolean; eventDateKey?: string } = {},
+  ): Promise<Prepared> {
     const template = await db.opsPlanningTemplate.findUnique({ where: { id: templateId } });
     if (!template) throw new NotFoundException('Planning template not found');
-    if (template.archivedAt) throw new ConflictException('This template is archived and cannot be applied to more events');
+    // A plan already built from an archived template keeps working; archiving only stops it going to more events.
+    if (template.archivedAt && !options.allowArchived) throw new ConflictException('This template is archived and cannot be applied to more events');
     const version = requestedVersion ?? template.currentVersion;
     const stored = await db.opsPlanningTemplateVersion.findUnique({ where: { templateId_version: { templateId, version } } });
     if (!stored) throw new NotFoundException(`Version ${version} of this template does not exist`);
@@ -142,7 +201,7 @@ export class EventPlanService {
       // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: one event's tasks from one template, capped at the template task limit with headroom.
       take: MAX_PLAN_ITEMS,
     });
-    const eventDateKey = planningEventDateKey(eventDate);
+    const eventDateKey = options.eventDateKey ?? planningEventDateKey(eventDate);
     const diff = diffPlan({
       eventDateKey,
       todayKey: prismCalendarDateKey(),

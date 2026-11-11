@@ -1,13 +1,16 @@
 import type {
   ApplyEventPlanInput,
   CreatePlanningTemplateInput,
+  DateChangeImpactQuery,
   PreviewEventPlanInput,
+  PrismDateChangeImpact,
   PrismEventPlanItem,
   PrismPlanApplyResult,
   PrismPlanPreview,
   PrismPlanningTemplate,
   PrismPlanningTemplateSummary,
   PublishPlanningTemplateVersionInput,
+  SyncEventPlanInput,
   UpdateEventPlanItemInput,
 } from "@prism/types";
 import type { EventOpsReadInit } from "./primitives";
@@ -27,5 +30,9 @@ export interface EventOpsPlanningContract {
     /** Applies exactly the previewed plan; refused when the plan changed since the preview. */
     applyPlan(eventId: string, input: ApplyEventPlanInput): Promise<PrismPlanApplyResult>;
     updatePlanItem(eventId: string, itemId: string, input: UpdateEventPlanItemInput): Promise<PrismEventPlanItem>;
+    /** Read only: what moving the event date touches. Without a date, what the date the event has now touches. */
+    dateChangeImpact(eventId: string, query: DateChangeImpactQuery, init?: EventOpsReadInit): Promise<PrismDateChangeImpact>;
+    /** Moves the plan's open tasks to follow the event date, applying exactly the previewed plans or none. */
+    syncPlan(eventId: string, input: SyncEventPlanInput): Promise<PrismPlanApplyResult>;
   };
 }

@@ -15,3 +15,4 @@ export * from "./event-ops/privacy-retention.js";
 export * from "./event-ops/decision-log.js";
 export * from "./event-ops/pmcm-overview.js";
 export * from "./event-ops/planning.js";
+export * from "./event-ops/date-change-impact.js";

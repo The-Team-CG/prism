@@ -74,6 +74,9 @@ import { FloorplanReferenceModule } from './floorplan-reference.module';
 import { ClientFloorplanAccessModule } from './client-floorplan-access.module';
 import { LifecycleFactsReaderModule } from '@prism/contexts/read-models/lifecycle-facts';
 import { CommercialFactsReaderModule } from '@prism/contexts/read-models/commercial-facts-reader';
+import { DateChangeFactsReaderModule } from '@prism/contexts/read-models/date-change-facts';
+import { EventDateImpactController } from './api/change/event-date-impact.controller';
+import { EventDateImpactService } from './application/change/event-date-impact.service';
 import { AccountContactReadModelModule } from '@prism/contexts/read-models/account-contacts';
 import { AccountInvitationReferenceModule } from '@prism/contexts/identity-access/account-invitation-reference';
 import { ProposalReviewOwnerService } from './application/onboarding/proposal-review-owner.service';
@@ -103,6 +106,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     ClientFloorplanAccessModule,
     LifecycleFactsReaderModule,
     CommercialFactsReaderModule,
+    DateChangeFactsReaderModule,
     AccountContactReadModelModule,
     AccountInvitationReferenceModule,
     AccessControlModule,
@@ -132,6 +136,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     OcularVisitController,
     PlanningTemplatesController,
     EventPlanController,
+    EventDateImpactController,
     EventClientFloorplanAccessController,
     ClientCloseoutController,
     ConformeSigningController,
@@ -177,6 +182,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     OcularVisitService,
     PlanningTemplatesService,
     EventPlanService,
+    EventDateImpactService,
     ProposalReviewOwnerService,
     { provide: PROPOSAL_REVIEW_OWNER, useExisting: ProposalReviewOwnerService },
     LifecyclePrivacyRedactorService,
