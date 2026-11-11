@@ -12,6 +12,7 @@ import { PrismEmptyLine, PrismSection, PrismStatRow } from "@prism/ui/page-block
 import { label, money } from "@/features/pmcm-kit";
 import { countNoun, isMilestoneSettled, paymentHistoryLabel, paymentOverdueDays, sortPaymentsByDueDate } from "../model/finance-workspace-rules";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";
+import { NotificationDeliveryDetails } from "./notification-delivery-details";
 
 function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <div className={`rounded-lg border border-border bg-card ${className}`}>{children}</div>;
@@ -96,6 +97,7 @@ export function NotificationEvidence({ logs }: { logs: PrismNotificationLog[] })
               </div>
               <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{n.message}</p>
               {n.failureReason ? <p className="mt-1 text-xs text-muted-foreground">{n.failureReason}</p> : null}
+              {n.channel === "email" || n.channel === "viber" ? <NotificationDeliveryDetails notificationId={n.id} status={n.status} channel={n.channel} /> : null}
             </div>
           ))}
         </div>
@@ -304,7 +306,7 @@ function PaymentMilestoneCard({
             <div key={rec.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="font-semibold text-foreground">{money.format(rec.amountReceived)}</span>
               <span className="flex items-center gap-1 text-muted-foreground">
-                <Clock3 className="size-3" /> {formatPortalDate(rec.paymentDate)} — {rec.paymentMethod}
+                <Clock3 className="size-3" /> {formatPortalDate(rec.paymentDate)} — {rec.reversesRecordId ? "Reversal of an earlier payment — " : ""}{rec.paymentMethod}
                 {rec.referenceNumber ? ` — ${rec.referenceNumber}` : ""}
               </span>
             </div>

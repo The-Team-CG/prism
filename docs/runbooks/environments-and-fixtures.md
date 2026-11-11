@@ -28,6 +28,10 @@ sources:
 - **Use/change when:** Selecting environments or changing fixture prerequisites/commands.
 - **Verify with:** Read-only dry-run/verify, migration comparison, and portal flows.
 
+## Dashboard music
+
+Set `NEXT_PUBLIC_SPOTIFY_PLAYLIST_URL` in each portal environment before building to enable its optional Spotify playlist dock. The value must be an HTTPS Spotify playlist URL; leave it blank to disable the dock. The listener starts playback in Spotify, and availability depends on their Spotify and browser session. Dashboard navigation keeps the dock open; closing it or leaving the dashboard stops playback. Restart development servers after changing this value.
+
 ## Environment identity
 
 Local startup generates the checkout's database environment and applies

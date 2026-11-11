@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction, writeNotification } from '@prism/contexts/platform-ops';
 import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 import { FLOORPLAN_PROJECTION_WRITER, type FloorplanEventProjection, type FloorplanProjectionWriter } from '@prism/contexts/event-lifecycle';
 import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReference, type FloorplanEventReferenceReader } from '@prism/contexts/event-lifecycle/floorplan-reference';
@@ -193,7 +193,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       sideEffects: async (draft) => {
         await Promise.all([
           this.auditFloorPlan(eventId, actor, `Submitted layout preference: ${input.name}`, draft),
-          writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `Client submitted a layout preference: ${input.name}`),
+          writeNotification(this.notificationOutboxWriter, eventId, 'PMCM Admin', `Client submitted a layout preference: ${input.name}`, undefined, { action: eventSectionAction(eventId, 'floorplans') }),
         ]);
       },
       project: (draft) => this.mapFloorPlanDraft(draft),
@@ -576,7 +576,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       sideEffects: async (submitted) => {
         await Promise.all([
           this.auditFloorPlan(eventId, actor, `Submitted floorplan draft for review: ${submittedName}`, submitted),
-          writeNotification(this.notificationOutboxWriter, eventId, 'Client', `Floorplan draft ready for review: ${submittedName}`),
+          writeNotification(this.notificationOutboxWriter, eventId, 'Client', `Floorplan draft ready for review: ${submittedName}`, undefined, { action: eventSectionAction(eventId, 'floorplans') }),
         ]);
       },
       project: (submitted) => this.mapFloorPlanDraft(submitted),

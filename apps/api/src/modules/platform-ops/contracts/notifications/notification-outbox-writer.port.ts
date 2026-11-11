@@ -1,4 +1,10 @@
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
+import type { NotificationAction, NotificationEventSection } from '@prism/types';
+
+/** The link a notice carries into one area of an event, in each reader's own portal. */
+export function eventSectionAction(eventId: string, section: NotificationEventSection): NotificationAction {
+  return { kind: 'event_section', eventId, section };
+}
 
 export type NotificationOutboxChannel = 'email' | 'viber' | 'zoom' | 'canva' | 'storage' | 'ai';
 
@@ -9,6 +15,7 @@ export interface NotificationOutboxWriteInput {
   channel?: NotificationOutboxChannel;
   correlationId?: string;
   idempotencyKey?: string;
+  action?: NotificationAction;
 }
 
 export interface NotificationOutboxWriter {

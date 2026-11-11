@@ -30,6 +30,10 @@ import type { EventOpsActorQuery } from "./primitives";
 /** PMCM trust operations: the audit trail, privacy requests and legal holds, and data retention. */
 export interface EventOpsTrustContract {
   audit: {
+    requestNotificationAcknowledgment(deliveryId: string, input: import('@prism/types').RequestNotificationAcknowledgmentInput): Promise<{ id: string; acknowledgmentDueAt: string }>;
+    refreshNotificationOutcome(notificationId: string, deliveryId: string): Promise<{ id: string; providerOutcome: string }>;
+    notificationDeliveries(notificationId: string, actor?: EventOpsActorQuery): Promise<import("@prism/types").PrismNotificationRecipientDelivery[]>;
+    retryNotification(notificationId: string, input: import("@prism/types").RetryNotificationInput, actor?: EventOpsActorQuery): Promise<{ id: string; status: "queued" }>;
     integrity(actor?: EventOpsActorQuery): Promise<PrismAuditIntegrity>;
     /** Filters set to "all" or left empty are not sent. */
     logs(filters: AuditLogFilters, actor?: EventOpsActorQuery): Promise<PrismAuditLog[]>;

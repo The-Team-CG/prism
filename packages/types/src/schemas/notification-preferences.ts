@@ -10,6 +10,8 @@ export const VIBER_LINK_CODE_MINUTES = 15;
 
 export interface PrismNotificationPreferences {
   email: string;
+  /** Whether mail is routed to an external provider or captured locally; configuration does not prove delivery. */
+  emailDelivery: "external" | "captured" | "unavailable";
   /** The deployment has a Viber bot configured; without it Viber cannot be linked. */
   viberConfigured: boolean;
   viberLinked: boolean;

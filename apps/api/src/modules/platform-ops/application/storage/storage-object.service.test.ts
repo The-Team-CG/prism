@@ -66,6 +66,13 @@ function createStore() {
     },
     opsSupplierCreativeTask: { findFirst: vi.fn(async () => ({ id: 'task_1' })) },
     opsClientReviewItem: { findFirst: vi.fn(async ({ where }: { where: Record<string, string> }) => (where.id === 'client_review_1' && where.eventId === 'evt_1' && where.kind === 'styling' ? { id: 'client_review_1' } : null)) },
+    // One live receipt held for evt_1; a rejected one and one held for another event prove the owner check reads both.
+    opsPaymentReceipt: {
+      findFirst: vi.fn(async ({ where }: { where: { id: string; eventId: string; status: { in: string[] } } }) => {
+        const receipts = [{ id: 'prcp_1', eventId: 'evt_1', status: 'recorded' }, { id: 'prcp_rejected', eventId: 'evt_1', status: 'rejected' }, { id: 'prcp_other', eventId: 'evt_2', status: 'recorded' }];
+        return receipts.find((receipt) => receipt.id === where.id && receipt.eventId === where.eventId && where.status.in.includes(receipt.status)) ?? null;
+      }),
+    },
     $queryRaw: vi.fn(async () => [{ id: 'evt_1' }]),
     $transaction: vi.fn(async (work: (tx: unknown) => Promise<unknown>) => work(prisma)),
   };
@@ -81,6 +88,7 @@ function createStore() {
       supplierQuoteRequests: bookings.map((booking) => ({ supplierId: booking.supplierId, status: booking.status, supplier: { email: 'supplier@example.test' } })),
     }) : null),
     findFileRequirementVisibility: vi.fn(async () => requirementVisibility),
+    supplierMayUploadRequirement: vi.fn(async (_eventId: string, key: string) => key === 'insurance'),
     findStoredObjectRequirementBindings: vi.fn(async () => []),
   };
   return {
@@ -257,6 +265,21 @@ describe('StorageObjectService', () => {
     await expect(service.requestUpload({ ...moodboard, actor })).resolves.toMatchObject({ status: 'failed', reason: 'Storage provider is not configured' });
     await expect(service.requestUpload({ ...moodboard, ownerRecordId: 'client_review_other', logicalTarget: 'styling-moodboard:client_review_other:123e4567-e89b-42d3-a456-426614174000', actor })).rejects.toThrow('styling option of this event');
     await expect(service.requestUpload({ ...moodboard, logicalTarget: 'styling-moodboard:client_review_2:123e4567-e89b-42d3-a456-426614174000', actor })).rejects.toThrow('target their styling option');
+  });
+
+  it('accepts receipt evidence only from PMCM, for a live receipt of the same event, under its own target', async () => {
+    const { service } = createStore();
+    const target = (receiptId: string) => `payment-receipt-evidence:${receiptId}:123e4567-e89b-42d3-a456-426614174000`;
+    const evidence = { ...request, ownerRecordType: 'payment_receipt', ownerRecordId: 'prcp_1', logicalTarget: target('prcp_1'), usage: 'payment_receipt_evidence' as const };
+    await expect(service.requestUpload({ ...evidence, actor })).resolves.toMatchObject({ status: 'failed', reason: 'Storage provider is not configured' });
+    // A receipt that is rejected, or held for another event, takes no proof from this one.
+    await expect(service.requestUpload({ ...evidence, ownerRecordId: 'prcp_rejected', logicalTarget: target('prcp_rejected'), actor })).rejects.toThrow('live receipt held for this event');
+    await expect(service.requestUpload({ ...evidence, ownerRecordId: 'prcp_other', logicalTarget: target('prcp_other'), actor })).rejects.toThrow('live receipt held for this event');
+    // The target must name the receipt it is uploaded for, and the owner must be a receipt at all.
+    await expect(service.requestUpload({ ...evidence, logicalTarget: target('prcp_other'), actor })).rejects.toThrow('target its own receipt');
+    await expect(service.requestUpload({ ...evidence, ownerRecordType: 'billing_statement', actor })).rejects.toThrow();
+    // Proof of payment is finance paperwork: the client who owns the event cannot upload or read it.
+    await expect(service.requestUpload({ ...evidence, actor: client })).rejects.toThrow(ForbiddenException);
   });
 
   it('rejects new storage work for an event that no longer resolves', async () => {
@@ -546,6 +569,23 @@ describe('StorageObjectService', () => {
     await expect(service.requestUpload({ ...declaration, ownerRecordId: 'sup_other', actor: supplier })).rejects.toThrow(/verified supplier/);
     const other = { id: 'other-user', role: 'supplier', email: 'other@example.test', name: 'Other supplier', explicit: true, verified: true } as never;
     await expect(service.issueDownloadAuthorization({ objectId: stored.id, actor: other })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('accepts requirement uploads only for a selected supplier and an eligible requirement', async () => {
+    const store = createStore();
+    const root = await mkdtemp(join(tmpdir(), 'prism-requirement-storage-'));
+    roots.push(root);
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), new LocalFileSystemStorageAdapter(root), store.platformReferences as never);
+    const supplier = { id: 'supplier-user', role: 'supplier', email: 'supplier@example.test', name: 'Supplier', explicit: true, verified: true } as never;
+    const declaration = { ...request, usage: 'supplier_document' as const, ownerRecordType: 'supplier', ownerRecordId: 'sup_1', logicalTarget: 'supplier-requirement:insurance:123e4567-e89b-42d3-a456-426614174000' };
+    const result = await service.requestUpload({ ...declaration, actor: supplier });
+    if (result.status !== 'ready') throw new Error('expected upload location');
+    await service.writeAuthorizedUpload({ objectId: result.object.id, uploadUrl: result.location.uploadUrl, bytes, actor: supplier });
+    const stored = await service.confirmUpload({ objectId: result.object.id, byteSize: bytes.byteLength, checksumSha256, actor: supplier });
+    expect(stored.lifecycleState).toBe('stored');
+    await expect(service.requestUpload({ ...declaration, logicalTarget: declaration.logicalTarget.replace('insurance', 'unknown'), actor: supplier })).rejects.toBeInstanceOf(ForbiddenException);
+    store.bookings[0].status = 'declined';
+    await expect(service.requestUpload({ ...declaration, actor: supplier })).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('prevents a different actor from reusing the uploader logical target', async () => {

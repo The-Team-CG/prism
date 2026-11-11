@@ -56,6 +56,15 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
     return Object.fromEntries(rows.map((row) => [row.key, row.visibleToRoles]));
   }
 
+  async supplierMayUploadRequirement(eventId: string, key: string, supplierId: string): Promise<boolean> {
+    const row = await this.prisma.opsFileRequirement.findUnique({
+      where: { eventId_key: { eventId, key } },
+      select: { isCustom: true, ownerRole: true, visibleToRoles: true, targetSupplierIds: true },
+    });
+    return Boolean(row?.isCustom && row.ownerRole === 'supplier' && row.visibleToRoles.includes('supplier') &&
+      (row.targetSupplierIds.length === 0 || row.targetSupplierIds.includes(supplierId)));
+  }
+
   /** Bounded by the requested object ids, so a cap can never hide a binding that narrows a file. */
   async findStoredObjectRequirementBindings(eventId: string, objectIds: readonly string[]): Promise<Array<{ objectId: string; documentType: string }>> {
     if (objectIds.length === 0) return [];
