@@ -25,6 +25,8 @@ const sonic: HarnessSupplier = { supplierId: 'supplier_sonic', supplierName: 'So
 const insuranceRequirement = (dueAt = '2026-10-01T00:00:00.000Z') => ({
   id: 'freq_sup', eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'],
   required: true, dueAt: new Date(dueAt), sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm',
+  // The column defaults to an empty list and is never null: no target means every selected supplier.
+  targetSupplierIds: [] as string[],
 });
 
 function createHarness(options: {
@@ -323,7 +325,7 @@ describe('FileRequirementCommandsService', () => {
   });
 
   it('binds only the requirement owner uploaded bytes from the same event and is idempotent', async () => {
-    const requirement = { id: 'freq_1', eventId, key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
+    const requirement = { id: 'freq_1', targetSupplierIds: [] as string[], eventId, key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
     const upload = { id: 'obj_1', eventId, ownerRecordType: 'event', ownerRecordId: eventId, usage: 'client_document', lifecycleState: 'stored', originalFileName: 'permit.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'client_1', uploaderActorRole: 'client' };
     const client = { id: 'client_1', role: 'client', name: 'Client', explicit: true, verified: true };
     const harness = createHarness({ rows: [requirement], storedUpload: upload });
@@ -345,7 +347,7 @@ describe('FileRequirementCommandsService', () => {
   });
 
   it("returns a supplier only its own fulfilment after it binds its own upload, never another supplier's object", async () => {
-    const requirement = { id: 'freq_2', eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
+    const requirement = { id: 'freq_2', targetSupplierIds: [] as string[], eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: 'private', revision: 1, updatedBy: 'pmcm' };
     const upload = { id: 'obj_sonic', eventId, logicalTarget: 'supplier-requirement:insurance_certificate:123e4567-e89b-42d3-a456-426614174000', ownerRecordType: 'supplier', ownerRecordId: 'supplier_sonic', usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
     const suppliers = [
       { supplierId: 'supplier_sonic', supplierName: 'Sonic Line Events', email: 'sonic@example.test' },
@@ -364,7 +366,7 @@ describe('FileRequirementCommandsService', () => {
   });
 
   it('refuses a supplier without a selected booking before any upload is bound, and still binds for a selected one', async () => {
-    const requirement = { id: 'freq_3', eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm' };
+    const requirement = { id: 'freq_3', targetSupplierIds: [] as string[], eventId, key: 'insurance_certificate', label: 'Insurance certificate', ownerRole: 'supplier', visibleToRoles: ['pmcm-admin', 'supplier'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm' };
     const upload = { id: 'obj_sonic', eventId, logicalTarget: 'supplier-requirement:insurance_certificate:123e4567-e89b-42d3-a456-426614174000', ownerRecordType: 'supplier', ownerRecordId: 'supplier_sonic', usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
     const sonic = { id: 'usr_sonic', role: 'supplier', name: 'Sonic', email: 'sonic@example.test', explicit: true, verified: true };
     const atlas = { supplierId: 'supplier_atlas', supplierName: 'Atlas Sound', email: 'atlas@example.test' };

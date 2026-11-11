@@ -206,16 +206,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
       const scopedActor = scoped.actor;
       const requirement = await tx.opsFileRequirement.findUnique({ where: { eventId_key: { eventId, key } } });
       if (!requirement || !requirement.isCustom) throw new NotFoundException('Custom file requirement not found');
-      await this.accessPolicy.requireActorRole(scopedActor, [requirement.ownerRole as OpsUserRoleValue, OpsUserRole.PmcmAdmin], 'fulfil file requirement', eventId);
-      if (!requirement.visibleToRoles.includes(scopedActor.role) && scopedActor.role !== OpsUserRole.PmcmAdmin) {
-        throw new BadRequestException('This role cannot fulfil the file requirement');
-      }
-      await this.requireSelectedSupplierBooking(tx, eventId, scopedActor);
-      if (scopedActor.role === OpsUserRole.Supplier && (requirement.targetSupplierIds ?? []).length > 0 &&
-          (!scopedActor.supplierId || !requirement.targetSupplierIds.includes(scopedActor.supplierId))) {
-        await this.accessPolicy.recordForbiddenAccess(scopedActor, 'fulfil unassigned file requirement', eventId);
-        throw new ForbiddenException('This file requirement is not assigned to your supplier');
-      }
+      await this.requireFulfilableRequirement(tx, eventId, requirement, scopedActor);
       const object = await this.requireBindingUpload(tx, eventId, key, input.objectId, scopedActor, requirement);
       const currentBinding = await tx.opsDocument.findFirst({ where: { eventId, storageKey: object.id } });
       if (currentBinding) {
@@ -272,6 +263,24 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
   }
 
   /** Suppliers may bind only when they hold a selected booking on the event; other roles pass through. */
+  /** The role must own the requirement (or be PMCM), be allowed to see it, and, for a supplier, be booked and assigned to it. */
+  private async requireFulfilableRequirement(tx: Prisma.TransactionClient, eventId: string, requirement: OpsFileRequirement, scopedActor: ResolvedEventOpsActor) {
+    await this.accessPolicy.requireActorRole(scopedActor, [requirement.ownerRole as OpsUserRoleValue, OpsUserRole.PmcmAdmin], 'fulfil file requirement', eventId);
+    if (!requirement.visibleToRoles.includes(scopedActor.role) && scopedActor.role !== OpsUserRole.PmcmAdmin) {
+      throw new BadRequestException('This role cannot fulfil the file requirement');
+    }
+    await this.requireSelectedSupplierBooking(tx, eventId, scopedActor);
+    await this.requireAssignedSupplier(requirement, eventId, scopedActor);
+  }
+
+  /** A requirement aimed at specific suppliers can be fulfilled only by one of them. */
+  private async requireAssignedSupplier(requirement: OpsFileRequirement, eventId: string, scopedActor: ResolvedEventOpsActor) {
+    if (scopedActor.role !== OpsUserRole.Supplier || requirement.targetSupplierIds.length === 0) return;
+    if (scopedActor.supplierId && requirement.targetSupplierIds.includes(scopedActor.supplierId)) return;
+    await this.accessPolicy.recordForbiddenAccess(scopedActor, 'fulfil unassigned file requirement', eventId);
+    throw new ForbiddenException('This file requirement is not assigned to your supplier');
+  }
+
   private async requireSelectedSupplierBooking(tx: Prisma.TransactionClient, eventId: string, scopedActor: ResolvedEventOpsActor) {
     if (scopedActor.role !== OpsUserRole.Supplier) return;
     // An unresolved supplierId must refuse outright: Prisma treats an undefined where-field as no filter.
