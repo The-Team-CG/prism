@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction, writeNotification } from '@prism/contexts/platform-ops';
 import type { CreateProposalCommentInput, PrismProposalComment } from '@prism/types';
 
 const COMMENT_PAGE_LIMIT = 500;
@@ -110,7 +110,7 @@ export class ProposalCommentsService {
         fromClient ? 'PMCM Admin' : 'Client',
         fromClient ? `New client comment on proposal version ${version.versionNumber} for ${event.eventName}` : `PMCM replied on proposal version ${version.versionNumber} for ${event.eventName}`,
         undefined,
-        { idempotencyKey: correlationId },
+        { idempotencyKey: correlationId, action: eventSectionAction(eventId, 'proposal') },
         { prisma: tx, correlationId, actorId: actor.id },
       );
       return mapComment(comment);

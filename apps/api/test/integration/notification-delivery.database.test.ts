@@ -69,6 +69,31 @@ describe.skipIf(!live)('durable notification delivery', () => {
       await prisma.$disconnect();
     }
   });
+  it('applies pushed email events before and after acceptance, and never lets a later report undo a further-along one', async () => {
+    const prisma = new PrismaService();
+    const receipt = randomUUID();
+    const outcomes = new NotificationProviderOutcomeService(prisma, {} as never);
+    const row = await new NotificationOutboxService(prisma, { deliver: vi.fn() }).queue(undefined, 'resend@example.test', 'Test');
+    const delivery = () => prisma.opsNotificationDelivery.findFirstOrThrow({ where: { notificationId: row.id } });
+    try {
+      // The provider can report before the send response is recorded; the report waits for acceptance.
+      await outcomes.recordEmailOutcome(receipt, 'delivered');
+      await new NotificationRecipientDeliveryService(prisma, outcomes).deliver(row.id, async () => ({ status: 'resolved', addresses: ['resend@example.test'] }), async () => ({ status: 'accepted', receipt }));
+      expect(await delivery()).toMatchObject({ providerReceipt: receipt, providerOutcome: 'delivered', acknowledgedAt: null });
+      await outcomes.recordEmailOutcome(receipt, 'opened');
+      expect(await delivery()).toMatchObject({ providerOutcome: 'opened' });
+      await outcomes.recordEmailOutcome(receipt, 'bounced');
+      await outcomes.recordEmailOutcome(receipt, 'delivered');
+      await outcomes.recordEmailOutcome(receipt, 'sent');
+      expect(await delivery()).toMatchObject({ providerOutcome: 'bounced', acknowledgedAt: null });
+      await outcomes.recordEmailOutcome(receipt, 'complained');
+      expect(await delivery()).toMatchObject({ providerOutcome: 'complained' });
+    } finally {
+      await prisma.opsNotificationLog.delete({ where: { id: row.id } });
+      await prisma.opsNotificationProviderOutcome.deleteMany({ where: { receipt } });
+      await prisma.$disconnect();
+    }
+  });
   it('persists independent version-bound recipient acknowledgments in PostgreSQL', async () => {
     const prisma = new PrismaService();
     const outbox = new NotificationOutboxService(prisma, { deliver: vi.fn() });

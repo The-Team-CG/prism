@@ -31,7 +31,8 @@ import { ViberBotClient } from './infrastructure/notifications/viber-bot.client'
 import { resolveViberConfig } from '@prism/kernel/shared';
 import { VIBER_BOT } from './contracts/notifications/viber.port';
 import { NotificationPreferenceService } from './application/notifications/notification-preference.service';
-import { NotificationPreferencesController, ViberWebhookController } from './api/notifications/notification-preferences.controller';
+import { NotificationPreferencesController, ResendWebhookController, ViberWebhookController } from './api/notifications/notification-preferences.controller';
+import { ResendWebhookService } from './application/notifications/resend-webhook.service';
 import { CanvaController } from './api/integrations/canva.controller';
 import { CANVA_API_CLIENT, CanvaConnectionService } from './application/integrations/canva-connection.service';
 import { CanvaApiClient } from './infrastructure/integrations/canva-api.client';
@@ -156,10 +157,11 @@ export function createAiProviderAdapters(
  */
 @Module({
   imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, MailModule, PortalUrlsModule],
-  controllers: [NotificationProviderOutcomeController, NotificationInboxController, OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController, NotificationPreferencesController, ViberWebhookController, CanvaController],
+  controllers: [ResendWebhookController, NotificationProviderOutcomeController, NotificationInboxController, OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController, NotificationPreferencesController, ViberWebhookController, CanvaController],
   providers: [
     NotificationInboxService,
     NotificationProviderOutcomeService,
+    ResendWebhookService,
     NotificationEscalationService,
     { provide: EMAIL_OUTCOME_READER, useClass: ResendNotificationOutcomeReader },
     AuditService,

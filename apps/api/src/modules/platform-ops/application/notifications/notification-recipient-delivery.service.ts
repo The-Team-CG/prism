@@ -53,7 +53,7 @@ export class NotificationRecipientDeliveryService {
           acceptedAt: accepted ? new Date() : null,
         },
       });
-      if (accepted && result.status === 'accepted') await this.outcomes?.reconcileViber(result.receipt);
+      if (accepted && result.status === 'accepted') await this.outcomes?.reconcile(result.receipt);
     }));
 
     const settled = await this.prisma.opsNotificationDelivery.findMany({ where: { notificationId }, orderBy: { recipient: 'asc' } });

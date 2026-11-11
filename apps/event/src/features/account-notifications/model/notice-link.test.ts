@@ -3,9 +3,12 @@ import { pmcmNoticeLink } from "./notice-link";
 
 describe("pmcmNoticeLink", () => {
   it("opens the event workspace tab a notice is about", () => {
-    expect(pmcmNoticeLink({ kind: "event_section", eventId: "evt_1", section: "billing" }, "evt_1")).toEqual({ href: "/dashboard/events/evt_1/billing", label: "Open billing" });
-    expect(pmcmNoticeLink({ kind: "event_section", eventId: "evt_1", section: "files" }, null)).toEqual({ href: "/dashboard/events/evt_1/files", label: "Open files" });
-    expect(pmcmNoticeLink({ kind: "event_section", eventId: "evt_1", section: "floorplans" }, null)).toEqual({ href: "/dashboard/events/evt_1/floorplans", label: "Open floorplans" });
+    const hrefs = (["overview", "briefing", "proposal", "changes", "floorplans", "billing", "files", "live_ops"] as const)
+      .map((section) => pmcmNoticeLink({ kind: "event_section", eventId: "evt_1", section }, null)?.href);
+    expect(hrefs).toEqual([
+      "/dashboard/events/evt_1/overview", "/dashboard/events/evt_1/briefing", "/dashboard/events/evt_1/briefing", "/dashboard/events/evt_1/briefing",
+      "/dashboard/events/evt_1/floorplans", "/dashboard/events/evt_1/billing", "/dashboard/events/evt_1/files", "/dashboard/events/evt_1/live-ops",
+    ]);
   });
 
   it("sends a supplier schedule notice to the event's suppliers tab, and nowhere without an event", () => {

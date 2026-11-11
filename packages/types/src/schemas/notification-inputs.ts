@@ -6,9 +6,12 @@ export const acknowledgeNotificationReceiptSchema = z.object({ version: z.string
 export type AcknowledgeNotificationReceiptInput = z.infer<typeof acknowledgeNotificationReceiptSchema>;
 export const requestNotificationAcknowledgmentSchema = z.object({ dueAt: z.iso.datetime({ offset: true }), reason: z.string().trim().min(1).max(500) }).strict();
 export type RequestNotificationAcknowledgmentInput = z.infer<typeof requestNotificationAcknowledgmentSchema>;
+/** The event areas a notice can point at. Each portal maps a section to its own route, or to no link when its role has no such page. */
+export const notificationEventSectionSchema = z.enum(['overview', 'briefing', 'proposal', 'floorplans', 'billing', 'files', 'changes', 'live_ops']);
+export type NotificationEventSection = z.infer<typeof notificationEventSectionSchema>;
 export const notificationActionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('supplier_schedule'), requestId: z.string().min(1).max(200), revision: z.number().int().positive() }).strict(),
-  z.object({ kind: z.literal('event_section'), eventId: z.string().min(1).max(200), section: z.enum(['billing', 'files', 'floorplans']) }).strict(),
+  z.object({ kind: z.literal('event_section'), eventId: z.string().min(1).max(200), section: notificationEventSectionSchema }).strict(),
 ]);
 export type NotificationAction = z.infer<typeof notificationActionSchema>;
 
@@ -39,3 +42,7 @@ export const viberCallbackSchema = z.object({
   message: z.object({ text: z.string().optional() }).passthrough().optional(),
 }).passthrough();
 export type ViberCallback = z.infer<typeof viberCallbackSchema>;
+export const resendWebhookEventSchema = z.object({
+  type: z.string().min(1),
+  data: z.object({ email_id: z.string().min(1) }).passthrough(),
+}).passthrough();

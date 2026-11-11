@@ -448,7 +448,7 @@ describe('BillingOperationsService', () => {
     const overdueWrites = notifications.write.mock.calls.map((call) => call[0] as Record<string, unknown>);
     expect(overdueWrites).toHaveLength(2);
     for (const input of overdueWrites) {
-      expect(input).toMatchObject({ eventId: 'evt_sample', recipient: 'Client', idempotencyKey: 'payment-overdue-reminder:pay_downpayment' });
+      expect(input).toMatchObject({ eventId: 'evt_sample', recipient: 'Client', idempotencyKey: 'payment-overdue-reminder:pay_downpayment', action: { kind: 'event_section', eventId: 'evt_sample', section: 'billing' } });
     }
   });
 

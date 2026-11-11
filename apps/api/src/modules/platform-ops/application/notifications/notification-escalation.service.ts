@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, type OnApplicationBootstrap, type OnApplica
 import { PrismaService } from '@prism/kernel/database';
 import { AUDIT_WRITER, writeAudit, type AuditWriter } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory } from '@prism/kernel/event-core';
+import { eventSectionAction } from '../../contracts/notifications/notification-outbox-writer.port';
 import { NotificationOutboxService } from './notification-outbox.service';
 
 @Injectable()
@@ -30,7 +31,7 @@ export class NotificationEscalationService implements OnApplicationBootstrap, On
         const changed = await tx.opsNotificationDelivery.updateMany({ where: { id: row.id, acknowledgedAt: null, escalatedAt: null, acknowledgmentDueAt: row.acknowledgmentDueAt }, data: { escalatedAt: now } });
         if (!changed.count) return;
         const key = `notification-escalation:${row.id}:${row.acknowledgmentDueAt!.toISOString()}`;
-        await this.outbox.queue(row.notification.eventId ?? undefined, 'PMCM Admin', `An operational notice has an overdue acknowledgment from ${row.recipient}. Review the notification delivery details in the event workspace.`, 'email', { idempotencyKey: key }, { prisma: tx, correlationId: key });
+        await this.outbox.queue(row.notification.eventId ?? undefined, 'PMCM Admin', `An operational notice has an overdue acknowledgment from ${row.recipient}. Review the notification delivery details in the event workspace.`, 'email', { idempotencyKey: key, ...(row.notification.eventId ? { action: eventSectionAction(row.notification.eventId, 'billing') } : {}) }, { prisma: tx, correlationId: key });
         await writeAudit(this.audit, row.notification.eventId ?? undefined, 'System', 'Escalated overdue notification acknowledgment', { actorRole: 'system', actionType: AuditActionType.Update, category: AuditCategory.Events, affectedType: 'notification_delivery', affectedId: row.id }, { prisma: tx, correlationId: key });
         escalated += 1;
       });
