@@ -48,8 +48,11 @@ sources:
    Settings page and the coordinator account menu). A notice outside the person's current event access is not listed.
 4. The person can **read** it (opening it records the read) and **acknowledge receipt**. Both are tied to the exact message version
    they saw. If the notice changes after it was opened, acknowledging is refused until it is reviewed again.
-5. The action becomes a link in that person's own portal: billing, documents or floor plan for a client; the booking or Files for a
-   supplier; the event workspace tab for PMCM. Suppliers get no link into client billing or floor plans.
+5. The action becomes a link in that person's own portal. A notice names an event area (overview, briefing, proposal, floor plan,
+   billing, files, scope changes or live operations) and each portal maps it to its own page: the client's event pages, the PMCM
+   workspace tabs, or, for a supplier, Files or the booking. A role with no such page gets no link (suppliers have none for client
+   billing, floor plans or live operations). Payment reminders, floor plan reviews, proposal comments, scope changes, briefing
+   submissions, event-day escalations and file or schedule requests carry links; other notices are plain text.
 
 Acknowledging receipt is not a business decision. Approvals, contract uploads and schedule confirmations still need their own action
 in the event workspace; the inbox says so.
@@ -61,7 +64,7 @@ separately on the delivery as `providerOutcome`:
 
 | Channel | Where the outcome comes from | Outcomes |
 | --- | --- | --- |
-| Email (Resend) | PMCM selects **Refresh email outcome** on an accepted delivery; the API asks Resend for that message's status using `RESEND_API_KEY`. | `sent`, `delivered`, `delivery_delayed`, `bounced`, `complained`, `opened`, `clicked`, `failed`, `suppressed` |
+| Email (Resend) | Signed webhook events to `/api/integrations/resend/webhook` when `RESEND_WEBHOOK_SECRET` is set, and PMCM's **Refresh email outcome** on an accepted delivery (the API asks Resend for that message's status using `RESEND_API_KEY`). | `sent`, `delivered`, `delivery_delayed`, `bounced`, `complained`, `opened`, `clicked`, `failed`, `suppressed` |
 | Viber | Signed callbacks to `/api/integrations/viber/webhook`, matched on the message token. | `delivered`, `seen`, `failed` |
 
 Notes that matter when debugging:
@@ -69,7 +72,11 @@ Notes that matter when debugging:
 - Viber message tokens are 64-bit numbers. They are stored and compared as digit strings, never as JavaScript numbers, because a number
   would lose precision and the callback would not match its delivery.
 - A Viber callback can arrive **before** the send is recorded as accepted. The outcome is kept and applied when the delivery appears.
-- Outcomes only move forward: a late `delivered` cannot overwrite `seen` or `failed`.
+- Outcomes only move forward: a late `delivered` cannot overwrite `seen` or `failed`, and a late `delivered` or `sent` cannot undo an email
+  `bounced`. A spam complaint outranks every earlier email outcome. Reports are stored per provider receipt, so an email event that
+  arrives before the send is recorded is applied when it is.
+- Resend webhooks use the Svix signature scheme (`svix-id`, `svix-timestamp`, `svix-signature`). A request without a valid signature, or
+  with a timestamp more than five minutes old, is refused with 401. With no `RESEND_WEBHOOK_SECRET` the endpoint answers 503.
 - A callback without a valid `X-Viber-Content-Signature` is refused with 401.
 - In local development mail goes to a capture inbox (`PRISM_MAIL_TRANSPORT=log` or `mailpit`). The channel is reported as
   **captured**, not as delivered: no external provider was involved.
@@ -90,7 +97,8 @@ Only a PMCM administrator can require an acknowledgment, from the delivery detai
 deadline** takes a future time and a reason. It is audited.
 
 - A background sweep runs every 60 seconds. For each recipient whose deadline has passed with no acknowledgment, it marks the
-  delivery escalated and queues one notice to PMCM naming the overdue recipient. The mark and the notice are written in one
+  delivery escalated and queues one notice to PMCM naming the overdue recipient, linked to the event's billing tab where the delivery
+  details are. The mark and the notice are written in one
   transaction, so concurrent sweeps or several API instances produce **one** escalation per deadline.
 - At most 50 overdue deadlines are handled per sweep; the rest follow on the next one.
 - Setting a new deadline on an unacknowledged delivery clears its escalation so it can escalate again.
@@ -137,4 +145,8 @@ Portals: `npm --workspace @prism/client|@prism/supplier|@prism/event run typeche
   `VIBER_AUTH_TOKEN` and `VIBER_BOT_URI` through the host's secret store (see [deployment secrets](deployment-secrets.md)), register the
   Viber webhook, send one notice to a test address and a linked test account, and confirm the delivery, the outcome and the
   acknowledgment end to end.
-- **Email outcomes are pulled, not pushed.** Resend outcomes appear when PMCM refreshes them; there is no inbound Resend webhook yet.
+- **The Resend webhook has not received a real event.** Signature checking and the outcome order are covered by tests built on Resend's
+  documented Svix format. To enable it: in Resend add a webhook for the `email.*` events at
+  `https://<api-host>/api/integrations/resend/webhook`, then store its signing secret as `RESEND_WEBHOOK_SECRET` in the host's secret store.
+- **Escalation has one level.** An unacknowledged notice alerts PMCM once per deadline. Whether it should chase again, or reach a
+  named backup when PMCM does not respond, needs a decision about who that backup is.
