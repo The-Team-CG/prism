@@ -123,6 +123,7 @@ exact subpaths allowlisted in `scripts/check-prism-boundaries.mjs`:
 | `read-models/account-contacts` | Approved account and event-notification contact lookups for Lifecycle, LiveOps, and Platform notifications |
 | `read-models/commercial-facts-reader` | Event and audit facts for Commercial supplier review, proposal review, and lifecycle closure |
 | `read-models/lifecycle-facts` | Compliance and closure facts for Lifecycle commands |
+| `read-models/date-change-facts` | Supplier booking conflicts, payment milestones and client approvals, read only, for the date change impact |
 | `read-models/file-evidence` | Confirmed signed-conforme object identity |
 | `event-lifecycle/floorplan-reference` | Locked event gates and projection facts for Floorplan |
 | `event-lifecycle/operations-reference` | Locked event state for Operations |

@@ -1,11 +1,12 @@
 import type {
+  PrismDateChangeImpact,
   PrismEventPlanItem,
   PrismPlanApplyResult,
   PrismPlanPreview,
   PrismPlanningTemplate,
   PrismPlanningTemplateSummary,
 } from "@prism/types";
-import { prismRequest } from "../http";
+import { prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase } from "./shared";
 
@@ -26,6 +27,11 @@ export function createPlanningClient(options: EventOpsClientOptions): Pick<Event
       applyPlan: (eventId, input) => post<PrismPlanApplyResult>(plan(eventId, "/apply"), input),
       updatePlanItem: (eventId, itemId, input) =>
         prismRequest<PrismEventPlanItem>(plan(eventId, `/items/${encodeURIComponent(itemId)}`), withBase(options, { method: "PATCH", body: input })),
+      dateChangeImpact: (eventId, query, init = {}) => {
+        const text = toQueryString({ newDate: query.newDate });
+        return prismRequest<PrismDateChangeImpact>(`/events/${encodeURIComponent(eventId)}/date-change-impact${text ? `?${text}` : ""}`, withBase(options, { signal: init.signal }));
+      },
+      syncPlan: (eventId, input) => post<PrismPlanApplyResult>(plan(eventId, "/sync"), input),
     },
   };
 }
