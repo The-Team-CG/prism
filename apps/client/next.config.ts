@@ -12,6 +12,12 @@ const nextConfig: NextConfig = {
   ...(process.env.PRISM_DOCKER_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   outputFileTracingRoot: path.join(__dirname, "../.."),
   transpilePackages: ["@prism/ui", "@prism/tokens", "@prism/api-client", "@prism/types", "@prism/portal-query"],
+  async redirects() {
+    return [
+      { source: "/dashboard/events/:eventId/preferences", destination: "/dashboard/events/:eventId/briefing", permanent: true },
+      { source: "/dashboard/events/:eventId/schedule", destination: "/dashboard/events/:eventId/progress", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

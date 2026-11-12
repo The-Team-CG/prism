@@ -1,6 +1,7 @@
 "use client";
 
 import type * as React from "react";
+import { SpotifyMusicControl } from "../spotify-music";
 import { PrismBrandLogo } from "../brand";
 import { cn } from "../utils";
 import { useDocumentTitle } from "../document-title";
@@ -27,14 +28,14 @@ export function PrismGuestShell({ eventName, detail, lead, actions, children, cl
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <PrismBrandLogo href="/" title="P.R.I.S.M." detail="Guest pass" markClassName="size-8 rounded-md bg-card ring-1 ring-border" />
-          {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+          <div className="flex items-center gap-2"><SpotifyMusicControl />{actions}</div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         {lead ? (
           <div className="mb-6">{lead}</div>
         ) : (
-          <div className="mb-6 grid gap-1">
+          <div className="mb-6 grid gap-1 rounded-lg bg-background/95 p-4">
             <h1 className="font-heading text-2xl font-semibold leading-tight text-foreground">{eventName}</h1>
             {detail ? <p className="text-sm text-muted-foreground">{detail}</p> : null}
           </div>

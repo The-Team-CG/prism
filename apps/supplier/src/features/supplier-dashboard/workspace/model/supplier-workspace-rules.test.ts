@@ -33,7 +33,7 @@ import {
   supplierReadinessSection,
   supplierMessageEvents,
 } from "./supplier-workspace-rules";
-import { splitSupplierNextSteps, supplierStepFigure, supplierTodaySummary } from "./supplier-next-step";
+import { groupSupplierNextSteps, splitSupplierNextSteps, supplierStepFigure, supplierStepGroupTitle, supplierTodaySummary } from "./supplier-next-step";
 import type { PrismFileRequirementsMatrix, PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
 import { supplierBookingHref, supplierWorkHref } from "./supplier-next-step";
@@ -251,6 +251,13 @@ describe("supplier-workspace-rules", () => {
     const steps = splitSupplierNextSteps(items, (entry) => entry.id === "sent");
     expect(steps.yourTurn.map((entry) => entry.id)).toEqual(["quote-sooner", "booked", "quote-later", "undated"]);
     expect(steps.waiting.map((entry) => entry.id)).toEqual(["sent"]);
+    const contracts = [
+      { ...item("contract-a", "selected", null), assignmentStatus: "confirmed" },
+      { ...item("contract-b", "selected", null), assignmentStatus: "confirmed" },
+    ];
+    const groups = groupSupplierNextSteps([...contracts, ...steps.yourTurn], () => false);
+    expect(groups[0].items.map((entry) => entry.requestId)).toEqual(["contract-a", "contract-b"]);
+    expect(supplierStepGroupTitle(groups[0].title, groups[0].items.length)).toBe("2 contracts to upload");
   });
 
   it("shows the Today lead's number: days overdue or left on a quote deadline, else days to the event", () => {

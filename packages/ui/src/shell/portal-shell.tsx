@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { SpotifyMusicControl } from "../spotify-music";
 import { portalBackgroundStyle } from "./portal-background";
 import { ChevronRight, ChevronsUpDown, LogOut, Search, ShieldCheck } from "lucide-react";
 import type { PrismAppShellProps, PrismCommandGroup, PrismNavItem, PrismPageAction } from "./types";
@@ -470,20 +471,21 @@ export function PrismPortalShell({
             <SidebarTrigger className="-ml-1.5" />
             <Separator orientation="vertical" className="hidden !h-4 sm:block" />
             <p className="min-w-0 truncate text-sm font-semibold text-foreground md:hidden">{trail[trail.length - 1] ?? roleLabel}</p>
-            <Breadcrumb className="hidden min-w-0 md:block">
-              <BreadcrumbList>
+            <Breadcrumb className="hidden min-w-0 flex-1 overflow-hidden md:block">
+              <BreadcrumbList className="flex-nowrap">
                 <BreadcrumbItem className="text-muted-foreground">{roleLabel}</BreadcrumbItem>
                 {trail.map((label, index) => (
                   <React.Fragment key={label}>
                     <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      {index === trail.length - 1 ? <BreadcrumbPage>{label}</BreadcrumbPage> : <TruncatedText className="min-w-0 max-w-64">{label}</TruncatedText>}
+                    <BreadcrumbItem className="min-w-0">
+                      {index === trail.length - 1 ? <BreadcrumbPage className="truncate">{label}</BreadcrumbPage> : <TruncatedText className="min-w-0 max-w-64">{label}</TruncatedText>}
                     </BreadcrumbItem>
                   </React.Fragment>
                 ))}
               </BreadcrumbList>
             </Breadcrumb>
-            <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2">
+            <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2">
+              <SpotifyMusicControl />
               {showTopBarSearch ? (
                 <PageSearch
                   navItems={navItems}
@@ -500,8 +502,8 @@ export function PrismPortalShell({
               {headerActions ? <div className={cn("shrink-0 items-center gap-2", alwaysShowHeaderActions ? "flex" : "hidden md:flex")}>{headerActions}</div> : null}
             </div>
           </header>
-          <div className={cn("mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", contentClassName)}>
-            <div className={cn("mb-6 grid gap-1", titleClassName)}>
+          <div className={cn("mx-auto min-w-0 w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", contentClassName)}>
+            <div className={cn("mb-6 grid gap-1 rounded-lg bg-background/95 p-4", titleClassName)}>
               <h1 className="min-w-0 font-heading text-2xl font-semibold leading-tight text-foreground"><TruncatedText>{title}</TruncatedText></h1>
               {description ? <p className="max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
             </div>

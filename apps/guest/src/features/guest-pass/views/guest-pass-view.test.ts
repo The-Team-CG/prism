@@ -10,6 +10,8 @@ describe("GuestPassView", () => {
     const markup = renderToStaticMarkup(createElement(GuestPassView, { token: "undefined" }));
 
     expect(markup).toContain("This pass link is not valid");
+    expect(markup).toContain("P.R.I.S.M.");
+    expect(markup).toContain("Guest pass");
     expect(markup).toContain("Ask the event organizer for a new one.");
     expect(markup).toContain("Back to guest portal");
     expect(markup).not.toContain("Copy code");

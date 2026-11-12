@@ -188,16 +188,17 @@ export function PrismWorkflowTabs({
   className?: string;
 }) {
   return (
-    <div className={cn("overflow-x-auto rounded-lg border border-border bg-card p-1.5 shadow-sm", className)}>
-      <div className="flex min-w-max gap-1">
+    <div className={cn("max-w-full rounded-lg bg-muted p-1", className)}>
+      <div className="flex flex-wrap gap-1">
         {items.map((item) => (
           <button
             key={item.id}
             type="button"
             disabled={item.disabled}
+            aria-current={item.id === activeId ? "page" : undefined}
             data-active={item.id === activeId}
             onClick={() => onSelect(item.id)}
-            className="flex h-9 shrink-0 items-center gap-2 rounded-md px-3.5 text-sm font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-primary data-[active=true]:font-black data-[active=true]:text-primary-foreground"
+            className="flex h-9 shrink-0 items-center gap-2 rounded-md px-3.5 text-sm font-bold text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45 data-[active=true]:bg-card data-[active=true]:font-semibold data-[active=true]:text-foreground"
           >
             {item.icon ? <item.icon aria-hidden="true" className="size-4" /> : null}
             <span>{item.label}</span>

@@ -61,12 +61,6 @@ export const CLIENT_DOSSIER_VIEWS: ReadonlyArray<{ view: string; label: string }
   { view: "overview", label: "Overview" },
   { view: "events", label: "Events" },
   { view: "contacts", label: "Contacts" },
-  { view: "files", label: "Files" },
-  { view: "messages", label: "Messages" },
-  { view: "contracts", label: "Contracts" },
-  { view: "invoices", label: "Invoices" },
-  { view: "notes", label: "Notes" },
-  { view: "activity-log", label: "Activity log" },
 ];
 
 export const CLIENT_DETAIL_ROUTES: Record<string, string> = {
@@ -380,9 +374,9 @@ export function routeShellCopy(
     const event = options.selectedEvent;
     return {
       eyebrow: loadingCopy.eyebrow,
-      title: event?.eventName ?? "Event Manager",
+      title: sectionLabel ?? "Event workspace",
       description: event
-        ? [sectionLabel, `${event.clientName} · ${formatPortalDate(event.eventDate)}`].filter(Boolean).join(" · ")
+        ? [event.eventName, `${event.clientName} · ${formatPortalDate(event.eventDate)}`].filter(Boolean).join(" · ")
         : "Select an event or accept an inquiry to begin.",
       breadcrumb: ["Events", event?.eventName, sectionLabel].filter((part): part is string => Boolean(part)),
       documentTitle: pageDocumentTitle([sectionLabel, event?.eventName]),

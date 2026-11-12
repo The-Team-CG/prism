@@ -1,19 +1,19 @@
 /** @vitest-environment jsdom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { SpotifyMusic } from "@prism/ui/spotify-music";
+import { SpotifyMusic, SpotifyMusicControl } from "@prism/ui/spotify-music";
 
 const playlist = "https://open.spotify.com/playlist/7w8goVzwvr1smmS5zMf4HI?si=example";
 afterEach(cleanup);
 
 describe("SpotifyMusic", () => {
   it("loads only when opened, survives dashboard content changes, and stops on close", () => {
-    const { rerender, unmount } = render(<SpotifyMusic playlistUrl={playlist}><p>Dashboard one</p></SpotifyMusic>);
+    const { rerender, unmount } = render(<SpotifyMusic playlistUrl={playlist}><header><SpotifyMusicControl /></header><p>Dashboard one</p></SpotifyMusic>);
     expect(screen.queryByTitle("Spotify playlist")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Music" }));
     const iframe = screen.getByTitle("Spotify playlist");
     expect(iframe.getAttribute("src")).toBe("https://open.spotify.com/embed/playlist/7w8goVzwvr1smmS5zMf4HI");
-    rerender(<SpotifyMusic playlistUrl={playlist}><p>Dashboard two</p></SpotifyMusic>);
+    rerender(<SpotifyMusic playlistUrl={playlist}><header><SpotifyMusicControl /></header><p>Dashboard two</p></SpotifyMusic>);
     expect(screen.getByTitle("Spotify playlist")).toBe(iframe);
     screen.getByRole("button", { name: "Stop and close" }).focus();
     fireEvent.click(screen.getByRole("button", { name: "Stop and close" }));

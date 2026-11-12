@@ -40,7 +40,8 @@ export function QuotationsPage({ workspace, readinessBoard }: { workspace: Suppl
   return (
     <>
       <Card>
-        <Table>
+        <p className="px-4 text-xs text-muted-foreground sm:hidden">Scroll across to see quote status and details.</p>
+        <Table className="min-w-[680px]">
           <TableHeader>
             <TableRow>
               <TableHead className="px-4">Event</TableHead>

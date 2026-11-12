@@ -6,6 +6,23 @@ import { supplierWorkTargetHref } from "./supplier-workspace-types";
 const CLOSED_QUOTE_STATUSES = ["closed", "cancelled", "expired"];
 const WAITING_FOR_PMCM = "Waiting for PMCM";
 
+export function groupSupplierNextSteps(items: PrismSupplierReadinessItem[], hasQuote: (item: PrismSupplierReadinessItem) => boolean) {
+  const groups = new Map<string, PrismSupplierReadinessItem[]>();
+  for (const item of items) {
+    const title = supplierNextStep(item, hasQuote(item)).title;
+    const group = groups.get(title) ?? [];
+    group.push(item);
+    groups.set(title, group);
+  }
+  return Array.from(groups, ([title, items]) => ({ title, items }));
+}
+
+export function supplierStepGroupTitle(title: string, count: number) {
+  if (count === 1) return title;
+  if (title === "Upload your signed contract") return `${count} contracts to upload`;
+  return `${title} · ${count} bookings`;
+}
+
 export function supplierWorkHref(item: Pick<PrismSupplierReadinessItem, "quoteStatus" | "requestId">) {
   return supplierWorkTargetHref(supplierReadinessSection(item) === "bookings" ? "bookings" : "requests", item.requestId);
 }

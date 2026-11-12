@@ -219,7 +219,7 @@ export function ClientDossier({
     { label: "Balance due", value: balance },
   ];
   return (
-    <div className="grid gap-6">
+    <div className="grid min-w-0 gap-6">
       <button type="button" onClick={onBack} className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
         <ArrowLeft aria-hidden="true" className="size-4" />
         All clients
@@ -228,7 +228,7 @@ export function ClientDossier({
         <StatusBadge status={clientStatus(client)} />
         <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {facts.map((fact) => (
-            <div key={fact.label}>
+            <div key={fact.label} className="min-w-0">
               <dt className="text-xs text-muted-foreground">{fact.label}</dt>
               <dd className="mt-0.5 min-w-0 font-semibold text-foreground">
                 <FullValueTooltip value={fact.value}>
@@ -267,16 +267,19 @@ export function ClientDossier({
           ) : (
             <ul className="divide-y divide-border">
               {client.events.map((event) => (
-                <li key={event.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                <li key={event.id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-foreground">{event.eventName}</span>
                     <span className="block text-xs text-muted-foreground">{formatPortalDate(event.eventDate)}</span>
                   </span>
-                  <span className="flex items-center gap-3">
+                  <span className="flex shrink-0 flex-wrap items-center gap-3">
                     <StatusBadge status={event.status} />
-                    <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="text-sm font-semibold text-primary hover:text-primary-strong">
+                    <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="text-sm font-semibold text-muted-foreground hover:text-foreground">
                       Open<span className="sr-only"> {event.eventName}</span>
                     </RouteLink>
+                    <RouteLink href={eventWorkspaceHref(event.id, "files")} onNavigate={() => onOpenEvent(event.id, "files")} className="text-sm text-muted-foreground hover:text-foreground">Files</RouteLink>
+                    <RouteLink href={eventWorkspaceHref(event.id, "billing")} onNavigate={() => onOpenEvent(event.id, "billing")} className="text-sm text-muted-foreground hover:text-foreground">Billing</RouteLink>
+                    <RouteLink href={eventWorkspaceHref(event.id, "messages")} onNavigate={() => onOpenEvent(event.id, "messages")} className="text-sm text-muted-foreground hover:text-foreground">Messages</RouteLink>
                   </span>
                 </li>
               ))}
@@ -296,7 +299,7 @@ export function ClientDossier({
           ) : (
             <ul className="divide-y divide-border">
               {client.inquiries.map((inquiry) => (
-                <li key={inquiry.id} className="flex items-center justify-between gap-4 px-4 py-3">
+                <li key={inquiry.id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-foreground">{inquiry.eventName}</span>
                     <span className="block text-xs text-muted-foreground">
@@ -379,7 +382,7 @@ function DossierContacts({ client }: { client: EventClientRecord }) {
             <li key={contact.email} className="px-4 py-3 text-sm">
               <span className="block font-semibold text-foreground">{contact.name}</span>
               <FullValueTooltip value={contact.email}>
-                <a href={`mailto:${contact.email}`} className="block truncate text-primary hover:text-primary/80">{contact.email}</a>
+                <a href={`mailto:${contact.email}`} className="block break-all text-foreground hover:underline">{contact.email}</a>
               </FullValueTooltip>
             </li>
           ))}

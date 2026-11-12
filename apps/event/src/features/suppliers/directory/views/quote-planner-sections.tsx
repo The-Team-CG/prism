@@ -223,9 +223,9 @@ export function SupplierTierColumns({
         <p className="text-sm text-muted-foreground">First event, manual select</p>
         <div className="mt-3 space-y-2">
           {pending.map((supplier) => (
-            <div key={supplier.id} className="w-full min-w-0 break-words rounded-md border border-brand-orange/25 bg-accent p-3 text-left text-sm">
+            <div key={supplier.id} className="w-full min-w-0 break-words rounded-md border border-border bg-muted/30 p-3 text-left text-sm">
               <span className="block break-words font-semibold">{supplier.name}</span>
-              <span className="mt-1 text-xs text-attention">Excluded from auto-suggestions</span>
+              <span className="mt-1 text-xs text-muted-foreground">Excluded from auto-suggestions</span>
             </div>
           ))}
           {pending.length === 0 && <p className="text-sm text-muted-foreground">No pending-first-event suppliers here.</p>}

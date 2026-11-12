@@ -104,6 +104,9 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
         if (item.path.startsWith('/dashboard') && /could not load your|unable to load (the|your)|failed to load (the|your)|sign in again to continue/i.test(text)) throw new Error('Page displayed a data-loading failure');
         if (item.path.startsWith('/dashboard') && !new URL(page.url()).pathname.startsWith('/dashboard')) throw new Error('Signed-in page unexpectedly redirected out of its portal');
         if (errors.length || badResponses.length) throw new Error(JSON.stringify({ errors, badResponses }));
+        if (info.project.name === 'mobile' && ((app === 'client' && item.path.startsWith('/dashboard/calendar')) || (app === 'event' && item.path.startsWith('/dashboard/clients/')))) {
+          expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), 'Calendar and client dossiers must fit the phone without zooming out or sideways page scrolling').toBe(true);
+        }
         records.push({ app, template: item.template, path: redact(item.path), expectedState: item.state, result: 'passed' });
         await screenshot(page, info.project.name, app, redact(item.path), false, order + 1);
       } catch (error) {

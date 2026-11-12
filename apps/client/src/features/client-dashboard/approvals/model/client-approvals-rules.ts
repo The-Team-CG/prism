@@ -1,11 +1,13 @@
 import type { PrismBillingStatement, PrismDocument, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import type { ClientDashboardRoute, ClientPortalView } from "../../workspace/model/client-dashboard-types";
 import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
+import { canApproveProposal, latestIssuedProposal } from "../../proposal/model/proposal-review-rules";
 
 export type ApprovalItem = {
   title: string;
   detail: string;
   status: string;
+  actionable: boolean;
   /** Where in the event workspace this approval is reviewed. */
   route: ClientDashboardRoute;
 };
@@ -33,6 +35,7 @@ export function buildApprovalItems(
             : "Review the proposal once PMCM has issued it. Billing is handled separately.",
       status: selectedEvent.proposalClientStatus ?? "pending",
       route: "proposal",
+      actionable: canApproveProposal(selectedEvent, Boolean(latestIssuedProposal(documents))),
     },
     {
       title: "Contracts",
@@ -41,24 +44,28 @@ export function buildApprovalItems(
         : "Contracts will appear after PMCM uploads them.",
       status: contracts.length ? "approved" : "pending",
       route: "documents",
+      actionable: false,
     },
     {
       title: "Quotations",
       detail: billing ? `${billing.number} is linked to the approved proposal package.` : "Quotation and billing details are being prepared.",
       status: billing?.status ?? "pending",
       route: "billing",
+      actionable: false,
     },
     {
       title: "Layouts / Designs",
       detail: officialDraft ? `Official layout is ${formatStatusLabel(officialDraft.status)}.` : "PMCM has not published an official layout yet.",
       status: officialDraft?.status ?? "pending",
       route: "floorplan",
+      actionable: false,
     },
     {
       title: "Final Confirmation",
       detail: selectedEvent.readiness ? `Readiness is ${formatStatusLabel(selectedEvent.readiness)}.` : "Final confirmation is pending.",
       status: selectedEvent.readiness ?? selectedEvent.status,
       route: "overview",
+      actionable: false,
     },
   ];
 }
@@ -75,8 +82,10 @@ const APPROVAL_VIEW_FILTERS: Partial<Record<ClientPortalView, (item: ApprovalIte
 
 export function filterApprovalItems<T extends ApprovalItem>(items: T[], portalView?: ClientPortalView): T[] {
   const filter = portalView ? APPROVAL_VIEW_FILTERS[portalView] : undefined;
-  if (!filter) return items;
-  return items.filter(filter);
+  return (filter ? items.filter(filter) : [...items]).sort((left, right) =>
+    Number(right.actionable) - Number(left.actionable) ||
+    Number(approvalStatusKind(left.status) === "success") - Number(approvalStatusKind(right.status) === "success"),
+  );
 }
 
 export function approvalStatusKind(status: string): "success" | "pending" | "neutral" {

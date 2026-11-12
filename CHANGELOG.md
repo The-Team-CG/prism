@@ -18,6 +18,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- Portal audit fixes put Music in the top bar, keep mascot backgrounds quiet behind headings, and improve mobile tabs, tables and assignment cards. Client approvals and home emphasize the next action; PMCM navigation removes placeholder views and separates archives; supplier work is grouped and guest controls share the portal styling.
+
 - The four portals use shared page and transport patterns while preserving role-specific workflows. New portal HTTP calls use `@prism/api-client` from feature data adapters; shared write contracts use Zod schemas in `@prism/types`. Signed-in screens also share a neutral visual system and role-specific navigation.
 - Cross-context writes use owner capabilities, and role-scoped reads compose through `read-models`. Archived events remain available for authorized history, while operational writes are blocked.
 - Local and deployment setup use one canonical `DATABASE_URL`; local fixtures run only through guarded seed commands. See the [environment and fixture runbook](docs/runbooks/environments-and-fixtures.md).

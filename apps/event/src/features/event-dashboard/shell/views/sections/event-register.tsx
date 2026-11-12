@@ -4,7 +4,7 @@ import { useState } from "react";
 import { RouteLink, useListFilter } from "@/features/pmcm-kit";
 import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Search } from "lucide-react";
+import { CalendarDays, ChevronRight, Search } from "lucide-react";
 import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
@@ -116,9 +116,9 @@ export function EventRegister({ events, attention, onOpenEvent }: { events: Pris
                   </TableHead>
                 </TableRow>
                 {group.events.map((event) => (
-                  <TableRow key={event.id}>
+                  <TableRow key={event.id} className="relative">
                     <TableCell className="min-w-0 whitespace-normal">
-                      <p className="break-words font-semibold text-foreground">{event.eventName}</p>
+                      <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="block break-words font-semibold text-foreground outline-none after:absolute after:inset-0 focus-visible:ring-2 focus-visible:ring-ring">{event.eventName}</RouteLink>
                       <p className="text-xs text-muted-foreground">
                         {event.clientName}
                         {event.venue ? <> · {event.venue}</> : null}
@@ -130,9 +130,7 @@ export function EventRegister({ events, attention, onOpenEvent }: { events: Pris
                     <TableCell className="hidden whitespace-nowrap sm:table-cell">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</TableCell>
                     <TableCell className="hidden whitespace-normal md:table-cell"><AttentionLabels labels={attention?.get(event.id)} quietWhenClear /></TableCell>
                     <TableCell className="text-right">
-                      <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-primary hover:text-primary-strong focus-visible:ring-2 focus-visible:ring-primary">
-                        Open event<span className="sr-only"> {event.eventName}</span>
-                      </RouteLink>
+                      <ChevronRight aria-hidden="true" className="ml-auto size-4 text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 ))}

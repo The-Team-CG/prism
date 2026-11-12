@@ -51,7 +51,7 @@ export function FilesPage({
                   <p className="mt-0.5 text-xs text-muted-foreground">Uploaded {formatDate(contract.uploadedAt)}{contract.reviewReason ? ` · ${contract.reviewReason}` : ""}</p>
                 </div>
                 <StatusBadge status={contract.reviewStatus} />
-                <button type="button" onClick={() => onDownloadObject(contract.storedObjectId)} className="text-sm font-medium text-primary hover:underline">Download</button>
+                <button type="button" onClick={() => onDownloadObject(contract.storedObjectId)} className="text-sm font-medium text-foreground hover:underline">Download</button>
               </li>
             ))}
           </ul>

@@ -30,7 +30,7 @@ function GuestAccessCode({ code }: { code: string }) {
     <section aria-label="Guest access code" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-lg bg-ink px-6 py-5 text-ink-foreground">
       <div className="min-w-0">
         <p className="text-sm text-ink-foreground/70">Guest access code</p>
-        <p id="client-guest-access-code" className="mt-1 break-all font-mono text-3xl font-semibold tracking-wider tabular-nums">{code}</p>
+        <p id="client-guest-access-code" className="mt-1 max-w-full overflow-x-auto whitespace-nowrap font-mono text-lg font-semibold tracking-wide tabular-nums sm:text-3xl">{code}</p>
         <p className="mt-1 text-sm text-ink-foreground/70">{copied ? "Copied to clipboard." : "Share this code with guests so they can open their pass."}</p>
       </div>
       <Button

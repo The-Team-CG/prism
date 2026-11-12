@@ -129,6 +129,15 @@ it("gives each sidebar view a real link to its readable URL", () => {
   expect(screen.getByRole("link", { name: "Issues" }).getAttribute("href")).toBe("/dashboard?view=issues&event=evt_current");
 });
 
+it("keeps a non-registration coordinator on My shift when opening a registration bookmark", () => {
+  window.history.replaceState(null, "", "/dashboard?view=registration&event=evt_current");
+  render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
+  expect(screen.queryByRole("link", { name: "Registration" })).toBeNull();
+  expect(document.title).toBe("My shift · P.R.I.S.M");
+  expect(screen.queryByText("Registration is available to the assigned registration coordinator.")).toBeNull();
+  expect(screen.getByRole("button", { name: "Report an issue" })).toBeTruthy();
+});
+
 it("sends a PMCM or unknown path home with a notice that can be dismissed", async () => {
   navigation.pathname = "/dashboard/events/evt_current/billing";
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);

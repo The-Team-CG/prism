@@ -144,7 +144,7 @@ export function ClientListRow({
         {meta ? <p className="truncate text-xs text-muted-foreground">{meta}</p> : null}
       </div>
       <p title={statusTitle} className={cn("col-start-2 whitespace-nowrap text-xs tabular-nums sm:col-start-auto sm:text-center sm:text-sm", STATUS[tone])}>{status}</p>
-      <span className="hidden items-center justify-end gap-1 whitespace-nowrap text-sm font-medium text-primary sm:flex">
+      <span className="hidden items-center justify-end gap-1 whitespace-nowrap text-sm text-muted-foreground sm:flex">
         {action && (href || onOpen) ? (
           <>
             {action}
