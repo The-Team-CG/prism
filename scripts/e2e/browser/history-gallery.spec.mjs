@@ -43,9 +43,27 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
         // The history coordinator's opening date has only an event date, so it also uses the month overview.
         const openingView = 'Month';
         await expect(page.getByRole('button', { name: `Calendar view: ${openingView}`, exact: true })).toBeVisible();
+        const highlights = page.getByRole('region', { name: 'Schedule highlights' });
+        if (info.project.name === 'mobile') {
+          await expect(highlights).toBeHidden();
+          await page.getByRole('button', { name: 'Show highlights', exact: true }).click();
+        }
+        await expect(highlights).toBeVisible();
+        const highlightCards = highlights.getByRole('button');
+        expect(await highlightCards.count()).toBeLessThanOrEqual(3);
+        const title = await highlightCards.first().locator('span').first().textContent();
+        await highlightCards.first().click();
+        await expect(page.getByRole('dialog').getByRole('heading', { name: title, exact: true })).toBeVisible();
+        await expect(page.getByRole('dialog').locator('[data-slot="sheet-footer"]').getByRole('link').or(page.getByRole('dialog').locator('[data-slot="sheet-footer"]').getByRole('button')).first()).toBeVisible();
+        await page.keyboard.press('Escape');
+        await capture('calendar-highlights.png');
+        await page.getByRole('button', { name: 'Hide highlights', exact: true }).click();
+        await expect(highlights).toBeHidden();
+        if (info.project.name === 'desktop') await page.getByRole('button', { name: 'Show highlights', exact: true }).click();
         const search = page.getByRole('searchbox', { name: 'Search schedule' });
         await search.fill('no-matching-calendar-entry-9c03');
         await expect(page.getByRole('status')).toContainText('No matching entries');
+        await expect(highlights).toBeHidden();
         await search.clear();
         await page.getByRole('button', { name: 'Filter schedule', exact: true }).click();
         await page.getByRole('button', { name: 'Timed entries', exact: true }).click();
@@ -80,6 +98,30 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
         await page.getByRole('menuitem', { name: /^Week/ }).click();
         await capture('calendar-week.png');
         await page.getByRole('button', { name: 'Calendar view: Week', exact: true }).click();
+        await page.getByRole('menuitem', { name: /^Day/ }).click();
+        const agenda = page.getByRole('region', { name: 'Daily agenda' });
+        await expect(agenda).toBeVisible();
+        await expect(agenda.getByRole('listitem').first()).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Agenda', exact: true })).toHaveAttribute('aria-pressed', 'true');
+        await capture('calendar-day-agenda.png');
+        await agenda.getByRole('button').first().click();
+        await expect(page.getByRole('dialog').locator('[data-slot="sheet-footer"]')).toBeVisible();
+        await page.keyboard.press('Escape');
+        const selectedDate = await agenda.getAttribute('data-date');
+        await page.getByRole('button', { name: 'Next day', exact: true }).click();
+        const nextDate = new Date(`${selectedDate}T00:00:00Z`);
+        nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+        await expect(agenda).toHaveAttribute('data-date', nextDate.toISOString().slice(0, 10));
+        await page.getByRole('button', { name: 'Previous day', exact: true }).click();
+        await expect(agenda).toHaveAttribute('data-date', selectedDate);
+        await page.getByRole('button', { name: 'Time grid', exact: true }).click();
+        await expect(agenda).toBeHidden();
+        await expect(page.locator(`[role="gridcell"][data-date="${selectedDate}"]`)).toBeVisible();
+        await capture('calendar-day-time-grid.png');
+        if (info.project.name === 'mobile') expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+        await page.getByRole('button', { name: 'Agenda', exact: true }).click();
+        await expect(agenda).toBeVisible();
+        await page.getByRole('button', { name: 'Calendar view: Day', exact: true }).click();
         await page.getByRole('menuitem', { name: new RegExp(`^${openingView}`) }).click();
         if (info.project.name === 'mobile') expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
       }

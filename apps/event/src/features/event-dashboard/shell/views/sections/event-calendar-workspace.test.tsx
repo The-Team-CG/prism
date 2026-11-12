@@ -37,6 +37,107 @@ function renderCalendar(onOpenItem = vi.fn()) {
 }
 
 describe("EventCalendarWorkspace", () => {
+  it("opens Day as a single-date agenda with all-day entries before chronological times and keeps detail actions", () => {
+    const onOpenItem = vi.fn();
+    const onRangeChange = vi.fn();
+    render(<EventCalendarWorkspace items={[
+      { ...items[1], id: "late", title: "Afternoon visit", date: "2026-11-12", startTime: "14:00" },
+      { ...items[2], id: "all", title: "Quote due", date: "2026-11-12" },
+      { ...items[1], id: "early", title: "Morning visit", date: "2026-11-12", startTime: "09:00", endTime: "09:15" },
+      { ...items[3], id: "tomorrow", title: "Tomorrow's payment", date: "2026-11-13" },
+    ]} onRangeChange={onRangeChange} onOpenItem={onOpenItem} />);
+    fireEvent.keyDown(window, { key: "d" });
+    expect(onRangeChange).toHaveBeenLastCalledWith({ from: "2026-11-12", to: "2026-11-12" });
+    expect(screen.getByRole("button", { name: "Agenda" }).getAttribute("aria-pressed")).toBe("true");
+    const agenda = within(screen.getByRole("region", { name: "Daily agenda" }));
+    expect(agenda.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Quote dueAll day · Gala", "Morning visit9am – 9:15am · Gala", "Afternoon visit2pm · Gala",
+    ]);
+    expect(screen.queryByText("Tomorrow's payment")).toBeNull();
+    fireEvent.click(agenda.getByRole("button", { name: /^Morning visit/ }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Open event" }));
+    expect(onOpenItem).toHaveBeenCalledWith(expect.objectContaining({ id: "early" }));
+  });
+
+  it("navigates Day by one date, reports empty and filtered days, and returns to today", () => {
+    const onRangeChange = vi.fn();
+    render(<EventCalendarWorkspace items={[{ ...items[0], date: "2026-11-12" }]} onRangeChange={onRangeChange} onOpenItem={vi.fn()} />);
+    fireEvent.keyDown(window, { key: "d" });
+    fireEvent.click(screen.getByRole("button", { name: "Next day" }));
+    expect(onRangeChange).toHaveBeenLastCalledWith({ from: "2026-11-13", to: "2026-11-13" });
+    expect(screen.getByRole("status").textContent).toBe("Nothing scheduled on this day.");
+    fireEvent.click(screen.getByRole("button", { name: "Previous day" }));
+    expect(screen.getByText("1 entry on this day")).toBeTruthy();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search schedule" }), { target: { value: "No match" } });
+    expect(screen.getByRole("status").textContent).toContain("No matching entries on this day");
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search schedule" }), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Previous day" }));
+    fireEvent.click(screen.getByRole("button", { name: "Today" }));
+    expect(onRangeChange).toHaveBeenLastCalledWith({ from: "2026-11-12", to: "2026-11-12" });
+    fireEvent.click(screen.getByRole("button", { name: "Choose calendar date" }));
+    fireEvent.change(screen.getByLabelText("Jump to date"), { target: { value: "2027-01-01" } });
+    expect(onRangeChange).toHaveBeenLastCalledWith({ from: "2027-01-01", to: "2027-01-01" });
+  });
+
+  it("offers a time grid for the selected date and reopens Day as an agenda from Month or Week", () => {
+    renderCalendar();
+    fireEvent.click(screen.getByRole("button", { name: "Open Nov 10, 2026" }));
+    expect(screen.getByRole("region", { name: "Daily agenda" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Time grid" }));
+    expect(screen.queryByRole("region", { name: "Daily agenda" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Time grid" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("gridcell", { name: "Nov 10, 2026" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Agenda" }));
+    expect(screen.getByRole("region", { name: "Daily agenda" })).toBeTruthy();
+    for (const shortcut of ["w", "m"]) {
+      fireEvent.click(screen.getByRole("button", { name: "Time grid" }));
+      fireEvent.keyDown(window, { key: shortcut });
+      expect(screen.queryByRole("group", { name: "Day layout" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Open Nov 10, 2026" }));
+      expect(screen.getByRole("region", { name: "Daily agenda" })).toBeTruthy();
+    }
+  });
+
+  it("highlights the filtered period's upcoming entries first and preserves the detail action when collapsed", () => {
+    const onOpenItem = vi.fn();
+    render(<EventCalendarWorkspace items={[
+      ...items,
+      { ...items[2], id: "today", title: "Today's quote", date: "2026-11-12" },
+      { ...items[3], id: "future", title: "Next payment", date: "2026-11-15" },
+      { ...items[0], id: "outside", title: "Next month event", date: "2026-12-01" },
+    ]} onRangeChange={vi.fn()} onOpenItem={onOpenItem} />);
+    const highlights = () => within(screen.getByRole("region", { name: "Schedule highlights" }));
+    const cards = highlights().getAllByRole("button");
+    expect(cards).toHaveLength(3);
+    expect(cards[0].textContent).toContain("Today's quote");
+    expect(cards[1].textContent).toContain("Next payment");
+    expect(highlights().queryByText("Next month event")).toBeNull();
+    fireEvent.click(cards[0]);
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Open suppliers" }));
+    expect(onOpenItem).toHaveBeenCalledWith(expect.objectContaining({ id: "today" }));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Hide highlights" }));
+    expect(screen.queryByRole("region", { name: "Schedule highlights" })).toBeNull();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search schedule" }), { target: { value: "Today's quote" } });
+    const cell = document.querySelector<HTMLElement>('[data-date="2026-11-12"]');
+    if (!cell) throw new Error("The selected month's date was not rendered");
+    fireEvent.click(within(cell).getByRole("button", { name: /Today's quote/ }));
+    expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Open suppliers" })).toBeTruthy();
+  });
+
+  it("removes stale highlights when searching or navigating to an empty period", () => {
+    renderCalendar();
+    const search = screen.getByRole("searchbox", { name: "Search schedule" });
+    fireEvent.change(search, { target: { value: "Lights" } });
+    expect(within(screen.getByRole("region", { name: "Schedule highlights" })).getAllByRole("button")).toHaveLength(1);
+    fireEvent.change(search, { target: { value: "No matching item" } });
+    expect(screen.queryByRole("region", { name: "Schedule highlights" })).toBeNull();
+    fireEvent.change(search, { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Next period" }));
+    expect(screen.queryByRole("region", { name: "Schedule highlights" })).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("Nothing scheduled");
+  });
+
   it("opens on Month and counts only that month while loading neighboring grid dates", () => {
     const onRangeChange = vi.fn();
     render(
@@ -93,7 +194,10 @@ describe("EventCalendarWorkspace", () => {
     fireEvent.click(within(screen.getByRole("group", { name: "Schedule categories" })).getByRole("button", { name: /Payment due/ }));
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(within(cell()).getByRole("button", { name: /Deposit/ })).toBeTruthy();
-    expect(within(cell()).queryByRole("button", { name: /Gala/ })).toBeNull();
+    expect(within(cell()).queryByRole("button", { name: /^Gala/ })).toBeNull();
+    const highlights = within(screen.getByRole("region", { name: "Schedule highlights" }));
+    expect(highlights.getAllByRole("button")).toHaveLength(1);
+    expect(highlights.getByRole("button", { name: /^Deposit/ })).toBeTruthy();
     fireEvent.change(search, { target: { value: "No match" } });
     expect(screen.getByRole("status").textContent).toContain("No matching entries");
   });
@@ -122,9 +226,20 @@ describe("EventCalendarWorkspace", () => {
     expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Open suppliers" })).toBeTruthy();
   });
 
+  it("keeps a short timed entry's full title and time accessible through its details", () => {
+    const title = "Confirm the final venue loading and access arrangements";
+    render(<EventCalendarWorkspace items={[{ ...items[1], title, startTime: "09:00", endTime: "09:15" }]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
+    fireEvent.keyDown(window, { key: "w" });
+    const cell = document.querySelector<HTMLElement>('[data-date="2026-11-10"]');
+    if (!cell) throw new Error("The timed entry's date was not rendered");
+    fireEvent.click(within(cell).getByRole("button", { name: `${title} · 9am – 9:15am · Gala` }));
+    expect(within(screen.getByRole("dialog")).getByRole("heading", { name: title })).toBeTruthy();
+    expect(within(screen.getByRole("dialog")).getByText(/9am – 9:15am/)).toBeTruthy();
+  });
+
   it("leads an event day to its run sheet and a load-in day to the run sheet first", () => {
     const { cell } = renderCalendar();
-    fireEvent.click(within(cell()).getByRole("button", { name: /Gala/ }));
+    fireEvent.click(within(cell()).getByRole("button", { name: /^Gala/ }));
     expect(within(screen.getByRole("dialog")).getByRole("link", { name: "Open run sheet" }).getAttribute("href")).toBe("/dashboard/events/evt_1/run-sheet?dayId=day_main");
     expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Open event" })).toBeTruthy();
     cleanup();

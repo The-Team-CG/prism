@@ -24,6 +24,7 @@ it.each([
   const onOpen = vi.fn();
   render(<CoordinatorCalendar items={[item]} onOpen={onOpen} />);
   expect(screen.getByRole("button", { name: `Calendar view: ${view}` })).toBeTruthy();
+  if (view === "Day") expect(screen.getByRole("region", { name: "Daily agenda" })).toBeTruthy();
   const cell = document.querySelector<HTMLElement>('[data-date="2026-11-12"]');
   if (!cell) throw new Error("The opening date was not rendered");
   fireEvent.click(within(cell).getByRole("button", { name: /Confirm load-in/ }));
