@@ -19,6 +19,21 @@ type Names = ReadonlyMap<string, string>;
 type MessageCursor = { createdAt: string; id: string };
 const threadFields = { id: true, eventId: true, subject: true, status: true, createdBy: true, createdAt: true, updatedAt: true } as const;
 const readerRoles = [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client, OpsUserRole.Supplier];
+const ROLE_LABELS: Record<string, string> = { [OpsUserRole.PmcmAdmin]: 'PMCM', [OpsUserRole.System]: 'PMCM', [OpsUserRole.Client]: 'Client', [OpsUserRole.Supplier]: 'Supplier', [OpsUserRole.Coordinator]: 'Coordinator' };
+const PREVIEW_LENGTH = 140;
+
+/**
+ * What a new-message notice says, on every channel: who wrote, in which conversation and event, and the start of
+ * the message, so it can be read without signing in (FR-64).
+ */
+export function newMessageNotice(input: { senderName: string; senderRole: string; subject: string; eventName?: string; body: string }) {
+  const text = input.body.replaceAll(/\s+/g, ' ').trim();
+  const preview = text.length > PREVIEW_LENGTH ? `${text.slice(0, PREVIEW_LENGTH - 1).trimEnd()}…` : text;
+  const role = ROLE_LABELS[input.senderRole];
+  const sender = role && role !== input.senderName ? `${input.senderName} (${role})` : input.senderName;
+  const where = input.eventName ? `"${input.subject}" for ${input.eventName}` : `"${input.subject}"`;
+  return `New message from ${sender} in ${where}: ${preview}`;
+}
 
 function encodeCursor(cursor: MessageCursor) { return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url'); }
 function decodeCursor(value?: string): MessageCursor | undefined {
@@ -143,8 +158,16 @@ export class CommunicationService {
       }
       const message = await tx.opsCommunicationMessage.create({ data: { id: `message_${randomUUID()}`, threadId, senderId: verified.id!, senderRole: verified.role, senderEmail: verified.email ?? null, body, payloadHash, idempotencyKey: input.idempotencyKey }, select: { id: true, threadId: true, senderId: true, senderRole: true, body: true, payloadHash: true, createdAt: true } });
       await writeAudit(this.auditWriter, thread.eventId, verified.name, `Sent communication message: ${threadId}`, { actorRole: verified.role, actorEmail: verified.email, actionType: 'create', category: 'communication', affectedType: 'communication_message', affectedId: message.id, affectedLabel: threadId, metadata: { idempotencyKey: input.idempotencyKey } }, { prisma: tx, actorId: verified.id, correlationId: `communication-message:${message.id}` });
-      const recipients = await tx.opsCommunicationParticipant.findMany({ where: { threadId, active: true, actorId: { not: verified.id } }, select: { actorEmail: true } });
-      await Promise.all(recipients.filter((recipient) => recipient.actorEmail).map((recipient) => writeNotification(this.notificationOutboxWriter, thread.eventId, recipient.actorEmail!, `New message in ${threadId}`, 'email', { idempotencyKey: `communication-message:${message.id}:${recipient.actorEmail}` }, { prisma: tx, correlationId: `communication-message:${message.id}` })));
+      const [recipients, details] = await Promise.all([
+        tx.opsCommunicationParticipant.findMany({ where: { threadId, active: true, actorId: { not: verified.id } }, select: { actorEmail: true } }),
+        tx.opsCommunicationThread.findUnique({ where: { id: threadId }, select: { subject: true } }),
+      ]);
+      const event = await tx.opsEvent.findUnique({ where: { id: thread.eventId }, select: { eventName: true } });
+      const notice = newMessageNotice({ senderName: verified.name, senderRole: verified.role, subject: details?.subject ?? 'a conversation', eventName: event?.eventName, body });
+      const action = { kind: 'conversation' as const, eventId: thread.eventId, threadId };
+      // Email always goes out; the Viber row reaches only people who linked Viber and kept it on, and is skipped for the rest.
+      const deliveries = recipients.filter((recipient) => recipient.actorEmail).flatMap((recipient) => (['email', 'viber'] as const).map((channel) => ({ email: recipient.actorEmail!, channel })));
+      await Promise.all(deliveries.map(({ email, channel }) => writeNotification(this.notificationOutboxWriter, thread.eventId, email, notice, channel, { idempotencyKey: `communication-message:${message.id}:${channel}:${email}`, action }, { prisma: tx, correlationId: `communication-message:${message.id}` })));
       await tx.opsCommunicationThread.update({ where: { id: threadId }, data: { updatedAt: new Date() } });
       return this.safeMessage(message, names);
     });

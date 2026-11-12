@@ -1,4 +1,5 @@
 import type { NotificationAction } from "@prism/types";
+import { conversationHash } from "@prism/ui/portal-path";
 import { dashboardHref } from "../../workspace/model/client-dashboard-navigation";
 
 export type NoticeLink = { href: string; label: string };
@@ -8,6 +9,7 @@ export type NoticeLink = { href: string; label: string };
  * Supplier schedules and event-day operations are not client pages, so those notices carry no client link.
  */
 export function clientNoticeLink(action: NotificationAction | undefined): NoticeLink | null {
+  if (action?.kind === "conversation") return { href: `${dashboardHref("messages", action.eventId)}${conversationHash(action.threadId)}`, label: "Open conversation" };
   if (action?.kind !== "event_section") return null;
   const { eventId } = action;
   switch (action.section) {

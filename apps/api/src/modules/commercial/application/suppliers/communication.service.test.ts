@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { CommunicationService } from './communication.service';
+import { CommunicationService, newMessageNotice } from './communication.service';
 
 function harness(options: { removed?: boolean; replay?: { body: string } } = {}) {
   const actor = { id: 'u_supplier', name: 'Supplier', email: 'supplier@example.test', role: 'supplier', explicit: true, verified: true } as const;
@@ -96,6 +96,45 @@ describe('CommunicationService inbox', () => {
     const { service, supplier, prisma } = inboxHarness([]);
     await expect(service.listInbox({ ...supplier, id: undefined })).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.opsCommunicationThread.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('new-message notices', () => {
+  it('says who wrote, where, and the start of the message', () => {
+    expect(newMessageNotice({ senderName: 'Ana Reyes', senderRole: 'client', subject: 'Stage setup', eventName: 'Founders gala', body: 'Can we move\n\nload-in to 2pm?' }))
+      .toBe('New message from Ana Reyes (Client) in "Stage setup" for Founders gala: Can we move load-in to 2pm?');
+    // A sender whose name is only their role is not named twice.
+    expect(newMessageNotice({ senderName: 'PMCM', senderRole: 'pmcm-admin', subject: 'Parking', body: 'Passes are ready' })).toBe('New message from PMCM in "Parking": Passes are ready');
+    const long = newMessageNotice({ senderName: 'Bloom Florals', senderRole: 'supplier', subject: 'Flowers', body: 'x'.repeat(500) });
+    expect(long.endsWith(`${'x'.repeat(139)}…`)).toBe(true);
+  });
+
+  it('queues an email and a Viber notice for each other member, linked to the conversation', async () => {
+    const sender = { id: 'u_client', name: 'Ana Reyes', email: 'ana@example.test', role: 'client', explicit: true, verified: true } as const;
+    const created = { id: 'msg_1', threadId: 'thread_1', senderId: sender.id, senderRole: 'client', body: 'Can we move load-in?', payloadHash: 'hash', createdAt: new Date() };
+    const tx = {
+      $queryRaw: vi.fn(),
+      opsCommunicationParticipant: { findFirst: vi.fn(async () => ({ id: 'member' })), findMany: vi.fn(async () => [{ actorEmail: 'mys@pmcm.test' }, { actorEmail: null }]) },
+      opsCommunicationMessage: { findUnique: vi.fn(async () => null), create: vi.fn(async () => created) },
+      opsCommunicationThread: { update: vi.fn(), findUnique: vi.fn(async () => ({ subject: 'Stage setup' })) },
+      opsEvent: { findUnique: vi.fn(async () => ({ eventName: 'Founders gala' })) },
+    };
+    const prisma = { opsCommunicationThread: { findUnique: vi.fn(async () => ({ id: 'thread_1', eventId: 'event_1' })) }, $transaction: vi.fn(async (fn: (db: typeof tx) => unknown) => fn(tx)) };
+    const outbox = { write: vi.fn() };
+    const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, { resolveForEvent: vi.fn(async () => sender) } as never, { write: vi.fn() } as never, outbox as never);
+
+    await expect(service.sendMessage('thread_1', { body: 'Can we move load-in?', idempotencyKey: 'key_1' }, sender)).resolves.toMatchObject({ id: 'msg_1', senderName: 'Ana Reyes' });
+
+    // A member without an email address gets nothing; the other gets one row per channel.
+    expect(outbox.write.mock.calls.map(([input]) => [input.recipient, input.channel, input.idempotencyKey])).toEqual([
+      ['mys@pmcm.test', 'email', 'communication-message:msg_1:email:mys@pmcm.test'],
+      ['mys@pmcm.test', 'viber', 'communication-message:msg_1:viber:mys@pmcm.test'],
+    ]);
+    expect(outbox.write.mock.calls[0][0]).toMatchObject({
+      eventId: 'event_1',
+      message: 'New message from Ana Reyes (Client) in "Stage setup" for Founders gala: Can we move load-in?',
+      action: { kind: 'conversation', eventId: 'event_1', threadId: 'thread_1' },
+    });
   });
 });
 

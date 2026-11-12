@@ -26,6 +26,7 @@ function message(id: string, body: string, senderId = "pmcm"): PrismCommunicatio
 
 afterEach(() => {
   cleanup();
+  window.location.hash = "";
   vi.clearAllMocks();
   mocks.workspace.selectedEvent = { id: "event-a", eventName: "Event A" };
 });
@@ -50,6 +51,27 @@ describe("client messages", () => {
     await waitFor(() => expect(result.current.chat.active.messages.map((item) => item.body)).toEqual(["Hello", "See you at the venue"]));
     expect(mocks.markRead).toHaveBeenCalledWith("thread");
     expect(result.current.chat.active.unreadCount).toBe(0);
+  });
+
+  it("opens the conversation a notice link names, until the viewer picks another", async () => {
+    window.location.hash = "#conversation-two";
+    mocks.list.mockResolvedValue([thread("one", "event-a"), thread("two", "event-a")]);
+    const { result } = renderHook(() => useClientMessagesViewModel(true));
+    await waitFor(() => expect(result.current.chat.status).toBe("ready"));
+    expect(result.current.chat.active.id).toBe("two");
+    expect(result.current.chat.workspace.linkedThreadId).toBe("two");
+
+    act(() => result.current.chat.workspace.onOpenThread("one"));
+    expect(result.current.chat.active.id).toBe("one");
+  });
+
+  it("ignores a link to a conversation the viewer is not in", async () => {
+    window.location.hash = "#conversation-elsewhere";
+    mocks.list.mockResolvedValue([thread("one", "event-a")]);
+    const { result } = renderHook(() => useClientMessagesViewModel(true));
+    await waitFor(() => expect(result.current.chat.status).toBe("ready"));
+    expect(result.current.chat.active.id).toBe("one");
+    expect(result.current.chat.workspace.linkedThreadId).toBeUndefined();
   });
 
   it("ignores an earlier event's response after switching events", async () => {

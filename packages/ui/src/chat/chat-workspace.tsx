@@ -15,6 +15,8 @@ export type ChatWorkspaceProps = {
   visibleThreads?: ChatThread[];
   viewerId?: string;
   activeThreadId?: string;
+  /** The conversation a link opened. On a phone it opens straight onto that conversation instead of the list. */
+  linkedThreadId?: string;
   onOpenThread: (id: string) => void;
   /** A conversation is on screen. On a phone that is only once it is opened from the list. */
   onThreadShown?: (id: string) => void;
@@ -95,6 +97,11 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
     if (shownId) onThreadShown?.(shownId);
   }, [shownId, onThreadShown]);
 
+  const linkedThreadId = props.linkedThreadId;
+  useEffect(() => {
+    if (linkedThreadId) setPhonePane("chat");
+  }, [linkedThreadId]);
+
   // The page behind a full-screen conversation must not scroll with it.
   useEffect(() => {
     if (!fullScreen) return;
@@ -168,7 +175,8 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
               onSend: props.onSend,
               busy: props.busy,
               error: props.error,
-              placeholder: props.composerPlaceholder?.(active) ?? `Message ${active.subject}`,
+              // Short enough to stay on one line in a phone composer; the header already names the conversation.
+              placeholder: props.composerPlaceholder?.(active) ?? "Write a message",
               enterSends: twoPanes !== false,
             }}
           />

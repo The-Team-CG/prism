@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { linkedConversationId } from "../portal-path";
 import { threadMatches, toChatThreads, type ChatMessageRecord, type ChatThreadRecord } from "./chat-display";
 
 export type ChatMessagePage = { items: ChatMessageRecord[]; nextCursor?: string | null };
@@ -38,6 +39,8 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   const [query, setQuery] = useState("");
   const [historyLoading, setHistoryLoading] = useState<string | null>(null);
   const [shownId, setShownId] = useState<string>();
+  // A notice link names one conversation in the URL fragment; it is the open one until the viewer picks another.
+  const [linkedId, setLinkedId] = useState<string>();
   // A retry of the same text reuses its key, so a send that reached the server is not stored twice.
   const attempts = useRef(new Map<string, { text: string; key: string }>());
   const sending = useRef(false);
@@ -47,6 +50,13 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   useEffect(() => {
     latest.current = source;
   });
+
+  useEffect(() => {
+    const read = () => setLinkedId(linkedConversationId(window.location.hash));
+    read();
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
+  }, []);
 
   useEffect(() => {
     if (!scope) return;
@@ -70,7 +80,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   const records = current?.threads ?? NO_THREADS;
   const threads = useMemo(() => toChatThreads(records, viewerId), [records, viewerId]);
   const visibleThreads = threads.filter((thread) => threadMatches(thread, query));
-  const selectedId = selected && selected.scope === scope ? selected.threadId : undefined;
+  const selectedId = selected && selected.scope === scope ? selected.threadId : linkedId;
   // Like a phone's chat list, the most recent conversation is the open one until another is chosen.
   const active = threads.find((thread) => thread.id === selectedId) ?? threads[0];
   const draft = active ? drafts[active.id] ?? "" : "";
@@ -179,6 +189,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
       visibleThreads,
       viewerId,
       activeThreadId: active?.id,
+      linkedThreadId: linkedId && threads.some((thread) => thread.id === linkedId) ? linkedId : undefined,
       onOpenThread: openThread,
       onThreadShown: showThread,
       query,
