@@ -4,11 +4,11 @@ title: "P.R.I.S.M actual system"
 description: "Current product identity, actors, lifecycle, workflows, ownership, and completion evidence for PMCM's event operating system."
 tags: [product, current-state, lifecycle, roles]
 status: canonical
-updated: "2026-11-09"
+updated: "2026-11-12"
 authority: informative
 audience: [product, engineering, design, reviewers]
 scope: "PMCM product identity, actors, lifecycle, workflows, and ownership"
-last_verified: "2026-11-09; portal routes under apps/*/src/app, API modules, privacy execution, supplier application, guest games, bid workspace and AI advisory surfaces"
+last_verified: "2026-11-12; static documentation review only, no runtime proof"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -31,14 +31,15 @@ sources:
 - **Change when:** A product boundary, actor responsibility, lifecycle step, or role-visible outcome changes.
 - **Verify with:** The feature ledger, role-boundary ADR, current architecture, and affected route/contract evidence.
 
-This document describes the current P.R.I.S.M system in product terms: what the
-complete system is, who uses it, what each workflow must do, and what
-information each role owns or can see. For feature decisions, use
+This document defines the product model, role ownership, and workflow outcomes.
+It does not inventory current implementation status. For feature decisions and
+implemented slices, use
 [`feature-ledger.md`](feature-ledger.md). For architecture and implementation
 gaps, use the current architecture and accepted architecture decisions. For
 software architecture, app/package/API boundaries, and technical stop rules, use
 [`../architecture/current-architecture.md`](../architecture/current-architecture.md).
-For target maturity, use [`future-state.md`](future-state.md).
+For target maturity, use [`future-state.md`](future-state.md). The `last_verified`
+field records this documentation review, not runtime or browser acceptance.
 
 ## Current correctness limits
 
@@ -51,9 +52,12 @@ panel, which builds the cost estimate and issues a numbered version together
 with its issued proposal document and a one-page PDF copy; the client sees only
 the title, summary and total. Archive checks five explicit gates; logistics passes with a PMCM-recorded
 completion record and otherwise needs a reasoned override. PMCM privacy
-operations execute access/export, native-account erasure, correction and
-supported operational redaction. Clients and suppliers file their own requests and see their status from their portals; guests have no self-service path, so PMCM logs guest requests on their behalf. Live AI remains governed by the separate provider,
-privacy, and approval gates.
+operations execute access/export, native-account erasure, correction, and
+supported operational redaction. Clients and suppliers file their own requests
+and see their status from their portals. Guests have no self-service path, so
+PMCM logs guest requests on their behalf. AI code and provider configuration do
+not establish approval for a use case or qualify real client data. Follow the
+[AI data policy](ai-data-policy.md) and [AI provider routing runbook](../runbooks/ai-provider-routing.md).
 
 The [authority and lifecycle policy](event-authority-and-lifecycle-policy.md)
 records the approved attendance operator, wrap-up, feedback window and client
