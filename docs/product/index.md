@@ -6,3 +6,4 @@
 * [Client and supplier workflows](client-supplier-workflows.md) - files, supplier operational evidence and payables, client versioned decisions, conforme acknowledgement, and closeout ownership.
 * [Event authority and lifecycle policy](event-authority-and-lifecycle-policy.md) - accepted operator, official-layout, close/archive, feedback-window and client-category rules with implementation limits.
 * [Evolution governance](evolution-governance.md) - rules for adding, revising, merging, deferring, or retiring features, plus readiness gates.
+* [AI data and activation policy](ai-data-policy.md) - approved data scope, production privacy gates, and qualification evidence.

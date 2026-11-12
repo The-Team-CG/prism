@@ -17,12 +17,10 @@ scope, verification, and source/provenance entries.
 2. [Architecture](architecture/index.md) — application ownership, backend
    contexts, seams, frontend structure, and accepted decisions.
 3. [Product](product/index.md) — current system, product direction, feature
-   decisions, readiness, and redesign evidence.
-4. [Roadmap](roadmap/index.md) — active plans and explicit product/activation
-   decisions.
-5. [Runbooks](runbooks/index.md) — local operation, environments and fixtures,
+   decisions, readiness, and activation policy.
+4. [Runbooks](runbooks/index.md) — local operation, environments and fixtures,
    database migrations, Docker, deployment, storage, and portal accounts.
-6. [Reference](reference/index.md) — source-preserving V4 catalog material.
+5. [Reference](reference/index.md) — source-preserving V4 catalog material.
 
 ## Metadata at a glance
 

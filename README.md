@@ -5,7 +5,7 @@ portals use one NestJS API and PostgreSQL database.
 
 ## Run locally
 
-Requires Node.js 26 or later, npm 11.6.2, and Docker Desktop's Linux engine.
+Requires Node.js 26.x or 28 and later, npm 11.6.2, and Docker Desktop's Linux engine.
 Startup prepares a lean local Supabase database and Studio, waits for readiness,
 and applies checked-in Prisma migrations before launching apps. It generates
 ignored development environments without reading hosted database credentials.

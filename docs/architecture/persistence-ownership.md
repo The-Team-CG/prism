@@ -4,11 +4,11 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-12"
 authority: normative
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "2026-10-29; per-domain counts from domain-ownership.json, db:check:domain-persistence --final (132 models, 125 same-domain relations, 0 cross-domain, 0 private writes), migration-policy owners, and cited constraints checked"
+last_verified: "2026-11-12; offline domain-persistence guard passed for 157 models and 133 relations with no cross-domain relations or private writes; ownership map checked against domain-ownership.json; no live database inspected"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -64,25 +64,27 @@ ADR-0008 establishes one PostgreSQL schema per owning write domain. The
 database stays one PostgreSQL database with one Prisma client; this policy does
 not create microservices or a database authorization boundary.
 
-| Write domain | Schema | Tables | Columns | Owns |
-| --- | --- | ---: | ---: | --- |
-| event-lifecycle | event_lifecycle | 31 | 439 | Inquiry, events, lifecycle documents, briefing, compliance, risk, ocular visits, decisions, change requests, freeze/addenda, closure, client floorplan grants, conforme signing, client closeout |
-| commercial | commercial | 35 | 433 | Suppliers, quotes, communications, estimates, proposals, billing, receipts, supplier evidence and payables, client option reviews |
-| operations | operations | 12 | 149 | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations, registration platforms |
-| live-ops | live_ops | 10 | 122 | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |
-| floorplan | floorplan | 10 | 105 | Plans, objects, templates, layout instances, published copies, official drafts, projection clock, snapshot versions, versioned client reviews |
-| identity-access | identity_access | 5 | 52 | Accounts, invitations, approvals, password reset and authentication state |
-| platform-ops | platform_ops | 16 | 229 | Privacy requests and legal holds, retention, security, login history, audit and audit-chain lock, notifications, PARE dispatch, AI, storage, command receipts |
-| event-games | event_games | 13 | 128 | Game catalog, lobbies, config versions, sessions, PINs, participant credentials and grants, submissions, scores, awards, moderation, rate limits |
-| **Total** | **8 schemas** | **132** | **1,656** | Every business table has one owner |
+| Write domain | Schema | Owns |
+| --- | --- | --- |
+| event-lifecycle | event_lifecycle | Inquiry, events, documents, briefing, planning templates and task plans, compliance, risk, ocular visits, decisions, change requests, freeze/addenda, closure, client floorplan grants, conforme signing, client closeout |
+| commercial | commercial | Suppliers, quotes, communications, estimates, proposals, billing, receipts, supplier evidence and payables, client option reviews |
+| operations | operations | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations, registration platforms |
+| live-ops | live_ops | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |
+| floorplan | floorplan | Plans, objects, templates, layout instances, published copies, official drafts, projection clock, snapshot versions, versioned client reviews |
+| identity-access | identity_access | Accounts, invitations, approvals, password reset and authentication state |
+| platform-ops | platform_ops | Privacy requests and legal holds, retention, security, login history, audit, notifications, PARE dispatch, AI, storage, command receipts and integration settings |
+| event-games | event_games | Game catalog, lobbies, config versions, sessions, PINs, participant credentials and grants, submissions, scores, awards, moderation, rate limits |
 
 The machine-readable domain ownership manifest linked above is the complete
-per-model inventory: model, owner, owner schema, legacy physical schema,
-scalar column count, and foreign-key definitions. The model tables below name
+per-model inventory and current counts: model, owner, owner schema, legacy
+physical schema, scalar column count, and foreign-key definitions. Run
+`npm --workspace prism-api run db:check:domain-persistence` for the current
+guard result. Counts are not copied into this ownership policy.
+The model tables below name
 only models with notable boundary rules; do not treat them as a second
 inventory. The migration history starts with seven owner-schema baselines;
 later owner migrations add event games and portal workflow records. The schema
-has 125 same-domain foreign keys and no cross-domain relation.
+allows same-domain foreign keys and no cross-domain relation.
 
 Before the baselines, the pre-production database used ten physical schemas,
 some mixing owners, with 45 cross-domain foreign keys. The manifest and the
