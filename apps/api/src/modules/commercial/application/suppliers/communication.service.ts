@@ -159,15 +159,17 @@ export class CommunicationService {
       const message = await tx.opsCommunicationMessage.create({ data: { id: `message_${randomUUID()}`, threadId, senderId: verified.id!, senderRole: verified.role, senderEmail: verified.email ?? null, body, payloadHash, idempotencyKey: input.idempotencyKey }, select: { id: true, threadId: true, senderId: true, senderRole: true, body: true, payloadHash: true, createdAt: true } });
       await writeAudit(this.auditWriter, thread.eventId, verified.name, `Sent communication message: ${threadId}`, { actorRole: verified.role, actorEmail: verified.email, actionType: 'create', category: 'communication', affectedType: 'communication_message', affectedId: message.id, affectedLabel: threadId, metadata: { idempotencyKey: input.idempotencyKey } }, { prisma: tx, actorId: verified.id, correlationId: `communication-message:${message.id}` });
       const [recipients, details] = await Promise.all([
-        tx.opsCommunicationParticipant.findMany({ where: { threadId, active: true, actorId: { not: verified.id } }, select: { actorEmail: true } }),
+        tx.opsCommunicationParticipant.findMany({ where: { threadId, active: true, actorId: { not: verified.id } }, select: { actorEmail: true, actorRole: true } }),
         tx.opsCommunicationThread.findUnique({ where: { id: threadId }, select: { subject: true } }),
       ]);
       const event = await tx.opsEvent.findUnique({ where: { id: thread.eventId }, select: { eventName: true } });
       const notice = newMessageNotice({ senderName: verified.name, senderRole: verified.role, subject: details?.subject ?? 'a conversation', eventName: event?.eventName, body });
-      const action = { kind: 'conversation' as const, eventId: thread.eventId, threadId };
       // Email always goes out; the Viber row reaches only people who linked Viber and kept it on, and is skipped for the rest.
-      const deliveries = recipients.filter((recipient) => recipient.actorEmail).flatMap((recipient) => (['email', 'viber'] as const).map((channel) => ({ email: recipient.actorEmail!, channel })));
-      await Promise.all(deliveries.map(({ email, channel }) => writeNotification(this.notificationOutboxWriter, thread.eventId, email, notice, channel, { idempotencyKey: `communication-message:${message.id}:${channel}:${email}`, action }, { prisma: tx, correlationId: `communication-message:${message.id}` })));
+      const deliveries = recipients.filter((recipient) => recipient.actorEmail).flatMap((recipient) => (['email', 'viber'] as const).map((channel) => ({ email: recipient.actorEmail!, role: recipient.actorRole, channel })));
+      await Promise.all(deliveries.map(({ email, role, channel }) => {
+        const portal = role === OpsUserRole.Client ? 'client' : role === OpsUserRole.Supplier ? 'supplier' : 'event';
+        return writeNotification(this.notificationOutboxWriter, thread.eventId, email, notice, channel, { idempotencyKey: `communication-message:${message.id}:${channel}:${email}`, action: { kind: 'conversation', eventId: thread.eventId, threadId, portal } }, { prisma: tx, correlationId: `communication-message:${message.id}` });
+      }));
       await tx.opsCommunicationThread.update({ where: { id: threadId }, data: { updatedAt: new Date() } });
       return this.safeMessage(message, names);
     });

@@ -109,12 +109,12 @@ describe('new-message notices', () => {
     expect(long.endsWith(`${'x'.repeat(139)}…`)).toBe(true);
   });
 
-  it('queues an email and a Viber notice for each other member, linked to the conversation', async () => {
+  it.each([['pmcm-admin', 'event'], ['client', 'client'], ['supplier', 'supplier'], ['coordinator', 'event']])('queues both channels with the %s recipient portal', async (role, portal) => {
     const sender = { id: 'u_client', name: 'Ana Reyes', email: 'ana@example.test', role: 'client', explicit: true, verified: true } as const;
     const created = { id: 'msg_1', threadId: 'thread_1', senderId: sender.id, senderRole: 'client', body: 'Can we move load-in?', payloadHash: 'hash', createdAt: new Date() };
     const tx = {
       $queryRaw: vi.fn(),
-      opsCommunicationParticipant: { findFirst: vi.fn(async () => ({ id: 'member' })), findMany: vi.fn(async () => [{ actorEmail: 'mys@pmcm.test' }, { actorEmail: null }]) },
+      opsCommunicationParticipant: { findFirst: vi.fn(async () => ({ id: 'member' })), findMany: vi.fn(async () => [{ actorEmail: 'mys@pmcm.test', actorRole: role }, { actorEmail: null, actorRole: role }]) },
       opsCommunicationMessage: { findUnique: vi.fn(async () => null), create: vi.fn(async () => created) },
       opsCommunicationThread: { update: vi.fn(), findUnique: vi.fn(async () => ({ subject: 'Stage setup' })) },
       opsEvent: { findUnique: vi.fn(async () => ({ eventName: 'Founders gala' })) },
@@ -133,7 +133,7 @@ describe('new-message notices', () => {
     expect(outbox.write.mock.calls[0][0]).toMatchObject({
       eventId: 'event_1',
       message: 'New message from Ana Reyes (Client) in "Stage setup" for Founders gala: Can we move load-in?',
-      action: { kind: 'conversation', eventId: 'event_1', threadId: 'thread_1' },
+      action: { kind: 'conversation', eventId: 'event_1', threadId: 'thread_1', portal },
     });
   });
 });

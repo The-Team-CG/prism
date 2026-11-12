@@ -1,4 +1,5 @@
 import { PenSquare, Search } from "lucide-react";
+import type { ReactNode } from "react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -18,10 +19,11 @@ export type ConversationListProps = {
   onOpen: (id: string) => void;
   onCompose?: () => void;
   className?: string;
+  notice?: ReactNode;
 };
 
 /** The chat list: search, a way to start a conversation, and one row per conversation. */
-export function ConversationList({ threads, viewerId, activeId, query, onQueryChange, loading, error, onOpen, onCompose, className }: ConversationListProps) {
+export function ConversationList({ threads, viewerId, activeId, query, onQueryChange, loading, error, onOpen, onCompose, className, notice }: ConversationListProps) {
   return (
     <aside className={cn("min-h-0 min-w-0 flex-col border-border md:border-r", className)}>
       {onQueryChange || onCompose ? (
@@ -48,6 +50,7 @@ export function ConversationList({ threads, viewerId, activeId, query, onQueryCh
           ) : null}
         </div>
       ) : null}
+      {notice}
       {error && threads.length === 0 && !loading ? (
         <p role="alert" className="mx-3 rounded-md bg-danger-soft px-3 py-2 text-xs text-danger">{error}</p>
       ) : null}

@@ -7,6 +7,7 @@ import type { PrismNotificationInboxItem, PrismVerifiedEventActor, RequestNotifi
 import { AUDIT_WRITER, writeAudit, type AuditWriter } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory } from '@prism/kernel/event-core';
 import { notificationActionSchema } from '@prism/types';
+import { groupInboxDeliveries } from './notification-inbox-grouping';
 
 const versionOf = (row: OpsNotificationLog) => createHash('sha256').update(JSON.stringify([row.id, row.eventId, row.channel, row.recipient, row.message, row.action ?? null])).digest('hex');
 
@@ -29,17 +30,18 @@ export class NotificationInboxService {
   async mine(actor: PrismVerifiedEventActor): Promise<PrismNotificationInboxItem[]> {
     const rows = await this.prisma.opsNotificationDelivery.findMany({
       where: { recipient: actor.email.trim().toLowerCase(), status: { not: 'skipped' }, notification: { channel: { in: ['email', 'viber'] } } },
-      include: { notification: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 50,
+      include: { notification: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 100,
     });
     const allowed = await Promise.all(rows.map((row) => this.allowed(row.notification.eventId, actor)));
-    return rows.flatMap((row, index) => allowed[index] ? [{
+    return groupInboxDeliveries(rows.flatMap((row, index) => allowed[index] ? [{
       id: row.id, notificationId: row.notificationId, eventId: row.notification.eventId,
       channel: row.notification.channel, message: row.notification.message, version: versionOf(row.notification),
+      operationId: row.notification.idempotencyKey,
       createdAt: row.createdAt.toISOString(), readAt: row.readAt?.toISOString() ?? null,
       acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
       acknowledgmentDueAt: row.acknowledgmentDueAt?.toISOString() ?? null,
       ...(notificationActionSchema.safeParse(row.notification.action).success ? { action: notificationActionSchema.parse(row.notification.action) } : {}),
-    }] : []);
+    }] : [])).slice(0, 50);
   }
 
   private async own(id: string, version: string, actor: PrismVerifiedEventActor) {

@@ -8,6 +8,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Chat notices include a link back to the recipient's conversation that survives sign-in. Messages offers Viber linking when configured, and the notification inbox combines channel copies while retaining each delivery's receipt checks.
+
 - Signed-in client, supplier, PMCM/coordinator and guest-pass pages share a soft pastel mascot-and-doodle background, with opaque cards and headers keeping event work readable.
 
 - Clients can follow event milestones, submit briefing and layout preferences, review official floorplans, sign conformes and addenda, track billing, and request an ocular visit. PMCM retains ownership of official plans and event decisions.
