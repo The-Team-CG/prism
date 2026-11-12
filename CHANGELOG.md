@@ -18,6 +18,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- Messages opens as one inbox across events for PMCM, clients and suppliers, with the event named on each conversation; an event's own Messages tab still shows only that event. People in a conversation see each other's names (never emails). On phones an open conversation fills the screen with the composer in view, and Enter starts a new line. `GET /communication/inbox` returns the signed-in account's conversations with their latest message.
+
 - Portal calendars combine softer date headers, lightly textured weekends and tinted event blocks with compact, collapsible highlights. Day opens a single-date agenda with all-day entries first, timed entries in order, daily navigation and an optional time grid on desktop and phones. Month, Week and the longer Agenda remain available; date-based schedules open on Month and timed coordinator schedules on Day. Search, filters, detail actions and Manila time stay together; phone highlights start collapsed.
 
 - Portal audit fixes put Music in the top bar, keep mascot backgrounds quiet behind headings, and improve mobile tabs, tables and assignment cards. Client approvals and home emphasize the next action; PMCM navigation removes placeholder views and separates archives; supplier work is grouped and guest controls share the portal styling.
