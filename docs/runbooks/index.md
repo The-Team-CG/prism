@@ -11,7 +11,7 @@
 * [Portal accounts](portal-accounts.md) - local fixture accounts and role-boundary notes.
 * [Deployment secrets](deployment-secrets.md) - GitHub Actions secrets, variables, provider targets, and deployment verification.
 * [Vercel services](vercel-services.md) - proposed single-project service routes, API bindings, builds and operational limits.
-* [AI provider routing](ai-provider-routing.md) - local provider/model selection, synthetic-only limits, and production gates.
+* [AI provider routing](ai-provider-routing.md) - provider/model selection, data-policy gates, and qualification evidence.
 * [External integrations](external-integrations.md) - Viber bot, Zoom meetings and Canva templates: variables, provider setup and verification.
 * [Operational communications](operational-communications.md) - recipient-level delivery, in-app notices, acknowledgments, provider outcomes, escalation, and how to verify them.
 

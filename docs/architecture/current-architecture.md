@@ -4,11 +4,11 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-11-07"
+updated: "2026-11-12"
 authority: normative
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-10-29; module/kernel tree, composition, inbox query, Prisma schemas and owner manifest checked; 2026-11-07 focused public exports, portal-query, guest session, and canvas context checked"
+last_verified: "2026-10-29 module/kernel tree, composition, inbox query and owner manifest; 2026-11-07 focused exports, portal-query, guest session and canvas context; 2026-11-12 static AI route-policy reconciliation; deployment state not verified"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -346,7 +346,7 @@ worker restores the idempotent `pare_triggered` activity audit.
 | Database | Prisma-backed Postgres exists; schema separation and audit scripts are maintained. Live audits require the migrated target and credentials. |
 | File storage | Platform-ops verifies and stores object bytes through `STORAGE_ADAPTER` (local filesystem or Supabase Storage; unconfigured by default). Hosted provider activation is an operational step in the [portal storage runbook](../runbooks/portal-storage.md). |
 | Notifications | Outbox, retry, and acknowledgement model exists. Email goes through the kernel `MAIL_TRANSPORT` port, selected by `PRISM_MAIL_TRANSPORT`: Resend, or log/local Mailpit outside production. Other channels remain gated. |
-| AI | Sanitization, audit, approval, PARE governance, and an AI gateway with provider adapters exist; local routes are synthetic-only and staging/production live calls and autonomous actions remain gated ([AI provider routing](../runbooks/ai-provider-routing.md)). |
+| AI | The gateway selects Anthropic or OpenRouter, applies data-policy and budget checks, and records audit evidence. Without a configured provider it blocks calls. Eligible routes can process minimized data under the [AI data policy](../product/ai-data-policy.md); provider qualification and deployment evidence remain separate. Outputs stay advisory and PMCM controls approval ([routing runbook](../runbooks/ai-provider-routing.md)). |
 | QR/camera | Guest access-code path exists; QR/camera scanning remains gated by HTTPS/device/masterlist constraints. |
 
 ## Architecture verification
