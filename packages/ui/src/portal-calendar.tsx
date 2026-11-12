@@ -1,7 +1,8 @@
 "use client";
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Info, Search, SlidersHorizontal } from "lucide-react";
+import { Info } from "lucide-react";
+import { CalendarFilters, CalendarToolbar, type CalendarDayLayout, type CalendarTiming } from "./calendar-toolbar";
 import { monthOfDateKey } from "./calendar-grid";
 import { CalendarHighlights } from "./calendar-highlights";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
@@ -21,15 +22,10 @@ import {
   type CalendarViewId,
   type VisibleRange,
 } from "./calendar-views";
-import { Button } from "./components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "./components/ui/sheet";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuShortcut, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
 import { formatPortalDate } from "./format-date";
 import { cn } from "./utils";
-
-type CalendarTiming = "all" | "timed" | "all-day";
-const TIMING_FILTERS = [{ id: "all", label: "All entries" }, { id: "timed", label: "Timed entries" }, { id: "all-day", label: "All-day entries" }] satisfies Array<{ id: CalendarTiming; label: string }>;
 
 const HOUR_PX = 64;
 const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
@@ -119,13 +115,12 @@ const isTyping = (target: EventTarget | null) => target instanceof HTMLElement &
 export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "month", className, categoryControls, onRangeChange, renderItem, detail }: PortalCalendarProps<Item>) {
   const headingId = useId();
   const [view, setView] = useState<CalendarViewId>(initialView);
-  const [dayLayout, setDayLayout] = useState<"agenda" | "time-grid">("agenda");
+  const [dayLayout, setDayLayout] = useState<CalendarDayLayout>("agenda");
   const [anchor, setAnchor] = useState(initialDate);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [activeKind, setActiveKind] = useState<string | null>(null);
   const [timing, setTiming] = useState<CalendarTiming>("all");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const matchingItems = useMemo(() => items.filter((item) => {
     const matchesText = [item.title, item.detail, item.chipLabel, kindOf(kinds, item.kind).label].filter(Boolean).join(" ").toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
     return matchesText && (timing === "all" || (timing === "timed" ? Boolean(item.startTime) : !item.startTime));
@@ -174,7 +169,6 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
   const periodItems = matchingItems.filter(inPeriod);
   const visibleItems = filteredItems.filter(inPeriod);
   const shownCount = visibleItems.length;
-  const availableKinds = Object.keys(kinds).filter((kind) => kind === activeKind || periodItems.some((item) => item.kind === kind));
   const categoryLabel = categoryControls?.selection?.label ?? (activeKind ? kinds[activeKind].label : null);
   const filterCount = Number(categoryLabel !== null) + Number(timing !== "all");
   const periodContext = view === "day" ? "on this day" : "in this period";
@@ -183,54 +177,16 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
   return (
     <TooltipProvider delayDuration={300}>
     <section aria-labelledby={headingId} className={cn("min-w-0 overflow-hidden rounded-xl border border-border/80 bg-card [&_[data-slot=button]]:shadow-none", className)}>
-      <header className="space-y-3 border-b border-border/60 px-4 py-4 sm:px-5 sm:py-5">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-          <Popover>
-            <PopoverTrigger asChild><Button type="button" variant="ghost" aria-label="Choose calendar date" className="h-auto max-w-full justify-start gap-2 px-0 py-1 text-base font-semibold shadow-none hover:bg-transparent has-[>svg]:px-0"><span className="truncate">{rangeLabel}</span><ChevronDown aria-hidden className="size-4 shrink-0 text-muted-foreground" /></Button></PopoverTrigger>
-            <PopoverContent align="start" className="w-64 space-y-2"><label htmlFor={`${headingId}-date`} className="text-sm font-medium">Jump to date</label><input id={`${headingId}-date`} type="date" min="1000-01-01" max="9998-12-31" value={anchor} onChange={(event) => { if (event.target.value && event.target.validity.valid) setAnchor(event.target.value); }} className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm" /></PopoverContent>
-          </Popover>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center" role="group" aria-label="Change period">
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={view === "day" ? "Previous day" : "Previous period"} onClick={() => setAnchor((current) => shiftAnchor(view, current, -1))}><ChevronLeft className="size-4" aria-hidden /></Button>
-              <Button type="button" variant="ghost" size="icon-sm" aria-label={view === "day" ? "Next day" : "Next period"} onClick={() => setAnchor((current) => shiftAnchor(view, current, 1))}><ChevronRight className="size-4" aria-hidden /></Button>
-            </div>
-            <Button type="button" variant="outline" size="sm" onClick={() => setAnchor(today)}>Today</Button>
-            <ViewSwitcher view={view} onChange={(next) => { setView(next); if (next === "day") setDayLayout("agenda"); }} />
-          </div>
-        </div>
-        <div className="flex min-w-0 items-center gap-2">
-          <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-input bg-card px-3 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20 sm:max-w-xs">
-            <Search aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-            <input type="search" aria-label="Search schedule" placeholder="Search schedule..." value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 w-full bg-transparent text-sm outline-none" />
-          </label>
-          <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
-            <PopoverTrigger asChild><Button type="button" variant="outline" size="sm" aria-label="Filter schedule" className="shadow-none"><SlidersHorizontal aria-hidden className="size-4" />Filters{filterCount ? <span className="text-primary">{filterCount}</span> : null}</Button></PopoverTrigger>
-            <PopoverContent align="start" collisionPadding={16} className="w-80 max-w-[calc(100vw-2rem)] space-y-4">
-              <div role="group" aria-label="Schedule categories" className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Categories</p>
-                {categoryControls ? <div onClick={(event) => { if (event.target instanceof Element && event.target.closest("a")) setFiltersOpen(false); }}>{categoryControls.content}</div> : <div className="flex flex-col gap-1">{[{ id: null, label: "All scheduled" }, ...availableKinds.map((id) => ({ id, label: kinds[id].label }))].map((kind) => <button key={kind.id ?? "all"} type="button" aria-pressed={activeKind === kind.id} onClick={() => setActiveKind(kind.id)} className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted aria-pressed:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{kind.id ? <span aria-hidden className={cn("size-1.5 rounded-full", kinds[kind.id].dot)} /> : null}{kind.label}<span className="ml-auto tabular-nums text-muted-foreground">{periodItems.filter((item) => kind.id === null || item.kind === kind.id).length}</span>{activeKind === kind.id ? <Check aria-hidden className="size-3.5" /> : <span className="size-3.5" />}</button>)}</div>}
-              </div>
-              <div role="group" aria-label="Schedule timing" className="space-y-2 border-t border-border pt-3">
-                <p className="text-xs font-medium text-muted-foreground">Timing</p>
-                {TIMING_FILTERS.map((option) => <button key={option.id} type="button" aria-pressed={timing === option.id} onClick={() => setTiming(option.id)} className="flex min-h-9 w-full items-center justify-between rounded-md px-2 text-sm hover:bg-muted aria-pressed:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{option.label}{timing === option.id ? <Check aria-hidden className="size-3.5" /> : null}</button>)}
-              </div>
-              {filterCount ? <Button asChild={Boolean(categoryControls?.selection)} variant="ghost" size="sm" onClick={() => { setActiveKind(null); setTiming("all"); if (categoryControls?.selection) setFiltersOpen(false); }}>{categoryControls?.selection?.reset ?? "Clear filters"}</Button> : null}
-            </PopoverContent>
-          </Popover>
-          {categoryLabel || timing !== "all" ? <span className="hidden truncate text-xs text-muted-foreground sm:block">{[categoryLabel, timing === "timed" ? "Timed entries" : timing === "all-day" ? "All-day entries" : null].filter(Boolean).join(" · ")}</span> : null}
-        </div>
-        {view === "day" ? <div role="group" aria-label="Day layout" className="inline-flex gap-1 rounded-lg bg-muted/60 p-1">
-          <Button type="button" variant={dayLayout === "agenda" ? "secondary" : "ghost"} size="sm" aria-pressed={dayLayout === "agenda"} onClick={() => setDayLayout("agenda")}>Agenda</Button>
-          <Button type="button" variant={dayLayout === "time-grid" ? "secondary" : "ghost"} size="sm" aria-pressed={dayLayout === "time-grid"} onClick={() => setDayLayout("time-grid")}>Time grid</Button>
-        </div> : null}
-        <h2 id={headingId} aria-live="polite" className="sr-only">{rangeLabel}</h2>
-      </header>
+      <CalendarToolbar headingId={headingId} rangeLabel={rangeLabel} anchor={anchor} view={view} dayLayout={dayLayout}
+        onDateChange={setAnchor} onMove={(direction) => setAnchor((current) => shiftAnchor(view, current, direction))} onToday={() => setAnchor(today)}
+        onViewChange={(next) => { setView(next); if (next === "day") setDayLayout("agenda"); }} onDayLayoutChange={setDayLayout}>
+        <CalendarFilters query={query} onQueryChange={setQuery} activeKind={activeKind} onKindChange={setActiveKind}
+          timing={timing} onTimingChange={setTiming} kinds={kinds} periodItems={periodItems}
+          categoryControls={categoryControls} categoryLabel={categoryLabel} filterCount={filterCount} />
+      </CalendarToolbar>
       <CalendarHighlights items={visibleItems} kinds={kinds} today={today} renderItem={renderCalendarItem} />
       {shownCount === 0 ? <p role="status" className="border-b border-border px-5 py-4 text-sm text-muted-foreground">{emptyText}</p> : null}
-      {view === "month" ? <MonthView {...viewProps} anchor={anchor} onOpenDay={openDay} /> : null}
-      {view === "day" && dayLayout === "agenda" ? <div role="region" aria-label="Daily agenda" data-date={anchor}><AgendaList dates={[anchor]} byDate={byDate} {...viewProps} items={visibleItems} /></div> : null}
-      {view === "week" || (view === "day" && dayLayout === "time-grid") ? <TimeGridView {...viewProps} dates={view === "week" ? weekDateKeys(anchor) : [anchor]} byDate={byDate} onOpenDay={openDay} /> : null}
-      {view === "agenda" && shownCount > 0 ? <AgendaView {...viewProps} anchor={anchor} byDate={byDate} /> : null}
+      <CalendarContent {...viewProps} view={view} dayLayout={dayLayout} anchor={anchor} byDate={byDate} onOpenDay={openDay} />
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
         <span>{shownCount} {shownCount === 1 ? "entry" : "entries"} {periodContext}</span>
         <Popover>
@@ -242,6 +198,23 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
     </section>
     </TooltipProvider>
   );
+}
+
+function CalendarContent<Item extends PortalCalendarItem>({ view, dayLayout, anchor, byDate, onOpenDay, ...props }: ViewProps<Item> & {
+  view: CalendarViewId;
+  dayLayout: CalendarDayLayout;
+  anchor: string;
+  byDate: Map<string, Item[]>;
+  onOpenDay: (date: string) => void;
+}) {
+  switch (view) {
+    case "month": return <MonthView {...props} anchor={anchor} onOpenDay={onOpenDay} />;
+    case "week": return <TimeGridView {...props} dates={weekDateKeys(anchor)} byDate={byDate} onOpenDay={onOpenDay} />;
+    case "day": return dayLayout === "agenda"
+      ? <div role="region" aria-label="Daily agenda" data-date={anchor}><AgendaList {...props} dates={[anchor]} byDate={byDate} items={byDate.get(anchor) ?? []} /></div>
+      : <TimeGridView {...props} dates={[anchor]} byDate={byDate} onOpenDay={onOpenDay} />;
+    case "agenda": return <AgendaView {...props} anchor={anchor} byDate={byDate} />;
+  }
 }
 
 function ItemPanel<Item extends PortalCalendarItem>({ item, kinds, detail, onClose }: { item: Item | null; kinds: Record<string, PortalCalendarKind>; detail: PortalCalendarDetail<Item>; onClose: () => void }) {
@@ -263,26 +236,6 @@ function ItemPanel<Item extends PortalCalendarItem>({ item, kinds, detail, onClo
         </SheetContent>
       ) : null}
     </Sheet>
-  );
-}
-
-function ViewSwitcher({ view, onChange }: { view: CalendarViewId; onChange: (view: CalendarViewId) => void }) {
-  const current = CALENDAR_VIEWS.find((entry) => entry.id === view) ?? CALENDAR_VIEWS[0];
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="shadow-none" aria-label={`Calendar view: ${current.label}`}>{current.label}<ChevronDown className="size-4 text-muted-foreground" aria-hidden /></Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-40">
-        {CALENDAR_VIEWS.map((entry) => (
-          <DropdownMenuItem key={entry.id} onSelect={() => onChange(entry.id)}>
-            {entry.label}
-            {entry.id === view ? <Check className="ml-1 size-3.5" aria-hidden /> : null}
-            <DropdownMenuShortcut>{entry.shortcut}</DropdownMenuShortcut>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 

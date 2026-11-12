@@ -110,11 +110,11 @@ export function DashboardPage({ readinessBoard, quoteByRequest }: {
   readinessBoard: PrismSupplierReadinessBoard | null;
   quoteByRequest: Map<string, PrismSupplierQuote>;
 }) {
-  const hasQuote = (item: PrismSupplierReadinessItem) => quoteByRequest.has(item.requestId);
-  const steps = readinessBoard ? splitSupplierNextSteps(readinessBoard.items, hasQuote) : null;
-  if (!steps) {
+  if (!readinessBoard) {
     return <p role="status" className="text-sm text-muted-foreground">We could not load your work. Use Refresh above to try again.</p>;
   }
+  const hasQuote = (item: PrismSupplierReadinessItem) => quoteByRequest.has(item.requestId);
+  const steps = splitSupplierNextSteps(readinessBoard.items, hasQuote);
   const [leadGroup, ...more] = groupSupplierNextSteps(steps.yourTurn, hasQuote);
   const lead = leadGroup?.items[0];
   const nothingAtAll = !steps.yourTurn.length && !steps.waiting.length;
@@ -122,7 +122,7 @@ export function DashboardPage({ readinessBoard, quoteByRequest }: {
     <PrismPageColumn>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-base text-muted-foreground">{supplierTodaySummary(steps.yourTurn.length, steps.waiting.length)}</p>
-        {readinessBoard ? <p className="text-xs text-muted-foreground">Updated {formatPortalDateTime(readinessBoard.generatedAt)}</p> : null}
+        <p className="text-xs text-muted-foreground">Updated {formatPortalDateTime(readinessBoard.generatedAt)}</p>
       </div>
       {lead ? <TodayLead item={lead} hasQuote={hasQuote(lead)} count={leadGroup.items.length} /> : null}
       {leadGroup && leadGroup.items.length > 1 ? (
