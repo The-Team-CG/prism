@@ -8,6 +8,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Assigned coordinators can read and reply in conversations they belong to without starting new ones. PMCM can see which members have read its messages; other roles' responses do not expose those read times.
+
 - Chat notices include a link back to the recipient's conversation that survives sign-in. Messages offers Viber linking when configured, and the notification inbox combines channel copies while retaining each delivery's receipt checks.
 
 - Signed-in client, supplier, PMCM/coordinator and guest-pass pages share a soft pastel mascot-and-doodle background, with opaque cards and headers keeping event work readable.

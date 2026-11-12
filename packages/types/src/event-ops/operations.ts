@@ -11,7 +11,15 @@ export interface PrismCommunicationParticipant {
   /** The account's display name. People in one conversation see each other's names, never emails. */
   name?: string;
   active: boolean;
+  /** Own read time, or other members' times only in a PMCM response. */
   lastReadAt?: string | null;
+}
+
+/** PMCM-only projection for the active members of one conversation. */
+export interface PrismCommunicationReadReceipt {
+  actorId: string;
+  name?: string;
+  lastReadAt: string | null;
 }
 
 export interface PrismCommunicationParticipantChoice {

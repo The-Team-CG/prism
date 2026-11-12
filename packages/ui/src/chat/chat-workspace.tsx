@@ -20,6 +20,7 @@ export type ChatWorkspaceProps = {
   onOpenThread: (id: string) => void;
   /** A conversation is on screen. On a phone that is only once it is opened from the list. */
   onThreadShown?: (id: string) => void;
+  onThreadHidden?: () => void;
   query?: string;
   onQueryChange?: (value: string) => void;
   loading: boolean;
@@ -38,6 +39,7 @@ export type ChatWorkspaceProps = {
   compose?: ChatCompose;
   className?: string;
   notificationPrompt?: ReactNode;
+  showReadReceipts?: boolean;
 };
 
 /** True from the `md` breakpoint up, where the list and the conversation sit side by side. Unknown until measured. */
@@ -118,7 +120,7 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
 
   if (!loading && threads.length === 0 && !compose) {
     return (
-      <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "flex")} style={fill}>
+      <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "flex flex-col")} style={fill}>
         {props.error ? (
           <PaneState
             icon={<MessageSquareText />}
@@ -129,11 +131,12 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
         ) : (
           <PaneState icon={<MessageSquareText />} title={props.empty?.title ?? "No conversations yet"} body={props.empty?.body} />
         )}
+        {props.notificationPrompt}
       </section>
     );
   }
 
-  const back = () => setPhonePane("list");
+  const back = () => { setPhonePane("list"); props.onThreadHidden?.(); };
   return (
     <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "grid grid-cols-1 md:grid-cols-[21rem_minmax(0,1fr)]")} style={fill}>
       <ConversationList
@@ -166,6 +169,7 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
           <NewConversation compose={compose} canCancel={threads.length > 0} busy={props.busy} error={props.error} onBack={back} />
         ) : active ? (
           <Conversation
+            showReadReceipts={props.showReadReceipts}
             thread={active}
             viewerId={props.viewerId}
             historyLoading={props.historyLoading}

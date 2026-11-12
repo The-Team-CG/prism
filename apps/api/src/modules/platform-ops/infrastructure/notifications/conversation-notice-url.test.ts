@@ -16,6 +16,7 @@ describe('conversation notices outside PRISM', () => {
   });
 
   it('does not invent destinations for legacy or unrelated notices, and escapes email markup', () => {
+    expect(conversationNoticeUrl({ kind: 'conversation', eventId: 'event', threadId: 'thread', portal: 'coordinator' }, portals)).toBe('https://event.example.test/dashboard?view=messages&conversation=thread');
     expect(conversationNoticeUrl({ kind: 'conversation', eventId: 'event', threadId: 'thread' }, portals)).toBeUndefined();
     expect(conversationNoticeUrl({ kind: 'event_section', eventId: 'event', section: 'billing' }, portals)).toBeUndefined();
     expect(notificationHtml('<script>note</script>', 'https://client.example.test/?a=1&b=2')).toContain('href="https://client.example.test/?a=1&amp;b=2"');

@@ -20,7 +20,8 @@ const SECTION_LINKS: Record<EventSection, { tab: WorkspaceTab; label: string }> 
 };
 
 /** Where a PMCM notice sends the reader: the event workspace tab the notice is about. */
-export function pmcmNoticeLink(action: NotificationAction | undefined, eventId: string | null): NoticeLink | null {
+export function pmcmNoticeLink(action: NotificationAction | undefined, eventId: string | null, role?: string): NoticeLink | null {
+  if (action?.kind === 'conversation' && role === 'coordinator') return { href: `/dashboard?view=messages&conversation=${encodeURIComponent(action.threadId)}`, label: 'Open conversation' };
   if (action?.kind === "event_section") {
     // A section this app does not know (from a newer API) has no link rather than a broken one.
     const target = SECTION_LINKS[action.section] as (typeof SECTION_LINKS)[EventSection] | undefined;

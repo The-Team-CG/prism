@@ -2,7 +2,7 @@ import { formatPortalDate, formatPortalTime, manilaDateKey } from "../format-dat
 
 /** The message fields the chat UI reads; portal message records satisfy this structurally. */
 export type ChatMessageRecord = { id: string; senderId: string; senderRole: string; senderName?: string; body: string; createdAt: string };
-export type ChatParticipantRecord = { actorId: string; actorRole: string; name?: string; active: boolean };
+export type ChatParticipantRecord = { actorId: string; actorRole: string; name?: string; active: boolean; lastReadAt?: string | null };
 export type ChatThreadRecord<M extends ChatMessageRecord = ChatMessageRecord> = {
   id: string;
   subject: string;

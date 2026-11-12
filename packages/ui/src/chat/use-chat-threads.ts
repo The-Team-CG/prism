@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { linkedConversationId } from "../portal-path";
+import type { PrismCommunicationReadReceipt } from "@prism/types";
+import { useConversationReadReceipts } from "./use-conversation-read-receipts";
 import { threadMatches, toChatThreads, type ChatMessageRecord, type ChatThreadRecord } from "./chat-display";
 
 export type ChatMessagePage = { items: ChatMessageRecord[]; nextCursor?: string | null };
@@ -14,6 +16,7 @@ export type ChatSource = {
   older(threadId: string, cursor: string): Promise<ChatMessagePage>;
   send(threadId: string, body: string, idempotencyKey: string): Promise<ChatMessageRecord>;
   markRead(threadId: string): Promise<unknown>;
+  readReceipts?(threadId: string): Promise<PrismCommunicationReadReceipt[]>;
 };
 
 type Loaded = { scope: string; status: "loading" | "ready" | "error"; threads: ChatThreadRecord[]; error?: string };
@@ -79,7 +82,11 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
 
   const current = loaded?.scope === scope ? loaded : null;
   const records = current?.threads ?? NO_THREADS;
-  const threads = useMemo(() => toChatThreads(records, viewerId), [records, viewerId]);
+  const listedShownId = records.find((thread) => thread.id === shownId)?.id;
+  const receipts = useConversationReadReceipts({ scope: `${scope}:${viewerId}`, threadId: listedShownId, load: source.readReceipts });
+  const threads = useMemo(() => toChatThreads(records.map((thread) => thread.id === shownId && receipts ? {
+    ...thread, participants: thread.participants.map((person) => ({ ...person, lastReadAt: receipts.find((receipt) => receipt.actorId === person.actorId)?.lastReadAt })),
+  } : thread), viewerId), [records, viewerId, receipts, shownId]);
   const visibleThreads = threads.filter((thread) => threadMatches(thread, query));
   const selectedId = selected && selected.scope === scope ? selected.threadId : linkedId;
   // Like a phone's chat list, the most recent conversation is the open one until another is chosen.
@@ -193,6 +200,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
       linkedThreadId: linkedId && threads.some((thread) => thread.id === linkedId) ? linkedId : undefined,
       onOpenThread: openThread,
       onThreadShown: showThread,
+      onThreadHidden: () => setShownId(undefined),
       query,
       onQueryChange: setQuery,
       loading: status === "loading",

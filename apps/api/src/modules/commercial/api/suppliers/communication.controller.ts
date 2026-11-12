@@ -44,4 +44,9 @@ export class CommunicationController {
   read(@Param('threadId') threadId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.markThreadRead(threadId, this.access.resolveActor({}, verified));
   }
+
+  @Get('threads/:threadId/read-receipts')
+  readReceipts(@Param('threadId') threadId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.readReceipts(threadId, this.access.resolveActor({}, verified));
+  }
 }

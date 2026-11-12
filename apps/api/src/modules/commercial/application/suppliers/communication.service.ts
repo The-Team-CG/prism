@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import type { CreateCommunicationThreadInput, PrismCommunicationInboxThread, PrismCursorPage, SendCommunicationMessageInput } from '@prism/types';
+import type { CreateCommunicationThreadInput, PrismCommunicationInboxThread, PrismCommunicationReadReceipt, PrismCursorPage, SendCommunicationMessageInput } from '@prism/types';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -18,7 +18,7 @@ type InboxRow = Omit<ThreadRow, 'messages'> & { messages: MessageRow[] };
 type Names = ReadonlyMap<string, string>;
 type MessageCursor = { createdAt: string; id: string };
 const threadFields = { id: true, eventId: true, subject: true, status: true, createdBy: true, createdAt: true, updatedAt: true } as const;
-const readerRoles = [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client, OpsUserRole.Supplier];
+const readerRoles = [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client, OpsUserRole.Supplier, OpsUserRole.Coordinator];
 const ROLE_LABELS: Record<string, string> = { [OpsUserRole.PmcmAdmin]: 'PMCM', [OpsUserRole.System]: 'PMCM', [OpsUserRole.Client]: 'Client', [OpsUserRole.Supplier]: 'Supplier', [OpsUserRole.Coordinator]: 'Coordinator' };
 const PREVIEW_LENGTH = 140;
 
@@ -141,6 +141,16 @@ export class CommunicationService {
     return { lastReadAt: lastReadAt.toISOString() };
   }
 
+  async readReceipts(threadId: string, actor: ResolvedEventOpsActor): Promise<PrismCommunicationReadReceipt[]> {
+    if (actor.role !== OpsUserRole.PmcmAdmin) throw new ForbiddenException('Only PMCM can inspect conversation read receipts');
+    const { verified } = await this.authorizeThread(threadId, actor, 'communication read receipts');
+    if (verified.role !== OpsUserRole.PmcmAdmin) throw new ForbiddenException('Only PMCM can inspect conversation read receipts');
+    await this.ensureMembership(threadId, verified.id!);
+    const rows = await this.prisma.opsCommunicationParticipant.findMany({ where: { threadId, active: true }, select: { actorId: true, lastReadAt: true }, orderBy: { actorId: 'asc' }, take: 200 });
+    const names = await this.participants.displayNames(rows.map((row) => row.actorId));
+    return rows.map((row) => ({ actorId: row.actorId, name: names.get(row.actorId), lastReadAt: row.lastReadAt?.toISOString() ?? null }));
+  }
+
   async sendMessage(threadId: string, input: SendCommunicationMessageInput, actor: ResolvedEventOpsActor) {
     const { thread, verified } = await this.authorizeThread(threadId, actor, 'communication message');
     const body = input.body.trim();
@@ -167,7 +177,7 @@ export class CommunicationService {
       // Email always goes out; the Viber row reaches only people who linked Viber and kept it on, and is skipped for the rest.
       const deliveries = recipients.filter((recipient) => recipient.actorEmail).flatMap((recipient) => (['email', 'viber'] as const).map((channel) => ({ email: recipient.actorEmail!, role: recipient.actorRole, channel })));
       await Promise.all(deliveries.map(({ email, role, channel }) => {
-        const portal = role === OpsUserRole.Client ? 'client' : role === OpsUserRole.Supplier ? 'supplier' : 'event';
+        const portal = role === OpsUserRole.Coordinator ? 'coordinator' : role === OpsUserRole.Client ? 'client' : role === OpsUserRole.Supplier ? 'supplier' : 'event';
         return writeNotification(this.notificationOutboxWriter, thread.eventId, email, notice, channel, { idempotencyKey: `communication-message:${message.id}:${channel}:${email}`, action: { kind: 'conversation', eventId: thread.eventId, threadId, portal } }, { prisma: tx, correlationId: `communication-message:${message.id}` });
       }));
       await tx.opsCommunicationThread.update({ where: { id: threadId }, data: { updatedAt: new Date() } });
@@ -210,7 +220,7 @@ export class CommunicationService {
     return { id: message.id, threadId: message.threadId, senderId: message.senderId, senderRole: message.senderRole, ...(senderName ? { senderName } : {}), body: message.body, createdAt: message.createdAt.toISOString() };
   }
 
-  /** Display names are shared with the whole conversation; each member's read time stays their own. */
+  /** Other members' read times are available only through the PMCM-authorized receipts endpoint. */
   private safeThread(row: ThreadRow | InboxRow, actorId: string, unreadCount: number, names: Names) {
     const messages = row.messages.slice(0, 100);
     const oldest = messages[messages.length - 1];
