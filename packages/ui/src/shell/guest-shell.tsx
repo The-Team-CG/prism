@@ -4,6 +4,7 @@ import type * as React from "react";
 import { PrismBrandLogo } from "../brand";
 import { cn } from "../utils";
 import { useDocumentTitle } from "../document-title";
+import { portalBackgroundStyle } from "./portal-background";
 
 export interface PrismGuestShellProps {
   /** The event this pass opens, shown as the page title. */
@@ -22,7 +23,7 @@ export interface PrismGuestShellProps {
 export function PrismGuestShell({ eventName, detail, lead, actions, children, className }: PrismGuestShellProps) {
   useDocumentTitle(eventName ? `${eventName} · P.R.I.S.M.` : undefined);
   return (
-    <div className={cn("prism-shell min-h-screen bg-background text-foreground", className)} data-portal="guest">
+    <div className={cn("prism-shell min-h-screen bg-background text-foreground", className)} data-portal="guest" style={portalBackgroundStyle}>
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-3 px-4 sm:px-6">
           <PrismBrandLogo href="/" title="P.R.I.S.M." detail="Guest pass" markClassName="size-8 rounded-md bg-card ring-1 ring-border" />

@@ -8,6 +8,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Signed-in client, supplier, PMCM/coordinator and guest-pass pages share a soft pastel mascot-and-doodle background, with opaque cards and headers keeping event work readable.
+
 - Clients can follow event milestones, submit briefing and layout preferences, review official floorplans, sign conformes and addenda, track billing, and request an ocular visit. PMCM retains ownership of official plans and event decisions.
 - PMCM can plan events with versioned task templates, previewed date changes, supplier readiness and file requirements, event-day schedules, coordinator handoffs, and archive closeout records.
 - PMCM finance can reconcile external receipts, apply and reverse payments, record refunds, review billing disputes, and attach private payment evidence. Clients can view published statements with payment and refund history.
