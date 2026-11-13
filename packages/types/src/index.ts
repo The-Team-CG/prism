@@ -14,6 +14,7 @@ export * from "./privacy-notice.js";
 export * from "./session.js";
 export * from "./schemas/index.js";
 export * from "./storage.js";
+export * from "./file-expiry.js";
 
 export type PrismRole = "pmcm" | "client" | "supplier" | "guest" | "coordinator";
 
