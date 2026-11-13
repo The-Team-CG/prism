@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { PrismAuthenticatedSession } from "@prism/types";
 import { useInvalidate } from "@prism/portal-query";
-import { inboxThreadRecords, useChatThreads, type ChatCompose } from "@prism/ui/chat";
+import { inboxThreadPage, useChatThreads, type ChatCompose } from "@prism/ui/chat";
 import { supplierMessagesRepository } from "../data/supplier-messages-repository";
 import { supplierUnreadMessages } from "../data/supplier-messages-unread-resource";
 
@@ -25,7 +25,8 @@ export function useSupplierMessagesViewModel({ events, session }: { events: Book
     scope: "inbox",
     viewerId: session.id,
     source: {
-      list: () => supplierMessagesRepository.inbox(session).then(inboxThreadRecords),
+      list: (request) => supplierMessagesRepository.inbox(session, request).then(inboxThreadPage),
+      thread: (threadId) => supplierMessagesRepository.thread(threadId, session),
       history: (threadId) => supplierMessagesRepository.history(threadId, session),
       older: (threadId, cursor) => supplierMessagesRepository.listOlder(threadId, cursor, session),
       send: (threadId, body, key) => supplierMessagesRepository.send(threadId, body, key, session),

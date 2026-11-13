@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { PenSquare, Search } from "lucide-react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -24,10 +24,15 @@ export type ConversationListProps = {
   notice?: ReactNode;
   statusTab: ThreadStatusTab;
   onStatusTabChange: (tab: ThreadStatusTab) => void;
+  /** More conversations exist beyond the loaded pages. Scrolling near the end, or the button, loads the next page. */
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 };
 
-/** The chat list: search, a way to start a conversation, Open / Closed, and one row per conversation. */
-export function ConversationList({ threads, viewerId, activeId, query, onQueryChange, loading, error, onOpen, onCompose, className, notice, statusTab, onStatusTabChange }: ConversationListProps) {
+/** The chat list: search, a way to start a conversation, Open / Closed, one row per conversation, and paging. */
+export function ConversationList(props: ConversationListProps) {
+  const { query, onQueryChange, loading, error, onCompose, className, notice, statusTab, onStatusTabChange, threads } = props;
   const hasToolbar = Boolean(onQueryChange || onCompose);
   return (
     <aside className={cn("min-h-0 min-w-0 flex-col border-border md:border-r", className)}>
@@ -37,16 +42,50 @@ export function ConversationList({ threads, viewerId, activeId, query, onQueryCh
       {error && threads.length === 0 && !loading ? (
         <p role="alert" className="mx-3 rounded-md bg-danger-soft px-3 py-2 text-xs text-danger">{error}</p>
       ) : null}
-      <ul className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2", hasToolbar ? "" : "pt-2")}>
-        {loading ? (
-          <ListSkeleton />
-        ) : threads.length === 0 ? (
-          <EmptyList query={query} onCompose={onCompose} closed={statusTab === "closed"} />
-        ) : (
-          threads.map((thread) => <ConversationRow key={thread.id} thread={thread} viewerId={viewerId} active={thread.id === activeId} onOpen={onOpen} />)
-        )}
-      </ul>
+      <ListBody {...props} className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2", hasToolbar ? "" : "pt-2")} />
     </aside>
+  );
+}
+
+/** The rows, the skeleton or the empty copy, and the end-of-list control that loads the next page. */
+function ListBody({ className, threads, viewerId, activeId, query, loading, statusTab, onOpen, onCompose, hasMore, loadingMore, onLoadMore }: ConversationListProps & { className: string }) {
+  const listRef = useRef<HTMLUListElement>(null);
+  return (
+    <ul ref={listRef} className={className}>
+      {loading ? (
+        <ListSkeleton />
+      ) : threads.length === 0 ? (
+        <EmptyList query={query} onCompose={onCompose} closed={statusTab === "closed"} />
+      ) : (
+        threads.map((thread) => <ConversationRow key={thread.id} thread={thread} viewerId={viewerId} active={thread.id === activeId} onOpen={onOpen} />)
+      )}
+      {hasMore && onLoadMore && !loading && threads.length > 0 ? <MoreConversations root={listRef} loading={Boolean(loadingMore)} onLoadMore={onLoadMore} /> : null}
+    </ul>
+  );
+}
+
+/** The end of the loaded list: a button for keyboard users, and a sentinel that loads the next page as it scrolls into view. */
+function MoreConversations({ root, loading, onLoadMore }: { root: RefObject<HTMLUListElement | null>; loading: boolean; onLoadMore: () => void }) {
+  const sentinel = useRef<HTMLLIElement>(null);
+  const loadMoreRef = useRef(onLoadMore);
+  useEffect(() => {
+    loadMoreRef.current = onLoadMore;
+  });
+  useEffect(() => {
+    const node = sentinel.current;
+    if (!node || loading || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) loadMoreRef.current();
+    }, { root: root.current, rootMargin: "120px" });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [root, loading]);
+  return (
+    <li ref={sentinel} className="px-2 pt-2">
+      <Button type="button" variant="outline" size="sm" className="w-full" disabled={loading} onClick={onLoadMore}>
+        {loading ? "Loading conversations…" : "Show more"}
+      </Button>
+    </li>
   );
 }
 
@@ -95,7 +134,7 @@ function StatusTabs({ value, onChange }: { value: ThreadStatusTab; onChange: (ta
 function EmptyList({ query, onCompose, closed }: { query?: string; onCompose?: () => void; closed: boolean }) {
   return (
     <li className="px-3 py-6 text-center text-sm text-muted-foreground">
-      {query ? "No conversation matches." : closed ? "No closed conversations." : "No conversations yet."}
+      {query ? "No conversations match." : closed ? "No closed conversations." : "No conversations yet."}
       {!query && onCompose ? (
         <Button type="button" variant="link" onClick={onCompose} className="mx-auto mt-1 flex text-primary md:hidden">Start a conversation</Button>
       ) : null}

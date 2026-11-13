@@ -23,6 +23,12 @@ export type ChatWorkspaceProps = {
   onThreadHidden?: () => void;
   query?: string;
   onQueryChange?: (value: string) => void;
+  /** Open or Closed. The portal owns the list, so the server applies it. */
+  statusTab?: ThreadStatusTab;
+  onStatusTabChange?: (tab: ThreadStatusTab) => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
   loading: boolean;
   /** The open conversation's earlier messages are still being fetched. */
   historyLoading?: boolean;
@@ -175,7 +181,7 @@ function ChatDetail({ props, twoPanes, active, composing, back }: { props: ChatW
 export function ChatWorkspace(props: ChatWorkspaceProps) {
   const { threads, compose, loading, onThreadShown } = props;
   const [phonePane, setPhonePane] = useState<PhonePane>("list");
-  const [statusTab, setStatusTab] = useState<ThreadStatusTab>("open");
+
   const twoPanes = useTwoPanes();
   const [sectionRef, pageOffset] = usePageOffset<HTMLElement>();
   const composing = isComposing(compose, threads, loading);
@@ -223,15 +229,18 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
     <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "grid grid-cols-1 md:grid-cols-[21rem_minmax(0,1fr)]")} style={fill}>
       <ConversationList
         notice={props.notificationPrompt}
-        threads={(props.visibleThreads ?? threads).filter((thread) => (thread.status ?? "open") === statusTab)}
+        threads={props.visibleThreads ?? threads}
         viewerId={props.viewerId}
         activeId={active?.id}
         query={props.query}
         onQueryChange={props.onQueryChange}
         loading={loading}
         error={props.error}
-        statusTab={statusTab}
-        onStatusTabChange={setStatusTab}
+        statusTab={props.statusTab ?? "open"}
+        onStatusTabChange={(tab) => props.onStatusTabChange?.(tab)}
+        hasMore={props.hasMore}
+        loadingMore={props.loadingMore}
+        onLoadMore={props.onLoadMore}
         className={listPaneClass(phonePane)}
         onOpen={(id) => {
           props.onOpenThread(id);

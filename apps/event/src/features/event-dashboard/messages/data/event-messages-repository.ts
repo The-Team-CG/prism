@@ -1,9 +1,10 @@
-import type { CommunicationThreadStatus, CommunicationUnreadCountQuery } from '@prism/types';
+import type { CommunicationInboxQuery, CommunicationThreadStatus, CommunicationUnreadCountQuery } from '@prism/types';
 import { eventApi } from '@/lib/prism-api';
 
 export const eventMessagesRepository = {
-  list(eventId: string) { return eventApi.communication.listThreads(eventId); },
-  inbox() { return eventApi.communication.listInbox(); },
+  list(eventId: string, request?: Partial<CommunicationInboxQuery>) { return eventApi.communication.listThreads(eventId, request); },
+  inbox(request?: Partial<CommunicationInboxQuery>) { return eventApi.communication.listInbox(request); },
+  thread(threadId: string) { return eventApi.communication.getThread(threadId); },
   unreadCount(query: CommunicationUnreadCountQuery) { return eventApi.communication.unreadCount(query); },
   readReceipts(threadId: string) { return eventApi.communication.readReceipts(threadId); },
   participants(eventId: string) { return eventApi.communication.listParticipants(eventId); },

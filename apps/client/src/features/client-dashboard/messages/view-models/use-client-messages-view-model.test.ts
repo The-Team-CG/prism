@@ -18,7 +18,15 @@ const mocks = vi.hoisted(() => ({
   markRead: vi.fn(),
 }));
 vi.mock("../../workspace/shared", () => ({ useClientWorkspace: () => mocks.workspace }));
-vi.mock("../data/client-messages-repository", () => ({ clientMessagesRepository: mocks }));
+// The repository returns pages; these fixtures list rows, so each list answer is wrapped as one page.
+const asPage = (answer: unknown) => (Array.isArray(answer) ? { items: answer, nextCursor: null, hasMore: false } : answer);
+vi.mock("../data/client-messages-repository", () => ({
+  clientMessagesRepository: {
+    ...mocks,
+    list: (...args: unknown[]) => Promise.resolve(mocks.list(...args)).then(asPage),
+    inbox: (...args: unknown[]) => Promise.resolve(mocks.inbox(...args)).then(asPage),
+  },
+}));
 
 function thread(id: string, eventId: string): PrismCommunicationThread {
   return { id, eventId, subject: id, status: "open", createdBy: "pmcm", createdAt: "", updatedAt: "", participants: [], messages: [] };
