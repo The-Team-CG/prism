@@ -381,6 +381,24 @@ function SearchControls({ vm }: { vm: ClientFileLibraryViewModel }) {
   );
 }
 
+/** Asks before zipping a very large set in the browser, naming the biggest files to download on their own. */
+function ArchiveWarning({ vm }: { vm: ClientFileLibraryViewModel }) {
+  const warning = vm.archiveWarning;
+  if (!warning) return null;
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-3 border-b border-border bg-attention-soft px-4 py-3 text-sm">
+      <p className="min-w-0 flex-1 text-foreground">
+        These files total {formatFileSize(warning.totalBytes)}. Building one ZIP that large in the browser can be slow or fail;
+        you can download the largest ({warning.largest.join(", ")}) on their own instead.
+      </p>
+      <div className="flex shrink-0 gap-2">
+        <Button type="button" size="sm" variant="outline" onClick={vm.dismissArchiveWarning}>Cancel</Button>
+        <Button type="button" size="sm" onClick={() => void vm.downloadAll(true)}>Zip anyway</Button>
+      </div>
+    </div>
+  );
+}
+
 function FileTableHeader({ vm, searchingAll }: { vm: ClientFileLibraryViewModel; searchingAll: boolean }) {
   const title = searchingAll ? "Results in all events" : SHELVES.find((entry) => entry.id === vm.filter)?.label ?? "All files";
   return (
@@ -429,6 +447,7 @@ function FileTable({ vm, eventId }: { vm: ClientFileLibraryViewModel; eventId: s
   return (
     <Card {...drop.props} role="region" aria-labelledby="client-files-table" className={cn("relative gap-0 overflow-hidden py-0", drop.over && "outline outline-2 -outline-offset-2 outline-primary/50")}>
       <FileTableHeader vm={vm} searchingAll={searchingAll} />
+      <ArchiveWarning vm={vm} />
       {searchingAll ? <AccountResults vm={vm} /> : <EventFileList vm={vm} eventId={eventId} />}
       {drop.over ? (
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 grid place-items-center bg-background/80 text-sm font-medium text-primary">

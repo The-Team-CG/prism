@@ -100,29 +100,57 @@ function documentTone(status: string): ClientRowTone {
  * Every file the client can see for one event, as one list: stored uploads (theirs and PMCM's) and PMCM-issued
  * records. A record that names the same file as an upload is shown once, as the downloadable upload.
  */
+function requirementFields(requirement: PrismFileRequirementItem | undefined): Partial<ClientLibraryFile> {
+  if (!requirement) return {};
+  return {
+    requirementLabel: requirement.label,
+    requirementKey: requirement.key,
+    replaceable: requirement.origin === "custom" && requirement.ownerRole === "client" && requirement.status !== "approved",
+    reviewReason: requirement.validationStatus === "rejected" ? requirement.reviewReason : undefined,
+    versions: requirement.versions,
+  };
+}
+
+/** An earlier upload for a requirement that a newer file replaced: kept for reference, with PMCM's reason if it was rejected. */
+function replacedFields(replaced: { requirement: PrismFileRequirementItem; version: PrismSupplierRequirementVersion }): Partial<ClientLibraryFile> {
+  return {
+    status: "Replaced",
+    tone: "neutral",
+    requirementLabel: replaced.requirement.label,
+    reviewReason: replaced.version.reviewReason,
+    versions: replaced.requirement.versions,
+  };
+}
+
+/**
+ * Every file the client can see for one event, as one list: stored uploads (theirs and PMCM's) and PMCM-issued
+ * records. A record that names the same file as an upload is shown once, as the downloadable upload.
+ */
 export function buildClientFileLibrary(objects: PrismStoredObject[], documents: PrismDocument[], requirements: PrismFileRequirementItem[]): ClientLibraryFile[] {
   const requirementByObject = new Map(requirements.filter((item) => item.uploadedObjectId).map((item) => [item.uploadedObjectId!, item]));
+  const replacedByObject = new Map(requirements.flatMap((requirement) => (requirement.versions ?? [])
+    .filter((version) => version.objectId !== requirement.uploadedObjectId)
+    .map((version) => [version.objectId, { requirement, version }] as const)));
   const stored = objects
     .filter((object) => object.lifecycleState !== "deleted")
     .map((object): ClientLibraryFile => {
       const requirement = requirementByObject.get(object.id);
+      const replaced = requirement ? undefined : replacedByObject.get(object.id);
       const kind = object.usage === "signed_conforme" ? "conforme" : "";
+      const label = requirement?.label ?? replaced?.requirement.label ?? "";
       return {
         id: object.id,
         name: object.originalFileName,
         kind: clientFileKind(object.originalFileName, object.contentType),
         contentType: object.contentType,
         size: object.declaredByteSize || null,
-        category: clientFileCategory(`${object.originalFileName} ${requirement?.label ?? ""} ${kind}`),
+        category: clientFileCategory(`${object.originalFileName} ${label} ${kind}`),
         addedBy: uploaderLabel(object.uploaderActorRole),
         addedAt: object.storedAt ?? object.createdAt,
         ...storedFileStatus(object, requirement),
         objectId: object.lifecycleState === "stored" ? object.id : undefined,
-        requirementLabel: requirement?.label,
-        requirementKey: requirement?.key,
-        replaceable: requirement ? requirement.origin === "custom" && requirement.ownerRole === "client" && requirement.status !== "approved" : undefined,
-        reviewReason: requirement?.validationStatus === "rejected" ? requirement.reviewReason : undefined,
-        versions: requirement?.versions,
+        ...requirementFields(requirement),
+        ...(replaced ? replacedFields(replaced) : {}),
       };
     });
   const storedNames = new Set(stored.map((file) => file.name.toLowerCase()));
@@ -184,5 +212,15 @@ export function searchClientAccountFiles(events: ClientEventFileSources[], query
 /** The downloadable files of a list, filed in the archive under their shelf's name. */
 export function clientArchiveEntries(files: ClientLibraryFile[]) {
   const label = (category: ClientFileCategory) => CLIENT_FILE_CATEGORIES.find((entry) => entry.id === category)?.label ?? "Other";
-  return files.flatMap((file) => (file.objectId ? [{ objectId: file.objectId, name: file.name, folder: label(file.category) }] : []));
+  return files.flatMap((file) => (file.objectId ? [{ objectId: file.objectId, name: file.name, folder: label(file.category), size: file.size ?? 0 }] : []));
+}
+
+/**
+ * The browser holds every file in memory while it builds a ZIP. Above this total (several of PMCM's videos, which
+ * may be up to 250 MB each) the client is warned first and can download large files one at a time instead.
+ */
+export const CLIENT_ARCHIVE_WARNING_BYTES = 300 * 1024 * 1024;
+
+export function clientArchiveTotalBytes(entries: ReadonlyArray<{ size: number }>) {
+  return entries.reduce((total, entry) => total + entry.size, 0);
 }

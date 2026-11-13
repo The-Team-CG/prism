@@ -8,7 +8,9 @@ import { clientEventFileRequirements, clientEventStoredFiles } from "../data/cli
 import { buildClientDocumentChecklist } from "../model/client-document-checklist";
 import {
   buildClientFileLibrary,
+  CLIENT_ARCHIVE_WARNING_BYTES,
   clientArchiveEntries,
+  clientArchiveTotalBytes,
   clientFileFilterForView,
   countClientFiles,
   filterClientLibrary,
@@ -50,6 +52,7 @@ export function useClientFileLibraryViewModel() {
   const [searchAll, setSearchAll] = useState(false);
   const [reuseTarget, setReuseTarget] = useState<{ key: string; label: string } | null>(null);
   const [archiving, setArchiving] = useState<{ done: number; total: number } | null>(null);
+  const [archiveWarning, setArchiveWarning] = useState<{ totalBytes: number; largest: string[] } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pendingRequirement = useRef<string | undefined>(undefined);
   const uploadAttempts = useRef(new Map<string, string>());
@@ -87,6 +90,7 @@ export function useClientFileLibraryViewModel() {
 
   function chooseEvent(id: string) {
     setChosenEventId(id);
+    setArchiveWarning(null);
     setPreviewId(null);
     setSearchAll(false);
     setQuery("");
@@ -184,10 +188,16 @@ export function useClientFileLibraryViewModel() {
     }
   }
 
-  /** Every downloadable file of this event in one ZIP, a folder per shelf. */
-  async function downloadAll() {
+  /** Every downloadable file of this event in one ZIP, a folder per shelf; a very large set asks first. */
+  async function downloadAll(confirmed = false) {
     const entries = clientArchiveEntries(files);
     if (entries.length === 0 || archiving) return;
+    const totalBytes = clientArchiveTotalBytes(entries);
+    if (!confirmed && totalBytes > CLIENT_ARCHIVE_WARNING_BYTES) {
+      setArchiveWarning({ totalBytes, largest: [...entries].sort((left, right) => right.size - left.size).slice(0, 3).map((entry) => entry.name) });
+      return;
+    }
+    setArchiveWarning(null);
     setError(null);
     setArchiving({ done: 0, total: entries.length });
     try {
@@ -240,6 +250,8 @@ export function useClientFileLibraryViewModel() {
     downloadableCount: clientArchiveEntries(files).length,
     downloadAll,
     archiving,
+    archiveWarning,
+    dismissArchiveWarning: () => setArchiveWarning(null),
     searchAll,
     setSearchAll,
     accountResults,

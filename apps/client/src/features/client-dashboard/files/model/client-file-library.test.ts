@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { PrismDocument, PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
 import {
+  CLIENT_ARCHIVE_WARNING_BYTES,
   buildClientFileLibrary,
   clientArchiveEntries,
+  clientArchiveTotalBytes,
   clientFileFilterForView,
   clientFileKind,
   countClientFiles,
@@ -104,7 +106,32 @@ describe("client file library", () => {
     expect(results.map((file) => [file.name, file.eventName])).toEqual([["permit-2027.pdf", "Summit"], ["Venue-Permit.pdf", "Gala"]]);
     expect(searchClientAccountFiles([{ eventId: "a", eventName: "Gala", objects: [object("o1")], documents: [] }], "  ")).toEqual([]);
 
-    const library = buildClientFileLibrary([object("o4", { originalFileName: "Signed-Contract.pdf" })], [doc("d1", "billing_statement", "statement.pdf")], []);
-    expect(clientArchiveEntries(library)).toEqual([{ objectId: "o4", name: "Signed-Contract.pdf", folder: "Contracts" }]);
+    const library = buildClientFileLibrary(
+      [object("o4", { originalFileName: "Signed-Contract.pdf", declaredByteSize: 200 * 1024 * 1024 }), object("o5", { originalFileName: "Walkthrough.mp4", declaredByteSize: 150 * 1024 * 1024 })],
+      [doc("d1", "billing_statement", "statement.pdf")],
+      [],
+    );
+    const entries = clientArchiveEntries(library);
+    expect(entries.map(({ objectId, folder }) => [objectId, folder])).toEqual([["o4", "Contracts"], ["o5", "Other"]]);
+    expect(clientArchiveTotalBytes(entries)).toBeGreaterThan(CLIENT_ARCHIVE_WARNING_BYTES);
+    expect(clientArchiveTotalBytes(entries.slice(1))).toBeLessThan(CLIENT_ARCHIVE_WARNING_BYTES);
+  });
+
+  it("labels an earlier upload that a newer file replaced, keeping PMCM's reason for it", () => {
+    const files = buildClientFileLibrary(
+      [object("obj_v1", { originalFileName: "guest-list.pdf" }), object("obj_v2", { originalFileName: "guest-list-final.pdf" })],
+      [],
+      [requirement("Guest list", {
+        uploadedObjectId: "obj_v2",
+        versions: [
+          { documentId: "d2", objectId: "obj_v2", fileName: "guest-list-final.pdf", uploadedAt: "2026-11-02T00:00:00Z", status: "submitted" },
+          { documentId: "d1", objectId: "obj_v1", fileName: "guest-list.pdf", uploadedAt: "2026-11-01T00:00:00Z", status: "rejected", reviewReason: "Missing dietary column" },
+        ],
+      })],
+    );
+    const byId = new Map(files.map((file) => [file.id, file]));
+    expect(byId.get("obj_v2")).toMatchObject({ status: "In review", requirementLabel: "Guest list", replaceable: true });
+    expect(byId.get("obj_v1")).toMatchObject({ status: "Replaced", tone: "neutral", requirementLabel: "Guest list", reviewReason: "Missing dietary column" });
+    expect(byId.get("obj_v1")?.replaceable).toBeUndefined();
   });
 });
