@@ -20,6 +20,14 @@ function createStore() {
   const statements: Array<{ id: string; sentAt: Date | null }> = [];
   const bookings = [{ id: 'req_1', eventId: 'evt_1', supplierId: 'sup_1', status: 'selected', assignmentStatus: 'confirmed' }];
   const now = () => new Date('2026-09-08T00:00:00.000Z');
+  // The Prisma filters the service uses: equality (including null), `in`, `not` and `lt`.
+  const matches = (object: Record<string, any>, where: Record<string, any>) => Object.entries(where).every(([key, condition]) => {
+    if (condition === null || typeof condition !== 'object' || condition instanceof Date) return (object[key] ?? null) === condition;
+    if ('in' in condition) return condition.in.includes(object[key]);
+    if ('lt' in condition) return object[key] instanceof Date && object[key].getTime() < condition.lt.getTime();
+    if ('not' in condition) return (object[key] ?? null) !== condition.not;
+    return true;
+  });
   const prisma = {
     opsStoredObject: {
       findUnique: vi.fn(async ({ where }: { where: Record<string, any> }) => {
@@ -45,7 +53,7 @@ function createStore() {
           hits.forEach((candidate) => Object.assign(candidate, data, { updatedAt: now() }));
           return { count: hits.length };
         }
-        const object = objects.find((candidate) => Object.entries(where).every(([key, value]) => candidate[key] === value));
+        const object = objects.find((candidate) => matches(candidate, where));
         if (!object) return { count: 0 };
         Object.assign(object, data, { updatedAt: now() });
         return { count: 1 };
@@ -55,7 +63,7 @@ function createStore() {
         if (!object) throw new Error('object missing');
         return object;
       }),
-      findMany: vi.fn(async ({ where }: { where: { eventId?: string; id?: { in: string[] } } }) => objects.filter((object) => (where.id ? where.id.in.includes(object.id) : object.eventId === where.eventId))),
+      findMany: vi.fn(async ({ where }: { where: Record<string, any> }) => objects.filter((object) => matches(object, where))),
     },
     opsEvent: {
       findUnique: vi.fn(async () => ({ id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] as Array<{ supplierId: string; supplier: { email: string } }> })),
@@ -896,6 +904,27 @@ describe('file access: lists and downloads follow one policy', () => {
       await expect(service.setObjectExpiry({ objectId: source.id, expiresAt: null, actor })).resolves.toMatchObject({ expiresAt: null });
       const dated = store.auditWriter.write.mock.calls.map(([audit]) => audit as Record<string, any>).filter((audit) => audit.metadata?.storageAction === 'expiry_set');
       expect(dated.map((audit) => audit.metadata.expiresAt)).toEqual(['2026-12-31', null]);
+    });
+
+    it('removes uploads left unfinished for three days, leaves recent and stored ones, and still lets a retry resume', async () => {
+      const { service, store } = await localService();
+      const stored = await storeClientFile(service, 'evt_1', 'kept.pdf');
+      const abandonedTarget = target('evt_1');
+      const abandoned = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: abandonedTarget, usage: 'client_document', fileName: 'never-sent.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
+      const recent = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: target('evt_1'), usage: 'client_document', fileName: 'still-uploading.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
+      store.objects.find((object) => object.id === recent.object.id)!.updatedAt = new Date('2026-09-11T00:00:00.000Z');
+      store.objects.push({ ...store.objects.find((object) => object.id === abandoned.object.id)!, id: 'obj_failed', logicalTarget: target('evt_1'), lifecycleState: 'failed', failureReason: 'Storage provider could not issue an upload location', providerObjectKey: null });
+
+      await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(2);
+      const state = (id: string) => store.objects.find((object) => object.id === id)?.lifecycleState;
+      expect([state(abandoned.object.id), state('obj_failed'), state(recent.object.id), state(stored.id)]).toEqual(['deleted', 'deleted', 'requested', 'stored']);
+      const removed = store.auditWriter.write.mock.calls.map(([audit]) => audit as Record<string, any>).filter((audit) => audit.metadata?.storageAction === 'abandoned_removed');
+      expect(removed).toHaveLength(2);
+      await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(0);
+
+      // The client tries the same upload again later: it starts over instead of being refused.
+      const retried = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: abandonedTarget, usage: 'client_document', fileName: 'never-sent.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
+      expect(retried).toMatchObject({ status: 'ready', object: { id: abandoned.object.id, lifecycleState: 'requested' } });
     });
 
     it("refuses a copy into someone else's event, under another event's target, or of a file the client cannot download", async () => {
