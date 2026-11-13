@@ -123,13 +123,17 @@ describe('file requirement overdue and merge rules', () => {
       [requirement],
       [
         { id: 'doc_old', type: 'venue_permit', status: 'submitted', validationStatus: 'accepted', uploadedAt: new Date('2026-10-01T00:00:00.000Z'), storageKey: 'obj_old' },
-        { id: 'doc_new', type: 'venue_permit', status: 'submitted', validationStatus: 'accepted', uploadedAt: new Date('2026-10-05T00:00:00.000Z'), storageKey: 'obj_new' },
+        { id: 'doc_new', type: 'venue_permit', status: 'submitted', validationStatus: 'accepted', uploadedAt: new Date('2026-10-05T00:00:00.000Z'), storageKey: 'obj_new', expiresAt: new Date('2027-01-31T00:00:00.000Z') },
       ],
       [],
       now,
     );
     expect(items[0]).toMatchObject({ status: 'submitted', uploadedAssetId: 'doc_new', uploadedObjectId: 'obj_new' });
-    expect(items[0].versions?.map((version) => version.objectId)).toEqual(['obj_new', 'obj_old']);
+    // An earlier upload still stored as waiting reads as replaced: only the newest waits for review. Each carries its file's expiry.
+    expect(items[0].versions?.map((version) => [version.objectId, version.status, version.expiresAt])).toEqual([
+      ['obj_new', 'submitted', '2027-01-31T00:00:00.000Z'],
+      ['obj_old', 'replaced', undefined],
+    ]);
     expect(items[0]).not.toHaveProperty('reviewReason');
   });
 
@@ -208,6 +212,16 @@ describe('supplier-owned custom requirements', () => {
     expect(own.versions?.map((version) => version.objectId)).toEqual(['obj_a', 'obj_old']);
     expect(own.versions?.[1]).toMatchObject({ reviewReason: 'Expired policy' });
     expect(JSON.stringify(own)).not.toContain('obj_other');
+  });
+
+  it("reads a supplier's earlier waiting upload as replaced without touching another supplier's", () => {
+    const earlier: FileRequirementDocumentFact = { ...atlasDocument, id: 'doc_early', storageKey: 'obj_early', status: 'submitted', uploadedAt: new Date('2026-10-09T00:00:00.000Z') };
+    const otherWaiting: FileRequirementDocumentFact = { ...atlasDocument, id: 'doc_b', storageKey: 'obj_b', status: 'submitted', ownerSupplierId: 'supplier_b', uploadedAt: new Date('2026-10-08T00:00:00.000Z') };
+    const [item] = mergeFileRequirementOverrides([], [insuranceRequirement], [earlier, { ...atlasDocument, status: 'submitted' }, otherWaiting], selectedSuppliers, now);
+    expect(item.supplierFulfilments?.map((fulfilment) => [fulfilment.supplierId, fulfilment.versions?.map((version) => version.status)])).toEqual([
+      ['supplier_a', ['submitted', 'replaced']],
+      ['supplier_b', ['submitted']],
+    ]);
   });
 
   it('reports the aggregate as approved only when every selected supplier is approved', () => {

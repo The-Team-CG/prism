@@ -12,7 +12,7 @@ import {
   type SupplierFileFilter,
   type SupplierLibraryFile,
 } from "../model/supplier-file-library";
-import { loadSupplierStoredFile } from "../use-cases/supplier-workspace-actions";
+import { loadSupplierStoredFile, setSupplierFileExpiry } from "../use-cases/supplier-workspace-actions";
 import { useSupplierFileRequirementsViewModel } from "./use-supplier-file-requirements-view-model";
 
 export type SupplierFilePreview =
@@ -72,6 +72,9 @@ export function useSupplierFileLibraryViewModel(input: {
   const [filter, setFilter] = useState<SupplierFileFilter>("all");
   const [query, setQuery] = useState("");
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const eventNames = useMemo(() => new Map((input.readinessBoard?.items ?? []).flatMap((item) => (item.eventName ? [[item.eventId, item.eventName] as const] : []))), [input.readinessBoard]);
   const rows = useMemo(() => buildSupplierFileRequirementRows(input.workspace, requirements.matrices), [input.workspace, requirements.matrices]);
@@ -83,7 +86,28 @@ export function useSupplierFileLibraryViewModel(input: {
   }), [rows, input.workflowWorkspace, input.workspace.supplier.certifications, eventNames]);
   const needed = useMemo(() => buildSupplierNeededFiles(rows, eventNames), [rows, eventNames]);
 
+  /** Sets or clears when one of the supplier's own booking documents stops being valid. */
+  async function setExpiry(file: SupplierLibraryFile, expiresAt: string | null) {
+    if (!file.objectId || saving) return;
+    setSaving(true);
+    setNotice(null);
+    setSaveError(null);
+    try {
+      await setSupplierFileExpiry(input.session, file.objectId, expiresAt);
+      setNotice(expiresAt ? `${file.name} is valid until ${expiresAt}.` : `${file.name} no longer has an expiry date.`);
+      requirements.reload();
+    } catch (reason) {
+      setSaveError(`Couldn't save the date for ${file.name} (${reason instanceof Error ? reason.message : "save failed"}).`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return {
+    setExpiry,
+    saving,
+    notice,
+    saveError,
     status: requirements.status,
     error: requirements.error,
     uploading: requirements.uploading,

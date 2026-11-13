@@ -12,7 +12,7 @@ import type { PrismAuthenticatedSession, PrismSupplierReadinessBoard, PrismSuppl
 import { formatDate } from "../../model/supplier-workspace-rules";
 import { supplierBookingHref } from "../../model/supplier-next-step";
 import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
-import type { SupplierFileFilter, SupplierFileKind, SupplierFileTone, SupplierLibraryFile, SupplierNeededFile } from "../../model/supplier-file-library";
+import { supplierFileExpiry, type SupplierFileFilter, type SupplierFileKind, type SupplierFileTone, type SupplierLibraryFile, type SupplierNeededFile } from "../../model/supplier-file-library";
 import { useSupplierFileLibraryViewModel, useSupplierFilePreview, type SupplierFileLibraryViewModel } from "../../view-models/use-supplier-file-library-view-model";
 
 const FILTERS: ReadonlyArray<{ id: SupplierFileFilter; label: string }> = [
@@ -98,13 +98,38 @@ function NeededSection({ vm }: { vm: SupplierFileLibraryViewModel }) {
   if (vm.status === "loading") return <LoadingState label="Loading what PMCM needs from you…" />;
   return (
     <PrismSection id="supplier-files-needed" title="Needed from you" description="Drop a file on an item to send it to PMCM." flush={vm.needed.length > 0}>
-      {vm.error ? <p role="alert" className="px-5 py-2 text-sm text-destructive">{vm.error}</p> : null}
+      {vm.error ?? vm.saveError ? <p role="alert" className="px-5 py-2 text-sm text-destructive">{vm.error ?? vm.saveError}</p> : null}
+      {vm.notice ? <p role="status" className="px-5 py-2 text-sm text-muted-foreground">{vm.notice}</p> : null}
       {vm.needed.length === 0 ? (
         <PrismEmptyLine icon={CheckCircle2}>Nothing needed right now. PMCM will ask here when a booking needs a file from you.</PrismEmptyLine>
       ) : (
         <ul className="divide-y divide-border">{vm.needed.map((item) => <NeededRow key={`${item.eventId}:${item.key}`} item={item} vm={vm} />)}</ul>
       )}
     </PrismSection>
+  );
+}
+
+/** A dated booking document's validity under its status, once it is close to expiring or already has. */
+function ExpiryLabel({ expiresAt }: { expiresAt?: string }) {
+  const expiry = supplierFileExpiry(expiresAt);
+  if (!expiry || expiry.tone === "neutral") return null;
+  return <span className={`block text-xs ${TONE[expiry.tone]}`}>{expiry.label}</span>;
+}
+
+/** When one of the supplier's own booking documents stops being valid; PMCM is reminded to chase it before then. */
+function ValidUntil({ file, vm }: { file: SupplierLibraryFile; vm: SupplierFileLibraryViewModel }) {
+  const saved = file.expiresAt?.slice(0, 10) ?? "";
+  const [value, setValue] = useState(saved);
+  const expiry = supplierFileExpiry(file.expiresAt);
+  if (!file.datable || !file.objectId) return null;
+  return (
+    <form className="flex flex-wrap items-center gap-2 text-sm" onSubmit={(event) => { event.preventDefault(); void vm.setExpiry(file, value || null); }}>
+      <span className="text-muted-foreground">Valid until</span>
+      <input type="date" aria-label={`Valid until for ${file.name}`} value={value} onChange={(event) => setValue(event.currentTarget.value)} className="h-8 rounded-md border border-border bg-background px-2" />
+      <Button type="submit" size="sm" variant="outline" disabled={vm.saving || value === saved}>Save</Button>
+      {file.expiresAt ? <Button type="button" size="sm" variant="ghost" disabled={vm.saving} onClick={() => { setValue(""); void vm.setExpiry(file, null); }}>Clear</Button> : null}
+      {expiry && expiry.tone !== "neutral" ? <span className={TONE[expiry.tone]}>{expiry.label}</span> : null}
+    </form>
   );
 }
 
@@ -120,7 +145,10 @@ function FileRow({ file, vm, onDownloadObject }: { file: SupplierLibraryFile; vm
         </span>
       </button>
       <span className="hidden text-sm text-muted-foreground md:block">{formatDate(file.addedAt)}</span>
-      <span className={`hidden text-sm font-medium md:block ${TONE[file.tone]}`}>{file.status}</span>
+      <span className="hidden min-w-0 md:block">
+        <span className={`block text-sm font-medium ${TONE[file.tone]}`}>{file.status}</span>
+        <ExpiryLabel expiresAt={file.expiresAt} />
+      </span>
       {objectId ? (
         <Button type="button" variant="ghost" size="icon" aria-label={`Download ${file.name}`} onClick={() => onDownloadObject(objectId)}><Download className="size-4" /></Button>
       ) : <span className="w-9" />}
@@ -183,6 +211,7 @@ function PreviewSheet({ vm, session, onDownloadObject }: { vm: SupplierFileLibra
               <SheetTitle className="truncate pr-8">{file.name}</SheetTitle>
               <SheetDescription>{file.context} · {formatDate(file.addedAt)} · {file.status}</SheetDescription>
               {file.reviewReason ? <p className="text-sm text-destructive">PMCM: {file.reviewReason}</p> : null}
+              <ValidUntil key={`${file.id}:${file.expiresAt ?? ""}`} file={file} vm={vm} />
             </SheetHeader>
             <div className="min-h-0 flex-1"><PreviewBody file={file} session={session} /></div>
             {objectId ? (

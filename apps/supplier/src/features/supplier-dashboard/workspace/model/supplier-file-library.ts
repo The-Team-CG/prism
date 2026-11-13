@@ -35,7 +35,24 @@ export type SupplierLibraryFile = {
   /** The stored file to preview and download; certifications PMCM keeps on the supplier record have none. */
   objectId?: string;
   reviewReason?: string;
+  /** The last day a booking document is valid, when the supplier or PMCM set one; the supplier can change it. */
+  expiresAt?: string;
+  /** The supplier sent this file and may date it. */
+  datable?: boolean;
 };
+
+/** Warn this long before a document stops being valid. */
+const EXPIRY_WARNING_DAYS = 30;
+
+/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date. */
+export function supplierFileExpiry(expiresAt: string | null | undefined, now = new Date()): { label: string; tone: SupplierFileTone } | null {
+  if (!expiresAt) return null;
+  const date = expiresAt.slice(0, 10);
+  const remaining = new Date(expiresAt).getTime() - now.getTime();
+  if (remaining < 0) return { label: `Expired ${date}`, tone: "urgent" };
+  if (remaining <= EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000) return { label: `Expires ${date}`, tone: "attention" };
+  return { label: `Valid until ${date}`, tone: "neutral" };
+}
 
 /** A file PMCM asked this supplier for that is not sent yet, or that PMCM sent back. */
 export type SupplierNeededFile = {
@@ -98,6 +115,8 @@ function requirementFiles(rows: SupplierFileRequirementRow[], eventNames: Readon
     ...(VERSION_STATUS[version.status] ?? { status: version.status, tone: "neutral" as const }),
     objectId: version.objectId,
     ...(version.reviewReason ? { reviewReason: version.reviewReason } : {}),
+    ...(version.expiresAt ? { expiresAt: version.expiresAt } : {}),
+    datable: true,
   })));
 }
 
@@ -117,11 +136,9 @@ function contractFiles(contracts: PrismSupplierContractVersion[], eventNames: Re
 }
 
 function certificationStatus(certification: PrismSupplierCertification, now: Date): Pick<SupplierLibraryFile, "status" | "tone"> {
-  if (!certification.expiresAt) return { status: certification.status ?? "On file", tone: "neutral" };
-  const expires = new Date(certification.expiresAt);
-  if (expires.getTime() < now.getTime()) return { status: "Expired", tone: "urgent" };
-  const soon = expires.getTime() - now.getTime() < 30 * 24 * 60 * 60 * 1000;
-  return { status: `Expires ${certification.expiresAt.slice(0, 10)}`, tone: soon ? "attention" : "neutral" };
+  const expiry = supplierFileExpiry(certification.expiresAt, now);
+  if (!expiry) return { status: certification.status ?? "On file", tone: "neutral" };
+  return { status: expiry.tone === "urgent" ? "Expired" : `Expires ${certification.expiresAt!.slice(0, 10)}`, tone: expiry.tone };
 }
 
 function certificationFiles(certifications: PrismSupplierCertification[], now: Date): SupplierLibraryFile[] {

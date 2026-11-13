@@ -31,6 +31,8 @@ export type FileRequirementDocumentFact = {
   available?: boolean;
   /** Supplier that owns the stored object behind this document; absent for event-owned or unbound files. */
   ownerSupplierId?: string | null;
+  /** The last day the stored file is valid, when it has one. */
+  expiresAt?: Date | null;
 };
 
 export type FileRequirementSupplier = { supplierId: string; supplierName: string };
@@ -59,14 +61,23 @@ function validationOf(document: FileRequirementDocumentFact | undefined): PrismF
   return document.validationStatus === 'rejected' || document.status === 'rejected' ? 'rejected' : 'accepted';
 }
 
+/**
+ * An upload still waiting for review but no longer its sender's newest was replaced. Uploads sent before a new file
+ * started marking earlier ones replaced are stored as submitted; this reads them the same way.
+ */
+function versionStatus(document: FileRequirementDocumentFact, position: number) {
+  return position > 0 && document.status === 'submitted' ? 'replaced' : document.status;
+}
+
 /** Every available upload for one requirement, newest first, with PMCM's reason on each rejected one. */
 function requirementVersions(documents: FileRequirementDocumentFact[], key: string): PrismSupplierRequirementVersion[] {
   return documents.filter((document) => document.type === key && document.available !== false && document.storageKey)
     .sort((left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime() || left.id.localeCompare(right.id))
-    .map((document) => ({
+    .map((document, position) => ({
       documentId: document.id, objectId: document.storageKey!, fileName: document.fileName ?? 'Submitted file',
-      uploadedAt: document.uploadedAt.toISOString(), status: document.status,
+      uploadedAt: document.uploadedAt.toISOString(), status: versionStatus(document, position),
       ...(document.status === 'rejected' && document.rejectionReason ? { reviewReason: document.rejectionReason } : {}),
+      ...(document.expiresAt ? { expiresAt: document.expiresAt.toISOString() } : {}),
     }));
 }
 

@@ -325,6 +325,8 @@ export interface PrismSupplierRequirementVersion {
   uploadedAt: string;
   status: string;
   reviewReason?: string;
+  /** The last day the stored file is valid, when it has one. */
+  expiresAt?: string;
 }
 
 /** One selected supplier's fulfilment of a supplier-owned requirement. PMCM-only: suppliers receive their own entry, folded into the item. */

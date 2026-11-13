@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismFileRequirementItem, PrismSupplierCertification, PrismSupplierContractVersion } from "@prism/types";
-import { buildSupplierFileLibrary, buildSupplierNeededFiles, countSupplierFiles, filterSupplierFiles } from "./supplier-file-library";
+import { buildSupplierFileLibrary, buildSupplierNeededFiles, countSupplierFiles, filterSupplierFiles, supplierFileExpiry } from "./supplier-file-library";
 import type { SupplierFileRequirementRow } from "./supplier-workspace-rules";
 
 const eventNames = new Map([["evt_gala", "Founders Gala"]]);
@@ -22,7 +22,7 @@ const insuranceSentBack = row({
 });
 const permitApproved = row({
   key: "work_permit", label: "Work permit", status: "approved",
-  versions: [{ documentId: "doc_3", objectId: "obj_3", fileName: "permit.pdf", uploadedAt: "2026-11-04T00:00:00.000Z", status: "approved" }],
+  versions: [{ documentId: "doc_3", objectId: "obj_3", fileName: "permit.pdf", uploadedAt: "2026-11-04T00:00:00.000Z", status: "approved", expiresAt: "2026-11-30T00:00:00.000Z" }],
 });
 const contractMissing = row({ key: "supplier-contract:req_1", label: "Contract", origin: "workflow" as never, status: "missing" });
 
@@ -64,5 +64,9 @@ describe("supplier file library", () => {
     expect(files.find((file) => file.id === "cert_1")?.tone).toBe("urgent");
     expect(countSupplierFiles(files)).toEqual({ all: 6, booking: 3, contract: 1, certification: 2 });
     expect(filterSupplierFiles(files, "all", "permit").map((file) => file.name)).toEqual(["permit.pdf"]);
+    // A booking document carries the date its file is valid until, and the supplier who sent it may change it.
+    expect(files.find((file) => file.name === "permit.pdf")).toMatchObject({ expiresAt: "2026-11-30T00:00:00.000Z", datable: true });
+    expect(files.find((file) => file.id === "ctr_1")?.datable).toBeUndefined();
+    expect(supplierFileExpiry("2026-11-30T00:00:00.000Z", new Date("2026-11-14T00:00:00.000Z"))).toEqual({ label: "Expires 2026-11-30", tone: "attention" });
   });
 });
