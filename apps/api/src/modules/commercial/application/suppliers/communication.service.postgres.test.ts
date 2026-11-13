@@ -46,6 +46,9 @@ describe.skipIf(!enabled)('communication service PostgreSQL transaction', () => 
     await Promise.all(Array.from({ length: 4 }, () => service.sendMessage(ids.thread, input, actor)));
     await expect(prisma.opsCommunicationMessage.count({ where: { threadId: ids.thread, idempotencyKey: input.idempotencyKey } })).resolves.toBe(1);
     await expect(prisma.opsAuditLog.count({ where: { eventId: ids.event, affectedType: 'communication_message' } })).resolves.toBe(1);
-    await expect(prisma.opsNotificationLog.count({ where: { eventId: ids.event, correlationId: { startsWith: `communication-message:` } } })).resolves.toBe(1);
+    // One other participant gets one notice per channel; replays must not add rows for either channel.
+    for (const channel of ['email', 'viber']) {
+      await expect(prisma.opsNotificationLog.count({ where: { eventId: ids.event, channel, correlationId: { startsWith: `communication-message:` } } })).resolves.toBe(1);
+    }
   });
 });

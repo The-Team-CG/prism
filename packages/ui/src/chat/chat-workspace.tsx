@@ -42,6 +42,8 @@ export type ChatWorkspaceProps = {
   showReadReceipts?: boolean;
 };
 
+type PhonePane = "list" | "chat";
+
 /** True from the `md` breakpoint up, where the list and the conversation sit side by side. Unknown until measured. */
 function useTwoPanes() {
   const [twoPanes, setTwoPanes] = useState<boolean>();
@@ -80,6 +82,85 @@ function usePageOffset<T extends HTMLElement>() {
   return [ref, offset] as const;
 }
 
+function isComposing(compose: ChatCompose | undefined, threads: ChatThread[], loading: boolean) {
+  return Boolean(compose && (compose.open || (threads.length === 0 && !loading)));
+}
+
+function findActiveThread(threads: ChatThread[], activeThreadId: string | undefined, composing: boolean) {
+  if (composing) return undefined;
+  return threads.find((thread) => thread.id === activeThreadId) ?? threads[0];
+}
+
+function isFullScreen(twoPanes: boolean | undefined, phonePane: PhonePane) {
+  return twoPanes === false && phonePane === "chat";
+}
+
+/** Nothing to list and nothing to start: the whole workspace is one empty or error state. */
+function hasNothingToShow({ threads, loading, compose }: Pick<ChatWorkspaceProps, "threads" | "loading" | "compose">) {
+  return !loading && threads.length === 0 && !compose;
+}
+
+function frameClass(pageOffset: number | undefined, className: string | undefined) {
+  return cn("min-h-[22rem] overflow-hidden rounded-xl border border-border bg-card", pageOffset === undefined && "h-[calc(100dvh-13rem)]", className);
+}
+
+function frameStyle(pageOffset: number | undefined) {
+  return pageOffset === undefined ? undefined : { height: `calc(100dvh - ${pageOffset}px - 2rem)` };
+}
+
+function listPaneClass(phonePane: PhonePane) {
+  return phonePane === "chat" ? "hidden md:flex" : "flex";
+}
+
+function chatPaneClass(phonePane: PhonePane) {
+  return cn("min-h-0 min-w-0 flex-col bg-background md:flex", phonePane === "chat" ? "flex max-md:fixed max-md:inset-0 max-md:z-50" : "hidden");
+}
+
+/** The message shown when there is nothing to open: a load error with a retry, or the portal's empty copy. */
+function EmptyState({ error, onRetry, empty }: Pick<ChatWorkspaceProps, "error" | "onRetry" | "empty">) {
+  if (error) {
+    return (
+      <PaneState
+        icon={<MessageSquareText />}
+        title="Couldn't load conversations"
+        body={error}
+        action={onRetry ? <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try again</Button> : null}
+      />
+    );
+  }
+  return <PaneState icon={<MessageSquareText />} title={empty?.title ?? "No conversations yet"} body={empty?.body} />;
+}
+
+/** The right-hand pane: loading, starting a conversation, the open conversation, or the empty state. */
+function ChatDetail({ props, twoPanes, active, composing, back }: { props: ChatWorkspaceProps; twoPanes?: boolean; active?: ChatThread; composing: boolean; back: () => void }) {
+  const { compose, loading } = props;
+  if (loading) return <PaneState icon={<Loader2 className="animate-spin" />} title="Loading conversations…" />;
+  if (composing && compose) {
+    return <NewConversation compose={compose} canCancel={props.threads.length > 0} busy={props.busy} error={props.error} onBack={back} />;
+  }
+  if (!active) return <EmptyState error={props.error} onRetry={props.onRetry} empty={props.empty} />;
+  return (
+    <Conversation
+      showReadReceipts={props.showReadReceipts}
+      thread={active}
+      viewerId={props.viewerId}
+      historyLoading={props.historyLoading}
+      onLoadOlder={props.onLoadOlder}
+      onBack={back}
+      composer={{
+        draft: props.draft,
+        onDraftChange: props.onDraftChange,
+        onSend: props.onSend,
+        busy: props.busy,
+        error: props.error,
+        // Short enough to stay on one line in a phone composer; the header already names the conversation.
+        placeholder: props.composerPlaceholder?.(active) ?? "Write a message",
+        enterSends: twoPanes !== false,
+      }}
+    />
+  );
+}
+
 /**
  * Messenger-style conversations: a chat list beside the open conversation. On a phone the list fills the
  * page and an opened conversation takes the whole screen, so the composer is always in view.
@@ -87,14 +168,14 @@ function usePageOffset<T extends HTMLElement>() {
  */
 export function ChatWorkspace(props: ChatWorkspaceProps) {
   const { threads, compose, loading, onThreadShown } = props;
-  const [phonePane, setPhonePane] = useState<"list" | "chat">("list");
+  const [phonePane, setPhonePane] = useState<PhonePane>("list");
   const twoPanes = useTwoPanes();
   const [sectionRef, pageOffset] = usePageOffset<HTMLElement>();
-  const composing = Boolean(compose && (compose.open || (threads.length === 0 && !loading)));
-  const active = composing ? undefined : threads.find((thread) => thread.id === props.activeThreadId) ?? threads[0];
-  const chatOnScreen = twoPanes === true || (twoPanes === false && phonePane === "chat");
+  const composing = isComposing(compose, threads, loading);
+  const active = findActiveThread(threads, props.activeThreadId, composing);
+  const fullScreen = isFullScreen(twoPanes, phonePane);
+  const chatOnScreen = twoPanes === true || fullScreen;
   const shownId = chatOnScreen ? active?.id : undefined;
-  const fullScreen = twoPanes === false && phonePane === "chat";
 
   useEffect(() => {
     if (shownId) onThreadShown?.(shownId);
@@ -115,28 +196,22 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
     };
   }, [fullScreen]);
 
-  const frame = cn("min-h-[22rem] overflow-hidden rounded-xl border border-border bg-card", pageOffset === undefined && "h-[calc(100dvh-13rem)]", props.className);
-  const fill = pageOffset === undefined ? undefined : { height: `calc(100dvh - ${pageOffset}px - 2rem)` };
+  const frame = frameClass(pageOffset, props.className);
+  const fill = frameStyle(pageOffset);
 
-  if (!loading && threads.length === 0 && !compose) {
+  if (hasNothingToShow({ threads, loading, compose })) {
     return (
       <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "flex flex-col")} style={fill}>
-        {props.error ? (
-          <PaneState
-            icon={<MessageSquareText />}
-            title="Couldn't load conversations"
-            body={props.error}
-            action={props.onRetry ? <Button type="button" variant="outline" size="sm" onClick={props.onRetry}>Try again</Button> : null}
-          />
-        ) : (
-          <PaneState icon={<MessageSquareText />} title={props.empty?.title ?? "No conversations yet"} body={props.empty?.body} />
-        )}
+        <EmptyState error={props.error} onRetry={props.onRetry} empty={props.empty} />
         {props.notificationPrompt}
       </section>
     );
   }
 
-  const back = () => { setPhonePane("list"); props.onThreadHidden?.(); };
+  const back = () => {
+    setPhonePane("list");
+    props.onThreadHidden?.();
+  };
   return (
     <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "grid grid-cols-1 md:grid-cols-[21rem_minmax(0,1fr)]")} style={fill}>
       <ConversationList
@@ -148,7 +223,7 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
         onQueryChange={props.onQueryChange}
         loading={loading}
         error={props.error}
-        className={phonePane === "chat" ? "hidden md:flex" : "flex"}
+        className={listPaneClass(phonePane)}
         onOpen={(id) => {
           props.onOpenThread(id);
           setPhonePane("chat");
@@ -162,40 +237,8 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
             : undefined
         }
       />
-      <div className={cn("min-h-0 min-w-0 flex-col bg-background md:flex", phonePane === "chat" ? "flex max-md:fixed max-md:inset-0 max-md:z-50" : "hidden")}>
-        {loading ? (
-          <PaneState icon={<Loader2 className="animate-spin" />} title="Loading conversations…" />
-        ) : composing && compose ? (
-          <NewConversation compose={compose} canCancel={threads.length > 0} busy={props.busy} error={props.error} onBack={back} />
-        ) : active ? (
-          <Conversation
-            showReadReceipts={props.showReadReceipts}
-            thread={active}
-            viewerId={props.viewerId}
-            historyLoading={props.historyLoading}
-            onLoadOlder={props.onLoadOlder}
-            onBack={back}
-            composer={{
-              draft: props.draft,
-              onDraftChange: props.onDraftChange,
-              onSend: props.onSend,
-              busy: props.busy,
-              error: props.error,
-              // Short enough to stay on one line in a phone composer; the header already names the conversation.
-              placeholder: props.composerPlaceholder?.(active) ?? "Write a message",
-              enterSends: twoPanes !== false,
-            }}
-          />
-        ) : props.error ? (
-          <PaneState
-            icon={<MessageSquareText />}
-            title="Couldn't load conversations"
-            body={props.error}
-            action={props.onRetry ? <Button type="button" variant="outline" size="sm" onClick={props.onRetry}>Try again</Button> : null}
-          />
-        ) : (
-          <PaneState icon={<MessageSquareText />} title={props.empty?.title ?? "No conversations yet"} body={props.empty?.body} />
-        )}
+      <div className={chatPaneClass(phonePane)}>
+        <ChatDetail props={props} twoPanes={twoPanes} active={active} composing={composing} back={back} />
       </div>
     </section>
   );
