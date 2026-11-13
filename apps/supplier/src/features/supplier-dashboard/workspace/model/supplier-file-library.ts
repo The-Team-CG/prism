@@ -1,4 +1,4 @@
-import type { PrismSupplierCertification, PrismSupplierContractVersion } from "@prism/types";
+import { storedFileExpiryDay, storedFileExpiryState, type PrismSupplierCertification, type PrismSupplierContractVersion } from "@prism/types";
 import type { SupplierFileRequirementRow } from "./supplier-workspace-rules";
 
 export type SupplierFileKind = "pdf" | "image" | "sheet" | "document" | "video" | "other";
@@ -43,16 +43,13 @@ export type SupplierLibraryFile = {
   replaces?: { eventId: string; key: string; label: string };
 };
 
-/** Warn this long before a document stops being valid. */
-const EXPIRY_WARNING_DAYS = 30;
-
-/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date. */
+/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date (Philippine day). */
 export function supplierFileExpiry(expiresAt: string | null | undefined, now = new Date()): { label: string; tone: SupplierFileTone } | null {
   if (!expiresAt) return null;
-  const date = expiresAt.slice(0, 10);
-  const remaining = new Date(expiresAt).getTime() - now.getTime();
-  if (remaining < 0) return { label: `Expired ${date}`, tone: "urgent" };
-  if (remaining <= EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000) return { label: `Expires ${date}`, tone: "attention" };
+  const date = storedFileExpiryDay(expiresAt);
+  const state = storedFileExpiryState(expiresAt, now);
+  if (state === "expired") return { label: `Expired ${date}`, tone: "urgent" };
+  if (state === "expiring") return { label: `Expires ${date}`, tone: "attention" };
   return { label: `Valid until ${date}`, tone: "neutral" };
 }
 
@@ -141,7 +138,7 @@ function contractFiles(contracts: PrismSupplierContractVersion[], eventNames: Re
 function certificationStatus(certification: PrismSupplierCertification, now: Date): Pick<SupplierLibraryFile, "status" | "tone"> {
   const expiry = supplierFileExpiry(certification.expiresAt, now);
   if (!expiry) return { status: certification.status ?? "On file", tone: "neutral" };
-  return { status: expiry.tone === "urgent" ? "Expired" : `Expires ${certification.expiresAt!.slice(0, 10)}`, tone: expiry.tone };
+  return { status: expiry.tone === "urgent" ? "Expired" : `Expires ${storedFileExpiryDay(certification.expiresAt!)}`, tone: expiry.tone };
 }
 
 function certificationFiles(certifications: PrismSupplierCertification[], now: Date): SupplierLibraryFile[] {

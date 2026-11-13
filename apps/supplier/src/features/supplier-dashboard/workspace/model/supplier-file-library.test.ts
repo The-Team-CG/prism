@@ -70,5 +70,8 @@ describe("supplier file library", () => {
     // The supplier can send a newer file for a requirement PMCM has not approved, from its current file only.
     expect(files.filter((file) => file.replaces).map((file) => [file.name, file.replaces?.key])).toEqual([["insurance-2025.pdf", "insurance"]]);
     expect(supplierFileExpiry("2026-11-30T00:00:00.000Z", new Date("2026-11-14T00:00:00.000Z"))).toEqual({ label: "Expires 2026-11-30", tone: "attention" });
+    // Valid until 25 Nov (stored as midnight UTC): 9am Manila on the 25th is still valid; 00:30 Manila on the 26th is not.
+    expect(supplierFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T01:00:00Z"))).toEqual({ label: "Expires 2026-11-25", tone: "attention" });
+    expect(supplierFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T16:30:00Z"))).toEqual({ label: "Expired 2026-11-25", tone: "urgent" });
   });
 });
