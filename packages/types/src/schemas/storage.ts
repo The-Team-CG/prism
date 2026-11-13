@@ -38,3 +38,25 @@ export type ConfirmStorageUploadInput = z.infer<typeof confirmStorageUploadSchem
 
 export const storageObjectIdSchema = z.object({ objectId: nonEmptyStringSchema });
 export type StorageObjectIdInput = z.infer<typeof storageObjectIdSchema>;
+
+/**
+ * Copy a stored file the actor can read into another event as a new client document, under that event's own
+ * client-upload target. The server moves the bytes; each event keeps its own copy and retention.
+ */
+export const copyStorageObjectSchema = z.object({
+  eventId: nonEmptyStringSchema,
+  logicalTarget: nonEmptyStringSchema,
+}).strict();
+export type CopyStorageObjectInput = z.infer<typeof copyStorageObjectSchema>;
+
+/** The last day a stored document is valid, as a calendar date; null clears it. */
+export const setStorageObjectExpirySchema = z.object({
+  expiresAt: z.iso.date().nullable(),
+}).strict();
+export type SetStorageObjectExpiryInput = z.infer<typeof setStorageObjectExpirySchema>;
+
+/** Search the signed-in client's stored files across all of their events by file name; an empty query lists the newest. */
+export const searchClientStoredFilesQuerySchema = z.object({
+  query: z.string().trim().max(100).optional().default(""),
+}).strict();
+export type SearchClientStoredFilesQuery = z.infer<typeof searchClientStoredFilesQuerySchema>;

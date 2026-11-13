@@ -118,7 +118,7 @@ export class FileRequirementsMatrixService {
     ]);
     const storedObjectIds = [...new Set(documents.map((document) => document.storageKey).filter((key): key is string => Boolean(key)))];
     const storedObjects = storedObjectIds.length
-      ? await prisma.opsStoredObject.findMany({ where: { id: { in: storedObjectIds } }, select: { id: true, usage: true, lifecycleState: true, ownerRecordType: true, ownerRecordId: true, deletedAt: true } })
+      ? await prisma.opsStoredObject.findMany({ where: { id: { in: storedObjectIds } }, select: { id: true, usage: true, lifecycleState: true, ownerRecordType: true, ownerRecordId: true, deletedAt: true, expiresAt: true } })
       : [];
     const storedObjectById = new Map(storedObjects.map((object) => [object.id, object]));
     const objectAvailability = new Map(storedObjects.map((object) => [object.id, object.lifecycleState === 'stored']));
@@ -128,6 +128,7 @@ export class FileRequirementsMatrixService {
       ...document,
       available: !document.storageKey || objectAvailability.get(document.storageKey) !== false,
       ownerSupplierId: document.storageKey ? objectOwnerSupplier.get(document.storageKey) ?? null : null,
+      expiresAt: document.storageKey ? storedObjectById.get(document.storageKey)?.expiresAt ?? null : null,
     }));
     const suppliers = distinctSuppliers(selectedSupplierRows);
 

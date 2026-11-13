@@ -23,6 +23,8 @@ export interface PrismStoredObject {
   storedAt: string | null;
   failedAt: string | null;
   deletedAt: string | null;
+  /** The last day the document is valid, when it has one (a permit, insurance or registration). */
+  expiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -15,6 +15,7 @@ const SECTION_LINKS: Record<EventSection, { tab: WorkspaceTab; label: string }> 
   changes: { tab: "briefing", label: "Open scope changes" },
   floorplans: { tab: "floorplans", label: "Open floorplans" },
   billing: { tab: "billing", label: "Open billing" },
+  // The files tab opens on the library, with what is waiting for review at the top.
   files: { tab: "files", label: "Open files" },
   live_ops: { tab: "live-ops", label: "Open live operations" },
 };

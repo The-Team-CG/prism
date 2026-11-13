@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,12 +12,22 @@ import { StorageValidationService } from './storage-validation.service';
 const actorSnapshot = { id: 'user_pmcm', role: 'pmcm-admin', name: 'PMCM Admin', explicit: true, verified: true };
 const actor = actorSnapshot as never;
 const client = { id: 'user_client', role: 'client', email: 'client@example.test', name: 'Client', eventId: 'evt_1', explicit: true, verified: true } as never;
+/** The same client signed in to the portal rather than to one event: reads every event they own. */
+const clientAccount = { id: 'user_client', role: 'client', email: 'client@example.test', name: 'Client', explicit: true, verified: true } as never;
 
 function createStore() {
   const objects: Array<Record<string, any>> = [];
   const statements: Array<{ id: string; sentAt: Date | null }> = [];
   const bookings = [{ id: 'req_1', eventId: 'evt_1', supplierId: 'sup_1', status: 'selected', assignmentStatus: 'confirmed' }];
   const now = () => new Date('2026-09-08T00:00:00.000Z');
+  // The Prisma filters the service uses: equality (including null), `in`, `not` and `lt`.
+  const matches = (object: Record<string, any>, where: Record<string, any>) => Object.entries(where).every(([key, condition]) => {
+    if (condition === null || typeof condition !== 'object' || condition instanceof Date) return (object[key] ?? null) === condition;
+    if ('in' in condition) return condition.in.includes(object[key]);
+    if ('lt' in condition) return object[key] instanceof Date && object[key].getTime() < condition.lt.getTime();
+    if ('not' in condition) return (object[key] ?? null) !== condition.not;
+    return true;
+  });
   const prisma = {
     opsStoredObject: {
       findUnique: vi.fn(async ({ where }: { where: Record<string, any> }) => {
@@ -43,7 +53,7 @@ function createStore() {
           hits.forEach((candidate) => Object.assign(candidate, data, { updatedAt: now() }));
           return { count: hits.length };
         }
-        const object = objects.find((candidate) => Object.entries(where).every(([key, value]) => candidate[key] === value));
+        const object = objects.find((candidate) => matches(candidate, where));
         if (!object) return { count: 0 };
         Object.assign(object, data, { updatedAt: now() });
         return { count: 1 };
@@ -53,7 +63,7 @@ function createStore() {
         if (!object) throw new Error('object missing');
         return object;
       }),
-      findMany: vi.fn(async ({ where }: { where: { eventId?: string; id?: { in: string[] } } }) => objects.filter((object) => (where.id ? where.id.in.includes(object.id) : object.eventId === where.eventId))),
+      findMany: vi.fn(async ({ where }: { where: Record<string, any> }) => objects.filter((object) => matches(object, where))),
     },
     opsEvent: {
       findUnique: vi.fn(async () => ({ id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] as Array<{ supplierId: string; supplier: { email: string } }> })),
@@ -82,11 +92,17 @@ function createStore() {
   // The real policy: assignment, booking, and portal gates are what these tests exercise.
   const accessPolicy = new EventAccessPolicyService(auditWriter as never);
   const platformReferences = {
-    findStorageEventScope: vi.fn(async (eventId: string) => eventId === 'evt_1' ? ({
-      id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test',
-      coordinatorAssignments,
-      supplierQuoteRequests: bookings.map((booking) => ({ supplierId: booking.supplierId, status: booking.status, supplier: { email: 'supplier@example.test' } })),
-    }) : null),
+    findStorageEventScope: vi.fn(async (eventId: string) => {
+      // evt_1 and evt_2 belong to the same client; evt_3 belongs to someone else.
+      const owners: Record<string, string> = { evt_1: 'client@example.test', evt_2: 'client@example.test', evt_3: 'other@example.test' };
+      if (!owners[eventId]) return null;
+      return {
+        id: eventId, archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', clientEmail: owners[eventId],
+        coordinatorAssignments: eventId === 'evt_1' ? coordinatorAssignments : [],
+        supplierQuoteRequests: eventId === 'evt_1' ? bookings.map((booking) => ({ supplierId: booking.supplierId, status: booking.status, supplier: { email: 'supplier@example.test' } })) : [],
+      };
+    }),
+    findClientEventIds: vi.fn(async (email: string) => (email === 'client@example.test' ? ['evt_2', 'evt_1'] : [])),
     findFileRequirementVisibility: vi.fn(async () => requirementVisibility),
     supplierMayUploadRequirement: vi.fn(async (_eventId: string, key: string) => key === 'insurance'),
     findStoredObjectRequirementBindings: vi.fn(async () => []),
@@ -836,5 +852,105 @@ describe('file access: lists and downloads follow one policy', () => {
     expect(coordinatorList.every((object) => !('providerObjectKey' in object) && !('failureReason' in object))).toBe(true);
     expect((await service.listEventObjects('evt_1', actor)).find((object) => object.id === 'obj_failed'))
       .toMatchObject({ failureReason: 'provider timeout', providerObjectKey: 'events/evt_1/retry.pdf' });
+  });
+
+  describe('client files across events', () => {
+    const target = (eventId: string) => `client-upload:${eventId}:${randomUUID()}`;
+
+    async function storeClientFile(service: StorageObjectService, eventId: string, fileName: string) {
+      const requested = await service.requestUpload({ eventId, ownerRecordType: 'event', ownerRecordId: eventId, logicalTarget: target(eventId), usage: 'client_document', fileName, contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
+      if (requested.status !== 'ready') throw new Error('expected upload location');
+      await service.writeAuthorizedUpload({ objectId: requested.object.id, uploadUrl: requested.location.uploadUrl, bytes, actor: clientAccount });
+      return service.confirmUpload({ objectId: requested.object.id, byteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
+    }
+
+    async function localService() {
+      const root = await mkdtemp(join(tmpdir(), 'prism-storage-copy-'));
+      roots.push(root);
+      const adapter = new LocalFileSystemStorageAdapter(root);
+      const store = createStore();
+      return { store, adapter, service: new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never, store.auditWriter as never) };
+    }
+
+    it("copies a client's file into another of their events as that event's own document, once per target", async () => {
+      const { service, adapter, store } = await localService();
+      const source = await storeClientFile(service, 'evt_1', 'venue-permit.pdf');
+      const logicalTarget = target('evt_2');
+
+      const copy = await service.copyToClientEvent({ sourceObjectId: source.id, eventId: 'evt_2', logicalTarget, actor: clientAccount });
+      const again = await service.copyToClientEvent({ sourceObjectId: source.id, eventId: 'evt_2', logicalTarget, actor: clientAccount });
+
+      expect(copy).toMatchObject({ eventId: 'evt_2', usage: 'client_document', lifecycleState: 'stored', originalFileName: 'venue-permit.pdf', uploaderActorRole: 'client' });
+      expect(copy.id).not.toBe(source.id);
+      expect(copy).not.toHaveProperty('providerObjectKey');
+      expect(again.id).toBe(copy.id);
+      const authorization = await service.issueDownloadAuthorization({ objectId: copy.id, actor: clientAccount });
+      await expect(adapter.readBytes(authorization.downloadUrl)).resolves.toEqual(bytes);
+      const copied = store.auditWriter.write.mock.calls.map(([audit]) => audit as Record<string, any>).filter((audit) => audit.metadata?.storageAction === 'copied');
+      expect(copied).toEqual([expect.objectContaining({ eventId: 'evt_2', metadata: expect.objectContaining({ sourceObjectId: source.id, sourceEventId: 'evt_1' }) })]);
+      expect(JSON.stringify(copied)).not.toContain('events/evt_1/');
+    });
+
+    it('lets the sender or PMCM date a file, carries the date onto a copy, and refuses anyone else', async () => {
+      const { service, store } = await localService();
+      const source = await storeClientFile(service, 'evt_1', 'venue-permit.pdf');
+
+      await expect(service.setObjectExpiry({ objectId: source.id, expiresAt: '2026-12-31', actor: clientAccount })).resolves.toMatchObject({ expiresAt: '2026-12-31T00:00:00.000Z' });
+      const copy = await service.copyToClientEvent({ sourceObjectId: source.id, eventId: 'evt_2', logicalTarget: target('evt_2'), actor: clientAccount });
+      expect(copy.expiresAt).toBe('2026-12-31T00:00:00.000Z');
+
+      const someoneElse = { id: 'user_other_client', role: 'client', email: 'client@example.test', name: 'Other', explicit: true, verified: true } as never;
+      await expect(service.setObjectExpiry({ objectId: source.id, expiresAt: null, actor: someoneElse })).rejects.toThrow(ForbiddenException);
+      await expect(service.setObjectExpiry({ objectId: source.id, expiresAt: null, actor })).resolves.toMatchObject({ expiresAt: null });
+      const dated = store.auditWriter.write.mock.calls.map(([audit]) => audit as Record<string, any>).filter((audit) => audit.metadata?.storageAction === 'expiry_set');
+      expect(dated.map((audit) => audit.metadata.expiresAt)).toEqual(['2026-12-31', null]);
+    });
+
+    it('removes uploads left unfinished for three days, leaves recent and stored ones, and still lets a retry resume', async () => {
+      const { service, store } = await localService();
+      const stored = await storeClientFile(service, 'evt_1', 'kept.pdf');
+      const abandonedTarget = target('evt_1');
+      const abandoned = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: abandonedTarget, usage: 'client_document', fileName: 'never-sent.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
+      const recent = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: target('evt_1'), usage: 'client_document', fileName: 'still-uploading.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
+      store.objects.find((object) => object.id === recent.object.id)!.updatedAt = new Date('2026-09-11T00:00:00.000Z');
+      store.objects.push({ ...store.objects.find((object) => object.id === abandoned.object.id)!, id: 'obj_failed', logicalTarget: target('evt_1'), lifecycleState: 'failed', failureReason: 'Storage provider could not issue an upload location', providerObjectKey: null });
+
+      await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(2);
+      const state = (id: string) => store.objects.find((object) => object.id === id)?.lifecycleState;
+      expect([state(abandoned.object.id), state('obj_failed'), state(recent.object.id), state(stored.id)]).toEqual(['deleted', 'deleted', 'requested', 'stored']);
+      const removed = store.auditWriter.write.mock.calls.map(([audit]) => audit as Record<string, any>).filter((audit) => audit.metadata?.storageAction === 'abandoned_removed');
+      expect(removed).toHaveLength(2);
+      await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(0);
+
+      // The client tries the same upload again later: it starts over instead of being refused.
+      const retried = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: abandonedTarget, usage: 'client_document', fileName: 'never-sent.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
+      expect(retried).toMatchObject({ status: 'ready', object: { id: abandoned.object.id, lifecycleState: 'requested' } });
+    });
+
+    it("refuses a copy into someone else's event, under another event's target, or of a file the client cannot download", async () => {
+      const { service, store } = await localService();
+      const source = await storeClientFile(service, 'evt_1', 'venue-permit.pdf');
+      store.statements.push({ id: 'bill_unsent', sentAt: null });
+      store.objects.push({ ...store.objects[0], id: 'obj_unsent', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_unsent', usage: 'event_deliverable', logicalTarget: 'billing-statement:bill_unsent' });
+
+      await expect(service.copyToClientEvent({ sourceObjectId: source.id, eventId: 'evt_3', logicalTarget: target('evt_3'), actor: clientAccount })).rejects.toThrow(ForbiddenException);
+      await expect(service.copyToClientEvent({ sourceObjectId: source.id, eventId: 'evt_2', logicalTarget: target('evt_1'), actor: clientAccount })).rejects.toThrow(ForbiddenException);
+      await expect(service.copyToClientEvent({ sourceObjectId: 'obj_unsent', eventId: 'evt_2', logicalTarget: target('evt_2'), actor: clientAccount })).rejects.toThrow(NotFoundException);
+      expect(store.objects.filter((object) => object.eventId === 'evt_2' || object.eventId === 'evt_3')).toHaveLength(0);
+    });
+
+    it("searches only the client's own events by file name, and only within the event an event-scoped session names", async () => {
+      const { service, store } = await localService();
+      await storeClientFile(service, 'evt_1', 'Venue-Permit-2025.pdf');
+      await storeClientFile(service, 'evt_2', 'venue-permit-2026.pdf');
+      await storeClientFile(service, 'evt_2', 'menu.pdf');
+      store.objects.push({ ...store.objects[0], id: 'obj_foreign', eventId: 'evt_3', originalFileName: 'venue-permit-other-client.pdf' });
+
+      const matches = await service.searchClientObjects(clientAccount, ' PERMIT ');
+      expect(matches.map((object) => object.originalFileName).sort()).toEqual(['Venue-Permit-2025.pdf', 'venue-permit-2026.pdf']);
+      expect((await service.searchClientObjects(clientAccount, '')).map((object) => object.eventId).sort()).toEqual(['evt_1', 'evt_2', 'evt_2']);
+      expect((await service.searchClientObjects(client, 'permit')).map((object) => object.eventId)).toEqual(['evt_1']);
+      await expect(service.searchClientObjects(actor, 'permit')).rejects.toThrow(ForbiddenException);
+    });
   });
 });

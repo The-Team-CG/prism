@@ -1,4 +1,4 @@
-import { getStorageObjectDownload, uploadStorageObject } from '@prism/api-client';
+import { getStorageObjectDownload, setStorageObjectExpiry, uploadStorageObject } from '@prism/api-client';
 import { eventOpsClient } from '@/lib/prism-api';
 import type {
   PrismAuthenticatedSession,
@@ -124,6 +124,10 @@ export const supplierWorkflowRepository = {
 
   updateCreativeProgress(session: PrismAuthenticatedSession, taskId: string, note: string) {
     return eventOpsClient.supplierWorkflows.updateCreativeProgress(taskId, { note });
+  },
+
+  setExpiry(session: PrismAuthenticatedSession, objectId: string, expiresAt: string | null) {
+    return setStorageObjectExpiry(objectId, { expiresAt }, { authToken: session.accessToken });
   },
 
   download(session: PrismAuthenticatedSession, objectId: string) {

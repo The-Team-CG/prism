@@ -6,6 +6,7 @@ import {
   quoteSubmitSuccessNotice,
 } from "../model/supplier-workspace-rules";
 import type { PrismAuthenticatedSession, PrismFileRequirementsMatrix, PrismSupplierQuote, PrismSupplierQuoteRequest } from "@prism/types";
+import { parseContract, setStorageObjectExpirySchema } from "@prism/types";
 import type { PrismSupplier, QuoteFormState, SupplierWorkspace } from "../model/supplier-workspace-types";
 
 export function loadSupplierDashboardSession(): PrismAuthenticatedSession | null {
@@ -39,6 +40,17 @@ export async function loadSupplierFileRequirements(
 }
 export function uploadSupplierFileRequirement(session: PrismAuthenticatedSession, supplier: PrismSupplier, eventId: string, key: string, file: File) {
   return supplierWorkflowRepository.uploadRequirement(session, supplier, eventId, key, file);
+}
+
+/** Dates one of this supplier's own files, checked against the shared contract first. */
+export function setSupplierFileExpiry(session: PrismAuthenticatedSession, objectId: string, expiresAt: string | null) {
+  const input = parseContract(setStorageObjectExpirySchema, { expiresAt }, "Valid until");
+  return supplierWorkflowRepository.setExpiry(session, objectId, input.expiresAt);
+}
+
+/** One of this supplier's stored files, for a preview in the page. */
+export function loadSupplierStoredFile(session: PrismAuthenticatedSession, objectId: string) {
+  return supplierWorkflowRepository.download(session, objectId);
 }
 
 export async function submitOrReviseQuote(input: {

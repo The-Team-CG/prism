@@ -9,6 +9,8 @@ import { STORED_REQUIREMENT_UPLOAD_READER, type StoredRequirementUploadReader, t
 import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 import {
   DERIVED_FILE_REQUIREMENT_KEYS,
+  storedFileExpiryDay,
+  storedFileExpiryState,
   type CreateFileRequirementInput,
   type FileRequirementTemplateItemInput,
   type PrismFileRequirementItem,
@@ -16,7 +18,7 @@ import {
   type UpsertFileRequirementTemplateInput,
   type UpdateFileRequirementInput,
   type BindFileRequirementUploadInput,
-  type ReviewSupplierRequirementInput,
+  type ReviewRequirementFileInput,
 } from '@prism/types';
 import type { FileRequirementCommands, FileRequirementReminder, FileRequirementReminderReason } from '../../contracts/file-requirement-commands.port';
 import { FileRequirementsMatrixService } from './file-requirements-matrix.service';
@@ -72,11 +74,54 @@ function overridePatch(input: UpdateFileRequirementInput, current: PrismFileRequ
   return next;
 }
 
-/** Names only the requirement and the date or upload: the message never names another supplier. */
+const REMINDER_MESSAGES: Record<FileRequirementReminderReason, (label: string, date: string) => string> = {
+  overdue: (label, date) => `Required file "${label}" is overdue (due ${date}). Upload it in the event file hub.`,
+  rejected: (label) => `Required file "${label}" was rejected. Upload a replacement in the event file hub.`,
+  expiring: (label, date) => `Required file "${label}" expires on ${date}. Upload a current one in the event file hub.`,
+  expired: (label, date) => `Required file "${label}" expired on ${date}. Upload a current one in the event file hub.`,
+};
+
+/** Names only the requirement and the date or upload: the message never names another supplier. Dated anchors start with the date. */
 function reminderMessage(reason: FileRequirementReminderReason, label: string, anchor: string) {
-  return reason === 'overdue'
-    ? `Required file "${label}" is overdue (due ${anchor.slice(0, 10)}). Upload it in the event file hub.`
-    : `Required file "${label}" was rejected. Upload a replacement in the event file hub.`;
+  return REMINDER_MESSAGES[reason](label, anchor.slice(0, 10));
+}
+
+/**
+ * A file that was sent and not rejected but stops being valid soon, or already has, judged by Philippine calendar day.
+ * The anchor carries the date and the file, so each warning is sent once, and again only if the file or its date changes.
+ */
+function expiryReason(objectId: string | undefined, status: string, expiries: ReadonlyMap<string, Date>, now: Date): [FileRequirementReminderReason, string] | null {
+  const expiresAt = objectId && status !== 'missing' ? expiries.get(objectId) : undefined;
+  if (!expiresAt) return null;
+  const state = storedFileExpiryState(expiresAt, now);
+  if (state === 'valid') return null;
+  return [state, `${storedFileExpiryDay(expiresAt)}:${objectId}`];
+}
+
+/** The files currently standing for each requirement: the single owner's latest, or each supplier's latest. */
+function currentFileIds(items: PrismFileRequirementItem[]) {
+  return items
+    .flatMap((item) => [item.uploadedObjectId, ...(item.supplierFulfilments ?? []).map((fulfilment) => fulfilment.uploadedObjectId)])
+    .filter((objectId): objectId is string => Boolean(objectId));
+}
+
+type ReviewedFileOwner = { role: string; supplierId?: string };
+
+/** Who sent the file PMCM is reviewing. It must still be that owner's latest upload and still waiting for review. */
+function reviewedFileOwner(item: PrismFileRequirementItem, documentId: string): ReviewedFileOwner | undefined {
+  if (item.origin !== 'custom') return undefined;
+  if (item.ownerRole === OpsUserRole.Supplier) {
+    const fulfilment = item.supplierFulfilments?.find((entry) => entry.uploadedAssetId === documentId && entry.status === 'submitted');
+    return fulfilment ? { role: item.ownerRole, supplierId: fulfilment.supplierId } : undefined;
+  }
+  const waiting = item.ownerRole !== OpsUserRole.PmcmAdmin && item.uploadedAssetId === documentId && item.status === 'submitted';
+  return waiting ? { role: item.ownerRole } : undefined;
+}
+
+function reviewMessage(label: string, input: ReviewRequirementFileInput) {
+  return input.decision === 'approve'
+    ? `PMCM approved your file for "${label}".`
+    : `PMCM did not accept your file for "${label}" and needs a replacement. Reason: ${input.reason}`;
 }
 
 /** The upload a PMCM rejected reminder points at: the rejected supplier file for supplier-owned items, else the latest rejected file of the type. */
@@ -214,8 +259,9 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
         return scopedActor;
       }
       await this.requireWritableEvent(eventId, tx);
+      const documentId = `doc_${randomUUID()}`;
       await tx.opsDocument.create({ data: {
-        id: `doc_${randomUUID()}`, eventId, type: key, fileName: object.originalFileName, status: 'submitted',
+        id: documentId, eventId, type: key, fileName: object.originalFileName, status: 'submitted',
         mimeType: object.contentType, sizeBytes: object.declaredByteSize, validationStatus: 'accepted',
         storageBucket: 'prism-storage', storageKey: object.id, uploadedByRole: scopedActor.role, uploadedAt: new Date(),
       } });
@@ -224,6 +270,8 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
         affectedType: 'file_requirement', affectedId: requirement.id, affectedLabel: key,
         metadata: { objectId: object.id, originalFileName: object.originalFileName, uploaderActorRole: object.uploaderActorRole },
       }, { prisma: tx, correlationId: `file-requirement-upload:${eventId}:${key}:${object.id}` });
+      await this.replaceEarlierSubmissions(tx, eventId, key, documentId, scopedActor);
+      if (scopedActor.role !== OpsUserRole.PmcmAdmin) await this.notifyPmcmOfSubmission(tx, eventId, requirement.label, object.originalFileName, documentId, scopedActor);
       return scopedActor;
     });
     const item = await this.itemFor(eventId, key, this.prisma as unknown as Prisma.TransactionClient, { role: responseActor.role, supplierId: responseActor.supplierId });
@@ -233,27 +281,74 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     return scopedItem;
   }
 
-  async reviewSupplierRequirement(eventId: string, key: string, input: ReviewSupplierRequirementInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
+  /**
+   * A new upload replaces the sender's earlier files that PMCM has not reviewed yet, so only the newest one waits for
+   * review. A supplier's files are matched to that supplier only.
+   */
+  private async replaceEarlierSubmissions(tx: Prisma.TransactionClient, eventId: string, key: string, documentId: string, sender: ResolvedEventOpsActor) {
+    const item = await this.itemFor(eventId, key, tx);
+    const versions = sender.role === OpsUserRole.Supplier
+      ? item.supplierFulfilments?.find((fulfilment) => fulfilment.supplierId === sender.supplierId)?.versions
+      : item.versions;
+    // The history already reads earlier waiting uploads as replaced; the stored status is checked by the update itself.
+    const earlier = (versions ?? []).filter((version) => version.documentId !== documentId).map((version) => version.documentId);
+    if (earlier.length) await tx.opsDocument.updateMany({ where: { id: { in: earlier }, eventId, type: key, status: 'submitted' }, data: { status: 'replaced' } });
+  }
+
+  /** Tells PMCM a client or supplier sent a file to review. */
+  private notifyPmcmOfSubmission(tx: Prisma.TransactionClient, eventId: string, label: string, fileName: string, documentId: string, sender: ResolvedEventOpsActor) {
+    const who = sender.role === OpsUserRole.Client ? 'The client' : sender.role === OpsUserRole.Supplier ? `Supplier ${sender.name}` : sender.name;
+    const idempotencyKey = `file-requirement-submitted:${eventId}:${documentId}`;
+    return writeNotification(this.notificationOutboxWriter, eventId, ROLE_RECIPIENT[OpsUserRole.PmcmAdmin]!, `${who} sent "${fileName}" for "${label}". It is waiting for your review.`, undefined,
+      { idempotencyKey, correlationId: idempotencyKey, action: { kind: 'event_section', eventId, section: 'files' } },
+      { prisma: tx, correlationId: idempotencyKey });
+  }
+
+  async reviewRequirementFile(eventId: string, key: string, input: ReviewRequirementFileInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {
     await this.accessPolicy.requireActorRole(actor, [OpsUserRole.PmcmAdmin], MANAGEMENT_RESOURCE, eventId);
     return this.writeRequirement(async (tx) => {
       await this.requireWritableEvent(eventId, tx);
-      const item = await this.itemFor(eventId, key, tx);
-      if (item.origin !== 'custom' || item.ownerRole !== 'supplier' ||
-          !item.supplierFulfilments?.some((entry) => entry.uploadedAssetId === input.documentId && entry.status === 'submitted')) {
-        throw new ConflictException('The submitted supplier file changed; refresh before reviewing');
-      }
+      const owner = reviewedFileOwner(await this.itemFor(eventId, key, tx), input.documentId);
+      if (!owner) throw new ConflictException('The submitted file changed; refresh before reviewing');
       const changed = await tx.opsDocument.updateMany({
         where: { id: input.documentId, eventId, type: key, status: 'submitted' },
         data: { status: input.decision === 'approve' ? 'approved' : 'rejected', rejectionReason: input.decision === 'reject' ? input.reason : null },
       });
-      if (changed.count !== 1) throw new ConflictException('The submitted supplier file changed; refresh before reviewing');
-      await writeAudit(this.auditWriter, eventId, actor.name, 'Reviewed supplier requirement file', {
+      if (changed.count !== 1) throw new ConflictException('The submitted file changed; refresh before reviewing');
+      await writeAudit(this.auditWriter, eventId, actor.name, 'Reviewed requirement file', {
         actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update, category: AuditCategory.Documents,
         affectedType: 'document', affectedId: input.documentId, affectedLabel: key,
-        metadata: { decision: input.decision },
-      }, { prisma: tx, correlationId: `supplier-requirement-review:${input.documentId}` });
-      return this.itemFor(eventId, key, tx);
+        metadata: { decision: input.decision, ownerRole: owner.role },
+      }, { prisma: tx, correlationId: `requirement-file-review:${input.documentId}` });
+      const reviewed = await this.itemFor(eventId, key, tx);
+      await this.notifyReviewedFileOwner(tx, eventId, reviewed, input, owner);
+      return reviewed;
     });
+  }
+
+  /** Tells whoever sent the file what PMCM decided, with the reason on a rejection. */
+  private async notifyReviewedFileOwner(tx: Prisma.TransactionClient, eventId: string, item: PrismFileRequirementItem, input: ReviewRequirementFileInput, owner: ReviewedFileOwner) {
+    const recipient = await this.reviewedFileRecipient(eventId, owner);
+    if (!recipient) return;
+    const anchor = `${eventId}:${item.key}:r${item.revision ?? 0}:${input.documentId}:${recipient.key}`;
+    // A rejection uses the reminder sweep's key, so the sweep does not repeat a notice the decision already sent.
+    const idempotencyKey = `file-requirement-${input.decision === 'approve' ? 'approved' : 'rejected'}:${anchor}`;
+    await writeNotification(this.notificationOutboxWriter, eventId, recipient.address, reviewMessage(item.label, input), undefined,
+      { idempotencyKey, correlationId: idempotencyKey, action: { kind: 'event_section', eventId, section: 'files' } },
+      { prisma: tx, correlationId: idempotencyKey });
+  }
+
+  /** A role owner is addressed by role; a supplier at its own contact, so no other supplier hears about it. */
+  private async reviewedFileRecipient(eventId: string, owner: ReviewedFileOwner): Promise<{ address: string; key: string } | undefined> {
+    if (!owner.supplierId) {
+      const address = ROLE_RECIPIENT[owner.role];
+      return address ? { address, key: owner.role } : undefined;
+    }
+    const contacts = await this.accountContacts.findSelectedSupplierContacts(eventId);
+    const email = contacts.find((contact) => contact.supplierId === owner.supplierId)?.email;
+    if (email) return { address: email, key: `supplier:${owner.supplierId}` };
+    this.logger.warn(`File review notice skipped for ${eventId}: supplier ${owner.supplierId} has no contact email`);
+    return undefined;
   }
 
   private isRequirementUploadOwner(object: StoredRequirementUploadReference, eventId: string, actor: ResolvedEventOpsActor) {
@@ -405,7 +500,7 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     const [matrix, rejectedDocuments, supplierContacts] = await Promise.all([
       this.matrix.buildForEvent(eventId, this.prisma, now),
       this.prisma.opsDocument.findMany({
-        where: { eventId, validationStatus: 'rejected' },
+        where: { eventId, OR: [{ validationStatus: 'rejected' }, { status: 'rejected' }] },
         orderBy: [{ uploadedAt: 'desc' }, { id: 'asc' }],
         select: { id: true, type: true },
         take: 200,
@@ -415,17 +510,28 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     const rejectedByType = new Map<string, string>();
     rejectedDocuments.forEach((document) => { if (!rejectedByType.has(document.type)) rejectedByType.set(document.type, document.id); });
     const emailBySupplier = new Map(supplierContacts.map(({ supplierId, email }) => [supplierId, email]));
+    const required = matrix.items.filter((candidate) => candidate.required);
+    const expiries = await this.storedRequirementUploads.findStoredFileExpiries({ eventId, objectIds: currentFileIds(required) });
     const reminders: FileRequirementReminder[] = [];
-    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one event's required items, each with at most two reasons.
-    for (const item of matrix.items.filter((candidate) => candidate.required)) {
-      reminders.push(...await this.queueFulfilmentReminders(eventId, item, emailBySupplier));
-      const reasons: Array<[FileRequirementReminderReason, string]> = [];
-      if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
-      const rejectedId = rejectedAnchor(item, rejectedByType);
-      if (rejectedId) reasons.push(['rejected', rejectedId]);
-      for (const [reason, anchor] of reasons) reminders.push(...await this.queueReminder(eventId, item, reason, anchor));
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one event's required items, each with at most three reasons.
+    for (const item of required) {
+      reminders.push(...await this.queueFulfilmentReminders(eventId, item, emailBySupplier, expiries, now));
+      for (const [reason, anchor] of this.requirementReasons(item, rejectedByType, expiries, now)) {
+        reminders.push(...await this.queueReminder(eventId, item, reason, anchor));
+      }
     }
     return reminders;
+  }
+
+  /** Why a requirement owned by a single role needs a reminder: overdue, rejected, or its file expiring or expired. */
+  private requirementReasons(item: PrismFileRequirementItem, rejectedByType: Map<string, string>, expiries: ReadonlyMap<string, Date>, now: Date) {
+    const reasons: Array<[FileRequirementReminderReason, string]> = [];
+    if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
+    const rejectedId = rejectedAnchor(item, rejectedByType);
+    if (rejectedId) reasons.push(['rejected', rejectedId]);
+    const expiry = item.supplierFulfilments ? null : expiryReason(item.uploadedObjectId, item.status, expiries, now);
+    if (expiry) reasons.push(expiry);
+    return reasons;
   }
 
   async sendReminders(eventId: string, actor: ResolvedEventOpsActor, now = new Date()): Promise<{ reminders: FileRequirementReminder[] }> {
@@ -437,15 +543,17 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
   }
 
   /** Supplier-owned items remind each affected supplier at its own contact; a satisfied, unrejected supplier gets nothing. */
-  private async queueFulfilmentReminders(eventId: string, item: PrismFileRequirementItem, emailBySupplier: Map<string, string | null>) {
+  private async queueFulfilmentReminders(eventId: string, item: PrismFileRequirementItem, emailBySupplier: Map<string, string | null>, expiries: ReadonlyMap<string, Date>, now: Date) {
     const reminders: FileRequirementReminder[] = [];
-    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one fulfilment per selected supplier, each with at most two reasons.
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one fulfilment per selected supplier, each with at most three reasons.
     for (const fulfilment of item.supplierFulfilments ?? []) {
       const email = emailBySupplier.get(fulfilment.supplierId) ?? null;
       if (fulfilment.overdue && item.dueDate) reminders.push(...await this.queueSupplierReminder(eventId, item, 'overdue', item.dueDate, fulfilment.supplierId, email));
       if ((fulfilment.validationStatus === 'rejected' || fulfilment.reviewReason) && fulfilment.uploadedAssetId) {
         reminders.push(...await this.queueSupplierReminder(eventId, item, 'rejected', fulfilment.uploadedAssetId, fulfilment.supplierId, email));
       }
+      const expiry = expiryReason(fulfilment.uploadedObjectId, fulfilment.status, expiries, now);
+      if (expiry) reminders.push(...await this.queueSupplierReminder(eventId, item, expiry[0], expiry[1], fulfilment.supplierId, email));
     }
     return reminders;
   }

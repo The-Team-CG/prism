@@ -98,6 +98,21 @@ function sameUploadContent(object: OpsStoredObject, input: StorageServiceRequest
     object.checksumSha256 === declaration.checksumSha256 && object.eventId === input.eventId;
 }
 
+/** An account-wide client file search returns at most this many matches. */
+const CLIENT_FILE_SEARCH_LIMIT = 100;
+
+/** An upload left requested or failed this long is abandoned. */
+const ABANDONED_UPLOAD_DAYS = 3;
+const ABANDONED_UPLOAD_BATCH = 200;
+const ABANDONED_UPLOAD_CLEANUP_ACTOR: ResolvedEventOpsActor = {
+  id: 'system:abandoned-upload-cleanup',
+  role: OpsUserRole.System,
+  name: 'Abandoned upload cleanup',
+  email: 'system@prism.local',
+  explicit: true,
+  verified: true,
+};
+
 @Injectable()
 export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader, StoredReceiptEvidenceReader, GuestFeedbackMediaStore {
   constructor(
@@ -130,6 +145,15 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       originalFileName: object.originalFileName, contentType: object.contentType, declaredByteSize: object.declaredByteSize,
       uploaderActorId: object.uploaderActorId, uploaderActorRole: object.uploaderActorRole,
     };
+  }
+
+  async findStoredFileExpiries(input: { eventId: string; objectIds: string[] }): Promise<Map<string, Date>> {
+    if (input.objectIds.length === 0) return new Map();
+    const objects = await this.prisma.opsStoredObject.findMany({
+      where: { id: { in: input.objectIds }, eventId: input.eventId, lifecycleState: 'stored', expiresAt: { not: null } },
+      select: { id: true, expiresAt: true },
+    });
+    return new Map(objects.map((object) => [object.id, object.expiresAt!]));
   }
 
   async findConfirmedReceiptEvidence(input: { eventId: string; receiptId: string; objectId: string }): Promise<StoredReceiptEvidence | null> {
@@ -401,7 +425,9 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
         }
         return { status: 'ready', object: this.mapObject(current), location };
       }
-      if (current.lifecycleState !== 'failed') throw new ConflictException('Only a failed storage request can be resumed');
+      // An upload that never finished may have been cleaned up; retrying it starts the same request again.
+      const abandoned = current.lifecycleState === 'deleted' && !current.storedAt;
+      if (current.lifecycleState !== 'failed' && !abandoned) throw new ConflictException('Only a failed storage request can be resumed');
       const replaced = await prisma.opsStoredObject.update({ where: { id: current.id }, data: { lifecycleState: 'requested', providerName: location.providerName, providerObjectKey: location.providerObjectKey, failureReason: null, failedAt: null, deletedAt: null, requestedAt: new Date() } });
       return { status: 'ready', object: this.mapObject(replaced), location };
     }, context);
@@ -656,14 +682,133 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     });
     const contextFor = await this.readAccessContexts(actor, eventId, objects);
     const permitted = objects.filter((object) => canListStoredObject(actor, object, contextFor(object)));
-    const privileged = actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System;
-    return permitted.map((object) => {
-      const mapped = this.mapObject(object);
-      if (privileged) return mapped;
-      // Provider keys, uploader ids, and failure detail stay with PMCM.
-      const { uploaderActorId: _uploader, providerName: _provider, providerObjectKey: _key, failureReason: _failure, ...visible } = mapped;
-      return visible;
+    return permitted.map((object) => this.presentForActor(actor, this.mapObject(object)));
+  }
+
+  /** Provider keys, uploader ids, and failure detail stay with PMCM. */
+  private presentForActor(actor: ResolvedEventOpsActor, mapped: PrismStoredObject): PrismStoredObject {
+    if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return mapped;
+    const { uploaderActorId: _uploader, providerName: _provider, providerObjectKey: _key, failureReason: _failure, ...visible } = mapped;
+    return visible;
+  }
+
+  /**
+   * The signed-in client's stored files across their own events, matching a file name (newest first). Each event is
+   * read through the same rules as its own file list, so requirement visibility and unsent billing still apply.
+   */
+  async searchClientObjects(actor: ResolvedEventOpsActor, query: string): Promise<PrismStoredObject[]> {
+    await this.accessPolicy.requireActorRole(actor, [OpsUserRole.Client], 'search client files');
+    if (!this.platformReferences) throw new ServiceUnavailableException('Event access read model is unavailable');
+    const owned = await this.platformReferences.findClientEventIds(actor.email ?? '');
+    const eventIds = actor.eventId ? owned.filter((eventId) => eventId === actor.eventId) : owned;
+    const needle = query.trim().toLowerCase();
+    const matches: PrismStoredObject[] = [];
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: bounded by the read model's cap on a client's events; each event keeps its own read rules.
+    for (const eventId of eventIds) {
+      const objects = await this.listEventObjects(eventId, actor);
+      matches.push(...objects.filter((object) => object.lifecycleState === 'stored' && object.originalFileName.toLowerCase().includes(needle)));
+    }
+    return matches.sort((left, right) => String(right.storedAt ?? '').localeCompare(String(left.storedAt ?? ''))).slice(0, CLIENT_FILE_SEARCH_LIMIT);
+  }
+
+  /**
+   * Copies a stored file the actor may download into another event as a new client document. The source passes the
+   * download checks and the copy passes the same checks, validation and idempotency as a client upload to that
+   * event; the server moves the bytes, so nothing passes through the browser.
+   */
+  async copyToClientEvent(input: { sourceObjectId: string; eventId: string; logicalTarget: string; actor: ResolvedEventOpsActor }): Promise<PrismStoredObject> {
+    const source = await this.prisma.opsStoredObject.findUnique({ where: { id: input.sourceObjectId } });
+    if (!source || source.lifecycleState !== 'stored') throw new NotFoundException('Stored object not found');
+    this.assertSupportedOwner(source.ownerRecordType, source.usage);
+    const reader = await this.authorizeEvent(source.eventId, input.actor, source.usage as StorageServiceRequest['usage'], 'download storage object');
+    await this.assertBillingStatementSent(reader, source);
+    await this.assertCanDownload(reader, source, 'copy storage object');
+    const requested = await this.requestUploadThroughOwnerCapability({
+      eventId: input.eventId, ownerRecordType: 'event', ownerRecordId: input.eventId, logicalTarget: input.logicalTarget, usage: 'client_document',
+      fileName: source.originalFileName, contentType: source.contentType, declaredByteSize: source.declaredByteSize, checksumSha256: source.checksumSha256,
+      actor: input.actor,
     });
+    if (requested.status === 'stored') return this.presentForActor(input.actor, requested.object);
+    if (requested.status === 'failed') throw new ServiceUnavailableException(requested.reason);
+    const bytes = await this.readProviderBytes(source);
+    await this.writeProviderBytes(requested.location, source.contentType, bytes);
+    // A copy is the same document, so it stays valid only as long as the original.
+    const copy = source.expiresAt
+      ? await this.prisma.opsStoredObject.update({ where: { id: requested.object.id }, data: { expiresAt: source.expiresAt } })
+      : await this.prisma.opsStoredObject.findUniqueOrThrow({ where: { id: requested.object.id } });
+    const confirmation = await this.confirmWithAdapter(copy, { objectId: copy.id, checksumSha256: source.checksumSha256, byteSize: source.declaredByteSize, bytes, actor: input.actor });
+    const stored = await this.persistStored(copy, confirmation, input.actor);
+    await this.auditStorageAction(input.actor, copy, 'Copied file from another event', AuditActionType.Upload, 'copied', { sourceObjectId: source.id, sourceEventId: source.eventId });
+    return this.presentForActor(input.actor, stored);
+  }
+
+  /**
+   * Sets or clears the last day a stored document is valid. PMCM may date any file on an event it can read; anyone
+   * else only a file they uploaded themselves, on an event they can still read.
+   */
+  async setObjectExpiry(input: { objectId: string; expiresAt: string | null; actor: ResolvedEventOpsActor }): Promise<PrismStoredObject> {
+    const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (!object || object.lifecycleState !== 'stored') throw new NotFoundException('Stored object not found');
+    this.assertSupportedOwner(object.ownerRecordType, object.usage);
+    await this.requireActorEventScope(input.actor, object.eventId, 'date storage object');
+    const event = await this.findEvent(object.eventId);
+    const scoped = resolveFileEventScope(input.actor, event);
+    await this.accessPolicy.requireCanReadEvent(scoped.actor, event, 'date storage object', scoped.scope);
+    const pmcm = input.actor.role === OpsUserRole.PmcmAdmin;
+    if (!pmcm && (!input.actor.id || object.uploaderActorId !== input.actor.id)) {
+      await this.accessPolicy.recordForbiddenAccess(input.actor, 'date storage object', object.eventId);
+      throw new ForbiddenException('Only the person who sent this file, or PMCM, can set when it expires');
+    }
+    const saved = await this.prisma.opsStoredObject.update({ where: { id: object.id }, data: { expiresAt: input.expiresAt ? new Date(input.expiresAt) : null } });
+    await this.auditStorageAction(input.actor, saved, input.expiresAt ? 'Set when a stored file expires' : 'Cleared a stored file expiry', AuditActionType.Update, 'expiry_set', { expiresAt: input.expiresAt });
+    return this.presentForActor(input.actor, this.mapObject(saved));
+  }
+
+  /**
+   * Removes uploads that never finished: requested or failed and untouched for ABANDONED_UPLOAD_DAYS. They were never
+   * stored, so nothing can reference them; any partial bytes at the provider are deleted and the record is marked
+   * deleted (a later retry of the same upload can still resume it). Returns how many were removed.
+   */
+  async cleanUpAbandonedUploads(now = new Date()): Promise<number> {
+    const cutoff = new Date(now.getTime() - ABANDONED_UPLOAD_DAYS * 24 * 60 * 60 * 1000);
+    const abandoned = await this.prisma.opsStoredObject.findMany({
+      where: { storedAt: null, updatedAt: { lt: cutoff }, lifecycleState: { in: ['requested', 'failed'] } },
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+      take: ABANDONED_UPLOAD_BATCH,
+    });
+    let removed = 0;
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one bounded batch per sweep; each upload has its own provider bytes to delete.
+    for (const object of abandoned) {
+      if (await this.removeAbandonedUpload(object, cutoff)) removed += 1;
+    }
+    return removed;
+  }
+
+  private async removeAbandonedUpload(object: OpsStoredObject, cutoff: Date) {
+    if (object.providerObjectKey && this.adapter) {
+      await this.adapter.deleteObject({ objectId: object.id, providerObjectKey: object.providerObjectKey }).catch(() => undefined);
+    }
+    // Only if it is still unfinished and untouched: an upload that resumed meanwhile is left alone.
+    const changed = await this.prisma.opsStoredObject.updateMany({
+      where: { id: object.id, storedAt: null, updatedAt: { lt: cutoff }, lifecycleState: { in: ['requested', 'failed'] } },
+      data: { lifecycleState: 'deleted', deletedAt: new Date() },
+    });
+    if (changed.count !== 1) return false;
+    await this.auditStorageAction(ABANDONED_UPLOAD_CLEANUP_ACTOR, { ...object, lifecycleState: 'deleted' }, 'Removed an upload that never finished', AuditActionType.General, 'abandoned_removed', { previousState: object.lifecycleState });
+    return true;
+  }
+
+  /** The stored bytes of an object, read through the provider the way a download would. */
+  private async readProviderBytes(object: OpsStoredObject): Promise<Uint8Array> {
+    if (!this.adapter || !object.providerObjectKey) throw new ServiceUnavailableException('Storage provider is not configured');
+    const authorization = await this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
+    if (authorization.downloadUrl.startsWith('localfs://')) {
+      if (!this.adapter.readAuthorizedDownload) throw new ServiceUnavailableException('This storage provider requires a direct HTTP download');
+      return this.adapter.readAuthorizedDownload(authorization.downloadUrl, object.providerObjectKey);
+    }
+    const response = await fetch(authorization.downloadUrl);
+    if (!response.ok) throw new ServiceUnavailableException('Storage provider could not read the source file');
+    return new Uint8Array(await response.arrayBuffer());
   }
 
   /** Non-PMCM actors never see a billing statement file before PMCM sends the statement. */
@@ -1045,6 +1190,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       storedAt: object.storedAt?.toISOString() ?? null,
       failedAt: object.failedAt?.toISOString() ?? null,
       deletedAt: object.deletedAt?.toISOString() ?? null,
+      expiresAt: object.expiresAt?.toISOString() ?? null,
       createdAt: object.createdAt.toISOString(),
       updatedAt: object.updatedAt.toISOString(),
     };

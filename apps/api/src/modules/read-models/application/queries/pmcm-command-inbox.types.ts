@@ -1,5 +1,6 @@
 import type {
   OpsCoordinatorAssignment,
+  OpsDocument,
   OpsEvent,
   OpsEventDayTask,
   OpsFloorPlanDraft,
@@ -18,4 +19,6 @@ export type PmcmInboxCoordinatorAssignment = Pick<OpsCoordinatorAssignment, 'id'
 export type PmcmInboxFloorPlanDraft = Pick<OpsFloorPlanDraft, 'id' | 'eventId' | 'name' | 'status' | 'updatedAt'>;
 export type PmcmInboxPostEventDocument = Pick<OpsPostEventDocument, 'id' | 'eventId' | 'title' | 'status'>;
 export type PmcmInboxEventDayTask = Pick<OpsEventDayTask, 'id' | 'eventId' | 'title' | 'status' | 'assignedRole' | 'ownerName' | 'blockedReason' | 'dueAt' | 'slaDueAt' | 'slaStatus'>;
+/** A file a client or supplier sent for a requirement that PMCM has not reviewed yet, with the requirement's label. */
+export type PmcmInboxFileReview = Pick<OpsDocument, 'id' | 'eventId' | 'type' | 'fileName' | 'uploadedByRole' | 'uploadedAt'> & { requirementLabel?: string };
 export type PmcmInboxUrgentIssue = Pick<OpsUrgentIssue, 'id' | 'eventId' | 'title' | 'severity' | 'status' | 'slaDueAt' | 'slaStatus' | 'createdAt'>;

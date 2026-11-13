@@ -3,7 +3,7 @@
 import { useResource } from "@prism/portal-query";
 import { FileRequirementsMatrixPanel } from "@/features/files/matrix";
 import { fileSummaryLabel, pmcmFileSummaries } from "@/features/pmcm-overview";
-import { PmcmDocumentHubView } from "@/features/files/hub";
+import { PmcmFileLibraryView } from "@/features/files/library";
 import { EventFileHub } from "./event-file-hub";
 import { EventDestinationPicker } from "./event-destination-picker";
 import { WorkspaceSubTabs } from "./workspace-sub-tabs";
@@ -31,8 +31,8 @@ export function EventDashboardFilesSectionView() {
             <WorkspaceSubTabs
               label="File sections"
               tabs={[
-                { id: "stored", label: "Stored files", render: () => <PmcmDocumentHubView eventId={selectedEvent.id} /> },
-                { id: "required", label: "Required files", render: () => <FileRequirementsMatrixPanel eventId={selectedEvent.id} suppliers={Array.from(new Map(quoteRequests.filter((request) => request.eventId === selectedEvent.id && request.status === "selected" && request.supplierId).map((request) => [request.supplierId!, { supplierId: request.supplierId!, supplierName: request.supplierName }])).values())} /> },
+                { id: "library", label: "Library", render: () => <PmcmFileLibraryView eventId={selectedEvent.id} /> },
+                { id: "required", label: "Requirements", render: () => <FileRequirementsMatrixPanel eventId={selectedEvent.id} suppliers={Array.from(new Map(quoteRequests.filter((request) => request.eventId === selectedEvent.id && request.status === "selected" && request.supplierId).map((request) => [request.supplierId!, { supplierId: request.supplierId!, supplierName: request.supplierName }])).values())} /> },
                 {
                   id: "records",
                   label: "Records by area",

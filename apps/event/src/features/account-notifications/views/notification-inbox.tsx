@@ -14,9 +14,8 @@ export function NotificationInbox({ role }: { role?: string }) {
     <ul className="divide-y divide-border">{vm.rows.map((notice) => {
       const link = pmcmNoticeLink(notice.action, notice.eventId, role);
       return <li key={notice.id} className="py-3">
-        <details onToggle={(event) => { if (event.currentTarget.open) void vm.read(notice); }}>
-          <summary className="cursor-pointer text-sm font-semibold">{notice.message.slice(0, 100)}{notice.message.length > 100 ? '…' : ''}</summary>
-          <p className="mt-2 whitespace-pre-wrap text-sm">{notice.message}</p>
+        <details className="group" onToggle={(event) => { if (event.currentTarget.open) void vm.read(notice); }}>
+          <summary className="cursor-pointer whitespace-pre-wrap text-sm font-semibold line-clamp-2 group-open:line-clamp-none">{notice.message}</summary>
           {notice.readAt ? <p className="mt-1 text-xs text-muted-foreground">Read</p> : null}
           {link ? <a className="mt-2 inline-block text-sm font-semibold text-primary" href={portalHref(link.href)}>{link.label}</a> : null}
           {notice.acknowledgmentDueAt ? <p className="mt-1 text-sm">Acknowledgment due {formatPortalDateTime(notice.acknowledgmentDueAt)}</p> : null}

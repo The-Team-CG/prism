@@ -665,10 +665,13 @@ export class EventReadModelsService {
       ...pageData.postEventDocuments.map((row) => row.eventId),
       ...pageData.eventDayTasks.map((row) => row.eventId),
       ...pageData.urgentIssues.map((row) => row.eventId),
+      ...pageData.fileReviews.map((row) => row.eventId),
     ])];
-    const [events, summary] = await Promise.all([
+    const [events, summary, requirementLabels, superseded] = await Promise.all([
       this.queries.pmcmCommandInboxEventRefs(eventIds),
       this.queries.pmcmCommandInboxSummary(),
+      this.queries.fileRequirementLabels(pageData.fileReviews),
+      this.queries.supersededSupplierFiles(pageData.fileReviews),
     ]);
     const items = collectPmcmCommandInboxItems({
       inquiries: pageData.inquiries,
@@ -680,6 +683,9 @@ export class EventReadModelsService {
       postEventDocuments: pageData.postEventDocuments,
       eventDayTasks: pageData.eventDayTasks,
       urgentIssues: pageData.urgentIssues,
+      fileReviews: pageData.fileReviews
+        .filter((file) => !superseded.has(file.id))
+        .map((file) => ({ ...file, requirementLabel: requirementLabels.get(`${file.eventId}:${file.type}`) })),
     });
 
     return {

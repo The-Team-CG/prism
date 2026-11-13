@@ -1,15 +1,21 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Post, Req, StreamableFile, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Post, Put, Query, Req, StreamableFile, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   confirmStorageUploadSchema,
+  copyStorageObjectSchema,
+  setStorageObjectExpirySchema,
   requestStorageUploadSchema,
+  searchClientStoredFilesQuerySchema,
   type ConfirmStorageUploadInput,
+  type CopyStorageObjectInput,
+  type SetStorageObjectExpiryInput,
+  type SearchClientStoredFilesQuery,
   type RequestStorageUploadInput,
   type PrismVerifiedEventActor,
 } from '@prism/types';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
-import { zodBody } from '@prism/kernel/shared';
+import { zodBody, zodQuery } from '@prism/kernel/shared';
 import { StorageObjectService } from '../../application/storage/storage-object.service';
 
 @Controller('storage/objects')
@@ -26,6 +32,32 @@ export class StorageController {
     @VerifiedEventActor() actor: PrismVerifiedEventActor,
   ) {
     return this.storage.requestUpload({ ...input, actor: this.accessPolicy.resolveEventScopedActor(actor) });
+  }
+
+  /** The signed-in client's files across all of their events, by file name. */
+  @Get('client-files')
+  searchClientFiles(@Query(zodQuery(searchClientStoredFilesQuerySchema)) query: SearchClientStoredFilesQuery, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.storage.searchClientObjects(this.accessPolicy.resolveEventScopedActor(actor), query.query);
+  }
+
+  /** Copies a readable stored file into another event as a new client document; the server moves the bytes. */
+  @Post(':objectId/copies')
+  copyObject(
+    @Param('objectId') objectId: string,
+    @Body(zodBody(copyStorageObjectSchema)) input: CopyStorageObjectInput,
+    @VerifiedEventActor() actor: PrismVerifiedEventActor,
+  ) {
+    return this.storage.copyToClientEvent({ sourceObjectId: objectId, ...input, actor: this.accessPolicy.resolveEventScopedActor(actor) });
+  }
+
+  /** Sets or clears the last day a stored document is valid: PMCM for any file, others for their own uploads. */
+  @Put(':objectId/expiry')
+  setExpiry(
+    @Param('objectId') objectId: string,
+    @Body(zodBody(setStorageObjectExpirySchema)) input: SetStorageObjectExpiryInput,
+    @VerifiedEventActor() actor: PrismVerifiedEventActor,
+  ) {
+    return this.storage.setObjectExpiry({ objectId, expiresAt: input.expiresAt, actor: this.accessPolicy.resolveEventScopedActor(actor) });
   }
 
   @Get('events/:eventId')

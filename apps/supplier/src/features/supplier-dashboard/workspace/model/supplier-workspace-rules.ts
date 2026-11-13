@@ -417,7 +417,7 @@ export function sectionMeta(
     files: {
       eyebrow: "Files",
       title: "Files & documents",
-      description: "Uploaded contract versions, review status, and certification documents.",
+      description: "What PMCM still needs from you, and every file you have sent PMCM.",
     },
     payments: {
       eyebrow: "Payments",

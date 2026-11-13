@@ -1,8 +1,8 @@
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import type { BindFileRequirementUploadInput, CreateFileRequirementInput, PrismFileRequirementItem, PrismFileRequirementTemplate, UpdateFileRequirementInput, UpsertFileRequirementTemplateInput } from '@prism/types';
-import type { ReviewSupplierRequirementInput } from '@prism/types';
+import type { ReviewRequirementFileInput } from '@prism/types';
 
-export type FileRequirementReminderReason = 'overdue' | 'rejected';
+export type FileRequirementReminderReason = 'overdue' | 'rejected' | 'expiring' | 'expired';
 
 export type FileRequirementReminder = {
   eventId: string;
@@ -22,7 +22,7 @@ export interface FileRequirementCommands {
   upsertRequirementTemplate(input: UpsertFileRequirementTemplateInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementTemplate>;
   applyRequirementTemplate(eventId: string, actor: ResolvedEventOpsActor): Promise<{ eventId: string; eventType: string; templateId: string; createdKeys: string[]; skippedExistingCount: number }>;
   bindRequirementUpload(eventId: string, key: string, input: BindFileRequirementUploadInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem>;
-  reviewSupplierRequirement(eventId: string, key: string, input: ReviewSupplierRequirementInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem>;
+  reviewRequirementFile(eventId: string, key: string, input: ReviewRequirementFileInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem>;
   /** Queue-only reminders for required items that are overdue or whose latest file was rejected. */
   runReminderSweep(now?: Date): Promise<{ reminders: FileRequirementReminder[] }>;
 }
