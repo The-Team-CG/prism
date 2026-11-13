@@ -9,6 +9,8 @@ import { STORED_REQUIREMENT_UPLOAD_READER, type StoredRequirementUploadReader, t
 import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 import {
   DERIVED_FILE_REQUIREMENT_KEYS,
+  storedFileExpiryDay,
+  storedFileExpiryState,
   type CreateFileRequirementInput,
   type FileRequirementTemplateItemInput,
   type PrismFileRequirementItem,
@@ -84,19 +86,16 @@ function reminderMessage(reason: FileRequirementReminderReason, label: string, a
   return REMINDER_MESSAGES[reason](label, anchor.slice(0, 10));
 }
 
-/** Warn this long before a sent file stops being valid. */
-const EXPIRY_WARNING_DAYS = 30;
-
 /**
- * A file that was sent and not rejected but stops being valid soon, or already has. The anchor carries the date and
- * the file, so each warning is sent once, and again only if the file or its date changes.
+ * A file that was sent and not rejected but stops being valid soon, or already has, judged by Philippine calendar day.
+ * The anchor carries the date and the file, so each warning is sent once, and again only if the file or its date changes.
  */
 function expiryReason(objectId: string | undefined, status: string, expiries: ReadonlyMap<string, Date>, now: Date): [FileRequirementReminderReason, string] | null {
   const expiresAt = objectId && status !== 'missing' ? expiries.get(objectId) : undefined;
   if (!expiresAt) return null;
-  const anchor = `${expiresAt.toISOString().slice(0, 10)}:${objectId}`;
-  if (expiresAt.getTime() < now.getTime()) return ['expired', anchor];
-  return expiresAt.getTime() - now.getTime() <= EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000 ? ['expiring', anchor] : null;
+  const state = storedFileExpiryState(expiresAt, now);
+  if (state === 'valid') return null;
+  return [state, `${storedFileExpiryDay(expiresAt)}:${objectId}`];
 }
 
 /** The files currently standing for each requirement: the single owner's latest, or each supplier's latest. */

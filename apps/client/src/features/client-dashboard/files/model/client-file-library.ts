@@ -1,4 +1,4 @@
-import type { PrismDocument, PrismFileRequirementItem, PrismStoredObject, PrismSupplierRequirementVersion } from "@prism/types";
+import { storedFileExpiryDay, storedFileExpiryState, type PrismDocument, type PrismFileRequirementItem, type PrismStoredObject, type PrismSupplierRequirementVersion } from "@prism/types";
 import type { ClientPortalView } from "../../workspace/model/client-dashboard-types";
 import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
 import type { ClientRowTone } from "../../shared/client-list-ui";
@@ -77,18 +77,15 @@ export type ClientLibraryFile = {
   expiresAt?: string | null;
 };
 
-/** Warn this long before a document stops being valid. */
-const EXPIRY_WARNING_DAYS = 30;
-
 export type ClientFileExpiry = { label: string; tone: ClientRowTone; expired: boolean };
 
-/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date. */
+/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date (Philippine day). */
 export function clientFileExpiry(expiresAt: string | null | undefined, now = new Date()): ClientFileExpiry | null {
   if (!expiresAt) return null;
-  const date = expiresAt.slice(0, 10);
-  const remaining = new Date(expiresAt).getTime() - now.getTime();
-  if (remaining < 0) return { label: `Expired ${date}`, tone: "urgent", expired: true };
-  if (remaining <= EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000) return { label: `Expires ${date}`, tone: "attention", expired: false };
+  const date = storedFileExpiryDay(expiresAt);
+  const state = storedFileExpiryState(expiresAt, now);
+  if (state === "expired") return { label: `Expired ${date}`, tone: "urgent", expired: true };
+  if (state === "expiring") return { label: `Expires ${date}`, tone: "attention", expired: false };
   return { label: `Valid until ${date}`, tone: "neutral", expired: false };
 }
 
