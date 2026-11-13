@@ -22,50 +22,56 @@ export type ConversationListProps = {
 
 /** The chat list: search, a way to start a conversation, and one row per conversation. */
 export function ConversationList({ threads, viewerId, activeId, query, onQueryChange, loading, error, onOpen, onCompose, className }: ConversationListProps) {
+  const hasToolbar = Boolean(onQueryChange || onCompose);
   return (
     <aside className={cn("min-h-0 min-w-0 flex-col border-border md:border-r", className)}>
-      {onQueryChange || onCompose ? (
-        <div className="flex items-center gap-2 p-3">
-          {onQueryChange ? (
-            <label className="relative block min-w-0 flex-1">
-              <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                value={query ?? ""}
-                onChange={(input) => onQueryChange(input.target.value)}
-                placeholder="Search conversations"
-                aria-label="Search conversations"
-                className="pl-9"
-              />
-            </label>
-          ) : (
-            <span className="flex-1" />
-          )}
-          {onCompose ? (
-            <Button type="button" variant="outline" size="icon" onClick={onCompose} aria-label="New conversation" title="New conversation">
-              <PenSquare />
-            </Button>
-          ) : null}
-        </div>
-      ) : null}
+      {hasToolbar ? <ListToolbar query={query} onQueryChange={onQueryChange} onCompose={onCompose} /> : null}
       {error && threads.length === 0 && !loading ? (
         <p role="alert" className="mx-3 rounded-md bg-danger-soft px-3 py-2 text-xs text-danger">{error}</p>
       ) : null}
-      <ul className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2", onQueryChange || onCompose ? "" : "pt-2")}>
+      <ul className={cn("min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2", hasToolbar ? "" : "pt-2")}>
         {loading ? (
           <ListSkeleton />
         ) : threads.length === 0 ? (
-          <li className="px-3 py-6 text-center text-sm text-muted-foreground">
-            {query ? "No conversation matches." : "No conversations yet."}
-            {!query && onCompose ? (
-              <Button type="button" variant="link" onClick={onCompose} className="mx-auto mt-1 flex text-primary md:hidden">Start a conversation</Button>
-            ) : null}
-          </li>
+          <EmptyList query={query} onCompose={onCompose} />
         ) : (
           threads.map((thread) => <ConversationRow key={thread.id} thread={thread} viewerId={viewerId} active={thread.id === activeId} onOpen={onOpen} />)
         )}
       </ul>
     </aside>
+  );
+}
+
+function ListToolbar({ query, onQueryChange, onCompose }: { query?: string; onQueryChange?: (value: string) => void; onCompose?: () => void }) {
+  return (
+    <div className="flex items-center gap-2 p-3">
+      {onQueryChange ? <SearchField value={query ?? ""} onChange={onQueryChange} /> : <span className="flex-1" />}
+      {onCompose ? (
+        <Button type="button" variant="outline" size="icon" onClick={onCompose} aria-label="New conversation" title="New conversation">
+          <PenSquare />
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+function SearchField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="relative block min-w-0 flex-1">
+      <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input type="search" value={value} onChange={(input) => onChange(input.target.value)} placeholder="Search conversations" aria-label="Search conversations" className="pl-9" />
+    </label>
+  );
+}
+
+function EmptyList({ query, onCompose }: { query?: string; onCompose?: () => void }) {
+  return (
+    <li className="px-3 py-6 text-center text-sm text-muted-foreground">
+      {query ? "No conversation matches." : "No conversations yet."}
+      {!query && onCompose ? (
+        <Button type="button" variant="link" onClick={onCompose} className="mx-auto mt-1 flex text-primary md:hidden">Start a conversation</Button>
+      ) : null}
+    </li>
   );
 }
 
