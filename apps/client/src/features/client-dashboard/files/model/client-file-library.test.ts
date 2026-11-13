@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismDocument, PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
-import { buildClientFileLibrary, clientFileFilterForView, countClientFiles, filterClientLibrary } from "./client-file-library";
+import { buildClientFileLibrary, clientFileFilterForView, clientFileKind, countClientFiles, filterClientLibrary, formatFileSize, sortClientLibrary } from "./client-file-library";
 
 const doc = (id: string, type: string, fileName = `${id}.pdf`, uploadedAt = "2026-10-28T12:00:00Z"): PrismDocument =>
   ({ id, eventId: "event-a", type, fileName, status: "approved", uploadedAt });
@@ -26,18 +26,30 @@ describe("client file library", () => {
     const files = buildClientFileLibrary(
       [
         object("obj_permit", { originalFileName: "permit.pdf" }),
-        object("obj_rejected", { originalFileName: "insurance.pdf" }),
+        object("obj_rejected", { originalFileName: "insurance.pdf", declaredByteSize: 2_500_000 }),
         object("obj_shared", { originalFileName: "Run-of-show.pdf", usage: "event_deliverable", uploaderActorRole: "pmcm-admin" }),
         object("obj_gone", { lifecycleState: "deleted" }),
       ],
       [],
-      [requirement("Venue permit", { uploadedObjectId: "obj_permit" }), requirement("Insurance", { uploadedObjectId: "obj_rejected", validationStatus: "rejected" })],
+      [
+        requirement("Venue permit", { uploadedObjectId: "obj_permit" }),
+        requirement("Insurance", {
+          uploadedObjectId: "obj_rejected",
+          status: "missing",
+          validationStatus: "rejected",
+          reviewReason: "Policy has expired",
+          versions: [{ documentId: "d2", objectId: "obj_rejected", fileName: "insurance.pdf", uploadedAt: "2026-11-02T00:00:00Z", status: "rejected" }],
+        }),
+      ],
     );
     const byId = new Map(files.map((file) => [file.id, file]));
 
     expect(byId.has("obj_gone")).toBe(false);
     expect(byId.get("obj_permit")).toMatchObject({ addedBy: "You", status: "In review", requirementLabel: "Venue permit", objectId: "obj_permit" });
-    expect(byId.get("obj_rejected")).toMatchObject({ status: "Not accepted", tone: "urgent" });
+    expect(byId.get("obj_rejected")).toMatchObject({ status: "Not accepted", tone: "urgent", reviewReason: "Policy has expired", replaceable: true, requirementKey: "Insurance" });
+    expect(byId.get("obj_rejected")?.versions).toHaveLength(1);
+    expect(formatFileSize(byId.get("obj_rejected")?.size)).toBe("2.4 MB");
+    expect(byId.get("obj_permit")).not.toHaveProperty("reviewReason", expect.anything());
     expect(byId.get("obj_shared")).toMatchObject({ addedBy: "PMCM", status: "Shared with you" });
   });
 
@@ -51,5 +63,14 @@ describe("client file library", () => {
     expect(files.map((file) => file.id)).toEqual(["doc_statement", "obj_conforme"]);
     expect(files[1].category).toBe("files-contracts");
     expect(filterClientLibrary(files, "all", "guest").map((file) => file.id)).toEqual(["obj_conforme"]);
+  });
+
+  it("tells file types apart for icons and preview, and sorts by name or date", () => {
+    expect([clientFileKind("plan.PDF"), clientFileKind("photo", "image/jpeg"), clientFileKind("guests.xlsx"), clientFileKind("brief.docx"), clientFileKind("walkthrough.mov"), clientFileKind("archive.zip")])
+      .toEqual(["pdf", "image", "sheet", "document", "video", "other"]);
+
+    const files = buildClientFileLibrary([], [doc("b", "other", "file-10.pdf", "2026-10-01T00:00:00Z"), doc("a", "other", "file-9.pdf", "2026-10-02T00:00:00Z")], []);
+    expect(sortClientLibrary(files, { key: "name", direction: "asc" }).map((file) => file.name)).toEqual(["file-9.pdf", "file-10.pdf"]);
+    expect(sortClientLibrary(files, { key: "date", direction: "asc" }).map((file) => file.id)).toEqual(["b", "a"]);
   });
 });

@@ -1,7 +1,8 @@
 "use client";
 
+import { useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
-import { CheckCircle2, Download, FileSignature, FileText, Files, FolderOpen, LayoutPanelTop, LoaderCircle, ReceiptText, Search, Upload, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Download, FileSignature, FileText, Files, FolderOpen, LayoutPanelTop, LoaderCircle, ReceiptText, Search, Upload, type LucideIcon } from "lucide-react";
 import type { PrismEvent } from "@prism/types";
 import { useResource } from "@prism/portal-query";
 import { Button } from "@prism/ui/components/button";
@@ -14,19 +15,24 @@ import { dashboardHref, formatStatusLabel } from "../../workspace/shared";
 import { ClientListEmpty, type ClientRowTone } from "../../shared/client-list-ui";
 import { clientEventFileRequirements } from "../data/client-file-library-resources";
 import { buildClientDocumentChecklist, clientRequirementReviewLabel, type ClientDocumentChecklistRow } from "../model/client-document-checklist";
-import { CLIENT_FILE_CATEGORIES, type ClientFileFilter, type ClientLibraryFile } from "../model/client-file-library";
+import { CLIENT_FILE_CATEGORIES, formatFileSize, type ClientFileFilter, type ClientFileSort, type ClientLibraryFile } from "../model/client-file-library";
 import { fileRequirementDueSummary } from "../model/file-requirement-due-summary";
 import { useClientFileLibraryViewModel, type ClientFileLibraryViewModel } from "../view-models/use-client-file-library-view-model";
+import { ClientFileKindIcon } from "./client-file-kind-icon";
+import { ClientFilePreviewSheet } from "./client-file-preview-sheet";
 
 const ACCEPTED_FILES = ".pdf,.docx,.xlsx,.jpg,.jpeg,.png";
 
+const SHELF_ICONS: Record<(typeof CLIENT_FILE_CATEGORIES)[number]["id"], LucideIcon> = {
+  "files-contracts": FileSignature,
+  "files-quotations": FileText,
+  "files-invoices-receipts": ReceiptText,
+  "files-event-layouts": LayoutPanelTop,
+};
+
 const SHELVES: ReadonlyArray<{ id: ClientFileFilter; label: string; icon: LucideIcon }> = [
   { id: "all", label: "All files", icon: Files },
-  ...CLIENT_FILE_CATEGORIES.map((category) => ({
-    id: category.id,
-    label: category.label,
-    icon: { "files-contracts": FileSignature, "files-quotations": FileText, "files-invoices-receipts": ReceiptText, "files-event-layouts": LayoutPanelTop }[category.id],
-  })),
+  ...CLIENT_FILE_CATEGORIES.map((category) => ({ id: category.id, label: category.label, icon: SHELF_ICONS[category.id] })),
   { id: "other", label: "Other", icon: FolderOpen },
 ];
 
@@ -41,13 +47,56 @@ function eventMeta(event: PrismEvent) {
   return [formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed", formatStatusLabel(event.status)].join(" · ");
 }
 
+function hasFiles(event: DragEvent) {
+  return Array.from(event.dataTransfer.types).includes("Files");
+}
+
+/** Drag-and-drop for an area: highlights while files hover over it and hands dropped files to `onFiles`. */
+function useFileDrop(onFiles: (files: File[]) => void, enabled: boolean) {
+  const depth = useRef(0);
+  const [over, setOver] = useState(false);
+  if (!enabled) return { over: false, props: {} };
+  return {
+    over,
+    props: {
+      onDragEnter: (event: DragEvent) => {
+        if (!hasFiles(event)) return;
+        event.preventDefault();
+        depth.current += 1;
+        setOver(true);
+      },
+      onDragOver: (event: DragEvent) => {
+        if (hasFiles(event)) event.preventDefault();
+      },
+      onDragLeave: () => {
+        depth.current = Math.max(0, depth.current - 1);
+        if (depth.current === 0) setOver(false);
+      },
+      onDrop: (event: DragEvent) => {
+        if (!hasFiles(event)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        depth.current = 0;
+        setOver(false);
+        onFiles(Array.from(event.dataTransfer.files));
+      },
+    },
+  };
+}
+
 /** What an upcoming event still needs from the client, read from its requirements; nothing for past events. */
 function EventNeedsCount({ eventId }: { eventId: string }) {
   const requirements = useResource(clientEventFileRequirements, eventId);
   if (requirements.status !== "ready") return null;
-  const count = buildClientDocumentChecklist(requirements.data.items, []).rows.filter((row) => row.needsClient).length;
-  if (count === 0) return null;
-  return <span className="shrink-0 text-xs font-medium tabular-nums text-attention" aria-label={`${count} needed from you`}>{count}</span>;
+  const rows = buildClientDocumentChecklist(requirements.data.items, []).rows.filter((row) => row.needsClient);
+  if (rows.length === 0) return null;
+  const urgent = rows.some((row) => row.requirement.overdue || row.requirement.validationStatus === "rejected");
+  return (
+    <span className={cn("shrink-0 text-xs font-medium tabular-nums", urgent ? "text-danger" : "text-attention")} title={`${rows.length} needed from you`}>
+      {rows.length}
+      <span className="sr-only"> needed from you</span>
+    </span>
+  );
 }
 
 function EventRail({ vm }: { vm: ClientFileLibraryViewModel }) {
@@ -116,13 +165,27 @@ function NeededRow({ row, vm }: { row: ClientDocumentChecklistRow; vm: ClientFil
   const { requirement } = row;
   const urgent = requirement.validationStatus === "rejected" || requirement.overdue;
   const replacing = Boolean(row.file) || requirement.validationStatus === "rejected";
+  const drop = useFileDrop((files) => void vm.uploadFiles(files, requirement.key), vm.canUpload && !vm.busy);
   return (
-    <li className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] py-3 pl-3 pr-4", urgent ? "border-l-danger" : "border-l-attention")}>
+    <li
+      {...drop.props}
+      className={cn(
+        "flex flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] py-3 pl-3 pr-4 transition-colors",
+        urgent ? "border-l-danger" : "border-l-attention",
+        drop.over && "bg-primary/5 outline outline-2 -outline-offset-2 outline-primary/40",
+      )}
+    >
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-foreground">{requirement.label}</p>
         <p className={cn("mt-0.5 text-sm", urgent ? "text-danger" : "text-muted-foreground")}>
           {clientRequirementReviewLabel(row)} · {fileRequirementDueSummary(requirement)}
         </p>
+        {requirement.validationStatus === "rejected" && requirement.reviewReason ? (
+          <p className="mt-1 text-sm text-foreground">
+            <span className="text-muted-foreground">PMCM:</span> {requirement.reviewReason}
+          </p>
+        ) : null}
+        {drop.over ? <p className="mt-1 text-xs font-medium text-primary">Drop to send for {requirement.label}</p> : null}
       </div>
       {vm.canUpload ? (
         <Button type="button" size="sm" onClick={() => vm.startUpload(requirement.key)} disabled={vm.busy}>
@@ -148,7 +211,7 @@ function NeededSection({ vm }: { vm: ClientFileLibraryViewModel }) {
     <Card role="region" aria-labelledby="client-files-needed" className="gap-0 overflow-hidden py-0">
       <header className="flex items-baseline justify-between gap-2 border-b border-border px-4 py-3">
         <h3 id="client-files-needed" className="text-sm font-semibold text-foreground">Needed from you</h3>
-        <span className="text-sm tabular-nums text-attention">{vm.needed.length}</span>
+        <span className="hidden text-xs text-muted-foreground sm:inline">Drop a file on an item to send it</span>
       </header>
       <ul className="divide-y divide-border">
         {vm.needed.map((row) => <NeededRow key={row.requirement.key} row={row} vm={vm} />)}
@@ -187,26 +250,37 @@ function Shelves({ vm }: { vm: ClientFileLibraryViewModel }) {
   );
 }
 
-const ROW_GRID = "sm:grid sm:grid-cols-[minmax(0,1fr)_6.5rem_6.5rem_8rem_2.75rem] sm:items-center sm:gap-3";
+const ROW_GRID = "sm:grid sm:grid-cols-[minmax(0,1fr)_5.5rem_6.5rem_4.5rem_7.5rem_2.75rem] sm:items-center sm:gap-3";
+
+function SortHeader({ label, sortKey, sort, onSort }: { label: string; sortKey: ClientFileSort["key"]; sort: ClientFileSort; onSort: (key: ClientFileSort["key"]) => void }) {
+  const active = sort.key === sortKey;
+  const Arrow = sort.direction === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <button type="button" onClick={() => onSort(sortKey)} className={cn("inline-flex items-center gap-1 text-left hover:text-foreground", active && "font-medium text-foreground")} aria-label={`Sort by ${label.toLowerCase()}`}>
+      {label}
+      {active ? <Arrow className="size-3" aria-hidden="true" /> : null}
+    </button>
+  );
+}
 
 function FileRow({ file, vm, eventId }: { file: ClientLibraryFile; vm: ClientFileLibraryViewModel; eventId: string }) {
+  const size = formatFileSize(file.size);
   return (
-    <li className={cn("flex items-center gap-3 px-4 py-2.5", ROW_GRID)}>
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
-          <FileText className="size-4" aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-foreground" title={file.name}>{file.name}</p>
-          <p className="truncate text-xs text-muted-foreground">
+    <li className={cn("flex items-center gap-3 px-4 py-2 transition-colors hover:bg-surface-raised", ROW_GRID)}>
+      <button type="button" onClick={() => vm.openPreview(file.id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-md py-0.5 text-left" aria-label={`Preview ${file.name}`}>
+        <ClientFileKindIcon kind={file.kind} />
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-medium text-foreground" title={file.name}>{file.name}</span>
+          <span className="block truncate text-xs text-muted-foreground">
             {file.requirementLabel ? `For ${file.requirementLabel}` : null}
             <span className="sm:hidden">{file.requirementLabel ? " · " : ""}{file.addedBy} · <span className={STATUS_TONE[file.tone]}>{file.status}</span></span>
-          </p>
-        </div>
-      </div>
+          </span>
+        </span>
+      </button>
       <span className="hidden truncate text-sm text-muted-foreground sm:block">{file.addedBy}</span>
       <span className="hidden text-sm tabular-nums text-muted-foreground sm:block">{file.addedAt ? formatPortalDate(file.addedAt) : "—"}</span>
-      <span className={cn("hidden truncate text-sm sm:block", STATUS_TONE[file.tone])}>{file.status}</span>
+      <span className="hidden text-sm tabular-nums text-muted-foreground sm:block">{size ?? "—"}</span>
+      <span className={cn("hidden truncate text-sm sm:block", STATUS_TONE[file.tone])} title={file.reviewReason}>{file.status}</span>
       {file.objectId ? (
         <button
           type="button"
@@ -228,8 +302,9 @@ function FileRow({ file, vm, eventId }: { file: ClientLibraryFile; vm: ClientFil
 
 function FileTable({ vm, eventId }: { vm: ClientFileLibraryViewModel; eventId: string }) {
   const shelf = SHELVES.find((entry) => entry.id === vm.filter);
+  const drop = useFileDrop((files) => void vm.uploadFiles(files), vm.canUpload && !vm.busy);
   return (
-    <Card role="region" aria-labelledby="client-files-table" className="gap-0 overflow-hidden py-0">
+    <Card {...drop.props} role="region" aria-labelledby="client-files-table" className={cn("relative gap-0 overflow-hidden py-0", drop.over && "outline outline-2 -outline-offset-2 outline-primary/50")}>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <h3 id="client-files-table" className="text-sm font-semibold text-foreground">
           {shelf?.label ?? "All files"} <span className="font-normal tabular-nums text-muted-foreground">{vm.files.length}</span>
@@ -250,25 +325,36 @@ function FileTable({ vm, eventId }: { vm: ClientFileLibraryViewModel; eventId: s
         <LoadingState label="Loading files…" className="px-4 py-4" />
       ) : vm.files.length === 0 ? (
         <p className="px-4 py-6 text-sm text-muted-foreground">
-          {vm.query ? "No files match your search." : vm.hasFiles ? `No ${shelf?.label.toLowerCase() ?? "files"} for this event yet.` : "No files for this event yet. Files you send and files PMCM shares appear here."}
+          {vm.query ? "No files match your search." : vm.hasFiles ? `No ${shelf?.label.toLowerCase() ?? "files"} for this event yet.` : vm.canUpload ? "No files for this event yet. Drop files here or use Upload; files PMCM shares appear here too." : "No files were kept for this event."}
         </p>
       ) : (
         <>
-          <div aria-hidden="true" className={cn("hidden border-b border-border px-4 py-2 text-xs text-muted-foreground", ROW_GRID)}>
-            <span>Name</span><span>Added by</span><span>Date</span><span>Status</span><span />
+          <div className={cn("hidden border-b border-border px-4 py-2 text-xs text-muted-foreground", ROW_GRID)}>
+            <SortHeader label="Name" sortKey="name" sort={vm.sort} onSort={vm.toggleSort} />
+            <span>Added by</span>
+            <SortHeader label="Date" sortKey="date" sort={vm.sort} onSort={vm.toggleSort} />
+            <span>Size</span>
+            <span>Status</span>
+            <span />
           </div>
           <ul className="divide-y divide-border">
             {vm.files.map((file) => <FileRow key={file.id} file={file} vm={vm} eventId={eventId} />)}
           </ul>
         </>
       )}
+      {drop.over ? (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 grid place-items-center bg-background/80 text-sm font-medium text-primary">
+          <span className="inline-flex items-center gap-2"><Upload className="size-4" /> Drop to add to this event</span>
+        </div>
+      ) : null}
     </Card>
   );
 }
 
 /**
  * The client's file library. Events sit on the left (upcoming, then past for later reference); the chosen event
- * shows what PMCM still needs from the client, then all of its files on fixed shelves in one table.
+ * shows what PMCM still needs from the client, then all of its files on fixed shelves in one table. Opening a
+ * file previews it with its review state and versions; files can be dropped on a needed item or on the table.
  */
 export function ClientFilesView() {
   const vm = useClientFileLibraryViewModel();
@@ -298,19 +384,28 @@ export function ClientFilesView() {
           ref={vm.inputRef}
           className="sr-only"
           type="file"
+          multiple
           tabIndex={-1}
-          aria-label={`Choose a file to upload for ${event.eventName}`}
+          aria-label={`Choose files to upload for ${event.eventName}`}
           accept={ACCEPTED_FILES}
-          onChange={(change) => void vm.uploadSelectedFile(change.currentTarget.files?.[0])}
+          onChange={(change) => vm.uploadPicked(change.currentTarget.files)}
           disabled={vm.busy}
         />
+        {vm.progress ? (
+          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+            {vm.progress.total > 1 ? `Uploading ${vm.progress.done + 1} of ${vm.progress.total}: ` : "Uploading "}
+            <span className="truncate text-foreground">{vm.progress.current}</span>
+          </p>
+        ) : null}
         {vm.error || vm.loadError ? <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{vm.error ?? vm.loadError}</p> : null}
         {vm.notice ? <p role="status" className="text-sm text-success">{vm.notice}</p> : null}
         {vm.canUpload ? <NeededSection vm={vm} /> : null}
         <Shelves vm={vm} />
         <FileTable vm={vm} eventId={event.id} />
-        <p className="text-xs text-muted-foreground">PDF, Word, Excel, JPG or PNG, up to 25 MB. Uploading sends a file to PMCM for review; it doesn&apos;t approve it.</p>
+        <p className="text-xs text-muted-foreground">PDF, Word, Excel, JPG or PNG, up to 25 MB each. Uploading sends a file to PMCM for review; it doesn&apos;t approve it.</p>
       </div>
+      <ClientFilePreviewSheet vm={vm} eventId={event.id} />
     </div>
   );
 }

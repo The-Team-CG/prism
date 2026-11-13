@@ -18,7 +18,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
-- Client Files is a file library: events on the left (upcoming first, then past for later reference) with how many documents each still needs, and for the chosen event what PMCM needs from the client with inline upload, category shelves, and one searchable table showing who added each file, when, and its review state. Phones get an event picker and swipeable shelves.
+- Client Files is a file library: events on the left (upcoming first, then past for later reference) with how many documents each still needs, and for the chosen event what PMCM needs from the client with inline upload, category shelves, and one searchable, sortable table showing each file's type, who added it, when, its size and review state. Opening a file previews PDFs and images in a side panel with its requirement, PMCM's rejection reason and earlier versions; files can be dropped on a needed item or on the table, several at a time. Phones get an event picker and swipeable shelves.
 
 - Portal calendars combine softer date headers, lightly textured weekends and tinted event blocks with compact, collapsible highlights. Day opens a single-date agenda with all-day entries first, timed entries in order, daily navigation and an optional time grid on desktop and phones. Month, Week and the longer Agenda remain available; date-based schedules open on Month and timed coordinator schedules on Day. Search, filters, detail actions and Manila time stay together; phone highlights start collapsed.
 

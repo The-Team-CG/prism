@@ -120,6 +120,28 @@ describe('file requirement overdue and merge rules', () => {
       now,
     );
     expect(items[0]).toMatchObject({ status: 'submitted', uploadedAssetId: 'doc_new', uploadedObjectId: 'obj_new' });
+    expect(items[0].versions?.map((version) => version.objectId)).toEqual(['obj_new', 'obj_old']);
+    expect(items[0]).not.toHaveProperty('reviewReason');
+  });
+
+  it("tells the client why PMCM rejected their latest upload, keeping earlier versions", () => {
+    const requirement = override({ key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], isCustom: true, sourceWorkflow: 'custom' });
+    const items = mergeFileRequirementOverrides(
+      [],
+      [requirement],
+      [
+        { id: 'doc_old', type: 'venue_permit', status: 'approved', validationStatus: 'accepted', uploadedAt: new Date('2026-10-01T00:00:00.000Z'), storageKey: 'obj_old', fileName: 'permit-2025.pdf' },
+        { id: 'doc_new', type: 'venue_permit', status: 'rejected', validationStatus: 'rejected', rejectionReason: 'Permit is unsigned', uploadedAt: new Date('2026-10-05T00:00:00.000Z'), storageKey: 'obj_new', fileName: 'permit.pdf' },
+      ],
+      [],
+      now,
+    );
+    const [client] = scopeFileRequirementItemsForActor(visibleFileRequirementItems(items, 'client'), { role: 'client' });
+    expect(client).toMatchObject({ status: 'missing', validationStatus: 'rejected', reviewReason: 'Permit is unsigned' });
+    expect(client.versions).toEqual([
+      expect.objectContaining({ fileName: 'permit.pdf', status: 'rejected', reviewReason: 'Permit is unsigned' }),
+      expect.objectContaining({ fileName: 'permit-2025.pdf', status: 'approved' }),
+    ]);
   });
 });
 

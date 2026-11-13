@@ -1,4 +1,4 @@
-import type { PrismDocument, PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
+import type { PrismDocument, PrismFileRequirementItem, PrismStoredObject, PrismSupplierRequirementVersion } from "@prism/types";
 import type { ClientPortalView } from "../../workspace/model/client-dashboard-types";
 import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
 import type { ClientRowTone } from "../../shared/client-list-ui";
@@ -23,9 +23,32 @@ export function clientFileFilterForView(view: ClientPortalView | undefined): Cli
   return CLIENT_FILE_CATEGORIES.some((category) => category.id === view) ? (view as ClientFileFilter) : "all";
 }
 
+export type ClientFileKind = "pdf" | "image" | "sheet" | "document" | "video" | "other";
+
+/** What a file is, from its stored type or, failing that, its extension. */
+export function clientFileKind(name: string, contentType = ""): ClientFileKind {
+  const type = contentType.toLowerCase();
+  const extension = name.toLowerCase().split(".").pop() ?? "";
+  if (type === "application/pdf" || extension === "pdf") return "pdf";
+  if (type.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp"].includes(extension)) return "image";
+  if (type.startsWith("video/") || ["mp4", "mov"].includes(extension)) return "video";
+  if (/spreadsheet|excel|csv/.test(type) || ["xlsx", "xls", "csv"].includes(extension)) return "sheet";
+  if (/word|document|text/.test(type) || ["docx", "doc", "txt", "pptx"].includes(extension)) return "document";
+  return "other";
+}
+
+/** "118 KB", "4.2 MB". */
+export function formatFileSize(bytes: number | null | undefined) {
+  if (!bytes) return null;
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export type ClientLibraryFile = {
   id: string;
   name: string;
+  kind: ClientFileKind;
+  contentType?: string;
+  size: number | null;
   category: ClientFileCategory;
   addedBy: string;
   addedAt: string | null;
@@ -35,6 +58,13 @@ export type ClientLibraryFile = {
   objectId?: string;
   /** The requirement this file was sent for, when it fulfils one. */
   requirementLabel?: string;
+  requirementKey?: string;
+  /** The client can send a replacement for this file's requirement. */
+  replaceable?: boolean;
+  /** PMCM's reason when it did not accept this file. */
+  reviewReason?: string;
+  /** Every upload for the same requirement, newest first. */
+  versions?: PrismSupplierRequirementVersion[];
 };
 
 function uploaderLabel(role: string) {
@@ -72,12 +102,19 @@ export function buildClientFileLibrary(objects: PrismStoredObject[], documents: 
       return {
         id: object.id,
         name: object.originalFileName,
+        kind: clientFileKind(object.originalFileName, object.contentType),
+        contentType: object.contentType,
+        size: object.declaredByteSize || null,
         category: clientFileCategory(`${object.originalFileName} ${requirement?.label ?? ""} ${kind}`),
         addedBy: uploaderLabel(object.uploaderActorRole),
         addedAt: object.storedAt ?? object.createdAt,
         ...storedFileStatus(object, requirement),
         objectId: object.lifecycleState === "stored" ? object.id : undefined,
         requirementLabel: requirement?.label,
+        requirementKey: requirement?.key,
+        replaceable: requirement ? requirement.origin === "custom" && requirement.ownerRole === "client" && requirement.status !== "approved" : undefined,
+        reviewReason: requirement?.validationStatus === "rejected" ? requirement.reviewReason : undefined,
+        versions: requirement?.versions,
       };
     });
   const storedNames = new Set(stored.map((file) => file.name.toLowerCase()));
@@ -86,6 +123,8 @@ export function buildClientFileLibrary(objects: PrismStoredObject[], documents: 
     .map((document): ClientLibraryFile => ({
       id: document.id,
       name: document.fileName,
+      kind: clientFileKind(document.fileName),
+      size: null,
       category: clientFileCategory(`${document.type} ${document.fileName}`),
       addedBy: "PMCM",
       addedAt: document.uploadedAt || null,
@@ -105,4 +144,14 @@ export function countClientFiles(files: ClientLibraryFile[]): Record<ClientFileF
 export function filterClientLibrary(files: ClientLibraryFile[], filter: ClientFileFilter, query: string): ClientLibraryFile[] {
   const needle = query.trim().toLowerCase();
   return files.filter((file) => (filter === "all" || file.category === filter) && (!needle || `${file.name} ${file.requirementLabel ?? ""}`.toLowerCase().includes(needle)));
+}
+
+export type ClientFileSort = { key: "date" | "name"; direction: "asc" | "desc" };
+
+export function sortClientLibrary(files: ClientLibraryFile[], sort: ClientFileSort): ClientLibraryFile[] {
+  const sign = sort.direction === "asc" ? 1 : -1;
+  return [...files].sort((left, right) =>
+    sort.key === "name"
+      ? sign * left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: "base" })
+      : sign * String(left.addedAt ?? "").localeCompare(String(right.addedAt ?? "")));
 }

@@ -1,4 +1,4 @@
-import type { PrismFileRequirementItem, PrismFileRequirementStatus, PrismSupplierFileRequirementFulfilment } from '@prism/types';
+import type { PrismFileRequirementItem, PrismFileRequirementStatus, PrismSupplierFileRequirementFulfilment, PrismSupplierRequirementVersion } from '@prism/types';
 
 /** A matrix item as derived from workflow records, before PMCM overrides are applied. */
 export type DerivedFileRequirementItem = Omit<PrismFileRequirementItem, 'required' | 'overdue' | 'origin' | 'revision' | 'validationStatus' | 'notes'>;
@@ -58,6 +58,21 @@ function validationOf(document: FileRequirementDocumentFact | undefined): PrismF
   return document.validationStatus === 'rejected' ? 'rejected' : 'accepted';
 }
 
+/** Every available upload for one requirement, newest first, with PMCM's reason on each rejected one. */
+function requirementVersions(documents: FileRequirementDocumentFact[], key: string): PrismSupplierRequirementVersion[] {
+  return documents.filter((document) => document.type === key && document.available !== false && document.storageKey)
+    .sort((left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime() || left.id.localeCompare(right.id))
+    .map((document) => ({
+      documentId: document.id, objectId: document.storageKey!, fileName: document.fileName ?? 'Submitted file',
+      uploadedAt: document.uploadedAt.toISOString(), status: document.status,
+      ...(document.status === 'rejected' && document.rejectionReason ? { reviewReason: document.rejectionReason } : {}),
+    }));
+}
+
+function rejectionReasonOf(document: FileRequirementDocumentFact | undefined) {
+  return (document?.status === 'rejected' || document?.validationStatus === 'rejected') && document.rejectionReason ? document.rejectionReason : undefined;
+}
+
 function customItem(row: PersistedFileRequirement, documents: FileRequirementDocumentFact[]): DerivedFileRequirementItem {
   const latest = latestDocument(documents, row.key);
   const rejected = latest?.validationStatus === 'rejected' || latest?.status === 'rejected';
@@ -76,6 +91,8 @@ function customItem(row: PersistedFileRequirement, documents: FileRequirementDoc
     detail: rejected
       ? 'The latest upload was rejected; a replacement file is required.'
       : latest ? `${count} file(s) submitted` : 'No file submitted yet.',
+    ...(rejected && rejectionReasonOf(latest) ? { reviewReason: rejectionReasonOf(latest) } : {}),
+    ...(count > 0 ? { versions: requirementVersions(documents, row.key) } : {}),
   };
 }
 
@@ -90,13 +107,7 @@ function supplierFulfilment(
   const { status, uploadedAssetId, uploadedObjectId } = customItem(row, owned);
   const validationStatus = validationOf(latestDocument(owned, row.key));
   const latest = latestDocument(owned, row.key);
-  const versions = owned.filter((document) => document.type === row.key && document.available !== false && document.storageKey)
-    .sort((left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime() || left.id.localeCompare(right.id))
-    .map((document) => ({
-      documentId: document.id, objectId: document.storageKey!, fileName: document.fileName ?? 'Submitted file',
-      uploadedAt: document.uploadedAt.toISOString(), status: document.status,
-      ...(document.status === 'rejected' && document.rejectionReason ? { reviewReason: document.rejectionReason } : {}),
-    }));
+  const versions = requirementVersions(owned, row.key);
   const fulfilment: PrismSupplierFileRequirementFulfilment = {
     supplierId: supplier.supplierId,
     supplierName: supplier.supplierName,
@@ -105,7 +116,7 @@ function supplierFulfilment(
     ...(validationStatus ? { validationStatus } : {}),
     ...(uploadedAssetId ? { uploadedAssetId } : {}),
     ...(uploadedObjectId ? { uploadedObjectId } : {}),
-    ...(latest?.status === 'rejected' && latest.rejectionReason ? { reviewReason: latest.rejectionReason } : {}),
+    ...(rejectionReasonOf(latest) ? { reviewReason: rejectionReasonOf(latest) } : {}),
     versions,
   };
   return { ...fulfilment, overdue: isFileRequirementOverdue({ required: row.required, status, dueDate: row.dueAt?.toISOString() }, now) };
