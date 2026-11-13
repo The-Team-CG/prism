@@ -225,10 +225,12 @@ export class CommunicationService {
       await this.lockThread(tx, threadId);
       const current = await tx.opsCommunicationParticipant.findMany({ where: { threadId, active: true, actorId: { in: input.actorIds } }, select: { actorId: true } });
       if (current.length) throw new BadRequestException('Someone chosen is already in this conversation');
+      // Joining starts read: the history stays visible, but only messages sent after this moment count as unread.
+      const joinedAt = new Date();
       await Promise.all(people.map((person) => tx.opsCommunicationParticipant.upsert({
         where: { threadId_actorId: { threadId, actorId: person.id } },
-        create: { id: `participant_${randomUUID()}`, threadId, actorId: person.id, actorRole: person.role, actorEmail: person.email || null },
-        update: { active: true, actorRole: person.role, actorEmail: person.email || null, lastReadAt: null, addedAt: new Date() },
+        create: { id: `participant_${randomUUID()}`, threadId, actorId: person.id, actorRole: person.role, actorEmail: person.email || null, lastReadAt: joinedAt, addedAt: joinedAt },
+        update: { active: true, actorRole: person.role, actorEmail: person.email || null, lastReadAt: joinedAt, addedAt: joinedAt },
       })));
       await writeAudit(this.auditWriter, thread.eventId, verified.name, `Added communication participants: ${threadId}`, { actorRole: verified.role, actorEmail: verified.email, actionType: 'create', category: 'communication', affectedType: 'communication_thread', affectedId: threadId, affectedLabel: thread.subject, metadata: { addedActorIds: input.actorIds } }, { prisma: tx, actorId: verified.id, correlationId: `communication-participants:${batchId}` });
       await this.queueJoinNotices(tx, { eventId: thread.eventId, threadId, subject: thread.subject, batchId, sender: verified.name, people });
@@ -290,6 +292,8 @@ export class CommunicationService {
   private async authorizeManager(threadId: string, actor: ResolvedEventOpsActor, resource: string) {
     const scope = await this.authorizeThread(threadId, actor, resource);
     if (!PMCM_ROLES.includes(scope.verified.role)) throw new ForbiddenException('Only PMCM can change conversation members or status');
+    // A PMCM admin can read a conversation only as a member, so managing one requires the same membership as reading it.
+    await this.ensureMembership(threadId, scope.verified.id!);
     return scope;
   }
 

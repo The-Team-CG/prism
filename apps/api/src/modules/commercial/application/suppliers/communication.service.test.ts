@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CommunicationService, newMessageNotice } from './communication.service';
 
@@ -143,9 +143,12 @@ function lastWrite(mock: { mock: { calls: unknown[][] } }) {
   return mock.mock.calls[mock.mock.calls.length - 1]?.[0];
 }
 
-function managementHarness(options: { status?: string; members?: Array<{ actorId: PersonId; active?: boolean }> } = {}) {
-  const state: { status: string; members: Array<{ actorId: string; actorRole: string; active: boolean; lastReadAt: Date | null }> } = {
+type StoredMessage = { id: string; threadId: string; senderId: string; senderRole: string; body: string; createdAt: Date };
+
+function managementHarness(options: { status?: string; members?: Array<{ actorId: PersonId; active?: boolean }>; messages?: StoredMessage[] } = {}) {
+  const state: { status: string; members: Array<{ actorId: string; actorRole: string; active: boolean; lastReadAt: Date | null }>; messages: StoredMessage[] } = {
     status: options.status ?? 'open',
+    messages: options.messages ?? [],
     members: (options.members ?? [{ actorId: 'u_pmcm' }, { actorId: 'u_client' }, { actorId: 'u_supplier' }] as Array<{ actorId: PersonId; active?: boolean }>)
       .map(({ actorId, active = true }) => ({ actorId, actorRole: people[actorId].role, active, lastReadAt: null })),
   };
@@ -161,23 +164,27 @@ function managementHarness(options: { status?: string; members?: Array<{ actorId
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(db)),
     opsCommunicationThread: {
       findUnique: vi.fn(async () => thread()),
-      update: vi.fn(async ({ data }: { data: { status: string } }) => { state.status = data.status; return thread(); }),
+      update: vi.fn(async ({ data }: { data: { status?: string } }) => { if (data.status) state.status = data.status; return thread(); }),
       findMany: vi.fn(async ({ where }: { where: { participants: { some: { actorId: string } } } }) => (find(where.participants.some.actorId)?.active ? [thread()] : [])),
     },
     opsCommunicationParticipant: {
       findFirst: vi.fn(async ({ where }: { where: { actorId: string } }) => (find(where.actorId)?.active ? { id: 'member' } : null)),
       findMany: vi.fn(async ({ where }: { where?: { actorId?: { in: string[] } } } = {}) => activeMembers().filter((member) => !where?.actorId?.in || where.actorId.in.includes(member.actorId)).map((member) => ({ actorId: member.actorId, actorRole: member.actorRole, actorEmail: people[member.actorId as PersonId].email }))),
-      upsert: vi.fn(async ({ where, create, update }: { where: { threadId_actorId: { actorId: string } }; create: { actorId: string; actorRole: string }; update: { actorRole: string } }) => {
+      upsert: vi.fn(async ({ where, create, update }: { where: { threadId_actorId: { actorId: string } }; create: { actorId: string; actorRole: string; lastReadAt: Date }; update: { actorRole: string; lastReadAt: Date } }) => {
         const existing = find(where.threadId_actorId.actorId);
-        if (existing) Object.assign(existing, { active: true, actorRole: update.actorRole, lastReadAt: null });
-        else state.members.push({ actorId: create.actorId, actorRole: create.actorRole, active: true, lastReadAt: null });
+        if (existing) Object.assign(existing, { active: true, actorRole: update.actorRole, lastReadAt: update.lastReadAt });
+        else state.members.push({ actorId: create.actorId, actorRole: create.actorRole, active: true, lastReadAt: create.lastReadAt });
       }),
       update: vi.fn(async ({ where, data }: { where: { threadId_actorId: { actorId: string } }; data: { active: boolean } }) => { Object.assign(find(where.threadId_actorId.actorId)!, data); }),
     },
     opsCommunicationMessage: {
       findUnique: vi.fn(async () => null),
-      findMany: vi.fn(async () => []),
-      create: vi.fn(async ({ data }: { data: { threadId: string; senderId: string; senderRole: string; body: string; payloadHash: string } }) => ({ id: 'msg_1', ...data, createdAt: new Date('2026-11-12T08:00:00.000Z') })),
+      findMany: vi.fn(async ({ where }: { where: { threadId: { in: string[] }; senderId: { not: string } } }) => state.messages.filter((message) => where.threadId.in.includes(message.threadId) && message.senderId !== where.senderId.not)),
+      create: vi.fn(async ({ data }: { data: { threadId: string; senderId: string; senderRole: string; body: string; payloadHash: string } }) => {
+        const message = { id: `msg_${state.messages.length + 1}`, threadId: data.threadId, senderId: data.senderId, senderRole: data.senderRole, body: data.body, createdAt: new Date() };
+        state.messages.push(message);
+        return { ...message, payloadHash: data.payloadHash };
+      }),
     },
     opsEvent: { findUnique: vi.fn(async () => ({ eventName: 'Founders gala' })), findMany: vi.fn(async () => [{ id: 'event_1', eventName: 'Founders gala' }]) },
   };
@@ -194,14 +201,42 @@ function managementHarness(options: { status?: string; members?: Array<{ actorId
 }
 
 describe('CommunicationService membership and status', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('lets PMCM add eligible people, reactivates a removed member, audits it, and notifies each added person', async () => {
-    const h = managementHarness({ members: [{ actorId: 'u_pmcm' }, { actorId: 'u_client', active: false }] });
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-14T09:00:00.000Z'));
+    // Sixty messages were sent before anyone joined; joining must not turn them into unread messages.
+    const history = Array.from({ length: 60 }, (_, index) => ({ id: `old_${index}`, threadId: 'thread_1', senderId: 'u_supplier', senderRole: 'supplier', body: `Earlier ${index}`, createdAt: new Date('2026-11-12T08:00:00.000Z') }));
+    const h = managementHarness({ members: [{ actorId: 'u_pmcm' }, { actorId: 'u_client', active: false }], messages: history });
     await h.service.addParticipants('thread_1', { actorIds: ['u_coord', 'u_client'] }, pmcm);
     expect(h.activeIds()).toEqual(['u_pmcm', 'u_client', 'u_coord']);
     expect(lastWrite(h.audit.write)).toMatchObject({ eventId: 'event_1', action: expect.stringContaining('Added communication participants'), actionType: 'create', metadata: { addedActorIds: ['u_coord', 'u_client'] } });
     // Each added person gets the email, and the Viber row only where it can be delivered.
     expect(h.outbox.write.mock.calls[0][0]).toMatchObject({ recipient: 'cora@example.test', channel: 'email', message: expect.stringContaining('added you to "Parking" for Founders gala'), action: { kind: 'conversation', eventId: 'event_1', threadId: 'thread_1', portal: 'coordinator' } });
     expect(h.outbox.write.mock.calls.map(([input]) => input.recipient)).toEqual(['cora@example.test', 'cora@example.test', 'ana@example.test', 'ana@example.test']);
+    // Right after joining, the history is read: nothing is unread, for a new member or a reactivated one.
+    await expect(h.service.unreadCount({}, people.u_coord)).resolves.toEqual({ unread: 0 });
+    await expect(h.service.unreadCount({}, people.u_client)).resolves.toEqual({ unread: 0 });
+    // The next message from PMCM is the first unread one for each of them.
+    vi.setSystemTime(new Date('2026-11-14T09:05:00.000Z'));
+    await h.service.sendMessage('thread_1', { body: 'Load-in moved to 2pm', idempotencyKey: 'key_join' }, pmcm);
+    await expect(h.service.unreadCount({}, people.u_coord)).resolves.toEqual({ unread: 1 });
+    await expect(h.service.unreadCount({}, people.u_client)).resolves.toEqual({ unread: 1 });
+  });
+
+  it('refuses a PMCM admin who is not an active member, without returning the conversation', async () => {
+    // PMCM can read a conversation only as a member, so a non-member gets nothing from the management routes either.
+    const h = managementHarness({ members: [{ actorId: 'u_pmcm', active: false }, { actorId: 'u_client' }, { actorId: 'u_supplier' }] });
+    await expect(h.service.addParticipants('thread_1', { actorIds: ['u_coord'] }, pmcm)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(h.service.removeParticipant('thread_1', 'u_client', pmcm)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(h.service.setStatus('thread_1', { status: 'closed' }, pmcm)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(h.audit.write).not.toHaveBeenCalled();
+    expect(h.db.opsCommunicationParticipant.upsert).not.toHaveBeenCalled();
+    expect(h.db.opsCommunicationParticipant.update).not.toHaveBeenCalled();
+    expect(h.db.opsCommunicationThread.update).not.toHaveBeenCalled();
   });
 
   it.each([['client', 'u_client'], ['supplier', 'u_supplier'], ['coordinator', 'u_coord']] as const)('refuses a %s account on add, remove and status changes, writing nothing', async (_role, id) => {
