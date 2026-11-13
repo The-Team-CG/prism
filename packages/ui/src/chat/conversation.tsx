@@ -40,12 +40,17 @@ export type ConversationProps = {
   onBack: () => void;
   composer: ComposerProps;
   showReadReceipts?: boolean;
+  /** Portal-specific controls for the header (for PMCM, the People sheet). Only a role that may manage gets them. */
+  headerActions?: ReactNode;
+  /** Shown in the closed note, for PMCM: Reopen. */
+  closedAction?: ReactNode;
 };
 
-/** The open conversation: who it is with, its messages, and the composer pinned underneath. */
-export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, onBack, composer, showReadReceipts }: ConversationProps) {
+/** The open conversation: who it is with, its messages, and the composer pinned underneath, or a note once it is closed. */
+export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, onBack, composer, showReadReceipts, headerActions, closedAction }: ConversationProps) {
   const members = [...new Set(threadMembers(thread, viewerId).map((member) => member.name))];
   const people = members.length ? `You, ${members.join(", ")}` : "Only you";
+  const closed = thread.status === "closed";
   return (
     <>
       <header className="flex items-center gap-3 border-b border-border bg-card px-3 py-2.5 sm:px-4">
@@ -58,10 +63,20 @@ export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, on
             <span className="truncate">{thread.context ? `${thread.context} · ${people}` : people}</span>
           </p>
         </div>
+        {headerActions}
       </header>
       <MessageScroller thread={thread} historyLoading={historyLoading} onLoadOlder={onLoadOlder} showReadReceipts={showReadReceipts} />
-      <Composer {...composer} />
+      {closed ? <ClosedNote action={closedAction} /> : <Composer {...composer} />}
     </>
+  );
+}
+
+function ClosedNote({ action }: { action?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-t border-border bg-card px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-sm text-muted-foreground sm:px-4">
+      <span>PMCM closed this conversation.</span>
+      {action}
+    </div>
   );
 }
 

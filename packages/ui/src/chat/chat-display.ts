@@ -1,3 +1,4 @@
+import type { CommunicationThreadStatus } from "@prism/types";
 import { formatPortalDate, formatPortalTime, manilaDateKey } from "../format-date";
 
 /** The message fields the chat UI reads; portal message records satisfy this structurally. */
@@ -12,6 +13,10 @@ export type ChatThreadRecord<M extends ChatMessageRecord = ChatMessageRecord> = 
   messages: M[];
   messagesNextCursor?: string | null;
   unreadCount?: number;
+  /** Closed by PMCM: it takes no new messages until reopened. Absent on lists that predate the status. */
+  status?: CommunicationThreadStatus;
+  /** The event the conversation belongs to; PMCM management looks up who is eligible for it. */
+  eventId?: string;
   /** What the conversation belongs to (its event), shown when one list spans several. */
   context?: string;
 };

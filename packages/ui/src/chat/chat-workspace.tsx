@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { cn } from "../utils";
 import { type ChatThread } from "./chat-display";
 import { Conversation, PaneState } from "./conversation";
-import { ConversationList } from "./conversation-list";
+import { ConversationList, type ThreadStatusTab } from "./conversation-list";
 import { NewConversation, type ChatCompose } from "./new-conversation";
 
 export type ChatWorkspaceProps = {
@@ -40,6 +40,10 @@ export type ChatWorkspaceProps = {
   className?: string;
   notificationPrompt?: ReactNode;
   showReadReceipts?: boolean;
+  /** Header controls for the open conversation. Portals pass these only for a role that may manage it. */
+  renderHeaderActions?: (thread: ChatThread) => ReactNode;
+  /** Controls in the closed note under the conversation (for PMCM, Reopen). */
+  renderClosedAction?: (thread: ChatThread) => ReactNode;
 };
 
 type PhonePane = "list" | "chat";
@@ -142,6 +146,8 @@ function ChatDetail({ props, twoPanes, active, composing, back }: { props: ChatW
   return (
     <Conversation
       showReadReceipts={props.showReadReceipts}
+      headerActions={props.renderHeaderActions?.(active)}
+      closedAction={props.renderClosedAction?.(active)}
       thread={active}
       viewerId={props.viewerId}
       historyLoading={props.historyLoading}
@@ -169,6 +175,7 @@ function ChatDetail({ props, twoPanes, active, composing, back }: { props: ChatW
 export function ChatWorkspace(props: ChatWorkspaceProps) {
   const { threads, compose, loading, onThreadShown } = props;
   const [phonePane, setPhonePane] = useState<PhonePane>("list");
+  const [statusTab, setStatusTab] = useState<ThreadStatusTab>("open");
   const twoPanes = useTwoPanes();
   const [sectionRef, pageOffset] = usePageOffset<HTMLElement>();
   const composing = isComposing(compose, threads, loading);
@@ -216,13 +223,15 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
     <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "grid grid-cols-1 md:grid-cols-[21rem_minmax(0,1fr)]")} style={fill}>
       <ConversationList
         notice={props.notificationPrompt}
-        threads={props.visibleThreads ?? threads}
+        threads={(props.visibleThreads ?? threads).filter((thread) => (thread.status ?? "open") === statusTab)}
         viewerId={props.viewerId}
         activeId={active?.id}
         query={props.query}
         onQueryChange={props.onQueryChange}
         loading={loading}
         error={props.error}
+        statusTab={statusTab}
+        onStatusTabChange={setStatusTab}
         className={listPaneClass(phonePane)}
         onOpen={(id) => {
           props.onOpenThread(id);

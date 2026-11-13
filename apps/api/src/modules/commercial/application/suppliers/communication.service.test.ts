@@ -138,11 +138,16 @@ type PersonId = keyof typeof people;
 const pmcm = people.u_pmcm;
 
 /** A stateful stand-in for the thread's members and status, so each mutation is checked against what changed. */
+/** The argument of the last call to a mocked writer, so tests can read the audit or notice row that was written. */
+function lastWrite(mock: { mock: { calls: unknown[][] } }) {
+  return mock.mock.calls[mock.mock.calls.length - 1]?.[0];
+}
+
 function managementHarness(options: { status?: string; members?: Array<{ actorId: PersonId; active?: boolean }> } = {}) {
-  const state = {
+  const state: { status: string; members: Array<{ actorId: string; actorRole: string; active: boolean; lastReadAt: Date | null }> } = {
     status: options.status ?? 'open',
     members: (options.members ?? [{ actorId: 'u_pmcm' }, { actorId: 'u_client' }, { actorId: 'u_supplier' }] as Array<{ actorId: PersonId; active?: boolean }>)
-      .map(({ actorId, active = true }) => ({ actorId, actorRole: people[actorId].role, active, lastReadAt: null as Date | null })),
+      .map(({ actorId, active = true }) => ({ actorId, actorRole: people[actorId].role, active, lastReadAt: null })),
   };
   const find = (actorId: string) => state.members.find((member) => member.actorId === actorId);
   const activeMembers = () => state.members.filter((member) => member.active);
@@ -165,7 +170,7 @@ function managementHarness(options: { status?: string; members?: Array<{ actorId
       upsert: vi.fn(async ({ where, create, update }: { where: { threadId_actorId: { actorId: string } }; create: { actorId: string; actorRole: string }; update: { actorRole: string } }) => {
         const existing = find(where.threadId_actorId.actorId);
         if (existing) Object.assign(existing, { active: true, actorRole: update.actorRole, lastReadAt: null });
-        else state.members.push({ actorId: create.actorId as PersonId, actorRole: create.actorRole, active: true, lastReadAt: null });
+        else state.members.push({ actorId: create.actorId, actorRole: create.actorRole, active: true, lastReadAt: null });
       }),
       update: vi.fn(async ({ where, data }: { where: { threadId_actorId: { actorId: string } }; data: { active: boolean } }) => { Object.assign(find(where.threadId_actorId.actorId)!, data); }),
     },
@@ -193,7 +198,7 @@ describe('CommunicationService membership and status', () => {
     const h = managementHarness({ members: [{ actorId: 'u_pmcm' }, { actorId: 'u_client', active: false }] });
     await h.service.addParticipants('thread_1', { actorIds: ['u_coord', 'u_client'] }, pmcm);
     expect(h.activeIds()).toEqual(['u_pmcm', 'u_client', 'u_coord']);
-    expect(h.audit.write.mock.calls.at(-1)?.[0]).toMatchObject({ eventId: 'event_1', action: expect.stringContaining('Added communication participants'), actionType: 'create', metadata: { addedActorIds: ['u_coord', 'u_client'] } });
+    expect(lastWrite(h.audit.write)).toMatchObject({ eventId: 'event_1', action: expect.stringContaining('Added communication participants'), actionType: 'create', metadata: { addedActorIds: ['u_coord', 'u_client'] } });
     // Each added person gets the email, and the Viber row only where it can be delivered.
     expect(h.outbox.write.mock.calls[0][0]).toMatchObject({ recipient: 'cora@example.test', channel: 'email', message: expect.stringContaining('added you to "Parking" for Founders gala'), action: { kind: 'conversation', eventId: 'event_1', threadId: 'thread_1', portal: 'coordinator' } });
     expect(h.outbox.write.mock.calls.map(([input]) => input.recipient)).toEqual(['cora@example.test', 'cora@example.test', 'ana@example.test', 'ana@example.test']);
@@ -224,7 +229,7 @@ describe('CommunicationService membership and status', () => {
     const client = people.u_client;
     await h.service.removeParticipant('thread_1', 'u_client', pmcm);
     expect(h.activeIds()).toEqual(['u_pmcm', 'u_supplier']);
-    expect(h.audit.write.mock.calls.at(-1)?.[0]).toMatchObject({ action: 'Removed communication participant: thread_1', actionType: 'delete', metadata: { removedActorId: 'u_client' } });
+    expect(lastWrite(h.audit.write)).toMatchObject({ action: 'Removed communication participant: thread_1', actionType: 'delete', metadata: { removedActorId: 'u_client' } });
     await expect(h.service.listMessages('thread_1', {}, client)).rejects.toBeInstanceOf(ForbiddenException);
     await expect(h.service.listInbox(client)).resolves.toEqual([]);
     await expect(h.service.unreadCount({}, client)).resolves.toEqual({ unread: 0 });
@@ -248,7 +253,7 @@ describe('CommunicationService membership and status', () => {
   it('closes a conversation, refusing new messages with 409, and accepts messages again once reopened', async () => {
     const h = managementHarness();
     await h.service.setStatus('thread_1', { status: 'closed' }, pmcm);
-    expect(h.audit.write.mock.calls.at(-1)?.[0]).toMatchObject({ action: 'Closed communication thread: thread_1', actionType: 'update', metadata: { status: 'closed' } });
+    expect(lastWrite(h.audit.write)).toMatchObject({ action: 'Closed communication thread: thread_1', actionType: 'update', metadata: { status: 'closed' } });
     await expect(h.service.sendMessage('thread_1', { body: 'Hello', idempotencyKey: 'key_1' }, people.u_client)).rejects.toBeInstanceOf(ConflictException);
     expect(h.db.opsCommunicationMessage.create).not.toHaveBeenCalled();
     await h.service.setStatus('thread_1', { status: 'open' }, pmcm);
