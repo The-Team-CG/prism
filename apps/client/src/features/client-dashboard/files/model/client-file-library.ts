@@ -65,6 +65,11 @@ export type ClientLibraryFile = {
   reviewReason?: string;
   /** Every upload for the same requirement, newest first. */
   versions?: PrismSupplierRequirementVersion[];
+  /** Set on results that span events (account-wide search). */
+  eventId?: string;
+  eventName?: string;
+  /** Added by someone else since the client last opened this event's files. */
+  isNew?: boolean;
 };
 
 function uploaderLabel(role: string) {
@@ -154,4 +159,27 @@ export function sortClientLibrary(files: ClientLibraryFile[], sort: ClientFileSo
     sort.key === "name"
       ? sign * left.name.localeCompare(right.name, undefined, { numeric: true, sensitivity: "base" })
       : sign * String(left.addedAt ?? "").localeCompare(String(right.addedAt ?? "")));
+}
+
+/** Someone else added this file after the client's previous visit; nothing is new on a first visit. */
+export function isNewClientFile(file: Pick<ClientLibraryFile, "addedBy" | "addedAt">, lastSeen: string | null) {
+  if (!lastSeen || !file.addedAt || file.addedBy === "You") return false;
+  return new Date(file.addedAt).getTime() > new Date(lastSeen).getTime();
+}
+
+export type ClientEventFileSources = { eventId: string; eventName: string; objects: PrismStoredObject[]; documents: PrismDocument[] };
+
+/** Files matching a search across all of the client's events, newest first, each naming its event. */
+export function searchClientAccountFiles(events: ClientEventFileSources[], query: string): ClientLibraryFile[] {
+  if (!query.trim()) return [];
+  const matches = events.flatMap((event) =>
+    filterClientLibrary(buildClientFileLibrary(event.objects, event.documents, []), "all", query)
+      .map((file) => ({ ...file, eventId: event.eventId, eventName: event.eventName })));
+  return sortClientLibrary(matches, { key: "date", direction: "desc" });
+}
+
+/** The downloadable files of a list, filed in the archive under their shelf's name. */
+export function clientArchiveEntries(files: ClientLibraryFile[]) {
+  const label = (category: ClientFileCategory) => CLIENT_FILE_CATEGORIES.find((entry) => entry.id === category)?.label ?? "Other";
+  return files.flatMap((file) => (file.objectId ? [{ objectId: file.objectId, name: file.name, folder: label(file.category) }] : []));
 }

@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { PrismDocument, PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
-import { buildClientFileLibrary, clientFileFilterForView, clientFileKind, countClientFiles, filterClientLibrary, formatFileSize, sortClientLibrary } from "./client-file-library";
+import {
+  buildClientFileLibrary,
+  clientArchiveEntries,
+  clientFileFilterForView,
+  clientFileKind,
+  countClientFiles,
+  filterClientLibrary,
+  formatFileSize,
+  isNewClientFile,
+  searchClientAccountFiles,
+  sortClientLibrary,
+} from "./client-file-library";
 
 const doc = (id: string, type: string, fileName = `${id}.pdf`, uploadedAt = "2026-10-28T12:00:00Z"): PrismDocument =>
   ({ id, eventId: "event-a", type, fileName, status: "approved", uploadedAt });
@@ -72,5 +83,28 @@ describe("client file library", () => {
     const files = buildClientFileLibrary([], [doc("b", "other", "file-10.pdf", "2026-10-01T00:00:00Z"), doc("a", "other", "file-9.pdf", "2026-10-02T00:00:00Z")], []);
     expect(sortClientLibrary(files, { key: "name", direction: "asc" }).map((file) => file.name)).toEqual(["file-9.pdf", "file-10.pdf"]);
     expect(sortClientLibrary(files, { key: "date", direction: "asc" }).map((file) => file.id)).toEqual(["b", "a"]);
+  });
+
+  it("marks only what someone else added since the previous visit, and nothing on a first visit", () => {
+    const shared = { addedBy: "PMCM", addedAt: "2026-11-10T00:00:00Z" };
+    expect(isNewClientFile(shared, "2026-11-09T00:00:00.000Z")).toBe(true);
+    expect(isNewClientFile(shared, "2026-11-11T00:00:00.000Z")).toBe(false);
+    expect(isNewClientFile({ ...shared, addedBy: "You" }, "2026-11-09T00:00:00.000Z")).toBe(false);
+    expect(isNewClientFile(shared, null)).toBe(false);
+  });
+
+  it("searches every event's files, naming each result's event, and files downloads under their shelf", () => {
+    const results = searchClientAccountFiles(
+      [
+        { eventId: "a", eventName: "Gala", objects: [object("o1", { originalFileName: "Venue-Permit.pdf", storedAt: "2026-10-01T00:00:00Z" })], documents: [] },
+        { eventId: "b", eventName: "Summit", objects: [object("o2", { originalFileName: "permit-2027.pdf", storedAt: "2026-11-01T00:00:00Z" }), object("o3", { originalFileName: "menu.pdf" })], documents: [] },
+      ],
+      "permit",
+    );
+    expect(results.map((file) => [file.name, file.eventName])).toEqual([["permit-2027.pdf", "Summit"], ["Venue-Permit.pdf", "Gala"]]);
+    expect(searchClientAccountFiles([{ eventId: "a", eventName: "Gala", objects: [object("o1")], documents: [] }], "  ")).toEqual([]);
+
+    const library = buildClientFileLibrary([object("o4", { originalFileName: "Signed-Contract.pdf" })], [doc("d1", "billing_statement", "statement.pdf")], []);
+    expect(clientArchiveEntries(library)).toEqual([{ objectId: "o4", name: "Signed-Contract.pdf", folder: "Contracts" }]);
   });
 });
