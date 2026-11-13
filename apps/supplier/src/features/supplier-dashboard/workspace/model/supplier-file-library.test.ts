@@ -67,6 +67,8 @@ describe("supplier file library", () => {
     // A booking document carries the date its file is valid until, and the supplier who sent it may change it.
     expect(files.find((file) => file.name === "permit.pdf")).toMatchObject({ expiresAt: "2026-11-30T00:00:00.000Z", datable: true });
     expect(files.find((file) => file.id === "ctr_1")?.datable).toBeUndefined();
+    // The supplier can send a newer file for a requirement PMCM has not approved, from its current file only.
+    expect(files.filter((file) => file.replaces).map((file) => [file.name, file.replaces?.key])).toEqual([["insurance-2025.pdf", "insurance"]]);
     expect(supplierFileExpiry("2026-11-30T00:00:00.000Z", new Date("2026-11-14T00:00:00.000Z"))).toEqual({ label: "Expires 2026-11-30", tone: "attention" });
   });
 });

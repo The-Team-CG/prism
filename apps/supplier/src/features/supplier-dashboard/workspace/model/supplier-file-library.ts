@@ -39,6 +39,8 @@ export type SupplierLibraryFile = {
   expiresAt?: string;
   /** The supplier sent this file and may date it. */
   datable?: boolean;
+  /** The requirement this file currently stands for, while PMCM has not approved it: a newer file replaces it. */
+  replaces?: { eventId: string; key: string; label: string };
 };
 
 /** Warn this long before a document stops being valid. */
@@ -105,7 +107,7 @@ export function buildSupplierNeededFiles(rows: SupplierFileRequirementRow[], eve
 }
 
 function requirementFiles(rows: SupplierFileRequirementRow[], eventNames: ReadonlyMap<string, string>): SupplierLibraryFile[] {
-  return rows.filter((row) => !isContractRow(row)).flatMap(({ eventId, item }) => (item.versions ?? []).map((version) => ({
+  return rows.filter((row) => !isContractRow(row)).flatMap(({ eventId, item }) => (item.versions ?? []).map((version, position) => ({
     id: version.documentId,
     name: version.fileName,
     kind: supplierFileKind(version.fileName),
@@ -117,6 +119,7 @@ function requirementFiles(rows: SupplierFileRequirementRow[], eventNames: Readon
     ...(version.reviewReason ? { reviewReason: version.reviewReason } : {}),
     ...(version.expiresAt ? { expiresAt: version.expiresAt } : {}),
     datable: true,
+    ...(position === 0 && item.status !== "approved" ? { replaces: { eventId, key: item.key, label: item.label } } : {}),
   })));
 }
 

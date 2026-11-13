@@ -184,6 +184,33 @@ function FilesSection({ vm, onDownloadObject }: { vm: SupplierFileLibraryViewMod
   );
 }
 
+/** Sends a newer file for the requirement this file stands for, until PMCM approves it. */
+function ReplaceFile({ file, vm }: { file: SupplierLibraryFile; vm: SupplierFileLibraryViewModel }) {
+  const target = file.replaces;
+  if (!target) return null;
+  const uploading = vm.uploading === `${target.eventId}:${target.key}`;
+  return (
+    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted">
+      {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
+      {uploading ? "Uploading" : "Send a newer file"}
+      <input
+        type="file"
+        className="sr-only"
+        aria-label={`Send a newer file for ${target.label}`}
+        disabled={vm.uploading !== null}
+        onChange={(event) => {
+          const next = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (next) {
+            vm.closePreview();
+            void vm.upload(target.eventId, target.key, next);
+          }
+        }}
+      />
+    </label>
+  );
+}
+
 function PreviewBody({ file, session }: { file: SupplierLibraryFile; session: PrismAuthenticatedSession }) {
   const preview = useSupplierFilePreview(session, file);
   if (preview.status === "loading") return <div className="grid h-full place-items-center"><LoaderCircle className="size-5 animate-spin text-muted-foreground" aria-label="Loading preview" /></div>;
@@ -215,8 +242,9 @@ function PreviewSheet({ vm, session, onDownloadObject }: { vm: SupplierFileLibra
             </SheetHeader>
             <div className="min-h-0 flex-1"><PreviewBody file={file} session={session} /></div>
             {objectId ? (
-              <div className="border-t border-border pt-3">
+              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
                 <Button type="button" size="sm" variant="outline" onClick={() => onDownloadObject(objectId)}><Download className="size-4" />Download</Button>
+                <ReplaceFile file={file} vm={vm} />
               </div>
             ) : null}
           </>
