@@ -2,7 +2,7 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, CheckCircle2, Download, FileSignature, FileText, Files, FolderOpen, LayoutPanelTop, LoaderCircle, ReceiptText, Search, Upload, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Download, FileArchive, FileSignature, FileText, Files, FolderOpen, LayoutPanelTop, LoaderCircle, ReceiptText, Search, Upload, type LucideIcon } from "lucide-react";
 import type { PrismEvent } from "@prism/types";
 import { useResource } from "@prism/portal-query";
 import { Button } from "@prism/ui/components/button";
@@ -20,6 +20,7 @@ import { fileRequirementDueSummary } from "../model/file-requirement-due-summary
 import { useClientFileLibraryViewModel, type ClientFileLibraryViewModel } from "../view-models/use-client-file-library-view-model";
 import { ClientFileKindIcon } from "./client-file-kind-icon";
 import { ClientFilePreviewSheet } from "./client-file-preview-sheet";
+import { ClientFileReuseDialog } from "./client-file-reuse-dialog";
 
 const ACCEPTED_FILES = ".pdf,.docx,.xlsx,.jpg,.jpeg,.png";
 
@@ -165,11 +166,18 @@ function NeededRowActions({ row, vm }: { row: ClientDocumentChecklistRow; vm: Cl
   const { requirement } = row;
   const replacing = Boolean(row.file) || requirement.validationStatus === "rejected";
   return (
-    <Button type="button" size="sm" onClick={() => vm.startUpload(requirement.key)} disabled={vm.busy}>
-      <Upload className="size-4" aria-hidden="true" />
-      {replacing ? "Replace" : "Upload"}
-      <span className="sr-only"> {requirement.label}</span>
-    </Button>
+    <div className="flex shrink-0 gap-2">
+      {vm.events.length > 1 ? (
+        <Button type="button" size="sm" variant="outline" onClick={() => vm.openReuse(requirement.key, requirement.label)} disabled={vm.busy}>
+          Use existing<span className="sr-only"> file for {requirement.label}</span>
+        </Button>
+      ) : null}
+      <Button type="button" size="sm" onClick={() => vm.startUpload(requirement.key)} disabled={vm.busy}>
+        <Upload className="size-4" aria-hidden="true" />
+        {replacing ? "Replace" : "Upload"}
+        <span className="sr-only"> {requirement.label}</span>
+      </Button>
+    </div>
   );
 }
 
@@ -187,7 +195,7 @@ function NeededRow({ row, vm }: { row: ClientDocumentChecklistRow; vm: ClientFil
         drop.over && "bg-primary/5 outline outline-2 -outline-offset-2 outline-primary/40",
       )}
     >
-      <div className="min-w-0 flex-1">
+      <div className="w-full min-w-0 sm:w-auto sm:flex-1">
         <p className="text-sm font-semibold text-foreground">{requirement.label}</p>
         <p className={cn("mt-0.5 text-sm", urgent ? "text-danger" : "text-muted-foreground")}>
           {clientRequirementReviewLabel(row)} · {fileRequirementDueSummary(requirement)}
@@ -276,7 +284,10 @@ function FileRow({ file, vm, eventId }: { file: ClientLibraryFile; vm: ClientFil
       <button type="button" onClick={() => vm.openPreview(file.id)} className="flex min-w-0 flex-1 items-center gap-3 rounded-md py-0.5 text-left" aria-label={`Preview ${file.name}`}>
         <ClientFileKindIcon kind={file.kind} />
         <span className="min-w-0">
-          <span className="block truncate text-sm font-medium text-foreground" title={file.name}>{file.name}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <span className={cn("truncate text-sm text-foreground", file.isNew ? "font-semibold" : "font-medium")} title={file.name}>{file.name}</span>
+            {file.isNew ? <span className="shrink-0 text-xs font-medium text-primary">New</span> : null}
+          </span>
           <span className="block truncate text-xs text-muted-foreground">
             {file.requirementLabel ? `For ${file.requirementLabel}` : null}
             <span className="sm:hidden">{file.requirementLabel ? " · " : ""}{file.addedBy} · <span className={STATUS_TONE[file.tone]}>{file.status}</span></span>
@@ -306,48 +317,138 @@ function FileRow({ file, vm, eventId }: { file: ClientLibraryFile; vm: ClientFil
   );
 }
 
+/** Matches for an all-events search; opening one switches to its event and previews it. */
+function AccountResults({ vm }: { vm: ClientFileLibraryViewModel }) {
+  if (vm.accountLoading) return <LoadingState label="Searching all your events…" className="px-4 py-4" />;
+  if (vm.accountResults.length === 0) return <p className="px-4 py-6 text-sm text-muted-foreground">No files in any of your events match your search.</p>;
+  return (
+    <ul className="divide-y divide-border">
+      {vm.accountResults.map((file) => (
+        <li key={`${file.eventId}:${file.id}`}>
+          <button type="button" onClick={() => vm.openSearchResult(file)} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-raised">
+            <ClientFileKindIcon kind={file.kind} />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium text-foreground">{file.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">{[file.eventName, file.addedBy, file.addedAt ? formatPortalDate(file.addedAt) : null].filter(Boolean).join(" · ")}</span>
+            </span>
+            <span className="hidden shrink-0 text-sm text-primary sm:inline">Open</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function DownloadAllButton({ vm }: { vm: ClientFileLibraryViewModel }) {
+  if (vm.downloadableCount === 0) return null;
+  const zipping = vm.archiving;
+  return (
+    <Button type="button" variant="outline" size="sm" onClick={() => void vm.downloadAll()} disabled={zipping !== null}>
+      {zipping ? <LoaderCircle className="size-4 animate-spin" aria-hidden="true" /> : <FileArchive className="size-4" aria-hidden="true" />}
+      {zipping ? `Zipping ${Math.min(zipping.done + 1, zipping.total)} of ${zipping.total}` : "Download all"}
+    </Button>
+  );
+}
+
+function SearchControls({ vm }: { vm: ClientFileLibraryViewModel }) {
+  return (
+    <>
+      <div role="group" aria-label="Search in" className="inline-flex rounded-md border border-border p-0.5 text-xs">
+        {([false, true] as const).map((all) => (
+          <button
+            key={String(all)}
+            type="button"
+            aria-pressed={vm.searchAll === all}
+            onClick={() => vm.setSearchAll(all)}
+            className={cn("rounded px-2 py-1", vm.searchAll === all ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            {all ? "All events" : "This event"}
+          </button>
+        ))}
+      </div>
+      <label className="relative w-full sm:w-56">
+        <span className="sr-only">{vm.searchAll ? "Search all your files" : "Search this event's files"}</span>
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+        <input
+          type="search"
+          value={vm.query}
+          onChange={(event) => vm.setQuery(event.currentTarget.value)}
+          placeholder={vm.searchAll ? "Search all your files" : "Search files"}
+          className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+      </label>
+    </>
+  );
+}
+
+/** Asks before zipping a very large set in the browser, naming the biggest files to download on their own. */
+function ArchiveWarning({ vm }: { vm: ClientFileLibraryViewModel }) {
+  const warning = vm.archiveWarning;
+  if (!warning) return null;
+  return (
+    <div role="alert" className="flex flex-wrap items-center gap-3 border-b border-border bg-attention-soft px-4 py-3 text-sm">
+      <p className="min-w-0 flex-1 text-foreground">
+        These files total {formatFileSize(warning.totalBytes)}. Building one ZIP that large in the browser can be slow or fail;
+        you can download the largest ({warning.largest.join(", ")}) on their own instead.
+      </p>
+      <div className="flex shrink-0 gap-2">
+        <Button type="button" size="sm" variant="outline" onClick={vm.dismissArchiveWarning}>Cancel</Button>
+        <Button type="button" size="sm" onClick={() => void vm.downloadAll(true)}>Zip anyway</Button>
+      </div>
+    </div>
+  );
+}
+
+function FileTableHeader({ vm, searchingAll }: { vm: ClientFileLibraryViewModel; searchingAll: boolean }) {
+  const title = searchingAll ? "Results in all events" : SHELVES.find((entry) => entry.id === vm.filter)?.label ?? "All files";
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+      <h3 id="client-files-table" className="text-sm font-semibold text-foreground">
+        {title} <span className="font-normal tabular-nums text-muted-foreground">{searchingAll ? vm.accountResults.length : vm.files.length}</span>
+        {!searchingAll && vm.newCount > 0 ? <span className="ml-2 text-xs font-medium text-primary">{vm.newCount} new since your last visit</span> : null}
+      </h3>
+      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+        <DownloadAllButton vm={vm} />
+        <SearchControls vm={vm} />
+      </div>
+    </header>
+  );
+}
+
+function emptyFilesMessage(vm: ClientFileLibraryViewModel) {
+  if (vm.query) return "No files match your search.";
+  if (vm.hasFiles) return `No ${SHELVES.find((entry) => entry.id === vm.filter)?.label.toLowerCase() ?? "files"} for this event yet.`;
+  return vm.canUpload ? "No files for this event yet. Drop files here or use Upload; files PMCM shares appear here too." : "No files were kept for this event.";
+}
+
+function EventFileList({ vm, eventId }: { vm: ClientFileLibraryViewModel; eventId: string }) {
+  if (vm.filesLoading) return <LoadingState label="Loading files…" className="px-4 py-4" />;
+  if (vm.files.length === 0) return <p className="px-4 py-6 text-sm text-muted-foreground">{emptyFilesMessage(vm)}</p>;
+  return (
+    <>
+      <div className={cn("hidden border-b border-border px-4 py-2 text-xs text-muted-foreground", ROW_GRID)}>
+        <SortHeader label="Name" sortKey="name" sort={vm.sort} onSort={vm.toggleSort} />
+        <span>Added by</span>
+        <SortHeader label="Date" sortKey="date" sort={vm.sort} onSort={vm.toggleSort} />
+        <span>Size</span>
+        <span>Status</span>
+        <span />
+      </div>
+      <ul className="divide-y divide-border">
+        {vm.files.map((file) => <FileRow key={file.id} file={file} vm={vm} eventId={eventId} />)}
+      </ul>
+    </>
+  );
+}
+
 function FileTable({ vm, eventId }: { vm: ClientFileLibraryViewModel; eventId: string }) {
-  const shelf = SHELVES.find((entry) => entry.id === vm.filter);
+  const searchingAll = vm.searchAll && vm.query.trim().length > 0;
   const drop = useFileDrop((files) => void vm.uploadFiles(files), vm.canUpload && !vm.busy);
   return (
     <Card {...drop.props} role="region" aria-labelledby="client-files-table" className={cn("relative gap-0 overflow-hidden py-0", drop.over && "outline outline-2 -outline-offset-2 outline-primary/50")}>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <h3 id="client-files-table" className="text-sm font-semibold text-foreground">
-          {shelf?.label ?? "All files"} <span className="font-normal tabular-nums text-muted-foreground">{vm.files.length}</span>
-        </h3>
-        <label className="relative w-full sm:w-64">
-          <span className="sr-only">Search this event&apos;s files</span>
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <input
-            type="search"
-            value={vm.query}
-            onChange={(event) => vm.setQuery(event.currentTarget.value)}
-            placeholder="Search files"
-            className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        </label>
-      </header>
-      {vm.filesLoading ? (
-        <LoadingState label="Loading files…" className="px-4 py-4" />
-      ) : vm.files.length === 0 ? (
-        <p className="px-4 py-6 text-sm text-muted-foreground">
-          {vm.query ? "No files match your search." : vm.hasFiles ? `No ${shelf?.label.toLowerCase() ?? "files"} for this event yet.` : vm.canUpload ? "No files for this event yet. Drop files here or use Upload; files PMCM shares appear here too." : "No files were kept for this event."}
-        </p>
-      ) : (
-        <>
-          <div className={cn("hidden border-b border-border px-4 py-2 text-xs text-muted-foreground", ROW_GRID)}>
-            <SortHeader label="Name" sortKey="name" sort={vm.sort} onSort={vm.toggleSort} />
-            <span>Added by</span>
-            <SortHeader label="Date" sortKey="date" sort={vm.sort} onSort={vm.toggleSort} />
-            <span>Size</span>
-            <span>Status</span>
-            <span />
-          </div>
-          <ul className="divide-y divide-border">
-            {vm.files.map((file) => <FileRow key={file.id} file={file} vm={vm} eventId={eventId} />)}
-          </ul>
-        </>
-      )}
+      <FileTableHeader vm={vm} searchingAll={searchingAll} />
+      <ArchiveWarning vm={vm} />
+      {searchingAll ? <AccountResults vm={vm} /> : <EventFileList vm={vm} eventId={eventId} />}
       {drop.over ? (
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 grid place-items-center bg-background/80 text-sm font-medium text-primary">
           <span className="inline-flex items-center gap-2"><Upload className="size-4" /> Drop to add to this event</span>
@@ -422,6 +523,7 @@ export function ClientFilesView() {
         <p className="text-xs text-muted-foreground">PDF, Word, Excel, JPG or PNG, up to 25 MB each. Uploading sends a file to PMCM for review; it doesn&apos;t approve it.</p>
       </div>
       <ClientFilePreviewSheet vm={vm} eventId={event.id} />
+      <ClientFileReuseDialog vm={vm} />
     </div>
   );
 }
