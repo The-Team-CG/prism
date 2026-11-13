@@ -166,6 +166,22 @@ export const communicationUnreadCountQuerySchema = z.object({
 });
 export type CommunicationUnreadCountQuery = z.infer<typeof communicationUnreadCountQuerySchema>;
 
+/** A conversation is open until PMCM closes it; a closed one takes no new messages until reopened. */
+export const communicationThreadStatusSchema = z.enum(["open", "closed"]);
+export type CommunicationThreadStatus = z.infer<typeof communicationThreadStatusSchema>;
+
+export const updateCommunicationThreadStatusSchema = z.object({
+  status: communicationThreadStatusSchema,
+});
+export type UpdateCommunicationThreadStatusInput = z.infer<typeof updateCommunicationThreadStatusSchema>;
+
+export const addCommunicationParticipantsSchema = z.object({
+  actorIds: z.array(nonEmptyStringSchema).min(1).max(20),
+}).superRefine((value, ctx) => {
+  if (new Set(value.actorIds).size !== value.actorIds.length) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Duplicate people are not allowed", path: ["actorIds"] });
+});
+export type AddCommunicationParticipantsInput = z.infer<typeof addCommunicationParticipantsSchema>;
+
 export const confirmSupplierReadinessSchema = z.object({
   notes: optionalTrimmedStringSchema,
 });

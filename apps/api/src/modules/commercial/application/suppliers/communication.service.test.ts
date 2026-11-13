@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CommunicationService, newMessageNotice } from './communication.service';
 
 function harness(options: { removed?: boolean; replay?: { body: string } } = {}) {
@@ -125,6 +125,147 @@ describe('CommunicationService inbox', () => {
     await expect(forbidden.service.unreadCount({}, forbidden.supplier)).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.opsCommunicationThread.findMany).not.toHaveBeenCalled();
     expect(forbidden.prisma.opsCommunicationThread.findMany).not.toHaveBeenCalled();
+  });
+});
+
+const people = {
+  u_pmcm: { id: 'u_pmcm', name: 'PMCM Admin', email: 'pmcm@example.test', role: 'pmcm-admin', explicit: true, verified: true },
+  u_client: { id: 'u_client', name: 'Ana Reyes', email: 'ana@example.test', role: 'client', explicit: true, verified: true },
+  u_supplier: { id: 'u_supplier', name: 'Bloom Florals', email: 'bloom@example.test', role: 'supplier', explicit: true, verified: true },
+  u_coord: { id: 'u_coord', name: 'Cora', email: 'cora@example.test', role: 'coordinator', explicit: true, verified: true },
+} as const;
+type PersonId = keyof typeof people;
+const pmcm = people.u_pmcm;
+
+/** A stateful stand-in for the thread's members and status, so each mutation is checked against what changed. */
+function managementHarness(options: { status?: string; members?: Array<{ actorId: PersonId; active?: boolean }> } = {}) {
+  const state = {
+    status: options.status ?? 'open',
+    members: (options.members ?? [{ actorId: 'u_pmcm' }, { actorId: 'u_client' }, { actorId: 'u_supplier' }] as Array<{ actorId: PersonId; active?: boolean }>)
+      .map(({ actorId, active = true }) => ({ actorId, actorRole: people[actorId].role, active, lastReadAt: null as Date | null })),
+  };
+  const find = (actorId: string) => state.members.find((member) => member.actorId === actorId);
+  const activeMembers = () => state.members.filter((member) => member.active);
+  const thread = () => ({
+    id: 'thread_1', eventId: 'event_1', subject: 'Parking', status: state.status, createdBy: 'u_pmcm', createdAt: new Date('2026-11-12T08:00:00.000Z'), updatedAt: new Date('2026-11-12T08:00:00.000Z'),
+    participants: activeMembers().map((member) => ({ id: `participant_${member.actorId}`, actorId: member.actorId, actorRole: member.actorRole, active: true, lastReadAt: member.lastReadAt })),
+    messages: [],
+  });
+  const db = {
+    $queryRaw: vi.fn(),
+    $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn(db)),
+    opsCommunicationThread: {
+      findUnique: vi.fn(async () => thread()),
+      update: vi.fn(async ({ data }: { data: { status: string } }) => { state.status = data.status; return thread(); }),
+      findMany: vi.fn(async ({ where }: { where: { participants: { some: { actorId: string } } } }) => (find(where.participants.some.actorId)?.active ? [thread()] : [])),
+    },
+    opsCommunicationParticipant: {
+      findFirst: vi.fn(async ({ where }: { where: { actorId: string } }) => (find(where.actorId)?.active ? { id: 'member' } : null)),
+      findMany: vi.fn(async ({ where }: { where?: { actorId?: { in: string[] } } } = {}) => activeMembers().filter((member) => !where?.actorId?.in || where.actorId.in.includes(member.actorId)).map((member) => ({ actorId: member.actorId, actorRole: member.actorRole, actorEmail: people[member.actorId as PersonId].email }))),
+      upsert: vi.fn(async ({ where, create, update }: { where: { threadId_actorId: { actorId: string } }; create: { actorId: string; actorRole: string }; update: { actorRole: string } }) => {
+        const existing = find(where.threadId_actorId.actorId);
+        if (existing) Object.assign(existing, { active: true, actorRole: update.actorRole, lastReadAt: null });
+        else state.members.push({ actorId: create.actorId as PersonId, actorRole: create.actorRole, active: true, lastReadAt: null });
+      }),
+      update: vi.fn(async ({ where, data }: { where: { threadId_actorId: { actorId: string } }; data: { active: boolean } }) => { Object.assign(find(where.threadId_actorId.actorId)!, data); }),
+    },
+    opsCommunicationMessage: {
+      findUnique: vi.fn(async () => null),
+      findMany: vi.fn(async () => []),
+      create: vi.fn(async ({ data }: { data: { threadId: string; senderId: string; senderRole: string; body: string; payloadHash: string } }) => ({ id: 'msg_1', ...data, createdAt: new Date('2026-11-12T08:00:00.000Z') })),
+    },
+    opsEvent: { findUnique: vi.fn(async () => ({ eventName: 'Founders gala' })), findMany: vi.fn(async () => [{ id: 'event_1', eventName: 'Founders gala' }]) },
+  };
+  const participants = {
+    resolveForEvent: vi.fn(async (id: PersonId) => people[id]),
+    listEligibleForEvent: vi.fn(async () => [people.u_coord, people.u_client, people.u_pmcm].map(({ id, name, email, role }) => ({ id, name, email, role }))),
+    readableEventIds: vi.fn(async () => new Set(['event_1'])),
+    displayNames: vi.fn(async (ids: string[]) => new Map(ids.filter((id): id is PersonId => id in people).map((id) => [id, people[id].name]))),
+  };
+  const audit = { write: vi.fn() };
+  const outbox = { write: vi.fn() };
+  const service = new CommunicationService(db as never, { requireActorRole: vi.fn() } as never, participants as never, audit as never, outbox as never);
+  return { service, db, audit, outbox, activeIds: () => activeMembers().map((member) => member.actorId) };
+}
+
+describe('CommunicationService membership and status', () => {
+  it('lets PMCM add eligible people, reactivates a removed member, audits it, and notifies each added person', async () => {
+    const h = managementHarness({ members: [{ actorId: 'u_pmcm' }, { actorId: 'u_client', active: false }] });
+    await h.service.addParticipants('thread_1', { actorIds: ['u_coord', 'u_client'] }, pmcm);
+    expect(h.activeIds()).toEqual(['u_pmcm', 'u_client', 'u_coord']);
+    expect(h.audit.write.mock.calls.at(-1)?.[0]).toMatchObject({ eventId: 'event_1', action: expect.stringContaining('Added communication participants'), actionType: 'create', metadata: { addedActorIds: ['u_coord', 'u_client'] } });
+    // Each added person gets the email, and the Viber row only where it can be delivered.
+    expect(h.outbox.write.mock.calls[0][0]).toMatchObject({ recipient: 'cora@example.test', channel: 'email', message: expect.stringContaining('added you to "Parking" for Founders gala'), action: { kind: 'conversation', eventId: 'event_1', threadId: 'thread_1', portal: 'coordinator' } });
+    expect(h.outbox.write.mock.calls.map(([input]) => input.recipient)).toEqual(['cora@example.test', 'cora@example.test', 'ana@example.test', 'ana@example.test']);
+  });
+
+  it.each([['client', 'u_client'], ['supplier', 'u_supplier'], ['coordinator', 'u_coord']] as const)('refuses a %s account on add, remove and status changes, writing nothing', async (_role, id) => {
+    const h = managementHarness({ members: [{ actorId: 'u_pmcm' }, { actorId: id }] });
+    const caller = people[id];
+    await expect(h.service.addParticipants('thread_1', { actorIds: ['u_coord'] }, caller)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(h.service.removeParticipant('thread_1', 'u_pmcm', caller)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(h.service.setStatus('thread_1', { status: 'closed' }, caller)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(h.audit.write).not.toHaveBeenCalled();
+    expect(h.db.opsCommunicationParticipant.upsert).not.toHaveBeenCalled();
+    expect(h.db.opsCommunicationParticipant.update).not.toHaveBeenCalled();
+    expect(h.db.opsCommunicationThread.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses to add someone ineligible for the event, or someone already in the conversation', async () => {
+    const h = managementHarness();
+    await expect(h.service.addParticipants('thread_1', { actorIds: ['u_stranger'] }, pmcm)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(h.service.addParticipants('thread_1', { actorIds: ['u_client'] }, pmcm)).rejects.toBeInstanceOf(BadRequestException);
+    expect(h.db.opsCommunicationParticipant.upsert).not.toHaveBeenCalled();
+    expect(h.outbox.write).not.toHaveBeenCalled();
+  });
+
+  it('removes a member, who then loses the conversation from their inbox and its messages', async () => {
+    const h = managementHarness();
+    const client = people.u_client;
+    await h.service.removeParticipant('thread_1', 'u_client', pmcm);
+    expect(h.activeIds()).toEqual(['u_pmcm', 'u_supplier']);
+    expect(h.audit.write.mock.calls.at(-1)?.[0]).toMatchObject({ action: 'Removed communication participant: thread_1', actionType: 'delete', metadata: { removedActorId: 'u_client' } });
+    await expect(h.service.listMessages('thread_1', {}, client)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(h.service.listInbox(client)).resolves.toEqual([]);
+    await expect(h.service.unreadCount({}, client)).resolves.toEqual({ unread: 0 });
+    // The conversation is still in the inbox of a member who stayed.
+    expect((await h.service.listInbox(people.u_supplier)).map((row) => row.id)).toEqual(['thread_1']);
+  });
+
+  it('refuses a removal that leaves no PMCM member, or fewer than two members, and a person who is not in the conversation', async () => {
+    const noPmcm = managementHarness();
+    await expect(noPmcm.service.removeParticipant('thread_1', 'u_pmcm', pmcm)).rejects.toThrow(/PMCM member/);
+    const tooFew = managementHarness({ members: [{ actorId: 'u_pmcm' }, { actorId: 'u_client' }] });
+    await expect(tooFew.service.removeParticipant('thread_1', 'u_client', pmcm)).rejects.toThrow(/at least two members/);
+    const absent = managementHarness();
+    await expect(absent.service.removeParticipant('thread_1', 'u_coord', pmcm)).rejects.toBeInstanceOf(NotFoundException);
+    for (const h of [noPmcm, tooFew, absent]) {
+      expect(h.audit.write).not.toHaveBeenCalled();
+      expect(h.db.opsCommunicationParticipant.update).not.toHaveBeenCalled();
+    }
+  });
+
+  it('closes a conversation, refusing new messages with 409, and accepts messages again once reopened', async () => {
+    const h = managementHarness();
+    await h.service.setStatus('thread_1', { status: 'closed' }, pmcm);
+    expect(h.audit.write.mock.calls.at(-1)?.[0]).toMatchObject({ action: 'Closed communication thread: thread_1', actionType: 'update', metadata: { status: 'closed' } });
+    await expect(h.service.sendMessage('thread_1', { body: 'Hello', idempotencyKey: 'key_1' }, people.u_client)).rejects.toBeInstanceOf(ConflictException);
+    expect(h.db.opsCommunicationMessage.create).not.toHaveBeenCalled();
+    await h.service.setStatus('thread_1', { status: 'open' }, pmcm);
+    await expect(h.service.sendMessage('thread_1', { body: 'Hello', idempotencyKey: 'key_2' }, people.u_client)).resolves.toMatchObject({ body: 'Hello' });
+    expect(h.db.opsCommunicationMessage.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not count messages in closed conversations toward the unread count', async () => {
+    const at = new Date('2026-11-12T08:00:00.000Z');
+    const row = (id: string, status: string) => ({ id, eventId: 'event_1', subject: id, status, createdBy: 'u_pmcm', createdAt: at, updatedAt: at, participants: [{ id: `${id}_me`, actorId: 'u_client', actorRole: 'client', active: true, lastReadAt: null }] });
+    const db = {
+      opsCommunicationThread: { findMany: vi.fn(async () => [row('thread_open', 'open'), row('thread_closed', 'closed')]) },
+      opsCommunicationMessage: { findMany: vi.fn(async ({ where }: { where: { threadId: { in: string[] } } }) => [{ threadId: 'thread_open', createdAt: at }, { threadId: 'thread_closed', createdAt: at }].filter((message) => where.threadId.in.includes(message.threadId))) },
+    };
+    const participants = { readableEventIds: vi.fn(async () => new Set(['event_1'])) };
+    const service = new CommunicationService(db as never, { requireActorRole: vi.fn() } as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
+    await expect(service.unreadCount({}, people.u_client)).resolves.toEqual({ unread: 1 });
   });
 });
 
