@@ -9,7 +9,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 
 - Assigned coordinators can read and reply in conversations they belong to without starting new ones.
-- Messages refresh every 15 seconds while the tab is visible without losing the open conversation, and the Messages navigation item shows an unread count. PMCM can see which members have read its messages; other roles' responses do not expose those read times.
+- Messages refresh every 15 seconds while the tab is visible without losing the open conversation, and the Messages navigation item shows an unread count (inside an event, that event's count). PMCM can see which members have read its messages; other roles' responses do not expose those read times.
 
 - Chat notices include a link back to the recipient's conversation that survives sign-in. Messages offers Viber linking when configured, and the notification inbox combines channel copies while retaining each delivery's receipt checks.
 

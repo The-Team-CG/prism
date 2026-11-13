@@ -160,6 +160,12 @@ export const sendCommunicationMessageSchema = z.object({
 });
 export type SendCommunicationMessageInput = z.infer<typeof sendCommunicationMessageSchema>;
 
+/** Without an event the count is the whole inbox; with one it is that event's conversations only. */
+export const communicationUnreadCountQuerySchema = z.object({
+  eventId: nonEmptyStringSchema.optional(),
+});
+export type CommunicationUnreadCountQuery = z.infer<typeof communicationUnreadCountQuerySchema>;
+
 export const confirmSupplierReadinessSchema = z.object({
   notes: optionalTrimmedStringSchema,
 });

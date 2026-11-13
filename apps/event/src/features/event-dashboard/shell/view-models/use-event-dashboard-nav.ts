@@ -53,7 +53,7 @@ function eventWorkspaceNavItems(
     draftCount?: number;
     paymentCount?: number;
     closeoutCount?: number;
-    /** The account's unread messages across every conversation; shown on Messages in an event. */
+    /** Unread messages in the open event's conversations; shown on that event's Messages item. */
     unreadMessages?: number;
   },
 ): PrismNavItem[] {
@@ -101,6 +101,7 @@ export function eventPortalNavItems({
   draftCount?: number;
   paymentCount?: number;
   closeoutCount?: number;
+  /** Unread messages in the open event's conversations. */
   unreadMessages?: number;
 }): PrismNavItem[] {
   const inbox: PrismNavItem = { id: "dashboard", icon: Inbox, label: "Inbox", section: "PMCM", badge: optionalNavBadge(commandInboxCount) };

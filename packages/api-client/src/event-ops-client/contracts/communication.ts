@@ -6,6 +6,7 @@ import type {
   PrismCommunicationParticipantChoice,
   PrismCommunicationReadReceipt,
   PrismCommunicationUnreadCount,
+  CommunicationUnreadCountQuery,
 } from "@prism/types";
 import type { EventOpsActorQuery } from "./primitives";
 
@@ -17,8 +18,8 @@ export interface EventOpsCommunicationContract {
     ): Promise<PrismCommunicationThread[]>;
     /** The signed-in account's conversations across every event it can read. */
     listInbox(actor?: EventOpsActorQuery): Promise<PrismCommunicationInboxThread[]>;
-    /** Unread messages in the same conversations the inbox lists. */
-    unreadCount(actor?: EventOpsActorQuery): Promise<PrismCommunicationUnreadCount>;
+    /** Unread messages in the inbox, or in one event's conversations when `query.eventId` is given. */
+    unreadCount(query?: CommunicationUnreadCountQuery, actor?: EventOpsActorQuery): Promise<PrismCommunicationUnreadCount>;
     readReceipts(threadId: string, actor?: EventOpsActorQuery): Promise<PrismCommunicationReadReceipt[]>;
     listParticipants(
       eventId: string,

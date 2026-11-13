@@ -124,13 +124,14 @@ function disableEventNav(requiresEvent: boolean | undefined, hasEvent: boolean) 
   return Boolean(requiresEvent) && !hasEvent;
 }
 
-function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages }: {
+function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, eventUnreadMessages }: {
   route: ClientDashboardRoute;
   portalView?: ClientPortalView;
   isEventScopedView: boolean;
   selectedEvent?: PrismEvent;
   events: PrismEvent[];
   unreadMessages?: number;
+  eventUnreadMessages?: number;
 }) {
   const shellNavItems = clientPortalSidebarItems(events.length).map((item) => ({
     ...item,
@@ -150,7 +151,7 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
       ? EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview"
       : sidebarActiveItemId(route, isEventScopedView, portalView),
     sidebarNavItems: inEventWorkspace && selectedEvent
-      ? clientEventSidebarItems(selectedEvent.id, selectedEvent)
+      ? clientEventSidebarItems(selectedEvent.id, selectedEvent).map((item) => (item.id === "event-messages" ? { ...item, ...unreadNavBadge(eventUnreadMessages) } : item))
       : [...shellNavItems, ...clientOpenEventSidebarItems(events)],
   };
 }
@@ -165,12 +166,14 @@ export function ClientDashboardWorkspaceView({
   portalView?: ClientPortalView;
 }) {
   const router = useRouter();
-  const unreadMessages = useClientUnreadMessages();
   const { actionCenter, actionCenterLoadFailed, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardViewModel({
     route,
     eventId,
     portalView,
   });
+  // The account's Messages item counts every conversation; the event workspace's Messages item counts that event's.
+  const unreadMessages = useClientUnreadMessages();
+  const eventUnreadMessages = useClientUnreadMessages({ eventId: selectedEventId ?? undefined });
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
   const [requestForm, setRequestForm] = useState<ClientRequestForm>(initialRequestForm);
@@ -473,7 +476,7 @@ export function ClientDashboardWorkspaceView({
   }
 
   const { inEventWorkspace, activeShellItemId, sidebarNavItems } = clientWorkspaceShellNavigation({
-    route, portalView, isEventScopedView, selectedEvent, events, unreadMessages,
+    route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, eventUnreadMessages,
   });
 
   function handleShellNavSelect(id: string) {

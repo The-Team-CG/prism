@@ -302,7 +302,8 @@ export function useEventDashboardShellViewModel({
   const eventWorkspaceDisabled = !selectedEvent;
   const activeSidebarItemId = activeSidebarItemFromRoute(routeState);
   const inEventWorkspace = Boolean(routeState.eventId) && !eventWorkspaceDisabled;
-  const unreadMessages = useEventUnreadMessages();
+  // Messages inside an event counts that event's conversations only.
+  const unreadMessages = useEventUnreadMessages({ eventId: selectedEvent?.id });
   const shellNavItems = eventPortalNavItems({
     inEventWorkspace,
     unreadMessages,

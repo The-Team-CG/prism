@@ -28,9 +28,9 @@ export function createCommunicationClient(
           actorPath("/communication/inbox", actor),
           withBase(options),
         ),
-      unreadCount: (actor = {}) =>
+      unreadCount: (query = {}, actor = {}) =>
         prismRequest<PrismCommunicationUnreadCount>(
-          actorPath("/communication/unread-count", actor),
+          actorPath(`/communication/unread-count${query.eventId ? `?eventId=${encodeURIComponent(query.eventId)}` : ""}`, actor),
           withBase(options),
         ),
       listParticipants: (eventId, actor = {}) =>
