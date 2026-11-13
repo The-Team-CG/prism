@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import type { AddCommunicationParticipantsInput, CommunicationThreadStatus, CommunicationUnreadCountQuery, CreateCommunicationThreadInput, PrismCommunicationInboxThread, PrismCommunicationReadReceipt, PrismCommunicationUnreadCount, PrismCursorPage, SendCommunicationMessageInput, UpdateCommunicationThreadStatusInput } from '@prism/types';
+import type { AddCommunicationParticipantsInput, CommunicationInboxQuery, CommunicationThreadStatus, CommunicationThreadsQuery, CommunicationUnreadCountQuery, CreateCommunicationThreadInput, PrismCommunicationInboxThread, PrismCommunicationReadReceipt, PrismCommunicationUnreadCount, PrismCursorPage, SendCommunicationMessageInput, UpdateCommunicationThreadStatusInput } from '@prism/types';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -46,6 +46,19 @@ function decodeCursor(value?: string): MessageCursor | undefined {
     return { createdAt: new Date(parsed.createdAt).toISOString(), id: parsed.id };
   } catch { throw new BadRequestException('Invalid communication message cursor'); }
 }
+/** Keyset position in the conversation list: the last row shown, by activity then id. */
+type ThreadCursor = { updatedAt: string; id: string };
+type ThreadPageScope = { actorId: string; eventIds: string[] };
+type ThreadPageQuery = { cursor?: string; limit: number; q?: string; status: CommunicationThreadStatus };
+function encodeThreadCursor(row: { updatedAt: Date; id: string }) { return Buffer.from(JSON.stringify({ updatedAt: row.updatedAt.toISOString(), id: row.id }), 'utf8').toString('base64url'); }
+function decodeThreadCursor(value?: string): ThreadCursor | undefined {
+  if (!value) return undefined;
+  try {
+    const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Partial<ThreadCursor>;
+    if (typeof parsed.updatedAt !== 'string' || typeof parsed.id !== 'string' || Number.isNaN(new Date(parsed.updatedAt).getTime())) throw new Error('invalid');
+    return { updatedAt: new Date(parsed.updatedAt).toISOString(), id: parsed.id };
+  } catch { throw new BadRequestException('Invalid communication thread cursor'); }
+}
 function portalFor(role: string) {
   return role === OpsUserRole.Coordinator ? 'coordinator' : role === OpsUserRole.Client ? 'client' : role === OpsUserRole.Supplier ? 'supplier' : 'event';
 }
@@ -86,34 +99,46 @@ export class CommunicationService {
 
   listEligibleParticipants(eventId: string, actor: ResolvedEventOpsActor) { return this.participants.listEligibleForEvent(eventId, actor); }
 
-  async listThreads(eventId: string, actor: ResolvedEventOpsActor) {
-    await this.access.requireActorRole(actor, readerRoles, 'communication threads', eventId);
-    const verified = await this.participants.resolveForEvent(actor.id ?? '', eventId);
-    const rows = await this.prisma.opsCommunicationThread.findMany({ take: 100, where: { eventId, participants: { some: { actorId: verified.id!, active: true } } }, select: { id: true, eventId: true, subject: true, status: true, createdBy: true, createdAt: true, updatedAt: true, participants: { where: { active: true }, select: participantSelect }, messages: { take: 101, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: messageSelect } }, orderBy: { updatedAt: 'desc' } });
-    const [unreadByThread, names] = await Promise.all([this.unreadCounts(rows, verified.id!), this.names(rows)]);
-    return rows.map((row) => this.safeThread(row, verified.id!, unreadByThread.get(row.id) ?? 0, names));
+  /** One page of the conversations in one event, most recent activity first, optionally filtered by status and search. */
+  async listThreads(query: CommunicationThreadsQuery, actor: ResolvedEventOpsActor) {
+    await this.access.requireActorRole(actor, readerRoles, 'communication threads', query.eventId);
+    const verified = await this.participants.resolveForEvent(actor.id ?? '', query.eventId);
+    const page = await this.threadPage({ actorId: verified.id!, eventIds: [query.eventId] }, query, 101);
+    const [unreadByThread, names] = await Promise.all([this.unreadCounts(page.items, verified.id!), this.names(page.items)]);
+    return { items: page.items.map((row) => this.safeThread(row, verified.id!, unreadByThread.get(row.id) ?? 0, names)), limit: query.limit, nextCursor: page.nextCursor, hasMore: page.hasMore };
   }
 
-  /** Every conversation the account is in, across the events it can still read, most recent activity first. */
-  async listInbox(actor: ResolvedEventOpsActor): Promise<PrismCommunicationInboxThread[]> {
+  /** One conversation the account is a member of, read the same way as its messages. */
+  async getThread(threadId: string, actor: ResolvedEventOpsActor) {
+    const { verified } = await this.authorizeThread(threadId, actor, 'communication thread');
+    await this.ensureMembership(threadId, verified.id!);
+    const row = await this.thread(this.prisma, threadId);
+    if (!row) throw new NotFoundException('Communication thread not found');
+    const unreadByThread = await this.unreadCounts([row], verified.id!);
+    return this.safeThread(row, verified.id!, unreadByThread.get(row.id) ?? 0, await this.names([row]));
+  }
+
+  /**
+   * One page of every conversation the account is in, across the events it can still read, most recent activity first.
+   * The readable events are resolved before paging, so an unreadable event never shortens a page.
+   */
+  async listInbox(query: CommunicationInboxQuery, actor: ResolvedEventOpsActor): Promise<PrismCursorPage<PrismCommunicationInboxThread>> {
     await this.access.requireActorRole(actor, readerRoles, 'communication inbox');
     if (!actor.id) throw new BadRequestException('The inbox requires a verified account');
     const actorId = actor.id;
-    const rows: InboxRow[] = await this.prisma.opsCommunicationThread.findMany({ take: 100, where: { participants: { some: { actorId, active: true } } }, select: { ...threadFields, participants: { where: { active: true }, select: participantSelect }, messages: { take: 1, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: messageSelect } }, orderBy: { updatedAt: 'desc' } });
-    // Membership alone is not access: a cancelled booking or a locked portal hides that event's conversations here too.
-    const readable = await this.participants.readableEventIds(actorId, rows.map((row) => row.eventId));
-    const visible = rows.filter((row) => readable.has(row.eventId));
-    if (!visible.length) return [];
+    const page = await this.threadPage({ actorId, eventIds: await this.readableEventIdsFor(actorId) }, query, 1);
+    const visible = page.items;
     const [events, unreadByThread, names] = await Promise.all([
       this.prisma.opsEvent.findMany({ where: { id: { in: [...new Set(visible.map((row) => row.eventId))] } }, select: { id: true, eventName: true } }),
       this.unreadCounts(visible, actorId),
       this.names(visible),
     ]);
     const eventNames = new Map(events.map((event) => [event.id, event.eventName]));
-    return visible.map((row) => {
+    const items = visible.map((row) => {
       const { messages, messagesNextCursor: _history, ...thread } = this.safeThread(row, actorId, unreadByThread.get(row.id) ?? 0, names);
       return { ...thread, eventName: eventNames.get(row.eventId) ?? '', lastMessage: messages[0] ?? null };
     });
+    return { items, limit: query.limit, nextCursor: page.nextCursor, hasMore: page.hasMore };
   }
 
   /**
@@ -126,11 +151,55 @@ export class CommunicationService {
     if (!actor.id) throw new BadRequestException('The inbox requires a verified account');
     const actorId = actor.id;
     if (query.eventId) await this.participants.resolveForEvent(actorId, query.eventId);
-    const rows = await this.prisma.opsCommunicationThread.findMany({ take: 100, where: { participants: { some: { actorId, active: true } }, ...(query.eventId ? { eventId: query.eventId } : {}) }, select: { ...threadFields, participants: { where: { active: true }, select: participantSelect } }, orderBy: { updatedAt: 'desc' } });
+    // A closed conversation is finished: it stops counting toward the navigation badge. Every open conversation is counted, with no cap.
+    const rows = await this.prisma.opsCommunicationThread.findMany({ where: { participants: { some: { actorId, active: true } }, status: 'open', eventId: query.eventId }, select: { id: true, eventId: true, participants: { where: { active: true }, select: participantSelect } } });
     const readable = await this.participants.readableEventIds(actorId, rows.map((row) => row.eventId));
-    // A closed conversation is finished: it stops counting toward the navigation badge.
-    const counts = await this.unreadCounts(rows.filter((row) => readable.has(row.eventId) && row.status === 'open'), actorId);
+    const counts = await this.unreadCounts(rows.filter((row) => readable.has(row.eventId)), actorId);
     return { unread: [...counts.values()].reduce((sum, count) => sum + count, 0) };
+  }
+
+  /** Events where the account is an active member and may still read: the set the inbox and search are limited to. */
+  private async readableEventIdsFor(actorId: string): Promise<string[]> {
+    const memberships = await this.prisma.opsCommunicationThread.findMany({ where: { participants: { some: { actorId, active: true } } }, distinct: ['eventId'], select: { eventId: true } });
+    // Membership alone is not access: a cancelled booking or a locked portal hides that event's conversations too.
+    return [...await this.participants.readableEventIds(actorId, memberships.map((row) => row.eventId))];
+  }
+
+  /** Keyset page of the account's conversations in `scope.eventIds`. Membership and the event scope always apply first. */
+  private async threadPage(scope: ThreadPageScope, query: ThreadPageQuery, messagesTake: number) {
+    const cursor = decodeThreadCursor(query.cursor);
+    const where = await this.threadPageWhere(scope, query, cursor);
+    const rows = await this.prisma.opsCommunicationThread.findMany({
+      where,
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: limit is 1-50 by the query schema, plus one to detect the next page.
+      take: query.limit + 1,
+      select: { ...threadFields, participants: { where: { active: true }, select: participantSelect }, messages: { take: messagesTake, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: messageSelect } },
+    });
+    const hasMore = rows.length > query.limit;
+    const items = rows.slice(0, query.limit);
+    const last = items[items.length - 1];
+    return { items, hasMore, nextCursor: hasMore && last ? encodeThreadCursor(last) : null };
+  }
+
+  private async threadPageWhere({ actorId, eventIds }: ThreadPageScope, query: ThreadPageQuery, cursor?: ThreadCursor): Promise<Prisma.OpsCommunicationThreadWhereInput> {
+    const where: Prisma.OpsCommunicationThreadWhereInput = { participants: { some: { actorId, active: true } }, eventId: { in: eventIds }, status: query.status };
+    if (query.q) where.OR = await this.searchClauses(eventIds, query.q);
+    if (cursor) {
+      const updatedAt = new Date(cursor.updatedAt);
+      where.AND = [{ OR: [{ updatedAt: { lt: updatedAt } }, { updatedAt, id: { lt: cursor.id } }] }];
+    }
+    return where;
+  }
+
+  /** A conversation matches when its subject, its event's name, or any of its messages contains the text. */
+  private async searchClauses(eventIds: string[], q: string): Promise<Prisma.OpsCommunicationThreadWhereInput[]> {
+    const events = await this.prisma.opsEvent.findMany({ where: { id: { in: eventIds }, eventName: { contains: q, mode: 'insensitive' } }, select: { id: true } });
+    return [
+      { subject: { contains: q, mode: 'insensitive' } },
+      { eventId: { in: events.map((event) => event.id) } },
+      { messages: { some: { body: { contains: q, mode: 'insensitive' } } } },
+    ];
   }
 
   async listMessages(threadId: string, query: { cursor?: string; limit?: number }, actor: ResolvedEventOpsActor): Promise<PrismCursorPage<ReturnType<CommunicationService['safeMessage']>>> {
@@ -227,7 +296,7 @@ export class CommunicationService {
       if (current.length) throw new BadRequestException('Someone chosen is already in this conversation');
       // Joining starts read: the history stays visible, but only messages sent after this moment count as unread.
       const joinedAt = new Date();
-      await Promise.all(people.map((person) => tx.opsCommunicationParticipant.upsert({
+      await Promise.all(/* QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the request schema allows at most 20 people, so this is one small batch. */ people.map((person) => tx.opsCommunicationParticipant.upsert({
         where: { threadId_actorId: { threadId, actorId: person.id } },
         create: { id: `participant_${randomUUID()}`, threadId, actorId: person.id, actorRole: person.role, actorEmail: person.email || null, lastReadAt: joinedAt, addedAt: joinedAt },
         update: { active: true, actorRole: person.role, actorEmail: person.email || null, lastReadAt: joinedAt, addedAt: joinedAt },
@@ -315,13 +384,16 @@ export class CommunicationService {
     return this.participants.displayNames(rows.flatMap((row) => [...row.participants.map(({ actorId }) => actorId), ...row.messages.map(({ senderId }) => senderId)]), db);
   }
 
-  private async unreadCounts(rows: Array<Pick<ThreadRow, 'id' | 'participants'>>, actorId: string) {
+  /** Unread counts for the given conversations in one grouped query: someone else's message newer than this account's read time. */
+  private async unreadCounts(rows: Array<Pick<ThreadRow, 'id' | 'participants'>>, actorId: string): Promise<Map<string, number>> {
     const readAt = new Map(rows.map((row) => [row.id, row.participants.find((participant) => participant.actorId === actorId)?.lastReadAt ?? null]));
-    const dates = [...readAt.values()].filter((value): value is Date => value instanceof Date);
-    const messages = rows.length && dates.length ? await this.prisma.opsCommunicationMessage.findMany({ where: { threadId: { in: rows.map((row) => row.id) }, senderId: { not: actorId }, createdAt: { gt: new Date(Math.min(...dates.map((date) => date.getTime()))) } }, select: { threadId: true, createdAt: true } }) : rows.length ? await this.prisma.opsCommunicationMessage.findMany({ where: { threadId: { in: rows.map((row) => row.id) }, senderId: { not: actorId } }, select: { threadId: true, createdAt: true } }) : [];
-    const counts = new Map<string, number>();
-    for (const message of messages) { const lastRead = readAt.get(message.threadId); if (!lastRead || message.createdAt > lastRead) counts.set(message.threadId, (counts.get(message.threadId) ?? 0) + 1); }
-    return counts;
+    if (!readAt.size) return new Map();
+    const groups = await this.prisma.opsCommunicationMessage.groupBy({
+      by: ['threadId'],
+      where: { senderId: { not: actorId }, OR: [...readAt].map(([threadId, lastRead]) => (lastRead ? { threadId, createdAt: { gt: lastRead } } : { threadId })) },
+      _count: { _all: true },
+    });
+    return new Map(groups.map((group) => [group.threadId, group._count._all]));
   }
 
   private thread(db: PrismaService | Prisma.TransactionClient, id: string) {

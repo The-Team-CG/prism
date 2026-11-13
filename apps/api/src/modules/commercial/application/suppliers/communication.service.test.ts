@@ -48,83 +48,211 @@ describe('CommunicationService thread creation', () => {
   });
 });
 
-describe('CommunicationService inbox', () => {
-  const at = new Date('2026-11-12T08:00:00.000Z');
-  const reply = { id: 'msg_2', threadId: 'thread_a', senderId: 'u_client', senderRole: 'client', body: 'Can we move load-in?', createdAt: at };
-  function thread(id: string, eventId: string, messages = [reply]) {
-    return {
-      id, eventId, subject: `Topic ${id}`, status: 'open', createdBy: 'u_pmcm', createdAt: at, updatedAt: at,
-      participants: [{ id: `${id}_me`, actorId: 'u_supplier', actorRole: 'supplier', active: true, lastReadAt: null }, { id: `${id}_client`, actorId: 'u_client', actorRole: 'client', active: true, lastReadAt: at }],
-      messages,
-    };
-  }
-  function inboxHarness(readable: string[], access = { requireActorRole: vi.fn() }) {
-    const supplier = { id: 'u_supplier', name: 'Bloom Florals', email: 'bloom@example.test', role: 'supplier', explicit: true, verified: true } as const;
-    const prisma = {
-      opsCommunicationThread: { findMany: vi.fn(async ({ where }: { where: { eventId?: string } }) => [thread('thread_a', 'event_a'), thread('thread_b', 'event_b', [])].filter((row) => !where.eventId || row.eventId === where.eventId)) },
-      opsCommunicationMessage: { findMany: vi.fn(async ({ where }: { where: { threadId: { in: string[] } } }) => [{ threadId: 'thread_a', createdAt: at }].filter((message) => where.threadId.in.includes(message.threadId))) },
-      opsEvent: { findMany: vi.fn(async () => [{ id: 'event_a', eventName: 'Founders gala' }, { id: 'event_b', eventName: 'Product expo' }]) },
-    };
-    // Like the real reader: an event the account cannot read is refused, not silently empty.
-    const participants = { readableEventIds: vi.fn(async () => new Set(readable)), resolveForEvent: vi.fn(async (_actorId: string, eventId: string) => { if (!readable.includes(eventId)) throw new ForbiddenException('Not on this event'); return supplier; }),displayNames: vi.fn(async () => new Map([['u_client', 'Ana Reyes'], ['u_supplier', 'Bloom Florals']])) };
-    const service = new CommunicationService(prisma as never, access as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
-    return { service, supplier, prisma, participants };
-  }
+type InboxMessage = { id: string; threadId: string; senderId: string; senderRole: string; body: string; createdAt: Date };
+type StoredThread = { id: string; eventId: string; subject: string; status: 'open' | 'closed'; updatedAt: Date; lastReadAt: Date | null; messages: InboxMessage[] };
+type OrClause = { subject?: { contains: string }; eventId?: { in: string[] }; messages?: { some: { body: { contains: string } } } };
+/** A keyset clause: either "older than this activity" or "same activity, id before this one". */
+type CursorClause = { updatedAt: { lt: Date } | Date; id?: { lt: string } };
+type ThreadWhere = { eventId?: string | { in: string[] }; status?: string; OR?: OrClause[]; AND?: Array<{ OR: CursorClause[] }> };
 
+const inboxActor = { id: 'u_supplier', name: 'Bloom Florals', email: 'bloom@example.test', role: 'supplier', explicit: true, verified: true } as const;
+const eventNames: Record<string, string> = { event_a: 'Founders gala', event_b: 'Product expo' };
+
+/** Mirrors the unread rule the service asks for in one grouped count: someone else's message after this account's read time. */
+function groupUnread(messages: InboxMessage[], where: { senderId: { not: string }; OR: Array<{ threadId: string; createdAt?: { gt: Date } }> }) {
+  const counts = new Map<string, number>();
+  for (const message of messages) {
+    if (message.senderId === where.senderId.not) continue;
+    const counted = where.OR.some((clause) => clause.threadId === message.threadId && (!clause.createdAt || message.createdAt > clause.createdAt.gt));
+    if (counted) counts.set(message.threadId, (counts.get(message.threadId) ?? 0) + 1);
+  }
+  return [...counts].map(([threadId, count]) => ({ threadId, _count: { _all: count } }));
+}
+
+function matchesClause(thread: StoredThread, clause: OrClause) {
+  if (clause.subject) return thread.subject.toLowerCase().includes(clause.subject.contains.toLowerCase());
+  if (clause.eventId) return clause.eventId.in.includes(thread.eventId);
+  return thread.messages.some((message) => message.body.toLowerCase().includes(clause.messages!.some.body.contains.toLowerCase()));
+}
+
+function matchesWhere(thread: StoredThread, where: ThreadWhere) {
+  if (typeof where.eventId === 'string' && where.eventId !== thread.eventId) return false;
+  if (where.eventId && typeof where.eventId !== 'string' && !where.eventId.in.includes(thread.eventId)) return false;
+  if (where.status && where.status !== thread.status) return false;
+  return !where.OR || where.OR.some((clause) => matchesClause(thread, clause));
+}
+
+function passesCursor(thread: StoredThread, where: ThreadWhere) {
+  const clauses: CursorClause[] = where.AND?.[0]?.OR ?? [];
+  return !clauses.length || clauses.some((clause) => (clause.updatedAt instanceof Date
+    ? thread.updatedAt.getTime() === clause.updatedAt.getTime() && thread.id < (clause.id?.lt ?? '')
+    : thread.updatedAt < clause.updatedAt.lt));
+}
+
+/** A small in-memory store for the thread and message queries the service makes, honouring membership, scope, status, search, keyset order and take. */
+function inboxStore(threads: StoredThread[], readable: string[] = Object.keys(eventNames), access = { requireActorRole: vi.fn() }) {
+  const newestFirst = (a: StoredThread, b: StoredThread) => b.updatedAt.getTime() - a.updatedAt.getTime() || (a.id < b.id ? 1 : -1);
+  const messagesFor = (thread: StoredThread, take: number) => [...thread.messages].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1)).slice(0, take);
+  const toRow = (thread: StoredThread, messageTake: number) => ({
+    id: thread.id, eventId: thread.eventId, subject: thread.subject, status: thread.status, createdBy: 'u_pmcm', createdAt: thread.updatedAt, updatedAt: thread.updatedAt,
+    participants: [
+      { id: `${thread.id}_me`, actorId: inboxActor.id, actorRole: 'supplier', active: true, lastReadAt: thread.lastReadAt },
+      { id: `${thread.id}_client`, actorId: 'u_client', actorRole: 'client', active: true, lastReadAt: null },
+    ],
+    messages: messagesFor(thread, messageTake),
+  });
+  const db = {
+    opsCommunicationThread: {
+      findMany: vi.fn(async (args: { where?: ThreadWhere; distinct?: string[]; take?: number; select: { messages: { take: number } } | { participants: unknown } }) => {
+        if (args.distinct) return [...new Set(threads.map((thread) => thread.eventId))].map((eventId) => ({ eventId }));
+        const where = args.where ?? {};
+        const rows = threads.filter((thread) => matchesWhere(thread, where) && passesCursor(thread, where)).sort(newestFirst);
+        const messageTake = 'messages' in args.select ? args.select.messages.take : 0;
+        return rows.slice(0, args.take ?? rows.length).map((thread) => toRow(thread, messageTake));
+      }),
+    },
+    opsCommunicationMessage: {
+      groupBy: vi.fn(async ({ where }: { where: Parameters<typeof groupUnread>[1] }) => groupUnread(threads.flatMap((thread) => thread.messages), where)),
+    },
+    opsEvent: {
+      findMany: vi.fn(async ({ where }: { where?: { id?: { in: string[] }; eventName?: { contains: string } } } = {}) => Object.entries(eventNames)
+        .filter(([id, name]) => (!where?.id?.in || where.id.in.includes(id)) && (!where?.eventName?.contains || name.toLowerCase().includes(where.eventName.contains.toLowerCase())))
+        .map(([id, eventName]) => ({ id, eventName }))),
+    },
+  };
+  const participants = {
+    // Like the real reader: an event the account cannot read is refused by resolveForEvent, and dropped from the inbox.
+    readableEventIds: vi.fn(async (_actorId: string, ids: string[]) => new Set(ids.filter((id) => readable.includes(id)))),
+    resolveForEvent: vi.fn(async (_actorId: string, eventId: string) => { if (!readable.includes(eventId)) throw new ForbiddenException('Not on this event'); return inboxActor; }),
+    displayNames: vi.fn(async () => new Map([['u_client', 'Ana Reyes'], ['u_supplier', 'Bloom Florals']])),
+  };
+  const service = new CommunicationService(db as never, access as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
+  return { service, db, participants };
+}
+
+const firstPage = { limit: 30, status: 'open' as const };
+const at = new Date('2026-11-12T08:00:00.000Z');
+function threadAt(id: string, eventId: string, minutes: number, extra: Partial<StoredThread> & { body?: string } = {}): StoredThread {
+  const { body = `Message in ${id}`, ...rest } = extra;
+  const updatedAt = new Date(at.getTime() + minutes * 60_000);
+  return { id, eventId, subject: `Topic ${id}`, status: 'open', updatedAt, lastReadAt: null, messages: [{ id: `${id}_m`, threadId: id, senderId: 'u_client', senderRole: 'client', body, createdAt: updatedAt }], ...rest };
+}
+
+describe('CommunicationService inbox', () => {
   it('lists each conversation with its event, latest message, unread count and member names, never their read times', async () => {
-    const { service, supplier, prisma } = inboxHarness(['event_a', 'event_b']);
-    const inbox = await service.listInbox(supplier);
-    expect(inbox).toEqual([
+    const { service } = inboxStore([
+      threadAt('thread_a', 'event_a', 2, { body: 'Can we move load-in?' }),
+      { ...threadAt('thread_b', 'event_b', 1), messages: [] },
+    ]);
+    const page = await service.listInbox(firstPage, inboxActor);
+    expect(page.items).toEqual([
       expect.objectContaining({ id: 'thread_a', eventName: 'Founders gala', unreadCount: 1, lastMessage: expect.objectContaining({ body: 'Can we move load-in?', senderName: 'Ana Reyes' }) }),
       expect.objectContaining({ id: 'thread_b', eventName: 'Product expo', unreadCount: 0, lastMessage: null }),
     ]);
-    expect(inbox[0].participants).toEqual([
-      { id: 'thread_a_me', actorId: 'u_supplier', actorRole: 'supplier', name: 'Bloom Florals', active: true, lastReadAt: null },
-      { id: 'thread_a_client', actorId: 'u_client', actorRole: 'client', name: 'Ana Reyes', active: true },
-    ]);
-    expect(inbox[0]).not.toHaveProperty('messages');
-    // Only conversations the account is an active member of are read at all.
-    expect(prisma.opsCommunicationThread.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { participants: { some: { actorId: 'u_supplier', active: true } } } }));
+    expect(page.items[0]).not.toHaveProperty('messages');
+    expect(page.items[0].participants.find((member) => member.actorId === 'u_client')).not.toHaveProperty('lastReadAt');
   });
 
-  it('hides conversations for an event the account can no longer read', async () => {
-    const { service, supplier, participants } = inboxHarness(['event_b']);
-    expect((await service.listInbox(supplier)).map((row) => row.id)).toEqual(['thread_b']);
+  it('only reads conversations where the account is an active member, and asks for readability before paging', async () => {
+    const { service, db, participants } = inboxStore([threadAt('thread_a', 'event_a', 2), threadAt('thread_b', 'event_b', 1)]);
+    await service.listInbox(firstPage, inboxActor);
+    expect(db.opsCommunicationThread.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({ distinct: ['eventId'], where: { participants: { some: { actorId: 'u_supplier', active: true } } } }));
     expect(participants.readableEventIds).toHaveBeenCalledWith('u_supplier', ['event_a', 'event_b']);
+    expect(db.opsCommunicationThread.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: expect.objectContaining({ eventId: { in: ['event_a', 'event_b'] }, status: 'open' }), take: 31 }));
+  });
+
+  it('hides conversations for an event the account can no longer read, and does not let them shorten a page', async () => {
+    const { service } = inboxStore([threadAt('thread_other', 'event_b', 3), threadAt('thread_a', 'event_a', 2), threadAt('thread_c', 'event_a', 1)], ['event_a']);
+    const page = await service.listInbox({ limit: 2, status: 'open' }, inboxActor);
+    expect(page.items.map((row) => row.id)).toEqual(['thread_a', 'thread_c']);
+    expect(page.hasMore).toBe(false);
+  });
+
+  it('pages most recent first with a keyset cursor, and the next page continues without overlap', async () => {
+    const threads = [threadAt('thread_1', 'event_a', 5), threadAt('thread_2', 'event_a', 4), threadAt('thread_3', 'event_a', 3), threadAt('thread_4', 'event_a', 3)];
+    const { service } = inboxStore(threads);
+    const first = await service.listInbox({ limit: 2, status: 'open' }, inboxActor);
+    expect(first).toMatchObject({ limit: 2, hasMore: true });
+    expect(first.items.map((row) => row.id)).toEqual(['thread_1', 'thread_2']);
+    expect(first.nextCursor).toEqual(expect.any(String));
+    const second = await service.listInbox({ limit: 2, status: 'open', cursor: first.nextCursor! }, inboxActor);
+    expect(second.items.map((row) => row.id)).toEqual(['thread_4', 'thread_3']);
+    expect(second).toMatchObject({ hasMore: false, nextCursor: null });
+  });
+
+  it('rejects a malformed cursor', async () => {
+    const { service } = inboxStore([threadAt('thread_1', 'event_a', 1)]);
+    await expect(service.listInbox({ limit: 2, status: 'open', cursor: 'not-a-cursor' }, inboxActor)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('searches subject, event name and message text, case-insensitively, after membership and readability', async () => {
+    const { service } = inboxStore([
+      threadAt('thread_subject', 'event_b', 4, { body: 'nothing relevant' }),
+      threadAt('thread_event', 'event_a', 3, { body: 'nothing relevant' }),
+      threadAt('thread_body', 'event_b', 2, { body: 'Please bring the TENT poles' }),
+      threadAt('thread_other', 'event_a', 1, { body: 'tent again' }),
+    ]);
+    const bySubject = await service.listInbox({ limit: 30, status: 'open', q: 'TOPIC thread_subject' }, inboxActor);
+    expect(bySubject.items.map((row) => row.id)).toEqual(['thread_subject']);
+    const byEvent = await service.listInbox({ limit: 30, status: 'open', q: 'gala' }, inboxActor);
+    expect(byEvent.items.map((row) => row.id)).toEqual(['thread_event', 'thread_other']);
+    const byBody = await service.listInbox({ limit: 30, status: 'open', q: 'tent poles' }, inboxActor);
+    expect(byBody.items.map((row) => row.id)).toEqual(['thread_body']);
+  });
+
+  it('lists only closed conversations when asked for the closed status, and blank search means no search', async () => {
+    const { service } = inboxStore([threadAt('thread_open', 'event_a', 2), { ...threadAt('thread_closed', 'event_a', 1), status: 'closed' }]);
+    expect((await service.listInbox({ limit: 30, status: 'closed' }, inboxActor)).items.map((row) => row.id)).toEqual(['thread_closed']);
+    expect((await service.listInbox({ limit: 30, status: 'open', q: '' }, inboxActor)).items.map((row) => row.id)).toEqual(['thread_open']);
+  });
+
+  it("pages one event's conversations by its own cursor, and refuses an event the account cannot read", async () => {
+    const { service } = inboxStore([threadAt('thread_1', 'event_a', 3), threadAt('thread_2', 'event_b', 2), threadAt('thread_3', 'event_a', 1)], ['event_a']);
+    const first = await service.listThreads({ eventId: 'event_a', limit: 1, status: 'open' }, inboxActor);
+    expect(first).toMatchObject({ limit: 1, hasMore: true, items: [expect.objectContaining({ id: 'thread_1' })] });
+    const second = await service.listThreads({ eventId: 'event_a', limit: 1, status: 'open', cursor: first.nextCursor! }, inboxActor);
+    expect(second).toMatchObject({ hasMore: false, nextCursor: null, items: [expect.objectContaining({ id: 'thread_3' })] });
+    await expect(service.listThreads({ eventId: 'event_b', limit: 1, status: 'open' }, inboxActor)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('requires a verified account', async () => {
-    const { service, supplier, prisma } = inboxHarness([]);
-    await expect(service.listInbox({ ...supplier, id: undefined })).rejects.toBeInstanceOf(BadRequestException);
-    expect(prisma.opsCommunicationThread.findMany).not.toHaveBeenCalled();
+    const { service, db } = inboxStore([]);
+    await expect(service.listInbox(firstPage, { ...inboxActor, id: undefined })).rejects.toBeInstanceOf(BadRequestException);
+    expect(db.opsCommunicationThread.findMany).not.toHaveBeenCalled();
   });
 
   it('counts unread messages only in conversations on events the account can read', async () => {
-    const { service, supplier, prisma } = inboxHarness(['event_a']);
-    await expect(service.unreadCount({}, supplier)).resolves.toEqual({ unread: 1 });
-    expect(prisma.opsCommunicationThread.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { participants: { some: { actorId: 'u_supplier', active: true } } } }));
-    // The same unread message is not counted once its event is no longer readable.
-    await expect(inboxHarness(['event_b']).service.unreadCount({}, supplier)).resolves.toEqual({ unread: 0 });
+    const threads = [threadAt('thread_a', 'event_a', 2), threadAt('thread_b', 'event_b', 1)];
+    await expect(inboxStore(threads).service.unreadCount({}, inboxActor)).resolves.toEqual({ unread: 2 });
+    await expect(inboxStore(threads, ['event_b']).service.unreadCount({}, inboxActor)).resolves.toEqual({ unread: 1 });
   });
 
   it("counts only the named event's unread messages, and refuses an event the account cannot read", async () => {
-    const { service, supplier, prisma } = inboxHarness(['event_a', 'event_b']);
-    // event_b has no unread message, so its count is zero rather than the account-wide total of one.
-    await expect(service.unreadCount({ eventId: 'event_b' }, supplier)).resolves.toEqual({ unread: 0 });
-    await expect(service.unreadCount({ eventId: 'event_a' }, supplier)).resolves.toEqual({ unread: 1 });
-    expect(prisma.opsCommunicationThread.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { participants: { some: { actorId: 'u_supplier', active: true } }, eventId: 'event_a' } }));
-    const locked = inboxHarness(['event_b']);
-    await expect(locked.service.unreadCount({ eventId: 'event_a' }, locked.supplier)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(locked.prisma.opsCommunicationMessage.findMany).not.toHaveBeenCalled();
+    const threads = [threadAt('thread_a', 'event_a', 2), { ...threadAt('thread_b', 'event_b', 1), messages: [] }];
+    const { service, db } = inboxStore(threads);
+    await expect(service.unreadCount({ eventId: 'event_b' }, inboxActor)).resolves.toEqual({ unread: 0 });
+    await expect(service.unreadCount({ eventId: 'event_a' }, inboxActor)).resolves.toEqual({ unread: 1 });
+    expect(db.opsCommunicationThread.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ eventId: 'event_a', status: 'open' }) }));
+    const locked = inboxStore(threads, ['event_b']);
+    await expect(locked.service.unreadCount({ eventId: 'event_a' }, inboxActor)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(locked.db.opsCommunicationMessage.groupBy).not.toHaveBeenCalled();
+  });
+
+  it('counts unread across more than the first hundred open conversations', async () => {
+    const threads = Array.from({ length: 120 }, (_, index) => threadAt(`thread_${String(index).padStart(3, '0')}`, 'event_a', index));
+    const { service, db } = inboxStore(threads);
+    await expect(service.unreadCount({}, inboxActor)).resolves.toEqual({ unread: 120 });
+    expect(db.opsCommunicationThread.findMany).toHaveBeenCalledWith(expect.not.objectContaining({ take: expect.anything() }));
+    expect(db.opsCommunicationMessage.groupBy).toHaveBeenCalledTimes(1);
   });
 
   it('rejects an unverified account and a role outside the inbox, without reading conversations', async () => {
-    const { service, supplier, prisma } = inboxHarness(['event_a']);
-    await expect(service.unreadCount({}, { ...supplier, id: undefined })).rejects.toBeInstanceOf(BadRequestException);
-    const forbidden = inboxHarness(['event_a'], { requireActorRole: vi.fn(async () => { throw new ForbiddenException('Not allowed'); }) });
-    await expect(forbidden.service.unreadCount({}, forbidden.supplier)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(prisma.opsCommunicationThread.findMany).not.toHaveBeenCalled();
-    expect(forbidden.prisma.opsCommunicationThread.findMany).not.toHaveBeenCalled();
+    const { service, db } = inboxStore([threadAt('thread_a', 'event_a', 1)]);
+    await expect(service.unreadCount({}, { ...inboxActor, id: undefined })).rejects.toBeInstanceOf(BadRequestException);
+    const forbidden = inboxStore([threadAt('thread_a', 'event_a', 1)], undefined, { requireActorRole: vi.fn(() => { throw new ForbiddenException('Not allowed'); }) });
+    await expect(forbidden.service.unreadCount({}, inboxActor)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(db.opsCommunicationThread.findMany).not.toHaveBeenCalled();
+    expect(forbidden.db.opsCommunicationThread.findMany).not.toHaveBeenCalled();
   });
 });
 
@@ -179,7 +307,7 @@ function managementHarness(options: { status?: string; members?: Array<{ actorId
     },
     opsCommunicationMessage: {
       findUnique: vi.fn(async () => null),
-      findMany: vi.fn(async ({ where }: { where: { threadId: { in: string[] }; senderId: { not: string } } }) => state.messages.filter((message) => where.threadId.in.includes(message.threadId) && message.senderId !== where.senderId.not)),
+      groupBy: vi.fn(async ({ where }: { where: Parameters<typeof groupUnread>[1] }) => groupUnread(state.messages, where)),
       create: vi.fn(async ({ data }: { data: { threadId: string; senderId: string; senderRole: string; body: string; payloadHash: string } }) => {
         const message = { id: `msg_${state.messages.length + 1}`, threadId: data.threadId, senderId: data.senderId, senderRole: data.senderRole, body: data.body, createdAt: new Date() };
         state.messages.push(message);
@@ -266,10 +394,13 @@ describe('CommunicationService membership and status', () => {
     expect(h.activeIds()).toEqual(['u_pmcm', 'u_supplier']);
     expect(lastWrite(h.audit.write)).toMatchObject({ action: 'Removed communication participant: thread_1', actionType: 'delete', metadata: { removedActorId: 'u_client' } });
     await expect(h.service.listMessages('thread_1', {}, client)).rejects.toBeInstanceOf(ForbiddenException);
-    await expect(h.service.listInbox(client)).resolves.toEqual([]);
+    await expect(h.service.listInbox(firstPage, client)).resolves.toMatchObject({ items: [] });
     await expect(h.service.unreadCount({}, client)).resolves.toEqual({ unread: 0 });
     // The conversation is still in the inbox of a member who stayed.
-    expect((await h.service.listInbox(people.u_supplier)).map((row) => row.id)).toEqual(['thread_1']);
+    expect((await h.service.listInbox(firstPage, people.u_supplier)).items.map((row) => row.id)).toEqual(['thread_1']);
+    // A conversation is opened by id only for a member; the removed member is refused, as its messages are.
+    await expect(h.service.getThread('thread_1', people.u_supplier)).resolves.toMatchObject({ id: 'thread_1', status: 'open' });
+    await expect(h.service.getThread('thread_1', client)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('refuses a removal that leaves no PMCM member, or fewer than two members, and a person who is not in the conversation', async () => {
@@ -297,15 +428,9 @@ describe('CommunicationService membership and status', () => {
   });
 
   it('does not count messages in closed conversations toward the unread count', async () => {
-    const at = new Date('2026-11-12T08:00:00.000Z');
-    const row = (id: string, status: string) => ({ id, eventId: 'event_1', subject: id, status, createdBy: 'u_pmcm', createdAt: at, updatedAt: at, participants: [{ id: `${id}_me`, actorId: 'u_client', actorRole: 'client', active: true, lastReadAt: null }] });
-    const db = {
-      opsCommunicationThread: { findMany: vi.fn(async () => [row('thread_open', 'open'), row('thread_closed', 'closed')]) },
-      opsCommunicationMessage: { findMany: vi.fn(async ({ where }: { where: { threadId: { in: string[] } } }) => [{ threadId: 'thread_open', createdAt: at }, { threadId: 'thread_closed', createdAt: at }].filter((message) => where.threadId.in.includes(message.threadId))) },
-    };
-    const participants = { readableEventIds: vi.fn(async () => new Set(['event_1'])) };
-    const service = new CommunicationService(db as never, { requireActorRole: vi.fn() } as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
-    await expect(service.unreadCount({}, people.u_client)).resolves.toEqual({ unread: 1 });
+    const { service, db } = inboxStore([threadAt('thread_open', 'event_a', 2), { ...threadAt('thread_closed', 'event_a', 1), status: 'closed' }]);
+    await expect(service.unreadCount({}, inboxActor)).resolves.toEqual({ unread: 1 });
+    expect(db.opsCommunicationThread.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ status: 'open' }) }));
   });
 });
 

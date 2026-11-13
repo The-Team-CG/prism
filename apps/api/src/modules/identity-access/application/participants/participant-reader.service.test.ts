@@ -7,7 +7,7 @@ function harness(overrides: Record<string, unknown> = {}) {
   const user = { id: 'u_client', name: 'Client', email: 'client@example.test', role: OpsUserRole.Client, approvalStatus: 'approved' };
   const facts = { event: { id: 'evt_1', clientPortalStatus: 'unlocked', clientName: 'Client', inquiryEmail: user.email as string | null }, supplierAssignments: [] as Array<{ supplierId: string | null; status: string }>, suppliers: [] as Array<{ id: string; email: string }>, coordinatorAssignments: [] as Array<{ coordinatorId: string | null; status: string }>, coordinators: [] as Array<{ id: string; userId: string | null }> };
   const prisma = { opsUser: { findUnique: vi.fn(async (): Promise<Record<string, unknown> | null> => ({ ...user, ...overrides })), findMany: vi.fn(async (): Promise<Array<{ id: string; name: string; email: string; role: string }>> => []) } };
-  const factsReader = { findForEvent: vi.fn(async () => facts) };
+  const factsReader = { findForEvent: vi.fn(async () => facts), findForEvents: vi.fn(async (eventIds: string[]) => new Map(eventIds.map((eventId) => [eventId, facts]))) };
   const policy = { requireCanReadEvent: vi.fn(async () => undefined), canReadEvent: vi.fn(() => true) };
   return { service: new ParticipantReaderService(prisma as never, policy as never, factsReader as never), prisma, factsReader, policy, user, facts };
 }
@@ -67,7 +67,7 @@ describe('ParticipantReaderService', () => {
 
   it('narrows inbox events to the ones the account can still read, without recording a denial', async () => {
     const client = harness();
-    client.factsReader.findForEvent.mockImplementation(async (...[eventId]: unknown[]) => (eventId === 'evt_gone' ? null : { ...client.facts, event: { ...client.facts.event, inquiryEmail: eventId === 'evt_other' ? 'someone@example.test' : client.user.email } }) as never);
+    client.factsReader.findForEvents.mockImplementation(async (eventIds: string[]) => new Map(eventIds.filter((eventId) => eventId !== 'evt_gone').map((eventId) => [eventId, { ...client.facts, event: { ...client.facts.event, inquiryEmail: eventId === 'evt_other' ? 'someone@example.test' : client.user.email } }])));
     await expect(client.service.readableEventIds(client.user.id, ['evt_1', 'evt_other', 'evt_gone', 'evt_1'])).resolves.toEqual(new Set(['evt_1']));
     expect(client.policy.requireCanReadEvent).not.toHaveBeenCalled();
 
@@ -80,6 +80,15 @@ describe('ParticipantReaderService', () => {
     expect(pmcm.factsReader.findForEvent).not.toHaveBeenCalled();
 
     await expect(harness({ approvalStatus: 'pending' }).service.readableEventIds('u_client', ['evt_1'])).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('reads facts for any number of events in one batched call, deciding each event as before', async () => {
+    const client = harness();
+    const eventIds = Array.from({ length: 40 }, (_, index) => `evt_${index}`);
+    await expect(client.service.readableEventIds(client.user.id, eventIds)).resolves.toEqual(new Set(eventIds));
+    expect(client.factsReader.findForEvents).toHaveBeenCalledTimes(1);
+    expect(client.factsReader.findForEvents).toHaveBeenCalledWith(eventIds);
+    expect(client.factsReader.findForEvent).not.toHaveBeenCalled();
   });
 
   it('shares display names for a conversation and nothing else about the accounts', async () => {

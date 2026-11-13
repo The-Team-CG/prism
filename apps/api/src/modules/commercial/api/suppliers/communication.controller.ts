@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { addCommunicationParticipantsSchema, communicationUnreadCountQuerySchema, createCommunicationThreadSchema, sendCommunicationMessageSchema, updateCommunicationThreadStatusSchema, type AddCommunicationParticipantsInput, type CommunicationUnreadCountQuery, type CreateCommunicationThreadInput, type PrismVerifiedEventActor, type SendCommunicationMessageInput, type UpdateCommunicationThreadStatusInput } from '@prism/types';
+import { addCommunicationParticipantsSchema, communicationInboxQuerySchema, communicationThreadsQuerySchema, communicationUnreadCountQuerySchema, createCommunicationThreadSchema, sendCommunicationMessageSchema, updateCommunicationThreadStatusSchema, type AddCommunicationParticipantsInput, type CommunicationInboxQuery, type CommunicationThreadsQuery, type CommunicationUnreadCountQuery, type CreateCommunicationThreadInput, type PrismVerifiedEventActor, type SendCommunicationMessageInput, type UpdateCommunicationThreadStatusInput } from '@prism/types';
 import { zodBody, zodQuery } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -16,13 +16,18 @@ export class CommunicationController {
   }
 
   @Get('threads')
-  list(@Query('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
-    return this.service.listThreads(eventId, this.access.resolveActor({}, verified));
+  list(@Query(zodQuery(communicationThreadsQuerySchema)) query: CommunicationThreadsQuery, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.listThreads(query, this.access.resolveActor({}, verified));
+  }
+
+  @Get('threads/:threadId')
+  thread(@Param('threadId') threadId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.getThread(threadId, this.access.resolveActor({}, verified));
   }
 
   @Get('inbox')
-  inbox(@VerifiedEventActor() verified: PrismVerifiedEventActor) {
-    return this.service.listInbox(this.access.resolveActor({}, verified));
+  inbox(@Query(zodQuery(communicationInboxQuerySchema)) query: CommunicationInboxQuery, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.listInbox(query, this.access.resolveActor({}, verified));
   }
 
   @Get('unread-count')

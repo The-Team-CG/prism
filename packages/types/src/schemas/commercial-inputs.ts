@@ -175,6 +175,19 @@ export const updateCommunicationThreadStatusSchema = z.object({
 });
 export type UpdateCommunicationThreadStatusInput = z.infer<typeof updateCommunicationThreadStatusSchema>;
 
+/** Paging and search shared by the inbox and one event's conversation list. An empty `q` means no search. */
+const communicationThreadPageFields = {
+  cursor: z.string().min(1).max(500).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(30),
+  q: z.string().trim().max(100).transform((value) => value || undefined).optional(),
+  status: communicationThreadStatusSchema.default("open"),
+};
+export const communicationInboxQuerySchema = z.object(communicationThreadPageFields);
+export type CommunicationInboxQuery = z.infer<typeof communicationInboxQuerySchema>;
+
+export const communicationThreadsQuerySchema = z.object({ eventId: nonEmptyStringSchema, ...communicationThreadPageFields });
+export type CommunicationThreadsQuery = z.infer<typeof communicationThreadsQuerySchema>;
+
 export const addCommunicationParticipantsSchema = z.object({
   actorIds: z.array(nonEmptyStringSchema).min(1).max(20),
 }).superRefine((value, ctx) => {
