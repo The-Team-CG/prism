@@ -15,7 +15,7 @@ export default defineConfig({
     maxWorkers: 2,
     globals: true,
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     clearMocks: true,
     restoreMocks: true,
     coverage: {
