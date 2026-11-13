@@ -1,5 +1,5 @@
 import type { PrismFileRequirementItem, PrismFileRequirementsMatrix, PrismStoredObject, StorageUsage } from "@prism/types";
-import { getStorageObjectDownload, uploadStorageObject } from "@prism/api-client";
+import { copyStorageObject, getStorageObjectDownload, searchClientStoredFiles, uploadStorageObject } from "@prism/api-client";
 import { clientApi, storedClientAccessToken } from "@/lib/prism-api";
 
 export const clientStoredFilesRepository = {
@@ -23,6 +23,16 @@ export const clientStoredFilesRepository = {
 
   bindRequirementUpload(eventId: string, key: string, objectId: string): Promise<PrismFileRequirementItem> {
     return clientApi.events.bindFileRequirementUpload(eventId, key, { objectId });
+  },
+
+  /** A server-side copy of a file the client can read, stored for this event under its own client-upload target. */
+  copy(sourceObjectId: string, eventId: string, attemptId: string): Promise<PrismStoredObject> {
+    return copyStorageObject(sourceObjectId, { eventId, logicalTarget: `client-upload:${eventId}:${attemptId}` }, { authToken: storedClientAccessToken() });
+  },
+
+  /** The client's stored files across all of their events, matching a file name. */
+  search(query: string, signal?: AbortSignal): Promise<PrismStoredObject[]> {
+    return searchClientStoredFiles(query, { authToken: storedClientAccessToken(), signal });
   },
 
   download(objectId: string) {

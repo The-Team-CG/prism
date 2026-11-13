@@ -8,15 +8,23 @@ import { clientEventFileRequirements, clientEventStoredFiles } from "../data/cli
 import { buildClientDocumentChecklist } from "../model/client-document-checklist";
 import {
   buildClientFileLibrary,
+  CLIENT_ARCHIVE_WARNING_BYTES,
+  clientArchiveEntries,
+  clientArchiveTotalBytes,
   clientFileFilterForView,
   countClientFiles,
   filterClientLibrary,
+  isNewClientFile,
   sortClientLibrary,
   type ClientFileFilter,
   type ClientFileSort,
+  type ClientLibraryFile,
 } from "../model/client-file-library";
+import { buildClientEventArchive, reuseClientStoredFile } from "../use-cases/client-file-archive";
 import { downloadClientStoredFile, uploadClientStoredFile } from "../use-cases/client-stored-file-actions";
 import { saveDownload } from "./save-download";
+import { useClientAccountFiles } from "./use-client-account-files";
+import { useClientFilesLastSeen } from "./use-client-files-last-seen";
 
 function uploadNotice(sent: string[], requirementLabel: string | undefined, eventName = "this event") {
   if (requirementLabel) return `${sent[0]} sent for ${requirementLabel}. PMCM will review it.`;
@@ -40,6 +48,11 @@ export function useClientFileLibraryViewModel() {
   const [progress, setProgress] = useState<{ done: number; total: number; current: string } | null>(null);
   const [sort, setSort] = useState<ClientFileSort>({ key: "date", direction: "desc" });
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [searchAll, setSearchAll] = useState(false);
+  const [reuseTarget, setReuseTarget] = useState<{ key: string; label: string } | null>(null);
+  const [reuseQuery, setReuseQuery] = useState("");
+  const [archiving, setArchiving] = useState<{ done: number; total: number } | null>(null);
+  const [archiveWarning, setArchiveWarning] = useState<{ totalBytes: number; largest: string[] } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pendingRequirement = useRef<string | undefined>(undefined);
   const uploadAttempts = useRef(new Map<string, string>());
@@ -50,11 +63,16 @@ export function useClientFileLibraryViewModel() {
   const objects = useResource(clientEventStoredFiles, eventId);
   const requirements = useResource(clientEventFileRequirements, eventId);
 
-  const documents = useMemo(() => (state?.documents ?? []).filter((document) => document.eventId === eventId), [state, eventId]);
+  const lastSeen = useClientFilesLastSeen(session?.id, eventId);
+  const allDocuments = useMemo(() => state?.documents ?? [], [state]);
+  const documents = useMemo(() => allDocuments.filter((document) => document.eventId === eventId), [allDocuments, eventId]);
   const files = useMemo(
-    () => buildClientFileLibrary(objects.data ?? [], documents, requirements.data?.items ?? []),
-    [objects.data, documents, requirements.data],
+    () => buildClientFileLibrary(objects.data ?? [], documents, requirements.data?.items ?? []).map((file) => ({ ...file, isNew: isNewClientFile(file, lastSeen) })),
+    [objects.data, documents, requirements.data, lastSeen],
   );
+  const accountSearch = useClientAccountFiles(searchAll && query.trim() ? query : null, events);
+  const reuseSearch = useClientAccountFiles(reuseTarget ? reuseQuery : null, events);
+  const reuseCandidates = useMemo(() => reuseSearch.files.filter((file) => file.eventId !== eventId && file.objectId), [reuseSearch.files, eventId]);
   const needed = useMemo(
     () => buildClientDocumentChecklist(requirements.data?.items ?? [], objects.data ?? []).rows.filter((row) => row.needsClient),
     [requirements.data, objects.data],
@@ -64,7 +82,9 @@ export function useClientFileLibraryViewModel() {
 
   function chooseEvent(id: string) {
     setChosenEventId(id);
+    setArchiveWarning(null);
     setPreviewId(null);
+    setSearchAll(false);
     setQuery("");
     setError(null);
     setNotice(null);
@@ -127,6 +147,62 @@ export function useClientFileLibraryViewModel() {
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  /** Opens an account-wide search result in its own event, with its preview. */
+  function openSearchResult(file: ClientLibraryFile) {
+    if (!file.eventId) return;
+    chooseEvent(file.eventId);
+    setFilter("all");
+    setPreviewId(file.id);
+  }
+
+  /** Sends a copy of a file from another event for one of this event's requirements. */
+  async function reuseFile(source: ClientLibraryFile) {
+    const target = reuseTarget;
+    setReuseTarget(null);
+    if (!eventId || !target || !source.objectId || busy) return;
+    const attemptKey = `${eventId}:${target.key}:reuse:${source.objectId}`;
+    const attemptId = uploadAttempts.current.get(attemptKey) ?? globalThis.crypto.randomUUID();
+    uploadAttempts.current.set(attemptKey, attemptId);
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    setProgress({ done: 0, total: 1, current: source.name });
+    try {
+      await reuseClientStoredFile(source.objectId, eventId, attemptId, target.key);
+      uploadAttempts.current.delete(attemptKey);
+      setNotice(`${source.name} from ${source.eventName ?? "another event"} sent for ${target.label}. PMCM will review it.`);
+      await Promise.all([invalidate(clientEventStoredFiles, eventId), invalidate(clientEventFileRequirements, eventId)]);
+    } catch (reason) {
+      setError(`Couldn't reuse ${source.name} (${reason instanceof Error ? reason.message : "copy failed"}).`);
+    } finally {
+      setProgress(null);
+      setBusy(false);
+    }
+  }
+
+  /** Every downloadable file of this event in one ZIP, a folder per shelf; a very large set asks first. */
+  async function downloadAll(confirmed = false) {
+    const entries = clientArchiveEntries(files);
+    if (entries.length === 0 || archiving) return;
+    const totalBytes = clientArchiveTotalBytes(entries);
+    if (!confirmed && totalBytes > CLIENT_ARCHIVE_WARNING_BYTES) {
+      setArchiveWarning({ totalBytes, largest: [...entries].sort((left, right) => right.size - left.size).slice(0, 3).map((entry) => entry.name) });
+      return;
+    }
+    setArchiveWarning(null);
+    setError(null);
+    setArchiving({ done: 0, total: entries.length });
+    try {
+      const { blob, failed } = await buildClientEventArchive(entries, (done, total) => setArchiving({ done, total }));
+      saveDownload({ blob, fileName: `${(event?.eventName ?? "Event").replace(/[\\/:*?"<>|]/g, "-")} files.zip` });
+      if (failed.length) setError(`The ZIP is missing ${failed.length === 1 ? "1 file" : `${failed.length} files`} that couldn't be downloaded: ${failed.join(", ")}.`);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Couldn't build the ZIP.");
+    } finally {
+      setArchiving(null);
+    }
+  }
+
   async function downloadFile(objectId: string) {
     setActiveDownload(objectId);
     setError(null);
@@ -162,10 +238,29 @@ export function useClientFileLibraryViewModel() {
       if (index >= 0 && next) setPreviewId(next.id);
     },
     hasFiles: files.length > 0,
+    newCount: files.filter((file) => file.isNew).length,
+    downloadableCount: clientArchiveEntries(files).length,
+    downloadAll,
+    archiving,
+    archiveWarning,
+    dismissArchiveWarning: () => setArchiveWarning(null),
+    searchAll,
+    setSearchAll,
+    accountResults: accountSearch.files,
+    accountLoading: accountSearch.loading,
+    openSearchResult,
+    reuseTarget,
+    openReuse: (key: string, label: string) => { setReuseQuery(""); setReuseTarget({ key, label }); },
+    closeReuse: () => setReuseTarget(null),
+    reuseQuery,
+    setReuseQuery,
+    reuseCandidates,
+    reuseLoading: reuseSearch.loading,
+    reuseFile,
     filesLoading: objects.status === "pending",
     needed,
     neededLoading: requirements.status === "pending",
-    loadError: objects.error?.message ?? requirements.error?.message ?? null,
+    loadError: objects.error?.message ?? requirements.error?.message ?? accountSearch.error ?? reuseSearch.error ?? null,
     canUpload: Boolean(event && !event.archived),
     inputRef,
     startUpload,

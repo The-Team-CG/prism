@@ -20,6 +20,8 @@ import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { readEventAccessScope } from '../../event-scope';
 
 const MAX_STORED_OBJECT_BINDINGS = 1000;
+/** A client's account-wide file search reads at most this many of their events. */
+const MAX_CLIENT_FILE_EVENTS = 50;
 
 @Injectable()
 export class PlatformReferenceReadModelsService implements PlatformReferenceReadModel {
@@ -45,6 +47,18 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
       coordinatorAssignments: event.coordinatorAssignments,
       supplierQuoteRequests: event.supplierQuoteRequests,
     };
+  }
+
+  async findClientEventIds(clientEmail: string): Promise<string[]> {
+    const email = clientEmail.trim();
+    if (!email) return [];
+    const events = await this.prisma.opsEvent.findMany({
+      where: { clientPortalStatus: 'unlocked', inquiry: { is: { email: { equals: email, mode: 'insensitive' } } } },
+      select: { id: true },
+      orderBy: { eventDate: 'desc' },
+      take: MAX_CLIENT_FILE_EVENTS,
+    });
+    return events.map((event) => event.id);
   }
 
   async findFileRequirementVisibility(eventId: string): Promise<Record<string, string[]>> {
