@@ -77,6 +77,15 @@ describe('file requirement overdue and merge rules', () => {
       now,
     );
     expect(accepted[0]).toMatchObject({ validationStatus: 'accepted' });
+
+    const reviewedOut = mergeFileRequirementOverrides(
+      [derivedSignedConforme],
+      [],
+      [{ id: 'doc_new', type: 'signed_conforme', status: 'rejected', validationStatus: 'accepted', rejectionReason: 'Unsigned', uploadedAt: new Date('2026-10-10T00:00:00.000Z') }],
+      [],
+      now,
+    );
+    expect(reviewedOut[0]).toMatchObject({ validationStatus: 'rejected' });
   });
 
   it('appends PMCM custom requirements, marks them custom, and ignores persisted rows that shadow derived keys', () => {
@@ -131,7 +140,7 @@ describe('file requirement overdue and merge rules', () => {
       [requirement],
       [
         { id: 'doc_old', type: 'venue_permit', status: 'approved', validationStatus: 'accepted', uploadedAt: new Date('2026-10-01T00:00:00.000Z'), storageKey: 'obj_old', fileName: 'permit-2025.pdf' },
-        { id: 'doc_new', type: 'venue_permit', status: 'rejected', validationStatus: 'rejected', rejectionReason: 'Permit is unsigned', uploadedAt: new Date('2026-10-05T00:00:00.000Z'), storageKey: 'obj_new', fileName: 'permit.pdf' },
+        { id: 'doc_new', type: 'venue_permit', status: 'rejected', validationStatus: 'accepted', rejectionReason: 'Permit is unsigned', uploadedAt: new Date('2026-10-05T00:00:00.000Z'), storageKey: 'obj_new', fileName: 'permit.pdf' },
       ],
       [],
       now,

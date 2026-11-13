@@ -55,7 +55,8 @@ function latestDocument(documents: FileRequirementDocumentFact[], key: string) {
 
 function validationOf(document: FileRequirementDocumentFact | undefined): PrismFileRequirementItem['validationStatus'] {
   if (!document) return undefined;
-  return document.validationStatus === 'rejected' ? 'rejected' : 'accepted';
+  // A file fails either the upload check or PMCM's review; both leave the requirement needing a replacement.
+  return document.validationStatus === 'rejected' || document.status === 'rejected' ? 'rejected' : 'accepted';
 }
 
 /** Every available upload for one requirement, newest first, with PMCM's reason on each rejected one. */
