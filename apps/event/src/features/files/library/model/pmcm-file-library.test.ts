@@ -63,6 +63,9 @@ describe("PMCM file library", () => {
     expect(pmcmFileExpiry("2026-11-30T00:00:00.000Z", now)).toEqual({ label: "Expires 2026-11-30", tone: "attention" });
     expect(pmcmFileExpiry("2026-11-01T00:00:00.000Z", now)).toEqual({ label: "Expired 2026-11-01", tone: "urgent" });
     expect(pmcmFileExpiry("2027-06-01T00:00:00.000Z", now)).toEqual({ label: "Valid until 2027-06-01", tone: "neutral" });
+    // Valid until 25 Nov (stored as midnight UTC): 9am Manila on the 25th is still valid; 00:30 Manila on the 26th is not.
+    expect(pmcmFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T01:00:00Z"))).toEqual({ label: "Expires 2026-11-25", tone: "attention" });
+    expect(pmcmFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T16:30:00Z"))).toEqual({ label: "Expired 2026-11-25", tone: "urgent" });
   });
 
   it("queues only files still waiting for a decision, oldest first, naming each supplier", () => {

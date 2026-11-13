@@ -127,6 +127,9 @@ describe("client file library", () => {
     expect(clientFileExpiry("2027-03-01T00:00:00.000Z", now)).toEqual({ label: "Valid until 2027-03-01", tone: "neutral", expired: false });
     expect(clientFileExpiry("2026-11-30T00:00:00.000Z", now)).toEqual({ label: "Expires 2026-11-30", tone: "attention", expired: false });
     expect(clientFileExpiry("2026-11-01T00:00:00.000Z", now)).toEqual({ label: "Expired 2026-11-01", tone: "urgent", expired: true });
+    // Valid until 25 Nov (stored as midnight UTC): 9am Manila on the 25th is still valid; 00:30 Manila on the 26th is not.
+    expect(clientFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T01:00:00Z"))).toEqual({ label: "Expires 2026-11-25", tone: "attention", expired: false });
+    expect(clientFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T16:30:00Z"))).toEqual({ label: "Expired 2026-11-25", tone: "urgent", expired: true });
   });
 
   it("labels an earlier upload that a newer file replaced, keeping PMCM's reason for it", () => {

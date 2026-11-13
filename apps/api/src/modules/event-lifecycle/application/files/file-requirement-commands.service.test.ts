@@ -487,6 +487,26 @@ describe('FileRequirementCommandsService', () => {
     ]);
   });
 
+  it('keeps a file valid through its valid-until day in Manila and expires it from the next Manila day', async () => {
+    const permit = { id: 'freq_1', targetSupplierIds: [] as string[], eventId, key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm' };
+    const upload = { id: 'obj_permit', eventId, ownerRecordType: 'event', ownerRecordId: eventId, usage: 'client_document', lifecycleState: 'stored', originalFileName: 'permit.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'client_1', uploaderActorRole: 'client' };
+    const harness = createHarness({ rows: [permit], storedUpload: upload, expiries: new Map([['obj_permit', new Date('2026-11-05T00:00:00.000Z')]]) });
+    await harness.service.bindRequirementUpload(eventId, permit.key, { objectId: upload.id }, { id: 'client_1', role: 'client', name: 'Client', explicit: true, verified: true } as never);
+    harness.outbox.length = 0;
+
+    // 9am Manila on the valid-until day: still valid, only the expiring warning goes out.
+    await harness.service.sendReminders(eventId, pmcm, new Date('2026-11-05T01:00:00.000Z'));
+    expect(harness.outbox.map((entry) => entry.message).filter((message) => message.includes('expired'))).toEqual([]);
+    expect(harness.outbox.every((entry) => entry.message.includes('expires on 2026-11-05'))).toBe(true);
+
+    // 00:30 Manila the next day: expired, and the date names the Manila valid-until day.
+    await harness.service.sendReminders(eventId, pmcm, new Date('2026-11-05T16:30:00.000Z'));
+    expect(harness.outbox.slice(2).map((entry) => [entry.recipient, entry.message])).toEqual([
+      ['Client', 'Required file "Venue permit" expired on 2026-11-05. Upload a current one in the event file hub.'],
+      ['PMCM Admin', 'Required file "Venue permit" expired on 2026-11-05. Upload a current one in the event file hub.'],
+    ]);
+  });
+
   it('warns only the supplier whose file is expiring, at its own contact, and not while it is far off', async () => {
     const insurance = { ...insuranceRequirement('2026-12-30T00:00:00.000Z'), targetSupplierIds: [sonic.supplierId] };
     const upload = { id: 'obj_sonic', eventId, logicalTarget: 'supplier-requirement:insurance_certificate:123e4567-e89b-42d3-a456-426614174000', ownerRecordType: 'supplier', ownerRecordId: sonic.supplierId, usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };

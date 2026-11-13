@@ -51,7 +51,7 @@ export function hasEventDatePassed(eventDate: string, todayKey: string): boolean
 }
 
 /** Whole days since the epoch for a YYYY-MM-DD key (or the date part of an ISO timestamp). NaN when unparseable. */
-function calendarDayNumber(value: string): number {
+export function calendarDayNumber(value: string): number {
   const key = value.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return Number.NaN;
   return Date.UTC(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, Number(key.slice(8, 10))) / 86_400_000;
