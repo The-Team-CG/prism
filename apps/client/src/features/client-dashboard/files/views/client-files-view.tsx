@@ -161,10 +161,22 @@ function MobileEventPicker({ vm }: { vm: ClientFileLibraryViewModel }) {
   );
 }
 
+function NeededRowActions({ row, vm }: { row: ClientDocumentChecklistRow; vm: ClientFileLibraryViewModel }) {
+  const { requirement } = row;
+  const replacing = Boolean(row.file) || requirement.validationStatus === "rejected";
+  return (
+    <Button type="button" size="sm" onClick={() => vm.startUpload(requirement.key)} disabled={vm.busy}>
+      <Upload className="size-4" aria-hidden="true" />
+      {replacing ? "Replace" : "Upload"}
+      <span className="sr-only"> {requirement.label}</span>
+    </Button>
+  );
+}
+
 function NeededRow({ row, vm }: { row: ClientDocumentChecklistRow; vm: ClientFileLibraryViewModel }) {
   const { requirement } = row;
   const urgent = requirement.validationStatus === "rejected" || requirement.overdue;
-  const replacing = Boolean(row.file) || requirement.validationStatus === "rejected";
+  const rejectionReason = requirement.validationStatus === "rejected" ? requirement.reviewReason : undefined;
   const drop = useFileDrop((files) => void vm.uploadFiles(files, requirement.key), vm.canUpload && !vm.busy);
   return (
     <li
@@ -180,20 +192,14 @@ function NeededRow({ row, vm }: { row: ClientDocumentChecklistRow; vm: ClientFil
         <p className={cn("mt-0.5 text-sm", urgent ? "text-danger" : "text-muted-foreground")}>
           {clientRequirementReviewLabel(row)} · {fileRequirementDueSummary(requirement)}
         </p>
-        {requirement.validationStatus === "rejected" && requirement.reviewReason ? (
+        {rejectionReason ? (
           <p className="mt-1 text-sm text-foreground">
-            <span className="text-muted-foreground">PMCM:</span> {requirement.reviewReason}
+            <span className="text-muted-foreground">PMCM:</span> {rejectionReason}
           </p>
         ) : null}
         {drop.over ? <p className="mt-1 text-xs font-medium text-primary">Drop to send for {requirement.label}</p> : null}
       </div>
-      {vm.canUpload ? (
-        <Button type="button" size="sm" onClick={() => vm.startUpload(requirement.key)} disabled={vm.busy}>
-          <Upload className="size-4" aria-hidden="true" />
-          {replacing ? "Replace" : "Upload"}
-          <span className="sr-only"> {requirement.label}</span>
-        </Button>
-      ) : null}
+      {vm.canUpload ? <NeededRowActions row={row} vm={vm} /> : null}
     </li>
   );
 }
@@ -351,6 +357,24 @@ function FileTable({ vm, eventId }: { vm: ClientFileLibraryViewModel; eventId: s
   );
 }
 
+/** Upload progress, the latest error, and the latest confirmation. */
+function UploadStatus({ vm }: { vm: ClientFileLibraryViewModel }) {
+  const error = vm.error ?? vm.loadError;
+  return (
+    <>
+      {vm.progress ? (
+        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+          <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+          {vm.progress.total > 1 ? `Uploading ${vm.progress.done + 1} of ${vm.progress.total}: ` : "Uploading "}
+          <span className="truncate text-foreground">{vm.progress.current}</span>
+        </p>
+      ) : null}
+      {error ? <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {vm.notice ? <p role="status" className="text-sm text-success">{vm.notice}</p> : null}
+    </>
+  );
+}
+
 /**
  * The client's file library. Events sit on the left (upcoming, then past for later reference); the chosen event
  * shows what PMCM still needs from the client, then all of its files on fixed shelves in one table. Opening a
@@ -391,15 +415,7 @@ export function ClientFilesView() {
           onChange={(change) => vm.uploadPicked(change.currentTarget.files)}
           disabled={vm.busy}
         />
-        {vm.progress ? (
-          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-            {vm.progress.total > 1 ? `Uploading ${vm.progress.done + 1} of ${vm.progress.total}: ` : "Uploading "}
-            <span className="truncate text-foreground">{vm.progress.current}</span>
-          </p>
-        ) : null}
-        {vm.error || vm.loadError ? <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{vm.error ?? vm.loadError}</p> : null}
-        {vm.notice ? <p role="status" className="text-sm text-success">{vm.notice}</p> : null}
+        <UploadStatus vm={vm} />
         {vm.canUpload ? <NeededSection vm={vm} /> : null}
         <Shelves vm={vm} />
         <FileTable vm={vm} eventId={event.id} />
