@@ -5,6 +5,8 @@ import { linkedConversationId } from "../portal-path";
 import type { PrismCommunicationReadReceipt } from "@prism/types";
 import { useConversationReadReceipts } from "./use-conversation-read-receipts";
 import { threadMatches, toChatThreads, type ChatMessageRecord, type ChatThread, type ChatThreadRecord } from "./chat-display";
+import { mergeRefreshedThreads, type OpenConversation } from "./merge-refreshed-threads";
+import { useVisibleRefresh } from "./use-visible-refresh";
 
 export type ChatMessagePage = { items: ChatMessageRecord[]; nextCursor?: string | null };
 
@@ -37,6 +39,12 @@ function listStatus(scope: string | undefined, current: Loaded | null): Loaded["
 /** A failed load is shown for the list; a failed action is shown only while its conversation is the open one. */
 function visibleError(current: Loaded | null, actionError: ActionError | null, scope: string | undefined, activeId: string | undefined) {
   return current?.error ?? (actionError && actionError.scope === scope && actionError.threadId === activeId ? actionError.message : null);
+}
+
+/** A background refresh never shows loading or an error: it folds into a list that is already on screen. */
+function refreshedLoaded(previous: Loaded | null, scope: string, listed: ChatThreadRecord[], open: OpenConversation): Loaded | null {
+  if (!previous || previous.scope !== scope || previous.status === "loading") return previous;
+  return { scope, status: "ready", threads: mergeRefreshedThreads(previous.threads, listed, open) };
 }
 
 /** The conversation named in the link, once it is in the list. */
@@ -147,6 +155,23 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
       })
       .finally(() => setHistoryLoading((loading) => (loading === shownId ? null : loading)));
   }, [scope, shownId, shownIsListed, updateThread]);
+
+  // Refreshes read the open conversation from a ref, so a refresh started before a switch still names the right one.
+  const shownRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    shownRef.current = shownId;
+  }, [shownId]);
+
+  /** Fetches the list and, when the open conversation has its own history, its latest page; then folds both in. */
+  const refreshConversations = async () => {
+    if (!scope) return;
+    const open = shownRef.current;
+    const history = open ? latest.current.history : undefined;
+    const [listed, page] = await Promise.all([latest.current.list(), open && history ? history(open).catch(() => null) : null]);
+    setLoaded((previous) => refreshedLoaded(previous, scope, listed, { threadId: open, page }));
+    if (open && listed.some((thread) => thread.id === open && (thread.unreadCount ?? 0) > 0)) void latest.current.markRead(open).catch(() => undefined);
+  };
+  useVisibleRefresh(refreshConversations, Boolean(scope));
 
   function openThread(threadId: string) {
     if (scope) setSelected({ scope, threadId });

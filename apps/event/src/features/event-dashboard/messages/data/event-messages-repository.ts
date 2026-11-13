@@ -3,6 +3,7 @@ import { eventApi } from '@/lib/prism-api';
 export const eventMessagesRepository = {
   list(eventId: string) { return eventApi.communication.listThreads(eventId); },
   inbox() { return eventApi.communication.listInbox(); },
+  unreadCount() { return eventApi.communication.unreadCount(); },
   readReceipts(threadId: string) { return eventApi.communication.readReceipts(threadId); },
   participants(eventId: string) { return eventApi.communication.listParticipants(eventId); },
   create(eventId: string, subject: string, participantActorIds: string[]) { return eventApi.communication.createThread({ eventId, subject, participantActorIds }); },

@@ -4,6 +4,7 @@ import { RefreshCcw } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { PrismDashboardShell } from "@prism/ui";
 import { useSupplierWorkspaceViewModel } from "../view-models/use-supplier-workspace-view-model";
+import { useSupplierUnreadMessages } from "../view-models/use-supplier-unread-messages";
 import { supplierAccountMenuItems, supplierActiveNavId, supplierCommandActions, supplierMobileActions, supplierNavItems } from "../model/supplier-workspace-nav";
 import type { SupplierDashboardSection } from "../model/supplier-workspace-types";
 import { SupplierWorkspaceBanners, SupplierWorkspaceLoading, SupplierWorkspaceSkeleton, SupplierWrongPortalView } from "./sections/supplier-workspace-states";
@@ -12,6 +13,7 @@ import { SupplierWorkspaceSection } from "./sections/supplier-workspace-section"
 export function SupplierWorkspaceView({ section: routeSection }: { section: SupplierDashboardSection }) {
   const vm = useSupplierWorkspaceViewModel(routeSection);
   const { session, workspace, readinessBoard, section, setSection, error, notice, busy, derived, meta } = vm;
+  const messagesUnread = useSupplierUnreadMessages(session);
 
   if (!session) return <SupplierWorkspaceLoading />;
   if (session.role !== "supplier") return <SupplierWrongPortalView onSignIn={vm.goToSignIn} />;
@@ -42,6 +44,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
         needsActionCount,
         quoteNeedingSubmission,
         handoffPending,
+        messagesUnread,
       })}
       sidebarMode="single"
       onNavSelect={(id) => setSection(id as typeof section)}

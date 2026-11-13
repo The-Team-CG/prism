@@ -32,6 +32,8 @@ import {
   canEditClientFloorPlanPreference,
   preferenceFormFromDraft,
 } from "../model/client-floorplan-preference-rules";
+import { useClientUnreadMessages } from "../../messages/view-models/use-client-unread-messages";
+import { unreadNavBadge } from "@prism/ui/chat";
 import {
   clientPortalSidebarItems,
   DETAIL_TAB_TO_ROUTE,
@@ -122,15 +124,17 @@ function disableEventNav(requiresEvent: boolean | undefined, hasEvent: boolean) 
   return Boolean(requiresEvent) && !hasEvent;
 }
 
-function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events }: {
+function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages }: {
   route: ClientDashboardRoute;
   portalView?: ClientPortalView;
   isEventScopedView: boolean;
   selectedEvent?: PrismEvent;
   events: PrismEvent[];
+  unreadMessages?: number;
 }) {
   const shellNavItems = clientPortalSidebarItems(events.length).map((item) => ({
     ...item,
+    ...(item.id === "messages" ? unreadNavBadge(unreadMessages) : {}),
     href: clientSidebarLinkHref(item.id, selectedEvent?.id),
     disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
     subItems: item.subItems?.map((subItem) => ({
@@ -161,6 +165,7 @@ export function ClientDashboardWorkspaceView({
   portalView?: ClientPortalView;
 }) {
   const router = useRouter();
+  const unreadMessages = useClientUnreadMessages();
   const { actionCenter, actionCenterLoadFailed, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardViewModel({
     route,
     eventId,
@@ -468,7 +473,7 @@ export function ClientDashboardWorkspaceView({
   }
 
   const { inEventWorkspace, activeShellItemId, sidebarNavItems } = clientWorkspaceShellNavigation({
-    route, portalView, isEventScopedView, selectedEvent, events,
+    route, portalView, isEventScopedView, selectedEvent, events, unreadMessages,
   });
 
   function handleShellNavSelect(id: string) {

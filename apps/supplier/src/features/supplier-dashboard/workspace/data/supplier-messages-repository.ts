@@ -3,6 +3,7 @@ import { prismApi } from '@/lib/prism-api';
 
 export const supplierMessagesRepository = {
   inbox(session: PrismAuthenticatedSession) { return prismApi.communicationInbox(session); },
+  unreadCount(session: PrismAuthenticatedSession) { return prismApi.communicationUnreadCount(session); },
   create(eventId: string, subject: string, session: PrismAuthenticatedSession) { return prismApi.createCommunicationThread(eventId, subject, session); },
   send(threadId: string, body: string, key: string, session: PrismAuthenticatedSession) { return prismApi.sendCommunicationMessage(threadId, body, key, session); },
   history(threadId: string, session: PrismAuthenticatedSession) { return prismApi.communicationMessages(threadId, undefined, 100, session); },

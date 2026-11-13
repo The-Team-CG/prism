@@ -3,6 +3,10 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismCommunicationInboxThread, PrismCommunicationMessage, PrismCommunicationThread } from "@prism/types";
 import { useClientMessagesViewModel } from "./use-client-messages-view-model";
+import { createElement, type ReactNode } from "react";
+import { PortalQueryProvider } from "@prism/portal-query";
+
+const wrapper = ({ children }: { children: ReactNode }) => createElement(PortalQueryProvider, { actorKey: "client-test", children });
 
 const mocks = vi.hoisted(() => ({
   workspace: { selectedEvent: { id: "event-a", eventName: "Event A" }, session: { id: "client", name: "Client" } },
@@ -39,7 +43,7 @@ describe("client messages", () => {
     mocks.inbox.mockResolvedValue([row]);
     mocks.history.mockResolvedValue({ items: [message("m1", "Hello"), latest], nextCursor: null });
     mocks.markRead.mockResolvedValue(undefined);
-    const { result } = renderHook(() => useClientMessagesViewModel(false));
+    const { result } = renderHook(() => useClientMessagesViewModel(false), { wrapper });
     await waitFor(() => expect(result.current.chat.status).toBe("ready"));
 
     expect(mocks.list).not.toHaveBeenCalled();
@@ -57,7 +61,7 @@ describe("client messages", () => {
   it.each(["fragment", "query"])("opens the conversation a %s notice link names, until the viewer picks another", async (kind) => {
     window.history.replaceState(null, '', kind === 'fragment' ? '/#conversation-two' : '/?conversation=two');
     mocks.list.mockResolvedValue([thread("one", "event-a"), thread("two", "event-a")]);
-    const { result } = renderHook(() => useClientMessagesViewModel(true));
+    const { result } = renderHook(() => useClientMessagesViewModel(true), { wrapper });
     await waitFor(() => expect(result.current.chat.status).toBe("ready"));
     expect(result.current.chat.active.id).toBe("two");
     expect(result.current.chat.workspace.linkedThreadId).toBe("two");
@@ -69,7 +73,7 @@ describe("client messages", () => {
   it("ignores a link to a conversation the viewer is not in", async () => {
     window.location.hash = "#conversation-elsewhere";
     mocks.list.mockResolvedValue([thread("one", "event-a")]);
-    const { result } = renderHook(() => useClientMessagesViewModel(true));
+    const { result } = renderHook(() => useClientMessagesViewModel(true), { wrapper });
     await waitFor(() => expect(result.current.chat.status).toBe("ready"));
     expect(result.current.chat.active.id).toBe("one");
     expect(result.current.chat.workspace.linkedThreadId).toBeUndefined();
@@ -79,7 +83,7 @@ describe("client messages", () => {
     let resolveA!: (threads: PrismCommunicationThread[]) => void;
     const pendingA = new Promise<PrismCommunicationThread[]>((resolve) => { resolveA = resolve; });
     mocks.list.mockImplementation((eventId: string) => eventId === "event-a" ? pendingA : Promise.resolve([thread("thread-b", "event-b")]));
-    const { result, rerender } = renderHook(() => useClientMessagesViewModel(true));
+    const { result, rerender } = renderHook(() => useClientMessagesViewModel(true), { wrapper });
 
     mocks.workspace.selectedEvent = { id: "event-b", eventName: "Event B" };
     rerender();
@@ -92,7 +96,7 @@ describe("client messages", () => {
     mocks.list.mockResolvedValue([thread("one", "event-a"), thread("two", "event-a")]);
     const sent = message("sent", "Hello", "client");
     mocks.send.mockRejectedValueOnce(new Error("Try again")).mockResolvedValueOnce(sent);
-    const { result } = renderHook(() => useClientMessagesViewModel(true));
+    const { result } = renderHook(() => useClientMessagesViewModel(true), { wrapper });
     await waitFor(() => expect(result.current.chat.status).toBe("ready"));
     // Like a messenger app, a conversation is open straight away instead of an empty pane.
     expect(["one", "two"]).toContain(result.current.chat.active?.id);
@@ -119,7 +123,7 @@ describe("client messages", () => {
     let resolveSend!: (sent: PrismCommunicationMessage) => void;
     const pendingSend = new Promise<PrismCommunicationMessage>((resolve) => { resolveSend = resolve; });
     mocks.send.mockReturnValue(pendingSend);
-    const { result, rerender } = renderHook(() => useClientMessagesViewModel(true));
+    const { result, rerender } = renderHook(() => useClientMessagesViewModel(true), { wrapper });
     await waitFor(() => expect(result.current.chat.active?.id).toBe("thread-event-a"));
     act(() => result.current.chat.workspace.onDraftChange("For event A"));
     let sending!: Promise<void>;
