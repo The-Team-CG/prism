@@ -6,6 +6,7 @@ import { OpsUserRole } from '@prism/kernel/event-core';
 import { AuditService, AuditWriterAdapter, NotificationOutboxService, NotificationOutboxWriterAdapter, SecurityOperationsService } from '@prism/contexts/platform-ops';
 import { ParticipantReaderService } from '@prism/contexts/identity-access';
 import { CommunicationService } from './communication.service';
+const noAttachments = { findStoredCommunicationAttachments: async () => new Map(), describeCommunicationAttachments: async () => new Map() };
 
 const url = process.env.P0_TEST_DATABASE_URL;
 const enabled = Boolean(url && new URL(url).hostname === '127.0.0.1' && new URL(url).port === '55437' && new URL(url).pathname === '/prism_p0');
@@ -42,7 +43,7 @@ describe.skipIf(!enabled)('communication service PostgreSQL transaction', () => 
         return new Map(entries.flatMap(([eventId, facts]) => (facts ? [[eventId, facts] as const] : [])));
       },
     });
-    service = new CommunicationService(prisma, access, reader, audit, notifications);
+    service = new CommunicationService(prisma, access, reader, audit, notifications, noAttachments as never);
   });
   afterAll(async () => { await prisma?.$disconnect(); });
 

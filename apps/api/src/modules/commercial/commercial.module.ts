@@ -51,6 +51,7 @@ import { PaymentReceiptsController } from './api/billing/payment-receipts.contro
 import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
 import { CommunicationController } from './api/suppliers/communication.controller';
 import { CommunicationService } from './application/suppliers/communication.service';
+import { CommunicationAttachmentGateService } from './application/suppliers/communication-attachment-gate.service';
 import { IdentityAccessModule } from '../identity-access/identity-access.module';
 import { AccountInvitationReferenceModule } from '@prism/contexts/identity-access/account-invitation-reference';
 import { ProposalLifecycleController } from './api/quotes/proposal-lifecycle.controller';
@@ -169,6 +170,7 @@ const supplierCommandsProvider = {
     StatementOfAccountService,
     PaymentRiskScheduler,
     CommunicationService,
+    CommunicationAttachmentGateService,
     ProposalLifecycleService,
     ProposalCommentsService,
     PareReplacementDispatchService,
@@ -196,6 +198,7 @@ const supplierCommandsProvider = {
     { provide: PAYMENT_STATUS_READER, useExisting: PaymentOperationsService },
   ],
   exports: [
+    CommunicationAttachmentGateService,
     CommercialWorkflowService,
     COMMERCIAL_WORKFLOW_COMMANDS,
     SuppliersService,

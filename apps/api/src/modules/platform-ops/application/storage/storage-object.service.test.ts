@@ -954,3 +954,52 @@ describe('file access: lists and downloads follow one policy', () => {
     });
   });
 });
+
+describe('conversation attachments: membership decides who reads and attaches files', () => {
+  type Thread = { eventId: string; closed: boolean; members: string[] };
+  const outsider = { id: 'user_outsider', role: 'client', email: 'client@example.test', name: 'Outsider', eventId: 'evt_1', explicit: true, verified: true } as never;
+  const attachmentBytes = Buffer.from('%PDF-1.7\nconversation brief');
+  const attachmentChecksum = createHash('sha256').update(attachmentBytes).digest('hex');
+
+  function setup() {
+    const store = createStore();
+    const threads: Record<string, Thread> = { thread_1: { eventId: 'evt_1', closed: false, members: ['user_client', 'user_supplier'] } };
+    const gate = {
+      findThreadAccess: vi.fn(async ({ threadId, actorId }: { threadId: string; actorId: string }) => {
+        const thread = threads[threadId];
+        return thread ? { eventId: thread.eventId, closed: thread.closed, activeMember: thread.members.includes(actorId) } : null;
+      }),
+    };
+    const adapter = { issueDownloadAuthorization: vi.fn(async () => ({ providerName: 'local', providerObjectKey: 'key', downloadUrl: 'localfs://download/x', expiresAt: new Date('2026-09-09T00:00:00.000Z') })) };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never, store.auditWriter as never, gate as never);
+    store.objects.push({
+      id: 'obj_brief', eventId: 'evt_1', ownerRecordType: 'communication_thread', ownerRecordId: 'thread_1', usage: 'communication_attachment', logicalTarget: 'communication-attachment:thread_1:brief',
+      originalFileName: 'brief.pdf', contentType: 'application/pdf', declaredByteSize: attachmentBytes.byteLength, checksumSha256: attachmentChecksum,
+      uploaderActorId: 'user_client', uploaderActorRole: 'client', lifecycleState: 'stored', providerName: 'local', providerObjectKey: 'key', deletedAt: null, expiresAt: null,
+    });
+    return { store, service, threads, gate, adapter };
+  }
+
+  it('lets an active member download a conversation file, and refuses a removed member or a non-member of the same event', async () => {
+    const { service, threads } = setup();
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_brief', actor: client })).resolves.toMatchObject({ fileName: 'brief.pdf' });
+    threads.thread_1.members = ['user_supplier'];
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_brief', actor: client })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_brief', actor: outsider })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('refuses a request to attach a file to a conversation the actor is not an active member of, or a closed one', async () => {
+    const { service, threads } = setup();
+    const target = { eventId: 'evt_1', ownerRecordType: 'communication_thread', ownerRecordId: 'thread_1', logicalTarget: 'communication-attachment:thread_1:0b9d6f7e-2a1c-4c8e-9f3a-5d6e7f8a9b0c', usage: 'communication_attachment' as const, fileName: 'plan.pdf', contentType: 'application/pdf', declaredByteSize: attachmentBytes.byteLength, checksumSha256: attachmentChecksum };
+    threads.thread_1.closed = true;
+    await expect(service.requestUpload({ ...target, actor: client })).rejects.toBeInstanceOf(ConflictException);
+    threads.thread_1.closed = false;
+    await expect(service.requestUpload({ ...target, actor: outsider })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('refuses to copy a file from Files that the caller cannot download, even into a conversation they belong to', async () => {
+    const { store, service } = setup();
+    store.objects.push({ id: 'obj_supplier_only', eventId: 'evt_1', ownerRecordType: 'supplier', ownerRecordId: 'sup_1', usage: 'supplier_document', logicalTarget: 'supplier-contract:x', originalFileName: 'contract.pdf', contentType: 'application/pdf', declaredByteSize: 10, checksumSha256: 'a'.repeat(64), uploaderActorId: 'user_supplier', uploaderActorRole: 'supplier', lifecycleState: 'stored', providerObjectKey: 'key', deletedAt: null });
+    await expect(service.copyToThread({ sourceObjectId: 'obj_supplier_only', threadId: 'thread_1', actor: client })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});

@@ -12,6 +12,8 @@ export const STORED_SUPPLIER_UPLOAD_READER = Symbol('STORED_SUPPLIER_UPLOAD_READ
 export const STORED_REQUIREMENT_UPLOAD_READER = Symbol('STORED_REQUIREMENT_UPLOAD_READER');
 export const STORED_RECEIPT_EVIDENCE_READER = Symbol('STORED_RECEIPT_EVIDENCE_READER');
 export const GUEST_FEEDBACK_MEDIA_STORE = Symbol('GUEST_FEEDBACK_MEDIA_STORE');
+export const STORED_COMMUNICATION_ATTACHMENT_READER = Symbol('STORED_COMMUNICATION_ATTACHMENT_READER');
+export const COMMUNICATION_ATTACHMENT_GATE = Symbol('COMMUNICATION_ATTACHMENT_GATE');
 
 export type GuestFeedbackMediaReference = {
   id: string;
@@ -80,6 +82,38 @@ export interface StoredReceiptEvidenceReader {
   findConfirmedReceiptEvidence(input: { eventId: string; receiptId: string; objectId: string }): Promise<StoredReceiptEvidence | null>;
   /** Display facts for evidence already bound to receipts; an object that was deleted or never confirmed is absent. */
   describeReceiptEvidence(objectIds: string[]): Promise<Map<string, StoredReceiptEvidence>>;
+}
+
+/** A conversation attachment as the message send verifies it: who uploaded it, and where it belongs. */
+export type StoredCommunicationAttachmentRecord = {
+  id: string;
+  eventId: string;
+  ownerRecordType: string;
+  ownerRecordId: string;
+  usage: string;
+  lifecycleState: string;
+  uploaderActorId: string;
+  fileName: string;
+  contentType: string;
+  byteSize: number;
+};
+
+/** Display facts for an attachment in a message. */
+export type StoredCommunicationAttachment = { id: string; fileName: string; contentType: string; byteSize: number };
+
+/** Communication verifies attachments under its thread lock and reads their display facts; storage owns the bytes. */
+export interface StoredCommunicationAttachmentReader {
+  findStoredCommunicationAttachments(input: { objectIds: string[]; context?: PrismTransactionContext }): Promise<Map<string, StoredCommunicationAttachmentRecord>>;
+  /** Attachments that are stored and not deleted; any other object is absent. */
+  describeCommunicationAttachments(objectIds: string[]): Promise<Map<string, StoredCommunicationAttachment>>;
+}
+
+/** What storage needs to know about a conversation to authorize a file in it. */
+export type CommunicationThreadAccess = { eventId: string; closed: boolean; activeMember: boolean };
+
+/** Commercial owns conversations; storage asks it, and never imports its service. */
+export interface CommunicationAttachmentGate {
+  findThreadAccess(input: { threadId: string; actorId: string }): Promise<CommunicationThreadAccess | null>;
 }
 
 export type StorageLifecycleState = PrismStoredObject['lifecycleState'];

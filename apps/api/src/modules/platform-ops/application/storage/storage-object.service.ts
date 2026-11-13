@@ -42,6 +42,11 @@ import {
   type StoredRequirementUploadReference,
   type StoredReceiptEvidence,
   type StoredReceiptEvidenceReader,
+  COMMUNICATION_ATTACHMENT_GATE,
+  type CommunicationAttachmentGate,
+  type StoredCommunicationAttachment,
+  type StoredCommunicationAttachmentReader,
+  type StoredCommunicationAttachmentRecord,
 } from '../../contracts/storage/storage.port';
 import { StorageValidationService } from './storage-validation.service';
 
@@ -58,6 +63,7 @@ const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsag
   payment_receipt: ['payment_receipt_evidence'],
   proposal_version: ['event_deliverable'],
   supplier: ['supplier_document'],
+  communication_thread: ['communication_attachment'],
 };
 
 const RECEIPT_EVIDENCE_LOOKUP_LIMIT = 500;
@@ -114,7 +120,7 @@ const ABANDONED_UPLOAD_CLEANUP_ACTOR: ResolvedEventOpsActor = {
 };
 
 @Injectable()
-export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader, StoredReceiptEvidenceReader, GuestFeedbackMediaStore {
+export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader, StoredReceiptEvidenceReader, StoredCommunicationAttachmentReader, GuestFeedbackMediaStore {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accessPolicy: EventAccessPolicyService,
@@ -122,6 +128,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     @Optional() @Inject(STORAGE_ADAPTER) private readonly adapter?: StorageAdapter,
     @Optional() @Inject(PLATFORM_REFERENCE_READ_MODEL) private readonly platformReferences?: PlatformReferenceReadModel,
     @Optional() @Inject(AUDIT_WRITER) private readonly auditWriter?: AuditWriter,
+    @Optional() @Inject(COMMUNICATION_ATTACHMENT_GATE) private readonly attachmentGate?: CommunicationAttachmentGate,
   ) {}
 
   async findConfirmedSupplierUpload(input: StoredSupplierUploadLookup): Promise<StoredSupplierUploadReference | null> {
@@ -170,6 +177,26 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       take: RECEIPT_EVIDENCE_LOOKUP_LIMIT,
     });
     return new Map(objects.map((object) => [object.id, receiptEvidenceOf(object)]));
+  }
+
+  /** Verifies attachments for a send under the thread lock: the stored row, its owner, and its uploader. */
+  async findStoredCommunicationAttachments(input: { objectIds: string[]; context?: PrismTransactionContext }): Promise<Map<string, StoredCommunicationAttachmentRecord>> {
+    if (!input.objectIds.length) return new Map();
+    const rows = await this.database(input.context).opsStoredObject.findMany({ where: { id: { in: input.objectIds } }, take: input.objectIds.length });
+    return new Map(rows.map((row) => [row.id, {
+      id: row.id, eventId: row.eventId, ownerRecordType: row.ownerRecordType, ownerRecordId: row.ownerRecordId, usage: row.usage,
+      lifecycleState: row.lifecycleState, uploaderActorId: row.uploaderActorId, fileName: row.originalFileName, contentType: row.contentType, byteSize: row.declaredByteSize,
+    }]));
+  }
+
+  /** Display facts for attachments that are stored and not deleted; a removed or unfinished file is absent. */
+  async describeCommunicationAttachments(objectIds: string[]): Promise<Map<string, StoredCommunicationAttachment>> {
+    if (!objectIds.length) return new Map();
+    const rows = await this.prisma.opsStoredObject.findMany({
+      where: { id: { in: objectIds }, usage: 'communication_attachment', lifecycleState: 'stored', deletedAt: null },
+      take: objectIds.length,
+    });
+    return new Map(rows.map((row) => [row.id, { id: row.id, fileName: row.originalFileName, contentType: row.contentType, byteSize: row.declaredByteSize }]));
   }
 
   async requestUpload(input: StorageServiceRequest): Promise<StorageRequestResult> {
@@ -350,6 +377,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     this.assertSupportedOwner(current.ownerRecordType, current.usage);
     input = { ...input, actor: await this.authorizeEvent(current.eventId, input.actor, current.usage as StorageServiceRequest['usage'], 'confirm storage upload') };
     await this.assertCanAccessObject(input.actor, current, 'confirm storage upload');
+    await this.assertConversationUploader(input.actor, current, 'confirm storage upload');
     if (current.lifecycleState === 'stored') return this.confirmAlreadyStored(current, input);
     if (current.lifecycleState !== 'requested') throw new ConflictException('Only a requested upload can be confirmed');
     this.assertConfirmationDeclaration(current, input);
@@ -489,6 +517,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     if (!object) throw new NotFoundException('Stored object not found');
     input = { ...input, actor: await this.authorizeEvent(object.eventId, input.actor, object.usage as StorageServiceRequest['usage'], 'confirm storage upload') };
     await this.assertCanAccessObject(input.actor, object, 'write storage bytes');
+    await this.assertConversationUploader(input.actor, object, 'write storage bytes');
     if (object.lifecycleState !== 'requested') throw new ConflictException('Only a requested upload can receive bytes');
     if (!this.adapter?.writeAuthorizedUpload) throw new ServiceUnavailableException('This storage provider requires a direct HTTP upload');
     const usage = object.usage as StorageServiceRequest['usage'];
@@ -717,29 +746,55 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
    * event; the server moves the bytes, so nothing passes through the browser.
    */
   async copyToClientEvent(input: { sourceObjectId: string; eventId: string; logicalTarget: string; actor: ResolvedEventOpsActor }): Promise<PrismStoredObject> {
-    const source = await this.prisma.opsStoredObject.findUnique({ where: { id: input.sourceObjectId } });
+    const source = await this.authorizeCopySource(input.sourceObjectId, input.actor);
+    return this.copyStoredObject(source, {
+      eventId: input.eventId, ownerRecordType: 'event', ownerRecordId: input.eventId, logicalTarget: input.logicalTarget, usage: 'client_document', actor: input.actor,
+    }, { auditAction: 'Copied file from another event', keepExpiry: true });
+  }
+
+  /**
+   * Attaches a stored file of the same event to a conversation as a new conversation-owned copy. The source needs the
+   * download check; the copy needs the upload check for an active member of an open conversation. Bytes stay server-side.
+   */
+  async copyToThread(input: { sourceObjectId: string; threadId: string; actor: ResolvedEventOpsActor }): Promise<PrismStoredObject> {
+    const source = await this.authorizeCopySource(input.sourceObjectId, input.actor);
+    return this.copyStoredObject(source, {
+      eventId: source.eventId, ownerRecordType: 'communication_thread', ownerRecordId: input.threadId,
+      logicalTarget: `communication-attachment:${input.threadId}:${randomUUID()}`, usage: 'communication_attachment', actor: input.actor,
+    }, { auditAction: 'Copied file into a conversation', keepExpiry: false });
+  }
+
+  private async authorizeCopySource(sourceObjectId: string, actor: ResolvedEventOpsActor): Promise<OpsStoredObject> {
+    const source = await this.prisma.opsStoredObject.findUnique({ where: { id: sourceObjectId } });
     if (!source || source.lifecycleState !== 'stored') throw new NotFoundException('Stored object not found');
     this.assertSupportedOwner(source.ownerRecordType, source.usage);
-    const reader = await this.authorizeEvent(source.eventId, input.actor, source.usage as StorageServiceRequest['usage'], 'download storage object');
+    const reader = await this.authorizeEvent(source.eventId, actor, source.usage as StorageServiceRequest['usage'], 'download storage object');
     await this.assertBillingStatementSent(reader, source);
     await this.assertCanDownload(reader, source, 'copy storage object');
+    return source;
+  }
+
+  /** The copy goes through the normal upload request, so the target's own rules apply to it, and the bytes move server-side. */
+  private async copyStoredObject(
+    source: OpsStoredObject,
+    target: Pick<StorageServiceRequest, 'eventId' | 'ownerRecordType' | 'ownerRecordId' | 'logicalTarget' | 'usage' | 'actor'>,
+    options: { auditAction: string; keepExpiry: boolean },
+  ): Promise<PrismStoredObject> {
     const requested = await this.requestUploadThroughOwnerCapability({
-      eventId: input.eventId, ownerRecordType: 'event', ownerRecordId: input.eventId, logicalTarget: input.logicalTarget, usage: 'client_document',
-      fileName: source.originalFileName, contentType: source.contentType, declaredByteSize: source.declaredByteSize, checksumSha256: source.checksumSha256,
-      actor: input.actor,
+      ...target, fileName: source.originalFileName, contentType: source.contentType, declaredByteSize: source.declaredByteSize, checksumSha256: source.checksumSha256,
     });
-    if (requested.status === 'stored') return this.presentForActor(input.actor, requested.object);
+    if (requested.status === 'stored') return this.presentForActor(target.actor, requested.object);
     if (requested.status === 'failed') throw new ServiceUnavailableException(requested.reason);
     const bytes = await this.readProviderBytes(source);
     await this.writeProviderBytes(requested.location, source.contentType, bytes);
-    // A copy is the same document, so it stays valid only as long as the original.
-    const copy = source.expiresAt
+    // A client copy is the same document, so it stays valid only as long as the original.
+    const copy = options.keepExpiry && source.expiresAt
       ? await this.prisma.opsStoredObject.update({ where: { id: requested.object.id }, data: { expiresAt: source.expiresAt } })
       : await this.prisma.opsStoredObject.findUniqueOrThrow({ where: { id: requested.object.id } });
-    const confirmation = await this.confirmWithAdapter(copy, { objectId: copy.id, checksumSha256: source.checksumSha256, byteSize: source.declaredByteSize, bytes, actor: input.actor });
-    const stored = await this.persistStored(copy, confirmation, input.actor);
-    await this.auditStorageAction(input.actor, copy, 'Copied file from another event', AuditActionType.Upload, 'copied', { sourceObjectId: source.id, sourceEventId: source.eventId });
-    return this.presentForActor(input.actor, stored);
+    const confirmation = await this.confirmWithAdapter(copy, { objectId: copy.id, checksumSha256: source.checksumSha256, byteSize: source.declaredByteSize, bytes, actor: target.actor });
+    const stored = await this.persistStored(copy, confirmation, target.actor);
+    await this.auditStorageAction(target.actor, copy, options.auditAction, AuditActionType.Upload, 'copied', { sourceObjectId: source.id, sourceEventId: source.eventId });
+    return this.presentForActor(target.actor, stored);
   }
 
   /**
@@ -860,6 +915,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
   }
 
   private async assertCanDownload(actor: ResolvedEventOpsActor, object: OpsStoredObject, resource: string) {
+    if (object.usage === 'communication_attachment') await this.assertThreadMembership(actor, object.ownerRecordId, object.eventId, resource, { open: false });
     const contextFor = await this.readAccessContexts(actor, object.eventId, [object]);
     if (!canDownloadStoredObject(actor, object, contextFor(object))) {
       await this.accessPolicy.recordForbiddenAccess(actor, resource, object.eventId);
@@ -868,6 +924,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
   }
 
   private async assertUploadOwner(input: StorageServiceRequest) {
+    if (input.usage === 'communication_attachment') await this.assertCommunicationUploadOwner(input);
     if (input.usage === 'supplier_document') await this.assertSupplierUploadOwner(input);
     if (input.usage === 'client_document' || input.usage === 'signed_conforme') await this.assertClientUploadOwner(input);
     if (input.usage === 'payment_receipt_evidence') await this.assertReceiptEvidenceOwner(input);
@@ -913,6 +970,35 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       where: { requestId: match[2], eventId: input.eventId, supplierId: input.ownerRecordId }, select: { id: true },
     });
     if (!task) throw new ForbiddenException('Supplier creative upload is outside the verified task');
+  }
+
+  /** A conversation file targets its own conversation, and may be requested only by an active member of an open one. */
+  private async assertCommunicationUploadOwner(input: StorageServiceRequest) {
+    const threadPattern = input.ownerRecordId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const target = new RegExp(`^communication-attachment:${threadPattern}:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`, 'i');
+    if (input.ownerRecordType !== 'communication_thread' || !target.test(input.logicalTarget)) throw new BadRequestException('Conversation files must target their conversation');
+    await this.assertThreadMembership(input.actor, input.ownerRecordId, input.eventId, 'request storage upload', { open: true });
+  }
+
+  /**
+   * Conversation membership, checked through the communication context's gate. A removed member, or a file from
+   * another event, fails the same way; a closed conversation refuses new files only when `open` is requested.
+   */
+  private async assertThreadMembership(actor: ResolvedEventOpsActor, threadId: string, eventId: string, resource: string, options: { open: boolean }) {
+    if (!this.attachmentGate) throw new ServiceUnavailableException('Conversation access is unavailable');
+    const access = await this.attachmentGate.findThreadAccess({ threadId, actorId: actor.id ?? '' });
+    if (!access || access.eventId !== eventId || !access.activeMember) {
+      await this.accessPolicy.recordForbiddenAccess(actor, resource, eventId);
+      throw new ForbiddenException('Only an active member of this conversation can use its files');
+    }
+    if (options.open && access.closed) throw new ConflictException('This conversation is closed');
+  }
+
+  /** Only the person who attached a file may send its bytes or confirm it, and only while still a member. */
+  private async assertConversationUploader(actor: ResolvedEventOpsActor, object: OpsStoredObject, resource: string) {
+    if (object.usage !== 'communication_attachment') return;
+    await this.assertThreadMembership(actor, object.ownerRecordId, object.eventId, resource, { open: false });
+    if (object.uploaderActorId !== actor.id) throw new ForbiddenException('Only the person who attached this file can upload it');
   }
 
   /** Evidence belongs to one live receipt held for this event, under its own target. */
@@ -993,6 +1079,8 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       event_game_branding: [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator],
       // Proof of payment is finance's: no client, supplier, guest or coordinator uploads or reads it.
       payment_receipt_evidence: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      // Anyone in a conversation may attach to it; membership of that conversation is the real gate.
+      communication_attachment: [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client, OpsUserRole.Supplier, OpsUserRole.Coordinator],
     };
     await this.accessPolicy.requireActorRole(actor, roles[usage], resource, eventId);
   }

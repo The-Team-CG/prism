@@ -68,6 +68,18 @@ export const STORAGE_USAGE_RULES: Record<StorageUsage, StorageUsageRule> = {
     maxBytes: 1024 * 1024,
     contentTypes: ['image/jpeg', 'image/png', 'image/webp'],
   },
+  // A file sent in a conversation: documents and images, under the same cap as a client document.
+  communication_attachment: {
+    maxBytes: 25 * 1024 * 1024,
+    contentTypes: [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+    ],
+  },
 };
 
 const EXTENSIONS: Record<string, readonly string[]> = {

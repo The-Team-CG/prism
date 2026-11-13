@@ -8,6 +8,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Conversation messages can carry up to 10 files, uploaded from a device or copied from the event's Files library; each attached file is a copy that only the conversation's active members can open.
 - Assigned coordinators can read and reply in conversations they belong to without starting new ones.
 - PMCM can add and remove conversation members after a conversation starts (added people get a notice and see earlier messages), and close or reopen a conversation. Closed conversations take no new messages and move to a Closed list.
 - Messages refresh every 15 seconds while the tab is visible without losing the open conversation, and the Messages navigation item shows an unread count (inside an event, that event's count). PMCM can see which members have read its messages; other roles' responses do not expose those read times.

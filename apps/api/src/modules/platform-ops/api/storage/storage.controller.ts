@@ -3,11 +3,13 @@ import type { Request } from 'express';
 import {
   confirmStorageUploadSchema,
   copyStorageObjectSchema,
+  copyStorageObjectToThreadSchema,
   setStorageObjectExpirySchema,
   requestStorageUploadSchema,
   searchClientStoredFilesQuerySchema,
   type ConfirmStorageUploadInput,
   type CopyStorageObjectInput,
+  type CopyStorageObjectToThreadInput,
   type SetStorageObjectExpiryInput,
   type SearchClientStoredFilesQuery,
   type RequestStorageUploadInput,
@@ -48,6 +50,16 @@ export class StorageController {
     @VerifiedEventActor() actor: PrismVerifiedEventActor,
   ) {
     return this.storage.copyToClientEvent({ sourceObjectId: objectId, ...input, actor: this.accessPolicy.resolveEventScopedActor(actor) });
+  }
+
+  /** Attaches a file of the same event that the actor can download to a conversation, as a conversation-owned copy. */
+  @Post(':objectId/thread-copies')
+  copyObjectToThread(
+    @Param('objectId') objectId: string,
+    @Body(zodBody(copyStorageObjectToThreadSchema)) input: CopyStorageObjectToThreadInput,
+    @VerifiedEventActor() actor: PrismVerifiedEventActor,
+  ) {
+    return this.storage.copyToThread({ sourceObjectId: objectId, threadId: input.threadId, actor: this.accessPolicy.resolveEventScopedActor(actor) });
   }
 
   /** Sets or clears the last day a stored document is valid: PMCM for any file, others for their own uploads. */
