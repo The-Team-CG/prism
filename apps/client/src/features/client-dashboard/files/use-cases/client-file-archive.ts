@@ -1,4 +1,5 @@
-import { downloadClientStoredFile, uploadClientStoredFile } from "./client-stored-file-actions";
+import { clientStoredFilesRepository } from "../data/client-stored-files-repository";
+import { downloadClientStoredFile } from "./client-stored-file-actions";
 
 export type ClientArchiveEntry = { objectId: string; name: string; folder: string };
 
@@ -40,11 +41,11 @@ export async function buildClientEventArchive(entries: ClientArchiveEntry[], onP
 }
 
 /**
- * Reuses a file from another of the client's events: a copy is stored for this event (sent for the requirement,
- * when given), so each event keeps its own record and retention.
+ * Reuses a file from another of the client's events: the server stores a copy for this event (each event keeps its
+ * own record and retention), then the copy is sent for the requirement when one is given.
  */
 export async function reuseClientStoredFile(sourceObjectId: string, eventId: string, attemptId: string, requirementKey?: string) {
-  const source = await downloadClientStoredFile(sourceObjectId);
-  const file = new File([source.blob], source.fileName, { type: source.contentType || source.blob.type });
-  return uploadClientStoredFile(file, eventId, attemptId, requirementKey);
+  const copy = await clientStoredFilesRepository.copy(sourceObjectId, eventId, attemptId);
+  if (requirementKey) await clientStoredFilesRepository.bindRequirementUpload(eventId, requirementKey, copy.id);
+  return copy;
 }

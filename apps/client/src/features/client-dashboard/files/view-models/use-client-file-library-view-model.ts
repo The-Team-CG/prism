@@ -15,7 +15,6 @@ import {
   countClientFiles,
   filterClientLibrary,
   isNewClientFile,
-  searchClientAccountFiles,
   sortClientLibrary,
   type ClientFileFilter,
   type ClientFileSort,
@@ -51,6 +50,7 @@ export function useClientFileLibraryViewModel() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [searchAll, setSearchAll] = useState(false);
   const [reuseTarget, setReuseTarget] = useState<{ key: string; label: string } | null>(null);
+  const [reuseQuery, setReuseQuery] = useState("");
   const [archiving, setArchiving] = useState<{ done: number; total: number } | null>(null);
   const [archiveWarning, setArchiveWarning] = useState<{ totalBytes: number; largest: string[] } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -70,17 +70,9 @@ export function useClientFileLibraryViewModel() {
     () => buildClientFileLibrary(objects.data ?? [], documents, requirements.data?.items ?? []).map((file) => ({ ...file, isNew: isNewClientFile(file, lastSeen) })),
     [objects.data, documents, requirements.data, lastSeen],
   );
-  const account = useClientAccountFiles(events, allDocuments, (searchAll && query.trim().length > 0) || reuseTarget !== null);
-  const accountResults = useMemo(() => (searchAll ? searchClientAccountFiles(account.sources, query) : []), [searchAll, account.sources, query]);
-  const reuseCandidates = useMemo(
-    () => sortClientLibrary(
-      account.sources
-        .filter((source) => source.eventId !== eventId)
-        .flatMap((source) => buildClientFileLibrary(source.objects, [], []).filter((file) => file.objectId).map((file) => ({ ...file, eventId: source.eventId, eventName: source.eventName }))),
-      { key: "date", direction: "desc" },
-    ),
-    [account.sources, eventId],
-  );
+  const accountSearch = useClientAccountFiles(searchAll && query.trim() ? query : null, events);
+  const reuseSearch = useClientAccountFiles(reuseTarget ? reuseQuery : null, events);
+  const reuseCandidates = useMemo(() => reuseSearch.files.filter((file) => file.eventId !== eventId && file.objectId), [reuseSearch.files, eventId]);
   const needed = useMemo(
     () => buildClientDocumentChecklist(requirements.data?.items ?? [], objects.data ?? []).rows.filter((row) => row.needsClient),
     [requirements.data, objects.data],
@@ -254,19 +246,21 @@ export function useClientFileLibraryViewModel() {
     dismissArchiveWarning: () => setArchiveWarning(null),
     searchAll,
     setSearchAll,
-    accountResults,
-    accountLoading: account.loading,
+    accountResults: accountSearch.files,
+    accountLoading: accountSearch.loading,
     openSearchResult,
     reuseTarget,
-    openReuse: (key: string, label: string) => setReuseTarget({ key, label }),
+    openReuse: (key: string, label: string) => { setReuseQuery(""); setReuseTarget({ key, label }); },
     closeReuse: () => setReuseTarget(null),
+    reuseQuery,
+    setReuseQuery,
     reuseCandidates,
-    reuseLoading: account.loading,
+    reuseLoading: reuseSearch.loading,
     reuseFile,
     filesLoading: objects.status === "pending",
     needed,
     neededLoading: requirements.status === "pending",
-    loadError: objects.error?.message ?? requirements.error?.message ?? account.error ?? null,
+    loadError: objects.error?.message ?? requirements.error?.message ?? accountSearch.error ?? reuseSearch.error ?? null,
     canUpload: Boolean(event && !event.archived),
     inputRef,
     startUpload,

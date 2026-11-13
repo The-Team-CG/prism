@@ -11,7 +11,7 @@ import {
   filterClientLibrary,
   formatFileSize,
   isNewClientFile,
-  searchClientAccountFiles,
+  clientAccountFiles,
   sortClientLibrary,
 } from "./client-file-library";
 
@@ -95,16 +95,16 @@ describe("client file library", () => {
     expect(isNewClientFile(shared, null)).toBe(false);
   });
 
-  it("searches every event's files, naming each result's event, and files downloads under their shelf", () => {
-    const results = searchClientAccountFiles(
+  it("names each account-wide result's event, newest first, and files downloads under their shelf", () => {
+    const results = clientAccountFiles(
       [
-        { eventId: "a", eventName: "Gala", objects: [object("o1", { originalFileName: "Venue-Permit.pdf", storedAt: "2026-10-01T00:00:00Z" })], documents: [] },
-        { eventId: "b", eventName: "Summit", objects: [object("o2", { originalFileName: "permit-2027.pdf", storedAt: "2026-11-01T00:00:00Z" }), object("o3", { originalFileName: "menu.pdf" })], documents: [] },
+        object("o1", { eventId: "a", originalFileName: "Venue-Permit.pdf", storedAt: "2026-10-01T00:00:00Z" }),
+        object("o2", { eventId: "b", originalFileName: "permit-2027.pdf", storedAt: "2026-11-01T00:00:00Z" }),
+        object("o3", { eventId: "gone", originalFileName: "old.pdf", lifecycleState: "deleted" }),
       ],
-      "permit",
+      new Map([["a", "Gala"], ["b", "Summit"]]),
     );
-    expect(results.map((file) => [file.name, file.eventName])).toEqual([["permit-2027.pdf", "Summit"], ["Venue-Permit.pdf", "Gala"]]);
-    expect(searchClientAccountFiles([{ eventId: "a", eventName: "Gala", objects: [object("o1")], documents: [] }], "  ")).toEqual([]);
+    expect(results.map((file) => [file.name, file.eventId, file.eventName])).toEqual([["permit-2027.pdf", "b", "Summit"], ["Venue-Permit.pdf", "a", "Gala"]]);
 
     const library = buildClientFileLibrary(
       [object("o4", { originalFileName: "Signed-Contract.pdf", declaredByteSize: 200 * 1024 * 1024 }), object("o5", { originalFileName: "Walkthrough.mp4", declaredByteSize: 150 * 1024 * 1024 })],
