@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { linkedConversationId } from "../portal-path";
-import { threadMatches, toChatThreads, type ChatMessageRecord, type ChatThreadRecord } from "./chat-display";
+import { threadMatches, toChatThreads, type ChatMessageRecord, type ChatThread, type ChatThreadRecord } from "./chat-display";
 
 export type ChatMessagePage = { items: ChatMessageRecord[]; nextCursor?: string | null };
 
@@ -23,6 +23,22 @@ const NO_THREADS: ChatThreadRecord[] = [];
 
 function errorText(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback;
+}
+
+/** Until the list has loaded for this scope, the viewer sees "loading"; with no scope there is nothing to load. */
+function listStatus(scope: string | undefined, current: Loaded | null): Loaded["status"] | "idle" {
+  if (!scope) return "idle";
+  return current?.status ?? "loading";
+}
+
+/** A failed load is shown for the list; a failed action is shown only while its conversation is the open one. */
+function visibleError(current: Loaded | null, actionError: ActionError | null, scope: string | undefined, activeId: string | undefined) {
+  return current?.error ?? (actionError && actionError.scope === scope && actionError.threadId === activeId ? actionError.message : null);
+}
+
+/** The conversation named in the link, once it is in the list. */
+function openedLinkId(linkedId: string | undefined, threads: ChatThread[]) {
+  return linkedId && threads.some((thread) => thread.id === linkedId) ? linkedId : undefined;
 }
 
 /**
@@ -85,7 +101,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   // Like a phone's chat list, the most recent conversation is the open one until another is chosen.
   const active = threads.find((thread) => thread.id === selectedId) ?? threads[0];
   const draft = active ? drafts[active.id] ?? "" : "";
-  const status = scope ? current?.status ?? "loading" : "idle";
+  const status = listStatus(scope, current);
 
   const updateThread = useCallback((forScope: string, threadId: string, update: (thread: ChatThreadRecord) => ChatThreadRecord) => {
     setLoaded((previous) => (previous?.scope === forScope ? { ...previous, threads: previous.threads.map((thread) => (thread.id === threadId ? update(thread) : thread)) } : previous));
@@ -176,7 +192,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   }
 
   const retry = () => setReload((value) => value + 1);
-  const error = current?.error ?? (actionError && actionError.scope === scope && actionError.threadId === active?.id ? actionError.message : null);
+  const error = visibleError(current, actionError, scope, active?.id);
 
   return {
     status,
@@ -190,7 +206,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
       visibleThreads,
       viewerId,
       activeThreadId: active?.id,
-      linkedThreadId: linkedId && threads.some((thread) => thread.id === linkedId) ? linkedId : undefined,
+      linkedThreadId: openedLinkId(linkedId, threads),
       onOpenThread: openThread,
       onThreadShown: showThread,
       query,
