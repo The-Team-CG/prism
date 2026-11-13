@@ -25,6 +25,11 @@ export class CommunicationController {
     return this.service.listInbox(this.access.resolveActor({}, verified));
   }
 
+  @Get('unread-count')
+  unreadCount(@VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.unreadCount(this.access.resolveActor({}, verified));
+  }
+
   @Get('participants')
   participants(@Query('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.listEligibleParticipants(eventId, this.access.resolveActor({}, verified));

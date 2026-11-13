@@ -3,6 +3,7 @@ import type {
   PrismCommunicationThread,
   PrismCommunicationParticipantChoice,
   PrismCommunicationReadReceipt,
+  PrismCommunicationUnreadCount,
 } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -25,6 +26,11 @@ export function createCommunicationClient(
       listInbox: (actor = {}) =>
         prismRequest<PrismCommunicationInboxThread[]>(
           actorPath("/communication/inbox", actor),
+          withBase(options),
+        ),
+      unreadCount: (actor = {}) =>
+        prismRequest<PrismCommunicationUnreadCount>(
+          actorPath("/communication/unread-count", actor),
           withBase(options),
         ),
       listParticipants: (eventId, actor = {}) =>

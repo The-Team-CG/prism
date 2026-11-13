@@ -58,15 +58,15 @@ describe('CommunicationService inbox', () => {
       messages,
     };
   }
-  function inboxHarness(readable: string[]) {
+  function inboxHarness(readable: string[], access = { requireActorRole: vi.fn() }) {
     const supplier = { id: 'u_supplier', name: 'Bloom Florals', email: 'bloom@example.test', role: 'supplier', explicit: true, verified: true } as const;
     const prisma = {
       opsCommunicationThread: { findMany: vi.fn(async () => [thread('thread_a', 'event_a'), thread('thread_b', 'event_b', [])]) },
-      opsCommunicationMessage: { findMany: vi.fn(async () => [{ threadId: 'thread_a', createdAt: at }]) },
+      opsCommunicationMessage: { findMany: vi.fn(async ({ where }: { where: { threadId: { in: string[] } } }) => [{ threadId: 'thread_a', createdAt: at }].filter((message) => where.threadId.in.includes(message.threadId))) },
       opsEvent: { findMany: vi.fn(async () => [{ id: 'event_a', eventName: 'Founders gala' }, { id: 'event_b', eventName: 'Product expo' }]) },
     };
     const participants = { readableEventIds: vi.fn(async () => new Set(readable)), displayNames: vi.fn(async () => new Map([['u_client', 'Ana Reyes'], ['u_supplier', 'Bloom Florals']])) };
-    const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
+    const service = new CommunicationService(prisma as never, access as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
     return { service, supplier, prisma, participants };
   }
 
@@ -96,6 +96,23 @@ describe('CommunicationService inbox', () => {
     const { service, supplier, prisma } = inboxHarness([]);
     await expect(service.listInbox({ ...supplier, id: undefined })).rejects.toBeInstanceOf(BadRequestException);
     expect(prisma.opsCommunicationThread.findMany).not.toHaveBeenCalled();
+  });
+
+  it('counts unread messages only in conversations on events the account can read', async () => {
+    const { service, supplier, prisma } = inboxHarness(['event_a']);
+    await expect(service.unreadCount(supplier)).resolves.toEqual({ unread: 1 });
+    expect(prisma.opsCommunicationThread.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { participants: { some: { actorId: 'u_supplier', active: true } } } }));
+    // The same unread message is not counted once its event is no longer readable.
+    await expect(inboxHarness(['event_b']).service.unreadCount(supplier)).resolves.toEqual({ unread: 0 });
+  });
+
+  it('rejects an unverified account and a role outside the inbox, without reading conversations', async () => {
+    const { service, supplier, prisma } = inboxHarness(['event_a']);
+    await expect(service.unreadCount({ ...supplier, id: undefined })).rejects.toBeInstanceOf(BadRequestException);
+    const forbidden = inboxHarness(['event_a'], { requireActorRole: vi.fn(async () => { throw new ForbiddenException('Not allowed'); }) });
+    await expect(forbidden.service.unreadCount(forbidden.supplier)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.opsCommunicationThread.findMany).not.toHaveBeenCalled();
+    expect(forbidden.prisma.opsCommunicationThread.findMany).not.toHaveBeenCalled();
   });
 });
 

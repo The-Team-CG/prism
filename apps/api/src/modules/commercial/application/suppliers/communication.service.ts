@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import type { CreateCommunicationThreadInput, PrismCommunicationInboxThread, PrismCommunicationReadReceipt, PrismCursorPage, SendCommunicationMessageInput } from '@prism/types';
+import type { CreateCommunicationThreadInput, PrismCommunicationInboxThread, PrismCommunicationReadReceipt, PrismCommunicationUnreadCount, PrismCursorPage, SendCommunicationMessageInput } from '@prism/types';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -104,6 +104,17 @@ export class CommunicationService {
       const { messages, messagesNextCursor: _history, ...thread } = this.safeThread(row, actorId, unreadByThread.get(row.id) ?? 0, names);
       return { ...thread, eventName: eventNames.get(row.eventId) ?? '', lastMessage: messages[0] ?? null };
     });
+  }
+
+  /** The inbox's unread total: the same conversations and read rule as the inbox, with no message bodies loaded. */
+  async unreadCount(actor: ResolvedEventOpsActor): Promise<PrismCommunicationUnreadCount> {
+    await this.access.requireActorRole(actor, readerRoles, 'communication unread count');
+    if (!actor.id) throw new BadRequestException('The inbox requires a verified account');
+    const actorId = actor.id;
+    const rows = await this.prisma.opsCommunicationThread.findMany({ take: 100, where: { participants: { some: { actorId, active: true } } }, select: { ...threadFields, participants: { where: { active: true }, select: participantSelect } }, orderBy: { updatedAt: 'desc' } });
+    const readable = await this.participants.readableEventIds(actorId, rows.map((row) => row.eventId));
+    const counts = await this.unreadCounts(rows.filter((row) => readable.has(row.eventId)), actorId);
+    return { unread: [...counts.values()].reduce((sum, count) => sum + count, 0) };
   }
 
   async listMessages(threadId: string, query: { cursor?: string; limit?: number }, actor: ResolvedEventOpsActor): Promise<PrismCursorPage<ReturnType<CommunicationService['safeMessage']>>> {

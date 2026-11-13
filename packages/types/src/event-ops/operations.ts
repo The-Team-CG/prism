@@ -61,6 +61,11 @@ export interface PrismCommunicationInboxThread extends Omit<PrismCommunicationTh
   unreadCount: number;
 }
 
+/** Unread messages across the conversations the signed-in account can see in its inbox. */
+export interface PrismCommunicationUnreadCount {
+  unread: number;
+}
+
 export interface PrismCoordinatorAssignment {
   id: string;
   eventId: string;
