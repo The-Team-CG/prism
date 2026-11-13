@@ -12,6 +12,7 @@ import type {
   PmcmInboxCoordinatorAssignment,
   PmcmInboxEvent,
   PmcmInboxEventDayTask,
+  PmcmInboxFileReview,
   PmcmInboxFloorPlanDraft,
   PmcmInboxInquiry,
   PmcmInboxPaymentMilestone,
@@ -439,6 +440,7 @@ export function collectPmcmCommandInboxItems(input: {
   postEventDocuments: PmcmInboxPostEventDocument[];
   eventDayTasks?: PmcmInboxEventDayTask[];
   urgentIssues?: PmcmInboxUrgentIssue[];
+  fileReviews?: PmcmInboxFileReview[];
 }): PrismCommandInboxItem[] {
   const eventsById = new Map(input.events.map((event) => [event.id, event]));
   const items = [
@@ -451,6 +453,7 @@ export function collectPmcmCommandInboxItems(input: {
     ...collectCoordinatorInboxItems(input.coordinatorAssignments, eventsById),
     ...collectFloorplanDraftInboxItems(input.floorPlanDrafts, eventsById),
     ...collectClosureInboxItems(input.postEventDocuments, eventsById),
+    ...collectFileReviewInboxItems(input.fileReviews ?? [], eventsById),
   ];
   items.sort((left, right) => {
     const severity = priorityRank(left.severity) - priorityRank(right.severity);
@@ -675,6 +678,34 @@ function closureInboxItem(
     eventName: event.eventName,
     clientName: event.clientName,
     href: `/dashboard/events/${event.id}/closure`,
+  };
+}
+
+function collectFileReviewInboxItems(files: PmcmInboxFileReview[], eventsById: Map<string, EventRef>) {
+  return files.flatMap((file) => {
+    const item = fileReviewInboxItem(file, eventsById);
+    return item ? [item] : [];
+  });
+}
+
+const FILE_SENDER: Record<string, string> = { client: 'client', supplier: 'supplier', coordinator: 'coordinator' };
+
+/** One file waiting for PMCM's review; it opens the event's required files, where PMCM approves or rejects it. */
+function fileReviewInboxItem(file: PmcmInboxFileReview, eventsById: Map<string, EventRef>): PrismCommandInboxItem | null {
+  const event = eventsById.get(file.eventId);
+  if (!event) return null;
+  return {
+    id: `file-review:${file.id}`,
+    kind: 'document',
+    severity: 'attention',
+    label: `Review ${FILE_SENDER[file.uploadedByRole ?? ''] ?? 'sent'} file`,
+    description: `${file.fileName} for ${file.requirementLabel ?? file.type.replaceAll('_', ' ')} on ${event.eventName}.`,
+    status: 'submitted',
+    eventId: event.id,
+    eventName: event.eventName,
+    clientName: event.clientName,
+    createdAt: toIso(file.uploadedAt),
+    href: `/dashboard/events/${event.id}/files?part=required`,
   };
 }
 

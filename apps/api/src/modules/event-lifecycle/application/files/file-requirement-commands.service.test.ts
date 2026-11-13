@@ -94,10 +94,10 @@ function createHarness(options: {
       findFirst: vi.fn(async ({ where }: { where: Row }) => documents.find((row) => row.eventId === where.eventId && row.storageKey === where.storageKey) ?? null),
       create: vi.fn(async ({ data }: { data: Row }) => { documents.push(data); return data; }),
       updateMany: vi.fn(async ({ where, data }: { where: Row; data: Row }) => {
-        const row = documents.find((document) => Object.entries(where).every(([key, value]) => document[key] === value));
-        if (!row) return { count: 0 };
-        Object.assign(row, data);
-        return { count: 1 };
+        const matches = (value: unknown, expected: unknown) => (expected && typeof expected === 'object' && 'in' in expected ? (expected as { in: unknown[] }).in.includes(value) : value === expected);
+        const rows = documents.filter((document) => Object.entries(where).every(([key, value]) => matches(document[key], value)));
+        rows.forEach((row) => Object.assign(row, data));
+        return { count: rows.length };
       }),
     },
   };
@@ -414,7 +414,10 @@ describe('FileRequirementCommandsService', () => {
     expect(reviewed.supplierFulfilments?.[0]).toMatchObject({ status: 'missing', reviewReason: 'Policy has expired' });
     expect(harness.documents[0]).toMatchObject({ status: 'rejected', validationStatus: 'accepted' });
     // Only the supplier that sent the file hears about it, at its own contact.
-    expect(harness.outbox).toEqual([expect.objectContaining({ recipient: sonic.email, message: expect.stringContaining('Reason: Policy has expired') })]);
+    expect(harness.outbox).toEqual([
+      expect.objectContaining({ recipient: 'PMCM Admin', message: 'Supplier Sonic sent "insurance.pdf" for "Insurance certificate". It is waiting for your review.' }),
+      expect.objectContaining({ recipient: sonic.email, message: expect.stringContaining('Reason: Policy has expired') }),
+    ]);
     await expect(harness.service.reviewRequirementFile(eventId, requirement.key, { documentId, decision: 'approve' }, pmcm)).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -424,6 +427,9 @@ describe('FileRequirementCommandsService', () => {
     const client = { id: 'client_1', role: 'client', name: 'Client', explicit: true, verified: true };
     const harness = createHarness({ rows: [requirement], storedUpload: upload });
     const first = (await harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, client as never)).uploadedAssetId!;
+    // PMCM hears that a file is waiting for review.
+    expect(harness.outbox).toEqual([expect.objectContaining({ recipient: 'PMCM Admin', message: 'The client sent "permit.pdf" for "Venue permit". It is waiting for your review.', action: { kind: 'event_section', eventId, section: 'files' } })]);
+    harness.outbox.length = 0;
 
     await expect(harness.service.reviewRequirementFile(eventId, requirement.key, { documentId: first, decision: 'approve' }, client as never)).rejects.toBeInstanceOf(ForbiddenException);
     const rejected = await harness.service.reviewRequirementFile(eventId, requirement.key, { documentId: first, decision: 'reject', reason: 'The permit is unsigned' }, pmcm);
@@ -439,6 +445,21 @@ describe('FileRequirementCommandsService', () => {
     const replacement = (await harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: 'obj_2' }, client as never)).uploadedAssetId!;
     await expect(harness.service.reviewRequirementFile(eventId, requirement.key, { documentId: replacement, decision: 'approve' }, pmcm)).resolves.toMatchObject({ status: 'approved' });
     expect(harness.outbox[harness.outbox.length - 1]).toMatchObject({ recipient: 'Client', message: 'PMCM approved your file for "Venue permit".' });
+  });
+
+  it("marks the sender's earlier unreviewed file replaced when a newer one arrives, so only the newest waits for review", async () => {
+    const requirement = { id: 'freq_1', targetSupplierIds: [] as string[], eventId, key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm' };
+    const upload = { id: 'obj_1', eventId, ownerRecordType: 'event', ownerRecordId: eventId, usage: 'client_document', lifecycleState: 'stored', originalFileName: 'permit.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'client_1', uploaderActorRole: 'client' };
+    const client = { id: 'client_1', role: 'client', name: 'Client', explicit: true, verified: true };
+    const harness = createHarness({ rows: [requirement], storedUpload: upload });
+    const first = (await harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: upload.id }, client as never)).uploadedAssetId!;
+    vi.setSystemTime(new Date('2026-10-21T00:00:00.000Z'));
+    harness.storedRequirementUploads.findStoredRequirementUpload.mockResolvedValue({ ...upload, id: 'obj_2', originalFileName: 'permit-v2.pdf' });
+    const second = (await harness.service.bindRequirementUpload(eventId, requirement.key, { objectId: 'obj_2' }, client as never)).uploadedAssetId!;
+
+    expect(harness.documents.map(({ id, status }) => [id, status])).toEqual([[first, 'replaced'], [second, 'submitted']]);
+    await expect(harness.service.reviewRequirementFile(eventId, requirement.key, { documentId: first, decision: 'approve' }, pmcm)).rejects.toBeInstanceOf(ConflictException);
+    await expect(harness.service.reviewRequirementFile(eventId, requirement.key, { documentId: second, decision: 'approve' }, pmcm)).resolves.toMatchObject({ status: 'approved' });
   });
 
   it('applies PMCM-configured event templates idempotently and offsets due dates from the event date', async () => {
