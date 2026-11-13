@@ -91,9 +91,15 @@ function customItem(row: PersistedFileRequirement, documents: FileRequirementDoc
     detail: rejected
       ? 'The latest upload was rejected; a replacement file is required.'
       : latest ? `${count} file(s) submitted` : 'No file submitted yet.',
-    ...(rejected && rejectionReasonOf(latest) ? { reviewReason: rejectionReasonOf(latest) } : {}),
-    ...(count > 0 ? { versions: requirementVersions(documents, row.key) } : {}),
+    ...customItemHistory(documents, row.key, rejected ? latest : undefined),
   };
+}
+
+/** PMCM's reason on a rejected latest upload, and every upload so far, for the party that owns the requirement. */
+function customItemHistory(documents: FileRequirementDocumentFact[], key: string, rejectedLatest: FileRequirementDocumentFact | undefined) {
+  const reviewReason = rejectionReasonOf(rejectedLatest);
+  const versions = requirementVersions(documents, key);
+  return { ...(reviewReason ? { reviewReason } : {}), ...(versions.length ? { versions } : {}) };
 }
 
 /** One selected supplier's fulfilment, computed only from documents whose stored object that supplier owns. */

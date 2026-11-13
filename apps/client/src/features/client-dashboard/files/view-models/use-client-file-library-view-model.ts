@@ -25,6 +25,11 @@ import { saveDownload } from "./save-download";
 import { useClientAccountFiles } from "./use-client-account-files";
 import { useClientFilesLastSeen } from "./use-client-files-last-seen";
 
+function uploadNotice(sent: string[], requirementLabel: string | undefined, eventName = "this event") {
+  if (requirementLabel) return `${sent[0]} sent for ${requirementLabel}. PMCM will review it.`;
+  return sent.length === 1 ? `${sent[0]} added to ${eventName}.` : `${sent.length} files added to ${eventName}.`;
+}
+
 /**
  * The client's file library: every event (upcoming first, then past for later reference), and for the chosen
  * one what PMCM still needs from the client above all of its files on fixed shelves.
@@ -96,6 +101,20 @@ export function useClientFileLibraryViewModel() {
     inputRef.current.click();
   }
 
+  /** Uploads one file, reusing its retry identity after a failure; returns why it failed, if it did. */
+  async function uploadOne(file: File, targetEventId: string, requirementKey: string | undefined) {
+    const fileKey = `${targetEventId}:${requirementKey ?? ""}:${file.name}:${file.size}:${file.lastModified}`;
+    const attemptId = uploadAttempts.current.get(fileKey) ?? globalThis.crypto.randomUUID();
+    uploadAttempts.current.set(fileKey, attemptId);
+    try {
+      await uploadClientStoredFile(file, targetEventId, attemptId, requirementKey);
+      uploadAttempts.current.delete(fileKey);
+      return null;
+    } catch (reason) {
+      return `${file.name} (${reason instanceof Error ? reason.message : "upload failed"})`;
+    }
+  }
+
   /**
    * Sends files one at a time so each keeps its own retry identity. A requirement takes one file (the newest
    * upload is the one PMCM reviews); general uploads take several.
@@ -110,23 +129,15 @@ export function useClientFileLibraryViewModel() {
     const failed: string[] = [];
     for (const [index, file] of files.entries()) {
       setProgress({ done: index, total: files.length, current: file.name });
-      const fileKey = `${eventId}:${requirementKey ?? ""}:${file.name}:${file.size}:${file.lastModified}`;
-      const attemptId = uploadAttempts.current.get(fileKey) ?? globalThis.crypto.randomUUID();
-      uploadAttempts.current.set(fileKey, attemptId);
-      try {
-        await uploadClientStoredFile(file, eventId, attemptId, requirementKey);
-        uploadAttempts.current.delete(fileKey);
-        sent.push(file.name);
-      } catch (reason) {
-        failed.push(`${file.name} (${reason instanceof Error ? reason.message : "upload failed"})`);
-      }
+      const failure = await uploadOne(file, eventId, requirementKey);
+      if (failure) failed.push(failure);
+      else sent.push(file.name);
     }
     setProgress(null);
     if (failed.length) setError(`Couldn't upload ${failed.join("; ")}.`);
     if (sent.length) {
       const label = requirements.data?.items.find((item) => item.key === requirementKey)?.label;
-      const where = event?.eventName ?? "this event";
-      setNotice(label ? `${sent[0]} sent for ${label}. PMCM will review it.` : sent.length === 1 ? `${sent[0]} added to ${where}.` : `${sent.length} files added to ${where}.`);
+      setNotice(uploadNotice(sent, label, event?.eventName));
       await Promise.all([invalidate(clientEventStoredFiles, eventId), invalidate(clientEventFileRequirements, eventId)]);
     }
     setBusy(false);

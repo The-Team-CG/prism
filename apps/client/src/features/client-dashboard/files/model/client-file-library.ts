@@ -25,16 +25,19 @@ export function clientFileFilterForView(view: ClientPortalView | undefined): Cli
 
 export type ClientFileKind = "pdf" | "image" | "sheet" | "document" | "video" | "other";
 
+const KIND_RULES: ReadonlyArray<{ kind: ClientFileKind; type: RegExp; extensions: readonly string[] }> = [
+  { kind: "pdf", type: /^application\/pdf$/, extensions: ["pdf"] },
+  { kind: "image", type: /^image\//, extensions: ["jpg", "jpeg", "png", "gif", "webp"] },
+  { kind: "video", type: /^video\//, extensions: ["mp4", "mov"] },
+  { kind: "sheet", type: /spreadsheet|excel|csv/, extensions: ["xlsx", "xls", "csv"] },
+  { kind: "document", type: /word|document|text/, extensions: ["docx", "doc", "txt", "pptx"] },
+];
+
 /** What a file is, from its stored type or, failing that, its extension. */
 export function clientFileKind(name: string, contentType = ""): ClientFileKind {
   const type = contentType.toLowerCase();
   const extension = name.toLowerCase().split(".").pop() ?? "";
-  if (type === "application/pdf" || extension === "pdf") return "pdf";
-  if (type.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp"].includes(extension)) return "image";
-  if (type.startsWith("video/") || ["mp4", "mov"].includes(extension)) return "video";
-  if (/spreadsheet|excel|csv/.test(type) || ["xlsx", "xls", "csv"].includes(extension)) return "sheet";
-  if (/word|document|text/.test(type) || ["docx", "doc", "txt", "pptx"].includes(extension)) return "document";
-  return "other";
+  return KIND_RULES.find((rule) => rule.type.test(type) || rule.extensions.includes(extension))?.kind ?? "other";
 }
 
 /** "118 KB", "4.2 MB". */
