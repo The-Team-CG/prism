@@ -7,6 +7,7 @@ import { pmcmDocumentRepository } from "../data/pmcm-document-repository";
 import { pmcmEventFileRequirements, pmcmEventStoredFiles } from "../data/pmcm-file-library-resources";
 import { buildPmcmFileLibrary, countPmcmFiles, filterPmcmFiles, pmcmReviewQueue, type PmcmFileFilter, type PmcmReviewEntry } from "../model/pmcm-file-library";
 import { approveRequirementFiles, reviewRequirementFile } from "../use-cases/review-requirement-files";
+import { setFileExpiry } from "../use-cases/set-file-expiry";
 
 function saveFile(file: { blob: Blob; fileName: string }) {
   const url = URL.createObjectURL(file.blob);
@@ -106,6 +107,13 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
     });
   }
 
+  function setExpiry(file: { id: string; name: string }, expiresAt: string | null) {
+    return run(`expiry:${file.id}`, async () => {
+      await setFileExpiry(file.id, expiresAt);
+      return expiresAt ? `${file.name} is valid until ${expiresAt}.` : `${file.name} no longer has an expiry date.`;
+    });
+  }
+
   function download(objectId: string) {
     return run(`download:${objectId}`, async () => {
       saveFile(await pmcmDocumentRepository.download(objectId));
@@ -125,7 +133,7 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
     query, setQuery,
     preview, openPreview: setPreviewId, closePreview: () => setPreviewId(null),
     selected, toggleSelected, toggleAll, approveSelected,
-    review, upload, download,
+    review, upload, download, setExpiry,
     busy, notice, error,
     category, setCategory, inputRef,
   };

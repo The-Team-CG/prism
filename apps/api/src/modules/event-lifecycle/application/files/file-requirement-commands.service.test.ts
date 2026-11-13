@@ -39,6 +39,8 @@ function createHarness(options: {
   storedUpload?: Row | null;
   suppliers?: HarnessSupplier[];
   openSuppliers?: HarnessSupplier[];
+  /** When stored files stop being valid, by object id. */
+  expiries?: Map<string, Date>;
 } = {}) {
   const selectedSuppliers = options.suppliers ?? [];
   // Open quote requests exist on the event but are not selected: they resolve the actor's event scope, never a booking.
@@ -131,7 +133,10 @@ function createHarness(options: {
     if (!outbox.some((entry) => entry.idempotencyKey === input.idempotencyKey)) outbox.push(input);
     return input;
   }) };
-  const storedRequirementUploads = { findStoredRequirementUpload: vi.fn(async () => options.storedUpload ?? null) };
+  const storedRequirementUploads = {
+    findStoredRequirementUpload: vi.fn(async () => options.storedUpload ?? null),
+    findStoredFileExpiries: vi.fn(async ({ objectIds }: { objectIds: string[] }) => new Map([...(options.expiries ?? new Map())].filter(([id]) => objectIds.includes(id)))),
+  };
   const service = new FileRequirementCommandsService(prisma as never, matrix as never, accessPolicy as never, auditWriter as never, notificationOutboxWriter as never, storedRequirementUploads as never, accountContacts as never);
   return { service, rows, audits, outbox, tx, prisma, matrix, documents, templates, storedRequirementUploads, accessPolicy };
 }
@@ -460,6 +465,43 @@ describe('FileRequirementCommandsService', () => {
     expect(harness.documents.map(({ id, status }) => [id, status])).toEqual([[first, 'replaced'], [second, 'submitted']]);
     await expect(harness.service.reviewRequirementFile(eventId, requirement.key, { documentId: first, decision: 'approve' }, pmcm)).rejects.toBeInstanceOf(ConflictException);
     await expect(harness.service.reviewRequirementFile(eventId, requirement.key, { documentId: second, decision: 'approve' }, pmcm)).resolves.toMatchObject({ status: 'approved' });
+  });
+
+  it("warns the sender once before a sent file expires and once after it has", async () => {
+    const permit = { id: 'freq_1', targetSupplierIds: [] as string[], eventId, key: 'venue_permit', label: 'Venue permit', ownerRole: 'client', visibleToRoles: ['pmcm-admin', 'client'], required: true, dueAt: null, sourceWorkflow: 'custom', isCustom: true, notes: null, revision: 1, updatedBy: 'pmcm' };
+    const upload = { id: 'obj_permit', eventId, ownerRecordType: 'event', ownerRecordId: eventId, usage: 'client_document', lifecycleState: 'stored', originalFileName: 'permit.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'client_1', uploaderActorRole: 'client' };
+    const harness = createHarness({ rows: [permit], storedUpload: upload, expiries: new Map([['obj_permit', new Date('2026-11-05T00:00:00.000Z')]]) });
+    await harness.service.bindRequirementUpload(eventId, permit.key, { objectId: upload.id }, { id: 'client_1', role: 'client', name: 'Client', explicit: true, verified: true } as never);
+    harness.outbox.length = 0;
+
+    const expiring = await harness.service.sendReminders(eventId, pmcm, new Date('2026-10-20T00:00:00.000Z'));
+    expect(expiring.reminders.map(({ reason, recipient }) => [reason, recipient])).toEqual([['expiring', 'Client'], ['expiring', 'PMCM Admin']]);
+    expect(harness.outbox[0]?.message).toBe('Required file "Venue permit" expires on 2026-11-05. Upload a current one in the event file hub.');
+    await harness.service.sendReminders(eventId, pmcm, new Date('2026-10-21T00:00:00.000Z'));
+    expect(harness.outbox).toHaveLength(2);
+
+    await harness.service.sendReminders(eventId, pmcm, new Date('2026-11-06T00:00:00.000Z'));
+    expect(harness.outbox.slice(2).map((entry) => [entry.recipient, entry.message])).toEqual([
+      ['Client', 'Required file "Venue permit" expired on 2026-11-05. Upload a current one in the event file hub.'],
+      ['PMCM Admin', 'Required file "Venue permit" expired on 2026-11-05. Upload a current one in the event file hub.'],
+    ]);
+  });
+
+  it('warns only the supplier whose file is expiring, at its own contact, and not while it is far off', async () => {
+    const insurance = { ...insuranceRequirement('2026-12-30T00:00:00.000Z'), targetSupplierIds: [sonic.supplierId] };
+    const upload = { id: 'obj_sonic', eventId, logicalTarget: 'supplier-requirement:insurance_certificate:123e4567-e89b-42d3-a456-426614174000', ownerRecordType: 'supplier', ownerRecordId: sonic.supplierId, usage: 'supplier_document', lifecycleState: 'stored', originalFileName: 'insurance.pdf', contentType: 'application/pdf', declaredByteSize: 100, uploaderActorId: 'usr_sonic', uploaderActorRole: 'supplier' };
+    const expiries = new Map([['obj_sonic', new Date('2027-06-30T00:00:00.000Z')]]);
+    const harness = createHarness({ rows: [insurance], storedUpload: upload, suppliers: [sonic, atlas], expiries });
+    await harness.service.bindRequirementUpload(eventId, insurance.key, { objectId: upload.id }, { id: 'usr_sonic', role: 'supplier', name: 'Sonic', email: sonic.email, explicit: true, verified: true } as never);
+    harness.outbox.length = 0;
+
+    await harness.service.sendReminders(eventId, pmcm, new Date('2026-10-20T00:00:00.000Z'));
+    expect(harness.outbox).toHaveLength(0);
+    expiries.set('obj_sonic', new Date('2026-11-01T00:00:00.000Z'));
+    await harness.service.sendReminders(eventId, pmcm, new Date('2026-10-20T00:00:00.000Z'));
+    expect(harness.outbox.map((entry) => [entry.recipient, entry.message])).toEqual([
+      [sonic.email, 'Required file "Insurance certificate" expires on 2026-11-01. Upload a current one in the event file hub.'],
+    ]);
   });
 
   it('applies PMCM-configured event templates idempotently and offsets due dates from the event date', async () => {

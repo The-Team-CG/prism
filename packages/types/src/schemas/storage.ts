@@ -49,6 +49,12 @@ export const copyStorageObjectSchema = z.object({
 }).strict();
 export type CopyStorageObjectInput = z.infer<typeof copyStorageObjectSchema>;
 
+/** The last day a stored document is valid, as a calendar date; null clears it. */
+export const setStorageObjectExpirySchema = z.object({
+  expiresAt: z.iso.date().nullable(),
+}).strict();
+export type SetStorageObjectExpiryInput = z.infer<typeof setStorageObjectExpirySchema>;
+
 /** Search the signed-in client's stored files across all of their events by file name; an empty query lists the newest. */
 export const searchClientStoredFilesQuerySchema = z.object({
   query: z.string().trim().max(100).optional().default(""),

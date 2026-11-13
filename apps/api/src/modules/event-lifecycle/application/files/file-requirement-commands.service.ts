@@ -72,11 +72,38 @@ function overridePatch(input: UpdateFileRequirementInput, current: PrismFileRequ
   return next;
 }
 
-/** Names only the requirement and the date or upload: the message never names another supplier. */
+const REMINDER_MESSAGES: Record<FileRequirementReminderReason, (label: string, date: string) => string> = {
+  overdue: (label, date) => `Required file "${label}" is overdue (due ${date}). Upload it in the event file hub.`,
+  rejected: (label) => `Required file "${label}" was rejected. Upload a replacement in the event file hub.`,
+  expiring: (label, date) => `Required file "${label}" expires on ${date}. Upload a current one in the event file hub.`,
+  expired: (label, date) => `Required file "${label}" expired on ${date}. Upload a current one in the event file hub.`,
+};
+
+/** Names only the requirement and the date or upload: the message never names another supplier. Dated anchors start with the date. */
 function reminderMessage(reason: FileRequirementReminderReason, label: string, anchor: string) {
-  return reason === 'overdue'
-    ? `Required file "${label}" is overdue (due ${anchor.slice(0, 10)}). Upload it in the event file hub.`
-    : `Required file "${label}" was rejected. Upload a replacement in the event file hub.`;
+  return REMINDER_MESSAGES[reason](label, anchor.slice(0, 10));
+}
+
+/** Warn this long before a sent file stops being valid. */
+const EXPIRY_WARNING_DAYS = 30;
+
+/**
+ * A file that was sent and not rejected but stops being valid soon, or already has. The anchor carries the date and
+ * the file, so each warning is sent once, and again only if the file or its date changes.
+ */
+function expiryReason(objectId: string | undefined, status: string, expiries: ReadonlyMap<string, Date>, now: Date): [FileRequirementReminderReason, string] | null {
+  const expiresAt = objectId && status !== 'missing' ? expiries.get(objectId) : undefined;
+  if (!expiresAt) return null;
+  const anchor = `${expiresAt.toISOString().slice(0, 10)}:${objectId}`;
+  if (expiresAt.getTime() < now.getTime()) return ['expired', anchor];
+  return expiresAt.getTime() - now.getTime() <= EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000 ? ['expiring', anchor] : null;
+}
+
+/** The files currently standing for each requirement: the single owner's latest, or each supplier's latest. */
+function currentFileIds(items: PrismFileRequirementItem[]) {
+  return items
+    .flatMap((item) => [item.uploadedObjectId, ...(item.supplierFulfilments ?? []).map((fulfilment) => fulfilment.uploadedObjectId)])
+    .filter((objectId): objectId is string => Boolean(objectId));
 }
 
 type ReviewedFileOwner = { role: string; supplierId?: string };
@@ -483,17 +510,28 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     const rejectedByType = new Map<string, string>();
     rejectedDocuments.forEach((document) => { if (!rejectedByType.has(document.type)) rejectedByType.set(document.type, document.id); });
     const emailBySupplier = new Map(supplierContacts.map(({ supplierId, email }) => [supplierId, email]));
+    const required = matrix.items.filter((candidate) => candidate.required);
+    const expiries = await this.storedRequirementUploads.findStoredFileExpiries({ eventId, objectIds: currentFileIds(required) });
     const reminders: FileRequirementReminder[] = [];
-    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one event's required items, each with at most two reasons.
-    for (const item of matrix.items.filter((candidate) => candidate.required)) {
-      reminders.push(...await this.queueFulfilmentReminders(eventId, item, emailBySupplier));
-      const reasons: Array<[FileRequirementReminderReason, string]> = [];
-      if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
-      const rejectedId = rejectedAnchor(item, rejectedByType);
-      if (rejectedId) reasons.push(['rejected', rejectedId]);
-      for (const [reason, anchor] of reasons) reminders.push(...await this.queueReminder(eventId, item, reason, anchor));
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one event's required items, each with at most three reasons.
+    for (const item of required) {
+      reminders.push(...await this.queueFulfilmentReminders(eventId, item, emailBySupplier, expiries, now));
+      for (const [reason, anchor] of this.requirementReasons(item, rejectedByType, expiries, now)) {
+        reminders.push(...await this.queueReminder(eventId, item, reason, anchor));
+      }
     }
     return reminders;
+  }
+
+  /** Why a requirement owned by a single role needs a reminder: overdue, rejected, or its file expiring or expired. */
+  private requirementReasons(item: PrismFileRequirementItem, rejectedByType: Map<string, string>, expiries: ReadonlyMap<string, Date>, now: Date) {
+    const reasons: Array<[FileRequirementReminderReason, string]> = [];
+    if (item.overdue && item.dueDate) reasons.push(['overdue', item.dueDate]);
+    const rejectedId = rejectedAnchor(item, rejectedByType);
+    if (rejectedId) reasons.push(['rejected', rejectedId]);
+    const expiry = item.supplierFulfilments ? null : expiryReason(item.uploadedObjectId, item.status, expiries, now);
+    if (expiry) reasons.push(expiry);
+    return reasons;
   }
 
   async sendReminders(eventId: string, actor: ResolvedEventOpsActor, now = new Date()): Promise<{ reminders: FileRequirementReminder[] }> {
@@ -505,15 +543,17 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
   }
 
   /** Supplier-owned items remind each affected supplier at its own contact; a satisfied, unrejected supplier gets nothing. */
-  private async queueFulfilmentReminders(eventId: string, item: PrismFileRequirementItem, emailBySupplier: Map<string, string | null>) {
+  private async queueFulfilmentReminders(eventId: string, item: PrismFileRequirementItem, emailBySupplier: Map<string, string | null>, expiries: ReadonlyMap<string, Date>, now: Date) {
     const reminders: FileRequirementReminder[] = [];
-    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one fulfilment per selected supplier, each with at most two reasons.
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one fulfilment per selected supplier, each with at most three reasons.
     for (const fulfilment of item.supplierFulfilments ?? []) {
       const email = emailBySupplier.get(fulfilment.supplierId) ?? null;
       if (fulfilment.overdue && item.dueDate) reminders.push(...await this.queueSupplierReminder(eventId, item, 'overdue', item.dueDate, fulfilment.supplierId, email));
       if ((fulfilment.validationStatus === 'rejected' || fulfilment.reviewReason) && fulfilment.uploadedAssetId) {
         reminders.push(...await this.queueSupplierReminder(eventId, item, 'rejected', fulfilment.uploadedAssetId, fulfilment.supplierId, email));
       }
+      const expiry = expiryReason(fulfilment.uploadedObjectId, fulfilment.status, expiries, now);
+      if (expiry) reminders.push(...await this.queueSupplierReminder(eventId, item, expiry[0], expiry[1], fulfilment.supplierId, email));
     }
     return reminders;
   }

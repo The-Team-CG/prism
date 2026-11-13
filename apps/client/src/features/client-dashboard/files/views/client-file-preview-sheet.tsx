@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Download, LoaderCircle, Upload } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
@@ -7,7 +8,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { cn } from "@/app/components/ui/utils";
 import { dashboardHref, formatStatusLabel } from "../../workspace/shared";
-import { CLIENT_FILE_CATEGORIES, formatFileSize, type ClientLibraryFile } from "../model/client-file-library";
+import { CLIENT_FILE_CATEGORIES, clientFileExpiry, formatFileSize, type ClientLibraryFile } from "../model/client-file-library";
 import { clientFileHasPreview, useClientFilePreview } from "../view-models/use-client-file-preview";
 import type { ClientFileLibraryViewModel } from "../view-models/use-client-file-library-view-model";
 import { ClientFileKindIcon } from "./client-file-kind-icon";
@@ -77,7 +78,28 @@ function PreviewHeader({ file, vm }: { file: ClientLibraryFile; vm: ClientFileLi
   );
 }
 
-function PreviewDetails({ file }: { file: ClientLibraryFile }) {
+/**
+ * When a dated document stops being valid (a permit, insurance or registration). The client can set or clear the
+ * date on files they sent; PMCM's files only show it.
+ */
+function ValidUntil({ file, vm }: { file: ClientLibraryFile; vm: ClientFileLibraryViewModel }) {
+  const [value, setValue] = useState(file.expiresAt?.slice(0, 10) ?? "");
+  const expiry = clientFileExpiry(file.expiresAt);
+  const editable = file.addedBy === "You" && Boolean(file.objectId);
+  if (!editable) return expiry ? <Detail label="Valid until"><span className={STATUS_TONE[expiry.tone]}>{expiry.label}</span></Detail> : null;
+  return (
+    <Detail label="Valid until">
+      <form className="flex flex-wrap items-center gap-2" onSubmit={(event) => { event.preventDefault(); void vm.setExpiry(file, value || null); }}>
+        <input type="date" aria-label={`Valid until for ${file.name}`} value={value} onChange={(event) => setValue(event.currentTarget.value)} className="h-8 rounded-md border border-border bg-background px-2 text-sm" />
+        <Button type="submit" size="sm" variant="outline" disabled={vm.busy || value === (file.expiresAt?.slice(0, 10) ?? "")}>Save</Button>
+        {file.expiresAt ? <Button type="button" size="sm" variant="ghost" disabled={vm.busy} onClick={() => { setValue(""); void vm.setExpiry(file, null); }}>Clear</Button> : null}
+        {expiry && expiry.tone !== "neutral" ? <span className={cn("text-xs", STATUS_TONE[expiry.tone])}>{expiry.label}</span> : null}
+      </form>
+    </Detail>
+  );
+}
+
+function PreviewDetails({ file, vm }: { file: ClientLibraryFile; vm: ClientFileLibraryViewModel }) {
   return (
     <>
       {file.reviewReason ? (
@@ -89,6 +111,7 @@ function PreviewDetails({ file }: { file: ClientLibraryFile }) {
         <Detail label="Status"><span className={STATUS_TONE[file.tone]}>{file.status}</span></Detail>
         {file.requirementLabel ? <Detail label="Sent for">{file.requirementLabel}</Detail> : null}
         <Detail label="Category">{CLIENT_FILE_CATEGORIES.find((category) => category.id === file.category)?.label ?? "Other"}</Detail>
+        <ValidUntil key={`${file.id}:${file.expiresAt ?? ""}`} file={file} vm={vm} />
       </dl>
     </>
   );
@@ -150,6 +173,8 @@ function PreviewActions({ file, vm, eventId }: { file: ClientLibraryFile; vm: Cl
 export function ClientFilePreviewSheet({ vm, eventId }: { vm: ClientFileLibraryViewModel; eventId: string }) {
   const file = vm.preview;
   const step = (event: React.KeyboardEvent) => {
+    // Arrow keys inside a field (the date picker) belong to that field.
+    if (event.target instanceof HTMLInputElement) return;
     const offset = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
     if (!offset) return;
     event.preventDefault();
@@ -166,7 +191,7 @@ export function ClientFilePreviewSheet({ vm, eventId }: { vm: ClientFileLibraryV
                 <PreviewBody key={file.id} file={file} />
               </div>
               <div className="space-y-4 p-4">
-                <PreviewDetails file={file} />
+                <PreviewDetails file={file} vm={vm} />
                 <PreviewVersions file={file} vm={vm} />
               </div>
             </div>

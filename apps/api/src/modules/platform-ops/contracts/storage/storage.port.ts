@@ -68,6 +68,8 @@ export type StoredRequirementUploadReference = {
 /** Lifecycle may bind only verified stored bytes from the same event to an event requirement. */
 export interface StoredRequirementUploadReader {
   findStoredRequirementUpload(input: { eventId: string; objectId: string; context?: PrismTransactionContext }): Promise<StoredRequirementUploadReference | null>;
+  /** When each of these stored files of the event stops being valid; files with no expiry are absent. */
+  findStoredFileExpiries(input: { eventId: string; objectIds: string[] }): Promise<Map<string, Date>>;
 }
 
 export type StoredReceiptEvidence = { objectId: string; fileName: string; contentType: string; byteSize: number };

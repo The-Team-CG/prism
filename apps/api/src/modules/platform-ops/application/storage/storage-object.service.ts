@@ -135,6 +135,15 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     };
   }
 
+  async findStoredFileExpiries(input: { eventId: string; objectIds: string[] }): Promise<Map<string, Date>> {
+    if (input.objectIds.length === 0) return new Map();
+    const objects = await this.prisma.opsStoredObject.findMany({
+      where: { id: { in: input.objectIds }, eventId: input.eventId, lifecycleState: 'stored', expiresAt: { not: null } },
+      select: { id: true, expiresAt: true },
+    });
+    return new Map(objects.map((object) => [object.id, object.expiresAt!]));
+  }
+
   async findConfirmedReceiptEvidence(input: { eventId: string; receiptId: string; objectId: string }): Promise<StoredReceiptEvidence | null> {
     const object = await this.prisma.opsStoredObject.findFirst({
       where: { id: input.objectId, eventId: input.eventId, usage: 'payment_receipt_evidence', ownerRecordType: 'payment_receipt', ownerRecordId: input.receiptId, lifecycleState: 'stored', deletedAt: null },
@@ -709,11 +718,36 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     if (requested.status === 'failed') throw new ServiceUnavailableException(requested.reason);
     const bytes = await this.readProviderBytes(source);
     await this.writeProviderBytes(requested.location, source.contentType, bytes);
-    const copy = await this.prisma.opsStoredObject.findUniqueOrThrow({ where: { id: requested.object.id } });
+    // A copy is the same document, so it stays valid only as long as the original.
+    const copy = source.expiresAt
+      ? await this.prisma.opsStoredObject.update({ where: { id: requested.object.id }, data: { expiresAt: source.expiresAt } })
+      : await this.prisma.opsStoredObject.findUniqueOrThrow({ where: { id: requested.object.id } });
     const confirmation = await this.confirmWithAdapter(copy, { objectId: copy.id, checksumSha256: source.checksumSha256, byteSize: source.declaredByteSize, bytes, actor: input.actor });
     const stored = await this.persistStored(copy, confirmation, input.actor);
     await this.auditStorageAction(input.actor, copy, 'Copied file from another event', AuditActionType.Upload, 'copied', { sourceObjectId: source.id, sourceEventId: source.eventId });
     return this.presentForActor(input.actor, stored);
+  }
+
+  /**
+   * Sets or clears the last day a stored document is valid. PMCM may date any file on an event it can read; anyone
+   * else only a file they uploaded themselves, on an event they can still read.
+   */
+  async setObjectExpiry(input: { objectId: string; expiresAt: string | null; actor: ResolvedEventOpsActor }): Promise<PrismStoredObject> {
+    const object = await this.prisma.opsStoredObject.findUnique({ where: { id: input.objectId } });
+    if (!object || object.lifecycleState !== 'stored') throw new NotFoundException('Stored object not found');
+    this.assertSupportedOwner(object.ownerRecordType, object.usage);
+    await this.requireActorEventScope(input.actor, object.eventId, 'date storage object');
+    const event = await this.findEvent(object.eventId);
+    const scoped = resolveFileEventScope(input.actor, event);
+    await this.accessPolicy.requireCanReadEvent(scoped.actor, event, 'date storage object', scoped.scope);
+    const pmcm = input.actor.role === OpsUserRole.PmcmAdmin;
+    if (!pmcm && (!input.actor.id || object.uploaderActorId !== input.actor.id)) {
+      await this.accessPolicy.recordForbiddenAccess(input.actor, 'date storage object', object.eventId);
+      throw new ForbiddenException('Only the person who sent this file, or PMCM, can set when it expires');
+    }
+    const saved = await this.prisma.opsStoredObject.update({ where: { id: object.id }, data: { expiresAt: input.expiresAt ? new Date(input.expiresAt) : null } });
+    await this.auditStorageAction(input.actor, saved, input.expiresAt ? 'Set when a stored file expires' : 'Cleared a stored file expiry', AuditActionType.Update, 'expiry_set', { expiresAt: input.expiresAt });
+    return this.presentForActor(input.actor, this.mapObject(saved));
   }
 
   /** The stored bytes of an object, read through the provider the way a download would. */
@@ -1108,6 +1142,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       storedAt: object.storedAt?.toISOString() ?? null,
       failedAt: object.failedAt?.toISOString() ?? null,
       deletedAt: object.deletedAt?.toISOString() ?? null,
+      expiresAt: object.expiresAt?.toISOString() ?? null,
       createdAt: object.createdAt.toISOString(),
       updatedAt: object.updatedAt.toISOString(),
     };

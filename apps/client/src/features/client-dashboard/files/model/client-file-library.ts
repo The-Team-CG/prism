@@ -73,7 +73,24 @@ export type ClientLibraryFile = {
   eventName?: string;
   /** Added by someone else since the client last opened this event's files. */
   isNew?: boolean;
+  /** The last day the document is valid, when it has one. */
+  expiresAt?: string | null;
 };
+
+/** Warn this long before a document stops being valid. */
+const EXPIRY_WARNING_DAYS = 30;
+
+export type ClientFileExpiry = { label: string; tone: ClientRowTone; expired: boolean };
+
+/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date. */
+export function clientFileExpiry(expiresAt: string | null | undefined, now = new Date()): ClientFileExpiry | null {
+  if (!expiresAt) return null;
+  const date = expiresAt.slice(0, 10);
+  const remaining = new Date(expiresAt).getTime() - now.getTime();
+  if (remaining < 0) return { label: `Expired ${date}`, tone: "urgent", expired: true };
+  if (remaining <= EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000) return { label: `Expires ${date}`, tone: "attention", expired: false };
+  return { label: `Valid until ${date}`, tone: "neutral", expired: false };
+}
 
 function uploaderLabel(role: string) {
   if (role === "client") return "You";
@@ -149,6 +166,7 @@ export function buildClientFileLibrary(objects: PrismStoredObject[], documents: 
         addedAt: object.storedAt ?? object.createdAt,
         ...storedFileStatus(object, requirement),
         objectId: object.lifecycleState === "stored" ? object.id : undefined,
+        expiresAt: object.expiresAt ?? null,
         ...requirementFields(requirement),
         ...(replaced ? replacedFields(replaced) : {}),
       };

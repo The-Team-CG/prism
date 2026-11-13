@@ -1,5 +1,6 @@
 import type {
   CopyStorageObjectInput,
+  SetStorageObjectExpiryInput,
   PrismStorageDownloadAuthorization,
   PrismStorageUploadLocation,
   PrismStorageUploadRequestResult,
@@ -160,6 +161,16 @@ export function copyStorageObject(objectId: string, input: CopyStorageObjectInpu
     baseUrl: resolvePrismApiBaseUrl(options.baseUrl),
     body: input,
     signal: options.signal,
+  });
+}
+
+/** Sets or clears the last day a stored document is valid. */
+export function setStorageObjectExpiry(objectId: string, input: SetStorageObjectExpiryInput, options: StorageClientOptions = {}): Promise<PrismStoredObject> {
+  return prismRequest<PrismStoredObject>(`/storage/objects/${encodeURIComponent(objectId)}/expiry`, {
+    method: "PUT",
+    authToken: options.authToken,
+    baseUrl: resolvePrismApiBaseUrl(options.baseUrl),
+    body: input,
   });
 }
 

@@ -55,7 +55,22 @@ export type PmcmLibraryFile = {
   reviewReason?: string;
   /** Set while the file waits for PMCM's decision. */
   review?: PmcmReviewEntry;
+  /** The last day the document is valid, when it has one. */
+  expiresAt: string | null;
 };
+
+/** Warn this long before a document stops being valid. */
+const EXPIRY_WARNING_DAYS = 30;
+
+/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date. */
+export function pmcmFileExpiry(expiresAt: string | null | undefined, now = new Date()): { label: string; tone: PmcmFileTone } | null {
+  if (!expiresAt) return null;
+  const date = expiresAt.slice(0, 10);
+  const remaining = new Date(expiresAt).getTime() - now.getTime();
+  if (remaining < 0) return { label: `Expired ${date}`, tone: "urgent" };
+  if (remaining <= EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000) return { label: `Expires ${date}`, tone: "attention" };
+  return { label: `Valid until ${date}`, tone: "neutral" };
+}
 
 type RequirementFile = { item: PrismFileRequirementItem; version: PrismSupplierRequirementVersion; sender: string };
 
@@ -128,6 +143,7 @@ export function buildPmcmFileLibrary(objects: PrismStoredObject[], items: PrismF
       from: sent?.sender ?? SOURCE_LABEL[source],
       label: sent?.item.label ?? (object.usage === "event_deliverable" ? EVENT_FILE_CATEGORIES[eventFileCategoryOf(object.logicalTarget)] : null),
       addedAt: object.storedAt ?? object.createdAt,
+      expiresAt: object.expiresAt ?? null,
       ...fileStatus(object, sent),
       ...(sent?.version.reviewReason ? { reviewReason: sent.version.reviewReason } : {}),
       ...(queue.has(object.id) ? { review: queue.get(object.id) } : {}),
