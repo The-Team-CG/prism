@@ -864,12 +864,12 @@ describe('file access: lists and downloads follow one policy', () => {
       return service.confirmUpload({ objectId: requested.object.id, byteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
     }
 
-    async function localService() {
+    async function localService(attachmentGate?: unknown) {
       const root = await mkdtemp(join(tmpdir(), 'prism-storage-copy-'));
       roots.push(root);
       const adapter = new LocalFileSystemStorageAdapter(root);
       const store = createStore();
-      return { store, adapter, service: new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never, store.auditWriter as never) };
+      return { store, adapter, service: new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never, store.auditWriter as never, attachmentGate as never) };
     }
 
     it("copies a client's file into another of their events as that event's own document, once per target", async () => {
@@ -906,18 +906,28 @@ describe('file access: lists and downloads follow one policy', () => {
       expect(dated.map((audit) => audit.metadata.expiresAt)).toEqual(['2026-12-31', null]);
     });
 
-    it('removes uploads left unfinished for three days, leaves recent and stored ones, and still lets a retry resume', async () => {
-      const { service, store } = await localService();
+    it('removes uploads left unfinished for three days and conversation files never sent after a day, keeps sent and recent ones, and still lets a retry resume', async () => {
+      // Attachment links are the communication context's facts; storage asks for them only through the gate.
+      const attachedIds = new Set(['obj_sent']);
+      const attachmentGate = { unattachedObjectIds: vi.fn(async (ids: string[]) => new Set(ids.filter((id) => !attachedIds.has(id)))) };
+      const { service, store } = await localService(attachmentGate);
       const stored = await storeClientFile(service, 'evt_1', 'kept.pdf');
       const abandonedTarget = target('evt_1');
       const abandoned = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: abandonedTarget, usage: 'client_document', fileName: 'never-sent.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
       const recent = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: target('evt_1'), usage: 'client_document', fileName: 'still-uploading.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
       store.objects.find((object) => object.id === recent.object.id)!.updatedAt = new Date('2026-09-11T00:00:00.000Z');
       store.objects.push({ ...store.objects.find((object) => object.id === abandoned.object.id)!, id: 'obj_failed', logicalTarget: target('evt_1'), lifecycleState: 'failed', failureReason: 'Storage provider could not issue an upload location', providerObjectKey: null });
+      const attachment = (id: string, storedAt: string) => ({
+        id, eventId: 'evt_1', ownerRecordType: 'communication_thread', ownerRecordId: 'thread_1', usage: 'communication_attachment', logicalTarget: `communication-attachment:thread_1:${id}`,
+        originalFileName: `${id}.pdf`, contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, uploaderActorId: 'user_client', uploaderActorRole: 'client',
+        lifecycleState: 'stored', providerName: 'local', providerObjectKey: null, deletedAt: null, storedAt: new Date(storedAt),
+      });
+      store.objects.push(attachment('obj_unsent_old', '2026-09-10T00:00:00.000Z'), attachment('obj_sent', '2026-09-10T00:00:00.000Z'), attachment('obj_unsent_young', '2026-09-11T12:00:00.000Z'));
 
-      await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(2);
+      await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(3);
       const state = (id: string) => store.objects.find((object) => object.id === id)?.lifecycleState;
       expect([state(abandoned.object.id), state('obj_failed'), state(recent.object.id), state(stored.id)]).toEqual(['deleted', 'deleted', 'requested', 'stored']);
+      expect([state('obj_unsent_old'), state('obj_sent'), state('obj_unsent_young')]).toEqual(['deleted', 'stored', 'stored']);
       const removed = store.auditWriter.write.mock.calls.map(([audit]) => audit as Record<string, any>).filter((audit) => audit.metadata?.storageAction === 'abandoned_removed');
       expect(removed).toHaveLength(2);
       await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(0);

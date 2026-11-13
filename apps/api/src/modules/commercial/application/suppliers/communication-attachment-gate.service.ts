@@ -18,4 +18,15 @@ export class CommunicationAttachmentGateService implements CommunicationAttachme
     if (!thread) return null;
     return { eventId: thread.eventId, closed: thread.status === 'closed', activeMember: thread.participants.length > 0 };
   }
+
+  async unattachedObjectIds(objectIds: string[]): Promise<Set<string>> {
+    if (!objectIds.length) return new Set();
+    const linked = await this.prisma.opsCommunicationMessageAttachment.findMany({
+      where: { storedObjectId: { in: objectIds } },
+      select: { storedObjectId: true },
+      take: objectIds.length,
+    });
+    const attached = new Set(linked.map((row) => row.storedObjectId));
+    return new Set(objectIds.filter((id) => !attached.has(id)));
+  }
 }

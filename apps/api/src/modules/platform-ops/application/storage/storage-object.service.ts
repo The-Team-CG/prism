@@ -110,6 +110,8 @@ const CLIENT_FILE_SEARCH_LIMIT = 100;
 /** An upload left requested or failed this long is abandoned. */
 const ABANDONED_UPLOAD_DAYS = 3;
 const ABANDONED_UPLOAD_BATCH = 200;
+/** A conversation file stored but never attached to a message this long is removed. */
+const UNATTACHED_CONVERSATION_FILE_HOURS = 24;
 const ABANDONED_UPLOAD_CLEANUP_ACTOR: ResolvedEventOpsActor = {
   id: 'system:abandoned-upload-cleanup',
   role: OpsUserRole.System,
@@ -836,7 +838,48 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     for (const object of abandoned) {
       if (await this.removeAbandonedUpload(object, cutoff)) removed += 1;
     }
+    return removed + await this.cleanUpUnattachedConversationFiles(now);
+  }
+
+  /**
+   * Removes conversation files that were stored but never attached to a message, once they are older than a day.
+   * Whether a file is attached is the communication context's answer, through the gate; storage never reads its tables.
+   */
+  private async cleanUpUnattachedConversationFiles(now: Date): Promise<number> {
+    const cutoff = new Date(now.getTime() - UNATTACHED_CONVERSATION_FILE_HOURS * 60 * 60 * 1000);
+    const candidates = await this.prisma.opsStoredObject.findMany({
+      where: { usage: 'communication_attachment', lifecycleState: 'stored', deletedAt: null, storedAt: { lt: cutoff } },
+      orderBy: [{ storedAt: 'asc' }, { id: 'asc' }],
+      take: ABANDONED_UPLOAD_BATCH,
+    });
+    if (!candidates.length) return 0;
+    if (!this.attachmentGate) throw new ServiceUnavailableException('Conversation access is unavailable');
+    const unattached = await this.attachmentGate.unattachedObjectIds(candidates.map((object) => object.id));
+    let removed = 0;
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the same bounded batch; each file has its own provider bytes to delete.
+    for (const object of candidates) {
+      if (unattached.has(object.id) && await this.removeUnattachedFile(object, cutoff)) removed += 1;
+    }
     return removed;
+  }
+
+  /**
+   * Same provider-delete and lifecycle path as an abandoned upload. A send may attach the file after the gate answered,
+   * so it is asked again right before removal; the lifecycle update only applies while the file is still stored and old.
+   */
+  private async removeUnattachedFile(object: OpsStoredObject, cutoff: Date) {
+    const stillUnattached = await this.attachmentGate?.unattachedObjectIds([object.id]);
+    if (!stillUnattached?.has(object.id)) return false;
+    if (object.providerObjectKey && this.adapter) {
+      await this.adapter.deleteObject({ objectId: object.id, providerObjectKey: object.providerObjectKey }).catch(() => undefined);
+    }
+    const changed = await this.prisma.opsStoredObject.updateMany({
+      where: { id: object.id, usage: 'communication_attachment', lifecycleState: 'stored', deletedAt: null, storedAt: { lt: cutoff } },
+      data: { lifecycleState: 'deleted', deletedAt: new Date() },
+    });
+    if (changed.count !== 1) return false;
+    await this.auditStorageAction(ABANDONED_UPLOAD_CLEANUP_ACTOR, { ...object, lifecycleState: 'deleted' }, 'Removed a file that was never sent', AuditActionType.General, 'unattached_removed', { previousState: 'stored' });
+    return true;
   }
 
   private async removeAbandonedUpload(object: OpsStoredObject, cutoff: Date) {

@@ -114,6 +114,8 @@ export type CommunicationThreadAccess = { eventId: string; closed: boolean; acti
 /** Commercial owns conversations; storage asks it, and never imports its service. */
 export interface CommunicationAttachmentGate {
   findThreadAccess(input: { threadId: string; actorId: string }): Promise<CommunicationThreadAccess | null>;
+  /** The given conversation files that no message has attached. Storage removes unsent files only through this answer. */
+  unattachedObjectIds(objectIds: string[]): Promise<Set<string>>;
 }
 
 export type StorageLifecycleState = PrismStoredObject['lifecycleState'];
