@@ -7,7 +7,7 @@ describe("pmcmNoticeLink", () => {
       .map((section) => pmcmNoticeLink({ kind: "event_section", eventId: "evt_1", section }, null)?.href);
     expect(hrefs).toEqual([
       "/dashboard/events/evt_1/overview", "/dashboard/events/evt_1/briefing", "/dashboard/events/evt_1/briefing", "/dashboard/events/evt_1/briefing",
-      "/dashboard/events/evt_1/floorplans", "/dashboard/events/evt_1/billing", "/dashboard/events/evt_1/files?part=required", "/dashboard/events/evt_1/live-ops",
+      "/dashboard/events/evt_1/floorplans", "/dashboard/events/evt_1/billing", "/dashboard/events/evt_1/files", "/dashboard/events/evt_1/live-ops",
     ]);
   });
 

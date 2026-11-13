@@ -690,7 +690,7 @@ function collectFileReviewInboxItems(files: PmcmInboxFileReview[], eventsById: M
 
 const FILE_SENDER: Record<string, string> = { client: 'client', supplier: 'supplier', coordinator: 'coordinator' };
 
-/** One file waiting for PMCM's review; it opens the event's required files, where PMCM approves or rejects it. */
+/** One file waiting for PMCM's review; it opens the event's file library, where the review queue comes first. */
 function fileReviewInboxItem(file: PmcmInboxFileReview, eventsById: Map<string, EventRef>): PrismCommandInboxItem | null {
   const event = eventsById.get(file.eventId);
   if (!event) return null;
@@ -705,7 +705,7 @@ function fileReviewInboxItem(file: PmcmInboxFileReview, eventsById: Map<string, 
     eventName: event.eventName,
     clientName: event.clientName,
     createdAt: toIso(file.uploadedAt),
-    href: `/dashboard/events/${event.id}/files?part=required`,
+    href: `/dashboard/events/${event.id}/files`,
   };
 }
 
