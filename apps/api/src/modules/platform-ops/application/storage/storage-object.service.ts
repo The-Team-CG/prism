@@ -98,6 +98,9 @@ function sameUploadContent(object: OpsStoredObject, input: StorageServiceRequest
     object.checksumSha256 === declaration.checksumSha256 && object.eventId === input.eventId;
 }
 
+/** An account-wide client file search returns at most this many matches. */
+const CLIENT_FILE_SEARCH_LIMIT = 100;
+
 @Injectable()
 export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader, StoredReceiptEvidenceReader, GuestFeedbackMediaStore {
   constructor(
@@ -656,14 +659,74 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     });
     const contextFor = await this.readAccessContexts(actor, eventId, objects);
     const permitted = objects.filter((object) => canListStoredObject(actor, object, contextFor(object)));
-    const privileged = actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System;
-    return permitted.map((object) => {
-      const mapped = this.mapObject(object);
-      if (privileged) return mapped;
-      // Provider keys, uploader ids, and failure detail stay with PMCM.
-      const { uploaderActorId: _uploader, providerName: _provider, providerObjectKey: _key, failureReason: _failure, ...visible } = mapped;
-      return visible;
+    return permitted.map((object) => this.presentForActor(actor, this.mapObject(object)));
+  }
+
+  /** Provider keys, uploader ids, and failure detail stay with PMCM. */
+  private presentForActor(actor: ResolvedEventOpsActor, mapped: PrismStoredObject): PrismStoredObject {
+    if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return mapped;
+    const { uploaderActorId: _uploader, providerName: _provider, providerObjectKey: _key, failureReason: _failure, ...visible } = mapped;
+    return visible;
+  }
+
+  /**
+   * The signed-in client's stored files across their own events, matching a file name (newest first). Each event is
+   * read through the same rules as its own file list, so requirement visibility and unsent billing still apply.
+   */
+  async searchClientObjects(actor: ResolvedEventOpsActor, query: string): Promise<PrismStoredObject[]> {
+    await this.accessPolicy.requireActorRole(actor, [OpsUserRole.Client], 'search client files');
+    if (!this.platformReferences) throw new ServiceUnavailableException('Event access read model is unavailable');
+    const owned = await this.platformReferences.findClientEventIds(actor.email ?? '');
+    const eventIds = actor.eventId ? owned.filter((eventId) => eventId === actor.eventId) : owned;
+    const needle = query.trim().toLowerCase();
+    const matches: PrismStoredObject[] = [];
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: bounded by the read model's cap on a client's events; each event keeps its own read rules.
+    for (const eventId of eventIds) {
+      const objects = await this.listEventObjects(eventId, actor);
+      matches.push(...objects.filter((object) => object.lifecycleState === 'stored' && object.originalFileName.toLowerCase().includes(needle)));
+    }
+    return matches.sort((left, right) => String(right.storedAt ?? '').localeCompare(String(left.storedAt ?? ''))).slice(0, CLIENT_FILE_SEARCH_LIMIT);
+  }
+
+  /**
+   * Copies a stored file the actor may download into another event as a new client document. The source passes the
+   * download checks and the copy passes the same checks, validation and idempotency as a client upload to that
+   * event; the server moves the bytes, so nothing passes through the browser.
+   */
+  async copyToClientEvent(input: { sourceObjectId: string; eventId: string; logicalTarget: string; actor: ResolvedEventOpsActor }): Promise<PrismStoredObject> {
+    const source = await this.prisma.opsStoredObject.findUnique({ where: { id: input.sourceObjectId } });
+    if (!source || source.lifecycleState !== 'stored') throw new NotFoundException('Stored object not found');
+    this.assertSupportedOwner(source.ownerRecordType, source.usage);
+    const reader = await this.authorizeEvent(source.eventId, input.actor, source.usage as StorageServiceRequest['usage'], 'download storage object');
+    await this.assertBillingStatementSent(reader, source);
+    await this.assertCanDownload(reader, source, 'copy storage object');
+    const requested = await this.requestUploadThroughOwnerCapability({
+      eventId: input.eventId, ownerRecordType: 'event', ownerRecordId: input.eventId, logicalTarget: input.logicalTarget, usage: 'client_document',
+      fileName: source.originalFileName, contentType: source.contentType, declaredByteSize: source.declaredByteSize, checksumSha256: source.checksumSha256,
+      actor: input.actor,
     });
+    if (requested.status === 'stored') return this.presentForActor(input.actor, requested.object);
+    if (requested.status === 'failed') throw new ServiceUnavailableException(requested.reason);
+    const bytes = await this.readProviderBytes(source);
+    await this.writeProviderBytes(requested.location, source.contentType, bytes);
+    const copy = await this.prisma.opsStoredObject.findUniqueOrThrow({ where: { id: requested.object.id } });
+    const confirmation = await this.confirmWithAdapter(copy, { objectId: copy.id, checksumSha256: source.checksumSha256, byteSize: source.declaredByteSize, bytes, actor: input.actor });
+    const stored = await this.persistStored(copy, confirmation, input.actor);
+    await this.auditStorageAction(input.actor, copy, 'Copied file from another event', AuditActionType.Upload, 'copied', { sourceObjectId: source.id, sourceEventId: source.eventId });
+    return this.presentForActor(input.actor, stored);
+  }
+
+  /** The stored bytes of an object, read through the provider the way a download would. */
+  private async readProviderBytes(object: OpsStoredObject): Promise<Uint8Array> {
+    if (!this.adapter || !object.providerObjectKey) throw new ServiceUnavailableException('Storage provider is not configured');
+    const authorization = await this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
+    if (authorization.downloadUrl.startsWith('localfs://')) {
+      if (!this.adapter.readAuthorizedDownload) throw new ServiceUnavailableException('This storage provider requires a direct HTTP download');
+      return this.adapter.readAuthorizedDownload(authorization.downloadUrl, object.providerObjectKey);
+    }
+    const response = await fetch(authorization.downloadUrl);
+    if (!response.ok) throw new ServiceUnavailableException('Storage provider could not read the source file');
+    return new Uint8Array(await response.arrayBuffer());
   }
 
   /** Non-PMCM actors never see a billing statement file before PMCM sends the statement. */
