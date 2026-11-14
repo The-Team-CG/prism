@@ -32,6 +32,8 @@ import {
   canEditClientFloorPlanPreference,
   preferenceFormFromDraft,
 } from "../model/client-floorplan-preference-rules";
+import { useClientUnreadMessages } from "../../messages/view-models/use-client-unread-messages";
+import { unreadNavBadge } from "@prism/ui/chat";
 import {
   clientPortalSidebarItems,
   DETAIL_TAB_TO_ROUTE,
@@ -122,15 +124,18 @@ function disableEventNav(requiresEvent: boolean | undefined, hasEvent: boolean) 
   return Boolean(requiresEvent) && !hasEvent;
 }
 
-function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events }: {
+function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, eventUnreadMessages }: {
   route: ClientDashboardRoute;
   portalView?: ClientPortalView;
   isEventScopedView: boolean;
   selectedEvent?: PrismEvent;
   events: PrismEvent[];
+  unreadMessages?: number;
+  eventUnreadMessages?: number;
 }) {
   const shellNavItems = clientPortalSidebarItems(events.length).map((item) => ({
     ...item,
+    ...(item.id === "messages" ? unreadNavBadge(unreadMessages) : {}),
     href: clientSidebarLinkHref(item.id, selectedEvent?.id),
     disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
     subItems: item.subItems?.map((subItem) => ({
@@ -146,7 +151,7 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
       ? EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview"
       : sidebarActiveItemId(route, isEventScopedView, portalView),
     sidebarNavItems: inEventWorkspace && selectedEvent
-      ? clientEventSidebarItems(selectedEvent.id, selectedEvent)
+      ? clientEventSidebarItems(selectedEvent.id, selectedEvent).map((item) => (item.id === "event-messages" ? { ...item, ...unreadNavBadge(eventUnreadMessages) } : item))
       : [...shellNavItems, ...clientOpenEventSidebarItems(events)],
   };
 }
@@ -166,6 +171,9 @@ export function ClientDashboardWorkspaceView({
     eventId,
     portalView,
   });
+  // The account's Messages item counts every conversation; the event workspace's Messages item counts that event's.
+  const unreadMessages = useClientUnreadMessages();
+  const eventUnreadMessages = useClientUnreadMessages({ eventId: selectedEventId ?? undefined });
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
   const [requestForm, setRequestForm] = useState<ClientRequestForm>(initialRequestForm);
@@ -468,7 +476,7 @@ export function ClientDashboardWorkspaceView({
   }
 
   const { inEventWorkspace, activeShellItemId, sidebarNavItems } = clientWorkspaceShellNavigation({
-    route, portalView, isEventScopedView, selectedEvent, events,
+    route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, eventUnreadMessages,
   });
 
   function handleShellNavSelect(id: string) {

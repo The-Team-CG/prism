@@ -180,7 +180,7 @@ function NavItemRow({ item, activeId, onSelect }: NavRowProps) {
       ) : (
         <NavButtonRow item={item} activeId={activeId} onSelect={hasSub ? onSelect : selectAndClose} open={open} setOpen={setOpen} />
       )}
-      {hasBadge(item.badge) && !hasSub ? <SidebarMenuBadge>{item.badge}</SidebarMenuBadge> : null}
+      {hasBadge(item.badge) && !hasSub ? <SidebarMenuBadge aria-label={item.badgeLabel}>{item.badge}</SidebarMenuBadge> : null}
       {hasSub && open ? <NavSubItems items={item.subItems ?? []} activeId={activeId} onSelect={selectAndClose} /> : null}
     </SidebarMenuItem>
   );

@@ -131,6 +131,14 @@ describe('Viber notification channel (FR-25)', () => {
     expect(rows[0]).toMatchObject({ viberUserId: null, viberEnabled: false });
   });
 
+  it('skips Viber rows without failing them when no Viber bot is configured', async () => {
+    const mail = { deliver: vi.fn() };
+    const adapter = new ChannelNotificationDeliveryAdapter(mail as never, {} as never, {} as never, {} as never, null);
+    await expect(adapter.deliver({ idempotencyKey: 'n1', channel: 'viber', eventId: null, recipient: 'ana@client.test', message: 'New message' }))
+      .resolves.toEqual({ status: 'skipped', reason: 'Viber is not configured' });
+    expect(mail.deliver).not.toHaveBeenCalled();
+  });
+
   it('retries only recipients whose Viber delivery was not accepted', async () => {
     const { prisma, rows, deliveries } = store();
     for (const name of ['ana', 'ben']) rows.push({ email: `${name}@client.test`, viberUserId: `viber_${name}`, viberEnabled: true, viberLinkedAt: now, linkCodeHash: null, linkCodeExpiresAt: null, updatedAt: now });

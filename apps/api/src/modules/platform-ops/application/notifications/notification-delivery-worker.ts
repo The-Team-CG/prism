@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import type { OpsNotificationLog, Prisma } from '@prisma/client';
 import type { PrismaService } from '@prism/kernel/database';
 import type { NotificationDeliveryPort, NotificationDeliveryResult } from '../../contracts/notifications/notification-delivery.port';
+import { notificationActionSchema } from '@prism/types';
 
 const LEASE_MS = 5 * 60_000;
 const logger = new Logger('NotificationDeliveryWorker');
@@ -15,7 +16,8 @@ function available(now: Date): Prisma.OpsNotificationLogWhereInput {
 
 async function deliver(row: OpsNotificationLog, adapter: NotificationDeliveryPort): Promise<NotificationDeliveryResult> {
   try {
-    const result = await withTimeout(adapter.deliver({ idempotencyKey: row.id, channel: row.channel, eventId: row.eventId, recipient: row.recipient, message: row.message }));
+    const action = notificationActionSchema.safeParse(row.action);
+    const result = await withTimeout(adapter.deliver({ idempotencyKey: row.id, channel: row.channel, eventId: row.eventId, recipient: row.recipient, message: row.message, ...(action.success ? { action: action.data } : {}) }));
     if (result.status === 'accepted' && !result.receipt.trim()) return { status: 'retryable_failure' };
     return result;
   } catch {

@@ -3,9 +3,17 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PortalQueryProvider } from "@prism/portal-query";
 
-const { routeModel } = vi.hoisted(() => ({
+const { routeModel, communication } = vi.hoisted(() => ({
+  communication: {
+    listInbox: vi.fn(),
+    listMessages: vi.fn(),
+    markThreadRead: vi.fn(async () => ({ lastReadAt: "" })),
+    listParticipants: vi.fn(async () => []),
+    readReceipts: vi.fn(async () => []),
+  },
   routeModel: {
     selectedEvent: undefined,
+    session: { id: "pmcm", role: 'pmcm-admin' },
     events: [
       { id: "evt-gala", eventName: "Founders gala", clientName: "Acme", eventDate: "2027-05-15" },
       { id: "evt-expo", eventName: "Product expo", clientName: "Globex", eventDate: "2026-11-02" },
@@ -17,6 +25,8 @@ const { routeModel } = vi.hoisted(() => ({
 vi.mock("@/lib/prism-api", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   eventApi: {
+    communication,
+    notificationPreferences: { mine: vi.fn(async () => ({ viberConfigured: false })) },
     pmcm: {
       fileSummaries: vi.fn(async () => ({
         generatedAt: "2026-11-05T00:00:00.000Z",
@@ -73,7 +83,6 @@ describe("global event-scoped destinations without a selected event", () => {
   it.each([
     ["Finance", EventDashboardFinanceSectionView, "Open billing", "billing"],
     ["Files", EventDashboardFilesSectionView, "Open files", "files"],
-    ["Messages", EventDashboardMessagesSectionView, "Open messages", "messages"],
   ] as const)("%s lists events and opens the chosen event's matching section in one selection", async (_name, View, action, tab) => {
     render(<PortalQueryProvider actorKey="pmcm:test"><View /></PortalQueryProvider>);
 
@@ -88,21 +97,36 @@ describe("global event-scoped destinations without a selected event", () => {
     expect(routeModel.navigateEvent).toHaveBeenCalledWith("evt-gala", tab);
   });
 
-  it("shows what each event owes on Finance, its unread messages on Messages and its open file requirements on Files", async () => {
+  it("shows what each event owes on Finance and its open file requirements on Files", async () => {
     const { unmount } = render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardFinanceSectionView /></PortalQueryProvider>);
     expect(await screen.findByText(/₱260,000 due · next/)).toBeTruthy();
     // The other event has no milestones, so it owes nothing.
     expect(screen.getByText("Nothing owed")).toBeTruthy();
     unmount();
 
-    render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardMessagesSectionView /></PortalQueryProvider>);
-    expect(await screen.findByText("2 unread messages")).toBeTruthy();
-    expect(screen.getByText("No unread messages")).toBeTruthy();
-    cleanup();
-
     render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardFilesSectionView /></PortalQueryProvider>);
     expect(await screen.findByText("6 of 8 requirements open · 1 overdue")).toBeTruthy();
     expect(screen.getByText("All requirements met")).toBeTruthy();
-    expect(screen.queryByText(/unread|due ·|Nothing owed/)).toBeNull();
+    expect(screen.queryByText(/due ·|Nothing owed/)).toBeNull();
+  });
+
+  it("opens Messages as one inbox across events, naming each conversation's event and who is in it", async () => {
+    const message = (id: string, body: string) => ({ id, threadId: "thread-1", senderId: "client-1", senderRole: "client", senderName: "Ana Reyes", body, createdAt: "2026-11-12T08:00:00.000Z" });
+    communication.listInbox.mockResolvedValue([{
+      id: "thread-1", eventId: "evt-gala", eventName: "Founders gala", subject: "Stage setup timing", status: "open", createdBy: "pmcm", createdAt: "2026-11-12T07:00:00.000Z", updatedAt: "2026-11-12T08:00:00.000Z",
+      participants: [{ id: "p1", actorId: "pmcm", actorRole: "pmcm-admin", name: "Ms. Mys", active: true }, { id: "p2", actorId: "client-1", actorRole: "client", name: "Ana Reyes", active: true }],
+      lastMessage: message("m2", "Can we move load-in to 2pm?"), unreadCount: 3,
+    }]);
+    communication.listMessages.mockResolvedValue({ items: [message("m1", "Good morning"), message("m2", "Can we move load-in to 2pm?")], limit: 100, nextCursor: null, hasMore: false });
+
+    render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardMessagesSectionView /></PortalQueryProvider>);
+
+    // No event has to be chosen first: the conversation and its event are listed straight away.
+    expect(screen.queryByRole("heading", { name: "Choose an event" })).toBeNull();
+    expect(await screen.findByText("Good morning")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Stage setup timing" })).toBeTruthy();
+    expect(screen.getByText("Founders gala · You, Ana Reyes")).toBeTruthy();
+    expect(communication.listMessages).toHaveBeenCalledWith("thread-1", { limit: 100 });
+    expect(communication.markThreadRead).toHaveBeenCalledWith("thread-1");
   });
 });
