@@ -231,7 +231,9 @@ function createPmcmReadModelService() {
     opsAddendum: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsEventFreezeException: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsApprovalRequest: { count: vi.fn(async () => 2) },
-    opsDocument: { findMany: vi.fn(async () => [{ id: 'doc_1', eventId: 'evt_visible' }]) },
+    // The event's own document, which is not a file waiting for review.
+    opsDocument: { findMany: vi.fn(async (query?: { where?: { status?: string } }): Promise<Array<Record<string, unknown>>> => (query?.where?.status === 'submitted' ? [] : [{ id: 'doc_1', eventId: 'evt_visible' }])) },
+    opsFileRequirement: { findMany: vi.fn(async () => [{ eventId: 'evt_visible', key: 'venue_permit', label: 'Venue permit' }]) },
     opsBriefing: { findMany: vi.fn(async () => []) },
     opsSupplierQuote: { findMany: vi.fn(async () => []) },
     opsCoordinator: {
@@ -799,7 +801,8 @@ describe('EventReadModelsService', () => {
     expect(queries.defenseReadiness).not.toHaveBeenCalled();
   });
   it('builds a PMCM command inbox ordered by operational severity', async () => {
-    const { service, policy } = createPmcmReadModelService();
+    const { service, policy, prisma } = createPmcmReadModelService();
+    prisma.opsDocument.findMany.mockImplementation(async () => [{ id: 'doc_1', eventId: 'evt_visible', type: 'venue_permit', fileName: 'permit.pdf', uploadedByRole: 'client', uploadedAt: new Date('2026-05-02T00:00:00.000Z') }]);
     const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
 
     const inbox = await service.pmcmCommandInbox(actor);
@@ -814,6 +817,11 @@ describe('EventReadModelsService', () => {
       eventId: 'evt_visible',
     });
     expect(inbox.items.some((item) => item.id === 'inquiry:inq_new')).toBe(true);
+    // A file a client sent for a requirement waits in the inbox, named by its requirement, until PMCM reviews it.
+    expect(inbox.items).toContainEqual(expect.objectContaining({
+      id: 'file-review:doc_1', kind: 'document', label: 'Review client file',
+      description: 'permit.pdf for Venue permit on Ayala Summit.', href: '/dashboard/events/evt_visible/files',
+    }));
   });
 
   it('builds a client action center from client-visible event work', async () => {

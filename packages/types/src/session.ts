@@ -14,6 +14,8 @@ export const PRISM_SESSION_STORAGE_KEYS = {
   gameParticipant: "prism:game-participant-session",
   /** FR-50: the public inquiry in progress and its resume token. Not a sign-in session. */
   inquiryDraft: "prism:inquiry-draft",
+  /** When the signed-in client last opened each event's files, to mark what PMCM added since. A per-browser convenience, not a sign-in session. */
+  clientFilesLastSeen: "prism:client-files-last-seen",
 } as const;
 
 export type PrismSessionStorageKey =

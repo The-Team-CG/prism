@@ -88,11 +88,11 @@ export type UpdateFileRequirementInput = z.infer<typeof updateFileRequirementSch
 export const bindFileRequirementUploadSchema = z.object({ objectId: z.string().trim().min(1).max(200) }).strict();
 export type BindFileRequirementUploadInput = z.infer<typeof bindFileRequirementUploadSchema>;
 
-export const reviewSupplierRequirementSchema = z.object({
+export const reviewRequirementFileSchema = z.object({
   documentId: z.string().trim().min(1).max(200),
   decision: z.enum(["approve", "reject"]),
   reason: z.string().trim().max(1000).optional(),
 }).strict().refine((input) => input.decision !== "reject" || Boolean(input.reason), {
-  message: "Give the supplier a reason for rejection", path: ["reason"],
+  message: "Give a reason for rejection", path: ["reason"],
 });
-export type ReviewSupplierRequirementInput = z.infer<typeof reviewSupplierRequirementSchema>;
+export type ReviewRequirementFileInput = z.infer<typeof reviewRequirementFileSchema>;

@@ -73,7 +73,7 @@ export interface EventOpsEventsContract {
     upsertFileRequirementTemplate(input: UpsertFileRequirementTemplateInput, actor?: EventOpsActorQuery): Promise<PrismFileRequirementTemplate>;
     applyFileRequirementTemplate(eventId: string, actor?: EventOpsActorQuery): Promise<{ eventId: string; eventType: string; templateId: string; createdKeys: string[]; skippedExistingCount: number }>;
     bindFileRequirementUpload(eventId: string, key: string, input: import("@prism/types").BindFileRequirementUploadInput, actor?: EventOpsActorQuery): Promise<import("@prism/types").PrismFileRequirementItem>;
-    reviewSupplierRequirement(eventId: string, key: string, input: import("@prism/types").ReviewSupplierRequirementInput, actor?: EventOpsActorQuery): Promise<import("@prism/types").PrismFileRequirementItem>;
+    reviewRequirementFile(eventId: string, key: string, input: import("@prism/types").ReviewRequirementFileInput, actor?: EventOpsActorQuery): Promise<import("@prism/types").PrismFileRequirementItem>;
     reviewProposal(
       eventId: string,
       input: ReviewEventProposalInput,

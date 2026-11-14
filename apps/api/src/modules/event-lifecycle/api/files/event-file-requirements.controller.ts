@@ -7,7 +7,7 @@ import {
   bindFileRequirementUploadSchema,
   fileRequirementKeySchema,
   updateFileRequirementSchema,
-  reviewSupplierRequirementSchema,
+  reviewRequirementFileSchema,
   type UpsertFileRequirementTemplateInput,
   upsertFileRequirementTemplateSchema,
   type CreateFileRequirementInput,
@@ -98,15 +98,15 @@ export class OpsEventFileRequirementsController {
 
   @Post(':eventId/file-requirements/:key/review')
   @UseGuards(EventSessionGuard)
-  reviewSupplierRequirement(
+  reviewRequirementFile(
     @Param('eventId') eventId: string,
     @Param('key') key: string,
-    @Body(zodBody(reviewSupplierRequirementSchema)) input: import('@prism/types').ReviewSupplierRequirementInput,
+    @Body(zodBody(reviewRequirementFileSchema)) input: import('@prism/types').ReviewRequirementFileInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const parsedKey = fileRequirementKeySchema.safeParse(key);
     if (!parsedKey.success) throw new NotFoundException('File requirement not found');
-    return this.fileRequirementCommands.reviewSupplierRequirement(eventId, parsedKey.data, input, this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor));
+    return this.fileRequirementCommands.reviewRequirementFile(eventId, parsedKey.data, input, this.eventAccessPolicyService.resolveEventScopedActor(verifiedActor));
   }
 }
 
