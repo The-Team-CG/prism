@@ -27,6 +27,7 @@ function message(id: string, body: string, senderId = "pmcm"): PrismCommunicatio
 afterEach(() => {
   cleanup();
   window.location.hash = "";
+  window.history.replaceState(null, '', '/');
   vi.clearAllMocks();
   mocks.workspace.selectedEvent = { id: "event-a", eventName: "Event A" };
 });
@@ -53,8 +54,8 @@ describe("client messages", () => {
     expect(result.current.chat.active.unreadCount).toBe(0);
   });
 
-  it("opens the conversation a notice link names, until the viewer picks another", async () => {
-    window.location.hash = "#conversation-two";
+  it.each(["fragment", "query"])("opens the conversation a %s notice link names, until the viewer picks another", async (kind) => {
+    window.history.replaceState(null, '', kind === 'fragment' ? '/#conversation-two' : '/?conversation=two');
     mocks.list.mockResolvedValue([thread("one", "event-a"), thread("two", "event-a")]);
     const { result } = renderHook(() => useClientMessagesViewModel(true));
     await waitFor(() => expect(result.current.chat.status).toBe("ready"));

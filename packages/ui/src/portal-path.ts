@@ -25,7 +25,9 @@ export function conversationHash(threadId: string): string {
 }
 
 /** The conversation a Messages URL fragment names, if any. */
-export function linkedConversationId(hash: string): string | undefined {
+export function linkedConversationId(hash: string, search = ""): string | undefined {
+  const query = new URLSearchParams(search).get("conversation");
+  if (query) return query;
   if (!hash.startsWith(CONVERSATION_HASH)) return undefined;
   try {
     return decodeURIComponent(hash.slice(CONVERSATION_HASH.length)) || undefined;

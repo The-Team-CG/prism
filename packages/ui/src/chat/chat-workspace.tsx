@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Loader2, MessageSquareText } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { cn } from "../utils";
@@ -37,6 +37,7 @@ export type ChatWorkspaceProps = {
   empty?: { title: string; body: string };
   compose?: ChatCompose;
   className?: string;
+  notificationPrompt?: ReactNode;
 };
 
 type PhonePane = "list" | "chat";
@@ -207,6 +208,7 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
   return (
     <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "grid grid-cols-1 md:grid-cols-[21rem_minmax(0,1fr)]")} style={fill}>
       <ConversationList
+        notice={props.notificationPrompt}
         threads={props.visibleThreads ?? threads}
         viewerId={props.viewerId}
         activeId={active?.id}

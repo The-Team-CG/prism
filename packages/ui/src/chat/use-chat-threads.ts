@@ -68,10 +68,11 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   });
 
   useEffect(() => {
-    const read = () => setLinkedId(linkedConversationId(window.location.hash));
+    const read = () => setLinkedId(linkedConversationId(window.location.hash, window.location.search));
     read();
     window.addEventListener("hashchange", read);
-    return () => window.removeEventListener("hashchange", read);
+    window.addEventListener("popstate", read);
+    return () => { window.removeEventListener("hashchange", read); window.removeEventListener("popstate", read); };
   }, []);
 
   useEffect(() => {

@@ -25,6 +25,7 @@ vi.mock("@/lib/prism-api", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   eventApi: {
     communication,
+    notificationPreferences: { mine: vi.fn(async () => ({ viberConfigured: false })) },
     pmcm: {
       fileSummaries: vi.fn(async () => ({
         generatedAt: "2026-11-05T00:00:00.000Z",
