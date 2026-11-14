@@ -9,6 +9,7 @@ import { cn } from "../utils";
 import { ChatAvatar, ThreadAvatar } from "./chat-avatar";
 import { daySeparatorLabel, lastMessage, messageRuns, roleName, senderName, threadMembers, type ChatThread } from "./chat-display";
 import { Composer, type ComposerProps } from "./composer";
+import { MessageAttachments, type ChatAttachmentDownloader } from "./message-attachments";
 
 /** The one empty, loading and error look for every pane of the chat. */
 export function PaneState({ icon, title, body, action }: { icon: ReactNode; title: string; body?: string; action?: ReactNode }) {
@@ -44,10 +45,12 @@ export type ConversationProps = {
   headerActions?: ReactNode;
   /** Shown in the closed note, for PMCM: Reopen. */
   closedAction?: ReactNode;
+  /** Fetches a message's files for their rows and previews. Without it, files are listed without a download. */
+  downloadAttachment?: ChatAttachmentDownloader;
 };
 
 /** The open conversation: who it is with, its messages, and the composer pinned underneath, or a note once it is closed. */
-export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, onBack, composer, showReadReceipts, headerActions, closedAction }: ConversationProps) {
+export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, onBack, composer, showReadReceipts, headerActions, closedAction, downloadAttachment }: ConversationProps) {
   const members = [...new Set(threadMembers(thread, viewerId).map((member) => member.name))];
   const people = members.length ? `You, ${members.join(", ")}` : "Only you";
   const closed = thread.status === "closed";
@@ -65,7 +68,7 @@ export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, on
         </div>
         {headerActions}
       </header>
-      <MessageScroller thread={thread} historyLoading={historyLoading} onLoadOlder={onLoadOlder} showReadReceipts={showReadReceipts} />
+      <MessageScroller thread={thread} historyLoading={historyLoading} onLoadOlder={onLoadOlder} showReadReceipts={showReadReceipts} downloadAttachment={downloadAttachment} />
       {closed ? <ClosedNote action={closedAction} /> : <Composer {...composer} />}
     </>
   );
@@ -84,7 +87,7 @@ function ClosedNote({ action }: { action?: ReactNode }) {
  * Messages sit against the composer, as in a messenger. The view follows new messages only while the reader
  * is already at the bottom (or sent the message), and stays put when earlier messages load above.
  */
-function MessageScroller({ thread, historyLoading, onLoadOlder, showReadReceipts }: Pick<ConversationProps, "thread" | "historyLoading" | "onLoadOlder" | "showReadReceipts">) {
+function MessageScroller({ thread, historyLoading, onLoadOlder, showReadReceipts, downloadAttachment }: Pick<ConversationProps, "thread" | "historyLoading" | "onLoadOlder" | "showReadReceipts" | "downloadAttachment">) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const before = useRef<{ threadId: string; firstId?: string; lastId?: string; height: number } | null>(null);
@@ -128,7 +131,7 @@ function MessageScroller({ thread, historyLoading, onLoadOlder, showReadReceipts
                 <Button type="button" variant="secondary" size="sm" onClick={onLoadOlder} className="rounded-full shadow-none">Load earlier messages</Button>
               </div>
             ) : null}
-            <MessageRuns thread={thread} showReadReceipts={showReadReceipts} />
+            <MessageRuns thread={thread} showReadReceipts={showReadReceipts} download={downloadAttachment} />
           </>
         )}
       </div>
@@ -146,7 +149,7 @@ function HistorySkeleton() {
   );
 }
 
-function MessageRuns({ thread, showReadReceipts = false }: { thread: ChatThread; showReadReceipts?: boolean }) {
+function MessageRuns({ thread, showReadReceipts = false, download }: { thread: ChatThread; showReadReceipts?: boolean; download?: ChatAttachmentDownloader }) {
   const runs = messageRuns(thread.messages);
   return (
     <ol className="space-y-3" aria-label={`Messages in ${thread.subject}`}>
@@ -181,6 +184,11 @@ function MessageRuns({ thread, showReadReceipts = false }: { thread: ChatThread;
                         lastInRun ? "" : run.mine ? "rounded-br-2xl" : "rounded-bl-2xl",
                       )}
                     >
+                      {message.attachments?.length ? (
+                        <div className="mb-1.5">
+                          <MessageAttachments attachments={message.attachments} mine={run.mine} download={download} />
+                        </div>
+                      ) : null}
                       {message.body}
                       <span className={cn("ml-2 inline-flex translate-y-0.5 items-center gap-0.5 whitespace-nowrap align-bottom text-[11px]", run.mine ? "text-primary-foreground/75" : "text-muted-foreground")}>
                         <time dateTime={message.createdAt}>{formatPortalTime(message.createdAt)}</time>

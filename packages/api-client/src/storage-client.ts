@@ -1,5 +1,6 @@
 import type {
   CopyStorageObjectInput,
+  CopyStorageObjectToThreadInput,
   SetStorageObjectExpiryInput,
   PrismStorageDownloadAuthorization,
   PrismStorageUploadLocation,
@@ -180,6 +181,32 @@ export function searchClientStoredFiles(query: string, options: StorageClientOpt
   return prismRequest<PrismStoredObject[]>(`/storage/objects/client-files?${search.toString()}`, {
     authToken: options.authToken,
     baseUrl: resolvePrismApiBaseUrl(options.baseUrl),
+    signal: options.signal,
+  });
+}
+
+/** Uploads a file attached to a conversation. The conversation owns the stored copy; only its active members can read it. */
+export function uploadCommunicationAttachment(
+  file: File,
+  target: { eventId: string; threadId: string },
+  options: StorageClientOptions = {},
+): Promise<PrismStoredObject> {
+  return uploadStorageObject(file, {
+    eventId: target.eventId,
+    ownerRecordType: "communication_thread",
+    ownerRecordId: target.threadId,
+    logicalTarget: `communication-attachment:${target.threadId}:${globalThis.crypto.randomUUID()}`,
+    usage: "communication_attachment",
+  }, options);
+}
+
+/** Copies a stored file of the same event into a conversation as its attachment; the returned object id is the attachment id. */
+export function copyStorageObjectToThread(objectId: string, input: CopyStorageObjectToThreadInput, options: StorageClientOptions & { signal?: AbortSignal } = {}): Promise<PrismStoredObject> {
+  return prismRequest<PrismStoredObject>(`/storage/objects/${encodeURIComponent(objectId)}/thread-copies`, {
+    method: "POST",
+    authToken: options.authToken,
+    baseUrl: resolvePrismApiBaseUrl(options.baseUrl),
+    body: input,
     signal: options.signal,
   });
 }

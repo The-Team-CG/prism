@@ -33,7 +33,7 @@ function thread(id: string, eventId: string): PrismCommunicationThread {
 }
 
 function message(id: string, body: string, senderId = "pmcm"): PrismCommunicationMessage {
-  return { id, threadId: "thread", senderId, senderRole: senderId, body, createdAt: "2026-11-12T08:00:00.000Z" };
+  return { id, threadId: "thread", senderId, senderRole: senderId, body, attachments: [], createdAt: "2026-11-12T08:00:00.000Z" };
 }
 
 afterEach(() => {

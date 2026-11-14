@@ -29,8 +29,12 @@ export function useSupplierMessagesViewModel({ events, session }: { events: Book
       thread: (threadId) => supplierMessagesRepository.thread(threadId, session),
       history: (threadId) => supplierMessagesRepository.history(threadId, session),
       older: (threadId, cursor) => supplierMessagesRepository.listOlder(threadId, cursor, session),
-      send: (threadId, body, key) => supplierMessagesRepository.send(threadId, body, key, session),
+      send: (threadId, body, key, attachmentIds) => supplierMessagesRepository.send(threadId, body, key, attachmentIds, session),
       markRead: (threadId) => supplierMessagesRepository.markRead(threadId, session).then(() => invalidate(supplierUnreadMessages)),
+      uploadAttachment: (thread, file) => supplierMessagesRepository.uploadAttachment(thread, file, session),
+      copyAttachment: (thread, file) => supplierMessagesRepository.copyAttachment(thread, file, session),
+      storedFiles: (thread) => supplierMessagesRepository.storedFiles(thread),
+      downloadAttachment: (attachmentId) => supplierMessagesRepository.downloadAttachment(attachmentId, session),
     },
   });
 

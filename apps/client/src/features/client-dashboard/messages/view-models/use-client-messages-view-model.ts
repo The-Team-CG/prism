@@ -20,6 +20,10 @@ export function useClientMessagesViewModel(eventScoped: boolean) {
       history: eventScoped ? undefined : clientMessagesRepository.history,
       older: clientMessagesRepository.listOlder,
       send: clientMessagesRepository.send,
+      uploadAttachment: clientMessagesRepository.uploadAttachment,
+      copyAttachment: clientMessagesRepository.copyAttachment,
+      storedFiles: clientMessagesRepository.storedFiles,
+      downloadAttachment: clientMessagesRepository.downloadAttachment,
       markRead: (threadId) => clientMessagesRepository.markRead(threadId).then(() => invalidate(clientUnreadMessages)),
     },
   });
