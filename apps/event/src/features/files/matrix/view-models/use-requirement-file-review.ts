@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { parseContract, reviewSupplierRequirementSchema } from "@prism/types";
+import { parseContract, reviewRequirementFileSchema } from "@prism/types";
 import { fileRequirementsMatrixRepository } from "../data/file-requirements-matrix-repository";
 
-export function useSupplierRequirementReview(eventId: string | undefined, reload: () => Promise<void> | void) {
+export function useRequirementFileReview(eventId: string | undefined, reload: () => Promise<void> | void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function review(key: string, documentId: string, decision: "approve" | "reject", reason: string) {
@@ -12,7 +12,7 @@ export function useSupplierRequirementReview(eventId: string | undefined, reload
     setBusy(true);
     setError(null);
     try {
-      const input = parseContract(reviewSupplierRequirementSchema, { documentId, decision, reason }, "Review");
+      const input = parseContract(reviewRequirementFileSchema, { documentId, decision, reason }, "Review");
       await fileRequirementsMatrixRepository.review(eventId, key, input);
       await reload();
     } catch (caught) {
@@ -32,7 +32,7 @@ export function useSupplierRequirementReview(eventId: string | undefined, reload
       link.click();
       URL.revokeObjectURL(url);
     } catch {
-      setError("Unable to download the supplier file.");
+      setError("Unable to download the file.");
     }
   }
   return { busy, error, review, download };
