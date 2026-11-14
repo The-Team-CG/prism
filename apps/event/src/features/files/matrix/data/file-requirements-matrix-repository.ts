@@ -18,8 +18,8 @@ export const fileRequirementsMatrixRepository = {
   listTemplates() { return eventApi.events.listFileRequirementTemplates(); },
   saveTemplate(input: UpsertFileRequirementTemplateInput) { return eventApi.events.upsertFileRequirementTemplate(input); },
   applyTemplate(eventId: string) { return eventApi.events.applyFileRequirementTemplate(eventId); },
-  review(eventId: string, key: string, input: import("@prism/types").ReviewSupplierRequirementInput) {
-    return eventApi.events.reviewSupplierRequirement(eventId, key, input);
+  review(eventId: string, key: string, input: import("@prism/types").ReviewRequirementFileInput) {
+    return eventApi.events.reviewRequirementFile(eventId, key, input);
   },
   download(objectId: string) { return getStorageObjectDownload(objectId, { authToken: storedEventAccessToken() }); },
 };

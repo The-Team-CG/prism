@@ -18,12 +18,12 @@ import {
 import { FileRequirementEditorForm } from "./file-requirement-editor-form";
 import { FileRequirementTemplateManager } from "./file-requirement-template-manager";
 import { LoadingState } from "@prism/ui/components/loading-state";
-import { useSupplierRequirementReview } from "../view-models/use-supplier-requirement-review";
+import { useRequirementFileReview } from "../view-models/use-requirement-file-review";
 
 export function FileRequirementsMatrixPanel({ eventId, suppliers = [] }: { eventId?: string; suppliers?: Array<{ supplierId: string; supplierName: string }> }) {
   const { matrix, status, error, reload, remindersBusy, reminderError, sendReminders } = useFileRequirementsMatrixViewModel(eventId);
   const editor = useFileRequirementEditorViewModel(eventId, reload);
-  const review = useSupplierRequirementReview(eventId, reload);
+  const review = useRequirementFileReview(eventId, reload);
   const counts = fileRequirementCounts(matrix);
   const items = sortFileRequirementItems(matrix?.items ?? []);
   const editable = status === "success" && Boolean(eventId);
@@ -108,7 +108,7 @@ function FileRequirementCountLine({ counts }: { counts: ReturnType<typeof fileRe
   );
 }
 
-function SupplierFulfilmentList({ fulfilments, itemKey, review }: { fulfilments: NonNullable<PrismFileRequirementItem["supplierFulfilments"]>; itemKey: string; review: ReturnType<typeof useSupplierRequirementReview> }) {
+function SupplierFulfilmentList({ fulfilments, itemKey, review }: { fulfilments: NonNullable<PrismFileRequirementItem["supplierFulfilments"]>; itemKey: string; review: ReturnType<typeof useRequirementFileReview> }) {
   return (
     <ul className="mt-2 space-y-1">
       {fulfilments.map((fulfilment) => (
@@ -119,14 +119,32 @@ function SupplierFulfilmentList({ fulfilments, itemKey, review }: { fulfilments:
           {fulfilment.reviewReason ? <span>Rejected: {fulfilment.reviewReason}</span> : null}
           {fulfilment.uploadedObjectId ? <button type="button" className="rounded border border-border px-2 py-1" onClick={() => void review.download(fulfilment.uploadedObjectId!)}>Download file</button> : null}
           {(fulfilment.versions?.length ?? 0) > 1 ? <details><summary>Previous versions</summary><ul>{fulfilment.versions?.slice(1).map((version) => <li key={version.documentId}><button type="button" className="text-primary" onClick={() => void review.download(version.objectId)}>{version.fileName}</button> · {version.status}{version.reviewReason ? ` · ${version.reviewReason}` : ""}</li>)}</ul></details> : null}
-          {fulfilment.status === "submitted" && fulfilment.uploadedAssetId ? <SupplierReviewForm itemKey={itemKey} documentId={fulfilment.uploadedAssetId} review={review} /> : null}
+          {fulfilment.status === "submitted" && fulfilment.uploadedAssetId ? <FileReviewForm itemKey={itemKey} documentId={fulfilment.uploadedAssetId} review={review} /> : null}
         </li>
       ))}
     </ul>
   );
 }
 
-function SupplierReviewForm({ itemKey, documentId, review }: { itemKey: string; documentId: string; review: ReturnType<typeof useSupplierRequirementReview> }) {
+/** What PMCM can open and review on a requirement: each supplier's file, or the single owner's latest upload. */
+function RequirementUploads({ item, review }: { item: PrismFileRequirementItem; review: ReturnType<typeof useRequirementFileReview> }) {
+  if (item.supplierFulfilments) return item.supplierFulfilments.length ? <SupplierFulfilmentList fulfilments={item.supplierFulfilments} itemKey={item.key} review={review} /> : null;
+  return item.origin === "custom" && item.uploadedObjectId ? <OwnerUploadReview item={item} review={review} /> : null;
+}
+
+/** The latest upload for a requirement the client (or another single owner) fulfils, with PMCM's approve or reject. */
+function OwnerUploadReview({ item, review }: { item: PrismFileRequirementItem; review: ReturnType<typeof useRequirementFileReview> }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-2xs">
+      {item.reviewReason ? <span>Rejected: {item.reviewReason}</span> : null}
+      <button type="button" className="rounded border border-border px-2 py-1" onClick={() => void review.download(item.uploadedObjectId!)}>Download file</button>
+      {(item.versions?.length ?? 0) > 1 ? <details><summary>Previous versions</summary><ul>{item.versions?.slice(1).map((version) => <li key={version.documentId}><button type="button" className="text-primary" onClick={() => void review.download(version.objectId)}>{version.fileName}</button> · {version.status}{version.reviewReason ? ` · ${version.reviewReason}` : ""}</li>)}</ul></details> : null}
+      {item.status === "submitted" && item.uploadedAssetId ? <FileReviewForm itemKey={item.key} documentId={item.uploadedAssetId} review={review} /> : null}
+    </div>
+  );
+}
+
+function FileReviewForm({ itemKey, documentId, review }: { itemKey: string; documentId: string; review: ReturnType<typeof useRequirementFileReview> }) {
   const [reason, setReason] = useState("");
   return <div className="flex flex-wrap items-center gap-2">
     <button type="button" disabled={review.busy} onClick={() => void review.review(itemKey, documentId, "approve", "")} className="rounded border border-border px-2 py-1">Approve</button>
@@ -137,7 +155,7 @@ function SupplierReviewForm({ itemKey, documentId, review }: { itemKey: string; 
 
 type FileRequirementEditor = ReturnType<typeof useFileRequirementEditorViewModel>;
 
-function FileRequirementRow({ item, editable, editor, suppliers, review }: { item: PrismFileRequirementItem; editable: boolean; editor: FileRequirementEditor; suppliers: Array<{ supplierId: string; supplierName: string }>; review: ReturnType<typeof useSupplierRequirementReview> }) {
+function FileRequirementRow({ item, editable, editor, suppliers, review }: { item: PrismFileRequirementItem; editable: boolean; editor: FileRequirementEditor; suppliers: Array<{ supplierId: string; supplierName: string }>; review: ReturnType<typeof useRequirementFileReview> }) {
   const editing = editor.target?.mode === "edit" && editor.target.item.key === item.key;
   return (
     <div className="px-6 py-3">
@@ -154,7 +172,7 @@ function FileRequirementRow({ item, editable, editor, suppliers, review }: { ite
             {item.overdue ? <span className="text-destructive"> · Overdue</span> : null}
           </p>
           {item.notes ? <p className="mt-1 text-2xs text-muted-foreground">PMCM note: {item.notes}</p> : null}
-          {item.supplierFulfilments?.length ? <SupplierFulfilmentList fulfilments={item.supplierFulfilments} itemKey={item.key} review={review} /> : null}
+          <RequirementUploads item={item} review={review} />
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge status={item.status} />

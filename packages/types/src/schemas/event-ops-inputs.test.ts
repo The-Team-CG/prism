@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { acknowledgePrivacyNoticeSchema, requestApprovalSchema } from "./auth-inputs.js";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "../privacy.js";
-import { createFileRequirementSchema, updateFileRequirementSchema, reviewSupplierRequirementSchema } from "./file-requirement-inputs.js";
+import { createFileRequirementSchema, updateFileRequirementSchema, reviewRequirementFileSchema } from "./file-requirement-inputs.js";
 import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
 import { blockEventDayTaskSchema } from "./live-ops-inputs.js";
 import { inquiryPendingFullDetails, logInquiryOnBehalfSchema } from "./event-lifecycle-inputs.js";
@@ -794,8 +794,8 @@ describe("file requirement contracts", () => {
   const base = { key: "venue_permit", label: "Venue permit", ownerRole: "client", visibleToRoles: ["pmcm-admin", "client"] };
 
   it("requires a reason for rejecting a supplier submission and rejects duplicate targets", () => {
-    expect(reviewSupplierRequirementSchema.safeParse({ documentId: "doc_1", decision: "reject", reason: "  " }).success).toBe(false);
-    expect(reviewSupplierRequirementSchema.parse({ documentId: "doc_1", decision: "reject", reason: " Expired " }).reason).toBe("Expired");
+    expect(reviewRequirementFileSchema.safeParse({ documentId: "doc_1", decision: "reject", reason: "  " }).success).toBe(false);
+    expect(reviewRequirementFileSchema.parse({ documentId: "doc_1", decision: "reject", reason: " Expired " }).reason).toBe("Expired");
     expect(updateFileRequirementSchema.safeParse({ targetSupplierIds: ["supplier_a", "supplier_a"] }).success).toBe(false);
   });
 
