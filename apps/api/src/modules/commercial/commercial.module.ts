@@ -50,6 +50,7 @@ import { ClientPaymentSubmissionsController } from './api/billing/client-payment
 import { ClientPaymentSubmissionService } from './application/billing/client-payment-submission.service';
 import { FinanceDeskController } from './api/billing/finance-desk.controller';
 import { FinanceDeskService } from './application/billing/finance-desk.service';
+import { BillingDocumentsService } from './application/billing/billing-documents.service';
 import { EventFinancialsController } from './api/billing/event-financials.controller';
 import { PaymentReceiptsController } from './api/billing/payment-receipts.controller';
 import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
@@ -176,6 +177,7 @@ const supplierCommandsProvider = {
     StatementOfAccountService,
     ClientPaymentSubmissionService,
     FinanceDeskService,
+    BillingDocumentsService,
     PaymentRiskScheduler,
     CommunicationService,
     CommunicationAttachmentGateService,

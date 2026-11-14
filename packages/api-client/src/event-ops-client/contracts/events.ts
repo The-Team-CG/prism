@@ -1,3 +1,4 @@
+import type { PrismFile } from "../../http";
 import type {
   ArchiveSearchFilters,
   ReviewEventProposalInput,
@@ -109,6 +110,10 @@ export interface EventOpsEventsContract {
     ): Promise<PrismAddendum[]>;
     /** What a client sees of one event's money: billed, received, refunds, credit held and what is still owed. */
     statementOfAccount(eventId: string, init?: EventOpsReadInit): Promise<PrismStatementOfAccount>;
+    /** The statement of account as a printable PDF. */
+    statementOfAccountPdf(eventId: string): Promise<PrismFile>;
+    /** A receipt for one payment on the statement. */
+    paymentReceiptPdf(eventId: string, recordId: string): Promise<PrismFile>;
     freezeExceptions(
       eventId: string,
       actor?: EventOpsActorQuery,

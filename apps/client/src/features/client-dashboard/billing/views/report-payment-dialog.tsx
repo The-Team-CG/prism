@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { FileText } from "lucide-react";
+
 import { PAYMENT_RECEIPT_EVIDENCE_ACCEPT, PAYMENT_RECEIPT_EVIDENCE_HINT, PAYMENT_RECEIPT_METHODS, type PrismStatementMilestone } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { DatePicker } from "@prism/ui/components/date-picker";
@@ -11,6 +14,27 @@ import { Textarea } from "@prism/ui/components/textarea";
 import { formatPeso } from "@prism/ui/payment-track";
 import { owedNow } from "../model/client-money-rules";
 import type { ReportPaymentViewModel } from "../view-models/use-report-payment-view-model";
+
+/** What the client is about to send: a thumbnail for an image, the file name for a PDF. */
+function ProofThumbnail({ file }: { file: File | null }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const image = Boolean(file?.type.startsWith("image/"));
+  useEffect(() => {
+    if (!file || !image) return;
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file, image]);
+  if (!file) return null;
+  return (
+    <div className="mt-2 flex items-center gap-3 rounded-md border border-border bg-muted/40 p-2">
+      {image && url
+        ? <img src={url} alt={`Proof you are sending: ${file.name}`} className="size-16 rounded object-cover" />
+        : <span aria-hidden className="grid size-16 place-items-center rounded bg-card text-muted-foreground"><FileText className="size-6" /></span>}
+      <span className="min-w-0 truncate text-sm text-foreground">{file.name}</span>
+    </div>
+  );
+}
 
 /** Radix selects cannot hold an empty value, so "not sure which payment" is this sentinel. */
 const ANY_PAYMENT = "any-payment";
@@ -66,6 +90,7 @@ export function ReportPaymentDialog({ vm, milestones }: { vm: ReportPaymentViewM
             <FieldLabel htmlFor="report-payment-proof">Proof of payment</FieldLabel>
             <Input id="report-payment-proof" type="file" accept={PAYMENT_RECEIPT_EVIDENCE_ACCEPT} onChange={(event) => update("proof", event.target.files?.[0] ?? null)} required />
             <FieldDescription>{PAYMENT_RECEIPT_EVIDENCE_HINT}</FieldDescription>
+            <ProofThumbnail file={draft.proof} />
           </Field>
           <Field className="sm:col-span-2">
             <FieldLabel htmlFor="report-payment-note">Note for PMCM (optional)</FieldLabel>

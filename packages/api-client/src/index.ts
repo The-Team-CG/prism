@@ -41,3 +41,4 @@ export async function prismJson<T>(path: string, init?: PrismRequestInit): Promi
   return prismRequest<T>(path, init);
 }
 export { uploadStorageObject, uploadCommunicationAttachment, getStorageObjectDownload, copyStorageObject, copyStorageObjectToThread, searchClientStoredFiles, setStorageObjectExpiry, type StorageClientOptions, type StorageUploadIntent, type StorageObjectDownload } from './storage-client';
+export { prismFile, type PrismFile } from "./http";

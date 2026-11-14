@@ -67,6 +67,8 @@ async function bootstrap() {
       callback(new Error(`Origin ${origin} is not allowed by CORS`));
     },
     credentials: true,
+    // Portals read the file name of documents the API renders, such as billing PDFs.
+    exposedHeaders: ['Content-Disposition'],
     maxAge: CORS_PREFLIGHT_MAX_AGE_SECONDS,
   });
 

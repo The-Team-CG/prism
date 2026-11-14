@@ -14,8 +14,9 @@ import { ClientListEmpty } from "../../shared/client-list-ui";
 import { clientStatementOfAccount } from "../data/statement-of-account-resource";
 import { clientPaymentLines } from "../model/client-billing-rules";
 import { milestoneStep, moneyHeadline } from "../model/client-money-rules";
-import { createPaymentReceiptPdf, paymentReceiptFileName } from "../model/payment-receipt";
+import { billingDocumentsRepository } from "../data/billing-documents-repository";
 import { useClientBillingDisputeViewModel } from "../view-models/use-client-billing-dispute-view-model";
+import { useBillingDocumentDownload, type BillingDocumentDownload } from "../view-models/use-billing-document-download";
 import { useClientStatementDownload } from "../view-models/use-client-statement-download";
 import { useReportPaymentViewModel } from "../view-models/use-report-payment-view-model";
 import { BillingDisputes } from "./billing-disputes";
@@ -26,17 +27,8 @@ import { StatementHistory } from "./statement-history";
 
 type PaymentRecord = PrismPaymentMilestone["history"][number];
 
-function downloadReceipt(eventName: string, milestoneLabel: string, payment: PaymentRecord) {
-  const url = URL.createObjectURL(createPaymentReceiptPdf({ eventName, milestoneLabel, payment }));
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = paymentReceiptFileName(payment.id);
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 /** Under each payment: the money received toward it, each with a receipt, and a way to say it was paid. */
-function StepDetail({ step, history, eventName, onReport }: { step: PaymentStep; history: PaymentRecord[]; eventName: string; onReport: (milestoneId: string) => void }) {
+function StepDetail({ step, history, eventId, documents, onReport }: { step: PaymentStep; history: PaymentRecord[]; eventId: string; documents: BillingDocumentDownload; onReport: (milestoneId: string) => void }) {
   const lines = clientPaymentLines(history);
   const open = step.state !== "paid" && step.state !== "checking";
   if (lines.length === 0 && !open) return null;
@@ -46,8 +38,13 @@ function StepDetail({ step, history, eventName, onReport }: { step: PaymentStep;
         <span key={record.id} className="inline-flex items-center gap-1.5">
           {formatPeso(record.amountReceived)} received {formatPortalDate(record.paymentDate)}
           {reversed ? <span>· reversed by PMCM</span> : (
-            <button type="button" onClick={() => downloadReceipt(eventName, step.label, record)} className="inline-flex items-center gap-1 font-medium text-primary hover:text-primary/80">
-              <ReceiptText className="size-3" aria-hidden /> Receipt
+            <button
+              type="button"
+              disabled={documents.busyKey === record.id}
+              onClick={() => void documents.download(record.id, () => billingDocumentsRepository.paymentReceipt(eventId, record.id))}
+              className="inline-flex items-center gap-1 font-medium text-primary hover:text-primary/80 disabled:opacity-60"
+            >
+              <ReceiptText className="size-3" aria-hidden /> {documents.busyKey === record.id ? "Preparing…" : "Receipt"}
             </button>
           )}
         </span>
@@ -61,6 +58,11 @@ function StepDetail({ step, history, eventName, onReport }: { step: PaymentStep;
   );
 }
 
+function DownloadError({ messages }: { messages: Array<string | null | undefined> }) {
+  const message = messages.find(Boolean);
+  return message ? <p role="alert" className="text-sm text-destructive">{message}</p> : null;
+}
+
 function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   return (
     <p role="status" className="flex items-start justify-between gap-3 rounded-lg border border-info/30 bg-info-soft px-3 py-2 text-sm text-info">
@@ -70,7 +72,7 @@ function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   );
 }
 
-function ScheduleCard({ statement, payments, eventName, onReport }: { statement: PrismStatementOfAccount; payments: PrismPaymentMilestone[]; eventName: string; onReport: (milestoneId: string) => void }) {
+function ScheduleCard({ statement, payments, documents, onReport }: { statement: PrismStatementOfAccount; payments: PrismPaymentMilestone[]; documents: BillingDocumentDownload; onReport: (milestoneId: string) => void }) {
   const todayKey = manilaDateKey();
   const steps = statement.milestones.map((milestone) => milestoneStep(milestone, todayKey));
   const historyFor = (milestoneId: string) => payments.find((payment) => payment.id === milestoneId)?.history ?? [];
@@ -81,7 +83,7 @@ function ScheduleCard({ statement, payments, eventName, onReport }: { statement:
         <span className="text-xs text-muted-foreground">{steps.length} payments</span>
       </header>
       <PaymentProgressBar steps={steps} />
-      <PaymentTimeline steps={steps} detail={(step) => <StepDetail step={step} history={historyFor(step.id)} eventName={eventName} onReport={onReport} />} />
+      <PaymentTimeline steps={steps} detail={(step) => <StepDetail step={step} history={historyFor(step.id)} eventId={statement.eventId} documents={documents} onReport={onReport} />} />
     </Card>
   );
 }
@@ -129,6 +131,7 @@ export function ClientBillingTab({
   const report = useReportPaymentViewModel(eventId ?? "", statement?.milestones ?? []);
   const disputeForm = useClientBillingDisputeViewModel({ eventId, billing, disputes });
   const statementDownload = useClientStatementDownload();
+  const documents = useBillingDocumentDownload();
   const messagesHref = dashboardHref("messages", eventId);
   const headline = statement ? moneyHeadline(statement, manilaDateKey()) : null;
 
@@ -154,10 +157,10 @@ export function ClientBillingTab({
         onReportPayment={report.start}
         statementPdf={storageObjectId && billing ? { busy: statementDownload.busy, download: () => void statementDownload.download(storageObjectId, `${billing.number}.pdf`) } : undefined}
       />
-      {statementDownload.error ? <p role="alert" className="text-sm text-destructive">{statementDownload.error}</p> : null}
-      <ScheduleCard statement={statement} payments={payments} eventName={eventName} onReport={report.start} />
+      <DownloadError messages={[statementDownload.error, documents.error]} />
+      <ScheduleCard statement={statement} payments={payments} documents={documents} onReport={report.start} />
       <PaymentsYouSent submissions={statement.submissions} proofBusyId={report.proofBusyId} onAddProof={(id, file) => void report.addProof(id, file)} onSendAgain={() => report.start()} />
-      <StatementHistory statement={statement} />
+      <StatementHistory statement={statement} documents={documents} />
       {billing && eventId ? <BillingDisputes billing={billing} milestones={statement.milestones} disputeForm={disputeForm} /> : null}
       <EarlierPayments payments={payments.filter((payment) => Boolean(payment.supersededAt))} />
       <ReportPaymentDialog vm={report} milestones={statement.milestones} />
