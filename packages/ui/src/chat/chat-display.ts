@@ -1,8 +1,9 @@
+import type { CommunicationThreadStatus } from "@prism/types";
 import { formatPortalDate, formatPortalTime, manilaDateKey } from "../format-date";
 
 /** The message fields the chat UI reads; portal message records satisfy this structurally. */
-export type ChatMessageRecord = { id: string; senderId: string; senderRole: string; body: string; createdAt: string };
-export type ChatParticipantRecord = { actorId: string; actorRole: string; active: boolean };
+export type ChatMessageRecord = { id: string; senderId: string; senderRole: string; senderName?: string; body: string; createdAt: string };
+export type ChatParticipantRecord = { actorId: string; actorRole: string; name?: string; active: boolean; lastReadAt?: string | null };
 export type ChatThreadRecord<M extends ChatMessageRecord = ChatMessageRecord> = {
   id: string;
   subject: string;
@@ -12,18 +13,35 @@ export type ChatThreadRecord<M extends ChatMessageRecord = ChatMessageRecord> = 
   messages: M[];
   messagesNextCursor?: string | null;
   unreadCount?: number;
+  /** Closed by PMCM: it takes no new messages until reopened. Absent on lists that predate the status. */
+  status?: CommunicationThreadStatus;
+  /** The event the conversation belongs to; PMCM management looks up who is eligible for it. */
+  eventId?: string;
+  /** What the conversation belongs to (its event), shown when one list spans several. */
+  context?: string;
 };
 export type ChatPerson = { id: string; name: string; email?: string; role?: string };
 
 export type ChatMessage = ChatMessageRecord & { mine: boolean };
 export type ChatThread = Omit<ChatThreadRecord, "messages"> & { messages: ChatMessage[] };
-export type ParticipantDirectory = ReadonlyMap<string, ChatPerson>;
 
 /** Marks the viewer's own messages and orders conversations by latest activity. */
 export function toChatThreads(threads: ReadonlyArray<ChatThreadRecord>, viewerId: string | undefined): ChatThread[] {
   return sortThreadsByActivity(
     threads.map((thread) => ({ ...thread, messages: thread.messages.map((message) => ({ ...message, mine: Boolean(viewerId) && message.senderId === viewerId })) })),
   );
+}
+
+/** An inbox row carries its event and only its latest message; the history is fetched when the row is opened. */
+export type InboxRow<M extends ChatMessageRecord = ChatMessageRecord> = Omit<ChatThreadRecord<M>, "messages" | "context"> & { eventName: string; lastMessage: M | null };
+
+export function inboxThreadRecords<M extends ChatMessageRecord>(rows: ReadonlyArray<InboxRow<M>>): ChatThreadRecord<M>[] {
+  return rows.map(({ eventName, lastMessage: latest, ...thread }) => ({ ...thread, context: eventName, messages: latest ? [latest] : [] }));
+}
+
+/** An inbox page, with its rows shaped as conversation records. */
+export function inboxThreadPage<M extends ChatMessageRecord>(page: { items: ReadonlyArray<InboxRow<M>>; nextCursor: string | null; hasMore: boolean }) {
+  return { items: inboxThreadRecords(page.items), nextCursor: page.nextCursor, hasMore: page.hasMore };
 }
 
 const ROLE_NAMES: Record<string, string> = {
@@ -43,15 +61,16 @@ export function roleName(role: string) {
   return ROLE_NAMES[role] ?? role.replaceAll(/[_-]+/g, " ").replace(/^\w/, (letter) => letter.toUpperCase());
 }
 
-export function senderName(message: Pick<ChatMessageRecord, "senderId" | "senderRole">, people: ParticipantDirectory) {
-  return people.get(message.senderId)?.name ?? roleName(message.senderRole);
+/** A sender's own name; their role stands in when the account has none on record. */
+export function senderName(message: Pick<ChatMessageRecord, "senderName" | "senderRole">) {
+  return message.senderName?.trim() || roleName(message.senderRole);
 }
 
-/** Everyone in the thread except the viewer, by name, for the conversation header and list. */
-export function threadMembers(thread: Pick<ChatThreadRecord, "participants">, people: ParticipantDirectory, viewerId: string | undefined) {
+/** Everyone in the thread except the viewer, for the conversation header and avatar. */
+export function threadMembers(thread: Pick<ChatThreadRecord, "participants">, viewerId: string | undefined) {
   return thread.participants
     .filter((participant) => participant.active && participant.actorId !== viewerId)
-    .map((participant) => people.get(participant.actorId)?.name ?? roleName(participant.actorRole));
+    .map((participant) => ({ id: participant.actorId, name: participant.name?.trim() || roleName(participant.actorRole) }));
 }
 
 export function lastMessage(thread: ChatThread): ChatMessage | undefined {
@@ -64,10 +83,10 @@ export function sortThreadsByActivity(threads: ChatThread[]) {
   return [...threads].sort((left, right) => activity(right).localeCompare(activity(left)));
 }
 
-export function threadPreview(thread: ChatThread, people: ParticipantDirectory) {
+export function threadPreview(thread: ChatThread) {
   const message = lastMessage(thread);
   if (!message) return "No messages yet";
-  const author = message.mine ? "You" : senderName(message, people).split(" ")[0];
+  const author = message.mine ? "You" : senderName(message);
   return `${author}: ${message.body.replaceAll(/\s+/g, " ")}`;
 }
 

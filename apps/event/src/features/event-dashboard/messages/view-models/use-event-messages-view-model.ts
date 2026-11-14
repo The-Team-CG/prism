@@ -1,162 +1,119 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { PrismCommunicationParticipantChoice, PrismCommunicationThread, PrismEvent } from "@prism/types";
+import { useEffect, useState } from "react";
+import type { CommunicationThreadStatus, PrismCommunicationParticipantChoice, PrismCommunicationThread, PrismEvent } from "@prism/types";
+import { useInvalidate } from "@prism/portal-query";
+import { inboxThreadPage, useChatThreads, type ChatCompose, type ChatThread } from "@prism/ui/chat";
 import type { EventSession } from "@/app/lib/session";
 import { eventMessagesRepository } from "../data/event-messages-repository";
-import { threadPreview, toChatThreads, type ChatThread } from "@prism/ui/chat";
+import { eventUnreadMessages } from "../data/event-messages-unread-resource";
 
-function errorText(reason: unknown, fallback: string) {
-  return reason instanceof Error ? reason.message : fallback;
-}
-
-export function useEventMessagesViewModel({ event, session }: { event: PrismEvent; session: EventSession }) {
-  const [persistedThreads, setPersistedThreads] = useState<PrismCommunicationThread[]>([]);
+/**
+ * PMCM conversations. With an event it is that event's threads; without one it is the inbox across every
+ * event, where a new conversation first names its event.
+ */
+export function useEventMessagesViewModel({ event, events = [], session }: { event?: PrismEvent; events?: PrismEvent[]; session: EventSession }) {
+  const canCompose = session.role === 'pmcm-admin';
   const [participants, setParticipants] = useState<PrismCommunicationParticipantChoice[]>([]);
-  const [activeThreadId, setActiveThreadId] = useState<string>();
   const [composing, setComposing] = useState(false);
-  const [query, setQuery] = useState("");
+  const [chosenEventId, setChosenEventId] = useState<string>();
   const [subject, setSubject] = useState("");
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
-  const [draft, setDraft] = useState("");
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const pendingKey = useRef<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [composeError, setComposeError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const eventId = event?.id;
+  const composeEventId = eventId ?? chosenEventId;
+  const invalidate = useInvalidate();
 
+  const chat = useChatThreads({
+    scope: eventId ?? "inbox",
+    viewerId: session.id,
+    source: {
+      list: (request) => (eventId ? eventMessagesRepository.list(eventId, request) : eventMessagesRepository.inbox(request).then(inboxThreadPage)),
+      thread: eventMessagesRepository.thread,
+      history: eventId ? undefined : eventMessagesRepository.history,
+      older: eventMessagesRepository.listOlder,
+      send: eventMessagesRepository.send,
+      markRead: (threadId) => eventMessagesRepository.markRead(threadId).then(() => invalidate(eventUnreadMessages)),
+      readReceipts: canCompose ? eventMessagesRepository.readReceipts : undefined,
+    },
+  });
+
+  // Who may join depends on the event, so the choices follow whichever event the new conversation is for.
   useEffect(() => {
+    setParticipants([]);
+    setSelected([]);
+    if (!composeEventId || !canCompose) return;
     let cancelled = false;
-    setLoading(true);
-    setLoadError(null);
     void eventMessagesRepository
-      .list(event.id)
+      .participants(composeEventId)
       .then((next) => {
-        if (cancelled) return;
-        setPersistedThreads(next);
-        setActiveThreadId(undefined);
+        if (!cancelled) setParticipants(next);
       })
-      .catch((reason: unknown) => {
-        if (!cancelled) setLoadError(errorText(reason, "Unable to load conversations"));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    void eventMessagesRepository.participants(event.id).then(setParticipants).catch(() => setParticipants([]));
+      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [event.id]);
-
-  const people = useMemo(() => new Map(participants.map((participant) => [participant.id, participant])), [participants]);
-  const threads: ChatThread[] = useMemo(() => toChatThreads(persistedThreads, session.id), [persistedThreads, session.id]);
-  const needle = query.trim().toLowerCase();
-  const visibleThreads = needle
-    ? threads.filter((thread) => `${thread.subject} ${threadPreview(thread, people)}`.toLowerCase().includes(needle))
-    : threads;
-  const activeThread = composing ? undefined : threads.find((thread) => thread.id === activeThreadId) ?? threads[0];
-
-  useEffect(() => {
-    if (!activeThread?.id) return;
-    void eventMessagesRepository.markRead(activeThread.id).catch(() => undefined);
-    setPersistedThreads((current) => current.map((thread) => (thread.id === activeThread.id && thread.unreadCount ? { ...thread, unreadCount: 0 } : thread)));
-  }, [activeThread?.id]);
-
-  function openThread(id: string) {
-    setComposing(false);
-    setActiveThreadId(id);
-  }
-
-  function startNewConversation() {
-    setComposing(true);
-    setLoadError(null);
-  }
-
-  function toggleParticipant(id: string) {
-    setSelectedParticipants((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
-  }
-
-  function updateDraft(value: string) {
-    setDraft(value);
-    if (value.trim() && !pendingKey.current) pendingKey.current = crypto.randomUUID();
-  }
-
-  async function sendMessage() {
-    if (!activeThread || !draft.trim() || busy) return;
-    const key = pendingKey.current ?? crypto.randomUUID();
-    pendingKey.current = key;
-    setBusy(true);
-    setLoadError(null);
-    try {
-      const message = await eventMessagesRepository.send(activeThread.id, draft.trim(), key);
-      setPersistedThreads((current) =>
-        current.map((thread) =>
-          thread.id === activeThread.id ? { ...thread, messages: [...thread.messages, message], updatedAt: message.createdAt, unreadCount: 0 } : thread,
-        ),
-      );
-      setDraft("");
-    } catch (reason) {
-      setLoadError(errorText(reason, "Unable to send message"));
-    } finally {
-      pendingKey.current = null;
-      setBusy(false);
-    }
-  }
+  }, [composeEventId, canCompose]);
 
   async function createThread() {
-    if (!subject.trim() || selectedParticipants.length === 0 || busy) return;
-    setBusy(true);
-    setLoadError(null);
+    if (!canCompose || !composeEventId || !subject.trim() || selected.length === 0 || creating) return;
+    setCreating(true);
+    setComposeError(null);
     try {
-      const thread = await eventMessagesRepository.create(event.id, subject.trim(), selectedParticipants);
-      setPersistedThreads((current) => [thread, ...current]);
-      setActiveThreadId(thread.id);
+      const thread = await eventMessagesRepository.create(composeEventId, subject.trim(), selected);
+      chat.addThread(eventId ? thread : { ...thread, context: events.find((item) => item.id === composeEventId)?.eventName });
       setComposing(false);
       setSubject("");
-      setSelectedParticipants([]);
+      setSelected([]);
     } catch (reason) {
-      setLoadError(errorText(reason, "Unable to start conversation"));
+      setComposeError(reason instanceof Error ? reason.message : "Unable to start conversation");
     } finally {
-      setBusy(false);
+      setCreating(false);
     }
   }
 
-  async function loadOlder() {
-    if (!activeThread?.messagesNextCursor) return;
-    try {
-      const page = await eventMessagesRepository.listOlder(activeThread.id, activeThread.messagesNextCursor);
-      setPersistedThreads((current) =>
-        current.map((thread) => (thread.id === activeThread.id ? { ...thread, messages: [...page.items, ...thread.messages], messagesNextCursor: page.nextCursor } : thread)),
-      );
-    } catch (reason) {
-      setLoadError(errorText(reason, "Unable to load older messages"));
-    }
+  const compose: ChatCompose = {
+    open: composing,
+    onStart: () => {
+      setComposing(true);
+      setComposeError(null);
+    },
+    onCancel: () => {
+      setComposing(false);
+      setComposeError(null);
+    },
+    contextLabel: event ? `People working on ${event.eventName}` : "Choose the event, then who should be in it",
+    event: event ? undefined : { options: events.map((item) => ({ id: item.id, label: item.eventName })), value: chosenEventId, onChange: setChosenEventId },
+    participants: participants.filter((participant) => participant.id !== session.id),
+    selected,
+    onToggle: (id) => setSelected((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id])),
+    subject,
+    onSubjectChange: setSubject,
+    onCreate: () => void createThread(),
+  };
+
+  /** A membership or status change: the conversation is updated in place and the unread badge re-read. */
+  function applyChange(next: PrismCommunicationThread) {
+    chat.replaceThread(next);
+    void invalidate(eventUnreadMessages);
   }
+
+  // PMCM only: the API refuses these for everyone else, and the controls are not offered to them either.
+  const manage = canCompose
+    ? {
+        eligible: (eventId: string) => eventMessagesRepository.participants(eventId),
+        addPeople: async (thread: ChatThread, actorIds: string[]) => applyChange(await eventMessagesRepository.addParticipants(thread.id, actorIds)),
+        removePerson: async (thread: ChatThread, actorId: string) => applyChange(await eventMessagesRepository.removeParticipant(thread.id, actorId)),
+        setStatus: async (thread: ChatThread, status: CommunicationThreadStatus) => applyChange(await eventMessagesRepository.setThreadStatus(thread.id, status)),
+      }
+    : undefined;
 
   return {
-    threads,
-    visibleThreads,
-    people,
-    participants: participants.filter((participant) => participant.id !== session.id),
-    viewerId: session.id,
-    activeThread,
-    openThread,
-    composing,
-    startNewConversation,
-    cancelNewConversation: () => setComposing(false),
-    query,
-    setQuery,
-    subject,
-    setSubject,
-    selectedParticipants,
-    toggleParticipant,
-    draft,
-    updateDraft,
-    sendMessage,
-    createThread,
-    loadOlder,
-    loading,
-    loadError,
-    busy,
+    workspace: { ...chat.workspace, busy: chat.workspace.busy || creating, error: composeError ?? chat.workspace.error },
+    compose: canCompose ? compose : undefined,
+    canInspectReadReceipts: canCompose,
+    manage,
   };
 }
 
-export type EventMessagesViewModel = ReturnType<typeof useEventMessagesViewModel>;
+export type EventMessageManage = NonNullable<ReturnType<typeof useEventMessagesViewModel>["manage"]>;

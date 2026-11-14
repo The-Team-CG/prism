@@ -1,134 +1,78 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { PrismAuthenticatedSession, PrismCommunicationThread } from "@prism/types";
-import { threadPreview, toChatThreads } from "@prism/ui/chat";
+import { useState } from "react";
+import type { PrismAuthenticatedSession } from "@prism/types";
+import { useInvalidate } from "@prism/portal-query";
+import { inboxThreadPage, useChatThreads, type ChatCompose } from "@prism/ui/chat";
 import { supplierMessagesRepository } from "../data/supplier-messages-repository";
+import { supplierUnreadMessages } from "../data/supplier-messages-unread-resource";
 
-function errorText(reason: unknown, fallback: string) {
-  return reason instanceof Error ? reason.message : fallback;
-}
+type BookedEvent = { eventId: string; eventName: string };
 
-export function useSupplierMessagesViewModel({ eventId, session }: { eventId?: string; session: PrismAuthenticatedSession }) {
-  const [threads, setThreads] = useState<PrismCommunicationThread[]>([]);
-  const [activeId, setActiveId] = useState<string>();
-  const [query, setQuery] = useState("");
-  const [draft, setDraft] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [reload, setReload] = useState(0);
+/**
+ * A supplier's conversations with PMCM across every booked event. A new conversation always goes to the PMCM
+ * team; with several bookings it first names the event it is about.
+ */
+export function useSupplierMessagesViewModel({ events, session }: { events: BookedEvent[]; session: PrismAuthenticatedSession }) {
   const [composing, setComposing] = useState(false);
+  const [chosenEventId, setChosenEventId] = useState<string>();
   const [subject, setSubject] = useState("");
-  const pendingKey = useRef<string | null>(null);
+  const [composeError, setComposeError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const composeEvent = events.length === 1 ? events[0] : events.find((item) => item.eventId === chosenEventId);
+  const invalidate = useInvalidate();
 
-  useEffect(() => {
-    if (!eventId) {
-      setThreads([]);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    void supplierMessagesRepository
-      .list(eventId, session)
-      .then((next) => {
-        if (cancelled) return;
-        setThreads(next);
-        setActiveId(undefined);
-      })
-      .catch((reason: unknown) => {
-        if (!cancelled) setError(errorText(reason, "Unable to load messages"));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [eventId, session, reload]);
-
-  const chatThreads = useMemo(() => toChatThreads(threads, session.id), [threads, session.id]);
-  const needle = query.trim().toLowerCase();
-  const visibleThreads = needle ? chatThreads.filter((thread) => `${thread.subject} ${threadPreview(thread, new Map())}`.toLowerCase().includes(needle)) : chatThreads;
-  const active = threads.find((thread) => thread.id === (activeId ?? chatThreads[0]?.id));
-
-  useEffect(() => {
-    if (!active) return;
-    void supplierMessagesRepository.markRead(active.id, session).catch(() => undefined);
-    if (active.unreadCount) setThreads((current) => current.map((thread) => (thread.id === active.id ? { ...thread, unreadCount: 0 } : thread)));
-  }, [active?.id, session]);
-
-  function updateDraft(value: string) {
-    setDraft(value);
-    if (value.trim() && !pendingKey.current) pendingKey.current = crypto.randomUUID();
-  }
-
-  async function send() {
-    if (!active || !draft.trim() || busy) return;
-    const key = pendingKey.current ?? crypto.randomUUID();
-    pendingKey.current = key;
-    setBusy(true);
-    setError(null);
-    try {
-      const message = await supplierMessagesRepository.send(active.id, draft.trim(), key, session);
-      setThreads((current) => current.map((thread) => (thread.id === active.id ? { ...thread, messages: [...thread.messages, message], updatedAt: message.createdAt, unreadCount: 0 } : thread)));
-      setDraft("");
-    } catch (reason) {
-      setError(errorText(reason, "Unable to send message"));
-    } finally {
-      pendingKey.current = null;
-      setBusy(false);
-    }
-  }
+  const chat = useChatThreads({
+    scope: "inbox",
+    viewerId: session.id,
+    source: {
+      list: (request) => supplierMessagesRepository.inbox(session, request).then(inboxThreadPage),
+      thread: (threadId) => supplierMessagesRepository.thread(threadId, session),
+      history: (threadId) => supplierMessagesRepository.history(threadId, session),
+      older: (threadId, cursor) => supplierMessagesRepository.listOlder(threadId, cursor, session),
+      send: (threadId, body, key) => supplierMessagesRepository.send(threadId, body, key, session),
+      markRead: (threadId) => supplierMessagesRepository.markRead(threadId, session).then(() => invalidate(supplierUnreadMessages)),
+    },
+  });
 
   async function createThread() {
-    if (!eventId || !subject.trim() || busy) return;
-    setBusy(true);
-    setError(null);
+    if (!composeEvent || !subject.trim() || creating) return;
+    setCreating(true);
+    setComposeError(null);
     try {
-      const thread = await supplierMessagesRepository.create(eventId, subject.trim(), session);
-      setThreads((current) => [thread, ...current]);
-      setActiveId(thread.id);
+      const thread = await supplierMessagesRepository.create(composeEvent.eventId, subject.trim(), session);
+      chat.addThread({ ...thread, context: composeEvent.eventName });
       setSubject("");
       setComposing(false);
     } catch (reason) {
-      setError(errorText(reason, "Unable to start this conversation"));
+      setComposeError(reason instanceof Error ? reason.message : "Unable to start this conversation");
     } finally {
-      setBusy(false);
+      setCreating(false);
     }
   }
 
-  async function loadOlder() {
-    if (!active?.messagesNextCursor) return;
-    try {
-      const page = await supplierMessagesRepository.listOlder(active.id, active.messagesNextCursor, session);
-      setThreads((current) => current.map((thread) => (thread.id === active.id ? { ...thread, messages: [...page.items, ...thread.messages], messagesNextCursor: page.nextCursor } : thread)));
-    } catch (reason) {
-      setError(errorText(reason, "Unable to load older messages"));
-    }
-  }
+  // Without a booking there is no event to write about, so there is nothing to start.
+  const compose: ChatCompose | undefined = events.length
+    ? {
+        open: composing,
+        onStart: () => {
+          setComposing(true);
+          setComposeError(null);
+        },
+        onCancel: () => {
+          setComposing(false);
+          setComposeError(null);
+        },
+        contextLabel: events.length === 1 ? events[0].eventName : "Choose the event this is about",
+        event: events.length > 1 ? { options: events.map((item) => ({ id: item.eventId, label: item.eventName })), value: chosenEventId, onChange: setChosenEventId } : undefined,
+        recipient: "PMCM team",
+        subject,
+        onSubjectChange: setSubject,
+        onCreate: () => void createThread(),
+      }
+    : undefined;
 
   return {
-    threads,
-    chatThreads,
-    visibleThreads,
-    query,
-    setQuery,
-    active,
-    activeId,
-    setActiveId,
-    draft,
-    updateDraft,
-    send,
-    composing,
-    setComposing,
-    subject,
-    setSubject,
-    createThread,
-    loadOlder,
-    loading,
-    busy,
-    error,
-    retry: () => setReload((value) => value + 1),
+    workspace: { ...chat.workspace, busy: chat.workspace.busy || creating, error: composeError ?? chat.workspace.error },
+    compose,
   };
 }

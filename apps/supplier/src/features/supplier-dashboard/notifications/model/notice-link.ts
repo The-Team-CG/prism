@@ -1,4 +1,5 @@
 import type { NotificationAction } from "@prism/types";
+import { conversationHash } from "@prism/ui/portal-path";
 import { supplierSectionHref, supplierWorkTargetHref } from "../../workspace/model/supplier-workspace-types";
 
 export type NoticeLink = { href: string; label: string };
@@ -11,6 +12,7 @@ export function supplierNoticeLink(action: NotificationAction | undefined): Noti
   if (action?.kind === "supplier_schedule") {
     return { href: supplierWorkTargetHref("bookings", action.requestId), label: `Review schedule revision ${action.revision}` };
   }
+  if (action?.kind === "conversation") return { href: `${supplierSectionHref("messages")}${conversationHash(action.threadId)}`, label: "Open conversation" };
   if (action?.kind === "event_section" && action.section === "files") return { href: supplierSectionHref("files"), label: "Open files" };
   return null;
 }

@@ -160,6 +160,41 @@ export const sendCommunicationMessageSchema = z.object({
 });
 export type SendCommunicationMessageInput = z.infer<typeof sendCommunicationMessageSchema>;
 
+/** Without an event the count is the whole inbox; with one it is that event's conversations only. */
+export const communicationUnreadCountQuerySchema = z.object({
+  eventId: nonEmptyStringSchema.optional(),
+});
+export type CommunicationUnreadCountQuery = z.infer<typeof communicationUnreadCountQuerySchema>;
+
+/** A conversation is open until PMCM closes it; a closed one takes no new messages until reopened. */
+export const communicationThreadStatusSchema = z.enum(["open", "closed"]);
+export type CommunicationThreadStatus = z.infer<typeof communicationThreadStatusSchema>;
+
+export const updateCommunicationThreadStatusSchema = z.object({
+  status: communicationThreadStatusSchema,
+});
+export type UpdateCommunicationThreadStatusInput = z.infer<typeof updateCommunicationThreadStatusSchema>;
+
+/** Paging and search shared by the inbox and one event's conversation list. An empty `q` means no search. */
+const communicationThreadPageFields = {
+  cursor: z.string().min(1).max(500).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(30),
+  q: z.string().trim().max(100).transform((value) => value || undefined).optional(),
+  status: communicationThreadStatusSchema.default("open"),
+};
+export const communicationInboxQuerySchema = z.object(communicationThreadPageFields);
+export type CommunicationInboxQuery = z.infer<typeof communicationInboxQuerySchema>;
+
+export const communicationThreadsQuerySchema = z.object({ eventId: nonEmptyStringSchema, ...communicationThreadPageFields });
+export type CommunicationThreadsQuery = z.infer<typeof communicationThreadsQuerySchema>;
+
+export const addCommunicationParticipantsSchema = z.object({
+  actorIds: z.array(nonEmptyStringSchema).min(1).max(20),
+}).superRefine((value, ctx) => {
+  if (new Set(value.actorIds).size !== value.actorIds.length) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Duplicate people are not allowed", path: ["actorIds"] });
+});
+export type AddCommunicationParticipantsInput = z.infer<typeof addCommunicationParticipantsSchema>;
+
 export const confirmSupplierReadinessSchema = z.object({
   notes: optionalTrimmedStringSchema,
 });

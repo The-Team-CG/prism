@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismPmcmCalendarItem, PrismPmcmEventSummary } from "@prism/types";
-import { eventAttentionLabels, fileSummaryLabel, financeSummaryLabel, messagesSummaryLabel, summariesByEvent } from "./event-summary-labels";
+import { eventAttentionLabels, fileSummaryLabel, financeSummaryLabel, summariesByEvent } from "./event-summary-labels";
 import { calendarWindow, toCalendarEntries } from "./pmcm-calendar-items";
 
 const summary = (overrides: Partial<PrismPmcmEventSummary> = {}): PrismPmcmEventSummary => ({ eventId: "e1", balanceDue: 0, nextPaymentDue: null, overdueMilestones: 0, unreadMessages: 0, ...overrides });
@@ -13,11 +13,7 @@ describe("event list summaries", () => {
     expect(financeSummaryLabel(summary({ balanceDue: 260_000, nextPaymentDue: "2026-10-01", overdueMilestones: 2 }))).toMatchObject({ urgent: true, text: expect.stringContaining("2 overdue") });
   });
 
-  it("counts unread messages and marks them for attention", () => {
-    expect(messagesSummaryLabel(summary())).toEqual({ text: "No unread messages" });
-    expect(messagesSummaryLabel(undefined)).toEqual({ text: "No unread messages" });
-    expect(messagesSummaryLabel(summary({ unreadMessages: 1 }))).toEqual({ text: "1 unread message", urgent: true });
-    expect(messagesSummaryLabel(summary({ unreadMessages: 4 }))).toEqual({ text: "4 unread messages", urgent: true });
+  it("finds an event's summary by its id", () => {
     expect(summariesByEvent([summary({ eventId: "e7" })]).get("e7")?.eventId).toBe("e7");
   });
 });

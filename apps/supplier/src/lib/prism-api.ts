@@ -14,6 +14,7 @@ import { createEventOpsClient, prismRequest } from "@prism/api-client";
 import { PRISM_SESSION_STORAGE_KEYS, clearPrismSession, isPrismAuthenticatedSession, privacyNoticePath } from "@prism/types";
 import { portalAppPath, portalHref } from "@prism/ui/portal-path";
 import type {
+  CommunicationInboxQuery,
   PrismAuthenticatedSession,
   PrismSupplierApplication,
   PrismSupplierApplicationStatusResult,
@@ -110,8 +111,12 @@ export const prismApi = {
     eventOpsClient.events.fileRequirements(eventId, actorFromSession(session)),
   listSupplierCategories: (): Promise<{ id: string; name: string }[]> =>
     eventOpsClient.supplierApplications.listCategories(),
-  communicationThreads: (eventId: string, session: PrismAuthenticatedSession) =>
-    eventOpsClient.communication.listThreads(eventId, actorFromSession(session)),
+  communicationInbox: (session: PrismAuthenticatedSession, query?: Partial<CommunicationInboxQuery>) =>
+    eventOpsClient.communication.listInbox(query, actorFromSession(session)),
+  communicationThread: (threadId: string, session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.getThread(threadId, actorFromSession(session)),
+  communicationUnreadCount: (session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.unreadCount({}, actorFromSession(session)),
   createCommunicationThread: (eventId: string, subject: string, session: PrismAuthenticatedSession) =>
     eventOpsClient.communication.createThread({ eventId, subject }, actorFromSession(session)),
   sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string, session: PrismAuthenticatedSession) =>

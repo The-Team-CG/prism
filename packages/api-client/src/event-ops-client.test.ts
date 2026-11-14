@@ -733,12 +733,15 @@ describe("prismRequest", () => {
     vi.stubGlobal("fetch", fetchMock);
     const client = createEventOpsClient({ baseUrl: "https://api.example.test/api" });
 
-    await client.communication.listThreads("evt_1", { actorRole: "supplier", actorName: "Ops" });
+    await client.communication.listThreads("evt_1", { status: "closed", q: "load-in" }, { actorRole: "supplier", actorName: "Ops" });
 
     // A second `?` turned the event ID into `evt_1?actorRole=supplier`, which the API reported as "Event not found".
     const url = new URL(String((fetchMock.mock.calls[0] as unknown as [string])[0]));
     expect(url.searchParams.get("eventId")).toBe("evt_1");
     expect(url.searchParams.get("actorRole")).toBe("supplier");
+    // Paging and search travel with the event, and the page request does not leak into the actor context.
+    expect(url.searchParams.get("status")).toBe("closed");
+    expect(url.searchParams.get("q")).toBe("load-in");
   });
 
   it("returns the one-time typed host PIN issue result", async () => {

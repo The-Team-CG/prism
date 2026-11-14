@@ -13,4 +13,6 @@ export type ParticipantEventFacts = {
 /** Read-only, serializable facts used to decide who may join event communication. */
 export interface ParticipantFactsReader {
   findForEvent(eventId: string, db?: Prisma.TransactionClient): Promise<ParticipantEventFacts | null>;
+  /** Facts for each event that exists; events that do not exist are absent from the map. */
+  findForEvents(eventIds: string[], db?: Prisma.TransactionClient): Promise<Map<string, ParticipantEventFacts>>;
 }

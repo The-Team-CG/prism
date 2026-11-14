@@ -50,6 +50,35 @@ export class ParticipantReaderService implements ParticipantReader {
     return users.map((user) => ({ id: user.id, name: user.name, email: user.email, role: OpsUserRole.PmcmAdmin, explicit: true, verified: true }));
   }
 
+  async readableEventIds(actorId: string, eventIds: string[]): Promise<Set<string>> {
+    const user = await this.prisma.opsUser.findUnique({ where: { id: actorId }, select: { id: true, name: true, email: true, role: true, approvalStatus: true } });
+    if (!user || user.approvalStatus !== 'approved') throw new NotFoundException('Communication participant account not found');
+    const unique = [...new Set(eventIds)];
+    if (user.role === OpsUserRole.PmcmAdmin || user.role === OpsUserRole.System) return new Set(unique);
+    const facts = await this.factsReader.findForEvents(unique);
+    return new Set(unique.filter((eventId) => {
+      const eventFacts = facts.get(eventId);
+      return eventFacts !== undefined && this.canReadEvent(user, eventFacts, eventId);
+    }));
+  }
+
+  async displayNames(actorIds: string[], db?: Prisma.TransactionClient): Promise<Map<string, string>> {
+    const ids = [...new Set(actorIds)];
+    if (!ids.length) return new Map();
+    const users = await (db ?? this.prisma).opsUser.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
+    return new Map(users.map((user) => [user.id, user.name]));
+  }
+
+  /** The rule `resolveForEvent` enforces, as a yes or no. */
+  private canReadEvent(user: { id: string; name: string; email: string; role: string }, facts: ParticipantEventFacts, eventId: string) {
+    const event = toPolicyEvent(facts);
+    if (!this.canResolveRole(user, facts, event)) return false;
+    const actor: ResolvedEventOpsActor = { id: user.id, name: user.name, email: user.email, role: user.role as OpsUserRole, explicit: true, verified: true };
+    if (actor.role === OpsUserRole.Supplier) return this.policy.canReadEvent(actor, event, { supplierEventIds: [eventId] });
+    if (actor.role === OpsUserRole.Coordinator) return this.policy.canReadEvent({ ...actor, eventId }, event, {});
+    return this.policy.canReadEvent(actor, event, {});
+  }
+
   private canResolveRole(user: { id: string; email: string; role: string }, facts: ParticipantEventFacts, event: ReturnType<typeof toPolicyEvent>) {
     if (user.role === OpsUserRole.PmcmAdmin || user.role === OpsUserRole.System) return true;
     if (user.role === OpsUserRole.Client) return Boolean(event.inquiry?.email && normalizeEmail(event.inquiry.email) === normalizeEmail(user.email));
