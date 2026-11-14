@@ -6,7 +6,9 @@ import type {
   PrismClientBillingDispute,
   PrismPaymentSubmission,
   PrismFinanceDesk,
+  PrismPaymentDetails,
   PrismPaymentHistory,
+  PrismPaymentQrImage,
   PrismPaymentReminder,
   SubmitClientPaymentInput,
   CompleteExternalCreativeTicketInput,
@@ -88,6 +90,7 @@ import type {
   ListPaymentAllocationTargetsQuery,
   ListPaymentReceiptsQuery,
   RecordPaymentInput,
+  SavePaymentDetailsInput,
   RecordPaymentReceiptInput,
   RecordPaymentRefundInput,
   RejectPaymentReceiptInput,
@@ -99,6 +102,7 @@ import type {
   UpdateSupplierInput,
   VerifySupplierStatusInput,
 } from "@prism/types";
+import type { PrismFile } from "../../http";
 import type { EventOpsActorQuery, EventOpsReadInit } from "./primitives";
 
 /** Billing, payments, supplier records and quote requests: the PMCM commercial commands. */
@@ -117,6 +121,13 @@ export interface EventOpsCommercialContract {
     recordPayment(eventId: string, milestoneId: string, input: RecordPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentMilestone>;
     /** PMCM reminds the client about one owed payment; at most once a day. */
     remindClientPayment(eventId: string, milestoneId: string, actor?: EventOpsActorQuery): Promise<PrismPaymentReminder>;
+    /** PMCM's one set of payment details. PMCM finance only. */
+    paymentDetails(init?: EventOpsReadInit): Promise<PrismPaymentDetails>;
+    savePaymentDetails(input: SavePaymentDetailsInput): Promise<PrismPaymentDetails>;
+    /** Uploads a payment QR (PNG or JPEG, up to 1 MB); the same image always gives the same id. */
+    uploadPaymentQr(file: File): Promise<PrismPaymentQrImage>;
+    /** A payment QR image for PMCM's own screen. */
+    paymentQrImage(imageId: string, init?: EventOpsReadInit): Promise<PrismFile>;
     /** Everything that happened to one payment, oldest first. PMCM finance only. */
     paymentHistory(eventId: string, milestoneId: string, init?: EventOpsReadInit): Promise<PrismPaymentHistory>;
     markPayment(eventId: string, milestoneId: string, input: MarkPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentMilestone>;

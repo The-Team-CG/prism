@@ -124,6 +124,11 @@ describe("event-dashboard-routing", () => {
     expect(activeSidebarItemFromRoute({ section: "finance", tab: "billing", view: "receipts" })).toBe("finance-receipts");
     expect(activeSidebarItemFromRoute({ section: "finance", tab: "billing", view: "receipts", eventId: "event-42" })).toBe("finance-receipts");
     expect(routeShellCopy({ section: "finance", tab: "billing", view: "receipts" })).toMatchObject({ title: "Payments received", breadcrumb: ["Finance", "Receipts"] });
+    // Payment details are PMCM's own accounts, not one event's, so they get the same treatment.
+    expect(routeStateForSidebarItem("finance-payment-details")).toEqual({ section: "finance", tab: "overview", view: "payment-details" });
+    expect(SIDEBAR_STATIC_ROUTES["finance-payment-details"]).toBe("/dashboard/finance/payment-details");
+    expect(activeSidebarItemFromRoute({ section: "finance", tab: "billing", view: "payment-details", eventId: "event-42" })).toBe("finance-payment-details");
+    expect(routeShellCopy({ section: "finance", tab: "billing", view: "payment-details" })).toMatchObject({ title: "Payment details", breadcrumb: ["Finance", "Payment details"] });
     expect(routeShellCopy({ section: "finance", tab: "billing", view: "overview" }).title).toBe("Finance");
 
     for (const retired of ["calendar-events", "clients-active", "tasks-overdue", "messages-client", "finance-invoices", "settings-system-logs", "dashboard-upcoming"]) {
