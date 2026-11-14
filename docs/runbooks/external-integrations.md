@@ -55,7 +55,8 @@ How it works:
 - **Link Viber** creates a 15-minute, single-use code and a deep link that opens the bot. The bot callback links the
   Viber user to the account's email. Only the code's SHA-256 is stored.
 - Outbox rows on the `viber` channel resolve to account emails exactly like email rows. They are sent to accounts
-  that linked Viber and kept it on. A row whose recipients all use email only ends `skipped`, not `failed`.
+  that linked Viber and kept it on. A row whose recipients all use email only ends `skipped`, not `failed`. Without
+  `VIBER_AUTH_TOKEN` and `VIBER_BOT_URI` every Viber row ends `skipped` ("Viber is not configured").
 - A user who leaves the bot (`unsubscribed`, or Viber status 5 or 6 on send) is unlinked automatically.
 
 Verify: `notification-preference.service.test.ts` covers linking, signature refusal, single use, unsubscribe and

@@ -72,7 +72,7 @@ export function NotificationPreferencesPanel({ actions }: { actions: Notificatio
           </Item>
         ) : null}
         {preferences?.viberConfigured ? (
-          <Item variant="outline" className="flex-wrap">
+          <Item id="viber-settings" variant="outline" className="flex-wrap scroll-mt-6">
             <ItemContent>
               <ItemTitle>Viber</ItemTitle>
               <ItemDescription>

@@ -47,7 +47,7 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
     void invalidate(pmcmEventFileRequirements, eventId);
   }
 
-  async function run(label: string, work: () => Promise<string | null>) {
+  async function run(label: string, work: () => Promise<string | null>, { changesServer = true } = {}) {
     setBusy(label);
     setError(null);
     setNotice(null);
@@ -57,7 +57,7 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
       setError(message(reason, "That didn't work. Try again."));
     } finally {
       setBusy(null);
-      refresh();
+      if (changesServer) refresh();
     }
   }
 
@@ -118,7 +118,7 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
     return run(`download:${objectId}`, async () => {
       saveFile(await pmcmDocumentRepository.download(objectId));
       return null;
-    });
+    }, { changesServer: false });
   }
 
   const loadError = objects.error ?? matrix.error;

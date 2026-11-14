@@ -4,7 +4,7 @@
  */
 export const COORDINATOR_HOME_PATH = "/dashboard";
 
-export const COORDINATOR_VIEWS = ["shift", "tasks", "issues", "run-sheet", "calendar", "assignments", "registration", "notifications"] as const;
+export const COORDINATOR_VIEWS = ["shift", "tasks", "issues", "run-sheet", "calendar", "assignments", "registration", "notifications", "messages"] as const;
 export type CoordinatorViewId = (typeof COORDINATOR_VIEWS)[number];
 
 export const COORDINATOR_VIEW_LABELS: Record<CoordinatorViewId, string> = {
@@ -16,6 +16,7 @@ export const COORDINATOR_VIEW_LABELS: Record<CoordinatorViewId, string> = {
   assignments: "Assignments",
   registration: "Registration",
   notifications: "Notifications",
+  messages: "Messages",
 };
 
 /** The section ids that older links and bookmarks carry. */
@@ -54,6 +55,10 @@ export function isCoordinatorHomePath(pathname: string): boolean {
 export function coordinatorLocationRedirect({ pathname, search }: { pathname: string; search: string }): { search: string } | null {
   const params = new URLSearchParams(search);
   const eventId = params.get("event");
+  if (pathname === '/dashboard/messages') {
+    params.set('view', 'messages');
+    return { search: `?${params.toString()}` };
+  }
   if (!isCoordinatorHomePath(pathname)) {
     return { search: coordinatorViewSearch("shift", eventId, OUTSIDE_PORTAL_NOTICE) };
   }

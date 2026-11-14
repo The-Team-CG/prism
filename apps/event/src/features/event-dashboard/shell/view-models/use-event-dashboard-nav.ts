@@ -1,3 +1,4 @@
+import { unreadNavBadge } from "@prism/ui/chat";
 import {
   Archive,
   Banknote,
@@ -52,6 +53,8 @@ function eventWorkspaceNavItems(
     draftCount?: number;
     paymentCount?: number;
     closeoutCount?: number;
+    /** Unread messages in the open event's conversations; shown on that event's Messages item. */
+    unreadMessages?: number;
   },
 ): PrismNavItem[] {
   const preEvent = !stage || isBeforePrismEventDay(stage);
@@ -63,7 +66,7 @@ function eventWorkspaceNavItems(
     { id: "event-staff", icon: UsersRound, label: "Team & roles", section: PREPARE, badge: optionalNavBadge(counts.assignmentCount) },
     { id: "event-budget", icon: ReceiptText, label: "Billing", section: PREPARE, badge: optionalNavBadge(counts.paymentCount) },
     { id: "event-files", icon: FileText, label: "Files", section: PREPARE },
-    { id: "event-messages", icon: MessageSquareText, label: "Messages", section: PREPARE },
+    { id: "event-messages", icon: MessageSquareText, label: "Messages", section: PREPARE, ...unreadNavBadge(counts.unreadMessages) },
     { id: "event-games", icon: Gamepad2, label: "Registration & games", section: EVENT_DAY },
     { id: "event-timeline", icon: Radio, label: "Live operations", section: EVENT_DAY },
     { id: "event-report", icon: Archive, label: "Closure", section: EVENT_DAY, badge: preEvent ? undefined : optionalNavBadge(counts.closeoutCount) },
@@ -85,6 +88,7 @@ export function eventPortalNavItems({
   draftCount,
   paymentCount,
   closeoutCount,
+  unreadMessages,
 }: {
   inEventWorkspace: boolean;
   eventStage?: PrismLifecycleStage;
@@ -97,11 +101,13 @@ export function eventPortalNavItems({
   draftCount?: number;
   paymentCount?: number;
   closeoutCount?: number;
+  /** Unread messages in the open event's conversations. */
+  unreadMessages?: number;
 }): PrismNavItem[] {
   const inbox: PrismNavItem = { id: "dashboard", icon: Inbox, label: "Inbox", section: "PMCM", badge: optionalNavBadge(commandInboxCount) };
   if (inEventWorkspace) {
     return [
-      ...eventWorkspaceNavItems(eventStage, { assignmentCount, quoteCount, draftCount, paymentCount, closeoutCount })
+      ...eventWorkspaceNavItems(eventStage, { assignmentCount, quoteCount, draftCount, paymentCount, closeoutCount, unreadMessages })
         .filter((item) => item.id !== "event-floorplans" || !disabledModules.includes("floorplans")),
       { id: "events-list", icon: CalendarDays, label: "All events", section: "Back to" },
       { ...inbox, section: "Back to" },

@@ -1,6 +1,7 @@
 import type { PrismBriefing, PrismEvent } from "./lifecycle.js";
 import type { PrismSupplierQuoteRequest } from "./commercial.js";
 import type { GuestPrivacyClassification } from "../schemas/operations-guest-inputs.js";
+import type { CommunicationThreadStatus } from "../schemas/commercial-inputs.js";
 
 export type { GuestCheckInReceipt as PrismGuestCheckInReceipt } from "../schemas/operations-guest-inputs.js";
 
@@ -8,8 +9,18 @@ export interface PrismCommunicationParticipant {
   id: string;
   actorId: string;
   actorRole: string;
+  /** The account's display name. People in one conversation see each other's names, never emails. */
+  name?: string;
   active: boolean;
+  /** Own read time, or other members' times only in a PMCM response. */
   lastReadAt?: string | null;
+}
+
+/** PMCM-only projection for the active members of one conversation. */
+export interface PrismCommunicationReadReceipt {
+  actorId: string;
+  name?: string;
+  lastReadAt: string | null;
 }
 
 export interface PrismCommunicationParticipantChoice {
@@ -24,6 +35,8 @@ export interface PrismCommunicationMessage {
   threadId: string;
   senderId: string;
   senderRole: string;
+  /** Kept on the message so a sender who has left the conversation still has a name. */
+  senderName?: string;
   body: string;
   createdAt: string;
 }
@@ -32,7 +45,8 @@ export interface PrismCommunicationThread {
   id: string;
   eventId: string;
   subject: string;
-  status: string;
+  /** Closed by PMCM; a closed conversation takes no new messages until reopened. */
+  status: CommunicationThreadStatus;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -40,6 +54,18 @@ export interface PrismCommunicationThread {
   messages: PrismCommunicationMessage[];
   messagesNextCursor?: string | null;
   unreadCount?: number;
+}
+
+/** One row of the cross-event inbox: the conversation and its latest message, without its history. */
+export interface PrismCommunicationInboxThread extends Omit<PrismCommunicationThread, "messages" | "messagesNextCursor"> {
+  eventName: string;
+  lastMessage: PrismCommunicationMessage | null;
+  unreadCount: number;
+}
+
+/** Unread messages across the conversations the signed-in account can see in its inbox. */
+export interface PrismCommunicationUnreadCount {
+  unread: number;
 }
 
 export interface PrismCoordinatorAssignment {
