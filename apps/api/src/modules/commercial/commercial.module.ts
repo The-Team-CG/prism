@@ -19,6 +19,7 @@ import { OpsSupplierPareController } from './api/suppliers/supplier-pare.control
 import { OpsSupplierWorkspaceCommandsController } from './api/suppliers/supplier-workspace-commands.controller';
 import { OpsSuppliersController } from './api/suppliers/suppliers.controller';
 import { OpsEventBillingController } from './api/billing/event-billing.controller';
+import { PaymentDetailsController } from './api/billing/payment-details.controller';
 import { COMMERCIAL_WORKFLOW_COMMANDS, QUOTE_SUPPLIER_RESOLVER } from './contracts/commercial-ops.tokens';
 import {
   SUPPLIER_COMMANDS,
@@ -50,6 +51,7 @@ import { ClientPaymentSubmissionsController } from './api/billing/client-payment
 import { ClientPaymentSubmissionService } from './application/billing/client-payment-submission.service';
 import { FinanceDeskController } from './api/billing/finance-desk.controller';
 import { FinanceDeskService } from './application/billing/finance-desk.service';
+import { PaymentDetailsService } from './application/billing/payment-details.service';
 import { PaymentHistoryService } from './application/billing/payment-history.service';
 import { BillingDocumentsService } from './application/billing/billing-documents.service';
 import { EventFinancialsController } from './api/billing/event-financials.controller';
@@ -134,6 +136,7 @@ const supplierCommandsProvider = {
     OpsSupplierWorkspaceCommandsController,
     OpsSupplierPareController,
     OpsEventBillingController,
+    PaymentDetailsController,
     PaymentReceiptsController,
     EventFinancialsController,
     StatementOfAccountController,
@@ -179,6 +182,7 @@ const supplierCommandsProvider = {
     ClientPaymentSubmissionService,
     FinanceDeskService,
     PaymentHistoryService,
+    PaymentDetailsService,
     BillingDocumentsService,
     PaymentRiskScheduler,
     CommunicationService,

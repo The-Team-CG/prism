@@ -542,6 +542,7 @@ export {
   type PrismContractIssue,
 } from "./parse.js";
 export * from "./supplier-workflow-inputs.js";
+export * from "./payment-details.js";
 export * from "./client-review-inputs.js";
 export * from "./conforme-signing.js";
 export * from "./privacy-retention-inputs.js";
