@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, CalendarClock, CheckCircle2, MessageSquareText, Wallet, type LucideIcon } from "lucide-react";
-import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
+import { AlertTriangle, CalendarClock, CheckCircle2, FileCheck2, MessageSquareText, Upload, Wallet, type LucideIcon } from "lucide-react";
+import type { PrismSupplierPayableMilestone, PrismSupplierPayoutRecord, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { formatPeso, PaymentProgressBar, PaymentTimeline, type PaymentStep } from "@prism/ui/payment-track";
 import { cn } from "@/app/components/ui/utils";
-import { payoutStep, supplierBookings, supplierPaymentTotals, type SupplierBooking } from "../../model/supplier-payments";
+import { payoutReceiptState, payoutStep, supplierBookings, supplierPaymentTotals, type SupplierBooking } from "../../model/supplier-payments";
 import type { PrismSupplierQuote, PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
+import { usePayoutReceipt, type PayoutReceiptViewModel } from "../../view-models/use-payout-receipt";
+import { PayoutReceiptDialog } from "./payout-receipt-dialog";
 
 function Tile({ icon: Icon, label, value, detail, tone }: { icon: LucideIcon; label: string; value: string; detail: string; tone: string }) {
   return (
@@ -47,15 +49,30 @@ function Tiles({ totals }: { totals: ReturnType<typeof supplierPaymentTotals> })
   );
 }
 
-function Releases({ step, booking, fresh }: { step: PaymentStep; booking: SupplierBooking; fresh?: ReadonlySet<string> }) {
+const linkButton = "inline-flex items-center gap-1 font-medium text-primary hover:text-primary/80";
+
+/** The supplier's side of one transfer: confirm it arrived, then send the official receipt, or see both done. */
+function ReceiptAction({ record, payable, receipts }: { record: PrismSupplierPayoutRecord; payable: PrismSupplierPayableMilestone; receipts: PayoutReceiptViewModel }) {
+  if (record.kind !== "release") return null;
+  const state = payoutReceiptState(record, payable.history);
+  const open = (alreadyConfirmed: boolean) => receipts.open({ record, eventId: payable.eventId, label: payable.label, alreadyConfirmed });
+  if (state === "reversed") return null;
+  if (state === "unconfirmed") return <button type="button" className={linkButton} onClick={() => open(false)}><CheckCircle2 className="size-3" aria-hidden /> I received this</button>;
+  const confirmed = <span className="inline-flex items-center gap-1 text-success"><CheckCircle2 className="size-3" aria-hidden /> You confirmed it {formatPortalDate(record.receivedAt)}</span>;
+  if (state === "confirmed") return <>{confirmed}<button type="button" className={linkButton} onClick={() => open(true)}><Upload className="size-3" aria-hidden /> Send official receipt</button></>;
+  return <>{confirmed}<span className="inline-flex items-center gap-1"><FileCheck2 className="size-3" aria-hidden /> {record.officialReceipt?.fileName}</span></>;
+}
+
+function Releases({ step, booking, fresh, receipts }: { step: PaymentStep; booking: SupplierBooking; fresh?: ReadonlySet<string>; receipts: PayoutReceiptViewModel }) {
   const payable = booking.payables.find((item) => item.id === step.id);
   if (!payable?.history.length) return null;
   return (
     <ul className="space-y-1 text-xs text-muted-foreground">
       {payable.history.map((record) => (
-        <li key={record.id} className="flex flex-wrap items-center gap-x-2">
+        <li key={record.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span>{record.kind === "reversal" ? "Reversed" : "Sent"} {formatPeso(record.amount)} on {formatPortalDate(record.paymentDate)} · {record.method}{record.referenceNumber ? ` · ${record.referenceNumber}` : ""}</span>
           {fresh?.has(record.id) ? <span className="rounded-md bg-success-soft px-1.5 py-0.5 text-[11px] font-semibold text-success">New</span> : null}
+          <ReceiptAction record={record} payable={payable} receipts={receipts} />
         </li>
       ))}
     </ul>
@@ -63,7 +80,7 @@ function Releases({ step, booking, fresh }: { step: PaymentStep; booking: Suppli
 }
 
 /** One booking: the event, the agreed amount, and each payout PMCM owes on a bar and a timeline. */
-function BookingCard({ booking, todayKey, fresh }: { booking: SupplierBooking; todayKey: string; fresh?: ReadonlySet<string> }) {
+function BookingCard({ booking, todayKey, fresh, receipts }: { booking: SupplierBooking; todayKey: string; fresh?: ReadonlySet<string>; receipts: PayoutReceiptViewModel }) {
   const steps = booking.payables.map((payable) => payoutStep(payable, todayKey));
   const paid = booking.payables.reduce((sum, payable) => sum + payable.amountReleased, 0);
   return (
@@ -83,7 +100,7 @@ function BookingCard({ booking, todayKey, fresh }: { booking: SupplierBooking; t
       ) : (
         <>
           <PaymentProgressBar steps={steps} />
-          <PaymentTimeline steps={steps} label={`Payments for ${booking.eventName}`} detail={(step) => <Releases step={step} booking={booking} fresh={fresh} />} />
+          <PaymentTimeline steps={steps} label={`Payments for ${booking.eventName}`} detail={(step) => <Releases step={step} booking={booking} fresh={fresh} receipts={receipts} />} />
         </>
       )}
     </Card>
@@ -103,6 +120,7 @@ export function PaymentsPage({ workspace, workflowWorkspace, selectedQuotes, rea
   freshPayouts?: ReadonlySet<string>;
 }) {
   const payables = workflowWorkspace?.payables ?? [];
+  const receipts = usePayoutReceipt(workspace.supplier.id);
   const todayKey = manilaDateKey();
   const bookings = supplierBookings({ payables, selectedQuotes, quoteRequests: workspace.quoteRequests, readinessBoard });
   if (bookings.length === 0) {
@@ -122,7 +140,8 @@ export function PaymentsPage({ workspace, workflowWorkspace, selectedQuotes, rea
   return (
     <div className="space-y-4">
       <Tiles totals={totals} />
-      {bookings.map((booking) => <BookingCard key={booking.requestId} booking={booking} todayKey={todayKey} fresh={freshPayouts} />)}
+      {bookings.map((booking) => <BookingCard key={booking.requestId} booking={booking} todayKey={todayKey} fresh={freshPayouts} receipts={receipts} />)}
+      <PayoutReceiptDialog vm={receipts} />
       <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         A payment should have arrived but has not?
         <Button asChild size="sm" variant="outline"><Link href="/dashboard/messages"><MessageSquareText className="size-4" aria-hidden /> Message PMCM</Link></Button>

@@ -1,4 +1,4 @@
-import type { PrismSupplierPayableMilestone, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "@prism/types";
+import type { PrismSupplierPayableMilestone, PrismSupplierPayoutRecord, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "@prism/types";
 import { daysUntil, formatPortalDate } from "@prism/ui/format-date";
 import { formatPeso, paymentStepState, type PaymentStep } from "@prism/ui/payment-track";
 
@@ -86,6 +86,15 @@ const NEW_WITHOUT_VISIT_DAYS = 14;
  * Payouts PMCM sent since the supplier last opened Payments, for the badge and the "New" marks. With no record of a
  * visit, only the last two weeks count, so a first visit does not mark years of history new.
  */
+export type PayoutReceiptState = "reversed" | "unconfirmed" | "confirmed" | "with-receipt";
+
+/** Where one money transfer stands on the supplier's side: not yet confirmed, confirmed, confirmed with their receipt, or reversed by PMCM. */
+export function payoutReceiptState(record: PrismSupplierPayoutRecord, history: PrismSupplierPayoutRecord[]): PayoutReceiptState {
+  if (history.some((other) => other.reversesRecordId === record.id)) return "reversed";
+  if (record.officialReceipt) return "with-receipt";
+  return record.receivedAt ? "confirmed" : "unconfirmed";
+}
+
 export function newPayoutReleases(payables: PrismSupplierPayableMilestone[], seenBefore: string | null, now = new Date()): Set<string> {
   const since = seenBefore ?? new Date(now.getTime() - NEW_WITHOUT_VISIT_DAYS * 86_400_000).toISOString();
   return new Set(payables.flatMap((payable) => payable.history.filter((record) => record.kind === "release" && record.recordedAt > since).map((record) => record.id)));

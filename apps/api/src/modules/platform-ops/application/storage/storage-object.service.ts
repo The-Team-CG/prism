@@ -1002,6 +1002,7 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       if (!booking || !allowed) throw new ForbiddenException('Supplier document target is outside the verified requirement');
       return;
     }
+    if (await this.isOwnPayoutReceiptTarget(input)) return;
     const match = /^supplier-(contract|creative):([A-Za-z0-9_-]{1,100}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
     if (!match) throw new ForbiddenException('Supplier document target is outside the verified booking');
     const request = await this.prisma.opsSupplierQuoteRequest.findFirst({
@@ -1009,6 +1010,17 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     });
     if (!request) throw new ForbiddenException('Supplier document target is outside the verified booking');
     await this.assertCreativeTaskOwner(input, match);
+  }
+
+  /** A supplier's official receipt targets one payout PMCM released to that supplier on this event. */
+  private async isOwnPayoutReceiptTarget(input: StorageServiceRequest): Promise<boolean> {
+    const receipt = /^supplier-payout-receipt:([A-Za-z0-9_-]{1,100}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
+    if (!receipt) return false;
+    const payout = await this.prisma.opsSupplierPayoutRecord.findFirst({
+      where: { id: receipt[1], eventId: input.eventId, supplierId: input.ownerRecordId, kind: 'release' }, select: { id: true },
+    });
+    if (!payout) throw new ForbiddenException("Supplier receipt target is outside the supplier's payments");
+    return true;
   }
 
   private async assertCreativeTaskOwner(input: StorageServiceRequest, match: RegExpExecArray) {

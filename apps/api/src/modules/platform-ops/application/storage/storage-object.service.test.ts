@@ -75,6 +75,13 @@ function createStore() {
       findFirst: vi.fn(async ({ where }: { where: Record<string, string> }) => bookings.find((booking) => Object.entries(where).every(([key, value]) => booking[key as keyof typeof booking] === value)) ?? null),
     },
     opsSupplierCreativeTask: { findFirst: vi.fn(async () => ({ id: 'task_1' })) },
+    // One release PMCM sent sup_1 on evt_1.
+    opsSupplierPayoutRecord: {
+      findFirst: vi.fn(async ({ where }: { where: Record<string, string> }) => {
+        const payouts = [{ id: 'spr_1', eventId: 'evt_1', supplierId: 'sup_1', kind: 'release' }];
+        return payouts.find((payout) => Object.entries(where).every(([key, value]) => payout[key as keyof typeof payout] === value)) ?? null;
+      }),
+    },
     opsClientReviewItem: { findFirst: vi.fn(async ({ where }: { where: Record<string, string> }) => (where.id === 'client_review_1' && where.eventId === 'evt_1' && where.kind === 'styling' ? { id: 'client_review_1' } : null)) },
     // One live receipt held for evt_1; a rejected one and one held for another event prove the owner check reads both.
     opsPaymentReceipt: {
@@ -593,6 +600,18 @@ describe('StorageObjectService', () => {
     await expect(service.requestUpload({ ...declaration, ownerRecordId: 'sup_other', actor: supplier })).rejects.toThrow(/verified supplier/);
     const other = { id: 'other-user', role: 'supplier', email: 'other@example.test', name: 'Other supplier', explicit: true, verified: true } as never;
     await expect(service.issueDownloadAuthorization({ objectId: stored.id, actor: other })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("accepts a supplier's official receipt only for a payout PMCM released to that supplier", async () => {
+    const store = createStore();
+    const adapter = { requestUploadLocation: vi.fn(async (input: { providerObjectKey: string }) => ({ providerName: 'test', providerObjectKey: input.providerObjectKey, uploadUrl: 'test://upload', expiresAt: new Date(Date.now() + 1000) })), confirmUpload: vi.fn(), issueDownloadAuthorization: vi.fn(), deleteObject: vi.fn() };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never);
+    const supplier = { id: 'supplier-user', role: 'supplier', supplierId: 'sup_1', eventId: 'evt_1', name: 'Supplier', explicit: true } as never;
+    const declaration = { ...request, usage: 'supplier_document' as const, ownerRecordType: 'supplier', ownerRecordId: 'sup_1', actor: supplier };
+
+    await expect(service.requestUpload({ ...declaration, logicalTarget: 'supplier-payout-receipt:spr_1:123e4567-e89b-42d3-a456-426614174000' })).resolves.toMatchObject({ status: 'ready' });
+    await expect(service.requestUpload({ ...declaration, logicalTarget: 'supplier-payout-receipt:spr_other:123e4567-e89b-42d3-a456-426614174001' })).rejects.toThrow(/outside the supplier's payments/);
+    await expect(service.requestUpload({ ...declaration, eventId: 'evt_2', logicalTarget: 'supplier-payout-receipt:spr_1:123e4567-e89b-42d3-a456-426614174002' })).rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('accepts requirement uploads only for a selected supplier and an eligible requirement', async () => {

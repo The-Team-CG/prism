@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
@@ -6,6 +6,7 @@ import type { PrismVerifiedEventActor } from '@prism/types';
 import {
   acknowledgeSupplierScheduleSchema,
   bindSupplierContractSchema,
+  confirmSupplierPayoutSchema,
   createSupplierCreativeTaskSchema,
   createSupplierPayableMilestoneSchema,
   releaseSupplierPayoutSchema,
@@ -17,6 +18,7 @@ import {
   updateSupplierCreativeTaskSchema,
   type AcknowledgeSupplierScheduleInput,
   type BindSupplierContractInput,
+  type ConfirmSupplierPayoutInput,
   type CreateSupplierCreativeTaskInput,
   type CreateSupplierPayableMilestoneInput,
   type ReleaseSupplierPayoutInput,
@@ -146,6 +148,18 @@ export class OpsSupplierWorkflowController {
     @VerifiedEventActor() verified: PrismVerifiedEventActor,
   ) {
     return this.workflows.releasePayout(milestoneId, input, this.access.resolveActor({}, verified));
+  }
+
+  /** The supplier confirms a payout reached them, optionally with their official receipt. */
+  @Post('supplier/payout-records/:recordId/received')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  confirmPayoutReceived(
+    @Param('recordId') recordId: string,
+    @Body(zodBody(confirmSupplierPayoutSchema)) input: ConfirmSupplierPayoutInput,
+    @VerifiedEventActor() verified: PrismVerifiedEventActor,
+  ) {
+    return this.workflows.confirmPayoutReceived(recordId, input, this.access.resolveActor({}, verified));
   }
 
   @Post('supplier-payout-records/:recordId/reversal')

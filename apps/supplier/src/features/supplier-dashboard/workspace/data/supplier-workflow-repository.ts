@@ -1,5 +1,6 @@
 import { getStorageObjectDownload, setStorageObjectExpiry, uploadStorageObject } from '@prism/api-client';
 import { eventOpsClient } from '@/lib/prism-api';
+import { supplierPayoutReceiptTargetPrefix } from '@prism/types';
 import type {
   PrismAuthenticatedSession,
   PrismSupplierQuoteRequest,
@@ -88,6 +89,24 @@ export const supplierWorkflowRepository = {
     const result = await eventOpsClient.supplierWorkflows.submitCreativeTask(taskId, payload);
     uploadAttempts.delete(key);
     return result;
+  },
+
+  /** Says a payout reached the supplier, first uploading their official receipt for it when one is given. */
+  async confirmPayoutReceived(session: PrismAuthenticatedSession, supplierId: string, eventId: string, recordId: string, file?: File) {
+    let officialReceiptObjectId: string | undefined;
+    if (file) {
+      const key = `payout-receipt:${supplierId}:${recordId}:${await contentFingerprint(file)}`;
+      const stored = await uploadStorageObject(file, {
+        eventId,
+        ownerRecordType: 'supplier',
+        ownerRecordId: supplierId,
+        logicalTarget: `${supplierPayoutReceiptTargetPrefix(recordId)}${attemptId(key)}`,
+        usage: 'supplier_document',
+      }, { authToken: session.accessToken });
+      uploadAttempts.delete(key);
+      officialReceiptObjectId = stored.id;
+    }
+    return eventOpsClient.supplierWorkflows.confirmPayoutReceived(recordId, officialReceiptObjectId ? { officialReceiptObjectId } : {});
   },
 
   /** Uploads an event-day status photo and returns the stored object the status update must reference. */

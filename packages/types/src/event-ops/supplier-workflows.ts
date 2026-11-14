@@ -89,6 +89,10 @@ export interface PrismSupplierPayoutRecord {
   notes: string | null;
   reversesRecordId: string | null;
   recordedAt: string;
+  /** When the supplier confirmed the money reached them; null until they do. */
+  receivedAt: string | null;
+  /** The supplier's official receipt for this payout, when they attached one. */
+  officialReceipt: { objectId: string; fileName: string } | null;
 }
 
 export interface PrismSupplierPayableMilestone {

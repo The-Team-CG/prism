@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismSupplierPayableMilestone } from "@prism/types";
-import { newPayoutReleases, payoutStep, supplierBookings, supplierPaymentTotals } from "./supplier-payments";
+import { newPayoutReleases, payoutReceiptState, payoutStep, supplierBookings, supplierPaymentTotals } from "./supplier-payments";
 
 const TODAY = "2026-11-14";
 
@@ -11,9 +11,20 @@ function payable(overrides: Partial<PrismSupplierPayableMilestone>): PrismSuppli
   };
 }
 
-const release = (paymentDate: string, amount: number) => ({ id: paymentDate, milestoneId: "p", kind: "release" as const, amount, paymentDate, method: "Bank Transfer", referenceNumber: "", notes: null, reversesRecordId: null, recordedAt: paymentDate });
+const release = (paymentDate: string, amount: number) => ({ id: paymentDate, milestoneId: "p", kind: "release" as const, amount, paymentDate, method: "Bank Transfer", referenceNumber: "", notes: null, reversesRecordId: null, recordedAt: paymentDate, receivedAt: null, officialReceipt: null });
 
 describe("supplier payments", () => {
+  it("says where each transfer stands on the supplier's side: to confirm, confirmed, confirmed with a receipt, or reversed by PMCM", () => {
+    const sent = release("2026-11-01", 50000);
+    const confirmed = { ...release("2026-11-02", 30000), receivedAt: "2026-11-03T01:00:00.000Z" };
+    const withReceipt = { ...confirmed, id: "r3", officialReceipt: { objectId: "obj", fileName: "OR-1.pdf" } };
+    const undone = release("2026-11-04", 20000);
+    const reversal = { ...release("2026-11-05", 20000), kind: "reversal" as const, reversesRecordId: undone.id };
+    const history = [sent, confirmed, withReceipt, undone, reversal];
+
+    expect([sent, confirmed, withReceipt, undone].map((record) => payoutReceiptState(record, history))).toEqual(["unconfirmed", "confirmed", "with-receipt", "reversed"]);
+  });
+
   it.each([
     ["paid out", payable({ amountReleased: 100000, remainingBalance: 0, history: [release("2026-11-01T08:00:00.000Z", 100000)] }), "paid", "Paid Nov 1, 2026"],
     ["late", payable({ dueDate: "2026-11-09T08:00:00.000Z" }), "overdue", "Due Nov 9, 2026 · 5 days late"],

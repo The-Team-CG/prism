@@ -8,6 +8,7 @@ import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event
 import type {
   AcknowledgeSupplierScheduleInput,
   BindSupplierContractInput,
+  ConfirmSupplierPayoutInput,
   CreateSupplierCreativeTaskInput,
   CreateSupplierPayableMilestoneInput,
   PrismPmcmSupplierWorkflowWorkspace,
@@ -24,6 +25,7 @@ import type {
   UpdateSupplierCreativeProgressInput,
   UpdateSupplierCreativeTaskInput,
 } from '@prism/types';
+import { supplierPayoutReceiptTargetPrefix } from '@prism/types';
 import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
 import { NOTIFICATION_OUTBOX_WRITER, STORED_SUPPLIER_UPLOAD_READER, eventSectionAction, writeNotification, type NotificationOutboxWriter, type StoredSupplierUploadReader } from '@prism/contexts/platform-ops';
 
@@ -498,6 +500,73 @@ export class SupplierWorkflowService {
     });
   }
 
+  /**
+   * The supplier says a payout reached them, optionally with their official receipt. Confirming again only adds or
+   * replaces the receipt; the first confirmation time is kept. PMCM is told either way.
+   */
+  async confirmPayoutReceived(recordId: string, input: ConfirmSupplierPayoutInput, actor: ResolvedEventOpsActor) {
+    const record = await this.supplierPayoutRecord(recordId, actor);
+    const receipt = input.officialReceiptObjectId ? await this.officialReceipt(record, input.officialReceiptObjectId) : null;
+    return this.prisma.$transaction(async (tx) => {
+      await lockRow(tx, 'supplier_payable_milestones', record.milestoneId);
+      const reversed = await tx.opsSupplierPayoutRecord.findFirst({ where: { reversesRecordId: record.id }, select: { id: true } });
+      if (reversed) throw new BadRequestException('PMCM reversed this payment, so it cannot be confirmed');
+      const current = await tx.opsSupplierPayoutRecord.findUniqueOrThrow({ where: { id: record.id } });
+      if (current.receivedAt && (!receipt || current.officialReceiptObjectId === receipt.id)) return this.payableById(tx, record.milestoneId);
+      await tx.opsSupplierPayoutRecord.update({ where: { id: record.id }, data: {
+        receivedAt: current.receivedAt ?? new Date(), receivedBy: current.receivedBy ?? actor.name,
+        ...(receipt ? { officialReceiptObjectId: receipt.id, officialReceiptFileName: receipt.originalFileName } : {}),
+      } });
+      const context = { prisma: tx, actorId: actor.id, correlationId: `supplier-payout-received:${record.id}` };
+      await writeAudit(this.auditWriter, record.eventId, actor.name, receipt ? 'Supplier sent their official receipt for a payment' : 'Supplier confirmed a payment reached them', {
+        actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update, category: AuditCategory.Finance,
+        affectedType: 'supplier_payout_record', affectedId: record.id, affectedLabel: record.referenceNumber || record.id,
+        metadata: { amount: record.amount, officialReceiptObjectId: receipt?.id ?? null },
+      }, context);
+      await this.tellPmcmOfReceipt(tx, record, receipt?.id ?? null, context);
+      return this.payableById(tx, record.milestoneId);
+    });
+  }
+
+  private async supplierPayoutRecord(recordId: string, actor: ResolvedEventOpsActor) {
+    await this.policy.requireActorRole(actor, [OpsUserRole.Supplier], 'supplier payment');
+    const supplier = await this.resolveSupplier(actor);
+    const record = await this.prisma.opsSupplierPayoutRecord.findUnique({ where: { id: recordId } });
+    if (!record || record.kind !== 'release') throw new NotFoundException('Supplier payment not found');
+    if (record.supplierId !== supplier.id) {
+      await this.policy.recordForbiddenAccess(actor, 'supplier payment', record.id);
+      throw new ForbiddenException('Supplier cannot access this payment');
+    }
+    return record;
+  }
+
+  private async officialReceipt(record: { id: string; eventId: string; supplierId: string }, objectId: string) {
+    const object = await this.storedSupplierUploads.findConfirmedSupplierUpload({
+      objectId, eventId: record.eventId, supplierId: record.supplierId, logicalTargetPrefix: supplierPayoutReceiptTargetPrefix(record.id),
+    });
+    if (!object) throw new BadRequestException('The official receipt is not a finished upload for this payment');
+    return object;
+  }
+
+  /** PMCM hears that the supplier has the money, and whether their official receipt came with it. */
+  private async tellPmcmOfReceipt(
+    tx: PrismaTypes.TransactionClient,
+    record: { id: string; eventId: string; supplierId: string; amount: number },
+    receiptId: string | null,
+    context: PrismTransactionContext,
+  ) {
+    if (!this.notifications) return;
+    const supplier = await tx.opsSupplier.findUnique({ where: { id: record.supplierId }, select: { name: true } });
+    const who = supplier?.name ?? 'The supplier';
+    const message = receiptId
+      ? `${who} sent their official receipt for the ₱${record.amount.toLocaleString('en-PH')} PMCM paid them.`
+      : `${who} confirmed the ₱${record.amount.toLocaleString('en-PH')} PMCM sent reached them.`;
+    await writeNotification(this.notifications, record.eventId, 'PMCM Admin', message, undefined, {
+      idempotencyKey: `supplier-payout-received:${record.id}:${receiptId ?? 'confirmed'}`,
+      action: eventSectionAction(record.eventId, 'billing'),
+    }, context);
+  }
+
   async pmcmWorkspace(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismPmcmSupplierWorkflowWorkspace[]> {
     await this.requirePmcm(actor, 'read supplier workflows', eventId);
     const requests = await this.prisma.opsSupplierQuoteRequest.findMany({
@@ -601,7 +670,10 @@ export class SupplierWorkflowService {
 
   private mapPayable(milestone: {
     id: string; eventId: string; requestId: string; quoteId: string; label: string; amount: number; dueDate: Date | null;
-    status: string; createdAt: Date; payouts: Array<{ id: string; milestoneId: string; kind: string; amount: number; paymentDate: Date; method: string; referenceNumber: string; notes: string | null; reversesRecordId: string | null; recordedAt: Date }>;
+    status: string; createdAt: Date; payouts: Array<{
+      id: string; milestoneId: string; kind: string; amount: number; paymentDate: Date; method: string; referenceNumber: string; notes: string | null;
+      reversesRecordId: string | null; recordedAt: Date; receivedAt: Date | null; officialReceiptObjectId: string | null; officialReceiptFileName: string | null;
+    }>;
   }): PrismSupplierPayableMilestone {
     const amountReleased = netReleased(milestone.payouts);
     return {
@@ -614,6 +686,8 @@ export class SupplierWorkflowService {
         amount: record.amount, paymentDate: record.paymentDate.toISOString(), method: record.method,
         referenceNumber: record.referenceNumber, notes: record.notes, reversesRecordId: record.reversesRecordId,
         recordedAt: record.recordedAt.toISOString(),
+        receivedAt: record.receivedAt?.toISOString() ?? null,
+        officialReceipt: record.officialReceiptObjectId ? { objectId: record.officialReceiptObjectId, fileName: record.officialReceiptFileName ?? 'Official receipt' } : null,
       })),
       createdAt: milestone.createdAt.toISOString(),
     };

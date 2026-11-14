@@ -124,6 +124,15 @@ export const releaseSupplierPayoutSchema = z.object({
 }).strict();
 export type ReleaseSupplierPayoutInput = z.infer<typeof releaseSupplierPayoutSchema>;
 
+/** The supplier confirms a payout reached them, optionally with their official receipt (an uploaded supplier document). */
+export const confirmSupplierPayoutSchema = z.object({
+  officialReceiptObjectId: id.optional(),
+}).strict();
+export type ConfirmSupplierPayoutInput = z.infer<typeof confirmSupplierPayoutSchema>;
+
+/** Where a supplier's official receipt for one payout is stored: `supplier-payout-receipt:<recordId>:<uuid>`. */
+export const supplierPayoutReceiptTargetPrefix = (recordId: string) => `supplier-payout-receipt:${recordId}:`;
+
 export const reverseSupplierPayoutSchema = z.object({
   paymentDate: dateTime,
   reason: z.string().trim().min(1).max(2000),

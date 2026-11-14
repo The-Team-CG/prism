@@ -1,11 +1,13 @@
 import type {
   AcknowledgeSupplierScheduleInput,
   BindSupplierContractInput,
+  ConfirmSupplierPayoutInput,
   CreateSupplierCreativeTaskInput,
   CorrectSupplierEventStatusInput,
   CreateSupplierPayableMilestoneInput,
   CreateSupplierScheduleInput,
   PrismPmcmSupplierWorkflowWorkspace,
+  PrismSupplierPayableMilestone,
   PrismSupplierWorkflowWorkspace,
   ReleaseSupplierPayoutInput,
   RequestSupplierScheduleChangeInput,
@@ -32,6 +34,8 @@ export interface EventOpsSupplierWorkflowsContract {
     createPayable(eventId: string, input: CreateSupplierPayableMilestoneInput): Promise<unknown>;
     releasePayout(milestoneId: string, input: ReleaseSupplierPayoutInput): Promise<unknown>;
     reversePayout(recordId: string, input: ReverseSupplierPayoutInput): Promise<unknown>;
+    /** The supplier confirms a payout reached them, optionally with their official receipt. */
+    confirmPayoutReceived(recordId: string, input: ConfirmSupplierPayoutInput): Promise<PrismSupplierPayableMilestone>;
     correctEventStatus(eventId: string, requestId: string, input: CorrectSupplierEventStatusInput): Promise<unknown>;
   };
 }
