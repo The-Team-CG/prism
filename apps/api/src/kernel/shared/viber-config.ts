@@ -2,7 +2,7 @@ import type { EnvProblem, EnvReader } from '../mail/mail-config';
 
 /**
  * Viber (FR-13, FR-25, FR-34, FR-64, FR-75) is optional: with neither variable set, Viber is off and Viber outbox rows
- * fail with "No viber delivery provider". Setting only one of them is a startup problem.
+ * are skipped ("Viber is not configured"); the email row still reaches everyone. Setting only one of them is a startup problem.
  */
 export const VIBER_AUTH_TOKEN_ENV = 'VIBER_AUTH_TOKEN';
 export const VIBER_BOT_URI_ENV = 'VIBER_BOT_URI';
