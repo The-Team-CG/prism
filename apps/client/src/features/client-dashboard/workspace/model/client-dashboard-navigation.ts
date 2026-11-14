@@ -302,7 +302,7 @@ export const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; 
   "approvals-contracts": { title: "Contracts", description: "Conforme, MOA, NDA, and related contract files." },
   "approvals-quotations": { title: "Quotations", description: "Client-facing quotation and billing approval references." },
   "approvals-final-confirmation": { title: "Final confirmation", description: "Final client-facing readiness and confirmation status." },
-  "files-all": { title: "Files", description: "Choose an event to manage its files and requirements." },
+  "files-all": { title: "Files", description: "Every file for your events, and what PMCM still needs from you." },
   "files-contracts": { title: "Contracts", description: "Conforme, MOA, NDA, and other contract files." },
   "files-quotations": { title: "Quotations", description: "Client-facing quotation files and references." },
   "files-invoices-receipts": { title: "Invoices / Receipts", description: "Invoices, billing statements, receipts, and payment proof." },

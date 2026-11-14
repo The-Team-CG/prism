@@ -1,4 +1,4 @@
-import type { PrismFileRequirementItem, PrismFileRequirementStatus, PrismSupplierFileRequirementFulfilment } from '@prism/types';
+import type { PrismFileRequirementItem, PrismFileRequirementStatus, PrismSupplierFileRequirementFulfilment, PrismSupplierRequirementVersion } from '@prism/types';
 
 /** A matrix item as derived from workflow records, before PMCM overrides are applied. */
 export type DerivedFileRequirementItem = Omit<PrismFileRequirementItem, 'required' | 'overdue' | 'origin' | 'revision' | 'validationStatus' | 'notes'>;
@@ -55,7 +55,23 @@ function latestDocument(documents: FileRequirementDocumentFact[], key: string) {
 
 function validationOf(document: FileRequirementDocumentFact | undefined): PrismFileRequirementItem['validationStatus'] {
   if (!document) return undefined;
-  return document.validationStatus === 'rejected' ? 'rejected' : 'accepted';
+  // A file fails either the upload check or PMCM's review; both leave the requirement needing a replacement.
+  return document.validationStatus === 'rejected' || document.status === 'rejected' ? 'rejected' : 'accepted';
+}
+
+/** Every available upload for one requirement, newest first, with PMCM's reason on each rejected one. */
+function requirementVersions(documents: FileRequirementDocumentFact[], key: string): PrismSupplierRequirementVersion[] {
+  return documents.filter((document) => document.type === key && document.available !== false && document.storageKey)
+    .sort((left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime() || left.id.localeCompare(right.id))
+    .map((document) => ({
+      documentId: document.id, objectId: document.storageKey!, fileName: document.fileName ?? 'Submitted file',
+      uploadedAt: document.uploadedAt.toISOString(), status: document.status,
+      ...(document.status === 'rejected' && document.rejectionReason ? { reviewReason: document.rejectionReason } : {}),
+    }));
+}
+
+function rejectionReasonOf(document: FileRequirementDocumentFact | undefined) {
+  return (document?.status === 'rejected' || document?.validationStatus === 'rejected') && document.rejectionReason ? document.rejectionReason : undefined;
 }
 
 function customItem(row: PersistedFileRequirement, documents: FileRequirementDocumentFact[]): DerivedFileRequirementItem {
@@ -76,7 +92,15 @@ function customItem(row: PersistedFileRequirement, documents: FileRequirementDoc
     detail: rejected
       ? 'The latest upload was rejected; a replacement file is required.'
       : latest ? `${count} file(s) submitted` : 'No file submitted yet.',
+    ...customItemHistory(documents, row.key, rejected ? latest : undefined),
   };
+}
+
+/** PMCM's reason on a rejected latest upload, and every upload so far, for the party that owns the requirement. */
+function customItemHistory(documents: FileRequirementDocumentFact[], key: string, rejectedLatest: FileRequirementDocumentFact | undefined) {
+  const reviewReason = rejectionReasonOf(rejectedLatest);
+  const versions = requirementVersions(documents, key);
+  return { ...(reviewReason ? { reviewReason } : {}), ...(versions.length ? { versions } : {}) };
 }
 
 /** One selected supplier's fulfilment, computed only from documents whose stored object that supplier owns. */
@@ -90,13 +114,7 @@ function supplierFulfilment(
   const { status, uploadedAssetId, uploadedObjectId } = customItem(row, owned);
   const validationStatus = validationOf(latestDocument(owned, row.key));
   const latest = latestDocument(owned, row.key);
-  const versions = owned.filter((document) => document.type === row.key && document.available !== false && document.storageKey)
-    .sort((left, right) => right.uploadedAt.getTime() - left.uploadedAt.getTime() || left.id.localeCompare(right.id))
-    .map((document) => ({
-      documentId: document.id, objectId: document.storageKey!, fileName: document.fileName ?? 'Submitted file',
-      uploadedAt: document.uploadedAt.toISOString(), status: document.status,
-      ...(document.status === 'rejected' && document.rejectionReason ? { reviewReason: document.rejectionReason } : {}),
-    }));
+  const versions = requirementVersions(owned, row.key);
   const fulfilment: PrismSupplierFileRequirementFulfilment = {
     supplierId: supplier.supplierId,
     supplierName: supplier.supplierName,
@@ -105,7 +123,7 @@ function supplierFulfilment(
     ...(validationStatus ? { validationStatus } : {}),
     ...(uploadedAssetId ? { uploadedAssetId } : {}),
     ...(uploadedObjectId ? { uploadedObjectId } : {}),
-    ...(latest?.status === 'rejected' && latest.rejectionReason ? { reviewReason: latest.rejectionReason } : {}),
+    ...(rejectionReasonOf(latest) ? { reviewReason: rejectionReasonOf(latest) } : {}),
     versions,
   };
   return { ...fulfilment, overdue: isFileRequirementOverdue({ required: row.required, status, dueDate: row.dueAt?.toISOString() }, now) };
