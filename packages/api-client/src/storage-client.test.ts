@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { uploadStorageObject } from "./storage-client";
+import { copyStorageObject, searchClientStoredFiles, uploadStorageObject } from "./storage-client";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -67,5 +67,21 @@ describe("storage byte transport", () => {
     expect(result.lifecycleState).toBe("stored");
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[2]?.[0]).toBe("https://api.example/api/storage/objects/obj_1/confirm");
+  });
+});
+
+describe("client file copy and search", () => {
+  it("asks the API to copy a file into another event and searches the client's files, with the bearer and encoded inputs", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify([]), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await copyStorageObject("obj/1", { eventId: "evt_2", logicalTarget: "client-upload:evt_2:123e4567-e89b-42d3-a456-426614174000" }, { authToken: "token", baseUrl: "http://api.test/api" });
+    await searchClientStoredFiles("venue permit & co", { authToken: "token", baseUrl: "http://api.test/api" });
+
+    const [[copyUrl, copyInit], [searchUrl, searchInit]] = fetchMock.mock.calls as Array<[string, RequestInit]>;
+    expect([copyInit.method, copyUrl]).toEqual(["POST", "http://api.test/api/storage/objects/obj%2F1/copies"]);
+    expect(JSON.parse(String(copyInit.body))).toEqual({ eventId: "evt_2", logicalTarget: "client-upload:evt_2:123e4567-e89b-42d3-a456-426614174000" });
+    expect(searchUrl).toBe("http://api.test/api/storage/objects/client-files?query=venue+permit+%26+co");
+    expect([copyInit, searchInit].every((init) => (init.headers as Record<string, string>).Authorization === "Bearer token")).toBe(true);
   });
 });

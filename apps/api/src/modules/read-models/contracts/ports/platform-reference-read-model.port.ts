@@ -154,6 +154,8 @@ export type PlatformPrivacyInventory = {
 /** Narrow, read-only owner composition used by Platform event, privacy, AI, and identity-evidence flows. */
 export interface PlatformReferenceReadModel {
   findStorageEventScope(eventId: string, transaction?: PrismTransactionContext): Promise<PlatformStorageEventScope | null>;
+  /** The client portal events (unlocked) whose inquiry belongs to this email, newest first and capped; access is still checked per event. */
+  findClientEventIds(clientEmail: string): Promise<string[]>;
   /** PMCM visibility overrides keyed by file requirement key; keys without an override are absent. */
   findFileRequirementVisibility(eventId: string): Promise<Record<string, string[]>>;
   supplierMayUploadRequirement(eventId: string, key: string, supplierId: string): Promise<boolean>;
