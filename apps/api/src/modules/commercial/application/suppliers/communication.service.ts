@@ -227,7 +227,9 @@ export class CommunicationService {
       if (current.length) throw new BadRequestException('Someone chosen is already in this conversation');
       // Joining starts read: the history stays visible, but only messages sent after this moment count as unread.
       const joinedAt = new Date();
-      await Promise.all(people.map((person) => tx.opsCommunicationParticipant.upsert({
+      await Promise.all(people.map((person) =>
+        // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: at most 20 people per request (addCommunicationParticipantsSchema), each with its own upsert.
+        tx.opsCommunicationParticipant.upsert({
         where: { threadId_actorId: { threadId, actorId: person.id } },
         create: { id: `participant_${randomUUID()}`, threadId, actorId: person.id, actorRole: person.role, actorEmail: person.email || null, lastReadAt: joinedAt, addedAt: joinedAt },
         update: { active: true, actorRole: person.role, actorEmail: person.email || null, lastReadAt: joinedAt, addedAt: joinedAt },
