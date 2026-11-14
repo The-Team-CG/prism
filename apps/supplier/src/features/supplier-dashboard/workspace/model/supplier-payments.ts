@@ -78,3 +78,15 @@ export function supplierPaymentTotals(payables: PrismSupplierPayableMilestone[],
     next,
   };
 }
+
+/** With no record of a visit, payouts sent within this many days count as new. */
+const NEW_WITHOUT_VISIT_DAYS = 14;
+
+/**
+ * Payouts PMCM sent since the supplier last opened Payments, for the badge and the "New" marks. With no record of a
+ * visit, only the last two weeks count, so a first visit does not mark years of history new.
+ */
+export function newPayoutReleases(payables: PrismSupplierPayableMilestone[], seenBefore: string | null, now = new Date()): Set<string> {
+  const since = seenBefore ?? new Date(now.getTime() - NEW_WITHOUT_VISIT_DAYS * 86_400_000).toISOString();
+  return new Set(payables.flatMap((payable) => payable.history.filter((record) => record.kind === "release" && record.recordedAt > since).map((record) => record.id)));
+}

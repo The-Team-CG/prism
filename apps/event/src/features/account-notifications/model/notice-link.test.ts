@@ -22,4 +22,8 @@ describe("pmcmNoticeLink", () => {
     expect(pmcmNoticeLink(action, null)).toBeNull();
     expect(pmcmNoticeLink(undefined, "evt_2")).toBeNull();
   });
+
+  it("opens a payment the client reported on the receipts desk, ready to check", () => {
+    expect(pmcmNoticeLink({ kind: "payment_receipt", receiptId: "prcp_1" }, "evt_1")).toEqual({ href: "/dashboard/finance/receipts?receipt=prcp_1", label: "Check payment" });
+  });
 });

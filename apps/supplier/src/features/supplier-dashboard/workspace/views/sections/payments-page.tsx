@@ -47,14 +47,15 @@ function Tiles({ totals }: { totals: ReturnType<typeof supplierPaymentTotals> })
   );
 }
 
-function Releases({ step, booking }: { step: PaymentStep; booking: SupplierBooking }) {
+function Releases({ step, booking, fresh }: { step: PaymentStep; booking: SupplierBooking; fresh?: ReadonlySet<string> }) {
   const payable = booking.payables.find((item) => item.id === step.id);
   if (!payable?.history.length) return null;
   return (
     <ul className="space-y-1 text-xs text-muted-foreground">
       {payable.history.map((record) => (
-        <li key={record.id}>
-          {record.kind === "reversal" ? "Reversed" : "Sent"} {formatPeso(record.amount)} on {formatPortalDate(record.paymentDate)} · {record.method}{record.referenceNumber ? ` · ${record.referenceNumber}` : ""}
+        <li key={record.id} className="flex flex-wrap items-center gap-x-2">
+          <span>{record.kind === "reversal" ? "Reversed" : "Sent"} {formatPeso(record.amount)} on {formatPortalDate(record.paymentDate)} · {record.method}{record.referenceNumber ? ` · ${record.referenceNumber}` : ""}</span>
+          {fresh?.has(record.id) ? <span className="rounded-md bg-success-soft px-1.5 py-0.5 text-[11px] font-semibold text-success">New</span> : null}
         </li>
       ))}
     </ul>
@@ -62,7 +63,7 @@ function Releases({ step, booking }: { step: PaymentStep; booking: SupplierBooki
 }
 
 /** One booking: the event, the agreed amount, and each payout PMCM owes on a bar and a timeline. */
-function BookingCard({ booking, todayKey }: { booking: SupplierBooking; todayKey: string }) {
+function BookingCard({ booking, todayKey, fresh }: { booking: SupplierBooking; todayKey: string; fresh?: ReadonlySet<string> }) {
   const steps = booking.payables.map((payable) => payoutStep(payable, todayKey));
   const paid = booking.payables.reduce((sum, payable) => sum + payable.amountReleased, 0);
   return (
@@ -82,7 +83,7 @@ function BookingCard({ booking, todayKey }: { booking: SupplierBooking; todayKey
       ) : (
         <>
           <PaymentProgressBar steps={steps} />
-          <PaymentTimeline steps={steps} label={`Payments for ${booking.eventName}`} detail={(step) => <Releases step={step} booking={booking} />} />
+          <PaymentTimeline steps={steps} label={`Payments for ${booking.eventName}`} detail={(step) => <Releases step={step} booking={booking} fresh={fresh} />} />
         </>
       )}
     </Card>
@@ -93,11 +94,13 @@ function BookingCard({ booking, todayKey }: { booking: SupplierBooking; todayKey
  * What PMCM pays the supplier: totals first (paid, next, still to come), then each booking by event with its payouts on
  * a timeline. A payment that should have arrived is one message away.
  */
-export function PaymentsPage({ workspace, workflowWorkspace, selectedQuotes, readinessBoard }: {
+export function PaymentsPage({ workspace, workflowWorkspace, selectedQuotes, readinessBoard, freshPayouts }: {
   workspace: SupplierWorkspace;
   workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
   selectedQuotes: PrismSupplierQuote[];
   readinessBoard: PrismSupplierReadinessBoard | null;
+  /** Payouts sent since the last visit, marked "New". */
+  freshPayouts?: ReadonlySet<string>;
 }) {
   const payables = workflowWorkspace?.payables ?? [];
   const todayKey = manilaDateKey();
@@ -119,7 +122,7 @@ export function PaymentsPage({ workspace, workflowWorkspace, selectedQuotes, rea
   return (
     <div className="space-y-4">
       <Tiles totals={totals} />
-      {bookings.map((booking) => <BookingCard key={booking.requestId} booking={booking} todayKey={todayKey} />)}
+      {bookings.map((booking) => <BookingCard key={booking.requestId} booking={booking} todayKey={todayKey} fresh={freshPayouts} />)}
       <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         A payment should have arrived but has not?
         <Button asChild size="sm" variant="outline"><Link href="/dashboard/messages"><MessageSquareText className="size-4" aria-hidden /> Message PMCM</Link></Button>

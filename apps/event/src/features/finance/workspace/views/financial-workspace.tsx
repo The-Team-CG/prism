@@ -13,6 +13,7 @@ import { paymentReceipts } from "@/features/finance/receipts";
 import { downloadStatementPdf, eventStatementOfAccount } from "../data/finance-repository";
 import { eventMoney } from "../model/event-money";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";
+import { useClientReminder } from "../view-models/use-client-reminder";
 import { useFinancialWorkspaceViewModel } from "../view-models/use-financial-workspace-view-model";
 import { EventFinanceQueue, EventMoneyHero, EventPaymentSchedule } from "./event-money-views";
 import { BillingStatementDetails, NotificationEvidence, PaymentAtRiskAlert, RecordPaymentModal } from "./financial-workspace-sections";
@@ -74,6 +75,7 @@ export function FinancialWorkspace({
   const receipts = useResource(paymentReceipts, { eventId: event.id }).data ?? [];
   const desk = useResource(financeDesk, "signed-in").data;
   const pdf = useStatementPdf(statement);
+  const reminder = useClientReminder(event.id);
   const todayKey = manilaDateKey();
   const active = payments.filter((payment) => !payment.supersededAt);
   const paymentAtRisk = active.some((payment) => payment.status === "at_risk");
@@ -112,6 +114,7 @@ export function FinancialWorkspace({
         busy={busy}
         onRecord={vm.openRecordModal}
         onToggleRisk={(payment) => void onMarkPayment(payment.id, { status: payment.status === "at_risk" ? "pending" : "at_risk" })}
+        reminder={{ busyId: reminder.busyId, remind: (milestoneId, label) => void reminder.remind(milestoneId, label) }}
       />
       {statement ? <BillingStatementDetails event={event} inquiry={inquiry} statement={statement} /> : null}
       <EventFinancialSummaryPanel eventId={event.id} folded />

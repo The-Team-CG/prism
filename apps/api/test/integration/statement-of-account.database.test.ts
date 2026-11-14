@@ -22,6 +22,8 @@ describe.skipIf(!live)('client statement of account against PostgreSQL', () => {
   const finance = { id: `soa-actor-${suffix}`, name: `Statement Test ${suffix}`, role: 'pmcm-admin' };
   const clientEmail = `client-${suffix}@example.test`;
   const auditWriter: AuditWriter = { write: async () => undefined };
+  const notices: Array<Record<string, unknown>> = [];
+  const notifications = { write: async (input: object) => { notices.push(input as Record<string, unknown>); } };
   const policy = new EventAccessPolicyService(auditWriter);
   let prisma: PrismaService;
   let receipts: PaymentReceiptService;
@@ -38,9 +40,9 @@ describe.skipIf(!live)('client statement of account against PostgreSQL', () => {
     process.env.DIRECT_URL = databaseUrl!;
     process.env.DB_SSL = 'false';
     prisma = new PrismaService();
-    receipts = new PaymentReceiptService(prisma, auditWriter);
+    receipts = new PaymentReceiptService(prisma, auditWriter, undefined, notifications);
     service = new StatementOfAccountService(prisma, policy);
-    submissions = new ClientPaymentSubmissionService(prisma, policy, service, auditWriter);
+    submissions = new ClientPaymentSubmissionService(prisma, policy, service, auditWriter, undefined, notifications);
 
     for (const key of ['a', 'b', 'c']) {
       await prisma.opsInquiry.create({ data: {
@@ -147,6 +149,24 @@ describe.skipIf(!live)('client statement of account against PostgreSQL', () => {
     expect(statement.submissions.map((submission) => submission.id)).toEqual([reported.id]);
     const stored = await prisma.opsPaymentReceipt.findUniqueOrThrow({ where: { id: reported.id } });
     expect(stored).toMatchObject({ source: 'client', status: 'recorded', intendedMilestoneId: id('milestone_c'), eventId: id('event_c') });
+    // PMCM hears about it, with a link straight to the receipt.
+    expect(notices).toContainEqual(expect.objectContaining({ recipient: 'PMCM Admin', action: { kind: 'payment_receipt', receiptId: reported.id } }));
+  });
+
+  it('tells the client when PMCM accepts a payment they reported, and why PMCM did not accept one', async () => {
+    const client = actor(OpsUserRole.Client, clientEmail);
+    const accepted = await submissions.submit(id('event_c'), { amount: 10000, paidDate: '2026-11-11', method: 'GCash', referenceNumber: `GC-OK-${suffix}` }, client);
+    const refused = await submissions.submit(id('event_c'), { amount: 5000, paidDate: '2026-11-12', method: 'GCash', referenceNumber: `GC-NO-${suffix}` }, client);
+
+    await receipts.verify(accepted.id, { notes: 'Matched the wallet history.' }, finance);
+    await receipts.reject(refused.id, { reason: 'No matching credit; please send the transfer slip.' }, finance);
+
+    const toClient = notices.filter((notice) => notice.recipient === 'Client' && notice.eventId === id('event_c'));
+    expect(toClient).toEqual(expect.arrayContaining([
+      expect.objectContaining({ message: expect.stringMatching(/^PMCM confirmed your ₱10,000 GCash payment/), action: { kind: 'event_section', eventId: id('event_c'), section: 'billing' } }),
+      expect.objectContaining({ message: expect.stringContaining('No matching credit; please send the transfer slip.') }),
+    ]));
+    expect(JSON.stringify(toClient)).not.toContain('Matched the wallet history.');
   });
 
   it('refuses a payment report from anyone but the event client, before the statement is sent, or for a payment PMCM already has', async () => {

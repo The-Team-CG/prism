@@ -36,6 +36,8 @@ import { toast } from "@prism/ui/components/sonner";
 import { dashboardActionSuccessToast, runDashboardAction, runDashboardActionWithSuccess, type DashboardActionRefreshers } from "./dashboard-action-runner";
 import { countersignConformeExecution, downloadConformePdf, prepareConformeExecution, refreshConformeExecution } from "@/features/conforme/signing/use-cases/conforme-signing";
 import { assignedSupplierRequests } from "@/features/suppliers/readiness";
+import { useResource } from "@prism/portal-query";
+import { financeDesk } from "@/features/finance/desk";
 
 export type { EventDashboardClientProps };
 
@@ -304,6 +306,8 @@ export function useEventDashboardShellViewModel({
   const inEventWorkspace = Boolean(routeState.eventId) && !eventWorkspaceDisabled;
   // Messages inside an event counts that event's conversations only.
   const unreadMessages = useEventUnreadMessages({ eventId: selectedEvent?.id });
+  // The Finance count is the desk's queue: what is late, to verify or apply, disputed, or owed to a supplier.
+  const financeQueue = useResource(financeDesk, "signed-in");
   const shellNavItems = eventPortalNavItems({
     inEventWorkspace,
     unreadMessages,
@@ -320,6 +324,7 @@ export function useEventDashboardShellViewModel({
     draftCount: drafts.length,
     paymentCount: payments.length,
     closeoutCount: openCheckCount,
+    financeCount: financeQueue.data ? financeQueue.data.queue.filter((item) => item.severity !== "info").length : undefined,
   }).map((item) => ({ ...item, href: item.disabled ? undefined : eventSidebarItemHref(item.id, selectedEvent?.id) }));
   const activeNavItem = shellNavItems.find((item) => item.id === activeSidebarItemId);
 

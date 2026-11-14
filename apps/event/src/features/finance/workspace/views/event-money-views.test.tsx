@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { PrismFinanceDeskEvent, PrismPaymentMilestone, PrismPaymentReceipt, PrismStatementMilestone } from "@prism/types";
 import { EventMoneyHero, EventPaymentSchedule } from "./event-money-views";
 
@@ -46,7 +46,8 @@ describe("PMCM event billing", () => {
     expect(screen.getByRole("button", { name: /Statement PDF/ })).toBeTruthy();
   });
 
-  it("shows each payment's money with whether it was verified, and actions only for payments still open", () => {
+  it("shows each payment's money with whether it was verified, and actions (including a reminder once late) only for payments still open", () => {
+    const remind = vi.fn();
     const steps = [
       milestone({ id: "dp", label: "Downpayment", dueDate: "2026-09-26", amount: 210000, paid: 210000, remaining: 0, settledOn: "2026-09-25" }),
       milestone({ id: "second", label: "Second payment", dueDate: "2026-10-19", amount: 126000, paid: 60000, remaining: 66000, checking: 60000 }),
@@ -60,6 +61,7 @@ describe("PMCM event billing", () => {
         busy={false}
         onRecord={vi.fn()}
         onToggleRisk={vi.fn()}
+        reminder={{ busyId: null, remind }}
       />,
     );
 
@@ -70,5 +72,8 @@ describe("PMCM event billing", () => {
     expect(within(late).getByText(/26 days late/)).toBeTruthy();
     expect(within(late).getByRole("link", { name: "Open receipt" }).getAttribute("href")).toBe("/dashboard/finance/receipts?receipt=prcp_new");
     expect(within(late).getByRole("button", { name: /Record payment/ })).toBeTruthy();
+    expect(within(paid).queryByRole("button", { name: /Remind client/ })).toBeNull();
+    fireEvent.click(within(late).getByRole("button", { name: /Remind client/ }));
+    expect(remind).toHaveBeenCalledWith("second", "second");
   });
 });
