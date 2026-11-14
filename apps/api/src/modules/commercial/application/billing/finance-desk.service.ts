@@ -49,7 +49,7 @@ export class FinanceDeskService {
     const [statements, milestones, records, receipts, disputes, corrections, draftSources, payables] = await Promise.all([
       this.prisma.opsBillingStatement.findMany({
         where: { ...scope, status: { not: 'superseded' } },
-        select: { id: true, eventId: true, number: true, totalAmount: true, sentAt: true, generatedAt: true, paymentMethods: true },
+        select: { id: true, eventId: true, number: true, totalAmount: true, sentAt: true, generatedAt: true },
         orderBy: [{ generatedAt: 'desc' }, { id: 'asc' }],
         take: MAX_ROWS,
       }),

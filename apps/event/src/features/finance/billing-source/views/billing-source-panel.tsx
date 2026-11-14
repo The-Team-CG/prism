@@ -141,6 +141,7 @@ function BillingSourceItem({
   source,
   issued,
   busy,
+  generateBlockedReason,
   onApprove,
   onGenerate,
 }: {
@@ -148,6 +149,7 @@ function BillingSourceItem({
   /** The statement already generated from this source, if any: a source bills once. */
   issued?: PrismBillingStatement;
   busy: boolean;
+  generateBlockedReason?: string | null;
   onApprove: (sourceId: string) => Promise<void>;
   onGenerate: (sourceId: string) => Promise<void>;
 }) {
@@ -164,7 +166,7 @@ function BillingSourceItem({
         {issued ? (
           <p className="text-sm text-muted-foreground">Billed on statement {issued.number}{issued.sentAt ? ", sent to the client" : ", not sent yet"}.</p>
         ) : source.status === "approved" ? (
-          <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void onGenerate(source.id)}>Generate statement</Button>
+          <Button type="button" size="sm" variant="outline" disabled={busy || Boolean(generateBlockedReason)} title={generateBlockedReason ?? undefined} onClick={() => void onGenerate(source.id)}>Generate statement</Button>
         ) : (
           <Button type="button" size="sm" disabled={busy} onClick={() => void onApprove(source.id)}>Approve source</Button>
         )}
@@ -179,6 +181,7 @@ export function BillingSourcePanel({
   statements = [],
   proposalDocuments,
   busy,
+  generateBlockedReason,
   onCreate,
   onApprove,
   onGenerate,
@@ -189,6 +192,8 @@ export function BillingSourcePanel({
   statements?: PrismBillingStatement[];
   proposalDocuments: PrismDocument[];
   busy: boolean;
+  /** Why a statement cannot be issued yet, such as no payment details; the button stays off and says why. */
+  generateBlockedReason?: string | null;
   /** Resolves true when the source was created; on failure the entered values stay for correction. */
   onCreate: (input: CreateBillingSourceInput) => Promise<boolean>;
   onApprove: (sourceId: string) => Promise<void>;
@@ -236,7 +241,7 @@ export function BillingSourcePanel({
       <ul className="mt-4 grid gap-3" aria-label="Billing sources">
         {billingSources.length === 0 ? <NoBillingSource statements={statements} /> : null}
         {[...drafts, ...billingSources.filter((source) => source.status === "approved")].map((source) => (
-          <BillingSourceItem key={source.id} source={source} issued={statements.find((statement) => statement.sourceId === source.id && statement.status !== "superseded")} busy={busy} onApprove={onApprove} onGenerate={onGenerate} />
+          <BillingSourceItem key={source.id} source={source} issued={statements.find((statement) => statement.sourceId === source.id && statement.status !== "superseded")} busy={busy} generateBlockedReason={generateBlockedReason} onApprove={onApprove} onGenerate={onGenerate} />
         ))}
       </ul>
 

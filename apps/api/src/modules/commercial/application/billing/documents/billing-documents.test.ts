@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PrismStatementOfAccount } from '@prism/types';
+import type { PaymentMethod, PrismStatementOfAccount } from '@prism/types';
 import { renderBillingStatementPdf, renderPaymentReceiptPdf, renderStatementOfAccountPdf } from './billing-documents';
 
 /** A well-formed PDF: header, an xref table whose offsets point at each object, and a trailer pointing at the xref. */
@@ -13,9 +13,11 @@ function expectWellFormed(pdf: Buffer) {
   return text;
 }
 
+const bpi: PaymentMethod = { kind: 'bank', id: '00000000-0000-4000-8000-000000000001', label: 'BPI', accountName: 'PMCM Events Inc.', accountNumber: '0123-4567-89', instructions: '', qrImageId: null, enabled: true };
+
 const statement = (overrides: Partial<PrismStatementOfAccount> = {}): PrismStatementOfAccount => ({
   eventId: 'evt', eventName: 'UAT Live Ops Event', generatedAt: '', available: true, statementNumber: 'BS-2026-0003', billed: 420000, received: 270000, refunded: 0,
-  creditHeld: 0, balance: 150000, disputedOnStatement: 0, paymentMethods: [{ label: 'BPI', details: 'PMCM Events Inc. · Account 0123' }], submissions: [],
+  creditHeld: 0, balance: 150000, disputedOnStatement: 0, paymentMethods: [], payTo: [bpi], payToChangedSinceIssued: false, submissions: [],
   milestones: [
     { id: 'm1', label: 'Downpayment', dueDate: '2026-09-26', amount: 210000, paid: 210000, remaining: 0, status: 'paid', checking: 0, disputed: 0, settledOn: '2026-09-25' },
     { id: 'm2', label: 'Second payment', dueDate: '2026-10-19', amount: 126000, paid: 60000, remaining: 66000, status: 'partially_paid', checking: 60000, disputed: 0, settledOn: null },
@@ -44,8 +46,13 @@ describe('billing documents', () => {
   it('marks each payment on the statement of account, leaves undone payments out of the totals, and asks how to pay while money is owed', () => {
     const text = expectWellFormed(renderStatementOfAccountPdf({ statement: statement(), clientName: 'Ana Reyes', eventDate: '2026-10-26', today: '2026-11-14' }));
 
-    for (const piece of ['STATEMENT OF ACCOUNT', 'PAID SEP 25, 2026', 'OVERDUE', 'Balance due', 'PHP 150,000', String.raw`\(not counted\)`, 'How to pay']) expect(text).toContain(piece);
+    for (const piece of ['STATEMENT OF ACCOUNT', 'PAID SEP 25, 2026', 'OVERDUE', 'Balance due', 'PHP 150,000', String.raw`\(not counted\)`, 'How to pay', 'PMCM Events Inc.', '0123-4567-89']) expect(text).toContain(piece);
     expect(text).not.toContain('PAID IN FULL');
+    expect(text).not.toContain('Scan the QR');
+
+    // A PDF cannot carry the QR image, so a method with one says where to find it instead.
+    const withQr = expectWellFormed(renderStatementOfAccountPdf({ statement: statement({ payTo: [{ ...bpi, qrImageId: 'pqr_1' }] }), clientName: 'Ana Reyes', eventDate: '2026-10-26', today: '2026-11-14' }));
+    expect(withQr).toContain('Scan the QR under Billing');
     expect(text).toContain(String.raw`\267`); // the middle dot, as its WinAnsi code
   });
 

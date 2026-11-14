@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { PaymentMethod } from '@prism/types';
 import { buildStatementOfAccount, type StatementInputs, type StatementReceipt } from './statement-of-account.policy';
 
 const d = (value: string) => new Date(`${value}T00:00:00.000Z`);
@@ -37,7 +38,7 @@ describe('statement of account', () => {
     const unsent = { number: 'BS-1', totalAmount: 150000, sentAt: null, generatedAt: d('2026-09-30') };
 
     expect(buildStatementOfAccount(inputs({ statement: unsent }))).toEqual({
-      available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, disputedOnStatement: 0, milestones: [], paymentMethods: [], submissions: [], lines: [],
+      available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, disputedOnStatement: 0, milestones: [], paymentMethods: [], payTo: [], payToChangedSinceIssued: false, submissions: [], lines: [],
     });
     expect(buildStatementOfAccount(inputs({ statement: null })).available).toBe(false);
     expect(buildStatementOfAccount(inputs({ statement: unsent, viewer: 'pmcm' }))).toMatchObject({ available: true, billed: 150000 });
@@ -140,11 +141,26 @@ describe('statement of account', () => {
     ]);
   });
 
-  it('carries how to pay from the statement, dropping entries with no name', () => {
-    const result = buildStatementOfAccount(inputs({
-      statement: { number: 'BS-1', totalAmount: 150000, sentAt: d('2026-10-01'), generatedAt: d('2026-09-30'), paymentMethods: [{ label: ' BPI ', details: 'Acct 123' }, { label: '', details: 'x' }, 'junk'] },
-    }));
+  it('tells the client to pay to the details PMCM has now, says when they changed since the statement, and never carries an older copy', () => {
+    const bpi: PaymentMethod = { kind: 'bank', id: '00000000-0000-4000-8000-000000000001', label: 'BPI', accountName: 'PMCM Events', accountNumber: '1234 5678', instructions: 'Use the statement number', qrImageId: null, enabled: true };
+    const gcash: PaymentMethod = { kind: 'ewallet', id: '00000000-0000-4000-8000-000000000002', label: 'GCash', accountName: 'PMCM Finance', accountNumber: '0917 123 4567', instructions: '', qrImageId: 'pqr_a', enabled: true };
+    const issuedWith = (revision: number | null) => ({ number: 'BS-1', totalAmount: 150000, sentAt: d('2026-10-01'), generatedAt: d('2026-09-30'), paymentDetailsRevision: revision });
 
-    expect(result.paymentMethods).toEqual([{ label: 'BPI', details: 'Acct 123' }]);
+    const current = buildStatementOfAccount(inputs({ statement: issuedWith(2), paymentDetails: { revision: 2, methods: [bpi, gcash] } }));
+    expect(current.payTo).toEqual([bpi, gcash]);
+    expect(current.paymentMethods).toEqual([
+      { label: 'BPI', details: ['PMCM Events', '1234 5678', 'Use the statement number'].join('\n') },
+      { label: 'GCash', details: ['PMCM Finance', '0917 123 4567'].join('\n') },
+    ]);
+    expect(current.payToChangedSinceIssued).toBe(false);
+
+    expect(buildStatementOfAccount(inputs({ statement: issuedWith(1), paymentDetails: { revision: 2, methods: [bpi] } })).payToChangedSinceIssued).toBe(true);
+    // A statement issued before payment details existed has no revision, so any saved details are newer than it.
+    expect(buildStatementOfAccount(inputs({ statement: issuedWith(null), paymentDetails: { revision: 1, methods: [bpi] } })).payToChangedSinceIssued).toBe(true);
+
+    // Nothing turned on, or nothing given: the client is shown no account at all, not a placeholder.
+    const none = buildStatementOfAccount(inputs({ statement: issuedWith(2), paymentDetails: { revision: 3, methods: [] } }));
+    expect(none).toMatchObject({ payTo: [], paymentMethods: [] });
+    expect(buildStatementOfAccount(inputs({ statement: issuedWith(2) }))).toMatchObject({ payTo: [], paymentMethods: [], payToChangedSinceIssued: false });
   });
 });

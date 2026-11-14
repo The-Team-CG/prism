@@ -1,4 +1,4 @@
-import type { PrismPaymentSubmission, PrismStatementMilestone, PrismStatementOfAccount, PrismStatementOfAccountLine } from '@prism/types';
+import { paymentMethodLine, type PaymentMethod, type PrismPaymentSubmission, type PrismStatementMilestone, type PrismStatementOfAccount, type PrismStatementOfAccountLine } from '@prism/types';
 
 export type StatementViewer = 'client' | 'pmcm';
 
@@ -22,7 +22,9 @@ export interface StatementReceipt {
 export interface StatementInputs {
   viewer: StatementViewer;
   /** The current billing statement. For a client, only one PMCM has sent counts. */
-  statement: { number: string; totalAmount: number; sentAt: Date | null; generatedAt: Date; paymentMethods?: unknown } | null;
+  statement: { number: string; totalAmount: number; sentAt: Date | null; generatedAt: Date; paymentDetailsRevision?: number | null } | null;
+  /** PMCM's payment details as they are now: what a client is told to pay to. Without it, no method is shown. */
+  paymentDetails?: { revision: number; methods: PaymentMethod[] };
   /** Current (not replaced) milestones the viewer may see. */
   milestones: Array<{ id: string; label: string; dueDate: Date; amount: number; amountPaid: number; creditApplied: number; remainingBalance: number; status: string }>;
   /** Payment records on those milestones. A negative one carries `reversesRecordId` and undoes that payment. */
@@ -70,15 +72,6 @@ function refundLines(refunds: StatementInputs['refunds']): PrismStatementOfAccou
   return refunds.map((refund) => ({
     id: refund.id, date: isoDate(refund.refundedDate), kind: 'refund' as const, description: 'Refund paid back to you', method: refund.method, reference: refund.referenceNumber, amount: refund.amount, reversed: false,
   }));
-}
-
-function paymentMethods(value: unknown): Array<{ label: string; details: string }> {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item: unknown) => {
-    if (!item || typeof item !== 'object') return [];
-    const { label, details } = item as { label?: unknown; details?: unknown };
-    return typeof label === 'string' && label.trim() ? [{ label: label.trim(), details: typeof details === 'string' ? details.trim() : '' }] : [];
-  });
 }
 
 /** Records still counting: a payment that was later reversed, and the reversal itself, both drop out. */
@@ -152,7 +145,7 @@ function submissions(input: StatementInputs): PrismPaymentSubmission[] {
 }
 
 const UNAVAILABLE: Omit<PrismStatementOfAccount, 'eventId' | 'eventName' | 'generatedAt'> = {
-  available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, disputedOnStatement: 0, milestones: [], paymentMethods: [], submissions: [], lines: [],
+  available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, disputedOnStatement: 0, milestones: [], paymentMethods: [], payTo: [], payToChangedSinceIssued: false, submissions: [], lines: [],
 };
 
 /**
@@ -161,8 +154,10 @@ const UNAVAILABLE: Omit<PrismStatementOfAccount, 'eventId' | 'eventName' | 'gene
  * Unapplied money counts as credit held only once PMCM has checked it; until then it is listed as being checked.
  */
 export function buildStatementOfAccount(input: StatementInputs): Omit<PrismStatementOfAccount, 'eventId' | 'eventName' | 'generatedAt'> {
-  if (!visible(input) || !input.statement) return { ...UNAVAILABLE, milestones: [], paymentMethods: [], submissions: [], lines: [] };
+  if (!visible(input) || !input.statement) return { ...UNAVAILABLE, milestones: [], paymentMethods: [], payTo: [], submissions: [], lines: [] };
   const credit = sum(input.milestones.map((milestone) => milestone.creditApplied));
+  const live = input.paymentDetails ?? { revision: 0, methods: [] };
+  const payTo = live.methods;
   const lines = [...paymentLines(input.records), ...creditLine(input, credit), ...refundLines(input.refunds)]
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
   return {
@@ -175,7 +170,9 @@ export function buildStatementOfAccount(input: StatementInputs): Omit<PrismState
     balance: sum(input.milestones.map((milestone) => milestone.remainingBalance)),
     disputedOnStatement: sum((input.openDisputes ?? []).filter((dispute) => !dispute.milestoneId).map((dispute) => dispute.amount)),
     milestones: milestoneFacts(input),
-    paymentMethods: paymentMethods(input.statement.paymentMethods),
+    paymentMethods: payTo.map(paymentMethodLine),
+    payTo,
+    payToChangedSinceIssued: live.revision > 0 && (input.statement.paymentDetailsRevision ?? null) !== live.revision,
     submissions: submissions(input),
     lines,
   };

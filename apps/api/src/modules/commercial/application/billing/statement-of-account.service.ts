@@ -7,6 +7,7 @@ import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 import type { PrismStatementOfAccount, PrismVerifiedEventActor } from '@prism/types';
 import { LIVE_RECEIPT_STATUSES, receiptBalance } from '../../domain/payment-receipt.policy';
 import { buildStatementOfAccount, type StatementViewer } from '../../domain/statement-of-account.policy';
+import { readLivePaymentDetails } from './live-payment-details';
 
 /** An event has a handful of each of these; the bounds only keep every read finite. */
 const MAX_ROWS = 2000;
@@ -37,14 +38,26 @@ export class StatementOfAccountService {
     return this.buildStatement(eventId, scope.eventName, scoped.actor.role === OpsUserRole.Client ? 'client' : 'pmcm');
   }
 
+  /**
+   * A payment QR image the viewer's statement tells them to scan. Seen through the statement itself, so a client only gets
+   * it for their own event once the statement is sent, and only while a method that is turned on still shows it.
+   */
+  async paymentQr(eventId: string, imageId: string, verifiedActor: PrismVerifiedEventActor): Promise<{ bytes: Buffer; contentType: string }> {
+    const statement = await this.statementFor(eventId, verifiedActor);
+    const shown = statement.payTo.some((method) => 'qrImageId' in method && method.qrImageId === imageId);
+    const image = shown ? await this.prisma.opsPmcmPaymentQrImage.findUnique({ where: { id: imageId }, select: { bytes: true, contentType: true } }) : null;
+    if (!statement.available || !image) throw new NotFoundException('Payment QR image not found');
+    return { bytes: Buffer.from(image.bytes), contentType: image.contentType };
+  }
+
   async buildStatement(eventId: string, eventName: string, viewer: StatementViewer): Promise<PrismStatementOfAccount> {
     const clientView = viewer === 'client';
     const milestoneVisibility = clientView ? CLIENT_VISIBLE_MILESTONE : {};
-    const [statement, milestones, records, receipts, openDisputes] = await Promise.all([
+    const [statement, milestones, records, receipts, openDisputes, paymentDetails] = await Promise.all([
       this.prisma.opsBillingStatement.findFirst({
         where: { eventId, ...(clientView ? CLIENT_VISIBLE_STATEMENT : {}) },
         orderBy: [{ generatedAt: 'desc' }, { id: 'asc' }],
-        select: { id: true, number: true, totalAmount: true, sentAt: true, generatedAt: true, paymentMethods: true },
+        select: { id: true, number: true, totalAmount: true, sentAt: true, generatedAt: true, paymentDetailsRevision: true },
       }),
       this.prisma.opsPaymentMilestone.findMany({
         where: { eventId, supersededAt: null, ...milestoneVisibility },
@@ -77,6 +90,8 @@ export class StatementOfAccountService {
         // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: an event has a handful of these; MAX_ROWS only keeps the read finite.
         take: MAX_ROWS,
       }),
+      // Clients are told to pay to PMCM's details as they are now, never the copy printed on an older statement.
+      readLivePaymentDetails(this.prisma),
     ]);
     const live = receipts.filter((receipt) => (LIVE_RECEIPT_STATUSES as readonly string[]).includes(receipt.status));
     const figures = buildStatementOfAccount({
@@ -100,6 +115,7 @@ export class StatementOfAccountService {
         createdAt: receipt.createdAt,
       })),
       openDisputes: openDisputes.filter((dispute) => !statement || dispute.statementId === statement.id),
+      paymentDetails,
     });
     return { eventId, eventName, generatedAt: new Date().toISOString(), ...figures };
   }

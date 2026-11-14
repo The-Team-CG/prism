@@ -66,7 +66,6 @@ export class ConfirmedCancellationFeeWriterService implements ConfirmedCancellat
         sourceDocumentId: null,
         lineItems: toPrismaJson(payload.data.lineItems),
         paymentSchedule: toPrismaJson(payload.data.paymentSchedule),
-        paymentMethods: toPrismaJson(payload.data.paymentMethods ?? []),
         totalAmount: input.amount,
         status: 'approved',
         approvedAt: now,

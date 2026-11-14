@@ -56,8 +56,8 @@ test('migrated PostgreSQL: prerequisites, atomic failure, reruns, edits, collisi
         assert.equal((await client.query("SELECT two_factor_secret FROM identity_access.users WHERE id='usr_pmcm'")).rows[0].two_factor_secret, 'tester-2fa');
       });
       await t.test('all scenario rows insert and a rerun preserves tester edits and bearer tokens', async () => {
-        assert.equal((await run({ profile: 'portal-uat', mode: 'dry-run' })).missing.length, 70);
-        assert.equal((await run({ profile: 'portal-uat' })).inserted, 70);
+        assert.equal((await run({ profile: 'portal-uat', mode: 'dry-run' })).missing.length, 105);
+        assert.equal((await run({ profile: 'portal-uat' })).inserted, 105);
         const token = (await client.query("SELECT access_token FROM commercial.quote_requests WHERE id='rq_uat_xperto_submit'")).rows[0].access_token;
         await client.query("UPDATE live_ops.event_day_tasks SET notes='tester changed this', status='done' WHERE id='task_uat_live_registration'");
         assert.equal((await run({ profile: 'portal-uat' })).inserted, 0);

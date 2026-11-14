@@ -8,7 +8,7 @@ import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, StorageObjectService, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { DOCUMENT_VAULT, type DocumentVault } from '@prism/contexts/event-lifecycle';
-import type { PrismVerifiedEventActor } from '@prism/types';
+import { paymentMethodLine, type PrismVerifiedEventActor } from '@prism/types';
 import { validatePaymentTerms } from '../../domain/payment-terms.policy';
 import { auditMetadata, billingCommandContext, isoDate, timestamp, addDays, parseDate, requireBillingActor } from './billing-operations.utils';
 import { mapBillingSource, mapBillingStatement } from './billing-operations.mappers';
@@ -16,11 +16,12 @@ import type {
   ApproveBillingSourceInput,
   BillingActor,
   BillingLineItemInput,
-  BillingMethodInput,
   BillingScheduleInput,
   CreateBillingSourceInput,
 } from '../../contracts/billing-operations.types';
 import { renderBillingStatementPdf } from './documents/billing-documents';
+import { documentMethodLine } from './documents/document-method-line';
+import { readLivePaymentDetails, type LivePaymentDetails } from './live-payment-details';
 
 type ProposalEvidenceCheck = { citedProposalVersion?: number; evidenceOverrideReason?: string; totalOverrideReason?: string };
 
@@ -76,7 +77,6 @@ export class BillingOperationsService {
     let lineItems: BillingLineItemInput[] = [];
     let totalAmount = 0;
     let paymentSchedule: ReturnType<BillingOperationsService['normalizeBillingSchedule']> = [];
-    let paymentMethods: ReturnType<BillingOperationsService['normalizeBillingMethods']> = [];
     let paymentTermsPolicyState = 'standard';
     let paymentTermsOverrideReason: string | null = null;
     let evidenceCheck: ProposalEvidenceCheck = {};
@@ -110,7 +110,6 @@ export class BillingOperationsService {
         const terms = validatePaymentTerms({ schedule: paymentSchedule, policy: input.paymentTermsPolicy, overrideReason: input.paymentTermsOverrideReason });
         paymentTermsPolicyState = terms.state;
         paymentTermsOverrideReason = terms.overrideReason;
-        paymentMethods = this.normalizeBillingMethods(input.paymentMethods);
       },
       validateStateInTransaction: async (context) => {
         if (input.sourceDocumentId) {
@@ -137,7 +136,6 @@ export class BillingOperationsService {
               sourceDocumentId: input.sourceDocumentId ?? null,
               lineItems: toPrismaJson(lineItems),
               paymentSchedule: toPrismaJson(paymentSchedule),
-              paymentMethods: toPrismaJson(paymentMethods),
               totalAmount,
               status: 'draft',
               paymentTermsPolicyState,
@@ -252,7 +250,7 @@ export class BillingOperationsService {
     let billingNumber = '';
     let lineItems: ReturnType<BillingOperationsService['asBillingLineItems']> = [];
     let paymentSchedule: ReturnType<BillingOperationsService['asBillingSchedule']> = [];
-    let paymentMethods: ReturnType<BillingOperationsService['asBillingMethods']> = [];
+    let paymentDetails: LivePaymentDetails = { revision: 0, methods: [] };
     let pdfBytes: Uint8Array = new Uint8Array();
     let storageState = 'pending';
     let storageObjectId: string | null = null;
@@ -281,7 +279,6 @@ export class BillingOperationsService {
 
         lineItems = this.asBillingLineItems(source.lineItems);
         paymentSchedule = this.asBillingSchedule(source.paymentSchedule, source.totalAmount, event.eventDate);
-        paymentMethods = this.asBillingMethods(source.paymentMethods);
       },
       write: async (context) => {
         if (!event || !source) throw new NotFoundException('Billing source not found');
@@ -296,10 +293,12 @@ export class BillingOperationsService {
         // One statement per source; a correction replaces an invoice with a statement from a new source.
         const sourceStatement = await tx.opsBillingStatement.findFirst({ where: { sourceId: source.id }, select: { id: true } });
         if (sourceStatement) throw new ConflictException('A billing statement already exists for this source.');
+        // The statement keeps the payment details it is issued with; with none turned on, clients would be told to pay nowhere.
+        paymentDetails = await this.requireIssuablePaymentDetails(tx);
         billingNumber = await this.allocateBillingNumber(tx, event.eventDate.getFullYear());
         pdfBytes = renderBillingStatementPdf({
           number: billingNumber, issuedOn: new Date().toISOString(), clientName: inquiry?.clientName ?? event.clientName, clientContact: inquiry?.email ?? '',
-          eventName: event.eventName, eventDate: event.eventDate.toISOString().slice(0, 10), lineItems, schedule: paymentSchedule, methods: paymentMethods, total: source.totalAmount,
+          eventName: event.eventName, eventDate: event.eventDate.toISOString().slice(0, 10), lineItems, schedule: paymentSchedule, methods: paymentDetails.methods.map(documentMethodLine), total: source.totalAmount,
         });
         const storage = await this.prepareBillingStatementStorage(eventId, statementId, billingNumber, source, pdfBytes, actor);
         storageState = storage.storageState;
@@ -333,7 +332,8 @@ export class BillingOperationsService {
             eventDate: event.eventDate,
             lineItems: toPrismaJson(lineItems),
             paymentSchedule: toPrismaJson(paymentSchedule),
-            paymentMethods: toPrismaJson(paymentMethods),
+            paymentMethods: toPrismaJson(paymentDetails.methods.map(paymentMethodLine)),
+            paymentDetailsRevision: paymentDetails.revision,
             totalAmount: source.totalAmount,
             documentId: billingDocument.id,
             pdfUrl: '',
@@ -588,21 +588,6 @@ export class BillingOperationsService {
     return normalized;
   }
 
-  private normalizeBillingMethods(methods: BillingMethodInput[] | undefined) {
-    const source =
-      methods && methods.length > 0
-        ? methods
-        : [
-            { label: 'Bank Transfer', details: 'PMCM corporate bank account' },
-            { label: 'GCash', details: 'PMCM finance GCash number' },
-            { label: 'Cheque', details: 'Payable to PMCM Events Management' },
-          ];
-    return source.map((item) => ({
-      label: item.label?.trim() || 'Payment method',
-      details: item.details?.trim() || 'Coordinate with PMCM finance',
-    }));
-  }
-
   private asBillingLineItems(value: unknown) {
     return Array.isArray(value) ? (value as Array<{ label: string; amount: number }>) : [];
   }
@@ -618,8 +603,11 @@ export class BillingOperationsService {
     }));
   }
 
-  private asBillingMethods(value: unknown) {
-    return Array.isArray(value) ? (value as Array<{ label: string; details: string }>) : this.normalizeBillingMethods(undefined);
+  /** PMCM's payment details as they are now; refused when none is turned on, since clients would be told to pay nowhere. */
+  private async requireIssuablePaymentDetails(db: Prisma.TransactionClient): Promise<LivePaymentDetails> {
+    const details = await readLivePaymentDetails(db);
+    if (details.methods.length === 0) throw new ConflictException('Add PMCM payment details in Finance > Payment details before issuing a statement.');
+    return details;
   }
 
   private async requireEvent(eventId: string, db: Prisma.TransactionClient | PrismaService = this.prisma) {

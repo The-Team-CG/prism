@@ -26,6 +26,13 @@ export class StatementOfAccountController {
     return pdfFile(await this.documents.statementOfAccountPdf(eventId, verifiedActor));
   }
 
+  /** A payment QR the statement tells the client to scan, under the same rules as the statement itself. */
+  @Get(':eventId/statement-of-account/payment-qr/:imageId')
+  async paymentQr(@Param('eventId') eventId: string, @Param('imageId') imageId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const image = await this.statements.paymentQr(eventId, imageId, verifiedActor);
+    return new StreamableFile(image.bytes, { type: image.contentType });
+  }
+
   /** A receipt for one payment on the statement. */
   @Get(':eventId/payment-records/:recordId/receipt')
   async paymentReceiptPdf(@Param('eventId') eventId: string, @Param('recordId') recordId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {

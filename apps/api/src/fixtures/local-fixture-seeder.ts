@@ -1227,6 +1227,19 @@ export class LocalFixtureSeeder {
         { label: 'Balance', percentage: 50, amount: 260000, dueDate: '2026-06-11' },
       ];
       const billingLines = [{ label: 'Approved event package', amount: 520000 }];
+      // PMCM's payment details: what the statement below was issued with and what clients are told to pay to.
+      await tx.opsPmcmPaymentDetails.create({
+        data: {
+          id: 'pmcm',
+          methods: toPrismaJson([
+            { kind: 'bank', id: '3f0c2d7e-5b1a-4e6f-8a90-1c2d3e4f5a01', label: 'BPI', accountName: 'PMCM Events Inc.', accountNumber: '0123-4567-89', instructions: 'Use the statement number as the reference.', qrImageId: null, enabled: true },
+            { kind: 'ewallet', id: '3f0c2d7e-5b1a-4e6f-8a90-1c2d3e4f5a02', label: 'GCash', accountName: 'PMCM Events', accountNumber: '0917 555 0100', instructions: '', qrImageId: null, enabled: true },
+          ]),
+          revision: 1,
+          updatedBy: 'PMCM Admin',
+        },
+      });
+
       // The statement is issued from an approved billing source, as the billing workflow requires.
       await tx.opsBillingSource.create({
         data: {
@@ -1260,10 +1273,10 @@ export class LocalFixtureSeeder {
           lineItems: toPrismaJson(billingLines),
           paymentSchedule: toPrismaJson(billingSchedule),
           paymentMethods: toPrismaJson([
-            { label: 'Bank Transfer', details: 'PMCM corporate bank account' },
-            { label: 'GCash', details: 'PMCM finance GCash number' },
-            { label: 'Cheque', details: 'Payable to PMCM Events Management' },
+            { label: 'BPI', details: ['PMCM Events Inc.', '0123-4567-89', 'Use the statement number as the reference.'].join('\n') },
+            { label: 'GCash', details: ['PMCM Events', '0917 555 0100'].join('\n') },
           ]),
+          paymentDetailsRevision: 1,
           totalAmount: 520000,
           documentId: 'doc_sample_billing',
           pdfUrl: '/api/documents/doc_sample_billing/signed-url',

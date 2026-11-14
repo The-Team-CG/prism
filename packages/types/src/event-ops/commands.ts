@@ -239,7 +239,6 @@ type CreateBillingSourceInput = {
     percentage: number;
     dueDate?: string;
   }>;
-  paymentMethods?: Array<{ label: string; details: string }>;
 };
 
 type AssignCoordinatorInput = {

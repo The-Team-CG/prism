@@ -120,7 +120,9 @@ Billing covers every client payment state on Ana's events: closure paid in full;
 overdue and part of it disputed; live ops part paid over three payments, with a payment still to verify, a rejected
 transfer and a pending correction; the operations booking unpaid with money the client reported held unapplied; and a
 draft source on the archived event. Bloom Florals has a late deposit and a scheduled balance; both selected supplier
-quotes are locked, as selection locks them in the app.
+quotes are locked, as selection locks them in the app. PMCM's payment details are seeded too (a BPI account, a GCash
+account with a small stand-in QR image, and a cheque payee that is turned off), because statements cannot be issued and
+clients are shown no account without them. The stand-in QR only shows how the image displays; it does not scan.
 
 Dry-run/verify are read-only. Verify fails for missing rows. Apply inserts missing
 rows in one transaction and serializes seed commands with an advisory lock.

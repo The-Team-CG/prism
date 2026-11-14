@@ -107,7 +107,6 @@ export interface PrismBillingSource {
     amount?: number;
     dueDate?: string;
   }>;
-  paymentMethods: Array<{ label: string; details: string }>;
   totalAmount: number;
   status: "draft" | "approved" | string;
   approvedAt?: string | null;
@@ -450,8 +449,12 @@ export interface PrismStatementOfAccount {
   /** Amount under open disputes that name no single payment. */
   disputedOnStatement: number;
   milestones: PrismStatementMilestone[];
-  /** How to pay, as printed on the billing statement. */
+  /** How to pay as printed text, from PMCM's payment details as they are now. Empty until PMCM has turned one on. */
   paymentMethods: Array<{ label: string; details: string }>;
+  /** The same, with each field apart and the QR image id: what the client sees under How to pay. Only methods that are on. */
+  payTo: PaymentMethod[];
+  /** True when PMCM changed its payment details after this statement was issued, so the printed copy may differ. */
+  payToChangedSinceIssued: boolean;
   /** Payments being checked, not accepted, or reported by the client and since accepted. Newest first. */
   submissions: PrismPaymentSubmission[];
   /** Oldest first. */

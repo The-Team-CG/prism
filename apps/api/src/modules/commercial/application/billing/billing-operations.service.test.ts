@@ -126,7 +126,17 @@ function createPaymentService() {
   return { service, paymentService, prisma, audit, notifications, history, milestone, documentVault, receipts };
 }
 
-function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number, storageObjectService?: StorageObjectService) {
+/** PMCM's saved payment details: a bank account, a GCash with a QR, and a cheque that is turned off. */
+const SAVED_PAYMENT_DETAILS = {
+  revision: 4,
+  methods: [
+    { kind: 'bank', id: '00000000-0000-4000-8000-000000000001', label: 'BPI', accountName: 'PMCM Events', accountNumber: '1234-5678-90', instructions: 'Use the statement number', qrImageId: null, enabled: true },
+    { kind: 'ewallet', id: '00000000-0000-4000-8000-000000000002', label: 'GCash', accountName: 'PMCM Finance', accountNumber: '0917 123 4567', instructions: '', qrImageId: 'pqr_a', enabled: true },
+    { kind: 'cheque', id: '00000000-0000-4000-8000-000000000003', label: 'Cheque', accountName: 'PMCM Events', instructions: '', enabled: false },
+  ],
+};
+
+function createBillingStatementService(priorNumbers: string[], conflictingSequenceNumber?: number, storageObjectService?: StorageObjectService, paymentDetails: { revision: number; methods: unknown[] } | null = SAVED_PAYMENT_DETAILS) {
   const event = {
     id: 'evt_billing_sequence',
     inquiryId: 'inq_billing_sequence',
@@ -186,6 +196,7 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
     },
     opsDocument: { create: vi.fn(async ({ data }: { data: Record<string, any> }) => ({ ...data })) },
     opsPaymentMilestone: { createMany: vi.fn(async () => ({ count: 1 })) },
+    opsPmcmPaymentDetails: { findUnique: vi.fn(async () => paymentDetails) },
     $queryRaw: queryRaw,
     $executeRaw: executeRaw,
     $transaction: vi.fn(async (callback: (tx: any) => unknown) => callback(prisma)),
@@ -203,6 +214,31 @@ function createBillingStatementService(priorNumbers: string[], conflictingSequen
 }
 
 describe('BillingOperationsService', () => {
+  it('issues a statement with the payment details PMCM has turned on, and keeps which revision they were', async () => {
+    const { service, issued } = createBillingStatementService([]);
+
+    await service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor, verifiedBillingActor);
+
+    expect(issued).toHaveLength(1);
+    expect(issued[0].paymentDetailsRevision).toBe(4);
+    // Only methods that are on, as the text printed on the statement; the QR is not part of the printed copy.
+    expect(issued[0].paymentMethods).toEqual([
+      { label: 'BPI', details: ['PMCM Events', '1234-5678-90', 'Use the statement number'].join('\n') },
+      { label: 'GCash', details: ['PMCM Finance', '0917 123 4567'].join('\n') },
+    ]);
+  });
+
+  it('refuses to issue a statement while no payment method is turned on, and uses up no statement number', async () => {
+    for (const details of [null, { revision: 2, methods: [{ ...SAVED_PAYMENT_DETAILS.methods[0], enabled: false }] }]) {
+      const { service, prisma } = createBillingStatementService([], undefined, undefined, details);
+
+      await expect(service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor, verifiedBillingActor))
+        .rejects.toThrow(/Add PMCM payment details/);
+      expect(prisma.opsBillingStatement.create).not.toHaveBeenCalled();
+      expect(prisma.$executeRaw).not.toHaveBeenCalled();
+    }
+  });
+
   it('keeps a superseded statement closed and treats sending an already sent statement as a replay', async () => {
     const { service, prisma } = createBillingStatementService([]);
     const statement = await service.generateBillingStatement('evt_billing_sequence', 'bsrc_billing_sequence', billingActor, verifiedBillingActor);
