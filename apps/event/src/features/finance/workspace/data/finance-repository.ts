@@ -18,3 +18,10 @@ export function downloadStatementPdf(storageObjectId: string) {
 export function remindClientPayment(eventId: string, milestoneId: string) {
   return eventApi.commercial.remindClientPayment(eventId, milestoneId);
 }
+
+/** One payment's history for PMCM: reminders, reports, checks, money applied and undone, and disputes. */
+export const paymentHistory = defineResource({
+  name: "finance.payment-history",
+  staleMs: 10_000,
+  fetch: ({ eventId, milestoneId }: { eventId: string; milestoneId: string }, signal) => eventApi.commercial.paymentHistory(eventId, milestoneId, { signal }),
+});

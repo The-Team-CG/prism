@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, ChevronRight, FileText, Hourglass, Send, ShieldAlert, WalletCards, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, ChevronRight, FileText, History, Hourglass, Send, ShieldAlert, WalletCards, type LucideIcon } from "lucide-react";
 import type { PrismFinanceDeskEvent, PrismFinanceDeskItem, PrismPaymentMilestone, PrismPaymentReceipt } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
@@ -10,6 +11,7 @@ import { formatPeso, PaymentProgressBar, PaymentRing, PaymentTimeline, type Paym
 import { cn } from "@/app/components/ui/utils";
 import { financeHeadline, financeStep, type FinanceTone } from "@/features/finance/desk";
 import { recordCheck, type RecordCheck } from "../model/event-money";
+import { PaymentHistorySheet } from "./payment-history-sheet";
 
 const TONE: Record<FinanceTone, { icon: LucideIcon; text: string; chip: string }> = {
   danger: { icon: AlertTriangle, text: "text-danger", chip: "bg-danger-soft text-danger" },
@@ -129,12 +131,17 @@ function RecordLine({ record, check }: { record: PaymentRecordRow; check: Record
   );
 }
 
-function StepActions({ payment, busy, reminding, onRecord, onRemind, onToggleRisk }: { payment: PrismPaymentMilestone; busy: boolean; reminding: boolean; onRecord: () => void; onRemind?: () => void; onToggleRisk: () => void }) {
+function HistoryButton({ onClick }: { onClick: () => void }) {
+  return <Button size="sm" variant="ghost" className="h-7 px-2.5 text-xs" onClick={onClick}><History className="size-3" aria-hidden /> History</Button>;
+}
+
+function StepActions({ payment, busy, reminding, onRecord, onRemind, onToggleRisk, onHistory }: { payment: PrismPaymentMilestone; busy: boolean; reminding: boolean; onRecord: () => void; onRemind?: () => void; onToggleRisk: () => void; onHistory: () => void }) {
   return (
     <div className="mt-1.5 flex flex-wrap gap-2">
       <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" disabled={busy} onClick={onRecord}><WalletCards className="size-3" aria-hidden /> Record payment</Button>
       {onRemind ? <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" disabled={busy || reminding} onClick={onRemind}><BellRing className="size-3" aria-hidden /> {reminding ? "Sending…" : "Remind client"}</Button> : null}
       <Button size="sm" variant="ghost" className="h-7 px-2.5 text-xs" disabled={busy} onClick={onToggleRisk}>{payment.status === "at_risk" ? "Clear risk" : "Mark at risk"}</Button>
+      <HistoryButton onClick={onHistory} />
     </div>
   );
 }
@@ -163,6 +170,7 @@ export function EventPaymentSchedule({
   /** Reminding is offered once a payment is late or due within two weeks. */
   reminder?: { busyId: string | null; remind: (milestoneId: string, label: string) => void };
 }) {
+  const [historyOf, setHistoryOf] = useState<PrismPaymentMilestone | null>(null);
   const steps = money.milestones.map((milestone) => financeStep(milestone, todayKey));
   const byId = new Map(payments.map((payment) => [payment.id, payment]));
   const receiptById = new Map(receipts.map((receipt) => [receipt.id, receipt]));
@@ -181,8 +189,9 @@ export function EventPaymentSchedule({
             onRecord={() => onRecord(payment)}
             onRemind={reminder && (step.state === "overdue" || step.state === "due-soon") ? () => reminder.remind(payment.id, payment.label) : undefined}
             onToggleRisk={() => onToggleRisk(payment)}
+            onHistory={() => setHistoryOf(payment)}
           />
-        ) : null}
+        ) : <div className="mt-1"><HistoryButton onClick={() => setHistoryOf(payment)} /></div>}
       </>
     );
   };
@@ -194,6 +203,7 @@ export function EventPaymentSchedule({
       </header>
       <PaymentProgressBar steps={steps} />
       <PaymentTimeline steps={steps} detail={detail} label="Client payments" />
+      <PaymentHistorySheet eventId={money.eventId} payment={historyOf} onClose={() => setHistoryOf(null)} />
     </Card>
   );
 }

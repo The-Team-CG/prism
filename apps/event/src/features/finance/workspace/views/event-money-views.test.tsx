@@ -1,8 +1,12 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { PortalQueryProvider } from "@prism/portal-query";
 import type { PrismFinanceDeskEvent, PrismPaymentMilestone, PrismPaymentReceipt, PrismStatementMilestone } from "@prism/types";
 import { EventMoneyHero, EventPaymentSchedule } from "./event-money-views";
+
+const historyFetch = vi.hoisted(() => vi.fn());
+vi.mock("../data/finance-repository", () => ({ paymentHistory: { name: "finance.payment-history", staleMs: 10_000, fetch: historyFetch } }));
 
 afterEach(cleanup);
 
@@ -75,5 +79,32 @@ describe("PMCM event billing", () => {
     expect(within(paid).queryByRole("button", { name: /Remind client/ })).toBeNull();
     fireEvent.click(within(late).getByRole("button", { name: /Remind client/ }));
     expect(remind).toHaveBeenCalledWith("second", "second");
+  });
+
+  it("opens a payment's history, oldest first, with who did what and a way to the receipt", async () => {
+    historyFetch.mockResolvedValue({
+      milestoneId: "second", label: "Second payment", amount: 126000, paid: 60000, remaining: 66000, dueDate: "2026-10-19",
+      entries: [
+        { id: "s", kind: "scheduled", at: "2026-09-01T00:00:00.000Z", title: "₱126,000 scheduled", detail: "Due 2026-10-19.", by: null, amount: 126000 },
+        { id: "rem", kind: "reminded", at: "2026-10-25T01:00:00.000Z", title: "Client reminded", detail: "A reminder notice went to the client.", by: "Ms. Mys", amount: null },
+        { id: "rep", kind: "reported", at: "2026-11-14T01:00:00.000Z", title: "Client said they paid ₱66,000", detail: "Bank Transfer · Ref BPI-1", by: "Ana Reyes", amount: 66000, receiptId: "prcp_client" },
+      ],
+    });
+    render(
+      <PortalQueryProvider actorKey="mys@pmcm.test">
+        <EventPaymentSchedule
+          money={money([milestone({ id: "second", label: "Second payment", dueDate: "2026-10-19", amount: 126000, paid: 60000, remaining: 66000 })])}
+          payments={[payment("second")]} receipts={[]} todayKey={TODAY} busy={false} onRecord={vi.fn()} onToggleRisk={vi.fn()}
+        />
+      </PortalQueryProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /History/ }));
+    const sheet = within(await screen.findByRole("dialog"));
+    const entries = within(await sheet.findByRole("list", { name: "Payment history" })).getAllByRole("listitem");
+    expect(entries.map((entry) => entry.querySelector("p")?.textContent)).toEqual(["₱126,000 scheduled", "Client reminded", "Client said they paid ₱66,000"]);
+    expect(within(entries[1]).getByText(/Ms\. Mys/)).toBeTruthy();
+    expect(within(entries[2]).getByRole("link", { name: "Open receipt" }).getAttribute("href")).toBe("/dashboard/finance/receipts?receipt=prcp_client");
+    expect(historyFetch).toHaveBeenCalledWith({ eventId: "evt", milestoneId: "second" }, expect.anything());
   });
 });

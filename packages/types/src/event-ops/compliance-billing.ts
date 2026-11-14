@@ -678,6 +678,46 @@ export interface PrismFinanceDesk {
   payouts: PrismFinanceDeskPayout[];
 }
 
+/** What happened to one scheduled payment, from when it was set to when it was paid. */
+export type PrismPaymentHistoryKind =
+  | "scheduled"
+  | "reminded"
+  | "reported"
+  | "recorded"
+  | "verified"
+  | "not_accepted"
+  | "applied"
+  | "undone"
+  | "disputed"
+  | "dispute_closed"
+  | "paid_in_full";
+
+export interface PrismPaymentHistoryEntry {
+  id: string;
+  kind: PrismPaymentHistoryKind;
+  /** ISO timestamp. */
+  at: string;
+  title: string;
+  detail: string;
+  /** Who did it, when known. */
+  by: string | null;
+  amount: number | null;
+  /** The receipt the entry is about, to open it on the receipts desk. */
+  receiptId?: string;
+}
+
+/** One payment's whole story for PMCM, oldest first. */
+export interface PrismPaymentHistory {
+  milestoneId: string;
+  label: string;
+  amount: number;
+  paid: number;
+  remaining: number;
+  /** YYYY-MM-DD. */
+  dueDate: string;
+  entries: PrismPaymentHistoryEntry[];
+}
+
 /** A reminder PMCM sent the client about one payment. One per payment per day: a second the same day is not sent. */
 export interface PrismPaymentReminder {
   milestoneId: string;

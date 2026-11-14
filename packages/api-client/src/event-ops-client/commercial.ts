@@ -2,6 +2,7 @@ import type {
   PrismClientBillingDispute,
   PrismPaymentSubmission,
   PrismFinanceDesk,
+  PrismPaymentHistory,
   PrismPaymentReminder,
   PrismClientOwnedSupplier,
   PrismExternalCreativeTicket,
@@ -83,6 +84,8 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismPaymentMilestone>(actorPath(event(eventId, `/payments/${milestoneId}/records`), actor), withBase(options, { method: "POST", body: input })),
       remindClientPayment: (eventId, milestoneId, actor = {}) =>
         prismRequest<PrismPaymentReminder>(actorPath(event(eventId, `/payments/${encodeURIComponent(milestoneId)}/reminders`), actor), withBase(options, { method: "POST" })),
+      paymentHistory: (eventId, milestoneId, init = {}) =>
+        prismRequest<PrismPaymentHistory>(event(eventId, `/payments/${encodeURIComponent(milestoneId)}/history`), withBase(options, { signal: init.signal })),
       markPayment: (eventId, milestoneId, input, actor = {}) =>
         prismRequest<PrismPaymentMilestone>(actorPath(event(eventId, `/payments/${milestoneId}`), actor), withBase(options, { method: "PATCH", body: input })),
       financeDesk: (init = {}) =>

@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -30,6 +30,7 @@ import {
 } from '@prism/types';
 import { BillingOperationsService } from '../../application/billing/billing-operations.service';
 import { BillingAdjustmentService } from '../../application/billing/billing-adjustment.service';
+import { PaymentHistoryService } from '../../application/billing/payment-history.service';
 import { PaymentOperationsService } from '../../application/billing/payment-operations.service';
 
 @Controller('events')
@@ -39,6 +40,7 @@ export class OpsEventBillingController {
     private readonly paymentOperationsService: PaymentOperationsService,
     private readonly billingAdjustmentService: BillingAdjustmentService,
     private readonly eventAccessPolicyService: EventAccessPolicyService,
+    private readonly paymentHistoryService: PaymentHistoryService,
   ) {}
 
   @Post(':eventId/billing-source')
@@ -93,6 +95,18 @@ export class OpsEventBillingController {
   ) {
     const actor = await this.requireFinanceActor(verifiedActor, 'payment milestone', eventId);
     return this.paymentOperationsService.markPayment(eventId, milestoneId, dto.status, actor);
+  }
+
+  /** Everything that happened to one payment, for PMCM: reminders, reports, checks, money applied and undone, disputes. */
+  @Get(':eventId/payments/:milestoneId/history')
+  @UseGuards(EventSessionGuard)
+  async paymentHistory(
+    @Param('eventId') eventId: string,
+    @Param('milestoneId') milestoneId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    await this.requireFinanceActor(verifiedActor, 'payment history', eventId);
+    return this.paymentHistoryService.history(eventId, milestoneId);
   }
 
   @Post(':eventId/payments/:milestoneId/reminders')
