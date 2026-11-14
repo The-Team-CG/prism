@@ -198,15 +198,14 @@ export function isNewClientFile(file: Pick<ClientLibraryFile, "addedBy" | "added
   return new Date(file.addedAt).getTime() > new Date(lastSeen).getTime();
 }
 
-export type ClientEventFileSources = { eventId: string; eventName: string; objects: PrismStoredObject[]; documents: PrismDocument[] };
-
-/** Files matching a search across all of the client's events, newest first, each naming its event. */
-export function searchClientAccountFiles(events: ClientEventFileSources[], query: string): ClientLibraryFile[] {
-  if (!query.trim()) return [];
-  const matches = events.flatMap((event) =>
-    filterClientLibrary(buildClientFileLibrary(event.objects, event.documents, []), "all", query)
-      .map((file) => ({ ...file, eventId: event.eventId, eventName: event.eventName })));
-  return sortClientLibrary(matches, { key: "date", direction: "desc" });
+/** Files from several of the client's events (an account-wide search), newest first, each naming its event. */
+export function clientAccountFiles(objects: PrismStoredObject[], eventNames: ReadonlyMap<string, string>): ClientLibraryFile[] {
+  const eventOf = new Map(objects.map((object) => [object.id, object.eventId]));
+  const files = buildClientFileLibrary(objects, [], []).map((file) => {
+    const eventId = eventOf.get(file.id);
+    return { ...file, eventId, eventName: (eventId && eventNames.get(eventId)) || "Event" };
+  });
+  return sortClientLibrary(files, { key: "date", direction: "desc" });
 }
 
 /** The downloadable files of a list, filed in the archive under their shelf's name. */

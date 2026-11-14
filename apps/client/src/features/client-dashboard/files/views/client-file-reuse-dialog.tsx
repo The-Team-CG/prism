@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { Search } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
 import { LoadingState } from "@prism/ui/components/loading-state";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { filterClientLibrary, formatFileSize } from "../model/client-file-library";
+import { formatFileSize } from "../model/client-file-library";
 import type { ClientFileLibraryViewModel } from "../view-models/use-client-file-library-view-model";
 import { ClientFileKindIcon } from "./client-file-kind-icon";
 
@@ -14,11 +13,11 @@ import { ClientFileKindIcon } from "./client-file-kind-icon";
  * so recurring documents (permits, company papers, brand kits) don't have to be found and uploaded again.
  */
 export function ClientFileReuseDialog({ vm }: { vm: ClientFileLibraryViewModel }) {
-  const [query, setQuery] = useState("");
   const target = vm.reuseTarget;
-  const candidates = filterClientLibrary(vm.reuseCandidates, "all", query);
+  const query = vm.reuseQuery;
+  const candidates = vm.reuseCandidates;
   return (
-    <Dialog open={Boolean(target)} onOpenChange={(open) => { if (!open) { vm.closeReuse(); setQuery(""); } }}>
+    <Dialog open={Boolean(target)} onOpenChange={(open) => { if (!open) vm.closeReuse(); }}>
       <DialogContent className="max-h-[85vh] gap-3 overflow-hidden sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Use a file from another event</DialogTitle>
@@ -32,7 +31,7 @@ export function ClientFileReuseDialog({ vm }: { vm: ClientFileLibraryViewModel }
           <input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
+            onChange={(event) => vm.setReuseQuery(event.currentTarget.value)}
             placeholder="Search your files"
             className="h-9 w-full rounded-md border border-border bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />

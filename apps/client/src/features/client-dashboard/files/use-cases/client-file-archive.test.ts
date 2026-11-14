@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { reuseClientStoredFile, uniqueArchivePaths } from "./client-file-archive";
 
-const actions = vi.hoisted(() => ({ downloadClientStoredFile: vi.fn(), uploadClientStoredFile: vi.fn() }));
+const actions = vi.hoisted(() => ({ downloadClientStoredFile: vi.fn() }));
+const repository = vi.hoisted(() => ({ copy: vi.fn(), bindRequirementUpload: vi.fn() }));
 vi.mock("./client-stored-file-actions", () => actions);
+vi.mock("../data/client-stored-files-repository", () => ({ clientStoredFilesRepository: repository }));
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -18,14 +20,14 @@ describe("client file archive", () => {
     ])).toEqual(["Other/permit.pdf", "Other/Permit (2).pdf", "Contracts/permit.pdf", "Other/a-b-c.pdf", "Other/README", "Other/README (2)"]);
   });
 
-  it("reuses a file by storing a copy for this event and requirement, keeping its name and type", async () => {
-    actions.downloadClientStoredFile.mockResolvedValue({ blob: new Blob(["%PDF"]), fileName: "permit.pdf", contentType: "application/pdf" });
-    actions.uploadClientStoredFile.mockResolvedValue({ id: "copy" });
+  it("reuses a file by having the server store a copy for this event, then sends the copy for the requirement", async () => {
+    repository.copy.mockResolvedValue({ id: "copy", eventId: "event-new" });
 
     await reuseClientStoredFile("source-object", "event-new", "attempt-1", "venue_permit");
+    await reuseClientStoredFile("source-object", "event-new", "attempt-2");
 
-    expect(actions.downloadClientStoredFile).toHaveBeenCalledWith("source-object");
-    const [file, eventId, attemptId, requirementKey] = actions.uploadClientStoredFile.mock.calls[0];
-    expect([file.name, file.type, eventId, attemptId, requirementKey]).toEqual(["permit.pdf", "application/pdf", "event-new", "attempt-1", "venue_permit"]);
+    expect(repository.copy.mock.calls).toEqual([["source-object", "event-new", "attempt-1"], ["source-object", "event-new", "attempt-2"]]);
+    expect(repository.bindRequirementUpload.mock.calls).toEqual([["event-new", "venue_permit", "copy"]]);
+    expect(actions.downloadClientStoredFile).not.toHaveBeenCalled();
   });
 });

@@ -1,4 +1,5 @@
 import type {
+  CopyStorageObjectInput,
   PrismStorageDownloadAuthorization,
   PrismStorageUploadLocation,
   PrismStorageUploadRequestResult,
@@ -149,4 +150,25 @@ export async function getStorageObjectDownload(
     fileName: authorization.fileName,
     contentType: authorization.contentType,
   };
+}
+
+/** Copies a stored file into another event as a new client document; the server moves the bytes. */
+export function copyStorageObject(objectId: string, input: CopyStorageObjectInput, options: StorageClientOptions & { signal?: AbortSignal } = {}): Promise<PrismStoredObject> {
+  return prismRequest<PrismStoredObject>(`/storage/objects/${encodeURIComponent(objectId)}/copies`, {
+    method: "POST",
+    authToken: options.authToken,
+    baseUrl: resolvePrismApiBaseUrl(options.baseUrl),
+    body: input,
+    signal: options.signal,
+  });
+}
+
+/** The signed-in client's stored files across all of their events, matching a file name; an empty query lists the newest. */
+export function searchClientStoredFiles(query: string, options: StorageClientOptions & { signal?: AbortSignal } = {}): Promise<PrismStoredObject[]> {
+  const search = new URLSearchParams({ query });
+  return prismRequest<PrismStoredObject[]>(`/storage/objects/client-files?${search.toString()}`, {
+    authToken: options.authToken,
+    baseUrl: resolvePrismApiBaseUrl(options.baseUrl),
+    signal: options.signal,
+  });
 }
