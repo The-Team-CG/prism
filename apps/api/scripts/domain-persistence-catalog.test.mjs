@@ -16,7 +16,7 @@ describe('domain persistence catalog', () => {
 
     assert.equal(current.tables.length, 95);
     assert.equal(current.schemas.length, 10);
-    assert.equal(target.tables.length, 157);
+    assert.equal(target.tables.length, 158);
     assert.equal(target.tables.find(({ table }) => table === 'notification_deliveries').schema, 'platform_ops');
     assert.equal(target.tables.find(({ table }) => table === 'account_invitations').schema, 'identity_access');
     assert.equal(target.tables.find(({ table }) => table === 'inquiry_merges').schema, 'event_lifecycle');
