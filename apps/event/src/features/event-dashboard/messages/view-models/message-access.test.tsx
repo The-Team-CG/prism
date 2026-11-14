@@ -7,7 +7,7 @@ import { useEventMessagesViewModel } from './use-event-messages-view-model';
 import { EventMessagesWorkspace } from '../views/event-messages-workspace';
 import { coordinatorLocationRedirect, coordinatorViewFromParam } from '@/features/coordinators/desk/model/coordinator-portal-routes';
 
-const repo = vi.hoisted(() => ({ inbox: vi.fn(async () => []), list: vi.fn(async () => []), participants: vi.fn(async () => []), readReceipts: vi.fn(async () => []), history: vi.fn(async () => ({ items: [], nextCursor: null })), listOlder: vi.fn(), markRead: vi.fn(async () => ({ lastReadAt: '' })), send: vi.fn(), create: vi.fn() }));
+const repo = vi.hoisted(() => ({ inbox: vi.fn(async () => ({ items: [], nextCursor: null, hasMore: false })), list: vi.fn(async () => ({ items: [], nextCursor: null, hasMore: false })), thread: vi.fn(), participants: vi.fn(async () => []), readReceipts: vi.fn(async () => []), history: vi.fn(async () => ({ items: [], nextCursor: null })), listOlder: vi.fn(), markRead: vi.fn(async () => ({ lastReadAt: '' })), send: vi.fn(), create: vi.fn() }));
 vi.mock('../data/event-messages-repository', () => ({ eventMessagesRepository: repo }));
 vi.mock('@/features/account-notifications/data/notification-preferences-repository', () => ({ notificationPreferencesRepository: { mine: vi.fn(async () => ({ viberConfigured: false, viberLinked: false, viberEnabled: false })) } }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
@@ -46,7 +46,7 @@ describe('coordinator Messages and private read receipts', () => {
 
   it('shows a closed conversation as closed with no composer, and offers People and Reopen only to PMCM', async () => {
     const at = '2026-11-13T01:00:00Z';
-    repo.inbox.mockResolvedValue([{ id: 'thread', eventId: 'event', eventName: 'Founders gala', subject: 'Load-in', status: 'closed', createdBy: 'mys', createdAt: at, updatedAt: at, unreadCount: 0, lastMessage: { id: 'm1', senderId: 'ana', senderRole: 'client', body: 'Thanks', createdAt: at }, participants: [{ id: 'p1', actorId: 'pmcm', actorRole: 'pmcm-admin', active: true, name: 'Mys' }, { id: 'p2', actorId: 'ana', actorRole: 'client', active: true, name: 'Ana' }] }] as never);
+    repo.inbox.mockResolvedValue({ nextCursor: null, hasMore: false, items: [{ id: 'thread', eventId: 'event', eventName: 'Founders gala', subject: 'Load-in', status: 'closed', createdBy: 'mys', createdAt: at, updatedAt: at, unreadCount: 0, lastMessage: { id: 'm1', senderId: 'ana', senderRole: 'client', body: 'Thanks', createdAt: at }, participants: [{ id: 'p1', actorId: 'pmcm', actorRole: 'pmcm-admin', active: true, name: 'Mys' }, { id: 'p2', actorId: 'ana', actorRole: 'client', active: true, name: 'Ana' }] }] } as never);
     const client = render(<PortalQueryProvider actorKey="ana"><EventMessagesWorkspace session={{ id: 'ana', name: 'Ana', role: 'client' } as never} /></PortalQueryProvider>);
     expect(await screen.findByText('PMCM closed this conversation.')).toBeTruthy();
     expect(screen.queryByLabelText('Message')).toBeNull();

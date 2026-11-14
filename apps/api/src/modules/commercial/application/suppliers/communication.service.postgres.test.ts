@@ -31,10 +31,15 @@ describe.skipIf(!enabled)('communication service PostgreSQL transaction', () => 
     const audit = new AuditWriterAdapter(auditService, new SecurityOperationsService(prisma, auditService));
     const notifications = new NotificationOutboxWriterAdapter(new NotificationOutboxService(prisma, { deliver: vi.fn() }));
     const access = new EventAccessPolicyService(audit);
+    const factsFor = async (eventId: string) => {
+      const event = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, clientName: true, clientPortalStatus: true, inquiryId: true } });
+      return event ? { event: { id: event.id, clientName: event.clientName, clientPortalStatus: event.clientPortalStatus, inquiryEmail: actor.email }, supplierAssignments: [], suppliers: [], coordinatorAssignments: [], coordinators: [] } : null;
+    };
     const reader = new ParticipantReaderService(prisma, access, {
-      findForEvent: async (eventId) => {
-        const event = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, clientName: true, clientPortalStatus: true, inquiryId: true } });
-        return event ? { event: { id: event.id, clientName: event.clientName, clientPortalStatus: event.clientPortalStatus, inquiryEmail: actor.email }, supplierAssignments: [], suppliers: [], coordinatorAssignments: [], coordinators: [] } : null;
+      findForEvent: factsFor,
+      findForEvents: async (eventIds) => {
+        const entries = await Promise.all(eventIds.map(async (eventId) => [eventId, await factsFor(eventId)] as const));
+        return new Map(entries.flatMap(([eventId, facts]) => (facts ? [[eventId, facts] as const] : [])));
       },
     });
     service = new CommunicationService(prisma, access, reader, audit, notifications);

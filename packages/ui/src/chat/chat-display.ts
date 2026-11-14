@@ -33,10 +33,15 @@ export function toChatThreads(threads: ReadonlyArray<ChatThreadRecord>, viewerId
 }
 
 /** An inbox row carries its event and only its latest message; the history is fetched when the row is opened. */
-export function inboxThreadRecords<M extends ChatMessageRecord>(
-  rows: ReadonlyArray<Omit<ChatThreadRecord<M>, "messages" | "context"> & { eventName: string; lastMessage: M | null }>,
-): ChatThreadRecord<M>[] {
+export type InboxRow<M extends ChatMessageRecord = ChatMessageRecord> = Omit<ChatThreadRecord<M>, "messages" | "context"> & { eventName: string; lastMessage: M | null };
+
+export function inboxThreadRecords<M extends ChatMessageRecord>(rows: ReadonlyArray<InboxRow<M>>): ChatThreadRecord<M>[] {
   return rows.map(({ eventName, lastMessage: latest, ...thread }) => ({ ...thread, context: eventName, messages: latest ? [latest] : [] }));
+}
+
+/** An inbox page, with its rows shaped as conversation records. */
+export function inboxThreadPage<M extends ChatMessageRecord>(page: { items: ReadonlyArray<InboxRow<M>>; nextCursor: string | null; hasMore: boolean }) {
+  return { items: inboxThreadRecords(page.items), nextCursor: page.nextCursor, hasMore: page.hasMore };
 }
 
 const ROLE_NAMES: Record<string, string> = {
@@ -83,12 +88,6 @@ export function threadPreview(thread: ChatThread) {
   if (!message) return "No messages yet";
   const author = message.mine ? "You" : senderName(message);
   return `${author}: ${message.body.replaceAll(/\s+/g, " ")}`;
-}
-
-/** Search covers what a row shows: its topic, its event and its latest message. */
-export function threadMatches(thread: ChatThread, query: string) {
-  const needle = query.trim().toLowerCase();
-  return !needle || `${thread.subject} ${thread.context ?? ""} ${threadPreview(thread)}`.toLowerCase().includes(needle);
 }
 
 /** List timestamp: time for today, "Yesterday", weekday within a week, otherwise the date. */

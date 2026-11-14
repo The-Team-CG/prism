@@ -35,10 +35,16 @@ function mergeThread(previous: ChatThreadRecord, fresh: ChatThreadRecord, page: 
   };
 }
 
+/** Whether a conversation sorts after the given one in the list: less recent, or equally recent with a smaller id. */
+function sortsAfter(thread: ChatThreadRecord, anchor: ChatThreadRecord) {
+  return thread.updatedAt < anchor.updatedAt || (thread.updatedAt === anchor.updatedAt && thread.id < anchor.id);
+}
+
 /**
- * Folds a refreshed conversation list into the one on screen. Older history, drafts and the open conversation are
- * kept; only messages whose ids are new are appended, and order, previews, membership, status and unread counts
- * come from the refresh. A conversation dropped by the refresh (its viewer was removed) leaves the screen.
+ * Folds a refreshed first page into the list on screen. Older history, drafts and the open conversation are kept; only
+ * messages whose ids are new are appended, and order, previews, membership, status and unread counts come from the refresh.
+ * Conversations loaded further down stay, because they sort after the refreshed page's last row. A conversation that
+ * sorts within that page but is missing from it has left the list (for example, its viewer was removed).
  */
 export function mergeRefreshedThreads(current: ChatThreadRecord[], incoming: ChatThreadRecord[], open: OpenConversation): ChatThreadRecord[] {
   const previous = new Map(current.map((thread) => [thread.id, thread]));
@@ -47,7 +53,8 @@ export function mergeRefreshedThreads(current: ChatThreadRecord[], incoming: Cha
     const isOpen = thread.id === open.threadId;
     return mergeThread(previous.get(thread.id) ?? { ...thread, messages: [] }, thread, isOpen ? open.page : null, isOpen);
   });
+  const tail = incoming[incoming.length - 1];
   // A conversation the viewer just started can be missing from a list fetched before it was created; it stays open.
-  const keptOpen = open.started ? current.filter((thread) => thread.id === open.threadId && !listed.has(thread.id)) : [];
-  return [...refreshed, ...keptOpen];
+  const kept = current.filter((thread) => !listed.has(thread.id) && ((tail !== undefined && sortsAfter(thread, tail)) || (open.started && thread.id === open.threadId)));
+  return [...refreshed, ...kept];
 }

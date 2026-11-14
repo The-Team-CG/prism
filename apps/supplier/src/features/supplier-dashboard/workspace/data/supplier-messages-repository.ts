@@ -1,8 +1,9 @@
-import type { PrismAuthenticatedSession } from '@prism/types';
+import type { CommunicationInboxQuery, PrismAuthenticatedSession } from '@prism/types';
 import { prismApi } from '@/lib/prism-api';
 
 export const supplierMessagesRepository = {
-  inbox(session: PrismAuthenticatedSession) { return prismApi.communicationInbox(session); },
+  inbox(session: PrismAuthenticatedSession, request?: Partial<CommunicationInboxQuery>) { return prismApi.communicationInbox(session, request); },
+  thread(threadId: string, session: PrismAuthenticatedSession) { return prismApi.communicationThread(threadId, session); },
   unreadCount(session: PrismAuthenticatedSession) { return prismApi.communicationUnreadCount(session); },
   create(eventId: string, subject: string, session: PrismAuthenticatedSession) { return prismApi.createCommunicationThread(eventId, subject, session); },
   send(threadId: string, body: string, key: string, session: PrismAuthenticatedSession) { return prismApi.sendCommunicationMessage(threadId, body, key, session); },

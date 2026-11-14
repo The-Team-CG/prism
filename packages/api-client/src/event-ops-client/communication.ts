@@ -1,13 +1,29 @@
 import type {
+  CommunicationInboxQuery,
   PrismCommunicationInboxThread,
   PrismCommunicationThread,
   PrismCommunicationParticipantChoice,
   PrismCommunicationReadReceipt,
   PrismCommunicationUnreadCount,
+  PrismCursorPage,
 } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase, actorPath } from "./shared";
+
+/** Paging and search for the conversation lists; every field is optional and the API applies its defaults. */
+type ThreadPageRequest = Partial<CommunicationInboxQuery>;
+
+function pagePath(path: string, query: ThreadPageRequest = {}, eventId?: string) {
+  const params = new URLSearchParams();
+  if (eventId) params.set("eventId", eventId);
+  if (query.cursor) params.set("cursor", query.cursor);
+  if (query.limit) params.set("limit", String(query.limit));
+  if (query.q) params.set("q", query.q);
+  if (query.status) params.set("status", query.status);
+  const suffix = params.toString();
+  return suffix ? `${path}?${suffix}` : path;
+}
 
 export function createCommunicationClient(
   options: EventOpsClientOptions,
@@ -15,17 +31,19 @@ export function createCommunicationClient(
   return {
     communication: {
       readReceipts: (threadId, actor = {}) => prismRequest<PrismCommunicationReadReceipt[]>(actorPath(`/communication/threads/${encodeURIComponent(threadId)}/read-receipts`, actor), withBase(options)),
-      listThreads: (eventId, actor = {}) =>
-        prismRequest<PrismCommunicationThread[]>(
-          actorPath(
-            `/communication/threads?eventId=${encodeURIComponent(eventId)}`,
-            actor,
-          ),
+      listThreads: (eventId, query = {}, actor = {}) =>
+        prismRequest<PrismCursorPage<PrismCommunicationThread>>(
+          actorPath(pagePath("/communication/threads", query, eventId), actor),
           withBase(options),
         ),
-      listInbox: (actor = {}) =>
-        prismRequest<PrismCommunicationInboxThread[]>(
-          actorPath("/communication/inbox", actor),
+      getThread: (threadId, actor = {}) =>
+        prismRequest<PrismCommunicationThread>(
+          actorPath(`/communication/threads/${encodeURIComponent(threadId)}`, actor),
+          withBase(options),
+        ),
+      listInbox: (query = {}, actor = {}) =>
+        prismRequest<PrismCursorPage<PrismCommunicationInboxThread>>(
+          actorPath(pagePath("/communication/inbox", query), actor),
           withBase(options),
         ),
       unreadCount: (query = {}, actor = {}) =>

@@ -55,11 +55,11 @@ export class ParticipantReaderService implements ParticipantReader {
     if (!user || user.approvalStatus !== 'approved') throw new NotFoundException('Communication participant account not found');
     const unique = [...new Set(eventIds)];
     if (user.role === OpsUserRole.PmcmAdmin || user.role === OpsUserRole.System) return new Set(unique);
-    const readable = await Promise.all(unique.map(async (eventId) => {
-      const facts = await this.factsReader.findForEvent(eventId);
-      return facts && this.canReadEvent(user, facts, eventId) ? eventId : null;
+    const facts = await this.factsReader.findForEvents(unique);
+    return new Set(unique.filter((eventId) => {
+      const eventFacts = facts.get(eventId);
+      return eventFacts !== undefined && this.canReadEvent(user, eventFacts, eventId);
     }));
-    return new Set(readable.filter((eventId): eventId is string => eventId !== null));
   }
 
   async displayNames(actorIds: string[], db?: Prisma.TransactionClient): Promise<Map<string, string>> {

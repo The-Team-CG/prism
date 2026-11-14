@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import type { CommunicationThreadStatus, PrismCommunicationParticipantChoice, PrismCommunicationThread, PrismEvent } from "@prism/types";
 import { useInvalidate } from "@prism/portal-query";
-import { inboxThreadRecords, useChatThreads, type ChatCompose, type ChatThread } from "@prism/ui/chat";
+import { inboxThreadPage, useChatThreads, type ChatCompose, type ChatThread } from "@prism/ui/chat";
 import type { EventSession } from "@/app/lib/session";
 import { eventMessagesRepository } from "../data/event-messages-repository";
 import { eventUnreadMessages } from "../data/event-messages-unread-resource";
@@ -28,7 +28,8 @@ export function useEventMessagesViewModel({ event, events = [], session }: { eve
     scope: eventId ?? "inbox",
     viewerId: session.id,
     source: {
-      list: () => (eventId ? eventMessagesRepository.list(eventId) : eventMessagesRepository.inbox().then(inboxThreadRecords)),
+      list: (request) => (eventId ? eventMessagesRepository.list(eventId, request) : eventMessagesRepository.inbox(request).then(inboxThreadPage)),
+      thread: eventMessagesRepository.thread,
       history: eventId ? undefined : eventMessagesRepository.history,
       older: eventMessagesRepository.listOlder,
       send: eventMessagesRepository.send,

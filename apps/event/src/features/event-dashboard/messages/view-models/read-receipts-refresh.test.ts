@@ -9,7 +9,7 @@ describe('read receipt refresh for an open conversation', () => {
   it('refreshes only after a conversation is shown and stops when the reader returns to the list', async () => {
     vi.useFakeTimers();
     const readReceipts = vi.fn(async (threadId: string) => [{ actorId: 'ana', name: 'Ana', lastReadAt: threadId === 'one' ? '2026-11-13T01:00:00Z' : null }]);
-    const source = { list: async () => ['one', 'two'].map((id) => ({ id, subject: id, createdAt: '', updatedAt: '', participants: [{ actorId: 'ana', actorRole: 'client', name: 'Ana', active: true }], messages: [] })), markRead: vi.fn(async () => undefined), readReceipts, send: vi.fn(), older: vi.fn() };
+    const source = { list: async () => ({ nextCursor: null, hasMore: false, items: ['one', 'two'].map((id) => ({ id, subject: id, createdAt: '', updatedAt: '', participants: [{ actorId: 'ana', actorRole: 'client', name: 'Ana', active: true }], messages: [] })) }), markRead: vi.fn(async () => undefined), readReceipts, send: vi.fn(), older: vi.fn() };
     const { result } = renderHook(() => useChatThreads({ scope: 'inbox', source, viewerId: 'pmcm' }));
     await act(async () => {});
     expect(readReceipts).not.toHaveBeenCalled();
@@ -24,7 +24,7 @@ describe('read receipt refresh for an open conversation', () => {
 
   it('drops a receipt response from the prior event scope', async () => {
     const resolve: Array<(rows: Array<{ actorId: string; lastReadAt: string | null }>) => void> = [];
-    const source = { list: async () => [{ id: 'thread', subject: 'Setup', createdAt: '', updatedAt: '', participants: [{ actorId: 'ana', actorRole: 'client', active: true }], messages: [] }],
+    const source = { list: async () => ({ nextCursor: null, hasMore: false, items: [{ id: 'thread', subject: 'Setup', createdAt: '', updatedAt: '', participants: [{ actorId: 'ana', actorRole: 'client', active: true }], messages: [] }] }),
       markRead: vi.fn(async () => undefined), send: vi.fn(), older: vi.fn(), readReceipts: vi.fn(() => new Promise<Array<{ actorId: string; lastReadAt: string | null }>>((done) => resolve.push(done))) };
     const view = renderHook(({ scope }) => useChatThreads({ scope, source, viewerId: 'pmcm' }), { initialProps: { scope: 'event-a' } });
     await act(async () => {});

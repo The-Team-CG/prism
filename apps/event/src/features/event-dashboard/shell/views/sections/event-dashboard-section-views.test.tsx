@@ -112,11 +112,11 @@ describe("global event-scoped destinations without a selected event", () => {
 
   it("opens Messages as one inbox across events, naming each conversation's event and who is in it", async () => {
     const message = (id: string, body: string) => ({ id, threadId: "thread-1", senderId: "client-1", senderRole: "client", senderName: "Ana Reyes", body, createdAt: "2026-11-12T08:00:00.000Z" });
-    communication.listInbox.mockResolvedValue([{
+    communication.listInbox.mockResolvedValue({ limit: 20, nextCursor: null, hasMore: false, items: [{
       id: "thread-1", eventId: "evt-gala", eventName: "Founders gala", subject: "Stage setup timing", status: "open", createdBy: "pmcm", createdAt: "2026-11-12T07:00:00.000Z", updatedAt: "2026-11-12T08:00:00.000Z",
       participants: [{ id: "p1", actorId: "pmcm", actorRole: "pmcm-admin", name: "Ms. Mys", active: true }, { id: "p2", actorId: "client-1", actorRole: "client", name: "Ana Reyes", active: true }],
       lastMessage: message("m2", "Can we move load-in to 2pm?"), unreadCount: 3,
-    }]);
+    }] });
     communication.listMessages.mockResolvedValue({ items: [message("m1", "Good morning"), message("m2", "Can we move load-in to 2pm?")], limit: 100, nextCursor: null, hasMore: false });
 
     render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardMessagesSectionView /></PortalQueryProvider>);
