@@ -1,5 +1,5 @@
 import type { PrismFileRequirementItem, PrismFileRequirementsMatrix, PrismStoredObject, StorageUsage } from "@prism/types";
-import { copyStorageObject, getStorageObjectDownload, searchClientStoredFiles, uploadStorageObject } from "@prism/api-client";
+import { copyStorageObject, getStorageObjectDownload, searchClientStoredFiles, setStorageObjectExpiry, uploadStorageObject } from "@prism/api-client";
 import { clientApi, storedClientAccessToken } from "@/lib/prism-api";
 
 export const clientStoredFilesRepository = {
@@ -33,6 +33,11 @@ export const clientStoredFilesRepository = {
   /** The client's stored files across all of their events, matching a file name. */
   search(query: string, signal?: AbortSignal): Promise<PrismStoredObject[]> {
     return searchClientStoredFiles(query, { authToken: storedClientAccessToken(), signal });
+  },
+
+  /** Sets or clears the last day one of the client's own files is valid. */
+  setExpiry(objectId: string, expiresAt: string | null): Promise<PrismStoredObject> {
+    return setStorageObjectExpiry(objectId, { expiresAt }, { authToken: storedClientAccessToken() });
   },
 
   download(objectId: string) {

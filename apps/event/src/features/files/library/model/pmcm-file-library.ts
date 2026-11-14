@@ -1,4 +1,4 @@
-import { EVENT_FILE_CATEGORIES, eventFileCategoryOf, type PrismFileRequirementItem, type PrismStoredObject, type PrismSupplierRequirementVersion } from "@prism/types";
+import { EVENT_FILE_CATEGORIES, eventFileCategoryOf, storedFileExpiryDay, storedFileExpiryState, type PrismFileRequirementItem, type PrismStoredObject, type PrismSupplierRequirementVersion } from "@prism/types";
 
 export type PmcmFileKind = "pdf" | "image" | "sheet" | "document" | "video" | "other";
 
@@ -55,7 +55,19 @@ export type PmcmLibraryFile = {
   reviewReason?: string;
   /** Set while the file waits for PMCM's decision. */
   review?: PmcmReviewEntry;
+  /** The last day the document is valid, when it has one. */
+  expiresAt: string | null;
 };
+
+/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date (Philippine day). */
+export function pmcmFileExpiry(expiresAt: string | null | undefined, now = new Date()): { label: string; tone: PmcmFileTone } | null {
+  if (!expiresAt) return null;
+  const date = storedFileExpiryDay(expiresAt);
+  const state = storedFileExpiryState(expiresAt, now);
+  if (state === "expired") return { label: `Expired ${date}`, tone: "urgent" };
+  if (state === "expiring") return { label: `Expires ${date}`, tone: "attention" };
+  return { label: `Valid until ${date}`, tone: "neutral" };
+}
 
 type RequirementFile = { item: PrismFileRequirementItem; version: PrismSupplierRequirementVersion; sender: string };
 
@@ -128,6 +140,7 @@ export function buildPmcmFileLibrary(objects: PrismStoredObject[], items: PrismF
       from: sent?.sender ?? SOURCE_LABEL[source],
       label: sent?.item.label ?? (object.usage === "event_deliverable" ? EVENT_FILE_CATEGORIES[eventFileCategoryOf(object.logicalTarget)] : null),
       addedAt: object.storedAt ?? object.createdAt,
+      expiresAt: object.expiresAt ?? null,
       ...fileStatus(object, sent),
       ...(sent?.version.reviewReason ? { reviewReason: sent.version.reviewReason } : {}),
       ...(queue.has(object.id) ? { review: queue.get(object.id) } : {}),

@@ -2,7 +2,7 @@ import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import type { BindFileRequirementUploadInput, CreateFileRequirementInput, PrismFileRequirementItem, PrismFileRequirementTemplate, UpdateFileRequirementInput, UpsertFileRequirementTemplateInput } from '@prism/types';
 import type { ReviewRequirementFileInput } from '@prism/types';
 
-export type FileRequirementReminderReason = 'overdue' | 'rejected';
+export type FileRequirementReminderReason = 'overdue' | 'rejected' | 'expiring' | 'expired';
 
 export type FileRequirementReminder = {
   eventId: string;

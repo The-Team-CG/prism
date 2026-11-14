@@ -21,7 +21,7 @@ import {
   type ClientLibraryFile,
 } from "../model/client-file-library";
 import { buildClientEventArchive, reuseClientStoredFile } from "../use-cases/client-file-archive";
-import { downloadClientStoredFile, uploadClientStoredFile } from "../use-cases/client-stored-file-actions";
+import { downloadClientStoredFile, setClientFileExpiry, uploadClientStoredFile } from "../use-cases/client-stored-file-actions";
 import { saveDownload } from "./save-download";
 import { useClientAccountFiles } from "./use-client-account-files";
 import { useClientFilesLastSeen } from "./use-client-files-last-seen";
@@ -180,6 +180,23 @@ export function useClientFileLibraryViewModel() {
     }
   }
 
+  /** Sets or clears when one of the client's own files stops being valid. */
+  async function setExpiry(file: ClientLibraryFile, expiresAt: string | null) {
+    if (!eventId || !file.objectId || busy) return;
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await setClientFileExpiry(file.objectId, expiresAt);
+      setNotice(expiresAt ? `${file.name} is valid until ${expiresAt}.` : `${file.name} no longer has an expiry date.`);
+      await invalidate(clientEventStoredFiles, eventId);
+    } catch (reason) {
+      setError(`Couldn't save the date for ${file.name} (${reason instanceof Error ? reason.message : "save failed"}).`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   /** Every downloadable file of this event in one ZIP, a folder per shelf; a very large set asks first. */
   async function downloadAll(confirmed = false) {
     const entries = clientArchiveEntries(files);
@@ -257,6 +274,7 @@ export function useClientFileLibraryViewModel() {
     reuseCandidates,
     reuseLoading: reuseSearch.loading,
     reuseFile,
+    setExpiry,
     filesLoading: objects.status === "pending",
     needed,
     neededLoading: requirements.status === "pending",

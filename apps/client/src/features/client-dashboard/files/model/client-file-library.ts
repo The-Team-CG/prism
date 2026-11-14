@@ -1,4 +1,4 @@
-import type { PrismDocument, PrismFileRequirementItem, PrismStoredObject, PrismSupplierRequirementVersion } from "@prism/types";
+import { storedFileExpiryDay, storedFileExpiryState, type PrismDocument, type PrismFileRequirementItem, type PrismStoredObject, type PrismSupplierRequirementVersion } from "@prism/types";
 import type { ClientPortalView } from "../../workspace/model/client-dashboard-types";
 import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
 import type { ClientRowTone } from "../../shared/client-list-ui";
@@ -73,7 +73,21 @@ export type ClientLibraryFile = {
   eventName?: string;
   /** Added by someone else since the client last opened this event's files. */
   isNew?: boolean;
+  /** The last day the document is valid, when it has one. */
+  expiresAt?: string | null;
 };
+
+export type ClientFileExpiry = { label: string; tone: ClientRowTone; expired: boolean };
+
+/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date (Philippine day). */
+export function clientFileExpiry(expiresAt: string | null | undefined, now = new Date()): ClientFileExpiry | null {
+  if (!expiresAt) return null;
+  const date = storedFileExpiryDay(expiresAt);
+  const state = storedFileExpiryState(expiresAt, now);
+  if (state === "expired") return { label: `Expired ${date}`, tone: "urgent", expired: true };
+  if (state === "expiring") return { label: `Expires ${date}`, tone: "attention", expired: false };
+  return { label: `Valid until ${date}`, tone: "neutral", expired: false };
+}
 
 function uploaderLabel(role: string) {
   if (role === "client") return "You";
@@ -149,6 +163,7 @@ export function buildClientFileLibrary(objects: PrismStoredObject[], documents: 
         addedAt: object.storedAt ?? object.createdAt,
         ...storedFileStatus(object, requirement),
         objectId: object.lifecycleState === "stored" ? object.id : undefined,
+        expiresAt: object.expiresAt ?? null,
         ...requirementFields(requirement),
         ...(replaced ? replacedFields(replaced) : {}),
       };

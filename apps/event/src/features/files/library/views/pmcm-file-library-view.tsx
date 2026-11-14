@@ -6,7 +6,7 @@ import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { formatFileSize, type PmcmFileFilter, type PmcmFileTone, type PmcmLibraryFile } from "../model/pmcm-file-library";
+import { formatFileSize, pmcmFileExpiry, type PmcmFileFilter, type PmcmFileTone, type PmcmLibraryFile } from "../model/pmcm-file-library";
 import { usePmcmFileLibraryViewModel, type PmcmFileLibraryViewModel } from "../view-models/use-pmcm-file-library-view-model";
 import { PmcmFileKindIcon } from "./pmcm-file-kind-icon";
 import { PmcmFilePreviewSheet } from "./pmcm-file-preview-sheet";
@@ -83,6 +83,13 @@ function FileFilters({ vm }: { vm: PmcmFileLibraryViewModel }) {
   );
 }
 
+/** A dated document's validity under its status, once it is close to expiring or already has. */
+function ExpiryLabel({ expiresAt }: { expiresAt: string | null }) {
+  const expiry = pmcmFileExpiry(expiresAt);
+  if (!expiry || expiry.tone === "neutral") return null;
+  return <span className={`block text-xs ${TONE[expiry.tone]}`}>{expiry.label}</span>;
+}
+
 function FileRow({ file, vm }: { file: PmcmLibraryFile; vm: PmcmFileLibraryViewModel }) {
   return (
     <li className={`grid grid-cols-[1fr_auto] items-center gap-3 py-3 ${TABLE_COLUMNS}`}>
@@ -96,7 +103,10 @@ function FileRow({ file, vm }: { file: PmcmLibraryFile; vm: PmcmFileLibraryViewM
       <span className="hidden truncate text-sm text-muted-foreground md:block">{file.from}</span>
       <span className="hidden text-sm text-muted-foreground md:block">{formatPortalDate(file.addedAt)}</span>
       <span className="hidden text-sm tabular-nums text-muted-foreground md:block">{formatFileSize(file.size)}</span>
-      <span className={`hidden text-sm font-medium md:block ${TONE[file.tone]}`}>{file.status}</span>
+      <span className="hidden min-w-0 md:block">
+        <span className={`block text-sm font-medium ${TONE[file.tone]}`}>{file.status}</span>
+        <ExpiryLabel expiresAt={file.expiresAt} />
+      </span>
       <Button type="button" variant="ghost" size="icon" aria-label={`Download ${file.name}`} disabled={vm.busy !== null} onClick={() => void vm.download(file.id)}>
         {vm.busy === `download:${file.id}` ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}
       </Button>

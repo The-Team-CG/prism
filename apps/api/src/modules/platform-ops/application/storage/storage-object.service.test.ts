@@ -883,6 +883,21 @@ describe('file access: lists and downloads follow one policy', () => {
       expect(JSON.stringify(copied)).not.toContain('events/evt_1/');
     });
 
+    it('lets the sender or PMCM date a file, carries the date onto a copy, and refuses anyone else', async () => {
+      const { service, store } = await localService();
+      const source = await storeClientFile(service, 'evt_1', 'venue-permit.pdf');
+
+      await expect(service.setObjectExpiry({ objectId: source.id, expiresAt: '2026-12-31', actor: clientAccount })).resolves.toMatchObject({ expiresAt: '2026-12-31T00:00:00.000Z' });
+      const copy = await service.copyToClientEvent({ sourceObjectId: source.id, eventId: 'evt_2', logicalTarget: target('evt_2'), actor: clientAccount });
+      expect(copy.expiresAt).toBe('2026-12-31T00:00:00.000Z');
+
+      const someoneElse = { id: 'user_other_client', role: 'client', email: 'client@example.test', name: 'Other', explicit: true, verified: true } as never;
+      await expect(service.setObjectExpiry({ objectId: source.id, expiresAt: null, actor: someoneElse })).rejects.toThrow(ForbiddenException);
+      await expect(service.setObjectExpiry({ objectId: source.id, expiresAt: null, actor })).resolves.toMatchObject({ expiresAt: null });
+      const dated = store.auditWriter.write.mock.calls.map(([audit]) => audit as Record<string, any>).filter((audit) => audit.metadata?.storageAction === 'expiry_set');
+      expect(dated.map((audit) => audit.metadata.expiresAt)).toEqual(['2026-12-31', null]);
+    });
+
     it("refuses a copy into someone else's event, under another event's target, or of a file the client cannot download", async () => {
       const { service, store } = await localService();
       const source = await storeClientFile(service, 'evt_1', 'venue-permit.pdf');

@@ -20,6 +20,7 @@ const entry: PmcmReviewEntry = {
 const file: PmcmLibraryFile = {
   id: "obj_permit", name: "permit.pdf", kind: "pdf", contentType: "application/pdf", size: 2048, source: "client",
   from: "Client", label: "Venue permit", addedAt: "2026-11-03T00:00:00.000Z", status: "Waiting for review", tone: "attention", review: entry,
+  expiresAt: "2026-01-31T00:00:00.000Z",
 };
 
 function viewModel(overrides: Record<string, unknown> = {}) {
@@ -42,6 +43,8 @@ describe("PMCM file library", () => {
 
     const queue = screen.getByRole("region", { name: "Waiting for review" });
     expect(queue.textContent).toContain("For Venue permit · from Client");
+    // A document past its date says so in the table.
+    expect(screen.getByText("Expired 2026-01-31")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: "Approve" })[0]!);
     expect(vm.review).toHaveBeenCalledWith(entry, "approve");
 

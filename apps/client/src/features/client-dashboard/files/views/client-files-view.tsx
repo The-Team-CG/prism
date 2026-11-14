@@ -15,7 +15,7 @@ import { dashboardHref, formatStatusLabel } from "../../workspace/shared";
 import { ClientListEmpty, type ClientRowTone } from "../../shared/client-list-ui";
 import { clientEventFileRequirements } from "../data/client-file-library-resources";
 import { buildClientDocumentChecklist, clientRequirementReviewLabel, type ClientDocumentChecklistRow } from "../model/client-document-checklist";
-import { CLIENT_FILE_CATEGORIES, formatFileSize, type ClientFileFilter, type ClientFileSort, type ClientLibraryFile } from "../model/client-file-library";
+import { CLIENT_FILE_CATEGORIES, clientFileExpiry, formatFileSize, type ClientFileFilter, type ClientFileSort, type ClientLibraryFile } from "../model/client-file-library";
 import { fileRequirementDueSummary } from "../model/file-requirement-due-summary";
 import { useClientFileLibraryViewModel, type ClientFileLibraryViewModel } from "../view-models/use-client-file-library-view-model";
 import { ClientFileKindIcon } from "./client-file-kind-icon";
@@ -277,6 +277,13 @@ function SortHeader({ label, sortKey, sort, onSort }: { label: string; sortKey: 
   );
 }
 
+/** A dated document's validity under its status; only shown when it is close to expiring or already has. */
+function FileExpiryLabel({ expiresAt }: { expiresAt?: string | null }) {
+  const expiry = clientFileExpiry(expiresAt);
+  if (!expiry || expiry.tone === "neutral") return null;
+  return <span className={cn("block truncate text-xs", STATUS_TONE[expiry.tone])}>{expiry.label}</span>;
+}
+
 function FileRow({ file, vm, eventId }: { file: ClientLibraryFile; vm: ClientFileLibraryViewModel; eventId: string }) {
   const size = formatFileSize(file.size);
   return (
@@ -297,7 +304,10 @@ function FileRow({ file, vm, eventId }: { file: ClientLibraryFile; vm: ClientFil
       <span className="hidden truncate text-sm text-muted-foreground sm:block">{file.addedBy}</span>
       <span className="hidden text-sm tabular-nums text-muted-foreground sm:block">{file.addedAt ? formatPortalDate(file.addedAt) : "—"}</span>
       <span className="hidden text-sm tabular-nums text-muted-foreground sm:block">{size ?? "—"}</span>
-      <span className={cn("hidden truncate text-sm sm:block", STATUS_TONE[file.tone])} title={file.reviewReason}>{file.status}</span>
+      <span className="hidden min-w-0 sm:block">
+        <span className={cn("block truncate text-sm", STATUS_TONE[file.tone])} title={file.reviewReason}>{file.status}</span>
+        <FileExpiryLabel expiresAt={file.expiresAt} />
+      </span>
       {file.objectId ? (
         <button
           type="button"

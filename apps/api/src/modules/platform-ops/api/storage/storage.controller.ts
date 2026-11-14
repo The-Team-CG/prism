@@ -1,12 +1,14 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Post, Query, Req, StreamableFile, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, HttpCode, HttpStatus, Param, Post, Put, Query, Req, StreamableFile, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   confirmStorageUploadSchema,
   copyStorageObjectSchema,
+  setStorageObjectExpirySchema,
   requestStorageUploadSchema,
   searchClientStoredFilesQuerySchema,
   type ConfirmStorageUploadInput,
   type CopyStorageObjectInput,
+  type SetStorageObjectExpiryInput,
   type SearchClientStoredFilesQuery,
   type RequestStorageUploadInput,
   type PrismVerifiedEventActor,
@@ -46,6 +48,16 @@ export class StorageController {
     @VerifiedEventActor() actor: PrismVerifiedEventActor,
   ) {
     return this.storage.copyToClientEvent({ sourceObjectId: objectId, ...input, actor: this.accessPolicy.resolveEventScopedActor(actor) });
+  }
+
+  /** Sets or clears the last day a stored document is valid: PMCM for any file, others for their own uploads. */
+  @Put(':objectId/expiry')
+  setExpiry(
+    @Param('objectId') objectId: string,
+    @Body(zodBody(setStorageObjectExpirySchema)) input: SetStorageObjectExpiryInput,
+    @VerifiedEventActor() actor: PrismVerifiedEventActor,
+  ) {
+    return this.storage.setObjectExpiry({ objectId, expiresAt: input.expiresAt, actor: this.accessPolicy.resolveEventScopedActor(actor) });
   }
 
   @Get('events/:eventId')

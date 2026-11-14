@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
-import { buildPmcmFileLibrary, countPmcmFiles, filterPmcmFiles, pmcmReviewQueue } from "./pmcm-file-library";
+import { buildPmcmFileLibrary, countPmcmFiles, filterPmcmFiles, pmcmFileExpiry, pmcmReviewQueue } from "./pmcm-file-library";
 
 function stored(id: string, overrides: Partial<PrismStoredObject> = {}): PrismStoredObject {
   return {
@@ -54,6 +54,18 @@ describe("PMCM file library", () => {
     expect(files[0]?.review).toMatchObject({ key: "venue_permit", documentId: "doc_2" });
     // Uploads that never finished are kept out of the library, and deleted ones are gone.
     expect(unfinished.map((upload) => upload.id)).toEqual(["obj_failed"]);
+  });
+
+  it("carries each file's expiry and warns a month before it", () => {
+    const { files } = buildPmcmFileLibrary([stored("obj_permit_v2", { expiresAt: "2026-11-30T00:00:00.000Z" })], [permit]);
+    expect(files[0]?.expiresAt).toBe("2026-11-30T00:00:00.000Z");
+    const now = new Date("2026-11-14T00:00:00Z");
+    expect(pmcmFileExpiry("2026-11-30T00:00:00.000Z", now)).toEqual({ label: "Expires 2026-11-30", tone: "attention" });
+    expect(pmcmFileExpiry("2026-11-01T00:00:00.000Z", now)).toEqual({ label: "Expired 2026-11-01", tone: "urgent" });
+    expect(pmcmFileExpiry("2027-06-01T00:00:00.000Z", now)).toEqual({ label: "Valid until 2027-06-01", tone: "neutral" });
+    // Valid until 25 Nov (stored as midnight UTC): 9am Manila on the 25th is still valid; 00:30 Manila on the 26th is not.
+    expect(pmcmFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T01:00:00Z"))).toEqual({ label: "Expires 2026-11-25", tone: "attention" });
+    expect(pmcmFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T16:30:00Z"))).toEqual({ label: "Expired 2026-11-25", tone: "urgent" });
   });
 
   it("queues only files still waiting for a decision, oldest first, naming each supplier", () => {

@@ -3050,6 +3050,8 @@ model OpsStoredObject {
   storedAt          DateTime? @map("stored_at")
   failedAt          DateTime? @map("failed_at")
   deletedAt         DateTime? @map("deleted_at")
+  /// The last day the document is valid (a permit, insurance or registration), when it has one.
+  expiresAt         DateTime? @map("expires_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
 

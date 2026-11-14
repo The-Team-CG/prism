@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { copyStorageObject, searchClientStoredFiles, uploadStorageObject } from "./storage-client";
+import { copyStorageObject, searchClientStoredFiles, setStorageObjectExpiry, uploadStorageObject } from "./storage-client";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -77,8 +77,10 @@ describe("client file copy and search", () => {
 
     await copyStorageObject("obj/1", { eventId: "evt_2", logicalTarget: "client-upload:evt_2:123e4567-e89b-42d3-a456-426614174000" }, { authToken: "token", baseUrl: "http://api.test/api" });
     await searchClientStoredFiles("venue permit & co", { authToken: "token", baseUrl: "http://api.test/api" });
+    await setStorageObjectExpiry("obj/1", { expiresAt: "2026-12-31" }, { authToken: "token", baseUrl: "http://api.test/api" });
 
-    const [[copyUrl, copyInit], [searchUrl, searchInit]] = fetchMock.mock.calls as Array<[string, RequestInit]>;
+    const [[copyUrl, copyInit], [searchUrl, searchInit], [expiryUrl, expiryInit]] = fetchMock.mock.calls as Array<[string, RequestInit]>;
+    expect([expiryInit.method, expiryUrl, JSON.parse(String(expiryInit.body))]).toEqual(["PUT", "http://api.test/api/storage/objects/obj%2F1/expiry", { expiresAt: "2026-12-31" }]);
     expect([copyInit.method, copyUrl]).toEqual(["POST", "http://api.test/api/storage/objects/obj%2F1/copies"]);
     expect(JSON.parse(String(copyInit.body))).toEqual({ eventId: "evt_2", logicalTarget: "client-upload:evt_2:123e4567-e89b-42d3-a456-426614174000" });
     expect(searchUrl).toBe("http://api.test/api/storage/objects/client-files?query=venue+permit+%26+co");

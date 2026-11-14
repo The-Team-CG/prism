@@ -40,4 +40,4 @@ import { prismRequest, type PrismRequestInit } from "./http";
 export async function prismJson<T>(path: string, init?: PrismRequestInit): Promise<T> {
   return prismRequest<T>(path, init);
 }
-export { uploadStorageObject, getStorageObjectDownload, copyStorageObject, searchClientStoredFiles, type StorageClientOptions, type StorageUploadIntent, type StorageObjectDownload } from './storage-client';
+export { uploadStorageObject, getStorageObjectDownload, copyStorageObject, searchClientStoredFiles, setStorageObjectExpiry, type StorageClientOptions, type StorageUploadIntent, type StorageObjectDownload } from './storage-client';

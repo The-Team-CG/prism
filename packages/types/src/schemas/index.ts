@@ -407,6 +407,8 @@ export {
   storageObjectIdSchema,
   copyStorageObjectSchema,
   type CopyStorageObjectInput,
+  setStorageObjectExpirySchema,
+  type SetStorageObjectExpiryInput,
   searchClientStoredFilesQuerySchema,
   type SearchClientStoredFilesQuery,
   type StorageUsage,
