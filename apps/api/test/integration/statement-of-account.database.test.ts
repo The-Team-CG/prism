@@ -96,7 +96,9 @@ describe.skipIf(!live)('client statement of account against PostgreSQL', () => {
 
     // Checked money not yet applied is credit held; money PMCM has not checked is listed as being checked instead.
     expect(statement).toMatchObject({ eventId: id('event_a'), available: true, statementNumber: `SOA-${suffix}`, billed: 150000, received: 100000, refunded: 5000, balance: 50000, creditHeld: 15000 });
-    expect(statement.submissions.map((submission) => [submission.state, submission.unapplied])).toEqual([['checking', 30000]]);
+    // Every receipt PMCM has not verified is listed, newest first: the undone cheque holding 30,000, and the deposit
+    // that is fully applied but not yet checked against the bank statement.
+    expect(statement.submissions.map((submission) => [submission.state, submission.unapplied])).toEqual([['checking', 30000], ['checking', 0]]);
     expect(statement.milestones.map((milestone) => [milestone.label, milestone.remaining])).toEqual([['Deposit', 0], ['Balance', 50000]]);
     // A payment that was undone stays listed, marked, with no negative line, and never counts toward what was received.
     expect(statement.lines.map((line) => [line.kind, line.amount, line.reversed])).toEqual([
