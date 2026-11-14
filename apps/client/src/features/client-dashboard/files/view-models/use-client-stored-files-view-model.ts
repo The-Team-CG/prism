@@ -3,15 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
 import { downloadClientStoredFile, loadClientStoredFiles, uploadClientStoredFile } from "../use-cases/client-stored-file-actions";
-
-function saveDownload(file: { blob: Blob; fileName: string }) {
-  const url = URL.createObjectURL(file.blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = file.fileName;
-  link.click();
-  URL.revokeObjectURL(url);
-}
+import { saveDownload } from "./save-download";
 
 export function useClientStoredFilesViewModel(eventId?: string) {
   const inputRef = useRef<HTMLInputElement>(null);
