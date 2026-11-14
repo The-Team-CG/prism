@@ -1,6 +1,7 @@
 import type { PrismBriefing, PrismEvent } from "./lifecycle.js";
 import type { PrismSupplierQuoteRequest } from "./commercial.js";
 import type { GuestPrivacyClassification } from "../schemas/operations-guest-inputs.js";
+import type { CommunicationThreadStatus } from "../schemas/commercial-inputs.js";
 
 export type { GuestCheckInReceipt as PrismGuestCheckInReceipt } from "../schemas/operations-guest-inputs.js";
 
@@ -44,7 +45,8 @@ export interface PrismCommunicationThread {
   id: string;
   eventId: string;
   subject: string;
-  status: string;
+  /** Closed by PMCM; a closed conversation takes no new messages until reopened. */
+  status: CommunicationThreadStatus;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

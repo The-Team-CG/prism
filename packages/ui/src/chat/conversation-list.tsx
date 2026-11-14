@@ -8,6 +8,8 @@ import { cn } from "../utils";
 import { ThreadAvatar } from "./chat-avatar";
 import { lastMessage, listTimestamp, threadPreview, type ChatThread } from "./chat-display";
 
+export type ThreadStatusTab = "open" | "closed";
+
 export type ConversationListProps = {
   threads: ChatThread[];
   viewerId?: string;
@@ -20,14 +22,17 @@ export type ConversationListProps = {
   onCompose?: () => void;
   className?: string;
   notice?: ReactNode;
+  statusTab: ThreadStatusTab;
+  onStatusTabChange: (tab: ThreadStatusTab) => void;
 };
 
-/** The chat list: search, a way to start a conversation, and one row per conversation. */
-export function ConversationList({ threads, viewerId, activeId, query, onQueryChange, loading, error, onOpen, onCompose, className, notice }: ConversationListProps) {
+/** The chat list: search, a way to start a conversation, Open / Closed, and one row per conversation. */
+export function ConversationList({ threads, viewerId, activeId, query, onQueryChange, loading, error, onOpen, onCompose, className, notice, statusTab, onStatusTabChange }: ConversationListProps) {
   const hasToolbar = Boolean(onQueryChange || onCompose);
   return (
     <aside className={cn("min-h-0 min-w-0 flex-col border-border md:border-r", className)}>
       {hasToolbar ? <ListToolbar query={query} onQueryChange={onQueryChange} onCompose={onCompose} /> : null}
+      <StatusTabs value={statusTab} onChange={onStatusTabChange} />
       {notice}
       {error && threads.length === 0 && !loading ? (
         <p role="alert" className="mx-3 rounded-md bg-danger-soft px-3 py-2 text-xs text-danger">{error}</p>
@@ -36,7 +41,7 @@ export function ConversationList({ threads, viewerId, activeId, query, onQueryCh
         {loading ? (
           <ListSkeleton />
         ) : threads.length === 0 ? (
-          <EmptyList query={query} onCompose={onCompose} />
+          <EmptyList query={query} onCompose={onCompose} closed={statusTab === "closed"} />
         ) : (
           threads.map((thread) => <ConversationRow key={thread.id} thread={thread} viewerId={viewerId} active={thread.id === activeId} onOpen={onOpen} />)
         )}
@@ -67,10 +72,30 @@ function SearchField({ value, onChange }: { value: string; onChange: (value: str
   );
 }
 
-function EmptyList({ query, onCompose }: { query?: string; onCompose?: () => void }) {
+/** A plain two-way switch: finished conversations leave the main list for the Closed view. */
+function StatusTabs({ value, onChange }: { value: ThreadStatusTab; onChange: (tab: ThreadStatusTab) => void }) {
+  const tabs: Array<{ id: ThreadStatusTab; label: string }> = [{ id: "open", label: "Open" }, { id: "closed", label: "Closed" }];
+  return (
+    <div role="group" aria-label="Conversation status" className="mx-3 mb-2 flex gap-1 rounded-lg bg-muted p-1">
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          aria-pressed={value === tab.id}
+          onClick={() => onChange(tab.id)}
+          className={cn("flex-1 rounded-md px-2 py-1 text-xs font-medium transition-colors", value === tab.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
+        >
+          {tab.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function EmptyList({ query, onCompose, closed }: { query?: string; onCompose?: () => void; closed: boolean }) {
   return (
     <li className="px-3 py-6 text-center text-sm text-muted-foreground">
-      {query ? "No conversation matches." : "No conversations yet."}
+      {query ? "No conversation matches." : closed ? "No closed conversations." : "No conversations yet."}
       {!query && onCompose ? (
         <Button type="button" variant="link" onClick={onCompose} className="mx-auto mt-1 flex text-primary md:hidden">Start a conversation</Button>
       ) : null}

@@ -32,9 +32,20 @@ describe("merging a refreshed conversation list", () => {
     expect(merged.map((item) => [item.id, item.unreadCount, item.messages.length])).toEqual([["b", 2, 2], ["a", 1, 1]]);
   });
 
-  it("keeps the open conversation when a list fetched before it was created does not include it, and drops other vanished ones", () => {
+  it("keeps a conversation started in this session when a list fetched before it was created does not include it, and drops other vanished ones", () => {
     const current = [thread("new", [message("n1", 1)]), thread("gone", [message("g1", 1)])];
-    const merged = mergeRefreshedThreads(current, [], { threadId: "new", page: null });
+    const merged = mergeRefreshedThreads(current, [], { threadId: "new", page: null, started: true });
     expect(merged.map((item) => item.id)).toEqual(["new"]);
+  });
+
+  it("drops the open conversation when the refresh no longer lists it, so a removed member loses it", () => {
+    const current = [thread("shared", [message("s1", 1)])];
+    expect(mergeRefreshedThreads(current, [], { threadId: "shared", page: null })).toEqual([]);
+  });
+
+  it("takes membership and status from the refresh", () => {
+    const current = [thread("open", [message("m1", 1)])];
+    const [merged] = mergeRefreshedThreads(current, [{ ...thread("open", [message("m1", 1)]), status: "closed" }], { threadId: undefined, page: null });
+    expect(merged.status).toBe("closed");
   });
 });

@@ -1,4 +1,4 @@
-import type { CommunicationUnreadCountQuery } from '@prism/types';
+import type { CommunicationThreadStatus, CommunicationUnreadCountQuery } from '@prism/types';
 import { eventApi } from '@/lib/prism-api';
 
 export const eventMessagesRepository = {
@@ -12,4 +12,7 @@ export const eventMessagesRepository = {
   history(threadId: string) { return eventApi.communication.listMessages(threadId, { limit: 100 }); },
   listOlder(threadId: string, cursor: string) { return eventApi.communication.listMessages(threadId, { cursor, limit: 100 }); },
   markRead(threadId: string) { return eventApi.communication.markThreadRead(threadId); },
+  addParticipants(threadId: string, actorIds: string[]) { return eventApi.communication.addParticipants(threadId, { actorIds }); },
+  removeParticipant(threadId: string, actorId: string) { return eventApi.communication.removeParticipant(threadId, actorId); },
+  setThreadStatus(threadId: string, status: CommunicationThreadStatus) { return eventApi.communication.setThreadStatus(threadId, status); },
 };

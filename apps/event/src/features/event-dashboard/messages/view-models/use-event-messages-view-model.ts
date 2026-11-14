@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import type { PrismCommunicationParticipantChoice, PrismEvent } from "@prism/types";
+import type { CommunicationThreadStatus, PrismCommunicationParticipantChoice, PrismCommunicationThread, PrismEvent } from "@prism/types";
 import { useInvalidate } from "@prism/portal-query";
-import { inboxThreadRecords, useChatThreads, type ChatCompose } from "@prism/ui/chat";
+import { inboxThreadRecords, useChatThreads, type ChatCompose, type ChatThread } from "@prism/ui/chat";
 import type { EventSession } from "@/app/lib/session";
 import { eventMessagesRepository } from "../data/event-messages-repository";
 import { eventUnreadMessages } from "../data/event-messages-unread-resource";
@@ -91,9 +91,28 @@ export function useEventMessagesViewModel({ event, events = [], session }: { eve
     onCreate: () => void createThread(),
   };
 
+  /** A membership or status change: the conversation is updated in place and the unread badge re-read. */
+  function applyChange(next: PrismCommunicationThread) {
+    chat.replaceThread(next);
+    void invalidate(eventUnreadMessages);
+  }
+
+  // PMCM only: the API refuses these for everyone else, and the controls are not offered to them either.
+  const manage = canCompose
+    ? {
+        eligible: (eventId: string) => eventMessagesRepository.participants(eventId),
+        addPeople: async (thread: ChatThread, actorIds: string[]) => applyChange(await eventMessagesRepository.addParticipants(thread.id, actorIds)),
+        removePerson: async (thread: ChatThread, actorId: string) => applyChange(await eventMessagesRepository.removeParticipant(thread.id, actorId)),
+        setStatus: async (thread: ChatThread, status: CommunicationThreadStatus) => applyChange(await eventMessagesRepository.setThreadStatus(thread.id, status)),
+      }
+    : undefined;
+
   return {
     workspace: { ...chat.workspace, busy: chat.workspace.busy || creating, error: composeError ?? chat.workspace.error },
     compose: canCompose ? compose : undefined,
     canInspectReadReceipts: canCompose,
+    manage,
   };
 }
+
+export type EventMessageManage = NonNullable<ReturnType<typeof useEventMessagesViewModel>["manage"]>;

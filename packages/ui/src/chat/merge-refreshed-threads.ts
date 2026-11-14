@@ -2,7 +2,12 @@ import type { ChatMessageRecord, ChatThreadRecord } from "./chat-display";
 
 type MessagePage = { items: ChatMessageRecord[]; nextCursor?: string | null };
 /** The open conversation and its latest page, when the source can fetch one (an inbox row carries only its last message). */
-export type OpenConversation = { threadId?: string; page: MessagePage | null };
+export type OpenConversation = {
+  threadId?: string;
+  page: MessagePage | null;
+  /** True only for a conversation this viewer started in this session, which a list fetched earlier can lack. */
+  started?: boolean;
+};
 
 function byCreatedAt(a: ChatMessageRecord, b: ChatMessageRecord) {
   return a.createdAt.localeCompare(b.createdAt);
@@ -32,7 +37,8 @@ function mergeThread(previous: ChatThreadRecord, fresh: ChatThreadRecord, page: 
 
 /**
  * Folds a refreshed conversation list into the one on screen. Older history, drafts and the open conversation are
- * kept; only messages whose ids are new are appended, and order, previews and unread counts come from the refresh.
+ * kept; only messages whose ids are new are appended, and order, previews, membership, status and unread counts
+ * come from the refresh. A conversation dropped by the refresh (its viewer was removed) leaves the screen.
  */
 export function mergeRefreshedThreads(current: ChatThreadRecord[], incoming: ChatThreadRecord[], open: OpenConversation): ChatThreadRecord[] {
   const previous = new Map(current.map((thread) => [thread.id, thread]));
@@ -42,6 +48,6 @@ export function mergeRefreshedThreads(current: ChatThreadRecord[], incoming: Cha
     return mergeThread(previous.get(thread.id) ?? { ...thread, messages: [] }, thread, isOpen ? open.page : null, isOpen);
   });
   // A conversation the viewer just started can be missing from a list fetched before it was created; it stays open.
-  const keptOpen = current.filter((thread) => thread.id === open.threadId && !listed.has(thread.id));
+  const keptOpen = open.started ? current.filter((thread) => thread.id === open.threadId && !listed.has(thread.id)) : [];
   return [...refreshed, ...keptOpen];
 }

@@ -5,7 +5,7 @@ import { linkedConversationId } from "../portal-path";
 import type { PrismCommunicationReadReceipt } from "@prism/types";
 import { useConversationReadReceipts } from "./use-conversation-read-receipts";
 import { threadMatches, toChatThreads, type ChatMessageRecord, type ChatThread, type ChatThreadRecord } from "./chat-display";
-import { mergeRefreshedThreads, type OpenConversation } from "./merge-refreshed-threads";
+import { addNewMessages, mergeRefreshedThreads, type OpenConversation } from "./merge-refreshed-threads";
 import { useVisibleRefresh } from "./use-visible-refresh";
 
 export type ChatMessagePage = { items: ChatMessageRecord[]; nextCursor?: string | null };
@@ -72,6 +72,8 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   const attempts = useRef(new Map<string, { text: string; key: string }>());
   const sending = useRef(false);
   const withHistory = useRef(new Set<string>());
+  // Conversations this viewer started here, which a refresh fetched before their creation can omit.
+  const startedHere = useRef(new Set<string>());
   const latest = useRef(source);
 
   useEffect(() => {
@@ -168,7 +170,9 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
     const open = shownRef.current;
     const history = open ? latest.current.history : undefined;
     const [listed, page] = await Promise.all([latest.current.list(), open && history ? history(open).catch(() => null) : null]);
-    setLoaded((previous) => refreshedLoaded(previous, scope, listed, { threadId: open, page }));
+    const started = open ? startedHere.current.has(open) : false;
+    setLoaded((previous) => refreshedLoaded(previous, scope, listed, { threadId: open, page, started }));
+    if (open && listed.some((thread) => thread.id === open)) startedHere.current.delete(open);
     if (open && listed.some((thread) => thread.id === open && (thread.unreadCount ?? 0) > 0)) void latest.current.markRead(open).catch(() => undefined);
   };
   useVisibleRefresh(refreshConversations, Boolean(scope));
@@ -219,8 +223,24 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   function addThread(thread: ChatThreadRecord) {
     if (!scope) return;
     withHistory.current.add(thread.id);
+    startedHere.current.add(thread.id);
     setLoaded((previous) => (previous?.scope === scope ? { ...previous, threads: [thread, ...previous.threads] } : previous));
     setSelected({ scope, threadId: thread.id });
+  }
+
+  /**
+   * A conversation changed by a portal action (membership, status): its fresh state replaces the listed one in place.
+   * Messages already on screen and the unread count stay as they were.
+   */
+  function replaceThread(fresh: ChatThreadRecord) {
+    if (!scope) return;
+    updateThread(scope, fresh.id, (previous) => ({
+      ...previous,
+      ...fresh,
+      messages: addNewMessages(previous.messages, fresh.messages),
+      messagesNextCursor: previous.messagesNextCursor ?? fresh.messagesNextCursor ?? null,
+      unreadCount: previous.unreadCount,
+    }));
   }
 
   const retry = () => setReload((value) => value + 1);
@@ -231,6 +251,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
     threads,
     active,
     addThread,
+    replaceThread,
     send,
     /** Spread onto `ChatWorkspace`. */
     workspace: {

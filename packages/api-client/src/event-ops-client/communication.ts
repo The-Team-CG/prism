@@ -73,6 +73,21 @@ export function createCommunicationClient(
           actorPath(`/communication/threads/${threadId}/read`, actor),
           withBase(options, { method: "POST" }),
         ),
+      addParticipants: (threadId, input, actor = {}) =>
+        prismRequest<PrismCommunicationThread>(
+          actorPath(`/communication/threads/${encodeURIComponent(threadId)}/participants`, actor),
+          withBase(options, { method: "POST", body: input }),
+        ),
+      removeParticipant: (threadId, actorId, actor = {}) =>
+        prismRequest<PrismCommunicationThread>(
+          actorPath(`/communication/threads/${encodeURIComponent(threadId)}/participants/${encodeURIComponent(actorId)}`, actor),
+          withBase(options, { method: "DELETE" }),
+        ),
+      setThreadStatus: (threadId, status, actor = {}) =>
+        prismRequest<PrismCommunicationThread>(
+          actorPath(`/communication/threads/${encodeURIComponent(threadId)}`, actor),
+          withBase(options, { method: "PATCH", body: { status } }),
+        ),
     },
   };
 }
