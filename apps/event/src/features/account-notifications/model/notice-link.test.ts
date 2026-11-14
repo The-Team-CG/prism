@@ -11,6 +11,11 @@ describe("pmcmNoticeLink", () => {
     ]);
   });
 
+  it("opens the conversation a message notice is about", () => {
+    expect(pmcmNoticeLink({ kind: 'conversation', eventId: 'evt_1', threadId: 'thread_1' }, 'evt_1', 'coordinator')).toEqual({ href: '/dashboard?view=messages&conversation=thread_1', label: 'Open conversation' });
+    expect(pmcmNoticeLink({ kind: "conversation", eventId: "evt_1", threadId: "thread_1" }, "evt_1")).toEqual({ href: "/dashboard/events/evt_1/messages#conversation-thread_1", label: "Open conversation" });
+  });
+
   it("sends a supplier schedule notice to the event's suppliers tab, and nowhere without an event", () => {
     const action = { kind: "supplier_schedule", requestId: "req_1", revision: 3 } as const;
     expect(pmcmNoticeLink(action, "evt_2")).toEqual({ href: "/dashboard/events/evt_2/suppliers", label: "Open suppliers" });

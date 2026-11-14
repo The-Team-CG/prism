@@ -12,6 +12,8 @@ export type NotificationEventSection = z.infer<typeof notificationEventSectionSc
 export const notificationActionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('supplier_schedule'), requestId: z.string().min(1).max(200), revision: z.number().int().positive() }).strict(),
   z.object({ kind: z.literal('event_section'), eventId: z.string().min(1).max(200), section: notificationEventSectionSchema }).strict(),
+  /** One conversation in Messages. */
+  z.object({ kind: z.literal('conversation'), eventId: z.string().min(1).max(200), threadId: z.string().min(1).max(200), portal: z.enum(['client', 'supplier', 'event', 'coordinator']).optional() }).strict(),
 ]);
 export type NotificationAction = z.infer<typeof notificationActionSchema>;
 
@@ -27,6 +29,8 @@ export interface PrismNotificationInboxItem {
   acknowledgedAt: string | null;
   acknowledgmentDueAt?: string | null;
   action?: NotificationAction;
+  /** Channel copies of this notice; every version is validated when recording receipt. */
+  deliveries?: Array<{ id: string; version: string }>;
 }
 
 export const viberSendResponseSchema = z.object({

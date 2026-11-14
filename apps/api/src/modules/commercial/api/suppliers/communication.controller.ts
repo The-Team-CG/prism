@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
-import { createCommunicationThreadSchema, sendCommunicationMessageSchema, type CreateCommunicationThreadInput, type PrismVerifiedEventActor, type SendCommunicationMessageInput } from '@prism/types';
-import { zodBody } from '@prism/kernel/shared';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { addCommunicationParticipantsSchema, communicationUnreadCountQuerySchema, createCommunicationThreadSchema, sendCommunicationMessageSchema, updateCommunicationThreadStatusSchema, type AddCommunicationParticipantsInput, type CommunicationUnreadCountQuery, type CreateCommunicationThreadInput, type PrismVerifiedEventActor, type SendCommunicationMessageInput, type UpdateCommunicationThreadStatusInput } from '@prism/types';
+import { zodBody, zodQuery } from '@prism/kernel/shared';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { CommunicationService } from '../../application/suppliers/communication.service';
@@ -18,6 +18,16 @@ export class CommunicationController {
   @Get('threads')
   list(@Query('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.listThreads(eventId, this.access.resolveActor({}, verified));
+  }
+
+  @Get('inbox')
+  inbox(@VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.listInbox(this.access.resolveActor({}, verified));
+  }
+
+  @Get('unread-count')
+  unreadCount(@Query(zodQuery(communicationUnreadCountQuerySchema)) query: CommunicationUnreadCountQuery, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.unreadCount(query, this.access.resolveActor({}, verified));
   }
 
   @Get('participants')
@@ -38,5 +48,25 @@ export class CommunicationController {
   @Post('threads/:threadId/read')
   read(@Param('threadId') threadId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.markThreadRead(threadId, this.access.resolveActor({}, verified));
+  }
+
+  @Patch('threads/:threadId')
+  updateStatus(@Param('threadId') threadId: string, @Body(zodBody(updateCommunicationThreadStatusSchema)) input: UpdateCommunicationThreadStatusInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.setStatus(threadId, input, this.access.resolveActor({}, verified));
+  }
+
+  @Post('threads/:threadId/participants')
+  addParticipants(@Param('threadId') threadId: string, @Body(zodBody(addCommunicationParticipantsSchema)) input: AddCommunicationParticipantsInput, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.addParticipants(threadId, input, this.access.resolveActor({}, verified));
+  }
+
+  @Delete('threads/:threadId/participants/:actorId')
+  removeParticipant(@Param('threadId') threadId: string, @Param('actorId') actorId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.removeParticipant(threadId, actorId, this.access.resolveActor({}, verified));
+  }
+
+  @Get('threads/:threadId/read-receipts')
+  readReceipts(@Param('threadId') threadId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.readReceipts(threadId, this.access.resolveActor({}, verified));
   }
 }

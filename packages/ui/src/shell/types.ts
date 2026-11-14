@@ -7,6 +7,8 @@ export interface PrismNavItem {
   section?: string;
   groupId?: string;
   badge?: string | number;
+  /** Spoken name for the badge when its visible text is only a number, such as "3 unread messages". */
+  badgeLabel?: string;
   disabled?: boolean;
   /** Route this destination opens. When set the item renders as a link, so it can open in a new tab. */
   href?: string;
