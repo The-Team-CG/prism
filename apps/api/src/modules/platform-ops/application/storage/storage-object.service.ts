@@ -101,6 +101,18 @@ function sameUploadContent(object: OpsStoredObject, input: StorageServiceRequest
 /** An account-wide client file search returns at most this many matches. */
 const CLIENT_FILE_SEARCH_LIMIT = 100;
 
+/** An upload left requested or failed this long is abandoned. */
+const ABANDONED_UPLOAD_DAYS = 3;
+const ABANDONED_UPLOAD_BATCH = 200;
+const ABANDONED_UPLOAD_CLEANUP_ACTOR: ResolvedEventOpsActor = {
+  id: 'system:abandoned-upload-cleanup',
+  role: OpsUserRole.System,
+  name: 'Abandoned upload cleanup',
+  email: 'system@prism.local',
+  explicit: true,
+  verified: true,
+};
+
 @Injectable()
 export class StorageObjectService implements StoredSupplierUploadReader, StoredRequirementUploadReader, StoredReceiptEvidenceReader, GuestFeedbackMediaStore {
   constructor(
@@ -413,7 +425,9 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
         }
         return { status: 'ready', object: this.mapObject(current), location };
       }
-      if (current.lifecycleState !== 'failed') throw new ConflictException('Only a failed storage request can be resumed');
+      // An upload that never finished may have been cleaned up; retrying it starts the same request again.
+      const abandoned = current.lifecycleState === 'deleted' && !current.storedAt;
+      if (current.lifecycleState !== 'failed' && !abandoned) throw new ConflictException('Only a failed storage request can be resumed');
       const replaced = await prisma.opsStoredObject.update({ where: { id: current.id }, data: { lifecycleState: 'requested', providerName: location.providerName, providerObjectKey: location.providerObjectKey, failureReason: null, failedAt: null, deletedAt: null, requestedAt: new Date() } });
       return { status: 'ready', object: this.mapObject(replaced), location };
     }, context);
@@ -748,6 +762,40 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     const saved = await this.prisma.opsStoredObject.update({ where: { id: object.id }, data: { expiresAt: input.expiresAt ? new Date(input.expiresAt) : null } });
     await this.auditStorageAction(input.actor, saved, input.expiresAt ? 'Set when a stored file expires' : 'Cleared a stored file expiry', AuditActionType.Update, 'expiry_set', { expiresAt: input.expiresAt });
     return this.presentForActor(input.actor, this.mapObject(saved));
+  }
+
+  /**
+   * Removes uploads that never finished: requested or failed and untouched for ABANDONED_UPLOAD_DAYS. They were never
+   * stored, so nothing can reference them; any partial bytes at the provider are deleted and the record is marked
+   * deleted (a later retry of the same upload can still resume it). Returns how many were removed.
+   */
+  async cleanUpAbandonedUploads(now = new Date()): Promise<number> {
+    const cutoff = new Date(now.getTime() - ABANDONED_UPLOAD_DAYS * 24 * 60 * 60 * 1000);
+    const abandoned = await this.prisma.opsStoredObject.findMany({
+      where: { storedAt: null, updatedAt: { lt: cutoff }, lifecycleState: { in: ['requested', 'failed'] } },
+      orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }],
+      take: ABANDONED_UPLOAD_BATCH,
+    });
+    let removed = 0;
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: one bounded batch per sweep; each upload has its own provider bytes to delete.
+    for (const object of abandoned) {
+      if (await this.removeAbandonedUpload(object, cutoff)) removed += 1;
+    }
+    return removed;
+  }
+
+  private async removeAbandonedUpload(object: OpsStoredObject, cutoff: Date) {
+    if (object.providerObjectKey && this.adapter) {
+      await this.adapter.deleteObject({ objectId: object.id, providerObjectKey: object.providerObjectKey }).catch(() => undefined);
+    }
+    // Only if it is still unfinished and untouched: an upload that resumed meanwhile is left alone.
+    const changed = await this.prisma.opsStoredObject.updateMany({
+      where: { id: object.id, storedAt: null, updatedAt: { lt: cutoff }, lifecycleState: { in: ['requested', 'failed'] } },
+      data: { lifecycleState: 'deleted', deletedAt: new Date() },
+    });
+    if (changed.count !== 1) return false;
+    await this.auditStorageAction(ABANDONED_UPLOAD_CLEANUP_ACTOR, { ...object, lifecycleState: 'deleted' }, 'Removed an upload that never finished', AuditActionType.General, 'abandoned_removed', { previousState: object.lifecycleState });
+    return true;
   }
 
   /** The stored bytes of an object, read through the provider the way a download would. */

@@ -59,6 +59,7 @@ import { PAREService } from './application/ai-governance/pare/pare.service';
 import { PareDispatchOutboxService } from './application/ai-governance/pare/pare-dispatch-outbox.service';
 import { PARE_APPROVAL_GOVERNANCE, PARE_DISPATCH_WRITER } from './contracts/ai-governance/pare-ops.tokens';
 import { StorageObjectService } from './application/storage/storage-object.service';
+import { AbandonedUploadCleanupScheduler } from './application/storage/abandoned-upload-cleanup.scheduler';
 import { STORED_RECEIPT_EVIDENCE_READER, STORED_REQUIREMENT_UPLOAD_READER } from './contracts/storage/storage.port';
 import { StorageValidationService } from './application/storage/storage-validation.service';
 import { GUEST_FEEDBACK_MEDIA_STORE, STORAGE_ADAPTER, STORED_SUPPLIER_UPLOAD_READER } from './contracts/storage/storage.port';
@@ -220,6 +221,7 @@ export function createAiProviderAdapters(
     { provide: PARE_DISPATCH_WRITER, useExisting: PareDispatchOutboxService },
     StorageValidationService,
     StorageObjectService,
+    AbandonedUploadCleanupScheduler,
     { provide: STORED_SUPPLIER_UPLOAD_READER, useExisting: StorageObjectService },
     { provide: STORED_REQUIREMENT_UPLOAD_READER, useExisting: StorageObjectService },
     { provide: STORED_RECEIPT_EVIDENCE_READER, useExisting: StorageObjectService },
