@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { copyStorageObject, searchClientStoredFiles, setStorageObjectExpiry, uploadStorageObject } from "./storage-client";
+import { copyStorageObject, copyStorageObjectToThread, searchClientStoredFiles, setStorageObjectExpiry, uploadStorageObject } from "./storage-client";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -85,5 +85,20 @@ describe("client file copy and search", () => {
     expect(JSON.parse(String(copyInit.body))).toEqual({ eventId: "evt_2", logicalTarget: "client-upload:evt_2:123e4567-e89b-42d3-a456-426614174000" });
     expect(searchUrl).toBe("http://api.test/api/storage/objects/client-files?query=venue+permit+%26+co");
     expect([copyInit, searchInit].every((init) => (init.headers as Record<string, string>).Authorization === "Bearer token")).toBe(true);
+  });
+});
+
+describe("conversation attachments", () => {
+  it("copies a stored file into a conversation through the thread route, with the bearer and the thread id", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(storedObject("abc")), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const copied = await copyStorageObjectToThread("obj/1", { threadId: "thr/1" }, { authToken: "token", baseUrl: "http://api.test/api" });
+
+    expect(copied.id).toBe("obj_1");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("http://api.test/api/storage/objects/obj%2F1/thread-copies");
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({ threadId: "thr/1" });
+    expect(new Headers(fetchMock.mock.calls[0]?.[1]?.headers).get("Authorization")).toBe("Bearer token");
   });
 });

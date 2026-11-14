@@ -154,9 +154,18 @@ export const createCommunicationThreadSchema = z.object({
 });
 export type CreateCommunicationThreadInput = z.infer<typeof createCommunicationThreadSchema>;
 
+/** Files one message may carry. */
+export const COMMUNICATION_MESSAGE_ATTACHMENT_LIMIT = 10;
+
+/** A message has text, files, or both: a file-only message has an empty body. */
 export const sendCommunicationMessageSchema = z.object({
-  body: nonEmptyStringSchema,
+  body: z.string().trim().default(""),
+  attachmentObjectIds: z.array(nonEmptyStringSchema).max(COMMUNICATION_MESSAGE_ATTACHMENT_LIMIT).optional(),
   idempotencyKey: nonEmptyStringSchema,
+}).superRefine((value, ctx) => {
+  const ids = value.attachmentObjectIds ?? [];
+  if (new Set(ids).size !== ids.length) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A file can be attached to a message only once', path: ['attachmentObjectIds'] });
+  if (!value.body && ids.length === 0) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'A message needs text or at least one file', path: ['body'] });
 });
 export type SendCommunicationMessageInput = z.infer<typeof sendCommunicationMessageSchema>;
 

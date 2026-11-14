@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 157,
+    "totalTables": 158,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 51,
-    "targetSameDomainFks": 133,
+    "targetSameDomainFks": 134,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -998,6 +998,15 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 9
+    },
+    {
+      "model": "OpsCommunicationMessageAttachment",
+      "currentSchema": "commercial",
+      "table": "communication_message_attachments",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 5,
+      "introducedAfterCutover": true
     },
     {
       "model": "EventGameDefinition",
@@ -2765,6 +2774,21 @@
       "targetDomain": "commercial",
       "targetCurrentSchema": "supplier_ops",
       "targetTable": "communication_threads",
+      "sameDomain": true
+    },
+    {
+      "schema": "commercial",
+      "table": "communication_message_attachments",
+      "name": "communication_message_attachments_message_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (message_id) REFERENCES commercial.communication_messages(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "message_id"
+      ],
+      "sourceDomain": "commercial",
+      "targetDomain": "commercial",
+      "targetCurrentSchema": "commercial",
+      "targetTable": "communication_messages",
       "sameDomain": true
     },
     {

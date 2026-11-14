@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { sendCommunicationMessageSchema } from '@prism/types';
 import { CommunicationService, newMessageNotice } from './communication.service';
+const noAttachments = { findStoredCommunicationAttachments: async () => new Map(), describeCommunicationAttachments: async () => new Map() };
 
 function harness(options: { removed?: boolean; replay?: { body: string } } = {}) {
   const actor = { id: 'u_supplier', name: 'Supplier', email: 'supplier@example.test', role: 'supplier', explicit: true, verified: true } as const;
@@ -12,7 +14,7 @@ function harness(options: { removed?: boolean; replay?: { body: string } } = {})
     opsCommunicationThread: { update: vi.fn() },
   };
   const prisma = { opsCommunicationThread: { findUnique: vi.fn(async () => ({ id: 'thread_1', eventId: 'event_1' })) }, $transaction: vi.fn(async (fn: (db: typeof tx) => unknown) => fn(tx)) };
-  const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, { resolveForEvent: vi.fn(async () => actor) } as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
+  const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, { resolveForEvent: vi.fn(async () => actor) } as never, { write: vi.fn() } as never, { write: vi.fn() } as never, noAttachments as never);
   return { service, actor, tx };
 }
 
@@ -25,7 +27,7 @@ describe('CommunicationService thread creation', () => {
     const tx = { opsCommunicationThread: { create: vi.fn(async () => ({ id: 'thread_1', subject: 'Parking' })), findUnique: vi.fn(async () => row) }, opsCommunicationParticipant: { createMany } };
     const prisma = { $transaction: vi.fn(async (fn: (db: typeof tx) => unknown) => fn(tx)) };
     const listPmcmAdmins = vi.fn(async () => [pmcm]);
-    const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, { resolveForEvent, listPmcmAdmins, displayNames: vi.fn(async () => new Map()) } as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
+    const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, { resolveForEvent, listPmcmAdmins, displayNames: vi.fn(async () => new Map()) } as never, { write: vi.fn() } as never, { write: vi.fn() } as never, noAttachments as never);
     return { service, supplier, createMany };
   }
 
@@ -48,7 +50,7 @@ describe('CommunicationService thread creation', () => {
   });
 });
 
-type InboxMessage = { id: string; threadId: string; senderId: string; senderRole: string; body: string; createdAt: Date };
+type InboxMessage = { id: string; threadId: string; senderId: string; senderRole: string; body: string; createdAt: Date; attachments?: Array<{ storedObjectId: string }> };
 type StoredThread = { id: string; eventId: string; subject: string; status: 'open' | 'closed'; updatedAt: Date; lastReadAt: Date | null; messages: InboxMessage[] };
 type OrClause = { subject?: { contains: string }; eventId?: { in: string[] }; messages?: { some: { body: { contains: string } } } };
 /** A keyset clause: either "older than this activity" or "same activity, id before this one". */
@@ -126,7 +128,7 @@ function inboxStore(threads: StoredThread[], readable: string[] = Object.keys(ev
     resolveForEvent: vi.fn(async (_actorId: string, eventId: string) => { if (!readable.includes(eventId)) throw new ForbiddenException('Not on this event'); return inboxActor; }),
     displayNames: vi.fn(async () => new Map([['u_client', 'Ana Reyes'], ['u_supplier', 'Bloom Florals']])),
   };
-  const service = new CommunicationService(db as never, access as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
+  const service = new CommunicationService(db as never, access as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never, noAttachments as never);
   return { service, db, participants };
 }
 
@@ -135,7 +137,7 @@ const at = new Date('2026-11-12T08:00:00.000Z');
 function threadAt(id: string, eventId: string, minutes: number, extra: Partial<StoredThread> & { body?: string } = {}): StoredThread {
   const { body = `Message in ${id}`, ...rest } = extra;
   const updatedAt = new Date(at.getTime() + minutes * 60_000);
-  return { id, eventId, subject: `Topic ${id}`, status: 'open', updatedAt, lastReadAt: null, messages: [{ id: `${id}_m`, threadId: id, senderId: 'u_client', senderRole: 'client', body, createdAt: updatedAt }], ...rest };
+  return { id, eventId, subject: `Topic ${id}`, status: 'open', updatedAt, lastReadAt: null, messages: [{ id: `${id}_m`, threadId: id, senderId: 'u_client', senderRole: 'client', body, createdAt: updatedAt, attachments: [] }], ...rest };
 }
 
 describe('CommunicationService inbox', () => {
@@ -309,7 +311,7 @@ function managementHarness(options: { status?: string; members?: Array<{ actorId
       findUnique: vi.fn(async () => null),
       groupBy: vi.fn(async ({ where }: { where: Parameters<typeof groupUnread>[1] }) => groupUnread(state.messages, where)),
       create: vi.fn(async ({ data }: { data: { threadId: string; senderId: string; senderRole: string; body: string; payloadHash: string } }) => {
-        const message = { id: `msg_${state.messages.length + 1}`, threadId: data.threadId, senderId: data.senderId, senderRole: data.senderRole, body: data.body, createdAt: new Date() };
+        const message = { id: `msg_${state.messages.length + 1}`, threadId: data.threadId, senderId: data.senderId, senderRole: data.senderRole, body: data.body, createdAt: new Date(), attachments: [] };
         state.messages.push(message);
         return { ...message, payloadHash: data.payloadHash };
       }),
@@ -324,7 +326,7 @@ function managementHarness(options: { status?: string; members?: Array<{ actorId
   };
   const audit = { write: vi.fn() };
   const outbox = { write: vi.fn() };
-  const service = new CommunicationService(db as never, { requireActorRole: vi.fn() } as never, participants as never, audit as never, outbox as never);
+  const service = new CommunicationService(db as never, { requireActorRole: vi.fn() } as never, participants as never, audit as never, outbox as never, noAttachments as never);
   return { service, db, audit, outbox, activeIds: () => activeMembers().map((member) => member.actorId) };
 }
 
@@ -337,7 +339,7 @@ describe('CommunicationService membership and status', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-14T09:00:00.000Z'));
     // Sixty messages were sent before anyone joined; joining must not turn them into unread messages.
-    const history = Array.from({ length: 60 }, (_, index) => ({ id: `old_${index}`, threadId: 'thread_1', senderId: 'u_supplier', senderRole: 'supplier', body: `Earlier ${index}`, createdAt: new Date('2026-11-12T08:00:00.000Z') }));
+    const history = Array.from({ length: 60 }, (_, index) => ({ id: `old_${index}`, threadId: 'thread_1', senderId: 'u_supplier', senderRole: 'supplier', body: `Earlier ${index}`, createdAt: new Date('2026-11-12T08:00:00.000Z'), attachments: [] }));
     const h = managementHarness({ members: [{ actorId: 'u_pmcm' }, { actorId: 'u_client', active: false }], messages: history });
     await h.service.addParticipants('thread_1', { actorIds: ['u_coord', 'u_client'] }, pmcm);
     expect(h.activeIds()).toEqual(['u_pmcm', 'u_client', 'u_coord']);
@@ -456,7 +458,7 @@ describe('new-message notices', () => {
     };
     const prisma = { opsCommunicationThread: { findUnique: vi.fn(async () => ({ id: 'thread_1', eventId: 'event_1' })) }, $transaction: vi.fn(async (fn: (db: typeof tx) => unknown) => fn(tx)) };
     const outbox = { write: vi.fn() };
-    const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, { resolveForEvent: vi.fn(async () => sender) } as never, { write: vi.fn() } as never, outbox as never);
+    const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, { resolveForEvent: vi.fn(async () => sender) } as never, { write: vi.fn() } as never, outbox as never, noAttachments as never);
 
     await expect(service.sendMessage('thread_1', { body: 'Can we move load-in?', idempotencyKey: 'key_1' }, sender)).resolves.toMatchObject({ id: 'msg_1', senderName: 'Ana Reyes' });
 
@@ -484,5 +486,86 @@ describe('CommunicationService message guards', () => {
     await expect(service.sendMessage('thread_1', { body: 'hello', idempotencyKey: 'key_1' }, actor)).rejects.toBeInstanceOf(BadRequestException);
     expect(tx.opsCommunicationMessage.upsert).not.toHaveBeenCalled();
     expect(tx.opsCommunicationMessage.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { threadId_idempotencyKey: { threadId: 'thread_1', idempotencyKey: 'key_1' } } }));
+  });
+});
+
+describe('CommunicationService message attachments', () => {
+  const sender = { id: 'u_supplier', name: 'Bloom Florals', email: 'bloom@example.test', role: 'supplier', explicit: true, verified: true } as const;
+
+  function attachmentHarness(files: Record<string, Partial<Record<string, unknown>>>, linked: string[] = []) {
+    const stored = new Map(Object.entries(files).map(([id, overrides]) => [id, {
+      id, eventId: 'event_1', ownerRecordType: 'communication_thread', ownerRecordId: 'thread_1', usage: 'communication_attachment', lifecycleState: 'stored',
+      uploaderActorId: sender.id, fileName: `${id}.pdf`, contentType: 'application/pdf', byteSize: 10, ...overrides,
+    }]));
+    const state: { message: Record<string, unknown> | null; links: Array<{ storedObjectId: string; position: number }>; created: Array<Record<string, unknown>> } = { message: null, links: [], created: [] };
+    const tx = {
+      $queryRaw: vi.fn(),
+      opsCommunicationParticipant: { findFirst: vi.fn(async () => ({ id: 'member' })), findMany: vi.fn(async () => [{ actorEmail: 'client@example.test', actorRole: 'client' }]) },
+      opsCommunicationMessage: {
+        findUnique: vi.fn(async () => (state.message ? { ...state.message, attachments: state.links.map(({ storedObjectId }) => ({ storedObjectId })) } : null)),
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+          state.created.push(data);
+          state.message = { ...data, createdAt: new Date('2026-11-14T09:00:00.000Z') };
+          return state.message;
+        }),
+      },
+      opsCommunicationMessageAttachment: {
+        findFirst: vi.fn(async ({ where }: { where: { storedObjectId: { in: string[] } } }) => (where.storedObjectId.in.some((id) => linked.includes(id)) ? { id: 'link_x' } : null)),
+        createMany: vi.fn(async ({ data }: { data: Array<{ storedObjectId: string; position: number }> }) => { state.links.push(...data); return { count: data.length }; }),
+      },
+      opsCommunicationThread: { findUnique: vi.fn(async () => ({ status: 'open', subject: 'Parking' })), update: vi.fn() },
+      opsEvent: { findUnique: vi.fn(async () => ({ eventName: 'Gala' })) },
+    };
+    const prisma = { opsCommunicationThread: { findUnique: vi.fn(async () => ({ id: 'thread_1', eventId: 'event_1' })) }, $transaction: vi.fn(async (fn: (db: typeof tx) => unknown) => fn(tx)) };
+    const attachments = {
+      findStoredCommunicationAttachments: vi.fn(async ({ objectIds }: { objectIds: string[] }) => new Map(objectIds.filter((id) => stored.has(id)).map((id) => [id, stored.get(id)]))),
+      describeCommunicationAttachments: vi.fn(async (objectIds: string[]) => new Map(objectIds.filter((id) => stored.get(id)?.lifecycleState === 'stored').map((id) => [id, { id, fileName: `${id}.pdf`, contentType: 'application/pdf', byteSize: 10 }]))),
+    };
+    const participants = { resolveForEvent: vi.fn(async () => sender) };
+    const outbox = { write: vi.fn() };
+    const service = new CommunicationService(prisma as never, { requireActorRole: vi.fn() } as never, participants as never, { write: vi.fn() } as never, outbox as never, attachments as never);
+    return { service, state, tx, outbox };
+  }
+
+  it('links the files to the message, in order, and shows them with their display facts only', async () => {
+    const { service, state, tx } = attachmentHarness({ obj_a: {}, obj_b: {} });
+    const message = await service.sendMessage('thread_1', { body: '', attachmentObjectIds: ['obj_a', 'obj_b'], idempotencyKey: 'key_1' }, sender as never);
+    expect(state.links).toEqual([expect.objectContaining({ storedObjectId: 'obj_a', position: 0 }), expect.objectContaining({ storedObjectId: 'obj_b', position: 1 })]);
+    expect(tx.opsCommunicationMessageAttachment.createMany).toHaveBeenCalledOnce();
+    expect(message.attachments).toEqual([
+      { id: 'obj_a', fileName: 'obj_a.pdf', contentType: 'application/pdf', byteSize: 10 },
+      { id: 'obj_b', fileName: 'obj_b.pdf', contentType: 'application/pdf', byteSize: 10 },
+    ]);
+    expect(JSON.stringify(message)).not.toMatch(/providerObjectKey|uploaderActorId/);
+  });
+
+  it('refuses each attachment that is not a stored file of this conversation sent by the sender, or that is already attached', async () => {
+    const cases: Array<{ name: string; files: Record<string, Partial<Record<string, unknown>>>; linked?: string[] }> = [
+      { name: 'another conversation', files: { obj_a: { ownerRecordId: 'thread_2' } } },
+      { name: 'another sender', files: { obj_a: { uploaderActorId: 'u_client' } } },
+      { name: 'a file that is not stored', files: { obj_a: { lifecycleState: 'requested' } } },
+      { name: 'a file already on a message', files: { obj_a: {} }, linked: ['obj_a'] },
+      { name: 'a file of another usage', files: { obj_a: { usage: 'client_document' } } },
+    ];
+    for (const item of cases) {
+      const { service, state } = attachmentHarness(item.files, item.linked);
+      await expect(service.sendMessage('thread_1', { body: 'See attached', attachmentObjectIds: ['obj_a'], idempotencyKey: 'key_1' }, sender as never), item.name).rejects.toBeInstanceOf(Error);
+      expect(state.created, item.name).toEqual([]);
+    }
+  });
+
+  it('accepts at most ten files, and a file-only message needs at least one', () => {
+    const ids = Array.from({ length: 11 }, (_, index) => `obj_${index}`);
+    expect(sendCommunicationMessageSchema.safeParse({ body: '', attachmentObjectIds: ids, idempotencyKey: 'key_1' }).success).toBe(false);
+    expect(sendCommunicationMessageSchema.safeParse({ body: '', idempotencyKey: 'key_1' }).success).toBe(false);
+    expect(sendCommunicationMessageSchema.safeParse({ body: '', attachmentObjectIds: ['obj_a'], idempotencyKey: 'key_1' }).success).toBe(true);
+  });
+
+  it('describes a file-only message in the notice, and rejects a retry with a different attachment set under the same key', async () => {
+    const { service, outbox } = attachmentHarness({ obj_a: {}, obj_b: {} });
+    await service.sendMessage('thread_1', { body: '', attachmentObjectIds: ['obj_a', 'obj_b'], idempotencyKey: 'key_1' }, sender as never);
+    expect(JSON.stringify(outbox.write.mock.calls)).toContain('sent 2 files');
+    await expect(service.sendMessage('thread_1', { body: '', attachmentObjectIds: ['obj_b'], idempotencyKey: 'key_1' }, sender as never)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.sendMessage('thread_1', { body: '', attachmentObjectIds: ['obj_a', 'obj_b'], idempotencyKey: 'key_1' }, sender as never)).resolves.toMatchObject({ attachments: [{ id: 'obj_a' }, { id: 'obj_b' }] });
   });
 });

@@ -119,8 +119,8 @@ export const prismApi = {
     eventOpsClient.communication.unreadCount({}, actorFromSession(session)),
   createCommunicationThread: (eventId: string, subject: string, session: PrismAuthenticatedSession) =>
     eventOpsClient.communication.createThread({ eventId, subject }, actorFromSession(session)),
-  sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string, session: PrismAuthenticatedSession) =>
-    eventOpsClient.communication.sendMessage(threadId, { body, idempotencyKey }, actorFromSession(session)),
+  sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string, session: PrismAuthenticatedSession, attachmentObjectIds: string[] = []) =>
+    eventOpsClient.communication.sendMessage(threadId, { body, attachmentObjectIds, idempotencyKey }, actorFromSession(session)),
   communicationMessages: (threadId: string, cursor: string | undefined, limit: number | undefined, session: PrismAuthenticatedSession) =>
     eventOpsClient.communication.listMessages(threadId, { cursor, limit }, actorFromSession(session)),
   markCommunicationThreadRead: (threadId: string, session: PrismAuthenticatedSession) =>

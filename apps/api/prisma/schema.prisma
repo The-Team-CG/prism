@@ -3400,11 +3400,27 @@ model OpsCommunicationMessage {
   idempotencyKey String   @map("idempotency_key")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  thread OpsCommunicationThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  thread      OpsCommunicationThread            @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  attachments OpsCommunicationMessageAttachment[]
 
   @@unique([threadId, idempotencyKey], map: "communication_messages_thread_id_idempotency_key_key")
   @@index([threadId, createdAt], map: "communication_messages_thread_id_created_at_idx")
   @@map("communication_messages")
+  @@schema("commercial")
+}
+
+/// A file attached to a message. The file is a copy owned by the conversation (platform_ops stored object), never a link to another owner's file.
+model OpsCommunicationMessageAttachment {
+  id             String   @id
+  messageId      String   @map("message_id")
+  storedObjectId String   @unique(map: "communication_message_attachments_stored_object_id_key") @map("stored_object_id")
+  position       Int
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  message OpsCommunicationMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId], map: "communication_message_attachments_message_id_idx")
+  @@map("communication_message_attachments")
   @@schema("commercial")
 }
 

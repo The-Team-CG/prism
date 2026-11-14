@@ -30,6 +30,14 @@ export interface PrismCommunicationParticipantChoice {
   role: string;
 }
 
+/** A file attached to a message. Download it through the storage object id, which is the attachment id. */
+export interface PrismCommunicationAttachment {
+  id: string;
+  fileName: string;
+  contentType: string;
+  byteSize: number;
+}
+
 export interface PrismCommunicationMessage {
   id: string;
   threadId: string;
@@ -38,6 +46,7 @@ export interface PrismCommunicationMessage {
   /** Kept on the message so a sender who has left the conversation still has a name. */
   senderName?: string;
   body: string;
+  attachments: PrismCommunicationAttachment[];
   createdAt: string;
 }
 

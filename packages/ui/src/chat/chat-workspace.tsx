@@ -8,6 +8,8 @@ import { type ChatThread } from "./chat-display";
 import { Conversation, PaneState } from "./conversation";
 import { ConversationList, type ThreadStatusTab } from "./conversation-list";
 import { NewConversation, type ChatCompose } from "./new-conversation";
+import type { AttachmentControls } from "./composer";
+import type { ChatAttachmentDownloader } from "./message-attachments";
 
 export type ChatWorkspaceProps = {
   ariaLabel: string;
@@ -50,6 +52,9 @@ export type ChatWorkspaceProps = {
   renderHeaderActions?: (thread: ChatThread) => ReactNode;
   /** Controls in the closed note under the conversation (for PMCM, Reopen). */
   renderClosedAction?: (thread: ChatThread) => ReactNode;
+} & Partial<AttachmentControls> & {
+  /** Fetches a message's files for their rows and previews. */
+  downloadAttachment?: ChatAttachmentDownloader;
 };
 
 type PhonePane = "list" | "chat";
@@ -154,6 +159,7 @@ function ChatDetail({ props, twoPanes, active, composing, back }: { props: ChatW
       showReadReceipts={props.showReadReceipts}
       headerActions={props.renderHeaderActions?.(active)}
       closedAction={props.renderClosedAction?.(active)}
+      downloadAttachment={props.downloadAttachment}
       thread={active}
       viewerId={props.viewerId}
       historyLoading={props.historyLoading}
@@ -168,6 +174,12 @@ function ChatDetail({ props, twoPanes, active, composing, back }: { props: ChatW
         // Short enough to stay on one line in a phone composer; the header already names the conversation.
         placeholder: props.composerPlaceholder?.(active) ?? "Write a message",
         enterSends: twoPanes !== false,
+        attachments: props.attachments,
+        canAttach: props.canAttach,
+        onAttachFile: props.onAttachFile,
+        onAttachStoredFile: props.onAttachStoredFile,
+        onListStoredFiles: props.onListStoredFiles,
+        onRemoveAttachment: props.onRemoveAttachment,
       }}
     />
   );

@@ -5,6 +5,7 @@ import { linkedConversationId } from "../portal-path";
 import type { PrismCommunicationReadReceipt } from "@prism/types";
 import { useConversationReadReceipts } from "./use-conversation-read-receipts";
 import { toChatThreads, type ChatMessageRecord, type ChatThread, type ChatThreadRecord } from "./chat-display";
+import { useComposerAttachments, type ChatAttachmentSource } from "./use-composer-attachments";
 import { addNewMessages, mergeRefreshedThreads, type OpenConversation } from "./merge-refreshed-threads";
 import type { ThreadStatusTab } from "./conversation-list";
 import { useVisibleRefresh } from "./use-visible-refresh";
@@ -22,10 +23,11 @@ export type ChatSource = {
   /** Set when `list` returns only each conversation's latest message: loads the rest once it is on screen. */
   history?(threadId: string): Promise<ChatMessagePage>;
   older(threadId: string, cursor: string): Promise<ChatMessagePage>;
-  send(threadId: string, body: string, idempotencyKey: string): Promise<ChatMessageRecord>;
+  send(threadId: string, body: string, idempotencyKey: string, attachmentIds: string[]): Promise<ChatMessageRecord>;
   markRead(threadId: string): Promise<unknown>;
   readReceipts?(threadId: string): Promise<PrismCommunicationReadReceipt[]>;
-};
+  /** Files on a message: the portal uploads one into the conversation, or copies one from the event's Files. */
+} & ChatAttachmentSource;
 
 /** The loaded list. `key` names the list (scope, status and search); a response for another key is dropped. */
 type Loaded = { key: string; status: "loading" | "ready" | "error"; threads: ChatThreadRecord[]; nextCursor: string | null; hasMore: boolean; loadingMore?: boolean; error?: string };
@@ -111,7 +113,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   // A notice link names one conversation in the URL fragment; it is the open one until the viewer picks another.
   const [linkedId, setLinkedId] = useState<string>();
   // A retry of the same text reuses its key, so a send that reached the server is not stored twice.
-  const attempts = useRef(new Map<string, { text: string; key: string }>());
+  const attempts = useRef(new Map<string, { signature: string; key: string }>());
   const sending = useRef(false);
   const withHistory = useRef(new Set<string>());
   // Conversations this viewer started here, which a refresh fetched before their creation can omit.
@@ -161,6 +163,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   // Like a phone's chat list, the most recent conversation is the open one until another is chosen.
   const active = threads.find((thread) => thread.id === selectedId) ?? threads[0];
   const draft = active ? drafts[active.id] ?? "" : "";
+  const files = useComposerAttachments(source, active);
   const status = listStatus(listKey, current);
 
   const updateThread = useCallback((forKey: string, threadId: string, update: (thread: ChatThreadRecord) => ChatThreadRecord) => {
@@ -255,20 +258,25 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
   }
 
   async function send() {
-    if (!scope || !listKey || !active || !draft.trim() || sending.current) return;
+    if (!scope || !listKey || !active || sending.current) return;
     const threadId = active.id;
     const text = draft.trim();
+    const attachmentIds = files.readyIds(threadId);
+    if ((!text && attachmentIds.length === 0) || files.isUploading(threadId)) return;
+    // A retry of the same message reuses its key, so a send that reached the server is not stored twice.
+    const signature = JSON.stringify([text, attachmentIds]);
     const attempt = attempts.current.get(threadId);
-    const key = attempt?.text === text ? attempt.key : crypto.randomUUID();
-    attempts.current.set(threadId, { text, key });
+    const key = attempt?.signature === signature ? attempt.key : crypto.randomUUID();
+    attempts.current.set(threadId, { signature, key });
     sending.current = true;
     setBusy(true);
     setActionError(null);
     try {
-      const message = await latest.current.send(threadId, text, key);
+      const message = await latest.current.send(threadId, text, key, attachmentIds);
       updateThread(listKey, threadId, (thread) => (thread.messages.some((item) => item.id === message.id) ? thread : { ...thread, messages: [...thread.messages, message], unreadCount: 0 }));
       setDrafts((all) => (all[threadId] === draft ? { ...all, [threadId]: "" } : all));
       attempts.current.delete(threadId);
+      files.clearSent(threadId);
     } catch (reason) {
       setActionError({ scope, threadId, message: errorText(reason, "Unable to send message") });
     } finally {
@@ -348,6 +356,7 @@ export function useChatThreads({ scope, source, viewerId }: { scope: string | un
       onDraftChange: updateDraft,
       onSend: () => void send(),
       onLoadOlder: () => void loadOlder(),
+      ...files.controls,
     },
   };
 }

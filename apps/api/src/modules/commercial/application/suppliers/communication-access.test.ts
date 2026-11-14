@@ -1,6 +1,7 @@
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { CommunicationService } from './communication.service';
+const noAttachments = { findStoredCommunicationAttachments: async () => new Map(), describeCommunicationAttachments: async () => new Map() };
 
 function setup(role = 'coordinator', member = true, eventAccess = true) {
   const actor = { id: 'user', name: 'Marco', role, email: 'marco@example.test', verified: true, explicit: true };
@@ -16,7 +17,7 @@ function setup(role = 'coordinator', member = true, eventAccess = true) {
   const db = { ...prisma, $transaction: async (run: (tx: typeof prisma) => unknown) => run(prisma) };
   const access = { requireActorRole: vi.fn(async (_actor: unknown, roles: string[]) => { if (!roles.includes(role) || !eventAccess) throw new ForbiddenException('Outside role or event access'); }) };
   const participants = { resolveForEvent: vi.fn(async () => actor), displayNames: vi.fn(async () => new Map([['client', 'Ana']])) };
-  const service = new CommunicationService(db as never, access as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never);
+  const service = new CommunicationService(db as never, access as never, participants as never, { write: vi.fn() } as never, { write: vi.fn() } as never, noAttachments as never);
   return { service, actor: actor as never, prisma, participants };
 }
 

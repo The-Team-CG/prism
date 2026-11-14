@@ -1,8 +1,14 @@
-import type { CommunicationThreadStatus } from "@prism/types";
+import type { CommunicationThreadStatus, PrismStoredObject } from "@prism/types";
 import { formatPortalDate, formatPortalTime, manilaDateKey } from "../format-date";
 
+/** A file a message carries. Its id is the stored object id, which downloads it. */
+export type ChatAttachmentRecord = { id: string; fileName: string; contentType: string; byteSize: number };
+/** A file in the event's Files that can be copied into a conversation: the API's stored-object fields, passed through as they are. */
+export type ChatStoredFile = Pick<PrismStoredObject, "id" | "originalFileName" | "contentType" | "declaredByteSize">;
+export type ChatAttachmentDownload = { blob: Blob; fileName: string };
+
 /** The message fields the chat UI reads; portal message records satisfy this structurally. */
-export type ChatMessageRecord = { id: string; senderId: string; senderRole: string; senderName?: string; body: string; createdAt: string };
+export type ChatMessageRecord = { id: string; senderId: string; senderRole: string; senderName?: string; body: string; createdAt: string; attachments?: ChatAttachmentRecord[] };
 export type ChatParticipantRecord = { actorId: string; actorRole: string; name?: string; active: boolean; lastReadAt?: string | null };
 export type ChatThreadRecord<M extends ChatMessageRecord = ChatMessageRecord> = {
   id: string;
@@ -124,4 +130,11 @@ export function messageRuns(messages: ChatMessage[]): MessageRun[] {
     runs.push({ key: message.id, dayKey, mine: message.mine, senderId: message.senderId, messages: [message] });
   }
   return runs;
+}
+
+/** A human size for a file: bytes below a kilobyte, otherwise KB or MB to one decimal. */
+export function formatAttachmentSize(byteSize: number) {
+  if (byteSize < 1024) return `${byteSize} B`;
+  if (byteSize < 1024 * 1024) return `${(byteSize / 1024).toFixed(byteSize < 10 * 1024 ? 1 : 0)} KB`;
+  return `${(byteSize / (1024 * 1024)).toFixed(1)} MB`;
 }

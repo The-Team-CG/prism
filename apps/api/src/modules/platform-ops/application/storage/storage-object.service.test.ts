@@ -864,12 +864,12 @@ describe('file access: lists and downloads follow one policy', () => {
       return service.confirmUpload({ objectId: requested.object.id, byteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
     }
 
-    async function localService() {
+    async function localService(attachmentGate?: unknown) {
       const root = await mkdtemp(join(tmpdir(), 'prism-storage-copy-'));
       roots.push(root);
       const adapter = new LocalFileSystemStorageAdapter(root);
       const store = createStore();
-      return { store, adapter, service: new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never, store.auditWriter as never) };
+      return { store, adapter, service: new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never, store.auditWriter as never, attachmentGate as never) };
     }
 
     it("copies a client's file into another of their events as that event's own document, once per target", async () => {
@@ -906,18 +906,28 @@ describe('file access: lists and downloads follow one policy', () => {
       expect(dated.map((audit) => audit.metadata.expiresAt)).toEqual(['2026-12-31', null]);
     });
 
-    it('removes uploads left unfinished for three days, leaves recent and stored ones, and still lets a retry resume', async () => {
-      const { service, store } = await localService();
+    it('removes uploads left unfinished for three days and conversation files never sent after a day, keeps sent and recent ones, and still lets a retry resume', async () => {
+      // Attachment links are the communication context's facts; storage asks for them only through the gate.
+      const attachedIds = new Set(['obj_sent']);
+      const attachmentGate = { unattachedObjectIds: vi.fn(async (ids: string[]) => new Set(ids.filter((id) => !attachedIds.has(id)))) };
+      const { service, store } = await localService(attachmentGate);
       const stored = await storeClientFile(service, 'evt_1', 'kept.pdf');
       const abandonedTarget = target('evt_1');
       const abandoned = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: abandonedTarget, usage: 'client_document', fileName: 'never-sent.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
       const recent = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: target('evt_1'), usage: 'client_document', fileName: 'still-uploading.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
       store.objects.find((object) => object.id === recent.object.id)!.updatedAt = new Date('2026-09-11T00:00:00.000Z');
       store.objects.push({ ...store.objects.find((object) => object.id === abandoned.object.id)!, id: 'obj_failed', logicalTarget: target('evt_1'), lifecycleState: 'failed', failureReason: 'Storage provider could not issue an upload location', providerObjectKey: null });
+      const attachment = (id: string, storedAt: string) => ({
+        id, eventId: 'evt_1', ownerRecordType: 'communication_thread', ownerRecordId: 'thread_1', usage: 'communication_attachment', logicalTarget: `communication-attachment:thread_1:${id}`,
+        originalFileName: `${id}.pdf`, contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, uploaderActorId: 'user_client', uploaderActorRole: 'client',
+        lifecycleState: 'stored', providerName: 'local', providerObjectKey: null, deletedAt: null, storedAt: new Date(storedAt),
+      });
+      store.objects.push(attachment('obj_unsent_old', '2026-09-10T00:00:00.000Z'), attachment('obj_sent', '2026-09-10T00:00:00.000Z'), attachment('obj_unsent_young', '2026-09-11T12:00:00.000Z'));
 
-      await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(2);
+      await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(3);
       const state = (id: string) => store.objects.find((object) => object.id === id)?.lifecycleState;
       expect([state(abandoned.object.id), state('obj_failed'), state(recent.object.id), state(stored.id)]).toEqual(['deleted', 'deleted', 'requested', 'stored']);
+      expect([state('obj_unsent_old'), state('obj_sent'), state('obj_unsent_young')]).toEqual(['deleted', 'stored', 'stored']);
       const removed = store.auditWriter.write.mock.calls.map(([audit]) => audit as Record<string, any>).filter((audit) => audit.metadata?.storageAction === 'abandoned_removed');
       expect(removed).toHaveLength(2);
       await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(0);
@@ -952,5 +962,54 @@ describe('file access: lists and downloads follow one policy', () => {
       expect((await service.searchClientObjects(client, 'permit')).map((object) => object.eventId)).toEqual(['evt_1']);
       await expect(service.searchClientObjects(actor, 'permit')).rejects.toThrow(ForbiddenException);
     });
+  });
+});
+
+describe('conversation attachments: membership decides who reads and attaches files', () => {
+  type Thread = { eventId: string; closed: boolean; members: string[] };
+  const outsider = { id: 'user_outsider', role: 'client', email: 'client@example.test', name: 'Outsider', eventId: 'evt_1', explicit: true, verified: true } as never;
+  const attachmentBytes = Buffer.from('%PDF-1.7\nconversation brief');
+  const attachmentChecksum = createHash('sha256').update(attachmentBytes).digest('hex');
+
+  function setup() {
+    const store = createStore();
+    const threads: Record<string, Thread> = { thread_1: { eventId: 'evt_1', closed: false, members: ['user_client', 'user_supplier'] } };
+    const gate = {
+      findThreadAccess: vi.fn(async ({ threadId, actorId }: { threadId: string; actorId: string }) => {
+        const thread = threads[threadId];
+        return thread ? { eventId: thread.eventId, closed: thread.closed, activeMember: thread.members.includes(actorId) } : null;
+      }),
+    };
+    const adapter = { issueDownloadAuthorization: vi.fn(async () => ({ providerName: 'local', providerObjectKey: 'key', downloadUrl: 'localfs://download/x', expiresAt: new Date('2026-09-09T00:00:00.000Z') })) };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never, store.auditWriter as never, gate as never);
+    store.objects.push({
+      id: 'obj_brief', eventId: 'evt_1', ownerRecordType: 'communication_thread', ownerRecordId: 'thread_1', usage: 'communication_attachment', logicalTarget: 'communication-attachment:thread_1:brief',
+      originalFileName: 'brief.pdf', contentType: 'application/pdf', declaredByteSize: attachmentBytes.byteLength, checksumSha256: attachmentChecksum,
+      uploaderActorId: 'user_client', uploaderActorRole: 'client', lifecycleState: 'stored', providerName: 'local', providerObjectKey: 'key', deletedAt: null, expiresAt: null,
+    });
+    return { store, service, threads, gate, adapter };
+  }
+
+  it('lets an active member download a conversation file, and refuses a removed member or a non-member of the same event', async () => {
+    const { service, threads } = setup();
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_brief', actor: client })).resolves.toMatchObject({ fileName: 'brief.pdf' });
+    threads.thread_1.members = ['user_supplier'];
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_brief', actor: client })).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.issueDownloadAuthorization({ objectId: 'obj_brief', actor: outsider })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('refuses a request to attach a file to a conversation the actor is not an active member of, or a closed one', async () => {
+    const { service, threads } = setup();
+    const target = { eventId: 'evt_1', ownerRecordType: 'communication_thread', ownerRecordId: 'thread_1', logicalTarget: 'communication-attachment:thread_1:0b9d6f7e-2a1c-4c8e-9f3a-5d6e7f8a9b0c', usage: 'communication_attachment' as const, fileName: 'plan.pdf', contentType: 'application/pdf', declaredByteSize: attachmentBytes.byteLength, checksumSha256: attachmentChecksum };
+    threads.thread_1.closed = true;
+    await expect(service.requestUpload({ ...target, actor: client })).rejects.toBeInstanceOf(ConflictException);
+    threads.thread_1.closed = false;
+    await expect(service.requestUpload({ ...target, actor: outsider })).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('refuses to copy a file from Files that the caller cannot download, even into a conversation they belong to', async () => {
+    const { store, service } = setup();
+    store.objects.push({ id: 'obj_supplier_only', eventId: 'evt_1', ownerRecordType: 'supplier', ownerRecordId: 'sup_1', usage: 'supplier_document', logicalTarget: 'supplier-contract:x', originalFileName: 'contract.pdf', contentType: 'application/pdf', declaredByteSize: 10, checksumSha256: 'a'.repeat(64), uploaderActorId: 'user_supplier', uploaderActorRole: 'supplier', lifecycleState: 'stored', providerObjectKey: 'key', deletedAt: null });
+    await expect(service.copyToThread({ sourceObjectId: 'obj_supplier_only', threadId: 'thread_1', actor: client })).rejects.toBeInstanceOf(ForbiddenException);
   });
 });

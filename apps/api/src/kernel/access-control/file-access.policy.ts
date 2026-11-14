@@ -17,7 +17,7 @@ export type FileAccessObject = {
 };
 
 /** Supported file kinds. Game media and lobby branding are outside this policy. */
-export type FileAccessKind = 'signed_conforme' | 'client_document' | 'billing_statement' | 'proposal_deliverable' | 'styling_moodboard' | 'supplier_document' | 'guest_feedback_media' | 'payment_receipt_evidence';
+export type FileAccessKind = 'signed_conforme' | 'client_document' | 'billing_statement' | 'proposal_deliverable' | 'styling_moodboard' | 'supplier_document' | 'guest_feedback_media' | 'payment_receipt_evidence' | 'communication_attachment';
 
 export type FileAccessActor = { role: string; supplierId?: string | null };
 
@@ -51,6 +51,8 @@ const KIND_BY_OWNER_USAGE: ReadonlyMap<string, FileAccessKind> = new Map<string,
   ['event:guest_feedback_media', 'guest_feedback_media'],
   // Proof of payment on a receipt: only PMCM and the system ever see it.
   ['payment_receipt:payment_receipt_evidence', 'payment_receipt_evidence'],
+  // A conversation file: membership of its thread is checked by storage, so the kind rule admits any event role.
+  ['communication_thread:communication_attachment', 'communication_attachment'],
 ]);
 
 export function fileAccessKindOf(object: Pick<FileAccessObject, 'usage' | 'ownerRecordType'>): FileAccessKind | null {
@@ -67,6 +69,7 @@ const KIND_ACCESS: Record<FileAccessKind, (actor: FileAccessActor, object: FileA
   supplier_document: (actor, object) => actor.role === OpsUserRole.Supplier && Boolean(actor.supplierId) && object.ownerRecordId === actor.supplierId,
   guest_feedback_media: () => false,
   payment_receipt_evidence: () => false,
+  communication_attachment: () => true,
 };
 
 /**
@@ -99,6 +102,8 @@ export function canAccessStoredObject(actor: FileAccessActor, object: FileAccess
  */
 export function canListStoredObject(actor: FileAccessActor, object: FileAccessObject, context: FileAccessContext): boolean {
   if (object.deletedAt) return false;
+  // Conversation files are not event files: they never appear in a file list or the Files picker.
+  if (fileAccessKindOf(object) === 'communication_attachment') return false;
   if (PRIVILEGED_ROLES.includes(actor.role)) {
     return LISTABLE_LIFECYCLES.includes(object.lifecycleState) && canAccessStoredObject(actor, object, context);
   }

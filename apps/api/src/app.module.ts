@@ -21,6 +21,7 @@ import { EventInsightGenerationController } from './composition/event-insight-ge
 import { EventInsightGenerationService } from './composition/event-insight-generation.service';
 import { TransformInterceptor } from './common/transform.interceptor';
 import { PlatformReferenceReadersModule } from './composition/platform-reference-readers.module';
+import { CommunicationAttachmentGateModule } from './composition/communication-attachment-gate.module';
 import { PlatformPrivacyModule } from './modules/platform-ops/platform-privacy.module';
 import { EventGamesModule } from './modules/event-games/event-games.module';
 
@@ -33,6 +34,7 @@ import { EventGamesModule } from './modules/event-games/event-games.module';
     EventCoreModule,
     PlatformOpsAuditWriterModule,
     PlatformReferenceReadersModule,
+    CommunicationAttachmentGateModule,
     PlatformPrivacyModule,
     AccessControlModule,
     IdentityAccessModule,

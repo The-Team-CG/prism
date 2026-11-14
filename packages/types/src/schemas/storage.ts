@@ -11,6 +11,8 @@ export const storageUsageSchema = z.enum([
   "event_game_branding",
   /** Proof that money arrived (a bank statement line, a screenshot). PMCM finance only. */
   "payment_receipt_evidence",
+  /** A file attached to a conversation message. Owned by the conversation; only its active members may read it. */
+  "communication_attachment",
 ]);
 export type StorageUsage = z.infer<typeof storageUsageSchema>;
 
@@ -48,6 +50,12 @@ export const copyStorageObjectSchema = z.object({
   logicalTarget: nonEmptyStringSchema,
 }).strict();
 export type CopyStorageObjectInput = z.infer<typeof copyStorageObjectSchema>;
+
+/** Copy a stored file of the same event into a conversation as its attachment; the server moves the bytes. */
+export const copyStorageObjectToThreadSchema = z.object({
+  threadId: nonEmptyStringSchema,
+}).strict();
+export type CopyStorageObjectToThreadInput = z.infer<typeof copyStorageObjectToThreadSchema>;
 
 /** The last day a stored document is valid, as a calendar date; null clears it. */
 export const setStorageObjectExpirySchema = z.object({

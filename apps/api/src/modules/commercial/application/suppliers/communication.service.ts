@@ -8,14 +8,17 @@ import { OpsUserRole } from '@prism/kernel/event-core';
 import { Inject } from '@nestjs/common';
 import { PARTICIPANT_READER, type ParticipantReader } from '@prism/contexts/identity-access';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, STORED_COMMUNICATION_ATTACHMENT_READER, type NotificationOutboxWriter, type StoredCommunicationAttachmentReader, writeNotification } from '@prism/contexts/platform-ops';
+import type { PrismCommunicationAttachment } from '@prism/types';
 
-const messageSelect = { id: true, threadId: true, senderId: true, senderRole: true, body: true, createdAt: true } as const;
+const messageSelect = { id: true, threadId: true, senderId: true, senderRole: true, body: true, createdAt: true, attachments: { orderBy: { position: 'asc' }, select: { storedObjectId: true } } } as const;
 const participantSelect = { id: true, actorId: true, actorRole: true, active: true, lastReadAt: true } as const;
 type MessageRow = Prisma.OpsCommunicationMessageGetPayload<{ select: typeof messageSelect }>;
 type ThreadRow = Prisma.OpsCommunicationThreadGetPayload<{ select: { id: true; eventId: true; subject: true; status: true; createdBy: true; createdAt: true; updatedAt: true; participants: { where: { active: true }; select: typeof participantSelect }; messages: { take: 101; orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]; select: typeof messageSelect } } }>;
 type InboxRow = Omit<ThreadRow, 'messages'> & { messages: MessageRow[] };
 type Names = ReadonlyMap<string, string>;
+/** Display facts of each message's attachments, keyed by message id. */
+type Files = ReadonlyMap<string, PrismCommunicationAttachment[]>;
 type MessageCursor = { createdAt: string; id: string };
 const threadFields = { id: true, eventId: true, subject: true, status: true, createdBy: true, createdAt: true, updatedAt: true } as const;
 const readerRoles = [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client, OpsUserRole.Supplier, OpsUserRole.Coordinator];
@@ -70,9 +73,21 @@ function assertMembershipAllowed(remaining: Array<{ actorRole: string }>) {
 }
 function normalizeLimit(value?: number) { return !Number.isFinite(value) || !value || value < 1 ? 100 : Math.min(Math.trunc(value), 100); }
 
+/**
+ * The payload a retry must match. A message without files keeps the hash it has always had, so an existing
+ * idempotent retry still matches; a message with files folds their ids in, so a different attachment set is a new message.
+ */
+function messagePayloadHash(threadId: string, senderId: string, body: string, attachmentObjectIds: string[]) {
+  const payload = attachmentObjectIds.length ? { threadId, senderId, body, attachmentObjectIds } : { threadId, senderId, body };
+  return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+}
+
+/** What the new-message notice shows in place of an empty body: "sent 2 files". */
+function attachmentSummary(count: number) { return `sent ${count} ${count === 1 ? 'file' : 'files'}`; }
+
 @Injectable()
 export class CommunicationService {
-  constructor(private readonly prisma: PrismaService, private readonly access: EventAccessPolicyService, @Inject(PARTICIPANT_READER) private readonly participants: ParticipantReader, @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter, @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter) {}
+  constructor(private readonly prisma: PrismaService, private readonly access: EventAccessPolicyService, @Inject(PARTICIPANT_READER) private readonly participants: ParticipantReader, @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter, @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notificationOutboxWriter: NotificationOutboxWriter, @Inject(STORED_COMMUNICATION_ATTACHMENT_READER) private readonly attachments: StoredCommunicationAttachmentReader) {}
 
   async createThread(input: CreateCommunicationThreadInput, actor: ResolvedEventOpsActor) {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Supplier], 'communication thread', input.eventId);
@@ -104,8 +119,8 @@ export class CommunicationService {
     await this.access.requireActorRole(actor, readerRoles, 'communication threads', query.eventId);
     const verified = await this.participants.resolveForEvent(actor.id ?? '', query.eventId);
     const page = await this.threadPage({ actorId: verified.id!, eventIds: [query.eventId] }, query, 101);
-    const [unreadByThread, names] = await Promise.all([this.unreadCounts(page.items, verified.id!), this.names(page.items)]);
-    return { items: page.items.map((row) => this.safeThread(row, verified.id!, unreadByThread.get(row.id) ?? 0, names)), limit: query.limit, nextCursor: page.nextCursor, hasMore: page.hasMore };
+    const [unreadByThread, names, files] = await Promise.all([this.unreadCounts(page.items, verified.id!), this.names(page.items), this.filesFor(page.items.flatMap((row) => row.messages))]);
+    return { items: page.items.map((row) => this.safeThread(row, verified.id!, unreadByThread.get(row.id) ?? 0, names, files)), limit: query.limit, nextCursor: page.nextCursor, hasMore: page.hasMore };
   }
 
   /** One conversation the account is a member of, read the same way as its messages. */
@@ -115,7 +130,7 @@ export class CommunicationService {
     const row = await this.thread(this.prisma, threadId);
     if (!row) throw new NotFoundException('Communication thread not found');
     const unreadByThread = await this.unreadCounts([row], verified.id!);
-    return this.safeThread(row, verified.id!, unreadByThread.get(row.id) ?? 0, await this.names([row]));
+    return this.safeThread(row, verified.id!, unreadByThread.get(row.id) ?? 0, await this.names([row]), await this.filesFor(row.messages));
   }
 
   /**
@@ -128,14 +143,15 @@ export class CommunicationService {
     const actorId = actor.id;
     const page = await this.threadPage({ actorId, eventIds: await this.readableEventIdsFor(actorId) }, query, 1);
     const visible = page.items;
-    const [events, unreadByThread, names] = await Promise.all([
+    const [events, unreadByThread, names, files] = await Promise.all([
       this.prisma.opsEvent.findMany({ where: { id: { in: [...new Set(visible.map((row) => row.eventId))] } }, select: { id: true, eventName: true } }),
       this.unreadCounts(visible, actorId),
       this.names(visible),
+      this.filesFor(visible.flatMap((row) => row.messages)),
     ]);
     const eventNames = new Map(events.map((event) => [event.id, event.eventName]));
     const items = visible.map((row) => {
-      const { messages, messagesNextCursor: _history, ...thread } = this.safeThread(row, actorId, unreadByThread.get(row.id) ?? 0, names);
+      const { messages, messagesNextCursor: _history, ...thread } = this.safeThread(row, actorId, unreadByThread.get(row.id) ?? 0, names, files);
       return { ...thread, eventName: eventNames.get(row.eventId) ?? '', lastMessage: messages[0] ?? null };
     });
     return { items, limit: query.limit, nextCursor: page.nextCursor, hasMore: page.hasMore };
@@ -225,8 +241,8 @@ export class CommunicationService {
     const hasMore = rows.length > limit;
     const pageRows = rows.slice(0, limit);
     const nextCursor = hasMore && pageRows.length ? encodeCursor({ createdAt: pageRows[pageRows.length - 1].createdAt.toISOString(), id: pageRows[pageRows.length - 1].id }) : null;
-    const names = await this.participants.displayNames(pageRows.map((message) => message.senderId));
-    return { items: pageRows.reverse().map((message) => this.safeMessage(message, names)), limit, nextCursor, hasMore };
+    const [names, files] = await Promise.all([this.participants.displayNames(pageRows.map((message) => message.senderId)), this.filesFor(pageRows)]);
+    return { items: pageRows.reverse().map((message) => this.safeMessage(message, names, files)), limit, nextCursor, hasMore };
   }
 
   async markThreadRead(threadId: string, actor: ResolvedEventOpsActor) {
@@ -250,33 +266,39 @@ export class CommunicationService {
   async sendMessage(threadId: string, input: SendCommunicationMessageInput, actor: ResolvedEventOpsActor) {
     const { thread, verified } = await this.authorizeThread(threadId, actor, 'communication message');
     const body = input.body.trim();
-    const payloadHash = createHash('sha256').update(JSON.stringify({ threadId, senderId: verified.id, body })).digest('hex');
+    const attachmentObjectIds = input.attachmentObjectIds ?? [];
+    const payloadHash = messagePayloadHash(threadId, verified.id!, body, attachmentObjectIds);
     const names: Names = new Map([[verified.id!, verified.name]]);
     return this.prisma.$transaction(async (tx) => {
       await this.lockThread(tx, threadId);
       const membership = await tx.opsCommunicationParticipant.findFirst({ where: { threadId, actorId: verified.id!, active: true }, select: { id: true } });
       if (!membership) throw new ForbiddenException('Actor is no longer an active thread participant');
-      const replay = await tx.opsCommunicationMessage.findUnique({ where: { threadId_idempotencyKey: { threadId, idempotencyKey: input.idempotencyKey } }, select: { id: true, threadId: true, senderId: true, senderRole: true, body: true, payloadHash: true, createdAt: true } });
+      const replay = await tx.opsCommunicationMessage.findUnique({ where: { threadId_idempotencyKey: { threadId, idempotencyKey: input.idempotencyKey } }, select: { ...messageSelect, payloadHash: true } });
       if (replay) {
         if (replay.payloadHash !== payloadHash || replay.senderId !== verified.id) throw new BadRequestException('Idempotency key was already used for a different message');
-        return this.safeMessage(replay, names);
+        return this.safeMessage(replay, names, await this.filesFor([replay]));
       }
       await this.assertOpen(tx, threadId);
+      await this.assertAttachable(tx, threadId, attachmentObjectIds, verified.id!);
       const message = await tx.opsCommunicationMessage.create({ data: { id: `message_${randomUUID()}`, threadId, senderId: verified.id!, senderRole: verified.role, senderEmail: verified.email ?? null, body, payloadHash, idempotencyKey: input.idempotencyKey }, select: { id: true, threadId: true, senderId: true, senderRole: true, body: true, payloadHash: true, createdAt: true } });
-      await writeAudit(this.auditWriter, thread.eventId, verified.name, `Sent communication message: ${threadId}`, { actorRole: verified.role, actorEmail: verified.email, actionType: 'create', category: 'communication', affectedType: 'communication_message', affectedId: message.id, affectedLabel: threadId, metadata: { idempotencyKey: input.idempotencyKey } }, { prisma: tx, actorId: verified.id, correlationId: `communication-message:${message.id}` });
+      if (attachmentObjectIds.length) {
+        await tx.opsCommunicationMessageAttachment.createMany({ data: attachmentObjectIds.map((storedObjectId, position) => ({ id: `attachment_${randomUUID()}`, messageId: message.id, storedObjectId, position })) });
+      }
+      await writeAudit(this.auditWriter, thread.eventId, verified.name, `Sent communication message: ${threadId}`, { actorRole: verified.role, actorEmail: verified.email, actionType: 'create', category: 'communication', affectedType: 'communication_message', affectedId: message.id, affectedLabel: threadId, metadata: { idempotencyKey: input.idempotencyKey, attachmentCount: attachmentObjectIds.length } }, { prisma: tx, actorId: verified.id, correlationId: `communication-message:${message.id}` });
       const [recipients, details] = await Promise.all([
         tx.opsCommunicationParticipant.findMany({ where: { threadId, active: true, actorId: { not: verified.id } }, select: { actorEmail: true, actorRole: true } }),
         tx.opsCommunicationThread.findUnique({ where: { id: threadId }, select: { subject: true } }),
       ]);
       const event = await tx.opsEvent.findUnique({ where: { id: thread.eventId }, select: { eventName: true } });
-      const notice = newMessageNotice({ senderName: verified.name, senderRole: verified.role, subject: details?.subject ?? 'a conversation', eventName: event?.eventName, body });
+      const notice = newMessageNotice({ senderName: verified.name, senderRole: verified.role, subject: details?.subject ?? 'a conversation', eventName: event?.eventName, body: body || attachmentSummary(attachmentObjectIds.length) });
       // Email always goes out; the Viber row reaches only people who linked Viber and kept it on, and is skipped for the rest.
       const deliveries = recipients.filter((recipient) => recipient.actorEmail).flatMap((recipient) => (['email', 'viber'] as const).map((channel) => ({ email: recipient.actorEmail!, role: recipient.actorRole, channel })));
       await Promise.all(deliveries.map(({ email, role, channel }) => {
         return writeNotification(this.notificationOutboxWriter, thread.eventId, email, notice, channel, { idempotencyKey: `communication-message:${message.id}:${channel}:${email}`, action: { kind: 'conversation', eventId: thread.eventId, threadId, portal: portalFor(role) } }, { prisma: tx, correlationId: `communication-message:${message.id}` });
       }));
       await tx.opsCommunicationThread.update({ where: { id: threadId }, data: { updatedAt: new Date() } });
-      return this.safeMessage(message, names);
+      const files = await this.filesFor([{ id: message.id, attachments: attachmentObjectIds.map((storedObjectId) => ({ storedObjectId })) }]);
+      return this.safeMessage(message, names, files);
     });
   }
 
@@ -350,6 +372,23 @@ export class CommunicationService {
     return tx.$queryRaw`SELECT id FROM "commercial"."communication_threads" WHERE id = ${threadId} FOR UPDATE`;
   }
 
+  /**
+   * Each attached file must be this conversation's own stored upload from the sender, and not already on a message.
+   * Runs under the thread lock, so two sends cannot claim the same file.
+   */
+  private async assertAttachable(tx: Prisma.TransactionClient, threadId: string, objectIds: string[], senderId: string) {
+    if (!objectIds.length) return;
+    const records = await this.attachments.findStoredCommunicationAttachments({ objectIds, context: { prisma: tx, correlationId: threadId } });
+    const usable = objectIds.every((objectId) => {
+      const record = records.get(objectId);
+      return Boolean(record) && record!.ownerRecordType === 'communication_thread' && record!.ownerRecordId === threadId
+        && record!.usage === 'communication_attachment' && record!.lifecycleState === 'stored' && record!.uploaderActorId === senderId;
+    });
+    if (!usable) throw new BadRequestException('Attached files must be stored files you sent in this conversation');
+    const attached = await tx.opsCommunicationMessageAttachment.findFirst({ where: { storedObjectId: { in: objectIds } }, select: { id: true } });
+    if (attached) throw new ConflictException('A file is already attached to a message');
+  }
+
   private async assertOpen(tx: Prisma.TransactionClient, threadId: string) {
     const row = await tx.opsCommunicationThread.findUnique({ where: { id: threadId }, select: { status: true } });
     if (row && threadStatus(row.status) === 'closed') throw new ConflictException('This conversation is closed');
@@ -357,7 +396,7 @@ export class CommunicationService {
 
   private async threadView(db: PrismaService | Prisma.TransactionClient, threadId: string, actorId: string) {
     const row = await this.thread(db, threadId);
-    return row ? this.safeThread(row, actorId, 0, await this.names([row], db)) : row;
+    return row ? this.safeThread(row, actorId, 0, await this.names([row], db), await this.filesFor(row.messages)) : row;
   }
 
   private async authorizeManager(threadId: string, actor: ResolvedEventOpsActor, resource: string) {
@@ -401,19 +440,30 @@ export class CommunicationService {
   private thread(db: PrismaService | Prisma.TransactionClient, id: string) {
     return db.opsCommunicationThread.findUnique({ where: { id }, select: { id: true, eventId: true, subject: true, status: true, createdBy: true, createdAt: true, updatedAt: true, participants: { where: { active: true }, select: participantSelect }, messages: { take: 101, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], select: messageSelect } } });
   }
-  private safeMessage(message: Pick<MessageRow, 'id' | 'threadId' | 'senderId' | 'senderRole' | 'body' | 'createdAt'>, names: Names) {
+  private safeMessage(message: Pick<MessageRow, 'id' | 'threadId' | 'senderId' | 'senderRole' | 'body' | 'createdAt'>, names: Names, files: Files = new Map()) {
     const senderName = names.get(message.senderId);
-    return { id: message.id, threadId: message.threadId, senderId: message.senderId, senderRole: message.senderRole, ...(senderName ? { senderName } : {}), body: message.body, createdAt: message.createdAt.toISOString() };
+    return { id: message.id, threadId: message.threadId, senderId: message.senderId, senderRole: message.senderRole, ...(senderName ? { senderName } : {}), body: message.body, attachments: files.get(message.id) ?? [], createdAt: message.createdAt.toISOString() };
+  }
+
+  /** Display facts for the files on these messages, in one batch; a file that is no longer stored is left out. */
+  private async filesFor(messages: Array<{ id: string; attachments: Array<{ storedObjectId: string }> }>): Promise<Files> {
+    const objectIds = [...new Set(messages.flatMap((message) => message.attachments.map((attachment) => attachment.storedObjectId)))];
+    if (!objectIds.length) return new Map();
+    const described = await this.attachments.describeCommunicationAttachments(objectIds);
+    return new Map(messages.map((message) => [message.id, message.attachments.flatMap((attachment) => {
+      const file = described.get(attachment.storedObjectId);
+      return file ? [file] : [];
+    })]));
   }
 
   /** Other members' read times are available only through the PMCM-authorized receipts endpoint. */
-  private safeThread(row: ThreadRow | InboxRow, actorId: string, unreadCount: number, names: Names) {
+  private safeThread(row: ThreadRow | InboxRow, actorId: string, unreadCount: number, names: Names, files: Files) {
     const messages = row.messages.slice(0, 100);
     const oldest = messages[messages.length - 1];
     const participants = row.participants.map((participant) => {
       const name = names.get(participant.actorId);
       return { id: participant.id, actorId: participant.actorId, actorRole: participant.actorRole, ...(name ? { name } : {}), active: participant.active, ...(participant.actorId === actorId ? { lastReadAt: participant.lastReadAt?.toISOString() ?? null } : {}) };
     });
-    return { id: row.id, eventId: row.eventId, subject: row.subject, status: threadStatus(row.status), createdBy: row.createdBy, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(), participants, messages: messages.reverse().map((message) => this.safeMessage(message, names)), messagesNextCursor: row.messages.length > 100 && oldest ? encodeCursor({ createdAt: oldest.createdAt.toISOString(), id: oldest.id }) : null, unreadCount };
+    return { id: row.id, eventId: row.eventId, subject: row.subject, status: threadStatus(row.status), createdBy: row.createdBy, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(), participants, messages: messages.reverse().map((message) => this.safeMessage(message, names, files)), messagesNextCursor: row.messages.length > 100 && oldest ? encodeCursor({ createdAt: oldest.createdAt.toISOString(), id: oldest.id }) : null, unreadCount };
   }
 }
