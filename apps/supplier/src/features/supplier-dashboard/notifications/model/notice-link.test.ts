@@ -7,6 +7,10 @@ describe("supplierNoticeLink", () => {
     expect(supplierNoticeLink({ kind: "event_section", eventId: "evt_1", section: "files" })).toEqual({ href: "/dashboard/files", label: "Open files" });
   });
 
+  it("opens the conversation a message notice is about", () => {
+    expect(supplierNoticeLink({ kind: "conversation", eventId: "evt_1", threadId: "thread_1" })).toEqual({ href: "/dashboard/messages#conversation-thread_1", label: "Open conversation" });
+  });
+
   it("gives suppliers no link into the client's billing or floor plans", () => {
     expect(supplierNoticeLink({ kind: "event_section", eventId: "evt_1", section: "billing" })).toBeNull();
     expect(supplierNoticeLink({ kind: "event_section", eventId: "evt_1", section: "floorplans" })).toBeNull();
