@@ -1,21 +1,52 @@
-import type { PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
-import { BillingWordTemplate } from "@/features/finance/billing-template/views/billing-word-template";
-import type { MarkPaymentInput } from "@prism/types";
-import { remainingPaymentCopy, sumPaymentAmounts } from "../model/finance-workspace-rules";
-import { useFinancialWorkspaceViewModel } from "../view-models/use-financial-workspace-view-model";
-import { PrismPageColumn } from "@prism/ui/page-blocks";
-import { EventFinancialSummaryPanel } from "@/features/finance/financials";
-import { PendingAddendaNote } from "./pending-addenda-note";
-import type { RecordPaymentInput } from "../model/finance-workspace-types";
-import {
-  BillingStatementCard,
-  FinancialSummaryStats,
-  NotificationEvidence,
-  PaymentAtRiskAlert,
-  PaymentTracker,
-  RecordPaymentModal,
-} from "./financial-workspace-sections";
+"use client";
 
+import { useState } from "react";
+import { ReceiptText } from "lucide-react";
+import { useResource } from "@prism/portal-query";
+import type { MarkPaymentInput, PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
+import { toast } from "@prism/ui/components/sonner";
+import { manilaDateKey } from "@prism/ui/format-date";
+import { PrismEmptyLine, PrismPageColumn, PrismSection } from "@prism/ui/page-blocks";
+import { financeDesk } from "@/features/finance/desk";
+import { EventFinancialSummaryPanel } from "@/features/finance/financials";
+import { paymentReceipts } from "@/features/finance/receipts";
+import { downloadStatementPdf, eventStatementOfAccount } from "../data/finance-repository";
+import { eventMoney } from "../model/event-money";
+import type { RecordPaymentInput } from "../model/finance-workspace-types";
+import { useFinancialWorkspaceViewModel } from "../view-models/use-financial-workspace-view-model";
+import { EventFinanceQueue, EventMoneyHero, EventPaymentSchedule } from "./event-money-views";
+import { BillingStatementDetails, NotificationEvidence, PaymentAtRiskAlert, RecordPaymentModal } from "./financial-workspace-sections";
+import { PendingAddendaNote } from "./pending-addenda-note";
+
+function saveFile(file: { blob: Blob; fileName: string }) {
+  const url = URL.createObjectURL(file.blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.fileName;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function useStatementPdf(statement: PrismBillingStatement | undefined) {
+  const [busy, setBusy] = useState(false);
+  if (!statement?.storageObjectId || statement.storageState !== "stored") return undefined;
+  const objectId = statement.storageObjectId;
+  return {
+    busy,
+    download: () => {
+      setBusy(true);
+      downloadStatementPdf(objectId)
+        .then((file) => saveFile({ blob: file.blob, fileName: `${statement.number}.pdf` }))
+        .catch((cause: unknown) => toast.error(cause instanceof Error ? cause.message : "Could not download the statement."))
+        .finally(() => setBusy(false));
+    },
+  };
+}
+
+/**
+ * One event's billing for PMCM: where the money stands and what to do (top), what this event is waiting on, every client
+ * payment with whether its money has been verified, then the statement, reconciliation and delivery log folded away.
+ */
 export function FinancialWorkspace({
   event,
   inquiry,
@@ -37,43 +68,54 @@ export function FinancialWorkspace({
   onSendBilling: (billingId: string) => Promise<void>;
   onMarkPayment: (milestoneId: string, input: MarkPaymentInput) => Promise<void>;
 }) {
-  const statement = billingStatements.find((b) => b.eventId === event.id);
-  const vm = useFinancialWorkspaceViewModel({ statement, busy, onRecordPayment });
-  const { totalDue, totalPaid, totalRemaining, openMilestones } = sumPaymentAmounts(payments);
-  const balance = payments.find((p) => p.label.toLowerCase().includes("balance"));
-  const paymentAtRisk = Boolean(balance && balance.status === "at_risk");
+  const statement = billingStatements.find((billing) => billing.eventId === event.id && billing.status !== "superseded");
+  const vm = useFinancialWorkspaceViewModel({ busy, onRecordPayment });
+  const soa = useResource(eventStatementOfAccount, event.id).data;
+  const receipts = useResource(paymentReceipts, { eventId: event.id }).data ?? [];
+  const desk = useResource(financeDesk, "signed-in").data;
+  const pdf = useStatementPdf(statement);
+  const todayKey = manilaDateKey();
+  const active = payments.filter((payment) => !payment.supersededAt);
+  const paymentAtRisk = active.some((payment) => payment.status === "at_risk");
 
-  // With nothing billed yet the page is two short notes, so it keeps to the reading column instead of two wide empty boxes.
-  const hasBilling = Boolean(statement) || payments.length > 0;
-  const Layout = hasBilling ? WideLayout : PrismPageColumn;
+  if (!soa?.available) {
+    return (
+      <PrismPageColumn>
+        <PendingAddendaNote eventId={event.id} />
+        <PrismSection id="finance-billing-statement" title="Billing">
+          <PrismEmptyLine icon={ReceiptText}>No billing statement yet. Create and approve a billing source under Billing sources, then generate the statement.</PrismEmptyLine>
+        </PrismSection>
+      </PrismPageColumn>
+    );
+  }
 
+  const money = eventMoney(soa, statement, event, todayKey);
+  const nextOpen = active.find((payment) => payment.remainingBalance > 0);
   return (
-    <Layout>
-      <FinancialSummaryStats
-        statement={statement}
-        totalDue={totalDue}
-        totalPaid={totalPaid}
-        totalRemaining={totalRemaining}
-        paymentsCount={payments.length}
-        openMilestones={openMilestones}
-        remainingSub={remainingPaymentCopy(paymentAtRisk)}
+    <div className="space-y-5">
+      <EventMoneyHero
+        money={money}
+        todayKey={todayKey}
+        busy={busy}
+        onRecord={nextOpen ? () => vm.openRecordModal(nextOpen) : undefined}
+        onSend={statement ? () => void onSendBilling(statement.id) : undefined}
+        pdf={pdf}
       />
       {paymentAtRisk ? <PaymentAtRiskAlert /> : null}
       <PendingAddendaNote eventId={event.id} />
-      <EventFinancialSummaryPanel eventId={event.id} />
+      <EventFinanceQueue items={(desk?.queue ?? []).filter((item) => item.eventId === event.id)} />
+      <EventPaymentSchedule
+        money={money}
+        payments={active}
+        receipts={receipts}
+        todayKey={todayKey}
+        busy={busy}
+        onRecord={vm.openRecordModal}
+        onToggleRisk={(payment) => void onMarkPayment(payment.id, { status: payment.status === "at_risk" ? "pending" : "at_risk" })}
+      />
+      {statement ? <BillingStatementDetails event={event} inquiry={inquiry} statement={statement} /> : null}
+      <EventFinancialSummaryPanel eventId={event.id} folded />
       {notificationLogs.length > 0 ? <NotificationEvidence logs={notificationLogs} /> : null}
-      <div className={hasBilling ? "grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "space-y-6"}>
-        <BillingStatementCard
-          event={event}
-          inquiry={inquiry}
-          statement={statement}
-          billingStatementHref={vm.billingStatementHref}
-          busy={busy}
-          onSendBilling={onSendBilling}
-        />
-        <PaymentTracker payments={payments} busy={busy} onRecord={vm.openRecordModal} onMarkPayment={onMarkPayment} />
-      </div>
-      <BillingWordTemplate statement={statement} />
       {vm.activePayment ? (
         <RecordPaymentModal
           activePayment={vm.activePayment}
@@ -90,10 +132,6 @@ export function FinancialWorkspace({
           onSubmit={vm.submitRecordPayment}
         />
       ) : null}
-    </Layout>
+    </div>
   );
-}
-
-function WideLayout({ children }: { children: React.ReactNode }) {
-  return <div className="space-y-6">{children}</div>;
 }

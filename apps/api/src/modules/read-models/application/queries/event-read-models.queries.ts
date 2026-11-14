@@ -197,6 +197,8 @@ function sortByDate<T extends { id: string }>(rows: T[], dateOf: (row: T) => Dat
 
 /** Upload rows read to tell whether a waiting supplier file is still its supplier's newest. */
 const SUPERSEDED_SUPPLIER_FILE_SCAN = 1000;
+/** A client payment shows in the PMCM inbox once it is due within this many days, or overdue. */
+const CLIENT_PAYMENT_ATTENTION_DAYS = 14;
 
 @Injectable()
 export class EventReadModelQueries {
@@ -981,6 +983,10 @@ export class EventReadModelQueries {
       eventDayTasks,
       urgentIssues,
       fileReviews,
+      receiptsToVerify,
+      billingDisputes,
+      billingCorrections,
+      supplierPayouts,
     ] = await Promise.all([
       this.prisma.opsInquiry.findMany({
         where: { OR: [{ status: 'new' }, { status: 'accepted', conformeSignedAt: null }] },
@@ -996,9 +1002,10 @@ export class EventReadModelQueries {
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
         skip, take,
       }),
+      // Client payments that need PMCM now: overdue, or due within two weeks. Later ones stay on the finance desk.
       this.prisma.opsPaymentMilestone.findMany({
-        where: { status: { not: 'paid' } },
-        select: { id: true, eventId: true, label: true, status: true, dueDate: true },
+        where: { status: { not: 'paid' }, supersededAt: null, dueDate: { lte: new Date(now.getTime() + CLIENT_PAYMENT_ATTENTION_DAYS * 86_400_000) } },
+        select: { id: true, eventId: true, label: true, status: true, dueDate: true, amount: true, remainingBalance: true },
         orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
         skip, take,
@@ -1064,9 +1071,37 @@ export class EventReadModelQueries {
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
         skip, take,
       }),
+      this.prisma.opsPaymentReceipt.findMany({
+        where: { status: 'recorded' },
+        select: { id: true, eventId: true, amount: true, method: true, referenceNumber: true, source: true, receivedDate: true, evidenceObjectId: true },
+        orderBy: [{ receivedDate: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
+      }),
+      this.prisma.opsBillingDispute.findMany({
+        where: { status: 'open' },
+        select: { id: true, eventId: true, amount: true, createdAt: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
+      }),
+      this.prisma.opsBillingCorrection.findMany({
+        where: { status: 'pending' },
+        select: { id: true, eventId: true, reason: true, createdAt: true },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
+      }),
+      this.prisma.opsSupplierPayableMilestone.findMany({
+        where: { status: { in: ['scheduled', 'partially_released'] }, dueDate: { lt: now } },
+        select: { id: true, eventId: true, label: true, amount: true, dueDate: true, supplier: { select: { name: true } } },
+        orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
+      }),
     ]);
     const items = <T>(rows: T[]) => rows.slice(0, pageSize);
-    const sources = [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments, eventDayTasks, urgentIssues, fileReviews];
+    const sources = [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments, eventDayTasks, urgentIssues, fileReviews, receiptsToVerify, billingDisputes, billingCorrections, supplierPayouts];
 
     return {
       inquiries: items(inquiries),
@@ -1079,6 +1114,10 @@ export class EventReadModelQueries {
       eventDayTasks: items(eventDayTasks),
       urgentIssues: items(urgentIssues),
       fileReviews: items(fileReviews),
+      receiptsToVerify: items(receiptsToVerify),
+      billingDisputes: items(billingDisputes),
+      billingCorrections: items(billingCorrections),
+      supplierPayouts: items(supplierPayouts),
       hasMore: page < PRISM_PMCM_COMMAND_INBOX_MAX_PAGE && sources.some((rows) => rows.length > pageSize),
     };
   }

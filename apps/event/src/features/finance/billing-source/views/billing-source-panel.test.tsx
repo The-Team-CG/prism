@@ -49,6 +49,22 @@ describe("BillingSourcePanel", () => {
     expect(amount.value).toBe("100000");
   });
 
+  it("bills several line items, showing their total, and sends each one", async () => {
+    const onCreate = vi.fn(async () => true);
+    const { amount, create } = renderPanel(onCreate);
+
+    fireEvent.change(amount, { target: { value: "240000" } });
+    fireEvent.click(screen.getByRole("button", { name: /Add line item/ }));
+    fireEvent.change(screen.getByLabelText("Line item 2"), { target: { value: "Live operations crew" } });
+    fireEvent.change(screen.getByLabelText("Amount 2 (PHP)"), { target: { value: "120000" } });
+
+    expect(screen.getByText("Total ₱360,000")).toBeTruthy();
+    fireEvent.click(create);
+    await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({
+      lineItems: [{ label: "Approved event package", amount: 240000 }, { label: "Live operations crew", amount: 120000 }],
+    })));
+  });
+
   it("sends the default 50/50 terms with no override", async () => {
     const onCreate = vi.fn(async (_input: unknown) => true);
     const { amount, create } = renderPanel(onCreate);

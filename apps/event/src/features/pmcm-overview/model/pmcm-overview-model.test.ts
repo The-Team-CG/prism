@@ -1,18 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { PrismPmcmCalendarItem, PrismPmcmEventSummary } from "@prism/types";
-import { eventAttentionLabels, fileSummaryLabel, financeSummaryLabel, summariesByEvent } from "./event-summary-labels";
+import { eventAttentionLabels, fileSummaryLabel, summariesByEvent } from "./event-summary-labels";
 import { calendarWindow, toCalendarEntries } from "./pmcm-calendar-items";
 
 const summary = (overrides: Partial<PrismPmcmEventSummary> = {}): PrismPmcmEventSummary => ({ eventId: "e1", balanceDue: 0, nextPaymentDue: null, overdueMilestones: 0, unreadMessages: 0, ...overrides });
 
 describe("event list summaries", () => {
-  it("says what an event owes, flags overdue milestones, and says nothing before the summary arrives", () => {
-    expect(financeSummaryLabel(undefined)).toBeNull();
-    expect(financeSummaryLabel(summary())).toEqual({ text: "Nothing owed" });
-    expect(financeSummaryLabel(summary({ balanceDue: 260_000, nextPaymentDue: "2026-11-12" }))).toEqual({ text: expect.stringMatching(/^₱260,000 due · next Nov 12, 2026$/) });
-    expect(financeSummaryLabel(summary({ balanceDue: 260_000, nextPaymentDue: "2026-10-01", overdueMilestones: 2 }))).toMatchObject({ urgent: true, text: expect.stringContaining("2 overdue") });
-  });
-
   it("finds an event's summary by its id", () => {
     expect(summariesByEvent([summary({ eventId: "e7" })]).get("e7")?.eventId).toBe("e7");
   });

@@ -9,6 +9,8 @@ import type {
 import type { PrismClientActionItem, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
 import { toClientChangeRequest, type ClientChangeRequestSource } from '@prism/contexts/event-lifecycle';
 import type {
+  PmcmInboxBillingCorrection,
+  PmcmInboxBillingDispute,
   PmcmInboxCoordinatorAssignment,
   PmcmInboxEvent,
   PmcmInboxEventDayTask,
@@ -18,6 +20,8 @@ import type {
   PmcmInboxPaymentMilestone,
   PmcmInboxPostEventDocument,
   PmcmInboxQuoteRequest,
+  PmcmInboxReceiptToVerify,
+  PmcmInboxSupplierPayout,
   PmcmInboxUrgentIssue,
 } from '../queries/pmcm-command-inbox.types';
 
@@ -463,6 +467,7 @@ export function collectPmcmCommandInboxItems(input: {
   eventDayTasks?: PmcmInboxEventDayTask[];
   urgentIssues?: PmcmInboxUrgentIssue[];
   fileReviews?: PmcmInboxFileReview[];
+  finance?: PmcmInboxFinance;
 }): PrismCommandInboxItem[] {
   const eventsById = new Map(input.events.map((event) => [event.id, event]));
   const items = [
@@ -476,6 +481,7 @@ export function collectPmcmCommandInboxItems(input: {
     ...collectFloorplanDraftInboxItems(input.floorPlanDrafts, eventsById),
     ...collectClosureInboxItems(input.postEventDocuments, eventsById),
     ...collectFileReviewInboxItems(input.fileReviews ?? [], eventsById),
+    ...collectFinanceInboxItems(input.finance, eventsById),
   ];
   items.sort((left, right) => {
     const severity = priorityRank(left.severity) - priorityRank(right.severity);
@@ -569,12 +575,13 @@ function billingInboxItem(
   const event = eventsById.get(payment.eventId);
   if (!event || payment.status === 'paid') return null;
   const overdue = isPast(payment.dueDate);
+  const left = typeof payment.remainingBalance === 'number' ? ` · ${peso(payment.remainingBalance)} left` : '';
   return {
     id: `billing:${payment.id}`,
     kind: 'billing',
     severity: overdue ? 'critical' : 'warning',
-    label: overdue ? 'Payment milestone overdue' : 'Payment milestone pending',
-    description: `${payment.label} for ${event.eventName} is ${payment.status.replaceAll('_', ' ')}.`,
+    label: overdue ? 'Client payment overdue' : 'Client payment due soon',
+    description: `${payment.label} for ${event.eventName}${left} · due ${shortDate(payment.dueDate)}.`,
     status: payment.status,
     eventId: event.id,
     eventName: event.eventName,
@@ -582,6 +589,56 @@ function billingInboxItem(
     dueAt: toIso(payment.dueDate),
     href: `/dashboard/events/${event.id}/billing`,
   };
+}
+
+/** Money waiting on PMCM: payments to check, disputes to answer, corrections to review, and suppliers paid late. */
+export type PmcmInboxFinance = {
+  receiptsToVerify: PmcmInboxReceiptToVerify[];
+  disputes: PmcmInboxBillingDispute[];
+  corrections: PmcmInboxBillingCorrection[];
+  supplierPayouts: PmcmInboxSupplierPayout[];
+};
+
+function eventFields(eventId: string | null, eventsById: Map<string, EventRef>) {
+  const event = eventId ? eventsById.get(eventId) : undefined;
+  return { eventId: event?.id, eventName: event?.eventName, clientName: event?.clientName };
+}
+
+function receiptInboxItem(receipt: PmcmInboxReceiptToVerify, eventsById: Map<string, EventRef>): PrismCommandInboxItem {
+  const fields = eventFields(receipt.eventId, eventsById);
+  const fromClient = receipt.source === 'client';
+  const reference = receipt.referenceNumber ? ` ref ${receipt.referenceNumber}` : '';
+  return {
+    id: `receipt:${receipt.id}`,
+    kind: 'billing',
+    severity: 'attention',
+    label: fromClient ? 'Check a payment the client reported' : 'Verify a payment received',
+    description: `${peso(receipt.amount)} by ${receipt.method}${reference}${fields.eventName ? ` for ${fields.eventName}` : ''}${receipt.evidenceObjectId ? ', proof attached' : ''}.`,
+    status: 'recorded',
+    ...fields,
+    createdAt: toIso(receipt.receivedDate),
+    href: `/dashboard/finance/receipts?receipt=${encodeURIComponent(receipt.id)}`,
+  };
+}
+
+function collectFinanceInboxItems(finance: PmcmInboxFinance | undefined, eventsById: Map<string, EventRef>): PrismCommandInboxItem[] {
+  if (!finance) return [];
+  const disputes = finance.disputes.map((dispute): PrismCommandInboxItem => ({
+    id: `billing-dispute:${dispute.id}`, kind: 'billing', severity: 'warning', label: 'Answer a billing dispute',
+    description: `The client questions ${peso(dispute.amount)}${eventsById.get(dispute.eventId) ? ` on ${eventsById.get(dispute.eventId)!.eventName}` : ''}.`,
+    status: 'open', ...eventFields(dispute.eventId, eventsById), createdAt: toIso(dispute.createdAt), href: `/dashboard/events/${dispute.eventId}/billing?part=adjustments`,
+  }));
+  const corrections = finance.corrections.map((correction): PrismCommandInboxItem => ({
+    id: `billing-correction:${correction.id}`, kind: 'billing', severity: 'attention', label: 'Review a billing correction',
+    description: correction.reason, status: 'pending', ...eventFields(correction.eventId, eventsById), createdAt: toIso(correction.createdAt),
+    href: `/dashboard/events/${correction.eventId}/billing?part=adjustments`,
+  }));
+  const payouts = finance.supplierPayouts.map((payout): PrismCommandInboxItem => ({
+    id: `supplier-payout:${payout.id}`, kind: 'supplier', severity: 'critical', label: 'Supplier payment overdue',
+    description: `${payout.supplier.name}: ${payout.label}, ${peso(payout.amount)}${payout.dueDate ? `, due ${shortDate(payout.dueDate)}` : ''}.`,
+    status: 'overdue', ...eventFields(payout.eventId, eventsById), dueAt: toIso(payout.dueDate), href: `/dashboard/events/${payout.eventId}/suppliers`,
+  }));
+  return [...finance.receiptsToVerify.map((receipt) => receiptInboxItem(receipt, eventsById)), ...disputes, ...corrections, ...payouts];
 }
 
 function collectSupplierInboxItems(requests: PmcmInboxQuoteRequest[], eventsById: Map<string, EventRef>) {
