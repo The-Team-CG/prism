@@ -987,22 +987,35 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
   }
 
   private async assertSupplierUploadOwner(input: StorageServiceRequest) {
+    await this.requireSupplierOwnsUpload(input);
+    if (await this.isRequirementTarget(input)) return;
+    if (await this.isOwnPayoutReceiptTarget(input)) return;
+    await this.assertBookingTarget(input);
+  }
+
+  private async requireSupplierOwnsUpload(input: StorageServiceRequest) {
     const actor = input.actor;
     if (input.ownerRecordType !== 'supplier') throw new BadRequestException('Supplier documents must belong to a supplier');
     if (actor.role === OpsUserRole.Supplier && (!actor.supplierId || input.ownerRecordId !== actor.supplierId)) {
       await this.accessPolicy.recordForbiddenAccess(actor, 'request supplier document upload', input.eventId);
       throw new ForbiddenException('Supplier documents must belong to the verified supplier');
     }
+  }
+
+  /** A file requirement the supplier may answer on an event where they are selected. */
+  private async isRequirementTarget(input: StorageServiceRequest): Promise<boolean> {
     const requirement = /^supplier-requirement:([a-z][a-z0-9_]{1,62}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
-    if (requirement) {
-      const booking = await this.prisma.opsSupplierQuoteRequest.findFirst({
-        where: { eventId: input.eventId, supplierId: input.ownerRecordId, status: 'selected' }, select: { id: true },
-      });
-      const allowed = await this.platformReferences?.supplierMayUploadRequirement(input.eventId, requirement[1], input.ownerRecordId);
-      if (!booking || !allowed) throw new ForbiddenException('Supplier document target is outside the verified requirement');
-      return;
-    }
-    if (await this.isOwnPayoutReceiptTarget(input)) return;
+    if (!requirement) return false;
+    const booking = await this.prisma.opsSupplierQuoteRequest.findFirst({
+      where: { eventId: input.eventId, supplierId: input.ownerRecordId, status: 'selected' }, select: { id: true },
+    });
+    const allowed = await this.platformReferences?.supplierMayUploadRequirement(input.eventId, requirement[1], input.ownerRecordId);
+    if (!booking || !allowed) throw new ForbiddenException('Supplier document target is outside the verified requirement');
+    return true;
+  }
+
+  /** A contract or creative upload for a confirmed booking of this supplier. */
+  private async assertBookingTarget(input: StorageServiceRequest) {
     const match = /^supplier-(contract|creative):([A-Za-z0-9_-]{1,100}):([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i.exec(input.logicalTarget);
     if (!match) throw new ForbiddenException('Supplier document target is outside the verified booking');
     const request = await this.prisma.opsSupplierQuoteRequest.findFirst({
