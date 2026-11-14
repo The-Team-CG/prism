@@ -179,6 +179,14 @@ describe("EventCalendarWorkspace", () => {
     expect(screen.getByRole("grid", { name: "January 2027" })).toBeTruthy();
   });
 
+  it("colours a payment by its own state instead of its kind's colour", () => {
+    render(<EventCalendarWorkspace items={[{ ...items[3], chipLabel: "Payment late", look: { chip: "bg-danger-soft text-danger" } }, items[2]]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
+    const cell = within(document.querySelector<HTMLElement>('[data-date="2026-11-10"]') as HTMLElement);
+    expect(cell.getByRole("button", { name: /Deposit/ }).className).toContain("text-danger");
+    expect(cell.getByText("Payment late")).toBeTruthy();
+    expect(cell.getByRole("button", { name: /Lights quote due/ }).className).toContain("text-attention");
+  });
+
   it("searches titles and details, filters categories, and opens the matching item's action", () => {
     const { onOpenItem, cell } = renderCalendar();
     const search = screen.getByRole("searchbox", { name: "Search schedule" });

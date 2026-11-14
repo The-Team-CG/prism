@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismPaymentSubmission, PrismStatementMilestone, PrismStatementOfAccount } from "@prism/types";
-import { accountGroups, milestoneStep, moneyHeadline } from "./client-money-rules";
+import { accountGroups, amountToSend, keptReceipts, milestoneStep, moneyHeadline } from "./client-money-rules";
 
 const TODAY = "2026-11-14";
 
@@ -21,6 +21,27 @@ const checking = (unapplied: number): PrismPaymentSubmission => ({
 });
 
 describe("client money rules", () => {
+  it("asks for everything overdue, else the next payment, less amounts under review and money already sent or held", () => {
+    const overdue = [
+      milestone({ id: "a", dueDate: "2026-10-15", remaining: 125000, disputed: 30000 }),
+      milestone({ id: "b", dueDate: "2026-10-19", amount: 126000, paid: 60000, remaining: 66000, checking: 60000 }),
+      milestone({ id: "c", dueDate: "2026-12-30" }),
+    ];
+    expect(amountToSend(statement(overdue), TODAY)).toBe(95000 + 66000);
+    expect(amountToSend(statement(overdue, { submissions: [checking(66000)] }), TODAY)).toBe(95000);
+    expect(amountToSend(statement([milestone({ id: "n", dueDate: "2026-11-30", remaining: 40000 }), milestone({ id: "l" })], { creditHeld: 15000 }), TODAY)).toBe(25000);
+    expect(amountToSend(statement([milestone({ paid: 100000, remaining: 0 })]), TODAY)).toBe(0);
+  });
+
+  it("keeps a receipt for each payment still counted, not for reversed ones or credits", () => {
+    const lines = [
+      { id: "r1", date: "2026-09-01", kind: "payment" as const, description: "Payment received", method: "GCash", reference: "GC1", amount: 60000, reversed: false },
+      { id: "r2", date: "2026-09-02", kind: "payment" as const, description: "Payment received, later reversed by PMCM", method: "GCash", reference: "GC2", amount: 10000, reversed: true },
+      { id: "c1", date: "2026-09-03", kind: "credit" as const, description: "Credit", method: "", reference: "", amount: 5000, reversed: false },
+    ];
+    expect(keptReceipts(statement([], { lines })).map((line) => line.id)).toEqual(["r1"]);
+  });
+
   it.each([
     ["paid and checked", milestone({ paid: 100000, remaining: 0, settledOn: "2026-10-13" }), "paid", "Paid Oct 13, 2026"],
     ["paid, part still being checked", milestone({ paid: 100000, remaining: 0, checking: 40000 }), "checking", "Due Dec 30, 2026"],

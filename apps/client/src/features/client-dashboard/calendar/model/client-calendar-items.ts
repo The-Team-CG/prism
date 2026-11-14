@@ -1,4 +1,5 @@
-import { manilaCalendarKey } from "@prism/ui/format-date";
+import { manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
+import { PAYMENT_CALENDAR_LOOK, paymentCalendarState, type PortalCalendarLook } from "@prism/ui/portal-calendar";
 import type { PrismClientWorkspace, PrismEvent } from "@prism/types";
 
 export type ClientCalendarItemKind = "event" | "payment" | "visit" | "approval";
@@ -11,6 +12,9 @@ export interface ClientCalendarItem {
   status: string;
   kind: ClientCalendarItemKind;
   eventId: string;
+  /** A short label for a month cell; payments say whether they are paid, late or due. */
+  chipLabel?: string;
+  look?: PortalCalendarLook;
 }
 
 export type ClientCalendarView =
@@ -59,11 +63,17 @@ function eventDates(events: CalendarEvent[]): ClientCalendarItem[] {
   return events.map((event) => ({ id: `event-${event.id}`, date: isoDay(event.eventDate), title: event.eventName, detail: "Event date", status: event.status, kind: "event", eventId: event.id }));
 }
 
-function paymentDates(state: CalendarState, byId: Map<string, CalendarEvent>): ClientCalendarItem[] {
+/** Each payment coloured by its state: paid, late, or still due. */
+function paymentDates(state: CalendarState, byId: Map<string, CalendarEvent>, today: string): ClientCalendarItem[] {
   return state.paymentMilestones.flatMap((payment) => {
     const event = byId.get(payment.eventId);
     if (!event || !payment.dueDate) return [];
-    return [{ id: `payment-${payment.id}`, date: isoDay(payment.dueDate), title: payment.label, detail: `${event.eventName} payment due`, status: payment.status, kind: "payment" as const, eventId: event.id }];
+    const date = isoDay(payment.dueDate);
+    const look = PAYMENT_CALENDAR_LOOK[paymentCalendarState(date, today, payment.status === "paid")];
+    return [{
+      id: `payment-${payment.id}`, date, title: payment.label, chipLabel: `${payment.label} · ${look.word}`, detail: `${event.eventName} payment ${look.word}`,
+      status: payment.status, kind: "payment" as const, eventId: event.id, look: { chip: look.chip, dot: look.dot, label: look.label },
+    }];
   });
 }
 
@@ -89,9 +99,9 @@ function layoutApprovals(state: CalendarState, byId: Map<string, CalendarEvent>)
  * event dates, payment due dates, scheduled site visits and the day a layout was approved.
  * Nothing is inferred from the event date.
  */
-export function buildClientCalendarItems(state: CalendarState, events: CalendarEvent[], view?: string): ClientCalendarItem[] {
+export function buildClientCalendarItems(state: CalendarState, events: CalendarEvent[], view?: string, today = manilaDateKey()): ClientCalendarItem[] {
   const byId = new Map(events.map((event) => [event.id, event]));
-  const items = [...eventDates(events), ...paymentDates(state, byId), ...siteVisits(state, byId), ...layoutApprovals(state, byId)];
+  const items = [...eventDates(events), ...paymentDates(state, byId, today), ...siteVisits(state, byId), ...layoutApprovals(state, byId)];
   const matches = view && view in VIEW_FILTERS ? VIEW_FILTERS[view as ClientCalendarView] : () => true;
   return items
     .filter(matches)

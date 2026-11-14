@@ -105,6 +105,22 @@ export function moneyHeadline(statement: PrismStatementOfAccount, todayKey: stri
   return settledHeadline(statement);
 }
 
+/**
+ * The amount to send now, for "How to pay": everything overdue, else the next payment. Amounts under review are left
+ * out, and so is money the client already sent that PMCM is still checking or holding as credit. Zero when nothing is owed.
+ */
+export function amountToSend(statement: PrismStatementOfAccount, todayKey: string): number {
+  const open = statement.milestones.filter((milestone) => owedNow(milestone) > 0);
+  const overdue = open.filter((milestone) => (daysUntil(milestone.dueDate, todayKey) ?? 0) < 0);
+  const owing = (overdue.length > 0 ? overdue : open.slice(0, 1)).reduce((sum, milestone) => sum + owedNow(milestone), 0);
+  return Math.max(0, owing - checkingTotal(statement) - statement.creditHeld);
+}
+
+/** Money received and still counted, for the receipts a client keeps once everything is paid. */
+export function keptReceipts(statement: PrismStatementOfAccount) {
+  return statement.lines.filter((line) => line.kind === "payment" && !line.reversed);
+}
+
 export type AccountGroupId = "overdue" | "due-soon" | "later" | "paid";
 /** One payment in the account view. `owed` is what is still to pay on it, leaving out amounts under review. */
 export type AccountPayment = { eventId: string; eventName: string; step: PaymentStep; dueDate: string; owed: number };

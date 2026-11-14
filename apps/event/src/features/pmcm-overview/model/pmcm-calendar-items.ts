@@ -1,4 +1,5 @@
-import type { PortalCalendarItem, PortalCalendarKind } from "@prism/ui/portal-calendar";
+import { PAYMENT_CALENDAR_LOOK, paymentCalendarState, type PortalCalendarItem, type PortalCalendarKind } from "@prism/ui/portal-calendar";
+import { manilaDateKey } from "@prism/ui/format-date";
 import { addDays, type VisibleRange } from "@prism/ui/calendar-views";
 import type { PmcmCalendarQuery, PrismPmcmCalendarItem, PrismPmcmCalendarItemKind } from "@prism/types";
 
@@ -31,14 +32,22 @@ export const PMCM_CALENDAR_KINDS: Record<PrismPmcmCalendarItemKind, PortalCalend
   event: { label: "Event day", chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary" },
   ocular_visit: { label: "Ocular visit", chip: "bg-info-soft text-info hover:bg-info/15", dot: "bg-info" },
   quote_deadline: { label: "Quote deadline", chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention" },
-  payment_due: { label: "Payment due", chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success" },
+  payment_due: { label: "Payment due", chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention" },
   supplier_arrival: { label: "Supplier arrival", chip: "bg-secondary text-foreground hover:bg-secondary/80", dot: "bg-foreground/60" },
   supplier_departure: { label: "Supplier departure", chip: "bg-muted text-foreground hover:bg-muted/80", dot: "bg-muted-foreground" },
   schedule_day: { label: "Event-day schedule", chip: "bg-accent text-accent-foreground hover:bg-accent/80", dot: "bg-accent-foreground" },
 };
 
+/** Open payments on the PMCM calendar: late once their date has passed, otherwise due. */
+function paymentLook(item: PrismPmcmCalendarItem, today: string): Pick<PmcmCalendarEntry, "look" | "chipLabel"> {
+  if (item.kind !== "payment_due") return {};
+  const state = paymentCalendarState(item.date, today, false);
+  const { chip, dot, label } = PAYMENT_CALENDAR_LOOK[state];
+  return { look: { chip, dot, label }, chipLabel: label };
+}
+
 /** The event is the headline of its own day; every other kind leads with what is due and shows the event under it. */
-export function toCalendarEntries(items: PrismPmcmCalendarItem[]): PmcmCalendarEntry[] {
+export function toCalendarEntries(items: PrismPmcmCalendarItem[], today = manilaDateKey()): PmcmCalendarEntry[] {
   return items.map((item) => ({
     id: item.id,
     date: item.date,
@@ -50,6 +59,7 @@ export function toCalendarEntries(items: PrismPmcmCalendarItem[]): PmcmCalendarE
     chipLabel: CHIP_LABELS[item.kind] ?? item.eventName,
     detail: item.kind === "event" ? item.detail : item.eventName,
     startTime: item.startTime,
+    ...paymentLook(item, today),
   }));
 }
 

@@ -21,6 +21,7 @@ import { useClientStatementDownload } from "../view-models/use-client-statement-
 import { useReportPaymentViewModel } from "../view-models/use-report-payment-view-model";
 import { BillingDisputes } from "./billing-disputes";
 import { MoneyHero } from "./money-hero";
+import { PaidInFull } from "./paid-in-full";
 import { PaymentsYouSent } from "./payments-you-sent";
 import { ReportPaymentDialog } from "./report-payment-dialog";
 import { StatementHistory } from "./statement-history";
@@ -158,6 +159,7 @@ export function ClientBillingTab({
         statementPdf={storageObjectId && billing ? { busy: statementDownload.busy, download: () => void statementDownload.download(storageObjectId, `${billing.number}.pdf`) } : undefined}
       />
       <DownloadError messages={[statementDownload.error, documents.error]} />
+      <PaidInFull statement={statement} settled={headline.tone === "success"} documents={documents} />
       <ScheduleCard statement={statement} payments={payments} documents={documents} onReport={report.start} />
       <PaymentsYouSent submissions={statement.submissions} proofBusyId={report.proofBusyId} onAddProof={(id, file) => void report.addProof(id, file)} onSendAgain={() => report.start()} />
       <StatementHistory statement={statement} documents={documents} />

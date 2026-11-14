@@ -50,13 +50,17 @@ describe("buildClientCalendarItems", () => {
     expect(buildClientCalendarItems(state, events, "calendar-approval-deadlines").map((item) => item.title)).toEqual(["Layout approved"]);
   });
 
-  it("keeps paid milestones in the payment schedule but out of open due dates", () => {
+  it("keeps paid milestones in the payment schedule but out of open due dates, and labels each payment paid, late or due", () => {
     const withPaid = {
       ...state,
       paymentMilestones: [...state.paymentMilestones, { id: "pay_deposit", eventId: "evt_1", label: "Deposit", dueDate: "2026-10-01", status: "paid" }],
     } as typeof state;
     expect(buildClientCalendarItems(withPaid, events, "calendar-payment-due-dates").map((item) => item.title)).toEqual(["Deposit", "Balance"]);
     expect(buildClientCalendarItems(withPaid, events, "calendar-deadlines").map((item) => item.title)).toEqual(["Balance"]);
+
+    const labels = (today: string) => buildClientCalendarItems(withPaid, events, "calendar-payment-due-dates", today).map((item) => [item.chipLabel, item.look?.chip.split(" ")[1]]);
+    expect(labels("2026-11-15")).toEqual([["Deposit · paid", "text-success"], ["Balance · due", "text-attention"]]);
+    expect(labels("2026-12-01")).toEqual([["Deposit · paid", "text-success"], ["Balance · late", "text-danger"]]);
   });
 
   it("gives every empty calendar view its own copy", () => {
