@@ -20,6 +20,7 @@ export type ChatWorkspaceProps = {
   onOpenThread: (id: string) => void;
   /** A conversation is on screen. On a phone that is only once it is opened from the list. */
   onThreadShown?: (id: string) => void;
+  onThreadHidden?: () => void;
   query?: string;
   onQueryChange?: (value: string) => void;
   loading: boolean;
@@ -38,6 +39,7 @@ export type ChatWorkspaceProps = {
   compose?: ChatCompose;
   className?: string;
   notificationPrompt?: ReactNode;
+  showReadReceipts?: boolean;
 };
 
 type PhonePane = "list" | "chat";
@@ -139,6 +141,7 @@ function ChatDetail({ props, twoPanes, active, composing, back }: { props: ChatW
   if (!active) return <EmptyState error={props.error} onRetry={props.onRetry} empty={props.empty} />;
   return (
     <Conversation
+      showReadReceipts={props.showReadReceipts}
       thread={active}
       viewerId={props.viewerId}
       historyLoading={props.historyLoading}
@@ -198,13 +201,17 @@ export function ChatWorkspace(props: ChatWorkspaceProps) {
 
   if (hasNothingToShow({ threads, loading, compose })) {
     return (
-      <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "flex")} style={fill}>
+      <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "flex flex-col")} style={fill}>
         <EmptyState error={props.error} onRetry={props.onRetry} empty={props.empty} />
+        {props.notificationPrompt}
       </section>
     );
   }
 
-  const back = () => setPhonePane("list");
+  const back = () => {
+    setPhonePane("list");
+    props.onThreadHidden?.();
+  };
   return (
     <section ref={sectionRef} aria-label={props.ariaLabel} className={cn(frame, "grid grid-cols-1 md:grid-cols-[21rem_minmax(0,1fr)]")} style={fill}>
       <ConversationList

@@ -9,5 +9,6 @@ import { useEventMessagesViewModel } from "../view-models/use-event-messages-vie
 /** One event's conversations, or, without an event, every conversation PMCM is in. */
 export function EventMessagesWorkspace({ event, events, session }: { event?: PrismEvent; events?: PrismEvent[]; session: EventSession }) {
   const vm = useEventMessagesViewModel({ event, events, session });
-  return <ChatWorkspace ariaLabel={event ? `Messages for ${event.eventName}` : "Messages across all events"} {...vm.workspace} compose={vm.compose} notificationPrompt={<ViberMessagePrompt actions={notificationPreferencesRepository} href="/dashboard/settings#notification-settings" />} />;
+  const settings = session.role === 'coordinator' ? '/dashboard?view=notifications' : '/dashboard/settings#notification-settings';
+  return <ChatWorkspace ariaLabel={event ? `Messages for ${event.eventName}` : "Messages across all events"} {...vm.workspace} compose={vm.compose} showReadReceipts={vm.canInspectReadReceipts} notificationPrompt={<ViberMessagePrompt actions={notificationPreferencesRepository} href={settings} />} />;
 }

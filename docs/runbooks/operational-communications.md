@@ -70,6 +70,16 @@ Delivery tracking remains per channel. Opening/acknowledging the combined row va
 own version. An outstanding deadline stays visible until the relevant receipt is acknowledged. Legacy notices without an
 operation identity remain separate; identical text alone is never enough to group notices.
 
+Coordinators have a Messages view at `/dashboard?view=messages`. They can read/reply only in conversations they belong to and
+for events they can currently access. PMCM starts the conversations and selects participants. Coordinator notices use this
+view, including after sign-in; the coordinator does not receive PMCM's participant directory or create-conversation controls.
+
+Only a PMCM conversation member can query `GET /api/communication/threads/:threadId/read-receipts`. It rechecks event access,
+active membership and the account's current role. Ordinary thread/inbox responses still omit other members' read times.
+PMCM sees **Seen by** on its own messages when an active recipient's portal read time covers that message. The open conversation
+refreshes those times every 15 seconds while the page is visible and stops on return to the list. Clients, suppliers and
+coordinators neither request nor display these receipts. This is portal reading, not provider delivery or Viber seen status.
+
 Acknowledging receipt is not a business decision. Approvals, contract uploads and schedule confirmations still need their own action
 in the event workspace; the inbox says so.
 

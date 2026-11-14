@@ -10,6 +10,7 @@ import { eventMessagesRepository } from "../data/event-messages-repository";
  * event, where a new conversation first names its event.
  */
 export function useEventMessagesViewModel({ event, events = [], session }: { event?: PrismEvent; events?: PrismEvent[]; session: EventSession }) {
+  const canCompose = session.role === 'pmcm-admin';
   const [participants, setParticipants] = useState<PrismCommunicationParticipantChoice[]>([]);
   const [composing, setComposing] = useState(false);
   const [chosenEventId, setChosenEventId] = useState<string>();
@@ -29,6 +30,7 @@ export function useEventMessagesViewModel({ event, events = [], session }: { eve
       older: eventMessagesRepository.listOlder,
       send: eventMessagesRepository.send,
       markRead: eventMessagesRepository.markRead,
+      readReceipts: canCompose ? eventMessagesRepository.readReceipts : undefined,
     },
   });
 
@@ -36,7 +38,7 @@ export function useEventMessagesViewModel({ event, events = [], session }: { eve
   useEffect(() => {
     setParticipants([]);
     setSelected([]);
-    if (!composeEventId) return;
+    if (!composeEventId || !canCompose) return;
     let cancelled = false;
     void eventMessagesRepository
       .participants(composeEventId)
@@ -47,10 +49,10 @@ export function useEventMessagesViewModel({ event, events = [], session }: { eve
     return () => {
       cancelled = true;
     };
-  }, [composeEventId]);
+  }, [composeEventId, canCompose]);
 
   async function createThread() {
-    if (!composeEventId || !subject.trim() || selected.length === 0 || creating) return;
+    if (!canCompose || !composeEventId || !subject.trim() || selected.length === 0 || creating) return;
     setCreating(true);
     setComposeError(null);
     try {
@@ -88,6 +90,7 @@ export function useEventMessagesViewModel({ event, events = [], session }: { eve
 
   return {
     workspace: { ...chat.workspace, busy: chat.workspace.busy || creating, error: composeError ?? chat.workspace.error },
-    compose,
+    compose: canCompose ? compose : undefined,
+    canInspectReadReceipts: canCompose,
   };
 }

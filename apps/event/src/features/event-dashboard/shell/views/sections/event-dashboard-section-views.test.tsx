@@ -9,10 +9,11 @@ const { routeModel, communication } = vi.hoisted(() => ({
     listMessages: vi.fn(),
     markThreadRead: vi.fn(async () => ({ lastReadAt: "" })),
     listParticipants: vi.fn(async () => []),
+    readReceipts: vi.fn(async () => []),
   },
   routeModel: {
     selectedEvent: undefined,
-    session: { id: "pmcm" },
+    session: { id: "pmcm", role: 'pmcm-admin' },
     events: [
       { id: "evt-gala", eventName: "Founders gala", clientName: "Acme", eventDate: "2027-05-15" },
       { id: "evt-expo", eventName: "Product expo", clientName: "Globex", eventDate: "2026-11-02" },

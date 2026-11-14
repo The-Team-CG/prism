@@ -12,6 +12,7 @@ describe("pmcmNoticeLink", () => {
   });
 
   it("opens the conversation a message notice is about", () => {
+    expect(pmcmNoticeLink({ kind: 'conversation', eventId: 'evt_1', threadId: 'thread_1' }, 'evt_1', 'coordinator')).toEqual({ href: '/dashboard?view=messages&conversation=thread_1', label: 'Open conversation' });
     expect(pmcmNoticeLink({ kind: "conversation", eventId: "evt_1", threadId: "thread_1" }, "evt_1")).toEqual({ href: "/dashboard/events/evt_1/messages#conversation-thread_1", label: "Open conversation" });
   });
 

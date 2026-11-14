@@ -1,5 +1,6 @@
 import { Fragment, useLayoutEffect, useRef, type ReactNode } from "react";
-import { ArrowLeft, Check, MessageSquareText, Users } from "lucide-react";
+import { ArrowLeft, MessageSquareText, Users } from "lucide-react";
+import { MessageReceipt } from './message-receipt';
 import { Button } from "../components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../components/ui/empty";
 import { Skeleton } from "../components/ui/skeleton";
@@ -38,10 +39,11 @@ export type ConversationProps = {
   onLoadOlder: () => void;
   onBack: () => void;
   composer: ComposerProps;
+  showReadReceipts?: boolean;
 };
 
 /** The open conversation: who it is with, its messages, and the composer pinned underneath. */
-export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, onBack, composer }: ConversationProps) {
+export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, onBack, composer, showReadReceipts }: ConversationProps) {
   const members = [...new Set(threadMembers(thread, viewerId).map((member) => member.name))];
   const people = members.length ? `You, ${members.join(", ")}` : "Only you";
   return (
@@ -57,7 +59,7 @@ export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, on
           </p>
         </div>
       </header>
-      <MessageScroller thread={thread} historyLoading={historyLoading} onLoadOlder={onLoadOlder} />
+      <MessageScroller thread={thread} historyLoading={historyLoading} onLoadOlder={onLoadOlder} showReadReceipts={showReadReceipts} />
       <Composer {...composer} />
     </>
   );
@@ -67,7 +69,7 @@ export function Conversation({ thread, viewerId, historyLoading, onLoadOlder, on
  * Messages sit against the composer, as in a messenger. The view follows new messages only while the reader
  * is already at the bottom (or sent the message), and stays put when earlier messages load above.
  */
-function MessageScroller({ thread, historyLoading, onLoadOlder }: Pick<ConversationProps, "thread" | "historyLoading" | "onLoadOlder">) {
+function MessageScroller({ thread, historyLoading, onLoadOlder, showReadReceipts }: Pick<ConversationProps, "thread" | "historyLoading" | "onLoadOlder" | "showReadReceipts">) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const atBottom = useRef(true);
   const before = useRef<{ threadId: string; firstId?: string; lastId?: string; height: number } | null>(null);
@@ -111,7 +113,7 @@ function MessageScroller({ thread, historyLoading, onLoadOlder }: Pick<Conversat
                 <Button type="button" variant="secondary" size="sm" onClick={onLoadOlder} className="rounded-full shadow-none">Load earlier messages</Button>
               </div>
             ) : null}
-            <MessageRuns thread={thread} />
+            <MessageRuns thread={thread} showReadReceipts={showReadReceipts} />
           </>
         )}
       </div>
@@ -129,7 +131,7 @@ function HistorySkeleton() {
   );
 }
 
-function MessageRuns({ thread }: { thread: ChatThread }) {
+function MessageRuns({ thread, showReadReceipts = false }: { thread: ChatThread; showReadReceipts?: boolean }) {
   const runs = messageRuns(thread.messages);
   return (
     <ol className="space-y-3" aria-label={`Messages in ${thread.subject}`}>
@@ -167,7 +169,7 @@ function MessageRuns({ thread }: { thread: ChatThread }) {
                       {message.body}
                       <span className={cn("ml-2 inline-flex translate-y-0.5 items-center gap-0.5 whitespace-nowrap align-bottom text-[11px]", run.mine ? "text-primary-foreground/75" : "text-muted-foreground")}>
                         <time dateTime={message.createdAt}>{formatPortalTime(message.createdAt)}</time>
-                        {run.mine ? <Check className="size-3" aria-label="Sent" /> : null}
+                        {run.mine ? <MessageReceipt thread={thread} message={message} enabled={showReadReceipts} /> : null}
                       </span>
                     </div>
                   );

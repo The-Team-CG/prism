@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
-import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, Radio, UsersRound } from "lucide-react";
+import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, MessageSquare, Radio, UsersRound } from "lucide-react";
+import { EventMessagesWorkspace } from '@/features/event-dashboard/messages/views/event-messages-workspace';
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { Button } from "@prism/ui/components/button";
@@ -132,21 +133,28 @@ function CoordinatorCalendarSection({ vm, onOpen }: { vm: CoordinatorVm; onOpen:
 }
 
 /** Views that belong to the account, not to one event. */
-const ACCOUNT_VIEWS: Partial<Record<CoordinatorViewId, (vm: CoordinatorVm, onOpen: (view: CoordinatorViewId, eventId: string) => void) => ReactElement>> = {
+const ACCOUNT_VIEWS: Partial<Record<CoordinatorViewId, (vm: CoordinatorVm, onOpen: (view: CoordinatorViewId, eventId: string) => void, session: PrismAuthenticatedSession) => ReactElement>> = {
   calendar: (vm, onOpen) => <CoordinatorCalendarSection vm={vm} onOpen={onOpen} />,
-  notifications: () => <AccountNotificationsView />,
+  notifications: () => <AccountNotificationsView role="coordinator" />,
+  messages: (_vm, _onOpen, session) => <EventMessagesWorkspace session={session} />,
 };
 
-function CoordinatorViewContent({ vm, view, sessionName, roleName, onNavigate, onOpenItem }: {
+function coordinatorDescription(view: CoordinatorViewId, event: CoordinatorVm['event'], roleName: string) {
+  if (view === 'messages') return 'Conversations PMCM has invited you to across your assigned events.';
+  return event ? `${event.eventName} · ${formatPortalDate(event.eventDate)} · ${roleName}` : 'Choose an assigned event to get started.';
+}
+
+function CoordinatorViewContent({ vm, view, session, sessionName, roleName, onNavigate, onOpenItem }: {
   vm: CoordinatorVm;
   view: CoordinatorViewId;
+  session: PrismAuthenticatedSession;
   sessionName: string;
   roleName: string;
   onNavigate: NavigateTo;
   onOpenItem: (view: CoordinatorViewId, eventId: string) => void;
 }) {
   const accountView = ACCOUNT_VIEWS[view];
-  if (accountView) return accountView(vm, onOpenItem);
+  if (accountView) return accountView(vm, onOpenItem, session);
   if (!vm.event) return <p role="status" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">{vm.selectedEventId ? "That event is not available to this account. Choose an assigned event." : "Choose an assigned event to see your work."}</p>;
   switch (view) {
     case "shift": return <CoordinatorShift vm={vm} roleName={roleName} onNavigate={onNavigate} />;
@@ -205,6 +213,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
     { id: "issues", icon: BellRing, label: COORDINATOR_VIEW_LABELS.issues, section: "Coordinator", badge: optionalNavBadge(vm.roleView?.urgentIssues.filter((issue) => issue.status !== "resolved").length), href: viewHref("issues", vm.event?.id) },
     { id: "run-sheet", icon: CalendarClock, label: COORDINATOR_VIEW_LABELS["run-sheet"], section: "Coordinator", href: viewHref("run-sheet", vm.event?.id) },
     { id: "calendar", icon: CalendarDays, label: COORDINATOR_VIEW_LABELS.calendar, section: "Coordinator", href: viewHref("calendar", vm.event?.id) },
+    { id: "messages", icon: MessageSquare, label: COORDINATOR_VIEW_LABELS.messages, section: "Coordinator", href: viewHref("messages") },
     { id: "assignments", icon: UsersRound, label: COORDINATOR_VIEW_LABELS.assignments, section: "Coordinator", href: viewHref("assignments", vm.event?.id) },
     ...(vm.registrationRole && !vm.readOnly ? [{ id: "registration", icon: ClipboardCheck, label: COORDINATOR_VIEW_LABELS.registration, section: "Coordinator", href: viewHref("registration", vm.event?.id) }] : []),
   ];
@@ -235,7 +244,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       roleLabel="Coordinator Portal"
       eyebrow="Event operations"
       title={COORDINATOR_VIEW_LABELS[activeView]}
-      description={vm.event ? `${vm.event.eventName} · ${formatPortalDate(vm.event.eventDate)} · ${roleName}` : "Choose an assigned event to get started."}
+      description={coordinatorDescription(activeView, vm.event, roleName)}
       activeItemId={activeView}
       navItems={navItems}
       onNavSelect={(id) => navigateTo(coordinatorViewFromParam(id))}
@@ -263,8 +272,8 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
           </div>
         ) : null}
         {vm.readOnly ? <p role="status" className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">Archived event: operational records are read-only.</p> : null}
-        <fieldset disabled={vm.readOnly && activeView !== "run-sheet"} className="min-w-0">
-          <CoordinatorViewContent vm={vm} view={activeView} sessionName={session.name} roleName={roleName} onNavigate={navigateTo} onOpenItem={openCalendarItem} />
+        <fieldset disabled={vm.readOnly && activeView !== "run-sheet" && activeView !== 'messages'} className="min-w-0">
+          <CoordinatorViewContent vm={vm} view={activeView} session={session} sessionName={session.name} roleName={roleName} onNavigate={navigateTo} onOpenItem={openCalendarItem} />
         </fieldset>
       </div>
     </PrismDashboardShell>

@@ -109,7 +109,7 @@ describe('new-message notices', () => {
     expect(long.endsWith(`${'x'.repeat(139)}…`)).toBe(true);
   });
 
-  it.each([['pmcm-admin', 'event'], ['client', 'client'], ['supplier', 'supplier'], ['coordinator', 'event']])('queues both channels with the %s recipient portal', async (role, portal) => {
+  it.each([['pmcm-admin', 'event'], ['client', 'client'], ['supplier', 'supplier'], ['coordinator', 'coordinator']])('queues both channels with the %s recipient portal', async (role, portal) => {
     const sender = { id: 'u_client', name: 'Ana Reyes', email: 'ana@example.test', role: 'client', explicit: true, verified: true } as const;
     const created = { id: 'msg_1', threadId: 'thread_1', senderId: sender.id, senderRole: 'client', body: 'Can we move load-in?', payloadHash: 'hash', createdAt: new Date() };
     const tx = {
