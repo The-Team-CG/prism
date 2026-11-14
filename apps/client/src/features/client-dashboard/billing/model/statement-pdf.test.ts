@@ -37,7 +37,7 @@ describe("statement pdf", () => {
   it("names the statement file and carries the statement's own figures", async () => {
     const statement: PrismStatementOfAccount = {
       eventId: "evt_1", eventName: "Winter Gala", generatedAt: "2026-11-11T00:00:00.000Z", available: true, statementNumber: "BS-7", billed: 150000, received: 100000,
-      refunded: 0, creditHeld: 0, balance: 50000, milestones: [], lines: [{ id: "r1", date: "2026-10-10", kind: "payment", description: "Payment received", method: "GCash", reference: "GC-1", amount: 100000, reversed: false }],
+      refunded: 0, creditHeld: 0, balance: 50000, disputedOnStatement: 0, paymentMethods: [], submissions: [], milestones: [], lines: [{ id: "r1", date: "2026-10-10", kind: "payment", description: "Payment received", method: "GCash", reference: "GC-1", amount: 100000, reversed: false }],
     };
 
     const { blob, fileName } = createStatementOfAccountPdf(statement);

@@ -8,6 +8,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Client billing is one page across all events: what is overdue and due in the next two weeks first (net of amounts under review), each event's payments as a progress bar, and every payment on a timeline with its state. An event's billing page leads with how much is paid and the one thing to know now, shows how to pay from the statement, and lets the client report a payment with proof ("I've paid"). PMCM checks reported payments before they count; until then the client sees them as being checked, and sees a payment PMCM did not accept with PMCM's reason. The old Statements, Payment schedule, Reminders, Receipts and Balance tabs and their pages are gone, and the client home shows one payment row per event.
 - Conversation messages can carry up to 10 files, uploaded from a device or copied from the event's Files library; each attached file is a copy that only the conversation's active members can open.
 - Assigned coordinators can read and reply in conversations they belong to without starting new ones.
 - PMCM can add and remove conversation members after a conversation starts (added people get a notice and see earlier messages), and close or reopen a conversation. Closed conversations take no new messages and move to a Closed list.

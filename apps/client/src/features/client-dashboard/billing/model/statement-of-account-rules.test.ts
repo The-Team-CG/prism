@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismStatementOfAccount } from "@prism/types";
-import { statementFigures, statementFileName, statementHighlights, statementLineAmount, statementLineLabel, statementPdfLines } from "./statement-of-account-rules";
+import { statementFigures, statementFileName, statementLineAmount, statementLineLabel, statementPdfLines } from "./statement-of-account-rules";
 
 const format = (amount: number) => `PHP ${amount.toLocaleString("en-PH")}`;
 
@@ -8,7 +8,8 @@ function statement(overrides: Partial<PrismStatementOfAccount> = {}): PrismState
   return {
     eventId: "evt_1", eventName: "Summit", generatedAt: "2026-11-11T01:00:00.000Z", available: true, statementNumber: "BS-1",
     billed: 150000, received: 100000, refunded: 0, creditHeld: 0, balance: 50000,
-    milestones: [{ id: "m1", label: "Deposit", dueDate: "2026-10-15", amount: 100000, paid: 100000, remaining: 0, status: "paid" }],
+    milestones: [{ id: "m1", label: "Deposit", dueDate: "2026-10-15", amount: 100000, paid: 100000, remaining: 0, status: "paid", checking: 0, disputed: 0, settledOn: "2026-10-10" }],
+    disputedOnStatement: 0, paymentMethods: [], submissions: [],
     lines: [{ id: "r1", date: "2026-10-10", kind: "payment", description: "Payment received", method: "Bank Transfer", reference: "BDO-1", amount: 100000, reversed: false }],
     ...overrides,
   };
@@ -21,14 +22,6 @@ describe("statement of account rules", () => {
       ["Billed", "PHP 150,000"], ["Received", "PHP 100,000"], ["Paid back to you", "PHP 5,000"], ["Credit held for you", "PHP 15,000"], ["Balance due", "PHP 50,000"],
     ]);
     expect(statementFigures(statement({ balance: 0 }), format).at(-1)?.label).toBe("Balance");
-  });
-
-  it("shows on the page only what the billing page does not already say: money paid back and credit held", () => {
-    expect(statementHighlights(statement(), format)).toEqual([]);
-    expect(statementHighlights(statement({ refunded: 5000 }), format).map((figure) => figure.label)).toEqual(["Paid back to you"]);
-    expect(statementHighlights(statement({ refunded: 5000, creditHeld: 15000 }), format).map((figure) => [figure.label, figure.value])).toEqual([
-      ["Paid back to you", "PHP 5,000"], ["Credit held for you", "PHP 15,000"],
-    ]);
   });
 
   it("labels and signs each line so a reversed payment is never read as money received", () => {

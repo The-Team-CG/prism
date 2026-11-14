@@ -43,7 +43,6 @@ export type ClientPortalView =
   | "dashboard-overview"
   | "dashboard-upcoming-events"
   | "dashboard-pending-approvals"
-  | "dashboard-payment-reminders"
   | "events-all"
   | "events-upcoming"
   | "events-in-planning"
@@ -66,12 +65,7 @@ export type ClientPortalView =
   | "files-quotations"
   | "files-invoices-receipts"
   | "files-event-layouts"
-  | "billing-overview"
-  | "billing-statements"
-  | "billing-payment-schedule"
-  | "billing-payment-reminders"
-  | "billing-receipts"
-  | "billing-balance";
+  | "billing-overview";
 
 export type ClientSidebarSubItem = {
   id: string;

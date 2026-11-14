@@ -22,6 +22,7 @@
     "./portal-calendar": "./src/portal-calendar.tsx",
     "./calendar-views": "./src/calendar-views.ts",
     "./chat": "./src/chat/index.ts",
+    "./payment-track": "./src/payment-track.tsx",
     "./components/*": "./src/components/ui/*.tsx"
   },
   "scripts": {

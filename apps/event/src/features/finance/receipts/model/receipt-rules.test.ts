@@ -5,7 +5,7 @@ import { evidenceProblem, fileSizeLabel, filterToQuery, parsePesos, receiptActio
 function receipt(overrides: Partial<PrismPaymentReceipt> = {}): PrismPaymentReceipt {
   return {
     id: "prcp_1", amount: 50000, receivedDate: "2026-11-10", method: "Bank Transfer", referenceNumber: "BDO-1", payerName: "Ana Reyes",
-    eventId: null, notes: "", status: "recorded", legacy: false, evidenceObjectId: null, evidence: null, verifiedAt: null, verifiedBy: null,
+    eventId: null, notes: "", status: "recorded", source: "pmcm", intendedMilestoneId: null, intendedMilestoneLabel: null, legacy: false, evidenceObjectId: null, evidence: null, verifiedAt: null, verifiedBy: null,
     verificationNotes: null, rejectionReason: null, reversalReason: null, possibleDuplicateOfId: null, applied: 0, refunded: 0,
     unapplied: 50000, allocations: [], refunds: [], recordedBy: "PMCM", recordedAt: "2026-11-10T01:00:00.000Z", ...overrides,
   };
