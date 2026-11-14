@@ -1,4 +1,5 @@
 import type {
+  PrismCommunicationInboxThread,
   PrismCommunicationThread,
   PrismCommunicationParticipantChoice,
 } from "@prism/types";
@@ -17,6 +18,11 @@ export function createCommunicationClient(
             `/communication/threads?eventId=${encodeURIComponent(eventId)}`,
             actor,
           ),
+          withBase(options),
+        ),
+      listInbox: (actor = {}) =>
+        prismRequest<PrismCommunicationInboxThread[]>(
+          actorPath("/communication/inbox", actor),
           withBase(options),
         ),
       listParticipants: (eventId, actor = {}) =>

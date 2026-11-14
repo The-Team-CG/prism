@@ -1,4 +1,5 @@
 import type { NotificationAction } from "@prism/types";
+import { conversationHash } from "@prism/ui/portal-path";
 import { eventWorkspaceHref } from "@/features/event-dashboard/shell/model/event-dashboard-routing";
 
 export type NoticeLink = { href: string; label: string };
@@ -28,6 +29,7 @@ export function pmcmNoticeLink(action: NotificationAction | undefined, eventId: 
     const href = eventWorkspaceHref(action.eventId, target.tab);
     return { href: target.part ? `${href}?part=${target.part}` : href, label: target.label };
   }
+  if (action?.kind === "conversation") return { href: `${eventWorkspaceHref(action.eventId, "messages")}${conversationHash(action.threadId)}`, label: "Open conversation" };
   // A supplier schedule is read inside the event's suppliers tab; without an event there is nowhere to go.
   if (action?.kind === "supplier_schedule" && eventId) return { href: eventWorkspaceHref(eventId, "suppliers"), label: "Open suppliers" };
   return null;

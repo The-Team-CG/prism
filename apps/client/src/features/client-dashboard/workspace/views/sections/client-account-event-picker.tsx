@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { BadgeCheck, FileText, MessageSquareText, WalletCards, type LucideIcon } from "lucide-react";
+import { BadgeCheck, FileText, WalletCards, type LucideIcon } from "lucide-react";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { PrismClientWorkspace, PrismEvent } from "@prism/types";
 import { useClientWorkspace } from "../../client-workspace-context";
@@ -13,13 +13,12 @@ import { ClientListRow, ClientListSection, type ClientRowTone } from "../../../s
 import { clientMilestoneRemaining } from "../../../billing/model/client-billing-rules";
 import { eventCountdown, orderClientEvents } from "../../../home/model/client-home-summary";
 
-type EventDestination = Extract<ClientDashboardRoute, "approvals" | "billing" | "documents" | "messages">;
+type EventDestination = Extract<ClientDashboardRoute, "approvals" | "billing" | "documents">;
 
 const DESTINATION: Record<EventDestination, { icon: LucideIcon; action: string }> = {
   approvals: { icon: BadgeCheck, action: "Open approvals" },
   billing: { icon: WalletCards, action: "Open billing" },
   documents: { icon: FileText, action: "Open files" },
-  messages: { icon: MessageSquareText, action: "Open messages" },
 };
 
 /** The one fact that helps pick an event for this destination: what's owed, how many files, or when it is. */

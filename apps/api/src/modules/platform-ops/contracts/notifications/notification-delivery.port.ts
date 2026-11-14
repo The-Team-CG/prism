@@ -1,3 +1,5 @@
+import type { NotificationAction } from '@prism/types';
+
 export const NOTIFICATION_DELIVERY = Symbol('NOTIFICATION_DELIVERY');
 
 /** A failure reason is stored on the outbox row, so it must not carry credentials or message bodies. */
@@ -22,5 +24,6 @@ export interface NotificationDeliveryPort {
     eventId: string | null;
     recipient: string;
     message: string;
+    action?: NotificationAction;
   }): Promise<NotificationDeliveryResult>;
 }

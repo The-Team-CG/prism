@@ -23,12 +23,6 @@ export function fileSummaryLabel(summary: PrismPmcmFileSummary | undefined): Sum
   return summary.overdue > 0 ? { text, urgent: true } : { text };
 }
 
-/** Unread messages in one line for the Messages event list. */
-export function messagesSummaryLabel(summary: PrismPmcmEventSummary | undefined): SummaryLabel | null {
-  if (!summary || summary.unreadMessages === 0) return { text: "No unread messages" };
-  return { text: summary.unreadMessages === 1 ? "1 unread message" : `${summary.unreadMessages} unread messages`, urgent: true };
-}
-
 /** What on one event needs the PMCM now: overdue payments, overdue file requirements and unread messages. Empty when nothing does. */
 export function eventAttentionLabels(finance: PrismPmcmEventSummary | undefined, files: PrismPmcmFileSummary | undefined): string[] {
   const labels: string[] = [];

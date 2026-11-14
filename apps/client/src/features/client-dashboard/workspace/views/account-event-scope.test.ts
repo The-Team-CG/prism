@@ -73,12 +73,10 @@ describe("account pages with multiple events", () => {
     expect(markup).not.toContain("agreement.pdf");
   });
 
-  it("links messages and approvals to the chosen event instead of a temporary selection", () => {
-    for (const destination of ["messages", "approvals"] as const) {
-      const markup = renderToStaticMarkup(createElement(ClientAccountEventPicker, { purpose: destination, destination }));
-      expect(markup).toContain(`href="/dashboard/events/event-a/${destination}"`);
-      expect(markup).toContain(`href="/dashboard/events/event-b/${destination}"`);
-    }
+  it("links approvals to the chosen event instead of a temporary selection", () => {
+    const markup = renderToStaticMarkup(createElement(ClientAccountEventPicker, { purpose: "approvals", destination: "approvals" }));
+    expect(markup).toContain('href="/dashboard/events/event-a/approvals"');
+    expect(markup).toContain('href="/dashboard/events/event-b/approvals"');
   });
 
   it("opens the only event's section directly, keeping a link as the fallback", () => {
