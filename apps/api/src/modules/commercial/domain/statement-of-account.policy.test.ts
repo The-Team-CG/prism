@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { buildStatementOfAccount, type StatementInputs } from './statement-of-account.policy';
+import { buildStatementOfAccount, type StatementInputs, type StatementReceipt } from './statement-of-account.policy';
 
 const d = (value: string) => new Date(`${value}T00:00:00.000Z`);
+
+function receipt(overrides: Partial<StatementReceipt>): StatementReceipt {
+  return {
+    id: 'rc', amount: 50000, receivedDate: d('2026-11-01'), method: 'GCash', referenceNumber: 'GC-9', status: 'recorded', source: 'pmcm',
+    rejectionReason: null, intendedMilestoneId: null, hasProof: false, unapplied: 0, createdAt: d('2026-11-01'), ...overrides,
+  };
+}
 
 function inputs(overrides: Partial<StatementInputs> = {}): StatementInputs {
   return {
@@ -13,7 +20,6 @@ function inputs(overrides: Partial<StatementInputs> = {}): StatementInputs {
     ],
     records: [{ id: 'r1', amountReceived: 100000, paymentDate: d('2026-10-10'), paymentMethod: 'Bank Transfer', referenceNumber: 'BDO-1', reversesRecordId: null }],
     refunds: [],
-    creditHeld: 0,
     ...overrides,
   };
 }
@@ -31,7 +37,7 @@ describe('statement of account', () => {
     const unsent = { number: 'BS-1', totalAmount: 150000, sentAt: null, generatedAt: d('2026-09-30') };
 
     expect(buildStatementOfAccount(inputs({ statement: unsent }))).toEqual({
-      available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, milestones: [], lines: [],
+      available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, disputedOnStatement: 0, milestones: [], paymentMethods: [], submissions: [], lines: [],
     });
     expect(buildStatementOfAccount(inputs({ statement: null })).available).toBe(false);
     expect(buildStatementOfAccount(inputs({ statement: unsent, viewer: 'pmcm' }))).toMatchObject({ available: true, billed: 150000 });
@@ -56,7 +62,7 @@ describe('statement of account', () => {
       milestones: [{ id: 'm1', label: 'Deposit', dueDate: d('2026-10-15'), amount: 100000, amountPaid: 70000, creditApplied: 70000, remainingBalance: 30000, status: 'partially_paid' }],
       records: [],
       refunds: [{ id: 'rf1', amount: 5000, refundedDate: d('2026-10-30'), method: 'Bank Transfer', referenceNumber: 'RF-1' }],
-      creditHeld: 12000,
+      receipts: [receipt({ id: 'held', status: 'verified', unapplied: 12000 })],
     }));
 
     expect(result.received).toBe(70000);
@@ -82,5 +88,63 @@ describe('statement of account', () => {
     const lineKeys = Object.keys(buildStatementOfAccount(inputs()).lines[0]).sort();
 
     expect(lineKeys).toEqual(['amount', 'date', 'description', 'id', 'kind', 'method', 'reference', 'reversed']);
+  });
+
+  it('counts unapplied money as credit only once PMCM has checked it; until then the client sees it being checked', () => {
+    const result = buildStatementOfAccount(inputs({
+      receipts: [
+        receipt({ id: 'checked', status: 'verified', unapplied: 12000 }),
+        receipt({ id: 'unchecked', status: 'recorded', unapplied: 8000, intendedMilestoneId: 'm2' }),
+      ],
+    }));
+
+    expect(result.creditHeld).toBe(12000);
+    expect(result.submissions).toEqual([expect.objectContaining({ id: 'payment-1', state: 'checking', unapplied: 8000, forPayment: 'Balance' })]);
+  });
+
+  it('marks the part of a payment that came from unchecked money, any open dispute on it, and the day it was settled', () => {
+    const result = buildStatementOfAccount(inputs({
+      milestones: [
+        { id: 'm1', label: 'Deposit', dueDate: d('2026-10-15'), amount: 100000, amountPaid: 100000, creditApplied: 0, remainingBalance: 0, status: 'paid' },
+        { id: 'm2', label: 'Balance', dueDate: d('2026-12-01'), amount: 50000, amountPaid: 20000, creditApplied: 0, remainingBalance: 30000, status: 'partially_paid' },
+      ],
+      records: [
+        { id: 'r1', milestoneId: 'm1', receiptId: 'ok', amountReceived: 60000, paymentDate: d('2026-10-01'), paymentMethod: 'Bank Transfer', referenceNumber: 'B-1', reversesRecordId: null },
+        { id: 'r2', milestoneId: 'm1', receiptId: 'ok2', amountReceived: 40000, paymentDate: d('2026-10-12'), paymentMethod: 'Bank Transfer', referenceNumber: 'B-2', reversesRecordId: null },
+        { id: 'r3', milestoneId: 'm2', receiptId: 'pending', amountReceived: 20000, paymentDate: d('2026-11-02'), paymentMethod: 'GCash', referenceNumber: 'G-1', reversesRecordId: null },
+      ],
+      receipts: [receipt({ id: 'ok', status: 'verified' }), receipt({ id: 'ok2', status: 'verified' }), receipt({ id: 'pending', status: 'recorded', amount: 20000 })],
+      openDisputes: [{ milestoneId: 'm2', amount: 15000 }, { milestoneId: null, amount: 4000 }],
+    }));
+
+    expect(result.milestones.map(({ label, checking, disputed, settledOn }) => ({ label, checking, disputed, settledOn }))).toEqual([
+      { label: 'Deposit', checking: 0, disputed: 0, settledOn: '2026-10-12' },
+      { label: 'Balance', checking: 20000, disputed: 15000, settledOn: null },
+    ]);
+    expect(result.disputedOnStatement).toBe(4000);
+  });
+
+  it('tells the client which payments did not count and why, and which payments they reported were accepted', () => {
+    const result = buildStatementOfAccount(inputs({
+      receipts: [
+        receipt({ id: 'bounced', status: 'rejected', rejectionReason: 'No matching credit on our bank statement.', receivedDate: d('2026-11-03') }),
+        receipt({ id: 'theirs', status: 'verified', source: 'client', hasProof: true, receivedDate: d('2026-11-02') }),
+        receipt({ id: 'ours', status: 'verified', source: 'pmcm', receivedDate: d('2026-11-01') }),
+      ],
+    }));
+
+    // Only a payment the client reported carries its id, so they can add proof to it; PMCM's own receipts stay opaque.
+    expect(result.submissions.map(({ id, state, reason, fromClient, hasProof }) => ({ id, state, reason, fromClient, hasProof }))).toEqual([
+      { id: 'payment-1', state: 'not_accepted', reason: 'No matching credit on our bank statement.', fromClient: false, hasProof: false },
+      { id: 'theirs', state: 'accepted', reason: null, fromClient: true, hasProof: true },
+    ]);
+  });
+
+  it('carries how to pay from the statement, dropping entries with no name', () => {
+    const result = buildStatementOfAccount(inputs({
+      statement: { number: 'BS-1', totalAmount: 150000, sentAt: d('2026-10-01'), generatedAt: d('2026-09-30'), paymentMethods: [{ label: ' BPI ', details: 'Acct 123' }, { label: '', details: 'x' }, 'junk'] },
+    }));
+
+    expect(result.paymentMethods).toEqual([{ label: 'BPI', details: 'Acct 123' }]);
   });
 });

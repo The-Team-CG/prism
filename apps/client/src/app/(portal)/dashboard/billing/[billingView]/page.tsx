@@ -1,19 +1,12 @@
-import { notFound } from "next/navigation";
-import { ClientDashboardWorkspaceView, type ClientPortalView } from "@/features/client-dashboard/workspace";
+import { notFound, redirect } from "next/navigation";
 
-const billingViews: Record<string, ClientPortalView> = {
-  statements: "billing-statements",
-  "payment-schedule": "billing-payment-schedule",
-  "payment-reminders": "dashboard-payment-reminders",
-  receipts: "billing-receipts",
-  balance: "billing-balance",
-};
+/** Billing is one page now. The old per-view links (statements, schedule, reminders, receipts, balance) still land on it. */
+const FORMER_BILLING_VIEWS = new Set(["statements", "payment-schedule", "payment-reminders", "receipts", "balance"]);
 
 type Props = { params: Promise<{ billingView: string }> };
 
 export default async function ClientDashboardBillingViewPage({ params }: Props) {
   const { billingView } = await params;
-  const portalView = billingViews[billingView];
-  if (!portalView) notFound();
-  return <ClientDashboardWorkspaceView route="billing" portalView={portalView} />;
+  if (!FORMER_BILLING_VIEWS.has(billingView)) notFound();
+  redirect("/dashboard/billing");
 }

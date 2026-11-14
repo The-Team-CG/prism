@@ -46,6 +46,8 @@ import { PaymentReceiptService } from './application/billing/payment-receipt.ser
 import { EventFinancialsService } from './application/billing/event-financials.service';
 import { StatementOfAccountService } from './application/billing/statement-of-account.service';
 import { StatementOfAccountController } from './api/billing/statement-of-account.controller';
+import { ClientPaymentSubmissionsController } from './api/billing/client-payment-submissions.controller';
+import { ClientPaymentSubmissionService } from './application/billing/client-payment-submission.service';
 import { EventFinancialsController } from './api/billing/event-financials.controller';
 import { PaymentReceiptsController } from './api/billing/payment-receipts.controller';
 import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
@@ -131,6 +133,7 @@ const supplierCommandsProvider = {
     PaymentReceiptsController,
     EventFinancialsController,
     StatementOfAccountController,
+    ClientPaymentSubmissionsController,
     CommunicationController,
     ProposalLifecycleController,
     SupplierGapController,
@@ -168,6 +171,7 @@ const supplierCommandsProvider = {
     PaymentReceiptService,
     EventFinancialsService,
     StatementOfAccountService,
+    ClientPaymentSubmissionService,
     PaymentRiskScheduler,
     CommunicationService,
     CommunicationAttachmentGateService,

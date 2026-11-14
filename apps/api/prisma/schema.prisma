@@ -2501,6 +2501,10 @@ model OpsPaymentReceipt {
   eventId               String?   @map("event_id")
   notes                 String    @default("")
   status                String    @default("recorded")
+  /// Who recorded it: PMCM finance ("pmcm") or the client telling PMCM they paid ("client").
+  source                String    @default("pmcm")
+  /// The payment the client said this money was for. PMCM still decides where it is applied.
+  intendedMilestoneId   String?   @map("intended_milestone_id")
   evidenceObjectId      String?   @map("evidence_object_id")
   verifiedAt            DateTime? @map("verified_at")
   verifiedBy            String?   @map("verified_by")

@@ -4,6 +4,8 @@ import type {
   CreateClientOwnedSupplierInput,
   DecideClientReviewItemInput,
   PrismClientBillingDispute,
+  PrismPaymentSubmission,
+  SubmitClientPaymentInput,
   CompleteExternalCreativeTicketInput,
   CreateExternalCreativeTicketInput,
   CreateVenueScoutingOptionInput,
@@ -165,6 +167,9 @@ export interface EventOpsCommercialContract {
     recordPresentationOutcome(eventId: string, meetingId: string, input: RecordPresentationOutcomeInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;
     /** The client raises a dispute on their own statement; the API returns the client's view of it. */
     createClientBillingDispute(eventId: string, input: CreateBillingDisputeInput, actor?: EventOpsActorQuery): Promise<PrismClientBillingDispute>;
+    /** The client reports a payment they made; PMCM checks it before it counts. */
+    submitClientPayment(eventId: string, input: SubmitClientPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentSubmission>;
+    attachClientPaymentProof(eventId: string, receiptId: string, input: AttachPaymentReceiptEvidenceInput, actor?: EventOpsActorQuery): Promise<PrismPaymentSubmission>;
     decideClientReviewItem(eventId: string, itemId: string, input: DecideClientReviewItemInput, actor?: EventOpsActorQuery): Promise<unknown>;
     chooseVenueScoutingPreference(eventId: string, input: ChooseVenueScoutingPreferenceInput, actor?: EventOpsActorQuery): Promise<PrismVenueScouting>;
     choosePresentationSlot(eventId: string, meetingId: string, input: ChoosePresentationSlotInput, actor?: EventOpsActorQuery): Promise<PrismPresentationMeeting>;

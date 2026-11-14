@@ -81,6 +81,21 @@ export type AttachPaymentReceiptEvidenceInput = z.infer<typeof attachPaymentRece
 export const earmarkPaymentReceiptSchema = z.object({ eventId: idSchema }).strict();
 export type EarmarkPaymentReceiptInput = z.infer<typeof earmarkPaymentReceiptSchema>;
 
+/**
+ * A client telling PMCM they paid. It is held as money to check, never applied straight away: PMCM verifies it against
+ * the bank or wallet statement and then applies it, ideally to the payment the client named.
+ */
+export const submitClientPaymentSchema = z.object({
+  amount: wholePesosSchema,
+  paidDate: dateSchema,
+  method: paymentReceiptMethodSchema,
+  referenceNumber: z.string().trim().min(1, "Add the reference from your bank or wallet").max(120),
+  milestoneId: idSchema.optional(),
+  note: z.string().trim().max(500).optional(),
+  idempotencyKey: keySchema,
+}).strict();
+export type SubmitClientPaymentInput = z.infer<typeof submitClientPaymentSchema>;
+
 /** Proof of payment is a statement PDF or a screenshot: small, and never a document or a video. One list for the form and the API. */
 export const PAYMENT_RECEIPT_EVIDENCE_MAX_BYTES = 10 * 1024 * 1024;
 export const PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES = ["application/pdf", "image/jpeg", "image/png"] as const;
@@ -88,4 +103,18 @@ export const PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES = ["application/pdf", "image
 /** Storage target for one proof of payment uploaded for a receipt; the attempt id keeps a re-upload from colliding with the first. */
 export function paymentReceiptEvidenceTarget(receiptId: string, attemptId: string): string {
   return `payment-receipt-evidence:${receiptId}:${attemptId}`;
+}
+
+const EVIDENCE_TYPE_BY_EXTENSION: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" };
+
+/** What a proof of payment may be, in words, and as an input `accept` list. The server enforces the same list. */
+export const PAYMENT_RECEIPT_EVIDENCE_ACCEPT = PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES.join(",");
+export const PAYMENT_RECEIPT_EVIDENCE_HINT = "A PDF, JPG or PNG up to 10 MB, such as a bank statement line or a wallet screenshot.";
+
+/** Why a file cannot be proof of payment, checked before it leaves the browser; null when it can. */
+export function paymentEvidenceProblem(file: { name: string; size: number; type: string }): string | null {
+  const type = file.type.toLowerCase() || EVIDENCE_TYPE_BY_EXTENSION[file.name.split(".").pop()?.toLowerCase() ?? ""] || "";
+  if (!(PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES as readonly string[]).includes(type)) return "Proof must be a PDF, JPG or PNG.";
+  if (file.size === 0) return "That file is empty.";
+  return file.size > PAYMENT_RECEIPT_EVIDENCE_MAX_BYTES ? "Proof must be 10 MB or smaller." : null;
 }
