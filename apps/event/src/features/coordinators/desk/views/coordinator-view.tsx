@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, MessageSquare, Radio, UsersRound } from "lucide-react";
 import { EventMessagesWorkspace } from '@/features/event-dashboard/messages/views/event-messages-workspace';
+import { useEventUnreadMessages } from '@/features/event-dashboard/messages/view-models/use-event-unread-messages';
+import { unreadNavBadge } from "@prism/ui/chat";
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { Button } from "@prism/ui/components/button";
@@ -179,6 +181,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
   onSignOut?: () => void;
 }) {
   const vm = useCoordinatorViewModel({ session, state, onRefresh });
+  const unreadMessages = useEventUnreadMessages();
   const pathname = usePathname() ?? COORDINATOR_HOME_PATH;
   const router = useRouter();
   const [requestedView, setActiveView] = useState<CoordinatorViewId>("shift");
@@ -213,7 +216,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
     { id: "issues", icon: BellRing, label: COORDINATOR_VIEW_LABELS.issues, section: "Coordinator", badge: optionalNavBadge(vm.roleView?.urgentIssues.filter((issue) => issue.status !== "resolved").length), href: viewHref("issues", vm.event?.id) },
     { id: "run-sheet", icon: CalendarClock, label: COORDINATOR_VIEW_LABELS["run-sheet"], section: "Coordinator", href: viewHref("run-sheet", vm.event?.id) },
     { id: "calendar", icon: CalendarDays, label: COORDINATOR_VIEW_LABELS.calendar, section: "Coordinator", href: viewHref("calendar", vm.event?.id) },
-    { id: "messages", icon: MessageSquare, label: COORDINATOR_VIEW_LABELS.messages, section: "Coordinator", href: viewHref("messages") },
+    { id: "messages", icon: MessageSquare, label: COORDINATOR_VIEW_LABELS.messages, section: "Coordinator", href: viewHref("messages"), ...unreadNavBadge(unreadMessages) },
     { id: "assignments", icon: UsersRound, label: COORDINATOR_VIEW_LABELS.assignments, section: "Coordinator", href: viewHref("assignments", vm.event?.id) },
     ...(vm.registrationRole && !vm.readOnly ? [{ id: "registration", icon: ClipboardCheck, label: COORDINATOR_VIEW_LABELS.registration, section: "Coordinator", href: viewHref("registration", vm.event?.id) }] : []),
   ];

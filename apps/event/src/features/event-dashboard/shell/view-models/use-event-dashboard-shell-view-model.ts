@@ -6,6 +6,7 @@ import { derivePrismLifecycleStage } from "@prism/types";
 import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
+import { useEventUnreadMessages } from "../../messages/view-models/use-event-unread-messages";
 import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";
 import {
   selectClientRecords,
@@ -301,8 +302,11 @@ export function useEventDashboardShellViewModel({
   const eventWorkspaceDisabled = !selectedEvent;
   const activeSidebarItemId = activeSidebarItemFromRoute(routeState);
   const inEventWorkspace = Boolean(routeState.eventId) && !eventWorkspaceDisabled;
+  // Messages inside an event counts that event's conversations only.
+  const unreadMessages = useEventUnreadMessages({ eventId: selectedEvent?.id });
   const shellNavItems = eventPortalNavItems({
     inEventWorkspace,
+    unreadMessages,
     eventStage: selectedEvent ? derivePrismLifecycleStage(selectedEvent) : undefined,
     disabledModules: selectedEvent?.disabledModules ?? [],
     inquiryCount: unreviewedInquiries + pendingApprovals.length,

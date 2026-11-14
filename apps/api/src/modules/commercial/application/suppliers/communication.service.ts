@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
-import type { CreateCommunicationThreadInput, PrismCommunicationInboxThread, PrismCommunicationReadReceipt, PrismCursorPage, SendCommunicationMessageInput } from '@prism/types';
+import type { CommunicationUnreadCountQuery, CreateCommunicationThreadInput, PrismCommunicationInboxThread, PrismCommunicationReadReceipt, PrismCommunicationUnreadCount, PrismCursorPage, SendCommunicationMessageInput } from '@prism/types';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -104,6 +104,22 @@ export class CommunicationService {
       const { messages, messagesNextCursor: _history, ...thread } = this.safeThread(row, actorId, unreadByThread.get(row.id) ?? 0, names);
       return { ...thread, eventName: eventNames.get(row.eventId) ?? '', lastMessage: messages[0] ?? null };
     });
+  }
+
+  /**
+   * Unread messages for the inbox, or for one event's conversations when `eventId` is given. Both use the inbox's
+   * membership and read rule, with no message bodies loaded. An event the account cannot read is refused (403),
+   * as `listThreads` refuses it.
+   */
+  async unreadCount(query: CommunicationUnreadCountQuery, actor: ResolvedEventOpsActor): Promise<PrismCommunicationUnreadCount> {
+    await this.access.requireActorRole(actor, readerRoles, 'communication unread count', query.eventId);
+    if (!actor.id) throw new BadRequestException('The inbox requires a verified account');
+    const actorId = actor.id;
+    if (query.eventId) await this.participants.resolveForEvent(actorId, query.eventId);
+    const rows = await this.prisma.opsCommunicationThread.findMany({ take: 100, where: { participants: { some: { actorId, active: true } }, ...(query.eventId ? { eventId: query.eventId } : {}) }, select: { ...threadFields, participants: { where: { active: true }, select: participantSelect } }, orderBy: { updatedAt: 'desc' } });
+    const readable = await this.participants.readableEventIds(actorId, rows.map((row) => row.eventId));
+    const counts = await this.unreadCounts(rows.filter((row) => readable.has(row.eventId)), actorId);
+    return { unread: [...counts.values()].reduce((sum, count) => sum + count, 0) };
   }
 
   async listMessages(threadId: string, query: { cursor?: string; limit?: number }, actor: ResolvedEventOpsActor): Promise<PrismCursorPage<ReturnType<CommunicationService['safeMessage']>>> {

@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import type { PrismCommunicationParticipantChoice, PrismEvent } from "@prism/types";
+import { useInvalidate } from "@prism/portal-query";
 import { inboxThreadRecords, useChatThreads, type ChatCompose } from "@prism/ui/chat";
 import type { EventSession } from "@/app/lib/session";
 import { eventMessagesRepository } from "../data/event-messages-repository";
+import { eventUnreadMessages } from "../data/event-messages-unread-resource";
 
 /**
  * PMCM conversations. With an event it is that event's threads; without one it is the inbox across every
@@ -20,6 +22,7 @@ export function useEventMessagesViewModel({ event, events = [], session }: { eve
   const [creating, setCreating] = useState(false);
   const eventId = event?.id;
   const composeEventId = eventId ?? chosenEventId;
+  const invalidate = useInvalidate();
 
   const chat = useChatThreads({
     scope: eventId ?? "inbox",
@@ -29,7 +32,7 @@ export function useEventMessagesViewModel({ event, events = [], session }: { eve
       history: eventId ? undefined : eventMessagesRepository.history,
       older: eventMessagesRepository.listOlder,
       send: eventMessagesRepository.send,
-      markRead: eventMessagesRepository.markRead,
+      markRead: (threadId) => eventMessagesRepository.markRead(threadId).then(() => invalidate(eventUnreadMessages)),
       readReceipts: canCompose ? eventMessagesRepository.readReceipts : undefined,
     },
   });

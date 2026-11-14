@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { cleanup, render, renderHook, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PortalQueryProvider } from '@prism/portal-query';
 import { ChatWorkspace, type ChatThread } from '@prism/ui/chat';
 import { useEventMessagesViewModel } from './use-event-messages-view-model';
 import { coordinatorLocationRedirect, coordinatorViewFromParam } from '@/features/coordinators/desk/model/coordinator-portal-routes';
@@ -12,7 +13,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 describe('coordinator Messages and private read receipts', () => {
   it('loads the coordinator inbox without offering creation, participant selection or private receipt polling', async () => {
     const session = { id: 'marco', name: 'Marco', role: 'coordinator' };
-    const { result } = renderHook(() => useEventMessagesViewModel({ session: session as never }));
+    const { result } = renderHook(() => useEventMessagesViewModel({ session: session as never }), { wrapper: ({ children }) => <PortalQueryProvider actorKey="marco">{children}</PortalQueryProvider> });
     await waitFor(() => expect(result.current.workspace.loading).toBe(false));
     expect(repo.inbox).toHaveBeenCalledOnce();
     expect(repo.participants).not.toHaveBeenCalled();

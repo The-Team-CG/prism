@@ -112,6 +112,8 @@ export const prismApi = {
     eventOpsClient.supplierApplications.listCategories(),
   communicationInbox: (session: PrismAuthenticatedSession) =>
     eventOpsClient.communication.listInbox(actorFromSession(session)),
+  communicationUnreadCount: (session: PrismAuthenticatedSession) =>
+    eventOpsClient.communication.unreadCount({}, actorFromSession(session)),
   createCommunicationThread: (eventId: string, subject: string, session: PrismAuthenticatedSession) =>
     eventOpsClient.communication.createThread({ eventId, subject }, actorFromSession(session)),
   sendCommunicationMessage: (threadId: string, body: string, idempotencyKey: string, session: PrismAuthenticatedSession) =>

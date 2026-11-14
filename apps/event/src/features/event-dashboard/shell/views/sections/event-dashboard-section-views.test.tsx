@@ -119,7 +119,7 @@ describe("global event-scoped destinations without a selected event", () => {
     }]);
     communication.listMessages.mockResolvedValue({ items: [message("m1", "Good morning"), message("m2", "Can we move load-in to 2pm?")], limit: 100, nextCursor: null, hasMore: false });
 
-    render(<EventDashboardMessagesSectionView />);
+    render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardMessagesSectionView /></PortalQueryProvider>);
 
     // No event has to be chosen first: the conversation and its event are listed straight away.
     expect(screen.queryByRole("heading", { name: "Choose an event" })).toBeNull();

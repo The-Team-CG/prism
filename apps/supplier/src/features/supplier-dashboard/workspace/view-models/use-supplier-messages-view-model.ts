@@ -1,8 +1,10 @@
 "use client";
 import { useState } from "react";
 import type { PrismAuthenticatedSession } from "@prism/types";
+import { useInvalidate } from "@prism/portal-query";
 import { inboxThreadRecords, useChatThreads, type ChatCompose } from "@prism/ui/chat";
 import { supplierMessagesRepository } from "../data/supplier-messages-repository";
+import { supplierUnreadMessages } from "../data/supplier-messages-unread-resource";
 
 type BookedEvent = { eventId: string; eventName: string };
 
@@ -17,6 +19,7 @@ export function useSupplierMessagesViewModel({ events, session }: { events: Book
   const [composeError, setComposeError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const composeEvent = events.length === 1 ? events[0] : events.find((item) => item.eventId === chosenEventId);
+  const invalidate = useInvalidate();
 
   const chat = useChatThreads({
     scope: "inbox",
@@ -26,7 +29,7 @@ export function useSupplierMessagesViewModel({ events, session }: { events: Book
       history: (threadId) => supplierMessagesRepository.history(threadId, session),
       older: (threadId, cursor) => supplierMessagesRepository.listOlder(threadId, cursor, session),
       send: (threadId, body, key) => supplierMessagesRepository.send(threadId, body, key, session),
-      markRead: (threadId) => supplierMessagesRepository.markRead(threadId, session),
+      markRead: (threadId) => supplierMessagesRepository.markRead(threadId, session).then(() => invalidate(supplierUnreadMessages)),
     },
   });
 
