@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
-import { ReceiptText } from "lucide-react";
+import { Plus, ReceiptText, X } from "lucide-react";
 import { createBillingSourceSchema, type CreateBillingSourceInput, type PrismBillingSource, type PrismBillingStatement, type PrismDocument } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
@@ -28,13 +28,14 @@ function NoBillingSource({ statements }: { statements: PrismBillingStatement[] }
  */
 function CreateHint({ canCreate, busy }: { canCreate: boolean; busy: boolean }) {
   if (canCreate || busy) return null;
-  return <p className="text-xs text-muted-foreground">Add a source name, a line item, an amount and a proposal to continue.</p>;
+  return <p className="text-xs text-muted-foreground">Add a source name, line items with amounts and a proposal to continue.</p>;
 }
+
+type LineDraft = { label: string; amount: string };
 
 interface BillingSourceDraft {
   sourceLabel: string;
-  lineLabel: string;
-  lineAmount: string;
+  lines: LineDraft[];
   sourceDocumentId: string;
   evidenceOverrideReason: string;
   totalOverrideReason: string;
@@ -45,7 +46,7 @@ interface BillingSourceDraft {
 function parseBillingSourceDraft(draft: BillingSourceDraft, terms: PaymentTermsCheck) {
   return createBillingSourceSchema.safeParse({
     sourceLabel: draft.sourceLabel.trim(),
-    lineItems: [{ label: draft.lineLabel.trim(), amount: draft.lineAmount.trim() === "" ? Number.NaN : Number(draft.lineAmount) }],
+    lineItems: draft.lines.map((line) => ({ label: line.label.trim(), amount: line.amount.trim() === "" ? Number.NaN : Number(line.amount) })),
     paymentSchedule: terms.schedule,
     paymentTermsPolicy: terms.needsOverride ? "repeat_client_override" : undefined,
     paymentTermsOverrideReason: terms.needsOverride ? draft.termsOverrideReason.trim() || undefined : undefined,
@@ -103,13 +104,49 @@ function PaymentTermsFields({
   );
 }
 
+const MAX_LINE_ITEMS = 20;
+
+/** The amounts the statement will bill, one row each. The first row keeps the plain labels; later rows are numbered. */
+function LineItemFields({ lines, onChange, invalid }: { lines: LineDraft[]; onChange: (update: (current: LineDraft[]) => LineDraft[]) => void; invalid: boolean }) {
+  const total = lines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0);
+  const update = (index: number, patch: Partial<LineDraft>) => onChange((current) => current.map((row, position) => (position === index ? { ...row, ...patch } : row)));
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="sr-only">Line items</legend>
+      {lines.map((line, index) => {
+        const suffix = index === 0 ? "" : ` ${index + 1}`;
+        return (
+          <div key={index} className="grid grid-cols-[minmax(0,1fr)_160px_auto] items-end gap-2">
+            <label className={labelClass}>
+              {`Line item${suffix}`}
+              <input value={line.label} onChange={(event) => update(index, { label: event.target.value })} className={fieldClass} />
+            </label>
+            <label className={labelClass}>
+              {`Amount${suffix} (PHP)`}
+              <input value={line.amount} onChange={(event) => update(index, { amount: event.target.value })} type="number" inputMode="numeric" min={1} step={1} aria-invalid={invalid} className={fieldClass} />
+            </label>
+            <Button type="button" variant="ghost" size="icon" disabled={lines.length <= 1} aria-label={`Remove line item ${index + 1}`} onClick={() => onChange((current) => current.filter((_, position) => position !== index))}><X className="size-4" /></Button>
+          </div>
+        );
+      })}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button type="button" variant="outline" size="sm" disabled={lines.length >= MAX_LINE_ITEMS} onClick={() => onChange((current) => [...current, { label: "", amount: "" }])}><Plus className="size-3.5" /> Add line item</Button>
+        <p className="text-sm font-semibold tabular-nums text-foreground">Total {money.format(total)}</p>
+      </div>
+    </fieldset>
+  );
+}
+
 function BillingSourceItem({
   source,
+  issued,
   busy,
   onApprove,
   onGenerate,
 }: {
   source: PrismBillingSource;
+  /** The statement already generated from this source, if any: a source bills once. */
+  issued?: PrismBillingStatement;
   busy: boolean;
   onApprove: (sourceId: string) => Promise<void>;
   onGenerate: (sourceId: string) => Promise<void>;
@@ -124,7 +161,9 @@ function BillingSourceItem({
         <StatusBadge status={source.status} label={label(source.status)} />
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {source.status === "approved" ? (
+        {issued ? (
+          <p className="text-sm text-muted-foreground">Billed on statement {issued.number}{issued.sentAt ? ", sent to the client" : ", not sent yet"}.</p>
+        ) : source.status === "approved" ? (
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void onGenerate(source.id)}>Generate statement</Button>
         ) : (
           <Button type="button" size="sm" disabled={busy} onClick={() => void onApprove(source.id)}>Approve source</Button>
@@ -156,8 +195,7 @@ export function BillingSourcePanel({
   onGenerate: (sourceId: string) => Promise<void>;
 }) {
   const [sourceLabel, setSourceLabel] = useState(`${eventName} approved proposal`);
-  const [lineLabel, setLineLabel] = useState("Approved event package");
-  const [lineAmount, setLineAmount] = useState("");
+  const [lines, setLines] = useState<LineDraft[]>([{ label: "Approved event package", amount: "" }]);
   const [sourceDocumentId, setSourceDocumentId] = useState("");
   const [evidenceOverrideReason, setEvidenceOverrideReason] = useState("");
   const [totalOverrideReason, setTotalOverrideReason] = useState("");
@@ -166,15 +204,16 @@ export function BillingSourcePanel({
   const terms = checkPaymentTerms(milestones);
   const evidenceId = useId();
   const parsed = parseBillingSourceDraft(
-    { sourceLabel, lineLabel, lineAmount, sourceDocumentId, evidenceOverrideReason, totalOverrideReason, termsOverrideReason },
+    { sourceLabel, lines, sourceDocumentId, evidenceOverrideReason, totalOverrideReason, termsOverrideReason },
     terms,
   );
   const canCreate = !busy && parsed.success && terms.problem === null;
-  const amountInvalid = lineAmount.trim() !== "" && !parsed.success && parsed.error.issues.some((issue) => issue.path.at(-1) === "amount");
+  const amountInvalid = lines.some((line) => line.amount.trim() !== "") && !parsed.success && parsed.error.issues.some((issue) => issue.path.at(-1) === "amount");
+  const drafts = billingSources.filter((source) => source.status !== "approved");
 
   async function create() {
     if (!parsed.success || !(await onCreate(parsed.data))) return;
-    setLineAmount("");
+    setLines((current) => current.map((line) => ({ ...line, amount: "" })));
     setEvidenceOverrideReason("");
     setTotalOverrideReason("");
     setMilestones(DEFAULT_MILESTONES);
@@ -186,28 +225,29 @@ export function BillingSourcePanel({
       <div className="flex items-start gap-3">
         <ReceiptText aria-hidden="true" className="mt-1 size-5 text-primary" />
         <div>
-          <h2 id="billing-source-title" className="text-lg font-semibold text-foreground">Billing source</h2>
+          <h2 id="billing-source-title" className="text-lg font-semibold text-foreground">Billing sources</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Bill the issued proposal: create the source, approve it, then generate the statement and send it to the client below.
+            Bill the issued proposal: create a source, approve it, then generate the statement and send it to the client.
+            {drafts.length > 0 ? ` ${drafts.length === 1 ? "One source is" : `${drafts.length} sources are`} waiting for approval.` : ""}
           </p>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3">
+      <ul className="mt-4 grid gap-3" aria-label="Billing sources">
+        {billingSources.length === 0 ? <NoBillingSource statements={statements} /> : null}
+        {[...drafts, ...billingSources.filter((source) => source.status === "approved")].map((source) => (
+          <BillingSourceItem key={source.id} source={source} issued={statements.find((statement) => statement.sourceId === source.id && statement.status !== "superseded")} busy={busy} onApprove={onApprove} onGenerate={onGenerate} />
+        ))}
+      </ul>
+
+      <details open={billingSources.length === 0} className="mt-4 rounded-md border border-border bg-background px-4 py-3">
+        <summary className="cursor-pointer text-sm font-semibold text-foreground">New billing source</summary>
+      <div className="mt-3 grid gap-3">
         <label className={labelClass}>
           Billing source name
           <input value={sourceLabel} onChange={(event) => setSourceLabel(event.target.value)} className={fieldClass} />
         </label>
-        <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
-          <label className={labelClass}>
-            Line item
-            <input value={lineLabel} onChange={(event) => setLineLabel(event.target.value)} className={fieldClass} />
-          </label>
-          <label className={labelClass}>
-            Amount (PHP)
-            <input value={lineAmount} onChange={(event) => setLineAmount(event.target.value)} type="number" inputMode="numeric" min={1} step={1} aria-invalid={amountInvalid} className={fieldClass} />
-          </label>
-        </div>
+        <LineItemFields lines={lines} onChange={setLines} invalid={amountInvalid} />
         {amountInvalid ? <p role="alert" className="text-xs text-danger">Enter a whole peso amount from 1 to 2,147,483,647.</p> : null}
         {/* A select nested in its label would include the chosen option in its name, so it is labelled by id. */}
         <div className={labelClass}>
@@ -248,13 +288,7 @@ export function BillingSourcePanel({
         <Button type="button" disabled={!canCreate} onClick={() => void create()}>Create billing source</Button>
         <CreateHint canCreate={canCreate} busy={busy} />
       </div>
-
-      <ul className="mt-4 grid gap-3" aria-label="Billing sources">
-        {billingSources.length === 0 ? <NoBillingSource statements={statements} /> : null}
-        {billingSources.map((source) => (
-          <BillingSourceItem key={source.id} source={source} busy={busy} onApprove={onApprove} onGenerate={onGenerate} />
-        ))}
-      </ul>
+      </details>
     </section>
   );
 }

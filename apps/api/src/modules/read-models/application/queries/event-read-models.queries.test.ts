@@ -535,6 +535,10 @@ describe('EventReadModelQueries collection limits', () => {
     const opsEventDayTask = model();
     const opsUrgentIssue = model();
     const opsDocument = model();
+    const opsPaymentReceipt = model();
+    const opsBillingDispute = model();
+    const opsBillingCorrection = model();
+    const opsSupplierPayableMilestone = model();
     const prisma = {
       opsInquiry,
       opsEvent,
@@ -546,6 +550,10 @@ describe('EventReadModelQueries collection limits', () => {
       opsEventDayTask,
       opsUrgentIssue,
       opsDocument,
+      opsPaymentReceipt,
+      opsBillingDispute,
+      opsBillingCorrection,
+      opsSupplierPayableMilestone,
     };
     const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
     const now = new Date('2026-10-19T10:00:00.000Z');
@@ -554,7 +562,13 @@ describe('EventReadModelQueries collection limits', () => {
 
     const page = { skip: 2 * MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, take: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE + 1 };
     expect(opsInquiry.findMany).toHaveBeenCalledWith(expect.objectContaining({ ...page, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] }));
-    expect(opsPaymentMilestone.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: { not: 'paid' } }, ...page }));
+    // Client payments only once due within two weeks or overdue; later ones wait on the finance desk.
+    expect(opsPaymentMilestone.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { status: { not: 'paid' }, supersededAt: null, dueDate: { lte: new Date('2026-11-02T10:00:00.000Z') } }, ...page }));
+    // Money to check, disputes and corrections waiting on PMCM, and supplier payouts past due.
+    expect(opsPaymentReceipt.findMany).toHaveBeenCalledWith(expect.objectContaining({ ...page, where: { status: 'recorded' } }));
+    expect(opsBillingDispute.findMany).toHaveBeenCalledWith(expect.objectContaining({ ...page, where: { status: 'open' } }));
+    expect(opsBillingCorrection.findMany).toHaveBeenCalledWith(expect.objectContaining({ ...page, where: { status: 'pending' } }));
+    expect(opsSupplierPayableMilestone.findMany).toHaveBeenCalledWith(expect.objectContaining({ ...page, where: { status: { in: ['scheduled', 'partially_released'] }, dueDate: { lt: now } } }));
     expect(opsEventDayTask.findMany).toHaveBeenCalledWith(expect.objectContaining({
       ...page,
       where: expect.objectContaining({

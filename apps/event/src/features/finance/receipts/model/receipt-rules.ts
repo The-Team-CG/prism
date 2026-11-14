@@ -70,11 +70,6 @@ export function receiptActions(receipt: PrismPaymentReceipt): ReceiptActions {
   };
 }
 
-/** Money still sitting unapplied on receipts that count. */
-export function totalUnapplied(receipts: PrismPaymentReceipt[]): number {
-  return receipts.reduce((sum, receipt) => sum + (receipt.status === "recorded" || receipt.status === "verified" ? receipt.unapplied : 0), 0);
-}
-
 export function receiptTitle(receipt: PrismPaymentReceipt): string {
   return receipt.referenceNumber || `${receipt.method} receipt`;
 }
@@ -93,6 +88,7 @@ export function receiptNotes(receipt: PrismPaymentReceipt): string[] {
   const notes: string[] = [];
   if (receipt.legacy) notes.push("Carried over from a payment recorded before receipts existed. No evidence is on file.");
   if (receipt.possibleDuplicateOfId) notes.push("Same amount, method, day and payer as another receipt. Check it is not a double entry.");
+  if (receipt.source === "client") notes.push(`Reported by the client${receipt.intendedMilestoneLabel ? ` for ${receipt.intendedMilestoneLabel}` : ""}${receipt.evidence ? ", with proof" : ", no proof yet"}.`);
   if (receipt.status === "recorded" && !receipt.legacy) notes.push("Not yet checked against the bank or wallet statement.");
   return notes;
 }

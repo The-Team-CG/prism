@@ -1,6 +1,6 @@
 import type { PrismStatementMilestone, PrismStatementOfAccount } from "@prism/types";
 import { daysUntil, formatPortalDate } from "@prism/ui/format-date";
-import { formatPeso, type PaymentStep, type PaymentStepState } from "@prism/ui/payment-track";
+import { formatPeso, paymentStepState, type PaymentStep, type PaymentStepState } from "@prism/ui/payment-track";
 
 /** A payment due within this many days is "due soon": worth acting on now, not later. */
 export const DUE_SOON_DAYS = 14;
@@ -14,17 +14,9 @@ function dayWord(days: number) {
   return days === 1 ? "1 day" : `${days} days`;
 }
 
-function openState(milestone: PrismStatementMilestone, days: number | null): PaymentStepState {
-  if (days !== null && days < 0) return owedNow(milestone) > 0 ? "overdue" : "disputed";
-  if (milestone.disputed > 0 && owedNow(milestone) === 0) return "disputed";
-  if (days !== null && days <= DUE_SOON_DAYS) return "due-soon";
-  return milestone.paid > 0 ? "partly" : "upcoming";
-}
-
 /** Where one payment stands, from the client's side. Money still being checked counts toward it but is marked. */
 export function milestoneState(milestone: PrismStatementMilestone, todayKey: string): PaymentStepState {
-  if (milestone.remaining <= 0) return milestone.checking > 0 ? "checking" : "paid";
-  return openState(milestone, daysUntil(milestone.dueDate, todayKey));
+  return paymentStepState(milestone, daysUntil(milestone.dueDate, todayKey), DUE_SOON_DAYS);
 }
 
 /** When it is due, in words: "Due Nov 18 · in 4 days", "Due Oct 19 · 26 days late", "Paid Oct 13". */

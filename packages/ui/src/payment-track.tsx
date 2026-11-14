@@ -44,6 +44,24 @@ const LOOK: Record<PaymentStepState, StateLook> = {
   disputed: { icon: Scale, label: "Under review", dot: "bg-attention text-white", text: "text-attention", rest: "bg-attention-soft" },
 };
 
+/**
+ * Where a scheduled payment stands, from its amounts and how many days remain until it is due (negative once late).
+ * One rule for every portal: settled money still being checked is "checking"; owed money past due is "overdue" unless
+ * all of it is disputed; due within `dueSoonDays` is "due-soon"; otherwise "partly" or "upcoming".
+ */
+export function paymentStepState(
+  payment: { paid: number; remaining: number; checking?: number; disputed?: number },
+  daysUntilDue: number | null,
+  dueSoonDays = 14,
+): PaymentStepState {
+  if (payment.remaining <= 0) return (payment.checking ?? 0) > 0 ? "checking" : "paid";
+  const owed = Math.max(0, payment.remaining - (payment.disputed ?? 0));
+  if (daysUntilDue !== null && daysUntilDue < 0) return owed > 0 ? "overdue" : "disputed";
+  if (owed === 0) return "disputed";
+  if (daysUntilDue !== null && daysUntilDue <= dueSoonDays) return "due-soon";
+  return payment.paid > 0 ? "partly" : "upcoming";
+}
+
 export function paymentStateLabel(state: PaymentStepState): string {
   return LOOK[state].label;
 }

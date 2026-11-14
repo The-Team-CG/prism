@@ -595,3 +595,79 @@ export interface PrismEventInsight {
   generatedAt: string;
   updatedAt: string;
 }
+
+/** What PMCM finance should act on, across every event. */
+export type PrismFinanceDeskItemKind =
+  | "client_overdue"
+  | "verify_payment"
+  | "apply_money"
+  | "dispute"
+  | "correction"
+  | "supplier_overdue"
+  | "supplier_due_soon"
+  | "approve_source"
+  | "send_statement";
+
+export interface PrismFinanceDeskItem {
+  id: string;
+  kind: PrismFinanceDeskItemKind;
+  severity: "critical" | "warning" | "info";
+  eventId: string | null;
+  eventName: string | null;
+  title: string;
+  detail: string;
+  amount: number;
+  /** ISO date that makes it urgent: a due date, or the day the money arrived. */
+  date: string | null;
+  /** Where PMCM acts on it. */
+  href: string;
+}
+
+/** One event's money as finance sees it: the statement, its payments and what is still out. */
+export interface PrismFinanceDeskEvent {
+  eventId: string;
+  eventName: string;
+  eventDate: string | null;
+  clientName: string;
+  statementNumber: string | null;
+  statementSent: boolean;
+  billed: number;
+  paid: number;
+  /** Part of `paid` from money not yet verified. */
+  checking: number;
+  balance: number;
+  overdue: number;
+  milestones: PrismStatementMilestone[];
+}
+
+/** A payment PMCM owes a supplier. */
+export interface PrismFinanceDeskPayout {
+  id: string;
+  eventId: string;
+  eventName: string;
+  supplierName: string;
+  label: string;
+  amount: number;
+  released: number;
+  dueDate: string | null;
+  status: string;
+}
+
+/** Finance across every active event: what needs PMCM, each event's money, and what PMCM owes suppliers. */
+export interface PrismFinanceDesk {
+  generatedAt: string;
+  totals: {
+    clientOverdue: number;
+    clientDueSoon: number;
+    toVerify: number;
+    toVerifyCount: number;
+    unapplied: number;
+    openDisputes: number;
+    pendingCorrections: number;
+    supplierOverdue: number;
+    supplierDueSoon: number;
+  };
+  queue: PrismFinanceDeskItem[];
+  events: PrismFinanceDeskEvent[];
+  payouts: PrismFinanceDeskPayout[];
+}

@@ -48,6 +48,8 @@ import { StatementOfAccountService } from './application/billing/statement-of-ac
 import { StatementOfAccountController } from './api/billing/statement-of-account.controller';
 import { ClientPaymentSubmissionsController } from './api/billing/client-payment-submissions.controller';
 import { ClientPaymentSubmissionService } from './application/billing/client-payment-submission.service';
+import { FinanceDeskController } from './api/billing/finance-desk.controller';
+import { FinanceDeskService } from './application/billing/finance-desk.service';
 import { EventFinancialsController } from './api/billing/event-financials.controller';
 import { PaymentReceiptsController } from './api/billing/payment-receipts.controller';
 import { PaymentRiskScheduler } from './application/billing/payment-risk.scheduler';
@@ -134,6 +136,7 @@ const supplierCommandsProvider = {
     EventFinancialsController,
     StatementOfAccountController,
     ClientPaymentSubmissionsController,
+    FinanceDeskController,
     CommunicationController,
     ProposalLifecycleController,
     SupplierGapController,
@@ -172,6 +175,7 @@ const supplierCommandsProvider = {
     EventFinancialsService,
     StatementOfAccountService,
     ClientPaymentSubmissionService,
+    FinanceDeskService,
     PaymentRiskScheduler,
     CommunicationService,
     CommunicationAttachmentGateService,
