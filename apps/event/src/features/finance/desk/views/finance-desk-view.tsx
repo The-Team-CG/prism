@@ -1,30 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import {
-  AlertTriangle, ArrowDownToLine, BadgeCheck, ChevronRight, FilePen, Hourglass, Inbox, Scale, Send, Truck, WalletCards, type LucideIcon,
-} from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, Download, Hourglass, Scale, Truck, WalletCards, type LucideIcon } from "lucide-react";
 import { useResource } from "@prism/portal-query";
-import type { PrismFinanceDesk, PrismFinanceDeskEvent, PrismFinanceDeskItem, PrismFinanceDeskItemKind, PrismFinanceDeskPayout } from "@prism/types";
+import type { PrismFinanceDesk, PrismFinanceDeskEvent, PrismFinanceDeskPayout } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { PrismEmptyLine, PrismSection } from "@prism/ui/page-blocks";
 import { formatPeso, PaymentProgressBar } from "@prism/ui/payment-track";
 import { cn } from "@/app/components/ui/utils";
 import { financeDesk } from "../data/finance-desk-resource";
+import { agingBuckets, cashOutlook } from "../model/finance-desk-analysis";
 import { financeHeadline, financeStep, payoutState, type FinanceTone, type PayoutState } from "../model/finance-desk-rules";
-
-const KIND_LOOK: Record<PrismFinanceDeskItemKind, { icon: LucideIcon; tone: string }> = {
-  client_overdue: { icon: AlertTriangle, tone: "bg-danger-soft text-danger" },
-  supplier_overdue: { icon: Truck, tone: "bg-danger-soft text-danger" },
-  verify_payment: { icon: Hourglass, tone: "bg-info-soft text-info" },
-  apply_money: { icon: ArrowDownToLine, tone: "bg-info-soft text-info" },
-  dispute: { icon: Scale, tone: "bg-attention-soft text-attention" },
-  correction: { icon: FilePen, tone: "bg-attention-soft text-attention" },
-  supplier_due_soon: { icon: Truck, tone: "bg-attention-soft text-attention" },
-  approve_source: { icon: BadgeCheck, tone: "bg-muted text-muted-foreground" },
-  send_statement: { icon: Send, tone: "bg-muted text-muted-foreground" },
-};
+import { useFinanceDeskViewModel } from "../view-models/use-finance-desk-view-model";
+import { AgingChart, CashOutlookChart } from "./finance-charts";
+import { FinanceQueue } from "./finance-queue";
 
 const TONE_TEXT: Record<FinanceTone, string> = { danger: "text-danger", attention: "text-attention", info: "text-info", success: "text-success", neutral: "text-foreground" };
 
@@ -54,33 +45,6 @@ function Tiles({ totals }: { totals: PrismFinanceDesk["totals"] }) {
       <Tile icon={Truck} label="Owed to suppliers" value={formatPeso(owedToSuppliers)} detail={totals.supplierOverdue ? `${formatPeso(totals.supplierOverdue)} late` : "Due within a week"} tone={totals.supplierOverdue ? "bg-danger-soft text-danger" : owedToSuppliers ? "bg-attention-soft text-attention" : quiet} />
       <Tile icon={Scale} label="Disputes and corrections" value={String(reviews)} detail={`${totals.openDisputes} disputes · ${totals.pendingCorrections} corrections`} tone={reviews ? "bg-attention-soft text-attention" : quiet} />
     </div>
-  );
-}
-
-function QueueRow({ item }: { item: PrismFinanceDeskItem }) {
-  const look = KIND_LOOK[item.kind];
-  const Icon = look.icon;
-  return (
-    <li className="relative grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 px-5 py-3 hover:bg-muted/40">
-      <span aria-hidden className={cn("grid size-9 place-items-center rounded-full", look.tone)}><Icon className="size-4" /></span>
-      <span className="min-w-0">
-        <Link href={item.href} className="block truncate text-sm font-semibold text-foreground outline-none after:absolute after:inset-0">{item.title}</Link>
-        <span className="block truncate text-xs text-muted-foreground">{item.eventName ? `${item.eventName} · ` : ""}{item.detail}</span>
-      </span>
-      <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
-    </li>
-  );
-}
-
-function Queue({ items }: { items: PrismFinanceDeskItem[] }) {
-  return (
-    <PrismSection id="finance-queue" title="Needs you" count={items.length} flush>
-      {items.length === 0 ? (
-        <div className="px-5 py-4"><PrismEmptyLine icon={Inbox}>Nothing waiting. Payments, receipts, disputes and supplier payouts that need you appear here.</PrismEmptyLine></div>
-      ) : (
-        <ul className="divide-y divide-border">{items.map((item) => <QueueRow key={item.id} item={item} />)}</ul>
-      )}
-    </PrismSection>
   );
 }
 
@@ -140,21 +104,21 @@ function Payouts({ payouts, todayKey }: { payouts: PrismFinanceDeskPayout[]; tod
   );
 }
 
-/**
- * Finance across every event, without choosing one first: totals that need attention, the work waiting on PMCM in
- * order of urgency, each event's payments as a bar, and what PMCM owes suppliers.
- */
-export function FinanceDeskView() {
-  const desk = useResource(financeDesk, "signed-in");
-  if (desk.status === "error" && !desk.data) return <p role="alert" className="text-sm text-destructive">{desk.error.message}</p>;
-  if (!desk.data) return <p className="text-sm text-muted-foreground">Loading finance…</p>;
-  const todayKey = manilaDateKey();
-  const { totals, queue, events, payouts } = desk.data;
+function FinanceDesk({ desk, todayKey }: { desk: PrismFinanceDesk; todayKey: string }) {
+  const vm = useFinanceDeskViewModel(desk, todayKey);
+  const { totals, queue, events, payouts } = desk;
   return (
     <div className="space-y-6">
       <Tiles totals={totals} />
-      <Queue items={queue} />
-      <PrismSection id="finance-events" title="Events" count={events.length} description="Each event's client payments, most overdue first." bare>
+      <FinanceQueue total={queue.length} vm={vm} />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <AgingChart buckets={agingBuckets(events, todayKey)} />
+        <CashOutlookChart weeks={cashOutlook(events, payouts, todayKey)} />
+      </div>
+      <PrismSection
+        id="finance-events" title="Events" count={events.length} description="Each event's client payments, most overdue first." bare
+        action={events.length ? <Button type="button" variant="outline" size="sm" onClick={vm.exportCsv}><Download aria-hidden className="size-4" />Download spreadsheet</Button> : null}
+      >
         {events.length === 0 ? (
           <PrismEmptyLine icon={WalletCards}>No billing statements yet. Approve a billing source on an event to issue one.</PrismEmptyLine>
         ) : (
@@ -166,3 +130,14 @@ export function FinanceDeskView() {
   );
 }
 
+/**
+ * Finance across every event, without choosing one first: totals that need attention, the work waiting on PMCM in
+ * order of urgency with quick jobs done in place, what clients owe by lateness, the coming weeks of money in and out,
+ * each event's payments as a bar, and what PMCM owes suppliers.
+ */
+export function FinanceDeskView() {
+  const desk = useResource(financeDesk, "signed-in");
+  if (desk.status === "error" && !desk.data) return <p role="alert" className="text-sm text-destructive">{desk.error.message}</p>;
+  if (!desk.data) return <p className="text-sm text-muted-foreground">Loading finance…</p>;
+  return <FinanceDesk desk={desk.data} todayKey={manilaDateKey()} />;
+}

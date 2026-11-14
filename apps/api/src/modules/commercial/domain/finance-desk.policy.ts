@@ -15,6 +15,8 @@ export interface FinanceDeskFacts {
   receipts: Array<{
     id: string; eventId: string | null; amount: number; receivedDate: string; method: string; referenceNumber: string;
     status: 'recorded' | 'verified'; source: 'pmcm' | 'client'; unapplied: number; forPayment: string | null; hasProof: boolean;
+    /** When it was recorded, ISO. */
+    recordedAt: string;
   }>;
   disputes: Array<{ id: string; eventId: string; amount: number; reason: string; payment: string | null; raisedOn: string }>;
   corrections: Array<{ id: string; eventId: string; reason: string; requestedOn: string }>;
@@ -63,7 +65,7 @@ function clientOverdueItems(facts: FinanceDeskFacts, events: PrismFinanceDeskEve
       id: `client-overdue:${event.eventId}`, kind: 'client_overdue' as const, severity: 'critical' as const, eventId: event.eventId, eventName: event.eventName,
       title: `${peso(event.overdue)} overdue from ${event.clientName || 'the client'}`,
       detail: `${late.map((milestone) => milestone.label).join(', ')} · due ${shortDate(first.dueDate)} · ${days(-daysFrom(facts.today, first.dueDate))} late`,
-      amount: event.overdue, date: first.dueDate, href: `/dashboard/events/${event.eventId}/billing`,
+      amount: event.overdue, date: first.dueDate, href: `/dashboard/events/${event.eventId}/billing`, arrivedAt: first.dueDate, milestoneId: first.id,
     }];
   });
 }
@@ -74,7 +76,7 @@ function eventName(facts: FinanceDeskFacts, eventId: string | null) {
 
 function receiptItems(facts: FinanceDeskFacts): PrismFinanceDeskItem[] {
   return facts.receipts.flatMap((receipt): PrismFinanceDeskItem[] => {
-    const base = { eventId: receipt.eventId, eventName: eventName(facts, receipt.eventId), date: receipt.receivedDate, href: `/dashboard/finance/receipts?receipt=${encodeURIComponent(receipt.id)}` };
+    const base = { eventId: receipt.eventId, eventName: eventName(facts, receipt.eventId), date: receipt.receivedDate, href: `/dashboard/finance/receipts?receipt=${encodeURIComponent(receipt.id)}`, arrivedAt: receipt.recordedAt, receiptId: receipt.id };
     if (receipt.status === 'recorded') {
       const parts = [receipt.source === 'client' ? 'Reported by the client' : 'Recorded by PMCM', receipt.referenceNumber ? `Ref ${receipt.referenceNumber}` : 'no reference'];
       if (receipt.forPayment) parts.push(`for ${receipt.forPayment}`);
@@ -90,12 +92,12 @@ function adjustmentItems(facts: FinanceDeskFacts): PrismFinanceDeskItem[] {
   const disputes = facts.disputes.map((dispute) => ({
     id: `dispute:${dispute.id}`, kind: 'dispute' as const, severity: 'warning' as const, eventId: dispute.eventId, eventName: eventName(facts, dispute.eventId),
     title: `Answer a ${peso(dispute.amount)} dispute`, detail: `${dispute.payment ?? 'Whole statement'} · raised ${shortDate(dispute.raisedOn)} · “${dispute.reason}”`,
-    amount: dispute.amount, date: dispute.raisedOn, href: `/dashboard/events/${dispute.eventId}/billing?part=adjustments`,
+    amount: dispute.amount, date: dispute.raisedOn, href: `/dashboard/events/${dispute.eventId}/billing?part=adjustments`, arrivedAt: dispute.raisedOn,
   }));
   const corrections = facts.corrections.map((correction) => ({
     id: `correction:${correction.id}`, kind: 'correction' as const, severity: 'warning' as const, eventId: correction.eventId, eventName: eventName(facts, correction.eventId),
     title: 'Review a billing correction', detail: `${correction.reason} · requested ${shortDate(correction.requestedOn)}`,
-    amount: 0, date: correction.requestedOn, href: `/dashboard/events/${correction.eventId}/billing?part=adjustments`,
+    amount: 0, date: correction.requestedOn, href: `/dashboard/events/${correction.eventId}/billing?part=adjustments`, arrivedAt: correction.requestedOn,
   }));
   return [...disputes, ...corrections];
 }
@@ -111,7 +113,7 @@ function payoutItems(facts: FinanceDeskFacts): PrismFinanceDeskItem[] {
       id: `payout:${payout.id}`, kind: late ? 'supplier_overdue' as const : 'supplier_due_soon' as const, severity: late ? 'critical' as const : 'warning' as const,
       eventId: payout.eventId, eventName: payout.eventName, title: `Pay ${payout.supplierName} ${peso(remaining)}`,
       detail: `${payout.label} · due ${shortDate(payout.dueDate)} · ${late ? `${days(-until)} late` : until === 0 ? 'today' : `in ${days(until)}`}`,
-      amount: remaining, date: payout.dueDate, href: `/dashboard/events/${payout.eventId}/suppliers`,
+      amount: remaining, date: payout.dueDate, href: `/dashboard/events/${payout.eventId}/suppliers`, arrivedAt: payout.dueDate,
     }];
   });
 }
@@ -119,11 +121,11 @@ function payoutItems(facts: FinanceDeskFacts): PrismFinanceDeskItem[] {
 function setupItems(facts: FinanceDeskFacts): PrismFinanceDeskItem[] {
   const sources = facts.draftSources.map((source) => ({
     id: `source:${source.id}`, kind: 'approve_source' as const, severity: 'info' as const, eventId: source.eventId, eventName: eventName(facts, source.eventId),
-    title: 'Approve a billing source', detail: `${source.label} · ${peso(source.amount)}`, amount: source.amount, date: null, href: `/dashboard/events/${source.eventId}/billing?part=sources`,
+    title: 'Approve a billing source', detail: `${source.label} · ${peso(source.amount)}`, amount: source.amount, date: null, href: `/dashboard/events/${source.eventId}/billing?part=sources`, arrivedAt: null,
   }));
   const unsent = facts.unsentStatements.map((statement) => ({
     id: `send:${statement.id}`, kind: 'send_statement' as const, severity: 'info' as const, eventId: statement.eventId, eventName: eventName(facts, statement.eventId),
-    title: `Send statement ${statement.number}`, detail: `${peso(statement.amount)} · the client cannot see it or pay against it yet`, amount: statement.amount, date: null, href: `/dashboard/events/${statement.eventId}/billing`,
+    title: `Send statement ${statement.number}`, detail: `${peso(statement.amount)} · the client cannot see it or pay against it yet`, amount: statement.amount, date: null, href: `/dashboard/events/${statement.eventId}/billing`, arrivedAt: null,
   }));
   return [...sources, ...unsent];
 }
