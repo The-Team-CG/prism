@@ -254,6 +254,7 @@ const SECTION_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
   inquiries: "inquiries",
   "events-list": "events-list",
   team: "team",
+  finance: "finance",
 };
 
 const EVENT_SCOPED_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
@@ -323,7 +324,7 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   team: "PMCM coordinators, their roles and availability. Assign them inside each event.",
   files: "Operational documents, official floorplans, billing statements, contracts, and closeout records.",
   messages: "Client, supplier, coordinator, and internal PMCM communication threads.",
-  finance: "Billing statements, payment milestones, balances, and statement delivery.",
+  finance: "What needs you across events: money overdue, to verify and to apply, disputes, and what PMCM owes suppliers.",
   settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
   inquiries: "One intake queue, from first contact to the client's portal account. Accepted inquiries continue in Onboarding and Conforme follow-up.",
   "events-list": "Every confirmed event. Open one to work inside it.",

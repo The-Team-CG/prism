@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismSupplierPayableMilestone } from "@prism/types";
-import { payoutStep, supplierBookings, supplierPaymentTotals } from "./supplier-payments";
+import { newPayoutReleases, payoutStep, supplierBookings, supplierPaymentTotals } from "./supplier-payments";
 
 const TODAY = "2026-11-14";
 
@@ -43,5 +43,15 @@ describe("supplier payments", () => {
     });
 
     expect(bookings.map((booking) => [booking.eventName, booking.contract, booking.payables.length])).toEqual([["Operations Booking", 485000, 1], ["Florals", 90000, 0]]);
+  });
+
+  it("marks payouts sent since the last visit as new, and without a visit only those from the last two weeks", () => {
+    const sent = (id: string, recordedAt: string) => ({ ...release(recordedAt, 1000), id, recordedAt });
+    const payables = [payable({ history: [sent("old", "2026-10-01T00:00:00.000Z"), sent("recent", "2026-11-12T00:00:00.000Z"), { ...sent("undo", "2026-11-13T00:00:00.000Z"), kind: "reversal" as const }] })];
+    const now = new Date("2026-11-14T00:00:00.000Z");
+
+    expect([...newPayoutReleases(payables, "2026-11-10T00:00:00.000Z", now)]).toEqual(["recent"]);
+    expect([...newPayoutReleases(payables, null, now)]).toEqual(["recent"]);
+    expect(newPayoutReleases(payables, "2026-11-13T00:00:00.000Z", now).size).toBe(0);
   });
 });

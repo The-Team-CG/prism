@@ -145,11 +145,11 @@ describe("event-dashboard-routing", () => {
       [{ section: "settings", tab: "overview" }, "settings"],
       [{ section: "inquiries", tab: "overview" }, "inquiries"],
       [{ section: "events-list", tab: "overview" }, "events-list"],
-      // Tasks, Files, Messages and Finance have no sidebar entry outside an event, so nothing is highlighted.
+      // Finance has its own desk entry; Tasks, Files and Messages have none outside an event, so nothing is highlighted.
       [{ section: "tasks", tab: "overview" }, undefined],
       [{ section: "files", tab: "floorplans" }, undefined],
       [{ section: "messages", tab: "messages" }, undefined],
-      [{ section: "finance", tab: "billing" }, undefined],
+      [{ section: "finance", tab: "billing" }, "finance"],
       [{ section: "files", tab: "floorplans", eventId: "event-42" }, "event-files"],
       [{ section: "messages", tab: "messages", eventId: "event-42" }, "event-messages"],
       [{ section: "finance", tab: "billing", eventId: "event-42" }, "event-budget"],

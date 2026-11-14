@@ -34,6 +34,8 @@ export type SupplierWorkspaceSectionProps = {
   session: PrismAuthenticatedSession;
   workspace: SupplierWorkspace | null;
   workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
+  /** Payout releases PMCM sent since the supplier last opened Payments. */
+  freshPayouts?: ReadonlySet<string>;
   error: string | null;
   quoteByRequest: Map<string, PrismSupplierQuote>;
   openRequests: PrismSupplierQuoteRequest[];
@@ -109,7 +111,7 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
   calendar: (p) => <CalendarPage workspace={p.workspace} readinessBoard={p.readinessBoard} workflowWorkspace={p.workflowWorkspace} />,
   quotations: (p) => <QuotationsPage workspace={p.workspace} readinessBoard={p.readinessBoard} />,
   messages: (p) => <MessagesPage session={p.session} selectedRequests={p.selectedRequests} readinessBoard={p.readinessBoard} />,
-  payments: (p) => <PaymentsPage workspace={p.workspace} workflowWorkspace={p.workflowWorkspace} selectedQuotes={p.selectedQuotes} readinessBoard={p.readinessBoard} />,
+  payments: (p) => <PaymentsPage workspace={p.workspace} workflowWorkspace={p.workflowWorkspace} selectedQuotes={p.selectedQuotes} readinessBoard={p.readinessBoard} freshPayouts={p.freshPayouts} />,
   files: (p) => <FilesPage workspace={p.workspace} session={p.session} workflowWorkspace={p.workflowWorkspace} readinessBoard={p.readinessBoard} onDownloadObject={p.onDownloadObject} />,
   profile: (p) => <ProfilePage supplier={p.workspace.supplier} session={p.session} />,
   privacy: () => <SupplierPrivacyRequestsView />,

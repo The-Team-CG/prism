@@ -6,7 +6,7 @@ export type NoticeLink = { href: string; label: string };
 
 /**
  * Where a supplier notice sends the reader. A schedule revision opens its booking; a file requirement
- * opens Files. Billing and floor plans are the client's, so suppliers get no link for those.
+ * opens Files; money PMCM sent opens Payments. Floor plans are the client's, so suppliers get no link for those.
  */
 export function supplierNoticeLink(action: NotificationAction | undefined): NoticeLink | null {
   if (action?.kind === "supplier_schedule") {
@@ -14,5 +14,6 @@ export function supplierNoticeLink(action: NotificationAction | undefined): Noti
   }
   if (action?.kind === "conversation") return { href: `${supplierSectionHref("messages")}${conversationHash(action.threadId)}`, label: "Open conversation" };
   if (action?.kind === "event_section" && action.section === "files") return { href: supplierSectionHref("files"), label: "Open files" };
+  if (action?.kind === "event_section" && action.section === "billing") return { href: supplierSectionHref("payments"), label: "Open payments" };
   return null;
 }

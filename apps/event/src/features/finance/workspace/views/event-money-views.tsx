@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, CalendarClock, CheckCircle2, ChevronRight, FileText, Hourglass, Send, ShieldAlert, WalletCards, type LucideIcon } from "lucide-react";
+import { AlertTriangle, BellRing, CalendarClock, CheckCircle2, ChevronRight, FileText, Hourglass, Send, ShieldAlert, WalletCards, type LucideIcon } from "lucide-react";
 import type { PrismFinanceDeskEvent, PrismFinanceDeskItem, PrismPaymentMilestone, PrismPaymentReceipt } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
@@ -129,10 +129,11 @@ function RecordLine({ record, check }: { record: PaymentRecordRow; check: Record
   );
 }
 
-function StepActions({ payment, busy, onRecord, onToggleRisk }: { payment: PrismPaymentMilestone; busy: boolean; onRecord: () => void; onToggleRisk: () => void }) {
+function StepActions({ payment, busy, reminding, onRecord, onRemind, onToggleRisk }: { payment: PrismPaymentMilestone; busy: boolean; reminding: boolean; onRecord: () => void; onRemind?: () => void; onToggleRisk: () => void }) {
   return (
     <div className="mt-1.5 flex flex-wrap gap-2">
       <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" disabled={busy} onClick={onRecord}><WalletCards className="size-3" aria-hidden /> Record payment</Button>
+      {onRemind ? <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" disabled={busy || reminding} onClick={onRemind}><BellRing className="size-3" aria-hidden /> {reminding ? "Sending…" : "Remind client"}</Button> : null}
       <Button size="sm" variant="ghost" className="h-7 px-2.5 text-xs" disabled={busy} onClick={onToggleRisk}>{payment.status === "at_risk" ? "Clear risk" : "Mark at risk"}</Button>
     </div>
   );
@@ -150,6 +151,7 @@ export function EventPaymentSchedule({
   busy,
   onRecord,
   onToggleRisk,
+  reminder,
 }: {
   money: PrismFinanceDeskEvent;
   payments: PrismPaymentMilestone[];
@@ -158,6 +160,8 @@ export function EventPaymentSchedule({
   busy: boolean;
   onRecord: (payment: PrismPaymentMilestone) => void;
   onToggleRisk: (payment: PrismPaymentMilestone) => void;
+  /** Reminding is offered once a payment is late or due within two weeks. */
+  reminder?: { busyId: string | null; remind: (milestoneId: string, label: string) => void };
 }) {
   const steps = money.milestones.map((milestone) => financeStep(milestone, todayKey));
   const byId = new Map(payments.map((payment) => [payment.id, payment]));
@@ -169,7 +173,16 @@ export function EventPaymentSchedule({
     return (
       <>
         {payment.history.length ? <ul className="space-y-1">{payment.history.map((record) => <RecordLine key={record.id} record={record} check={recordCheck(record.receiptId, receiptById)} />)}</ul> : null}
-        {open ? <StepActions payment={payment} busy={busy} onRecord={() => onRecord(payment)} onToggleRisk={() => onToggleRisk(payment)} /> : null}
+        {open ? (
+          <StepActions
+            payment={payment}
+            busy={busy}
+            reminding={reminder?.busyId === payment.id}
+            onRecord={() => onRecord(payment)}
+            onRemind={reminder && (step.state === "overdue" || step.state === "due-soon") ? () => reminder.remind(payment.id, payment.label) : undefined}
+            onToggleRisk={() => onToggleRisk(payment)}
+          />
+        ) : null}
       </>
     );
   };

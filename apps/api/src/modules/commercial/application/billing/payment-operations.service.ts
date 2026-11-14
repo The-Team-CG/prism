@@ -6,7 +6,7 @@ import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction, writeNotification } from '@prism/contexts/platform-ops';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import type { RecordPaymentInput } from '@prism/types';
+import type { PrismPaymentReminder, RecordPaymentInput } from '@prism/types';
 import { nextPaymentMilestoneStatus } from '../../domain/payment-terms.policy';
 import { lockPaymentMilestone, paymentStatus, recordReceiptForPayment } from './payment-ledger.store';
 import type { BillingActor } from '../../contracts/billing-operations.types';
@@ -184,6 +184,39 @@ export class PaymentOperationsService implements PaymentStatusReader {
         idempotencyKey: `payment-overdue-reminder:${milestone.id}`, action: eventSectionAction(event.id, 'billing'),
       });
     }
+  }
+
+  /**
+   * PMCM reminds the client about one payment still owed. One reminder per payment per Philippine day: a second the same
+   * day sends nothing. The reminder is written to the audit log, which is the payment's history.
+   */
+  async remindClient(eventId: string, milestoneId: string, actor: BillingActor, now = new Date()): Promise<PrismPaymentReminder> {
+    actor = requireBillingActor(actor);
+    const milestone = await this.prisma.opsPaymentMilestone.findFirst({ where: { id: milestoneId, eventId, supersededAt: null }, select: { id: true, label: true, dueDate: true, remainingBalance: true } });
+    if (!milestone) throw new NotFoundException('Payment milestone not found');
+    if (milestone.remainingBalance <= 0) throw new BadRequestException('This payment is already paid');
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventName: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila' }).format(now);
+    const sentToday = await this.prisma.opsAuditLog.findFirst({
+      where: { eventId, affectedType: 'payment_milestone', affectedId: milestoneId, action: { startsWith: 'Reminded the client' }, createdAt: { gte: new Date(`${today}T00:00:00+08:00`) } },
+      select: { id: true },
+    });
+    if (sentToday) return { milestoneId, remindedOn: today, alreadySentToday: true };
+    const due = milestone.dueDate.toISOString().slice(0, 10);
+    const late = milestone.dueDate.getTime() < now.getTime();
+    await this.prisma.$transaction(async (tx) => {
+      const context = { prisma: tx, actorId: actor.id, correlationId: `payment-reminder:${milestoneId}:${today}` };
+      await writeNotification(this.notificationOutboxWriter, eventId, 'Client',
+        `Reminder from PMCM: ₱${milestone.remainingBalance.toLocaleString('en-PH')} for ${milestone.label} on ${event.eventName} ${late ? 'was' : 'is'} due ${due}. Open your billing page for how to pay, or tell PMCM if you already paid.`,
+        undefined, { idempotencyKey: `payment-manual-reminder:${milestoneId}:${today}`, action: eventSectionAction(eventId, 'billing') }, context);
+      await writeAudit(this.auditWriter, eventId, actor.name, `Reminded the client about ${milestone.label}`, {
+        actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Finance, actionType: AuditActionType.General,
+        affectedType: 'payment_milestone', affectedId: milestoneId, affectedLabel: milestone.label,
+        metadata: auditMetadata(actor, { remainingBalance: milestone.remainingBalance, dueDate: due }),
+      }, context);
+    });
+    return { milestoneId, remindedOn: today, alreadySentToday: false };
   }
 
   async markPayment(eventId: string, milestoneId: string, status: string, actor: BillingActor) {

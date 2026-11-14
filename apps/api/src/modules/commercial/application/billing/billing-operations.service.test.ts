@@ -465,6 +465,29 @@ describe('BillingOperationsService', () => {
     }
   });
 
+  it('reminds the client about an owed payment at most once a day, and refuses a payment already paid', async () => {
+    const { paymentService, prisma, notifications, milestone } = createPaymentService();
+    Object.assign(milestone, { label: 'Second payment', remainingBalance: 66000, dueDate: new Date('2026-10-19T00:00:00.000Z') });
+    prisma.opsPaymentMilestone.findFirst = vi.fn(async () => milestone);
+    prisma.opsEvent.findUnique = vi.fn(async () => ({ eventName: 'Gala' }));
+    const actor = { id: 'usr_pmcm', name: 'Ms. Mys', role: 'pmcm-admin' };
+    const now = new Date('2026-11-14T02:00:00.000Z');
+
+    await expect(paymentService.remindClient('evt_sample', milestone.id, actor, now)).resolves.toEqual({ milestoneId: milestone.id, remindedOn: '2026-11-14', alreadySentToday: false });
+    expect(notifications.write).toHaveBeenCalledWith(expect.objectContaining({
+      recipient: 'Client', message: expect.stringContaining('₱66,000 for Second payment on Gala was due 2026-10-19'),
+      idempotencyKey: `payment-manual-reminder:${milestone.id}:2026-11-14`, action: { kind: 'event_section', eventId: 'evt_sample', section: 'billing' },
+    }), expect.anything());
+
+    // The audit log already has today's reminder: nothing more is sent.
+    prisma.opsAuditLog.findFirst.mockResolvedValueOnce({ id: 'audit_reminder' });
+    await expect(paymentService.remindClient('evt_sample', milestone.id, actor, now)).resolves.toMatchObject({ alreadySentToday: true });
+    expect(notifications.write).toHaveBeenCalledTimes(1);
+
+    milestone.remainingBalance = 0;
+    await expect(paymentService.remindClient('evt_sample', milestone.id, actor, now)).rejects.toThrow('already paid');
+  });
+
   it('projects client billing disputes without PMCM reasons, resolver notes, or actor names', () => {
     const projected = mapClientBillingDispute({
       id: 'dispute_1', eventId: 'evt_sample', statementId: 'stmt_1', milestoneId: null, amount: 2000,

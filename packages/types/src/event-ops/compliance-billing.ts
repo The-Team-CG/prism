@@ -671,3 +671,12 @@ export interface PrismFinanceDesk {
   events: PrismFinanceDeskEvent[];
   payouts: PrismFinanceDeskPayout[];
 }
+
+/** A reminder PMCM sent the client about one payment. One per payment per day: a second the same day is not sent. */
+export interface PrismPaymentReminder {
+  milestoneId: string;
+  /** Philippine calendar date of the reminder. */
+  remindedOn: string;
+  /** True when a reminder had already gone out today, so this request sent nothing new. */
+  alreadySentToday: boolean;
+}

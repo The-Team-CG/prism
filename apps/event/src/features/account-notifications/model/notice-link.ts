@@ -29,6 +29,8 @@ export function pmcmNoticeLink(action: NotificationAction | undefined, eventId: 
     return target ? { href: eventWorkspaceHref(action.eventId, target.tab), label: target.label } : null;
   }
   if (action?.kind === "conversation") return { href: `${eventWorkspaceHref(action.eventId, "messages")}${conversationHash(action.threadId)}`, label: "Open conversation" };
+  // A payment the client reported opens on the receipts desk, selected, ready to check.
+  if (action?.kind === "payment_receipt") return { href: `/dashboard/finance/receipts?receipt=${encodeURIComponent(action.receiptId)}`, label: "Check payment" };
   // A supplier schedule is read inside the event's suppliers tab; without an event there is nowhere to go.
   if (action?.kind === "supplier_schedule" && eventId) return { href: eventWorkspaceHref(eventId, "suppliers"), label: "Open suppliers" };
   return null;

@@ -95,6 +95,17 @@ export class OpsEventBillingController {
     return this.paymentOperationsService.markPayment(eventId, milestoneId, dto.status, actor);
   }
 
+  @Post(':eventId/payments/:milestoneId/reminders')
+  @UseGuards(EventSessionGuard)
+  async remindClient(
+    @Param('eventId') eventId: string,
+    @Param('milestoneId') milestoneId: string,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = await this.requireFinanceActor(verifiedActor, 'payment reminder', eventId);
+    return this.paymentOperationsService.remindClient(eventId, milestoneId, actor);
+  }
+
   @Post(':eventId/payments/:milestoneId/records')
   @UseGuards(EventSessionGuard)
   @HttpCode(HttpStatus.CREATED)

@@ -13,3 +13,8 @@ export const eventStatementOfAccount = defineResource({
 export function downloadStatementPdf(storageObjectId: string) {
   return getStorageObjectDownload(storageObjectId, { authToken: storedEventAccessToken() });
 }
+
+/** PMCM reminds the client about one owed payment. The API sends at most one a day per payment. */
+export function remindClientPayment(eventId: string, milestoneId: string) {
+  return eventApi.commercial.remindClientPayment(eventId, milestoneId);
+}

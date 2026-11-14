@@ -2,6 +2,7 @@ import { unreadNavBadge } from "@prism/ui/chat";
 import {
   Archive,
   Banknote,
+  Landmark,
   Database,
   CalendarClock,
   CalendarDays,
@@ -83,6 +84,7 @@ export function eventPortalNavItems({
   disabledModules = [],
   inquiryCount,
   commandInboxCount,
+  financeCount,
   assignmentCount,
   quoteCount,
   draftCount,
@@ -96,6 +98,8 @@ export function eventPortalNavItems({
   disabledModules?: readonly string[];
   inquiryCount?: number;
   commandInboxCount?: number | string;
+  /** Money work waiting on PMCM across events: overdue, to verify or apply, disputes, late payouts. */
+  financeCount?: number;
   assignmentCount?: number;
   quoteCount?: number;
   draftCount?: number;
@@ -121,6 +125,7 @@ export function eventPortalNavItems({
     { id: "calendar", icon: CalendarClock, label: "Calendar", section: "PMCM" },
     { id: "suppliers", icon: Tags, label: "Suppliers", section: "Network" },
     { id: "team", icon: Contact, label: "Team", section: "Network" },
+    { id: "finance", icon: Landmark, label: "Finance", section: "Finance", badge: optionalNavBadge(financeCount) },
     { id: "finance-receipts", icon: Banknote, label: "Receipts", section: "Finance" },
     { id: "audit", icon: ShieldCheck, label: "Audit", section: "Administration" },
     { id: "privacy", icon: Database, label: "Privacy", section: "Administration" },

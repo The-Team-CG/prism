@@ -3,8 +3,9 @@ import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
 import { AUDIT_WRITER, EventAccessPolicyService, scopeActorToEvent, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
-import { STORED_RECEIPT_EVIDENCE_READER, type StoredReceiptEvidenceReader } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, STORED_RECEIPT_EVIDENCE_READER, writeNotification, type NotificationOutboxWriter, type StoredReceiptEvidenceReader } from '@prism/contexts/platform-ops';
 import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 import type { AttachPaymentReceiptEvidenceInput, PrismPaymentSubmission, PrismVerifiedEventActor, SubmitClientPaymentInput } from '@prism/types';
 import { normalizeReference } from '../../domain/payment-receipt.policy';
@@ -26,6 +27,7 @@ export class ClientPaymentSubmissionService {
     private readonly statements: StatementOfAccountService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Optional() @Inject(STORED_RECEIPT_EVIDENCE_READER) private readonly evidenceReader?: StoredReceiptEvidenceReader,
+    @Optional() @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notifications?: NotificationOutboxWriter,
   ) {}
 
   async submit(eventId: string, input: SubmitClientPaymentInput, verifiedActor: PrismVerifiedEventActor): Promise<PrismPaymentSubmission> {
@@ -79,6 +81,7 @@ export class ClientPaymentSubmissionService {
         affectedLabel: referenceNumber,
         metadata: { actorId: actor.id, amount: created.amount, referenceNumber, intendedMilestoneId: created.intendedMilestoneId },
       }, { prisma: tx, actorId: actor.id, correlationId: `client-payment:${created.id}` });
+      await this.tellPmcm(created, actor, eventName, { prisma: tx, actorId: actor.id, correlationId: `client-payment:${created.id}` });
       return created.id;
     }).catch((error: unknown) => {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -113,6 +116,14 @@ export class ClientPaymentSubmissionService {
       }, { prisma: tx, actorId: actor.id, correlationId: `client-payment-proof:${receiptId}` });
     });
     return this.submissionFor(eventId, eventName, receiptId);
+  }
+
+  /** PMCM hears about a reported payment, with a link straight to it on the receipts desk. */
+  private async tellPmcm(receipt: { id: string; eventId: string | null; amount: number; method: string; referenceNumber: string }, actor: ClientActor, eventName: string, context: PrismTransactionContext) {
+    if (!this.notifications || !receipt.eventId) return;
+    await writeNotification(this.notifications, receipt.eventId, 'PMCM Admin', `${actor.name} reported a ₱${receipt.amount.toLocaleString('en-PH')} ${receipt.method} payment for ${eventName} (ref ${receipt.referenceNumber}). Check it against the bank or wallet statement.`, undefined, {
+      idempotencyKey: `client-payment-reported:${receipt.id}`, action: { kind: 'payment_receipt', receiptId: receipt.id },
+    }, context);
   }
 
   private async requireClient(eventId: string, verifiedActor: PrismVerifiedEventActor): Promise<{ actor: ClientActor; eventName: string }> {
