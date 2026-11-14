@@ -20,6 +20,11 @@ export class CommunicationController {
     return this.service.listThreads(eventId, this.access.resolveActor({}, verified));
   }
 
+  @Get('inbox')
+  inbox(@VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.listInbox(this.access.resolveActor({}, verified));
+  }
+
   @Get('participants')
   participants(@Query('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.listEligibleParticipants(eventId, this.access.resolveActor({}, verified));
@@ -38,5 +43,10 @@ export class CommunicationController {
   @Post('threads/:threadId/read')
   read(@Param('threadId') threadId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.markThreadRead(threadId, this.access.resolveActor({}, verified));
+  }
+
+  @Get('threads/:threadId/read-receipts')
+  readReceipts(@Param('threadId') threadId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.readReceipts(threadId, this.access.resolveActor({}, verified));
   }
 }

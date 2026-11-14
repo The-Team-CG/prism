@@ -1,6 +1,8 @@
 import type {
+  PrismCommunicationInboxThread,
   PrismCommunicationThread,
   PrismCommunicationParticipantChoice,
+  PrismCommunicationReadReceipt,
 } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
@@ -11,12 +13,18 @@ export function createCommunicationClient(
 ): Pick<EventOpsClient, "communication"> {
   return {
     communication: {
+      readReceipts: (threadId, actor = {}) => prismRequest<PrismCommunicationReadReceipt[]>(actorPath(`/communication/threads/${encodeURIComponent(threadId)}/read-receipts`, actor), withBase(options)),
       listThreads: (eventId, actor = {}) =>
         prismRequest<PrismCommunicationThread[]>(
           actorPath(
             `/communication/threads?eventId=${encodeURIComponent(eventId)}`,
             actor,
           ),
+          withBase(options),
+        ),
+      listInbox: (actor = {}) =>
+        prismRequest<PrismCommunicationInboxThread[]>(
+          actorPath("/communication/inbox", actor),
           withBase(options),
         ),
       listParticipants: (eventId, actor = {}) =>

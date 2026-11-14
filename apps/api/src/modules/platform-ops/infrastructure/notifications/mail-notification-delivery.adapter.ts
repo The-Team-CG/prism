@@ -1,4 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
+import { PRISM_PORTAL_URLS, type PrismPortalUrls } from '@prism/kernel/shared';
+import { conversationNoticeUrl } from './conversation-notice-url';
 import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
 import { NotificationChannel } from '@prism/kernel/event-core';
 import { MAIL_TRANSPORT, type MailTransport } from '@prism/kernel/mail';
@@ -22,10 +24,11 @@ export function notificationSubject(message: string, eventName?: string) {
   return eventName && !headline.includes(eventName) ? `${subject} (${eventName})` : subject;
 }
 
-export function notificationHtml(message: string) {
+export function notificationHtml(message: string, conversationUrl?: string) {
   return [
     '<div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:#171216;max-width:560px">',
     `<p style="margin:0 0 16px">${escapeHtml(message)}</p>`,
+    ...(conversationUrl ? [`<p><a href="${escapeHtml(conversationUrl)}">Open conversation</a></p>`] : []),
     '<p style="margin:24px 0 0;font-size:12px;color:#62535c">P.R.I.S.M by PMCM. This is an automated update about your event.</p>',
     '</div>',
   ].join('');
@@ -38,6 +41,7 @@ export class MailNotificationDeliveryAdapter implements NotificationDeliveryPort
     @Inject(MAIL_TRANSPORT) private readonly mail: MailTransport,
     @Inject(ACCOUNT_CONTACT_READ_MODEL) private readonly contacts: AccountContactReadModel,
     private readonly recipients: NotificationRecipientDeliveryService,
+    @Optional() @Inject(PRISM_PORTAL_URLS) private readonly portals?: PrismPortalUrls,
   ) {}
 
   async deliver(input: Parameters<NotificationDeliveryPort['deliver']>[0]): Promise<NotificationDeliveryResult> {
@@ -46,9 +50,11 @@ export class MailNotificationDeliveryAdapter implements NotificationDeliveryPort
     }
     const eventName = input.eventId ? (await this.contacts.findEventNotificationContact(input.eventId))?.eventName : undefined;
     const subject = notificationSubject(input.message, eventName);
-    const html = notificationHtml(input.message);
+    const url = conversationNoticeUrl(input.action, this.portals);
+    const html = notificationHtml(input.message, url);
+    const text = url ? `${input.message}\n\nOpen conversation: ${url}` : input.message;
     return this.recipients.deliver(input.idempotencyKey, () => resolveNotificationRecipients(input.recipient, input.eventId, this.contacts), async (to) => {
-      const result = await this.mail.send({ idempotencyKey: `${input.idempotencyKey}:${to}`, to, subject, text: input.message, html });
+      const result = await this.mail.send({ idempotencyKey: `${input.idempotencyKey}:${to}`, to, subject, text, html });
       return result.status === 'permanent_failure' ? { status: 'permanent_failure', reason: 'Mail provider rejected this recipient' } : result;
     });
   }

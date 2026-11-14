@@ -16,3 +16,22 @@ export function portalAppPath(pathname: string): string {
   if (rest === "") return "/";
   return rest.startsWith("/") ? rest : pathname;
 }
+
+const CONVERSATION_HASH = "#conversation-";
+
+/** The fragment that opens one conversation when appended to a portal's Messages page. */
+export function conversationHash(threadId: string): string {
+  return `${CONVERSATION_HASH}${encodeURIComponent(threadId)}`;
+}
+
+/** The conversation a Messages URL fragment names, if any. */
+export function linkedConversationId(hash: string, search = ""): string | undefined {
+  const query = new URLSearchParams(search).get("conversation");
+  if (query) return query;
+  if (!hash.startsWith(CONVERSATION_HASH)) return undefined;
+  try {
+    return decodeURIComponent(hash.slice(CONVERSATION_HASH.length)) || undefined;
+  } catch {
+    return undefined;
+  }
+}

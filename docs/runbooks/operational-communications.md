@@ -56,6 +56,29 @@ sources:
    workspace tabs, or, for a supplier, Files or the booking. A role with no such page gets no link (suppliers have none for client
    billing, floor plans or live operations). Payment reminders, floor plan reviews, proposal comments, scope changes, briefing
    submissions, event-day escalations and file or schedule requests carry links; other notices are plain text.
+6. A new message in a Messages conversation queues one email and one Viber notice for each other member. The notice names the
+   sender, the conversation and its event, and quotes the first 140 characters, so it can be read without signing in. Its link
+   opens that conversation in the reader's Messages. The Viber row is skipped for people who have not linked Viber.
+
+Conversation notices also include an **Open conversation** link in email (text and HTML) and Viber. The destination uses the
+recipient's configured portal and a conversation query parameter, which survives sign-in and the privacy notice. Other workflow
+notices retain their in-portal links only. Messages offers a link to the existing Viber settings when the bot is configured and
+the account has not linked/enabled Viber; replies still happen in PRISM.
+
+Notifications combines email/Viber copies with the same idempotent workflow operation, event, content and action into one row.
+Delivery tracking remains per channel. Opening/acknowledging the combined row validates and updates each included delivery's
+own version. An outstanding deadline stays visible until the relevant receipt is acknowledged. Legacy notices without an
+operation identity remain separate; identical text alone is never enough to group notices.
+
+Coordinators have a Messages view at `/dashboard?view=messages`. They can read/reply only in conversations they belong to and
+for events they can currently access. PMCM starts the conversations and selects participants. Coordinator notices use this
+view, including after sign-in; the coordinator does not receive PMCM's participant directory or create-conversation controls.
+
+Only a PMCM conversation member can query `GET /api/communication/threads/:threadId/read-receipts`. It rechecks event access,
+active membership and the account's current role. Ordinary thread/inbox responses still omit other members' read times.
+PMCM sees **Seen by** on its own messages when an active recipient's portal read time covers that message. The open conversation
+refreshes those times every 15 seconds while the page is visible and stops on return to the list. Clients, suppliers and
+coordinators neither request nor display these receipts. This is portal reading, not provider delivery or Viber seen status.
 
 Acknowledging receipt is not a business decision. Approvals, contract uploads and schedule confirmations still need their own action
 in the event workspace; the inbox says so.

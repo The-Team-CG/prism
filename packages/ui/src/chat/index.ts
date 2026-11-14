@@ -1,2 +1,5 @@
 export * from "./chat-display";
-export { ChatAvatar, ChatWorkspace, type ChatCompose, type ChatWorkspaceProps } from "./chat-workspace";
+export { ChatWorkspace, type ChatWorkspaceProps } from "./chat-workspace";
+export { type ChatCompose } from "./new-conversation";
+export { useChatThreads, type ChatMessagePage, type ChatSource } from "./use-chat-threads";
+export { ViberMessagePrompt } from "./viber-message-prompt";

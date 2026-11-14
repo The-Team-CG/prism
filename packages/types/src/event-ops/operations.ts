@@ -8,8 +8,18 @@ export interface PrismCommunicationParticipant {
   id: string;
   actorId: string;
   actorRole: string;
+  /** The account's display name. People in one conversation see each other's names, never emails. */
+  name?: string;
   active: boolean;
+  /** Own read time, or other members' times only in a PMCM response. */
   lastReadAt?: string | null;
+}
+
+/** PMCM-only projection for the active members of one conversation. */
+export interface PrismCommunicationReadReceipt {
+  actorId: string;
+  name?: string;
+  lastReadAt: string | null;
 }
 
 export interface PrismCommunicationParticipantChoice {
@@ -24,6 +34,8 @@ export interface PrismCommunicationMessage {
   threadId: string;
   senderId: string;
   senderRole: string;
+  /** Kept on the message so a sender who has left the conversation still has a name. */
+  senderName?: string;
   body: string;
   createdAt: string;
 }
@@ -40,6 +52,13 @@ export interface PrismCommunicationThread {
   messages: PrismCommunicationMessage[];
   messagesNextCursor?: string | null;
   unreadCount?: number;
+}
+
+/** One row of the cross-event inbox: the conversation and its latest message, without its history. */
+export interface PrismCommunicationInboxThread extends Omit<PrismCommunicationThread, "messages" | "messagesNextCursor"> {
+  eventName: string;
+  lastMessage: PrismCommunicationMessage | null;
+  unreadCount: number;
 }
 
 export interface PrismCoordinatorAssignment {

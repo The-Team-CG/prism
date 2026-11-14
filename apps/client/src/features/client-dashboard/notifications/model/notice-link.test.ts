@@ -12,6 +12,10 @@ describe("clientNoticeLink", () => {
     expect(clientNoticeLink({ kind: "event_section", eventId: "evt 1", section: "billing" })).toEqual({ href: "/dashboard/events/evt 1/billing", label: "Open billing" });
   });
 
+  it("opens the conversation a message notice is about", () => {
+    expect(clientNoticeLink({ kind: "conversation", eventId: "evt_1", threadId: "thread_1" })).toEqual({ href: "/dashboard/events/evt_1/messages#conversation-thread_1", label: "Open conversation" });
+  });
+
   it("offers no link for event-day operations, supplier schedules or notices without an action", () => {
     expect(clientNoticeLink({ kind: "event_section", eventId: "evt_1", section: "live_ops" })).toBeNull();
     expect(clientNoticeLink({ kind: "supplier_schedule", requestId: "req_1", revision: 2 })).toBeNull();
