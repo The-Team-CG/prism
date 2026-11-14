@@ -20,6 +20,11 @@ export class CommunicationController {
     return this.service.listThreads(eventId, this.access.resolveActor({}, verified));
   }
 
+  @Get('inbox')
+  inbox(@VerifiedEventActor() verified: PrismVerifiedEventActor) {
+    return this.service.listInbox(this.access.resolveActor({}, verified));
+  }
+
   @Get('participants')
   participants(@Query('eventId') eventId: string, @VerifiedEventActor() verified: PrismVerifiedEventActor) {
     return this.service.listEligibleParticipants(eventId, this.access.resolveActor({}, verified));

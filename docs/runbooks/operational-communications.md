@@ -56,6 +56,11 @@ sources:
    workspace tabs, or, for a supplier, Files or the booking. A role with no such page gets no link (suppliers have none for client
    billing, floor plans or live operations). Payment reminders, floor plan reviews, proposal comments, scope changes, briefing
    submissions, event-day escalations and file or schedule requests carry links; other notices are plain text.
+6. A new message in a Messages conversation queues one email and one Viber notice for each other member. The notice names the
+   sender, the conversation and its event, and quotes the first 140 characters, so it can be read without signing in. Its link
+   opens that conversation in the reader's Messages. The Viber row is skipped for people who have not linked Viber.
+
+Links appear only in the in-portal Notifications list. Email and Viber notices carry the text alone.
 
 Acknowledging receipt is not a business decision. Approvals, contract uploads and schedule confirmations still need their own action
 in the event workspace; the inbox says so.

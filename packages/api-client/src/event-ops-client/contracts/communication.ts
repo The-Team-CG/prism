@@ -1,6 +1,7 @@
 import type {
   CreateCommunicationThreadInput,
   SendCommunicationMessageInput,
+  PrismCommunicationInboxThread,
   PrismCommunicationThread,
   PrismCommunicationParticipantChoice,
 } from "@prism/types";
@@ -12,6 +13,8 @@ export interface EventOpsCommunicationContract {
       eventId: string,
       actor?: EventOpsActorQuery,
     ): Promise<PrismCommunicationThread[]>;
+    /** The signed-in account's conversations across every event it can read. */
+    listInbox(actor?: EventOpsActorQuery): Promise<PrismCommunicationInboxThread[]>;
     listParticipants(
       eventId: string,
       actor?: EventOpsActorQuery,

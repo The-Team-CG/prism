@@ -8,7 +8,7 @@ function harness(overrides: Record<string, unknown> = {}) {
   const facts = { event: { id: 'evt_1', clientPortalStatus: 'unlocked', clientName: 'Client', inquiryEmail: user.email as string | null }, supplierAssignments: [] as Array<{ supplierId: string | null; status: string }>, suppliers: [] as Array<{ id: string; email: string }>, coordinatorAssignments: [] as Array<{ coordinatorId: string | null; status: string }>, coordinators: [] as Array<{ id: string; userId: string | null }> };
   const prisma = { opsUser: { findUnique: vi.fn(async (): Promise<Record<string, unknown> | null> => ({ ...user, ...overrides })), findMany: vi.fn(async (): Promise<Array<{ id: string; name: string; email: string; role: string }>> => []) } };
   const factsReader = { findForEvent: vi.fn(async () => facts) };
-  const policy = { requireCanReadEvent: vi.fn(async () => undefined) };
+  const policy = { requireCanReadEvent: vi.fn(async () => undefined), canReadEvent: vi.fn(() => true) };
   return { service: new ParticipantReaderService(prisma as never, policy as never, factsReader as never), prisma, factsReader, policy, user, facts };
 }
 
@@ -63,6 +63,30 @@ describe('ParticipantReaderService', () => {
     await expect(coordinator.service.resolveForEvent('u_coordinator', 'evt_1')).rejects.toBeInstanceOf(ForbiddenException);
     coordinator.facts.coordinatorAssignments = [{ coordinatorId: 'coord_1', status: 'assigned' }];
     await expect(coordinator.service.resolveForEvent('u_coordinator', 'evt_1')).resolves.toMatchObject({ coordinatorId: 'coord_1', eventId: 'evt_1' });
+  });
+
+  it('narrows inbox events to the ones the account can still read, without recording a denial', async () => {
+    const client = harness();
+    client.factsReader.findForEvent.mockImplementation(async (...[eventId]: unknown[]) => (eventId === 'evt_gone' ? null : { ...client.facts, event: { ...client.facts.event, inquiryEmail: eventId === 'evt_other' ? 'someone@example.test' : client.user.email } }) as never);
+    await expect(client.service.readableEventIds(client.user.id, ['evt_1', 'evt_other', 'evt_gone', 'evt_1'])).resolves.toEqual(new Set(['evt_1']));
+    expect(client.policy.requireCanReadEvent).not.toHaveBeenCalled();
+
+    // The shared event policy still decides: an owned event behind a locked portal is not readable.
+    client.policy.canReadEvent.mockReturnValue(false);
+    await expect(client.service.readableEventIds(client.user.id, ['evt_1'])).resolves.toEqual(new Set());
+
+    const pmcm = harness({ id: 'u_pmcm', role: OpsUserRole.PmcmAdmin });
+    await expect(pmcm.service.readableEventIds('u_pmcm', ['evt_1', 'evt_2'])).resolves.toEqual(new Set(['evt_1', 'evt_2']));
+    expect(pmcm.factsReader.findForEvent).not.toHaveBeenCalled();
+
+    await expect(harness({ approvalStatus: 'pending' }).service.readableEventIds('u_client', ['evt_1'])).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('shares display names for a conversation and nothing else about the accounts', async () => {
+    const { service, prisma } = harness();
+    prisma.opsUser.findMany.mockResolvedValue([{ id: 'u_client', name: 'Ana Reyes' }] as never);
+    await expect(service.displayNames(['u_client', 'u_client', 'u_gone'])).resolves.toEqual(new Map([['u_client', 'Ana Reyes']]));
+    expect(prisma.opsUser.findMany).toHaveBeenCalledWith({ where: { id: { in: ['u_client', 'u_gone'] } }, select: { id: true, name: true } });
   });
 
   it('loads the event once while enumerating all eligible participants', async () => {
