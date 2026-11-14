@@ -41,6 +41,11 @@ export function uploadSupplierFileRequirement(session: PrismAuthenticatedSession
   return supplierWorkflowRepository.uploadRequirement(session, supplier, eventId, key, file);
 }
 
+/** One of this supplier's stored files, for a preview in the page. */
+export function loadSupplierStoredFile(session: PrismAuthenticatedSession, objectId: string) {
+  return supplierWorkflowRepository.download(session, objectId);
+}
+
 export async function submitOrReviseQuote(input: {
   request: PrismSupplierQuoteRequest;
   form: QuoteFormState;
