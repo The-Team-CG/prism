@@ -19,6 +19,7 @@ export function useSupplierFileRequirementsViewModel(
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [uploading, setUploading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -38,7 +39,7 @@ export function useSupplierFileRequirementsViewModel(
         setStatus("error");
       });
     return () => { active = false; };
-  }, [eventIdsKey, session]);
+  }, [eventIdsKey, session, revision]);
 
   async function upload(eventId: string, key: string, file: File) {
     if (uploading) return;
@@ -56,5 +57,5 @@ export function useSupplierFileRequirementsViewModel(
     }
   }
 
-  return { matrices, status, error, uploading, upload };
+  return { matrices, status, error, uploading, upload, reload: () => setRevision((current) => current + 1) };
 }

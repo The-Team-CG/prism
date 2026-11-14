@@ -290,7 +290,8 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     const versions = sender.role === OpsUserRole.Supplier
       ? item.supplierFulfilments?.find((fulfilment) => fulfilment.supplierId === sender.supplierId)?.versions
       : item.versions;
-    const earlier = (versions ?? []).filter((version) => version.documentId !== documentId && version.status === 'submitted').map((version) => version.documentId);
+    // The history already reads earlier waiting uploads as replaced; the stored status is checked by the update itself.
+    const earlier = (versions ?? []).filter((version) => version.documentId !== documentId).map((version) => version.documentId);
     if (earlier.length) await tx.opsDocument.updateMany({ where: { id: { in: earlier }, eventId, type: key, status: 'submitted' }, data: { status: 'replaced' } });
   }
 

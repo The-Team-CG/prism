@@ -1,4 +1,4 @@
-import type { PrismSupplierCertification, PrismSupplierContractVersion } from "@prism/types";
+import { storedFileExpiryDay, storedFileExpiryState, type PrismSupplierCertification, type PrismSupplierContractVersion } from "@prism/types";
 import type { SupplierFileRequirementRow } from "./supplier-workspace-rules";
 
 export type SupplierFileKind = "pdf" | "image" | "sheet" | "document" | "video" | "other";
@@ -35,7 +35,23 @@ export type SupplierLibraryFile = {
   /** The stored file to preview and download; certifications PMCM keeps on the supplier record have none. */
   objectId?: string;
   reviewReason?: string;
+  /** The last day a booking document is valid, when the supplier or PMCM set one; the supplier can change it. */
+  expiresAt?: string;
+  /** The supplier sent this file and may date it. */
+  datable?: boolean;
+  /** The requirement this file currently stands for, while PMCM has not approved it: a newer file replaces it. */
+  replaces?: { eventId: string; key: string; label: string };
 };
+
+/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date (Philippine day). */
+export function supplierFileExpiry(expiresAt: string | null | undefined, now = new Date()): { label: string; tone: SupplierFileTone } | null {
+  if (!expiresAt) return null;
+  const date = storedFileExpiryDay(expiresAt);
+  const state = storedFileExpiryState(expiresAt, now);
+  if (state === "expired") return { label: `Expired ${date}`, tone: "urgent" };
+  if (state === "expiring") return { label: `Expires ${date}`, tone: "attention" };
+  return { label: `Valid until ${date}`, tone: "neutral" };
+}
 
 /** A file PMCM asked this supplier for that is not sent yet, or that PMCM sent back. */
 export type SupplierNeededFile = {
@@ -88,7 +104,7 @@ export function buildSupplierNeededFiles(rows: SupplierFileRequirementRow[], eve
 }
 
 function requirementFiles(rows: SupplierFileRequirementRow[], eventNames: ReadonlyMap<string, string>): SupplierLibraryFile[] {
-  return rows.filter((row) => !isContractRow(row)).flatMap(({ eventId, item }) => (item.versions ?? []).map((version) => ({
+  return rows.filter((row) => !isContractRow(row)).flatMap(({ eventId, item }) => (item.versions ?? []).map((version, position) => ({
     id: version.documentId,
     name: version.fileName,
     kind: supplierFileKind(version.fileName),
@@ -98,6 +114,9 @@ function requirementFiles(rows: SupplierFileRequirementRow[], eventNames: Readon
     ...(VERSION_STATUS[version.status] ?? { status: version.status, tone: "neutral" as const }),
     objectId: version.objectId,
     ...(version.reviewReason ? { reviewReason: version.reviewReason } : {}),
+    ...(version.expiresAt ? { expiresAt: version.expiresAt } : {}),
+    datable: true,
+    ...(position === 0 && item.status !== "approved" ? { replaces: { eventId, key: item.key, label: item.label } } : {}),
   })));
 }
 
@@ -117,11 +136,9 @@ function contractFiles(contracts: PrismSupplierContractVersion[], eventNames: Re
 }
 
 function certificationStatus(certification: PrismSupplierCertification, now: Date): Pick<SupplierLibraryFile, "status" | "tone"> {
-  if (!certification.expiresAt) return { status: certification.status ?? "On file", tone: "neutral" };
-  const expires = new Date(certification.expiresAt);
-  if (expires.getTime() < now.getTime()) return { status: "Expired", tone: "urgent" };
-  const soon = expires.getTime() - now.getTime() < 30 * 24 * 60 * 60 * 1000;
-  return { status: `Expires ${certification.expiresAt.slice(0, 10)}`, tone: soon ? "attention" : "neutral" };
+  const expiry = supplierFileExpiry(certification.expiresAt, now);
+  if (!expiry) return { status: certification.status ?? "On file", tone: "neutral" };
+  return { status: expiry.tone === "urgent" ? "Expired" : `Expires ${storedFileExpiryDay(certification.expiresAt!)}`, tone: expiry.tone };
 }
 
 function certificationFiles(certifications: PrismSupplierCertification[], now: Date): SupplierLibraryFile[] {

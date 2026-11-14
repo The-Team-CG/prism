@@ -824,6 +824,20 @@ describe('EventReadModelsService', () => {
     }));
   });
 
+  it("keeps only each supplier's newest waiting file in the inbox, even for uploads stored before replacements were marked", async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    const upload = (id: string, objectId: string, day: string) => ({ id, eventId: 'evt_visible', type: 'insurance', fileName: `${id}.pdf`, uploadedByRole: 'supplier', uploadedAt: new Date(`2026-10-${day}T00:00:00.000Z`), storageKey: objectId, status: 'submitted' });
+    const uploads = [upload('doc_atlas_old', 'obj_atlas_old', '01'), upload('doc_bright', 'obj_bright', '02'), upload('doc_atlas_new', 'obj_atlas_new', '05')];
+    prisma.opsDocument.findMany.mockImplementation(async () => uploads);
+    const owners = { obj_atlas_old: 'sup_atlas', obj_atlas_new: 'sup_atlas', obj_bright: 'sup_bright' } as Record<string, string>;
+    Object.assign(prisma, { opsStoredObject: { findMany: vi.fn(async ({ where }: { where: { id: { in: string[] } } }) => where.id.in.map((id) => ({ id, ownerRecordId: owners[id] }))) } });
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    const inbox = await service.pmcmCommandInbox(actor);
+
+    expect(inbox.items.filter((item) => item.id.startsWith('file-review:')).map((item) => item.id).sort()).toEqual(['file-review:doc_atlas_new', 'file-review:doc_bright']);
+  });
+
   it('builds a client action center from client-visible event work', async () => {
     const { service, policy } = createPmcmReadModelService();
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });

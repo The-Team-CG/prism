@@ -194,6 +194,10 @@ function sortByDate<T extends { id: string }>(rows: T[], dateOf: (row: T) => Dat
     return date || left.id.localeCompare(right.id) * sign;
   });
 }
+
+/** Upload rows read to tell whether a waiting supplier file is still its supplier's newest. */
+const SUPERSEDED_SUPPLIER_FILE_SCAN = 1000;
+
 @Injectable()
 export class EventReadModelQueries {
   constructor(private readonly prisma: PrismaService) {}
@@ -1055,7 +1059,7 @@ export class EventReadModelQueries {
       // the sender's earlier unreviewed files replaced, so each sender has at most one waiting per requirement.
       this.prisma.opsDocument.findMany({
         where: { status: 'submitted', validationStatus: { not: 'rejected' }, storageKey: { not: null }, uploadedByRole: { in: ['client', 'supplier', 'coordinator'] } },
-        select: { id: true, eventId: true, type: true, fileName: true, uploadedByRole: true, uploadedAt: true },
+        select: { id: true, eventId: true, type: true, fileName: true, uploadedByRole: true, uploadedAt: true, storageKey: true },
         orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
         skip, take,
@@ -1077,6 +1081,36 @@ export class EventReadModelQueries {
       fileReviews: items(fileReviews),
       hasMore: page < PRISM_PMCM_COMMAND_INBOX_MAX_PAGE && sources.some((rows) => rows.length > pageSize),
     };
+  }
+
+  /**
+   * Of these waiting files, the supplier ones their own supplier has since replaced with a newer upload. Files sent
+   * before a new upload started marking earlier ones replaced are still stored as waiting; the supplier that sent each
+   * file is the owner of its stored object.
+   */
+  async supersededSupplierFiles(files: ReadonlyArray<{ id: string; eventId: string; type: string; uploadedAt: Date; uploadedByRole: string | null; storageKey: string | null }>) {
+    const waiting = files.filter((file) => file.uploadedByRole === 'supplier' && file.storageKey);
+    if (waiting.length === 0) return new Set<string>();
+    const pairs = [...new Map(waiting.map((file) => [`${file.eventId}:${file.type}`, { eventId: file.eventId, type: file.type }])).values()];
+    const siblings = await this.prisma.opsDocument.findMany({
+      where: { storageKey: { not: null }, OR: pairs },
+      select: { id: true, eventId: true, type: true, uploadedAt: true, storageKey: true },
+      // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: the uploads for at most one inbox page of requirements.
+      take: SUPERSEDED_SUPPLIER_FILE_SCAN,
+    });
+    const objectIds = [...new Set(siblings.map((sibling) => sibling.storageKey!))];
+    const owners = await this.prisma.opsStoredObject.findMany({
+      where: { id: { in: objectIds }, ownerRecordType: 'supplier' },
+      select: { id: true, ownerRecordId: true },
+    });
+    const ownerOf = new Map(owners.map((owner) => [owner.id, owner.ownerRecordId]));
+    const newer = (left: { id: string; uploadedAt: Date }, right: { id: string; uploadedAt: Date }) =>
+      left.uploadedAt.getTime() > right.uploadedAt.getTime() || (left.uploadedAt.getTime() === right.uploadedAt.getTime() && left.id < right.id);
+    return new Set(waiting.filter((file) => {
+      const owner = ownerOf.get(file.storageKey!);
+      return owner !== undefined && siblings.some((sibling) => sibling.id !== file.id && sibling.eventId === file.eventId && sibling.type === file.type
+        && ownerOf.get(sibling.storageKey!) === owner && newer(sibling, file));
+    }).map((file) => file.id));
   }
 
   /** The labels of the requirements the waiting files were sent for. */
