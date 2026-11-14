@@ -976,6 +976,7 @@ export class EventReadModelQueries {
       postEventDocuments,
       eventDayTasks,
       urgentIssues,
+      fileReviews,
     ] = await Promise.all([
       this.prisma.opsInquiry.findMany({
         where: { OR: [{ status: 'new' }, { status: 'accepted', conformeSignedAt: null }] },
@@ -1050,9 +1051,18 @@ export class EventReadModelQueries {
         // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
         skip, take,
       }),
+      // Files a client, supplier or coordinator sent for a requirement and PMCM has not reviewed. A newer upload marks
+      // the sender's earlier unreviewed files replaced, so each sender has at most one waiting per requirement.
+      this.prisma.opsDocument.findMany({
+        where: { status: 'submitted', validationStatus: { not: 'rejected' }, storageKey: { not: null }, uploadedByRole: { in: ['client', 'supplier', 'coordinator'] } },
+        select: { id: true, eventId: true, type: true, fileName: true, uploadedByRole: true, uploadedAt: true },
+        orderBy: [{ uploadedAt: 'asc' }, { id: 'asc' }],
+        // QUERY_AUDIT_ALLOW_OFFSET: shared inbox page schema caps page at 100 (maximum offset 1000).
+        skip, take,
+      }),
     ]);
     const items = <T>(rows: T[]) => rows.slice(0, pageSize);
-    const sources = [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments, eventDayTasks, urgentIssues];
+    const sources = [inquiries, events, paymentMilestones, quoteRequests, coordinatorAssignments, floorPlanDrafts, postEventDocuments, eventDayTasks, urgentIssues, fileReviews];
 
     return {
       inquiries: items(inquiries),
@@ -1064,8 +1074,21 @@ export class EventReadModelQueries {
       postEventDocuments: items(postEventDocuments),
       eventDayTasks: items(eventDayTasks),
       urgentIssues: items(urgentIssues),
+      fileReviews: items(fileReviews),
       hasMore: page < PRISM_PMCM_COMMAND_INBOX_MAX_PAGE && sources.some((rows) => rows.length > pageSize),
     };
+  }
+
+  /** The labels of the requirements the waiting files were sent for. */
+  async fileRequirementLabels(files: ReadonlyArray<{ eventId: string; type: string }>) {
+    if (files.length === 0) return new Map<string, string>();
+    const rows = await this.prisma.opsFileRequirement.findMany({
+      where: { OR: files.map((file) => ({ eventId: file.eventId, key: file.type })) },
+      select: { eventId: true, key: true, label: true },
+      // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: one requirement per (event, key), so never more rows than the inbox page of files (at most 100).
+      take: files.length,
+    });
+    return new Map(rows.map((row) => [`${row.eventId}:${row.key}`, row.label]));
   }
 
   pmcmCommandInboxEventRefs(eventIds: string[]) {

@@ -233,8 +233,9 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
         return scopedActor;
       }
       await this.requireWritableEvent(eventId, tx);
+      const documentId = `doc_${randomUUID()}`;
       await tx.opsDocument.create({ data: {
-        id: `doc_${randomUUID()}`, eventId, type: key, fileName: object.originalFileName, status: 'submitted',
+        id: documentId, eventId, type: key, fileName: object.originalFileName, status: 'submitted',
         mimeType: object.contentType, sizeBytes: object.declaredByteSize, validationStatus: 'accepted',
         storageBucket: 'prism-storage', storageKey: object.id, uploadedByRole: scopedActor.role, uploadedAt: new Date(),
       } });
@@ -243,6 +244,8 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
         affectedType: 'file_requirement', affectedId: requirement.id, affectedLabel: key,
         metadata: { objectId: object.id, originalFileName: object.originalFileName, uploaderActorRole: object.uploaderActorRole },
       }, { prisma: tx, correlationId: `file-requirement-upload:${eventId}:${key}:${object.id}` });
+      await this.replaceEarlierSubmissions(tx, eventId, key, documentId, scopedActor);
+      if (scopedActor.role !== OpsUserRole.PmcmAdmin) await this.notifyPmcmOfSubmission(tx, eventId, requirement.label, object.originalFileName, documentId, scopedActor);
       return scopedActor;
     });
     const item = await this.itemFor(eventId, key, this.prisma as unknown as Prisma.TransactionClient, { role: responseActor.role, supplierId: responseActor.supplierId });
@@ -250,6 +253,28 @@ export class FileRequirementCommandsService implements FileRequirementCommands {
     const [scopedItem] = scopeFileRequirementItemsForActor(visibleFileRequirementItems([item], responseActor.role), responseActor);
     if (!scopedItem) throw new NotFoundException('File requirement not found');
     return scopedItem;
+  }
+
+  /**
+   * A new upload replaces the sender's earlier files that PMCM has not reviewed yet, so only the newest one waits for
+   * review. A supplier's files are matched to that supplier only.
+   */
+  private async replaceEarlierSubmissions(tx: Prisma.TransactionClient, eventId: string, key: string, documentId: string, sender: ResolvedEventOpsActor) {
+    const item = await this.itemFor(eventId, key, tx);
+    const versions = sender.role === OpsUserRole.Supplier
+      ? item.supplierFulfilments?.find((fulfilment) => fulfilment.supplierId === sender.supplierId)?.versions
+      : item.versions;
+    const earlier = (versions ?? []).filter((version) => version.documentId !== documentId && version.status === 'submitted').map((version) => version.documentId);
+    if (earlier.length) await tx.opsDocument.updateMany({ where: { id: { in: earlier }, eventId, type: key, status: 'submitted' }, data: { status: 'replaced' } });
+  }
+
+  /** Tells PMCM a client or supplier sent a file to review. */
+  private notifyPmcmOfSubmission(tx: Prisma.TransactionClient, eventId: string, label: string, fileName: string, documentId: string, sender: ResolvedEventOpsActor) {
+    const who = sender.role === OpsUserRole.Client ? 'The client' : sender.role === OpsUserRole.Supplier ? `Supplier ${sender.name}` : sender.name;
+    const idempotencyKey = `file-requirement-submitted:${eventId}:${documentId}`;
+    return writeNotification(this.notificationOutboxWriter, eventId, ROLE_RECIPIENT[OpsUserRole.PmcmAdmin]!, `${who} sent "${fileName}" for "${label}". It is waiting for your review.`, undefined,
+      { idempotencyKey, correlationId: idempotencyKey, action: { kind: 'event_section', eventId, section: 'files' } },
+      { prisma: tx, correlationId: idempotencyKey });
   }
 
   async reviewRequirementFile(eventId: string, key: string, input: ReviewRequirementFileInput, actor: ResolvedEventOpsActor): Promise<PrismFileRequirementItem> {

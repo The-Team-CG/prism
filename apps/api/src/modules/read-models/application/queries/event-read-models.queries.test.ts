@@ -534,6 +534,7 @@ describe('EventReadModelQueries collection limits', () => {
     const opsPostEventDocument = model();
     const opsEventDayTask = model();
     const opsUrgentIssue = model();
+    const opsDocument = model();
     const prisma = {
       opsInquiry,
       opsEvent,
@@ -544,6 +545,7 @@ describe('EventReadModelQueries collection limits', () => {
       opsPostEventDocument,
       opsEventDayTask,
       opsUrgentIssue,
+      opsDocument,
     };
     const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
     const now = new Date('2026-10-19T10:00:00.000Z');
@@ -566,6 +568,11 @@ describe('EventReadModelQueries collection limits', () => {
       ...page,
       where: { status: { in: ['open', 'assigned'] }, resolvedAt: null },
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    }));
+    // Only files a client, supplier or coordinator sent that are still waiting for PMCM, not PMCM's own or failed ones.
+    expect(opsDocument.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      ...page,
+      where: { status: 'submitted', validationStatus: { not: 'rejected' }, storageKey: { not: null }, uploadedByRole: { in: ['client', 'supplier', 'coordinator'] } },
     }));
     expect(result.hasMore).toBe(false);
     expect(result.inquiries).toEqual([]);

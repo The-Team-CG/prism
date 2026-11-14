@@ -8,14 +8,15 @@ type EventSection = Extract<NotificationAction, { kind: "event_section" }>["sect
 type WorkspaceTab = Parameters<typeof eventWorkspaceHref>[1];
 
 /** The workspace tab each event section opens. Proposals and scope changes are both reviewed in the Planning & decisions tab. */
-const SECTION_LINKS: Record<EventSection, { tab: WorkspaceTab; label: string }> = {
+const SECTION_LINKS: Record<EventSection, { tab: WorkspaceTab; label: string; part?: string }> = {
   overview: { tab: "overview", label: "Open event" },
   briefing: { tab: "briefing", label: "Open planning" },
   proposal: { tab: "briefing", label: "Open proposal" },
   changes: { tab: "briefing", label: "Open scope changes" },
   floorplans: { tab: "floorplans", label: "Open floorplans" },
   billing: { tab: "billing", label: "Open billing" },
-  files: { tab: "files", label: "Open files" },
+  // File notices are about requirements: uploads to review and rejected or overdue files.
+  files: { tab: "files", label: "Open required files", part: "required" },
   live_ops: { tab: "live-ops", label: "Open live operations" },
 };
 
@@ -25,7 +26,9 @@ export function pmcmNoticeLink(action: NotificationAction | undefined, eventId: 
   if (action?.kind === "event_section") {
     // A section this app does not know (from a newer API) has no link rather than a broken one.
     const target = SECTION_LINKS[action.section] as (typeof SECTION_LINKS)[EventSection] | undefined;
-    return target ? { href: eventWorkspaceHref(action.eventId, target.tab), label: target.label } : null;
+    if (!target) return null;
+    const href = eventWorkspaceHref(action.eventId, target.tab);
+    return { href: target.part ? `${href}?part=${target.part}` : href, label: target.label };
   }
   if (action?.kind === "conversation") return { href: `${eventWorkspaceHref(action.eventId, "messages")}${conversationHash(action.threadId)}`, label: "Open conversation" };
   // A supplier schedule is read inside the event's suppliers tab; without an event there is nowhere to go.

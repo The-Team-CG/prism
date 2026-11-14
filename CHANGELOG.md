@@ -16,6 +16,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Clients can follow event milestones, submit briefing and layout preferences, review official floorplans, sign conformes and addenda, track billing, and request an ocular visit. PMCM retains ownership of official plans and event decisions.
 - PMCM can approve or reject the files clients send for a file requirement, with a reason, from the requirements panel, the same way as supplier files. The client or supplier who sent the file gets a notice with the outcome and, on a rejection, the reason; the reminder sweep no longer repeats that rejection notice.
+- PMCM is told when a client or supplier sends a file for a requirement, and each file waiting for review appears in the command inbox until PMCM decides. A newer upload replaces the sender's earlier unreviewed file, so only the newest one waits. Notices show their whole message instead of a cut-off preview.
 - PMCM can plan events with versioned task templates, previewed date changes, supplier readiness and file requirements, event-day schedules, coordinator handoffs, and archive closeout records.
 - PMCM finance can reconcile external receipts, apply and reverse payments, record refunds, review billing disputes, and attach private payment evidence. Clients can view published statements with payment and refund history.
 - Guests can check in with consent, submit feedback within the event’s seven-day feedback window, and play event games. PMCM controls game sessions, moderation, retention, and event-scoped access.
