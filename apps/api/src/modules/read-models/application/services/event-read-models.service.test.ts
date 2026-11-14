@@ -820,7 +820,7 @@ describe('EventReadModelsService', () => {
     // A file a client sent for a requirement waits in the inbox, named by its requirement, until PMCM reviews it.
     expect(inbox.items).toContainEqual(expect.objectContaining({
       id: 'file-review:doc_1', kind: 'document', label: 'Review client file',
-      description: 'permit.pdf for Venue permit on Ayala Summit.', href: '/dashboard/events/evt_visible/files?part=required',
+      description: 'permit.pdf for Venue permit on Ayala Summit.', href: '/dashboard/events/evt_visible/files',
     }));
   });
 
