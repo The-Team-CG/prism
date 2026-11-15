@@ -126,7 +126,7 @@ export class FinanceDeskService {
           id: receipt.id, eventId: receipt.eventId, amount: receipt.amount, receivedDate: isoDate(receipt.receivedDate), method: receipt.method,
           referenceNumber: receipt.referenceNumber, status: receipt.status === 'verified' ? 'verified' as const : 'recorded' as const,
           source: receipt.source === 'client' ? 'client' as const : 'pmcm' as const, unapplied: balanceOf(receipt),
-          forPayment: forMilestone ? labels.get(forMilestone) ?? null : null, hasProof: Boolean(receipt.evidenceObjectId),
+          forPayment: forMilestone ? labels.get(forMilestone) ?? null : null, hasProof: Boolean(receipt.evidenceObjectId), recordedAt: receipt.createdAt.toISOString(),
         };
       }),
       disputes: disputes.map((dispute) => ({ id: dispute.id, eventId: dispute.eventId, amount: dispute.amount, reason: dispute.reason, payment: dispute.milestoneId ? labels.get(dispute.milestoneId) ?? null : null, raisedOn: isoDate(dispute.createdAt) })),

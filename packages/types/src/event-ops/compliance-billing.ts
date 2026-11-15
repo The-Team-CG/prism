@@ -621,6 +621,12 @@ export interface PrismFinanceDeskItem {
   date: string | null;
   /** Where PMCM acts on it. */
   href: string;
+  /** When this work reached PMCM (money arrived, dispute raised, payment fell due), to mark what is new since a visit. */
+  arrivedAt: string | null;
+  /** The receipt to verify or apply, for actions taken straight from the desk. */
+  receiptId?: string;
+  /** The client payment that is overdue, for a reminder straight from the desk. */
+  milestoneId?: string;
 }
 
 /** One event's money as finance sees it: the statement, its payments and what is still out. */

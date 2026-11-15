@@ -34,7 +34,7 @@ describe('finance desk', () => {
   it('leads with money that is late, client and supplier, then what to check or answer, then setup', () => {
     const desk = buildFinanceDesk(facts({
       statements: [{ sent: true, statement: statement('a', [milestone({ id: 'late', dueDate: '2026-10-15', remaining: 125000, amount: 125000, disputed: 30000 })]) }],
-      receipts: [{ id: 'r1', eventId: 'a', amount: 60000, receivedDate: '2026-11-10', method: 'GCash', referenceNumber: 'GC-1', status: 'recorded', source: 'client', unapplied: 60000, forPayment: 'Balance', hasProof: true }],
+      receipts: [{ id: 'r1', eventId: 'a', amount: 60000, receivedDate: '2026-11-10', method: 'GCash', referenceNumber: 'GC-1', status: 'recorded', source: 'client', unapplied: 60000, forPayment: 'Balance', hasProof: true, recordedAt: '2026-11-10T03:00:00.000Z' }],
       disputes: [{ id: 'd1', eventId: 'a', amount: 30000, reason: 'No overtime was agreed.', payment: 'Balance', raisedOn: '2026-11-14' }],
       draftSources: [{ id: 's1', eventId: 'b', label: 'Late charges', amount: 12000 }],
       payouts: [{ id: 'p1', eventId: 'b', eventName: 'Event b', supplierName: 'Bloom Florals', label: 'Deposit', amount: 90000, released: 0, dueDate: '2026-11-09', status: 'scheduled' }],
@@ -47,7 +47,9 @@ describe('finance desk', () => {
       ['dispute', 'warning', 'Answer a ₱30,000 dispute'],
       ['approve_source', 'info', 'Approve a billing source'],
     ]);
-    expect(desk.queue[2]).toMatchObject({ detail: 'Reported by the client · Ref GC-1 · for Balance · proof attached', href: '/dashboard/finance/receipts?receipt=r1' });
+    expect(desk.queue[2]).toMatchObject({ detail: 'Reported by the client · Ref GC-1 · for Balance · proof attached', href: '/dashboard/finance/receipts?receipt=r1', receiptId: 'r1', arrivedAt: '2026-11-10T03:00:00.000Z' });
+    // An overdue client payment carries the payment to remind about, and arrived when it fell due.
+    expect(desk.queue[0]).toMatchObject({ milestoneId: 'late', arrivedAt: '2026-10-15' });
     expect(desk.queue[1].detail).toBe('Deposit · due Nov 9 · 5 days late');
   });
 
@@ -58,8 +60,8 @@ describe('finance desk', () => {
         { sent: true, statement: statement('b', [milestone({ id: 'later', dueDate: '2027-01-30' })]) },
       ],
       receipts: [
-        { id: 'r1', eventId: 'a', amount: 60000, receivedDate: '2026-11-10', method: 'GCash', referenceNumber: '', status: 'recorded', source: 'pmcm', unapplied: 0, forPayment: null, hasProof: false },
-        { id: 'r2', eventId: 'b', amount: 100000, receivedDate: '2026-11-13', method: 'Bank Transfer', referenceNumber: 'B-1', status: 'verified', source: 'pmcm', unapplied: 100000, forPayment: null, hasProof: false },
+        { id: 'r1', eventId: 'a', amount: 60000, receivedDate: '2026-11-10', method: 'GCash', referenceNumber: '', status: 'recorded', source: 'pmcm', unapplied: 0, forPayment: null, hasProof: false, recordedAt: '2026-11-10T03:00:00.000Z' },
+        { id: 'r2', eventId: 'b', amount: 100000, receivedDate: '2026-11-13', method: 'Bank Transfer', referenceNumber: 'B-1', status: 'verified', source: 'pmcm', unapplied: 100000, forPayment: null, hasProof: false, recordedAt: '2026-11-13T03:00:00.000Z' },
       ],
       payouts: [{ id: 'p1', eventId: 'b', eventName: 'Event b', supplierName: 'XPERTO', label: 'Second payment', amount: 145500, released: 50000, dueDate: '2026-11-16', status: 'partially_released' }],
     }), 'now');
