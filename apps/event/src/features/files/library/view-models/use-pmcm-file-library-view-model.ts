@@ -21,7 +21,7 @@ function saveFile(file: { blob: Blob; fileName: string }) {
 const message = (reason: unknown, fallback: string) => (reason instanceof Error ? reason.message : fallback);
 
 /** One event's file library for PMCM: what is waiting for review, every stored file, and PMCM's own uploads. */
-export function usePmcmFileLibraryViewModel(eventId: string) {
+export function usePmcmFileLibraryViewModel(eventId: string, initialCoverObjectId: string | null = null, onCoverChange?: () => void) {
   const invalidate = useInvalidate();
   const objects = useResource(pmcmEventStoredFiles, eventId);
   const matrix = useResource(pmcmEventFileRequirements, eventId);
@@ -33,6 +33,7 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState<EventFileCategory>("other");
+  const [coverObjectId, setCoverObjectId] = useState(initialCoverObjectId);
   const inputRef = useRef<HTMLInputElement>(null);
   const uploadAttempts = useRef(new Map<string, string>());
 
@@ -117,7 +118,18 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
   function makeCover(file: { id: string; name: string }) {
     return run(`cover:${file.id}`, async () => {
       await pmcmDocumentRepository.setCover(eventId, file.id);
+      setCoverObjectId(file.id);
+      onCoverChange?.();
       return `${file.name} is now this event's cover on the event cards.`;
+    }, { changesServer: false });
+  }
+
+  function removeCover(file: { id: string; name: string }) {
+    return run(`cover:${file.id}`, async () => {
+      await pmcmDocumentRepository.setCover(eventId, null);
+      setCoverObjectId(null);
+      onCoverChange?.();
+      return `${file.name} is no longer the cover. The event cards show the cover drawn from the event type.`;
     }, { changesServer: false });
   }
 
@@ -140,7 +152,7 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
     query, setQuery,
     preview, openPreview: setPreviewId, closePreview: () => setPreviewId(null),
     selected, toggleSelected, toggleAll, approveSelected,
-    review, upload, download, setExpiry, makeCover,
+    review, upload, download, setExpiry, makeCover, removeCover, coverObjectId,
     busy, notice, error,
     category, setCategory, inputRef,
   };

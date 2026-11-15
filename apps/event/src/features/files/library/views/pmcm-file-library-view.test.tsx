@@ -30,7 +30,7 @@ function viewModel(overrides: Record<string, unknown> = {}) {
     queue: [entry], filter: "all", setFilter: vi.fn(), query: "", setQuery: vi.fn(),
     preview: null, openPreview: vi.fn(), closePreview: vi.fn(),
     selected: new Set<string>(), toggleSelected: vi.fn(), toggleAll: vi.fn(), approveSelected: vi.fn(),
-    review: vi.fn(), upload: vi.fn(), download: vi.fn(), setExpiry: vi.fn(), makeCover: vi.fn(),
+    review: vi.fn(), upload: vi.fn(), download: vi.fn(), setExpiry: vi.fn(), makeCover: vi.fn(), removeCover: vi.fn(), coverObjectId: null,
     busy: null, notice: null, error: null, category: "other", setCategory: vi.fn(), inputRef: { current: null },
     ...overrides,
   };
@@ -88,8 +88,16 @@ describe("PMCM file library", () => {
     fireEvent.click(screen.getByRole("button", { name: "Use as event cover" }));
     expect(vm.makeCover).toHaveBeenCalledWith(photo);
 
-    useViewModel.mockReturnValue(viewModel({ preview: file }));
+    // Once it is the cover, the same place takes it off again.
+    const covered = viewModel({ files: [photo], queue: [], preview: photo, coverObjectId: "obj_venue" });
+    useViewModel.mockReturnValue(covered);
     view.rerender(<PmcmFileLibraryView eventId="evt_1" />);
     expect(screen.queryByRole("button", { name: "Use as event cover" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Remove as event cover" }));
+    expect(covered.removeCover).toHaveBeenCalledWith(photo);
+
+    useViewModel.mockReturnValue(viewModel({ preview: file }));
+    view.rerender(<PmcmFileLibraryView eventId="evt_1" />);
+    expect(screen.queryByRole("button", { name: /event cover/ })).toBeNull();
   });
 });

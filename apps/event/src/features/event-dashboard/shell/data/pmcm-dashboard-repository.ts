@@ -26,6 +26,11 @@ export const pmcmDashboardRepository = {
     return pmcmReferenceCache;
   },
 
+  /** Drops the cached events, so the next page that needs them reads afresh (after a change such as a new cover). */
+  forgetPmcmReference() {
+    pmcmReferenceCache = null;
+  },
+
   /** The event switcher, inquiries, directories and rules event pages need, without the whole-system dashboard. */
   loadPmcmReference(force = false): Promise<PrismPmcmReference> {
     if (!force && pmcmReferenceCache && isFresh(pmcmReferenceCache.loadedAt)) {

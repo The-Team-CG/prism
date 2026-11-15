@@ -57,7 +57,8 @@ import { StorageValidationService } from './storage-validation.service';
 const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsage[]>> = {
   billing_statement: ['event_deliverable'],
   client_review_item: ['event_deliverable'],
-  event: ['client_document', 'signed_conforme', 'guest_feedback_media'],
+  // event_deliverable: a file PMCM shares from the event's Files library. Only PMCM may upload it.
+  event: ['client_document', 'signed_conforme', 'guest_feedback_media', 'event_deliverable'],
   event_game_definition: ['event_game_media'],
   event_game_lobby: ['event_game_branding'],
   payment_receipt: ['payment_receipt_evidence'],

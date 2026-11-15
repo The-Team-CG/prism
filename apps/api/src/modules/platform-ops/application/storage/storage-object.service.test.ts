@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { eventFileLogicalTarget } from '@prism/types';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -324,6 +325,17 @@ describe('StorageObjectService', () => {
     expect(result).toMatchObject({ status: 'failed', reason: 'Storage provider is not configured' });
     expect(objects[0]).toMatchObject({ lifecycleState: 'failed', failureReason: 'Storage provider is not configured', providerName: null });
     expect('location' in result).toBe(false);
+  });
+
+  it("accepts a file PMCM shares from the event's Files library, and only from PMCM", async () => {
+    const { service } = createStore();
+    const shared = {
+      ...request, ownerRecordType: 'event', ownerRecordId: 'evt_1', usage: 'event_deliverable' as const, contentType: 'image/png', fileName: 'venue.png',
+      logicalTarget: eventFileLogicalTarget('evt_1', 'other', '123e4567-e89b-42d3-a456-426614174000'),
+    };
+    // Past every owner and role check: only the missing test provider stops it.
+    await expect(service.requestUpload({ ...shared, actor })).resolves.toMatchObject({ status: 'failed', reason: 'Storage provider is not configured' });
+    await expect(service.requestUpload({ ...shared, actor: clientAccount })).rejects.toThrow(/cannot|not allowed|forbidden/i);
   });
 
   it('accepts a moodboard image only under a styling option of the same event', async () => {

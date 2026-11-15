@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, ImageIcon, LoaderCircle } from "lucide-react";
+import { Download, ImageIcon, ImageOff, LoaderCircle } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import { formatPortalDateTime } from "@prism/ui/format-date";
@@ -36,6 +36,25 @@ function PreviewBody({ file }: { file: PmcmLibraryFile }) {
   );
 }
 
+/** An image can become the event's cover; the current cover can go back to the drawn one. */
+function CoverButton({ file, vm }: { file: PmcmLibraryFile; vm: PmcmFileLibraryViewModel }) {
+  const busy = vm.busy !== null;
+  if (vm.coverObjectId === file.id) {
+    return (
+      <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void vm.removeCover(file)}>
+        <ImageOff className="size-4" />
+        Remove as event cover
+      </Button>
+    );
+  }
+  return (
+    <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void vm.makeCover(file)}>
+      <ImageIcon className="size-4" />
+      Use as event cover
+    </Button>
+  );
+}
+
 function PreviewActions({ file, vm }: { file: PmcmLibraryFile; vm: PmcmFileLibraryViewModel }) {
   const busy = vm.busy !== null;
   const review = file.review;
@@ -51,12 +70,7 @@ function PreviewActions({ file, vm }: { file: PmcmLibraryFile; vm: PmcmFileLibra
         <Download className="size-4" />
         Download
       </Button>
-      {file.kind === "image" ? (
-        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void vm.makeCover(file)}>
-          <ImageIcon className="size-4" />
-          Use as event cover
-        </Button>
-      ) : null}
+      {file.kind === "image" ? <CoverButton file={file} vm={vm} /> : null}
     </div>
   );
 }

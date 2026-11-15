@@ -8,6 +8,7 @@ import { EventFileHub } from "./event-file-hub";
 import { EventDestinationPicker } from "./event-destination-picker";
 import { WorkspaceSubTabs } from "./workspace-sub-tabs";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
+import { forgetPmcmReference } from "../../use-cases/load-dashboard-workspace";
 
 export function EventDashboardFilesSectionView() {
   const {
@@ -31,7 +32,7 @@ export function EventDashboardFilesSectionView() {
             <WorkspaceSubTabs
               label="File sections"
               tabs={[
-                { id: "library", label: "Library", render: () => <PmcmFileLibraryView eventId={selectedEvent.id} /> },
+                { id: "library", label: "Library", render: () => <PmcmFileLibraryView eventId={selectedEvent.id} coverObjectId={selectedEvent.coverObjectId ?? null} onCoverChange={forgetPmcmReference} /> },
                 { id: "required", label: "Requirements", render: () => <FileRequirementsMatrixPanel eventId={selectedEvent.id} suppliers={Array.from(new Map(quoteRequests.filter((request) => request.eventId === selectedEvent.id && request.status === "selected" && request.supplierId).map((request) => [request.supplierId!, { supplierId: request.supplierId!, supplierName: request.supplierName }])).values())} /> },
                 {
                   id: "records",

@@ -21,8 +21,8 @@ export const pmcmDocumentRepository = {
     return setStorageObjectExpiry(objectId, { expiresAt }, { authToken: storedEventAccessToken() });
   },
 
-  /** Makes an image from this event's files the event's cover on every portal's event cards. */
-  setCover(eventId: string, objectId: string) {
+  /** Makes an image from this event's files the event's cover on every portal's event cards, or null for the drawn cover. */
+  setCover(eventId: string, objectId: string | null) {
     return eventApi.lifecycle.setCover(eventId, { objectId });
   },
 
