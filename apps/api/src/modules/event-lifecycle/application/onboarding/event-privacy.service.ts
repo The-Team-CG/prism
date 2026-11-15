@@ -2,14 +2,32 @@ import { BadRequestException, Inject, Injectable, NotFoundException } from '@nes
 import { AUDIT_WRITER, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory } from '@prism/kernel/event-core';
-import type { SetEventModulesInput, SetEventPrivacyInput } from '@prism/types';
+import { StorageObjectService } from '@prism/contexts/platform-ops';
+import type { SetEventCoverInput, SetEventModulesInput, SetEventPrivacyInput } from '@prism/types';
 
 @Injectable()
 export class EventPrivacyService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
+    private readonly storage: StorageObjectService,
   ) {}
+
+  /** PMCM picks an image from the event's files as its cover, or clears it to go back to the generated cover. */
+  async setEventCover(eventId: string, input: SetEventCoverInput, actor: ResolvedEventOpsActor) {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, archived: true, coverObjectId: true } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.archived) throw new BadRequestException('Archived events cannot change their cover');
+    if (event.coverObjectId === input.objectId) return { eventId, coverObjectId: input.objectId };
+    if (input.objectId) await this.storage.validateEventCoverReference({ eventId, objectId: input.objectId });
+    await this.prisma.opsEvent.update({ where: { id: eventId }, data: { coverObjectId: input.objectId } });
+    await writeAudit(this.auditWriter, eventId, actor.name, input.objectId ? 'Set the event cover image' : 'Removed the event cover image', {
+      actorRole: actor.role, actorEmail: actor.email, category: AuditCategory.Events, actionType: AuditActionType.Update,
+      affectedType: 'event', affectedId: eventId, affectedLabel: 'Event cover',
+      metadata: { from: event.coverObjectId, to: input.objectId, actorId: actor.id ?? null },
+    });
+    return { eventId, coverObjectId: input.objectId };
+  }
 
   /** FR-24: PMCM switches optional modules off (or back on) for one event. */
   async setEventModules(eventId: string, input: SetEventModulesInput, actor: ResolvedEventOpsActor) {

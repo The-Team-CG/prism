@@ -528,6 +528,7 @@ export class InquiriesService {
           clientName: inquiry.clientName,
           eventName: inquiry.eventName,
           eventDate: inquiry.eventDate,
+          eventType: inquiry.eventType,
           status: unlocked ? 'briefing' : 'inquiry',
           clientPortalStatus: unlocked ? 'unlocked' : 'locked',
           readiness: unlocked ? 'Client briefing open' : 'Conforme storage confirmation required',

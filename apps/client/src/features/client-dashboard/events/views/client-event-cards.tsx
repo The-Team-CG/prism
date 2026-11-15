@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { CalendarClock, CheckCircle2 } from "lucide-react";
 import { derivePrismLifecycleStage, type PrismClientActionItem, type PrismEvent } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { AttentionList, CountdownPill, EventCard, EventCardGrid, EventCardHeader, StageTrack, eventCountdown } from "@prism/ui/event-cards";
+import { AttentionList, CountdownPill, EventCard, EventCardGrid, EventCardHeader, EventCover, StageTrack, eventCountdown } from "@prism/ui/event-cards";
+import { useEventCoverUrl } from "../view-models/use-event-cover-url";
 import { clientEventCardOpenRoute, dashboardHref } from "../../workspace/shared";
 import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
 import { isPastClientEvent } from "../../home/model/client-home-summary";
@@ -13,6 +14,32 @@ import { isPastClientEvent } from "../../home/model/client-home-summary";
 type CardProps = { event: PrismEvent; action?: PrismClientActionItem; todayKey: string; onOpen: (id: string) => void };
 
 const eventHref = (event: PrismEvent) => dashboardHref(clientEventCardOpenRoute(event), event.id);
+
+/** The next dated things on an event, soonest first: a payment due, a proposal to review, a visit to confirm. */
+export function comingUpForEvent(event: PrismEvent, actions: PrismClientActionItem[], limit = 3): PrismClientActionItem[] {
+  return actions
+    .filter((item) => item.eventId === event.id && item.dueAt)
+    .sort((a, b) => a.dueAt!.localeCompare(b.dueAt!))
+    .slice(0, limit);
+}
+
+function ComingUp({ items }: { items: PrismClientActionItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <section aria-label="Coming up" className="grid gap-1.5">
+      <p className="text-[11px] font-medium text-muted-foreground">Coming up</p>
+      <ul className="grid gap-1.5">
+        {items.map((item) => (
+          <li key={item.id} className="flex items-center gap-2 text-sm">
+            <CalendarClock aria-hidden className="size-4 shrink-0 text-primary" />
+            <span className="w-16 shrink-0 tabular-nums text-muted-foreground">{formatPortalDate(item.dueAt!).replace(/, \d{4}$/, "")}</span>
+            {item.href ? <Link href={item.href} className="relative z-10 min-w-0 truncate text-foreground hover:underline">{item.label}</Link> : <span className="min-w-0 truncate">{item.label}</span>}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 /** The client's own most urgent step on an event; informational items are not steps. */
 export function nextClientAction(event: PrismEvent, actions: PrismClientActionItem[]): PrismClientActionItem | undefined {
@@ -39,16 +66,16 @@ function NextStep({ event, action }: { event: PrismEvent; action?: PrismClientAc
 }
 
 /** The client's nearest event, large: how many days are left, where it stands, and what they need to do. */
-export function NextEventHero({ event, action, todayKey, onOpen }: CardProps) {
+export function NextEventHero({ event, action, todayKey, onOpen, comingUp = [] }: CardProps & { comingUp?: PrismClientActionItem[] }) {
   const countdown = eventCountdown(event.eventDate, todayKey);
   const days = countdown && countdown.days >= 0 ? countdown.days : null;
+  const coverUrl = useEventCoverUrl(event.id, event.coverObjectId);
   return (
-    <EventCard urgent={action?.priority === "critical"} className="gap-4 sm:p-6">
+    <EventCard urgent={action?.priority === "critical"} className="gap-4" cover={<EventCover eventType={event.eventType} imageUrl={coverUrl} className="h-32" />}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
         <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Your next event</p>
-          <EventCardHeader date={event.eventDate} title={event.eventName} href={eventHref(event)} onNavigate={() => onOpen(event.id)}
-            details={[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed"].join(" · ")} />
+          <EventCardHeader onCover date={event.eventDate} title={event.eventName} href={eventHref(event)} onNavigate={() => onOpen(event.id)}
+            details={<>Your next event · {[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed"].join(" · ")}</>} />
         </div>
         {days !== null ? (
           <p className="text-center leading-none">
@@ -59,6 +86,7 @@ export function NextEventHero({ event, action, todayKey, onOpen }: CardProps) {
       </div>
       <StageTrack stage={derivePrismLifecycleStage(event)} />
       <NextStep event={event} action={action} />
+      <ComingUp items={comingUp.filter((item) => item.id !== action?.id)} />
     </EventCard>
   );
 }
@@ -66,9 +94,10 @@ export function NextEventHero({ event, action, todayKey, onOpen }: CardProps) {
 /** Any other event: date, how far away, stage, and the client's next step on it. A finished event is a short card. */
 export function ClientEventCard({ event, action, todayKey, onOpen }: CardProps) {
   const past = isPastClientEvent(event);
+  const coverUrl = useEventCoverUrl(event.id, event.coverObjectId);
   return (
-    <EventCard urgent={action?.priority === "critical"} compact={past}>
-      <EventCardHeader date={event.eventDate} title={event.eventName} href={eventHref(event)} onNavigate={() => onOpen(event.id)} muted={past}
+    <EventCard urgent={action?.priority === "critical"} compact={past} cover={<EventCover eventType={event.eventType} imageUrl={coverUrl} small={past} />}>
+      <EventCardHeader onCover date={event.eventDate} title={event.eventName} href={eventHref(event)} onNavigate={() => onOpen(event.id)} muted={past}
         details={past ? `${formatStatusLabel(event.status)} · View summary` : event.venue || "Venue to be confirmed"}
         aside={past ? null : <CountdownPill date={event.eventDate} todayKey={todayKey} />} />
       {past ? null : <StageTrack stage={derivePrismLifecycleStage(event)} />}
@@ -96,7 +125,7 @@ export function ClientEventCards({ events, actions, todayKey, onOpen, featureFir
   const grid = events.filter((event) => event !== feature);
   return (
     <div className="grid gap-4">
-      {feature ? <NextEventHero event={feature} action={nextClientAction(feature, actions)} todayKey={todayKey} onOpen={onOpen} /> : null}
+      {feature ? <NextEventHero event={feature} action={nextClientAction(feature, actions)} todayKey={todayKey} onOpen={onOpen} comingUp={comingUpForEvent(feature, actions)} /> : null}
       {grid.length ? (
         <EventCardGrid>
           {grid.map((event) => <ClientEventCard key={event.id} event={event} action={nextClientAction(event, actions)} todayKey={todayKey} onOpen={onOpen} />)}

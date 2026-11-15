@@ -114,6 +114,13 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
     });
   }
 
+  function makeCover(file: { id: string; name: string }) {
+    return run(`cover:${file.id}`, async () => {
+      await pmcmDocumentRepository.setCover(eventId, file.id);
+      return `${file.name} is now this event's cover on the event cards.`;
+    }, { changesServer: false });
+  }
+
   function download(objectId: string) {
     return run(`download:${objectId}`, async () => {
       saveFile(await pmcmDocumentRepository.download(objectId));
@@ -133,7 +140,7 @@ export function usePmcmFileLibraryViewModel(eventId: string) {
     query, setQuery,
     preview, openPreview: setPreviewId, closePreview: () => setPreviewId(null),
     selected, toggleSelected, toggleAll, approveSelected,
-    review, upload, download, setExpiry,
+    review, upload, download, setExpiry, makeCover,
     busy, notice, error,
     category, setCategory, inputRef,
   };

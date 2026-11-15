@@ -125,6 +125,26 @@ export async function uploadStorageObject(
 }
 
 /** Retrieves bytes only after the API issues an event- and role-scoped authorization. */
+/**
+ * An address an <img> can show for an event's cover: a hosted provider's signed link as is, or, from the local
+ * file-system provider, the bytes read through the API as an object URL (call `release` when it is no longer shown).
+ */
+export async function getEventCoverImage(eventId: string, options: StorageClientOptions = {}): Promise<{ url: string; release?: () => void }> {
+  const baseUrl = resolvePrismApiBaseUrl(options.baseUrl);
+  const route = `/events/${encodeURIComponent(eventId)}/cover`;
+  const authorization = await prismRequest<{ downloadUrl: string; expiresAt: string }>(route, { authToken: options.authToken, baseUrl });
+  if (!authorization.downloadUrl.startsWith("localfs://")) return { url: authorization.downloadUrl };
+  const response = await fetch(`${baseUrl}${route}/content`, {
+    headers: {
+      "x-prism-storage-authorization": authorization.downloadUrl,
+      ...(options.authToken ? { Authorization: `Bearer ${options.authToken}` } : {}),
+    },
+  });
+  if (!response.ok) await throwResponseError(response);
+  const url = URL.createObjectURL(await response.blob());
+  return { url, release: () => URL.revokeObjectURL(url) };
+}
+
 export async function getStorageObjectDownload(
   objectId: string,
   options: StorageClientOptions = {},

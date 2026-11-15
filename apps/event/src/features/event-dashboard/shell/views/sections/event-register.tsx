@@ -3,12 +3,13 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, CheckCircle2, ChevronRight, Search } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronRight, FileText, MessageSquareText, ReceiptText, Search, type LucideIcon } from "lucide-react";
 import { useListFilter } from "@/features/pmcm-kit";
 import { derivePrismLifecycleStage, type PrismEvent, type PrismPmcmEventAttention } from "@prism/types";
 import { manilaDateKey } from "@prism/ui/format-date";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
-import { AttentionList, CountdownPill, EventCard, EventCardFooter, EventCardGrid, EventCardHeader, MoneyBar, StageTrack } from "@prism/ui/event-cards";
+import { AttentionList, CountdownPill, EventCard, EventCardFooter, EventCardGrid, EventCardHeader, EventCover, MoneyBar, StageTrack } from "@prism/ui/event-cards";
+import { useEventCoverUrl, type EventShortcutCounts } from "@/features/pmcm-overview";
 import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
 import { attentionLines, groupEventCards, needsPmcm } from "../../model/event-card-groups";
 import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
@@ -31,8 +32,10 @@ export type EventRegisterData = {
   /** The Inbox's items per event; undefined until that read arrives. */
   attention?: Map<string, PrismPmcmEventAttention>;
   money?: Map<string, EventMoney>;
-  /** Short facts the Inbox does not carry, such as unread messages and overdue files. */
-  notes?: Map<string, string[]>;
+  /** Counts for each card's Billing, Files and Messages shortcuts. */
+  shortcuts?: Map<string, EventShortcutCounts>;
+  /** How many events each view tab holds, keyed by the tab's address. */
+  viewCounts?: Record<string, number>;
 };
 
 function matches(event: PrismEvent, query: string) {
@@ -41,10 +44,10 @@ function matches(event: PrismEvent, query: string) {
 }
 
 /** The one toolbar for every events view: which events, the archive, and search. */
-export function EventRegisterToolbar({ activeId, query, onQuery }: { activeId: string; query?: string; onQuery?: (value: string) => void }) {
+export function EventRegisterToolbar({ activeId, query, onQuery, counts }: { activeId: string; query?: string; onQuery?: (value: string) => void; counts?: Record<string, number> }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <WorkspaceRouteTabs label="Event views" tabs={EVENT_REGISTER_VIEWS.map((view) => ({ id: view.href, label: view.label, href: view.href }))} activeId={activeId} />
+      <WorkspaceRouteTabs label="Event views" tabs={EVENT_REGISTER_VIEWS.map((view) => ({ id: view.href, label: view.label, href: view.href, count: counts?.[view.href] }))} activeId={activeId} />
       {onQuery ? (
         <label className="relative w-full sm:max-w-72">
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -61,23 +64,56 @@ export function EventRegisterToolbar({ activeId, query, onQuery }: { activeId: s
   );
 }
 
-/** `clear`: the Inbox read has arrived and has nothing waiting on this event (an event it does not list has nothing). */
-function CardNotes({ clear, notes }: { clear: boolean; notes: string[] }) {
-  if (!clear && notes.length === 0) return null;
+const SHORTCUTS: Array<{ key: keyof EventShortcutCounts; label: string; icon: LucideIcon; tab: "billing" | "files" | "messages"; noun: string }> = [
+  { key: "billing", label: "Billing", icon: ReceiptText, tab: "billing", noun: "overdue" },
+  { key: "files", label: "Files", icon: FileText, tab: "files", noun: "open" },
+  { key: "messages", label: "Messages", icon: MessageSquareText, tab: "messages", noun: "unread" },
+];
+
+/** Straight to the event's Billing, Files and Messages, each with what is waiting there. */
+function CardShortcuts({ eventId, counts }: { eventId: string; counts: EventShortcutCounts }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {clear ? <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success"><CheckCircle2 aria-hidden className="size-3" />Nothing waiting on you</span> : null}
-      {notes.map((note) => <span key={note} className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">{note}</span>)}
-    </div>
+    <nav aria-label="Go to" className="flex flex-wrap gap-1.5">
+      {SHORTCUTS.map(({ key, label, icon: Icon, tab, noun }) => {
+        const count = counts[key] ?? 0;
+        const tone = count && key !== "files" ? "border-primary/30 text-primary" : "border-border text-muted-foreground";
+        return (
+          <Link key={key} href={eventWorkspaceHref(eventId, tab)} aria-label={count ? `${label}, ${count} ${noun}` : label}
+            className={`relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-muted ${tone}`}>
+            <Icon aria-hidden className="size-3" />{label}{count ? <span className="tabular-nums">· {count}</span> : null}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function ClearChip() {
+  return <span className="inline-flex items-center gap-1 self-start justify-self-start rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success"><CheckCircle2 aria-hidden className="size-3" />Nothing waiting on you</span>;
+}
+
+/** A live event's middle: where it stands, what waits on PMCM (or that nothing does), and the shortcuts. */
+function CardBody({ event, data }: { event: PrismEvent; data: EventRegisterData }) {
+  const attention = data.attention?.get(event.id);
+  const waiting = needsPmcm(attention);
+  return (
+    <>
+      <StageTrack stage={derivePrismLifecycleStage(event)} />
+      {attention && waiting ? <AttentionList lines={attentionLines(attention.top)} more={attention.total - attention.top.length} link={Link} /> : null}
+      {data.attention !== undefined && !waiting ? <ClearChip /> : null}
+      <CardShortcuts eventId={event.id} counts={data.shortcuts?.get(event.id) ?? {}} />
+    </>
   );
 }
 
 function PmcmEventCard({ event, data, todayKey, onOpenEvent, compact = false }: { event: PrismEvent; data: EventRegisterData; todayKey: string; onOpenEvent: (id: string) => void; compact?: boolean }) {
   const attention = data.attention?.get(event.id);
   const money = data.money?.get(event.id);
+  const coverUrl = useEventCoverUrl(event.id, event.coverObjectId);
   return (
-    <EventCard urgent={needsPmcm(attention)} compact={compact}>
+    <EventCard urgent={needsPmcm(attention)} compact={compact} cover={<EventCover eventType={event.eventType} imageUrl={coverUrl} small={compact} />}>
       <EventCardHeader
+        onCover
         date={event.eventDate}
         title={event.eventName}
         href={eventWorkspaceHref(event.id)}
@@ -86,9 +122,7 @@ function PmcmEventCard({ event, data, todayKey, onOpenEvent, compact = false }: 
         aside={<CountdownPill date={event.eventDate} todayKey={todayKey} />}
         muted={compact}
       />
-      {compact ? null : <StageTrack stage={derivePrismLifecycleStage(event)} />}
-      {attention && needsPmcm(attention) ? <AttentionList lines={attentionLines(attention.top)} more={attention.total - attention.top.length} link={Link} /> : null}
-      {compact ? null : <CardNotes clear={data.attention !== undefined && !needsPmcm(attention)} notes={data.notes?.get(event.id) ?? []} />}
+      {compact ? null : <CardBody event={event} data={data} />}
       <EventCardFooter>
         {money ? <MoneyBar billed={money.billed} paid={money.paid} checking={money.checking} /> : <span className="flex-1" />}
         {compact ? null : <span aria-hidden className="ml-auto inline-flex items-center font-semibold text-primary">Open<ChevronRight className="size-4" /></span>}
@@ -137,7 +171,7 @@ export function EventRegister({ events, data = {}, onOpenEvent }: { events: Pris
   const done = showAllDone ? groups.done : groups.done.slice(0, DONE_PREVIEW);
   return (
     <div className="grid gap-6">
-      <EventRegisterToolbar activeId={pathname} query={query} onQuery={setQuery} />
+      <EventRegisterToolbar activeId={pathname} query={query} onQuery={setQuery} counts={data.viewCounts} />
       <p role="status" className="sr-only">{total} event{total === 1 ? "" : "s"} in this view{query ? ` matching “${query}”` : ""}</p>
       {total === 0 ? <NoEvents query={query} /> : null}
       <CardSection id="events-needs-you" title="Needs you" count={groups.needsYou.length} description="Each card lists what the Inbox has waiting on that event. Open a line to do it.">

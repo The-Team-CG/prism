@@ -259,6 +259,8 @@ export function mapOnboardingEvent(event: EventWithDrafts) {
     clientName: event.clientName,
     eventName: event.eventName,
     eventDate: isoDate(event.eventDate),
+    eventType: event.eventType,
+    coverObjectId: event.coverObjectId,
     status: event.status,
     clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
     readiness: event.readiness,

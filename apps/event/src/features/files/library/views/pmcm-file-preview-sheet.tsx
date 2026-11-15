@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Download, LoaderCircle } from "lucide-react";
+import { Download, ImageIcon, LoaderCircle } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import { formatPortalDateTime } from "@prism/ui/format-date";
@@ -51,6 +51,12 @@ function PreviewActions({ file, vm }: { file: PmcmLibraryFile; vm: PmcmFileLibra
         <Download className="size-4" />
         Download
       </Button>
+      {file.kind === "image" ? (
+        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => void vm.makeCover(file)}>
+          <ImageIcon className="size-4" />
+          Use as event cover
+        </Button>
+      ) : null}
     </div>
   );
 }

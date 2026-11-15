@@ -159,6 +159,10 @@ export interface PrismEvent {
   clientName: string;
   eventName: string;
   eventDate: string;
+  /** The inquiry's event type ("Wedding", "Corporate Event"…); it picks the event's generated cover. */
+  eventType?: string;
+  /** A stored image PMCM chose as the event's cover; read it through the event's cover route. Null shows the generated cover. */
+  coverObjectId?: string | null;
   venue?: string;
   walkInPolicy?: "closed" | "open" | "threshold";
   walkInThreshold?: number;

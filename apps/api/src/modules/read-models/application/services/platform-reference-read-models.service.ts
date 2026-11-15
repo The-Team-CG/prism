@@ -41,6 +41,7 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
     return {
       id: event.id,
       archived: event.archived,
+      coverObjectId: event.coverObjectId ?? null,
       clientName: event.clientName,
       clientPortalStatus: event.clientPortalStatus,
       clientEmail: event.inquiry?.email ?? null,

@@ -216,6 +216,44 @@ describe('StorageObjectService', () => {
     })).rejects.toThrow(/game-scoped route/i);
   });
 
+  it('shares the event cover with everyone who can read the event, and only an image from that event can be the cover', async () => {
+    const store = createStore();
+    const stored = (id: string, eventId: string, contentType: string) => ({
+      id, eventId, ownerRecordType: 'event_document', ownerRecordId: id, usage: 'client_document', logicalTarget: id, lifecycleState: 'stored',
+      checksumSha256, declaredByteSize: 3, originalFileName: id, contentType, providerObjectKey: `events/${eventId}/objects/${id}`,
+    });
+    store.objects.push(stored('obj_cover', 'evt_1', 'image/jpeg'), stored('obj_pdf', 'evt_1', 'application/pdf'), stored('obj_other', 'evt_2', 'image/png'));
+    const scopeOf = store.platformReferences.findStorageEventScope.getMockImplementation()!;
+    store.platformReferences.findStorageEventScope.mockImplementation(async (eventId: string) => {
+      const scope = await scopeOf(eventId);
+      return scope && { ...scope, coverObjectId: eventId === 'evt_1' ? 'obj_cover' : null };
+    });
+    const adapter = {
+      issueDownloadAuthorization: vi.fn(async () => ({ downloadUrl: 'https://storage.example.test/cover', expiresAt: new Date('2026-09-08T00:05:00.000Z') })),
+      readAuthorizedDownload: vi.fn(async () => Buffer.from('jpg')),
+    };
+    const service = new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter as never, store.platformReferences as never, store.auditWriter as never);
+    const bookedSupplier = { id: 'user_sup', role: 'supplier', supplierId: 'sup_1', email: 'supplier@example.test', name: 'Supplier', explicit: true, verified: true } as never;
+    const otherSupplier = { id: 'user_sup2', role: 'supplier', supplierId: 'sup_9', email: 'nobody@example.test', name: 'Other', explicit: true, verified: true } as never;
+    const otherClient = { id: 'user_other', role: 'client', email: 'other@example.test', name: 'Other client', explicit: true, verified: true } as never;
+
+    for (const reader of [actor, clientAccount, bookedSupplier]) {
+      await expect(service.issueEventCoverDownloadAuthorization('evt_1', reader)).resolves.toEqual({ downloadUrl: 'https://storage.example.test/cover', expiresAt: '2026-09-08T00:05:00.000Z' });
+    }
+    await expect(service.issueEventCoverDownloadAuthorization('evt_1', otherSupplier)).rejects.toThrow(/cannot access/);
+    await expect(service.issueEventCoverDownloadAuthorization('evt_1', otherClient)).rejects.toThrow(/cannot access/);
+    await expect(service.issueEventCoverDownloadAuthorization('evt_2', clientAccount)).rejects.toThrow(/no cover/);
+
+    // From the local file system the cover's bytes come through the API, to the same readers, whoever uploaded the file.
+    await expect(service.readEventCoverContent('evt_1', 'localfs://download/token', bookedSupplier)).resolves.toEqual({ bytes: Buffer.from('jpg'), contentType: 'image/jpeg' });
+    await expect(service.readEventCoverContent('evt_1', 'https://elsewhere.example.test/x', bookedSupplier)).rejects.toThrow(/authorization is invalid/);
+    await expect(service.readEventCoverContent('evt_1', 'localfs://download/token', otherSupplier)).rejects.toThrow(/cannot access/);
+
+    await expect(service.validateEventCoverReference({ eventId: 'evt_1', objectId: 'obj_cover' })).resolves.toBeUndefined();
+    await expect(service.validateEventCoverReference({ eventId: 'evt_1', objectId: 'obj_pdf' })).rejects.toThrow(/image/);
+    await expect(service.validateEventCoverReference({ eventId: 'evt_1', objectId: 'obj_other' })).rejects.toThrow(/unavailable/);
+  });
+
   it('does not confirm game media through a different game route', async () => {
     const store = createStore();
     store.objects.push({

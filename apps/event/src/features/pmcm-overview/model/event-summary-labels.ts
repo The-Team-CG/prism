@@ -10,15 +10,12 @@ export function fileSummaryLabel(summary: PrismPmcmFileSummary | undefined): Sum
   return summary.overdue > 0 ? { text, urgent: true } : { text };
 }
 
-/**
- * What PMCM checks on an event that the Inbox does not carry: unread messages and overdue file requirements. Money and
- * other blockers come from the Inbox's own items. Empty when there is nothing, or before the reads arrive.
- */
-export function eventNotes(finance: PrismPmcmEventSummary | undefined, files: PrismPmcmFileSummary | undefined): string[] {
-  const notes: string[] = [];
-  if (finance && finance.unreadMessages > 0) notes.push(finance.unreadMessages === 1 ? "1 unread message" : `${finance.unreadMessages} unread messages`);
-  if (files && files.overdue > 0) notes.push(files.overdue === 1 ? "1 file overdue" : `${files.overdue} files overdue`);
-  return notes;
+/** The counts an event card's shortcuts show: payments overdue, file requirements still open, unread messages. */
+export type EventShortcutCounts = { billing?: number; files?: number; messages?: number };
+
+/** Shortcut counts for one event; a count the reads have not arrived for is left out rather than shown as zero. */
+export function eventShortcutCounts(finance: PrismPmcmEventSummary | undefined, files: PrismPmcmFileSummary | undefined): EventShortcutCounts {
+  return { billing: finance?.overdueMilestones, files: files?.open, messages: finance?.unreadMessages };
 }
 
 export function summariesByEvent(items: PrismPmcmEventSummary[] | undefined): Map<string, PrismPmcmEventSummary> {

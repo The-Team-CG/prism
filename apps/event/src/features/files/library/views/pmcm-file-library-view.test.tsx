@@ -6,6 +6,7 @@ import { PmcmFileLibraryView } from "./pmcm-file-library-view";
 
 const { useViewModel } = vi.hoisted(() => ({ useViewModel: vi.fn() }));
 vi.mock("../view-models/use-pmcm-file-library-view-model", () => ({ usePmcmFileLibraryViewModel: useViewModel }));
+vi.mock("../view-models/use-pmcm-file-preview", () => ({ usePmcmFilePreview: () => ({ status: "loading" }) }));
 
 afterEach(() => {
   cleanup();
@@ -29,7 +30,7 @@ function viewModel(overrides: Record<string, unknown> = {}) {
     queue: [entry], filter: "all", setFilter: vi.fn(), query: "", setQuery: vi.fn(),
     preview: null, openPreview: vi.fn(), closePreview: vi.fn(),
     selected: new Set<string>(), toggleSelected: vi.fn(), toggleAll: vi.fn(), approveSelected: vi.fn(),
-    review: vi.fn(), upload: vi.fn(), download: vi.fn(),
+    review: vi.fn(), upload: vi.fn(), download: vi.fn(), setExpiry: vi.fn(), makeCover: vi.fn(),
     busy: null, notice: null, error: null, category: "other", setCategory: vi.fn(), inputRef: { current: null },
     ...overrides,
   };
@@ -77,5 +78,18 @@ describe("PMCM file library", () => {
     expect(screen.getAllByRole("button", { name: /^Download / }).map((button) => button.getAttribute("aria-label"))).toEqual(["Download permit.pdf"]);
     expect(screen.getByText("1 upload didn't finish")).toBeTruthy();
     expect(screen.getByText("b.pdf · Failed: Storage provider could not issue an upload location")).toBeTruthy();
+  });
+
+  it("lets PMCM make an image the event's cover from its preview, and offers it only for images", () => {
+    const photo: PmcmLibraryFile = { ...file, id: "obj_venue", name: "venue.jpg", kind: "image", contentType: "image/jpeg", review: undefined, status: "Shared", label: null, expiresAt: null };
+    const vm = viewModel({ files: [photo], queue: [], preview: photo });
+    useViewModel.mockReturnValue(vm);
+    const view = render(<PmcmFileLibraryView eventId="evt_1" />);
+    fireEvent.click(screen.getByRole("button", { name: "Use as event cover" }));
+    expect(vm.makeCover).toHaveBeenCalledWith(photo);
+
+    useViewModel.mockReturnValue(viewModel({ preview: file }));
+    view.rerender(<PmcmFileLibraryView eventId="evt_1" />);
+    expect(screen.queryByRole("button", { name: "Use as event cover" })).toBeNull();
   });
 });

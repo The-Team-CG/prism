@@ -67,7 +67,7 @@ export function WorkspaceSubTabs({
   );
 }
 
-export type WorkspaceRouteTab = { id: string; label: string; href: string };
+export type WorkspaceRouteTab = { id: string; label: string; href: string; count?: number };
 
 /** The same Tabs strip for views that each have their own URL. Each trigger is a link; the current view is the active tab. */
 export function WorkspaceRouteTabs({ label, tabs, activeId }: { label: string; tabs: WorkspaceRouteTab[]; activeId: string }) {
@@ -78,6 +78,7 @@ export function WorkspaceRouteTabs({ label, tabs, activeId }: { label: string; t
           <TabsTrigger key={tab.id} value={tab.id} asChild className="flex-none">
             <Link href={tab.href} aria-current={tab.id === activeId ? "page" : undefined}>
               {tab.label}
+              {tab.count !== undefined ? <span className="ml-1 tabular-nums opacity-60">{tab.count}</span> : null}
             </Link>
           </TabsTrigger>
         ))}

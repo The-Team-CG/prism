@@ -1,8 +1,16 @@
 import { defineResource } from "@prism/portal-query";
 import type { PmcmCalendarQuery } from "@prism/types";
-import { eventApi } from "@/lib/prism-api";
+import { getEventCoverImage } from "@prism/api-client";
+import { eventApi, storedEventAccessToken } from "@/lib/prism-api";
 
 /** Money and unread messages per event, for the Finance, Files and Messages event lists. */
+/** A short-lived address for an event's cover image, keyed `eventId:coverObjectId` so a new cover reads afresh. */
+export const pmcmEventCover = defineResource({
+  name: "pmcm.event-cover",
+  staleMs: 4 * 60_000,
+  fetch: (key: string) => getEventCoverImage(key.slice(0, key.indexOf(":")), { authToken: storedEventAccessToken() }),
+});
+
 /** The Inbox's items grouped by event, for the Events cards. */
 export const pmcmEventAttention = defineResource({
   name: "pmcm.event-attention",

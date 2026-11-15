@@ -1,11 +1,13 @@
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
-import { BadgeCheck, CheckCircle2, Circle, FileText, LockKeyhole, PackageCheck, Truck } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Circle, Clock3, FileText, LockKeyhole, PackageCheck, Truck, Wallet } from "lucide-react";
 import type { PrismAuthenticatedSession, PrismSupplierReadinessItem, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { formatPortalDate, formatPortalDateTime, manilaDateKey } from "@prism/ui/format-date";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
-import { CountdownPill, EventCard, EventCardFooter, EventCardGrid, EventCardHeader, MoneyBar, StepProgress } from "@prism/ui/event-cards";
+import { CountdownPill, EventCard, EventCardFooter, EventCardGrid, EventCardHeader, EventCover, MoneyBar, StepProgress } from "@prism/ui/event-cards";
+import { formatPeso } from "@prism/ui/payment-track";
+import { useEventCoverUrl } from "../../view-models/use-event-cover-url";
 import { bookingCardFacts, orderBookingCards, type BookingCardFacts } from "../../model/booking-cards";
 import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
@@ -266,39 +268,77 @@ function useBookingTarget(ids: string[]) {
   return { openId, open };
 }
 
-function BookingCard({ card, todayKey, onOpen }: { card: BookingCardFacts; todayKey: string; onOpen: () => void }) {
-  const { request, next, steps, money } = card;
+/** The card's button: a one-tap step does itself; anything with a form opens the booking. */
+function NextStepButton({ card, onOpen, onQuick }: { card: BookingCardFacts; onOpen: () => void; onQuick: (card: BookingCardFacts) => void }) {
+  const quick = card.quickAction;
+  if (quick) {
+    return (
+      <Button type="button" size="sm" className="relative z-10 ml-auto shrink-0 rounded-md" onClick={() => onQuick(card)}>
+        {quick.kind === "confirm-assignment" ? "Confirm booking" : "Acknowledge schedule"}
+      </Button>
+    );
+  }
   return (
-    <EventCard urgent={card.urgent}>
+    <Button type="button" size="sm" variant={card.yourTurn ? "default" : "outline"} className="relative z-10 ml-auto shrink-0 rounded-md" onClick={onOpen}>
+      {card.yourTurn ? "Do it" : "View"}
+    </Button>
+  );
+}
+
+/** When and where to arrive, and the next payout: the two things a supplier checks most. */
+function BookingFacts({ card }: { card: BookingCardFacts }) {
+  if (!card.arrival && !card.nextPayout) return null;
+  return (
+    <ul className="grid gap-1 text-xs text-muted-foreground">
+      {card.arrival ? (
+        <li className="flex items-start gap-1.5"><Clock3 aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+          <span className="min-w-0">Arrive {formatPortalDateTime(card.arrival.at)}{card.arrival.location ? ` · ${card.arrival.location}` : ""}</span></li>
+      ) : null}
+      {card.nextPayout ? (
+        <li className="flex items-start gap-1.5"><Wallet aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+          <span>Next payout {formatPeso(card.nextPayout.amount)}{card.nextPayout.dueDate ? ` on ${formatPortalDate(card.nextPayout.dueDate)}` : ""}</span></li>
+      ) : null}
+    </ul>
+  );
+}
+
+function BookingCard({ card, todayKey, onOpen, onQuick }: { card: BookingCardFacts; todayKey: string; onOpen: () => void; onQuick: (card: BookingCardFacts) => void }) {
+  const { request, next, steps, money } = card;
+  const coverUrl = useEventCoverUrl(request.eventId, card.coverObjectId);
+  return (
+    <EventCard urgent={card.urgent} compact={card.done} cover={<EventCover eventType={card.eventType} imageUrl={coverUrl} small={card.done} />}>
       <EventCardHeader
+        onCover
         date={card.eventDate ?? ""}
         title={card.eventName}
         href={`${WORK_TARGET}${encodeURIComponent(request.id)}`}
         onNavigate={onOpen}
         details={`${request.category} · for PMCM`}
-        aside={card.eventDate ? <CountdownPill date={card.eventDate} todayKey={todayKey} /> : null}
+        aside={card.eventDate && !card.done ? <CountdownPill date={card.eventDate} todayKey={todayKey} /> : null}
+        muted={card.done}
       />
-      <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${card.yourTurn ? "bg-primary-soft" : "bg-muted"}`}>
-        <div className="min-w-0">
-          <p className="text-[11px] text-muted-foreground">{next.owner}</p>
-          <p className="font-semibold text-foreground">{next.title}</p>
+      {card.done ? null : (
+        <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${card.yourTurn ? "bg-primary-soft" : "bg-muted"}`}>
+          <div className="min-w-0">
+            <p className="text-[11px] text-muted-foreground">{next.owner}</p>
+            <p className="font-semibold text-foreground">{next.title}</p>
+          </div>
+          <NextStepButton card={card} onOpen={onOpen} onQuick={onQuick} />
         </div>
-        <Button type="button" size="sm" variant={card.yourTurn ? "default" : "outline"} className="relative z-10 ml-auto shrink-0 rounded-md" onClick={onOpen}>
-          {card.yourTurn ? "Do it" : "View"}
-        </Button>
-      </div>
-      <StepProgress done={steps.done} total={steps.total} />
+      )}
+      {card.done ? null : <BookingFacts card={card} />}
+      {card.done ? null : <StepProgress done={steps.done} total={steps.total} />}
       {money ? <EventCardFooter><MoneyBar billed={money.billed} paid={money.released} verb="released" /></EventCardFooter> : null}
     </EventCard>
   );
 }
 
-function BookingSection({ id, title, cards, todayKey, onOpen }: { id: string; title: string; cards: BookingCardFacts[]; todayKey: string; onOpen: (id: string) => void }) {
+function BookingSection({ id, title, cards, todayKey, onOpen, onQuick }: { id: string; title: string; cards: BookingCardFacts[]; todayKey: string; onOpen: (id: string) => void; onQuick: (card: BookingCardFacts) => void }) {
   if (cards.length === 0) return null;
   return (
     <section aria-labelledby={id} className="grid gap-3">
       <h2 id={id} className="flex items-baseline gap-2 text-base font-semibold text-foreground">{title}<span className="text-sm font-normal tabular-nums text-muted-foreground">{cards.length}</span></h2>
-      <EventCardGrid>{cards.map((card) => <BookingCard key={card.request.id} card={card} todayKey={todayKey} onOpen={() => onOpen(card.request.id)} />)}</EventCardGrid>
+      <EventCardGrid>{cards.map((card) => <BookingCard key={card.request.id} card={card} todayKey={todayKey} onOpen={() => onOpen(card.request.id)} onQuick={onQuick} />)}</EventCardGrid>
     </section>
   );
 }
@@ -332,12 +372,17 @@ export function BookingsPage({ selectedRequests, readinessBoard, readinessNotes,
   }
   const todayKey = manilaDateKey();
   const cards = selectedRequests.map((req) => bookingCardFacts(req, readinessBoard?.items.find((item) => item.requestId === req.id), workflowWorkspace?.payables ?? [], todayKey));
-  const { yours, others } = orderBookingCards(cards);
+  const { yours, others, done } = orderBookingCards(cards);
   const open = cards.find((card) => card.request.id === target.openId);
+  const quick = (card: BookingCardFacts) => {
+    if (card.quickAction?.kind === "confirm-assignment") handlers.onConfirmAssignment(card.request);
+    if (card.quickAction?.kind === "acknowledge-schedule") handlers.onAcknowledgeSchedule(card.request.id, card.quickAction.revision);
+  };
   return (
     <div className="grid gap-6">
-      <BookingSection id="bookings-yours" title="Needs you" cards={yours} todayKey={todayKey} onOpen={target.open} />
-      <BookingSection id="bookings-others" title={yours.length ? "Other bookings" : "Bookings"} cards={others} todayKey={todayKey} onOpen={target.open} />
+      <BookingSection id="bookings-yours" title="Needs you" cards={yours} todayKey={todayKey} onOpen={target.open} onQuick={quick} />
+      <BookingSection id="bookings-others" title={yours.length ? "Other bookings" : "Bookings"} cards={others} todayKey={todayKey} onOpen={target.open} onQuick={quick} />
+      <BookingSection id="bookings-done" title="Done" cards={done} todayKey={todayKey} onOpen={target.open} onQuick={quick} />
       <Sheet open={Boolean(open)} onOpenChange={(next) => { if (!next) target.open(null); }}>
         <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl">
           {open ? (

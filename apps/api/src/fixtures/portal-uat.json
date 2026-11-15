@@ -22,7 +22,7 @@
       "privacy_consent_accepted",
       "privacy_notice_version"
     ],
-    "select": "'inq_uat_supplier_261121', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Operations Supplier Booking', 'Corporate Event', (($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for supplier requests, bookings, briefing, and proposal flows.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "select": "'inq_uat_supplier_261121', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Operations Supplier Booking', 'Product launch', (($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for supplier requests, bookings, briefing, and proposal flows.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
     "identity": [
       "email",
       "source"
@@ -51,7 +51,7 @@
       "privacy_consent_accepted",
       "privacy_notice_version"
     ],
-    "select": "'inq_uat_live_261024', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Live Ops Event', 'Corporate Event', (($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for event-day staffing, guest registration, and event games.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "select": "'inq_uat_live_261024', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Live Ops Event', 'Conference', (($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for event-day staffing, guest registration, and event games.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
     "identity": [
       "email",
       "source"
@@ -80,7 +80,7 @@
       "privacy_consent_accepted",
       "privacy_notice_version"
     ],
-    "select": "'inq_uat_feedback_261020', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Guest Feedback', 'Corporate Event', (($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for recent post-event guest feedback.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "select": "'inq_uat_feedback_261020', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Guest Feedback', 'Gala', (($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for recent post-event guest feedback.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
     "identity": [
       "email",
       "source"
@@ -109,7 +109,7 @@
       "privacy_consent_accepted",
       "privacy_notice_version"
     ],
-    "select": "'inq_uat_closure_261019', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Closure Event', 'Corporate Event', (($1::timestamptz + ('2026-10-19T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for closeout and archive workflows.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "select": "'inq_uat_closure_261019', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Closure Event', 'Corporate event', (($1::timestamptz + ('2026-10-19T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for closeout and archive workflows.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
     "identity": [
       "email",
       "source"
@@ -138,7 +138,7 @@
       "privacy_consent_accepted",
       "privacy_notice_version"
     ],
-    "select": "'inq_uat_archived_260815', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Archived Event', 'Corporate Event', (($1::timestamptz + ('2026-08-15T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for archived-event visibility.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "select": "'inq_uat_archived_260815', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test',\r\n       'UAT Archived Event', 'Training or workshop', (($1::timestamptz + ('2026-08-15T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for archived-event visibility.',\r\n       'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
     "identity": [
       "email",
       "source"
@@ -156,9 +156,10 @@
       "status",
       "client_portal_status",
       "readiness",
-      "proposal_client_status"
+      "proposal_client_status",
+      "event_type"
     ],
-    "select": "'evt_uat_ops_261121', 'inq_uat_supplier_261121', 'Ana Reyes',\r\n       'UAT Operations Supplier Booking', (($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'planning', 'unlocked', 'Conforme complete', 'pending'",
+    "select": "'evt_uat_ops_261121', 'inq_uat_supplier_261121', 'Ana Reyes',\r\n       'UAT Operations Supplier Booking', (($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'planning', 'unlocked', 'Conforme complete', 'pending', 'Product launch'",
     "identity": [
       "inquiry_id"
     ]
@@ -175,29 +176,10 @@
       "status",
       "client_portal_status",
       "readiness",
-      "proposal_client_status"
+      "proposal_client_status",
+      "event_type"
     ],
-    "select": "'evt_uat_live_261024', 'inq_uat_live_261024', 'Ana Reyes',\r\n       'UAT Live Ops Event', (($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'planning', 'unlocked', 'Conforme complete', 'pending'",
-    "identity": [
-      "inquiry_id"
-    ]
-  },
-  {
-    "table": "event_lifecycle.events",
-    "key": "id",
-    "columns": [
-      "id",
-      "inquiry_id",
-      "client_name",
-      "event_name",
-      "event_date",
-      "actual_ended_at",
-      "status",
-      "client_portal_status",
-      "readiness",
-      "proposal_client_status"
-    ],
-    "select": "'evt_uat_guest_261020', 'inq_uat_feedback_261020', 'Ana Reyes',\r\n       'UAT Guest Feedback', (($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       ($1::timestamptz + ('2026-10-20T20:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'completed', 'unlocked', 'Event complete', 'pending'",
+    "select": "'evt_uat_live_261024', 'inq_uat_live_261024', 'Ana Reyes',\r\n       'UAT Live Ops Event', (($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       'planning', 'unlocked', 'Conforme complete', 'pending', 'Conference'",
     "identity": [
       "inquiry_id"
     ]
@@ -215,9 +197,31 @@
       "status",
       "client_portal_status",
       "readiness",
-      "proposal_client_status"
+      "proposal_client_status",
+      "event_type"
     ],
-    "select": "'evt_uat_closure_261019', 'inq_uat_closure_261019', 'Ana Reyes',\r\n       'UAT Closure Event', (($1::timestamptz + ('2026-10-19T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       ($1::timestamptz + ('2026-10-19T20:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'completed', 'unlocked', 'Event complete', 'pending'",
+    "select": "'evt_uat_guest_261020', 'inq_uat_feedback_261020', 'Ana Reyes',\r\n       'UAT Guest Feedback', (($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       ($1::timestamptz + ('2026-10-20T20:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'completed', 'unlocked', 'Event complete', 'pending', 'Gala'",
+    "identity": [
+      "inquiry_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.events",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "client_name",
+      "event_name",
+      "event_date",
+      "actual_ended_at",
+      "status",
+      "client_portal_status",
+      "readiness",
+      "proposal_client_status",
+      "event_type"
+    ],
+    "select": "'evt_uat_closure_261019', 'inq_uat_closure_261019', 'Ana Reyes',\r\n       'UAT Closure Event', (($1::timestamptz + ('2026-10-19T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       ($1::timestamptz + ('2026-10-19T20:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'completed', 'unlocked', 'Event complete', 'pending', 'Corporate event'",
     "identity": [
       "inquiry_id"
     ]
@@ -237,9 +241,10 @@
       "readiness",
       "proposal_client_status",
       "archived",
-      "archived_at"
+      "archived_at",
+      "event_type"
     ],
-    "select": "'evt_uat_archived_260815', 'inq_uat_archived_260815', 'Ana Reyes',\r\n       'UAT Archived Event', (($1::timestamptz + ('2026-08-15T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       ($1::timestamptz + ('2026-08-15T20:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'completed', 'unlocked', 'Event complete', 'pending',\r\n       true, ($1::timestamptz + ('2026-08-16T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz))",
+    "select": "'evt_uat_archived_260815', 'inq_uat_archived_260815', 'Ana Reyes',\r\n       'UAT Archived Event', (($1::timestamptz + ('2026-08-15T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'),\r\n       ($1::timestamptz + ('2026-08-15T20:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'completed', 'unlocked', 'Event complete', 'pending',\r\n       true, ($1::timestamptz + ('2026-08-16T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), 'Training or workshop'",
     "identity": [
       "inquiry_id"
     ]
@@ -3802,6 +3807,151 @@
     "identity": [
       "notification_id",
       "recipient"
+    ]
+  },
+  {
+    "table": "event_lifecycle.inquiries",
+    "key": "id",
+    "columns": [
+      "id",
+      "client_name",
+      "company_name",
+      "email",
+      "event_name",
+      "event_type",
+      "event_date",
+      "client_type",
+      "source",
+      "normalized_email",
+      "message",
+      "status",
+      "accepted_at",
+      "conforme_sent_at",
+      "conforme_signed_at",
+      "portal_activated_at",
+      "privacy_consent_accepted",
+      "privacy_notice_version"
+    ],
+    "select": "'inq_uat_gala_261201', 'Ana Reyes', 'Ayala UAT', 'ana@ayala.test', 'UAT Garden Celebration', 'Private celebration', (($1::timestamptz + ('2026-12-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'corporate', 'UAT Seed', 'ana@ayala.test', 'Synthetic UAT fixture for an event on track: nothing is waiting on PMCM.', 'accepted', now(), now(), now(), now(), true, 'UAT-2026-10'",
+    "identity": [
+      "email",
+      "source"
+    ]
+  },
+  {
+    "table": "event_lifecycle.events",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "client_name",
+      "event_name",
+      "event_date",
+      "status",
+      "client_portal_status",
+      "readiness",
+      "proposal_client_status",
+      "floor_plan_status",
+      "event_type"
+    ],
+    "select": "'evt_uat_gala_261201', 'inq_uat_gala_261201', 'Ana Reyes', 'UAT Garden Celebration', (($1::timestamptz + ('2026-12-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'planning', 'unlocked', 'On track', 'approved', 'approved', 'Private celebration'",
+    "identity": [
+      "inquiry_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_executions",
+    "key": "id",
+    "columns": [
+      "id",
+      "inquiry_id",
+      "event_id",
+      "template_version",
+      "template_content",
+      "template_sha256",
+      "document_content",
+      "document_sha256",
+      "status",
+      "completed_at"
+    ],
+    "select": "'conf_uat_gala_261201', 'inq_uat_gala_261201', 'evt_uat_gala_261201', 1, 'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d', 'PRISM UAT conforme fixture v1', 'aaeeff0337aff13c00b1b8f47ac816c38de306a98a6c1a637cff5507b148965d', 'completed', now()",
+    "identity": [
+      "inquiry_id",
+      "event_id"
+    ]
+  },
+  {
+    "table": "event_lifecycle.conforme_signatures",
+    "key": "id",
+    "columns": [
+      "id",
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_name",
+      "actor_email",
+      "consent_text_version",
+      "consent_text"
+    ],
+    "select": "'sig_uat_gala_client', 'conf_uat_gala_261201', 'usr_client', 'client', 'Ana Reyes (UAT fixture)', 'ana@ayala.test', 'UAT-SEED-ONLY-v1', 'UAT seed record only; this is not a legal signature or client consent.'",
+    "identity": [
+      "execution_id",
+      "actor_id",
+      "actor_role",
+      "actor_email"
+    ]
+  },
+  {
+    "table": "commercial.quote_requests",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "message",
+      "due_date",
+      "access_token",
+      "status",
+      "assignment_status",
+      "assignment_confirmed_at"
+    ],
+    "select": "'rq_uat_xperto_gala', 'evt_uat_gala_261201', 'sup_xperto', 'supcat_digital_registration', 'XPERTO Registration', 'Digital Registration', 'Second UAT booking for XPERTO, confirmed and still to sign its contract.', ($1::timestamptz + ('2026-11-10T23:59:59.999+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)), replace(gen_random_uuid()::text, '-', ''), 'selected', 'confirmed', now()",
+    "identity": [
+      "event_id",
+      "supplier_id",
+      "category_id"
+    ]
+  },
+  {
+    "table": "commercial.quotes",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "request_id",
+      "supplier_id",
+      "category_id",
+      "supplier_name",
+      "category",
+      "amount",
+      "inclusions",
+      "payment_terms",
+      "notes",
+      "status",
+      "revision_number",
+      "selected_at",
+      "updated_at",
+      "locked_at"
+    ],
+    "select": "'quote_uat_xperto_gala', 'evt_uat_gala_261201', 'rq_uat_xperto_gala', 'sup_xperto', 'supcat_digital_registration', 'XPERTO Registration', 'Digital Registration', 180000, '[\"Guest registration desk\",\"QR check-in\"]'::jsonb, '50% deposit; balance after event', 'Seeded selected proposal for the on-track event.', 'selected', 1, now(), now(), now()",
+    "identity": [
+      "event_id",
+      "request_id",
+      "supplier_id",
+      "category_id"
     ]
   }
 ]

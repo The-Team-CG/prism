@@ -376,6 +376,10 @@ export type PrismEventPrivacy = z.infer<typeof eventPrivacySchema>;
 export const setEventPrivacySchema = z.object({ privacy: eventPrivacySchema });
 export type SetEventPrivacyInput = z.infer<typeof setEventPrivacySchema>;
 
+/** PMCM picks an image from the event's files as its cover, or null to go back to the generated cover. */
+export const setEventCoverSchema = z.object({ objectId: z.string().trim().min(1).max(200).nullable() }).strict();
+export type SetEventCoverInput = z.infer<typeof setEventCoverSchema>;
+
 /** FR-24 Toggle System: optional modules PMCM switches off for a simpler event. Every module starts on. */
 export const EVENT_MODULES = ["floorplans", "games", "venue_scouting", "accreditation", "logistics", "client_owned_suppliers"] as const;
 export type EventModule = (typeof EVENT_MODULES)[number];

@@ -54,6 +54,7 @@ describe('PlatformReferenceReadModelsService', () => {
     const findUnique = vi.fn(async () => ({
       id: 'evt_1',
       archived: false,
+      coverObjectId: 'obj_cover',
       clientName: 'Client',
       clientPortalStatus: 'unlocked',
       inquiry: { email: 'client@example.test' },
@@ -74,6 +75,7 @@ describe('PlatformReferenceReadModelsService', () => {
     await expect(service.findStorageEventScope('evt_1')).resolves.toEqual({
       id: 'evt_1',
       archived: false,
+      coverObjectId: 'obj_cover',
       clientName: 'Client',
       clientPortalStatus: 'unlocked',
       clientEmail: 'client@example.test',
