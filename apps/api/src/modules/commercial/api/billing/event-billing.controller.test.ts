@@ -27,6 +27,7 @@ function createController() {
     createAdditionalBilling: vi.fn(async () => ({ id: 'addbill_new' })),
     waiveAdditionalBilling: vi.fn(async () => ({ id: 'addbill_new', status: 'waived' })),
   };
+  const paymentHistoryService = { history: vi.fn(async () => ({ milestoneId: 'pay_downpayment', entries: [] })) };
   const eventAccessPolicyService = {
     resolveActor: vi.fn((input = {}, verified?: any) => ({
       id: verified?.id ?? verified?.actorId ?? input.actorId ?? input.id,
@@ -44,8 +45,9 @@ function createController() {
     paymentOperationsService as any,
     billingAdjustmentService as any,
     eventAccessPolicyService as any,
+    paymentHistoryService as any,
   );
-  return { controller, billingOperationsService, paymentOperationsService, billingAdjustmentService, eventAccessPolicyService };
+  return { controller, billingOperationsService, paymentOperationsService, billingAdjustmentService, eventAccessPolicyService, paymentHistoryService };
 }
 
 describe('OpsEventBillingController', () => {
@@ -96,8 +98,9 @@ describe('OpsEventBillingController', () => {
     await expect(controller.resolveBillingDispute('evt_sample', 'dispute_new', { action: 'resolve', resolutionNotes: 'Reviewed' }, actor as never)).resolves.toEqual({ id: 'dispute_new', status: 'resolved' });
     await expect(controller.createAdditionalBilling('evt_sample', { urgentIssueId: 'issue_new', billingSourceId: 'bsrc_approved', description: 'Overtime', amount: 500, idempotencyKey: 'additional-controller-1' }, actor as never)).resolves.toEqual({ id: 'addbill_new' });
     await expect(controller.waiveAdditionalBilling('evt_sample', 'addbill_new', { reason: 'Approved goodwill' }, actor as never)).resolves.toEqual({ id: 'addbill_new', status: 'waived' });
+    await expect(controller.paymentHistory('evt_sample', 'pay_downpayment', actor as never)).resolves.toEqual({ milestoneId: 'pay_downpayment', entries: [] });
 
-    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(12);
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledTimes(13);
     expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
       { id: 'user_maxine', role: OpsUserRole.PmcmAdmin, name: 'Maxine', email: 'maxine@pmcm.test', eventId: 'evt_sample' },
       [OpsUserRole.PmcmAdmin, OpsUserRole.System],
@@ -155,8 +158,8 @@ describe('OpsEventBillingController', () => {
 
     expect(paymentOperationsService.markPayment).not.toHaveBeenCalled();
   });
-  it('blocks non-finance actors before invoking billing commands', async () => {
-    const { controller, billingOperationsService, billingAdjustmentService, eventAccessPolicyService } = createController();
+  it('blocks non-finance actors before invoking billing commands or reading a payment history', async () => {
+    const { controller, billingOperationsService, billingAdjustmentService, eventAccessPolicyService, paymentHistoryService } = createController();
     eventAccessPolicyService.requireActorRole
       .mockRejectedValueOnce(new ForbiddenException('client cannot access billing source'))
       .mockRejectedValueOnce(new ForbiddenException('client cannot access billing dispute'));
@@ -177,8 +180,11 @@ describe('OpsEventBillingController', () => {
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
+    await expect(controller.paymentHistory('evt_sample', 'pay_downpayment', client)).rejects.toBeInstanceOf(ForbiddenException);
+
     expect(billingOperationsService.createBillingSource).not.toHaveBeenCalled();
     expect(billingAdjustmentService.createBillingDispute).not.toHaveBeenCalled();
+    expect(paymentHistoryService.history).not.toHaveBeenCalled();
   });
 
   it('allows an event-scoped client to open a dispute while requiring PMCM to resolve it', async () => {
