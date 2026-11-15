@@ -6,8 +6,9 @@ import { submitPublicInquiry } from './inquiry-actions.mjs';
 async function openBooking(page, eventName) {
   const panel = page.getByRole('dialog', { name: eventName });
   const title = page.getByRole('link', { name: eventName, exact: true }).first();
-  await title.waitFor();
-  // After a reload the page reopens the booking its address names; give it a moment before opening it by hand.
+  // After a reload the page reopens the booking its address names; while that panel is open the cards behind it are
+  // hidden from the accessibility tree, so wait for whichever appears and open the card only when the panel did not.
+  await expect(panel.or(title)).toBeVisible();
   await panel.waitFor({ state: 'visible', timeout: 2_000 }).catch(() => undefined);
   if (!(await panel.isVisible())) await title.click();
   await expect(panel).toBeVisible();
