@@ -3,7 +3,11 @@ import type { PrismNotificationPreferences, PrismOwnPrivacyRequest, PrismViberLi
 export interface EventOpsNotificationPreferencesContract {
   /** FR-25: the signed-in account's own channels; email always stays on. */
   notificationPreferences: {
-    inbox(): Promise<import('@prism/types').PrismNotificationInboxItem[]>;
+    /** The account's newest notices, `limit` of them, with the unread total for the whole inbox. */
+    inbox(limit?: number): Promise<import('@prism/types').PrismNotificationInbox>;
+    /** The unread total alone, cheap enough to poll for a navigation badge. */
+    unreadCount(): Promise<{ unread: number }>;
+    markAllNoticesRead(): Promise<{ marked: number }>;
     markNoticeRead(id: string, input: import('@prism/types').AcknowledgeNotificationReceiptInput): Promise<{ id: string; readAt: string }>;
     acknowledgeReceipt(id: string, input: import('@prism/types').AcknowledgeNotificationReceiptInput): Promise<{ id: string; acknowledged: true }>;
     mine(): Promise<PrismNotificationPreferences>;

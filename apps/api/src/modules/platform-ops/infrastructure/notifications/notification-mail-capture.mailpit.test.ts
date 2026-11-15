@@ -34,10 +34,10 @@ describe.skipIf(!live || !mailCapture)('queued email through real local mail cap
       expect(await captured.json()).toMatchObject({ Text: message });
       const inbox = new NotificationInboxService(prisma, {} as never, { write: vi.fn() } as never);
       const actor = { id: 'mail-test', role: 'client', email: recipient, name: 'Test recipient' } as never;
-      const [notice] = await inbox.mine(actor);
+      const [notice] = (await inbox.mine(actor, 30)).items;
       await inbox.markRead(notice.id, notice.version, actor);
       await inbox.acknowledge(notice.id, notice.version, actor);
-      expect((await inbox.mine(actor))[0]).toMatchObject({ message, readAt: expect.any(String), acknowledgedAt: expect.any(String) });
+      expect((await inbox.mine(actor, 30)).items[0]).toMatchObject({ message, readAt: expect.any(String), acknowledgedAt: expect.any(String) });
     } finally {
       await prisma.opsNotificationLog.delete({ where: { id: row.id } });
       await prisma.$disconnect();

@@ -16,6 +16,8 @@ export interface AccountContactReadModel {
   findActiveCoordinatorEmailsForEvent(eventId: string): Promise<string[]>;
   /** The event name and the inquiry email of its client; null when the event does not exist. */
   findEventNotificationContact(eventId: string): Promise<{ eventName: string; clientEmail: string | null } | null>;
+  /** The names of the given events in one read; an event that does not exist is left out. */
+  findEventNames(eventIds: string[]): Promise<Record<string, string>>;
   /** Selected suppliers on the event with their contact email (null when none is on file), read in one query. */
   findSelectedSupplierContacts(eventId: string): Promise<Array<{ supplierId: string; email: string | null }>>;
 }
