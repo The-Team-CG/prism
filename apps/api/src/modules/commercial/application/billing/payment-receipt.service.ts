@@ -5,7 +5,7 @@ import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { AuditActionType, AuditCategory } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { STORED_RECEIPT_EVIDENCE_READER, type StoredReceiptEvidenceReader } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, STORED_RECEIPT_EVIDENCE_READER, eventSectionAction, writeNotification, type NotificationOutboxWriter, type StoredReceiptEvidenceReader } from '@prism/contexts/platform-ops';
 import type {
   AllocatePaymentReceiptInput,
   AttachPaymentReceiptEvidenceInput,
@@ -55,6 +55,7 @@ const POSSIBLE_DUPLICATE_SCAN_LIMIT = 20;
 /** An event never has anywhere near this many open milestones; the cap only keeps the read bounded. */
 const MAX_ALLOCATION_TARGETS = 50;
 
+const pesos = (amount: number) => `₱${amount.toLocaleString('en-PH')}`;
 const hashOf = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 function enforce(result: RuleResult) {
@@ -79,6 +80,7 @@ export class PaymentReceiptService {
     private readonly prisma: PrismaService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Optional() @Inject(STORED_RECEIPT_EVIDENCE_READER) private readonly evidenceReader?: StoredReceiptEvidenceReader,
+    @Optional() @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notifications?: NotificationOutboxWriter,
   ) {}
 
   async recordReceipt(input: RecordPaymentReceiptInput, actor: BillingActor): Promise<PrismPaymentReceipt> {
@@ -241,6 +243,8 @@ export class PaymentReceiptService {
         data: { status: 'verified', verifiedAt: new Date(), verifiedBy: actor.name, verificationNotes: input.notes.trim() },
       });
       await this.audit(context, actor, receipt, AuditActionType.Update, `Verified receipt ${receipt.referenceNumber || receipt.id}`, { notes: input.notes.trim() });
+      // A payment the client reported closes the loop: they hear it counted. PMCM's own entries need no notice.
+      if (receipt.source === 'client') await this.tellClient(tx, context, receipt, 'verified', (eventName) => `PMCM confirmed your ${pesos(receipt.amount)} ${receipt.method} payment for ${eventName}. Thank you.`);
     });
     return this.getReceipt(receiptId);
   }
@@ -257,6 +261,7 @@ export class PaymentReceiptService {
         data: { status: 'rejected', referenceKey: null, rejectedAt: new Date(), rejectedBy: actor.name, rejectionReason: input.reason.trim() },
       });
       await this.audit(context, actor, receipt, AuditActionType.Update, `Rejected receipt ${receipt.referenceNumber || receipt.id}`, { reason: input.reason.trim() });
+      await this.tellClient(tx, context, receipt, 'rejected', (eventName) => `PMCM could not accept the ${pesos(receipt.amount)} ${receipt.method} payment for ${eventName}: ${input.reason.trim()}`);
     });
     return this.getReceipt(receiptId);
   }
@@ -426,6 +431,16 @@ export class PaymentReceiptService {
       affectedId: receipt.id,
       affectedLabel: receipt.referenceNumber || receipt.method,
       metadata: auditMetadata(actor, { receiptId: receipt.id, ...metadata }),
+    }, context);
+  }
+
+  /** Notify the event's client about one of their payments, once per outcome, linking to their billing page. */
+  private async tellClient(tx: Tx, context: PrismTransactionContext, receipt: { id: string; eventId: string | null }, outcome: string, message: (eventName: string) => string) {
+    if (!this.notifications || !receipt.eventId) return;
+    const event = await tx.opsEvent.findUnique({ where: { id: receipt.eventId }, select: { eventName: true } });
+    if (!event) return;
+    await writeNotification(this.notifications, receipt.eventId, 'Client', message(event.eventName), undefined, {
+      idempotencyKey: `payment-receipt-${outcome}:${receipt.id}`, action: eventSectionAction(receipt.eventId, 'billing'),
     }, context);
   }
 

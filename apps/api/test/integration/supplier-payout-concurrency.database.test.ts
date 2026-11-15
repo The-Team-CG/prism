@@ -75,9 +75,11 @@ describe.skipIf(!live)('supplier payout release concurrency against PostgreSQL',
 
       const policy = new EventAccessPolicyService({ write: async () => undefined });
       const auditWriter: AuditWriter = { write: async () => undefined };
+      const notices: Array<{ recipient: string; message: string }> = [];
       const service = new SupplierWorkflowService(
         prisma, policy, auditWriter, new OperationsEventReferenceService(prisma),
         new StorageObjectService(prisma, policy, new StorageValidationService()),
+        { write: async (input: { recipient: string; message: string }) => { notices.push(input); } },
       );
       const actor = policy.resolveVerifiedActor(verifiedPmcmActor(`actor-${suffix}`));
       const paymentDate = new Date().toISOString();
@@ -98,6 +100,9 @@ describe.skipIf(!live)('supplier payout release concurrency against PostgreSQL',
       expect(records[0]?.amount).toBe(70);
       const milestone = await prisma.opsSupplierPayableMilestone.findUnique({ where: { id: milestoneId } });
       expect(milestone?.status).toBe('partially_released');
+      // The supplier hears once, for the release that went through, never for the refused one.
+      expect(notices).toHaveLength(1);
+      expect(notices[0]?.message).toMatch(/^PMCM sent ₱70 for Concurrency test payable on Payout Concurrency Event by bank transfer \(ref release-(one|two)\)\.$/);
     } finally {
       // Owner schemas have no cross-domain cascades, so remove Commercial rows before Lifecycle rows.
       await prisma.opsSupplierPayoutRecord.deleteMany({ where: { milestoneId } });

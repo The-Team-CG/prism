@@ -1,7 +1,8 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { Prisma, type Prisma as PrismaTypes } from '@prisma/client';
 import { randomUUID, createHash } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { EventAccessPolicyService, type ResolvedEventOpsActor, AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import type {
@@ -24,7 +25,7 @@ import type {
   UpdateSupplierCreativeTaskInput,
 } from '@prism/types';
 import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
-import { STORED_SUPPLIER_UPLOAD_READER, type StoredSupplierUploadReader } from '@prism/contexts/platform-ops';
+import { NOTIFICATION_OUTBOX_WRITER, STORED_SUPPLIER_UPLOAD_READER, eventSectionAction, writeNotification, type NotificationOutboxWriter, type StoredSupplierUploadReader } from '@prism/contexts/platform-ops';
 
 const contractTargetPrefix = (requestId: string) => `supplier-contract:${requestId}:`;
 const creativeTargetPrefix = (requestId: string) => `supplier-creative:${requestId}:`;
@@ -86,6 +87,7 @@ export class SupplierWorkflowService {
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(OPERATIONS_EVENT_REFERENCE_READER) private readonly eventReferences: OperationsEventReferenceReader,
     @Inject(STORED_SUPPLIER_UPLOAD_READER) private readonly storedSupplierUploads: StoredSupplierUploadReader,
+    @Optional() @Inject(NOTIFICATION_OUTBOX_WRITER) private readonly notifications?: NotificationOutboxWriter,
   ) {}
 
   async supplierWorkspace(actor: ResolvedEventOpsActor): Promise<PrismSupplierWorkflowWorkspace> {
@@ -452,6 +454,7 @@ export class SupplierWorkflowService {
         affectedType: 'supplier_payout_record', affectedId: input.idempotencyKey, affectedLabel: milestone.label,
         metadata: { milestoneId, amount: input.amount, method: input.method, referenceNumber: input.referenceNumber },
       }, { prisma: tx, actorId: actor.id, correlationId: `supplier-payout:${input.idempotencyKey}` });
+      await this.tellSupplierOfPayout(tx, milestone, input, { prisma: tx, actorId: actor.id, correlationId: `supplier-payout:${input.idempotencyKey}` });
       return this.payableById(tx, milestoneId);
     });
   }
@@ -568,6 +571,26 @@ export class SupplierWorkflowService {
       })),
       createdAt: task.createdAt.toISOString(), updatedAt: task.updatedAt.toISOString(),
     };
+  }
+
+  /** The supplier hears that money was sent, with the amount, the payment it is for and the reference. */
+  private async tellSupplierOfPayout(
+    tx: PrismaTypes.TransactionClient,
+    milestone: { eventId: string; supplierId: string; label: string },
+    input: ReleaseSupplierPayoutInput,
+    context: PrismTransactionContext,
+  ) {
+    if (!this.notifications) return;
+    const [supplier, event] = await Promise.all([
+      tx.opsSupplier.findUnique({ where: { id: milestone.supplierId }, select: { email: true, name: true } }),
+      tx.opsEvent.findUnique({ where: { id: milestone.eventId }, select: { eventName: true } }),
+    ]);
+    const recipient = supplier?.email.trim();
+    if (!recipient) return;
+    const reference = input.referenceNumber.trim() ? ` (ref ${input.referenceNumber.trim()})` : '';
+    await writeNotification(this.notifications, milestone.eventId, recipient, `PMCM sent ₱${input.amount.toLocaleString('en-PH')} for ${milestone.label}${event ? ` on ${event.eventName}` : ''} by ${input.method}${reference}.`, undefined, {
+      idempotencyKey: `supplier-payout-sent:${input.idempotencyKey}`, action: eventSectionAction(milestone.eventId, 'billing'),
+    }, context);
   }
 
   private async payableById(tx: PrismaTypes.TransactionClient, milestoneId: string) {

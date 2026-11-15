@@ -6,6 +6,7 @@ import type {
   PrismClientBillingDispute,
   PrismPaymentSubmission,
   PrismFinanceDesk,
+  PrismPaymentReminder,
   SubmitClientPaymentInput,
   CompleteExternalCreativeTicketInput,
   CreateExternalCreativeTicketInput,
@@ -113,6 +114,8 @@ export interface EventOpsCommercialContract {
     createAdditionalBilling(eventId: string, input: CreateAdditionalBillingInput, actor?: EventOpsActorQuery): Promise<PrismAdditionalBilling>;
     waiveAdditionalBilling(eventId: string, additionalBillingId: string, input: WaiveAdditionalBillingInput, actor?: EventOpsActorQuery): Promise<PrismAdditionalBilling>;
     recordPayment(eventId: string, milestoneId: string, input: RecordPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentMilestone>;
+    /** PMCM reminds the client about one owed payment; at most once a day. */
+    remindClientPayment(eventId: string, milestoneId: string, actor?: EventOpsActorQuery): Promise<PrismPaymentReminder>;
     markPayment(eventId: string, milestoneId: string, input: MarkPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentMilestone>;
     /** Money that arrived outside P.R.I.S.M: recorded first, applied to milestones afterwards. PMCM finance only. */
     /** PMCM finance across every active event: what needs PMCM, each event's money, and supplier payouts. */

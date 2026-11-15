@@ -23,6 +23,7 @@
     "./calendar-views": "./src/calendar-views.ts",
     "./chat": "./src/chat/index.ts",
     "./payment-track": "./src/payment-track.tsx",
+    "./nav-badge": "./src/nav-badge.ts",
     "./components/*": "./src/components/ui/*.tsx"
   },
   "scripts": {

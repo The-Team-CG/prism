@@ -5,6 +5,7 @@ import { Button } from "@prism/ui/components/button";
 import { PrismDashboardShell } from "@prism/ui";
 import { useSupplierWorkspaceViewModel } from "../view-models/use-supplier-workspace-view-model";
 import { useSupplierUnreadMessages } from "../view-models/use-supplier-unread-messages";
+import { useNewPayouts } from "../view-models/use-new-payouts";
 import { supplierAccountMenuItems, supplierActiveNavId, supplierCommandActions, supplierMobileActions, supplierNavItems } from "../model/supplier-workspace-nav";
 import type { SupplierDashboardSection } from "../model/supplier-workspace-types";
 import { SupplierWorkspaceBanners, SupplierWorkspaceLoading, SupplierWorkspaceSkeleton, SupplierWrongPortalView } from "./sections/supplier-workspace-states";
@@ -14,6 +15,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
   const vm = useSupplierWorkspaceViewModel(routeSection);
   const { session, workspace, readinessBoard, section, setSection, error, notice, busy, derived, meta } = vm;
   const messagesUnread = useSupplierUnreadMessages(session);
+  const payouts = useNewPayouts(session?.id, vm.workflowWorkspace?.payables ?? [], section === "payments");
 
   if (!session) return <SupplierWorkspaceLoading />;
   if (session.role !== "supplier") return <SupplierWrongPortalView onSignIn={vm.goToSignIn} />;
@@ -45,6 +47,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
         quoteNeedingSubmission,
         handoffPending,
         messagesUnread,
+        newPayouts: payouts.badgeCount,
       })}
       sidebarMode="single"
       onNavSelect={(id) => setSection(id as typeof section)}
@@ -78,6 +81,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
           session={session}
           workspace={workspace}
           workflowWorkspace={vm.workflowWorkspace}
+          freshPayouts={payouts.fresh}
           error={error}
           quoteByRequest={quoteByRequest}
           openRequests={openRequests}

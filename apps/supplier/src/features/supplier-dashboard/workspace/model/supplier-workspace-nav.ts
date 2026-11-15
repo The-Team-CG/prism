@@ -1,4 +1,5 @@
 import { unreadNavBadge } from "@prism/ui/chat";
+import { countNavBadge } from "@prism/ui/nav-badge";
 import {
   BadgeCheck,
   Bell,
@@ -23,6 +24,8 @@ export function supplierNavItems(input: {
   quoteNeedingSubmission: number;
   handoffPending: number;
   messagesUnread?: number;
+  /** Payouts PMCM sent since the supplier last opened Payments. */
+  newPayouts?: number;
 }) {
   const items = [
     { id: "dashboard", label: "Today", icon: Warehouse, badge: input.needsActionCount || undefined },
@@ -31,7 +34,7 @@ export function supplierNavItems(input: {
     { id: "calendar", label: "Calendar", icon: CalendarDays },
     { id: "messages", label: "Messages", icon: MessageSquare, ...unreadNavBadge(input.messagesUnread) },
     { id: "files", label: "Files", icon: FileCheck2 },
-    { id: "payments", label: "Payments", icon: Wallet },
+    { id: "payments", label: "Payments", icon: Wallet, ...countNavBadge(input.newPayouts, "new payment") },
     { id: "profile", label: "Services & profile", icon: User },
   ] as Array<{ id: SupplierDashboardSection; label: string; icon: LucideIcon; badge?: string | number; badgeLabel?: string }>;
   return items.map((item) => ({ ...item, href: supplierSectionHref(item.id) }));
