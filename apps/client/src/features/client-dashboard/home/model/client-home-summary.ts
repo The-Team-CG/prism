@@ -139,14 +139,3 @@ export function clientHomeFigures(input: {
   ];
 }
 
-/** Billing figures across every event: balance due, the next payment and how many are overdue. */
-export function clientBillingAccountFigures(payments: PrismPaymentMilestone[], eventIds: ReadonlySet<string>, todayKey: string, formatMoney: MoneyFormat, hrefFor: HrefFor): Figure[] {
-  const open = payments.filter((payment) => eventIds.has(payment.eventId) && payment.status !== "paid");
-  const owed = open.reduce((sum, payment) => sum + clientMilestoneRemaining(payment), 0);
-  const overdue = open.filter((payment) => dueState(payment.dueDate, todayKey)?.tone === "urgent").length;
-  return [
-    { label: "Balance due", value: owed ? formatMoney(owed) : "—", detail: owed ? `${open.length} open payment${open.length === 1 ? "" : "s"}` : "All paid" },
-    nextPaymentFigure(payments, eventIds, todayKey, formatMoney, hrefFor),
-    { label: "Overdue", value: overdue, tone: overdue ? "urgent" : undefined },
-  ];
-}

@@ -214,41 +214,63 @@ function clientEventActionItems(event: ClientEventRef, briefingEventIds: Set<str
   return items;
 }
 
+/** A client is asked about a payment only once it is overdue or due within this many days. */
+const CLIENT_PAYMENT_DUE_SOON_DAYS = 14;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const peso = (amount: number) => `₱${Math.max(0, Math.round(amount)).toLocaleString('en-PH')}`;
+const shortDate = (value: Date | string) => new Intl.DateTimeFormat('en-PH', { month: 'short', day: 'numeric', timeZone: 'Asia/Manila' }).format(new Date(value));
+
+type OpenPayment = { label: string; remaining: number; dueDate: Date | string; overdue: boolean };
+
+function openClientPayment(payment: OpsPaymentMilestone, paymentRecords: OpsPaymentRecord[]): OpenPayment | null {
+  if (payment.status === 'paid' || payment.supersededAt) return null;
+  const paid = paymentRecords.filter((record) => record.milestoneId === payment.id).reduce((sum, record) => sum + Number(record.amountReceived ?? 0), 0);
+  const remaining = Number(payment.amount ?? 0) - paid;
+  if (remaining <= 0) return null;
+  const due = new Date(payment.dueDate).getTime();
+  if (!Number.isFinite(due) || due - Date.now() > CLIENT_PAYMENT_DUE_SOON_DAYS * DAY_MS) return null;
+  return { label: payment.label, remaining, dueDate: payment.dueDate, overdue: isPast(payment.dueDate) };
+}
+
+/**
+ * One payment row per event, not per milestone: what is overdue, then what is due in the next two weeks. Payments due
+ * later are not "needs you" yet, so they stay on the billing page only.
+ */
 function collectClientBillingActionItems(
   payments: OpsPaymentMilestone[],
   events: EventRef[],
   paymentRecords: OpsPaymentRecord[],
 ) {
-  const items: PrismClientActionItem[] = [];
+  const byEvent = new Map<string, OpenPayment[]>();
   for (const payment of payments) {
-    const item = clientBillingActionItem(payment, events, paymentRecords);
-    if (item) items.push(item);
+    const open = openClientPayment(payment, paymentRecords);
+    if (open) byEvent.set(payment.eventId, [...(byEvent.get(payment.eventId) ?? []), open]);
+  }
+  const items: PrismClientActionItem[] = [];
+  for (const [eventId, open] of byEvent) {
+    const event = eventById(events, eventId);
+    if (event) items.push(clientBillingActionItem(event, open));
   }
   return items;
 }
 
-function clientBillingActionItem(
-  payment: OpsPaymentMilestone,
-  events: EventRef[],
-  paymentRecords: OpsPaymentRecord[],
-): PrismClientActionItem | null {
-  if (payment.status === 'paid') return null;
-  const event = eventById(events, payment.eventId);
-  if (!event) return null;
-  const history = paymentRecords.filter((record) => record.milestoneId === payment.id);
-  const paidAmount = history.reduce((sum, record) => sum + Number(record.amountReceived ?? 0), 0);
-  const remaining = Number(payment.amount ?? 0) - paidAmount;
-  const overdue = isPast(payment.dueDate);
+function clientBillingActionItem(event: EventRef, open: OpenPayment[]): PrismClientActionItem {
+  const sorted = [...open].sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  const overdue = sorted.filter((payment) => payment.overdue);
+  const soon = sorted.filter((payment) => !payment.overdue);
+  const parts: string[] = [];
+  if (overdue.length > 0) parts.push(`${peso(overdue.reduce((sum, payment) => sum + payment.remaining, 0))} overdue (${overdue.map((payment) => payment.label).join(', ')})`);
+  for (const payment of soon) parts.push(`${peso(payment.remaining)} due ${shortDate(payment.dueDate)} (${payment.label})`);
   return {
-    id: `billing:${payment.id}`,
+    id: `billing:${event.id}`,
     kind: 'billing',
-    priority: overdue ? 'critical' : 'warning',
-    label: overdue ? 'Payment overdue' : 'Payment pending',
-    description: `${payment.label} has ${Math.max(remaining, 0).toLocaleString('en-PH')} PHP remaining.`,
-    status: payment.status,
+    priority: overdue.length > 0 ? 'critical' : 'warning',
+    label: overdue.length > 0 ? 'Payment overdue' : 'Payment due soon',
+    description: `${parts.join(' · ')}.`,
+    status: overdue.length > 0 ? 'overdue' : 'due_soon',
     eventId: event.id,
     eventName: event.eventName,
-    dueAt: toIso(payment.dueDate),
+    dueAt: toIso(sorted[0].dueDate),
     href: `/dashboard/events/${event.id}/billing`,
   };
 }

@@ -273,6 +273,11 @@ export interface PrismPaymentReceipt {
   eventId: string | null;
   notes: string;
   status: PrismPaymentReceiptStatus;
+  /** Who recorded it: PMCM finance, or the client telling PMCM they paid. */
+  source: "pmcm" | "client";
+  /** The payment the client said this money was for. PMCM still decides where it goes. */
+  intendedMilestoneId: string | null;
+  intendedMilestoneLabel: string | null;
   /** A receipt carried over from a payment recorded before receipts existed: no evidence, never checked. */
   legacy: boolean;
   evidenceObjectId: string | null;
@@ -377,9 +382,53 @@ export interface PrismStatementOfAccountLine {
   reversed: boolean;
 }
 
+/** Where a payment the client sent stands with PMCM: still being checked, matched and counted, or not accepted. */
+export type PrismPaymentSubmissionState = "checking" | "accepted" | "not_accepted";
+
+/**
+ * A payment the client needs to hear about: one PMCM is still checking, one PMCM did not accept, and one the client
+ * reported that PMCM has since accepted. Only the rejection reason is carried; PMCM's checking notes stay internal.
+ */
+export interface PrismPaymentSubmission {
+  id: string;
+  amount: number;
+  /** ISO date the money was sent. */
+  paidDate: string;
+  method: string;
+  reference: string;
+  state: PrismPaymentSubmissionState;
+  /** Why PMCM did not accept it. Written for the client, who sees it. */
+  reason: string | null;
+  /** The payment it was meant for or has been applied to, when known. */
+  forPayment: string | null;
+  /** Part of the amount not yet applied to any payment. */
+  unapplied: number;
+  /** True when the client reported it, false when PMCM recorded it. */
+  fromClient: boolean;
+  hasProof: boolean;
+}
+
+/** One payment on the schedule as a client sees it. */
+export interface PrismStatementMilestone {
+  id: string;
+  label: string;
+  dueDate: string;
+  amount: number;
+  paid: number;
+  remaining: number;
+  status: string;
+  /** Part of `paid` that came from money PMCM has not finished checking. */
+  checking: number;
+  /** Amount under an open dispute on this payment. */
+  disputed: number;
+  /** ISO date it was paid in full, when it is. */
+  settledOn: string | null;
+}
+
 /**
  * What a client sees of an event's money: billed, received, paid back, credit PMCM is holding, and what is still owed.
- * It carries no reasons, notes or payer details, only amounts, dates, methods and the references the client used.
+ * It carries no PMCM notes or payer details: amounts, dates, methods, the references the client used, and why a payment
+ * was not accepted.
  */
 export interface PrismStatementOfAccount {
   eventId: string;
@@ -393,11 +442,17 @@ export interface PrismStatementOfAccount {
   received: number;
   /** Money paid back from what was held unapplied. */
   refunded: number;
-  /** Received for this event and held, not applied to a milestone and not paid back. */
+  /** Received for this event, checked by PMCM and held: not applied to a milestone and not paid back. */
   creditHeld: number;
   /** Still owed on the current milestones. */
   balance: number;
-  milestones: Array<{ id: string; label: string; dueDate: string; amount: number; paid: number; remaining: number; status: string }>;
+  /** Amount under open disputes that name no single payment. */
+  disputedOnStatement: number;
+  milestones: PrismStatementMilestone[];
+  /** How to pay, as printed on the billing statement. */
+  paymentMethods: Array<{ label: string; details: string }>;
+  /** Payments being checked, not accepted, or reported by the client and since accepted. Newest first. */
+  submissions: PrismPaymentSubmission[];
   /** Oldest first. */
   lines: PrismStatementOfAccountLine[];
 }

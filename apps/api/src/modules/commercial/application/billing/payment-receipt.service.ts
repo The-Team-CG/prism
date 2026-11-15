@@ -451,7 +451,7 @@ export class PaymentReceiptService {
   }
 
   private async mapAll(db: Tx | PrismaService, receipts: ReceiptWithLedger[]): Promise<PrismPaymentReceipt[]> {
-    const milestoneIds = [...new Set(receipts.flatMap((receipt) => receipt.records.map((record) => record.milestoneId)))];
+    const milestoneIds = [...new Set(receipts.flatMap((receipt) => [...receipt.records.map((record) => record.milestoneId), ...(receipt.intendedMilestoneId ? [receipt.intendedMilestoneId] : [])]))];
     const milestones = milestoneIds.length === 0
       ? []
       : await db.opsPaymentMilestone.findMany({ where: { id: { in: milestoneIds } }, select: { id: true, label: true } });

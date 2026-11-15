@@ -40,11 +40,11 @@ export class StatementOfAccountService {
   async buildStatement(eventId: string, eventName: string, viewer: StatementViewer): Promise<PrismStatementOfAccount> {
     const clientView = viewer === 'client';
     const milestoneVisibility = clientView ? CLIENT_VISIBLE_MILESTONE : {};
-    const [statement, milestones, records, receipts] = await Promise.all([
+    const [statement, milestones, records, receipts, openDisputes] = await Promise.all([
       this.prisma.opsBillingStatement.findFirst({
         where: { eventId, ...(clientView ? CLIENT_VISIBLE_STATEMENT : {}) },
         orderBy: [{ generatedAt: 'desc' }, { id: 'asc' }],
-        select: { number: true, totalAmount: true, sentAt: true, generatedAt: true },
+        select: { id: true, number: true, totalAmount: true, sentAt: true, generatedAt: true, paymentMethods: true },
       }),
       this.prisma.opsPaymentMilestone.findMany({
         where: { eventId, supersededAt: null, ...milestoneVisibility },
@@ -57,12 +57,13 @@ export class StatementOfAccountService {
       this.prisma.opsPaymentRecord.findMany({
         where: { eventId, milestone: { supersededAt: null, ...milestoneVisibility } },
         orderBy: [{ paymentDate: 'asc' }, { id: 'asc' }],
-        select: { id: true, amountReceived: true, paymentDate: true, paymentMethod: true, referenceNumber: true, reversesRecordId: true },
+        select: { id: true, milestoneId: true, receiptId: true, amountReceived: true, paymentDate: true, paymentMethod: true, referenceNumber: true, reversesRecordId: true },
         // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: an event has a handful of these; MAX_ROWS only keeps the read finite.
         take: MAX_ROWS,
       }),
+      // Live receipts carry credit and refunds; rejected ones are listed so the client learns a payment did not count.
       this.prisma.opsPaymentReceipt.findMany({
-        where: { eventId, status: { in: [...LIVE_RECEIPT_STATUSES] } },
+        where: { eventId, status: { in: [...LIVE_RECEIPT_STATUSES, 'rejected'] } },
         include: {
           records: { select: { amountReceived: true } },
           refunds: { select: { id: true, amount: true, refundedDate: true, method: true, referenceNumber: true } },
@@ -70,14 +71,35 @@ export class StatementOfAccountService {
         // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: an event has a handful of these; MAX_ROWS only keeps the read finite.
         take: MAX_ROWS,
       }),
+      this.prisma.opsBillingDispute.findMany({
+        where: { eventId, status: 'open' },
+        select: { statementId: true, milestoneId: true, amount: true },
+        // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: an event has a handful of these; MAX_ROWS only keeps the read finite.
+        take: MAX_ROWS,
+      }),
     ]);
+    const live = receipts.filter((receipt) => (LIVE_RECEIPT_STATUSES as readonly string[]).includes(receipt.status));
     const figures = buildStatementOfAccount({
       viewer,
       statement,
       milestones,
       records,
-      refunds: receipts.flatMap((receipt) => receipt.refunds),
-      creditHeld: receipts.reduce((total, receipt) => total + Math.max(0, receiptBalance(receipt.amount, receipt.records, receipt.refunds).unapplied), 0),
+      refunds: live.flatMap((receipt) => receipt.refunds),
+      receipts: receipts.map((receipt) => ({
+        id: receipt.id,
+        amount: receipt.amount,
+        receivedDate: receipt.receivedDate,
+        method: receipt.method,
+        referenceNumber: receipt.referenceNumber,
+        status: receipt.status,
+        source: receipt.source,
+        rejectionReason: receipt.rejectionReason,
+        intendedMilestoneId: receipt.intendedMilestoneId,
+        hasProof: Boolean(receipt.evidenceObjectId),
+        unapplied: receiptBalance(receipt.amount, receipt.records, receipt.refunds).unapplied,
+        createdAt: receipt.createdAt,
+      })),
+      openDisputes: openDisputes.filter((dispute) => !statement || dispute.statementId === statement.id),
     });
     return { eventId, eventName, generatedAt: new Date().toISOString(), ...figures };
   }

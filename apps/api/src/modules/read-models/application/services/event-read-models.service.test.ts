@@ -217,6 +217,7 @@ function createPmcmReadModelService() {
           eventId: 'evt_visible',
           label: 'Final balance',
           status: 'pending',
+          amount: 150000,
           dueDate: new Date('2026-01-01T00:00:00.000Z'),
         },
       ]),
@@ -845,11 +846,14 @@ describe('EventReadModelsService', () => {
     const actionCenter = await service.clientActionCenter(actor);
 
     expect(actionCenter.counts.critical).toBe(1);
+    // Payments come as one row per event, with what is overdue said in pesos.
     expect(actionCenter.items[0]).toMatchObject({
-      id: 'billing:pay_overdue',
+      id: 'billing:evt_visible',
       kind: 'billing',
       priority: 'critical',
+      label: 'Payment overdue',
       eventId: 'evt_visible',
+      description: expect.stringMatching(/^₱[\d,]+ overdue \(/),
     });
     expect(actionCenter.items.some((item) => item.id === 'briefing:evt_visible')).toBe(true);
     const floorplanItems = actionCenter.items.filter((item) => item.kind === 'floorplan');

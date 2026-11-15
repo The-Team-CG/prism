@@ -1,5 +1,6 @@
 import type {
   PrismClientBillingDispute,
+  PrismPaymentSubmission,
   PrismClientOwnedSupplier,
   PrismExternalCreativeTicket,
   PrismPresentationMeeting,
@@ -180,6 +181,10 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismPresentationMeeting>(actorPath(`/events/${encodeURIComponent(eventId)}/presentation-meetings/${encodeURIComponent(meetingId)}/outcome`, actor), withBase(options, { method: "POST", body: input })),
       createClientBillingDispute: (eventId, input, actor = {}) =>
         prismRequest<PrismClientBillingDispute>(actorPath(event(eventId, "/billing-disputes"), actor), withBase(options, { method: "POST", body: input })),
+      submitClientPayment: (eventId, input, actor = {}) =>
+        prismRequest<PrismPaymentSubmission>(actorPath(event(eventId, "/payment-submissions"), actor), withBase(options, { method: "POST", body: input })),
+      attachClientPaymentProof: (eventId, receiptId, input, actor = {}) =>
+        prismRequest<PrismPaymentSubmission>(actorPath(event(eventId, `/payment-submissions/${encodeURIComponent(receiptId)}/proof`), actor), withBase(options, { method: "POST", body: input })),
       decideClientReviewItem: (eventId, itemId, input, actor = {}) =>
         prismRequest<unknown>(actorPath(event(eventId, `/client-review-items/${itemId}/decisions`), actor), withBase(options, { method: "POST", body: input })),
       chooseVenueScoutingPreference: (eventId, input, actor = {}) =>

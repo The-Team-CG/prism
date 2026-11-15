@@ -78,9 +78,15 @@ function createStore() {
     opsClientReviewItem: { findFirst: vi.fn(async ({ where }: { where: Record<string, string> }) => (where.id === 'client_review_1' && where.eventId === 'evt_1' && where.kind === 'styling' ? { id: 'client_review_1' } : null)) },
     // One live receipt held for evt_1; a rejected one and one held for another event prove the owner check reads both.
     opsPaymentReceipt: {
-      findFirst: vi.fn(async ({ where }: { where: { id: string; eventId: string; status: { in: string[] } } }) => {
-        const receipts = [{ id: 'prcp_1', eventId: 'evt_1', status: 'recorded' }, { id: 'prcp_rejected', eventId: 'evt_1', status: 'rejected' }, { id: 'prcp_other', eventId: 'evt_2', status: 'recorded' }];
-        return receipts.find((receipt) => receipt.id === where.id && receipt.eventId === where.eventId && where.status.in.includes(receipt.status)) ?? null;
+      findFirst: vi.fn(async ({ where }: { where: { id: string; eventId: string; status: { in: string[] }; source?: string } }) => {
+        const receipts = [
+          { id: 'prcp_1', eventId: 'evt_1', status: 'recorded', source: 'pmcm' },
+          { id: 'prcp_rejected', eventId: 'evt_1', status: 'rejected', source: 'pmcm' },
+          { id: 'prcp_other', eventId: 'evt_2', status: 'recorded', source: 'pmcm' },
+          { id: 'prcp_client', eventId: 'evt_1', status: 'recorded', source: 'client' },
+          { id: 'prcp_client_checked', eventId: 'evt_1', status: 'verified', source: 'client' },
+        ];
+        return receipts.find((receipt) => receipt.id === where.id && receipt.eventId === where.eventId && where.status.in.includes(receipt.status) && (!where.source || where.source === receipt.source)) ?? null;
       }),
     },
     $queryRaw: vi.fn(async () => [{ id: 'evt_1' }]),
@@ -283,7 +289,7 @@ describe('StorageObjectService', () => {
     await expect(service.requestUpload({ ...moodboard, logicalTarget: 'styling-moodboard:client_review_2:123e4567-e89b-42d3-a456-426614174000', actor })).rejects.toThrow('target their styling option');
   });
 
-  it('accepts receipt evidence only from PMCM, for a live receipt of the same event, under its own target', async () => {
+  it('accepts receipt evidence from PMCM for a live receipt of the same event, and from the client only for a payment they reported', async () => {
     const { service } = createStore();
     const target = (receiptId: string) => `payment-receipt-evidence:${receiptId}:123e4567-e89b-42d3-a456-426614174000`;
     const evidence = { ...request, ownerRecordType: 'payment_receipt', ownerRecordId: 'prcp_1', logicalTarget: target('prcp_1'), usage: 'payment_receipt_evidence' as const };
@@ -294,8 +300,10 @@ describe('StorageObjectService', () => {
     // The target must name the receipt it is uploaded for, and the owner must be a receipt at all.
     await expect(service.requestUpload({ ...evidence, logicalTarget: target('prcp_other'), actor })).rejects.toThrow('target its own receipt');
     await expect(service.requestUpload({ ...evidence, ownerRecordType: 'billing_statement', actor })).rejects.toThrow();
-    // Proof of payment is finance paperwork: the client who owns the event cannot upload or read it.
+    // The client may add proof only to a payment they reported that PMCM has not checked yet, never to PMCM's own receipts.
     await expect(service.requestUpload({ ...evidence, actor: client })).rejects.toThrow(ForbiddenException);
+    await expect(service.requestUpload({ ...evidence, ownerRecordId: 'prcp_client_checked', logicalTarget: target('prcp_client_checked'), actor: client })).rejects.toThrow(ForbiddenException);
+    await expect(service.requestUpload({ ...evidence, ownerRecordId: 'prcp_client', logicalTarget: target('prcp_client'), actor: client })).resolves.toMatchObject({ status: 'failed', reason: 'Storage provider is not configured' });
   });
 
   it('rejects new storage work for an event that no longer resolves', async () => {
@@ -871,6 +879,18 @@ describe('file access: lists and downloads follow one policy', () => {
       const store = createStore();
       return { store, adapter, service: new StorageObjectService(store.prisma as never, store.accessPolicy as never, new StorageValidationService(), adapter, store.platformReferences as never, store.auditWriter as never, attachmentGate as never) };
     }
+
+    it('lets a client finish uploading proof for a payment they reported, which only PMCM can then read', async () => {
+      const { service } = await localService();
+      const logicalTarget = `payment-receipt-evidence:prcp_client:${randomUUID()}`;
+      const requested = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'payment_receipt', ownerRecordId: 'prcp_client', logicalTarget, usage: 'payment_receipt_evidence', fileName: 'transfer.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
+      if (requested.status !== 'ready') throw new Error('expected upload location');
+      await service.writeAuthorizedUpload({ objectId: requested.object.id, uploadUrl: requested.location.uploadUrl, bytes, actor: clientAccount });
+
+      await expect(service.confirmUpload({ objectId: requested.object.id, byteSize: bytes.byteLength, checksumSha256, actor: clientAccount })).resolves.toMatchObject({ lifecycleState: 'stored', usage: 'payment_receipt_evidence' });
+      await expect(service.issueDownloadAuthorization({ objectId: requested.object.id, actor: clientAccount })).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.issueDownloadAuthorization({ objectId: requested.object.id, actor })).resolves.toHaveProperty('downloadUrl');
+    });
 
     it("copies a client's file into another of their events as that event's own document, once per target", async () => {
       const { service, adapter, store } = await localService();

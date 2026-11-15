@@ -16,14 +16,6 @@ export function statementFigures(statement: PrismStatementOfAccount, format: For
   return figures;
 }
 
-/**
- * What the billing page does not already say. It already shows what was billed, paid and still owed, so on the page the
- * statement adds only money paid back and credit being held. The printed statement keeps every figure.
- */
-export function statementHighlights(statement: PrismStatementOfAccount, format: Format): StatementFigure[] {
-  return statementFigures(statement, format).filter((figure) => figure.label === "Paid back to you" || figure.label === "Credit held for you");
-}
-
 /** The sign a line takes in the running picture: money in for you is shown as a payment, money back to you as a refund. */
 export function statementLineLabel(line: PrismStatementOfAccountLine): string {
   if (line.kind === "refund") return "Refund";

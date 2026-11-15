@@ -949,9 +949,13 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     }
   }
 
-  /** Write paths: the uploader's own object under the object-level rule, not requirement or billing read state. */
+  /**
+   * Write paths: the uploader's own object under the object-level rule, not requirement or billing read state. A client
+   * may finish uploading proof of payment they started, though only PMCM can read it afterwards.
+   */
   private async assertCanAccessObject(actor: ResolvedEventOpsActor, object: OpsStoredObject, resource: string) {
-    if (!canAccessStoredObject(actor, object, WRITE_ACCESS_CONTEXT)) {
+    const ownClientProof = actor.role === OpsUserRole.Client && object.usage === 'payment_receipt_evidence' && object.uploaderActorId === actor.id;
+    if (!ownClientProof && !canAccessStoredObject(actor, object, WRITE_ACCESS_CONTEXT)) {
       await this.accessPolicy.recordForbiddenAccess(actor, resource, object.eventId);
       throw new ForbiddenException('Stored object is outside the actor role scope');
     }
@@ -1049,8 +1053,11 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     if (input.ownerRecordType !== 'payment_receipt') throw new BadRequestException('Receipt evidence must belong to a payment receipt');
     const target = /^payment-receipt-evidence:([A-Za-z0-9_-]{1,100}):[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.exec(input.logicalTarget);
     if (!target || target[1] !== input.ownerRecordId) throw new ForbiddenException('Receipt evidence must target its own receipt');
+    // A client may add proof only to a payment they reported themselves that PMCM has not checked yet.
+    const client = input.actor.role === OpsUserRole.Client;
     const receipt = await this.prisma.opsPaymentReceipt.findFirst({
-      where: { id: input.ownerRecordId, eventId: input.eventId, status: { in: ['recorded', 'verified'] } }, select: { id: true },
+      where: { id: input.ownerRecordId, eventId: input.eventId, status: { in: client ? ['recorded'] : ['recorded', 'verified'] }, ...(client ? { source: 'client' } : {}) },
+      select: { id: true },
     });
     if (!receipt) throw new ForbiddenException('Receipt evidence must belong to a live receipt held for this event');
   }
@@ -1120,8 +1127,8 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       event_deliverable: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
       event_game_media: [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator],
       event_game_branding: [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator],
-      // Proof of payment is finance's: no client, supplier, guest or coordinator uploads or reads it.
-      payment_receipt_evidence: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
+      // Proof of payment is finance's to read. A client may upload it only for a payment they reported (checked above).
+      payment_receipt_evidence: [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client],
       // Anyone in a conversation may attach to it; membership of that conversation is the real gate.
       communication_attachment: [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client, OpsUserRole.Supplier, OpsUserRole.Coordinator],
     };

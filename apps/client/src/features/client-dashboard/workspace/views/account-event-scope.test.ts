@@ -5,7 +5,17 @@ import { ClientPortalBillingView } from "../../billing/views/client-portal-billi
 import { ClientFilesView } from "../../files/views/client-files-view";
 import { ClientAccountEventPicker } from "./sections/client-account-event-picker";
 
+const milestone = (id: string, label: string, dueDate: string, amount: number, paid: number) => ({
+  id, label, dueDate, amount, paid, remaining: amount - paid, status: paid >= amount ? "paid" : "pending", checking: 0, disputed: 0, settledOn: paid >= amount ? "2020-01-01" : null,
+});
+const statement = (eventId: string, eventName: string, milestones: ReturnType<typeof milestone>[]) => ({
+  eventId, eventName, generatedAt: "2026-11-14T00:00:00.000Z", available: true, statementNumber: `BS-${eventId}`,
+  billed: milestones.reduce((sum, item) => sum + item.amount, 0), received: 0, refunded: 0, creditHeld: 0,
+  balance: milestones.reduce((sum, item) => sum + item.remaining, 0), disputedOnStatement: 0, paymentMethods: [], submissions: [], lines: [], milestones,
+});
+
 const mocks = vi.hoisted(() => ({
+  statements: [] as unknown[],
   workspace: {
     events: [
       { id: "event-a", eventName: "Event A", eventDate: "2026-10-20", status: "planning", venue: "Hall A" },
@@ -35,6 +45,7 @@ vi.mock("@prism/portal-query", async (importOriginal) => ({
   useInvalidate: () => vi.fn(),
   useResource: (resource: { name: string }, eventId: string | null) => {
     if (resource.name === "client.event-stored-files") return { status: "ready", data: [], error: null, refreshing: false };
+    if (resource.name === "client.statements-of-account") return { status: "ready", data: mocks.statements, error: null, refreshing: false };
     if (resource.name === "client.event-file-requirements") {
       const items = eventId === "event-a" ? [{ key: "permit", label: "Venue permit", ownerRole: "client", origin: "custom", status: "missing", required: true, overdue: false }] : [];
       return { status: "ready", data: { eventId, items }, error: null, refreshing: false };
@@ -51,14 +62,19 @@ afterEach(() => {
 });
 
 describe("account pages with multiple events", () => {
-  it("offers an event choice for billing before showing event details", () => {
+  it("shows billing for every event on one page, with what is overdue first and each event linked", () => {
+    mocks.statements = [
+      statement("event-a", "Event A", [milestone("a1", "Downpayment", "2020-01-01", 100000, 100000), milestone("a2", "Balance", "2020-02-01", 50000, 0)]),
+      statement("event-b", "Event B", [milestone("b1", "Downpayment", "2099-01-01", 80000, 0)]),
+    ];
     const markup = renderToStaticMarkup(createElement(ClientPortalBillingView));
-    expect(markup).toContain("Choose an event to see its billing");
+
+    expect(markup).not.toContain("Choose an event");
+    expect(markup.indexOf("Overdue")).toBeLessThan(markup.indexOf("Later"));
+    expect(markup).toContain("₱50,000 overdue");
+    expect(markup).toContain("Paid so far");
     expect(markup).toContain('href="/dashboard/events/event-a/billing"');
     expect(markup).toContain('href="/dashboard/events/event-b/billing"');
-    expect(markup).toContain("Oct 20, 2026");
-    expect(markup).toContain("Hall A");
-    expect(markup).not.toContain("No billing workspace yet");
   });
 
   it("opens Files on the next upcoming event with what it still needs, keeping past events listed for later", () => {
@@ -77,19 +93,5 @@ describe("account pages with multiple events", () => {
     const markup = renderToStaticMarkup(createElement(ClientAccountEventPicker, { purpose: "approvals", destination: "approvals" }));
     expect(markup).toContain('href="/dashboard/events/event-a/approvals"');
     expect(markup).toContain('href="/dashboard/events/event-b/approvals"');
-  });
-
-  it("opens the only event's section directly, keeping a link as the fallback", () => {
-    const original = mocks.workspace.events;
-    try {
-      mocks.workspace.events = [original[0]];
-      mocks.workspace.selectedEvent = original[0];
-      const markup = renderToStaticMarkup(createElement(ClientPortalBillingView));
-      expect(markup).toContain("Opening billing for");
-      expect(markup).not.toContain("Choose an event");
-      expect(markup).toContain('href="/dashboard/events/event-a/billing"');
-    } finally {
-      mocks.workspace.events = original;
-    }
   });
 });

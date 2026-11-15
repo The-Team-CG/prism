@@ -44,7 +44,7 @@ describe("client dashboard shell copy", () => {
     ]);
     expect(clientBreadcrumbTrail({ isEventScopedView: false, portalView: "dashboard-overview", route: "home" })).toEqual(["Home"]);
     expect(clientBreadcrumbTrail({ isEventScopedView: false, route: "request" })).toEqual(["New event request"]);
-    expect(clientBreadcrumbTrail({ isEventScopedView: false, route: "billing", portalView: "dashboard-payment-reminders" })).toEqual(["Billing & Payments", "Payment reminders"]);
+    expect(clientBreadcrumbTrail({ isEventScopedView: false, route: "billing", portalView: "billing-overview" })).toEqual(["Billing & Payments"]);
   });
 
   it("falls back to loading copy when workspace state is not ready", () => {

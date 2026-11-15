@@ -1,6 +1,7 @@
 import {
-  PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES,
-  PAYMENT_RECEIPT_EVIDENCE_MAX_BYTES,
+  PAYMENT_RECEIPT_EVIDENCE_ACCEPT,
+  PAYMENT_RECEIPT_EVIDENCE_HINT,
+  paymentEvidenceProblem,
   type ListPaymentReceiptsQuery,
   type PrismPaymentReceipt,
   type PrismPaymentReceiptStatus,
@@ -96,19 +97,10 @@ export function receiptNotes(receipt: PrismPaymentReceipt): string[] {
   return notes;
 }
 
-const EVIDENCE_TYPE_BY_EXTENSION: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" };
-
-/** What a proof of payment may be, in words. The server enforces the same list. */
-export const EVIDENCE_ACCEPT = PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES.join(",");
-export const EVIDENCE_HINT = "A PDF, JPG or PNG up to 10 MB, such as a bank statement line or a wallet screenshot.";
-
-/** Why a file cannot be proof of payment, or null when it can. Checked before anything is uploaded. */
-export function evidenceProblem(file: { name: string; size: number; type: string }): string | null {
-  const type = file.type.toLowerCase() || EVIDENCE_TYPE_BY_EXTENSION[file.name.split(".").pop()?.toLowerCase() ?? ""] || "";
-  if (!(PAYMENT_RECEIPT_EVIDENCE_CONTENT_TYPES as readonly string[]).includes(type)) return "Proof must be a PDF, JPG or PNG.";
-  if (file.size === 0) return "That file is empty.";
-  return file.size > PAYMENT_RECEIPT_EVIDENCE_MAX_BYTES ? "Proof must be 10 MB or smaller." : null;
-}
+/** What a proof of payment may be. The shared contract holds the list the server enforces. */
+export const EVIDENCE_ACCEPT = PAYMENT_RECEIPT_EVIDENCE_ACCEPT;
+export const EVIDENCE_HINT = PAYMENT_RECEIPT_EVIDENCE_HINT;
+export const evidenceProblem = paymentEvidenceProblem;
 
 export function fileSizeLabel(bytes: number): string {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;

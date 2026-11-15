@@ -72,11 +72,6 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     icon: WalletCards,
     section: "Client Portal",
     route: "billing",
-    subItems: [
-      { id: "billing-overview", label: "Overview", route: "billing" },
-      { id: "billing-payment-schedule", label: "Payment Schedule", route: "billing" },
-      { id: "billing-balance", label: "Balance", route: "billing" },
-    ],
   },
 ];
 
@@ -249,7 +244,6 @@ export const CLIENT_PORTAL_VIEW_HREFS: Record<ClientPortalView, string> = {
   "dashboard-overview": "/dashboard",
   "dashboard-upcoming-events": "/dashboard/events/upcoming",
   "dashboard-pending-approvals": "/dashboard/approvals/pending",
-  "dashboard-payment-reminders": "/dashboard/billing/payment-reminders",
   "events-all": "/dashboard/events",
   "events-upcoming": "/dashboard/events/upcoming",
   "events-in-planning": "/dashboard/events/in-planning",
@@ -273,18 +267,12 @@ export const CLIENT_PORTAL_VIEW_HREFS: Record<ClientPortalView, string> = {
   "files-invoices-receipts": "/dashboard/files/invoices-receipts",
   "files-event-layouts": "/dashboard/files/event-layouts",
   "billing-overview": "/dashboard/billing",
-  "billing-statements": "/dashboard/billing/statements",
-  "billing-payment-schedule": "/dashboard/billing/payment-schedule",
-  "billing-payment-reminders": "/dashboard/billing/payment-reminders",
-  "billing-receipts": "/dashboard/billing/receipts",
-  "billing-balance": "/dashboard/billing/balance",
 };
 
 export const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; description: string }> = {
   "dashboard-overview": { title: "Home", description: "Your events and the decisions that need your attention." },
   "dashboard-upcoming-events": { title: "Upcoming events", description: "Confirmed PMCM events that still need planning attention." },
   "dashboard-pending-approvals": { title: "Pending approvals", description: "Client-visible items waiting for approval or review." },
-  "dashboard-payment-reminders": { title: "Payment reminders", description: "Open payment milestones and upcoming due dates." },
   "events-all": { title: "All events", description: "Your confirmed PMCM event workspaces." },
   "events-upcoming": { title: "Upcoming events", description: "Events that are still ahead on the calendar." },
   "events-in-planning": { title: "In planning", description: "Events currently moving through PMCM planning." },
@@ -307,12 +295,7 @@ export const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; 
   "files-quotations": { title: "Quotations", description: "Client-facing quotation files and references." },
   "files-invoices-receipts": { title: "Invoices / Receipts", description: "Invoices, billing statements, receipts, and payment proof." },
   "files-event-layouts": { title: "Event layouts", description: "Official layouts and client-safe floor plan files." },
-  "billing-overview": { title: "Billing & Payments", description: "Statements, payment schedule, receipts, and balance." },
-  "billing-statements": { title: "Statements", description: "Quotations and invoices PMCM has issued for your events." },
-  "billing-payment-schedule": { title: "Payment schedule", description: "Milestone due dates, payment status, and balances." },
-  "billing-payment-reminders": { title: "Payment reminders", description: "Open payment milestones and upcoming reminders." },
-  "billing-receipts": { title: "Receipts", description: "Recorded payment receipts and proof history." },
-  "billing-balance": { title: "Balance", description: "Remaining balance and current payment status." },
+  "billing-overview": { title: "Billing & Payments", description: "What is due, what you paid, and every payment across your events." },
 };
 
 function isPortalChromeView(portalView: ClientPortalView) {
