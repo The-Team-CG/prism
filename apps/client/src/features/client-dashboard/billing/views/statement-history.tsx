@@ -6,18 +6,9 @@ import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { formatPeso } from "@prism/ui/payment-track";
-import { createStatementOfAccountPdf } from "../model/statement-pdf";
+import { billingDocumentsRepository } from "../data/billing-documents-repository";
 import { statementLineAmount, statementLineLabel } from "../model/statement-of-account-rules";
-
-function downloadStatement(statement: PrismStatementOfAccount) {
-  const { blob, fileName } = createStatementOfAccountPdf(statement);
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
+import type { BillingDocumentDownload } from "../view-models/use-billing-document-download";
 
 function HistoryLines({ statement }: { statement: PrismStatementOfAccount }) {
   if (statement.lines.length === 0) return <p className="px-4 py-3 text-sm text-muted-foreground">Nothing has been received yet.</p>;
@@ -37,7 +28,7 @@ function HistoryLines({ statement }: { statement: PrismStatementOfAccount }) {
 }
 
 /** Every payment, credit and refund on record, oldest first, folded away until wanted; plus the printable statement of account. */
-export function StatementHistory({ statement }: { statement: PrismStatementOfAccount }) {
+export function StatementHistory({ statement, documents }: { statement: PrismStatementOfAccount; documents: BillingDocumentDownload }) {
   return (
     <Card className="gap-0 overflow-hidden py-0">
       <details>
@@ -52,7 +43,9 @@ export function StatementHistory({ statement }: { statement: PrismStatementOfAcc
           <HistoryLines statement={statement} />
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2.5">
             <p className="text-xs text-muted-foreground">{statement.lines.some((line) => line.reversed) ? "A reversed payment is shown for completeness and is not counted." : "The statement of account lists every figure above."}</p>
-            <Button variant="outline" size="sm" onClick={() => downloadStatement(statement)}><Download className="size-3.5" aria-hidden /> Statement of account</Button>
+            <Button variant="outline" size="sm" disabled={documents.busyKey === "statement"} onClick={() => void documents.download("statement", () => billingDocumentsRepository.statementOfAccount(statement.eventId))}>
+              <Download className="size-3.5" aria-hidden /> {documents.busyKey === "statement" ? "Preparing…" : "Statement of account"}
+            </Button>
           </div>
         </div>
       </details>

@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException } from '@nes
 import { describe, expect, it, vi } from 'vitest';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { approveBillingSourceSchema } from '@prism/types';
-import { BillingOperationsService, renderBillingPdf } from './billing-operations.service';
+import { BillingOperationsService } from './billing-operations.service';
 import { PaymentOperationsService } from './payment-operations.service';
 import { mapClientBillingDispute } from './billing-operations.mappers';
 import type { BillingActor } from '../../contracts/billing-operations.types';
@@ -498,17 +498,6 @@ describe('BillingOperationsService', () => {
       id: 'dispute_1', eventId: 'evt_sample', statementId: 'stmt_1', milestoneId: null, amount: 2000,
       severity: 'amount_discrepancy', status: 'open', createdAt: '2026-08-03T00:00:00.000Z', resolvedAt: null,
     });
-  });
-
-  it('renders a structurally parseable PDF with real newline bytes and matching xref offsets', () => {
-    const pdf = renderBillingPdf({ number: 'BS-2026-0001', sourceLabel: 'Approved proposal', totalAmount: 100000 });
-    const text = pdf.toString('utf8');
-    expect(text.startsWith('%PDF-')).toBe(true);
-    expect(pdf.includes(0x0a)).toBe(true);
-    expect(text.includes('\\n')).toBe(false);
-    const startxref = Number(text.match(/startxref\n(\d+)\n%%EOF/)?.[1]);
-    expect(text.slice(startxref, startxref + 4)).toBe('xref');
-    expect(text.match(/xref\n0 6\n0000000000 65535 f \n(?:\d{10} 00000 n \n){5}/)).not.toBeNull();
   });
 
   it('does not duplicate a retried payment record with the same reference number', async () => {

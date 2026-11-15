@@ -26,6 +26,24 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe("rendered files", () => {
+  it("downloads a billing PDF with the name the API gave it, and reports a refusal like any request", async () => {
+    vi.stubGlobal("window", undefined);
+    const fetchMock = vi.fn(async (url: string) => (url.includes("/receipt")
+      ? new Response(JSON.stringify({ statusCode: 403, message: "Forbidden" }), { status: 403 })
+      : new Response(new Blob(["%PDF-1.4"], { type: "application/pdf" }), { status: 200, headers: { "Content-Disposition": 'attachment; filename="statement-of-account-BS-1.pdf"' } })));
+    vi.stubGlobal("fetch", fetchMock);
+    const client = createEventOpsClient({ baseUrl: "https://api.example.test/api", getAuthToken: () => "client-session" });
+
+    const file = await client.events.statementOfAccountPdf("evt_1");
+
+    expect(file.fileName).toBe("statement-of-account-BS-1.pdf");
+    expect(await file.blob.text()).toBe("%PDF-1.4");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("https://api.example.test/api/events/evt_1/statement-of-account/pdf");
+    await expect(client.events.paymentReceiptPdf("evt_1", "rec_1")).rejects.toBeInstanceOf(PrismApiError);
+  });
+});
+
 describe("prismRequest", () => {
   it("keeps a session token off the public supplier quote link requests, and on the signed-in ones", async () => {
     vi.stubGlobal("window", undefined);

@@ -212,6 +212,28 @@ export async function prismRequest<T>(path: string, init: PrismRequestInit = {})
   return unwrapData<T>(responseBody);
 }
 
+/** A file the API rendered, such as a PDF, with the name the API gave it. */
+export interface PrismFile {
+  blob: Blob;
+  fileName: string;
+}
+
+function fileNameFrom(disposition: string | null, fallback: string): string {
+  const match = disposition?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  return match ? decodeURIComponent(match[1]) : fallback;
+}
+
+/** Fetch a file the API renders. Errors are reported the same way as JSON requests. */
+export async function prismFile(path: string, init: PrismRequestInit = {}, fallbackName = "download"): Promise<PrismFile> {
+  const { authToken, baseUrl, headers, onUnauthorized, onPrivacyNoticeRequired, body: _body, ...requestInit } = init;
+  const response = await fetchApi(`${resolvePrismApiBaseUrl(baseUrl)}${path}`, {
+    ...requestInit,
+    headers: { ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}), ...(headers ?? {}) },
+  });
+  if (!response.ok) handleErrorResponse(response.status, await parseResponseBody(response), { authToken, onUnauthorized, onPrivacyNoticeRequired });
+  return { blob: await response.blob(), fileName: fileNameFrom(response.headers.get("Content-Disposition"), fallbackName) };
+}
+
 type SseBuffer = { text: string; dataLines: string[] };
 
 function readSseLine(state: SseBuffer, rawLine: string, payloads: string[]) {

@@ -8,6 +8,7 @@ import type { PrismVerifiedEventActor } from '@prism/types';
 import { PaymentReceiptService } from '../../src/modules/commercial/application/billing/payment-receipt.service';
 import { StatementOfAccountService } from '../../src/modules/commercial/application/billing/statement-of-account.service';
 import { ClientPaymentSubmissionService } from '../../src/modules/commercial/application/billing/client-payment-submission.service';
+import { BillingDocumentsService } from '../../src/modules/commercial/application/billing/billing-documents.service';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 const live = Boolean(databaseUrl && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/prism_p0(?:\?|$)/.test(databaseUrl));
@@ -179,5 +180,26 @@ describe.skipIf(!live)('client statement of account against PostgreSQL', () => {
     await expect(submissions.submit(id('event_c'), { ...input, milestoneId: id('milestone_b') }, client)).rejects.toThrow(NotFoundException);
     await expect(submissions.submit(id('event_c'), { ...input, method: 'GCash', referenceNumber: `GC-CLIENT-${suffix}` }, client)).rejects.toThrow(/already has a payment/);
     await expect(submissions.attachProof(id('event_c'), `missing_${suffix}`, { objectId: 'obj' }, actor(OpsUserRole.Supplier))).rejects.toThrow(ForbiddenException);
+  });
+
+  it('prints the statement of account and a receipt for each counted payment, for the client and PMCM only', async () => {
+    const documents = new BillingDocumentsService(prisma, service);
+    const client = actor(OpsUserRole.Client, clientEmail);
+    const statementPdf = await documents.statementOfAccountPdf(id('event_a'), client);
+    expect(statementPdf.pdf.subarray(0, 8).toString('latin1')).toBe('%PDF-1.4');
+    expect(statementPdf.pdf.toString('latin1')).toContain(`SOA-${suffix}`);
+
+    const records = await prisma.opsPaymentRecord.findMany({ where: { eventId: id('event_a'), reversesRecordId: null }, include: { reversedBy: true } });
+    const counted = records.find((record) => !record.reversedBy)!;
+    const undone = records.find((record) => record.reversedBy)!;
+    await expect(documents.paymentReceiptPdf(id('event_a'), counted.id, client)).resolves.toMatchObject({ fileName: expect.stringMatching(/^payment-receipt-R-/) });
+    await expect(documents.paymentReceiptPdf(id('event_a'), undone.id, client)).rejects.toThrow(ConflictException);
+    await expect(documents.paymentReceiptPdf(id('event_b'), counted.id, actor(OpsUserRole.PmcmAdmin, 'admin@example.test'))).rejects.toThrow(NotFoundException);
+    for (const verified of [actor(OpsUserRole.Client, `someone-else-${suffix}@example.test`), actor(OpsUserRole.Supplier)]) {
+      await expect(documents.statementOfAccountPdf(id('event_a'), verified)).rejects.toThrow(ForbiddenException);
+      await expect(documents.paymentReceiptPdf(id('event_a'), counted.id, verified)).rejects.toThrow(ForbiddenException);
+    }
+    // Before PMCM sends the statement, the client gets no document.
+    await expect(documents.statementOfAccountPdf(id('event_b'), client)).rejects.toThrow(NotFoundException);
   });
 });

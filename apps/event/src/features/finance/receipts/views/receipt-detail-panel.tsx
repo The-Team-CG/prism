@@ -9,6 +9,7 @@ import { PrismEmptyLine } from "@prism/ui/page-blocks";
 import { money } from "@/features/pmcm-kit";
 import { RECEIPT_STATUS_LABELS, fileSizeLabel, receiptActions, receiptNotes, receiptOutcomes, receiptTitle } from "../model/receipt-rules";
 import type { PaymentReceiptsViewModel, ReceiptDialog } from "../view-models/use-payment-receipts-view-model";
+import { useProofPreview, type ProofPreview } from "../view-models/use-proof-preview";
 
 function Heading({ children }: { children: string }) {
   return <h3 className="text-xs font-semibold text-muted-foreground">{children}</h3>;
@@ -60,8 +61,18 @@ function Notes({ receipt }: { receipt: PrismPaymentReceipt }) {
   );
 }
 
-/** Proof of payment: the file that shows the money arrived. Only PMCM can open it; clients never see it. */
+function ProofFrame({ preview, fileName }: { preview: ProofPreview; fileName: string }) {
+  if (preview.status === "loading") return <div className="grid h-48 place-items-center rounded-md bg-muted/50 text-xs text-muted-foreground">Loading the proof…</div>;
+  if (preview.status === "error") return <p className="rounded-md bg-danger-soft px-3 py-2 text-xs text-danger">{preview.message}</p>;
+  if (preview.status !== "ready") return null;
+  return preview.kind === "pdf"
+    ? <iframe title={`Proof of payment: ${fileName}`} src={preview.url} className="h-72 w-full rounded-md border border-border bg-white" />
+    : <img src={preview.url} alt={`Proof of payment: ${fileName}`} className="max-h-80 w-full rounded-md border border-border bg-white object-contain" />;
+}
+
+/** Proof of payment, shown inline so PMCM can check it against the amount and reference without leaving the receipt. */
 function Evidence({ receipt, onView }: { receipt: PrismPaymentReceipt; onView: () => void }) {
+  const preview = useProofPreview(receipt.evidence);
   const { evidence } = receipt;
   const actions = receiptActions(receipt);
   if (!evidence && !actions.attachEvidence && !actions.earmark) return null;
@@ -74,13 +85,14 @@ function Evidence({ receipt, onView }: { receipt: PrismPaymentReceipt; onView: (
             {evidence.fileName}
             <span className="block text-xs text-muted-foreground">{fileSizeLabel(evidence.byteSize)}</span>
           </span>
-          <Button variant="outline" size="sm" onClick={onView}>Open</Button>
+          <Button variant="outline" size="sm" onClick={onView}>Download</Button>
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">
           {actions.earmark ? "Set the event this money was meant for, then attach proof of payment." : "No proof is attached yet. Attach the bank statement line or wallet screenshot."}
         </p>
       )}
+      {evidence ? <ProofFrame preview={preview} fileName={evidence.fileName} /> : null}
     </section>
   );
 }
@@ -126,10 +138,11 @@ function Refunds({ receipt }: { receipt: PrismPaymentReceipt }) {
 function Actions({ receipt, onOpen }: { receipt: PrismPaymentReceipt; onOpen: (dialog: ReceiptDialog) => void }) {
   const actions = receiptActions(receipt);
   const buttons: Array<{ show: boolean; kind: ReceiptDialog["kind"]; label: string; primary?: boolean }> = [
-    { show: actions.allocate, kind: "allocate", label: "Apply to a milestone", primary: true },
+    { show: actions.verify && Boolean(receipt.evidence), kind: "verify", label: "Verify", primary: true },
+    { show: actions.allocate, kind: "allocate", label: "Apply to a milestone", primary: !(actions.verify && receipt.evidence) },
     { show: actions.earmark, kind: "earmark", label: "Set event" },
     { show: actions.attachEvidence, kind: "evidence", label: receipt.evidence ? "Replace proof" : "Attach proof" },
-    { show: actions.verify, kind: "verify", label: "Verify" },
+    { show: actions.verify && !receipt.evidence, kind: "verify", label: "Verify" },
     { show: actions.refund, kind: "refund", label: "Record refund" },
     { show: actions.reject, kind: "reject", label: "Reject" },
     { show: actions.reverse, kind: "reverse", label: "Reverse" },
@@ -152,9 +165,9 @@ export function ReceiptDetailPanel({ vm }: { vm: PaymentReceiptsViewModel }) {
       <Balances receipt={receipt} />
       <Notes receipt={receipt} />
       <Evidence receipt={receipt} onView={() => void vm.openEvidence()} />
+      <Actions receipt={receipt} onOpen={vm.openDialog} />
       <Allocations receipt={receipt} onUndo={(recordId) => vm.openDialog({ kind: "reverse-allocation", recordId })} />
       <Refunds receipt={receipt} />
-      <Actions receipt={receipt} onOpen={vm.openDialog} />
     </aside>
   );
 }

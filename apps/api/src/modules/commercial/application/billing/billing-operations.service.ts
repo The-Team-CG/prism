@@ -20,26 +20,7 @@ import type {
   BillingScheduleInput,
   CreateBillingSourceInput,
 } from '../../contracts/billing-operations.types';
-
-export function renderBillingPdf(input: { number: string; sourceLabel: string; totalAmount: number }) {
-  const text = `P.R.I.S.M BILLING STATEMENT\n${input.number}\nSource: ${input.sourceLabel}\nTotal: ${input.totalAmount}`;
-  const body = `BT /F1 12 Tf 72 720 Td (${text.replace(/[()\\]/g, '')}) Tj ET`;
-  const objects = [
-    '<< /Type /Catalog /Pages 2 0 R >>',
-    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
-    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
-    `<< /Length ${Buffer.byteLength(body, 'utf8')} >>\nstream\n${body}\nendstream`,
-    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
-  ];
-  let pdf = '%PDF-1.4\n';
-  const offsets = [0];
-  objects.forEach((object, index) => { offsets.push(Buffer.byteLength(pdf, 'utf8')); pdf += `${index + 1} 0 obj\n${object}\nendobj\n`; });
-  const start = Buffer.byteLength(pdf, 'utf8');
-  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-  offsets.slice(1).forEach((offset) => { pdf += `${String(offset).padStart(10, '0')} 00000 n \n`; });
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${start}\n%%EOF`;
-  return Buffer.from(pdf, 'utf8');
-}
+import { renderBillingStatementPdf } from './documents/billing-documents';
 
 type ProposalEvidenceCheck = { citedProposalVersion?: number; evidenceOverrideReason?: string; totalOverrideReason?: string };
 
@@ -316,7 +297,10 @@ export class BillingOperationsService {
         const sourceStatement = await tx.opsBillingStatement.findFirst({ where: { sourceId: source.id }, select: { id: true } });
         if (sourceStatement) throw new ConflictException('A billing statement already exists for this source.');
         billingNumber = await this.allocateBillingNumber(tx, event.eventDate.getFullYear());
-        pdfBytes = renderBillingPdf({ number: billingNumber, sourceLabel: source.sourceLabel, totalAmount: source.totalAmount });
+        pdfBytes = renderBillingStatementPdf({
+          number: billingNumber, issuedOn: new Date().toISOString(), clientName: inquiry?.clientName ?? event.clientName, clientContact: inquiry?.email ?? '',
+          eventName: event.eventName, eventDate: event.eventDate.toISOString().slice(0, 10), lineItems, schedule: paymentSchedule, methods: paymentMethods, total: source.totalAmount,
+        });
         const storage = await this.prepareBillingStatementStorage(eventId, statementId, billingNumber, source, pdfBytes, actor);
         storageState = storage.storageState;
         storageObjectId = storage.storageObjectId;

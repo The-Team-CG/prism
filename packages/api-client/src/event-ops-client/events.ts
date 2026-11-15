@@ -15,7 +15,7 @@ import type {
   PrismEventRiskView,
   SignAddendumConformeExecutionInput,
 } from "@prism/types";
-import { prismRequest, toQueryString } from "../http";
+import { prismFile, prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase, actorPath } from "./shared";
 
@@ -157,6 +157,10 @@ export function createEventsClient(
         ),
       statementOfAccount: (eventId, init = {}) =>
         prismRequest<PrismStatementOfAccount>(`/events/${eventId}/statement-of-account`, withBase(options, { signal: init.signal })),
+      statementOfAccountPdf: (eventId) =>
+        prismFile(`/events/${encodeURIComponent(eventId)}/statement-of-account/pdf`, withBase(options), "statement-of-account.pdf"),
+      paymentReceiptPdf: (eventId, recordId) =>
+        prismFile(`/events/${encodeURIComponent(eventId)}/payment-records/${encodeURIComponent(recordId)}/receipt`, withBase(options), "payment-receipt.pdf"),
       freezeExceptions: (eventId, actor = {}) =>
         prismRequest<PrismEventFreezeException[]>(
           actorPath(`/events/${eventId}/freeze-exceptions`, actor),
