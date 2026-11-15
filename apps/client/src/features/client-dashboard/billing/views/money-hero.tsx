@@ -70,7 +70,7 @@ export function MoneyHero({
         {owing ? (
           <>
             <Button size="sm" onClick={() => onReportPayment(headline.milestoneId ?? undefined)}><Send className="size-4" aria-hidden /> I&apos;ve paid</Button>
-            <HowToPay methods={statement.paymentMethods} statementNumber={statement.statementNumber} amount={amountToSend(statement, manilaDateKey())} />
+            <HowToPay eventId={statement.eventId} payTo={statement.payTo} changedSinceIssued={statement.payToChangedSinceIssued} statementNumber={statement.statementNumber} amount={amountToSend(statement, manilaDateKey())} messagesHref={messagesHref} />
           </>
         ) : null}
         {statementPdf ? (

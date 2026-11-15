@@ -38,7 +38,7 @@ describe('statement of account', () => {
     const unsent = { number: 'BS-1', totalAmount: 150000, sentAt: null, generatedAt: d('2026-09-30') };
 
     expect(buildStatementOfAccount(inputs({ statement: unsent }))).toEqual({
-      available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, disputedOnStatement: 0, milestones: [], paymentMethods: [], payTo: [], payToChangedSinceIssued: false, submissions: [], lines: [],
+      available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, disputedOnStatement: 0, milestones: [], payTo: [], payToChangedSinceIssued: false, submissions: [], lines: [],
     });
     expect(buildStatementOfAccount(inputs({ statement: null })).available).toBe(false);
     expect(buildStatementOfAccount(inputs({ statement: unsent, viewer: 'pmcm' }))).toMatchObject({ available: true, billed: 150000 });
@@ -148,10 +148,7 @@ describe('statement of account', () => {
 
     const current = buildStatementOfAccount(inputs({ statement: issuedWith(2), paymentDetails: { revision: 2, methods: [bpi, gcash] } }));
     expect(current.payTo).toEqual([bpi, gcash]);
-    expect(current.paymentMethods).toEqual([
-      { label: 'BPI', details: ['PMCM Events', '1234 5678', 'Use the statement number'].join('\n') },
-      { label: 'GCash', details: ['PMCM Finance', '0917 123 4567'].join('\n') },
-    ]);
+    expect(current).not.toHaveProperty('paymentMethods');
     expect(current.payToChangedSinceIssued).toBe(false);
 
     expect(buildStatementOfAccount(inputs({ statement: issuedWith(1), paymentDetails: { revision: 2, methods: [bpi] } })).payToChangedSinceIssued).toBe(true);
@@ -160,7 +157,7 @@ describe('statement of account', () => {
 
     // Nothing turned on, or nothing given: the client is shown no account at all, not a placeholder.
     const none = buildStatementOfAccount(inputs({ statement: issuedWith(2), paymentDetails: { revision: 3, methods: [] } }));
-    expect(none).toMatchObject({ payTo: [], paymentMethods: [] });
-    expect(buildStatementOfAccount(inputs({ statement: issuedWith(2) }))).toMatchObject({ payTo: [], paymentMethods: [], payToChangedSinceIssued: false });
+    expect(none).toMatchObject({ payTo: [], payToChangedSinceIssued: true });
+    expect(buildStatementOfAccount(inputs({ statement: issuedWith(2) }))).toMatchObject({ payTo: [], payToChangedSinceIssued: false });
   });
 });

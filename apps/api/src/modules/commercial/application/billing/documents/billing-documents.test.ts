@@ -17,7 +17,7 @@ const bpi: PaymentMethod = { kind: 'bank', id: '00000000-0000-4000-8000-00000000
 
 const statement = (overrides: Partial<PrismStatementOfAccount> = {}): PrismStatementOfAccount => ({
   eventId: 'evt', eventName: 'UAT Live Ops Event', generatedAt: '', available: true, statementNumber: 'BS-2026-0003', billed: 420000, received: 270000, refunded: 0,
-  creditHeld: 0, balance: 150000, disputedOnStatement: 0, paymentMethods: [], payTo: [bpi], payToChangedSinceIssued: false, submissions: [],
+  creditHeld: 0, balance: 150000, disputedOnStatement: 0, payTo: [bpi], payToChangedSinceIssued: false, submissions: [],
   milestones: [
     { id: 'm1', label: 'Downpayment', dueDate: '2026-09-26', amount: 210000, paid: 210000, remaining: 0, status: 'paid', checking: 0, disputed: 0, settledOn: '2026-09-25' },
     { id: 'm2', label: 'Second payment', dueDate: '2026-10-19', amount: 126000, paid: 60000, remaining: 66000, status: 'partially_paid', checking: 60000, disputed: 0, settledOn: null },

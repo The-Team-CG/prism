@@ -4,4 +4,6 @@ import { clientApi } from "@/lib/prism-api";
 export const billingDocumentsRepository = {
   statementOfAccount: (eventId: string) => clientApi.events.statementOfAccountPdf(eventId),
   paymentReceipt: (eventId: string, recordId: string) => clientApi.events.paymentReceiptPdf(eventId, recordId),
+  /** A payment QR the statement shows. */
+  paymentQr: (eventId: string, imageId: string) => clientApi.events.paymentQrImage(eventId, imageId),
 };

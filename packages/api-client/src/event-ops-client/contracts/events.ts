@@ -112,6 +112,8 @@ export interface EventOpsEventsContract {
     statementOfAccount(eventId: string, init?: EventOpsReadInit): Promise<PrismStatementOfAccount>;
     /** The statement of account as a printable PDF. */
     statementOfAccountPdf(eventId: string): Promise<PrismFile>;
+    /** A payment QR image the client's statement shows, for scanning from their own banking app. */
+    paymentQrImage(eventId: string, imageId: string): Promise<PrismFile>;
     /** A receipt for one payment on the statement. */
     paymentReceiptPdf(eventId: string, recordId: string): Promise<PrismFile>;
     freezeExceptions(
