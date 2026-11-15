@@ -1,5 +1,6 @@
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
-import { manilaCalendarKey, manilaClockKey } from "@prism/ui/format-date";
+import { manilaCalendarKey, manilaClockKey, manilaDateKey } from "@prism/ui/format-date";
+import { PAYMENT_CALENDAR_LOOK, paymentCalendarState, type PortalCalendarLook } from "@prism/ui/portal-calendar";
 import { buildQuoteByRequest, formatMoney, isRequestClosed } from "./supplier-workspace-rules";
 import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, SupplierWorkspace } from "./supplier-workspace-types";
 import { supplierSectionHref, supplierWorkTargetHref } from "./supplier-workspace-types";
@@ -16,6 +17,8 @@ export type SupplierCalendarItem = {
   href: string;
   /** Philippine wall-clock time, HH:mm; absent for all-day items. */
   startTime?: string;
+  /** Payments are coloured late once PMCM has missed their date. */
+  look?: PortalCalendarLook;
 };
 
 type ReadinessItems = PrismSupplierReadinessBoard["items"];
@@ -84,16 +87,21 @@ function deliverableItems(workflow: PrismSupplierWorkflowWorkspace, eventName: E
   }));
 }
 
-function paymentItems(workflow: PrismSupplierWorkflowWorkspace, eventName: EventName): SupplierCalendarItem[] {
-  return workflow.payables.filter((payable) => payable.dueDate && UNPAID_PAYABLE_STATUSES.includes(payable.status)).map((payable) => ({
-    id: `payment:${payable.id}`,
-    date: manilaCalendarKey(payable.dueDate as string),
-    title: `Payment: ${payable.label}`,
-    chipLabel: payable.label,
-    detail: `${formatMoney(payable.remainingBalance)} · ${eventName(payable.eventId)}`,
-    kind: "payment",
-    href: supplierSectionHref("payments"),
-  }));
+function paymentItems(workflow: PrismSupplierWorkflowWorkspace, eventName: EventName, today: string): SupplierCalendarItem[] {
+  return workflow.payables.filter((payable) => payable.dueDate && UNPAID_PAYABLE_STATUSES.includes(payable.status)).map((payable) => {
+    const date = manilaCalendarKey(payable.dueDate as string);
+    const look = PAYMENT_CALENDAR_LOOK[paymentCalendarState(date, today, false)];
+    return {
+      id: `payment:${payable.id}`,
+      date,
+      title: `Payment: ${payable.label}`,
+      chipLabel: `${payable.label} · ${look.word}`,
+      detail: `${formatMoney(payable.remainingBalance)} · ${eventName(payable.eventId)}`,
+      kind: "payment",
+      href: supplierSectionHref("payments"),
+      look: { chip: look.chip, dot: look.dot, label: look.label },
+    };
+  });
 }
 
 /** Everything dated on the supplier's own work; each item links to the place it is acted on. */
@@ -101,6 +109,7 @@ export function buildSupplierCalendarItems(
   workspace: Pick<SupplierWorkspace, "quoteRequests" | "supplierQuotes">,
   readinessBoard: PrismSupplierReadinessBoard | null,
   workflowWorkspace: PrismSupplierWorkflowWorkspace | null,
+  today = manilaDateKey(),
 ): SupplierCalendarItem[] {
   const quoteByRequest = buildQuoteByRequest(workspace.supplierQuotes);
   const readiness = readinessBoard?.items ?? [];
@@ -112,7 +121,7 @@ export function buildSupplierCalendarItems(
     ...deadlineItems(workspace.quoteRequests, isLive, eventName),
     ...eventDayItems(readiness, workspace.quoteRequests, isLive),
     ...(workflowWorkspace
-      ? [...scheduleItems(workflowWorkspace, eventName), ...deliverableItems(workflowWorkspace, eventName), ...paymentItems(workflowWorkspace, eventName)]
+      ? [...scheduleItems(workflowWorkspace, eventName), ...deliverableItems(workflowWorkspace, eventName), ...paymentItems(workflowWorkspace, eventName, today)]
       : []),
   ].sort((left, right) => left.date.localeCompare(right.date));
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, Copy, Landmark } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@prism/ui/components/popover";
+import { formatPeso } from "@prism/ui/payment-track";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -25,7 +26,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 }
 
 /** Where to send the money, as printed on the billing statement, and what to write as the reference. */
-export function HowToPay({ methods, statementNumber }: { methods: Array<{ label: string; details: string }>; statementNumber: string | null }) {
+export function HowToPay({ methods, statementNumber, amount }: { methods: Array<{ label: string; details: string }>; statementNumber: string | null; amount: number }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -33,6 +34,12 @@ export function HowToPay({ methods, statementNumber }: { methods: Array<{ label:
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80 space-y-3">
         <p className="text-sm font-semibold text-foreground">How to pay</p>
+        {amount > 0 ? (
+          <p className="flex items-center justify-between gap-2 rounded-md bg-primary-soft/60 p-2.5">
+            <span className="text-xs text-muted-foreground">Amount to send<span className="block text-base font-semibold tabular-nums text-foreground">{formatPeso(amount)}</span></span>
+            <CopyButton text={String(amount)} label="amount" />
+          </p>
+        ) : null}
         {methods.length === 0 ? (
           <p className="text-sm text-muted-foreground">PMCM has not listed payment details on this statement. Ask PMCM where to send the payment.</p>
         ) : (

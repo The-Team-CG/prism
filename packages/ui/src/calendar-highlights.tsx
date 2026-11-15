@@ -7,6 +7,12 @@ import { formatPortalDate } from "./format-date";
 import type { PortalCalendarItem, PortalCalendarItemRenderer, PortalCalendarKind } from "./portal-calendar";
 import { cn } from "./utils";
 
+/** An item's own look laid over its kind's, for the chip, the dot and the name a highlight or details panel shows. */
+export function lookOf(kinds: Record<string, PortalCalendarKind>, item: PortalCalendarItem): PortalCalendarKind {
+  const kind = kinds[item.kind] ?? { label: item.kind, chip: "bg-muted text-foreground", dot: "bg-muted-foreground" };
+  return { ...kind, ...item.look };
+}
+
 export function CalendarHighlights<Item extends PortalCalendarItem>({ items, kinds, today, renderItem }: {
   items: Item[];
   kinds: Record<string, PortalCalendarKind>;
@@ -38,7 +44,7 @@ export function CalendarHighlights<Item extends PortalCalendarItem>({ items, kin
       </div>
       <div id={id} role="region" aria-label="Schedule highlights" hidden={expanded === false} className={cn("grid-cols-1 gap-3 pb-2 pt-2 sm:grid-cols-3", expanded === null ? "hidden sm:grid" : expanded ? "grid" : "hidden")}>
         {highlights.map((item) => {
-          const kind = kinds[item.kind] ?? { label: item.kind, chip: "bg-muted text-foreground", dot: "bg-muted-foreground" };
+          const kind = lookOf(kinds, item);
           const time = item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : "All day";
           const date = item.date === today ? "Today" : formatPortalDate(item.date);
           return <Fragment key={item.id}>{renderItem({

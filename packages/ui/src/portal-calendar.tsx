@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperti
 import { Info } from "lucide-react";
 import { CalendarFilters, CalendarToolbar, type CalendarDayLayout, type CalendarTiming } from "./calendar-toolbar";
 import { monthOfDateKey } from "./calendar-grid";
-import { CalendarHighlights } from "./calendar-highlights";
+import { CalendarHighlights, lookOf } from "./calendar-highlights";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import {
   AGENDA_DAYS,
@@ -45,8 +45,27 @@ export type PortalCalendarItem = {
   /** Philippine wall-clock time, HH:mm. Items without one are all-day. */
   startTime?: string;
   endTime?: string;
+  /** Overrides the kind's colours and name for this item, such as a payment coloured by whether it is paid, late or due. */
+  look?: PortalCalendarLook;
 };
 export type PortalCalendarKind = { label: string; chip: string; dot: string };
+export { lookOf };
+export type PortalCalendarLook = Partial<PortalCalendarKind> & { chip: string };
+
+export type PaymentCalendarState = "paid" | "late" | "due";
+
+/** One colour per payment state on every portal's calendar, with the word that says it so colour is never alone. */
+export const PAYMENT_CALENDAR_LOOK: Record<PaymentCalendarState, PortalCalendarKind & { word: string }> = {
+  paid: { label: "Paid", chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success", word: "paid" },
+  late: { label: "Payment late", chip: "bg-danger-soft text-danger hover:bg-danger/15", dot: "bg-danger", word: "late" },
+  due: { label: "Payment due", chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention", word: "due" },
+};
+
+/** Paid when nothing is left; late when its date has passed; otherwise due. Dates are YYYY-MM-DD. */
+export function paymentCalendarState(dueDate: string, today: string, paid: boolean): PaymentCalendarState {
+  if (paid) return "paid";
+  return dueDate < today ? "late" : "due";
+}
 
 /** Portals own navigation: each renders the link or button for an item with the class and style it is given. */
 export type PortalCalendarItemRenderer<Item extends PortalCalendarItem> = (input: {
@@ -99,6 +118,7 @@ const chipBase = "w-full min-w-0 line-clamp-2 break-words rounded-md border-l-2 
 const weekendTexture: CSSProperties = { backgroundImage: "repeating-linear-gradient(135deg, transparent, transparent 4px, color-mix(in srgb, var(--border) 28%, transparent) 4px, color-mix(in srgb, var(--border) 28%, transparent) 5px)" };
 const isWeekend = (dateKey: string) => [0, 6].includes(new Date(`${dateKey}T00:00:00Z`).getUTCDay());
 const kindOf = (kinds: Record<string, PortalCalendarKind>, kind: string) => kinds[kind] ?? { label: kind, chip: "bg-muted text-foreground", dot: "bg-muted-foreground" };
+const chipOf = (kinds: Record<string, PortalCalendarKind>, item: PortalCalendarItem) => lookOf(kinds, item).chip;
 const timeRange = (item: PortalCalendarItem) => (item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : "All day");
 const tooltip = (item: PortalCalendarItem) => [item.title, item.startTime ? timeRange(item) : null, item.detail].filter(Boolean).join(" · ");
 
@@ -218,7 +238,7 @@ function CalendarContent<Item extends PortalCalendarItem>({ view, dayLayout, anc
 }
 
 function ItemPanel<Item extends PortalCalendarItem>({ item, kinds, detail, onClose }: { item: Item | null; kinds: Record<string, PortalCalendarKind>; detail: PortalCalendarDetail<Item>; onClose: () => void }) {
-  const kind = item ? kindOf(kinds, item.kind) : null;
+  const kind = item ? lookOf(kinds, item) : null;
   return (
     <Sheet open={item !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
       {item && kind ? (
@@ -252,7 +272,7 @@ function MonthView<Item extends PortalCalendarItem>({ items, kinds, today, rende
         item,
         variant: "chip",
         title: tooltip(item),
-        className: cn(chipBase, kindOf(kinds, item.kind).chip, outside && "opacity-60"),
+        className: cn(chipBase, chipOf(kinds, item), outside && "opacity-60"),
         children: <>{item.startTime ? <span className="mr-1 font-normal opacity-70">{clockLabel(item.startTime)}</span> : null}{item.chipLabel ?? item.title}</>,
       })}
     </Fragment>
@@ -348,7 +368,7 @@ function TimeGridView<Item extends PortalCalendarItem>({ items, kinds, today, re
             {dates.map((dateKey) => (
               <div key={dateKey} className={cn("flex min-w-0 flex-col gap-1.5 border-l border-border/50 p-1.5", dateKey === today && "bg-primary/[0.025]")}>
                 {(byDate.get(dateKey) ?? []).filter((item) => !item.startTime).map((item) => (
-                  <Fragment key={item.id}>{renderItem({ item, variant: "chip", title: tooltip(item), className: cn(chipBase, kindOf(kinds, item.kind).chip), children: item.title })}</Fragment>
+                  <Fragment key={item.id}>{renderItem({ item, variant: "chip", title: tooltip(item), className: cn(chipBase, chipOf(kinds, item)), children: item.title })}</Fragment>
                 ))}
               </div>
             ))}
@@ -393,7 +413,7 @@ function DayColumn<Item extends PortalCalendarItem>({ dateKey, items, kinds, ren
               variant: "block",
               title: tooltip(item),
               style,
-              className: cn("absolute flex flex-col items-start overflow-hidden rounded-md border border-current/5 border-l-2 border-l-current/25 bg-linear-to-b from-card/15 to-transparent px-2 text-left text-xs shadow-xs transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", span.end - span.start < 45 ? "py-0.5" : "py-2", kindOf(kinds, item.kind).chip),
+              className: cn("absolute flex flex-col items-start overflow-hidden rounded-md border border-current/5 border-l-2 border-l-current/25 bg-linear-to-b from-card/15 to-transparent px-2 text-left text-xs shadow-xs transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", span.end - span.start < 45 ? "py-0.5" : "py-2", chipOf(kinds, item)),
               children: <><span className={cn("w-full font-medium leading-snug", span.end - span.start < 60 ? "truncate" : "line-clamp-2")}>{item.title}</span>{span.end - span.start >= 45 ? <span className="mt-1 block w-full truncate opacity-80">{timeRange(item)}</span> : null}{item.detail && span.end - span.start >= 90 ? <span className="mt-auto block w-full truncate pt-2 opacity-80">{item.detail}</span> : null}</>,
             })}
           </Fragment>
@@ -429,7 +449,7 @@ function AgendaList<Item extends PortalCalendarItem>({ dates, byDate, kinds, ren
                   item,
                   variant: "card",
                   title: tooltip(item),
-                  className: cn("block w-full min-w-0 rounded-md px-3 py-2.5 text-left", kindOf(kinds, item.kind).chip),
+                  className: cn("block w-full min-w-0 rounded-md px-3 py-2.5 text-left", chipOf(kinds, item)),
                   children: <><span className="block break-words text-sm font-medium">{item.title}</span><span className="mt-0.5 block break-words text-xs opacity-80">{[timeRange(item), item.detail].filter(Boolean).join(" · ")}</span></>,
                 })}
               </li>

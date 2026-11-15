@@ -7,7 +7,8 @@ import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
 import { formatPeso, PaymentRing } from "@prism/ui/payment-track";
 import { cn } from "@/app/components/ui/utils";
-import type { MoneyHeadline, MoneyTone } from "../model/client-money-rules";
+import { manilaDateKey } from "@prism/ui/format-date";
+import { amountToSend, type MoneyHeadline, type MoneyTone } from "../model/client-money-rules";
 import { HowToPay } from "./how-to-pay";
 
 const TONE: Record<MoneyTone, { icon: LucideIcon; text: string; chip: string }> = {
@@ -69,7 +70,7 @@ export function MoneyHero({
         {owing ? (
           <>
             <Button size="sm" onClick={() => onReportPayment(headline.milestoneId ?? undefined)}><Send className="size-4" aria-hidden /> I&apos;ve paid</Button>
-            <HowToPay methods={statement.paymentMethods} statementNumber={statement.statementNumber} />
+            <HowToPay methods={statement.paymentMethods} statementNumber={statement.statementNumber} amount={amountToSend(statement, manilaDateKey())} />
           </>
         ) : null}
         {statementPdf ? (

@@ -26,7 +26,7 @@ describe("buildSupplierCalendarItems", () => {
       contracts: [],
     } as unknown as PrismSupplierWorkflowWorkspace;
 
-    const items = buildSupplierCalendarItems(workspace, board, workflow);
+    const items = buildSupplierCalendarItems(workspace, board, workflow, "2026-11-10");
 
     expect(items.map((item) => [item.kind, item.date])).toEqual([
       ["deadline", "2026-11-12"],
@@ -43,11 +43,11 @@ describe("buildSupplierCalendarItems", () => {
       ["arrival", "06:00"],
       ["departure", "18:00"],
     ]);
-    // Month-cell labels name the event, so a chip reads on its own without opening it.
+    // Month-cell labels name the event, so a chip reads on its own without opening it; a payment says whether it is due or late.
     expect(items.map((item) => [item.kind, item.chipLabel])).toEqual([
       ["deadline", "Gala"],
       ["deliverable", "Slides"],
-      ["payment", "Deposit"],
+      ["payment", "Deposit · due"],
       ["event", "Gala"],
       ["arrival", "Arrive · Gala"],
       ["departure", "Leave · Gala"],
@@ -55,6 +55,10 @@ describe("buildSupplierCalendarItems", () => {
     expect(items.find((item) => item.kind === "event")?.href).toBe("/dashboard/bookings#supplier-work-won");
     expect(items.find((item) => item.kind === "deadline")?.href).toBe("/dashboard/requests#supplier-work-open");
     expect(items.find((item) => item.kind === "payment")?.href).toBe("/dashboard/payments");
+
+    const late = buildSupplierCalendarItems(workspace, board, workflow, "2026-11-28").find((item) => item.kind === "payment");
+    expect(late?.chipLabel).toBe("Deposit · late");
+    expect(late?.look?.chip).toContain("text-danger");
   });
 
   it("shows a confidential bid's event day under its masked name", () => {

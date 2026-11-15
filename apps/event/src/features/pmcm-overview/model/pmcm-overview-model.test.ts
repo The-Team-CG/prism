@@ -34,16 +34,18 @@ describe("PMCM calendar entries", () => {
   const item = (overrides: Partial<PrismPmcmCalendarItem>): PrismPmcmCalendarItem => ({ id: "x", kind: "event", eventId: "e1", eventName: "Gala", date: "2026-11-20", detail: "Event day", ...overrides });
 
   it("headlines the event on its own day and leads other work with what is due, each opening where it is handled", () => {
-    const [event, quote, payment, arrival] = toCalendarEntries([
+    const [event, quote, payment, arrival, late] = toCalendarEntries([
       item({}),
       item({ id: "q", kind: "quote_deadline", detail: "XPERTO · Registration quote due" }),
       item({ id: "p", kind: "payment_due", detail: "Downpayment · ₱50,000 due" }),
       item({ id: "a", kind: "supplier_arrival", detail: "XPERTO arrives · Hall A", startTime: "06:00" }),
-    ]);
+      item({ id: "l", kind: "payment_due", date: "2026-11-01", detail: "Balance · ₱20,000 due" }),
+    ], "2026-11-15");
 
     expect(event).toMatchObject({ title: "Gala", chipLabel: "Gala", detail: "Event day", target: "overview" });
     expect(quote).toMatchObject({ title: "XPERTO · Registration quote due", chipLabel: "Quote due", detail: "Gala", target: "suppliers" });
-    expect(payment).toMatchObject({ chipLabel: "Payment due", target: "billing" });
+    expect(payment).toMatchObject({ chipLabel: "Payment due", target: "billing", look: { chip: expect.stringContaining("text-attention") } });
+    expect(late).toMatchObject({ chipLabel: "Payment late", look: { chip: expect.stringContaining("text-danger") } });
     expect(arrival).toMatchObject({ startTime: "06:00", target: "suppliers" });
   });
 
