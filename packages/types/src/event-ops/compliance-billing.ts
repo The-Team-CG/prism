@@ -1,5 +1,6 @@
 import type { PrismAddendumConformeTraceReference } from "../conforme-signing.js";
 import type { PrismFileRequirementsMatrix } from "./lifecycle.js";
+import type { PaymentMethod } from "../schemas/payment-details.js";
 import type { BillingDiscrepancySeverity } from "../schemas/session-commercial-inputs.js";
 
 export interface PrismBillingLineItem {
@@ -676,6 +677,22 @@ export interface PrismFinanceDesk {
   queue: PrismFinanceDeskItem[];
   events: PrismFinanceDeskEvent[];
   payouts: PrismFinanceDeskPayout[];
+}
+
+/** PMCM's one set of payment details, as PMCM edits it. `revision` is 0 until something is saved. */
+export interface PrismPaymentDetails {
+  revision: number;
+  methods: PaymentMethod[];
+  updatedBy: string | null;
+  /** ISO timestamp of the last save. */
+  updatedAt: string | null;
+}
+
+/** An uploaded payment QR image. The same bytes always give the same id. */
+export interface PrismPaymentQrImage {
+  id: string;
+  contentType: string;
+  byteSize: number;
 }
 
 /** What happened to one scheduled payment, from when it was set to when it was paid. */

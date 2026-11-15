@@ -1205,6 +1205,36 @@ model OpsSupplierPayableMilestone {
   @@schema("commercial")
 }
 
+/// PMCM's one set of payment details: a single row (id "pmcm"), edited with a revision check.
+model OpsPmcmPaymentDetails {
+  id        String   @id
+  /// The ordered list of methods, validated by `paymentMethodSchema` in @prism/types.
+  methods   Json     @default("[]")
+  revision  Int      @default(0)
+  updatedBy String   @default("") @map("updated_by")
+  /// The last 50 changes: who, when, and what changed (never the account numbers).
+  history   Json     @default("[]")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("pmcm_payment_details")
+  @@schema("commercial")
+}
+
+/// A payment QR image PMCM uploaded, stored once per content hash.
+model OpsPmcmPaymentQrImage {
+  id          String   @id
+  sha256      String   @unique(map: "pmcm_payment_qr_images_sha256_key")
+  contentType String   @map("content_type")
+  byteSize    Int      @map("byte_size")
+  bytes       Bytes
+  uploadedBy  String   @map("uploaded_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("pmcm_payment_qr_images")
+  @@schema("commercial")
+}
+
 model OpsSupplierPayoutRecord {
   id               String   @id
   eventId          String   @map("event_id")
