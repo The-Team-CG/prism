@@ -1,4 +1,4 @@
-import { paymentMethodLine, type PaymentMethod, type PrismPaymentSubmission, type PrismStatementMilestone, type PrismStatementOfAccount, type PrismStatementOfAccountLine } from '@prism/types';
+import { type PaymentMethod, type PrismPaymentSubmission, type PrismStatementMilestone, type PrismStatementOfAccount, type PrismStatementOfAccountLine } from '@prism/types';
 
 export type StatementViewer = 'client' | 'pmcm';
 
@@ -145,7 +145,7 @@ function submissions(input: StatementInputs): PrismPaymentSubmission[] {
 }
 
 const UNAVAILABLE: Omit<PrismStatementOfAccount, 'eventId' | 'eventName' | 'generatedAt'> = {
-  available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, disputedOnStatement: 0, milestones: [], paymentMethods: [], payTo: [], payToChangedSinceIssued: false, submissions: [], lines: [],
+  available: false, statementNumber: null, billed: 0, received: 0, refunded: 0, creditHeld: 0, balance: 0, disputedOnStatement: 0, milestones: [], payTo: [], payToChangedSinceIssued: false, submissions: [], lines: [],
 };
 
 /**
@@ -154,7 +154,7 @@ const UNAVAILABLE: Omit<PrismStatementOfAccount, 'eventId' | 'eventName' | 'gene
  * Unapplied money counts as credit held only once PMCM has checked it; until then it is listed as being checked.
  */
 export function buildStatementOfAccount(input: StatementInputs): Omit<PrismStatementOfAccount, 'eventId' | 'eventName' | 'generatedAt'> {
-  if (!visible(input) || !input.statement) return { ...UNAVAILABLE, milestones: [], paymentMethods: [], payTo: [], submissions: [], lines: [] };
+  if (!visible(input) || !input.statement) return { ...UNAVAILABLE, milestones: [], payTo: [], submissions: [], lines: [] };
   const credit = sum(input.milestones.map((milestone) => milestone.creditApplied));
   const live = input.paymentDetails ?? { revision: 0, methods: [] };
   const payTo = live.methods;
@@ -170,7 +170,6 @@ export function buildStatementOfAccount(input: StatementInputs): Omit<PrismState
     balance: sum(input.milestones.map((milestone) => milestone.remainingBalance)),
     disputedOnStatement: sum((input.openDisputes ?? []).filter((dispute) => !dispute.milestoneId).map((dispute) => dispute.amount)),
     milestones: milestoneFacts(input),
-    paymentMethods: payTo.map(paymentMethodLine),
     payTo,
     payToChangedSinceIssued: live.revision > 0 && (input.statement.paymentDetailsRevision ?? null) !== live.revision,
     submissions: submissions(input),

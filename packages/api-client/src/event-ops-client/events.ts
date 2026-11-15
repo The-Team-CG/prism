@@ -159,6 +159,8 @@ export function createEventsClient(
         prismRequest<PrismStatementOfAccount>(`/events/${eventId}/statement-of-account`, withBase(options, { signal: init.signal })),
       statementOfAccountPdf: (eventId) =>
         prismFile(`/events/${encodeURIComponent(eventId)}/statement-of-account/pdf`, withBase(options), "statement-of-account.pdf"),
+      paymentQrImage: (eventId, imageId) =>
+        prismFile(`/events/${encodeURIComponent(eventId)}/statement-of-account/payment-qr/${encodeURIComponent(imageId)}`, withBase(options), "payment-qr"),
       paymentReceiptPdf: (eventId, recordId) =>
         prismFile(`/events/${encodeURIComponent(eventId)}/payment-records/${encodeURIComponent(recordId)}/receipt`, withBase(options), "payment-receipt.pdf"),
       freezeExceptions: (eventId, actor = {}) =>

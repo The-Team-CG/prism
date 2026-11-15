@@ -9,7 +9,7 @@ function statement(overrides: Partial<PrismStatementOfAccount> = {}): PrismState
     eventId: "evt_1", eventName: "Summit", generatedAt: "2026-11-11T01:00:00.000Z", available: true, statementNumber: "BS-1",
     billed: 150000, received: 100000, refunded: 0, creditHeld: 0, balance: 50000,
     milestones: [{ id: "m1", label: "Deposit", dueDate: "2026-10-15", amount: 100000, paid: 100000, remaining: 0, status: "paid", checking: 0, disputed: 0, settledOn: "2026-10-10" }],
-    disputedOnStatement: 0, paymentMethods: [], payTo: [], payToChangedSinceIssued: false, submissions: [],
+    disputedOnStatement: 0, payTo: [], payToChangedSinceIssued: false, submissions: [],
     lines: [{ id: "r1", date: "2026-10-10", kind: "payment", description: "Payment received", method: "Bank Transfer", reference: "BDO-1", amount: 100000, reversed: false }],
     ...overrides,
   };

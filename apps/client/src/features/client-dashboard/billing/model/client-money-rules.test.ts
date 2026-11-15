@@ -12,7 +12,7 @@ function statement(milestones: PrismStatementMilestone[], overrides: Partial<Pri
   return {
     eventId: "evt", eventName: "Gala", generatedAt: "2026-11-14T00:00:00.000Z", available: true, statementNumber: "BS-1",
     billed: milestones.reduce((sum, item) => sum + item.amount, 0), received: 0, refunded: 0, creditHeld: 0,
-    balance: milestones.reduce((sum, item) => sum + item.remaining, 0), disputedOnStatement: 0, paymentMethods: [], payTo: [], payToChangedSinceIssued: false, submissions: [], lines: [], milestones, ...overrides,
+    balance: milestones.reduce((sum, item) => sum + item.remaining, 0), disputedOnStatement: 0, payTo: [], payToChangedSinceIssued: false, submissions: [], lines: [], milestones, ...overrides,
   };
 }
 

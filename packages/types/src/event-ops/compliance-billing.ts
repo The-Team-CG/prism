@@ -449,9 +449,7 @@ export interface PrismStatementOfAccount {
   /** Amount under open disputes that name no single payment. */
   disputedOnStatement: number;
   milestones: PrismStatementMilestone[];
-  /** How to pay as printed text, from PMCM's payment details as they are now. Empty until PMCM has turned one on. */
-  paymentMethods: Array<{ label: string; details: string }>;
-  /** The same, with each field apart and the QR image id: what the client sees under How to pay. Only methods that are on. */
+  /** What the client sees under How to pay: PMCM's payment details as they are now, only the methods turned on, each field apart with its QR image id. Empty until PMCM has turned one on. */
   payTo: PaymentMethod[];
   /** True when PMCM changed its payment details after this statement was issued, so the printed copy may differ. */
   payToChangedSinceIssued: boolean;
