@@ -17,6 +17,8 @@ describe("pmcmNoticeLink", () => {
     expect(link("overview")).toEqual({ href: "/dashboard?view=shift&event=evt+1", label: "Open my shift" });
     expect(link("briefing")?.href).toBe("/dashboard?view=shift&event=evt+1");
     expect([link("billing"), link("files")]).toEqual([null, null]);
+    expect(pmcmNoticeLink({ kind: "payment_receipt", receiptId: "prcp_1" }, "evt_1", "coordinator")).toBeNull();
+    expect(pmcmNoticeLink({ kind: "supplier_schedule", requestId: "req_1", revision: 1 }, "evt_1", "coordinator")).toBeNull();
   });
 
   it("opens the conversation a message notice is about", () => {

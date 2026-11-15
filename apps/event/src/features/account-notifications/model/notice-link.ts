@@ -29,15 +29,17 @@ const COORDINATOR_SECTION_VIEWS: Partial<Record<EventSection, { view: "shift" | 
   live_ops: { view: "run-sheet", label: "Open run sheet" },
 };
 
-function coordinatorSectionLink(eventId: string, section: EventSection): NoticeLink | null {
-  const target = COORDINATOR_SECTION_VIEWS[section];
-  return target ? { href: `/dashboard${coordinatorViewSearch(target.view, eventId)}`, label: target.label } : null;
+/** A coordinator's notice opens their conversation, shift or run sheet; payments and supplier schedules are PMCM's and carry no link. */
+function coordinatorNoticeLink(action: NotificationAction | undefined): NoticeLink | null {
+  if (action?.kind === "conversation") return { href: `/dashboard?view=messages&conversation=${encodeURIComponent(action.threadId)}`, label: "Open conversation" };
+  if (action?.kind !== "event_section") return null;
+  const target = COORDINATOR_SECTION_VIEWS[action.section];
+  return target ? { href: `/dashboard${coordinatorViewSearch(target.view, action.eventId)}`, label: target.label } : null;
 }
 
 /** Where a PMCM notice sends the reader: the event workspace tab the notice is about. */
 export function pmcmNoticeLink(action: NotificationAction | undefined, eventId: string | null, role?: string): NoticeLink | null {
-  if (role === 'coordinator' && action?.kind === 'event_section') return coordinatorSectionLink(action.eventId, action.section);
-  if (action?.kind === 'conversation' && role === 'coordinator') return { href: `/dashboard?view=messages&conversation=${encodeURIComponent(action.threadId)}`, label: 'Open conversation' };
+  if (role === 'coordinator') return coordinatorNoticeLink(action);
   if (action?.kind === "event_section") {
     // A section this app does not know (from a newer API) has no link rather than a broken one.
     const target = SECTION_LINKS[action.section] as (typeof SECTION_LINKS)[EventSection] | undefined;
