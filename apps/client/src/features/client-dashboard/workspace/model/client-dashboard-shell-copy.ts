@@ -34,7 +34,7 @@ const PORTAL_DESCRIPTIONS: Partial<Record<ClientDashboardRoute, string>> = {
   files: "Contracts, quotations, receipts, layouts, and shared event files.",
   billing: "Quotations, invoices, payment schedule, receipts, and current balance.",
   privacy: "Ask PMCM about your personal data and follow each request to its outcome.",
-  notifications: "Choose how PMCM reaches you about your events.",
+  notifications: "What changed across your events, what is new since you last looked, and what PMCM asked you to confirm.",
 };
 
 const LOADING_TITLES: Partial<Record<ClientDashboardRoute, string>> = {

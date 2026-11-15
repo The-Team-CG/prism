@@ -60,6 +60,13 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     route: "messages",
   },
   {
+    id: "notifications",
+    label: "Notifications",
+    icon: Bell,
+    section: "Client Portal",
+    route: "notifications",
+  },
+  {
     id: "files",
     label: "Files",
     icon: FileText,
@@ -179,13 +186,12 @@ export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, stri
   billing: "billing-payments",
   messages: "messages",
   privacy: "privacy-requests",
-  notifications: "notification-settings",
+  notifications: "notifications",
 };
 
 /** Privacy requests live in the account menu, not the sidebar; the id matches that menu entry. */
 export const CLIENT_ACCOUNT_MENU_ITEMS: PrismAccountMenuItem[] = [
   { id: "privacy-requests", label: "Privacy requests", icon: ShieldCheck, href: "/dashboard/privacy" },
-  { id: "notification-settings", label: "Notifications", icon: Bell, href: "/dashboard/notifications" },
 ];
 
 export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {

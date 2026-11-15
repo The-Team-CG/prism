@@ -157,7 +157,7 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
   const shellNavItems = clientPortalSidebarItems(events.length).map((item) => ({
     ...item,
     ...(item.id === "messages" ? unreadNavBadge(unreadMessages) : {}),
-    ...(item.id === "notification-settings" ? unreadNoticeBadge(unreadNotices) : {}),
+    ...(item.id === "notifications" ? unreadNoticeBadge(unreadNotices) : {}),
     ...(item.id === "billing-payments" ? countNavBadge(overduePayments, "overdue payment") : {}),
     href: clientSidebarLinkHref(item.id, selectedEvent?.id),
     disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),

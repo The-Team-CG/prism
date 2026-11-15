@@ -39,7 +39,7 @@ describe("client-dashboard navigation", () => {
   });
 
   it("keeps event-owned sections inside the event when the client has one event", () => {
-    expect(clientPortalSidebarItems(1).map((item) => item.label)).toEqual(["Home", "Events", "Calendar"]);
+    expect(clientPortalSidebarItems(1).map((item) => item.label)).toEqual(["Home", "Events", "Calendar", "Notifications"]);
     expect(clientPortalSidebarItems(2).map((item) => item.id)).toContain("billing-payments");
   });
 
