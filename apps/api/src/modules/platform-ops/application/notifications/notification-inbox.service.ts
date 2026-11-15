@@ -63,7 +63,9 @@ export class NotificationInboxService {
     const take = limit * COPIES_PER_NOTICE;
     const [found, unread] = await Promise.all([
       this.prisma.opsNotificationDelivery.findMany({
-        where: this.ownDeliveries(actor), include: { notification: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: take + 1,
+        where: this.ownDeliveries(actor), include: { notification: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: the page size is validated to at most NOTIFICATION_INBOX_MAX_LIMIT (200) notices, two channel copies each, plus one to see whether more exist.
+        take: take + 1,
       }),
       this.unread(actor),
     ]);
