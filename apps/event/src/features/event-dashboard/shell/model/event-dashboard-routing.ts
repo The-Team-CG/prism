@@ -140,7 +140,7 @@ export const SECTION_ROUTE_ITEMS: Record<string, Record<string, string>> = {
     contracts: "suppliers-contracts",
     payments: "suppliers-payments",
   },
-  finance: { receipts: "finance-receipts" },
+  finance: { receipts: "finance-receipts", "payment-details": "finance-payment-details" },
 };
 
 export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
@@ -184,6 +184,7 @@ export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
   "suppliers-contracts": "/dashboard/suppliers/contracts",
   "suppliers-payments": "/dashboard/suppliers/payments",
   "finance-receipts": "/dashboard/finance/receipts",
+  "finance-payment-details": "/dashboard/finance/payment-details",
 };
 
 export const EVENT_DETAIL_ROUTES: Record<string, string> = {
@@ -285,8 +286,9 @@ export function routeStateForSidebarItem(id: string): RouteState | undefined {
 }
 
 export function activeSidebarItemFromRoute(routeState: RouteState): string | undefined {
-  // Receipts are not tied to an event, so this desk keeps its own highlight even if an event was selected before.
-  if (routeState.section === "finance" && routeState.view === "receipts") return "finance-receipts";
+  // Receipts and payment details are not tied to an event, so each keeps its own highlight even if an event was selected before.
+  const financeItem = routeState.section === "finance" && routeState.view ? SECTION_ROUTE_ITEMS.finance[routeState.view] : undefined;
+  if (financeItem) return financeItem;
   const eventScopedItem = EVENT_SCOPED_SIDEBAR_ITEM[routeState.section];
   if (eventScopedItem && routeState.eventId) return eventScopedItem;
   const sectionItem = SECTION_SIDEBAR_ITEM[routeState.section];
@@ -339,6 +341,13 @@ const VIEW_SHELL_COPY: Record<string, EventDashboardShellCopy> = {
     description: "Money clients paid outside P.R.I.S.M, checked against the statement and applied to the milestones it settles.",
     breadcrumb: ["Finance", "Receipts"],
     documentTitle: "Receipts · Finance · P.R.I.S.M",
+  },
+  "finance:payment-details": {
+    eyebrow: "Finance",
+    title: "Payment details",
+    description: "Where clients are told to send money: your bank accounts, e-wallets and cheque payee, with the QR they scan.",
+    breadcrumb: ["Finance", "Payment details"],
+    documentTitle: "Payment details · Finance · P.R.I.S.M",
   },
 };
 

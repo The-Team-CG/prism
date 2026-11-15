@@ -25,8 +25,8 @@ const DEAD_VIEW_REDIRECTS = [
   { source: `${DASHBOARD}/suppliers/:view(contracts|payments)`, destination: `${DASHBOARD}/events` },
   { source: `${DASHBOARD}/messages/:view`, destination: `${DASHBOARD}/messages` },
   { source: `${DASHBOARD}/files/:view`, destination: `${DASHBOARD}/files` },
-  // Receipts is a real page; every other finance path still falls back to the finance desk.
-  { source: `${DASHBOARD}/finance/:view((?!receipts$)[^/]+)`, destination: `${DASHBOARD}/finance` },
+  // Receipts and payment details are real pages; every other finance path still falls back to the finance desk.
+  { source: `${DASHBOARD}/finance/:view((?!(?:receipts|payment-details)$)[^/]+)`, destination: `${DASHBOARD}/finance` },
   { source: `${DASHBOARD}/settings/system-logs`, destination: `${DASHBOARD}/audit` },
   { source: `${DASHBOARD}/settings/:view`, destination: `${DASHBOARD}/settings` },
 ];

@@ -2,6 +2,7 @@ import { unreadNavBadge } from "@prism/ui/chat";
 import {
   Archive,
   Banknote,
+  QrCode,
   Landmark,
   Database,
   CalendarClock,
@@ -127,6 +128,7 @@ export function eventPortalNavItems({
     { id: "team", icon: Contact, label: "Team", section: "Network" },
     { id: "finance", icon: Landmark, label: "Finance", section: "Finance", badge: optionalNavBadge(financeCount) },
     { id: "finance-receipts", icon: Banknote, label: "Receipts", section: "Finance" },
+    { id: "finance-payment-details", icon: QrCode, label: "Payment details", section: "Finance" },
     { id: "audit", icon: ShieldCheck, label: "Audit", section: "Administration" },
     { id: "privacy", icon: Database, label: "Privacy", section: "Administration" },
     { id: "settings", icon: Settings, label: "Settings", section: "Administration" },

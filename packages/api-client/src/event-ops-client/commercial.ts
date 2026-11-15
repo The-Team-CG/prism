@@ -2,7 +2,9 @@ import type {
   PrismClientBillingDispute,
   PrismPaymentSubmission,
   PrismFinanceDesk,
+  PrismPaymentDetails,
   PrismPaymentHistory,
+  PrismPaymentQrImage,
   PrismPaymentReminder,
   PrismClientOwnedSupplier,
   PrismExternalCreativeTicket,
@@ -45,7 +47,7 @@ import type {
   PrismSupplierQuoteRequest,
   PrismSupplierQuoteRoundComparison,
 } from "@prism/types";
-import { prismRequest, toQueryString } from "../http";
+import { prismFile, prismRequest, toQueryString } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase, actorPath } from "./shared";
 
@@ -84,6 +86,14 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismPaymentMilestone>(actorPath(event(eventId, `/payments/${milestoneId}/records`), actor), withBase(options, { method: "POST", body: input })),
       remindClientPayment: (eventId, milestoneId, actor = {}) =>
         prismRequest<PrismPaymentReminder>(actorPath(event(eventId, `/payments/${encodeURIComponent(milestoneId)}/reminders`), actor), withBase(options, { method: "POST" })),
+      paymentDetails: (init = {}) =>
+        prismRequest<PrismPaymentDetails>("/payment-details", withBase(options, { signal: init.signal })),
+      savePaymentDetails: (input) =>
+        prismRequest<PrismPaymentDetails>("/payment-details", withBase(options, { method: "PUT", body: input })),
+      uploadPaymentQr: (file) =>
+        prismRequest<PrismPaymentQrImage>("/payment-details/qr-images", withBase(options, { method: "POST", body: file, headers: { "Content-Type": file.type } })),
+      paymentQrImage: (imageId, init = {}) =>
+        prismFile(`/payment-details/qr-images/${encodeURIComponent(imageId)}`, withBase(options, { signal: init.signal }), "payment-qr"),
       paymentHistory: (eventId, milestoneId, init = {}) =>
         prismRequest<PrismPaymentHistory>(event(eventId, `/payments/${encodeURIComponent(milestoneId)}/history`), withBase(options, { signal: init.signal })),
       markPayment: (eventId, milestoneId, input, actor = {}) =>
