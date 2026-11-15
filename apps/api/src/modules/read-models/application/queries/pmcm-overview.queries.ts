@@ -29,6 +29,24 @@ export class PmcmOverviewQueries {
     });
   }
 
+  /** The event's client: their inquiry email and, when they have a portal account, its last sign-in. */
+  async clientOfEvent(eventId: string) {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, inquiry: { select: { email: true } } } });
+    if (!event) return null;
+    const email = event.inquiry.email.trim();
+    const account = email
+      ? await this.prisma.opsUser.findFirst({ where: { email: { equals: email, mode: 'insensitive' }, role: 'client' }, select: { lastLoginAt: true } })
+      : null;
+    return { email, lastLoginAt: account?.lastLoginAt ?? null };
+  }
+
+  /** Notices about this event the recipient has not opened, counting each notice once by its email copy. */
+  unreadEventNotices(eventId: string, email: string) {
+    return this.prisma.opsNotificationDelivery.count({
+      where: { recipient: email.toLowerCase(), readAt: null, status: { not: 'skipped' }, notification: { eventId, channel: 'email' } },
+    });
+  }
+
   participations(actorId: string) {
     return this.prisma.opsCommunicationParticipant.findMany({
       where: { actorId, active: true },

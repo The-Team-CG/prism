@@ -1,7 +1,8 @@
 import { BadRequestException, Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import { pmcmCommandInboxQuerySchema, type PrismVerifiedEventActor } from '@prism/types';
+import { pmcmCommandInboxQuerySchema, pmcmEventAttentionQuerySchema, type PmcmEventAttentionQuery, type PrismVerifiedEventActor } from '@prism/types';
+import { zodQuery } from '@prism/kernel/shared';
 import { EventReadModelsService } from '../application/services/event-read-models.service';
 
 @Controller('pmcm')
@@ -23,7 +24,7 @@ export class OpsPmcmCommandInboxController {
   /** The Inbox's items grouped by event, for the Events cards. */
   @Get('event-attention')
   @UseGuards(EventSessionGuard)
-  eventAttention(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    return this.eventReadModelsService.pmcmEventAttention(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  eventAttention(@Query(zodQuery(pmcmEventAttentionQuerySchema)) query: PmcmEventAttentionQuery, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.eventReadModelsService.pmcmEventAttention(this.eventAccessPolicyService.resolveActor({}, verifiedActor), query.eventId);
   }
 }

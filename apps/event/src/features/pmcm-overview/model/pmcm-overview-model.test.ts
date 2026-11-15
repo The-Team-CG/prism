@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PrismPmcmCalendarItem, PrismPmcmEventSummary } from "@prism/types";
 import { eventShortcutCounts, fileSummaryLabel, summariesByEvent } from "./event-summary-labels";
 import { calendarWindow, toCalendarEntries } from "./pmcm-calendar-items";
+import { clientActivityLine, eventComingUp } from "./event-overview-glance";
 
 const summary = (overrides: Partial<PrismPmcmEventSummary> = {}): PrismPmcmEventSummary => ({ eventId: "e1", balanceDue: 0, nextPaymentDue: null, overdueMilestones: 0, unreadMessages: 0, ...overrides });
 
@@ -52,5 +53,27 @@ describe("PMCM calendar entries", () => {
     expect(calendarWindow({ from: "2026-11-01", to: "2026-12-05" })).toEqual({ from: "2026-10-01", to: "2027-01-31" });
     expect(calendarWindow({ from: "2026-12-30", to: "2026-12-30" })).toEqual({ from: "2026-11-01", to: "2027-01-31" });
     expect(calendarWindow({ from: "2028-03-10", to: "2028-03-10" })).toEqual({ from: "2028-02-01", to: "2028-04-30" });
+  });
+});
+
+describe("an event's overview at a glance", () => {
+  it("says when the client last opened the portal and what they have not read, and flags a client gone quiet", () => {
+    const today = "2026-11-16";
+    expect(clientActivityLine("Ana Reyes", { eventId: "e1", lastActiveAt: "2026-11-11T02:00:00.000Z", unreadNotices: 2 }, today))
+      .toEqual({ text: "Ana Reyes last opened the portal 5 days ago · 2 notices unread", quiet: false });
+    expect(clientActivityLine("Ana Reyes", { eventId: "e1", lastActiveAt: "2026-11-16T01:00:00.000Z", unreadNotices: 0 }, today))
+      .toEqual({ text: "Ana Reyes opened the portal today", quiet: false });
+    expect(clientActivityLine("Ana Reyes", { eventId: "e1", lastActiveAt: "2026-11-02T01:00:00.000Z", unreadNotices: 1 }, today))
+      .toEqual({ text: "Ana Reyes last opened the portal 14 days ago · 1 notice unread", quiet: true });
+    expect(clientActivityLine("Ana Reyes", { eventId: "e1", lastActiveAt: null, unreadNotices: 0 }, today))
+      .toEqual({ text: "Ana Reyes has not signed in to the portal yet", quiet: true });
+  });
+
+  it("lists only this event's dated work, soonest first, without the event day itself", () => {
+    const item = (id: string, date: string, over: Partial<PrismPmcmCalendarItem> = {}): PrismPmcmCalendarItem =>
+      ({ id, kind: "payment_due", eventId: "e1", eventName: "Gala", date, detail: id, ...over });
+    const items = [item("balance", "2026-11-30"), item("day", "2026-11-23", { kind: "event" }), item("other", "2026-11-18", { eventId: "e2" }),
+      item("arrival-late", "2026-11-20", { kind: "supplier_arrival", startTime: "14:00" }), item("arrival-early", "2026-11-20", { kind: "supplier_arrival", startTime: "07:00" })];
+    expect(eventComingUp(items, "e1").map((entry) => entry.id)).toEqual(["arrival-early", "arrival-late", "balance"]);
   });
 });

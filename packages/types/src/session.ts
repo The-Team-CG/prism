@@ -16,6 +16,8 @@ export const PRISM_SESSION_STORAGE_KEYS = {
   inquiryDraft: "prism:inquiry-draft",
   /** When the signed-in client last opened each event's files, to mark what PMCM added since. A per-browser convenience, not a sign-in session. */
   clientFilesLastSeen: "prism:client-files-last-seen",
+  /** The stage each of the signed-in client's events was at when they last opened it, to say once when it moves on. A per-browser convenience. */
+  clientEventStageSeen: "prism:client-event-stage-seen",
   /** The newest supplier payout the signed-in supplier has seen, to mark new money on Payments. A per-browser convenience. */
   supplierPaymentsLastSeen: "prism:supplier-payments-last-seen",
   /** When PMCM last opened the finance desk, to mark work that arrived since. A per-browser convenience. */

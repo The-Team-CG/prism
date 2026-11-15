@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { eventPortalNavItems } from "../../view-models/use-event-dashboard-nav";
 import type { PrismDefenseReadinessAction } from "@prism/types";
-import { isEventDayClose, needsCloseOut, overviewNextActions } from "./event-overview";
+import { isEventDayClose, needsCloseOut, overviewNeedsYouLines, overviewNextActions } from "./event-overview";
 
 describe("event workspace stage signals", () => {
   it("offers the event-day start only from the day before the event", () => {
@@ -43,5 +43,34 @@ describe("event workspace stage signals", () => {
     expect(needsCloseOut({ eventDate: "2026-11-02", archived: false }, "2026-11-02")).toBe(false);
     expect(overviewNextActions(pending, false)).toBe(pending);
     expect(needsCloseOut({ eventDate: "2026-06-18", archived: true }, "2026-11-02")).toBe(false);
+  });
+});
+
+describe("what the overview says needs PMCM", () => {
+  const inbox = (id: string, over: Record<string, string>) => ({ id, kind: "payment", severity: "warning", label: id, description: "", status: "open", href: `/x/${id}`, ...over }) as never;
+
+  it("leads with the close-out and a requested venue visit, then the Inbox items with how long each has waited", () => {
+    const attention = { eventId: "e1", counts: { critical: 0, warning: 3, attention: 0, info: 0 }, total: 3, top: [
+      inbox("overdue", { dueAt: "2026-11-14T08:00:00.000Z" }),
+      inbox("tomorrow", { dueAt: "2026-11-17T08:00:00.000Z" }),
+      inbox("stale", { createdAt: "2026-11-10T02:00:00.000Z" }),
+      inbox("fresh", { createdAt: "2026-11-16T01:00:00.000Z" }),
+    ] };
+    const lines = overviewNeedsYouLines({ event: { id: "e1", clientName: "Ana Reyes" }, attention, closeOut: true, visitRequested: true, todayKey: "2026-11-16" });
+
+    expect(lines.map((line) => [line.text, line.age, line.late])).toEqual([
+      ["This event has ended — close it out", undefined, undefined],
+      ["Schedule the venue visit Ana Reyes asked for", undefined, undefined],
+      ["overdue", "overdue 2 days", true],
+      ["tomorrow", "due tomorrow", undefined],
+      ["stale", "waiting 6 days", true],
+      ["fresh", "new today", undefined],
+    ]);
+    expect(lines[0].href).toBe("/dashboard/events/e1/closure");
+    expect(lines[1].href).toBe("#overview-ocular-visit");
+  });
+
+  it("is empty when nothing waits and the visit is not pending", () => {
+    expect(overviewNeedsYouLines({ event: { id: "e1", clientName: "Ana" }, attention: null, closeOut: false, visitRequested: false, todayKey: "2026-11-16" })).toEqual([]);
   });
 });

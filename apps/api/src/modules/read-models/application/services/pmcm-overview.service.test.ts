@@ -13,6 +13,8 @@ function harness(allowed: boolean) {
     ocularVisits: vi.fn(async () => []),
     supplierSchedules: vi.fn(async () => []),
     eventNames: vi.fn(async () => []),
+    clientOfEvent: vi.fn(async (eventId: string) => (eventId === 'e1' ? { email: 'ana@ayala.test', lastLoginAt: new Date('2026-11-11T02:00:00.000Z') } : null)),
+    unreadEventNotices: vi.fn(async () => 2),
     activeEventIds: vi.fn(async (limit: number) => Array.from({ length: Math.min(limit, 7) }, (_, index) => ({ id: `e${index + 1}` }))),
   };
   const fileRequirements = {
@@ -33,6 +35,15 @@ function harness(allowed: boolean) {
 const pmcm = { id: 'u_pmcm', role: 'pmcm-admin', name: 'PMCM' } as never;
 
 describe('PmcmOverviewService', () => {
+  it("tells PMCM when the event's client last signed in and how many notices about it they have not opened", async () => {
+    const { service, queries } = harness(true);
+    await expect(service.clientActivity(pmcm, 'e1')).resolves.toEqual({ eventId: 'e1', lastActiveAt: '2026-11-11T02:00:00.000Z', unreadNotices: 2 });
+    expect(queries.unreadEventNotices).toHaveBeenCalledWith('e1', 'ana@ayala.test');
+    await expect(service.clientActivity(pmcm, 'missing')).rejects.toThrow('Event not found');
+    await expect(harness(false).service.clientActivity({ role: 'client' } as never, 'e1')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+
   it('summarises what each event owes and how many messages the signed-in admin has not read', async () => {
     const { service, queries } = harness(true);
     const result = await service.eventSummaries(pmcm);

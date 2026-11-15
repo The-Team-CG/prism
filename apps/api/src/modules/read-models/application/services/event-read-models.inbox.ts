@@ -460,7 +460,7 @@ function collectClientChangeRequestItems(requests: ClientChangeRequestRef[], eve
 export const EVENT_ATTENTION_TOP = 3;
 
 /** Inbox items grouped by event, keeping the Inbox's order (most urgent first). Items with no event are left out. */
-export function groupInboxItemsByEvent(items: PrismCommandInboxItem[]): PrismPmcmEventAttention[] {
+export function groupInboxItemsByEvent(items: PrismCommandInboxItem[], top = EVENT_ATTENTION_TOP): PrismPmcmEventAttention[] {
   const byEvent = new Map<string, PrismCommandInboxItem[]>();
   for (const item of items) {
     if (!item.eventId) continue;
@@ -468,7 +468,7 @@ export function groupInboxItemsByEvent(items: PrismCommandInboxItem[]): PrismPmc
     list.push(item);
     byEvent.set(item.eventId, list);
   }
-  return [...byEvent].map(([eventId, list]) => ({ eventId, counts: countBySeverity(list), top: list.slice(0, EVENT_ATTENTION_TOP), total: list.length }));
+  return [...byEvent].map(([eventId, list]) => ({ eventId, counts: countBySeverity(list), top: list.slice(0, top), total: list.length }));
 }
 
 export function collectPmcmCommandInboxItems(input: {

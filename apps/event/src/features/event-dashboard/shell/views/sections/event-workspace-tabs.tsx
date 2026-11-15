@@ -16,6 +16,7 @@ import { EventPlanPanel } from "@/features/planning/event-plan";
 import { DateImpactPanel } from "@/features/planning/date-impact";
 import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 import { EventWorkspaceOverview } from "./event-overview";
+import { useEventCoverUrl, useEventOverviewGlance } from "@/features/pmcm-overview";
 import { EventOcularVisitTask } from "./event-ocular-visit-task";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { BillingSourcesTab } from "./billing-sources-tab";
@@ -65,6 +66,8 @@ function selectedOcularVisit(vm: ReturnType<typeof useEventDashboardLoadedRouteV
 
 export function EventWorkspaceOverviewTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
+  const glance = useEventOverviewGlance(vm.selectedEvent?.id ?? null);
+  const coverUrl = useEventCoverUrl(vm.selectedEvent?.id ?? "", vm.selectedEvent?.coverObjectId);
   if (!vm.selectedEvent) return null;
   const visit = selectedOcularVisit(vm);
   // The official floorplan waits on the ocular visit, so it stays on the overview until it is completed or waived.
@@ -83,6 +86,9 @@ export function EventWorkspaceOverviewTab() {
       onStartEventDay={() => void vm.startEventDay()}
       onRunCompliance={() => void vm.runPlanningCompliance()}
       onOpenTab={(tab) => vm.navigateEventTab(tab)}
+      glance={glance}
+      coverUrl={coverUrl}
+      visitRequested={visit?.status === "requested"}
       ocularVisit={visitOpen ? (
         <EventOcularVisitTask
           eventName={vm.selectedEvent.eventName}

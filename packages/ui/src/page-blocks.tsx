@@ -27,6 +27,7 @@ export function PrismHero({
   meta,
   figure,
   children,
+  backdrop,
   className,
 }: {
   /** Plain line above the title, such as "Your next event". */
@@ -36,10 +37,18 @@ export function PrismHero({
   figure?: { value: React.ReactNode; label: string };
   /** Footer under a hairline: the next step and its action. */
   children?: React.ReactNode;
+  /** A picture behind the panel, such as the event's cover, darkened so the text stays readable. */
+  backdrop?: React.ReactNode;
   className?: string;
 }) {
   return (
-    <section className={cn("overflow-hidden rounded-2xl bg-ink text-ink-foreground", className)}>
+    <section className={cn("relative isolate overflow-hidden rounded-2xl bg-ink text-ink-foreground", className)}>
+      {backdrop ? (
+        <div aria-hidden className="absolute inset-0 -z-10">
+          {backdrop}
+          <div className="absolute inset-0 bg-linear-to-r from-ink via-ink/85 to-ink/45" />
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5 px-6 pb-6 pt-6 sm:px-8 sm:pt-8">
         <div className="min-w-0 flex-1 basis-64">
           <p className="text-sm text-ink-foreground/70">{label}</p>

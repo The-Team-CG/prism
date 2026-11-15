@@ -1,5 +1,6 @@
 import { derivePrismLifecycleStage, type PrismCommandInboxItem, type PrismEvent, type PrismPmcmEventAttention } from "@prism/types";
 import type { AttentionLine } from "@prism/ui/event-cards";
+import { daysUntil, manilaCalendarKey } from "@prism/ui/format-date";
 
 export type EventCardGroups = { needsYou: PrismEvent[]; comingUp: PrismEvent[]; done: PrismEvent[] };
 
@@ -36,7 +37,35 @@ export function groupEventCards(events: PrismEvent[], attention: Map<string, Pri
   return { needsYou, comingUp, done };
 }
 
-/** The Inbox items an event card lists, as card lines that open the work. */
-export function attentionLines(items: PrismCommandInboxItem[]): AttentionLine[] {
-  return items.map((item) => ({ id: item.id, severity: item.severity, text: item.label, detail: item.description || undefined, href: item.href }));
+/** A waiting item is worth chasing once it has sat this many days. */
+const STALE_DAYS = 3;
+
+const days = (count: number) => `${count} day${count === 1 ? "" : "s"}`;
+
+function dueAge(left: number | null): Pick<AttentionLine, "age" | "late"> {
+  if (left === null) return {};
+  if (left < 0) return { age: `overdue ${days(-left)}`, late: true };
+  if (left === 0) return { age: "due today", late: true };
+  return { age: left === 1 ? "due tomorrow" : `due in ${days(left)}` };
+}
+
+function waitingAge(waited: number | null): Pick<AttentionLine, "age" | "late"> {
+  if (waited === null) return {};
+  if (waited <= 0) return { age: "new today" };
+  return { age: `waiting ${days(waited)}`, late: waited >= STALE_DAYS };
+}
+
+/**
+ * How long an Inbox item has waited, or when it is due, in Philippine calendar days: a due date says how close or
+ * late it is ("due tomorrow", "overdue 2 days"); otherwise the age since it arrived ("waiting 6 days").
+ */
+export function attentionAge(item: Pick<PrismCommandInboxItem, "dueAt" | "createdAt">, todayKey: string): Pick<AttentionLine, "age" | "late"> {
+  if (item.dueAt) return dueAge(daysUntil(manilaCalendarKey(item.dueAt), todayKey));
+  if (item.createdAt) return waitingAge(daysUntil(todayKey, manilaCalendarKey(item.createdAt)));
+  return {};
+}
+
+/** The Inbox items an event card lists, as card lines that open the work and say how long each has waited. */
+export function attentionLines(items: PrismCommandInboxItem[], todayKey: string): AttentionLine[] {
+  return items.map((item) => ({ id: item.id, severity: item.severity, text: item.label, detail: item.description || undefined, href: item.href, ...attentionAge(item, todayKey) }));
 }

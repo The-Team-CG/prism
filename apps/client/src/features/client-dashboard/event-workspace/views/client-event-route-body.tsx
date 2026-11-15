@@ -29,18 +29,20 @@ const OCULAR_VISIT_DONE = new Set(["completed", "waived"]);
 function renderOverview(ctx: ClientWorkspaceValue) {
   const { selectedEvent, officialDraft } = ctx;
   if (!selectedEvent) return null;
-  // The site visit comes before the official floorplan, so the request stays on the overview until it is done.
+  // The site visit comes before the official floorplan: the request form leads until it is asked for, then the
+  // visit is a Coming up line until it is done.
   const visitOpen = !ctx.ocularVisit || !OCULAR_VISIT_DONE.has(ctx.ocularVisit.status);
+  const visitAsked = ctx.ocularVisit?.status === "requested" || ctx.ocularVisit?.status === "scheduled";
   return (
     <div className="space-y-4">
       <ClientOverviewTab
-        afterLead={visitOpen ? <ClientOcularVisitPanel visit={ctx.ocularVisit} busy={ctx.busy === "ocular-visit"} onSubmit={ctx.submitOcularVisit} /> : null}
+        ocularVisit={ctx.ocularVisit}
+        afterLead={visitOpen && !visitAsked ? <ClientOcularVisitPanel visit={ctx.ocularVisit} busy={ctx.busy === "ocular-visit"} onSubmit={ctx.submitOcularVisit} /> : null}
         selectedEvent={selectedEvent}
         briefing={ctx.briefing}
         payments={ctx.payments}
         billing={ctx.billing}
         documents={ctx.documents}
-        audit={ctx.audit}
         officialDraft={officialDraft}
         preferenceDraftCount={ctx.preferenceDrafts.length}
         onOpenOfficialFloorplan={

@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Header, Param, Query, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodQuery } from '@prism/kernel/shared';
@@ -17,6 +17,13 @@ export class OpsPmcmOverviewController {
   @UseGuards(EventSessionGuard)
   eventSummaries(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     return this.overview.eventSummaries(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Get('events/:eventId/client-activity')
+  @Header('Cache-Control', 'private, no-store')
+  @UseGuards(EventSessionGuard)
+  clientActivity(@Param('eventId') eventId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.overview.clientActivity(this.eventAccessPolicyService.resolveActor({}, verifiedActor), eventId);
   }
 
   @Get('file-summaries')

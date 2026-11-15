@@ -42,6 +42,7 @@ export function ClientEventHero({
   label,
   eventHref,
   onOpen,
+  backdrop,
   children,
 }: {
   event: PrismEvent;
@@ -50,6 +51,8 @@ export function ClientEventHero({
   /** When set, the event name links to the event. Left out on the event's own pages. */
   eventHref?: string;
   onOpen?: () => void;
+  /** The event's cover behind the panel. */
+  backdrop?: ReactNode;
   children: ReactNode;
 }) {
   const stage = clientEventStage(event);
@@ -67,6 +70,7 @@ export function ClientEventHero({
         </>
       }
       figure={countdownFigure(daysToGo)}
+      backdrop={backdrop}
     >
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">{children}</div>
     </PrismHero>

@@ -2,7 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { FILE_REQUIREMENT_READER, type FileRequirementReader } from '@prism/contexts/event-lifecycle';
-import type { PmcmCalendarQuery, PrismPmcmCalendar, PrismPmcmEventSummaries, PrismPmcmFileSummaries } from '@prism/types';
+import { NotFoundException } from '@nestjs/common';
+import type { PmcmCalendarQuery, PrismPmcmCalendar, PrismPmcmClientActivity, PrismPmcmEventSummaries, PrismPmcmFileSummaries } from '@prism/types';
 import {
   buildEventSummaries,
   buildPmcmCalendarItems,
@@ -36,6 +37,15 @@ export class PmcmOverviewService {
       generatedAt: now.toISOString(),
       items: buildEventSummaries(summarizeEventBalances(milestones, manilaDateKeyOf(now)), unread),
     };
+  }
+
+  /** When the event's client last signed in and how many notices about the event they have not opened, so PMCM knows when to chase. */
+  async clientActivity(actor: ResolvedEventOpsActor, eventId: string): Promise<PrismPmcmClientActivity> {
+    await this.policy.requireActorRole(actor, PMCM_ROLES, 'PMCM client activity', eventId);
+    const client = await this.queries.clientOfEvent(eventId);
+    if (!client) throw new NotFoundException('Event not found');
+    const unreadNotices = client.email ? await this.queries.unreadEventNotices(eventId, client.email) : 0;
+    return { eventId, lastActiveAt: client.lastLoginAt?.toISOString() ?? null, unreadNotices };
   }
 
   async fileSummaries(actor: ResolvedEventOpsActor): Promise<PrismPmcmFileSummaries> {
