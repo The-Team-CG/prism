@@ -712,9 +712,10 @@
       "status",
       "revision_number",
       "selected_at",
-      "updated_at"
+      "updated_at",
+      "locked_at"
     ],
-    "select": "'quote_uat_xperto_selected', 'evt_uat_ops_261121', 'rq_uat_xperto_selected',\r\n       'sup_xperto', 'supcat_digital_registration', 'XPERTO Registration', 'Digital Registration', 485000,\r\n       '[\"Registration portal\", \"QR check-in\", \"Post-event attendance report\"]'::jsonb,\r\n       '50% deposit; balance after event', 'Seeded selected proposal awaiting supplier confirmation.',\r\n       'selected', 1, now(), now()",
+    "select": "'quote_uat_xperto_selected', 'evt_uat_ops_261121', 'rq_uat_xperto_selected',\r\n       'sup_xperto', 'supcat_digital_registration', 'XPERTO Registration', 'Digital Registration', 485000,\r\n       '[\"Registration portal\", \"QR check-in\", \"Post-event attendance report\"]'::jsonb,\r\n       '50% deposit; balance after event', 'Seeded selected proposal awaiting supplier confirmation.',\r\n       'selected', 1, now(), now(), now()",
     "identity": [
       "event_id",
       "request_id",
@@ -740,9 +741,10 @@
       "status",
       "revision_number",
       "selected_at",
-      "updated_at"
+      "updated_at",
+      "locked_at"
     ],
-    "select": "'quote_uat_bloom_confirmed', 'evt_uat_ops_261121', 'rq_uat_bloom_confirmed',\r\n       'sup_bloom', 'supcat_production', 'Bloom Florals', 'Production', 180000,\r\n       '[\"Stage florals\", \"Guest table arrangements\", \"Setup and strike\"]'::jsonb,\r\n       '50% deposit; balance after event', 'Seeded confirmed booking quote.', 'selected', 1, now(), now()",
+    "select": "'quote_uat_bloom_confirmed', 'evt_uat_ops_261121', 'rq_uat_bloom_confirmed',\r\n       'sup_bloom', 'supcat_production', 'Bloom Florals', 'Production', 180000,\r\n       '[\"Stage florals\", \"Guest table arrangements\", \"Setup and strike\"]'::jsonb,\r\n       '50% deposit; balance after event', 'Seeded confirmed booking quote.', 'selected', 1, now(), now(), now()",
     "identity": [
       "event_id",
       "request_id",
@@ -1488,6 +1490,779 @@
       "subject_type",
       "subject_email",
       "request_type"
+    ]
+  },
+  {
+    "table": "commercial.billing_sources",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_type",
+      "source_label",
+      "line_items",
+      "payment_schedule",
+      "payment_methods",
+      "total_amount",
+      "status",
+      "approved_at",
+      "approved_by",
+      "approval_notes",
+      "payment_terms_policy_state"
+    ],
+    "select": "'bsrc_uat_closure', 'evt_uat_closure_261019', 'ce_proposal', 'Closure event package', '[{\"label\": \"Venue styling and setup\", \"amount\": 180000}, {\"label\": \"Production crew\", \"amount\": 90000}, {\"label\": \"Photo and video\", \"amount\": 50000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 160000, \"dueDate\": \"2026-09-16\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 160000, \"dueDate\": \"2026-10-09\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 320000, 'approved', now(), 'Ms. Mys', 'Matches the signed proposal.', 'standard'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_statements",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_id",
+      "number",
+      "client_name",
+      "client_contact",
+      "event_name",
+      "event_date",
+      "line_items",
+      "payment_schedule",
+      "payment_methods",
+      "total_amount",
+      "storage_state",
+      "status",
+      "sent_at",
+      "generated_at"
+    ],
+    "select": "'bstmt_uat_closure', 'evt_uat_closure_261019', 'bsrc_uat_closure', 'UAT-BS-0001', 'Ana Reyes', 'ana@ayala.test', 'UAT Closure Event', (($1::timestamptz + ('2026-10-19T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Venue styling and setup\", \"amount\": 180000}, {\"label\": \"Production crew\", \"amount\": 90000}, {\"label\": \"Photo and video\", \"amount\": 50000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 160000, \"dueDate\": \"2026-09-16\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 160000, \"dueDate\": \"2026-10-09\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 320000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours')",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "label",
+      "percentage",
+      "amount",
+      "amount_paid",
+      "remaining_balance",
+      "due_date",
+      "status",
+      "statement_id"
+    ],
+    "select": "'pm_uat_closure_1', 'evt_uat_closure_261019', 'Downpayment', 50, 160000, 160000, 0, (($1::timestamptz + ('2026-09-16T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'paid', 'bstmt_uat_closure'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "label",
+      "percentage",
+      "amount",
+      "amount_paid",
+      "remaining_balance",
+      "due_date",
+      "status",
+      "statement_id"
+    ],
+    "select": "'pm_uat_closure_2', 'evt_uat_closure_261019', 'Balance', 50, 160000, 160000, 0, (($1::timestamptz + ('2026-10-09T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'paid', 'bstmt_uat_closure'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_sources",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_type",
+      "source_label",
+      "line_items",
+      "payment_schedule",
+      "payment_methods",
+      "total_amount",
+      "status",
+      "approved_at",
+      "approved_by",
+      "approval_notes",
+      "payment_terms_policy_state"
+    ],
+    "select": "'bsrc_uat_guest', 'evt_uat_guest_261020', 'ce_proposal', 'Guest feedback event package', '[{\"label\": \"Venue and catering\", \"amount\": 160000}, {\"label\": \"Guest registration desk\", \"amount\": 60000}, {\"label\": \"Overtime (2 hours)\", \"amount\": 30000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 125000, \"dueDate\": \"2026-09-20\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 125000, \"dueDate\": \"2026-10-13\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 250000, 'approved', now(), 'Ms. Mys', 'Matches the signed proposal.', 'standard'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_statements",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_id",
+      "number",
+      "client_name",
+      "client_contact",
+      "event_name",
+      "event_date",
+      "line_items",
+      "payment_schedule",
+      "payment_methods",
+      "total_amount",
+      "storage_state",
+      "status",
+      "sent_at",
+      "generated_at"
+    ],
+    "select": "'bstmt_uat_guest', 'evt_uat_guest_261020', 'bsrc_uat_guest', 'UAT-BS-0002', 'Ana Reyes', 'ana@ayala.test', 'UAT Guest Feedback', (($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Venue and catering\", \"amount\": 160000}, {\"label\": \"Guest registration desk\", \"amount\": 60000}, {\"label\": \"Overtime (2 hours)\", \"amount\": 30000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 125000, \"dueDate\": \"2026-09-20\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 125000, \"dueDate\": \"2026-10-13\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 250000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours')",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "label",
+      "percentage",
+      "amount",
+      "amount_paid",
+      "remaining_balance",
+      "due_date",
+      "status",
+      "statement_id"
+    ],
+    "select": "'pm_uat_guest_1', 'evt_uat_guest_261020', 'Downpayment', 50, 125000, 125000, 0, (($1::timestamptz + ('2026-09-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'paid', 'bstmt_uat_guest'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "label",
+      "percentage",
+      "amount",
+      "amount_paid",
+      "remaining_balance",
+      "due_date",
+      "status",
+      "statement_id"
+    ],
+    "select": "'pm_uat_guest_2', 'evt_uat_guest_261020', 'Balance', 50, 125000, 0, 125000, (($1::timestamptz + ('2026-10-13T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'pending', 'bstmt_uat_guest'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_sources",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_type",
+      "source_label",
+      "line_items",
+      "payment_schedule",
+      "payment_methods",
+      "total_amount",
+      "status",
+      "approved_at",
+      "approved_by",
+      "approval_notes",
+      "payment_terms_policy_state"
+    ],
+    "select": "'bsrc_uat_live', 'evt_uat_live_261024', 'ce_proposal', 'Live ops event package', '[{\"label\": \"Stage, lights and sound\", \"amount\": 240000}, {\"label\": \"Live operations crew\", \"amount\": 120000}, {\"label\": \"Registration system\", \"amount\": 60000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 210000, \"dueDate\": \"2026-09-24\"}, {\"label\": \"Second payment\", \"percentage\": 30, \"amount\": 126000, \"dueDate\": \"2026-10-17\"}, {\"label\": \"Balance\", \"percentage\": 20, \"amount\": 84000, \"dueDate\": \"2026-10-31\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 420000, 'approved', now(), 'Ms. Mys', 'Matches the signed proposal.', 'standard'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_statements",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_id",
+      "number",
+      "client_name",
+      "client_contact",
+      "event_name",
+      "event_date",
+      "line_items",
+      "payment_schedule",
+      "payment_methods",
+      "total_amount",
+      "storage_state",
+      "status",
+      "sent_at",
+      "generated_at"
+    ],
+    "select": "'bstmt_uat_live', 'evt_uat_live_261024', 'bsrc_uat_live', 'UAT-BS-0003', 'Ana Reyes', 'ana@ayala.test', 'UAT Live Ops Event', (($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Stage, lights and sound\", \"amount\": 240000}, {\"label\": \"Live operations crew\", \"amount\": 120000}, {\"label\": \"Registration system\", \"amount\": 60000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 210000, \"dueDate\": \"2026-09-24\"}, {\"label\": \"Second payment\", \"percentage\": 30, \"amount\": 126000, \"dueDate\": \"2026-10-17\"}, {\"label\": \"Balance\", \"percentage\": 20, \"amount\": 84000, \"dueDate\": \"2026-10-31\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 420000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours')",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "label",
+      "percentage",
+      "amount",
+      "amount_paid",
+      "remaining_balance",
+      "due_date",
+      "status",
+      "statement_id"
+    ],
+    "select": "'pm_uat_live_1', 'evt_uat_live_261024', 'Downpayment', 50, 210000, 210000, 0, (($1::timestamptz + ('2026-09-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'paid', 'bstmt_uat_live'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "label",
+      "percentage",
+      "amount",
+      "amount_paid",
+      "remaining_balance",
+      "due_date",
+      "status",
+      "statement_id"
+    ],
+    "select": "'pm_uat_live_2', 'evt_uat_live_261024', 'Second payment', 30, 126000, 60000, 66000, (($1::timestamptz + ('2026-10-17T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'partially_paid', 'bstmt_uat_live'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "label",
+      "percentage",
+      "amount",
+      "amount_paid",
+      "remaining_balance",
+      "due_date",
+      "status",
+      "statement_id"
+    ],
+    "select": "'pm_uat_live_3', 'evt_uat_live_261024', 'Balance', 20, 84000, 0, 84000, (($1::timestamptz + ('2026-10-31T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'pending', 'bstmt_uat_live'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_sources",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_type",
+      "source_label",
+      "line_items",
+      "payment_schedule",
+      "payment_methods",
+      "total_amount",
+      "status",
+      "approved_at",
+      "approved_by",
+      "approval_notes",
+      "payment_terms_policy_state"
+    ],
+    "select": "'bsrc_uat_ops', 'evt_uat_ops_261121', 'ce_proposal', 'Operations event package (Proposal v1)', '[{\"label\": \"Registration and badging\", \"amount\": 485000}, {\"label\": \"Floral production\", \"amount\": 180000}, {\"label\": \"Event management fee\", \"amount\": 200000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 432500, \"dueDate\": \"2026-11-04\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 432500, \"dueDate\": \"2026-11-14\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 865000, 'approved', now(), 'Ms. Mys', 'Matches the signed proposal.', 'standard'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_statements",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_id",
+      "number",
+      "client_name",
+      "client_contact",
+      "event_name",
+      "event_date",
+      "line_items",
+      "payment_schedule",
+      "payment_methods",
+      "total_amount",
+      "storage_state",
+      "status",
+      "sent_at",
+      "generated_at"
+    ],
+    "select": "'bstmt_uat_ops', 'evt_uat_ops_261121', 'bsrc_uat_ops', 'UAT-BS-0004', 'Ana Reyes', 'ana@ayala.test', 'UAT Operations Supplier Booking', (($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Registration and badging\", \"amount\": 485000}, {\"label\": \"Floral production\", \"amount\": 180000}, {\"label\": \"Event management fee\", \"amount\": 200000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 432500, \"dueDate\": \"2026-11-04\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 432500, \"dueDate\": \"2026-11-14\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 865000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours')",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "label",
+      "percentage",
+      "amount",
+      "amount_paid",
+      "remaining_balance",
+      "due_date",
+      "status",
+      "statement_id"
+    ],
+    "select": "'pm_uat_ops_1', 'evt_uat_ops_261121', 'Downpayment', 50, 432500, 0, 432500, (($1::timestamptz + ('2026-11-04T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'pending', 'bstmt_uat_ops'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "label",
+      "percentage",
+      "amount",
+      "amount_paid",
+      "remaining_balance",
+      "due_date",
+      "status",
+      "statement_id"
+    ],
+    "select": "'pm_uat_ops_2', 'evt_uat_ops_261121', 'Balance', 50, 432500, 0, 432500, (($1::timestamptz + ('2026-11-14T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'pending', 'bstmt_uat_ops'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_receipts",
+    "key": "id",
+    "columns": [
+      "id",
+      "amount",
+      "received_date",
+      "method",
+      "reference_number",
+      "reference_key",
+      "payer_name",
+      "event_id",
+      "notes",
+      "status",
+      "source",
+      "intended_milestone_id",
+      "verified_at",
+      "verified_by",
+      "verification_notes",
+      "rejected_at",
+      "rejected_by",
+      "rejection_reason",
+      "recorded_by",
+      "recorded_by_id"
+    ],
+    "select": "'prcp_uat_closure_dp', 160000, (($1::timestamptz + ('2026-09-15T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'Bank Transfer', 'UAT-BPI-0915-4471', 'uatbpi09154471', 'Ayala UAT', 'evt_uat_closure_261019', '', 'verified', 'pmcm', NULL, now(), 'Ms. Mys', 'Matched the bank statement line.', NULL::timestamp, NULL, NULL, 'Ms. Mys', 'usr_pmcm'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_records",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "milestone_id",
+      "amount_received",
+      "payment_date",
+      "payment_method",
+      "reference_number",
+      "receipt_id",
+      "recorded_by"
+    ],
+    "select": "'payrec_uat_closure_dp', 'evt_uat_closure_261019', 'pm_uat_closure_1', 160000, (($1::timestamptz + ('2026-09-15T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'Bank Transfer', 'UAT-BPI-0915-4471', 'prcp_uat_closure_dp', 'Ms. Mys'",
+    "identity": [
+      "event_id",
+      "milestone_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_receipts",
+    "key": "id",
+    "columns": [
+      "id",
+      "amount",
+      "received_date",
+      "method",
+      "reference_number",
+      "reference_key",
+      "payer_name",
+      "event_id",
+      "notes",
+      "status",
+      "source",
+      "intended_milestone_id",
+      "verified_at",
+      "verified_by",
+      "verification_notes",
+      "rejected_at",
+      "rejected_by",
+      "rejection_reason",
+      "recorded_by",
+      "recorded_by_id"
+    ],
+    "select": "'prcp_uat_closure_bal', 160000, (($1::timestamptz + ('2026-10-08T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'GCash', 'UAT-GC-1008-88231', 'uatgc100888231', 'Ayala UAT', 'evt_uat_closure_261019', '', 'verified', 'pmcm', NULL, now(), 'Ms. Mys', 'Matched the bank statement line.', NULL::timestamp, NULL, NULL, 'Ms. Mys', 'usr_pmcm'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_records",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "milestone_id",
+      "amount_received",
+      "payment_date",
+      "payment_method",
+      "reference_number",
+      "receipt_id",
+      "recorded_by"
+    ],
+    "select": "'payrec_uat_closure_bal', 'evt_uat_closure_261019', 'pm_uat_closure_2', 160000, (($1::timestamptz + ('2026-10-08T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'GCash', 'UAT-GC-1008-88231', 'prcp_uat_closure_bal', 'Ms. Mys'",
+    "identity": [
+      "event_id",
+      "milestone_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_receipts",
+    "key": "id",
+    "columns": [
+      "id",
+      "amount",
+      "received_date",
+      "method",
+      "reference_number",
+      "reference_key",
+      "payer_name",
+      "event_id",
+      "notes",
+      "status",
+      "source",
+      "intended_milestone_id",
+      "verified_at",
+      "verified_by",
+      "verification_notes",
+      "rejected_at",
+      "rejected_by",
+      "rejection_reason",
+      "recorded_by",
+      "recorded_by_id"
+    ],
+    "select": "'prcp_uat_guest_dp', 125000, (($1::timestamptz + ('2026-09-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'Bank Transfer', 'UAT-BDO-0920-1130', 'uatbdo09201130', 'Ayala UAT', 'evt_uat_guest_261020', '', 'verified', 'pmcm', NULL, now(), 'Ms. Mys', 'Matched the bank statement line.', NULL::timestamp, NULL, NULL, 'Ms. Mys', 'usr_pmcm'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_records",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "milestone_id",
+      "amount_received",
+      "payment_date",
+      "payment_method",
+      "reference_number",
+      "receipt_id",
+      "recorded_by"
+    ],
+    "select": "'payrec_uat_guest_dp', 'evt_uat_guest_261020', 'pm_uat_guest_1', 125000, (($1::timestamptz + ('2026-09-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'Bank Transfer', 'UAT-BDO-0920-1130', 'prcp_uat_guest_dp', 'Ms. Mys'",
+    "identity": [
+      "event_id",
+      "milestone_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_receipts",
+    "key": "id",
+    "columns": [
+      "id",
+      "amount",
+      "received_date",
+      "method",
+      "reference_number",
+      "reference_key",
+      "payer_name",
+      "event_id",
+      "notes",
+      "status",
+      "source",
+      "intended_milestone_id",
+      "verified_at",
+      "verified_by",
+      "verification_notes",
+      "rejected_at",
+      "rejected_by",
+      "rejection_reason",
+      "recorded_by",
+      "recorded_by_id"
+    ],
+    "select": "'prcp_uat_live_dp', 210000, (($1::timestamptz + ('2026-09-23T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'Bank Transfer', 'UAT-BPI-0923-7710', 'uatbpi09237710', 'Ayala UAT', 'evt_uat_live_261024', '', 'verified', 'pmcm', NULL, now(), 'Ms. Mys', 'Matched the bank statement line.', NULL::timestamp, NULL, NULL, 'Ms. Mys', 'usr_pmcm'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_records",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "milestone_id",
+      "amount_received",
+      "payment_date",
+      "payment_method",
+      "reference_number",
+      "receipt_id",
+      "recorded_by"
+    ],
+    "select": "'payrec_uat_live_dp', 'evt_uat_live_261024', 'pm_uat_live_1', 210000, (($1::timestamptz + ('2026-09-23T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'Bank Transfer', 'UAT-BPI-0923-7710', 'prcp_uat_live_dp', 'Ms. Mys'",
+    "identity": [
+      "event_id",
+      "milestone_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_receipts",
+    "key": "id",
+    "columns": [
+      "id",
+      "amount",
+      "received_date",
+      "method",
+      "reference_number",
+      "reference_key",
+      "payer_name",
+      "event_id",
+      "notes",
+      "status",
+      "source",
+      "intended_milestone_id",
+      "verified_at",
+      "verified_by",
+      "verification_notes",
+      "rejected_at",
+      "rejected_by",
+      "rejection_reason",
+      "recorded_by",
+      "recorded_by_id"
+    ],
+    "select": "'prcp_uat_live_second', 60000, (($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'GCash', 'UAT-GC-1020-55102', 'uatgc102055102', 'Ayala UAT', 'evt_uat_live_261024', '', 'recorded', 'pmcm', NULL, NULL::timestamp, NULL, NULL, NULL::timestamp, NULL, NULL, 'Ms. Mys', 'usr_pmcm'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_records",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "milestone_id",
+      "amount_received",
+      "payment_date",
+      "payment_method",
+      "reference_number",
+      "receipt_id",
+      "recorded_by"
+    ],
+    "select": "'payrec_uat_live_second', 'evt_uat_live_261024', 'pm_uat_live_2', 60000, (($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'GCash', 'UAT-GC-1020-55102', 'prcp_uat_live_second', 'Ms. Mys'",
+    "identity": [
+      "event_id",
+      "milestone_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_receipts",
+    "key": "id",
+    "columns": [
+      "id",
+      "amount",
+      "received_date",
+      "method",
+      "reference_number",
+      "reference_key",
+      "payer_name",
+      "event_id",
+      "notes",
+      "status",
+      "source",
+      "intended_milestone_id",
+      "verified_at",
+      "verified_by",
+      "verification_notes",
+      "rejected_at",
+      "rejected_by",
+      "rejection_reason",
+      "recorded_by",
+      "recorded_by_id"
+    ],
+    "select": "'prcp_uat_live_rejected', 66000, (($1::timestamptz + ('2026-10-22T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'Bank Transfer', 'UAT-BPI-1022-0000', NULL, 'Ayala UAT', 'evt_uat_live_261024', 'Reported by the client from the billing page.', 'rejected', 'client', 'pm_uat_live_2', NULL::timestamp, NULL, NULL, now(), 'Ms. Mys', 'No matching credit on the BPI statement; please send the deposit slip.', 'Ana Reyes', 'usr_client'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.payment_receipts",
+    "key": "id",
+    "columns": [
+      "id",
+      "amount",
+      "received_date",
+      "method",
+      "reference_number",
+      "reference_key",
+      "payer_name",
+      "event_id",
+      "notes",
+      "status",
+      "source",
+      "intended_milestone_id",
+      "verified_at",
+      "verified_by",
+      "verification_notes",
+      "rejected_at",
+      "rejected_by",
+      "rejection_reason",
+      "recorded_by",
+      "recorded_by_id"
+    ],
+    "select": "'prcp_uat_ops_unapplied', 100000, (($1::timestamptz + ('2026-10-23T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'Bank Transfer', 'UAT-BPI-1023-3390', 'uatbpi10233390', 'Ayala UAT', 'evt_uat_ops_261121', 'Reported by the client from the billing page.', 'recorded', 'client', 'pm_uat_ops_2', NULL::timestamp, NULL, NULL, NULL::timestamp, NULL, NULL, 'Ana Reyes', 'usr_client'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_disputes",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "statement_id",
+      "milestone_id",
+      "amount",
+      "reason",
+      "severity",
+      "status",
+      "raised_by",
+      "idempotency_key",
+      "payload_hash"
+    ],
+    "select": "'dispute_uat_guest_overtime', 'evt_uat_guest_261020', 'bstmt_uat_guest', 'pm_uat_guest_2', 30000, 'We did not agree to two hours of overtime; the program ended on time.', 'amount_discrepancy', 'open', 'Ana Reyes', 'uat-dispute-guest-overtime', 'uat-seed'",
+    "identity": [
+      "event_id",
+      "statement_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_corrections",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "statement_id",
+      "reason",
+      "severity",
+      "status",
+      "requested_by",
+      "requested_by_id",
+      "idempotency_key",
+      "payload_hash"
+    ],
+    "select": "'correction_uat_live_name', 'evt_uat_live_261024', 'bstmt_uat_live', 'Client billing name should read Ayala Corporation.', 'typo_correction', 'pending', 'Ms. Mys', 'usr_pmcm', 'uat-correction-live-name', 'uat-seed'",
+    "identity": [
+      "event_id",
+      "statement_id"
+    ]
+  },
+  {
+    "table": "commercial.billing_sources",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "source_type",
+      "source_label",
+      "line_items",
+      "payment_schedule",
+      "payment_methods",
+      "total_amount",
+      "status",
+      "payment_terms_policy_state"
+    ],
+    "select": "'bsrc_uat_archived_draft', 'evt_uat_archived_260815', 'ce_proposal', 'Archived event late charges', '[{\"label\": \"Late equipment return\", \"amount\": 12000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 6000}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 6000}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 12000, 'draft', 'standard'",
+    "identity": [
+      "event_id"
+    ]
+  },
+  {
+    "table": "commercial.supplier_payable_milestones",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "request_id",
+      "quote_id",
+      "supplier_id",
+      "label",
+      "amount",
+      "due_date",
+      "status",
+      "created_by",
+      "updated_at"
+    ],
+    "select": "'payable_uat_bloom_balance', 'evt_uat_ops_261121', 'rq_uat_bloom_confirmed', 'quote_uat_bloom_confirmed', 'sup_bloom', 'Floral production balance after event', 90000, (($1::timestamptz + ('2026-11-28T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 'scheduled', 'usr_pmcm', now()",
+    "identity": [
+      "event_id",
+      "request_id",
+      "quote_id",
+      "supplier_id"
     ]
   }
 ]

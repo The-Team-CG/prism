@@ -116,6 +116,12 @@ dates, which show one day early; reseed a new disposable database to correct the
 Planning is 28 days later; feedback/closure/archive examples are earlier. Other
 scheduled dates shift equally. Stable legacy ID date suffixes remain identifiers.
 
+Billing covers every client payment state on Ana's events: closure paid in full; guest feedback with the balance
+overdue and part of it disputed; live ops part paid over three payments, with a payment still to verify, a rejected
+transfer and a pending correction; the operations booking unpaid with money the client reported held unapplied; and a
+draft source on the archived event. Bloom Florals has a late deposit and a scheduled balance; both selected supplier
+quotes are locked, as selection locks them in the app.
+
 Dry-run/verify are read-only. Verify fails for missing rows. Apply inserts missing
 rows in one transaction and serializes seed commands with an advisory lock.
 Identity/link conflicts fail before writes; constraint errors roll back all inserts.
