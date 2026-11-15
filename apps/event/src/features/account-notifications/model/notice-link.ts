@@ -1,8 +1,9 @@
 import type { NotificationAction } from "@prism/types";
+import type { NoticeLink } from "@prism/ui/notifications";
 import { conversationHash } from "@prism/ui/portal-path";
 import { eventWorkspaceHref } from "@/features/event-dashboard/shell/model/event-dashboard-routing";
 
-export type NoticeLink = { href: string; label: string };
+export type { NoticeLink };
 
 type EventSection = Extract<NotificationAction, { kind: "event_section" }>["section"];
 type WorkspaceTab = Parameters<typeof eventWorkspaceHref>[1];

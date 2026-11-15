@@ -5,6 +5,7 @@ import { Button } from "@prism/ui/components/button";
 import { PrismDashboardShell } from "@prism/ui";
 import { useSupplierWorkspaceViewModel } from "../view-models/use-supplier-workspace-view-model";
 import { useSupplierUnreadMessages } from "../view-models/use-supplier-unread-messages";
+import { useSupplierUnreadNotices } from "../../notifications/view-models/use-supplier-unread-notices";
 import { useNewPayouts } from "../view-models/use-new-payouts";
 import { supplierAccountMenuItems, supplierActiveNavId, supplierCommandActions, supplierMobileActions, supplierNavItems } from "../model/supplier-workspace-nav";
 import type { SupplierDashboardSection } from "../model/supplier-workspace-types";
@@ -15,6 +16,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
   const vm = useSupplierWorkspaceViewModel(routeSection);
   const { session, workspace, readinessBoard, section, setSection, error, notice, busy, derived, meta } = vm;
   const messagesUnread = useSupplierUnreadMessages(session);
+  const noticesUnread = useSupplierUnreadNotices(session);
   const payouts = useNewPayouts(session?.id, vm.workflowWorkspace?.payables ?? [], section === "payments");
 
   if (!session) return <SupplierWorkspaceLoading />;
@@ -47,6 +49,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
         quoteNeedingSubmission,
         handoffPending,
         messagesUnread,
+        noticesUnread,
         newPayouts: payouts.badgeCount,
       })}
       sidebarMode="single"

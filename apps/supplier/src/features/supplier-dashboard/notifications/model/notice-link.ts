@@ -1,8 +1,9 @@
 import type { NotificationAction } from "@prism/types";
+import type { NoticeLink } from "@prism/ui/notifications";
 import { conversationHash } from "@prism/ui/portal-path";
 import { supplierSectionHref, supplierWorkTargetHref } from "../../workspace/model/supplier-workspace-types";
 
-export type NoticeLink = { href: string; label: string };
+export type { NoticeLink };
 
 /**
  * Where a supplier notice sends the reader. A schedule revision opens its booking; a file requirement

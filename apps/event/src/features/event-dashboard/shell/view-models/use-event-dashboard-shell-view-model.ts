@@ -7,6 +7,7 @@ import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@pri
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import { useEventUnreadMessages } from "../../messages/view-models/use-event-unread-messages";
+import { useEventUnreadNotices } from "@/features/account-notifications/view-models/use-event-unread-notices";
 import { useEventDashboardNavigationViewModel } from "./use-event-dashboard-navigation-view-model";
 import {
   selectClientRecords,
@@ -306,11 +307,13 @@ export function useEventDashboardShellViewModel({
   const inEventWorkspace = Boolean(routeState.eventId) && !eventWorkspaceDisabled;
   // Messages inside an event counts that event's conversations only.
   const unreadMessages = useEventUnreadMessages({ eventId: selectedEvent?.id });
+  const unreadNotices = useEventUnreadNotices();
   // The Finance count is the desk's queue: what is late, to verify or apply, disputed, or owed to a supplier.
   const financeQueue = useResource(financeDesk, "signed-in");
   const shellNavItems = eventPortalNavItems({
     inEventWorkspace,
     unreadMessages,
+    unreadNotices,
     eventStage: selectedEvent ? derivePrismLifecycleStage(selectedEvent) : undefined,
     disabledModules: selectedEvent?.disabledModules ?? [],
     inquiryCount: unreviewedInquiries + pendingApprovals.length,

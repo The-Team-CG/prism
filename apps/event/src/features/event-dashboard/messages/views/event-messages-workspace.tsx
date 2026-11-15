@@ -10,7 +10,7 @@ import { ConversationPeopleSheet, ReopenConversationButton } from "./conversatio
 /** One event's conversations, or, without an event, every conversation PMCM is in. */
 export function EventMessagesWorkspace({ event, events, session }: { event?: PrismEvent; events?: PrismEvent[]; session: EventSession }) {
   const vm = useEventMessagesViewModel({ event, events, session });
-  const settings = session.role === 'coordinator' ? '/dashboard?view=notifications' : '/dashboard/settings#notification-settings';
+  const settings = session.role === 'coordinator' ? '/dashboard?view=notifications' : '/dashboard/notifications#viber-settings';
   const manage = vm.manage;
   return (
     <ChatWorkspace

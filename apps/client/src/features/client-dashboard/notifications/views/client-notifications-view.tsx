@@ -1,15 +1,18 @@
 "use client";
 
-import { NotificationPreferencesPanel } from "@prism/ui/notification-preferences";
-import { NotificationInbox } from './notification-inbox';
+import { useInvalidate } from "@prism/portal-query";
+import { NotificationCenter } from "@prism/ui/notifications";
 import { notificationPreferencesRepository } from "../data/notification-preferences-repository";
+import { clientUnreadNotices } from "../data/client-notifications-unread-resource";
+import { clientNoticeLink } from "../model/notice-link";
 
-/** The shared panel is capped at half width; the client page gives its channels the full content width. */
 export function ClientNotificationsView() {
+  const invalidate = useInvalidate();
   return (
-    <div className="space-y-6 [&>section]:max-w-none">
-      <NotificationInbox />
-      <NotificationPreferencesPanel actions={notificationPreferencesRepository} />
-    </div>
+    <NotificationCenter
+      actions={notificationPreferencesRepository}
+      linkFor={(notice) => clientNoticeLink(notice.action)}
+      onChange={() => void invalidate(clientUnreadNotices, "signed-in")}
+    />
   );
 }

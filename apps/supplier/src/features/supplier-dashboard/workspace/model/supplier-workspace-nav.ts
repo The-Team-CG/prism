@@ -1,4 +1,5 @@
 import { unreadNavBadge } from "@prism/ui/chat";
+import { unreadNoticeBadge } from "@prism/ui/notifications";
 import { countNavBadge } from "@prism/ui/nav-badge";
 import {
   BadgeCheck,
@@ -24,6 +25,7 @@ export function supplierNavItems(input: {
   quoteNeedingSubmission: number;
   handoffPending: number;
   messagesUnread?: number;
+  noticesUnread?: number;
   /** Payouts PMCM sent since the supplier last opened Payments. */
   newPayouts?: number;
 }) {
@@ -33,6 +35,7 @@ export function supplierNavItems(input: {
     { id: "bookings", label: "Bookings", icon: BadgeCheck, badge: input.handoffPending || undefined },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
     { id: "messages", label: "Messages", icon: MessageSquare, ...unreadNavBadge(input.messagesUnread) },
+    { id: "notifications", label: "Notifications", icon: Bell, ...unreadNoticeBadge(input.noticesUnread) },
     { id: "files", label: "Files", icon: FileCheck2 },
     { id: "payments", label: "Payments", icon: Wallet, ...countNavBadge(input.newPayouts, "new payment") },
     { id: "profile", label: "Services & profile", icon: User },
@@ -49,7 +52,6 @@ export function supplierActiveNavId(section: SupplierDashboardSection): Supplier
 export function supplierAccountMenuItems(onNavigate: (section: SupplierDashboardSection) => void) {
   return [
     { id: "privacy", label: "Privacy requests", icon: ShieldCheck, onSelect: () => onNavigate("privacy") },
-    { id: "notifications", label: "Notifications", icon: Bell, onSelect: () => onNavigate("notifications") },
     { id: "support", label: "Help & support", icon: HelpCircle, onSelect: () => onNavigate("support") },
   ];
 }

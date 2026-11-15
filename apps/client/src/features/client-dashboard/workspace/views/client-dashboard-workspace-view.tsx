@@ -34,6 +34,8 @@ import {
 } from "../model/client-floorplan-preference-rules";
 import { useClientUnreadMessages } from "../../messages/view-models/use-client-unread-messages";
 import { unreadNavBadge } from "@prism/ui/chat";
+import { unreadNoticeBadge } from "@prism/ui/notifications";
+import { useClientUnreadNotices } from "../../notifications/view-models/use-client-unread-notices";
 import { manilaDateKey } from "@prism/ui/format-date";
 import { countNavBadge } from "@prism/ui/nav-badge";
 import { overduePaymentCount } from "../../billing/model/client-billing-rules";
@@ -140,13 +142,14 @@ function eventNavItemBadge<T extends { id: string }>(item: T, unreadMessages?: n
   return item;
 }
 
-function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, eventUnreadMessages, overduePayments, eventOverduePayments }: {
+function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, unreadNotices, eventUnreadMessages, overduePayments, eventOverduePayments }: {
   route: ClientDashboardRoute;
   portalView?: ClientPortalView;
   isEventScopedView: boolean;
   selectedEvent?: PrismEvent;
   events: PrismEvent[];
   unreadMessages?: number;
+  unreadNotices?: number;
   eventUnreadMessages?: number;
   overduePayments?: number;
   eventOverduePayments?: number;
@@ -154,6 +157,7 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
   const shellNavItems = clientPortalSidebarItems(events.length).map((item) => ({
     ...item,
     ...(item.id === "messages" ? unreadNavBadge(unreadMessages) : {}),
+    ...(item.id === "notification-settings" ? unreadNoticeBadge(unreadNotices) : {}),
     ...(item.id === "billing-payments" ? countNavBadge(overduePayments, "overdue payment") : {}),
     href: clientSidebarLinkHref(item.id, selectedEvent?.id),
     disabled: disableEventNav(item.requiresEvent, clientEventWorkspaceAvailable(selectedEvent)),
@@ -192,6 +196,7 @@ export function ClientDashboardWorkspaceView({
   });
   // The account's Messages item counts every conversation; the event workspace's Messages item counts that event's.
   const unreadMessages = useClientUnreadMessages();
+  const unreadNotices = useClientUnreadNotices();
   const eventUnreadMessages = useClientUnreadMessages({ eventId: selectedEventId ?? undefined });
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
@@ -495,7 +500,7 @@ export function ClientDashboardWorkspaceView({
   }
 
   const { inEventWorkspace, activeShellItemId, sidebarNavItems } = clientWorkspaceShellNavigation({
-    route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, eventUnreadMessages,
+    route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, unreadNotices, eventUnreadMessages,
     ...billingBadgeCounts(state?.paymentMilestones, selectedEvent?.id),
   });
 

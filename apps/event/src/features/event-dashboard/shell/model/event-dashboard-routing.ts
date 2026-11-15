@@ -14,6 +14,7 @@ export type DashboardSection =
   | "suppliers"
   | "files"
   | "messages"
+  | "notifications"
   | "finance"
   | "audit"
   | "privacy"
@@ -151,6 +152,7 @@ export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
   calendar: "/dashboard/calendar",
   tasks: "/dashboard/tasks",
   messages: "/dashboard/messages",
+  notifications: "/dashboard/notifications",
   files: "/dashboard/files",
   team: "/dashboard/team",
   suppliers: "/dashboard/suppliers",
@@ -225,6 +227,7 @@ const SIDEBAR_ITEM_TO_STATE: Record<string, RouteState> = {
   suppliers: { section: "suppliers", tab: "overview", view: "all" },
   files: { section: "files", tab: "floorplans", view: "all" },
   messages: { section: "messages", tab: "messages", view: "inbox" },
+  notifications: { section: "notifications", tab: "overview", view: "all" },
   finance: { section: "finance", tab: "billing", view: "overview" },
   audit: { section: "audit", tab: "overview", view: "system-logs" },
   privacy: { section: "privacy", tab: "overview", view: "console" },
@@ -251,6 +254,7 @@ const SECTION_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
   privacy: "privacy",
   clients: "clients",
   calendar: "calendar",
+  notifications: "notifications",
   settings: "settings",
   inquiries: "inquiries",
   "events-list": "events-list",
@@ -275,6 +279,7 @@ const ROUTE_LOADING_COPY: Partial<Record<DashboardSection, { eyebrow: string; ti
   team: { eyebrow: "Team", title: "Team" },
   files: { eyebrow: "Files", title: "Event File Hub" },
   messages: { eyebrow: "Messages", title: "Event Messages" },
+  notifications: { eyebrow: "Notifications", title: "Notifications" },
   finance: { eyebrow: "Finance", title: "Finance Desk" },
   inquiries: { eyebrow: "Inquiries", title: "Inquiries" },
   "events-list": { eyebrow: "Events", title: "Events" },
@@ -326,6 +331,7 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   team: "PMCM coordinators, their roles and availability. Assign them inside each event.",
   files: "Operational documents, official floorplans, billing statements, contracts, and closeout records.",
   messages: "Client, supplier, coordinator, and internal PMCM communication threads.",
+  notifications: "What changed across your events, what is new since you last looked, and what asks you to confirm receipt. Every notice opens its item.",
   finance: "What needs you across events: money overdue, to verify and to apply, disputes, and what PMCM owes suppliers.",
   settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
   inquiries: "One intake queue, from first contact to the client's portal account. Accepted inquiries continue in Onboarding and Conforme follow-up.",
@@ -359,6 +365,7 @@ const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
   calendar: "Calendar",
   files: "Files",
   messages: "Messages",
+  notifications: "Notifications",
   finance: "Finance",
   tasks: "Tasks",
   team: "Team",
