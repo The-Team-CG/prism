@@ -1,8 +1,9 @@
 import type { NotificationAction } from "@prism/types";
+import type { NoticeLink } from "@prism/ui/notifications";
 import { conversationHash } from "@prism/ui/portal-path";
 import { dashboardHref } from "../../workspace/model/client-dashboard-navigation";
 
-export type NoticeLink = { href: string; label: string };
+export type { NoticeLink };
 
 type EventSection = Extract<NotificationAction, { kind: "event_section" }>["section"];
 type SectionTarget = { page: Parameters<typeof dashboardHref>[0]; label: string };

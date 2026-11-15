@@ -115,7 +115,7 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
   files: (p) => <FilesPage workspace={p.workspace} session={p.session} workflowWorkspace={p.workflowWorkspace} readinessBoard={p.readinessBoard} onDownloadObject={p.onDownloadObject} />,
   profile: (p) => <ProfilePage supplier={p.workspace.supplier} session={p.session} />,
   privacy: () => <SupplierPrivacyRequestsView />,
-  notifications: () => <SupplierNotificationsView />,
+  notifications: (p) => <SupplierNotificationsView session={p.session} />,
   support: () => <SupportPage />,
 };
 

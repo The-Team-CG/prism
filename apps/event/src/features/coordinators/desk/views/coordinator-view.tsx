@@ -7,6 +7,8 @@ import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardL
 import { EventMessagesWorkspace } from '@/features/event-dashboard/messages/views/event-messages-workspace';
 import { useEventUnreadMessages } from '@/features/event-dashboard/messages/view-models/use-event-unread-messages';
 import { unreadNavBadge } from "@prism/ui/chat";
+import { unreadNoticeBadge } from "@prism/ui/notifications";
+import { useEventUnreadNotices } from "@/features/account-notifications/view-models/use-event-unread-notices";
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { Button } from "@prism/ui/components/button";
@@ -182,6 +184,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
 }) {
   const vm = useCoordinatorViewModel({ session, state, onRefresh });
   const unreadMessages = useEventUnreadMessages();
+  const unreadNotices = useEventUnreadNotices();
   const pathname = usePathname() ?? COORDINATOR_HOME_PATH;
   const router = useRouter();
   const [requestedView, setActiveView] = useState<CoordinatorViewId>("shift");
@@ -217,6 +220,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
     { id: "run-sheet", icon: CalendarClock, label: COORDINATOR_VIEW_LABELS["run-sheet"], section: "Coordinator", href: viewHref("run-sheet", vm.event?.id) },
     { id: "calendar", icon: CalendarDays, label: COORDINATOR_VIEW_LABELS.calendar, section: "Coordinator", href: viewHref("calendar", vm.event?.id) },
     { id: "messages", icon: MessageSquare, label: COORDINATOR_VIEW_LABELS.messages, section: "Coordinator", href: viewHref("messages"), ...unreadNavBadge(unreadMessages) },
+    { id: "notifications", icon: Bell, label: COORDINATOR_VIEW_LABELS.notifications, section: "Coordinator", href: viewHref("notifications"), ...unreadNoticeBadge(unreadNotices) },
     { id: "assignments", icon: UsersRound, label: COORDINATOR_VIEW_LABELS.assignments, section: "Coordinator", href: viewHref("assignments", vm.event?.id) },
     ...(vm.registrationRole && !vm.readOnly ? [{ id: "registration", icon: ClipboardCheck, label: COORDINATOR_VIEW_LABELS.registration, section: "Coordinator", href: viewHref("registration", vm.event?.id) }] : []),
   ];
@@ -255,7 +259,6 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       alwaysShowHeaderActions
       user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       onSignOut={onSignOut}
-      accountMenuItems={[{ id: "notifications", label: "Notifications", icon: Bell, onSelect: () => navigateTo("notifications") }]}
       searchPlaceholder="Search tasks and issues..."
       commandSectionLabel="Actions"
       commandActions={buildCoordinatorCommandActions(

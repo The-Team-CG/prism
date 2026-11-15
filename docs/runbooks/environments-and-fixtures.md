@@ -124,6 +124,11 @@ quotes are locked, as selection locks them in the app. PMCM's payment details ar
 account with a small stand-in QR image, and a cheque payee that is turned off), because statements cannot be issued and
 clients are shown no account without them. The stand-in QR only shows how the image displays; it does not scan.
 
+Notifications give Ana, XPERTO, Ms. Mys and Marco each an inbox: new and opened notices from the last hour to 40 days
+back across several events, some on email and Viber together, notices that ask for acknowledgment (one overdue and
+already escalated, others due soon), and one with no event or link. Times are relative to when the seed runs, so
+"Today" and "Yesterday" are always populated.
+
 Dry-run/verify are read-only. Verify fails for missing rows. Apply inserts missing
 rows in one transaction and serializes seed commands with an advisory lock.
 Identity/link conflicts fail before writes; constraint errors roll back all inserts.

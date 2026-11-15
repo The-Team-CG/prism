@@ -1,15 +1,36 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import type { OpsNotificationLog } from '@prisma/client';
+import type { OpsNotificationDelivery, OpsNotificationLog } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { ACCOUNT_CONTACT_READ_MODEL, type AccountContactReadModel } from '@prism/contexts/read-models/account-contacts';
-import type { PrismNotificationInboxItem, PrismVerifiedEventActor, RequestNotificationAcknowledgmentInput } from '@prism/types';
+import type { PrismNotificationInbox, PrismVerifiedEventActor, RequestNotificationAcknowledgmentInput } from '@prism/types';
 import { AUDIT_WRITER, writeAudit, type AuditWriter } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory } from '@prism/kernel/event-core';
 import { notificationActionSchema } from '@prism/types';
 import { groupInboxDeliveries } from './notification-inbox-grouping';
 
+const INBOX_CHANNELS = ['email', 'viber'];
+/** One notice reaches an account on up to this many channels, so a page of notices reads this many deliveries each. */
+const COPIES_PER_NOTICE = INBOX_CHANNELS.length;
+/** The unread count looks at this many of the newest unread deliveries; the navigation shows 99+ well before it. */
+const UNREAD_SCAN_LIMIT = 200;
+
+type InboxRow = OpsNotificationDelivery & { notification: OpsNotificationLog };
+
 const versionOf = (row: OpsNotificationLog) => createHash('sha256').update(JSON.stringify([row.id, row.eventId, row.channel, row.recipient, row.message, row.action ?? null])).digest('hex');
+
+function inboxDelivery(row: InboxRow, eventName: string | null) {
+  const action = notificationActionSchema.safeParse(row.notification.action);
+  return {
+    id: row.id, notificationId: row.notificationId, eventId: row.notification.eventId, eventName,
+    channel: row.notification.channel, message: row.notification.message, version: versionOf(row.notification),
+    operationId: row.notification.idempotencyKey,
+    createdAt: row.createdAt.toISOString(), readAt: row.readAt?.toISOString() ?? null,
+    acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
+    acknowledgmentDueAt: row.acknowledgmentDueAt?.toISOString() ?? null,
+    ...(action.success ? { action: action.data } : {}),
+  };
+}
 
 @Injectable()
 export class NotificationInboxService {
@@ -27,21 +48,47 @@ export class NotificationInboxService {
     return (await this.contacts.findSelectedSupplierContacts(eventId)).some((supplier) => supplier.email?.trim().toLowerCase() === email);
   }
 
-  async mine(actor: PrismVerifiedEventActor): Promise<PrismNotificationInboxItem[]> {
-    const rows = await this.prisma.opsNotificationDelivery.findMany({
-      where: { recipient: actor.email.trim().toLowerCase(), status: { not: 'skipped' }, notification: { channel: { in: ['email', 'viber'] } } },
-      include: { notification: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 100,
+  private ownDeliveries(actor: PrismVerifiedEventActor) {
+    return { recipient: actor.email.trim().toLowerCase(), status: { not: 'skipped' }, notification: { channel: { in: INBOX_CHANNELS } } };
+  }
+
+  /** The deliveries whose event the account can still open; access is looked up once per event, not once per row. */
+  private async withAccess<T extends { notification: { eventId: string | null } }>(rows: T[], actor: PrismVerifiedEventActor): Promise<T[]> {
+    const eventIds = [...new Set(rows.map((row) => row.notification.eventId))];
+    const access = new Map(await Promise.all(eventIds.map(async (eventId) => [eventId, await this.allowed(eventId, actor)] as const)));
+    return rows.filter((row) => access.get(row.notification.eventId));
+  }
+
+  async mine(actor: PrismVerifiedEventActor, limit: number): Promise<PrismNotificationInbox> {
+    const take = limit * COPIES_PER_NOTICE;
+    const [found, unread] = await Promise.all([
+      this.prisma.opsNotificationDelivery.findMany({
+        where: this.ownDeliveries(actor), include: { notification: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: the page size is validated to at most NOTIFICATION_INBOX_MAX_LIMIT (200) notices, two channel copies each, plus one to see whether more exist.
+        take: take + 1,
+      }),
+      this.unread(actor),
+    ]);
+    const rows = await this.withAccess(found.slice(0, take), actor);
+    const eventIds = rows.flatMap((row) => row.notification.eventId ?? []);
+    const names = eventIds.length ? await this.contacts.findEventNames(eventIds) : {};
+    const grouped = groupInboxDeliveries(rows.map((row) => inboxDelivery(row, row.notification.eventId ? names[row.notification.eventId] ?? null : null)));
+    return { items: grouped.slice(0, limit), unread, hasMore: found.length > take || grouped.length > limit };
+  }
+
+  /** How many notices the account has not opened yet, counting a notice sent on two channels once. */
+  async unread(actor: PrismVerifiedEventActor): Promise<number> {
+    const found = await this.prisma.opsNotificationDelivery.findMany({
+      where: { ...this.ownDeliveries(actor), readAt: null }, include: { notification: true }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: UNREAD_SCAN_LIMIT,
     });
-    const allowed = await Promise.all(rows.map((row) => this.allowed(row.notification.eventId, actor)));
-    return groupInboxDeliveries(rows.flatMap((row, index) => allowed[index] ? [{
-      id: row.id, notificationId: row.notificationId, eventId: row.notification.eventId,
-      channel: row.notification.channel, message: row.notification.message, version: versionOf(row.notification),
-      operationId: row.notification.idempotencyKey,
-      createdAt: row.createdAt.toISOString(), readAt: row.readAt?.toISOString() ?? null,
-      acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
-      acknowledgmentDueAt: row.acknowledgmentDueAt?.toISOString() ?? null,
-      ...(notificationActionSchema.safeParse(row.notification.action).success ? { action: notificationActionSchema.parse(row.notification.action) } : {}),
-    }] : [])).slice(0, 50);
+    const rows = await this.withAccess(found, actor);
+    return groupInboxDeliveries(rows.map((row) => inboxDelivery(row, null))).length;
+  }
+
+  /** Marks every notice the account has as read; one the account has not yet opened never needs its own call. */
+  async markAllRead(actor: PrismVerifiedEventActor): Promise<{ marked: number }> {
+    const changed = await this.prisma.opsNotificationDelivery.updateMany({ where: { ...this.ownDeliveries(actor), readAt: null }, data: { readAt: new Date() } });
+    return { marked: changed.count };
   }
 
   private async own(id: string, version: string, actor: PrismVerifiedEventActor) {

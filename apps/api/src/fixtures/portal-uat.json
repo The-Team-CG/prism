@@ -2299,5 +2299,1509 @@
       "quote_id",
       "supplier_id"
     ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_01_email', 'evt_uat_live_261024', 'email', 'Ana Reyes', 'PMCM did not accept your payment of ₱66,000 for UAT Live Ops Event. The reference number does not match the bank statement.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"billing\"}'::jsonb, 'sent', 1, 'uat-notice-1:email', now() - interval '20 minutes', now() - interval '20 minutes'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_01_email', 'nlog_uat_01_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_01_email', now() - interval '20 minutes', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '20 minutes'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_01_viber', 'evt_uat_live_261024', 'viber', 'Ana Reyes', 'PMCM did not accept your payment of ₱66,000 for UAT Live Ops Event. The reference number does not match the bank statement.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"billing\"}'::jsonb, 'sent', 1, 'uat-notice-1:viber', now() - interval '20 minutes', now() - interval '20 minutes'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_01_viber', 'nlog_uat_01_viber', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_01_viber', now() - interval '20 minutes', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '20 minutes'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_02_email', 'evt_uat_ops_261121', 'email', 'Ana Reyes', 'PMCM replied in \"UAT supplier and event coordination\".', '{\"kind\":\"conversation\",\"eventId\":\"evt_uat_ops_261121\",\"threadId\":\"thread_uat_ops_supplier\"}'::jsonb, 'sent', 1, 'uat-notice-2:email', now() - interval '3 hours', now() - interval '3 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_02_email', 'nlog_uat_02_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_02_email', now() - interval '3 hours', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '3 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_03_email', 'evt_uat_ops_261121', 'email', 'Ana Reyes', 'Please confirm a venue walk-through slot for UAT Operations Supplier Booking.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_ops_261121\",\"section\":\"overview\"}'::jsonb, 'sent', 1, 'uat-notice-3:email', now() - interval '5 hours', now() - interval '5 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_03_email', 'nlog_uat_03_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_03_email', now() - interval '5 hours', NULL::timestamp, NULL::timestamp, now() + interval '2 days', NULL::timestamp, NULL::timestamp, now() - interval '5 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_03_viber', 'evt_uat_ops_261121', 'viber', 'Ana Reyes', 'Please confirm a venue walk-through slot for UAT Operations Supplier Booking.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_ops_261121\",\"section\":\"overview\"}'::jsonb, 'sent', 1, 'uat-notice-3:viber', now() - interval '5 hours', now() - interval '5 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_03_viber', 'nlog_uat_03_viber', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_03_viber', now() - interval '5 hours', NULL::timestamp, NULL::timestamp, now() + interval '2 days', NULL::timestamp, NULL::timestamp, now() - interval '5 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_04_email', 'evt_uat_ops_261121', 'email', 'Ana Reyes', 'A proposal is ready for your review for UAT Operations Supplier Booking.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_ops_261121\",\"section\":\"proposal\"}'::jsonb, 'sent', 1, 'uat-notice-4:email', now() - interval '1 day 2 hours', now() - interval '1 day 2 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_04_email', 'nlog_uat_04_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_04_email', now() - interval '1 day 2 hours', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '1 day 2 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_05_email', 'evt_uat_live_261024', 'email', 'Ana Reyes', 'Please review and sign off the event-day schedule for UAT Live Ops Event.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"live_ops\"}'::jsonb, 'sent', 1, 'uat-notice-5:email', now() - interval '1 day 6 hours', now() - interval '1 day 6 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_05_email', 'nlog_uat_05_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_05_email', now() - interval '1 day 6 hours', NULL::timestamp, NULL::timestamp, now() - interval '22 hours', now() - interval '20 hours', now() - interval '20 hours', now() - interval '1 day 6 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_05_viber', 'evt_uat_live_261024', 'viber', 'Ana Reyes', 'Please review and sign off the event-day schedule for UAT Live Ops Event.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"live_ops\"}'::jsonb, 'sent', 1, 'uat-notice-5:viber', now() - interval '1 day 6 hours', now() - interval '1 day 6 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_05_viber', 'nlog_uat_05_viber', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_05_viber', now() - interval '1 day 6 hours', NULL::timestamp, NULL::timestamp, now() - interval '22 hours', now() - interval '20 hours', now() - interval '20 hours', now() - interval '1 day 6 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_06_email', 'evt_uat_closure_261019', 'email', 'Ana Reyes', 'PMCM accepted your payment of ₱160,000 for UAT Closure Event.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_closure_261019\",\"section\":\"billing\"}'::jsonb, 'sent', 1, 'uat-notice-6:email', now() - interval '2 days', now() - interval '2 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_06_email', 'nlog_uat_06_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_06_email', now() - interval '2 days', now() - interval '2 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '2 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_07_email', 'evt_uat_guest_261020', 'email', 'Ana Reyes', 'Your balance of ₱125,000 for UAT Guest Feedback was due on Oct 13.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_guest_261020\",\"section\":\"billing\"}'::jsonb, 'sent', 1, 'uat-notice-7:email', now() - interval '4 days', now() - interval '4 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_07_email', 'nlog_uat_07_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_07_email', now() - interval '4 days', now() - interval '4 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '4 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_08_email', 'evt_uat_ops_261121', 'email', 'Ana Reyes', 'PMCM approved your floor plan preferences for UAT Operations Supplier Booking.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_ops_261121\",\"section\":\"floorplans\"}'::jsonb, 'sent', 1, 'uat-notice-8:email', now() - interval '6 days', now() - interval '6 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_08_email', 'nlog_uat_08_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_08_email', now() - interval '6 days', now() - interval '6 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '6 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_09_email', 'evt_uat_live_261024', 'email', 'Ana Reyes', 'Please acknowledge the updated event-day schedule for UAT Live Ops Event.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"live_ops\"}'::jsonb, 'sent', 1, 'uat-notice-9:email', now() - interval '8 days', now() - interval '8 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_09_email', 'nlog_uat_09_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_09_email', now() - interval '8 days', now() - interval '8 days', now() - interval '8 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '8 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_10_email', 'evt_uat_archived_260815', 'email', 'Ana Reyes', 'UAT Archived Event is closed and archived. Thank you for planning it with PMCM.', NULL::jsonb, 'sent', 1, 'uat-notice-10:email', now() - interval '12 days', now() - interval '12 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_10_email', 'nlog_uat_10_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_10_email', now() - interval '12 days', now() - interval '12 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '12 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_11_email', NULL::text, 'email', 'Ana Reyes', 'Your notification settings now include Viber. Link it from Notifications to get notices there too.', NULL::jsonb, 'sent', 1, 'uat-notice-11:email', now() - interval '20 days', now() - interval '20 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_11_email', 'nlog_uat_11_email', 'ana@ayala.test', 'accepted', 1, 'uat-seed:nlog_uat_11_email', now() - interval '20 days', now() - interval '20 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '20 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_12_email', 'evt_uat_ops_261121', 'email', 'XPERTO Registration', 'Review schedule revision 2 for UAT Operations Supplier Booking.', '{\"kind\":\"supplier_schedule\",\"requestId\":\"rq_uat_xperto_selected\",\"revision\":2}'::jsonb, 'sent', 1, 'uat-notice-12:email', now() - interval '40 minutes', now() - interval '40 minutes'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_12_email', 'nlog_uat_12_email', 'ops@xperto.test', 'accepted', 1, 'uat-seed:nlog_uat_12_email', now() - interval '40 minutes', NULL::timestamp, NULL::timestamp, now() + interval '1 day', NULL::timestamp, NULL::timestamp, now() - interval '40 minutes'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_12_viber', 'evt_uat_ops_261121', 'viber', 'XPERTO Registration', 'Review schedule revision 2 for UAT Operations Supplier Booking.', '{\"kind\":\"supplier_schedule\",\"requestId\":\"rq_uat_xperto_selected\",\"revision\":2}'::jsonb, 'sent', 1, 'uat-notice-12:viber', now() - interval '40 minutes', now() - interval '40 minutes'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_12_viber', 'nlog_uat_12_viber', 'ops@xperto.test', 'accepted', 1, 'uat-seed:nlog_uat_12_viber', now() - interval '40 minutes', NULL::timestamp, NULL::timestamp, now() + interval '1 day', NULL::timestamp, NULL::timestamp, now() - interval '40 minutes'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_13_email', 'evt_uat_ops_261121', 'email', 'XPERTO Registration', 'PMCM released a payment of ₱50,000 for UAT Operations Supplier Booking.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_ops_261121\",\"section\":\"billing\"}'::jsonb, 'sent', 1, 'uat-notice-13:email', now() - interval '4 hours', now() - interval '4 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_13_email', 'nlog_uat_13_email', 'ops@xperto.test', 'accepted', 1, 'uat-seed:nlog_uat_13_email', now() - interval '4 hours', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '4 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_14_email', 'evt_uat_ops_261121', 'email', 'XPERTO Registration', 'PMCM needs your signed supplier contract for UAT Operations Supplier Booking.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_ops_261121\",\"section\":\"files\"}'::jsonb, 'sent', 1, 'uat-notice-14:email', now() - interval '1 day 3 hours', now() - interval '1 day 3 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_14_email', 'nlog_uat_14_email', 'ops@xperto.test', 'accepted', 1, 'uat-seed:nlog_uat_14_email', now() - interval '1 day 3 hours', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '1 day 3 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_15_email', 'evt_uat_ops_261121', 'email', 'XPERTO Registration', 'PMCM replied in \"UAT supplier and event coordination\".', '{\"kind\":\"conversation\",\"eventId\":\"evt_uat_ops_261121\",\"threadId\":\"thread_uat_ops_supplier\"}'::jsonb, 'sent', 1, 'uat-notice-15:email', now() - interval '3 days', now() - interval '3 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_15_email', 'nlog_uat_15_email', 'ops@xperto.test', 'accepted', 1, 'uat-seed:nlog_uat_15_email', now() - interval '3 days', now() - interval '3 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '3 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_16_email', 'evt_uat_ops_261121', 'email', 'XPERTO Registration', 'Your booking for UAT Operations Supplier Booking was confirmed.', NULL::jsonb, 'sent', 1, 'uat-notice-16:email', now() - interval '7 days', now() - interval '7 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_16_email', 'nlog_uat_16_email', 'ops@xperto.test', 'accepted', 1, 'uat-seed:nlog_uat_16_email', now() - interval '7 days', now() - interval '7 days', now() - interval '7 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '7 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_17_email', 'evt_uat_ops_261121', 'email', 'PMCM Admin', 'Ana Reyes reported a payment of ₱100,000 for UAT Operations Supplier Booking. Check it before it counts.', '{\"kind\":\"payment_receipt\",\"receiptId\":\"prcp_uat_ops_unapplied\"}'::jsonb, 'sent', 1, 'uat-notice-17:email', now() - interval '10 minutes', now() - interval '10 minutes'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_17_email', 'nlog_uat_17_email', 'mys@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_17_email', now() - interval '10 minutes', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '10 minutes'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_17_viber', 'evt_uat_ops_261121', 'viber', 'PMCM Admin', 'Ana Reyes reported a payment of ₱100,000 for UAT Operations Supplier Booking. Check it before it counts.', '{\"kind\":\"payment_receipt\",\"receiptId\":\"prcp_uat_ops_unapplied\"}'::jsonb, 'sent', 1, 'uat-notice-17:viber', now() - interval '10 minutes', now() - interval '10 minutes'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_17_viber', 'nlog_uat_17_viber', 'mys@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_17_viber', now() - interval '10 minutes', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '10 minutes'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_18_email', 'evt_uat_ops_261121', 'email', 'PMCM Admin', 'Ana Reyes uploaded Client floorplan preferences for UAT Operations Supplier Booking. It is waiting for your review.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_ops_261121\",\"section\":\"files\"}'::jsonb, 'sent', 1, 'uat-notice-18:email', now() - interval '2 hours', now() - interval '2 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_18_email', 'nlog_uat_18_email', 'mys@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_18_email', now() - interval '2 hours', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '2 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_19_email', 'evt_uat_ops_261121', 'email', 'PMCM Admin', 'XPERTO Registration replied in \"UAT supplier and event coordination\".', '{\"kind\":\"conversation\",\"eventId\":\"evt_uat_ops_261121\",\"threadId\":\"thread_uat_ops_supplier\"}'::jsonb, 'sent', 1, 'uat-notice-19:email', now() - interval '1 day 4 hours', now() - interval '1 day 4 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_19_email', 'nlog_uat_19_email', 'mys@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_19_email', now() - interval '1 day 4 hours', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '1 day 4 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_20_email', 'evt_uat_live_261024', 'email', 'PMCM Admin', 'Marco Santos acknowledged the General Coordinator assignment for UAT Live Ops Event.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"live_ops\"}'::jsonb, 'sent', 1, 'uat-notice-20:email', now() - interval '2 days', now() - interval '2 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_20_email', 'nlog_uat_20_email', 'mys@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_20_email', now() - interval '2 days', now() - interval '2 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '2 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_21_email', 'evt_uat_ops_261121', 'email', 'PMCM Admin', 'Bloom Florals confirmed their booking for UAT Operations Supplier Booking.', '{\"kind\":\"supplier_schedule\",\"requestId\":\"rq_uat_bloom_confirmed\",\"revision\":1}'::jsonb, 'sent', 1, 'uat-notice-21:email', now() - interval '3 days', now() - interval '3 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_21_email', 'nlog_uat_21_email', 'mys@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_21_email', now() - interval '3 days', now() - interval '3 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '3 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_22_email', 'evt_uat_closure_261019', 'email', 'PMCM Admin', 'Ana Reyes signed the conforme for UAT Closure Event.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_closure_261019\",\"section\":\"overview\"}'::jsonb, 'sent', 1, 'uat-notice-22:email', now() - interval '9 days', now() - interval '9 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_22_email', 'nlog_uat_22_email', 'mys@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_22_email', now() - interval '9 days', now() - interval '9 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '9 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_23_email', 'evt_uat_live_261024', 'email', 'Marco Santos', 'You are assigned to UAT Live Ops Event as General Coordinator. Acknowledge your assignment.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"live_ops\"}'::jsonb, 'sent', 1, 'uat-notice-23:email', now() - interval '1 hour', now() - interval '1 hour'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_23_email', 'nlog_uat_23_email', 'marco@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_23_email', now() - interval '1 hour', NULL::timestamp, NULL::timestamp, now() + interval '1 day', NULL::timestamp, NULL::timestamp, now() - interval '1 hour'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_23_viber', 'evt_uat_live_261024', 'viber', 'Marco Santos', 'You are assigned to UAT Live Ops Event as General Coordinator. Acknowledge your assignment.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"live_ops\"}'::jsonb, 'sent', 1, 'uat-notice-23:viber', now() - interval '1 hour', now() - interval '1 hour'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_23_viber', 'nlog_uat_23_viber', 'marco@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_23_viber', now() - interval '1 hour', NULL::timestamp, NULL::timestamp, now() + interval '1 day', NULL::timestamp, NULL::timestamp, now() - interval '1 hour'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_24_email', 'evt_uat_live_261024', 'email', 'Marco Santos', 'The event-day schedule for UAT Live Ops Event changed.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"live_ops\"}'::jsonb, 'sent', 1, 'uat-notice-24:email', now() - interval '6 hours', now() - interval '6 hours'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_24_email', 'nlog_uat_24_email', 'marco@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_24_email', now() - interval '6 hours', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '6 hours'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_25_email', 'evt_uat_live_261024', 'email', 'Marco Santos', 'The briefing for UAT Live Ops Event was updated.', '{\"kind\":\"event_section\",\"eventId\":\"evt_uat_live_261024\",\"section\":\"briefing\"}'::jsonb, 'sent', 1, 'uat-notice-25:email', now() - interval '5 days', now() - interval '5 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_25_email', 'nlog_uat_25_email', 'marco@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_25_email', now() - interval '5 days', now() - interval '5 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '5 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_logs",
+    "key": "id",
+    "columns": [
+      "id",
+      "event_id",
+      "channel",
+      "recipient",
+      "message",
+      "action",
+      "status",
+      "attempts",
+      "idempotency_key",
+      "sent_at",
+      "created_at"
+    ],
+    "select": "'nlog_uat_26_email', 'evt_uat_archived_260815', 'email', 'Marco Santos', 'Thank you for coordinating UAT Archived Event.', NULL::jsonb, 'sent', 1, 'uat-notice-26:email', now() - interval '40 days', now() - interval '40 days'",
+    "identity": [
+      "channel",
+      "recipient",
+      "message"
+    ]
+  },
+  {
+    "table": "platform_ops.notification_deliveries",
+    "key": "id",
+    "columns": [
+      "id",
+      "notification_id",
+      "recipient",
+      "status",
+      "attempts",
+      "provider_receipt",
+      "accepted_at",
+      "read_at",
+      "acknowledged_at",
+      "acknowledgment_due_at",
+      "escalated_at",
+      "second_escalated_at",
+      "created_at"
+    ],
+    "select": "'ndlv_uat_26_email', 'nlog_uat_26_email', 'marco@pmcm.test', 'accepted', 1, 'uat-seed:nlog_uat_26_email', now() - interval '40 days', now() - interval '40 days', now() - interval '40 days', NULL::timestamp, NULL::timestamp, NULL::timestamp, now() - interval '40 days'",
+    "identity": [
+      "notification_id",
+      "recipient"
+    ]
   }
 ]

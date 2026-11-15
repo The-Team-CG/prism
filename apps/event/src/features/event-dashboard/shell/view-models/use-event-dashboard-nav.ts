@@ -1,7 +1,9 @@
 import { unreadNavBadge } from "@prism/ui/chat";
+import { unreadNoticeBadge } from "@prism/ui/notifications";
 import {
   Archive,
   Banknote,
+  Bell,
   QrCode,
   Landmark,
   Database,
@@ -92,6 +94,7 @@ export function eventPortalNavItems({
   paymentCount,
   closeoutCount,
   unreadMessages,
+  unreadNotices,
 }: {
   inEventWorkspace: boolean;
   eventStage?: PrismLifecycleStage;
@@ -108,6 +111,8 @@ export function eventPortalNavItems({
   closeoutCount?: number;
   /** Unread messages in the open event's conversations. */
   unreadMessages?: number;
+  /** Notifications the account has not opened, across every event. */
+  unreadNotices?: number;
 }): PrismNavItem[] {
   const inbox: PrismNavItem = { id: "dashboard", icon: Inbox, label: "Inbox", section: "PMCM", badge: optionalNavBadge(commandInboxCount) };
   if (inEventWorkspace) {
@@ -124,6 +129,7 @@ export function eventPortalNavItems({
     { id: "clients", icon: CircleUserRound, label: "Clients", section: "PMCM" },
     { id: "events-list", icon: CalendarDays, label: "Events", section: "PMCM" },
     { id: "calendar", icon: CalendarClock, label: "Calendar", section: "PMCM" },
+    { id: "notifications", icon: Bell, label: "Notifications", section: "PMCM", ...unreadNoticeBadge(unreadNotices) },
     { id: "suppliers", icon: Tags, label: "Suppliers", section: "Network" },
     { id: "team", icon: Contact, label: "Team", section: "Network" },
     { id: "finance", icon: Landmark, label: "Finance", section: "Finance", badge: optionalNavBadge(financeCount) },

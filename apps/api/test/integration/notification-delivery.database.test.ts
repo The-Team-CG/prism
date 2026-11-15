@@ -79,7 +79,7 @@ describe.skipIf(!live)('durable notification delivery', () => {
       const audit = { write: vi.fn(async () => undefined) };
       const inbox = new NotificationInboxService(prisma, {} as never, audit as never);
       const actor = { id: 'test-user-a', role: 'client', email: 'a@example.test', name: 'A' } as never;
-      const [notice] = await inbox.mine(actor);
+      const [notice] = (await inbox.mine(actor, 30)).items;
       const other = await prisma.opsNotificationDelivery.findFirstOrThrow({ where: { notificationId: row.id, recipient: 'b@example.test' } });
       await expect(inbox.acknowledge(other.id, notice.version, actor)).rejects.toThrow('not found');
       await expect(inbox.acknowledge(notice.id, '0'.repeat(64), actor)).rejects.toThrow('changed');

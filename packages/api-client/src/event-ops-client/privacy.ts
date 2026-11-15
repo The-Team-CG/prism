@@ -9,7 +9,9 @@ export function createPrivacyClient(
   return {
     notificationPreferences: {
       markNoticeRead: (id, input) => prismRequest<{ id: string; readAt: string }>(`/notification-inbox/${encodeURIComponent(id)}/read`, withBase(options, { method: 'POST', body: input })),
-      inbox: () => prismRequest<import('@prism/types').PrismNotificationInboxItem[]>("/notification-inbox/me", withBase(options)),
+      inbox: (limit) => prismRequest<import('@prism/types').PrismNotificationInbox>(`/notification-inbox/me${limit ? `?limit=${limit}` : ""}`, withBase(options)),
+      unreadCount: () => prismRequest<{ unread: number }>("/notification-inbox/unread-count", withBase(options)),
+      markAllNoticesRead: () => prismRequest<{ marked: number }>("/notification-inbox/read-all", withBase(options, { method: "POST" })),
       acknowledgeReceipt: (id, input) => prismRequest<{ id: string; acknowledged: true }>(`/notification-inbox/${encodeURIComponent(id)}/acknowledgment`, withBase(options, { method: 'POST', body: input })),
       mine: () => prismRequest<PrismNotificationPreferences>("/notification-preferences/me", withBase(options)),
       setViberEnabled: (input: UpdateNotificationPreferencesInput) =>

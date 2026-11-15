@@ -16,6 +16,7 @@
     "./portal-path": "./src/portal-path.ts",
     "./privacy-notice": "./src/privacy-notice.tsx",
     "./notification-preferences": "./src/notification-preferences.tsx",
+    "./notifications": "./src/notifications/index.ts",
     "./public-blocks": "./src/public-blocks.tsx",
     "./format-date": "./src/format-date.ts",
     "./calendar-grid": "./src/calendar-grid.ts",

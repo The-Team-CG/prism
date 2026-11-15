@@ -23,6 +23,8 @@ export interface PrismNotificationInboxItem {
   id: string;
   notificationId: string;
   eventId: string | null;
+  /** The event's name, so a notice can say which event it is about; null for a notice with no event. */
+  eventName?: string | null;
   channel: string;
   message: string;
   version: string;
@@ -33,6 +35,24 @@ export interface PrismNotificationInboxItem {
   action?: NotificationAction;
   /** Channel copies of this notice; every version is validated when recording receipt. */
   deliveries?: Array<{ id: string; version: string }>;
+}
+
+/** The most notices one inbox read returns; "load more" asks for a larger page up to this. */
+export const NOTIFICATION_INBOX_MAX_LIMIT = 200;
+export const NOTIFICATION_INBOX_PAGE_SIZE = 30;
+
+export const notificationInboxQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(NOTIFICATION_INBOX_MAX_LIMIT).default(NOTIFICATION_INBOX_PAGE_SIZE),
+});
+export type NotificationInboxQuery = z.infer<typeof notificationInboxQuerySchema>;
+
+/** The signed-in account's notices, newest first, with how many are still unread across the whole inbox. */
+export interface PrismNotificationInbox {
+  items: PrismNotificationInboxItem[];
+  /** Unread notices the account can still open, not just those in `items`. */
+  unread: number;
+  /** True when older notices exist beyond `items`. */
+  hasMore: boolean;
 }
 
 export const viberSendResponseSchema = z.object({

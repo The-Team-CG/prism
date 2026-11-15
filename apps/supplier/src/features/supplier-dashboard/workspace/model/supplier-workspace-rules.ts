@@ -437,7 +437,7 @@ export function sectionMeta(
     notifications: {
       eyebrow: "Account",
       title: "Notifications",
-      description: "Updates always go to your email. Link Viber to get them there too.",
+      description: "What changed on your bookings, what is new since you last looked, and what PMCM asked you to confirm.",
     },
     support: {
       eyebrow: "Support",

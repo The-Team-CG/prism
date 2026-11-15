@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import { zodBody } from '@prism/kernel/shared';
-import { acknowledgeNotificationReceiptSchema, type AcknowledgeNotificationReceiptInput, type PrismVerifiedEventActor } from '@prism/types';
+import { zodBody, zodQuery } from '@prism/kernel/shared';
+import { acknowledgeNotificationReceiptSchema, notificationInboxQuerySchema, type AcknowledgeNotificationReceiptInput, type NotificationInboxQuery, type PrismVerifiedEventActor } from '@prism/types';
 import { NotificationInboxService } from '../../application/notifications/notification-inbox.service';
 import { NotificationProviderOutcomeService } from '../../application/notifications/notification-provider-outcome.service';
 import { requestNotificationAcknowledgmentSchema, type RequestNotificationAcknowledgmentInput } from '@prism/types';
@@ -11,7 +11,11 @@ import { requestNotificationAcknowledgmentSchema, type RequestNotificationAcknow
 export class NotificationInboxController {
   constructor(private readonly inbox: NotificationInboxService) {}
   @Get('me')
-  mine(@VerifiedEventActor() actor: PrismVerifiedEventActor) { return this.inbox.mine(actor); }
+  mine(@Query(zodQuery(notificationInboxQuerySchema)) query: NotificationInboxQuery, @VerifiedEventActor() actor: PrismVerifiedEventActor) { return this.inbox.mine(actor, query.limit); }
+  @Get('unread-count')
+  async unread(@VerifiedEventActor() actor: PrismVerifiedEventActor) { return { unread: await this.inbox.unread(actor) }; }
+  @Post('read-all')
+  readAll(@VerifiedEventActor() actor: PrismVerifiedEventActor) { return this.inbox.markAllRead(actor); }
   @Post(':deliveryId/deadline')
   deadline(@Param('deliveryId') id: string, @Body(zodBody(requestNotificationAcknowledgmentSchema)) input: RequestNotificationAcknowledgmentInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.inbox.requireAcknowledgment(id, input, actor);

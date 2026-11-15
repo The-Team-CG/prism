@@ -47,6 +47,13 @@ export class AccountContactReadModelsService implements AccountContactReadModel 
     return { eventName: event.eventName, clientEmail: event.inquiry.email.trim() || null };
   }
 
+  async findEventNames(eventIds: string[]): Promise<Record<string, string>> {
+    const ids = [...new Set(eventIds)];
+    if (!ids.length) return {};
+    const events = await this.prisma.opsEvent.findMany({ where: { id: { in: ids } }, select: { id: true, eventName: true } });
+    return Object.fromEntries(events.map((event) => [event.id, event.eventName]));
+  }
+
   async findSelectedSupplierContacts(eventId: string): Promise<Array<{ supplierId: string; email: string | null }>> {
     const requests = await this.prisma.opsSupplierQuoteRequest.findMany({
       where: { eventId, status: 'selected' },

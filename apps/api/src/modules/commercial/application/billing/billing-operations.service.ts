@@ -433,7 +433,7 @@ export class BillingOperationsService {
     if (recipient) for (const channel of ['email', 'viber'] as const) await writeNotification(this.notificationOutboxWriter, billing.eventId, recipient, `Billing statement ${billing.number} sent`, channel, { idempotencyKey: `billing-send:${billing.id}:${channel}`, action: { kind: 'event_section', eventId: billing.eventId, section: 'billing' } }, context);
     // Milestone due notices go out with the statement: a client is told nothing about a statement they cannot see yet.
     const schedule = Array.isArray(billing.paymentSchedule) ? (billing.paymentSchedule as Array<{ label: string; dueDate?: string }>) : [];
-    if (recipient) for (const [index, item] of schedule.entries()) await writeNotification(this.notificationOutboxWriter, billing.eventId, recipient, `${item.label} payment milestone for billing statement ${billing.number} is due ${item.dueDate ?? 'on the agreed date'}`, 'email', { idempotencyKey: `billing-reminder:${billing.id}:${index}` }, context);
+    if (recipient) for (const [index, item] of schedule.entries()) await writeNotification(this.notificationOutboxWriter, billing.eventId, recipient, `${item.label} payment milestone for billing statement ${billing.number} is due ${item.dueDate ?? 'on the agreed date'}`, 'email', { idempotencyKey: `billing-reminder:${billing.id}:${index}`, action: { kind: 'event_section', eventId: billing.eventId, section: 'billing' } }, context);
   }
 
   private async executeBillingCommand<TWrite, TResult>(
