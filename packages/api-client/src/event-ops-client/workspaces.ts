@@ -7,6 +7,7 @@ import type {
   PrismPmcmCommandInbox,
   PrismPmcmCalendar,
   PrismPmcmCommandInboxQueryInput,
+  PrismPmcmEventAttentionList,
   PrismPmcmEventSummaries,
   PrismPmcmFileSummaries,
   PmcmCalendarQuery,
@@ -107,6 +108,7 @@ export function createWorkspacesClient(
           withBase(options),
         );
       },
+      eventAttention: () => prismRequest<PrismPmcmEventAttentionList>("/pmcm/event-attention", withBase(options)),
       eventSummaries: () => prismRequest<PrismPmcmEventSummaries>("/pmcm/event-summaries", withBase(options)),
       fileSummaries: () => prismRequest<PrismPmcmFileSummaries>("/pmcm/file-summaries", withBase(options)),
       calendar: (query: PmcmCalendarQuery) => prismRequest<PrismPmcmCalendar>(`/pmcm/calendar?${toQueryString(query)}`, withBase(options)),

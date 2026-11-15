@@ -1,17 +1,18 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { BadgeCheck, CheckCircle2, Circle, FileText, LockKeyhole, PackageCheck, Truck } from "lucide-react";
 import type { PrismAuthenticatedSession, PrismSupplierReadinessItem, PrismSupplierWorkflowWorkspace } from "@prism/types";
-import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
+import { formatPortalDate, formatPortalDateTime, manilaDateKey } from "@prism/ui/format-date";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
+import { CountdownPill, EventCard, EventCardFooter, EventCardGrid, EventCardHeader, MoneyBar, StepProgress } from "@prism/ui/event-cards";
+import { bookingCardFacts, orderBookingCards, type BookingCardFacts } from "../../model/booking-cards";
 import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { Input } from "@prism/ui/components/input";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { supplierNextStep } from "../../model/supplier-next-step";
 import { EVENT_STATUS_ACTIONS, buildBookingSteps, canReportSupplierEventDayStatus, isEventStatusStepAllowed, statusLabel } from "../../model/supplier-workspace-rules";
 import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "../../model/supplier-workspace-types";
-import { useSupplierWorkTarget } from "../../view-models/use-supplier-work-target";
 import { Card, CardBody, Disclosure } from "./shell-ui";
 
 type PanelState = "current" | "done" | "locked";
@@ -55,34 +56,6 @@ function BookingStepPanel({ title, state, summary, children }: { title: string; 
     <Disclosure defaultOpen={state === "current"} className="rounded-lg border border-border" trigger={heading}>
       {children}
     </Disclosure>
-  );
-}
-
-/** One scannable row per booking: the next step, which event, when, and how far preparation has got. */
-function BookingSummary({ request, readiness }: { request: PrismSupplierQuoteRequest; readiness?: PrismSupplierReadinessItem }) {
-  const title = readiness ? supplierNextStep(readiness, true).title : "Review booking preparation";
-  const steps = buildBookingSteps(request);
-  const done = steps.filter((step) => step.done).length;
-  const when = readiness?.schedule?.ingressAt
-    ? `Arrive ${formatPortalDateTime(readiness.schedule.ingressAt)}`
-    : readiness?.eventDate
-      ? `Event ${formatPortalDate(readiness.eventDate)}`
-      : "Schedule not set yet";
-  return (
-    <span className="flex min-w-0 flex-1 items-start gap-3">
-      <span className="grid min-w-0 flex-1 gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-6">
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-foreground">{title}</span>
-          <span className="block break-words text-sm text-muted-foreground">
-            {request.category} · {readiness?.eventName || "Event details pending"}
-          </span>
-        </span>
-        <span className="flex flex-wrap gap-x-4 gap-y-1 text-sm sm:justify-end sm:text-right">
-          <span className="text-muted-foreground">{when}</span>
-          <span className={done === steps.length ? "font-medium text-success" : "text-foreground"}>{done} of {steps.length} steps done</span>
-        </span>
-      </span>
-    </span>
   );
 }
 
@@ -268,6 +241,72 @@ function BookingDetail({ req, workflowWorkspace, readinessNote, statusNote, busy
   );
 }
 
+const WORK_TARGET = "#supplier-work-";
+
+/** The booking a work link names (`#supplier-work-<id>`), opened in its panel when the page loads or the link changes. */
+function useBookingTarget(ids: string[]) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const key = ids.join("|");
+  useEffect(() => {
+    function reveal() {
+      const hash = window.location.hash;
+      if (!hash.startsWith(WORK_TARGET)) return;
+      const id = decodeURIComponent(hash.slice(WORK_TARGET.length));
+      if (key.split("|").includes(id)) setOpenId(id);
+    }
+    reveal();
+    window.addEventListener("hashchange", reveal);
+    return () => window.removeEventListener("hashchange", reveal);
+  }, [key]);
+  function open(id: string | null) {
+    setOpenId(id);
+    const url = `${window.location.pathname}${window.location.search}${id ? `${WORK_TARGET}${encodeURIComponent(id)}` : ""}`;
+    window.history.replaceState(null, "", url);
+  }
+  return { openId, open };
+}
+
+function BookingCard({ card, todayKey, onOpen }: { card: BookingCardFacts; todayKey: string; onOpen: () => void }) {
+  const { request, next, steps, money } = card;
+  return (
+    <EventCard urgent={card.urgent}>
+      <EventCardHeader
+        date={card.eventDate ?? ""}
+        title={card.eventName}
+        href={`${WORK_TARGET}${encodeURIComponent(request.id)}`}
+        onNavigate={onOpen}
+        details={`${request.category} · for PMCM`}
+        aside={card.eventDate ? <CountdownPill date={card.eventDate} todayKey={todayKey} /> : null}
+      />
+      <div className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${card.yourTurn ? "bg-primary-soft" : "bg-muted"}`}>
+        <div className="min-w-0">
+          <p className="text-[11px] text-muted-foreground">{next.owner}</p>
+          <p className="font-semibold text-foreground">{next.title}</p>
+        </div>
+        <Button type="button" size="sm" variant={card.yourTurn ? "default" : "outline"} className="relative z-10 ml-auto shrink-0 rounded-md" onClick={onOpen}>
+          {card.yourTurn ? "Do it" : "View"}
+        </Button>
+      </div>
+      <StepProgress done={steps.done} total={steps.total} />
+      {money ? <EventCardFooter><MoneyBar billed={money.billed} paid={money.released} verb="released" /></EventCardFooter> : null}
+    </EventCard>
+  );
+}
+
+function BookingSection({ id, title, cards, todayKey, onOpen }: { id: string; title: string; cards: BookingCardFacts[]; todayKey: string; onOpen: (id: string) => void }) {
+  if (cards.length === 0) return null;
+  return (
+    <section aria-labelledby={id} className="grid gap-3">
+      <h2 id={id} className="flex items-baseline gap-2 text-base font-semibold text-foreground">{title}<span className="text-sm font-normal tabular-nums text-muted-foreground">{cards.length}</span></h2>
+      <EventCardGrid>{cards.map((card) => <BookingCard key={card.request.id} card={card} todayKey={todayKey} onOpen={() => onOpen(card.request.id)} />)}</EventCardGrid>
+    </section>
+  );
+}
+
+/**
+ * Each booking as a card led by its next step, the supplier's own turns first. The full checklist (assignment,
+ * contract, schedule, tasks, readiness, event day) opens in a side panel, full screen on a phone.
+ */
 export function BookingsPage({ selectedRequests, readinessBoard, readinessNotes, workflowWorkspace, statusNotes, busy, ...handlers }: {
   selectedRequests: PrismSupplierQuoteRequest[];
   readinessBoard: PrismSupplierReadinessBoard | null;
@@ -277,7 +316,7 @@ export function BookingsPage({ selectedRequests, readinessBoard, readinessNotes,
   statusNotes: Record<string, string>;
   busy: string | null;
 } & BookingHandlers) {
-  useSupplierWorkTarget();
+  const target = useBookingTarget(selectedRequests.map((req) => req.id));
   if (!selectedRequests.length) {
     return (
       <Card><CardBody>
@@ -291,15 +330,27 @@ export function BookingsPage({ selectedRequests, readinessBoard, readinessNotes,
       </CardBody></Card>
     );
   }
-
+  const todayKey = manilaDateKey();
+  const cards = selectedRequests.map((req) => bookingCardFacts(req, readinessBoard?.items.find((item) => item.requestId === req.id), workflowWorkspace?.payables ?? [], todayKey));
+  const { yours, others } = orderBookingCards(cards);
+  const open = cards.find((card) => card.request.id === target.openId);
   return (
-    <div className="space-y-5">
-      {selectedRequests.map((req) => (
-        <Disclosure key={req.id} id={`supplier-work-${encodeURIComponent(req.id)}`} className="scroll-mt-6 rounded-lg border border-border bg-card" defaultOpen={selectedRequests.length === 1}
-          trigger={<BookingSummary request={req} readiness={readinessBoard?.items.find((item) => item.requestId === req.id)} />}>
-          <BookingDetail req={req} workflowWorkspace={workflowWorkspace} readinessNote={readinessNotes[req.id]} statusNote={statusNotes[req.id]} busy={busy} handlers={handlers} />
-        </Disclosure>
-      ))}
+    <div className="grid gap-6">
+      <BookingSection id="bookings-yours" title="Needs you" cards={yours} todayKey={todayKey} onOpen={target.open} />
+      <BookingSection id="bookings-others" title={yours.length ? "Other bookings" : "Bookings"} cards={others} todayKey={todayKey} onOpen={target.open} />
+      <Sheet open={Boolean(open)} onOpenChange={(next) => { if (!next) target.open(null); }}>
+        <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl">
+          {open ? (
+            <>
+              <SheetHeader className="border-b border-border pr-12">
+                <SheetTitle>{open.eventName}</SheetTitle>
+                <SheetDescription>{open.request.category}{open.eventDate ? ` · ${formatPortalDate(open.eventDate)}` : ""} · {open.steps.done} of {open.steps.total} steps done</SheetDescription>
+              </SheetHeader>
+              <BookingDetail req={open.request} workflowWorkspace={workflowWorkspace} readinessNote={readinessNotes[open.request.id]} statusNote={statusNotes[open.request.id]} busy={busy} handlers={handlers} />
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

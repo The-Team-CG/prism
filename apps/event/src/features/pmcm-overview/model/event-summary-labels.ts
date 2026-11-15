@@ -10,13 +10,15 @@ export function fileSummaryLabel(summary: PrismPmcmFileSummary | undefined): Sum
   return summary.overdue > 0 ? { text, urgent: true } : { text };
 }
 
-/** What on one event needs the PMCM now: overdue payments, overdue file requirements and unread messages. Empty when nothing does. */
-export function eventAttentionLabels(finance: PrismPmcmEventSummary | undefined, files: PrismPmcmFileSummary | undefined): string[] {
-  const labels: string[] = [];
-  if (finance && finance.overdueMilestones > 0) labels.push(finance.overdueMilestones === 1 ? "1 payment overdue" : `${finance.overdueMilestones} payments overdue`);
-  if (files && files.overdue > 0) labels.push(files.overdue === 1 ? "1 file overdue" : `${files.overdue} files overdue`);
-  if (finance && finance.unreadMessages > 0) labels.push(finance.unreadMessages === 1 ? "1 unread message" : `${finance.unreadMessages} unread messages`);
-  return labels;
+/**
+ * What PMCM checks on an event that the Inbox does not carry: unread messages and overdue file requirements. Money and
+ * other blockers come from the Inbox's own items. Empty when there is nothing, or before the reads arrive.
+ */
+export function eventNotes(finance: PrismPmcmEventSummary | undefined, files: PrismPmcmFileSummary | undefined): string[] {
+  const notes: string[] = [];
+  if (finance && finance.unreadMessages > 0) notes.push(finance.unreadMessages === 1 ? "1 unread message" : `${finance.unreadMessages} unread messages`);
+  if (files && files.overdue > 0) notes.push(files.overdue === 1 ? "1 file overdue" : `${files.overdue} files overdue`);
+  return notes;
 }
 
 export function summariesByEvent(items: PrismPmcmEventSummary[] | undefined): Map<string, PrismPmcmEventSummary> {

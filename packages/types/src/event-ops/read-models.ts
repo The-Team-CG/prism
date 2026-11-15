@@ -326,6 +326,21 @@ export interface PrismCommandInboxItem {
   href?: string;
 }
 
+/** One event's share of the PMCM Inbox: the same items, so an event card and the Inbox always agree. */
+export interface PrismPmcmEventAttention {
+  eventId: string;
+  counts: Record<PrismCommandInboxSeverity, number>;
+  /** The event's most urgent items, most urgent first; at most three. */
+  top: PrismCommandInboxItem[];
+  total: number;
+}
+
+export interface PrismPmcmEventAttentionList {
+  generatedAt: string;
+  /** Events with at least one Inbox item; an event that is not listed has nothing waiting. */
+  items: PrismPmcmEventAttention[];
+}
+
 export interface PrismPmcmCommandInbox {
   generatedAt: string;
   summary: {

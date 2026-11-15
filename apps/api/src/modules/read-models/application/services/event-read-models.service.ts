@@ -44,6 +44,7 @@ import type {
   PrismClientTimelineMilestoneStatus,
   PrismClientOcularVisit,
   PrismOcularVisitStatus,
+  PrismPmcmEventAttentionList,
   PrismPmcmOcularVisit,
   PrismPmcmSupplierReadinessBoard,
 } from '@prism/types';
@@ -69,7 +70,11 @@ import {
   countByPriority,
   countBySeverity,
   emptyInboxPayload,
+  groupInboxItemsByEvent,
 } from './event-read-models.inbox';
+
+/** Rows per Inbox source read for the Events cards: enough that every active event's urgent items are included. */
+const PMCM_EVENT_ATTENTION_SCAN = 100;
 import {
   buildPmcmSupplierReadinessItem,
   buildSupplierReadinessItem,
@@ -654,8 +659,28 @@ export class EventReadModelsService {
 
   async pmcmCommandInbox(actor: ResolvedEventOpsActor, page = 0) {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM command inbox');
+    const { items, summary, hasMore } = await this.commandInboxItems(page, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE);
+    return {
+      generatedAt: new Date().toISOString(),
+      summary,
+      page: { index: page, size: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, hasMore },
+      counts: countBySeverity(items),
+      items,
+    };
+  }
 
-    const pageData = await this.queries.pmcmCommandInbox(page);
+  /**
+   * The Inbox's items grouped by event, for the PMCM Events cards. It reads a larger first page than the Inbox shows,
+   * so each event's most urgent items are there even when the Inbox pages them.
+   */
+  async pmcmEventAttention(actor: ResolvedEventOpsActor): Promise<PrismPmcmEventAttentionList> {
+    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM event attention');
+    const { items } = await this.commandInboxItems(0, PMCM_EVENT_ATTENTION_SCAN);
+    return { generatedAt: new Date().toISOString(), items: groupInboxItemsByEvent(items) };
+  }
+
+  private async commandInboxItems(page: number, pageSize: number) {
+    const pageData = await this.queries.pmcmCommandInbox(page, pageSize);
     const eventIds = [...new Set([
       ...pageData.events.map((event) => event.id),
       ...pageData.paymentMilestones.map((row) => row.eventId),
@@ -697,14 +722,7 @@ export class EventReadModelsService {
         supplierPayouts: pageData.supplierPayouts,
       },
     });
-
-    return {
-      generatedAt: new Date().toISOString(),
-      summary,
-      page: { index: page, size: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, hasMore: pageData.hasMore },
-      counts: countBySeverity(items),
-      items,
-    };
+    return { items, summary, hasMore: pageData.hasMore };
   }
 
 

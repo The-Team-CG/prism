@@ -857,6 +857,15 @@ describe('EventReadModelsService', () => {
       expect.objectContaining({ id: 'billing-correction:cor_1', label: 'Review a billing correction', description: 'Billing name should read Ayala Corporation.' }),
       expect.objectContaining({ id: 'supplier-payout:pay_1', severity: 'critical', label: 'Supplier payment overdue', description: 'Bloom Florals: Floral deposit, ₱90,000, due Nov 9.' }),
     ]));
+
+    // The Events cards show the same items, grouped by event and in the Inbox's order, the three most urgent first.
+    const attention = await service.pmcmEventAttention(actor);
+    const forEvent = inbox.items.filter((item) => item.eventId === 'evt_visible');
+    const visible = attention.items.find((entry) => entry.eventId === 'evt_visible');
+    const counts = { critical: 0, warning: 0, attention: 0, info: 0 };
+    for (const item of forEvent) counts[item.severity] += 1;
+    expect(visible).toEqual({ eventId: 'evt_visible', counts, total: forEvent.length, top: forEvent.slice(0, 3) });
+    expect(attention.items.every((entry) => entry.eventId)).toBe(true);
   });
 
   it('builds a client action center from client-visible event work', async () => {
@@ -1083,6 +1092,7 @@ describe('EventReadModelsService', () => {
     const actor = policy.resolveActor({ actorRole: OpsUserRole.Client, clientName: 'Ana Reyes' });
 
     await expect(service.pmcmCommandInbox(actor)).rejects.toThrow('client cannot access PMCM command inbox');
+    await expect(service.pmcmEventAttention(actor)).rejects.toThrow('client cannot access PMCM event attention');
   });
 
   it('denies non-PMCM actors from the PMCM reference directories', async () => {
