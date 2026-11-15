@@ -1,11 +1,13 @@
 import type {
   AcknowledgeSupplierScheduleInput,
   BindSupplierContractInput,
+  ConfirmSupplierPayoutInput,
   CreateSupplierCreativeTaskInput,
   CorrectSupplierEventStatusInput,
   CreateSupplierPayableMilestoneInput,
   CreateSupplierScheduleInput,
   PrismPmcmSupplierWorkflowWorkspace,
+  PrismSupplierPayableMilestone,
   PrismSupplierWorkflowWorkspace,
   ReleaseSupplierPayoutInput,
   RequestSupplierScheduleChangeInput,
@@ -64,6 +66,9 @@ export function createSupplierWorkflowsClient(options: EventOpsClientOptions): P
       ),
       reversePayout: (recordId: string, input: ReverseSupplierPayoutInput) => prismRequest(
         `/supplier-payout-records/${recordId}/reversal`, withBase(options, { method: 'POST', body: input }),
+      ),
+      confirmPayoutReceived: (recordId: string, input: ConfirmSupplierPayoutInput) => prismRequest<PrismSupplierPayableMilestone>(
+        `/supplier/payout-records/${encodeURIComponent(recordId)}/received`, withBase(options, { method: 'POST', body: input }),
       ),
     },
   };

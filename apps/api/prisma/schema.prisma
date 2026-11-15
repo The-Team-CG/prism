@@ -1223,6 +1223,12 @@ model OpsSupplierPayoutRecord {
   payloadHash      String?  @map("payload_hash")
   recordedBy       String   @map("recorded_by")
   recordedAt       DateTime @default(now()) @map("recorded_at")
+  /// The supplier confirmed the money reached them.
+  receivedAt       DateTime? @map("received_at")
+  receivedBy       String?   @map("received_by")
+  /// The supplier's official receipt for this payout, a stored supplier document.
+  officialReceiptObjectId String? @map("official_receipt_object_id")
+  officialReceiptFileName String? @map("official_receipt_file_name")
 
   milestone      OpsSupplierPayableMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
   request        OpsSupplierQuoteRequest     @relation(fields: [requestId], references: [id], onDelete: Cascade)

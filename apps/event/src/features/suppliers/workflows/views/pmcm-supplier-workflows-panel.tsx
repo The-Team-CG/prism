@@ -132,8 +132,19 @@ function PayoutReleaseForm({ milestone, vm }: { milestone: PayableMilestone; vm:
   return <div className="mt-2 grid gap-2 sm:grid-cols-4"><Input type="number" min="1" step="1" placeholder="Release amount" value={amount} onChange={(e) => vm.setValue(milestone.id, "amount", e.target.value)} /><DatePicker aria-label="Payment date" value={paymentDate} onValueChange={(value) => vm.setValue(milestone.id, "paymentDate", value)} /><Input placeholder="Method" value={method} onChange={(e) => vm.setValue(milestone.id, "method", e.target.value)} /><Input placeholder="Reference number" value={vm.value(milestone.id, "referenceNumber")} onChange={(e) => vm.setValue(milestone.id, "referenceNumber", e.target.value)} /><Button size="sm" disabled={vm.busy || !canSubmit} onClick={() => void vm.releasePayout(milestone.id)}>Record release</Button></div>;
 }
 
+/** Whether the supplier confirmed the money arrived, and their official receipt when they sent one. */
+function SupplierConfirmation({ record, vm }: { record: PayableRecord; vm: WorkflowViewModel }) {
+  if (!record.receivedAt) return record.kind === "release" ? <span className="text-muted-foreground">Supplier has not confirmed it yet</span> : null;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2 text-success">
+      Supplier confirmed {formatPortalDateTime(record.receivedAt)}
+      {record.officialReceipt ? <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => void vm.download(record.officialReceipt!.objectId)}>Official receipt</Button> : null}
+    </span>
+  );
+}
+
 function PayableHistoryRow({ record, milestone, vm }: { record: PayableRecord; milestone: PayableMilestone; vm: WorkflowViewModel }) {
   const canReverse = record.kind === "release" && !milestone.history.some((entry) => entry.reversesRecordId === record.id);
   const reason = vm.value(record.id, "reverseReason");
-  return <div className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs"><span>{record.kind} · {money(record.amount)} · {record.method} {record.referenceNumber}{record.notes ? ` · ${record.notes}` : ""}</span>{canReverse ? <div className="flex items-center gap-2"><Input className="h-8 w-52" aria-label="Reversal reason" placeholder="Reason for reversal" value={reason} onChange={(e) => vm.setValue(record.id, "reverseReason", e.target.value)} /><Button size="sm" variant="ghost" disabled={vm.busy || !reason.trim()} onClick={() => void vm.reversePayout(record.id)}>Reverse</Button></div> : null}</div>;
+  return <div className="flex flex-wrap items-center justify-between gap-2 py-2 text-xs"><span className="flex flex-wrap items-center gap-x-3 gap-y-1"><span>{record.kind} · {money(record.amount)} · {record.method} {record.referenceNumber}{record.notes ? ` · ${record.notes}` : ""}</span><SupplierConfirmation record={record} vm={vm} /></span>{canReverse ? <div className="flex items-center gap-2"><Input className="h-8 w-52" aria-label="Reversal reason" placeholder="Reason for reversal" value={reason} onChange={(e) => vm.setValue(record.id, "reverseReason", e.target.value)} /><Button size="sm" variant="ghost" disabled={vm.busy || !reason.trim()} onClick={() => void vm.reversePayout(record.id)}>Reverse</Button></div> : null}</div>;
 }
