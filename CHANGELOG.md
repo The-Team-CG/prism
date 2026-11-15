@@ -70,6 +70,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- "Show older notifications" stops at the 200 newest notices instead of failing with an error after six clicks, and a notification list that cannot load now says so and offers Try again instead of saying there are no notifications.
 - Billing balances reflect recorded payments, and signing a conforme no longer creates fabricated billing. Idempotent command replays do not duplicate event decisions, audit records, notifications, or event-day logs.
 - Audit hash verification matches PostgreSQL JSONB ordering and accepts valid legacy chains. A mismatched historical chain still blocks writes and requires integrity review; see the [audit-chain repair runbook](docs/runbooks/audit-chain-repair.md) before repair.
 - Public and role-scoped responses enforce event access and omit private PMCM details. Sensitive mutations require a verified actor and event scope; authentication and public entry points have rate limits and session protections.

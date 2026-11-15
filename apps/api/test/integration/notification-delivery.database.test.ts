@@ -79,8 +79,14 @@ describe.skipIf(!live)('durable notification delivery', () => {
       const audit = { write: vi.fn(async () => undefined) };
       const inbox = new NotificationInboxService(prisma, {} as never, audit as never);
       const actor = { id: 'test-user-a', role: 'client', email: 'a@example.test', name: 'A' } as never;
-      const [notice] = (await inbox.mine(actor, 30)).items;
+      const first = await inbox.mine(actor, 30);
+      const [notice] = first.items;
+      expect(first.unread).toBe(1);
       const other = await prisma.opsNotificationDelivery.findFirstOrThrow({ where: { notificationId: row.id, recipient: 'b@example.test' } });
+      // Marking everything read touches only the signed-in recipient's own deliveries.
+      await expect(inbox.markAllRead(actor)).resolves.toEqual({ marked: 1 });
+      expect((await prisma.opsNotificationDelivery.findUniqueOrThrow({ where: { id: other.id } })).readAt).toBeNull();
+      expect(await inbox.unread(actor)).toBe(0);
       await expect(inbox.acknowledge(other.id, notice.version, actor)).rejects.toThrow('not found');
       await expect(inbox.acknowledge(notice.id, '0'.repeat(64), actor)).rejects.toThrow('changed');
       const read = await inbox.markRead(notice.id, notice.version, actor);
