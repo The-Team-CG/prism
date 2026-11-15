@@ -1,6 +1,6 @@
 -- prism-owner: commercial
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 
 -- A billing statement keeps the payment details it was issued with (already in payment_methods) and now also which
 -- revision of PMCM's payment details those were, so a client can be told when PMCM has changed them since. Statements
