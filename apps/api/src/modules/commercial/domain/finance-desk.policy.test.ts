@@ -11,7 +11,7 @@ function milestone(overrides: Partial<PrismStatementMilestone>): PrismStatementM
 function statement(eventId: string, milestones: PrismStatementMilestone[]): PrismStatementOfAccount {
   return {
     eventId, eventName: `Event ${eventId}`, generatedAt: '', available: true, statementNumber: `BS-${eventId}`, billed: milestones.reduce((sum, item) => sum + item.amount, 0),
-    received: 0, refunded: 0, creditHeld: 0, balance: milestones.reduce((sum, item) => sum + item.remaining, 0), disputedOnStatement: 0, milestones, paymentMethods: [], submissions: [], lines: [],
+    received: 0, refunded: 0, creditHeld: 0, balance: milestones.reduce((sum, item) => sum + item.remaining, 0), disputedOnStatement: 0, milestones, paymentMethods: [], payTo: [], payToChangedSinceIssued: false, submissions: [], lines: [],
   };
 }
 

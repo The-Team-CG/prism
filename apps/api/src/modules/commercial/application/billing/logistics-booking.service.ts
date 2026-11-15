@@ -39,7 +39,7 @@ export class LogisticsBookingService {
         id: `bsrc_${randomUUID()}`, eventId, sourceType: 'logistics', sourceLabel: `Logistics: ${label}`, sourceDocumentId: null,
         lineItems: toPrismaJson([{ label, amount: input.amount }]),
         paymentSchedule: toPrismaJson([{ label: 'Logistics', percentage: 100, dueDate: new Date().toISOString().slice(0, 10) }]),
-        paymentMethods: toPrismaJson([]), totalAmount: input.amount, status: 'draft', paymentTermsPolicyState: 'standard',
+        totalAmount: input.amount, status: 'draft', paymentTermsPolicyState: 'standard',
         idempotencyKey: `logistics-booking:${bookingId}`,
         payloadHash: createHash('sha256').update(JSON.stringify({ eventId, bookingId, amount: input.amount })).digest('hex'),
       } }) : null;

@@ -1,4 +1,5 @@
 import type { PrismStatementOfAccount } from '@prism/types';
+import { documentMethodLine } from './document-method-line';
 import { A4, PdfDocument, fit, measure, wrap, type Rgb } from './pdf-writer';
 
 /** P.R.I.S.M brand colours, as in the design tokens. */
@@ -236,7 +237,7 @@ export function renderStatementOfAccountPdf({ statement, clientName, eventDate, 
     ]);
   y = table(doc, y, [{ label: 'Entry', width: CONTENT - 345 }, { label: 'Date', width: 80, align: 'right' }, { label: 'Method · reference', width: 165, align: 'right' }, { label: 'Amount', width: 100, align: 'right' }], lines, today);
   if (paidInFull) doc.stamp(A4.width / 2, room(doc, y, 90, today) + 40, 'PAID IN FULL', C.success, 34, 10);
-  else howToPay(doc, y, statement.paymentMethods, statement.statementNumber, today);
+  else howToPay(doc, y, statement.payTo.map(documentMethodLine), statement.statementNumber, today);
   footer(doc, today);
   return doc.toBuffer();
 }

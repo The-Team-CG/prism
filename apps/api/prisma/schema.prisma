@@ -2426,6 +2426,8 @@ model OpsBillingStatement {
   lineItems       Json      @default("[]") @map("line_items")
   paymentSchedule Json      @default("[]") @map("payment_schedule")
   paymentMethods  Json      @default("[]") @map("payment_methods")
+  /// The revision of PMCM's payment details the statement was issued with; null before payment details existed.
+  paymentDetailsRevision Int? @map("payment_details_revision")
   totalAmount     Int       @map("total_amount")
   documentId      String?   @map("document_id")
   pdfUrl          String    @default("") @map("pdf_url")

@@ -11,7 +11,7 @@ import {
 } from "./session-commercial-inputs.js";
 
 describe("session commercial write schemas", () => {
-  it("requires a truthful billing source label and preserves optional details", () => {
+  it("requires a truthful billing source label, and takes no payment methods: those are PMCM's payment details", () => {
     const parsed = createBillingSourceSchema.parse({
       sourceType: "approved_conforme",
       sourceLabel: "Signed conforme",
@@ -19,7 +19,8 @@ describe("session commercial write schemas", () => {
       paymentMethods: [{ label: "Bank Transfer" }],
     });
 
-    expect(parsed.paymentMethods?.[0].details).toBe("");
+    expect(parsed).not.toHaveProperty("paymentMethods");
+    expect(parsed.sourceLabel).toBe("Signed conforme");
     expect(createBillingSourceSchema.safeParse({ lineItems: [] }).success).toBe(false);
   });
 

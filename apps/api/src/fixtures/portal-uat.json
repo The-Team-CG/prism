@@ -1493,6 +1493,37 @@
     ]
   },
   {
+    "table": "commercial.pmcm_payment_details",
+    "key": "id",
+    "columns": [
+      "id",
+      "methods",
+      "revision",
+      "updated_by",
+      "history"
+    ],
+    "select": "'pmcm', '[{\"kind\": \"bank\", \"id\": \"7b1d6f0e-4a52-4d3b-9c11-0a1f5e2b7c01\", \"label\": \"BPI\", \"accountName\": \"PMCM Events Inc.\", \"accountNumber\": \"0123-4567-89\", \"instructions\": \"Use the statement number as the reference.\", \"qrImageId\": null, \"enabled\": true}, {\"kind\": \"ewallet\", \"id\": \"7b1d6f0e-4a52-4d3b-9c11-0a1f5e2b7c02\", \"label\": \"GCash\", \"accountName\": \"PMCM Events\", \"accountNumber\": \"0917 555 0100\", \"instructions\": \"\", \"qrImageId\": \"pqr_uat_gcash\", \"enabled\": true}, {\"kind\": \"cheque\", \"id\": \"7b1d6f0e-4a52-4d3b-9c11-0a1f5e2b7c03\", \"label\": \"Cheque\", \"accountName\": \"PMCM Events Management\", \"instructions\": \"\", \"enabled\": false}]'::jsonb, 1, 'Ms. Mys', '[]'::jsonb",
+    "identity": [
+      "id"
+    ]
+  },
+  {
+    "table": "commercial.pmcm_payment_qr_images",
+    "key": "id",
+    "columns": [
+      "id",
+      "sha256",
+      "content_type",
+      "byte_size",
+      "bytes",
+      "uploaded_by"
+    ],
+    "select": "'pqr_uat_gcash', '843f261e327c363e742835afabba6693db3f24cc0f17423885b955770fd575cb', 'image/png', 258, decode('89504e470d0a1a0a0000000d494844520000005400000054080000000039004f1d000000c94944415478daed98c10e83300c43f3ff3f9dedb2094462a70571b173a148f05ae1903a8d0091df388e7f117742049a451ca1e85abd67e859904e20042f39861afa12b44bf2c9620c0585814cba5ca544a0d30df0b11d5510ca04eb7e0e43b929abeeab22bee4f404a0d50348086484ff637128dbec560b8ba1099b08264a3799a15750676a27cd9ca119e8c3a3a602167071e88e4943a6c3d01c25331264ebb447043a3160acf09cc086d206b74b7498fc86c6541c1686ce0e5858335126bf3074a5f99d1e2e0a433f39aa743513a5545e0000000049454e44ae426082', 'hex'), 'Ms. Mys'",
+    "identity": [
+      "id"
+    ]
+  },
+  {
     "table": "commercial.billing_sources",
     "key": "id",
     "columns": [
@@ -1534,9 +1565,10 @@
       "storage_state",
       "status",
       "sent_at",
-      "generated_at"
+      "generated_at",
+      "payment_details_revision"
     ],
-    "select": "'bstmt_uat_closure', 'evt_uat_closure_261019', 'bsrc_uat_closure', 'UAT-BS-0001', 'Ana Reyes', 'ana@ayala.test', 'UAT Closure Event', (($1::timestamptz + ('2026-10-19T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Venue styling and setup\", \"amount\": 180000}, {\"label\": \"Production crew\", \"amount\": 90000}, {\"label\": \"Photo and video\", \"amount\": 50000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 160000, \"dueDate\": \"2026-09-16\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 160000, \"dueDate\": \"2026-10-09\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 320000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours')",
+    "select": "'bstmt_uat_closure', 'evt_uat_closure_261019', 'bsrc_uat_closure', 'UAT-BS-0001', 'Ana Reyes', 'ana@ayala.test', 'UAT Closure Event', (($1::timestamptz + ('2026-10-19T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Venue styling and setup\", \"amount\": 180000}, {\"label\": \"Production crew\", \"amount\": 90000}, {\"label\": \"Photo and video\", \"amount\": 50000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 160000, \"dueDate\": \"2026-09-16\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 160000, \"dueDate\": \"2026-10-09\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 320000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 1",
     "identity": [
       "event_id"
     ]
@@ -1623,9 +1655,10 @@
       "storage_state",
       "status",
       "sent_at",
-      "generated_at"
+      "generated_at",
+      "payment_details_revision"
     ],
-    "select": "'bstmt_uat_guest', 'evt_uat_guest_261020', 'bsrc_uat_guest', 'UAT-BS-0002', 'Ana Reyes', 'ana@ayala.test', 'UAT Guest Feedback', (($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Venue and catering\", \"amount\": 160000}, {\"label\": \"Guest registration desk\", \"amount\": 60000}, {\"label\": \"Overtime (2 hours)\", \"amount\": 30000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 125000, \"dueDate\": \"2026-09-20\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 125000, \"dueDate\": \"2026-10-13\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 250000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours')",
+    "select": "'bstmt_uat_guest', 'evt_uat_guest_261020', 'bsrc_uat_guest', 'UAT-BS-0002', 'Ana Reyes', 'ana@ayala.test', 'UAT Guest Feedback', (($1::timestamptz + ('2026-10-20T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Venue and catering\", \"amount\": 160000}, {\"label\": \"Guest registration desk\", \"amount\": 60000}, {\"label\": \"Overtime (2 hours)\", \"amount\": 30000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 125000, \"dueDate\": \"2026-09-20\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 125000, \"dueDate\": \"2026-10-13\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 250000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 1",
     "identity": [
       "event_id"
     ]
@@ -1712,9 +1745,10 @@
       "storage_state",
       "status",
       "sent_at",
-      "generated_at"
+      "generated_at",
+      "payment_details_revision"
     ],
-    "select": "'bstmt_uat_live', 'evt_uat_live_261024', 'bsrc_uat_live', 'UAT-BS-0003', 'Ana Reyes', 'ana@ayala.test', 'UAT Live Ops Event', (($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Stage, lights and sound\", \"amount\": 240000}, {\"label\": \"Live operations crew\", \"amount\": 120000}, {\"label\": \"Registration system\", \"amount\": 60000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 210000, \"dueDate\": \"2026-09-24\"}, {\"label\": \"Second payment\", \"percentage\": 30, \"amount\": 126000, \"dueDate\": \"2026-10-17\"}, {\"label\": \"Balance\", \"percentage\": 20, \"amount\": 84000, \"dueDate\": \"2026-10-31\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 420000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours')",
+    "select": "'bstmt_uat_live', 'evt_uat_live_261024', 'bsrc_uat_live', 'UAT-BS-0003', 'Ana Reyes', 'ana@ayala.test', 'UAT Live Ops Event', (($1::timestamptz + ('2026-10-24T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Stage, lights and sound\", \"amount\": 240000}, {\"label\": \"Live operations crew\", \"amount\": 120000}, {\"label\": \"Registration system\", \"amount\": 60000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 210000, \"dueDate\": \"2026-09-24\"}, {\"label\": \"Second payment\", \"percentage\": 30, \"amount\": 126000, \"dueDate\": \"2026-10-17\"}, {\"label\": \"Balance\", \"percentage\": 20, \"amount\": 84000, \"dueDate\": \"2026-10-31\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 420000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 1",
     "identity": [
       "event_id"
     ]
@@ -1821,9 +1855,10 @@
       "storage_state",
       "status",
       "sent_at",
-      "generated_at"
+      "generated_at",
+      "payment_details_revision"
     ],
-    "select": "'bstmt_uat_ops', 'evt_uat_ops_261121', 'bsrc_uat_ops', 'UAT-BS-0004', 'Ana Reyes', 'ana@ayala.test', 'UAT Operations Supplier Booking', (($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Registration and badging\", \"amount\": 485000}, {\"label\": \"Floral production\", \"amount\": 180000}, {\"label\": \"Event management fee\", \"amount\": 200000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 432500, \"dueDate\": \"2026-11-04\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 432500, \"dueDate\": \"2026-11-14\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 865000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours')",
+    "select": "'bstmt_uat_ops', 'evt_uat_ops_261121', 'bsrc_uat_ops', 'UAT-BS-0004', 'Ana Reyes', 'ana@ayala.test', 'UAT Operations Supplier Booking', (($1::timestamptz + ('2026-11-21T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), '[{\"label\": \"Registration and badging\", \"amount\": 485000}, {\"label\": \"Floral production\", \"amount\": 180000}, {\"label\": \"Event management fee\", \"amount\": 200000}]'::jsonb, '[{\"label\": \"Downpayment\", \"percentage\": 50, \"amount\": 432500, \"dueDate\": \"2026-11-04\"}, {\"label\": \"Balance\", \"percentage\": 50, \"amount\": 432500, \"dueDate\": \"2026-11-14\"}]'::jsonb, '[{\"label\": \"BPI\", \"details\": \"PMCM Events Inc. \\u00b7 Account 0123-4567-89\"}, {\"label\": \"GCash\", \"details\": \"0917 555 0100 \\u00b7 PMCM Events\"}]'::jsonb, 865000, 'pending', 'sent', (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), (($1::timestamptz + ('2026-09-01T00:00:00+08:00'::timestamptz - '2026-10-24T00:00:00+08:00'::timestamptz)) + interval '8 hours'), 1",
     "identity": [
       "event_id"
     ]

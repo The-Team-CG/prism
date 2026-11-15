@@ -34,7 +34,6 @@ export function mapBillingSource(source: OpsBillingSource) {
     sourceDocumentId: source.sourceDocumentId ?? null,
     lineItems: Array.isArray(source.lineItems) ? source.lineItems : [],
     paymentSchedule: Array.isArray(source.paymentSchedule) ? source.paymentSchedule : [],
-    paymentMethods: Array.isArray(source.paymentMethods) ? source.paymentMethods : [],
     totalAmount: source.totalAmount,
     status: source.status,
     approvedAt: source.approvedAt ? timestamp(source.approvedAt) : null,
