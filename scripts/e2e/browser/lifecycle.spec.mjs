@@ -113,7 +113,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       // The client's proposal package includes billing, and a client only sees a statement once PMCM sends it.
       await pmcm.page.goto(path('billing'));
       await pmcm.page.getByRole('tab', { name: /^Billing sources/ }).click();
-      const billing = pmcm.page.getByRole('region', { name: 'Billing source', exact: true });
+      const billing = pmcm.page.getByRole('region', { name: 'Billing sources', exact: true });
       await billing.getByLabel('Amount (PHP)', { exact: true }).fill('105000');
       await billing.getByLabel('Proposal evidence', { exact: true }).click();
       await pmcm.page.getByRole('option').filter({ hasNotText: 'Select a proposal document' }).first().click();

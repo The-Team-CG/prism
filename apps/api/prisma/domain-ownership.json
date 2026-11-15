@@ -1,6 +1,6 @@
 {
   "summary": {
-    "totalTables": 158,
+    "totalTables": 160,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 51,
@@ -26,8 +26,8 @@
       {
         "domain": "commercial",
         "schema": "commercial",
-        "tables": 42,
-        "columns": 515
+        "tables": 44,
+        "columns": 529
       },
       {
         "domain": "operations",
@@ -736,6 +736,24 @@
       "domain": "commercial",
       "targetSchema": "commercial",
       "columnCount": 12,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsPmcmPaymentDetails",
+      "currentSchema": "commercial",
+      "table": "pmcm_payment_details",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 7,
+      "introducedAfterCutover": true
+    },
+    {
+      "model": "OpsPmcmPaymentQrImage",
+      "currentSchema": "commercial",
+      "table": "pmcm_payment_qr_images",
+      "domain": "commercial",
+      "targetSchema": "commercial",
+      "columnCount": 7,
       "introducedAfterCutover": true
     },
     {
