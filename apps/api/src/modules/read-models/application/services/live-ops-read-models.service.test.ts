@@ -27,6 +27,8 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
   return {
     id: EVENT_ID,
     inquiryId: 'inq_1',
+    eventType: 'Corporate Event',
+    coverObjectId: null,
     disabledModules: [],
     clientName: 'Ana Reyes',
     eventName: 'Ayala Summit',

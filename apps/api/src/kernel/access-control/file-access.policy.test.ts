@@ -14,6 +14,7 @@ const SENT: FileAccessContext = { requirementVisibility: [], billingStatementSen
 const KINDS: Record<string, FileAccessObject> = {
   signed_conforme: { usage: 'signed_conforme', ownerRecordType: 'event', ownerRecordId: 'evt_1', lifecycleState: 'stored', deletedAt: null },
   client_document: { usage: 'client_document', ownerRecordType: 'event', ownerRecordId: 'evt_1', lifecycleState: 'stored', deletedAt: null },
+  pmcm_shared_file: { usage: 'event_deliverable', ownerRecordType: 'event', ownerRecordId: 'evt_1', lifecycleState: 'stored', deletedAt: null },
   billing_statement: { usage: 'event_deliverable', ownerRecordType: 'billing_statement', ownerRecordId: 'bill_1', lifecycleState: 'stored', deletedAt: null },
   proposal_deliverable: { usage: 'event_deliverable', ownerRecordType: 'proposal_version', ownerRecordId: 'prop_1', lifecycleState: 'stored', deletedAt: null },
   styling_moodboard: { usage: 'event_deliverable', ownerRecordType: 'client_review_item', ownerRecordId: 'client_review_1', lifecycleState: 'stored', deletedAt: null },
@@ -38,6 +39,8 @@ const ACTORS: Record<string, { role: string; supplierId?: string }> = {
 const ALLOWED_ACTORS: Record<string, readonly string[]> = {
   signed_conforme: ['pmcm', 'system', 'client'],
   client_document: ['pmcm', 'system', 'client', 'coordinator'],
+  // A file PMCM shares from an event's Files library is for the client; suppliers and coordinators do not see it.
+  pmcm_shared_file: ['pmcm', 'system', 'client'],
   billing_statement: ['pmcm', 'system', 'client'],
   proposal_deliverable: ['pmcm', 'system', 'client'],
   styling_moodboard: ['pmcm', 'system', 'client'],
@@ -170,7 +173,8 @@ describe('file access policy: document metadata rows', () => {
 describe('file access policy: kind classification (default deny)', () => {
   it('classifies only the supported owner and usage pairs', () => {
     expect(fileAccessKindOf({ usage: 'event_deliverable', ownerRecordType: 'proposal_version' })).toBe('proposal_deliverable');
-    expect(fileAccessKindOf({ usage: 'event_deliverable', ownerRecordType: 'event' })).toBeNull();
+    expect(fileAccessKindOf({ usage: 'event_deliverable', ownerRecordType: 'event' })).toBe('pmcm_shared_file');
+    expect(fileAccessKindOf({ usage: 'event_deliverable', ownerRecordType: 'supplier' })).toBeNull();
     expect(fileAccessKindOf({ usage: 'client_document', ownerRecordType: 'supplier' })).toBeNull();
     expect(fileAccessKindOf({ usage: 'event_game_branding', ownerRecordType: 'event_game_lobby' })).toBeNull();
   });

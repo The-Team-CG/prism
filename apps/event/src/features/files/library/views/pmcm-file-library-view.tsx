@@ -168,8 +168,8 @@ function Messages({ vm }: { vm: PmcmFileLibraryViewModel }) {
 }
 
 /** One event's files for PMCM: what to review first, then every file from the client, suppliers and PMCM. */
-export function PmcmFileLibraryView({ eventId }: { eventId: string }) {
-  const vm = usePmcmFileLibraryViewModel(eventId);
+export function PmcmFileLibraryView({ eventId, coverObjectId = null, onCoverChange }: { eventId: string; coverObjectId?: string | null; onCoverChange?: () => void }) {
+  const vm = usePmcmFileLibraryViewModel(eventId, coverObjectId, onCoverChange);
   return (
     <section aria-label="Event file library" className="space-y-4 rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">

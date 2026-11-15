@@ -33,6 +33,7 @@ import type {
   SetClientEventDayViewInput,
   SetEventModulesInput,
   SetEventPrivacyInput,
+  SetEventCoverInput,
   WaiveOcularVisitInput,
   CreateFloorPlanDraftInput,
   PrismCloseGates,
@@ -56,6 +57,8 @@ export interface EventOpsLifecycleContract {
     waiveOcularVisit(eventId: string, input: WaiveOcularVisitInput, actor?: EventOpsActorQuery): Promise<PrismPmcmOcularVisit>;
     setModules(eventId: string, input: SetEventModulesInput, actor?: EventOpsActorQuery): Promise<{ eventId: string; disabledModules: SetEventModulesInput["disabledModules"] }>;
     setPrivacy(eventId: string, input: SetEventPrivacyInput, actor?: EventOpsActorQuery): Promise<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>;
+    /** PMCM picks an image from the event's files as its cover, or null for the generated cover. */
+    setCover(eventId: string, input: SetEventCoverInput): Promise<{ eventId: string; coverObjectId: string | null }>;
     setClientEventDayView(eventId: string, input: SetClientEventDayViewInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     archive(eventId: string, overrideReason?: string, actor?: EventOpsActorQuery): Promise<PrismEvent>;
     recordActualEnd(eventId: string, input: RecordActualEventEndInput, actor?: EventOpsActorQuery): Promise<PrismEvent>;

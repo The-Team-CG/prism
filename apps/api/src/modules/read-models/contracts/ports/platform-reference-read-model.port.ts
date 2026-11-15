@@ -6,6 +6,8 @@ export const PLATFORM_REFERENCE_READ_MODEL = Symbol('PLATFORM_REFERENCE_READ_MOD
 export type PlatformStorageEventScope = {
   id: string;
   archived: boolean;
+  /** The stored image PMCM chose as the event's cover, if any. */
+  coverObjectId: string | null;
   clientName: string;
   clientPortalStatus: string;
   clientEmail: string | null;

@@ -11,12 +11,13 @@ export type CardLink = ComponentType<{ href: string; className?: string; childre
 
 const PlainLink: CardLink = ({ href, className, children }) => <a href={portalHref(href)} className={className}>{children}</a>;
 
-/** The event day as a calendar leaf: month, day, weekday. */
-export function DateTile({ date, muted = false }: { date: string; muted?: boolean }) {
+/** The event day as a calendar leaf: month, day, weekday. `raised` lifts it onto the edge of a cover picture. */
+export function DateTile({ date, muted = false, raised = false }: { date: string; muted?: boolean; raised?: boolean }) {
   const parts = dateTileParts(date);
-  if (!parts) return <span aria-hidden className="size-13 shrink-0 rounded-xl bg-muted" />;
+  if (!parts) return <span aria-hidden className={cn("size-13 shrink-0 rounded-xl bg-muted", raised && "relative -mt-10 ring-4 ring-card")} />;
+  const tone = raised ? "bg-card text-primary shadow-md ring-1 ring-border" : muted ? "bg-muted text-muted-foreground" : "bg-primary-soft text-primary";
   return (
-    <span aria-hidden className={cn("grid w-13 shrink-0 place-items-center rounded-xl py-1.5 leading-none", muted ? "bg-muted text-muted-foreground" : "bg-primary-soft text-primary")}>
+    <span aria-hidden className={cn("grid w-13 shrink-0 place-items-center rounded-xl py-1.5 leading-none", tone, raised && "relative -mt-10")}>
       <span className="text-[10px] font-semibold tracking-wide">{parts.month}</span>
       <span className="py-0.5 text-xl font-bold tabular-nums">{parts.day}</span>
       <span className="text-[10px] font-semibold tracking-wide">{parts.weekday}</span>
@@ -133,7 +134,7 @@ export function MoneyBar({ billed, paid, checking = 0, verb = "paid" }: { billed
  * One event as a card: a red edge when something is waiting on the reader. The title link covers the whole card;
  * links and buttons inside it sit above that cover.
  */
-export function EventCard({ urgent = false, compact = false, className, children }: { urgent?: boolean; compact?: boolean; className?: string; children: ReactNode }) {
+export function EventCard({ urgent = false, compact = false, cover, className, children }: { urgent?: boolean; compact?: boolean; cover?: ReactNode; className?: string; children: ReactNode }) {
   return (
     <article className={cn(
       "relative grid min-w-0 grid-cols-[minmax(0,1fr)] content-start overflow-hidden rounded-xl border bg-card shadow-xs transition-shadow hover:shadow-md",
@@ -141,6 +142,7 @@ export function EventCard({ urgent = false, compact = false, className, children
       urgent ? "border-danger/40 before:absolute before:inset-y-0 before:left-0 before:w-[3px] before:bg-danger" : "border-border",
       className,
     )}>
+      {cover ? <div className={compact ? "-mx-3.5 -mt-3.5" : "-mx-4 -mt-4"}>{cover}</div> : null}
       {children}
     </article>
   );
@@ -161,7 +163,7 @@ const TITLE_STYLE = "block font-semibold leading-snug text-foreground outline-no
  * The card's heading row: date tile, title (the card's link) with its details, and the countdown. `onNavigate` lets a
  * portal open the event through its own state (it still renders a real link for new tabs).
  */
-export function EventCardHeader({ date, title, href, details, aside, link: Link = PlainLink, onNavigate, muted = false }: {
+export function EventCardHeader({ date, title, href, details, aside, link: Link = PlainLink, onNavigate, muted = false, onCover = false }: {
   date: string;
   title: string;
   href: string;
@@ -170,10 +172,12 @@ export function EventCardHeader({ date, title, href, details, aside, link: Link 
   link?: CardLink;
   onNavigate?: () => void;
   muted?: boolean;
+  /** The card has a cover picture above: the date tile sits on its lower edge. */
+  onCover?: boolean;
 }) {
   return (
     <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3">
-      <DateTile date={date} muted={muted} />
+      <DateTile date={date} muted={muted} raised={onCover} />
       <div className="min-w-0">
         {onNavigate
           ? <a href={portalHref(href)} onClick={onPlainClick(onNavigate)} className={TITLE_STYLE}>{title}</a>

@@ -20,6 +20,7 @@ import type {
   PrismPmcmOcularVisit,
   SetEventModulesInput,
   SetEventPrivacyInput,
+  SetEventCoverInput,
   PrismCloseGates,
   PrismComplianceCheck,
   PrismComplianceRule,
@@ -45,6 +46,8 @@ export function createLifecycleClient(options: EventOpsClientOptions): Pick<Even
         prismRequest<{ eventId: string; disabledModules: SetEventModulesInput["disabledModules"] }>(actorPath(event(eventId, "/modules"), actor), withBase(options, { method: "PATCH", body: input })),
       setPrivacy: (eventId, input, actor = {}) =>
         prismRequest<{ eventId: string; privacy: SetEventPrivacyInput["privacy"] }>(actorPath(event(eventId, "/privacy"), actor), withBase(options, { method: "PATCH", body: input })),
+      setCover: (eventId, input) =>
+        prismRequest<{ eventId: string; coverObjectId: string | null }>(event(eventId, "/cover"), withBase(options, { method: "PATCH", body: input })),
       setClientEventDayView: (eventId, input, actor = {}) =>
         prismRequest<PrismEvent>(actorPath(event(eventId, "/client-event-day-view"), actor), withBase(options, { method: "PATCH", body: input })),
       archive: (eventId, overrideReason, actor = {}) =>

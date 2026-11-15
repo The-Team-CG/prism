@@ -57,7 +57,8 @@ import { StorageValidationService } from './storage-validation.service';
 const STORAGE_OWNER_USAGE_REGISTRY: Readonly<Record<string, readonly StorageUsage[]>> = {
   billing_statement: ['event_deliverable'],
   client_review_item: ['event_deliverable'],
-  event: ['client_document', 'signed_conforme', 'guest_feedback_media'],
+  // event_deliverable: a file PMCM shares from the event's Files library. Only PMCM may upload it.
+  event: ['client_document', 'signed_conforme', 'guest_feedback_media', 'event_deliverable'],
   event_game_definition: ['event_game_media'],
   event_game_lobby: ['event_game_branding'],
   payment_receipt: ['payment_receipt_evidence'],
@@ -588,6 +589,54 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
       }
       this.assertEventGameMediaObject(object, input);
     }
+  }
+
+  /** An image held in this event's files can be the event's cover: stored, an image, and not deleted. */
+  async validateEventCoverReference(input: { eventId: string; objectId: string }, context?: PrismTransactionContext): Promise<void> {
+    const object = await this.database(context).opsStoredObject.findUnique({ where: { id: input.objectId } });
+    this.assertEventCoverObject(object, input.eventId);
+  }
+
+  /**
+   * The event's cover image for anyone who can read the event: its client, its booked suppliers, its assigned
+   * coordinators and PMCM. The cover is shared on purpose, so this does not apply the file's own visibility.
+   */
+  async issueEventCoverDownloadAuthorization(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventGameMediaAuthorization> {
+    const object = await this.authorizedEventCover(eventId, actor);
+    if (!this.adapter) throw new ServiceUnavailableException('Storage provider is not configured');
+    const authorization = await this.adapter.issueDownloadAuthorization(this.adapterRequest(object));
+    return { downloadUrl: authorization.downloadUrl, expiresAt: authorization.expiresAt.toISOString() };
+  }
+
+  /**
+   * The cover's bytes from a local file-system provider, whose download address is not a public link. The reader must
+   * hold the authorization the cover route issued; the same event-read rule applies, not the file's own visibility.
+   */
+  async readEventCoverContent(eventId: string, downloadUrl: string, actor: ResolvedEventOpsActor): Promise<{ bytes: Uint8Array; contentType: string }> {
+    const object = await this.authorizedEventCover(eventId, actor);
+    if (!this.adapter?.readAuthorizedDownload) throw new ServiceUnavailableException('This storage provider requires a direct HTTP download');
+    if (typeof downloadUrl !== 'string' || !downloadUrl.startsWith('localfs://download/')) throw new ForbiddenException('Download authorization is invalid');
+    const bytes = await this.adapter.readAuthorizedDownload(downloadUrl, object.providerObjectKey ?? '');
+    return { bytes, contentType: object.contentType };
+  }
+
+  /** The event's cover object, once the reader is shown to be able to read the event. */
+  private async authorizedEventCover(eventId: string, actor: ResolvedEventOpsActor): Promise<OpsStoredObject> {
+    await this.requireActorEventScope(actor, eventId, 'event cover');
+    const event = await this.findEvent(eventId);
+    const scoped = resolveFileEventScope(actor, event);
+    await this.accessPolicy.requireCanReadEvent(scoped.actor, event, 'event cover', scoped.scope);
+    if (!event.coverObjectId) throw new NotFoundException('This event has no cover image');
+    const object = await this.prisma.opsStoredObject.findUnique({ where: { id: event.coverObjectId } });
+    this.assertEventCoverObject(object, eventId);
+    return object;
+  }
+
+  private assertEventCoverObject(object: OpsStoredObject | null, eventId: string): asserts object is OpsStoredObject {
+    if (!object || object.eventId !== eventId || object.lifecycleState !== 'stored' || !object.providerObjectKey) {
+      throw new NotFoundException('Cover image is unavailable for this event');
+    }
+    if (!object.contentType.startsWith('image/')) throw new BadRequestException('Choose an image file as the cover');
   }
 
   async issueEventGameMediaDownloadAuthorization(

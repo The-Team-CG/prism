@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismPmcmCalendarItem, PrismPmcmEventSummary } from "@prism/types";
-import { eventNotes, fileSummaryLabel, summariesByEvent } from "./event-summary-labels";
+import { eventShortcutCounts, fileSummaryLabel, summariesByEvent } from "./event-summary-labels";
 import { calendarWindow, toCalendarEntries } from "./pmcm-calendar-items";
 
 const summary = (overrides: Partial<PrismPmcmEventSummary> = {}): PrismPmcmEventSummary => ({ eventId: "e1", balanceDue: 0, nextPaymentDue: null, overdueMilestones: 0, unreadMessages: 0, ...overrides });
@@ -11,13 +11,10 @@ describe("event list summaries", () => {
   });
 });
 
-describe("event card notes", () => {
-  it("adds unread messages and overdue files, which the Inbox does not carry, and nothing for an event in order or not yet loaded", () => {
-    expect(eventNotes(undefined, undefined)).toEqual([]);
-    // Overdue payments are the Inbox's to say, so they are not repeated here.
-    expect(eventNotes(summary({ balanceDue: 90_000, overdueMilestones: 2 }), { eventId: "e1", total: 8, open: 6, overdue: 0 })).toEqual([]);
-    expect(eventNotes(summary({ unreadMessages: 1 }), { eventId: "e1", total: 8, open: 6, overdue: 1 })).toEqual(["1 unread message", "1 file overdue"]);
-    expect(eventNotes(summary({ unreadMessages: 5 }), { eventId: "e1", total: 8, open: 6, overdue: 4 })).toEqual(["5 unread messages", "4 files overdue"]);
+describe("event card shortcut counts", () => {
+  it("counts overdue payments, open file requirements and unread messages, and leaves out what has not loaded", () => {
+    expect(eventShortcutCounts(undefined, undefined)).toEqual({ billing: undefined, files: undefined, messages: undefined });
+    expect(eventShortcutCounts(summary({ overdueMilestones: 2, unreadMessages: 5 }), { eventId: "e1", total: 8, open: 3, overdue: 1 })).toEqual({ billing: 2, files: 3, messages: 5 });
   });
 });
 

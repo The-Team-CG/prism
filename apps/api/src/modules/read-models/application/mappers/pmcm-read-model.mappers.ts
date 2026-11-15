@@ -80,6 +80,8 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     clientName: event.clientName,
     eventName: event.eventName,
     eventDate: isoDate(event.eventDate),
+    eventType: event.eventType,
+    coverObjectId: event.coverObjectId,
     walkInPolicy: event.walkInPolicy as 'closed' | 'open' | 'threshold',
     walkInThreshold: event.walkInThreshold,
     status: event.status,

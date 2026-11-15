@@ -21,7 +21,7 @@
         "domain": "event-lifecycle",
         "schema": "event_lifecycle",
         "tables": 40,
-        "columns": 529
+        "columns": 531
       },
       {
         "domain": "commercial",
@@ -171,7 +171,7 @@
       "table": "events",
       "domain": "event-lifecycle",
       "targetSchema": "event_lifecycle",
-      "columnCount": 35
+      "columnCount": 37
     },
     {
       "model": "OpsEventClientFloorplanAccessGrant",

@@ -129,6 +129,10 @@ back across several events, some on email and Viber together, notices that ask f
 already escalated, others due soon), and one with no event or link. Times are relative to when the seed runs, so
 "Today" and "Yesterday" are always populated.
 
+Each event has a different type (product launch, conference, gala, corporate event, workshop), so the events cards show
+each generated cover. A sixth event, UAT Garden Celebration (a private celebration), is on track with nothing waiting
+on PMCM, and XPERTO has a second booking on it, confirmed and still to sign its contract.
+
 Dry-run/verify are read-only. Verify fails for missing rows. Apply inserts missing
 rows in one transaction and serializes seed commands with an advisory lock.
 Identity/link conflicts fail before writes; constraint errors roll back all inserts.

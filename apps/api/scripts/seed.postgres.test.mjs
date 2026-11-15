@@ -56,8 +56,8 @@ test('migrated PostgreSQL: prerequisites, atomic failure, reruns, edits, collisi
         assert.equal((await client.query("SELECT two_factor_secret FROM identity_access.users WHERE id='usr_pmcm'")).rows[0].two_factor_secret, 'tester-2fa');
       });
       await t.test('all scenario rows insert and a rerun preserves tester edits and bearer tokens', async () => {
-        assert.equal((await run({ profile: 'portal-uat', mode: 'dry-run' })).missing.length, 169);
-        assert.equal((await run({ profile: 'portal-uat' })).inserted, 169);
+        assert.equal((await run({ profile: 'portal-uat', mode: 'dry-run' })).missing.length, 175);
+        assert.equal((await run({ profile: 'portal-uat' })).inserted, 175);
         const token = (await client.query("SELECT access_token FROM commercial.quote_requests WHERE id='rq_uat_xperto_submit'")).rows[0].access_token;
         await client.query("UPDATE live_ops.event_day_tasks SET notes='tester changed this', status='done' WHERE id='task_uat_live_registration'");
         assert.equal((await run({ profile: 'portal-uat' })).inserted, 0);
@@ -65,7 +65,7 @@ test('migrated PostgreSQL: prerequisites, atomic failure, reruns, edits, collisi
         const task = (await client.query("SELECT notes,status FROM live_ops.event_day_tasks WHERE id='task_uat_live_registration'")).rows[0];
         assert.deepEqual(task, { notes: 'tester changed this', status: 'done' });
         assert.equal((await client.query("SELECT access_token FROM commercial.quote_requests WHERE id='rq_uat_xperto_submit'")).rows[0].access_token, token);
-        assert.equal(await count('event_lifecycle.events'), 5);
+        assert.equal(await count('event_lifecycle.events'), 6);
       });
       await t.test('Manila schedule and account/event access links match the chosen scenario', async () => {
         // Event dates are calendar dates, stored at UTC midnight like the dates the app writes.

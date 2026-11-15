@@ -397,6 +397,10 @@ model OpsEvent {
   status                     String    @default("planning")
   clientPortalStatus         String    @default("locked") @map("client_portal_status")
   privacy                    String    @default("private")
+  /// The inquiry's event type (wedding, corporate…), copied when the event is created; it picks the event's generated cover.
+  eventType                  String    @default("") @map("event_type")
+  /// A stored image from this event's files that PMCM chose as the event's cover; null shows the generated cover.
+  coverObjectId              String?   @map("cover_object_id")
   clientEventDayViewEnabled  Boolean   @default(false) @map("client_event_day_view_enabled")
   readiness                  String    @default("Conforme pending")
   archived                   Boolean   @default(false)

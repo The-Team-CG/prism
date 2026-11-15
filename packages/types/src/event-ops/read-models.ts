@@ -228,6 +228,9 @@ export interface PrismSupplierReadinessItem {
   clientName?: string | null;
   /** Event calendar date (YYYY-MM-DD). Confidential bids keep the date while the event name and client stay masked. */
   eventDate?: string | null;
+  /** The event's type and chosen cover, for the booking card; both are withheld while the bid is confidential. */
+  eventType?: string | null;
+  coverObjectId?: string | null;
   supplierId?: string | null;
   supplierName: string;
   category: string;

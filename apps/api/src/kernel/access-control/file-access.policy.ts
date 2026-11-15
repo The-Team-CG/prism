@@ -17,7 +17,7 @@ export type FileAccessObject = {
 };
 
 /** Supported file kinds. Game media and lobby branding are outside this policy. */
-export type FileAccessKind = 'signed_conforme' | 'client_document' | 'billing_statement' | 'proposal_deliverable' | 'styling_moodboard' | 'supplier_document' | 'guest_feedback_media' | 'payment_receipt_evidence' | 'communication_attachment';
+export type FileAccessKind = 'signed_conforme' | 'client_document' | 'pmcm_shared_file' | 'billing_statement' | 'proposal_deliverable' | 'styling_moodboard' | 'supplier_document' | 'guest_feedback_media' | 'payment_receipt_evidence' | 'communication_attachment';
 
 export type FileAccessActor = { role: string; supplierId?: string | null };
 
@@ -42,6 +42,8 @@ const PROPOSAL_DOCUMENT_TYPES: readonly string[] = ['proposal', 'ce_proposal', '
 const KIND_BY_OWNER_USAGE: ReadonlyMap<string, FileAccessKind> = new Map<string, FileAccessKind>([
   ['event:signed_conforme', 'signed_conforme'],
   ['event:client_document', 'client_document'],
+  // A file PMCM shares from an event's Files library ("Share a file"); the client reads it there.
+  ['event:event_deliverable', 'pmcm_shared_file'],
   ['billing_statement:event_deliverable', 'billing_statement'],
   ['proposal_version:event_deliverable', 'proposal_deliverable'],
   // FR-09 / FR-30: moodboard images PMCM attaches to a styling option; the client reviews them with the option.
@@ -63,6 +65,7 @@ export function fileAccessKindOf(object: Pick<FileAccessObject, 'usage' | 'owner
 const KIND_ACCESS: Record<FileAccessKind, (actor: FileAccessActor, object: FileAccessObject, context: FileAccessContext) => boolean> = {
   signed_conforme: (actor) => actor.role === OpsUserRole.Client,
   client_document: (actor) => actor.role === OpsUserRole.Client || actor.role === OpsUserRole.Coordinator,
+  pmcm_shared_file: (actor) => actor.role === OpsUserRole.Client,
   billing_statement: (actor, _object, context) => actor.role === OpsUserRole.Client && context.billingStatementSent,
   proposal_deliverable: (actor) => actor.role === OpsUserRole.Client,
   styling_moodboard: (actor) => actor.role === OpsUserRole.Client,

@@ -47,7 +47,13 @@ export type SupplierReadinessRequestSource = {
   schedule?: SupplierReadinessScheduleSource | null;
 };
 
-export type SupplierReadinessEventRef = { eventName?: string | null; clientName?: string | null; eventDate?: Date | string | null } | undefined;
+export type SupplierReadinessEventRef = {
+  eventName?: string | null;
+  clientName?: string | null;
+  eventDate?: Date | string | null;
+  eventType?: string | null;
+  coverObjectId?: string | null;
+} | undefined;
 
 function eventDateKey(eventDate: Date | string | null | undefined): string | null {
   if (!eventDate) return null;
@@ -184,6 +190,8 @@ export function buildSupplierReadinessItem(
     eventName: event?.eventName ?? null,
     clientName: event?.clientName ?? null,
     eventDate: eventDateKey(event?.eventDate),
+    eventType: event?.eventType ?? null,
+    coverObjectId: event?.coverObjectId ?? null,
     supplierId: request.supplierId,
     supplierName: request.supplierName,
     category: request.category,
