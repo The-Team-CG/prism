@@ -1,19 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import type { PrismBillingStatement, PrismPaymentMilestone } from "@prism/types";
-import { billingStatementUrl } from "../data/finance-repository";
+import type { PrismPaymentMilestone } from "@prism/types";
 import { parseRecordPaymentAmount } from "../model/finance-workspace-rules";
 import type { RecordPaymentInput } from "../model/finance-workspace-types";
 
 export type FinancialWorkspaceStatus = "idle" | "editing" | "loading";
 
 export function useFinancialWorkspaceViewModel({
-  statement,
   busy = false,
   onRecordPayment,
 }: {
-  statement?: PrismBillingStatement;
   busy?: boolean;
   onRecordPayment: (milestoneId: string, input: RecordPaymentInput) => Promise<void>;
 }) {
@@ -49,7 +46,6 @@ export function useFinancialWorkspaceViewModel({
     paymentDate,
     paymentMethod,
     referenceNumber,
-    billingStatementHref: statement?.pdfUrl ? billingStatementUrl(statement.pdfUrl) : undefined,
     openRecordModal,
     submitRecordPayment,
     setActivePayment,

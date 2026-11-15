@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInvalidate, useResource } from "@prism/portal-query";
 import type { PrismPaymentReceipt } from "@prism/types";
 import { toast } from "@prism/ui/components/sonner";
+import { financeDesk } from "@/features/finance/desk";
+import { useListFilter } from "@/features/pmcm-kit";
 import { paymentAllocationTargets, paymentReceipts, receiptsRepository } from "../data/receipts-repository";
-import { filterToQuery, totalUnapplied, type ReceiptFilter } from "../model/receipt-rules";
+import { filterToQuery, type ReceiptFilter } from "../model/receipt-rules";
 import {
   submitAllocation,
   submitAllocationReversal,
@@ -52,6 +54,15 @@ export function usePaymentReceiptsViewModel() {
   // The receipt as a command last returned it, so the detail never shows a stale copy while the list refetches.
   const [latest, setLatest] = useState<PrismPaymentReceipt | null>(null);
   const [dialog, setDialog] = useState<ReceiptDialog | null>(null);
+  // A link from the finance desk, the inbox or an event's billing opens straight on one receipt.
+  const [linkedReceipt] = useListFilter("receipt", "");
+  useEffect(() => {
+    if (!linkedReceipt) return;
+    setFilter("all");
+    setSelectedId(linkedReceipt);
+  }, [linkedReceipt]);
+  // Totals come from the desk, so they count every receipt whatever the list is filtered to.
+  const totals = useResource(financeDesk, "signed-in").data?.totals;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,7 +86,7 @@ export function usePaymentReceiptsViewModel() {
       setLatest(result);
       setSelectedId(result.id);
       setDialog(null);
-      await Promise.all([invalidate(paymentReceipts), invalidate(paymentAllocationTargets)]);
+      await Promise.all([invalidate(paymentReceipts), invalidate(paymentAllocationTargets), invalidate(financeDesk)]);
       toast.success(message);
       return true;
     } catch (cause) {
@@ -109,8 +120,8 @@ export function usePaymentReceiptsViewModel() {
     loadError: list.status === "error" ? list.error.message : null,
     receipts,
     selected,
-    unappliedTotal: totalUnapplied(receipts),
-    needsChecking: receipts.filter((receipt) => receipt.status === "recorded").length,
+    unappliedTotal: totals?.unapplied ?? 0,
+    needsChecking: totals?.toVerifyCount ?? 0,
     select,
     dialog,
     openDialog,

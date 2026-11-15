@@ -27,6 +27,18 @@ vi.mock("@/lib/prism-api", async (importOriginal) => ({
   eventApi: {
     communication,
     notificationPreferences: { mine: vi.fn(async () => ({ viberConfigured: false })) },
+    commercial: {
+      financeDesk: vi.fn(async () => ({
+        generatedAt: "2026-11-14T00:00:00.000Z",
+        totals: { clientOverdue: 66000, clientDueSoon: 84000, toVerify: 60000, toVerifyCount: 1, unapplied: 0, openDisputes: 0, pendingCorrections: 0, supplierOverdue: 0, supplierDueSoon: 0 },
+        queue: [{ id: "client-overdue:evt-gala", kind: "client_overdue", severity: "critical", eventId: "evt-gala", eventName: "Founders gala", title: "₱66,000 overdue from Acme", detail: "Second payment · due Oct 19 · 26 days late", amount: 66000, date: "2026-10-19", href: "/dashboard/events/evt-gala/billing" }],
+        events: [{
+          eventId: "evt-gala", eventName: "Founders gala", eventDate: "2027-05-15", clientName: "Acme", statementNumber: "BS-1", statementSent: true, billed: 420000, paid: 270000, checking: 60000, balance: 150000, overdue: 66000,
+          milestones: [{ id: "m1", label: "Second payment", dueDate: "2026-10-19", amount: 126000, paid: 60000, remaining: 66000, status: "partially_paid", checking: 60000, disputed: 0, settledOn: null }],
+        }],
+        payouts: [],
+      })),
+    },
     pmcm: {
       fileSummaries: vi.fn(async () => ({
         generatedAt: "2026-11-05T00:00:00.000Z",
@@ -67,21 +79,20 @@ describe("global event-scoped destinations without a selected event", () => {
       eventDate: `2027-01-${String(index + 1).padStart(2, "0")}`,
     }));
     try {
-      render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardFinanceSectionView /></PortalQueryProvider>);
-      expect(screen.getAllByRole("link", { name: /^Open billing:/ })).toHaveLength(10);
+      render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardFilesSectionView /></PortalQueryProvider>);
+      expect(screen.getAllByRole("link", { name: /^Open files:/ })).toHaveLength(10);
 
       fireEvent.click(screen.getByRole("button", { name: "Show more" }));
-      expect(screen.getAllByRole("link", { name: /^Open billing:/ })).toHaveLength(12);
+      expect(screen.getAllByRole("link", { name: /^Open files:/ })).toHaveLength(12);
 
       fireEvent.change(screen.getByRole("searchbox"), { target: { value: "Event 03" } });
-      expect(screen.getAllByRole("link", { name: /^Open billing:/ }).map((row) => row.textContent)).toEqual(["Event 03"]);
+      expect(screen.getAllByRole("link", { name: /^Open files:/ }).map((row) => row.textContent)).toEqual(["Event 03"]);
     } finally {
       routeModel.events = original;
     }
   });
 
   it.each([
-    ["Finance", EventDashboardFinanceSectionView, "Open billing", "billing"],
     ["Files", EventDashboardFilesSectionView, "Open files", "files"],
   ] as const)("%s lists events and opens the chosen event's matching section in one selection", async (_name, View, action, tab) => {
     render(<PortalQueryProvider actorKey="pmcm:test"><View /></PortalQueryProvider>);
@@ -97,11 +108,13 @@ describe("global event-scoped destinations without a selected event", () => {
     expect(routeModel.navigateEvent).toHaveBeenCalledWith("evt-gala", tab);
   });
 
-  it("shows what each event owes on Finance and its open file requirements on Files", async () => {
+  it("opens Finance on the desk across events, with what needs PMCM first, and Files on each event's open requirements", async () => {
     const { unmount } = render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardFinanceSectionView /></PortalQueryProvider>);
-    expect(await screen.findByText(/₱260,000 due · next/)).toBeTruthy();
-    // The other event has no milestones, so it owes nothing.
-    expect(screen.getByText("Nothing owed")).toBeTruthy();
+    // No event has to be chosen first.
+    expect(await screen.findByRole("link", { name: "₱66,000 overdue from Acme" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Choose an event" })).toBeNull();
+    expect(screen.getByRole("link", { name: "₱66,000 overdue from Acme" }).getAttribute("href")).toBe("/dashboard/events/evt-gala/billing");
+    expect(screen.getByText("Clients overdue")).toBeTruthy();
     unmount();
 
     render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardFilesSectionView /></PortalQueryProvider>);

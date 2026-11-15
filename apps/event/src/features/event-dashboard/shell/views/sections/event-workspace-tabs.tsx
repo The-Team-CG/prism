@@ -19,6 +19,7 @@ import { EventWorkspaceOverview } from "./event-overview";
 import { EventOcularVisitTask } from "./event-ocular-visit-task";
 import { FinancialWorkspace } from "@/features/finance/workspace";
 import { BillingSourcePanel } from "@/features/finance/billing-source/views/billing-source-panel";
+import { BillingWordTemplate } from "@/features/finance/billing-template/views/billing-word-template";
 import { canStartEventDay } from "../../model/event-dashboard-selectors";
 import { BillingAdjustmentsPanel } from "@/features/finance/billing-adjustments/views/billing-adjustments-panel";
 import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
@@ -391,17 +392,20 @@ export function EventWorkspaceBillingTab() {
       label: "Billing sources",
       count: vm.billingSources.length,
       render: () => (
-        <BillingSourcePanel
-          key={event.id}
-          eventName={event.eventName}
-          billingSources={vm.billingSources}
-          statements={vm.billingStatements}
-          proposalDocuments={vm.documents.filter((document) => document.eventId === event.id && /proposal/i.test(document.type))}
-          busy={Boolean(vm.busy)}
-          onCreate={vm.createBillingSource}
-          onApprove={vm.approveBillingSource}
-          onGenerate={vm.generateBillingStatement}
-        />
+        <div className="space-y-5">
+          <BillingSourcePanel
+            key={event.id}
+            eventName={event.eventName}
+            billingSources={vm.billingSources}
+            statements={vm.billingStatements}
+            proposalDocuments={vm.documents.filter((document) => document.eventId === event.id && /proposal/i.test(document.type))}
+            busy={Boolean(vm.busy)}
+            onCreate={vm.createBillingSource}
+            onApprove={vm.approveBillingSource}
+            onGenerate={vm.generateBillingStatement}
+          />
+          <BillingWordTemplate statement={vm.billingStatements.find((statement) => statement.eventId === event.id && statement.status !== "superseded")} />
+        </div>
       ),
     },
     {

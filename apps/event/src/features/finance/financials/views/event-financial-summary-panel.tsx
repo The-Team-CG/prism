@@ -33,12 +33,7 @@ function CostAndMarginFigures({ summary }: { summary: PrismEventFinancialSummary
       stats={[
         { label: "Committed to suppliers", value: fmt(costs.committed), detail: "Selected supplier quotes" },
         { label: "Paid to suppliers", value: fmt(costs.actual), detail: costs.toPay > 0 ? `${fmt(costs.toPay)} still to pay` : undefined },
-        {
-          label: "Expected margin",
-          value: margin.expected === null ? "No price yet" : signedAmount(margin.expected, fmt),
-          tone: marginTone(margin.expected),
-          detail: marginBasisLabel(margin.basis),
-        },
+        expectedMarginFigure(summary),
         { label: "Cash to date", value: signedAmount(margin.cashToDate, fmt), tone: marginTone(margin.cashToDate), detail: "Received less paid to suppliers" },
       ]}
     />
@@ -89,6 +84,13 @@ function Notes({ notes }: { notes: string[] }) {
   );
 }
 
+/** With no supplier cost committed yet, the "margin" would just repeat the price, so it says so instead of a number. */
+function expectedMarginFigure({ costs, margin }: PrismEventFinancialSummary) {
+  if (margin.expected === null) return { label: "Expected margin", value: "No price yet", detail: marginBasisLabel(margin.basis) };
+  if (costs.committed === 0) return { label: "Expected margin", value: "No supplier costs yet", detail: "Appears once supplier quotes are selected" };
+  return { label: "Expected margin", value: signedAmount(margin.expected, fmt), tone: marginTone(margin.expected), detail: marginBasisLabel(margin.basis) };
+}
+
 function Body({ summary }: { summary: PrismEventFinancialSummary }) {
   return (
     <div className="space-y-6 px-5 py-5">
@@ -104,8 +106,19 @@ function Body({ summary }: { summary: PrismEventFinancialSummary }) {
 }
 
 /** Where this event stands: collected against billed (and how far to trust it), supplier cost committed and paid, and the margin. */
-export function EventFinancialSummaryPanel({ eventId }: { eventId: string }) {
+export function EventFinancialSummaryPanel({ eventId, folded = false }: { eventId: string; folded?: boolean }) {
   const summary = useResource(eventFinancialSummary, eventId);
+  if (folded) {
+    return (
+      <details className="group rounded-xl border border-border bg-card">
+        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-5 py-4">
+          <span className="text-base font-semibold text-foreground">Reconciliation and margin</span>
+          <span className="text-sm text-muted-foreground">Supplier cost, margin and cash to date</span>
+        </summary>
+        <div className="border-t border-border">{summary.data ? <Body summary={summary.data} /> : <PanelStatus failed={summary.status === "error"} />}</div>
+      </details>
+    );
+  }
   return (
     <PrismSection id="event-financial-summary" title="Reconciliation and margin" description="Billed against received, supplier cost against what was estimated, and the margin that follows." flush>
       {summary.data ? <Body summary={summary.data} /> : <PanelStatus failed={summary.status === "error"} />}

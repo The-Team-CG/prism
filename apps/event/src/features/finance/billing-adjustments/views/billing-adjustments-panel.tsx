@@ -2,7 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import type { PrismBillingSource, PrismBillingStatement, PrismPaymentMilestone, PrismUrgentIssue } from "@prism/types";
-import { money } from "@/features/pmcm-kit";
+import { formatPortalDate } from "@prism/ui/format-date";
+import { label, money } from "@/features/pmcm-kit";
 import { Button } from "@prism/ui/components/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { BILLING_DISCREPANCY_SEVERITIES, BILLING_DISCREPANCY_SEVERITY_LABELS, type BillingDiscrepancySeverity } from "@prism/types";
@@ -95,8 +96,9 @@ function DisputeSection({ vm }: { vm: BillingAdjustmentsVm }) {
       {openDisputes.length === 0 ? <p className="text-xs text-muted-foreground">No open disputes.</p> : null}
       {openDisputes.map((dispute) => (
         <div key={dispute.id} className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-          <p className="text-xs font-semibold">{money.format(dispute.amount)} disputed: {dispute.reason}</p>
-          <p className="text-xs text-muted-foreground">Severity: {BILLING_DISCREPANCY_SEVERITY_LABELS[dispute.severity]}</p>
+          <p className="text-xs font-semibold">{money.format(dispute.amount)} disputed on {dispute.milestoneId ? vm.payments.find((payment) => payment.id === dispute.milestoneId)?.label ?? "a payment" : "the whole statement"}</p>
+          <p className="text-xs text-foreground">“{dispute.reason}”</p>
+          <p className="text-xs text-muted-foreground">{BILLING_DISCREPANCY_SEVERITY_LABELS[dispute.severity]} · raised by {dispute.raisedBy} on {formatPortalDate(dispute.createdAt)} · the client sees your resolution status</p>
           <input
             className={fieldClass}
             placeholder="Resolution notes (required to reject)"
@@ -146,8 +148,9 @@ function CorrectionSection({ vm }: { vm: BillingAdjustmentsVm }) {
       {vm.corrections.length === 0 ? <p className="text-xs text-muted-foreground">No correction requests.</p> : null}
       {vm.corrections.map((correction) => (
         <div key={correction.id} className="space-y-2 rounded-lg border border-border bg-muted/30 p-3">
-          <p className="text-xs font-semibold">{correction.reason} ({correction.status})</p>
+          <p className="text-xs font-semibold">{correction.reason}</p>
           <p className="text-xs text-muted-foreground">Severity: {BILLING_DISCREPANCY_SEVERITY_LABELS[correction.severity]}</p>
+          <p className="text-xs text-muted-foreground">{label(correction.status)} · requested by {correction.requestedBy} on {formatPortalDate(correction.createdAt)}</p>
           {correction.status === "pending" ? (
             <>
               <input

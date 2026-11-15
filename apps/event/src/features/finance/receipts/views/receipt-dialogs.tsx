@@ -88,7 +88,8 @@ function RecordReceiptDialog({ vm, events }: { vm: PaymentReceiptsViewModel; eve
 
 function AllocateDialog({ vm, receipt, events }: { vm: PaymentReceiptsViewModel; receipt: PrismPaymentReceipt; events: PrismEvent[] }) {
   const [eventId, setEventId] = useState(receipt.eventId ?? "");
-  const [milestoneId, setMilestoneId] = useState("");
+  // A payment the client reported starts on the payment they named; PMCM can still choose another.
+  const [milestoneId, setMilestoneId] = useState(receipt.intendedMilestoneId ?? "");
   const [amount, setAmount] = useState(String(receipt.unapplied));
   const choose = (id: string, remaining: number | null) => {
     setMilestoneId(id);
@@ -138,7 +139,7 @@ type ReasonConfig = { eyebrow: string; title: string; label: string; hint?: stri
 
 const REASON_DIALOGS: Record<"verify" | "reject" | "reverse" | "reverse-allocation", ReasonConfig> = {
   verify: { eyebrow: "Check against the statement", title: "Verify receipt", label: "What did you check?", hint: "For example the bank statement line it matches.", submitLabel: "Mark verified" },
-  reject: { eyebrow: "The money never arrived", title: "Reject receipt", label: "Why was it rejected?", submitLabel: "Reject receipt", tone: "destructive" },
+  reject: { eyebrow: "The money never arrived", title: "Reject receipt", label: "Why was it rejected?", hint: "The client sees this reason on their billing page, so say what they should do next.", submitLabel: "Reject receipt", tone: "destructive" },
   reverse: { eyebrow: "Undo everything applied from it", title: "Reverse receipt", label: "Why is it being reversed?", hint: "For example a bounced cheque. Every payment applied from it is undone.", submitLabel: "Reverse receipt", tone: "destructive" },
   "reverse-allocation": { eyebrow: "The receipt stays; this payment is undone", title: "Undo this payment", label: "Why is it being undone?", hint: "For example it was applied to the wrong milestone. The money goes back to unapplied.", submitLabel: "Undo payment", tone: "destructive" },
 };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismPaymentReceipt } from "@prism/types";
-import { evidenceProblem, fileSizeLabel, filterToQuery, parsePesos, receiptActions, receiptNotes, receiptOutcomes, totalUnapplied } from "./receipt-rules";
+import { evidenceProblem, fileSizeLabel, filterToQuery, parsePesos, receiptActions, receiptNotes, receiptOutcomes } from "./receipt-rules";
 
 function receipt(overrides: Partial<PrismPaymentReceipt> = {}): PrismPaymentReceipt {
   return {
@@ -62,8 +62,10 @@ describe("receipt rules", () => {
     expect(fileSizeLabel(2_621_440)).toBe("2.5 MB");
   });
 
-  it("totals only the unapplied money on receipts that still count", () => {
-    expect(totalUnapplied([receipt(), receipt({ status: "verified", unapplied: 1000 }), receipt({ status: "reversed", unapplied: 0 }), receipt({ status: "rejected", unapplied: 999 })])).toBe(51000);
+  it("says when the client reported a payment, which payment they meant, and whether they sent proof", () => {
+    expect(receiptNotes(receipt({ source: "client", intendedMilestoneLabel: "Second payment" }))).toContain("Reported by the client for Second payment, no proof yet.");
+    expect(receiptNotes(receipt({ source: "client", evidence: { objectId: "o", fileName: "slip.pdf", contentType: "application/pdf", byteSize: 1 } }))).toContain("Reported by the client, with proof.");
+    expect(receiptNotes(receipt()).some((note) => note.startsWith("Reported by the client"))).toBe(false);
   });
 
   it("shows every outcome that was recorded, so a verified receipt that later bounced still says why", () => {

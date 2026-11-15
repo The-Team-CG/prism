@@ -666,6 +666,10 @@ export class EventReadModelsService {
       ...pageData.eventDayTasks.map((row) => row.eventId),
       ...pageData.urgentIssues.map((row) => row.eventId),
       ...pageData.fileReviews.map((row) => row.eventId),
+      ...pageData.receiptsToVerify.flatMap((row) => (row.eventId ? [row.eventId] : [])),
+      ...pageData.billingDisputes.map((row) => row.eventId),
+      ...pageData.billingCorrections.map((row) => row.eventId),
+      ...pageData.supplierPayouts.map((row) => row.eventId),
     ])];
     const [events, summary, requirementLabels, superseded] = await Promise.all([
       this.queries.pmcmCommandInboxEventRefs(eventIds),
@@ -686,6 +690,12 @@ export class EventReadModelsService {
       fileReviews: pageData.fileReviews
         .filter((file) => !superseded.has(file.id))
         .map((file) => ({ ...file, requirementLabel: requirementLabels.get(`${file.eventId}:${file.type}`) })),
+      finance: {
+        receiptsToVerify: pageData.receiptsToVerify,
+        disputes: pageData.billingDisputes,
+        corrections: pageData.billingCorrections,
+        supplierPayouts: pageData.supplierPayouts,
+      },
     });
 
     return {

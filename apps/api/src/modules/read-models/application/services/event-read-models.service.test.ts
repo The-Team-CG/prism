@@ -228,6 +228,8 @@ function createPmcmReadModelService() {
     opsPostEventDocument: { findMany: vi.fn(async () => []) },
     opsEventDayTask: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsUrgentIssue: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
+    opsPaymentReceipt: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
+    opsSupplierPayableMilestone: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsClientCloseoutResponse: { findMany: vi.fn(async (): Promise<Array<{ id: string; eventId: string }>> => []) },
     opsAddendum: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsEventFreezeException: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
@@ -837,6 +839,24 @@ describe('EventReadModelsService', () => {
     const inbox = await service.pmcmCommandInbox(actor);
 
     expect(inbox.items.filter((item) => item.id.startsWith('file-review:')).map((item) => item.id).sort()).toEqual(['file-review:doc_atlas_new', 'file-review:doc_bright']);
+  });
+
+  it('puts money waiting on PMCM in the inbox: payments to check, disputes, corrections and late supplier payouts', async () => {
+    const { service, policy, prisma } = createPmcmReadModelService();
+    prisma.opsPaymentReceipt.findMany.mockImplementation(async () => [{ id: 'prcp_1', eventId: 'evt_visible', amount: 66000, method: 'Bank Transfer', referenceNumber: 'BPI-1', source: 'client', receivedDate: new Date('2026-11-14T00:00:00.000Z'), evidenceObjectId: 'obj_1' }]);
+    prisma.opsBillingDispute.findMany.mockImplementation(async () => [{ id: 'dsp_1', eventId: 'evt_visible', amount: 30000, createdAt: new Date('2026-11-14T00:00:00.000Z') }]);
+    prisma.opsBillingCorrection.findMany.mockImplementation(async () => [{ id: 'cor_1', eventId: 'evt_visible', reason: 'Billing name should read Ayala Corporation.', createdAt: new Date('2026-11-14T00:00:00.000Z') }]);
+    prisma.opsSupplierPayableMilestone.findMany.mockImplementation(async () => [{ id: 'pay_1', eventId: 'evt_visible', label: 'Floral deposit', amount: 90000, dueDate: new Date('2026-11-09T00:00:00.000Z'), supplier: { name: 'Bloom Florals' } }]);
+    const actor = policy.resolveActor({ actorRole: OpsUserRole.PmcmAdmin, actorName: 'Ms. Mys' });
+
+    const inbox = await service.pmcmCommandInbox(actor);
+
+    expect(inbox.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'receipt:prcp_1', label: 'Check a payment the client reported', description: '₱66,000 by Bank Transfer ref BPI-1 for Ayala Summit, proof attached.', href: '/dashboard/finance/receipts?receipt=prcp_1' }),
+      expect.objectContaining({ id: 'billing-dispute:dsp_1', severity: 'warning', label: 'Answer a billing dispute' }),
+      expect.objectContaining({ id: 'billing-correction:cor_1', label: 'Review a billing correction', description: 'Billing name should read Ayala Corporation.' }),
+      expect.objectContaining({ id: 'supplier-payout:pay_1', severity: 'critical', label: 'Supplier payment overdue', description: 'Bloom Florals: Floral deposit, ₱90,000, due Nov 9.' }),
+    ]));
   });
 
   it('builds a client action center from client-visible event work', async () => {

@@ -5,6 +5,7 @@ import type {
   DecideClientReviewItemInput,
   PrismClientBillingDispute,
   PrismPaymentSubmission,
+  PrismFinanceDesk,
   SubmitClientPaymentInput,
   CompleteExternalCreativeTicketInput,
   CreateExternalCreativeTicketInput,
@@ -114,6 +115,8 @@ export interface EventOpsCommercialContract {
     recordPayment(eventId: string, milestoneId: string, input: RecordPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentMilestone>;
     markPayment(eventId: string, milestoneId: string, input: MarkPaymentInput, actor?: EventOpsActorQuery): Promise<PrismPaymentMilestone>;
     /** Money that arrived outside P.R.I.S.M: recorded first, applied to milestones afterwards. PMCM finance only. */
+    /** PMCM finance across every active event: what needs PMCM, each event's money, and supplier payouts. */
+    financeDesk(init?: EventOpsReadInit): Promise<PrismFinanceDesk>;
     listPaymentReceipts(query: ListPaymentReceiptsQuery, init?: EventOpsReadInit): Promise<PrismPaymentReceipt[]>;
     paymentReceipt(receiptId: string, init?: EventOpsReadInit): Promise<PrismPaymentReceipt>;
     /** Estimated and billed price, collections and how far to trust them, supplier cost and the margin. PMCM finance only. */
