@@ -131,6 +131,43 @@ describe('the notification center', () => {
     await waitFor(() => expect(actions.inbox).toHaveBeenLastCalledWith(60));
   });
 
+  it("stops offering older notifications at the most the API will read, and says so", async () => {
+    const actions = actionsFor({ items: [notice('a', { readAt: hoursAgo(1) })], unread: 0, hasMore: true });
+    render(<NotificationCenter actions={actions} linkFor={() => null} />);
+    for (let asked = 60; asked <= 180; asked += 30) {
+      fireEvent.click(await screen.findByRole('button', { name: 'Show older notifications' }));
+      await waitFor(() => expect(actions.inbox).toHaveBeenLastCalledWith(asked));
+    }
+    fireEvent.click(await screen.findByRole('button', { name: 'Show older notifications' }));
+    await waitFor(() => expect(actions.inbox).toHaveBeenLastCalledWith(200));
+    expect(await screen.findByText(/Showing your latest 1 notifications/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Show older notifications' })).toBeNull();
+  });
+
+  it("keeps a notice waiting on the reader, and says so, when one channel copy cannot be acknowledged", async () => {
+    const both = notice('ask', { message: 'Confirm the schedule', acknowledgmentDueAt: hoursFromNow(20), deliveries: [{ id: 'ask_email', version: 'e'.repeat(64) }, { id: 'ask_viber', version: 'f'.repeat(64) }] });
+    const actions = actionsFor({ items: [both], unread: 1, hasMore: false });
+    actions.acknowledgeReceipt.mockImplementation(async (id: string) => {
+      if (id === 'ask_viber') throw new Error('version changed');
+      return { id, acknowledged: true as const };
+    });
+    render(<NotificationCenter actions={actions} linkFor={() => null} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Acknowledge receipt' }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Unable to acknowledge this notification. Refresh and review the latest notice.');
+    expect(screen.getByRole('button', { name: 'Acknowledge receipt' })).toBeTruthy();
+  });
+
+  it("says the notifications could not be loaded, rather than that there are none, and recovers on retry", async () => {
+    const actions = actionsFor({ items: [notice('a')], unread: 1, hasMore: false });
+    actions.inbox.mockRejectedValueOnce(new Error('offline'));
+    render(<NotificationCenter actions={actions} linkFor={() => null} />);
+    expect(await screen.findByText(/could not be loaded/)).toBeTruthy();
+    expect(screen.queryByText(/No notifications yet/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Message a')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('keeps channel settings in a side panel that the Viber link anchor opens', async () => {
     window.location.hash = '#viber-settings';
     const actions = actionsFor({ items: [], unread: 0, hasMore: false });

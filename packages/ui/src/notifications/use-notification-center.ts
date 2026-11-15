@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  acknowledgeNotificationReceiptSchema, NOTIFICATION_INBOX_PAGE_SIZE, parseContract,
+  acknowledgeNotificationReceiptSchema, NOTIFICATION_INBOX_MAX_LIMIT, NOTIFICATION_INBOX_PAGE_SIZE, parseContract,
   type AcknowledgeNotificationReceiptInput, type PrismNotificationInbox,
 } from "@prism/types";
 import { manilaDateKey } from "../format-date";
@@ -80,6 +80,11 @@ export function useNotificationCenter(actions: NoticeActions, onChange?: () => v
     setBusy(null);
   }, [actions, busy, load, run]);
 
+  const retry = useCallback(() => {
+    setError(null);
+    load().catch(() => setError("Unable to load your notifications."));
+  }, [load]);
+
   const items = useMemo(() => inbox?.items ?? [], [inbox]);
   const todayKey = manilaDateKey();
   // What is waiting on the reader is listed above the days, so the days hold everything else.
@@ -87,8 +92,12 @@ export function useNotificationCenter(actions: NoticeActions, onChange?: () => v
   const needsYou = useMemo(() => noticesNeedingYou(items), [items]);
   return {
     loading: inbox === null && !error, error, filter, setFilter, days, needsYou, busy,
-    total: items.length, unread: inbox?.unread ?? 0, hasMore: inbox?.hasMore ?? false,
-    read, readAll, acknowledge, showMore: () => setLimit((current) => current + NOTIFICATION_INBOX_PAGE_SIZE),
+    total: items.length, unread: inbox?.unread ?? 0,
+    // The API reads at most the newest NOTIFICATION_INBOX_MAX_LIMIT notices; past that there is nothing more to ask for.
+    hasMore: (inbox?.hasMore ?? false) && limit < NOTIFICATION_INBOX_MAX_LIMIT,
+    atLimit: (inbox?.hasMore ?? false) && limit >= NOTIFICATION_INBOX_MAX_LIMIT,
+    read, readAll, acknowledge, retry,
+    showMore: () => setLimit((current) => Math.min(current + NOTIFICATION_INBOX_PAGE_SIZE, NOTIFICATION_INBOX_MAX_LIMIT)),
   };
 }
 

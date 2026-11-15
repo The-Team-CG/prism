@@ -63,8 +63,18 @@ function EmptyInbox({ filter }: { filter: NoticeFilter }) {
   );
 }
 
+function LoadFailed({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 px-5 py-6 text-sm text-muted-foreground">
+      <span>Your notifications could not be loaded.</span>
+      <Button type="button" variant="outline" size="sm" onClick={onRetry}>Try again</Button>
+    </div>
+  );
+}
+
 function InboxBody({ vm, linkFor }: RowProps) {
   if (vm.loading) return <ListSkeleton />;
+  if (vm.error && vm.total === 0) return <LoadFailed onRetry={vm.retry} />;
   if (vm.days.length === 0) return <EmptyInbox filter={vm.filter} />;
   return (
     <div>
@@ -79,6 +89,7 @@ function InboxBody({ vm, linkFor }: RowProps) {
           <Button type="button" variant="outline" size="sm" className="w-full sm:w-auto" onClick={vm.showMore}>Show older notifications</Button>
         </div>
       ) : null}
+      {vm.atLimit ? <p className="border-t border-border px-5 py-3 text-xs text-muted-foreground">Showing your latest {vm.total} notifications.</p> : null}
     </div>
   );
 }
