@@ -6,7 +6,7 @@ import type {
   OpsPaymentRecord,
   OpsPostEventDocument,
 } from '@prisma/client';
-import type { PrismClientActionItem, PrismCommandInboxItem, PrismCommandInboxSeverity } from '@prism/types';
+import type { PrismClientActionItem, PrismCommandInboxItem, PrismCommandInboxSeverity, PrismPmcmEventAttention } from '@prism/types';
 import { toClientChangeRequest, type ClientChangeRequestSource } from '@prism/contexts/event-lifecycle';
 import type {
   PmcmInboxBillingCorrection,
@@ -454,6 +454,21 @@ function collectClientChangeRequestItems(requests: ClientChangeRequestRef[], eve
     });
   }
   return items;
+}
+
+/** The most urgent items each event card shows; the rest are counted. */
+export const EVENT_ATTENTION_TOP = 3;
+
+/** Inbox items grouped by event, keeping the Inbox's order (most urgent first). Items with no event are left out. */
+export function groupInboxItemsByEvent(items: PrismCommandInboxItem[]): PrismPmcmEventAttention[] {
+  const byEvent = new Map<string, PrismCommandInboxItem[]>();
+  for (const item of items) {
+    if (!item.eventId) continue;
+    const list = byEvent.get(item.eventId) ?? [];
+    list.push(item);
+    byEvent.set(item.eventId, list);
+  }
+  return [...byEvent].map(([eventId, list]) => ({ eventId, counts: countBySeverity(list), top: list.slice(0, EVENT_ATTENTION_TOP), total: list.length }));
 }
 
 export function collectPmcmCommandInboxItems(input: {

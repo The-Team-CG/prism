@@ -2,13 +2,16 @@ import { test, expect, devices } from '@playwright/test';
 import { api, origins, password, inbox, mailLink, persona, privacyIfNeeded, fillStable } from './helpers.mjs';
 import { submitPublicInquiry } from './inquiry-actions.mjs';
 
-// Each supplier booking is a disclosure: a ghost button titled "Category · Event" that toggles its panel (aria-expanded).
-// A single booking starts open, so only a collapsed one is clicked.
+// Each supplier booking is a card; its title opens the booking's checklist in a side panel named after the event.
 async function openBooking(page, eventName) {
-  const booking = page.locator('[id^="supplier-work-"]', { has: page.locator('button', { hasText: eventName }) }).first();
-  const trigger = booking.locator(':scope > button').first();
-  if ((await trigger.getAttribute('aria-expanded')) !== 'true') await trigger.click();
-  return booking;
+  const panel = page.getByRole('dialog', { name: eventName });
+  const title = page.getByRole('link', { name: eventName, exact: true }).first();
+  await title.waitFor();
+  // After a reload the page reopens the booking its address names; give it a moment before opening it by hand.
+  await panel.waitFor({ state: 'visible', timeout: 2_000 }).catch(() => undefined);
+  if (!(await panel.isVisible())) await title.click();
+  await expect(panel).toBeVisible();
+  return panel;
 }
 
 test('client, PMCM, supplier, coordinator and guest complete an event lifecycle', async ({ browser, page: client }, info) => {

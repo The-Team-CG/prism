@@ -1,22 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarCheck, CalendarDays, Search, Send } from "lucide-react";
-import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import { CalendarDays, Search, Send } from "lucide-react";
+import { manilaDateKey } from "@prism/ui/format-date";
 import type { PrismEvent } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
-import {
-  clientEventCardOpenRoute,
-  dashboardHref,
-  selectClientEventHistoryEvents,
-  clientEventMatchesFilter,
-} from "../../workspace/shared";
-import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
+import { selectClientEventHistoryEvents, clientEventMatchesFilter } from "../../workspace/shared";
 import { useClientWorkspace } from "../../workspace/shared";
-import { ClientListEmpty, ClientListRow, ClientListSection } from "../../shared/client-list-ui";
+import { ClientListEmpty } from "../../shared/client-list-ui";
 import { ClientRouteTabs } from "../../shared/client-route-tabs";
-import { eventCountdown, isPastClientEvent, orderClientEvents } from "../../home/model/client-home-summary";
+import { orderClientEvents } from "../../home/model/client-home-summary";
+import { ClientEventCards } from "./client-event-cards";
 import { clientEventsEmptyCopy, type ClientEventsFilterId } from "../model/client-events-empty-copy";
 
 type EventFilterOption = {
@@ -95,25 +90,13 @@ export function ClientEventsView() {
       </div>
 
       {visibleEvents.length ? (
-        <ClientListSection id="client-events-list" title={activeEventFilter.label === "All" ? "All events" : activeEventFilter.label} count={visibleEvents.length}>
-          {orderClientEvents(visibleEvents).map((ev) => {
-            const nextAction = actionCenter?.items.find((item) => item.eventId === ev.id && item.priority !== "info");
-            const past = isPastClientEvent(ev);
-            return (
-              <ClientListRow
-                key={ev.id}
-                icon={past ? CalendarCheck : CalendarDays}
-                tone={nextAction?.priority === "critical" ? "urgent" : nextAction ? "attention" : "neutral"}
-                title={ev.eventName}
-                meta={[formatPortalDate(ev.eventDate), ev.venue || "Venue to be confirmed", nextAction ? `Next: ${nextAction.label}` : formatStatusLabel(ev.status)].join(" · ")}
-                status={past ? formatStatusLabel(ev.status) : eventCountdown(ev.eventDate, todayKey) ?? "Date pending"}
-                action={past ? "View summary" : "Open event"}
-                href={dashboardHref(clientEventCardOpenRoute(ev), ev.id)}
-                onOpen={() => setSelectedEventId(ev.id)}
-              />
-            );
-          })}
-        </ClientListSection>
+        <section aria-labelledby="client-events-list" className="grid gap-3">
+          <h2 id="client-events-list" className="flex items-baseline gap-2 text-base font-semibold text-foreground">
+            {activeEventFilter.label === "All" ? "All events" : activeEventFilter.label}
+            <span className="text-sm font-normal tabular-nums text-muted-foreground">{visibleEvents.length}</span>
+          </h2>
+          <ClientEventCards events={orderClientEvents(visibleEvents)} actions={actionCenter?.items ?? []} todayKey={todayKey} onOpen={setSelectedEventId} featureFirst={!searching} />
+        </section>
       ) : (
         <ClientListEmpty
           icon={CalendarDays}

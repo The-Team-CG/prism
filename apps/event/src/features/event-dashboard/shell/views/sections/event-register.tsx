@@ -1,153 +1,159 @@
 "use client";
 
-import { useState } from "react";
-import { RouteLink, useListFilter } from "@/features/pmcm-kit";
-import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, ChevronRight, Search } from "lucide-react";
-import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
-import { formatPortalDate } from "@prism/ui/format-date";
+import { CalendarDays, CheckCircle2, ChevronRight, Search } from "lucide-react";
+import { useListFilter } from "@/features/pmcm-kit";
+import { derivePrismLifecycleStage, type PrismEvent, type PrismPmcmEventAttention } from "@prism/types";
+import { manilaDateKey } from "@prism/ui/format-date";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
+import { AttentionList, CountdownPill, EventCard, EventCardFooter, EventCardGrid, EventCardHeader, MoneyBar, StageTrack } from "@prism/ui/event-cards";
+import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
+import { attentionLines, groupEventCards, needsPmcm } from "../../model/event-card-groups";
 import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
-import { Card } from "@prism/ui/components/card";
 
-const VIEWS = [
+export const EVENT_REGISTER_VIEWS = [
   { href: "/dashboard/events", label: "All events" },
   { href: "/dashboard/events/upcoming", label: "Upcoming" },
   { href: "/dashboard/events/ongoing", label: "In progress" },
   { href: "/dashboard/events/completed", label: "Completed" },
   { href: "/dashboard/events/cancelled", label: "Cancelled" },
+  { href: "/dashboard/events?part=archive", label: "Archive" },
 ] as const;
 
-const PAGE_SIZE = 25;
+/** The finished events shown before "Show all": the rest are one click away. */
+const DONE_PREVIEW = 6;
 
-/** "June 2027" — events are grouped under the month they happen in. */
-export function eventMonthLabel(eventDate: string) {
-  const day = /^\d{4}-\d{2}-\d{2}/.test(eventDate) ? `${eventDate.slice(0, 10)}T00:00:00Z` : eventDate;
-  const date = new Date(day);
-  if (!Number.isFinite(date.getTime())) return "Date not set";
-  return new Intl.DateTimeFormat("en-PH", { month: "long", year: "numeric", timeZone: "UTC" }).format(date);
-}
+export type EventMoney = { billed: number; paid: number; checking: number };
 
-export function groupEventsByMonth(events: PrismEvent[]) {
-  const groups: Array<{ month: string; events: PrismEvent[] }> = [];
-  for (const event of events) {
-    const month = eventMonthLabel(event.eventDate);
-    const last = groups.at(-1);
-    if (last?.month === month) last.events.push(event);
-    else groups.push({ month, events: [event] });
-  }
-  return groups;
-}
+export type EventRegisterData = {
+  /** The Inbox's items per event; undefined until that read arrives. */
+  attention?: Map<string, PrismPmcmEventAttention>;
+  money?: Map<string, EventMoney>;
+  /** Short facts the Inbox does not carry, such as unread messages and overdue files. */
+  notes?: Map<string, string[]>;
+};
 
 function matches(event: PrismEvent, query: string) {
   const text = `${event.eventName} ${event.clientName} ${event.venue ?? ""}`.toLowerCase();
   return text.includes(query.trim().toLowerCase());
 }
 
-/** Overdue payments, overdue files and unread messages for one event, in the warning colour. Nothing is shown before the summaries load. */
-function AttentionLabels({ labels, className, quietWhenClear = false }: { labels: string[] | undefined; className?: string; quietWhenClear?: boolean }) {
-  if (!labels) return null;
-  if (labels.length === 0) return quietWhenClear ? <span className="text-xs text-muted-foreground">Nothing overdue</span> : null;
+/** The one toolbar for every events view: which events, the archive, and search. */
+export function EventRegisterToolbar({ activeId, query, onQuery }: { activeId: string; query?: string; onQuery?: (value: string) => void }) {
   return (
-    <ul className={className ?? "grid gap-0.5"}>
-      {labels.map((label) => <li key={label} className="text-xs font-medium text-destructive">{label}</li>)}
-    </ul>
-  );
-}
-
-/** Every confirmed event as one searchable register; opening a row enters that event's workspace. */
-export function EventRegister({ events, attention, onOpenEvent }: { events: PrismEvent[]; attention?: Map<string, string[]>; onOpenEvent: (id: string) => void }) {
-  const pathname = usePathname();
-  const [query, setQuery] = useListFilter("q");
-  const [visible, setVisible] = useState(PAGE_SIZE);
-  const rows = [...events].filter((event) => matches(event, query)).sort((a, b) => a.eventDate.localeCompare(b.eventDate));
-  const groups = groupEventsByMonth(rows.slice(0, visible));
-  return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <WorkspaceRouteTabs
-          label="Event views"
-          tabs={VIEWS.map((view) => ({ id: view.href, label: view.label, href: view.href }))}
-          activeId={pathname}
-        />
-        <label className="relative w-full max-w-72">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <WorkspaceRouteTabs label="Event views" tabs={EVENT_REGISTER_VIEWS.map((view) => ({ id: view.href, label: view.label, href: view.href }))} activeId={activeId} />
+      {onQuery ? (
+        <label className="relative w-full sm:max-w-72">
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={query ?? ""}
+            onChange={(event) => onQuery(event.target.value)}
             placeholder="Find an event, client or venue"
             aria-label="Find an event, client or venue"
             className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
           />
         </label>
-      </div>
-
-      <p role="status" className="text-xs text-muted-foreground">{rows.length} event{rows.length === 1 ? "" : "s"} in this view{query ? ` matching “${query}”` : ""}</p>
-      <Card className="gap-0 block overflow-x-auto rounded-lg border border-border bg-card">
-        {rows.length === 0 ? (
-          <Empty>
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <CalendarDays />
-              </EmptyMedia>
-              <EmptyTitle>{query ? "No event matches" : "No events in this view"}</EmptyTitle>
-              <EmptyDescription>{query ? "Try a client, venue or part of the event name." : "Accepted inquiries become events once the conforme is signed."}</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <Table>
-            <caption className="sr-only">Events by month, with their client, date and lifecycle stage</caption>
-            <TableHeader>
-              <TableRow>
-                <TableHead scope="col">Event</TableHead>
-                <TableHead scope="col" className="hidden sm:table-cell">Date</TableHead>
-                <TableHead scope="col" className="hidden sm:table-cell">Stage</TableHead>
-                <TableHead scope="col" className="hidden md:table-cell">Needs attention</TableHead>
-                <TableHead scope="col" className="w-28 text-right"><span className="sr-only">Open</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            {groups.map((group) => (
-              <TableBody key={group.month} className="[&_tr:last-child]:border-b">
-                <TableRow className="bg-muted/40 hover:bg-muted/40">
-                  <TableHead scope="rowgroup" colSpan={5} className="h-auto py-2 text-left text-xs font-semibold text-foreground">
-                    {group.month} <span className="font-normal text-muted-foreground">· {group.events.length}</span>
-                  </TableHead>
-                </TableRow>
-                {group.events.map((event) => (
-                  <TableRow key={event.id} className="relative">
-                    <TableCell className="min-w-0 whitespace-normal">
-                      <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="block break-words font-semibold text-foreground outline-none after:absolute after:inset-0 focus-visible:ring-2 focus-visible:ring-ring">{event.eventName}</RouteLink>
-                      <p className="text-xs text-muted-foreground">
-                        {event.clientName}
-                        {event.venue ? <> · {event.venue}</> : null}
-                        <span className="sm:hidden"> · {formatPortalDate(event.eventDate)} · {PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</span>
-                      </p>
-                      <AttentionLabels labels={attention?.get(event.id)} className="mt-1 md:hidden" />
-                    </TableCell>
-                    <TableCell className="hidden whitespace-nowrap tabular-nums sm:table-cell">{formatPortalDate(event.eventDate)}</TableCell>
-                    <TableCell className="hidden whitespace-nowrap sm:table-cell">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</TableCell>
-                    <TableCell className="hidden whitespace-normal md:table-cell"><AttentionLabels labels={attention?.get(event.id)} quietWhenClear /></TableCell>
-                    <TableCell className="text-right">
-                      <ChevronRight aria-hidden="true" className="ml-auto size-4 text-muted-foreground" />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            ))}
-          </Table>
-        )}
-      </Card>
-      {rows.length > visible ? (
-        <button
-          type="button"
-          onClick={() => setVisible((count) => count + PAGE_SIZE)}
-          className="justify-self-center rounded-md border border-border bg-card px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface-raised"
-        >
-          Show {Math.min(PAGE_SIZE, rows.length - visible)} more of {rows.length - visible} remaining
-        </button>
       ) : null}
+    </div>
+  );
+}
+
+/** `clear`: the Inbox read has arrived and has nothing waiting on this event (an event it does not list has nothing). */
+function CardNotes({ clear, notes }: { clear: boolean; notes: string[] }) {
+  if (!clear && notes.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {clear ? <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success"><CheckCircle2 aria-hidden className="size-3" />Nothing waiting on you</span> : null}
+      {notes.map((note) => <span key={note} className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-foreground">{note}</span>)}
+    </div>
+  );
+}
+
+function PmcmEventCard({ event, data, todayKey, onOpenEvent, compact = false }: { event: PrismEvent; data: EventRegisterData; todayKey: string; onOpenEvent: (id: string) => void; compact?: boolean }) {
+  const attention = data.attention?.get(event.id);
+  const money = data.money?.get(event.id);
+  return (
+    <EventCard urgent={needsPmcm(attention)} compact={compact}>
+      <EventCardHeader
+        date={event.eventDate}
+        title={event.eventName}
+        href={eventWorkspaceHref(event.id)}
+        onNavigate={() => onOpenEvent(event.id)}
+        details={[event.clientName, event.venue].filter(Boolean).join(" · ")}
+        aside={<CountdownPill date={event.eventDate} todayKey={todayKey} />}
+        muted={compact}
+      />
+      {compact ? null : <StageTrack stage={derivePrismLifecycleStage(event)} />}
+      {attention && needsPmcm(attention) ? <AttentionList lines={attentionLines(attention.top)} more={attention.total - attention.top.length} link={Link} /> : null}
+      {compact ? null : <CardNotes clear={data.attention !== undefined && !needsPmcm(attention)} notes={data.notes?.get(event.id) ?? []} />}
+      <EventCardFooter>
+        {money ? <MoneyBar billed={money.billed} paid={money.paid} checking={money.checking} /> : <span className="flex-1" />}
+        {compact ? null : <span aria-hidden className="ml-auto inline-flex items-center font-semibold text-primary">Open<ChevronRight className="size-4" /></span>}
+      </EventCardFooter>
+    </EventCard>
+  );
+}
+
+function CardSection({ id, title, description, count, children }: { id: string; title: string; description?: string; count: number; children: ReactNode }) {
+  if (count === 0) return null;
+  return (
+    <section aria-labelledby={id} className="grid gap-3">
+      <div>
+        <h2 id={id} className="flex items-baseline gap-2 text-base font-semibold text-foreground">{title}<span className="text-sm font-normal tabular-nums text-muted-foreground">{count}</span></h2>
+        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function NoEvents({ query }: { query: string }) {
+  return (
+    <Empty className="rounded-xl border border-border bg-card">
+      <EmptyHeader>
+        <EmptyMedia variant="icon"><CalendarDays /></EmptyMedia>
+        <EmptyTitle>{query ? "No event matches" : "No events in this view"}</EmptyTitle>
+        <EmptyDescription>{query ? "Try a client, venue or part of the event name." : "Accepted inquiries become events once the conforme is signed."}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+}
+
+/**
+ * Every confirmed event as a card: what waits on PMCM first, with the Inbox's own items, then what is coming up,
+ * then finished events. Each card shows the date, how far away it is, its stage, what is waiting and the money.
+ */
+export function EventRegister({ events, data = {}, onOpenEvent }: { events: PrismEvent[]; data?: EventRegisterData; onOpenEvent: (id: string) => void }) {
+  const pathname = usePathname();
+  const [query, setQuery] = useListFilter("q");
+  const [showAllDone, setShowAllDone] = useState(false);
+  const todayKey = manilaDateKey();
+  const groups = groupEventCards(events.filter((event) => matches(event, query)), data.attention);
+  const total = groups.needsYou.length + groups.comingUp.length + groups.done.length;
+  const card = (event: PrismEvent, compact = false) => <PmcmEventCard key={event.id} event={event} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} compact={compact} />;
+  const done = showAllDone ? groups.done : groups.done.slice(0, DONE_PREVIEW);
+  return (
+    <div className="grid gap-6">
+      <EventRegisterToolbar activeId={pathname} query={query} onQuery={setQuery} />
+      <p role="status" className="sr-only">{total} event{total === 1 ? "" : "s"} in this view{query ? ` matching “${query}”` : ""}</p>
+      {total === 0 ? <NoEvents query={query} /> : null}
+      <CardSection id="events-needs-you" title="Needs you" count={groups.needsYou.length} description="Each card lists what the Inbox has waiting on that event. Open a line to do it.">
+        <EventCardGrid>{groups.needsYou.map((event) => card(event))}</EventCardGrid>
+      </CardSection>
+      <CardSection id="events-coming-up" title={data.attention ? "Coming up" : "Events"} count={groups.comingUp.length}>
+        <EventCardGrid>{groups.comingUp.map((event) => card(event))}</EventCardGrid>
+      </CardSection>
+      <CardSection id="events-done" title="Done" count={groups.done.length}>
+        <EventCardGrid>{done.map((event) => card(event, true))}</EventCardGrid>
+        {groups.done.length > done.length ? (
+          <button type="button" onClick={() => setShowAllDone(true)} className="justify-self-start rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-raised">
+            Show all {groups.done.length} finished events
+          </button>
+        ) : null}
+      </CardSection>
     </div>
   );
 }

@@ -17,6 +17,7 @@
     "./privacy-notice": "./src/privacy-notice.tsx",
     "./notification-preferences": "./src/notification-preferences.tsx",
     "./notifications": "./src/notifications/index.ts",
+    "./event-cards": "./src/event-cards/index.ts",
     "./public-blocks": "./src/public-blocks.tsx",
     "./format-date": "./src/format-date.ts",
     "./calendar-grid": "./src/calendar-grid.ts",

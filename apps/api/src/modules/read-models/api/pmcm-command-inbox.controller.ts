@@ -19,4 +19,11 @@ export class OpsPmcmCommandInboxController {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.eventReadModelsService.pmcmCommandInbox(actor, parsedQuery.data.page);
   }
+
+  /** The Inbox's items grouped by event, for the Events cards. */
+  @Get('event-attention')
+  @UseGuards(EventSessionGuard)
+  eventAttention(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.eventReadModelsService.pmcmEventAttention(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
 }
