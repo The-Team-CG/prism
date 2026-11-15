@@ -1,6 +1,6 @@
 -- prism-owner: commercial
 -- prism-kind: schema
--- prism-risk: low
+-- prism-risk: medium
 
 -- PMCM keeps one set of payment details for the company (bank accounts, e-wallets, cheque payee), each optionally with
 -- a QR image the client scans. The details are one row edited with a revision check; QR images are small, never
