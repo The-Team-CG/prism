@@ -1,51 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, CalendarClock, CheckCircle2, FileCheck2, MessageSquareText, Upload, Wallet, type LucideIcon } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, FileCheck2, MessageSquareText, Upload, Wallet } from "lucide-react";
 import type { PrismSupplierPayableMilestone, PrismSupplierPayoutRecord, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { formatPeso, PaymentProgressBar, PaymentTimeline, type PaymentStep } from "@prism/ui/payment-track";
-import { cn } from "@/app/components/ui/utils";
+import { formatPeso, MoneyTile, MoneyTiles, PaymentEventCard, PaymentTimeline, type PaymentStep } from "@prism/ui/payment-track";
 import { payoutReceiptState, payoutStep, supplierBookings, supplierPaymentTotals, type SupplierBooking } from "../../model/supplier-payments";
 import type { PrismSupplierQuote, PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { usePayoutReceipt, type PayoutReceiptViewModel } from "../../view-models/use-payout-receipt";
 import { PayoutReceiptDialog } from "./payout-receipt-dialog";
 
-function Tile({ icon: Icon, label, value, detail, tone }: { icon: LucideIcon; label: string; value: string; detail: string; tone: string }) {
-  return (
-    <Card className="flex-row items-center gap-3 p-4">
-      <span aria-hidden className={cn("grid size-10 shrink-0 place-items-center rounded-full", tone)}><Icon className="size-5" /></span>
-      <div className="min-w-0">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-lg font-semibold tabular-nums text-foreground">{value}</p>
-        <p className="text-xs text-muted-foreground">{detail}</p>
-      </div>
-    </Card>
-  );
-}
-
 function Tiles({ totals }: { totals: ReturnType<typeof supplierPaymentTotals> }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <Tile icon={CheckCircle2} label="Paid to you" value={formatPeso(totals.paid)} detail="Released by PMCM" tone="bg-success-soft text-success" />
-      <Tile
+    <MoneyTiles count={3}>
+      <MoneyTile icon={CheckCircle2} label="Paid to you" value={formatPeso(totals.paid)} detail="Released by PMCM" tone="bg-success-soft text-success" />
+      <MoneyTile
         icon={CalendarClock}
         label="Next payment"
         value={totals.next ? formatPeso(totals.next.remainingBalance) : "—"}
         detail={totals.next?.dueDate ? `${totals.next.label} · due ${formatPortalDate(totals.next.dueDate)}` : "Nothing scheduled"}
         tone={totals.next ? "bg-attention-soft text-attention" : "bg-muted text-muted-foreground"}
       />
-      <Tile
+      <MoneyTile
         icon={totals.late > 0 ? AlertTriangle : Wallet}
         label="Still to come"
         value={formatPeso(totals.toCome)}
         detail={totals.late > 0 ? `${formatPeso(totals.late)} is past its due date` : "Across your bookings"}
         tone={totals.late > 0 ? "bg-danger-soft text-danger" : "bg-primary-soft text-primary"}
       />
-    </div>
+    </MoneyTiles>
   );
 }
 
@@ -84,26 +70,17 @@ function BookingCard({ booking, todayKey, fresh, receipts }: { booking: Supplier
   const steps = booking.payables.map((payable) => payoutStep(payable, todayKey));
   const paid = booking.payables.reduce((sum, payable) => sum + payable.amountReleased, 0);
   return (
-    <Card className="gap-4 p-5">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold text-foreground">{booking.eventName}</h2>
-          <p className="text-xs text-muted-foreground">{[booking.category, booking.terms ? `Your terms: ${booking.terms}` : null].filter(Boolean).join(" · ")}</p>
-        </div>
-        <p className="text-right text-xs text-muted-foreground">
-          <span className="block text-base font-semibold tabular-nums text-foreground">{formatPeso(paid)}</span>
-          {booking.contract !== null ? `of ${formatPeso(booking.contract)} agreed` : "paid so far"}
-        </p>
-      </header>
-      {steps.length === 0 ? (
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">PMCM has not set the payment schedule for this booking yet.</p>
-      ) : (
-        <>
-          <PaymentProgressBar steps={steps} />
-          <PaymentTimeline steps={steps} label={`Payments for ${booking.eventName}`} detail={(step) => <Releases step={step} booking={booking} fresh={fresh} receipts={receipts} />} />
-        </>
-      )}
-    </Card>
+    <PaymentEventCard
+      title={booking.eventName}
+      detail={[booking.category, booking.terms ? `Your terms: ${booking.terms}` : null].filter(Boolean).join(" · ")}
+      paid={paid}
+      total={booking.contract}
+      totalWord="agreed"
+      steps={steps}
+      empty="PMCM has not set the payment schedule for this booking yet."
+    >
+      {steps.length ? <PaymentTimeline steps={steps} label={`Payments for ${booking.eventName}`} detail={(step) => <Releases step={step} booking={booking} fresh={fresh} receipts={receipts} />} /> : null}
+    </PaymentEventCard>
   );
 }
 

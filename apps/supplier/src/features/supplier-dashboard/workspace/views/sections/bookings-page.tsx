@@ -5,7 +5,8 @@ import { BadgeCheck, CheckCircle2, Circle, Clock3, FileText, LockKeyhole, Packag
 import type { PrismAuthenticatedSession, PrismSupplierReadinessItem, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { formatPortalDate, formatPortalDateTime, manilaDateKey } from "@prism/ui/format-date";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
-import { CountdownPill, EventCard, EventCardFooter, EventCardGrid, EventCardHeader, EventCover, MoneyBar, StepProgress } from "@prism/ui/event-cards";
+import { CountdownPill, EventCard, EventCardFooter, EventCardGrid, EventCardHeader, EventCover, MoneyBar, StepProgress, eventCountdown } from "@prism/ui/event-cards";
+import { PrismHero } from "@prism/ui/page-blocks";
 import { formatPeso } from "@prism/ui/payment-track";
 import { useEventCoverUrl } from "../../view-models/use-event-cover-url";
 import { bookingCardFacts, orderBookingCards, type BookingCardFacts } from "../../model/booking-cards";
@@ -268,6 +269,54 @@ function useBookingTarget(ids: string[]) {
   return { openId, open };
 }
 
+/** "7 / days to go", "Today / Event day"; nothing once the event has passed. */
+function daysToGoFigure(eventDate: string | null, todayKey: string) {
+  const countdown = eventDate ? eventCountdown(eventDate, todayKey) : null;
+  if (!countdown || countdown.days < 0) return undefined;
+  if (countdown.days === 0) return { value: "Today", label: "Event day" };
+  return { value: String(countdown.days), label: countdown.days === 1 ? "day to go" : "days to go" };
+}
+
+/**
+ * An opened booking's lead, the same dark card over the event's cover that clients and PMCM see on an event's
+ * overview: the event, the service and date, how far away it is, how far the booking has come, and its next step
+ * with the one-tap action when there is one. Arrival and payout sit under it.
+ */
+function BookingLead({ card, todayKey, onQuick }: { card: BookingCardFacts; todayKey: string; onQuick: (card: BookingCardFacts) => void }) {
+  const coverUrl = useEventCoverUrl(card.request.eventId, card.coverObjectId);
+  const quick = card.quickAction;
+  return (
+    <div className="grid gap-3 px-4 pb-4 pt-12 sm:px-5 sm:pb-5">
+      <PrismHero
+        label={`${card.request.category} · for PMCM`}
+        title={card.eventName}
+        meta={
+          <>
+            <p>{[card.eventDate ? formatPortalDate(card.eventDate) : "Date to be confirmed", card.arrival?.location].filter(Boolean).join(" · ")}</p>
+            <div className="mt-4 max-w-sm"><StepProgress done={card.steps.done} total={card.steps.total} onInk /></div>
+          </>
+        }
+        figure={daysToGoFigure(card.eventDate, todayKey)}
+        backdrop={<EventCover eventType={card.eventType} imageUrl={coverUrl} tag={false} className="h-full" />}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0 flex-1 basis-48">
+            <p className="text-sm text-ink-foreground/70">{card.done ? "Done" : card.next.owner}</p>
+            <p className="mt-0.5 text-base font-semibold">{card.done ? "This booking is complete" : card.next.title}</p>
+          </div>
+          {quick && !card.done ? (
+            <Button type="button" className="shrink-0" onClick={() => onQuick(card)}>
+              {quick.kind === "confirm-assignment" ? "Confirm booking" : "Acknowledge schedule"}
+            </Button>
+          ) : null}
+        </div>
+      </PrismHero>
+      <BookingFacts card={card} />
+      {card.money ? <MoneyBar billed={card.money.billed} paid={card.money.released} verb="released" /> : null}
+    </div>
+  );
+}
+
 /** The card's button: a one-tap step does itself; anything with a form opens the booking. */
 function NextStepButton({ card, onOpen, onQuick }: { card: BookingCardFacts; onOpen: () => void; onQuick: (card: BookingCardFacts) => void }) {
   const quick = card.quickAction;
@@ -387,10 +436,11 @@ export function BookingsPage({ selectedRequests, readinessBoard, readinessNotes,
         <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-xl">
           {open ? (
             <>
-              <SheetHeader className="border-b border-border pr-12">
+              <SheetHeader className="sr-only">
                 <SheetTitle>{open.eventName}</SheetTitle>
                 <SheetDescription>{open.request.category}{open.eventDate ? ` · ${formatPortalDate(open.eventDate)}` : ""} · {open.steps.done} of {open.steps.total} steps done</SheetDescription>
               </SheetHeader>
+              <BookingLead card={open} todayKey={todayKey} onQuick={quick} />
               <BookingDetail req={open.request} workflowWorkspace={workflowWorkspace} readinessNote={readinessNotes[open.request.id]} statusNote={statusNotes[open.request.id]} busy={busy} handlers={handlers} />
             </>
           ) : null}
