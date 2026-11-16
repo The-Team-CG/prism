@@ -1,32 +1,9 @@
-import { EVENT_FILE_CATEGORIES, eventFileCategoryOf, storedFileExpiryDay, storedFileExpiryState, type PrismFileRequirementItem, type PrismStoredObject, type PrismSupplierRequirementVersion } from "@prism/types";
-
-export type PmcmFileKind = "pdf" | "image" | "sheet" | "document" | "video" | "other";
-
-const KIND_RULES: ReadonlyArray<{ kind: PmcmFileKind; type: RegExp; extensions: readonly string[] }> = [
-  { kind: "pdf", type: /^application\/pdf$/, extensions: ["pdf"] },
-  { kind: "image", type: /^image\//, extensions: ["jpg", "jpeg", "png", "gif", "webp"] },
-  { kind: "video", type: /^video\//, extensions: ["mp4", "mov"] },
-  { kind: "sheet", type: /spreadsheet|excel|csv/, extensions: ["xlsx", "xls", "csv"] },
-  { kind: "document", type: /word|document|text/, extensions: ["docx", "doc", "txt", "pptx"] },
-];
-
-/** What a file is, from its stored type or, failing that, its extension. */
-export function pmcmFileKind(name: string, contentType = ""): PmcmFileKind {
-  const type = contentType.toLowerCase();
-  const extension = name.toLowerCase().split(".").pop() ?? "";
-  return KIND_RULES.find((rule) => rule.type.test(type) || rule.extensions.includes(extension))?.kind ?? "other";
-}
-
-/** "118 KB", "4.2 MB". */
-export function formatFileSize(bytes: number | null | undefined) {
-  if (!bytes) return null;
-  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+import { fileKind, type FileKind, type FileTone } from "@prism/ui/file-library";
+import { EVENT_FILE_CATEGORIES, eventFileCategoryOf, type PrismFileRequirementItem, type PrismStoredObject, type PrismSupplierRequirementVersion } from "@prism/types";
 
 /** Who a file came from, which is how PMCM works through an event's files. */
 export type PmcmFileSource = "client" | "supplier" | "pmcm";
 export type PmcmFileFilter = "all" | "review" | PmcmFileSource;
-export type PmcmFileTone = "attention" | "urgent" | "done" | "neutral";
 
 /** A file PMCM has not approved or rejected yet, and the requirement it was sent for. */
 export type PmcmReviewEntry = {
@@ -42,7 +19,7 @@ export type PmcmReviewEntry = {
 export type PmcmLibraryFile = {
   id: string;
   name: string;
-  kind: PmcmFileKind;
+  kind: FileKind;
   contentType: string;
   size: number | null;
   source: PmcmFileSource;
@@ -51,7 +28,7 @@ export type PmcmLibraryFile = {
   label: string | null;
   addedAt: string;
   status: string;
-  tone: PmcmFileTone;
+  tone: FileTone;
   reviewReason?: string;
   /** Set while the file waits for PMCM's decision. */
   review?: PmcmReviewEntry;
@@ -59,19 +36,9 @@ export type PmcmLibraryFile = {
   expiresAt: string | null;
 };
 
-/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date (Philippine day). */
-export function pmcmFileExpiry(expiresAt: string | null | undefined, now = new Date()): { label: string; tone: PmcmFileTone } | null {
-  if (!expiresAt) return null;
-  const date = storedFileExpiryDay(expiresAt);
-  const state = storedFileExpiryState(expiresAt, now);
-  if (state === "expired") return { label: `Expired ${date}`, tone: "urgent" };
-  if (state === "expiring") return { label: `Expires ${date}`, tone: "attention" };
-  return { label: `Valid until ${date}`, tone: "neutral" };
-}
-
 type RequirementFile = { item: PrismFileRequirementItem; version: PrismSupplierRequirementVersion; sender: string };
 
-const VERSION_STATUS: Record<string, { status: string; tone: PmcmFileTone }> = {
+const VERSION_STATUS: Record<string, { status: string; tone: FileTone }> = {
   submitted: { status: "Waiting for review", tone: "attention" },
   approved: { status: "Approved", tone: "done" },
   rejected: { status: "Rejected", tone: "urgent" },
@@ -110,7 +77,7 @@ function sourceOf(object: PrismStoredObject): PmcmFileSource {
 
 const SOURCE_LABEL: Record<PmcmFileSource, string> = { client: "Client", supplier: "Supplier", pmcm: "PMCM" };
 
-function fileStatus(object: PrismStoredObject, sent: RequirementFile | undefined): { status: string; tone: PmcmFileTone } {
+function fileStatus(object: PrismStoredObject, sent: RequirementFile | undefined): { status: string; tone: FileTone } {
   if (sent) return VERSION_STATUS[sent.version.status] ?? { status: sent.version.status, tone: "neutral" };
   if (object.usage === "event_deliverable") return { status: "Shared with client", tone: "neutral" };
   return { status: "Stored", tone: "neutral" };
@@ -133,7 +100,7 @@ export function buildPmcmFileLibrary(objects: PrismStoredObject[], items: PrismF
     files.push({
       id: object.id,
       name: object.originalFileName,
-      kind: pmcmFileKind(object.originalFileName, object.contentType),
+      kind: fileKind(object.originalFileName, object.contentType),
       contentType: object.contentType,
       size: object.declaredByteSize || null,
       source,

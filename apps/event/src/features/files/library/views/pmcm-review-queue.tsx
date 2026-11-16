@@ -4,9 +4,9 @@ import { Eye } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { Checkbox } from "@prism/ui/components/checkbox";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { pmcmFileKind, type PmcmReviewEntry } from "../model/pmcm-file-library";
+import { FileKindIcon, fileKind } from "@prism/ui/file-library";
+import type { PmcmReviewEntry } from "../model/pmcm-file-library";
 import type { PmcmFileLibraryViewModel } from "../view-models/use-pmcm-file-library-view-model";
-import { PmcmFileKindIcon } from "./pmcm-file-kind-icon";
 import { PmcmRejectForm } from "./pmcm-reject-form";
 
 function ReviewRow({ entry, vm }: { entry: PmcmReviewEntry; vm: PmcmFileLibraryViewModel }) {
@@ -14,7 +14,7 @@ function ReviewRow({ entry, vm }: { entry: PmcmReviewEntry; vm: PmcmFileLibraryV
   return (
     <li className="flex flex-wrap items-center gap-3 py-3">
       <Checkbox aria-label={`Select ${entry.fileName}`} checked={vm.selected.has(entry.documentId)} onCheckedChange={() => vm.toggleSelected(entry.documentId)} />
-      <PmcmFileKindIcon kind={pmcmFileKind(entry.fileName)} />
+      <FileKindIcon kind={fileKind(entry.fileName)} />
       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => vm.openPreview(entry.objectId)}>
         <span className="block truncate text-sm font-semibold text-foreground">{entry.fileName}</span>
         <span className="block text-xs text-muted-foreground">For {entry.requirementLabel} · from {entry.sender} · {formatPortalDate(entry.uploadedAt)}</span>

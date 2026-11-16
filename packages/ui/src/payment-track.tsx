@@ -202,3 +202,74 @@ export function PaymentTimeline({
     </ol>
   );
 }
+
+/** One figure at the top of a money page: an icon in its state's colour, what it counts, the amount and a detail. */
+export function MoneyTile({ icon: Icon, label, value, detail, tone }: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  detail: string;
+  /** The icon's colours, such as "bg-danger-soft text-danger"; grey when there is nothing to report. */
+  tone: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-xs">
+      <span aria-hidden className={cn("grid size-10 shrink-0 place-items-center rounded-full", tone)}><Icon className="size-5" /></span>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-lg font-semibold tabular-nums text-foreground">{value}</p>
+        <p className="truncate text-xs text-muted-foreground">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+/** The money page's figures in one row: three or four tiles, two to a row on a tablet. */
+export function MoneyTiles({ children, count }: { children: ReactNode; count: 3 | 4 }) {
+  return <div className={cn("grid gap-3 sm:grid-cols-2", count === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3")}>{children}</div>;
+}
+
+/**
+ * One event's money, the same card for what a client pays PMCM and what PMCM pays a supplier: the event and a line
+ * under it, how much is paid of the total on the right, the schedule as a bar, and (as `children`) its timeline.
+ * With `href` the card opens the event's billing.
+ */
+export function PaymentEventCard({ title, detail, detailTone = "text-muted-foreground", paid, total, totalWord = "billed", steps, href, link: Link, empty, children }: {
+  title: string;
+  /** The line under the name: where the money stands ("₱95,000 overdue") or the booking's terms. */
+  detail?: ReactNode;
+  detailTone?: string;
+  paid: number;
+  /** Null when no amount is agreed yet. */
+  total: number | null;
+  /** What the total is: "billed", "agreed". */
+  totalWord?: string;
+  steps: PaymentStep[];
+  href?: string;
+  link?: React.ComponentType<{ href: string; className?: string; children: ReactNode }>;
+  /** Shown instead of the bar while there is no schedule. */
+  empty?: string;
+  children?: ReactNode;
+}) {
+  const body = (
+    <>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold text-foreground">{title}</h2>
+          {detail ? <p className={cn("text-sm", detailTone)}>{detail}</p> : null}
+        </div>
+        <p className="text-right text-xs text-muted-foreground">
+          <span className="block text-base font-semibold tabular-nums text-foreground">{formatPeso(paid)}</span>
+          {total !== null ? `paid of ${formatPeso(total)} ${totalWord}` : "paid so far"}
+        </p>
+      </header>
+      {steps.length === 0
+        ? (empty ? <p className="rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground">{empty}</p> : null)
+        : <PaymentProgressBar steps={steps} />}
+      {children}
+    </>
+  );
+  const frame = "grid gap-4 rounded-xl border border-border bg-card p-4 shadow-xs sm:p-5";
+  if (href && Link) return <Link href={href} className={cn(frame, "transition-colors hover:border-primary/40")}>{body}</Link>;
+  return <section className={frame}>{body}</section>;
+}

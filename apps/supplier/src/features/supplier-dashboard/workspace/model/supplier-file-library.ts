@@ -1,37 +1,23 @@
-import { storedFileExpiryDay, storedFileExpiryState, type PrismSupplierCertification, type PrismSupplierContractVersion } from "@prism/types";
+import { storedFileExpiryDay, type PrismSupplierCertification, type PrismSupplierContractVersion } from "@prism/types";
+import { fileExpiry, fileKind, type FileKind, type FileTone } from "@prism/ui/file-library";
 import type { SupplierFileRequirementRow } from "./supplier-workspace-rules";
 
-export type SupplierFileKind = "pdf" | "image" | "sheet" | "document" | "video" | "other";
 export type SupplierFileGroup = "booking" | "contract" | "certification";
 export type SupplierFileFilter = "all" | SupplierFileGroup;
-export type SupplierFileTone = "attention" | "urgent" | "done" | "neutral";
-
-const KIND_RULES: ReadonlyArray<{ kind: SupplierFileKind; type: RegExp; extensions: readonly string[] }> = [
-  { kind: "pdf", type: /^application\/pdf$/, extensions: ["pdf"] },
-  { kind: "image", type: /^image\//, extensions: ["jpg", "jpeg", "png", "gif", "webp"] },
-  { kind: "video", type: /^video\//, extensions: ["mp4", "mov"] },
-  { kind: "sheet", type: /spreadsheet|excel|csv/, extensions: ["xlsx", "xls", "csv"] },
-  { kind: "document", type: /word|document|text/, extensions: ["docx", "doc", "txt", "pptx"] },
-];
-
-/** What a file is, from its stored type or, failing that, its extension. */
-export function supplierFileKind(name: string, contentType = ""): SupplierFileKind {
-  const type = contentType.toLowerCase();
-  const extension = name.toLowerCase().split(".").pop() ?? "";
-  return KIND_RULES.find((rule) => rule.type.test(type) || rule.extensions.includes(extension))?.kind ?? "other";
-}
 
 export type SupplierLibraryFile = {
   id: string;
   name: string;
-  kind: SupplierFileKind;
+  kind: FileKind;
   contentType?: string;
   group: SupplierFileGroup;
   /** The booking and what the file was for, or who issued a certification. */
   context: string;
   addedAt: string;
   status: string;
-  tone: SupplierFileTone;
+  tone: FileTone;
+  /** Bytes, when the stored file reports them (contracts do). */
+  size?: number | null;
   /** The stored file to preview and download; certifications PMCM keeps on the supplier record have none. */
   objectId?: string;
   reviewReason?: string;
@@ -42,16 +28,6 @@ export type SupplierLibraryFile = {
   /** The requirement this file currently stands for, while PMCM has not approved it: a newer file replaces it. */
   replaces?: { eventId: string; key: string; label: string };
 };
-
-/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date (Philippine day). */
-export function supplierFileExpiry(expiresAt: string | null | undefined, now = new Date()): { label: string; tone: SupplierFileTone } | null {
-  if (!expiresAt) return null;
-  const date = storedFileExpiryDay(expiresAt);
-  const state = storedFileExpiryState(expiresAt, now);
-  if (state === "expired") return { label: `Expired ${date}`, tone: "urgent" };
-  if (state === "expiring") return { label: `Expires ${date}`, tone: "attention" };
-  return { label: `Valid until ${date}`, tone: "neutral" };
-}
 
 /** A file PMCM asked this supplier for that is not sent yet, or that PMCM sent back. */
 export type SupplierNeededFile = {
@@ -107,7 +83,7 @@ function requirementFiles(rows: SupplierFileRequirementRow[], eventNames: Readon
   return rows.filter((row) => !isContractRow(row)).flatMap(({ eventId, item }) => (item.versions ?? []).map((version, position) => ({
     id: version.documentId,
     name: version.fileName,
-    kind: supplierFileKind(version.fileName),
+    kind: fileKind(version.fileName),
     group: "booking" as const,
     context: `${eventNames.get(eventId) ?? "Assigned booking"} · ${item.label}`,
     addedAt: version.uploadedAt,
@@ -124,19 +100,20 @@ function contractFiles(contracts: PrismSupplierContractVersion[], eventNames: Re
   return contracts.map((contract) => ({
     id: contract.id,
     name: contract.fileName,
-    kind: supplierFileKind(contract.fileName, contract.mimeType),
+    kind: fileKind(contract.fileName, contract.mimeType),
     contentType: contract.mimeType,
     group: "contract",
     context: `${eventNames.get(contract.eventId) ?? "Assigned booking"} · Contract version ${contract.version}`,
     addedAt: contract.uploadedAt,
     ...CONTRACT_STATUS[contract.reviewStatus],
     objectId: contract.storedObjectId,
+    size: contract.sizeBytes,
     ...(contract.reviewReason ? { reviewReason: contract.reviewReason } : {}),
   }));
 }
 
 function certificationStatus(certification: PrismSupplierCertification, now: Date): Pick<SupplierLibraryFile, "status" | "tone"> {
-  const expiry = supplierFileExpiry(certification.expiresAt, now);
+  const expiry = fileExpiry(certification.expiresAt, now);
   if (!expiry) return { status: certification.status ?? "On file", tone: "neutral" };
   return { status: expiry.tone === "urgent" ? "Expired" : `Expires ${storedFileExpiryDay(certification.expiresAt!)}`, tone: expiry.tone };
 }
@@ -145,7 +122,7 @@ function certificationFiles(certifications: PrismSupplierCertification[], now: D
   return certifications.map((certification) => ({
     id: certification.id,
     name: certification.fileName,
-    kind: supplierFileKind(certification.fileName),
+    kind: fileKind(certification.fileName),
     group: "certification",
     context: [certification.documentType ?? "Certification", certification.issuer].filter(Boolean).join(" · "),
     addedAt: certification.uploadedAt,
