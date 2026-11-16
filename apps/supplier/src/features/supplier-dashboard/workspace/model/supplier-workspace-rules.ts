@@ -421,7 +421,7 @@ export function sectionMeta(
     },
     payments: {
       eyebrow: "Payments",
-      title: "Payment tracking",
+      title: "Payments",
       description: "Payment milestones for your selected and locked quotes.",
     },
     profile: {
