@@ -12,7 +12,7 @@ import { EventDashboardSkeleton, eventDashboardSkeletonVariant } from "@/app/(po
 import { useDocumentTitle } from "@/app/components/document-title";
 import type { EventSession } from "@/app/lib/session";
 import type { EventDashboardShellViewModel } from "../../view-models/use-event-dashboard-shell-view-model";
-import { pageDocumentTitle } from "../../model/event-dashboard-routing";
+import { isEventOverviewRoute, pageDocumentTitle } from "../../model/event-dashboard-routing";
 
 // Opened only when PMCM attaches a conforme, so it loads on demand rather than with every page.
 const ConformeUploadModal = dynamic(() =>
@@ -72,6 +72,7 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       title={viewModel.shellCopy.title}
       description={viewModel.shellCopy.description}
       breadcrumb={viewModel.shellCopy.breadcrumb}
+      titleClassName={viewModel.selectedEvent && isEventOverviewRoute(viewModel.routeState) ? "sr-only" : undefined}
       activeItemId={viewModel.sidebarActiveOverride ?? viewModel.activeSidebarItemId}
       navItems={viewModel.shellNavItems}
       sidebarMode="single"

@@ -49,7 +49,7 @@ export function PrismHero({
           <div className="absolute inset-0 bg-linear-to-r from-ink via-ink/85 to-ink/45" />
         </div>
       ) : null}
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5 px-6 pb-6 pt-6 sm:px-8 sm:pt-8">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 px-5 pb-5 pt-5 sm:px-7 sm:pt-6">
         <div className="min-w-0 flex-1 basis-64">
           <p className="text-sm text-ink-foreground/70">{label}</p>
           <h2 className="mt-1.5 text-2xl font-semibold leading-tight sm:text-3xl">{title}</h2>
@@ -62,7 +62,7 @@ export function PrismHero({
           </p>
         ) : null}
       </div>
-      {children ? <div className="border-t border-ink-foreground/10 px-6 py-5 sm:px-8">{children}</div> : null}
+      {children ? <div className="border-t border-ink-foreground/10 px-5 py-4 sm:px-7">{children}</div> : null}
     </section>
   );
 }
@@ -161,6 +161,48 @@ export function PrismSection({
         {header}
         <div className={flush ? "border-t border-border" : "px-5 pb-5"}>{children}</div>
       </Card>
+    </section>
+  );
+}
+
+/**
+ * One card in a dashboard grid: icon, title and an aside on one row, then the body, then an optional footer pinned
+ * to the bottom. It fills its grid cell, so cards side by side end on the same line and their actions line up.
+ */
+export function PrismPanel({
+  id,
+  title,
+  icon: Icon,
+  aside,
+  footer,
+  children,
+  className,
+  bodyClassName,
+}: {
+  id: string;
+  title: string;
+  icon?: LucideIcon;
+  aside?: React.ReactNode;
+  footer?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  bodyClassName?: string;
+}) {
+  return (
+    <section aria-labelledby={id} className={cn("flex h-full min-w-0 flex-col rounded-xl border border-border bg-card shadow-xs", className)}>
+      <header className="flex min-h-8 items-center justify-between gap-3 px-4 pt-4 sm:px-5">
+        <h2 id={id} className="flex min-w-0 items-center gap-2.5 text-base font-semibold text-foreground">
+          {Icon ? (
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary-soft text-primary">
+              <Icon aria-hidden="true" className="size-4" />
+            </span>
+          ) : null}
+          <span className="truncate">{title}</span>
+        </h2>
+        {aside ? <div className="shrink-0 text-xs text-muted-foreground">{aside}</div> : null}
+      </header>
+      <div className={cn("flex-1 px-4 pb-4 pt-3 sm:px-5", bodyClassName)}>{children}</div>
+      {footer ? <div className="border-t border-border px-4 py-3 sm:px-5">{footer}</div> : null}
     </section>
   );
 }

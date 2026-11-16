@@ -26,7 +26,7 @@ const handlers = { onStartEventDay: () => undefined, onRunCompliance: () => unde
 const section = (name: string) => screen.getByRole("heading", { name }).closest("section") as HTMLElement;
 
 describe("EventWorkspaceOverview at a glance", () => {
-  it("says what waits on PMCM and for how long, whether the client is keeping up, what is coming, and why readiness is low", () => {
+  it("says what waits on PMCM and for how long, whether the client is keeping up, what is coming, how each area stands, and why readiness is low", () => {
     const withReasons = { ...readiness, nextActions: [{ key: "floorplan", label: "Official floorplan", detail: "Approve the official PMCM layout.", status: "blocked", targetTab: "floorplans" }] } as unknown as PrismDefenseReadiness;
     render(
       <EventWorkspaceOverview
@@ -58,7 +58,11 @@ describe("EventWorkspaceOverview at a glance", () => {
     expect(within(needs).getByText("waiting 6 days")).toBeTruthy();
     expect(screen.getByText("Ayala last opened the portal 5 days ago · 2 notices unread")).toBeTruthy();
     expect(within(section("Coming up")).getByRole("link", { name: /XPERTO · Registration/ }).getAttribute("href")).toBe("/dashboard/events/evt_1/suppliers");
-    expect(screen.getByRole("link", { name: "Messages, 3 unread" })).toBeTruthy();
+    expect(within(needs).getByRole("img", { name: "2 soon" })).toBeTruthy();
+    const areas = section("Event areas");
+    expect(within(areas).getByRole("link", { name: /Messagess*3 unread/ }).getAttribute("href")).toBe("/dashboard/events/evt_1/messages");
+    expect(within(areas).getByRole("link", { name: /Billings*1 payment overdue/ })).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Readiness 29%" })).toBeTruthy();
     expect(within(section("Readiness")).getByRole("link", { name: /Official floorplan/ }).getAttribute("href")).toBe("/dashboard/events/evt_1/floorplans");
   });
 });

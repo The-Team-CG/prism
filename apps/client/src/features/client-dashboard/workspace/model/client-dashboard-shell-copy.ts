@@ -102,6 +102,20 @@ export function clientShellTitle(input: {
   return PORTAL_TITLES[input.route] ?? "Home";
 }
 
+const WIDE_CLIENT_ROUTES: ReadonlySet<ClientDashboardRoute> = new Set(["floorplan", "calendar", "messages"]);
+
+/**
+ * How the shell frames a page: wide routes use the full width, others a reading column. An event's overview leads
+ * with the event itself at full width, so the page title above it is kept for screen readers only.
+ */
+export function clientShellLayout(input: { isEventScopedView: boolean; route: ClientDashboardRoute; hasEvent: boolean }) {
+  const eventLeads = input.isEventScopedView && input.route === "overview" && input.hasEvent;
+  return {
+    titleClassName: eventLeads ? "sr-only" : undefined,
+    contentClassName: eventLeads || WIDE_CLIENT_ROUTES.has(input.route) ? "space-y-5" : "max-w-5xl space-y-5",
+  };
+}
+
 export function clientShellEyebrow(input: { isEventScopedView: boolean; route: ClientDashboardRoute }) {
   if (input.isEventScopedView) return "Event workspace";
   return PORTAL_EYEBROWS[input.route] ?? "Client portal";

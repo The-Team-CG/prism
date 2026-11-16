@@ -1,11 +1,6 @@
 "use client";
 import Link from "next/link";
-import { formatPortalDate, formatPortalDateTime, manilaDateKey } from "@prism/ui/format-date";
-import { EventCover, StepProgress } from "@prism/ui/event-cards";
-import { ClientEventHero, ClientEventHeroStep, clientEventDaysToGo } from "../../../shared/client-event-hero";
-import { dashboardHref } from "../../../workspace/shared";
-import type { GettingStartedStep, SinceLastVisitItem } from "../../model/client-overview-glance";
-
+import type { ReactNode } from "react";
 import {
   ArrowRight,
   Bell,
@@ -14,6 +9,8 @@ import {
   CheckCircle2,
   ClipboardList,
   FileText,
+  ListChecks,
+  MapPin,
   MapPinned,
   MessageSquareText,
   PartyPopper,
@@ -21,36 +18,35 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage } from "@prism/types";
-import type { PrismClientActionItem, PrismBillingStatement, PrismBriefing, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import type { PrismClientActionItem, PrismBillingStatement, PrismBriefing, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import { formatPortalDate, formatPortalDateTime, formatPortalTime, manilaDateKey } from "@prism/ui/format-date";
+import { AgendaList, EventCover, MoneyBar } from "@prism/ui/event-cards";
+import { PrismPanel } from "@prism/ui/page-blocks";
 import { Button } from "@prism/ui/components/button";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  DataRow,
-  formatLabel,
-  money,
-  portalBadgeStatus,
-  portalStatusLabel,
-} from "../../../shared/tab-ui";
-import type { DetailTab } from "../../../workspace/shared";
+import { cn } from "@/app/components/ui/utils";
+import { ClientEventHero, ClientEventHeroStep, clientEventDaysToGo } from "../../../shared/client-event-hero";
+import { money, portalBadgeStatus, portalStatusLabel } from "../../../shared/tab-ui";
+import { dashboardHref, type DetailTab } from "../../../workspace/shared";
+import { layoutSteps, paymentTotals, type GettingStartedStep, type SinceLastVisitItem } from "../../model/client-overview-glance";
 
-/** The overview's lead: the event, how far away it is, where it stands and the one thing the client should do next. */
+/** The overview's lead: the event, how far away it is, where it stands, what is new and the one thing to do next. */
 export function OverviewNextDecision({
   selectedEvent,
   nextAction,
   coverUrl,
+  since,
 }: {
   selectedEvent: PrismEvent;
   nextAction?: PrismClientActionItem;
   coverUrl?: string;
+  /** What is new since the client's last visit, under the stage track. */
+  since?: ReactNode;
 }) {
   const daysToGo = clientEventDaysToGo(selectedEvent, manilaDateKey());
   const backdrop = <EventCover eventType={selectedEvent.eventType} imageUrl={coverUrl} tag={false} className="h-full" />;
   return (
-    <ClientEventHero event={selectedEvent} daysToGo={daysToGo} backdrop={backdrop} label={daysToGo !== null && daysToGo >= 0 ? "Your event" : "Your event · date passed"}>
+    <ClientEventHero event={selectedEvent} daysToGo={daysToGo} backdrop={backdrop} extra={since} label={daysToGo !== null && daysToGo >= 0 ? "Your event" : "Your event · date passed"}>
       {nextAction ? (
         <>
           <ClientEventHeroStep
@@ -70,118 +66,6 @@ export function OverviewNextDecision({
         <p className="text-sm text-ink-foreground/70">Nothing needs your action right now. PMCM will let you know when it does.</p>
       )}
     </ClientEventHero>
-  );
-}
-
-export function OverviewEventDetails({
-  selectedEvent,
-  briefing,
-}: {
-  selectedEvent: PrismEvent;
-  briefing?: PrismBriefing;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Event details</h3>
-        </div>
-      </CardHeader>
-      <CardBody className="py-2">
-        <DataRow label="Primary contact" value={selectedEvent.clientName} />
-        <DataRow label="Date" value={formatPortalDate(selectedEvent.eventDate, "Pending")} />
-        <DataRow label="Stage" value={PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(selectedEvent)]} />
-        <DataRow
-          label="Portal access"
-          value={
-            <StatusBadge
-              status={portalBadgeStatus(selectedEvent.clientPortalStatus)}
-              label={portalStatusLabel(selectedEvent.clientPortalStatus)}
-            />
-          }
-        />
-        <DataRow label="Venue" value={briefing?.venue ?? "To be confirmed"} />
-        <DataRow label="Guests" value={briefing?.guestCount ? `${briefing.guestCount} guests` : "Pending"} />
-      </CardBody>
-    </Card>
-  );
-}
-
-export function OverviewFloorPlanCard({
-  officialDraft,
-  preferenceDraftCount,
-  onOpenOfficialFloorplan,
-  setTab,
-}: {
-  officialDraft?: PrismFloorPlanDraft;
-  preferenceDraftCount: number;
-  onOpenOfficialFloorplan?: () => void;
-  setTab: (tab: DetailTab) => void;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <MapPinned className="size-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Floor plan</h3>
-          </div>
-          {officialDraft ? <StatusBadge status={officialDraft.status} label={formatLabel(officialDraft.status)} /> : null}
-        </div>
-      </CardHeader>
-      <CardBody className="py-2">
-        <DataRow label="Preference drafts" value={preferenceDraftCount || "None yet"} />
-        <DataRow label="Official layout" value={officialDraft ? formatLabel(officialDraft.status) : "Not published"} />
-        <DataRow label="Last update" value={officialDraft ? formatPortalDateTime(officialDraft.updatedAt) : "—"} />
-      </CardBody>
-      <div className="px-6 pb-5">
-        <Button
-          className="w-full rounded-lg font-semibold"
-          onClick={officialDraft && onOpenOfficialFloorplan ? onOpenOfficialFloorplan : () => setTab("floorplan")}
-        >
-          {officialDraft ? "Open floor plan" : "Set layout preferences"} <ArrowRight className="size-4" />
-        </Button>
-      </div>
-    </Card>
-  );
-}
-
-export function OverviewNextPayment({
-  billing,
-  nextPayment,
-  setTab,
-}: {
-  billing?: PrismBillingStatement;
-  nextPayment?: PrismPaymentMilestone;
-  setTab: (tab: DetailTab) => void;
-}) {
-  if (!billing && !nextPayment) return null;
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <ReceiptText className="size-4 text-attention" />
-          <h3 className="text-sm font-semibold text-foreground">Next payment</h3>
-        </div>
-      </CardHeader>
-      <CardBody className="py-2">
-        {nextPayment ? (
-          <>
-            <DataRow label="Milestone" value={nextPayment.label} />
-            <DataRow label="Due" value={formatPortalDate(nextPayment.dueDate)} />
-            <DataRow label="Amount" value={money.format(nextPayment.amount)} />
-          </>
-        ) : (
-          <p className="py-2 text-sm text-muted-foreground">All milestones settled.</p>
-        )}
-      </CardBody>
-      <div className="px-6 pb-5">
-        <Button variant="outline" className="w-full rounded-lg font-semibold" onClick={() => setTab("billing")}>
-          View billing
-        </Button>
-      </div>
-    </Card>
   );
 }
 
@@ -205,18 +89,18 @@ const SINCE_LOOK: Record<SinceLastVisitItem["id"], { icon: LucideIcon; href: (ev
   notices: { icon: Bell, href: () => dashboardHref("notifications") },
 };
 
-/** What is new since the client was last here, each a link to it; a calm line when everything has been seen. */
+/** What is new since the client was last here, as links on the hero; a calm line when everything has been seen. */
 export function OverviewSinceLastVisit({ eventId, items, loaded }: { eventId: string; items: SinceLastVisitItem[]; loaded: boolean }) {
   if (items.length === 0) {
-    return loaded ? <p className="flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 aria-hidden className="size-4 text-success" />You are up to date on this event.</p> : null;
+    return loaded ? <p className="flex items-center gap-1.5 text-xs text-ink-foreground/70"><CheckCircle2 aria-hidden className="size-3.5" />You are up to date on this event.</p> : null;
   }
   return (
     <nav aria-label="Since your last visit" className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-muted-foreground">Since your last visit</span>
+      <span className="text-xs text-ink-foreground/70">Since your last visit</span>
       {items.map((item) => {
         const { icon: Icon, href } = SINCE_LOOK[item.id];
         return (
-          <Link key={item.id} href={href(eventId)} className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-card px-3 py-1 text-sm font-medium text-primary hover:bg-primary-soft">
+          <Link key={item.id} href={href(eventId)} className="inline-flex items-center gap-1.5 rounded-full bg-ink-foreground/12 px-2.5 py-1 text-xs font-medium text-ink-foreground hover:bg-ink-foreground/20">
             <Icon aria-hidden className="size-3.5" />{item.text}
           </Link>
         );
@@ -225,68 +109,180 @@ export function OverviewSinceLastVisit({ eventId, items, loaded }: { eventId: st
   );
 }
 
-/** A new event's first steps as a checklist, so the client sees how far along they are and what to do next. */
+/** The one way on from a card, in the same place on every card. */
+function PanelAction({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className="group flex w-full items-center justify-between text-sm font-medium text-primary">
+      {label}
+      <ArrowRight aria-hidden className="size-4 transition-transform group-hover:translate-x-0.5" />
+    </button>
+  );
+}
+
+function Fact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right font-medium text-foreground">{children}</dd>
+    </div>
+  );
+}
+
+function Facts({ children }: { children: ReactNode }) {
+  return <dl className="mt-4 grid gap-2 border-t border-border pt-3 text-sm">{children}</dl>;
+}
+
+/** A card's lead figure: one large number or word and what it counts. */
+function Figure({ value, caption, tone = "text-foreground" }: { value: ReactNode; caption: ReactNode; tone?: string }) {
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-2">
+      <span className={cn("text-3xl font-semibold leading-none tabular-nums", tone)}>{value}</span>
+      <span className="text-sm text-muted-foreground">{caption}</span>
+    </p>
+  );
+}
+
+/** A new event's first steps, side by side so the client sees how far along they are and which one is next. */
 export function OverviewGettingStarted({ steps, setTab }: { steps: GettingStartedStep[]; setTab: (tab: DetailTab) => void }) {
   const done = steps.filter((step) => step.done).length;
   const next = steps.find((step) => !step.done);
   return (
-    <Card>
-      <CardHeader>
-        <h3 className="text-sm font-semibold text-foreground">Get started</h3>
-      </CardHeader>
-      <CardBody className="grid gap-3 py-3">
-        <StepProgress done={done} total={steps.length} current={next ? `Next: ${next.label}` : undefined} />
-        <ul className="grid gap-1">
-          {steps.map((step) => (
-            <li key={step.id}>
+    <PrismPanel id="overview-get-started" title="Get started" icon={ListChecks} aside={`${done} of ${steps.length} done`}>
+      <ol className="grid gap-2 sm:grid-cols-5">
+        {steps.map((step, index) => {
+          const current = step === next;
+          return (
+            <li key={step.id} className="min-w-0">
               <button
                 type="button"
                 disabled={step.done || step.tab === "overview"}
                 onClick={() => setTab(step.tab)}
-                className="flex w-full items-center gap-2.5 rounded-md px-1.5 py-1.5 text-left text-sm enabled:hover:bg-surface-raised"
+                className={cn(
+                  "flex h-full w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors sm:flex-col sm:items-start sm:gap-2",
+                  current ? "border-primary/40 bg-primary-soft" : "border-transparent bg-muted/60",
+                  "enabled:hover:border-primary/40",
+                )}
               >
-                <span aria-hidden className={step.done ? "grid size-5 shrink-0 place-items-center rounded-full bg-success text-success-foreground" : "size-5 shrink-0 rounded-full border-2 border-border"}>
-                  {step.done ? <Check className="size-3" /> : null}
+                <span aria-hidden className={cn(
+                  "grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold",
+                  step.done ? "bg-success text-success-foreground" : current ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground ring-1 ring-border",
+                )}>
+                  {step.done ? <Check className="size-3.5" /> : index + 1}
                 </span>
-                <span className={step.done ? "text-muted-foreground line-through" : step === next ? "font-semibold text-foreground" : "text-foreground"}>{step.label}</span>
-                <span className="sr-only">{step.done ? " (done)" : ""}</span>
-                {!step.done && step.tab !== "overview" ? <ArrowRight aria-hidden className="ml-auto size-4 text-muted-foreground" /> : null}
+                <span className={cn("leading-snug", step.done ? "text-muted-foreground line-through" : current ? "font-semibold text-foreground" : "text-foreground")}>{step.label}</span>
+                <span className="sr-only">{step.done ? " (done)" : current ? " (next)" : ""}</span>
               </button>
             </li>
-          ))}
-        </ul>
-      </CardBody>
-    </Card>
+          );
+        })}
+      </ol>
+    </PrismPanel>
   );
 }
 
 export type ComingUpLine = { id: string; label: string; at: string | null; href?: string };
 
-/** The event's next dated steps, soonest first: payments due, reviews, the venue visit. */
+/** The event's next dated steps on calendar leaves, soonest first: payments due, reviews, the venue visit. */
 export function OverviewComingUp({ lines }: { lines: ComingUpLine[] }) {
+  const items = lines.map((line) => ({ id: line.id, title: line.label, date: line.at, detail: line.at ? formatPortalTime(line.at) : undefined, href: line.href }));
   return (
-    <Card>
-      <CardHeader>
-        <h3 className="text-sm font-semibold text-foreground">Coming up</h3>
-      </CardHeader>
-      <CardBody className="py-3">
-        {lines.length === 0 ? <p className="text-sm text-muted-foreground">Nothing dated yet. Dates appear here as PMCM sets them.</p> : (
-          <ul className="grid gap-2.5">
-            {lines.map((line) => {
-              const body = (
-                <>
-                  <CalendarClock aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium text-foreground">{line.label}</span>
-                    {line.at ? <span className="block text-xs text-muted-foreground">{formatPortalDateTime(line.at)}</span> : null}
-                  </span>
-                </>
-              );
-              return <li key={line.id}>{line.href ? <Link href={line.href} className="flex items-start gap-2.5 rounded-md hover:bg-surface-raised">{body}</Link> : <div className="flex items-start gap-2.5">{body}</div>}</li>;
-            })}
-          </ul>
-        )}
-      </CardBody>
-    </Card>
+    <PrismPanel id="overview-coming-up" title="Coming up" icon={CalendarClock}>
+      {items.length === 0
+        ? <p className="text-sm text-muted-foreground">Nothing dated yet. Dates appear here as PMCM sets them.</p>
+        : <AgendaList items={items} link={Link} />}
+    </PrismPanel>
+  );
+}
+
+export function OverviewEventDetails({ selectedEvent, briefing, setTab }: { selectedEvent: PrismEvent; briefing?: PrismBriefing; setTab: (tab: DetailTab) => void }) {
+  const guests = briefing?.guestCount;
+  return (
+    <PrismPanel id="overview-event-details" title="Event details" icon={ClipboardList} footer={<PanelAction label="Event briefing" onClick={() => setTab("briefing")} />}>
+      <Figure value={guests ?? "—"} caption={guests ? "guests" : "guest count to come"} />
+      <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground"><MapPin aria-hidden className="size-4 shrink-0" />{briefing?.venue ?? selectedEvent.venue ?? "Venue to be confirmed"}</p>
+      <Facts>
+        <Fact label="Primary contact">{selectedEvent.clientName}</Fact>
+        <Fact label="Portal access">
+          <StatusBadge status={portalBadgeStatus(selectedEvent.clientPortalStatus)} label={portalStatusLabel(selectedEvent.clientPortalStatus)} />
+        </Fact>
+      </Facts>
+    </PrismPanel>
+  );
+}
+
+function layoutCaption(officialDraft: PrismFloorPlanDraft | undefined, preferenceDraftCount: number) {
+  if (officialDraft?.status === "approved") return "Your official layout is approved.";
+  if (officialDraft) return "PMCM shared your official layout.";
+  if (preferenceDraftCount > 0) return "PMCM is working from your ideas.";
+  return "Show us how you would like the room set up.";
+}
+
+export function OverviewFloorPlanCard({
+  officialDraft,
+  preferenceDraftCount,
+  onOpenOfficialFloorplan,
+  setTab,
+}: {
+  officialDraft?: PrismFloorPlanDraft;
+  preferenceDraftCount: number;
+  onOpenOfficialFloorplan?: () => void;
+  setTab: (tab: DetailTab) => void;
+}) {
+  const steps = layoutSteps({ preferenceDraftCount, officialStatus: officialDraft?.status });
+  const action = officialDraft && onOpenOfficialFloorplan
+    ? <PanelAction label="Open floor plan" onClick={onOpenOfficialFloorplan} />
+    : <PanelAction label={preferenceDraftCount ? "Edit your layout ideas" : "Set layout preferences"} onClick={() => setTab("floorplan")} />;
+  return (
+    <PrismPanel id="overview-floor-plan" title="Floor plan" icon={MapPinned} footer={action}>
+      <ol aria-label={`Floor plan: ${steps.filter((step) => step.done).length} of ${steps.length} steps done`} className="grid grid-cols-3 gap-1.5">
+        {steps.map((step) => (
+          <li key={step.id} className="grid gap-1.5">
+            <span aria-hidden className={cn("h-1.5 rounded-full", step.done ? "bg-success" : "bg-muted")} />
+            <span className={cn("flex items-center gap-1 text-xs", step.done ? "font-medium text-foreground" : "text-muted-foreground")}>
+              {step.done ? <Check aria-hidden className="size-3 text-success" /> : null}{step.label}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 text-sm font-medium text-foreground">{layoutCaption(officialDraft, preferenceDraftCount)}</p>
+      <Facts>
+        <Fact label="Your layout ideas">{preferenceDraftCount || "None yet"}</Fact>
+        <Fact label="Last update">{officialDraft ? formatPortalDateTime(officialDraft.updatedAt) : "—"}</Fact>
+      </Facts>
+    </PrismPanel>
+  );
+}
+
+function nextPaymentCaption(payment: PrismPaymentMilestone) {
+  return `${payment.label} · ${payment.overdue ? "was due" : "due"} ${formatPortalDate(payment.dueDate)}`;
+}
+
+/** The next amount due, then everything billed so far as a bar of what is paid. */
+export function OverviewNextPayment({
+  billing,
+  payments,
+  setTab,
+}: {
+  billing?: PrismBillingStatement;
+  payments: PrismPaymentMilestone[];
+  setTab: (tab: DetailTab) => void;
+}) {
+  const next = payments.find((payment) => payment.status !== "paid" && !payment.supersededAt);
+  const totals = paymentTotals(payments);
+  return (
+    <PrismPanel id="overview-payments" title="Payments" icon={ReceiptText} footer={<PanelAction label="View billing" onClick={() => setTab("billing")} />}>
+      {next ? (
+        <Figure value={money.format(Math.max(0, next.amount - next.amountPaid))} caption={nextPaymentCaption(next)} tone={next.overdue ? "text-danger" : "text-foreground"} />
+      ) : (
+        <Figure value={totals.billed > 0 ? "Paid" : "—"} caption={totals.billed > 0 ? "every milestone is settled" : "no payments scheduled yet"} tone={totals.billed > 0 ? "text-success" : "text-foreground"} />
+      )}
+      <div className="mt-3 flex">
+        <MoneyBar billed={totals.billed} paid={totals.paid} />
+      </div>
+      <Facts>
+        <Fact label="Contract total">{billing ? money.format(billing.totalAmount) : totals.billed ? money.format(totals.billed) : "To be billed"}</Fact>
+        <Fact label="Milestones">{payments.filter((payment) => !payment.supersededAt).length || "—"}</Fact>
+      </Facts>
+    </PrismPanel>
   );
 }

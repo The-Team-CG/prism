@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  clientShellLayout,
   clientBreadcrumbTrail,
   clientLoadingShellCopy,
   clientShellDescription,
@@ -53,5 +54,12 @@ describe("client dashboard shell copy", () => {
       eyebrow: "Event portfolio",
       description: "Loading events…",
     });
+  });
+
+  it("lets an event's overview lead at full width with its page title for screen readers only", () => {
+    expect(clientShellLayout({ isEventScopedView: true, route: "overview", hasEvent: true })).toEqual({ titleClassName: "sr-only", contentClassName: "space-y-5" });
+    expect(clientShellLayout({ isEventScopedView: true, route: "overview", hasEvent: false }).titleClassName).toBeUndefined();
+    expect(clientShellLayout({ isEventScopedView: true, route: "billing", hasEvent: true })).toEqual({ titleClassName: undefined, contentClassName: "max-w-5xl space-y-5" });
+    expect(clientShellLayout({ isEventScopedView: false, route: "calendar", hasEvent: false }).contentClassName).toBe("space-y-5");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { gettingStartedSteps, ocularVisitLine, showGettingStarted, sinceLastVisitItems, stageReachedMessage } from "./client-overview-glance";
+import { gettingStartedSteps, ocularVisitLine, showGettingStarted, sinceLastVisitItems, stageReachedMessage, layoutSteps, paymentTotals } from "./client-overview-glance";
 
 const event = { clientPortalStatus: "unlocked" as const, proposalClientStatus: "pending" as const, status: "briefing", archived: false };
 
@@ -34,6 +34,24 @@ describe("client overview at a glance", () => {
     expect(ocularVisitLine({ ...visit, status: "scheduled", scheduledAt: "2026-11-20T02:00:00.000Z" })).toEqual({ label: "Venue visit", at: "2026-11-20T02:00:00.000Z" });
     expect(ocularVisitLine({ ...visit, status: "completed" })).toBeNull();
     expect(ocularVisitLine(null)).toBeNull();
+  });
+
+  it("totals live payment milestones, ignoring replaced ones and overpayments", () => {
+    expect(paymentTotals([
+      { amount: 100, amountPaid: 100, supersededAt: null },
+      { amount: 300, amountPaid: 50 },
+      { amount: 500, amountPaid: 500, supersededAt: "2026-11-01T00:00:00.000Z" },
+      { amount: 50, amountPaid: 80 },
+    ])).toEqual({ billed: 450, paid: 200 });
+    expect(paymentTotals([])).toEqual({ billed: 0, paid: 0 });
+  });
+
+  it("walks the floor plan from the client's ideas to PMCM's approved layout", () => {
+    const done = (steps: ReturnType<typeof layoutSteps>) => steps.filter((step) => step.done).map((step) => step.id);
+    expect(done(layoutSteps({ preferenceDraftCount: 0 }))).toEqual([]);
+    expect(done(layoutSteps({ preferenceDraftCount: 2 }))).toEqual(["ideas"]);
+    expect(done(layoutSteps({ preferenceDraftCount: 0, officialStatus: "draft" }))).toEqual(["ideas", "official"]);
+    expect(done(layoutSteps({ preferenceDraftCount: 1, officialStatus: "approved" }))).toEqual(["ideas", "official", "approved"]);
   });
 
   it("announces a stage only when the event has moved on since the client last looked", () => {

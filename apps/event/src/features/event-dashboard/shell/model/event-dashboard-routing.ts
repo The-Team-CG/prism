@@ -23,6 +23,11 @@ export type RouteState = { section: DashboardSection; tab: DetailTab; eventId?: 
 
 export type EventDashboardClientProps = Partial<RouteState>;
 
+/** An event's overview leads with the event itself, so the page title above it would only repeat the name. */
+export function isEventOverviewRoute(state: RouteState): boolean {
+  return state.section === "events" && Boolean(state.eventId) && state.tab === "overview";
+}
+
 const PRODUCT_NAME = "P.R.I.S.M";
 
 /** Each event workspace tab has one canonical URL segment. Alias URLs redirect to these in next.config. */

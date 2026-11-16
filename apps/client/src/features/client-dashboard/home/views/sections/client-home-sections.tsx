@@ -2,16 +2,25 @@
 
 import Link from "next/link";
 import { ArrowRight, CalendarDays, CheckCircle2, Mail, MessageSquareText, Phone, Send } from "lucide-react";
-import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
+import { formatPortalDate, formatPortalDateTime, manilaDateKey } from "@prism/ui/format-date";
+import { EventCover, NextStepHero, dueFigure } from "@prism/ui/event-cards";
 import type { PrismClientActionCenter, PrismEvent } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Progress } from "@prism/ui/components/progress";
-import { PrismEmptyLine, PrismHero, PrismSection, PrismSectionGroupLabel } from "@prism/ui/page-blocks";
+import { PrismEmptyLine, PrismSection, PrismSectionGroupLabel } from "@prism/ui/page-blocks";
 import { ClientEventHero, clientEventStage } from "../../../shared/client-event-hero";
+import { useEventCoverUrl } from "../../../events/view-models/use-event-cover-url";
 import { formatStatusLabel, type ClientDashboardAction } from "../../../workspace/shared";
 import { ClientListEmpty, ClientListRow } from "../../../shared/client-list-ui";
 import { groupClientActionsByEvent } from "../../model/client-home-action-groups";
 import { clientActionRowTone, dueState, eventCountdown, isPastClientEvent, orderClientActionsByUrgency, orderClientEvents, type ClientHomeLead } from "../../model/client-home-summary";
+
+/** Days to the event, for a step with no due date of its own. */
+function eventCountdownFigure(daysToGo: number | null) {
+  if (daysToGo === null || daysToGo < 0) return undefined;
+  if (daysToGo === 0) return { value: "Today", label: "Event day" };
+  return { value: String(daysToGo), label: daysToGo === 1 ? "day to go" : "days to go" };
+}
 
 /**
  * The home's lead: the event that is coming up, how far away it is, where it stands, and the one
@@ -29,26 +38,26 @@ export function ClientHomeHero({
   runClientAction: (action: ClientDashboardAction) => void;
 }) {
   const { event, action, daysToGo } = lead;
+  const coverUrl = useEventCoverUrl(event.id, event.coverObjectId);
+  const cover = <EventCover eventType={event.eventType} imageUrl={coverUrl} tag={false} className="h-full" />;
   if (action) {
     return (
-      <PrismHero
-        label="Your next step"
+      <NextStepHero
+        when={action.dueAt ? `due ${formatPortalDate(action.dueAt)}` : undefined}
         title={action.title}
-        meta={
-          <div className="space-y-2">
-            <p>{action.description}</p>
-            <p className="text-sm"><Link href={eventHref(event.id)} onClick={() => onOpen(event.id)} className="font-medium text-ink-foreground hover:underline">{event.eventName}</Link> · {formatPortalDate(event.eventDate)}{daysToGo !== null && daysToGo >= 0 ? ` · ${daysToGo === 0 ? "Today" : `${daysToGo} days to go`}` : ""}</p>
-          </div>
-        }
-      >
-        <Button type="button" onClick={() => runClientAction(action)}>{action.ctaLabel}<ArrowRight className="size-4" /></Button>
-      </PrismHero>
+        event={<p><Link href={eventHref(event.id)} onClick={() => onOpen(event.id)} className="font-medium text-ink-foreground hover:underline">{event.eventName}</Link> · {formatPortalDate(event.eventDate)}</p>}
+        detail={action.description}
+        figure={dueFigure(action.dueAt, manilaDateKey()) ?? eventCountdownFigure(daysToGo)}
+        cover={cover}
+        action={<Button type="button" onClick={() => runClientAction(action)}>{action.ctaLabel}<ArrowRight className="size-4" /></Button>}
+      />
     );
   }
   return (
     <ClientEventHero
       event={event}
       daysToGo={daysToGo}
+      backdrop={cover}
       label={daysToGo !== null && daysToGo >= 0 ? "Your next event" : "Your event"}
       eventHref={eventHref(event.id)}
       onOpen={() => onOpen(event.id)}

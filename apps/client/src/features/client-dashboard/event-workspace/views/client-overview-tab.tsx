@@ -58,13 +58,12 @@ export function ClientOverviewTab({
   const { actionCenter, session } = useClientWorkspace();
   const actions = actionCenter?.items ?? [];
   const nextAction = selectEventNextAction(actions, selectedEvent.id);
-  const nextPayment = payments.find((p) => p.status !== "paid");
   const coverUrl = useEventCoverUrl(selectedEvent.id, selectedEvent.coverObjectId);
   const stage = useClientStageReached(session?.id, selectedEvent.id, derivePrismLifecycleStage(selectedEvent));
   const unreadMessages = useClientUnreadMessages({ eventId: selectedEvent.id });
   const unreadNotices = useClientUnreadNotices();
   const newFiles = useClientNewFileCount(session?.id, selectedEvent.id, documents);
-  const since = sinceLastVisitItems({ unreadMessages, newFiles, unreadNotices });
+  const sinceItems = sinceLastVisitItems({ unreadMessages, newFiles, unreadNotices });
   const steps = gettingStartedSteps({ event: selectedEvent, hasBriefing: Boolean(briefing), hasLayoutIdeas: preferenceDraftCount > 0 || Boolean(officialDraft), payments });
   const visit = ocularVisitLine(ocularVisit);
   const comingUp: ComingUpLine[] = [
@@ -73,25 +72,31 @@ export function ClientOverviewTab({
   ].slice(0, COMING_UP_LIMIT);
   const starting = showGettingStarted(selectedEvent, steps);
 
+  const comingUpPanel = <OverviewComingUp lines={comingUp} />;
+  const since = <OverviewSinceLastVisit eventId={selectedEvent.id} items={sinceItems} loaded={unreadMessages !== undefined && newFiles !== undefined && unreadNotices !== undefined} />;
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <OverviewStageBanner message={stage.message} onDismiss={stage.dismiss} />
-      <OverviewNextDecision selectedEvent={selectedEvent} nextAction={nextAction} coverUrl={coverUrl} />
+      <OverviewNextDecision selectedEvent={selectedEvent} nextAction={nextAction} coverUrl={coverUrl} since={since} />
       {afterLead}
-      <OverviewSinceLastVisit eventId={selectedEvent.id} items={since} loaded={unreadMessages !== undefined && newFiles !== undefined && unreadNotices !== undefined} />
-      <div className={starting ? "grid items-start gap-4 lg:grid-cols-2" : "grid"}>
-        {starting ? <OverviewGettingStarted steps={steps} setTab={setTab} /> : null}
-        <OverviewComingUp lines={comingUp} />
-      </div>
-      <div className="grid items-start gap-4 lg:grid-cols-3">
-        <OverviewEventDetails selectedEvent={selectedEvent} briefing={briefing} />
+      {/* A new event leads with its checklist beside the dates; later on, the dates join the cards below. */}
+      {starting ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="min-w-0 lg:col-span-2"><OverviewGettingStarted steps={steps} setTab={setTab} /></div>
+          {comingUpPanel}
+        </div>
+      ) : null}
+      <div className={starting ? "grid gap-4 lg:grid-cols-3" : "grid gap-4 md:grid-cols-2 xl:grid-cols-4"}>
+        {starting ? null : comingUpPanel}
+        <OverviewEventDetails selectedEvent={selectedEvent} briefing={briefing} setTab={setTab} />
         <OverviewFloorPlanCard
           officialDraft={officialDraft}
           preferenceDraftCount={preferenceDraftCount}
           onOpenOfficialFloorplan={onOpenOfficialFloorplan}
           setTab={setTab}
         />
-        <OverviewNextPayment billing={billing} nextPayment={nextPayment} setTab={setTab} />
+        <OverviewNextPayment billing={billing} payments={payments} setTab={setTab} />
       </div>
       {/* Changes and addenda are later-stage reference; they sit below the facts, with the form collapsed. */}
       <ClientChangeRequestsPanel eventId={selectedEvent.id} />

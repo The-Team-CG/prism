@@ -55,3 +55,23 @@ export function stageReachedMessage(previous: string | null, current: PrismLifec
   if (before < 0 || PRISM_LIFECYCLE_STAGES.indexOf(current) <= before) return null;
   return `Your event moved to ${PRISM_LIFECYCLE_STAGE_LABELS[current]}`;
 }
+
+/** What the event's live payment milestones add up to, and how much of that is paid; replaced milestones are left out. */
+export function paymentTotals(payments: Pick<PrismPaymentMilestone, "amount" | "amountPaid" | "supersededAt">[]): { billed: number; paid: number } {
+  const live = payments.filter((payment) => !payment.supersededAt);
+  return {
+    billed: live.reduce((sum, payment) => sum + payment.amount, 0),
+    paid: live.reduce((sum, payment) => sum + Math.min(payment.amountPaid, payment.amount), 0),
+  };
+}
+
+export type LayoutStep = { id: "ideas" | "official" | "approved"; label: string; done: boolean };
+
+/** The floor plan's three moments for the client: their ideas, PMCM's official layout, and its approval. */
+export function layoutSteps({ preferenceDraftCount, officialStatus }: { preferenceDraftCount: number; officialStatus?: string }): LayoutStep[] {
+  return [
+    { id: "ideas", label: "Your ideas", done: preferenceDraftCount > 0 || Boolean(officialStatus) },
+    { id: "official", label: "PMCM layout", done: Boolean(officialStatus) },
+    { id: "approved", label: "Approved", done: officialStatus === "approved" },
+  ];
+}

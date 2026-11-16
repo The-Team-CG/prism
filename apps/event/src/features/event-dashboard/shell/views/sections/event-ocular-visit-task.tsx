@@ -3,7 +3,7 @@ import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 
 import { useState, type FormEvent } from "react";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, MapPin } from "lucide-react";
 import type {
   PrismPmcmOcularVisit,
   ScheduleOcularVisitInput,
@@ -279,7 +279,7 @@ function OcularVisitToggle({ expanded, canAct, onToggle }: { expanded: boolean; 
       aria-expanded={expanded}
       aria-controls="ocular-visit-details"
       onClick={onToggle}
-      className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-border px-3 text-sm font-semibold text-foreground"
+      className="inline-flex h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-xs font-semibold text-foreground hover:bg-surface-raised"
     >
       {expanded ? "Hide" : canAct ? "Manage visit" : "View details"}
       <ChevronRight className={"size-4 transition-transform " + (expanded ? "rotate-90" : "")} aria-hidden />
@@ -344,13 +344,15 @@ export function EventOcularVisitTask({
   }
 
   return (
-    <Card>
-      <CardBody className="space-y-4">
+    <Card className="rounded-xl shadow-xs">
+      <CardBody className="space-y-4 px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-foreground">
-            <span className="font-semibold">Ocular visit</span>
-            <span className="mx-2 text-muted-foreground" aria-hidden>·</span>
-            <span aria-label="Ocular visit status" className="font-semibold">{statusLabel(visit)}</span>
+          <p className="flex items-center gap-2.5 text-sm text-foreground">
+            <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-lg bg-attention-soft text-attention"><MapPin className="size-4" /></span>
+            <span>
+              <span className="block font-semibold">Ocular visit</span>
+              <span aria-label="Ocular visit status" className="block text-xs text-muted-foreground">{statusLabel(visit)}</span>
+            </span>
           </p>
           <OcularVisitToggle expanded={expanded} canAct={canAct} onToggle={() => setExpanded((open) => !open)} />
         </div>

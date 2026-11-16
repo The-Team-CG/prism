@@ -1,132 +1,162 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, UserRound } from "lucide-react";
+import { CalendarClock, CheckCircle2, ChevronRight, LayoutGrid, ListTodo, UserRound, type LucideIcon } from "lucide-react";
 import { derivePrismLifecycleStage, type PrismEvent, type PrismPmcmCalendarItem, type PrismPmcmClientActivity } from "@prism/types";
-import { AttentionList, CountdownPill, DateTile, EventCover, StageTrack, type AttentionLine } from "@prism/ui/event-cards";
+import { AgendaList, AttentionList, AttentionSummary, EventCover, StageTrack, eventCountdown, type AttentionLine } from "@prism/ui/event-cards";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { PMCM_CALENDAR_KINDS, clientActivityLine, toCalendarEntries, type EventShortcutCounts } from "@/features/pmcm-overview";
-import { cx } from "@/features/pmcm-kit";
-import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
-import { EventShortcuts } from "./event-shortcuts";
+import { PrismHero, PrismPanel } from "@prism/ui/page-blocks";
+import { PMCM_CALENDAR_KINDS, clientActivityLine, toCalendarEntries } from "@/features/pmcm-overview";
+import { RouteLink, cx } from "@/features/pmcm-kit";
+import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 
 function ClientActivity({ clientName, activity, todayKey }: { clientName: string; activity?: PrismPmcmClientActivity; todayKey: string }) {
   if (!activity) return null;
   const line = clientActivityLine(clientName, activity, todayKey);
   return (
-    <p className={cx("flex items-center gap-1.5 text-xs", line.quiet ? "font-medium text-attention" : "text-muted-foreground")}>
-      <UserRound aria-hidden className="size-3.5 shrink-0" />
+    <p className={cx("flex items-center gap-1.5 text-sm", line.quiet ? "font-medium text-attention" : "text-ink-foreground/80")}>
+      <UserRound aria-hidden className="size-4 shrink-0" />
       {line.text}
     </p>
   );
 }
 
+/** "7 / days to go", "Today / Event day"; a date that has passed has no countdown. */
+function countdownFigure(eventDate: string, todayKey: string) {
+  const countdown = eventCountdown(eventDate, todayKey);
+  if (!countdown || countdown.days < 0) return undefined;
+  if (countdown.days === 0) return { value: "Today", label: "Event day" };
+  return { value: String(countdown.days), label: countdown.days === 1 ? "day to go" : "days to go" };
+}
+
 /**
- * The event at a glance, as its card shows it: cover, date, how far away, stage, the Billing/Files/Messages
- * shortcuts, whether the client is keeping up, and the portal and guest-code facts PMCM reaches for.
+ * The event as one lead block, the same shape the client sees on their overview: cover, name, date and venue, how
+ * far away it is, its stage, and in the footer whether the client is keeping up plus the portal and guest-code facts.
  */
-export function EventOverviewHeader({ event, coverUrl, shortcuts, clientActivity, todayKey, facts }: {
+export function EventOverviewHero({ event, coverUrl, clientActivity, todayKey, facts }: {
   event: PrismEvent;
   coverUrl?: string;
-  shortcuts: EventShortcutCounts;
   clientActivity?: PrismPmcmClientActivity;
   todayKey: string;
   facts: Array<{ label: string; value: ReactNode }>;
 }) {
   return (
-    <section aria-label="Event at a glance" className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-      <EventCover eventType={event.eventType} imageUrl={coverUrl} className="h-28 sm:h-36" />
-      <div className="grid gap-4 px-4 pb-4 sm:px-5">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-3 pt-3">
-          <DateTile date={event.eventDate} raised />
-          <div className="min-w-0">
-            <h2 className="font-semibold leading-snug text-foreground">{event.eventName}</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">{[event.clientName, event.venue].filter(Boolean).join(" · ")}</p>
-          </div>
-          <CountdownPill date={event.eventDate} todayKey={todayKey} />
-        </div>
-        <StageTrack stage={derivePrismLifecycleStage(event)} />
-        <ClientActivity clientName={event.clientName} activity={clientActivity} todayKey={todayKey} />
-        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-border pt-3">
-          <EventShortcuts eventId={event.id} counts={shortcuts} />
-          <dl className="flex flex-wrap gap-x-6 gap-y-2">
-            {facts.map((fact) => (
-              <div key={fact.label} className="flex items-center gap-2 text-xs">
-                <dt className="text-muted-foreground">{fact.label}</dt>
-                <dd className="font-semibold text-foreground">{fact.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
+    <PrismHero
+      label={event.clientName}
+      title={event.eventName}
+      meta={
+        <>
+          <p>{[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed"].join(" · ")}</p>
+          <div className="mt-4 max-w-sm"><StageTrack stage={derivePrismLifecycleStage(event)} onInk /></div>
+        </>
+      }
+      figure={countdownFigure(event.eventDate, todayKey)}
+      backdrop={<EventCover eventType={event.eventType} imageUrl={coverUrl} tag={false} className="h-full" />}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        {clientActivity ? <ClientActivity clientName={event.clientName} activity={clientActivity} todayKey={todayKey} /> : <span />}
+        <dl className="flex flex-wrap gap-x-6 gap-y-2">
+          {facts.map((fact) => (
+            <div key={fact.label} className="flex items-center gap-2 text-sm">
+              <dt className="text-ink-foreground/70">{fact.label}</dt>
+              <dd className="font-semibold text-ink-foreground">{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
-    </section>
+    </PrismHero>
   );
 }
 
-function OverviewPanel({ id, title, aside, children }: { id: string; title: string; aside?: ReactNode; children: ReactNode }) {
-  return (
-    <section aria-labelledby={id} className="rounded-xl border border-border bg-card">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
-        <h2 id={id} className="font-semibold text-foreground">{title}</h2>
-        {aside}
-      </div>
-      <div className="px-4 py-3.5 sm:px-5">{children}</div>
-    </section>
-  );
-}
+/** Lines shown before "Show all": enough to act on without the list pushing everything else off the page. */
+const NEEDS_YOU_SHOWN = 6;
 
 /**
- * What waits on PMCM for this event: the Inbox's own items, each saying how long it has waited, plus anything the
- * workspace knows the Inbox does not (a venue visit the client asked for, a finished event owed its close-out).
+ * What waits on PMCM for this event: a bar of how urgent it is, then the lines themselves, each saying how long it
+ * has waited. The Inbox's own items plus what the workspace knows the Inbox does not (a requested venue visit, a
+ * finished event owed its close-out).
  */
 export function OverviewNeedsYou({ lines, loading }: { lines: AttentionLine[]; loading: boolean }) {
-  const aside = <span className="text-xs text-muted-foreground">{loading ? "Loading…" : `${lines.length} open`}</span>;
+  const [showAll, setShowAll] = useState(false);
+  const hidden = Math.max(0, lines.length - NEEDS_YOU_SHOWN);
+  const shown = showAll ? lines : lines.slice(0, NEEDS_YOU_SHOWN);
+  const footer = hidden > 0 ? (
+    <button type="button" onClick={() => setShowAll((open) => !open)} className="text-xs font-medium text-primary hover:underline">
+      {showAll ? "Show fewer" : `Show all ${lines.length}`}
+    </button>
+  ) : undefined;
   return (
-    <OverviewPanel id="overview-needs-you" title="Needs you" aside={aside}>
-      {lines.length > 0 ? <AttentionList lines={lines} link={Link} /> : null}
+    <PrismPanel id="overview-needs-you" title="Needs you" icon={ListTodo} aside={loading ? "Loading…" : `${lines.length} open`} footer={footer}>
+      {lines.length > 0 ? (
+        <div className="grid gap-4">
+          <AttentionSummary lines={lines} />
+          <AttentionList lines={shown} link={Link} />
+        </div>
+      ) : null}
       {lines.length === 0 && !loading ? (
         <p className="flex items-center gap-2 text-sm text-muted-foreground"><CheckCircle2 aria-hidden className="size-4 text-success" />Nothing is waiting on you for this event.</p>
       ) : null}
       {lines.length === 0 && loading ? <p className="text-sm text-muted-foreground">Checking what this event needs…</p> : null}
-    </OverviewPanel>
+    </PrismPanel>
   );
 }
 
-function comingUpTime(date: string, startTime?: string) {
-  return startTime ? `${formatPortalDate(date)} · ${startTime}` : formatPortalDate(date);
-}
-
-/** The event's dated work for the next 30 days: visits, quote deadlines, payments due, supplier arrivals. */
+/** The event's dated work for the next 30 days on calendar leaves: visits, quote deadlines, payments, supplier arrivals. */
 export function OverviewComingUp({ eventId, items, todayKey }: { eventId: string; items?: PrismPmcmCalendarItem[]; todayKey: string }) {
   const entries = toCalendarEntries(items ?? [], todayKey);
+  const agenda = entries.map((entry) => {
+    const kind = entry.look?.label ?? PMCM_CALENDAR_KINDS[entry.kind as keyof typeof PMCM_CALENDAR_KINDS].label;
+    return {
+      id: entry.id,
+      title: entry.title,
+      detail: entry.startTime ? `${kind} · ${entry.startTime}` : kind,
+      date: entry.date,
+      href: entry.target === "overview" ? undefined : eventWorkspaceHref(eventId, entry.target),
+    };
+  });
   return (
-    <OverviewPanel id="overview-coming-up" title="Coming up" aside={<Link href="/dashboard/calendar" className="text-xs font-medium text-primary hover:underline">Calendar</Link>}>
+    <PrismPanel id="overview-coming-up" title="Coming up" icon={CalendarClock} aside={<Link href="/dashboard/calendar" className="font-medium text-primary hover:underline">Calendar</Link>}>
       {items === undefined ? <p className="text-sm text-muted-foreground">Loading the next 30 days…</p> : null}
       {items?.length === 0 ? <p className="text-sm text-muted-foreground">Nothing dated in the next 30 days.</p> : null}
-      {entries.length > 0 ? (
-        <ul className="grid gap-2.5">
-          {entries.map((entry) => {
-            const label = entry.look?.label ?? PMCM_CALENDAR_KINDS[entry.kind as keyof typeof PMCM_CALENDAR_KINDS].label;
-            const body = (
-              <>
-                <CalendarClock aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-foreground">{entry.title}</span>
-                  <span className="block text-xs text-muted-foreground">{label} · {comingUpTime(entry.date, entry.startTime)}</span>
-                </span>
-              </>
-            );
-            return (
-              <li key={entry.id}>
-                {entry.target === "overview"
-                  ? <div className="flex items-start gap-2.5">{body}</div>
-                  : <Link href={eventWorkspaceHref(eventId, entry.target)} className="flex items-start gap-2.5 rounded-md hover:bg-surface-raised">{body}</Link>}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-    </OverviewPanel>
+      {agenda.length > 0 ? <AgendaList items={agenda} link={Link} /> : null}
+    </PrismPanel>
+  );
+}
+
+export type AreaTone = "done" | "attention" | "idle";
+export type AreaTile = { tab: DetailTab; title: string; icon: LucideIcon; status: string; tone: AreaTone };
+
+const AREA_CHIP: Record<AreaTone, string> = {
+  done: "bg-success-soft text-success",
+  attention: "bg-attention-soft text-attention",
+  idle: "bg-muted text-muted-foreground",
+};
+
+/** Every part of the event as a tile coloured by how it stands, each opening its tab. */
+export function OverviewAreas({ eventId, areas, onOpenTab }: { eventId: string; areas: AreaTile[]; onOpenTab: (tab: DetailTab) => void }) {
+  return (
+    <PrismPanel id="overview-areas" title="Event areas" icon={LayoutGrid} bodyClassName="pt-2">
+      <ul className="grid gap-1 sm:grid-cols-2 xl:grid-cols-3">
+        {areas.map((area) => (
+          <li key={area.tab}>
+            <RouteLink
+              href={eventWorkspaceHref(eventId, area.tab)}
+              onNavigate={() => onOpenTab(area.tab)}
+              className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-raised"
+            >
+              <span aria-hidden className={cx("grid size-9 shrink-0 place-items-center rounded-lg", AREA_CHIP[area.tone])}>
+                <area.icon className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-foreground">{area.title}</span>
+                <span className="block truncate text-xs text-muted-foreground">{area.status}</span>
+              </span>
+              <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            </RouteLink>
+          </li>
+        ))}
+      </ul>
+    </PrismPanel>
   );
 }

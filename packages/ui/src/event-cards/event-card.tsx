@@ -44,18 +44,19 @@ export function CountdownPill({ date, todayKey, label }: { date: string; todayKe
 }
 
 /** Where the event is in its life, inquiry to closure, as six segments with the current one named. */
-export function StageTrack({ stage, label }: { stage: PrismLifecycleStage; label?: string }) {
+export function StageTrack({ stage, label, onInk = false }: { stage: PrismLifecycleStage; label?: string; /** Drawn on a dark hero panel. */ onInk?: boolean }) {
   const position = stagePosition(stage);
+  const ahead = onInk ? "bg-ink-foreground/20" : "bg-muted";
   return (
     <div>
       <div role="img" aria-label={`Stage ${position} of ${PRISM_LIFECYCLE_STAGES.length}: ${PRISM_LIFECYCLE_STAGE_LABELS[stage]}`} className="grid grid-cols-6 gap-1">
         {PRISM_LIFECYCLE_STAGES.map((step, index) => (
-          <span key={step} className={cn("h-1.5 rounded-full", index + 1 < position ? "bg-primary" : index + 1 === position ? "bg-primary/45" : "bg-muted")} />
+          <span key={step} className={cn("h-1.5 rounded-full", index + 1 < position ? "bg-primary" : index + 1 === position ? "bg-primary/60" : ahead)} />
         ))}
       </div>
-      <div className="mt-1.5 flex justify-between gap-2 text-[11px] text-muted-foreground">
+      <div className={cn("mt-1.5 flex justify-between gap-2 text-[11px]", onInk ? "text-ink-foreground/70" : "text-muted-foreground")}>
         <span>Stage {position} of {PRISM_LIFECYCLE_STAGES.length}</span>
-        <span className="font-semibold text-foreground">{label ?? PRISM_LIFECYCLE_STAGE_LABELS[stage]}</span>
+        <span className={cn("font-semibold", onInk ? "text-ink-foreground" : "text-foreground")}>{label ?? PRISM_LIFECYCLE_STAGE_LABELS[stage]}</span>
       </div>
     </div>
   );
