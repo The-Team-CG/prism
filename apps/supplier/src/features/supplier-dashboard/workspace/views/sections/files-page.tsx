@@ -1,18 +1,32 @@
 "use client";
 
-import { useState, type DragEvent } from "react";
 import Link from "next/link";
-import { CheckCircle2, Download, File, FileImage, FileSpreadsheet, FileText, FileVideo, LoaderCircle, Search, Upload } from "lucide-react";
+import { CheckCircle2, Download, FileText, LoaderCircle, Upload } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
-import { Input } from "@prism/ui/components/input";
+import { Card } from "@prism/ui/components/card";
 import { LoadingState } from "@prism/ui/components/loading-state";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
-import { PrismEmptyLine, PrismPageColumn, PrismSection } from "@prism/ui/page-blocks";
+import {
+  FILE_TONE,
+  FileDetail,
+  FileDownloadButton,
+  FileFilterBar,
+  FileNeededList,
+  FileNeededRow,
+  FilePreviewFrame,
+  FilePreviewSheet,
+  FileReviewNote,
+  FileTable,
+  FileTableRow,
+  FileValidUntil,
+  useFileDrop,
+} from "@prism/ui/file-library";
+import { formatPortalDate } from "@prism/ui/format-date";
+import { PrismEmptyLine, PrismPageColumn } from "@prism/ui/page-blocks";
 import type { PrismAuthenticatedSession, PrismSupplierReadinessBoard, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { formatDate } from "../../model/supplier-workspace-rules";
 import { supplierBookingHref } from "../../model/supplier-next-step";
 import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
-import { supplierFileExpiry, type SupplierFileFilter, type SupplierFileKind, type SupplierFileTone, type SupplierLibraryFile, type SupplierNeededFile } from "../../model/supplier-file-library";
+import type { SupplierFileFilter, SupplierLibraryFile, SupplierNeededFile } from "../../model/supplier-file-library";
 import { useSupplierFileLibraryViewModel, useSupplierFilePreview, type SupplierFileLibraryViewModel } from "../../view-models/use-supplier-file-library-view-model";
 
 const FILTERS: ReadonlyArray<{ id: SupplierFileFilter; label: string }> = [
@@ -22,43 +36,36 @@ const FILTERS: ReadonlyArray<{ id: SupplierFileFilter; label: string }> = [
   { id: "certification", label: "Certifications" },
 ];
 
-const TONE: Record<SupplierFileTone, string> = {
-  attention: "text-attention",
-  urgent: "text-destructive",
-  done: "text-success",
-  neutral: "text-muted-foreground",
-};
-
-const ICONS = { pdf: FileText, document: FileText, image: FileImage, sheet: FileSpreadsheet, video: FileVideo, other: File } as const;
-
-function KindIcon({ kind }: { kind: SupplierFileKind }) {
-  const Icon = ICONS[kind];
-  return <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground" aria-hidden="true"><Icon className="size-4" /></span>;
-}
-
 function neededDetail(item: SupplierNeededFile) {
   const due = item.dueDate ? `Due ${formatDate(item.dueDate)}` : "No due date";
-  return `${item.eventName} · ${due}`;
+  return [item.eventName, due, item.overdue ? "Overdue" : null].filter(Boolean).join(" · ");
 }
 
-function NeededAction({ item, vm }: { item: SupplierNeededFile; vm: SupplierFileLibraryViewModel }) {
-  if (item.bookingRequestId) {
-    return <Button asChild size="sm" variant="outline"><Link href={supplierBookingHref(item.bookingRequestId)}>Open booking</Link></Button>;
-  }
-  const uploading = vm.uploading === `${item.eventId}:${item.key}`;
+/** Sends a file for a requirement (or a newer one for a file PMCM has not approved yet). */
+function UploadButton({ vm, eventId, requirementKey, label, ariaLabel, onPicked }: {
+  vm: SupplierFileLibraryViewModel;
+  eventId: string;
+  requirementKey: string;
+  label: string;
+  ariaLabel: string;
+  onPicked?: () => void;
+}) {
+  const uploading = vm.uploading === `${eventId}:${requirementKey}`;
   return (
-    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted">
+    <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
       {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
-      {uploading ? "Uploading" : item.replacing ? "Replace" : "Upload"}
+      {uploading ? "Uploading" : label}
       <input
         type="file"
         className="sr-only"
-        aria-label={`Upload ${item.label} for ${item.eventName}`}
+        aria-label={ariaLabel}
         disabled={vm.uploading !== null}
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
-          if (file) void vm.upload(item.eventId, item.key, file);
+          if (!file) return;
+          onPicked?.();
+          void vm.upload(eventId, requirementKey, file);
         }}
       />
     </label>
@@ -66,191 +73,131 @@ function NeededAction({ item, vm }: { item: SupplierNeededFile; vm: SupplierFile
 }
 
 function NeededRow({ item, vm }: { item: SupplierNeededFile; vm: SupplierFileLibraryViewModel }) {
-  const [over, setOver] = useState(false);
   const droppable = !item.bookingRequestId && vm.uploading === null;
-  function drop(event: DragEvent<HTMLLIElement>) {
-    event.preventDefault();
-    setOver(false);
-    const file = event.dataTransfer.files?.[0];
-    if (droppable && file) void vm.upload(item.eventId, item.key, file);
-  }
+  const drop = useFileDrop((files) => { if (files[0]) void vm.upload(item.eventId, item.key, files[0]); }, droppable);
+  const action = item.bookingRequestId
+    ? <Button asChild size="sm" variant="outline"><Link href={supplierBookingHref(item.bookingRequestId)}>Open booking</Link></Button>
+    : <UploadButton vm={vm} eventId={item.eventId} requirementKey={item.key} label={item.replacing ? "Replace" : "Upload"} ariaLabel={`Upload ${item.label} for ${item.eventName}`} />;
   return (
-    <li
-      className={`flex flex-wrap items-center gap-3 px-5 py-4 ${over ? "bg-primary/5 ring-2 ring-inset ring-primary/40" : ""}`}
-      onDragOver={(event) => { if (droppable) { event.preventDefault(); setOver(true); } }}
-      onDragLeave={() => setOver(false)}
-      onDrop={drop}
-    >
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground">{item.label}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {neededDetail(item)}
-          {item.overdue ? <span className="font-semibold text-destructive"> · Overdue</span> : null}
-        </p>
-        {item.reviewReason ? <p className="mt-1 text-sm text-destructive">PMCM: {item.reviewReason}</p> : null}
-      </div>
-      <NeededAction item={item} vm={vm} />
-    </li>
+    <FileNeededRow
+      label={item.label}
+      detail={neededDetail(item)}
+      urgent={item.overdue || Boolean(item.reviewReason)}
+      note={item.reviewReason}
+      drop={drop}
+      actions={action}
+    />
   );
 }
 
 function NeededSection({ vm }: { vm: SupplierFileLibraryViewModel }) {
   if (vm.status === "loading") return <LoadingState label="Loading what PMCM needs from you…" />;
+  const error = vm.error ?? vm.saveError;
   return (
-    <PrismSection id="supplier-files-needed" title="Needed from you" description="Drop a file on an item to send it to PMCM." flush={vm.needed.length > 0}>
-      {vm.error ?? vm.saveError ? <p role="alert" className="px-5 py-2 text-sm text-destructive">{vm.error ?? vm.saveError}</p> : null}
-      {vm.notice ? <p role="status" className="px-5 py-2 text-sm text-muted-foreground">{vm.notice}</p> : null}
+    <>
+      {error ? <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
+      {vm.notice ? <p role="status" className="text-sm text-success">{vm.notice}</p> : null}
       {vm.needed.length === 0 ? (
-        <PrismEmptyLine icon={CheckCircle2}>Nothing needed right now. PMCM will ask here when a booking needs a file from you.</PrismEmptyLine>
+        <p className="flex items-center gap-2 px-1 text-sm text-success">
+          <CheckCircle2 className="size-4" aria-hidden="true" /> Nothing needed from you right now. PMCM will ask here when a booking needs a file.
+        </p>
       ) : (
-        <ul className="divide-y divide-border">{vm.needed.map((item) => <NeededRow key={`${item.eventId}:${item.key}`} item={item} vm={vm} />)}</ul>
+        <FileNeededList id="supplier-files-needed">
+          {vm.needed.map((item) => <NeededRow key={`${item.eventId}:${item.key}`} item={item} vm={vm} />)}
+        </FileNeededList>
       )}
-    </PrismSection>
-  );
-}
-
-/** A dated booking document's validity under its status, once it is close to expiring or already has. */
-function ExpiryLabel({ expiresAt }: { expiresAt?: string }) {
-  const expiry = supplierFileExpiry(expiresAt);
-  if (!expiry || expiry.tone === "neutral") return null;
-  return <span className={`block text-xs ${TONE[expiry.tone]}`}>{expiry.label}</span>;
-}
-
-/** When one of the supplier's own booking documents stops being valid; PMCM is reminded to chase it before then. */
-function ValidUntil({ file, vm }: { file: SupplierLibraryFile; vm: SupplierFileLibraryViewModel }) {
-  const saved = file.expiresAt?.slice(0, 10) ?? "";
-  const [value, setValue] = useState(saved);
-  const expiry = supplierFileExpiry(file.expiresAt);
-  if (!file.datable || !file.objectId) return null;
-  return (
-    <form className="flex flex-wrap items-center gap-2 text-sm" onSubmit={(event) => { event.preventDefault(); void vm.setExpiry(file, value || null); }}>
-      <span className="text-muted-foreground">Valid until</span>
-      <input type="date" aria-label={`Valid until for ${file.name}`} value={value} onChange={(event) => setValue(event.currentTarget.value)} className="h-8 rounded-md border border-border bg-background px-2" />
-      <Button type="submit" size="sm" variant="outline" disabled={vm.saving || value === saved}>Save</Button>
-      {file.expiresAt ? <Button type="button" size="sm" variant="ghost" disabled={vm.saving} onClick={() => { setValue(""); void vm.setExpiry(file, null); }}>Clear</Button> : null}
-      {expiry && expiry.tone !== "neutral" ? <span className={TONE[expiry.tone]}>{expiry.label}</span> : null}
-    </form>
+    </>
   );
 }
 
 function FileRow({ file, vm, onDownloadObject }: { file: SupplierLibraryFile; vm: SupplierFileLibraryViewModel; onDownloadObject: (objectId: string) => void }) {
   const objectId = file.objectId;
   return (
-    <li className="grid grid-cols-[1fr_auto] items-center gap-3 px-5 py-3 md:grid-cols-[minmax(0,2fr)_0.8fr_1fr_auto]">
-      <button type="button" className="flex min-w-0 items-center gap-3 text-left" aria-label={`Open ${file.name}`} onClick={() => vm.openPreview(file.id)}>
-        <KindIcon kind={file.kind} />
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold text-foreground">{file.name}</span>
-          <span className="block truncate text-xs text-muted-foreground">{file.context}</span>
-        </span>
-      </button>
-      <span className="hidden text-sm text-muted-foreground md:block">{formatDate(file.addedAt)}</span>
-      <span className="hidden min-w-0 md:block">
-        <span className={`block text-sm font-medium ${TONE[file.tone]}`}>{file.status}</span>
-        <ExpiryLabel expiresAt={file.expiresAt} />
-      </span>
-      {objectId ? (
-        <Button type="button" variant="ghost" size="icon" aria-label={`Download ${file.name}`} onClick={() => onDownloadObject(objectId)}><Download className="size-4" /></Button>
-      ) : <span className="w-9" />}
-    </li>
+    <FileTableRow
+      kind={file.kind}
+      name={file.name}
+      detail={file.context}
+      from={file.group === "certification" ? "PMCM" : "You"}
+      addedAt={file.addedAt}
+      size={file.size}
+      status={{ label: file.status, tone: file.tone, expiresAt: file.expiresAt, title: file.reviewReason }}
+      onOpen={() => vm.openPreview(file.id)}
+      action={objectId ? <FileDownloadButton label={`Download ${file.name}`} onClick={() => onDownloadObject(objectId)} /> : null}
+    />
   );
 }
 
 function FilesSection({ vm, onDownloadObject }: { vm: SupplierFileLibraryViewModel; onDownloadObject: (objectId: string) => void }) {
   return (
-    <PrismSection id="supplier-files-library" title="Your files" description="Everything you have sent PMCM, and certifications PMCM keeps on your record." flush>
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 pb-3">
-        <div role="group" aria-label="Show files" className="flex flex-wrap gap-1.5">
-          {FILTERS.map((entry) => (
-            <Button key={entry.id} type="button" size="sm" variant={vm.filter === entry.id ? "secondary" : "ghost"} aria-pressed={vm.filter === entry.id} onClick={() => vm.setFilter(entry.id)}>
-              {entry.label}
-              <span className="tabular-nums text-muted-foreground">{vm.counts[entry.id]}</span>
-            </Button>
-          ))}
-        </div>
-        <label className="relative block w-full sm:w-60">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input type="search" value={vm.query} onChange={(event) => vm.setQuery(event.target.value)} placeholder="Search files" aria-label="Search your files" className="pl-8" />
-        </label>
-      </div>
-      {vm.files.length === 0 ? (
-        <div className="px-5 pb-4"><PrismEmptyLine icon={FileText}>{vm.query || vm.filter !== "all" ? "No files match." : "No files yet. Files you send PMCM will be kept here."}</PrismEmptyLine></div>
-      ) : (
-        <ul className="divide-y divide-border border-t border-border">
-          {vm.files.map((file) => <FileRow key={`${file.group}:${file.id}`} file={file} vm={vm} onDownloadObject={onDownloadObject} />)}
-        </ul>
-      )}
-    </PrismSection>
-  );
-}
-
-/** Sends a newer file for the requirement this file stands for, until PMCM approves it. */
-function ReplaceFile({ file, vm }: { file: SupplierLibraryFile; vm: SupplierFileLibraryViewModel }) {
-  const target = file.replaces;
-  if (!target) return null;
-  const uploading = vm.uploading === `${target.eventId}:${target.key}`;
-  return (
-    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted">
-      {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
-      {uploading ? "Uploading" : "Send a newer file"}
-      <input
-        type="file"
-        className="sr-only"
-        aria-label={`Send a newer file for ${target.label}`}
-        disabled={vm.uploading !== null}
-        onChange={(event) => {
-          const next = event.currentTarget.files?.[0];
-          event.currentTarget.value = "";
-          if (next) {
-            vm.closePreview();
-            void vm.upload(target.eventId, target.key, next);
-          }
-        }}
+    <Card role="region" aria-label="Your files" className="gap-0 overflow-hidden py-0">
+      <FileFilterBar
+        label="Show files"
+        filters={FILTERS.map((entry) => ({ ...entry, count: vm.counts[entry.id] }))}
+        value={vm.filter}
+        onChange={vm.setFilter}
+        query={vm.query}
+        onQuery={vm.setQuery}
+        searchLabel="Search your files"
       />
-    </label>
+      {vm.files.length === 0 ? (
+        <div className="px-4 py-4"><PrismEmptyLine icon={FileText}>{vm.query || vm.filter !== "all" ? "No files match." : "No files yet. Files you send PMCM will be kept here."}</PrismEmptyLine></div>
+      ) : (
+        <FileTable>
+          {vm.files.map((file) => <FileRow key={`${file.group}:${file.id}`} file={file} vm={vm} onDownloadObject={onDownloadObject} />)}
+        </FileTable>
+      )}
+    </Card>
   );
 }
 
-function PreviewBody({ file, session }: { file: SupplierLibraryFile; session: PrismAuthenticatedSession }) {
+function PreviewFrame({ file, session }: { file: SupplierLibraryFile; session: PrismAuthenticatedSession }) {
   const preview = useSupplierFilePreview(session, file);
-  if (preview.status === "loading") return <div className="grid h-full place-items-center"><LoaderCircle className="size-5 animate-spin text-muted-foreground" aria-label="Loading preview" /></div>;
-  if (preview.status === "ready") {
-    return preview.kind === "pdf" ? (
-      <iframe src={`${preview.url}#navpanes=0&view=FitH`} title={`Preview of ${file.name}`} className="h-full w-full rounded-md border border-border bg-background" />
-    ) : (
-      // A local object URL, which next/image cannot load.
-      <img src={preview.url} alt={`Preview of ${file.name}`} className="mx-auto max-h-full max-w-full rounded-md object-contain" />
-    );
-  }
-  const message = preview.status === "error" ? preview.message : file.objectId ? "This file type can't be shown here. Download it to open it." : "PMCM keeps this file on your supplier record.";
-  return <div className="grid h-full place-items-center rounded-md border border-dashed border-border px-6 text-center text-sm text-muted-foreground">{message}</div>;
+  const fallback = file.objectId ? "This file type can't be shown here. Download it to open it." : "PMCM keeps this file on your supplier record.";
+  return <FilePreviewFrame state={preview} name={file.name} kind={file.kind} fallback={fallback} />;
 }
 
+function PreviewActions({ file, vm, onDownloadObject }: { file: SupplierLibraryFile; vm: SupplierFileLibraryViewModel; onDownloadObject: (objectId: string) => void }) {
+  const objectId = file.objectId;
+  const target = file.replaces;
+  if (!objectId) return null;
+  return (
+    <>
+      <Button type="button" onClick={() => onDownloadObject(objectId)}><Download className="size-4" />Download</Button>
+      {target ? (
+        <UploadButton vm={vm} eventId={target.eventId} requirementKey={target.key} label="Send a newer file" ariaLabel={`Send a newer file for ${target.label}`} onPicked={vm.closePreview} />
+      ) : null}
+    </>
+  );
+}
+
+/** A file opened from the library, in the panel every portal shares. */
 function PreviewSheet({ vm, session, onDownloadObject }: { vm: SupplierFileLibraryViewModel; session: PrismAuthenticatedSession; onDownloadObject: (objectId: string) => void }) {
   const file = vm.preview;
-  const objectId = file?.objectId;
+  if (!file) return <FilePreviewSheet open={false} onClose={vm.closePreview} kind="other" name="" tall={false} frame={null} />;
   return (
-    <Sheet open={file !== null} onOpenChange={(open) => { if (!open) vm.closePreview(); }}>
-      <SheetContent side="right" className="flex w-full flex-col gap-3 p-4 sm:max-w-2xl">
-        {file ? (
-          <>
-            <SheetHeader className="p-0">
-              <SheetTitle className="truncate pr-8">{file.name}</SheetTitle>
-              <SheetDescription>{file.context} · {formatDate(file.addedAt)} · {file.status}</SheetDescription>
-              {file.reviewReason ? <p className="text-sm text-destructive">PMCM: {file.reviewReason}</p> : null}
-              <ValidUntil key={`${file.id}:${file.expiresAt ?? ""}`} file={file} vm={vm} />
-            </SheetHeader>
-            <div className="min-h-0 flex-1"><PreviewBody file={file} session={session} /></div>
-            {objectId ? (
-              <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-                <Button type="button" size="sm" variant="outline" onClick={() => onDownloadObject(objectId)}><Download className="size-4" />Download</Button>
-                <ReplaceFile file={file} vm={vm} />
-              </div>
-            ) : null}
-          </>
-        ) : null}
-      </SheetContent>
-    </Sheet>
+    <FilePreviewSheet
+      open
+      onClose={vm.closePreview}
+      kind={file.kind}
+      name={file.name}
+      meta={[file.context, formatPortalDate(file.addedAt)].filter(Boolean).join(" · ")}
+      tall={Boolean(file.objectId) && (file.kind === "pdf" || file.kind === "image")}
+      frame={<PreviewFrame key={file.id} file={file} session={session} />}
+      footer={<PreviewActions file={file} vm={vm} onDownloadObject={onDownloadObject} />}
+    >
+      <FileReviewNote reason={file.reviewReason} />
+      <dl className="divide-y divide-border">
+        <FileDetail label="Status"><span className={FILE_TONE[file.tone]}>{file.status}</span></FileDetail>
+        <FileValidUntil
+          key={`${file.id}:${file.expiresAt ?? ""}`}
+          fileName={file.name}
+          expiresAt={file.expiresAt}
+          editable={Boolean(file.datable && file.objectId)}
+          busy={vm.saving}
+          onSave={(value) => void vm.setExpiry(file, value)}
+        />
+      </dl>
+    </FilePreviewSheet>
   );
 }
 

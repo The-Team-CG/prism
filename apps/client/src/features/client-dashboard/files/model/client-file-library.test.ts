@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { fileExpiry, fileKind, formatFileSize } from "@prism/ui/file-library";
 import type { PrismDocument, PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
 import {
   CLIENT_ARCHIVE_WARNING_BYTES,
   buildClientFileLibrary,
   clientArchiveEntries,
   clientArchiveTotalBytes,
-  clientFileExpiry,
   clientFileFilterForView,
-  clientFileKind,
   countClientFiles,
   filterClientLibrary,
-  formatFileSize,
   isNewClientFile,
   clientAccountFiles,
   sortClientLibrary,
@@ -80,7 +78,7 @@ describe("client file library", () => {
   });
 
   it("tells file types apart for icons and preview, and sorts by name or date", () => {
-    expect([clientFileKind("plan.PDF"), clientFileKind("photo", "image/jpeg"), clientFileKind("guests.xlsx"), clientFileKind("brief.docx"), clientFileKind("walkthrough.mov"), clientFileKind("archive.zip")])
+    expect([fileKind("plan.PDF"), fileKind("photo", "image/jpeg"), fileKind("guests.xlsx"), fileKind("brief.docx"), fileKind("walkthrough.mov"), fileKind("archive.zip")])
       .toEqual(["pdf", "image", "sheet", "document", "video", "other"]);
 
     const files = buildClientFileLibrary([], [doc("b", "other", "file-10.pdf", "2026-10-01T00:00:00Z"), doc("a", "other", "file-9.pdf", "2026-10-02T00:00:00Z")], []);
@@ -123,13 +121,13 @@ describe("client file library", () => {
     expect(permit?.expiresAt).toBe("2026-11-30T00:00:00.000Z");
 
     const now = new Date("2026-11-14T00:00:00Z");
-    expect(clientFileExpiry(null, now)).toBeNull();
-    expect(clientFileExpiry("2027-03-01T00:00:00.000Z", now)).toEqual({ label: "Valid until 2027-03-01", tone: "neutral", expired: false });
-    expect(clientFileExpiry("2026-11-30T00:00:00.000Z", now)).toEqual({ label: "Expires 2026-11-30", tone: "attention", expired: false });
-    expect(clientFileExpiry("2026-11-01T00:00:00.000Z", now)).toEqual({ label: "Expired 2026-11-01", tone: "urgent", expired: true });
+    expect(fileExpiry(null, now)).toBeNull();
+    expect(fileExpiry("2027-03-01T00:00:00.000Z", now)).toEqual({ label: "Valid until 2027-03-01", tone: "neutral", expired: false });
+    expect(fileExpiry("2026-11-30T00:00:00.000Z", now)).toEqual({ label: "Expires 2026-11-30", tone: "attention", expired: false });
+    expect(fileExpiry("2026-11-01T00:00:00.000Z", now)).toEqual({ label: "Expired 2026-11-01", tone: "urgent", expired: true });
     // Valid until 25 Nov (stored as midnight UTC): 9am Manila on the 25th is still valid; 00:30 Manila on the 26th is not.
-    expect(clientFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T01:00:00Z"))).toEqual({ label: "Expires 2026-11-25", tone: "attention", expired: false });
-    expect(clientFileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T16:30:00Z"))).toEqual({ label: "Expired 2026-11-25", tone: "urgent", expired: true });
+    expect(fileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T01:00:00Z"))).toEqual({ label: "Expires 2026-11-25", tone: "attention", expired: false });
+    expect(fileExpiry("2026-11-25T00:00:00.000Z", new Date("2026-11-25T16:30:00Z"))).toEqual({ label: "Expired 2026-11-25", tone: "urgent", expired: true });
   });
 
   it("labels an earlier upload that a newer file replaced, keeping PMCM's reason for it", () => {

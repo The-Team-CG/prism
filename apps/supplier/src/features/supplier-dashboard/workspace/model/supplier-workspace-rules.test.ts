@@ -33,7 +33,7 @@ import {
   supplierReadinessSection,
   supplierMessageEvents,
 } from "./supplier-workspace-rules";
-import { groupSupplierNextSteps, splitSupplierNextSteps, supplierStepFigure, supplierStepGroupTitle, supplierTodaySummary } from "./supplier-next-step";
+import { groupSupplierNextSteps, splitSupplierNextSteps, supplierRowStatus, supplierStepFigure, supplierStepGroupTitle, supplierTodaySummary } from "./supplier-next-step";
 import type { PrismFileRequirementsMatrix, PrismSupplierReadinessItem } from "@prism/types";
 import type { PrismSupplierQuote, PrismSupplierQuoteRequest, SupplierWorkspace } from "./supplier-workspace-types";
 import { supplierBookingHref, supplierWorkHref } from "./supplier-next-step";
@@ -258,6 +258,20 @@ describe("supplier-workspace-rules", () => {
     const groups = groupSupplierNextSteps([...contracts, ...steps.yourTurn], () => false);
     expect(groups[0].items.map((entry) => entry.requestId)).toEqual(["contract-a", "contract-b"]);
     expect(supplierStepGroupTitle(groups[0].title, groups[0].items.length)).toBe("2 contracts to upload");
+  });
+
+  it("gives each work row a short status: the quote deadline while bidding, then the arrival, then the event day", () => {
+    const now = new Date("2026-11-11T04:00:00Z");
+    const row = (fields: Partial<PrismSupplierReadinessItem>) => supplierRowStatus({ quoteStatus: "sent", dueAt: null, eventDate: null, schedule: null, ingressLate: false, ...fields } as PrismSupplierReadinessItem, now);
+    expect(row({ dueAt: "2026-11-04T09:00:00Z" })).toEqual({ label: "Overdue 7 days", tone: "urgent" });
+    expect(row({ dueAt: "2026-11-11T01:00:00Z" })).toEqual({ label: "Overdue", tone: "urgent" });
+    expect(row({ dueAt: "2026-11-13T09:00:00Z" })).toEqual({ label: "Due in 2 days", tone: "attention" });
+    expect(row({ dueAt: "2026-11-30T09:00:00Z" })).toEqual({ label: "Due in 19 days", tone: "neutral" });
+    const schedule = { ingressAt: "2026-11-24T00:00:00Z" } as PrismSupplierReadinessItem["schedule"];
+    expect(row({ quoteStatus: "selected", dueAt: "2026-11-04T09:00:00Z", schedule, eventDate: "2026-11-24" })).toEqual({ label: "Arrive Nov 24, 2026", tone: "neutral" });
+    expect(row({ quoteStatus: "selected", schedule, ingressLate: true })?.tone).toBe("urgent");
+    expect(row({ quoteStatus: "selected", eventDate: "2026-11-24" })).toEqual({ label: "Event Nov 24, 2026", tone: "neutral" });
+    expect(row({ quoteStatus: "selected" })).toBeNull();
   });
 
   it("shows the Today lead's number: days overdue or left on a quote deadline, else days to the event", () => {
