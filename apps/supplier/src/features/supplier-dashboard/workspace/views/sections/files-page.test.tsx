@@ -48,13 +48,13 @@ describe("supplier Files page", () => {
     useViewModel.mockReturnValue(vm);
     renderPage();
 
-    expect(screen.getByText("PMCM: Policy has expired")).toBeTruthy();
+    expect(screen.getByText("Policy has expired", { exact: false }).textContent).toBe("PMCM: Policy has expired");
     const file = new File(["%PDF"], "insurance-2026.pdf", { type: "application/pdf" });
-    fireEvent.drop(screen.getByText("Insurance certificate").closest("li")!, { dataTransfer: { files: [file] } });
+    fireEvent.drop(screen.getByText("Insurance certificate").closest("li")!, { dataTransfer: { files: [file], types: ["Files"] } });
     expect(vm.upload).toHaveBeenCalledWith("evt_gala", "insurance", file);
 
     expect(screen.getByRole("link", { name: "Open booking" }).getAttribute("href")).toContain("req_1");
-    fireEvent.drop(screen.getByText("Signed contract").closest("li")!, { dataTransfer: { files: [file] } });
+    fireEvent.drop(screen.getByText("Signed contract").closest("li")!, { dataTransfer: { files: [file], types: ["Files"] } });
     expect(vm.upload).toHaveBeenCalledTimes(1);
   });
 });

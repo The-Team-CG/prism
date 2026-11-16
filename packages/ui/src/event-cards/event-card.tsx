@@ -104,16 +104,16 @@ export function AttentionList({ lines, more = 0, link: Link = PlainLink }: { lin
 }
 
 /** Steps done out of all, as segments with a caption: "1 of 4 steps", and the step that is next. */
-export function StepProgress({ done, total, current }: { done: number; total: number; current?: string }) {
+export function StepProgress({ done, total, current, onInk = false }: { done: number; total: number; current?: string; /** Drawn on a dark hero panel. */ onInk?: boolean }) {
   if (total <= 0) return null;
   return (
     <div>
       <div role="img" aria-label={`${done} of ${total} steps done`} className="grid gap-1" style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}>
-        {Array.from({ length: total }, (_, index) => <span key={index} className={cn("h-1.5 rounded-full", index < done ? "bg-success" : "bg-muted")} />)}
+        {Array.from({ length: total }, (_, index) => <span key={index} className={cn("h-1.5 rounded-full", index < done ? "bg-success" : onInk ? "bg-ink-foreground/20" : "bg-muted")} />)}
       </div>
-      <div className="mt-1.5 flex justify-between gap-2 text-[11px] text-muted-foreground">
+      <div className={cn("mt-1.5 flex justify-between gap-2 text-[11px]", onInk ? "text-ink-foreground/70" : "text-muted-foreground")}>
         <span>{done} of {total} steps</span>
-        {current ? <span className="font-semibold text-foreground">{current}</span> : null}
+        {current ? <span className={cn("font-semibold", onInk ? "text-ink-foreground" : "text-foreground")}>{current}</span> : null}
       </div>
     </div>
   );
