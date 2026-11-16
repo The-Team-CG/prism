@@ -35,7 +35,7 @@ export type ClientLibraryFile = {
   addedAt: string | null;
   status: string;
   tone: ClientRowTone;
-  /** The stored file to download; PMCM-issued records without one open their event instead. */
+  /** The stored file to download; a PMCM-issued record without one is only previewed. */
   objectId?: string;
   /** The requirement this file was sent for, when it fulfils one. */
   requirementLabel?: string;

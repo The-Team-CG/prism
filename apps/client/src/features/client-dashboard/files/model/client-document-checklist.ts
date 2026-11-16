@@ -1,4 +1,5 @@
 import type { PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
+import type { FileTally } from "@prism/ui/file-library";
 
 export type ClientDocumentChecklistRow = {
   requirement: PrismFileRequirementItem;
@@ -49,4 +50,11 @@ export function clientRequirementReviewLabel(row: ClientDocumentChecklistRow): s
   if (requirement.status === "generated") return "Prepared by PMCM";
   if (requirement.status === "pending") return "In progress";
   return row.uploadable ? "Not uploaded yet" : "Not available yet";
+}
+
+/** For an event's Files card: the files the client is asked for, how many are still to send, and how many of those are late. */
+export function clientFileTally(requirements: PrismFileRequirementItem[]): FileTally {
+  const rows = buildClientDocumentChecklist(requirements, []).rows.filter((row) => row.uploadable);
+  const open = rows.filter((row) => row.needsClient);
+  return { total: rows.length, open: open.length, overdue: open.filter((row) => row.requirement.overdue).length };
 }

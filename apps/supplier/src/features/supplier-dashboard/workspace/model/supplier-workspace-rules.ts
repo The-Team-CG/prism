@@ -416,8 +416,8 @@ export function sectionMeta(
     },
     files: {
       eyebrow: "Files",
-      title: "Files & documents",
-      description: "What PMCM still needs from you, and every file you have sent PMCM.",
+      title: "Files",
+      description: "Every file for your bookings, and what PMCM still needs from you.",
     },
     payments: {
       eyebrow: "Payments",

@@ -3,22 +3,15 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { CountdownPill, EventCard, EventCardGrid, EventCardHeader, EventCover, StageTrack, StepProgress } from "@prism/ui/event-cards";
+import { EventCardGrid, EventCover } from "@prism/ui/event-cards";
+import { FileEventCard, type FileTally } from "@prism/ui/file-library";
 import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent, type PrismLifecycleStage } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@prism/ui/components/empty";
 import { Input } from "@prism/ui/components/input";
 import { SegmentedControl, type SegmentedOption } from "@/features/pmcm-kit";
-import { useEventCoverUrl, type SummaryLabel } from "@/features/pmcm-overview";
+import { useEventCoverUrl } from "@/features/pmcm-overview";
 import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
-
-/** How far along an event's work is, as steps done of all. */
-export type PickerProgress = { done: number; total: number };
-
-function RowDetail({ label }: { label: SummaryLabel | null }) {
-  if (!label) return null;
-  return <span className={label.urgent ? "mt-0.5 block text-xs font-medium text-attention" : "mt-0.5 block text-xs text-muted-foreground"}>{label.text}</span>;
-}
 
 type PickerEvent = Pick<PrismEvent, "id" | "eventName" | "clientName" | "eventDate" | "status" | "archived" | "actualEndedAt" | "clientPortalStatus" | "proposalClientStatus"> & Partial<Pick<PrismEvent, "eventType" | "coverObjectId">>;
 
@@ -39,35 +32,31 @@ function matchesQuery(event: PickerEvent, query: string) {
   return text.includes(query.trim().toLowerCase());
 }
 
-/** One event as a card, the same picture, date and stage as on Events, opening the section this page is about. */
-function PickerCard({ event, actionLabel, tab, todayKey, onOpenEvent, detail, progress }: {
+/** One event as the Files card every portal shares: picture, date, stage and how many requested files are in. */
+function PickerCard({ event, actionLabel, tab, todayKey, onOpenEvent, tally }: {
   event: PickerEvent;
   actionLabel: string;
   tab: DetailTab;
   todayKey: string;
   onOpenEvent: (eventId: string) => void;
-  detail: SummaryLabel | null;
-  progress: PickerProgress | null;
+  tally: FileTally | null;
 }) {
   const coverUrl = useEventCoverUrl(event.id, event.coverObjectId);
   const stage = derivePrismLifecycleStage(event);
   return (
-    <EventCard cover={<EventCover eventType={event.eventType} imageUrl={coverUrl} />}>
-      <EventCardHeader
-        onCover
-        date={event.eventDate ?? ""}
-        title={event.eventName}
-        titleLabel={`${actionLabel}: ${event.eventName}`}
-        href={eventWorkspaceHref(event.id, tab)}
-        onNavigate={() => onOpenEvent(event.id)}
-        details={[event.clientName || "—", formatPortalDate(event.eventDate, "—")].join(" · ")}
-        aside={event.eventDate && stage !== "closure_archive" ? <CountdownPill date={event.eventDate} todayKey={todayKey} /> : null}
-        muted={stage === "closure_archive"}
-      />
-      <StageTrack stage={stage} />
-      {progress ? <StepProgress done={progress.done} total={progress.total} /> : null}
-      <RowDetail label={detail} />
-    </EventCard>
+    <FileEventCard
+      cover={<EventCover eventType={event.eventType} imageUrl={coverUrl} />}
+      date={event.eventDate ?? null}
+      title={event.eventName}
+      titleLabel={`${actionLabel}: ${event.eventName}`}
+      href={eventWorkspaceHref(event.id, tab)}
+      onNavigate={() => onOpenEvent(event.id)}
+      details={[event.clientName || "—", formatPortalDate(event.eventDate, "—")].join(" · ")}
+      todayKey={todayKey}
+      finished={stage === "closure_archive"}
+      stage={stage}
+      tally={tally}
+    />
   );
 }
 
@@ -81,8 +70,7 @@ export function EventDestinationPicker({
   actionLabel,
   tab,
   onOpenEvent,
-  rowDetail,
-  rowProgress,
+  rowTally,
 }: {
   events: PickerEvent[];
   description: string;
@@ -90,10 +78,8 @@ export function EventDestinationPicker({
   /** The workspace section each row opens. */
   tab: DetailTab;
   onOpenEvent: (eventId: string) => void;
-  /** An extra line under each event, such as what it owes; absent or null shows nothing. */
-  rowDetail?: (event: PickerEvent) => SummaryLabel | null;
-  /** How far along each event's work is, drawn as steps on its card. */
-  rowProgress?: (event: PickerEvent) => PickerProgress | null;
+  /** How many of each event's requested files are in; null before it has loaded. */
+  rowTally?: (event: PickerEvent) => FileTally | null;
 }) {
   const todayKey = manilaDateKey();
   const [query, setQuery] = useState("");
@@ -162,7 +148,7 @@ export function EventDestinationPicker({
           </p>
           <EventCardGrid>
             {shown.map((event) => (
-              <PickerCard key={event.id} event={event} actionLabel={actionLabel} tab={tab} todayKey={todayKey} onOpenEvent={onOpenEvent} detail={rowDetail?.(event) ?? null} progress={rowProgress?.(event) ?? null} />
+              <PickerCard key={event.id} event={event} actionLabel={actionLabel} tab={tab} todayKey={todayKey} onOpenEvent={onOpenEvent} tally={rowTally?.(event) ?? null} />
             ))}
           </EventCardGrid>
           {rows.length > visible ? (

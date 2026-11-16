@@ -215,7 +215,7 @@ export function eventProgressDots(ev: PrismEvent, state: PrismClientWorkspace) {
       done: billing?.status === "approved" || billing?.status === "paid",
     },
     {
-      label: "Documents",
+      label: "Files",
       done:
         docs.length > 0 &&
         !docs.some((d) => /needs|pending|requested/i.test(d.status)),

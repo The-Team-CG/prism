@@ -20,3 +20,4 @@ export {
   type FilePreviewState,
   type FileSort,
 } from "./file-library";
+export { FileActionList, FileEventCard, FileEventHeading, FileLibraryPanel, fileEventHref, useFileEventChoice, type FileTally } from "./file-library-panel";

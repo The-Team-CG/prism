@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ClientPortalBillingView } from "../../billing/views/client-portal-billing-view";
-import { ClientFilesView } from "../../files/views/client-files-view";
+import { ClientEventFileLibrary, ClientFilesView } from "../../files/views/client-files-view";
 import { ClientAccountEventPicker } from "./sections/client-account-event-picker";
 
 const milestone = (id: string, label: string, dueDate: string, amount: number, paid: number) => ({
@@ -77,16 +77,24 @@ describe("account pages with multiple events", () => {
     expect(markup).toContain('href="/dashboard/events/event-b/billing"');
   });
 
-  it("opens Files on the next upcoming event with what it still needs, keeping past events listed for later", () => {
+  it("starts Files on a card per event saying how many requested files are in, keeping past events for later", () => {
     const markup = renderToStaticMarkup(createElement(ClientFilesView));
     expect(markup).toContain("Upcoming");
     expect(markup).toContain("Past");
-    expect(markup).toContain("Event B");
+    expect(markup).toContain('href="?event=event-a"');
+    expect(markup).toContain('href="?event=event-b"');
+    expect(markup).toContain("0 of 1 files in");
+    expect(markup).toContain("1 still needed");
+    expect(markup).not.toContain("run-of-show.pdf");
+  });
+
+  it("shows one event's library with what PMCM still needs and only that event's files", () => {
+    const markup = renderToStaticMarkup(createElement(ClientEventFileLibrary, { eventId: "event-a" }));
     expect(markup).toContain("Needed from you");
     expect(markup).toContain("Venue permit");
     expect(markup).toContain("run-of-show.pdf");
-    expect(markup).toContain('href="/dashboard/events/event-a/documents"');
     expect(markup).not.toContain("agreement.pdf");
+    expect(markup).not.toContain("All events");
   });
 
   it("links approvals to the chosen event instead of a temporary selection", () => {

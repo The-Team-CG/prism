@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { CheckCircle2, Download, FileText, LoaderCircle, Upload } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
-import { Card } from "@prism/ui/components/card";
 import { LoadingState } from "@prism/ui/components/loading-state";
+import { EventCardGrid, EventCover } from "@prism/ui/event-cards";
 import {
   FILE_TONE,
   FileDetail,
   FileDownloadButton,
+  FileEventCard,
+  FileEventHeading,
   FileFilterBar,
+  FileLibraryPanel,
   FileNeededList,
   FileNeededRow,
   FilePreviewFrame,
@@ -18,27 +21,29 @@ import {
   FileTable,
   FileTableRow,
   FileValidUntil,
+  fileEventHref,
   useFileDrop,
+  useFileEventChoice,
 } from "@prism/ui/file-library";
-import { formatPortalDate } from "@prism/ui/format-date";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { PrismEmptyLine, PrismPageColumn } from "@prism/ui/page-blocks";
 import type { PrismAuthenticatedSession, PrismSupplierReadinessBoard, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { formatDate } from "../../model/supplier-workspace-rules";
 import { supplierBookingHref } from "../../model/supplier-next-step";
 import type { SupplierWorkspace } from "../../model/supplier-workspace-types";
-import type { SupplierFileFilter, SupplierLibraryFile, SupplierNeededFile } from "../../model/supplier-file-library";
+import type { SupplierFileEvent, SupplierFileFilter, SupplierLibraryFile, SupplierNeededFile } from "../../model/supplier-file-library";
+import { useEventCoverUrl } from "../../view-models/use-event-cover-url";
 import { useSupplierFileLibraryViewModel, useSupplierFilePreview, type SupplierFileLibraryViewModel } from "../../view-models/use-supplier-file-library-view-model";
 
 const FILTERS: ReadonlyArray<{ id: SupplierFileFilter; label: string }> = [
   { id: "all", label: "All files" },
   { id: "booking", label: "Booking documents" },
   { id: "contract", label: "Contracts" },
-  { id: "certification", label: "Certifications" },
 ];
 
 function neededDetail(item: SupplierNeededFile) {
   const due = item.dueDate ? `Due ${formatDate(item.dueDate)}` : "No due date";
-  return [item.eventName, due, item.overdue ? "Overdue" : null].filter(Boolean).join(" · ");
+  return [due, item.overdue ? "Overdue" : null].filter(Boolean).join(" · ");
 }
 
 /** Sends a file for a requirement (or a newer one for a file PMCM has not approved yet). */
@@ -90,33 +95,38 @@ function NeededRow({ item, vm }: { item: SupplierNeededFile; vm: SupplierFileLib
   );
 }
 
-function NeededSection({ vm }: { vm: SupplierFileLibraryViewModel }) {
-  if (vm.status === "loading") return <LoadingState label="Loading what PMCM needs from you…" />;
+function Notices({ vm }: { vm: SupplierFileLibraryViewModel }) {
   const error = vm.error ?? vm.saveError;
   return (
     <>
       {error ? <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
       {vm.notice ? <p role="status" className="text-sm text-success">{vm.notice}</p> : null}
-      {vm.needed.length === 0 ? (
-        <p className="flex items-center gap-2 px-1 text-sm text-success">
-          <CheckCircle2 className="size-4" aria-hidden="true" /> Nothing needed from you right now. PMCM will ask here when a booking needs a file.
-        </p>
-      ) : (
-        <FileNeededList id="supplier-files-needed">
-          {vm.needed.map((item) => <NeededRow key={`${item.eventId}:${item.key}`} item={item} vm={vm} />)}
-        </FileNeededList>
-      )}
     </>
   );
 }
 
-function FileRow({ file, vm, onDownloadObject }: { file: SupplierLibraryFile; vm: SupplierFileLibraryViewModel; onDownloadObject: (objectId: string) => void }) {
+function NeededSection({ vm }: { vm: SupplierFileLibraryViewModel }) {
+  if (vm.needed.length === 0) {
+    return (
+      <p className="flex items-center gap-2 px-1 text-sm text-success">
+        <CheckCircle2 className="size-4" aria-hidden="true" /> Nothing needed from you for this booking. PMCM will ask here when it needs a file.
+      </p>
+    );
+  }
+  return (
+    <FileNeededList id="supplier-files-needed" count={vm.needed.length}>
+      {vm.needed.map((item) => <NeededRow key={`${item.eventId}:${item.key}`} item={item} vm={vm} />)}
+    </FileNeededList>
+  );
+}
+
+function FileRow({ file, vm, inEvent, onDownloadObject }: { file: SupplierLibraryFile; vm: SupplierFileLibraryViewModel; inEvent: boolean; onDownloadObject: (objectId: string) => void }) {
   const objectId = file.objectId;
   return (
     <FileTableRow
       kind={file.kind}
       name={file.name}
-      detail={file.context}
+      detail={inEvent ? file.purpose ?? file.context : file.context}
       from={file.group === "certification" ? "PMCM" : "You"}
       addedAt={file.addedAt}
       size={file.size}
@@ -127,26 +137,98 @@ function FileRow({ file, vm, onDownloadObject }: { file: SupplierLibraryFile; vm
   );
 }
 
-function FilesSection({ vm, onDownloadObject }: { vm: SupplierFileLibraryViewModel; onDownloadObject: (objectId: string) => void }) {
+function FileList({ vm, inEvent, empty, onDownloadObject }: { vm: SupplierFileLibraryViewModel; inEvent: boolean; empty: string; onDownloadObject: (objectId: string) => void }) {
+  if (vm.files.length === 0) {
+    return <div className="px-4 py-4"><PrismEmptyLine icon={FileText}>{vm.query || vm.filter !== "all" ? "No files match." : empty}</PrismEmptyLine></div>;
+  }
   return (
-    <Card role="region" aria-label="Your files" className="gap-0 overflow-hidden py-0">
-      <FileFilterBar
-        label="Show files"
-        filters={FILTERS.map((entry) => ({ ...entry, count: vm.counts[entry.id] }))}
-        value={vm.filter}
-        onChange={vm.setFilter}
-        query={vm.query}
-        onQuery={vm.setQuery}
-        searchLabel="Search your files"
-      />
-      {vm.files.length === 0 ? (
-        <div className="px-4 py-4"><PrismEmptyLine icon={FileText}>{vm.query || vm.filter !== "all" ? "No files match." : "No files yet. Files you send PMCM will be kept here."}</PrismEmptyLine></div>
+    <FileTable>
+      {vm.files.map((file) => <FileRow key={`${file.group}:${file.id}`} file={file} vm={vm} inEvent={inEvent} onDownloadObject={onDownloadObject} />)}
+    </FileTable>
+  );
+}
+
+function SupplierFileEventCard({ event, todayKey, onOpen }: { event: SupplierFileEvent; todayKey: string; onOpen: (eventId: string) => void }) {
+  const coverUrl = useEventCoverUrl(event.eventId, event.coverObjectId);
+  return (
+    <FileEventCard
+      cover={<EventCover eventType={event.eventType} imageUrl={coverUrl} />}
+      date={event.eventDate}
+      title={event.eventName}
+      titleLabel={`Open files: ${event.eventName}`}
+      href={fileEventHref(event.eventId)}
+      onNavigate={() => onOpen(event.eventId)}
+      details={[event.categories, "for PMCM"].filter(Boolean).join(" · ")}
+      todayKey={todayKey}
+      finished={event.past}
+      tally={event.tally}
+    />
+  );
+}
+
+function CardSection({ id, title, events, todayKey, onOpen }: { id: string; title: string; events: SupplierFileEvent[]; todayKey: string; onOpen: (eventId: string) => void }) {
+  if (events.length === 0) return null;
+  return (
+    <section aria-labelledby={id} className="grid gap-3">
+      <h2 id={id} className="flex items-baseline gap-2 text-base font-semibold text-foreground">{title}<span className="text-sm font-normal tabular-nums text-muted-foreground">{events.length}</span></h2>
+      <EventCardGrid>{events.map((event) => <SupplierFileEventCard key={event.eventId} event={event} todayKey={todayKey} onOpen={onOpen} />)}</EventCardGrid>
+    </section>
+  );
+}
+
+/** Files' start page: each booked event as the Files card every portal shares, then the certifications PMCM keeps on file. */
+function StartPage({ vm, onOpen, onDownloadObject }: { vm: SupplierFileLibraryViewModel; onOpen: (eventId: string) => void; onDownloadObject: (objectId: string) => void }) {
+  const todayKey = manilaDateKey();
+  return (
+    <>
+      <Notices vm={vm} />
+      {vm.events.length === 0 ? (
+        <PrismEmptyLine icon={FileText}>No bookings yet. The files PMCM asks for appear here once you are booked for an event.</PrismEmptyLine>
       ) : (
-        <FileTable>
-          {vm.files.map((file) => <FileRow key={`${file.group}:${file.id}`} file={file} vm={vm} onDownloadObject={onDownloadObject} />)}
-        </FileTable>
+        <>
+          <CardSection id="supplier-files-upcoming" title="Upcoming" events={vm.events.filter((event) => !event.past)} todayKey={todayKey} onOpen={onOpen} />
+          <CardSection id="supplier-files-past" title="Past" events={vm.events.filter((event) => event.past)} todayKey={todayKey} onOpen={onOpen} />
+        </>
       )}
-    </Card>
+      <FileLibraryPanel
+        title="Your supplier record"
+        description="Certifications PMCM keeps on file for you. They count for every booking."
+        files={<FileList vm={vm} inEvent={false} empty="PMCM has no certifications on file for you yet." onDownloadObject={onDownloadObject} />}
+      />
+    </>
+  );
+}
+
+/** One booked event's files, in the Library panel every portal shares. */
+function EventLibrary({ vm, event, onBack, onDownloadObject }: { vm: SupplierFileLibraryViewModel; event: SupplierFileEvent; onBack: () => void; onDownloadObject: (objectId: string) => void }) {
+  return (
+    <>
+      <FileEventHeading
+        title={event.eventName}
+        meta={[event.categories, event.eventDate ? formatPortalDate(event.eventDate) : "Date to be confirmed"].filter(Boolean).join(" · ")}
+        onBack={onBack}
+      />
+      <FileLibraryPanel
+        description="Everything you have sent PMCM for this booking. PMCM reviews each file."
+        files={(
+          <>
+            <FileFilterBar
+              label="Show files"
+              filters={FILTERS.map((entry) => ({ ...entry, count: vm.counts[entry.id] }))}
+              value={vm.filter}
+              onChange={vm.setFilter}
+              query={vm.query}
+              onQuery={vm.setQuery}
+              searchLabel="Search this booking's files"
+            />
+            <FileList vm={vm} inEvent empty="No files yet. Files you send PMCM for this booking are kept here." onDownloadObject={onDownloadObject} />
+          </>
+        )}
+      >
+        <Notices vm={vm} />
+        <NeededSection vm={vm} />
+      </FileLibraryPanel>
+    </>
   );
 }
 
@@ -201,7 +283,10 @@ function PreviewSheet({ vm, session, onDownloadObject }: { vm: SupplierFileLibra
   );
 }
 
-/** The supplier's files: what PMCM still needs first, then everything they have sent and what PMCM keeps on file. */
+/**
+ * The supplier's Files, drawn after PMCM's: every booked event as a card saying how many of the files PMCM asked for
+ * are in, then the chosen event's library with what PMCM still needs and every file sent for it.
+ */
 export function FilesPage({
   workspace,
   session,
@@ -215,11 +300,13 @@ export function FilesPage({
   readinessBoard: PrismSupplierReadinessBoard | null;
   onDownloadObject: (objectId: string) => void;
 }) {
-  const vm = useSupplierFileLibraryViewModel({ workspace, session, workflowWorkspace, readinessBoard });
+  const { eventId, choose } = useFileEventChoice();
+  const vm = useSupplierFileLibraryViewModel({ workspace, session, workflowWorkspace, readinessBoard, eventId });
   return (
     <PrismPageColumn>
-      <NeededSection vm={vm} />
-      <FilesSection vm={vm} onDownloadObject={onDownloadObject} />
+      {vm.status === "loading" ? <LoadingState label="Loading your files…" /> : null}
+      {vm.status !== "loading" && vm.event ? <EventLibrary vm={vm} event={vm.event} onBack={() => choose(null)} onDownloadObject={onDownloadObject} /> : null}
+      {vm.status !== "loading" && !vm.event ? <StartPage vm={vm} onOpen={choose} onDownloadObject={onDownloadObject} /> : null}
       <PreviewSheet vm={vm} session={session} onDownloadObject={onDownloadObject} />
     </PrismPageColumn>
   );

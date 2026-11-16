@@ -2,7 +2,7 @@
 
 import { useResource } from "@prism/portal-query";
 import { FileRequirementsMatrixPanel } from "@/features/files/matrix";
-import { fileSummaryLabel, pmcmFileSummaries } from "@/features/pmcm-overview";
+import { pmcmFileSummaries } from "@/features/pmcm-overview";
 import { PmcmFileLibraryView } from "@/features/files/library";
 import { EventFileHub } from "./event-file-hub";
 import { EventDestinationPicker } from "./event-destination-picker";
@@ -64,11 +64,7 @@ export function EventDashboardFilesSectionView() {
               actionLabel="Open files"
               tab="files"
               onOpenEvent={(eventId) => navigateEvent(eventId, "files")}
-              rowDetail={(event) => fileSummaryLabel(byEvent.get(event.id))}
-              rowProgress={(event) => {
-                const summary = byEvent.get(event.id);
-                return summary && summary.total > 0 ? { done: summary.total - summary.open, total: summary.total } : null;
-              }}
+              rowTally={(event) => byEvent.get(event.id) ?? null}
             />
           )
   );
