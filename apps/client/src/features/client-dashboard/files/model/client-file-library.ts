@@ -1,4 +1,5 @@
-import { storedFileExpiryDay, storedFileExpiryState, type PrismDocument, type PrismFileRequirementItem, type PrismStoredObject, type PrismSupplierRequirementVersion } from "@prism/types";
+import { fileKind, type FileKind } from "@prism/ui/file-library";
+import { type PrismDocument, type PrismFileRequirementItem, type PrismStoredObject, type PrismSupplierRequirementVersion } from "@prism/types";
 import type { ClientPortalView } from "../../workspace/model/client-dashboard-types";
 import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
 import type { ClientRowTone } from "../../shared/client-list-ui";
@@ -23,33 +24,10 @@ export function clientFileFilterForView(view: ClientPortalView | undefined): Cli
   return CLIENT_FILE_CATEGORIES.some((category) => category.id === view) ? (view as ClientFileFilter) : "all";
 }
 
-export type ClientFileKind = "pdf" | "image" | "sheet" | "document" | "video" | "other";
-
-const KIND_RULES: ReadonlyArray<{ kind: ClientFileKind; type: RegExp; extensions: readonly string[] }> = [
-  { kind: "pdf", type: /^application\/pdf$/, extensions: ["pdf"] },
-  { kind: "image", type: /^image\//, extensions: ["jpg", "jpeg", "png", "gif", "webp"] },
-  { kind: "video", type: /^video\//, extensions: ["mp4", "mov"] },
-  { kind: "sheet", type: /spreadsheet|excel|csv/, extensions: ["xlsx", "xls", "csv"] },
-  { kind: "document", type: /word|document|text/, extensions: ["docx", "doc", "txt", "pptx"] },
-];
-
-/** What a file is, from its stored type or, failing that, its extension. */
-export function clientFileKind(name: string, contentType = ""): ClientFileKind {
-  const type = contentType.toLowerCase();
-  const extension = name.toLowerCase().split(".").pop() ?? "";
-  return KIND_RULES.find((rule) => rule.type.test(type) || rule.extensions.includes(extension))?.kind ?? "other";
-}
-
-/** "118 KB", "4.2 MB". */
-export function formatFileSize(bytes: number | null | undefined) {
-  if (!bytes) return null;
-  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export type ClientLibraryFile = {
   id: string;
   name: string;
-  kind: ClientFileKind;
+  kind: FileKind;
   contentType?: string;
   size: number | null;
   category: ClientFileCategory;
@@ -76,18 +54,6 @@ export type ClientLibraryFile = {
   /** The last day the document is valid, when it has one. */
   expiresAt?: string | null;
 };
-
-export type ClientFileExpiry = { label: string; tone: ClientRowTone; expired: boolean };
-
-/** Whether a dated document is still valid: expired, expiring within a month, or valid until its date (Philippine day). */
-export function clientFileExpiry(expiresAt: string | null | undefined, now = new Date()): ClientFileExpiry | null {
-  if (!expiresAt) return null;
-  const date = storedFileExpiryDay(expiresAt);
-  const state = storedFileExpiryState(expiresAt, now);
-  if (state === "expired") return { label: `Expired ${date}`, tone: "urgent", expired: true };
-  if (state === "expiring") return { label: `Expires ${date}`, tone: "attention", expired: false };
-  return { label: `Valid until ${date}`, tone: "neutral", expired: false };
-}
 
 function uploaderLabel(role: string) {
   if (role === "client") return "You";
@@ -155,7 +121,7 @@ export function buildClientFileLibrary(objects: PrismStoredObject[], documents: 
       return {
         id: object.id,
         name: object.originalFileName,
-        kind: clientFileKind(object.originalFileName, object.contentType),
+        kind: fileKind(object.originalFileName, object.contentType),
         contentType: object.contentType,
         size: object.declaredByteSize || null,
         category: clientFileCategory(`${object.originalFileName} ${label} ${kind}`),
@@ -174,7 +140,7 @@ export function buildClientFileLibrary(objects: PrismStoredObject[], documents: 
     .map((document): ClientLibraryFile => ({
       id: document.id,
       name: document.fileName,
-      kind: clientFileKind(document.fileName),
+      kind: fileKind(document.fileName),
       size: null,
       category: clientFileCategory(`${document.type} ${document.fileName}`),
       addedBy: "PMCM",

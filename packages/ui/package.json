@@ -8,6 +8,7 @@
     "./blocks": "./src/blocks.tsx",
     "./spotify-music": "./src/spotify-music.tsx",
     "./page-blocks": "./src/page-blocks.tsx",
+    "./file-library": "./src/file-library/index.ts",
     "./figures": "./src/figures.ts",
     "./account-help": "./src/account-help.tsx",
     "./document-title": "./src/document-title.tsx",
