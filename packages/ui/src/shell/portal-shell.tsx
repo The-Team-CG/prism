@@ -503,7 +503,7 @@ export function PrismPortalShell({
             </div>
           </header>
           <div className={cn("mx-auto min-w-0 w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", contentClassName)}>
-            <div className={cn("mb-6 grid gap-1 rounded-lg bg-background/95 p-4", titleClassName)}>
+            <div className={cn("mb-5 grid gap-1", titleClassName)}>
               <h1 className="min-w-0 font-heading text-2xl font-semibold leading-tight text-foreground"><TruncatedText>{title}</TruncatedText></h1>
               {description ? <p className="max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
             </div>
