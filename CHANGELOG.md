@@ -52,6 +52,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- PMCM's Files start page, where an event is chosen, shows each event as the same card as on Events (picture, date, countdown, stage), with how many of its file requirements are met and, in orange, how many are open or overdue. It keeps its stage filters and search.
 - The lead card on the client home, the supplier's Today and both event overviews shows the event's picture: from a tablet up the cover fills the right half in full colour and fades into the dark card, with a drawn cover's icon large behind the figure, instead of being darkened until it was barely visible. On a phone it stays behind the text, darkened.
 - A supplier's opened booking leads with the same dark card over the event's cover that clients and PMCM see on an event's overview: the service and date, the days to go, how many of its steps are done, and the next step with its one-tap action (confirm the booking, acknowledge the schedule). Arrival, the next payout and what has been released sit under it, above the checklist.
 - A client's Billing & Payments and a supplier's Payments now share their figures and event cards (`MoneyTile`, `PaymentEventCard` in `@prism/ui/payment-track`): each event shows its name, where its money stands or the booking's terms, how much is paid of the total, and the schedule as one bar. The supplier page is titled Payments, like its menu item.

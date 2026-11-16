@@ -168,9 +168,11 @@ const TITLE_STYLE = "block font-semibold leading-snug text-foreground outline-no
  * The card's heading row: date tile, title (the card's link) with its details, and the countdown. `onNavigate` lets a
  * portal open the event through its own state (it still renders a real link for new tabs).
  */
-export function EventCardHeader({ date, title, href, details, aside, link: Link = PlainLink, onNavigate, muted = false, onCover = false }: {
+export function EventCardHeader({ date, title, titleLabel, href, details, aside, link: Link = PlainLink, onNavigate, muted = false, onCover = false }: {
   date: string;
   title: string;
+  /** What the title link says to a screen reader, when it names an action: "Open files: Gala Night". */
+  titleLabel?: string;
   href: string;
   details?: ReactNode;
   aside?: ReactNode;
@@ -185,8 +187,8 @@ export function EventCardHeader({ date, title, href, details, aside, link: Link 
       <DateTile date={date} muted={muted} raised={onCover} />
       <div className="min-w-0">
         {onNavigate
-          ? <a href={portalHref(href)} onClick={onPlainClick(onNavigate)} className={TITLE_STYLE}>{title}</a>
-          : <Link href={href} className={TITLE_STYLE}>{title}</Link>}
+          ? <a href={portalHref(href)} onClick={onPlainClick(onNavigate)} aria-label={titleLabel} className={TITLE_STYLE}>{title}</a>
+          : <Link href={href} aria-label={titleLabel} className={TITLE_STYLE}>{title}</Link>}
         {details ? <div className="mt-0.5 text-xs text-muted-foreground">{details}</div> : null}
       </div>
       {aside}
