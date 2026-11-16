@@ -1,14 +1,12 @@
 "use client";
 
-import { Download, LoaderCircle, Search, Upload } from "lucide-react";
+import { LoaderCircle, Upload } from "lucide-react";
 import { EVENT_FILE_CATEGORIES, type EventFileCategory, type PrismStoredObject } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
-import { Input } from "@prism/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
-import { formatPortalDate } from "@prism/ui/format-date";
-import { formatFileSize, pmcmFileExpiry, type PmcmFileFilter, type PmcmFileTone, type PmcmLibraryFile } from "../model/pmcm-file-library";
+import { FileDownloadButton, FileFilterBar, FileTable as SharedFileTable, FileTableRow } from "@prism/ui/file-library";
+import type { PmcmFileFilter, PmcmLibraryFile } from "../model/pmcm-file-library";
 import { usePmcmFileLibraryViewModel, type PmcmFileLibraryViewModel } from "../view-models/use-pmcm-file-library-view-model";
-import { PmcmFileKindIcon } from "./pmcm-file-kind-icon";
 import { PmcmFilePreviewSheet } from "./pmcm-file-preview-sheet";
 import { PmcmReviewQueue } from "./pmcm-review-queue";
 
@@ -19,15 +17,6 @@ const FILTERS: ReadonlyArray<{ id: PmcmFileFilter; label: string }> = [
   { id: "supplier", label: "From suppliers" },
   { id: "pmcm", label: "From PMCM" },
 ];
-
-const TONE: Record<PmcmFileTone, string> = {
-  attention: "text-attention",
-  urgent: "text-destructive",
-  done: "text-success",
-  neutral: "text-muted-foreground",
-};
-
-const TABLE_COLUMNS = "md:grid-cols-[minmax(0,2.4fr)_1fr_0.8fr_0.6fr_1fr_auto]";
 
 function UploadControls({ vm }: { vm: PmcmFileLibraryViewModel }) {
   const uploading = vm.busy === "upload";
@@ -59,58 +48,31 @@ function UploadControls({ vm }: { vm: PmcmFileLibraryViewModel }) {
 
 function FileFilters({ vm }: { vm: PmcmFileLibraryViewModel }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div role="group" aria-label="Show files" className="flex flex-wrap gap-1.5">
-        {FILTERS.map((entry) => (
-          <Button
-            key={entry.id}
-            type="button"
-            size="sm"
-            variant={vm.filter === entry.id ? "secondary" : "ghost"}
-            aria-pressed={vm.filter === entry.id}
-            onClick={() => vm.setFilter(entry.id)}
-          >
-            {entry.label}
-            <span className="tabular-nums text-muted-foreground">{vm.counts[entry.id]}</span>
-          </Button>
-        ))}
-      </div>
-      <label className="relative block w-full sm:w-64">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-        <Input type="search" value={vm.query} onChange={(event) => vm.setQuery(event.target.value)} placeholder="Search files" aria-label="Search this event's files" className="pl-8" />
-      </label>
-    </div>
+    <FileFilterBar
+      label="Show files"
+      filters={FILTERS.map((entry) => ({ ...entry, count: vm.counts[entry.id] }))}
+      value={vm.filter}
+      onChange={vm.setFilter}
+      query={vm.query}
+      onQuery={vm.setQuery}
+      searchLabel="Search this event's files"
+    />
   );
-}
-
-/** A dated document's validity under its status, once it is close to expiring or already has. */
-function ExpiryLabel({ expiresAt }: { expiresAt: string | null }) {
-  const expiry = pmcmFileExpiry(expiresAt);
-  if (!expiry || expiry.tone === "neutral") return null;
-  return <span className={`block text-xs ${TONE[expiry.tone]}`}>{expiry.label}</span>;
 }
 
 function FileRow({ file, vm }: { file: PmcmLibraryFile; vm: PmcmFileLibraryViewModel }) {
   return (
-    <li className={`grid grid-cols-[1fr_auto] items-center gap-3 py-3 ${TABLE_COLUMNS}`}>
-      <button type="button" className="flex min-w-0 items-center gap-3 text-left" aria-label={`Preview ${file.name}`} onClick={() => vm.openPreview(file.id)}>
-        <PmcmFileKindIcon kind={file.kind} />
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold text-foreground">{file.name}</span>
-          {file.label ? <span className="block truncate text-xs text-muted-foreground">{file.label}</span> : null}
-        </span>
-      </button>
-      <span className="hidden truncate text-sm text-muted-foreground md:block">{file.from}</span>
-      <span className="hidden text-sm text-muted-foreground md:block">{formatPortalDate(file.addedAt)}</span>
-      <span className="hidden text-sm tabular-nums text-muted-foreground md:block">{formatFileSize(file.size)}</span>
-      <span className="hidden min-w-0 md:block">
-        <span className={`block text-sm font-medium ${TONE[file.tone]}`}>{file.status}</span>
-        <ExpiryLabel expiresAt={file.expiresAt} />
-      </span>
-      <Button type="button" variant="ghost" size="icon" aria-label={`Download ${file.name}`} disabled={vm.busy !== null} onClick={() => void vm.download(file.id)}>
-        {vm.busy === `download:${file.id}` ? <LoaderCircle className="size-4 animate-spin" /> : <Download className="size-4" />}
-      </Button>
-    </li>
+    <FileTableRow
+      kind={file.kind}
+      name={file.name}
+      detail={file.label}
+      from={file.from}
+      addedAt={file.addedAt}
+      size={file.size}
+      status={{ label: file.status, tone: file.tone, expiresAt: file.expiresAt }}
+      onOpen={() => vm.openPreview(file.id)}
+      action={<FileDownloadButton label={`Download ${file.name}`} busy={vm.busy === `download:${file.id}`} disabled={vm.busy !== null} onClick={() => void vm.download(file.id)} />}
+    />
   );
 }
 
@@ -120,22 +82,12 @@ function emptyMessage(vm: PmcmFileLibraryViewModel) {
 }
 
 function FileTable({ vm }: { vm: PmcmFileLibraryViewModel }) {
-  if (vm.loading) return <p role="status" className="py-6 text-sm text-muted-foreground">Loading files…</p>;
-  if (!vm.files.length) return <p className="py-6 text-sm text-muted-foreground">{emptyMessage(vm)}</p>;
+  if (vm.loading) return <p role="status" className="px-4 py-6 text-sm text-muted-foreground">Loading files…</p>;
+  if (!vm.files.length) return <p className="px-4 py-6 text-sm text-muted-foreground">{emptyMessage(vm)}</p>;
   return (
-    <div>
-      <div className={`hidden gap-3 border-b border-border pb-2 text-xs font-medium text-muted-foreground md:grid ${TABLE_COLUMNS}`}>
-        <span>Name</span>
-        <span>From</span>
-        <span>Added</span>
-        <span>Size</span>
-        <span>Status</span>
-        <span className="w-9" />
-      </div>
-      <ul className="divide-y divide-border">
-        {vm.files.map((file) => <FileRow key={file.id} file={file} vm={vm} />)}
-      </ul>
-    </div>
+    <SharedFileTable>
+      {vm.files.map((file) => <FileRow key={file.id} file={file} vm={vm} />)}
+    </SharedFileTable>
   );
 }
 
@@ -181,8 +133,10 @@ export function PmcmFileLibraryView({ eventId, coverObjectId = null, onCoverChan
       </div>
       <Messages vm={vm} />
       <PmcmReviewQueue vm={vm} />
-      <FileFilters vm={vm} />
-      <FileTable vm={vm} />
+      <div role="region" aria-label="Files" className="-mx-5 border-y border-border">
+        <FileFilters vm={vm} />
+        <FileTable vm={vm} />
+      </div>
       <UnfinishedUploads uploads={vm.unfinished} />
       <PmcmFilePreviewSheet vm={vm} />
     </section>
