@@ -27,6 +27,7 @@ import { Button } from "@prism/ui/components/button";
 import { cx } from "@/features/pmcm-kit";
 import { LoadingState } from "@prism/ui/components/loading-state";
 import { Card } from "@prism/ui/components/card";
+import { PrismListCluster, PrismListRow, type PrismListTone } from "@prism/ui/action-list";
 
 const KIND_ICON: Record<PrismCommandInboxKind, LucideIcon> = {
   inquiry: FileSignature,
@@ -48,75 +49,39 @@ const KIND_ICON: Record<PrismCommandInboxKind, LucideIcon> = {
 type InboxTriage = ReturnType<typeof selectCommandInboxTriage>;
 type GroupBy = "priority" | "event";
 
-const SEVERITY_BAR: Record<PrismCommandInboxItem["severity"], string> = { critical: "border-l-danger", warning: "border-l-attention", attention: "border-l-attention", info: "border-l-transparent" };
-const SEVERITY_TILE: Record<PrismCommandInboxItem["severity"], string> = { critical: "bg-danger-soft text-danger", warning: "bg-attention-soft text-attention", attention: "bg-attention-soft text-attention", info: "bg-muted text-muted-foreground" };
+const SEVERITY_TONE: Record<PrismCommandInboxItem["severity"], PrismListTone> = { critical: "urgent", warning: "attention", attention: "attention", info: "neutral" };
 
-function dueTone(days: number, urgent: boolean) {
-  if (days < 0 || (urgent && days === 0)) return "font-semibold text-danger";
-  return days <= 1 ? "font-medium text-attention" : "text-muted-foreground";
+function dueTone(days: number, urgent: boolean): PrismListTone {
+  if (days < 0 || (urgent && days === 0)) return "urgent";
+  return days <= 1 ? "attention" : "neutral";
 }
 
 /** Due phrase when the item has a deadline, otherwise when it was added. */
-function InboxRowWhen({ item, todayKey }: { item: PrismCommandInboxItem; todayKey: string }) {
+export function inboxRowWhen(item: Pick<PrismCommandInboxItem, "dueAt" | "createdAt" | "severity">, todayKey: string): { label: string; tone: PrismListTone; title?: string } | null {
   const days = item.dueAt ? daysUntil(manilaCalendarKey(item.dueAt), todayKey) : null;
-  if (days !== null) {
-    return (
-      <span title={item.dueAt ? formatPortalDateTime(item.dueAt) : undefined} className={cx("tabular-nums", dueTone(days, item.severity === "critical"))}>
-        {dueLabel(days)}
-      </span>
-    );
-  }
+  if (days !== null && item.dueAt) return { label: dueLabel(days), tone: dueTone(days, item.severity === "critical"), title: formatPortalDateTime(item.dueAt) };
   if (!item.createdAt) return null;
-  return <span title={formatPortalDateTime(item.createdAt)} className="text-muted-foreground">Added {formatPortalDate(item.createdAt)}</span>;
-}
-
-function InboxRowTitle({ item }: { item: PrismCommandInboxItem }) {
-  return (
-    <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
-      {item.href ? (
-        <Link href={item.href} className="truncate outline-none after:absolute after:inset-0">
-          {item.label}
-        </Link>
-      ) : (
-        <span className="truncate">{item.label}</span>
-      )}
-      {item.severity === "critical" ? <span className="shrink-0 rounded bg-danger-soft px-1.5 py-0.5 text-xs font-medium text-danger">Blocker</span> : null}
-    </p>
-  );
+  return { label: `Added ${formatPortalDate(item.createdAt)}`, tone: "neutral", title: formatPortalDateTime(item.createdAt) };
 }
 
 function InboxRow({ item, todayKey }: { item: PrismCommandInboxItem; todayKey: string }) {
-  const Icon = KIND_ICON[item.kind] ?? Inbox;
-  const meta = [COMMAND_INBOX_AREA_LABEL[item.kind], item.eventName, item.clientName, item.description].filter(Boolean).join(" · ");
+  const when = inboxRowWhen(item, todayKey);
   return (
-    <li
-      data-testid="command-inbox-row"
-      className={cx(
-        "relative grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 gap-y-1 border-l-[3px] py-3 pl-3 pr-4 transition-colors hover:bg-surface-raised has-[a:focus-visible]:bg-surface-raised sm:grid-cols-[2rem_minmax(0,1fr)_9rem_11.5rem] sm:items-center",
-        SEVERITY_BAR[item.severity],
-      )}
-    >
-      <span aria-hidden className={cx("grid size-8 place-items-center rounded-md", SEVERITY_TILE[item.severity])}>
-        <Icon className="size-4" />
-      </span>
-      <div className="min-w-0">
-        <InboxRowTitle item={item} />
-        <p className="truncate text-xs text-muted-foreground" title={item.description || undefined}>{meta}</p>
-      </div>
-      <p className="col-start-2 whitespace-nowrap text-xs sm:col-start-auto sm:text-sm">
-        <InboxRowWhen item={item} todayKey={todayKey} />
-      </p>
-      <span className="col-start-2 flex items-center justify-start gap-1 whitespace-nowrap text-sm font-medium text-primary sm:col-start-auto sm:justify-end">
-        {item.href ? (
-          <>
-            {COMMAND_INBOX_ACTION_LABEL[item.kind]}
-            <ChevronRight className="size-4" aria-hidden />
-          </>
-        ) : (
-          <span className="text-xs font-normal text-muted-foreground">No action link</span>
-        )}
-      </span>
-    </li>
+    <PrismListRow
+      testId="command-inbox-row"
+      icon={KIND_ICON[item.kind] ?? Inbox}
+      tone={SEVERITY_TONE[item.severity]}
+      title={item.label}
+      tag={item.severity === "critical" ? "Blocker" : undefined}
+      meta={[COMMAND_INBOX_AREA_LABEL[item.kind], item.eventName, item.clientName, item.description].filter(Boolean).join(" · ")}
+      metaTitle={item.description || undefined}
+      status={when?.label}
+      statusTone={when?.tone}
+      statusTitle={when?.title}
+      action={COMMAND_INBOX_ACTION_LABEL[item.kind]}
+      href={item.href}
+      link={Link}
+    />
   );
 }
 
@@ -141,35 +106,18 @@ export function clusterInboxItems(items: PrismCommandInboxItem[]) {
 
 function InboxCluster({ items, todayKey }: { items: PrismCommandInboxItem[]; todayKey: string }) {
   const [first] = items;
-  const Icon = KIND_ICON[first.kind] ?? Inbox;
   const events = new Set(items.map((item) => item.eventName).filter(Boolean)).size;
   return (
-    <li data-testid="command-inbox-cluster" className={cx("border-l-[3px]", SEVERITY_BAR[first.severity])}>
-      <details className="group">
-        <summary className="grid cursor-pointer list-none grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-3 py-3 pl-3 pr-4 hover:bg-surface-raised">
-          <span aria-hidden className={cx("grid size-8 place-items-center rounded-md", SEVERITY_TILE[first.severity])}>
-            <Icon className="size-4" />
-          </span>
-          <span className="min-w-0">
-            <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-              {items.length} × {first.label}
-              {first.severity === "critical" ? <span className="shrink-0 rounded bg-danger-soft px-1.5 py-0.5 text-xs font-medium text-danger">Blocker</span> : null}
-            </span>
-            <span className="block truncate text-xs text-muted-foreground">
-              {COMMAND_INBOX_AREA_LABEL[first.kind]}{events > 0 ? ` · across ${events} event${events === 1 ? "" : "s"}` : ""}
-            </span>
-          </span>
-          <span className="flex items-center gap-1 text-sm font-medium text-primary">
-            <span className="group-open:hidden">Show all</span>
-            <span className="hidden group-open:inline">Hide</span>
-            <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
-          </span>
-        </summary>
-        <ul className="divide-y divide-border border-t border-border bg-muted/20">
-          {items.map((item) => <InboxRow key={item.id} item={item} todayKey={todayKey} />)}
-        </ul>
-      </details>
-    </li>
+    <PrismListCluster
+      testId="command-inbox-cluster"
+      icon={KIND_ICON[first.kind] ?? Inbox}
+      tone={SEVERITY_TONE[first.severity]}
+      title={`${items.length} × ${first.label}`}
+      tag={first.severity === "critical" ? "Blocker" : undefined}
+      meta={`${COMMAND_INBOX_AREA_LABEL[first.kind]}${events > 0 ? ` · across ${events} event${events === 1 ? "" : "s"}` : ""}`}
+    >
+      {items.map((item) => <InboxRow key={item.id} item={item} todayKey={todayKey} />)}
+    </PrismListCluster>
   );
 }
 
