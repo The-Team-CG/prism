@@ -4,7 +4,7 @@ import { Eye } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { Checkbox } from "@prism/ui/components/checkbox";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { FileKindIcon, fileKind } from "@prism/ui/file-library";
+import { FileActionList, FileKindIcon, fileKind } from "@prism/ui/file-library";
 import type { PmcmReviewEntry } from "../model/pmcm-file-library";
 import type { PmcmFileLibraryViewModel } from "../view-models/use-pmcm-file-library-view-model";
 import { PmcmRejectForm } from "./pmcm-reject-form";
@@ -33,19 +33,15 @@ export function PmcmReviewQueue({ vm }: { vm: PmcmFileLibraryViewModel }) {
   if (!vm.queue.length) return null;
   const allSelected = vm.selected.size === vm.queue.length;
   return (
-    <section aria-label="Waiting for review" className="rounded-lg border border-attention/30 bg-attention-soft/40 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Checkbox aria-label="Select every file waiting for review" checked={allSelected} onCheckedChange={vm.toggleAll} />
-          <h3 className="text-sm font-semibold text-foreground">Waiting for review <span className="text-attention">{vm.queue.length}</span></h3>
-        </div>
-        {vm.selected.size ? (
-          <Button type="button" size="sm" disabled={vm.busy !== null} onClick={() => void vm.approveSelected()}>Approve {vm.selected.size} selected</Button>
-        ) : <p className="text-xs text-muted-foreground">Open a file to check it before you decide.</p>}
-      </div>
-      <ul className="mt-1 divide-y divide-border">
-        {vm.queue.map((entry) => <ReviewRow key={entry.documentId} entry={entry} vm={vm} />)}
-      </ul>
-    </section>
+    <FileActionList
+      title="Waiting for review"
+      count={vm.queue.length}
+      lead={<Checkbox aria-label="Select every file waiting for review" checked={allSelected} onCheckedChange={vm.toggleAll} />}
+      aside={vm.selected.size ? (
+        <Button type="button" size="sm" disabled={vm.busy !== null} onClick={() => void vm.approveSelected()}>Approve {vm.selected.size} selected</Button>
+      ) : <p className="text-xs text-muted-foreground">Open a file to check it before you decide.</p>}
+    >
+      {vm.queue.map((entry) => <ReviewRow key={entry.documentId} entry={entry} vm={vm} />)}
+    </FileActionList>
   );
 }

@@ -101,7 +101,7 @@ export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
   { id: "event-floorplan", label: "Floor plan", route: "floorplan", requiresEvent: true, eventScoped: true },
   { id: "event-approvals", label: "Approvals", route: "approvals", requiresEvent: true, eventScoped: true },
   { id: "event-billing", label: "Billing", route: "billing", requiresEvent: true, eventScoped: true },
-  { id: "event-files", label: "Documents", route: "documents", requiresEvent: true, eventScoped: true },
+  { id: "event-files", label: "Files", route: "documents", requiresEvent: true, eventScoped: true },
   { id: "event-messages", label: "Messages", route: "messages", requiresEvent: true, eventScoped: true },
   { id: "event-closeout", label: "Closeout & feedback", route: "summary", requiresEvent: true, eventScoped: true },
 ];

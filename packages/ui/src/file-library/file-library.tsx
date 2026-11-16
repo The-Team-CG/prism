@@ -1,13 +1,14 @@
 "use client";
 
 import { useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Download, File, FileImage, FileSpreadsheet, FileText, FileVideo, LoaderCircle, Search, type LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Download, File, FileImage, FileSpreadsheet, FileText, FileUp, FileVideo, LoaderCircle, Search, type LucideIcon } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../components/ui/sheet";
 import { formatPortalDate } from "../format-date";
 import { cn } from "../utils";
 import { fileExpiry, formatFileSize, type FileKind, type FileTone } from "./file-model";
+import { FileActionList } from "./file-library-panel";
 
 /**
  * The file library every portal shares: one table of files (type icon, name, who added it, when, size, status), one
@@ -300,16 +301,12 @@ export function FilePreviewSheet({ open, onClose, kind, name, meta, onStep, canS
   );
 }
 
-/** What a portal still owes PMCM: a titled card of requested files, each taking a dropped file. */
-export function FileNeededList({ id, title = "Needed from you", hint = "Drop a file on an item to send it", children }: { id: string; title?: string; hint?: string; children: ReactNode }) {
+/** What a portal still owes PMCM, in the same box as PMCM's files waiting for review; each item takes a dropped file. */
+export function FileNeededList({ id, count, title = "Needed from you", hint = "Drop a file on an item to send it", children }: { id: string; count: number; title?: string; hint?: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={id} className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
-      <header className="flex items-baseline justify-between gap-2 border-b border-border px-4 py-3">
-        <h3 id={id} className="text-sm font-semibold text-foreground">{title}</h3>
-        <span className="hidden text-xs text-muted-foreground sm:inline">{hint}</span>
-      </header>
-      <ul className="divide-y divide-border">{children}</ul>
-    </section>
+    <FileActionList id={id} title={title} count={count} aside={<p className="hidden text-xs text-muted-foreground sm:block">{hint}</p>}>
+      {children}
+    </FileActionList>
   );
 }
 
@@ -372,14 +369,16 @@ export function FileNeededRow({ label, detail, urgent, note, drop, actions }: {
     <li
       {...drop?.props}
       className={cn(
-        "flex flex-wrap items-center gap-x-3 gap-y-2 border-l-[3px] py-3 pl-3 pr-4 transition-colors",
-        urgent ? "border-l-danger" : "border-l-attention",
-        drop?.over && "bg-primary/5 outline outline-2 -outline-offset-2 outline-primary/40",
+        "-mx-2 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md px-2 py-3 transition-colors",
+        drop?.over && "bg-primary/5 outline-2 -outline-offset-2 outline-primary/40",
       )}
     >
-      <div className="w-full min-w-0 sm:w-auto sm:flex-1">
+      <span aria-hidden="true" className={cn("grid size-8 shrink-0 place-items-center rounded-md", urgent ? "bg-danger-soft text-danger" : "bg-attention-soft text-attention")}>
+        <FileUp className="size-4" />
+      </span>
+      <div className="min-w-0 flex-1 basis-48">
         <p className="text-sm font-semibold text-foreground">{label}</p>
-        <p className={cn("mt-0.5 text-sm", urgent ? "text-danger" : "text-muted-foreground")}>{detail}</p>
+        <p className={cn("text-xs", urgent ? "text-danger" : "text-muted-foreground")}>{detail}</p>
         {note ? <p className="mt-1 text-sm text-foreground"><span className="text-muted-foreground">PMCM:</span> {note}</p> : null}
         {drop?.over ? <p className="mt-1 text-xs font-medium text-primary">Drop to send for {label}</p> : null}
       </div>

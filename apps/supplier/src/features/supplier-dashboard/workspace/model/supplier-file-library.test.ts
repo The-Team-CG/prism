@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PrismFileRequirementItem, PrismSupplierCertification, PrismSupplierContractVersion } from "@prism/types";
-import { buildSupplierFileLibrary, buildSupplierNeededFiles, countSupplierFiles, filterSupplierFiles } from "./supplier-file-library";
+import type { PrismSupplierReadinessItem } from "@prism/types";
+import { buildSupplierFileEvents, buildSupplierFileLibrary, buildSupplierNeededFiles, countSupplierFiles, filterSupplierFiles } from "./supplier-file-library";
 import type { SupplierFileRequirementRow } from "./supplier-workspace-rules";
 
 const eventNames = new Map([["evt_gala", "Founders Gala"]]);
@@ -69,5 +70,27 @@ describe("supplier file library", () => {
     expect(files.find((file) => file.id === "ctr_1")?.datable).toBeUndefined();
     // The supplier can send a newer file for a requirement PMCM has not approved, from its current file only.
     expect(files.filter((file) => file.replaces).map((file) => [file.name, file.replaces?.key])).toEqual([["insurance-2025.pdf", "insurance"]]);
+  });
+
+  it("lists each booked event once with how many asked-for files are in, upcoming first, and keeps files to their event", () => {
+    const booking = (patch: Partial<PrismSupplierReadinessItem>) => ({ eventId: "evt_gala", eventName: "Founders Gala", eventDate: "2026-11-30", category: "Catering", quoteStatus: "selected", ...patch }) as PrismSupplierReadinessItem;
+    const pmcmOwned = row({ key: "venue_permit", origin: "derived" as never, ownerRole: "pmcm-admin" as never });
+    const events = buildSupplierFileEvents(
+      [insuranceSentBack, permitApproved, contractMissing, pmcmOwned],
+      [
+        booking({}),
+        booking({ requestId: "req_2", category: "Lights" }),
+        booking({ eventId: "evt_launch", eventName: "Store Launch", eventDate: "2026-10-01" }),
+        booking({ eventId: "evt_bid", quoteStatus: "submitted" }),
+      ],
+      "2026-11-16",
+    );
+
+    expect(events.map((event) => [event.eventName, event.categories, event.past])).toEqual([["Founders Gala", "Catering, Lights", false], ["Store Launch", "Catering", true]]);
+    expect(events[0].tally).toEqual({ total: 3, open: 2, overdue: 1 });
+    expect(events[1].tally).toEqual({ total: 0, open: 0, overdue: 0 });
+
+    const files = buildSupplierFileLibrary({ rows: [permitApproved], contracts: [contract], certifications, eventNames });
+    expect(files.map((file) => [file.group, file.eventId])).toEqual([["contract", "evt_gala"], ["booking", "evt_gala"], ["certification", undefined], ["certification", undefined]]);
   });
 });

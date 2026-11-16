@@ -126,7 +126,7 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
   proposal: renderProposal,
   approvals: () => <ClientApprovalsView />,
   floorplan: () => <ClientFloorPlanView />,
-  documents: (ctx) => <ClientDocumentsTab documents={ctx.documents} />,
+  documents: () => <ClientDocumentsTab />,
   billing: (ctx) => <ClientBillingTab eventId={ctx.selectedEvent?.id} eventName={ctx.selectedEvent?.eventName} payments={ctx.payments} billing={ctx.billing} disputes={ctx.disputes} />,
   messages: () => <ClientMessagesView />,
   changes: renderChanges,

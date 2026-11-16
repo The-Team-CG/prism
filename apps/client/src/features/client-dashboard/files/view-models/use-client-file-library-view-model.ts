@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useInvalidate, useResource } from "@prism/portal-query";
 import { selectClientEventHistoryEvents, useClientWorkspace } from "../../workspace/shared";
-import { isPastClientEvent, orderClientEvents } from "../../home/model/client-home-summary";
+import { orderClientEvents } from "../../home/model/client-home-summary";
 import { clientEventFileRequirements, clientEventStoredFiles } from "../data/client-file-library-resources";
 import { buildClientDocumentChecklist } from "../model/client-document-checklist";
 import {
@@ -31,14 +31,20 @@ function uploadNotice(sent: string[], requirementLabel: string | undefined, even
   return sent.length === 1 ? `${sent[0]} added to ${eventName}.` : `${sent.length} files added to ${eventName}.`;
 }
 
+/** The client's events for Files: upcoming first, then past ones kept for later reference. */
+export function useClientFileEvents() {
+  const { state, session } = useClientWorkspace();
+  return useMemo(() => orderClientEvents(selectClientEventHistoryEvents(state, session)), [state, session]);
+}
+
 /**
- * The client's file library: every event (upcoming first, then past for later reference), and for the chosen
- * one what PMCM still needs from the client above all of its files on fixed shelves.
+ * One event's file library for the client: what PMCM still needs from them above all of the event's files on fixed
+ * shelves. `openEvent`, when given, lets a search across every event open a match in its own event.
  */
-export function useClientFileLibraryViewModel() {
+export function useClientFileLibraryViewModel(chosenEventId: string, openEvent?: (eventId: string) => void) {
   const { state, session, portalView } = useClientWorkspace();
-  const events = useMemo(() => orderClientEvents(selectClientEventHistoryEvents(state, session)), [state, session]);
-  const [chosenEventId, setChosenEventId] = useState<string | null>(null);
+  const events = useClientFileEvents();
+  const [shownEventId, setShownEventId] = useState(chosenEventId);
   const [filter, setFilter] = useState<ClientFileFilter>(() => clientFileFilterForView(portalView));
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
@@ -58,7 +64,7 @@ export function useClientFileLibraryViewModel() {
   const uploadAttempts = useRef(new Map<string, string>());
   const invalidate = useInvalidate();
 
-  const event = events.find((entry) => entry.id === chosenEventId) ?? events[0];
+  const event = events.find((entry) => entry.id === chosenEventId);
   const eventId = event?.id ?? null;
   const objects = useResource(clientEventStoredFiles, eventId);
   const requirements = useResource(clientEventFileRequirements, eventId);
@@ -80,12 +86,9 @@ export function useClientFileLibraryViewModel() {
 
   const visibleFiles = useMemo(() => sortClientLibrary(filterClientLibrary(files, filter, query), sort), [files, filter, query, sort]);
 
-  function chooseEvent(id: string) {
-    setChosenEventId(id);
+  if (shownEventId !== chosenEventId) {
+    setShownEventId(chosenEventId);
     setArchiveWarning(null);
-    setPreviewId(null);
-    setSearchAll(false);
-    setQuery("");
     setError(null);
     setNotice(null);
   }
@@ -150,9 +153,11 @@ export function useClientFileLibraryViewModel() {
   /** Opens an account-wide search result in its own event, with its preview. */
   function openSearchResult(file: ClientLibraryFile) {
     if (!file.eventId) return;
-    chooseEvent(file.eventId);
+    setSearchAll(false);
+    setQuery("");
     setFilter("all");
     setPreviewId(file.id);
+    if (file.eventId !== eventId) openEvent?.(file.eventId);
   }
 
   /** Sends a copy of a file from another event for one of this event's requirements. */
@@ -234,10 +239,7 @@ export function useClientFileLibraryViewModel() {
 
   return {
     events,
-    upcomingEvents: events.filter((entry) => !isPastClientEvent(entry)),
-    pastEvents: events.filter(isPastClientEvent),
     event,
-    chooseEvent,
     filter,
     setFilter,
     query,
@@ -263,6 +265,7 @@ export function useClientFileLibraryViewModel() {
     dismissArchiveWarning: () => setArchiveWarning(null),
     searchAll,
     setSearchAll,
+    canSearchAll: Boolean(openEvent) && events.length > 1,
     accountResults: accountSearch.files,
     accountLoading: accountSearch.loading,
     openSearchResult,

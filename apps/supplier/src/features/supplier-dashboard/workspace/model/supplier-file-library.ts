@@ -1,5 +1,6 @@
-import { storedFileExpiryDay, type PrismSupplierCertification, type PrismSupplierContractVersion } from "@prism/types";
-import { fileExpiry, fileKind, type FileKind, type FileTone } from "@prism/ui/file-library";
+import { storedFileExpiryDay, type PrismSupplierCertification, type PrismSupplierContractVersion, type PrismSupplierReadinessItem } from "@prism/types";
+import { fileExpiry, fileKind, type FileKind, type FileTally, type FileTone } from "@prism/ui/file-library";
+import { manilaCalendarKey } from "@prism/ui/format-date";
 import type { SupplierFileRequirementRow } from "./supplier-workspace-rules";
 
 export type SupplierFileGroup = "booking" | "contract" | "certification";
@@ -11,8 +12,12 @@ export type SupplierLibraryFile = {
   kind: FileKind;
   contentType?: string;
   group: SupplierFileGroup;
+  /** The event a booking document or contract belongs to; certifications belong to the supplier record. */
+  eventId?: string;
   /** The booking and what the file was for, or who issued a certification. */
   context: string;
+  /** What the file was for, without the booking: shown inside one event's files. */
+  purpose?: string;
   addedAt: string;
   status: string;
   tone: FileTone;
@@ -60,11 +65,19 @@ function isContractRow(row: SupplierFileRequirementRow) {
   return row.item.key.startsWith("supplier-contract:");
 }
 
+/** A file PMCM asks this supplier for: the booking's contract, or a requirement PMCM set for the supplier. */
+function isSupplierRow(row: SupplierFileRequirementRow) {
+  return isContractRow(row) || (row.item.origin === "custom" && row.item.ownerRole === "supplier");
+}
+
+function isOpenRow({ item }: SupplierFileRequirementRow) {
+  return item.status === "missing" || item.status === "pending" || item.validationStatus === "rejected";
+}
+
 /** What PMCM still needs from this supplier: missing files and ones PMCM sent back, overdue first. */
 export function buildSupplierNeededFiles(rows: SupplierFileRequirementRow[], eventNames: ReadonlyMap<string, string>): SupplierNeededFile[] {
   return rows
-    .filter(({ item }) => item.status === "missing" || item.status === "pending" || item.validationStatus === "rejected")
-    .filter((row) => isContractRow(row) || (row.item.origin === "custom" && row.item.ownerRole === "supplier"))
+    .filter((row) => isOpenRow(row) && isSupplierRow(row))
     .map((row) => ({
       eventId: row.eventId,
       eventName: eventNames.get(row.eventId) ?? "Assigned booking",
@@ -85,7 +98,9 @@ function requirementFiles(rows: SupplierFileRequirementRow[], eventNames: Readon
     name: version.fileName,
     kind: fileKind(version.fileName),
     group: "booking" as const,
+    eventId,
     context: `${eventNames.get(eventId) ?? "Assigned booking"} · ${item.label}`,
+    purpose: item.label,
     addedAt: version.uploadedAt,
     ...(VERSION_STATUS[version.status] ?? { status: version.status, tone: "neutral" as const }),
     objectId: version.objectId,
@@ -103,7 +118,9 @@ function contractFiles(contracts: PrismSupplierContractVersion[], eventNames: Re
     kind: fileKind(contract.fileName, contract.mimeType),
     contentType: contract.mimeType,
     group: "contract",
+    eventId: contract.eventId,
     context: `${eventNames.get(contract.eventId) ?? "Assigned booking"} · Contract version ${contract.version}`,
+    purpose: `Contract version ${contract.version}`,
     addedAt: contract.uploadedAt,
     ...CONTRACT_STATUS[contract.reviewStatus],
     objectId: contract.storedObjectId,
@@ -157,4 +174,53 @@ export function countSupplierFiles(files: SupplierLibraryFile[]): Record<Supplie
 export function filterSupplierFiles(files: SupplierLibraryFile[], filter: SupplierFileFilter, query: string) {
   const needle = query.trim().toLowerCase();
   return files.filter((file) => (filter === "all" || file.group === filter) && (!needle || `${file.name} ${file.context}`.toLowerCase().includes(needle)));
+}
+
+/** One event the supplier is booked for, as its Files card shows it. */
+export type SupplierFileEvent = {
+  eventId: string;
+  eventName: string;
+  eventDate: string | null;
+  eventType: string | null;
+  coverObjectId: string | null;
+  /** What the supplier provides there: "Catering", or "Catering, Lights" for two bookings at one event. */
+  categories: string;
+  tally: FileTally;
+  /** The event day has passed. */
+  past: boolean;
+};
+
+function eventTally(rows: SupplierFileRequirementRow[]): FileTally {
+  const asked = rows.filter(isSupplierRow);
+  const open = asked.filter(isOpenRow);
+  return { total: asked.length, open: open.length, overdue: open.filter((row) => row.item.overdue).length };
+}
+
+/**
+ * Every event the supplier is booked for, once each, with how many of the files PMCM asked for are in: upcoming
+ * soonest first, then past ones most recent first.
+ */
+export function buildSupplierFileEvents(rows: SupplierFileRequirementRow[], readiness: PrismSupplierReadinessItem[], todayKey: string): SupplierFileEvent[] {
+  const booked = readiness.filter((item) => item.quoteStatus === "selected");
+  const eventIds = [...new Set([...booked.map((item) => item.eventId), ...rows.filter(isSupplierRow).map((row) => row.eventId)])];
+  const events = eventIds.map((eventId): SupplierFileEvent => {
+    const items = booked.filter((item) => item.eventId === eventId);
+    const first = items[0] ?? readiness.find((item) => item.eventId === eventId);
+    const eventDate = first?.eventDate ?? null;
+    return {
+      eventId,
+      eventName: first?.eventName || "Assigned booking",
+      eventDate,
+      eventType: first?.eventType ?? null,
+      coverObjectId: first?.coverObjectId ?? null,
+      categories: [...new Set(items.map((item) => item.category))].join(", "),
+      tally: eventTally(rows.filter((row) => row.eventId === eventId)),
+      past: eventDate !== null && manilaCalendarKey(eventDate) < todayKey,
+    };
+  });
+  const dateOf = (event: SupplierFileEvent) => event.eventDate ?? "9999";
+  return [
+    ...events.filter((event) => !event.past).sort((left, right) => dateOf(left).localeCompare(dateOf(right))),
+    ...events.filter((event) => event.past).sort((left, right) => dateOf(right).localeCompare(dateOf(left))),
+  ];
 }

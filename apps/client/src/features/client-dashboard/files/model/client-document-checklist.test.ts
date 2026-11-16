@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismFileRequirementItem, PrismStoredObject } from "@prism/types";
-import { buildClientDocumentChecklist, clientRequirementReviewLabel } from "./client-document-checklist";
+import { buildClientDocumentChecklist, clientFileTally, clientRequirementReviewLabel } from "./client-document-checklist";
 
 const requirement = (key: string, patch: Partial<PrismFileRequirementItem> = {}) =>
   ({ key, label: key, ownerRole: "client", visibleToRoles: ["client"], origin: "custom", status: "missing", required: true, overdue: false, ...patch }) as PrismFileRequirementItem;
@@ -33,5 +33,14 @@ describe("client document checklist", () => {
     expect(rows[0].needsClient).toBe(true);
     expect(clientRequirementReviewLabel(rows[0])).toBe("Not accepted. Upload a replacement");
     expect(rows.find((row) => row.requirement.key === "conforme")?.uploadable).toBe(false);
+  });
+
+  it("counts, for the event's card, only what the client is asked to send, with what is still open and late", () => {
+    expect(clientFileTally([
+      requirement("conforme", { origin: "derived", ownerRole: "pmcm-admin", status: "missing" }),
+      requirement("permit", { status: "approved" }),
+      requirement("insurance", { status: "missing", overdue: true }),
+      requirement("guest_list", { status: "submitted", validationStatus: "rejected" }),
+    ])).toEqual({ total: 3, open: 2, overdue: 1 });
   });
 });

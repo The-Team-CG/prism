@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { PrismAuthenticatedSession, PrismSupplierReadinessBoard, PrismSupplierWorkflowWorkspace } from "@prism/types";
+import { manilaDateKey } from "@prism/ui/format-date";
 import { buildSupplierFileRequirementRows } from "../model/supplier-workspace-rules";
 import type { SupplierWorkspace } from "../model/supplier-workspace-types";
 import {
+  buildSupplierFileEvents,
   buildSupplierFileLibrary,
   buildSupplierNeededFiles,
   countSupplierFiles,
@@ -61,12 +63,16 @@ export function useSupplierFilePreview(session: PrismAuthenticatedSession, file:
   return preview;
 }
 
-/** The supplier's Files page: what PMCM still needs, then every file the supplier has with PMCM. */
+/**
+ * The supplier's Files page: every booked event with how many asked-for files are in, and for the chosen one what PMCM
+ * still needs and every file sent for it. With no event chosen the files are the certifications on the supplier record.
+ */
 export function useSupplierFileLibraryViewModel(input: {
   workspace: SupplierWorkspace;
   session: PrismAuthenticatedSession;
   workflowWorkspace: PrismSupplierWorkflowWorkspace | null;
   readinessBoard: PrismSupplierReadinessBoard | null;
+  eventId: string | null;
 }) {
   const requirements = useSupplierFileRequirementsViewModel(input.workspace, input.session);
   const [filter, setFilter] = useState<SupplierFileFilter>("all");
@@ -84,7 +90,11 @@ export function useSupplierFileLibraryViewModel(input: {
     certifications: input.workspace.supplier.certifications,
     eventNames,
   }), [rows, input.workflowWorkspace, input.workspace.supplier.certifications, eventNames]);
-  const needed = useMemo(() => buildSupplierNeededFiles(rows, eventNames), [rows, eventNames]);
+  const events = useMemo(() => buildSupplierFileEvents(rows, input.readinessBoard?.items ?? [], manilaDateKey()), [rows, input.readinessBoard]);
+  const event = events.find((entry) => entry.eventId === input.eventId) ?? null;
+  const scopeId = event?.eventId ?? null;
+  const scoped = useMemo(() => files.filter((file) => (scopeId ? file.eventId === scopeId : file.group === "certification")), [files, scopeId]);
+  const needed = useMemo(() => buildSupplierNeededFiles(rows, eventNames).filter((item) => item.eventId === scopeId), [rows, eventNames, scopeId]);
 
   /** Sets or clears when one of the supplier's own booking documents stops being valid. */
   async function setExpiry(file: SupplierLibraryFile, expiresAt: string | null) {
@@ -112,12 +122,15 @@ export function useSupplierFileLibraryViewModel(input: {
     error: requirements.error,
     uploading: requirements.uploading,
     upload: requirements.upload,
+    events,
+    /** The chosen event, once it is known to be one of the supplier's; null shows every event. */
+    event,
     needed,
-    files: useMemo(() => filterSupplierFiles(files, filter, query), [files, filter, query]),
-    counts: countSupplierFiles(files),
+    files: useMemo(() => filterSupplierFiles(scoped, filter, query), [scoped, filter, query]),
+    counts: countSupplierFiles(scoped),
     filter, setFilter,
     query, setQuery,
-    preview: files.find((file) => file.id === previewId) ?? null,
+    preview: scoped.find((file) => file.id === previewId) ?? null,
     openPreview: setPreviewId,
     closePreview: () => setPreviewId(null),
   };

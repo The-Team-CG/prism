@@ -4,7 +4,7 @@ import { LoaderCircle, Upload } from "lucide-react";
 import { EVENT_FILE_CATEGORIES, type EventFileCategory, type PrismStoredObject } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
-import { FileDownloadButton, FileFilterBar, FileTable as SharedFileTable, FileTableRow } from "@prism/ui/file-library";
+import { FileDownloadButton, FileFilterBar, FileLibraryPanel, FileTable as SharedFileTable, FileTableRow } from "@prism/ui/file-library";
 import type { PmcmFileFilter, PmcmLibraryFile } from "../model/pmcm-file-library";
 import { usePmcmFileLibraryViewModel, type PmcmFileLibraryViewModel } from "../view-models/use-pmcm-file-library-view-model";
 import { PmcmFilePreviewSheet } from "./pmcm-file-preview-sheet";
@@ -21,7 +21,7 @@ const FILTERS: ReadonlyArray<{ id: PmcmFileFilter; label: string }> = [
 function UploadControls({ vm }: { vm: PmcmFileLibraryViewModel }) {
   const uploading = vm.busy === "upload";
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <>
       <Select value={vm.category} onValueChange={(next) => vm.setCategory(next as EventFileCategory)} disabled={uploading}>
         <SelectTrigger aria-label="Type of file to share" className="w-52 bg-background"><SelectValue /></SelectTrigger>
         <SelectContent>
@@ -42,7 +42,7 @@ function UploadControls({ vm }: { vm: PmcmFileLibraryViewModel }) {
         {uploading ? <LoaderCircle className="size-4 animate-spin" /> : <Upload className="size-4" />}
         {uploading ? "Uploading" : "Share a file"}
       </Button>
-    </div>
+    </>
   );
 }
 
@@ -123,22 +123,17 @@ function Messages({ vm }: { vm: PmcmFileLibraryViewModel }) {
 export function PmcmFileLibraryView({ eventId, coverObjectId = null, onCoverChange }: { eventId: string; coverObjectId?: string | null; onCoverChange?: () => void }) {
   const vm = usePmcmFileLibraryViewModel(eventId, coverObjectId, onCoverChange);
   return (
-    <section aria-label="Event file library" className="space-y-4 rounded-lg border border-border bg-card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">Library</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Everything on this event. Files you share here are visible to the client.</p>
-        </div>
-        <UploadControls vm={vm} />
-      </div>
-      <Messages vm={vm} />
-      <PmcmReviewQueue vm={vm} />
-      <div role="region" aria-label="Files" className="-mx-5 border-y border-border">
-        <FileFilters vm={vm} />
-        <FileTable vm={vm} />
-      </div>
-      <UnfinishedUploads uploads={vm.unfinished} />
+    <>
+      <FileLibraryPanel
+        description="Everything on this event. Files you share here are visible to the client."
+        actions={<UploadControls vm={vm} />}
+        files={<><FileFilters vm={vm} /><FileTable vm={vm} /></>}
+        footer={vm.unfinished.length ? <UnfinishedUploads uploads={vm.unfinished} /> : undefined}
+      >
+        <Messages vm={vm} />
+        <PmcmReviewQueue vm={vm} />
+      </FileLibraryPanel>
       <PmcmFilePreviewSheet vm={vm} />
-    </section>
+    </>
   );
 }

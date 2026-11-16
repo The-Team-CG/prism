@@ -118,8 +118,9 @@ describe("global event-scoped destinations without a selected event", () => {
     unmount();
 
     render(<PortalQueryProvider actorKey="pmcm:test"><EventDashboardFilesSectionView /></PortalQueryProvider>);
-    expect(await screen.findByText("6 of 8 requirements open · 1 overdue")).toBeTruthy();
-    expect(screen.getByText("All requirements met")).toBeTruthy();
+    expect(await screen.findByText("6 still needed · 1 overdue")).toBeTruthy();
+    expect(screen.getByText("2 of 8 files in")).toBeTruthy();
+    expect(screen.getByText("All in")).toBeTruthy();
     expect(screen.queryByText(/due ·|Nothing owed/)).toBeNull();
   });
 
