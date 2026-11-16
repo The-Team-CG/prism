@@ -37,16 +37,21 @@ export function PrismHero({
   figure?: { value: React.ReactNode; label: string };
   /** Footer under a hairline: the next step and its action. */
   children?: React.ReactNode;
-  /** A picture behind the panel, such as the event's cover, darkened so the text stays readable. */
+  /**
+   * A picture for the panel, such as the event's cover. From a tablet up it fills the right half in full colour and
+   * fades into the dark panel on its left, so the picture is seen and the text stays on plain ink; on a phone it sits
+   * behind everything, darkened.
+   */
   backdrop?: React.ReactNode;
   className?: string;
 }) {
   return (
     <section className={cn("relative isolate overflow-hidden rounded-2xl bg-ink text-ink-foreground", className)}>
       {backdrop ? (
-        <div aria-hidden className="absolute inset-0 -z-10">
-          {backdrop}
-          <div className="absolute inset-0 bg-linear-to-r from-ink via-ink/85 to-ink/45" />
+        <div aria-hidden className="absolute inset-0 -z-10 sm:left-auto sm:w-3/5">
+          {/* A drawn cover's icon is sized for a small card; here it is large and sits behind the figure's left. */}
+          <div className="absolute inset-0 sm:[-webkit-mask-image:linear-gradient(to_right,transparent,black_55%)] sm:[mask-image:linear-gradient(to_right,transparent,black_55%)] [&_svg]:bottom-auto [&_svg]:right-[28%] [&_svg]:top-1/2 [&_svg]:size-56 [&_svg]:-translate-y-1/2">{backdrop}</div>
+          <div className="absolute inset-0 bg-ink/75 sm:bg-transparent sm:bg-linear-to-t sm:from-ink/55 sm:to-ink/10" />
         </div>
       ) : null}
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4 px-5 pb-5 pt-5 sm:px-7 sm:pt-6">
