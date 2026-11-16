@@ -44,26 +44,30 @@ export function CountdownPill({ date, todayKey, label }: { date: string; todayKe
 }
 
 /** Where the event is in its life, inquiry to closure, as six segments with the current one named. */
-export function StageTrack({ stage, label }: { stage: PrismLifecycleStage; label?: string }) {
+export function StageTrack({ stage, label, onInk = false }: { stage: PrismLifecycleStage; label?: string; /** Drawn on a dark hero panel. */ onInk?: boolean }) {
   const position = stagePosition(stage);
+  const ahead = onInk ? "bg-ink-foreground/20" : "bg-muted";
   return (
     <div>
       <div role="img" aria-label={`Stage ${position} of ${PRISM_LIFECYCLE_STAGES.length}: ${PRISM_LIFECYCLE_STAGE_LABELS[stage]}`} className="grid grid-cols-6 gap-1">
         {PRISM_LIFECYCLE_STAGES.map((step, index) => (
-          <span key={step} className={cn("h-1.5 rounded-full", index + 1 < position ? "bg-primary" : index + 1 === position ? "bg-primary/45" : "bg-muted")} />
+          <span key={step} className={cn("h-1.5 rounded-full", index + 1 < position ? "bg-primary" : index + 1 === position ? "bg-primary/60" : ahead)} />
         ))}
       </div>
-      <div className="mt-1.5 flex justify-between gap-2 text-[11px] text-muted-foreground">
+      <div className={cn("mt-1.5 flex justify-between gap-2 text-[11px]", onInk ? "text-ink-foreground/70" : "text-muted-foreground")}>
         <span>Stage {position} of {PRISM_LIFECYCLE_STAGES.length}</span>
-        <span className="font-semibold text-foreground">{label ?? PRISM_LIFECYCLE_STAGE_LABELS[stage]}</span>
+        <span className={cn("font-semibold", onInk ? "text-ink-foreground" : "text-foreground")}>{label ?? PRISM_LIFECYCLE_STAGE_LABELS[stage]}</span>
       </div>
     </div>
   );
 }
 
 export type AttentionSeverity = "critical" | "warning" | "attention" | "info";
-/** One thing waiting on an event: what it is, and optionally which one ("XPERTO Registration, due Nov 3"). */
-export type AttentionLine = { id: string; severity: AttentionSeverity; text: string; detail?: string; href?: string };
+/**
+ * One thing waiting on an event: what it is, optionally which one ("XPERTO Registration, due Nov 3"), and how long
+ * it has waited or when it is due ("waiting 6 days", "overdue 2 days"). `late` marks an age worth chasing.
+ */
+export type AttentionLine = { id: string; severity: AttentionSeverity; text: string; detail?: string; href?: string; age?: string; late?: boolean };
 
 const SEVERITY_LOOK: Record<AttentionSeverity, { icon: LucideIcon; tone: string }> = {
   critical: { icon: AlertTriangle, tone: "bg-danger-soft text-danger" },
@@ -90,6 +94,7 @@ export function AttentionList({ lines, more = 0, link: Link = PlainLink }: { lin
           <li key={line.id} className="flex items-start gap-2 text-xs">
             <span aria-hidden className={cn("grid size-5 shrink-0 place-items-center rounded-full", look.tone)}><Icon className="size-3" /></span>
             {line.href ? <Link href={line.href} className="relative z-10 min-w-0 pt-0.5 text-foreground hover:underline">{text}</Link> : <span className="min-w-0 pt-0.5 text-foreground">{text}</span>}
+            {line.age ? <span className={cn("ml-auto shrink-0 whitespace-nowrap pt-0.5 pl-2 text-[11px] tabular-nums", line.late ? "font-semibold text-danger" : "text-muted-foreground")}>{line.age}</span> : null}
           </li>
         );
       })}

@@ -58,6 +58,7 @@ import {
 } from "../model/client-dashboard-navigation";
 import {
   clientBreadcrumbTrail,
+  clientShellLayout,
   clientShellDescription,
   clientShellEyebrow,
   clientShellTitle,
@@ -123,8 +124,6 @@ const EVENT_PREFETCH_ROUTES = [
 ] as const satisfies ClientDashboardRoute[];
 
 /** Screens that need the full width: a canvas, a calendar grid and the two-pane chat. Every other page keeps to a reading width. */
-const WIDE_CLIENT_ROUTES: ReadonlySet<ClientDashboardRoute> = new Set(["floorplan", "calendar", "messages"]);
-
 function disableEventNav(requiresEvent: boolean | undefined, hasEvent: boolean) {
   return Boolean(requiresEvent) && !hasEvent;
 }
@@ -573,6 +572,8 @@ export function ClientDashboardWorkspaceView({
     isEventScopedView,
   };
 
+  const shellLayout = clientShellLayout({ isEventScopedView, route, hasEvent: Boolean(selectedEvent) });
+
   return (
     <ClientWorkspaceProvider value={workspaceValue}>
       <PrismDashboardShell
@@ -582,6 +583,7 @@ export function ClientDashboardWorkspaceView({
         eyebrow={clientShellEyebrow({ isEventScopedView, route })}
         title={clientShellTitle({ isEventScopedView, portalView, route })}
         description={clientShellDescription({ isEventScopedView, portalView, route, selectedEvent })}
+        titleClassName={shellLayout.titleClassName}
         breadcrumb={clientBreadcrumbTrail({ isEventScopedView, portalView, route })}
         activeItemId={activeShellItemId}
         navItems={sidebarNavItems}
@@ -606,7 +608,7 @@ export function ClientDashboardWorkspaceView({
         accountMenuItems={CLIENT_ACCOUNT_MENU_ITEMS}
         onSignOut={signOut}
       >
-        <div className={WIDE_CLIENT_ROUTES.has(route) ? "space-y-5" : "max-w-5xl space-y-5"}>
+        <div className={shellLayout.contentClassName}>
           <ClientWorkspaceBanners error={error} notice={notice} />
           <ClientDashboardRouteBody route={route} isEventScopedView={isEventScopedView} />
         </div>

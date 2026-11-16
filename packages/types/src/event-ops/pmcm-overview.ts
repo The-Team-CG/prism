@@ -10,6 +10,14 @@ export interface PrismPmcmEventSummary {
   unreadMessages: number;
 }
 
+/** Whether the event's client is keeping up: when they last signed in and the notices about this event they have not opened. */
+export interface PrismPmcmClientActivity {
+  eventId: string;
+  /** The client's last sign-in to the portal; null when they have not signed in or have no portal account. */
+  lastActiveAt: string | null;
+  unreadNotices: number;
+}
+
 export interface PrismPmcmEventSummaries {
   generatedAt: string;
   items: PrismPmcmEventSummary[];

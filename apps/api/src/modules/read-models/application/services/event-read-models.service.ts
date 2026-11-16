@@ -673,10 +673,12 @@ export class EventReadModelsService {
    * The Inbox's items grouped by event, for the PMCM Events cards. It reads a larger first page than the Inbox shows,
    * so each event's most urgent items are there even when the Inbox pages them.
    */
-  async pmcmEventAttention(actor: ResolvedEventOpsActor): Promise<PrismPmcmEventAttentionList> {
-    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM event attention');
+  async pmcmEventAttention(actor: ResolvedEventOpsActor, eventId?: string): Promise<PrismPmcmEventAttentionList> {
+    await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM event attention', eventId);
     const { items } = await this.commandInboxItems(0, PMCM_EVENT_ATTENTION_SCAN);
-    return { generatedAt: new Date().toISOString(), items: groupInboxItemsByEvent(items) };
+    // An event's own page lists everything waiting on it, not just the three a card has room for.
+    const groups = eventId ? groupInboxItemsByEvent(items, Number.POSITIVE_INFINITY).filter((group) => group.eventId === eventId) : groupInboxItemsByEvent(items);
+    return { generatedAt: new Date().toISOString(), items: groups };
   }
 
   private async commandInboxItems(page: number, pageSize: number) {

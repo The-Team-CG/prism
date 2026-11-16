@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
 import { daysUntil, formatPortalDate, manilaCalendarKey } from "@prism/ui/format-date";
-import { Progress } from "@prism/ui/components/progress";
+import { StageTrack } from "@prism/ui/event-cards";
 import { PrismHero } from "@prism/ui/page-blocks";
 
 /** Where an event stands in its six stages, as a number for the progress bar and a label beside it. */
@@ -42,6 +42,8 @@ export function ClientEventHero({
   label,
   eventHref,
   onOpen,
+  backdrop,
+  extra,
   children,
 }: {
   event: PrismEvent;
@@ -50,9 +52,12 @@ export function ClientEventHero({
   /** When set, the event name links to the event. Left out on the event's own pages. */
   eventHref?: string;
   onOpen?: () => void;
+  /** The event's cover behind the panel. */
+  backdrop?: ReactNode;
+  /** Under the stage track, such as what is new since the client's last visit. */
+  extra?: ReactNode;
   children: ReactNode;
 }) {
-  const stage = clientEventStage(event);
   return (
     <PrismHero
       label={label}
@@ -60,13 +65,12 @@ export function ClientEventHero({
       meta={
         <>
           <p>{[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed"].join(" · ")}</p>
-          <div className="mt-4 max-w-sm">
-            <Progress value={stage.percent} className="bg-ink-foreground/15" aria-label={`Stage ${stage.number} of ${stage.total}`} />
-            <p className="mt-2 text-xs">Stage {stage.number} of {stage.total} · <span className="font-medium text-ink-foreground">{stage.label}</span></p>
-          </div>
+          <div className="mt-4 max-w-sm"><StageTrack stage={derivePrismLifecycleStage(event)} onInk /></div>
+          {extra ? <div className="mt-4">{extra}</div> : null}
         </>
       }
       figure={countdownFigure(daysToGo)}
+      backdrop={backdrop}
     >
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">{children}</div>
     </PrismHero>

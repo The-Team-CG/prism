@@ -866,6 +866,10 @@ describe('EventReadModelsService', () => {
     for (const item of forEvent) counts[item.severity] += 1;
     expect(visible).toEqual({ eventId: 'evt_visible', counts, total: forEvent.length, top: forEvent.slice(0, 3) });
     expect(attention.items.every((entry) => entry.eventId)).toBe(true);
+
+    // An event's own page asks for that event and gets every item, not just the three a card shows.
+    const own = await service.pmcmEventAttention(actor, 'evt_visible');
+    expect(own.items).toEqual([{ ...visible, top: forEvent }]);
   });
 
   it('builds a client action center from client-visible event work', async () => {

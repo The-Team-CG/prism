@@ -34,3 +34,17 @@ export const pmcmCalendar = defineResource({
   name: "pmcm.calendar",
   fetch: (window: PmcmCalendarQuery) => eventApi.pmcm.calendar(window),
 });
+
+/** Everything the Inbox has waiting on one event, for that event's overview. */
+export const pmcmOneEventAttention = defineResource({
+  name: "pmcm.event-attention.one",
+  staleMs: 15_000,
+  fetch: (eventId: string) => eventApi.pmcm.eventAttention(eventId),
+});
+
+/** When the event's client last signed in and the notices about the event they have not opened. */
+export const pmcmClientActivity = defineResource({
+  name: "pmcm.client-activity",
+  staleMs: 60_000,
+  fetch: (eventId: string) => eventApi.pmcm.clientActivity(eventId),
+});

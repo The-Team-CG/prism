@@ -5,6 +5,12 @@ export const pmcmCommandInboxQuerySchema = z.object({
 });
 export type PrismPmcmCommandInboxQueryInput = z.infer<typeof pmcmCommandInboxQuerySchema>;
 
+/** With an event, the event-attention read returns that event's full list instead of every event's top items. */
+export const pmcmEventAttentionQuerySchema = z.object({
+  eventId: z.string().trim().min(1).max(200).optional(),
+});
+export type PmcmEventAttentionQuery = z.infer<typeof pmcmEventAttentionQuerySchema>;
+
 /** FL-019 Decision Log: every decision source the PMCM log composes for one event. */
 export const PRISM_DECISION_LOG_KINDS = [
   "postponement",

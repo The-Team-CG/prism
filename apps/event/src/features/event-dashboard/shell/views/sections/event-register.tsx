@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, CheckCircle2, ChevronRight, FileText, MessageSquareText, ReceiptText, Search, type LucideIcon } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronRight, Search } from "lucide-react";
 import { useListFilter } from "@/features/pmcm-kit";
 import { derivePrismLifecycleStage, type PrismEvent, type PrismPmcmEventAttention } from "@prism/types";
 import { manilaDateKey } from "@prism/ui/format-date";
@@ -13,6 +13,7 @@ import { useEventCoverUrl, type EventShortcutCounts } from "@/features/pmcm-over
 import { eventWorkspaceHref } from "../../model/event-dashboard-routing";
 import { attentionLines, groupEventCards, needsPmcm } from "../../model/event-card-groups";
 import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
+import { EventShortcuts } from "./event-shortcuts";
 
 export const EVENT_REGISTER_VIEWS = [
   { href: "/dashboard/events", label: "All events" },
@@ -64,44 +65,20 @@ export function EventRegisterToolbar({ activeId, query, onQuery, counts }: { act
   );
 }
 
-const SHORTCUTS: Array<{ key: keyof EventShortcutCounts; label: string; icon: LucideIcon; tab: "billing" | "files" | "messages"; noun: string }> = [
-  { key: "billing", label: "Billing", icon: ReceiptText, tab: "billing", noun: "overdue" },
-  { key: "files", label: "Files", icon: FileText, tab: "files", noun: "open" },
-  { key: "messages", label: "Messages", icon: MessageSquareText, tab: "messages", noun: "unread" },
-];
-
-/** Straight to the event's Billing, Files and Messages, each with what is waiting there. */
-function CardShortcuts({ eventId, counts }: { eventId: string; counts: EventShortcutCounts }) {
-  return (
-    <nav aria-label="Go to" className="flex flex-wrap gap-1.5">
-      {SHORTCUTS.map(({ key, label, icon: Icon, tab, noun }) => {
-        const count = counts[key] ?? 0;
-        const tone = count && key !== "files" ? "border-primary/30 text-primary" : "border-border text-muted-foreground";
-        return (
-          <Link key={key} href={eventWorkspaceHref(eventId, tab)} aria-label={count ? `${label}, ${count} ${noun}` : label}
-            className={`relative z-10 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-muted ${tone}`}>
-            <Icon aria-hidden className="size-3" />{label}{count ? <span className="tabular-nums">· {count}</span> : null}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-
 function ClearChip() {
   return <span className="inline-flex items-center gap-1 self-start justify-self-start rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success"><CheckCircle2 aria-hidden className="size-3" />Nothing waiting on you</span>;
 }
 
 /** A live event's middle: where it stands, what waits on PMCM (or that nothing does), and the shortcuts. */
-function CardBody({ event, data }: { event: PrismEvent; data: EventRegisterData }) {
+function CardBody({ event, data, todayKey }: { event: PrismEvent; data: EventRegisterData; todayKey: string }) {
   const attention = data.attention?.get(event.id);
   const waiting = needsPmcm(attention);
   return (
     <>
       <StageTrack stage={derivePrismLifecycleStage(event)} />
-      {attention && waiting ? <AttentionList lines={attentionLines(attention.top)} more={attention.total - attention.top.length} link={Link} /> : null}
+      {attention && waiting ? <AttentionList lines={attentionLines(attention.top, todayKey)} more={attention.total - attention.top.length} link={Link} /> : null}
       {data.attention !== undefined && !waiting ? <ClearChip /> : null}
-      <CardShortcuts eventId={event.id} counts={data.shortcuts?.get(event.id) ?? {}} />
+      <EventShortcuts eventId={event.id} counts={data.shortcuts?.get(event.id) ?? {}} />
     </>
   );
 }
@@ -122,7 +99,7 @@ function PmcmEventCard({ event, data, todayKey, onOpenEvent, compact = false }: 
         aside={<CountdownPill date={event.eventDate} todayKey={todayKey} />}
         muted={compact}
       />
-      {compact ? null : <CardBody event={event} data={data} />}
+      {compact ? null : <CardBody event={event} data={data} todayKey={todayKey} />}
       <EventCardFooter>
         {money ? <MoneyBar billed={money.billed} paid={money.paid} checking={money.checking} /> : <span className="flex-1" />}
         {compact ? null : <span aria-hidden className="ml-auto inline-flex items-center font-semibold text-primary">Open<ChevronRight className="size-4" /></span>}

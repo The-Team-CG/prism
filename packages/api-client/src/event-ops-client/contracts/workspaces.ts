@@ -10,6 +10,7 @@ import type {
   PrismDecisionLogQueryInput,
   PrismPmcmCommandInbox,
   PrismPmcmEventAttentionList,
+  PrismPmcmClientActivity,
   PrismPmcmCalendar,
   PrismPmcmCommandInboxQueryInput,
   PrismPmcmEventSummaries,
@@ -43,8 +44,10 @@ export interface EventOpsWorkspacesContract {
     /** Event switcher, inquiries, directories and rules for PMCM event pages; identity comes from the session token. */
     reference(): Promise<PrismPmcmReference>;
     commandInbox(query?: PrismPmcmCommandInboxQueryInput): Promise<PrismPmcmCommandInbox>;
-    /** The Inbox's items grouped by event: what each event card says is waiting. */
-    eventAttention(): Promise<PrismPmcmEventAttentionList>;
+    /** The Inbox's items grouped by event: what each event card says is waiting. With an event, that event's full list. */
+    eventAttention(eventId?: string): Promise<PrismPmcmEventAttentionList>;
+    /** When the event's client last signed in and the notices about it they have not opened. */
+    clientActivity(eventId: string): Promise<PrismPmcmClientActivity>;
     /** What each event owes and how many messages the signed-in PMCM admin has not read. */
     eventSummaries(): Promise<PrismPmcmEventSummaries>;
     /** Open and overdue file requirements for the events still in play (a bounded set). */

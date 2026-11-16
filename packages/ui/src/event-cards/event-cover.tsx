@@ -29,7 +29,14 @@ export function coverLook(eventType: string | null | undefined): CoverLook {
  * The picture at the top of an event card: PMCM's chosen photo when there is one, otherwise a cover drawn from the
  * event type, so every event is recognisable at a glance from its first day.
  */
-export function EventCover({ eventType, imageUrl, small = false, className }: { eventType?: string | null; imageUrl?: string | null; small?: boolean; className?: string }) {
+export function EventCover({ eventType, imageUrl, small = false, tag = !small, className }: {
+  eventType?: string | null;
+  imageUrl?: string | null;
+  small?: boolean;
+  /** The small label naming the event type or "Event photo"; off on small covers and behind a heading. */
+  tag?: boolean;
+  className?: string;
+}) {
   const look = coverLook(eventType);
   const Icon = look.icon;
   return (
@@ -42,7 +49,7 @@ export function EventCover({ eventType, imageUrl, small = false, className }: { 
           <Icon className="absolute -bottom-4 -right-3 size-24 text-white/35" strokeWidth={1.5} />
         </>
       )}
-      {small ? null : <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-neutral-800">{imageUrl ? "Event photo" : look.label}</span>}
+      {tag ? <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-semibold text-neutral-800">{imageUrl ? "Event photo" : look.label}</span> : null}
     </div>
   );
 }

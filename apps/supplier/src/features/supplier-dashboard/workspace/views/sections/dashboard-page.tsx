@@ -8,7 +8,9 @@ import { quoteDeadlineUrgency, readinessConcernLabel, readinessSetupLabel } from
 import { groupSupplierNextSteps, splitSupplierNextSteps, supplierNextStep, supplierStepFigure, supplierStepGroupTitle, supplierTodaySummary, supplierWorkHref } from "../../model/supplier-next-step";
 import { Button } from "@prism/ui/components/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@prism/ui/components/collapsible";
-import { PrismEmptyLine, PrismHero, PrismPageColumn, PrismSection } from "@prism/ui/page-blocks";
+import { PrismEmptyLine, PrismPageColumn, PrismSection } from "@prism/ui/page-blocks";
+import { EventCover, NextStepHero } from "@prism/ui/event-cards";
+import { useEventCoverUrl } from "../../view-models/use-event-cover-url";
 
 function ReadinessDetails({ item, hasQuote }: { item: PrismSupplierReadinessItem; hasQuote: boolean }) {
   const next = supplierNextStep(item, hasQuote);
@@ -74,20 +76,22 @@ function ReadinessRow({ item, hasQuote }: { item: PrismSupplierReadinessItem; ha
 function TodayLead({ item, hasQuote, count = 1 }: { item: PrismSupplierReadinessItem; hasQuote: boolean; count?: number }) {
   const next = supplierNextStep(item, hasQuote);
   const urgency = quoteDeadlineUrgency(item);
+  const coverUrl = useEventCoverUrl(item.eventId, item.coverObjectId);
+  const single = count === 1;
   return (
-    <PrismHero
-      label={["Your next step", nextStepWhen(item), urgency === "overdue" ? "overdue" : null].filter(Boolean).join(" · ")}
+    <NextStepHero
+      when={[nextStepWhen(item), urgency === "overdue" ? "overdue" : null].filter(Boolean).join(" · ")}
       title={supplierStepGroupTitle(next.title, count)}
-      meta={count === 1 ? `${item.eventName ?? "Assigned event"} · ${item.category}` : "Choose a booking below to continue."}
-      figure={count === 1 ? supplierStepFigure(item) : undefined}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
-        <p className="min-w-0 flex-1 basis-64 text-sm text-ink-foreground/70">{next.detail}</p>
-        {count === 1 ? <Button asChild>
+      event={single ? <p><span className="font-medium text-ink-foreground">{item.eventName ?? "Assigned event"}</span> · {item.category}</p> : "Choose a booking below to continue."}
+      detail={next.detail}
+      figure={single ? supplierStepFigure(item) : undefined}
+      cover={single ? <EventCover eventType={item.eventType} imageUrl={coverUrl} tag={false} className="h-full" /> : undefined}
+      action={single ? (
+        <Button asChild>
           <Link href={supplierWorkHref(item)}>{next.action}<ArrowRight className="size-4" /><span className="sr-only"> for {item.category} at {item.eventName}</span></Link>
-        </Button> : null}
-      </div>
-    </PrismHero>
+        </Button>
+      ) : undefined}
+    />
   );
 }
 
