@@ -1,6 +1,6 @@
 import type { PrismSupplierReadinessItem } from "@prism/types";
-import { daysUntil, manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
-import { readinessDeadline, supplierReadinessSection } from "./supplier-workspace-rules";
+import { daysUntil, dueLabel, formatPortalDate, manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
+import { quoteDeadlineUrgency, readinessDeadline, supplierReadinessSection } from "./supplier-workspace-rules";
 import { supplierWorkTargetHref } from "./supplier-workspace-types";
 
 const CLOSED_QUOTE_STATUSES = ["closed", "cancelled", "expired"];
@@ -32,10 +32,10 @@ export function supplierBookingHref(requestId: string) {
 }
 
 function quoteNextStep(item: PrismSupplierReadinessItem, hasQuote: boolean) {
-    if (CLOSED_QUOTE_STATUSES.includes(item.quoteStatus)) return { title: "Request closed", detail: "Review the request and any quote you submitted.", action: "View request", owner: "For reference" };
+    if (CLOSED_QUOTE_STATUSES.includes(item.quoteStatus)) return { kind: "closed" as const, title: "Request closed", detail: "Review the request and any quote you submitted.", action: "View request", owner: "For reference" };
     return hasQuote
-      ? { title: "Quote submitted", detail: "PMCM will review your offer. Submitting a quote does not confirm a booking.", action: "Review your quote", owner: WAITING_FOR_PMCM }
-      : { title: "Prepare your quote", detail: "Review the requested scope, price your services and send your offer to PMCM.", action: "Review request", owner: "Your next step" };
+      ? { kind: "quote-submitted" as const, title: "Quote submitted", detail: "PMCM will review your offer. Submitting a quote does not confirm a booking.", action: "Review your quote", owner: WAITING_FOR_PMCM }
+      : { kind: "quote" as const, title: "Prepare your quote", detail: "Review the requested scope, price your services and send your offer to PMCM.", action: "Review request", owner: "Your next step" };
 }
 
 /** Today separates work the supplier can move now from work with PMCM; closed requests drop off. Soonest first. */
@@ -49,14 +49,14 @@ export function splitSupplierNextSteps(items: PrismSupplierReadinessItem[], hasQ
 
 export function supplierNextStep(item: PrismSupplierReadinessItem, hasQuote: boolean) {
   if (item.quoteStatus !== "selected") return quoteNextStep(item, hasQuote);
-  if (item.ingressLate) return { title: "Arrival update needed", detail: "Your scheduled arrival time has passed without an arrival report.", action: "Update arrival status", owner: "Your next step" };
-  if (item.assignmentStatus !== "confirmed") return { title: "Confirm your booking", detail: "PMCM selected your quote. Confirm that you can take on the assignment.", action: "Review booking", owner: "Your next step" };
-  if (item.contractStatus === "changes_requested") return { title: "Correct your contract", detail: "PMCM requested changes. Review the feedback before uploading a new version.", action: "Review contract feedback", owner: "Your next step" };
-  if (item.contractStatus === "missing") return { title: "Upload your signed contract", detail: "PMCM needs your signed contract for review.", action: "Open booking documents", owner: "Your next step" };
-  if (item.schedule && !item.schedule.acknowledged) return { title: "Acknowledge your schedule", detail: "Review the latest arrival, departure and location details.", action: "Review schedule", owner: "Your next step" };
-  if (item.readinessStatus !== "confirmed") return { title: "Confirm your readiness", detail: "Check the booking requirements and tell PMCM when your preparation is complete.", action: "Review preparation", owner: "Your next step" };
-  if (item.contractStatus === "submitted") return { title: "Contract awaiting review", detail: "PMCM is reviewing your contract. Your schedule and event-day controls remain in the booking.", action: "View booking", owner: WAITING_FOR_PMCM };
-  return { title: "Keep PMCM updated", detail: "Review the schedule and report arrival, setup or departure as it happens.", action: "Open booking", owner: "Event-day updates" };
+  if (item.ingressLate) return { kind: "arrival" as const, title: "Arrival update needed", detail: "Your scheduled arrival time has passed without an arrival report.", action: "Update arrival status", owner: "Your next step" };
+  if (item.assignmentStatus !== "confirmed") return { kind: "confirm" as const, title: "Confirm your booking", detail: "PMCM selected your quote. Confirm that you can take on the assignment.", action: "Review booking", owner: "Your next step" };
+  if (item.contractStatus === "changes_requested") return { kind: "contract-fix" as const, title: "Correct your contract", detail: "PMCM requested changes. Review the feedback before uploading a new version.", action: "Review contract feedback", owner: "Your next step" };
+  if (item.contractStatus === "missing") return { kind: "contract" as const, title: "Upload your signed contract", detail: "PMCM needs your signed contract for review.", action: "Open booking documents", owner: "Your next step" };
+  if (item.schedule && !item.schedule.acknowledged) return { kind: "schedule" as const, title: "Acknowledge your schedule", detail: "Review the latest arrival, departure and location details.", action: "Review schedule", owner: "Your next step" };
+  if (item.readinessStatus !== "confirmed") return { kind: "readiness" as const, title: "Confirm your readiness", detail: "Check the booking requirements and tell PMCM when your preparation is complete.", action: "Review preparation", owner: "Your next step" };
+  if (item.contractStatus === "submitted") return { kind: "contract-review" as const, title: "Contract awaiting review", detail: "PMCM is reviewing your contract. Your schedule and event-day controls remain in the booking.", action: "View booking", owner: WAITING_FOR_PMCM };
+  return { kind: "updates" as const, title: "Keep PMCM updated", detail: "Review the schedule and report arrival, setup or departure as it happens.", action: "Open booking", owner: "Event-day updates" };
 }
 
 function quoteDeadlineFigure(dueAt: string, due: number, now: Date): { value: string; label: string } {
@@ -94,4 +94,31 @@ export function supplierTodaySummary(yourTurn: number, waiting: number): string 
     waiting ? `${waiting} waiting on PMCM` : null,
   ].filter(Boolean);
   return `${parts.join(" · ")}.`;
+}
+
+const URGENCY_TONE = { overdue: "urgent", soon: "attention" } as const;
+
+function quoteRowStatus(item: Pick<PrismSupplierReadinessItem, "quoteStatus" | "dueAt">, now: Date): { label: string; tone: "urgent" | "attention" | "neutral" } | null {
+  if (item.quoteStatus === "selected" || !item.dueAt) return null;
+  const days = daysUntil(manilaCalendarKey(item.dueAt), manilaDateKey(now));
+  if (days === null) return null;
+  const urgency = quoteDeadlineUrgency(item, now);
+  // A deadline earlier today has passed even though its calendar day has not.
+  return { label: urgency === "overdue" && days >= 0 ? "Overdue" : dueLabel(days), tone: urgency ? URGENCY_TONE[urgency] : "neutral" };
+}
+
+export type SupplierStepKind = ReturnType<typeof supplierNextStep>["kind"];
+
+/**
+ * The short phrase in a work row's status column and how loud it is: the quote deadline while bidding ("Overdue 12
+ * days", "Due in 2 days"), then the arrival, then the event day.
+ */
+export function supplierRowStatus(
+  item: Pick<PrismSupplierReadinessItem, "quoteStatus" | "dueAt" | "eventDate" | "schedule" | "ingressLate">,
+  now = new Date(),
+): { label: string; tone: "urgent" | "attention" | "neutral" } | null {
+  const quote = quoteRowStatus(item, now);
+  if (quote) return quote;
+  if (item.schedule) return { label: `Arrive ${formatPortalDate(item.schedule.ingressAt)}`, tone: item.ingressLate ? "urgent" : "neutral" };
+  return item.eventDate ? { label: `Event ${formatPortalDate(item.eventDate)}`, tone: "neutral" } : null;
 }
