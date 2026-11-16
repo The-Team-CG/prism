@@ -65,6 +65,10 @@ export function EventDashboardFilesSectionView() {
               tab="files"
               onOpenEvent={(eventId) => navigateEvent(eventId, "files")}
               rowDetail={(event) => fileSummaryLabel(byEvent.get(event.id))}
+              rowProgress={(event) => {
+                const summary = byEvent.get(event.id);
+                return summary && summary.total > 0 ? { done: summary.total - summary.open, total: summary.total } : null;
+              }}
             />
           )
   );

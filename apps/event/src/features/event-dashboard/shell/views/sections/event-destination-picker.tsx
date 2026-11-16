@@ -2,23 +2,25 @@
 
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { formatPortalDate } from "@prism/ui/format-date";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import { CountdownPill, EventCard, EventCardGrid, EventCardHeader, EventCover, StageTrack, StepProgress } from "@prism/ui/event-cards";
 import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent, type PrismLifecycleStage } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@prism/ui/components/empty";
 import { Input } from "@prism/ui/components/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
-import { RouteLink, SegmentedControl, type SegmentedOption } from "@/features/pmcm-kit";
-import type { SummaryLabel } from "@/features/pmcm-overview";
+import { SegmentedControl, type SegmentedOption } from "@/features/pmcm-kit";
+import { useEventCoverUrl, type SummaryLabel } from "@/features/pmcm-overview";
 import { eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
-import { Card } from "@prism/ui/components/card";
+
+/** How far along an event's work is, as steps done of all. */
+export type PickerProgress = { done: number; total: number };
 
 function RowDetail({ label }: { label: SummaryLabel | null }) {
   if (!label) return null;
   return <span className={label.urgent ? "mt-0.5 block text-xs font-medium text-attention" : "mt-0.5 block text-xs text-muted-foreground"}>{label.text}</span>;
 }
 
-type PickerEvent = Pick<PrismEvent, "id" | "eventName" | "clientName" | "eventDate" | "status" | "archived" | "actualEndedAt" | "clientPortalStatus" | "proposalClientStatus">;
+type PickerEvent = Pick<PrismEvent, "id" | "eventName" | "clientName" | "eventDate" | "status" | "archived" | "actualEndedAt" | "clientPortalStatus" | "proposalClientStatus"> & Partial<Pick<PrismEvent, "eventType" | "coverObjectId">>;
 
 const isFinished = (event: PickerEvent) => derivePrismLifecycleStage(event) === "closure_archive";
 
@@ -37,9 +39,41 @@ function matchesQuery(event: PickerEvent, query: string) {
   return text.includes(query.trim().toLowerCase());
 }
 
+/** One event as a card, the same picture, date and stage as on Events, opening the section this page is about. */
+function PickerCard({ event, actionLabel, tab, todayKey, onOpenEvent, detail, progress }: {
+  event: PickerEvent;
+  actionLabel: string;
+  tab: DetailTab;
+  todayKey: string;
+  onOpenEvent: (eventId: string) => void;
+  detail: SummaryLabel | null;
+  progress: PickerProgress | null;
+}) {
+  const coverUrl = useEventCoverUrl(event.id, event.coverObjectId);
+  const stage = derivePrismLifecycleStage(event);
+  return (
+    <EventCard cover={<EventCover eventType={event.eventType} imageUrl={coverUrl} />}>
+      <EventCardHeader
+        onCover
+        date={event.eventDate ?? ""}
+        title={event.eventName}
+        titleLabel={`${actionLabel}: ${event.eventName}`}
+        href={eventWorkspaceHref(event.id, tab)}
+        onNavigate={() => onOpenEvent(event.id)}
+        details={[event.clientName || "—", formatPortalDate(event.eventDate, "—")].join(" · ")}
+        aside={event.eventDate && stage !== "closure_archive" ? <CountdownPill date={event.eventDate} todayKey={todayKey} /> : null}
+        muted={stage === "closure_archive"}
+      />
+      <StageTrack stage={stage} />
+      {progress ? <StepProgress done={progress.done} total={progress.total} /> : null}
+      <RowDetail label={detail} />
+    </EventCard>
+  );
+}
+
 /**
- * Inline event chooser for global PMCM destinations (Finance, Files, Messages) that only work inside one
- * event. A searchable, stage-filterable table: choosing a row opens that event's matching workspace section.
+ * Inline event chooser for global PMCM destinations (such as Files) that only work inside one event. Searchable and
+ * stage-filterable, as event cards: choosing one opens that event's matching workspace section.
  */
 export function EventDestinationPicker({
   events,
@@ -48,6 +82,7 @@ export function EventDestinationPicker({
   tab,
   onOpenEvent,
   rowDetail,
+  rowProgress,
 }: {
   events: PickerEvent[];
   description: string;
@@ -57,7 +92,10 @@ export function EventDestinationPicker({
   onOpenEvent: (eventId: string) => void;
   /** An extra line under each event, such as what it owes; absent or null shows nothing. */
   rowDetail?: (event: PickerEvent) => SummaryLabel | null;
+  /** How far along each event's work is, drawn as steps on its card. */
+  rowProgress?: (event: PickerEvent) => PickerProgress | null;
 }) {
+  const todayKey = manilaDateKey();
   const [query, setQuery] = useState("");
   const [stage, setStage] = useState<"all" | PrismLifecycleStage>("all");
   const [visible, setVisible] = useState(PAGE_SIZE);
@@ -122,44 +160,11 @@ export function EventDestinationPicker({
           <p role="status" className="text-xs text-muted-foreground">
             Showing {shown.length} of {rows.length} event{rows.length === 1 ? "" : "s"}
           </p>
-          <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
-            <Table>
-              <caption className="sr-only">{description}</caption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead scope="col">Event</TableHead>
-                  <TableHead scope="col" className="hidden sm:table-cell">Date</TableHead>
-                  <TableHead scope="col">Stage</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shown.map((event) => {
-                  const stageLabel = PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)];
-                  return (
-                    <TableRow key={event.id} className="hover:bg-surface-raised">
-                      <TableCell className="relative min-w-0 whitespace-normal">
-                        <RouteLink
-                          href={eventWorkspaceHref(event.id, tab)}
-                          onNavigate={() => onOpenEvent(event.id)}
-                          aria-label={`${actionLabel}: ${event.eventName}`}
-                          className="font-semibold text-foreground after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        >
-                          {event.eventName}
-                        </RouteLink>
-                        <span className="mt-0.5 block break-words text-xs text-muted-foreground">
-                          {event.clientName || "—"}
-                          <span className="sm:hidden"> · {formatPortalDate(event.eventDate, "—")}</span>
-                        </span>
-                        <RowDetail label={rowDetail?.(event) ?? null} />
-                      </TableCell>
-                      <TableCell className="hidden whitespace-nowrap tabular-nums sm:table-cell">{formatPortalDate(event.eventDate, "—")}</TableCell>
-                      <TableCell className="whitespace-nowrap">{stageLabel}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </Card>
+          <EventCardGrid>
+            {shown.map((event) => (
+              <PickerCard key={event.id} event={event} actionLabel={actionLabel} tab={tab} todayKey={todayKey} onOpenEvent={onOpenEvent} detail={rowDetail?.(event) ?? null} progress={rowProgress?.(event) ?? null} />
+            ))}
+          </EventCardGrid>
           {rows.length > visible ? (
             <Button variant="outline" className="justify-self-center" onClick={() => setVisible((count) => count + PAGE_SIZE)}>
               Show more
