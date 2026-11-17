@@ -83,8 +83,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Consolidated the unreleased changelog into notable user and developer effects and removed duplicate delivery, test, and commit diary entries. Detailed history remains in Git.
 
 ### Fixed
-- The guest portal's tests now include `.tsx` files, as the client, supplier and event portals do, and guest declares the jsdom and Testing Library packages its view tests already used.
 
+- The guest portal's tests now include `.tsx` files, as the client, supplier and event portals do, and guest declares the jsdom and Testing Library packages its view tests already used.
 - PMCM's "Share a file" on an event's Files page works. Storage refused every file PMCM shared ("Storage owner reference is not supported for this usage"); a file PMCM shares is now accepted from PMCM only and visible to the client, not to suppliers or coordinators.
 - "Show older notifications" stops at the 200 newest notices instead of failing with an error after six clicks, and a notification list that cannot load now says so and offers Try again instead of saying there are no notifications.
 - Billing balances reflect recorded payments, and signing a conforme no longer creates fabricated billing. Idempotent command replays do not duplicate event decisions, audit records, notifications, or event-day logs.
