@@ -9,7 +9,7 @@ import { Input } from "@prism/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { Textarea } from "@prism/ui/components/textarea";
 import { compactTimestamp, cx, label, Panel } from "@/features/pmcm-kit";
-import { privacyDeadlineLabel } from "../model/privacy-console-rules";
+import { isClosedPrivacyRequest, privacyDeadlineLabel } from "../model/privacy-console-rules";
 import type { PrivacyCorrectionDraft } from "../model/privacy-correction";
 import type { PrivacyConsoleViewModel } from "../view-models/use-privacy-console-view-model";
 
@@ -33,6 +33,7 @@ export function PrivacyFilterBar({ vm }: { vm: PrivacyConsoleViewModel }) {
         <SelectItem value="approved">Approved</SelectItem>
         <SelectItem value="executed">Executed</SelectItem>
         <SelectItem value="rejected">Rejected</SelectItem>
+        <SelectItem value="cancelled">Cancelled by requester</SelectItem>
       </FilterSelect>
       <FilterSelect label="Request type" value={filters.requestType} onChange={(value) => vm.updateFilters({ requestType: value as typeof filters.requestType })}>
         <SelectItem value="all">All request types</SelectItem>
@@ -104,7 +105,7 @@ function requestOwnerLabel(request: PrismPrivacyRequest, vm: PrivacyConsoleViewM
 
 export function PrivacyRequestCard({ request, vm }: { request: PrismPrivacyRequest; vm: PrivacyConsoleViewModel }) {
   const owner = requestOwnerLabel(request, vm);
-  const closed = request.status === "executed" || request.status === "rejected";
+  const closed = isClosedPrivacyRequest(request.status);
   const mine = Boolean(vm.operatorId) && request.assignedTo === vm.operatorId;
   return (
     <article className="rounded-md border border-border bg-background p-3 text-sm" aria-label={`${label(request.requestType)} request for ${request.subjectEmail || request.subjectName}`}>

@@ -38,6 +38,25 @@ import {
 import { requireVerifiedTrustActor } from './verified-trust-actor';
 import { mapPrivacyRequest, privacyRequestDueAt, type OpsPrivacyRequestRecord } from './privacy-request.mapper';
 import { AiTriageRecordEraser } from '../ai-governance/ai-triage-record-eraser.service';
+import { NOTIFICATION_OUTBOX_WRITER } from '../../contracts/notifications/notification-ops.tokens';
+import { writeNotification, type NotificationOutboxWriter } from '../../contracts/notifications/notification-outbox-writer.port';
+
+/** How a requester's own request is named in the notices they get about it. */
+const OWN_REQUEST_NAMES: Record<string, string> = {
+  access: 'request for a copy of your data',
+  correction: 'correction request',
+  deletion: 'deletion request',
+  export: 'data export request',
+};
+
+/** What the requester is told when PMCM moves their request on; PMCM's own reasons and notes stay internal. */
+function requesterNotice(requestType: string, status: string): string | null {
+  const name = OWN_REQUEST_NAMES[requestType] ?? 'privacy request';
+  if (status === PrivacyRequestStatus.Approved) return `PMCM verified your identity and is working on your ${name}.`;
+  if (status === PrivacyRequestStatus.Rejected) return `PMCM closed your ${name} without action. Message PMCM if you need more detail.`;
+  if (status === PrivacyRequestStatus.Executed) return `Your ${name} is done.`;
+  return null;
+}
 
 type CreatePrivacyRequestInput = {
   subjectType: string;
@@ -107,7 +126,22 @@ export class PrivacyOperationsService {
     @Inject(IDENTITY_PRIVACY_REDACTOR)
     private readonly identityPrivacy: IdentityPrivacyRedactor,
     private readonly aiTriageRecords: AiTriageRecordEraser,
+    @Optional() @Inject(NOTIFICATION_OUTBOX_WRITER)
+    private readonly notifications?: NotificationOutboxWriter,
   ) {}
+
+  /**
+   * Tells the person who filed a request themselves that PMCM moved it on, linking to their Privacy page. Requests
+   * PMCM logged on someone's behalf send nothing: that person may not know a request exists.
+   */
+  private async notifyRequester(request: OpsPrivacyRequestRecord, status: string, prisma: Prisma.TransactionClient) {
+    const message = requesterNotice(request.requestType, status);
+    if (!this.notifications || !message || request.source !== 'self_service' || !request.subjectEmail) return;
+    await writeNotification(this.notifications, undefined, request.subjectEmail, message, undefined, {
+      idempotencyKey: `privacy-request-${status}:${request.id}`,
+      action: { kind: 'privacy_request', requestId: request.id },
+    }, { prisma, correlationId: `privacy:${request.id}` });
+  }
 
   async getInventory(input: PrivacyInventoryInput = {}) {
     const source = await this.requirePlatformReferences().findPrivacyInventory(input);
@@ -334,6 +368,7 @@ export class PrivacyOperationsService {
         affectedLabel: request.subjectEmail || request.subjectName,
         metadata: { actorId: verifiedActor.id, reviewReason: input.reviewReason ?? '' },
       }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: verifiedActor.id });
+      await this.notifyRequester(saved, input.status, tx);
 
       return this.mapRequest(saved);
     });
@@ -348,7 +383,10 @@ export class PrivacyOperationsService {
       if (request.status !== PrivacyRequestStatus.Approved) {
         throw new BadRequestException('Privacy request must be approved before execution');
       }
-      return this.executeApprovedRequest(request, input, verifiedActor, tx);
+      const result = await this.executeApprovedRequest(request, input, verifiedActor, tx);
+      // Uses the row read before execution, so a deletion still reaches the address it was filed from.
+      await this.notifyRequester(request, PrivacyRequestStatus.Executed, tx);
+      return result;
     });
   }
 

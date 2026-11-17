@@ -24,5 +24,7 @@ export interface EventOpsPrivacyContract {
     submitOwnRequest(input: SubmitOwnPrivacyRequestInput): Promise<PrismOwnPrivacyRequest>;
     /** The signed-in client's or supplier's own requests, newest first. */
     listOwnRequests(): Promise<PrismOwnPrivacyRequest[]>;
+    /** Withdraws one of their own requests while PMCM has not reviewed it. */
+    cancelOwnRequest(requestId: string): Promise<PrismOwnPrivacyRequest>;
   };
 }

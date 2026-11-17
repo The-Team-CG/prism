@@ -14,6 +14,7 @@ export function supplierNoticeLink(action: NotificationAction | undefined): Noti
     return { href: supplierWorkTargetHref("bookings", action.requestId), label: `Review schedule revision ${action.revision}` };
   }
   if (action?.kind === "conversation") return { href: `${supplierSectionHref("messages")}${conversationHash(action.threadId)}`, label: "Open conversation" };
+  if (action?.kind === "privacy_request") return { href: supplierSectionHref("privacy"), label: "Open privacy" };
   if (action?.kind === "event_section" && action.section === "files") return { href: supplierSectionHref("files"), label: "Open files" };
   if (action?.kind === "event_section" && action.section === "billing") return { href: supplierSectionHref("payments"), label: "Open payments" };
   return null;

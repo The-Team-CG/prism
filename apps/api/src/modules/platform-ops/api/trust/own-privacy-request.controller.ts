@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
 import { submitOwnPrivacyRequestSchema, type PrismVerifiedEventActor, type SubmitOwnPrivacyRequestInput } from '@prism/types';
@@ -38,5 +38,14 @@ export class OpsOwnPrivacyRequestController {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireSelfServiceRequester(actor, 'own privacy requests');
     return this.ownPrivacyRequestService.submit(dto, actor);
+  }
+
+  @Post('mine/:requestId/cancel')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  async cancelMine(@Param('requestId') requestId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const actor = resolveActor(verifiedActor);
+    await this.policy.requireSelfServiceRequester(actor, 'own privacy requests');
+    return this.ownPrivacyRequestService.cancel(requestId, actor);
   }
 }

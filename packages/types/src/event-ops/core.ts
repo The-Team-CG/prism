@@ -216,6 +216,8 @@ export interface PrismCurrentUser {
   organization: string;
   twoFactorEnabled: boolean;
   privacyNoticeRequired: boolean;
+  /** The privacy notice version this person accepted and when; nulls until they first accept one. */
+  privacyNotice: { version: string | null; acknowledgedAt: string | null };
   expiresAt: string;
 }
 

@@ -28,7 +28,7 @@ export const PRISM_PRIVACY_REQUEST_MAX_PAGE_LIMIT = 100;
 /** Assignee filter value that selects requests nobody owns yet. */
 export const PRISM_PRIVACY_REQUEST_UNASSIGNED = "unassigned";
 
-export const privacyRequestStatusFilterSchema = z.enum(["all", "open", "submitted", "approved", "rejected", "executed"]);
+export const privacyRequestStatusFilterSchema = z.enum(["all", "open", "submitted", "approved", "rejected", "executed", "cancelled"]);
 export type PrivacyRequestStatusFilter = z.infer<typeof privacyRequestStatusFilterSchema>;
 
 /**

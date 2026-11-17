@@ -189,9 +189,9 @@ export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, stri
   notifications: "notifications",
 };
 
-/** Privacy requests live in the account menu, not the sidebar; the id matches that menu entry. */
+/** Privacy lives in the account menu, not the sidebar; the id matches that menu entry. */
 export const CLIENT_ACCOUNT_MENU_ITEMS: PrismAccountMenuItem[] = [
-  { id: "privacy-requests", label: "Privacy requests", icon: ShieldCheck, href: "/dashboard/privacy" },
+  { id: "privacy-requests", label: "Privacy", icon: ShieldCheck, href: "/dashboard/privacy" },
 ];
 
 export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {

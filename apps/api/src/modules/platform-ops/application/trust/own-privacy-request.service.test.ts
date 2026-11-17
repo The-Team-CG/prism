@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { OWN_PRIVACY_REQUEST_LIST_LIMIT, OwnPrivacyRequestService } from './own-privacy-request.service';
@@ -17,13 +17,15 @@ function row(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function fixture({ openRequest = null as null | { id: string }, rows = [row()] } = {}) {
+function fixture({ openRequest = null as null | Record<string, unknown>, rows = [row()], updated = 1, after = row({ status: 'cancelled', reviewedAt: new Date('2026-11-08T08:00:00.000Z') }) } = {}) {
   const created = row();
   const prisma = {
     opsPrivacyRequest: {
       findFirst: vi.fn(async (_args: unknown) => openRequest),
       create: vi.fn(async (_args: { data: Record<string, unknown> }) => created),
       findMany: vi.fn(async (_args: unknown) => rows),
+      updateMany: vi.fn(async (_args: unknown) => ({ count: updated })),
+      findUniqueOrThrow: vi.fn(async (_args: unknown) => after),
     },
     $executeRaw: vi.fn(async () => 0),
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma)),
@@ -64,6 +66,7 @@ describe('own privacy request service', () => {
       dueAt: '2026-12-07T08:00:00.000Z',
       completedAt: null,
       outcomeMessage: 'Received. PMCM verifies your identity before acting on this request.',
+      cancellable: true,
     });
     expect(result).not.toHaveProperty('requestNotes');
     expect(result).not.toHaveProperty('assignedTo');
@@ -122,6 +125,27 @@ describe('own privacy request service', () => {
     expect(requests[0]).not.toHaveProperty('reviewReason');
     expect(requests[0]).not.toHaveProperty('assignedTo');
     expect(JSON.stringify(requests)).not.toContain('internal');
+  });
+
+  it('lets the requester withdraw their own request only while PMCM has not reviewed it', async () => {
+    const { service, prisma, auditService } = fixture({ openRequest: row() });
+
+    const cancelled = await service.cancel('priv_1', clientActor);
+
+    expect(prisma.opsPrivacyRequest.findFirst).toHaveBeenCalledWith({ where: { id: 'priv_1', subjectEmail: 'ana@example.test', subjectType: { in: ['client', 'account'] } } });
+    expect(prisma.opsPrivacyRequest.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: 'priv_1', status: 'submitted' }, data: expect.objectContaining({ status: 'cancelled' }) }));
+    expect(auditService.audit).toHaveBeenCalledWith(undefined, 'Ana Reyes', 'Cancelled privacy request: access', expect.anything(), expect.objectContaining({ prisma }));
+    expect(cancelled).toMatchObject({ status: 'cancelled', completedAt: '2026-11-08T08:00:00.000Z', cancellable: false, outcomeMessage: 'Cancelled by you before PMCM reviewed it.' });
+  });
+
+  it('refuses to cancel a request PMCM already started, or one that is not the requester\'s own', async () => {
+    const started = fixture({ openRequest: row({ status: 'approved' }), updated: 0 });
+    await expect(started.service.cancel('priv_1', clientActor)).rejects.toBeInstanceOf(ConflictException);
+    expect(started.auditService.audit).not.toHaveBeenCalled();
+
+    const notMine = fixture({ openRequest: null });
+    await expect(notMine.service.cancel('priv_other', clientActor)).rejects.toBeInstanceOf(NotFoundException);
+    expect(notMine.prisma.opsPrivacyRequest.updateMany).not.toHaveBeenCalled();
   });
 
   it('shows a rejected request as closed with the review date and a non-revealing message', async () => {

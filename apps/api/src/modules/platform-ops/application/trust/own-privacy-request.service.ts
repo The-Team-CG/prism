@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Injectable } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
@@ -105,6 +105,38 @@ export class OwnPrivacyRequestService {
       }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: requester.id });
 
       return mapOwnPrivacyRequest(request);
+    });
+  }
+
+  /**
+   * Withdraws one of the requester's own requests. Only a request PMCM has not reviewed yet can be withdrawn; once
+   * PMCM has started, the requester asks PMCM instead.
+   */
+  async cancel(requestId: string, actor: ResolvedEventOpsActor): Promise<PrismOwnPrivacyRequest> {
+    const requester = requesterOf(actor);
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const request = await tx.opsPrivacyRequest.findFirst({ where: { id: requestId, ...ownSubjectWhere(requester) } });
+      if (!request) throw new NotFoundException('Privacy request not found');
+      const changed = await tx.opsPrivacyRequest.updateMany({
+        where: { id: request.id, status: PrivacyRequestStatus.Submitted },
+        data: { status: PrivacyRequestStatus.Cancelled, reviewedBy: requester.name, reviewedAt: new Date(), reviewReason: 'Cancelled by the requester' },
+      });
+      if (changed.count !== 1) {
+        throw new ConflictException('PMCM has already started on this request, so it can no longer be cancelled. Message PMCM instead.');
+      }
+
+      await this.auditService.audit(undefined, requester.name, `Cancelled privacy request: ${request.requestType}`, {
+        actorRole: actor.role,
+        actorEmail: requester.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Access,
+        affectedType: 'privacy_request',
+        affectedId: request.id,
+        affectedLabel: requester.email,
+        metadata: { actorId: requester.id, requestType: request.requestType, source: 'self_service' },
+      }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: requester.id });
+
+      return mapOwnPrivacyRequest(await tx.opsPrivacyRequest.findUniqueOrThrow({ where: { id: request.id } }));
     });
   }
 

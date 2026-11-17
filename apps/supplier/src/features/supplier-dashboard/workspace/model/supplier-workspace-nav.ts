@@ -51,7 +51,7 @@ export function supplierActiveNavId(section: SupplierDashboardSection): Supplier
 /** Help and privacy requests live in the account menu, out of the way of daily work. */
 export function supplierAccountMenuItems(onNavigate: (section: SupplierDashboardSection) => void) {
   return [
-    { id: "privacy", label: "Privacy requests", icon: ShieldCheck, onSelect: () => onNavigate("privacy") },
+    { id: "privacy", label: "Privacy", icon: ShieldCheck, onSelect: () => onNavigate("privacy") },
     { id: "support", label: "Help & support", icon: HelpCircle, onSelect: () => onNavigate("support") },
   ];
 }

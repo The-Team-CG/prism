@@ -44,8 +44,9 @@ describe("privacyDeadlineLabel", () => {
     expect(privacyDeadlineLabel(request({ dueAt: "2026-10-20T06:00:00.000Z" }), now)).toBe("Due 2026-10-20 (1 day left)");
   });
 
-  it("does not present executed or rejected requests as overdue, however late they were closed", () => {
+  it("does not present executed, rejected or withdrawn requests as overdue, however late they were closed", () => {
     expect(privacyDeadlineLabel(request({ status: "executed", overdue: false, dueAt: "2026-09-01T00:00:00.000Z" }), now)).toBe("Closed");
     expect(privacyDeadlineLabel(request({ status: "rejected", overdue: false, dueAt: "2026-09-01T00:00:00.000Z" }), now)).toBe("Closed");
+    expect(privacyDeadlineLabel(request({ status: "cancelled", overdue: false, dueAt: "2026-09-01T00:00:00.000Z" }), now)).toBe("Closed");
   });
 });

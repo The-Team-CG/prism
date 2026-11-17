@@ -1941,7 +1941,10 @@ describe("createEventOpsClient", () => {
     });
     await client.privacy.submitOwnRequest({ requestType: "correction", details: "Fix my company name" });
     await client.privacy.listOwnRequests();
+    await client.privacy.cancelOwnRequest("priv/1");
 
+    expect(fetchMock.mock.calls[2][0]).toBe("http://localhost:4000/api/privacy/requests/mine/priv%2F1/cancel");
+    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "POST" });
     expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:4000/api/privacy/requests/mine");
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       method: "POST",

@@ -1,5 +1,5 @@
 import {
-  ArrowLeftRight, Bell, CalendarClock, CalendarDays, ClipboardList, FileSignature, FileText, LayoutGrid, MessageSquare, Radio, Receipt,
+  ArrowLeftRight, Bell, CalendarClock, CalendarDays, ClipboardList, FileSignature, FileText, LayoutGrid, MessageSquare, Radio, Receipt, ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { NotificationAction, NotificationEventSection } from "@prism/types";
@@ -20,6 +20,7 @@ export function noticeIcon(action: NotificationAction | undefined): LucideIcon {
   switch (action?.kind) {
     case "conversation": return MessageSquare;
     case "payment_receipt": return Receipt;
+    case "privacy_request": return ShieldCheck;
     case "supplier_schedule": return CalendarClock;
     case "event_section": return SECTION_ICONS[action.section] ?? Bell;
     default: return Bell;

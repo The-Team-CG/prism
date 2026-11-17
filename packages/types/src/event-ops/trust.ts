@@ -121,11 +121,13 @@ export interface PrismPrivacyRequest {
 export interface PrismOwnPrivacyRequest {
   id: string;
   type: "access" | "correction" | "deletion" | "export" | string;
-  status: "submitted" | "approved" | "rejected" | "executed" | string;
+  status: "submitted" | "approved" | "rejected" | "executed" | "cancelled" | string;
   submittedAt: string;
   dueAt: string;
   completedAt: string | null;
   outcomeMessage: string;
+  /** True while PMCM has not reviewed it yet, the only time the requester can withdraw it. */
+  cancellable: boolean;
 }
 
 /** One page of the PMCM privacy request queue. */
