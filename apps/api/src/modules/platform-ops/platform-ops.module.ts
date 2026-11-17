@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { PlatformAccountEmailRelinkerService } from './application/trust/platform-account-email-relinker.service';
+import { PLATFORM_ACCOUNT_EMAIL_RELINKER } from './contracts/account-email-relinker.port';
 import { NotificationInboxController, NotificationProviderOutcomeController } from './api/notifications/notification-inbox.controller';
 import { NotificationInboxService } from './application/notifications/notification-inbox.service';
 import { NotificationProviderOutcomeService } from './application/notifications/notification-provider-outcome.service';
@@ -160,6 +162,8 @@ export function createAiProviderAdapters(
   imports: [DatabaseModule, EventSessionModule, ConfigModule, AccessControlModule, ConformeReminderWindowModule, AccountContactReadModelModule, MailModule, PortalUrlsModule],
   controllers: [ResendWebhookController, NotificationProviderOutcomeController, NotificationInboxController, OpsAuditController, OpsNotificationsController, OpsAiGovernanceController, StorageController, ConformeCommsDraftsController, InquiryTriageController, ProposalDraftsController, ClientMessageDraftsController, AiAdvisoryController, NotificationPreferencesController, ViberWebhookController, CanvaController],
   providers: [
+    PlatformAccountEmailRelinkerService,
+    { provide: PLATFORM_ACCOUNT_EMAIL_RELINKER, useExisting: PlatformAccountEmailRelinkerService },
     NotificationInboxService,
     NotificationProviderOutcomeService,
     ResendWebhookService,
@@ -230,6 +234,7 @@ export function createAiProviderAdapters(
     storageAdapterProvider,
   ],
   exports: [
+    PLATFORM_ACCOUNT_EMAIL_RELINKER,
     AuditService,
     SecurityOperationsService,
     AuditWriterAdapter,

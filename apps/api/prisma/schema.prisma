@@ -138,6 +138,7 @@ model OpsUser {
   accountInvitations  OpsAccountInvitation[]
   approvalRequests    OpsApprovalRequest[]
   sessions            OpsUserSession[]
+  emailChangeRequests OpsEmailChangeRequest[]
 
   @@map("users")
   @@schema("identity_access")
@@ -156,6 +157,25 @@ model OpsPasswordResetToken {
   @@index([userId, expiresAt], map: "password_reset_tokens_user_id_expires_at_idx")
   @@index([expiresAt], map: "password_reset_tokens_expires_at_idx")
   @@map("password_reset_tokens")
+  @@schema("identity_access")
+}
+
+/// A signed-in person's request to change their sign-in email. Only the link's hash is stored; the change happens
+/// when the link sent to the new address is opened. A newer request cancels the open one.
+model OpsEmailChangeRequest {
+  id          String    @id
+  userId      String    @map("user_id")
+  newEmail    String    @map("new_email")
+  tokenHash   String    @unique(map: "email_change_requests_token_hash_key") @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  consumedAt  DateTime? @map("consumed_at")
+  cancelledAt DateTime? @map("cancelled_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt], map: "email_change_requests_user_id_created_at_idx")
+  @@map("email_change_requests")
   @@schema("identity_access")
 }
 

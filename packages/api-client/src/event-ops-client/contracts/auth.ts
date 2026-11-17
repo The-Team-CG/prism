@@ -4,6 +4,9 @@ import type {
   PrismOwnSession,
   PrismOwnSessionsSignedOut,
   PrismOwnTwoFactorSetup,
+  PrismEmailChangeConfirmed,
+  PrismPendingEmailChange,
+  RequestEmailChangeInput,
   UpdateOwnProfileInput,
   AcknowledgePrivacyNoticeInput,
   ActivateAccountInput,
@@ -37,6 +40,12 @@ export interface EventOpsAuthContract {
     changeMyPassword(input: ChangeOwnPasswordInput): Promise<void>;
     /** The signed-in person's own latest sign-ins. */
     mySignIns(): Promise<PrismOwnSignIn[]>;
+    /** Asks to change the sign-in email; a link goes to the new address and the change waits for it. */
+    requestEmailChange(input: RequestEmailChangeInput): Promise<PrismPendingEmailChange>;
+    /** Withdraws the email change still waiting for its link. */
+    cancelEmailChange(): Promise<void>;
+    /** Opens the link from the confirmation email; needs no session. */
+    confirmEmailChange(token: string): Promise<PrismEmailChangeConfirmed>;
     /** Starts adding an authenticator app with the current password; two-step sign-in stays off until confirmed. */
     startMyTwoFactor(password: string): Promise<PrismOwnTwoFactorSetup>;
     /** Turns two-step sign-in on with a code from the app just added. */

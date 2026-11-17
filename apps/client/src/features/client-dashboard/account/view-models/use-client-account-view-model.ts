@@ -24,6 +24,10 @@ export function useClientAccountViewModel() {
     saveName: accountChange(clientAccountRepository.updateName, () => invalidate(clientCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
     changePassword: accountChange(clientAccountRepository.changePassword, async () => { await signOutClientSession(); window.location.assign("/sign-in"); }),
+    changeEmail: {
+      request: accountChange(clientAccountRepository.requestEmailChange, () => invalidate(clientCurrentUserResource)),
+      cancel: accountChange(clientAccountRepository.cancelEmailChange, () => invalidate(clientCurrentUserResource)),
+    },
     twoStep: {
       start: twoStepStart(clientAccountRepository.startTwoStep),
       enable: accountChange(clientAccountRepository.enableTwoStep, () => invalidate(clientCurrentUserResource)),
@@ -55,7 +59,7 @@ export function useClientAccountViewModel() {
     sessions: sessions.status === "ready" ? sessions.data : null,
     loading: me.status === "pending",
     error: me.status === "error" ? me.error.message || "We could not load your account." : null,
-    identity: user ? ({ name: user.name, email: user.email, organization: user.organization, roleLabel: "Client" } satisfies AccountIdentity) : null,
+    identity: user ? ({ name: user.name, email: user.email, pendingEmail: user.pendingEmail, organization: user.organization, roleLabel: "Client" } satisfies AccountIdentity) : null,
     security: user ? ({ signedInAt: user.lastSignInAt, twoFactorEnabled: user.twoFactorEnabled, twoFactorRequired: false } satisfies AccountSecuritySummary) : null,
     contact,
     privacy: privacySummary,

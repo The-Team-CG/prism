@@ -16,3 +16,4 @@ export * from './contracts/ai-governance/pare-dispatch-writer.port';
 export * from './contracts/ai-governance/pare-approval-governance.port';
 export * from './contracts/ai-governance/pare-ops.tokens';
 export * from './contracts/integrations/canva-designs.port';
+export * from './contracts/account-email-relinker.port';

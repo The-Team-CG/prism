@@ -27,6 +27,10 @@ export function useEventAccountViewModel() {
     saveName: accountChange(eventAccountRepository.updateName, () => invalidate(eventCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
     changePassword: accountChange(eventAccountRepository.changePassword, () => { clearEventSession(); window.location.assign("/sign-in"); }),
+    changeEmail: {
+      request: accountChange(eventAccountRepository.requestEmailChange, () => invalidate(eventCurrentUserResource)),
+      cancel: accountChange(eventAccountRepository.cancelEmailChange, () => invalidate(eventCurrentUserResource)),
+    },
     twoStep: {
       start: twoStepStart(eventAccountRepository.startTwoStep),
       enable: accountChange(eventAccountRepository.enableTwoStep, () => invalidate(eventCurrentUserResource)),
@@ -43,7 +47,7 @@ export function useEventAccountViewModel() {
     sessions: sessions.status === "ready" ? sessions.data : null,
     loading: me.status === "pending",
     error: me.status === "error" ? me.error.message || "We could not load your account." : null,
-    identity: user ? ({ name: user.name, email: user.email, organization: user.organization, roleLabel: roleLabel(user.role) } satisfies AccountIdentity) : null,
+    identity: user ? ({ name: user.name, email: user.email, pendingEmail: user.pendingEmail, organization: user.organization, roleLabel: roleLabel(user.role) } satisfies AccountIdentity) : null,
     security: user ? ({ signedInAt: user.lastSignInAt, twoFactorEnabled: user.twoFactorEnabled, twoFactorRequired: isAdmin } satisfies AccountSecuritySummary) : null,
     links: isAdmin ? ADMIN_LINKS : [],
     today: manilaDateKey(),

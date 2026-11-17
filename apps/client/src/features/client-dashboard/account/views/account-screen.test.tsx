@@ -172,6 +172,34 @@ describe("AccountScreen panels", () => {
     expect(signInCodeProblem("This account is currently locked")).toEqual({ text: "This account is currently locked", restart: false });
   });
 
+  it("changes the sign-in email through a link to the new address, and shows a change still waiting for it", async () => {
+    const request = vi.fn().mockResolvedValueOnce("We could not send the email to that address. Check it and try again.").mockResolvedValueOnce(null);
+    const changeEmail = { request, cancel: vi.fn(async () => null) };
+    const { unmount } = render(<AccountScreen {...base} actions={{ changeEmail }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Email: ana@ayala.test" }));
+    const send = () => dialog().getByRole("button", { name: "Send confirmation link" }) as HTMLButtonElement;
+    fireEvent.change(dialog().getByLabelText("New email"), { target: { value: "ANA@ayala.test" } });
+    fireEvent.change(dialog().getByLabelText("Your password"), { target: { value: "right-password" } });
+    expect(send().disabled).toBe(true);
+    expect(dialog().getByText("That is already your sign-in email.")).toBeTruthy();
+    fireEvent.change(dialog().getByLabelText("New email"), { target: { value: " ana@reyes.test " } });
+    fireEvent.click(send());
+    expect((await dialog().findByRole("alert")).textContent).toMatch(/could not send/);
+    fireEvent.click(send());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(request).toHaveBeenLastCalledWith({ newEmail: "ana@reyes.test", password: "right-password" });
+    expect(screen.getByRole("status").textContent).toBe("We sent a link to ana@reyes.test. Your email changes when you open it.");
+    unmount();
+
+    const pendingEmail = { email: "ana@reyes.test", expiresAt: "2026-11-19T02:00:00.000Z" };
+    render(<AccountScreen {...base} identity={{ ...identity, pendingEmail }} actions={{ changeEmail }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Email: ana@ayala.test · changing to ana@reyes.test" }));
+    expect(dialog().getByText(/Open it to switch; until then you sign in with ana@ayala.test/)).toBeTruthy();
+    fireEvent.click(dialog().getByRole("button", { name: "Withdraw" }));
+    await waitFor(() => expect(changeEmail.cancel).toHaveBeenCalledTimes(1));
+    expect((await screen.findByRole("status")).textContent).toMatch(/^Email change withdrawn/);
+  });
+
   it("opens the notification channels from their row", () => {
     render(<AccountScreen {...base} />);
     fireEvent.click(screen.getByRole("button", { name: /^Channels:/ }));

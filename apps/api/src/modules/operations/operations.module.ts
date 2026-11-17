@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { OperationsAccountEmailRelinkerService } from './application/staffing/operations-account-email-relinker.service';
+import { OPERATIONS_ACCOUNT_EMAIL_RELINKER } from './contracts/account-email-relinker.port';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
@@ -45,6 +47,8 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule],
   controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController, CoordinatorRoleBriefController, CoordinatorReplacementRecommendationsController, GuestQrPassController],
   providers: [
+    OperationsAccountEmailRelinkerService,
+    { provide: OPERATIONS_ACCOUNT_EMAIL_RELINKER, useExisting: OperationsAccountEmailRelinkerService },
     CoordinatorsService,
     CoordinatorAssignmentCommandService,
     CoordinatorReplacementRecommendationService,
@@ -69,6 +73,6 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
     { provide: GUEST_READER, useExisting: GuestWorkflowService },
     { provide: REGISTRATION_PLATFORM_READER, useExisting: RegistrationPlatformService },
   ],
-  exports: [CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, COORDINATOR_INSIGHT_FACTS_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER, OPERATIONS_PRIVACY_REDACTOR],
+  exports: [OPERATIONS_ACCOUNT_EMAIL_RELINKER, CoordinatorsService, CoordinatorWorkspaceReadService, STAFFING_COMMANDS, STAFFING_READER, COORDINATOR_RELIABILITY_WRITER, COORDINATOR_INSIGHT_FACTS_READER, GuestWorkflowService, RegistrationPlatformService, WalkInPolicyService, GUEST_COMMANDS, GUEST_READER, REGISTRATION_PLATFORM_READER, OPERATIONS_PRIVACY_REDACTOR],
 })
 export class OperationsModule {}

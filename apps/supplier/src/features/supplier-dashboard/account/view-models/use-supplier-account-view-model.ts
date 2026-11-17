@@ -30,6 +30,10 @@ export function useSupplierAccountViewModel() {
     saveName: accountChange(supplierAccountRepository.updateName, () => invalidate(supplierCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
     changePassword: accountChange(supplierAccountRepository.changePassword, async () => { await signOutSupplier(); window.location.assign("/sign-in"); }),
+    changeEmail: {
+      request: accountChange(supplierAccountRepository.requestEmailChange, () => invalidate(supplierCurrentUserResource)),
+      cancel: accountChange(supplierAccountRepository.cancelEmailChange, () => invalidate(supplierCurrentUserResource)),
+    },
     twoStep: {
       start: twoStepStart(supplierAccountRepository.startTwoStep),
       enable: accountChange(supplierAccountRepository.enableTwoStep, () => invalidate(supplierCurrentUserResource)),
@@ -53,7 +57,7 @@ export function useSupplierAccountViewModel() {
     sessions: sessions.status === "ready" ? sessions.data : null,
     loading: me.status === "pending",
     error: me.status === "error" ? me.error.message || "We could not load your account." : null,
-    identity: user ? ({ name: user.name, email: user.email, organization: user.organization, roleLabel: "Supplier" } satisfies AccountIdentity) : null,
+    identity: user ? ({ name: user.name, email: user.email, pendingEmail: user.pendingEmail, organization: user.organization, roleLabel: "Supplier" } satisfies AccountIdentity) : null,
     security: user ? ({ signedInAt: user.lastSignInAt, twoFactorEnabled: user.twoFactorEnabled, twoFactorRequired: false } satisfies AccountSecuritySummary) : null,
     contact: PMCM_CONTACT,
     privacy: privacySummary,

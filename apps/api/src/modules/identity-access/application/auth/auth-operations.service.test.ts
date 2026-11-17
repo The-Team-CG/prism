@@ -913,6 +913,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
     const transaction = { opsUser };
     const prisma = {
       opsUserSession: sessionTable(),
+      opsEmailChangeRequest: { findFirst: vi.fn(async () => null) },
       ...transaction,
       $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction)),
     };
@@ -993,6 +994,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
       privacyNoticeRequired: true,
       privacyNotice: { version: null, acknowledgedAt: null },
       lastSignInAt: null,
+      pendingEmail: null,
       expiresAt: actor.expiresAt,
     });
     expect(JSON.stringify(me)).not.toContain('stored-password-hash');

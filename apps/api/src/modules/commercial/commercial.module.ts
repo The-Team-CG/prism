@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { CommercialAccountEmailRelinkerService } from './application/suppliers/commercial-account-email-relinker.service';
+import { COMMERCIAL_ACCOUNT_EMAIL_RELINKER } from './contracts/account-email-relinker.port';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
@@ -155,6 +157,8 @@ const supplierCommandsProvider = {
     PresentationMeetingController,
   ],
   providers: [
+    CommercialAccountEmailRelinkerService,
+    { provide: COMMERCIAL_ACCOUNT_EMAIL_RELINKER, useExisting: CommercialAccountEmailRelinkerService },
     CommercialWorkflowService,
     ProposalClientReviewService,
     PrismaQuoteSupplierResolver,
@@ -216,6 +220,7 @@ const supplierCommandsProvider = {
   exports: [
     CommunicationAttachmentGateService,
     CommercialWorkflowService,
+    COMMERCIAL_ACCOUNT_EMAIL_RELINKER,
     COMMERCIAL_WORKFLOW_COMMANDS,
     SuppliersService,
     supplierDirectoryProvider,

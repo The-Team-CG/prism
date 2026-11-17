@@ -8,3 +8,4 @@ export * from './contracts/registration-platform-reader.port';
 export * from './contracts/privacy-redaction.port';
 export * from './application/guest/operations-privacy-redactor.service';
 export { guestAccessCode } from './application/guest/guest-access-code';
+export * from './contracts/account-email-relinker.port';

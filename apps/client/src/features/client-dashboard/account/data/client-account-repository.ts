@@ -21,6 +21,8 @@ export const clientOwnSessionsResource = defineResource<void, PrismOwnSession[]>
 });
 
 export const clientAccountRepository = {
+  requestEmailChange: (input: { newEmail: string; password: string }) => clientApi.auth.requestEmailChange(input),
+  cancelEmailChange: () => clientApi.auth.cancelEmailChange(),
   startTwoStep: (password: string) => clientApi.auth.startMyTwoFactor(password),
   enableTwoStep: (code: string) => clientApi.auth.enableMyTwoFactor(code),
   disableTwoStep: (password: string) => clientApi.auth.disableMyTwoFactor(password),

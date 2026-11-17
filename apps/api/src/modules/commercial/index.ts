@@ -14,3 +14,4 @@ export * from './contracts/supplier-workspace-reader.port';
 export * from './application/suppliers/commercial-privacy-redactor.service';
 export * from './application/billing/billing-operations.mappers';
 export * from './confirmed-cancellation-fee.module';
+export * from './contracts/account-email-relinker.port';

@@ -21,6 +21,8 @@ export const supplierOwnSessionsResource = defineResource<void, PrismOwnSession[
 });
 
 export const supplierAccountRepository = {
+  requestEmailChange: (input: { newEmail: string; password: string }) => supplierApi.auth.requestEmailChange(input),
+  cancelEmailChange: () => supplierApi.auth.cancelEmailChange(),
   startTwoStep: (password: string) => supplierApi.auth.startMyTwoFactor(password),
   enableTwoStep: (code: string) => supplierApi.auth.enableMyTwoFactor(code),
   disableTwoStep: (password: string) => supplierApi.auth.disableMyTwoFactor(password),

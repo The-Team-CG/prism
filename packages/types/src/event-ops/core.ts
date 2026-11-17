@@ -228,7 +228,20 @@ export interface PrismCurrentUser {
   privacyNotice: { version: string | null; acknowledgedAt: string | null };
   /** When this person last signed in, which for the signed-in person is this sign-in. */
   lastSignInAt: string | null;
+  /** A change of sign-in email waiting for the link sent to the new address; null when there is none. */
+  pendingEmail: PrismPendingEmailChange | null;
   expiresAt: string;
+}
+
+/** A requested sign-in email, waiting until the link sent to it is opened. */
+export interface PrismPendingEmailChange {
+  email: string;
+  expiresAt: string;
+}
+
+/** The result of opening the confirmation link: the email to sign in with from now on. */
+export interface PrismEmailChangeConfirmed {
+  email: string;
 }
 
 /** One of the signed-in person's own recent sign-ins: when, whether it worked, and the browser it came from. */

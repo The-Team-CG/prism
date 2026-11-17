@@ -11,6 +11,9 @@ import { OpsAuthController } from './api/auth/auth.controller';
 import { AuthOperationsService } from './application/auth/auth-operations.service';
 import { OwnSessionsService } from './application/auth/own-sessions.service';
 import { OwnTwoFactorService } from './application/auth/own-two-factor.service';
+import { EmailChangeService } from './application/auth/email-change.service';
+import { EmailChangeMailAdapter } from './infrastructure/auth/email-change-mail.adapter';
+import { ACCOUNT_EMAIL_CHANGE_CLAIM, EMAIL_CHANGE_DELIVERY } from './contracts/email-change.port';
 import { TotpService } from './application/auth/totp.service';
 import { AUTH_AUDIT } from './contracts/auth-audit.port';
 import { AuthAuditAdapter } from './infrastructure/auth/auth-audit.adapter';
@@ -32,6 +35,7 @@ import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-m
     AuthOperationsService,
     OwnSessionsService,
     OwnTwoFactorService,
+    EmailChangeService,
     PasswordResetService,
     AccountActivationService,
     TotpService,
@@ -40,10 +44,12 @@ import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-m
     IdentityPrivacyRedactorService,
     { provide: AUTH_AUDIT, useExisting: AuthAuditAdapter },
     { provide: PASSWORD_RESET_DELIVERY, useClass: PasswordResetMailAdapter },
+    { provide: EMAIL_CHANGE_DELIVERY, useClass: EmailChangeMailAdapter },
+    { provide: ACCOUNT_EMAIL_CHANGE_CLAIM, useExisting: EmailChangeService },
     { provide: PARTICIPANT_READER, useExisting: ParticipantReaderService },
     { provide: IDENTITY_PRIVACY_REDACTOR, useExisting: IdentityPrivacyRedactorService },
     { provide: ACCOUNT_PASSWORD_CONFIRMATION, useExisting: AuthOperationsService },
   ],
-  exports: [AuthOperationsService, PARTICIPANT_READER, IDENTITY_PRIVACY_REDACTOR, ACCOUNT_PASSWORD_CONFIRMATION],
+  exports: [AuthOperationsService, PARTICIPANT_READER, IDENTITY_PRIVACY_REDACTOR, ACCOUNT_PASSWORD_CONFIRMATION, ACCOUNT_EMAIL_CHANGE_CLAIM],
 })
 export class IdentityAccessModule {}

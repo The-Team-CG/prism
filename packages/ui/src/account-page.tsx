@@ -2,20 +2,28 @@
 
 import { useState, type ReactNode } from "react";
 import { AlertTriangle, ChevronRight } from "lucide-react";
-import type { PrismOwnSession, PrismOwnSignIn } from "@prism/types";
+import type { PrismOwnSession, PrismOwnSignIn, PrismPendingEmailChange } from "@prism/types";
 import { Button } from "./components/ui/button";
 import { LoadingState } from "./components/ui/loading-state";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./components/ui/sheet";
 import { NameEditor, PasswordChanger, SignInList, type AccountChange } from "./account-security";
 import { SessionList, devicesValue } from "./account-sessions";
 import { TwoStepPanel, type AccountTwoStepActions } from "./account-two-step";
+import { EmailPanel, emailValue, type AccountEmailActions } from "./account-email";
 import { formatPortalDate, formatPortalDateTime, manilaCalendarKey } from "./format-date";
 import { cn } from "./utils";
 
 export { accountChange } from "./account-security";
 
 /** Who is signed in, as the account page heads with it. */
-export type AccountIdentity = { name: string; email: string; organization: string; roleLabel: string };
+export type AccountIdentity = {
+  name: string;
+  email: string;
+  organization: string;
+  roleLabel: string;
+  /** A change of sign-in email waiting for the link sent to the new address. */
+  pendingEmail?: PrismPendingEmailChange | null;
+};
 
 /** The PMCM person a client or supplier talks to, with the way to message them. */
 export type AccountContact = { name: string; detail: string; href: string };
@@ -42,6 +50,8 @@ export type AccountActions = {
   signOutOtherSessions?: AccountChange<void>;
   /** Turns two-step sign-in on or off. */
   twoStep?: AccountTwoStepActions;
+  /** Changes the sign-in email through a link sent to the new address. */
+  changeEmail?: AccountEmailActions;
 };
 
 export type AccountSecuritySummary = {
@@ -52,7 +62,7 @@ export type AccountSecuritySummary = {
   twoFactorRequired: boolean;
 };
 
-type Panel = "name" | "password" | "two-step" | "devices" | "sign-ins" | "notifications";
+type Panel = "name" | "email" | "password" | "two-step" | "devices" | "sign-ins" | "notifications";
 
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
 
@@ -170,6 +180,7 @@ function HelpGroup({ contact, privacy, links }: { contact: AccountContact | null
 
 const PANEL_TITLES: Record<Panel, { title: string; description: string }> = {
   name: { title: "Your name", description: "How PMCM and your events show you." },
+  email: { title: "Sign-in email", description: "The address you sign in with and where PMCM emails you." },
   password: { title: "Change your password", description: "This signs you out everywhere, including here. You sign in again with the new one." },
   "two-step": { title: "Two-step sign-in", description: "A code from your phone after your password, so a password alone is not enough to sign in as you." },
   devices: { title: "Where you're signed in", description: "Sign out any device you no longer use or don't recognise. To sign out here, use Sign out in the menu." },
@@ -193,6 +204,9 @@ type PanelProps = {
 const PANEL_BODIES: Record<Panel, (props: PanelProps) => ReactNode> = {
   name: ({ identity, actions, onPanel, onSaved }) => identity && actions.saveName ? (
     <NameEditor name={identity.name} save={actions.saveName} onDone={() => onPanel(null)} onSaved={() => onSaved("Name saved. The menu shows it after your next sign-in.")} />
+  ) : null,
+  email: ({ identity, actions, onPanel, onSaved }) => identity && actions.changeEmail ? (
+    <EmailPanel email={identity.email} pending={identity.pendingEmail ?? null} actions={actions.changeEmail} onDone={(note) => { onPanel(null); onSaved(note); }} />
   ) : null,
   password: ({ actions, onPanel }) => actions.changePassword ? <PasswordChanger change={actions.changePassword} onCancel={() => onPanel(null)} /> : null,
   "two-step": ({ security, actions, onPanel, onSaved }) => security && actions.twoStep ? (
@@ -270,7 +284,7 @@ export function AccountScreen({ identity, loading, error, security, notification
       {identity ? (
         <Group title="You">
           <Row label="Name" value={identity.name} onOpen={actions.saveName ? () => setPanel("name") : undefined} />
-          <Row label="Email" value={identity.email} />
+          <Row label="Email" value={emailValue(identity.email, identity.pendingEmail)} onOpen={actions.changeEmail ? () => setPanel("email") : undefined} />
         </Group>
       ) : null}
       {security ? <SecurityGroup security={security} actions={actions} signIns={signIns} sessions={sessions} open={setPanel} /> : null}

@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { LifecycleAccountEmailRelinkerService } from './application/onboarding/lifecycle-account-email-relinker.service';
+import { LIFECYCLE_ACCOUNT_EMAIL_RELINKER } from './contracts/account-email-relinker.port';
 import { DatabaseModule } from '@prism/kernel/database';
 import { AccessControlModule } from '@prism/kernel/access-control';
 import { EventCoreModule } from '@prism/kernel/event-core';
@@ -143,6 +145,8 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     EventDayStartController,
   ],
   providers: [
+    LifecycleAccountEmailRelinkerService,
+    { provide: LIFECYCLE_ACCOUNT_EMAIL_RELINKER, useExisting: LifecycleAccountEmailRelinkerService },
     InquiriesService,
     EventDayStartService,
     InquiryWorkflowService,
@@ -209,6 +213,7 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
     FILE_REQUIREMENT_READER,
     FILE_REQUIREMENT_COMMANDS,
     ChangeManagementService,
+    LIFECYCLE_ACCOUNT_EMAIL_RELINKER,
     LIFECYCLE_PRIVACY_REDACTOR,
     PROPOSAL_REVIEW_OWNER,
     EventLifecycleReferenceModule,
