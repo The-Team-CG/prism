@@ -36,6 +36,7 @@ export type ClientDashboardRoute =
   | "messages"
   | "changes"
   | "privacy"
+  | "account"
   | "notifications"
   | "summary";
 

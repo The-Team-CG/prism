@@ -185,7 +185,8 @@ describe("event-dashboard-routing", () => {
       [{ section: "finance", tab: "overview" }, { eyebrow: "Finance", title: "Finance Desk" }],
       [{ section: "inquiries", tab: "overview" }, { eyebrow: "Inquiries", title: "Inquiries" }],
       [{ section: "events-list", tab: "overview" }, { eyebrow: "Events", title: "Events" }],
-      [{ section: "settings", tab: "overview" }, { eyebrow: "Settings", title: "Settings" }],
+      [{ section: "settings", tab: "overview" }, { eyebrow: "Settings", title: "Workspace settings" }],
+      [{ section: "account", tab: "overview" }, { eyebrow: "Account", title: "Account" }],
       [{ section: "events", tab: "overview", eventId: "event-42" }, { eyebrow: "Event workspace", title: "Event workspace" }],
       [{ section: "dashboard", tab: "overview" }, { eyebrow: "Command home", title: "Event Manager" }],
     ];

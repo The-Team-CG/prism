@@ -22,6 +22,7 @@ export const SUPPLIER_DASHBOARD_SECTIONS = [
   "payments",
   "profile",
   "privacy",
+  "account",
   "notifications",
   "support",
 ] as const;

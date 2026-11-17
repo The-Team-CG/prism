@@ -407,6 +407,7 @@ describe('EventReadModelsService', () => {
         [],
       ]),
       clientEventTimelineForEvents: vi.fn(async () => []),
+      clientPmcmContactsForEvents: vi.fn(async () => [{ eventId: event.id, coordinatorName: 'Marco Santos' }]),
       clientNotificationsForEvents: vi.fn(async () => [{ id: 'notif_client', eventId: event.id, recipient: 'Client', message: 'Layout approved', channel: 'email', status: 'queued', createdAt: new Date('2026-10-20T00:00:00.000Z'), acknowledgedAt: null }]),
       archivedClientEvents: vi.fn(async () => [{ ...event, id: 'evt_archived_history', archived: true }]),
     };
@@ -435,6 +436,9 @@ describe('EventReadModelsService', () => {
     const workspace = await service.clientWorkspace(actor, mappers as never);
 
     expect(workspace.events).toEqual([event]);
+    // Clients learn only who coordinates each event; staff records stay internal.
+    expect(workspace.pmcmContacts).toEqual([{ eventId: event.id, coordinatorName: 'Marco Santos' }]);
+    expect(workspace.coordinatorAssignments).toEqual([]);
     expect(queries.visibleEvents).toHaveBeenCalledWith(
       expect.objectContaining({ role: OpsUserRole.Client, email: 'ana@example.test' }),
       undefined,
@@ -1389,6 +1393,7 @@ describe('EventReadModelsService', () => {
         [],
         [],
       ]),
+      clientPmcmContactsForEvents: vi.fn(async () => []),
       clientEventTimelineForEvents: vi.fn(async (eventIds: string[]) => {
         expect(eventIds).toEqual(['evt_ready', 'evt_pending', 'evt_completed']);
         return milestoneRows;

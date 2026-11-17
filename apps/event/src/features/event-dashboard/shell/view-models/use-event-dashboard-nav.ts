@@ -137,6 +137,6 @@ export function eventPortalNavItems({
     { id: "finance-payment-details", icon: QrCode, label: "Payment details", section: "Finance" },
     { id: "audit", icon: ShieldCheck, label: "Audit", section: "Administration" },
     { id: "privacy", icon: Database, label: "Privacy", section: "Administration" },
-    { id: "settings", icon: Settings, label: "Settings", section: "Administration" },
+    { id: "settings", icon: Settings, label: "Workspace settings", section: "Administration" },
   ];
 }

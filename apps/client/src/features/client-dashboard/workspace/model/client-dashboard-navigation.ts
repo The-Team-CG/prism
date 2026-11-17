@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Bell,
   TicketCheck,
+  UserRound,
   WalletCards,
   type LucideIcon,
 } from "lucide-react";
@@ -186,11 +187,13 @@ export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, stri
   billing: "billing-payments",
   messages: "messages",
   privacy: "privacy-requests",
+  account: "account",
   notifications: "notifications",
 };
 
-/** Privacy lives in the account menu, not the sidebar; the id matches that menu entry. */
+/** Account and Privacy live in the account menu, not the sidebar; the ids match those menu entries. */
 export const CLIENT_ACCOUNT_MENU_ITEMS: PrismAccountMenuItem[] = [
+  { id: "account", label: "Account", icon: UserRound, href: "/dashboard/account" },
   { id: "privacy-requests", label: "Privacy", icon: ShieldCheck, href: "/dashboard/privacy" },
 ];
 
@@ -334,6 +337,7 @@ const PORTAL_HREFS: Partial<Record<ClientDashboardRoute, string>> = {
   files: "/dashboard/files",
   billing: "/dashboard/billing",
   privacy: "/dashboard/privacy",
+  account: "/dashboard/account",
   notifications: "/dashboard/notifications",
 };
 

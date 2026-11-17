@@ -15,6 +15,7 @@ const PORTAL_TITLES: Partial<Record<ClientDashboardRoute, string>> = {
   files: "Files",
   billing: "Billing & Payments",
   privacy: "Privacy",
+  account: "Account",
   notifications: "Notifications",
 };
 
@@ -34,6 +35,7 @@ const PORTAL_DESCRIPTIONS: Partial<Record<ClientDashboardRoute, string>> = {
   files: "Contracts, quotations, receipts, layouts, and shared event files.",
   billing: "Quotations, invoices, payment schedule, receipts, and current balance.",
   privacy: "Ask PMCM about your personal data and follow each request to its outcome.",
+  account: "Who you are, how you sign in, and where PMCM reaches you.",
   notifications: "What changed across your events, what is new since you last looked, and what PMCM asked you to confirm.",
 };
 
@@ -81,6 +83,7 @@ const PORTAL_TRAIL_PARENT: Partial<Record<ClientDashboardRoute, string>> = {
   files: "Files",
   billing: "Billing & Payments",
   privacy: "Privacy",
+  account: "Account",
   notifications: "Notifications",
 };
 

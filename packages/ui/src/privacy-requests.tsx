@@ -79,7 +79,10 @@ function StepTrack({ step }: { step: number }) {
   );
 }
 
-function Tile({ icon: Icon, className }: { icon: LucideIcon; className: string }) {
+/** A request's due date, calm until its last week; shared with PMCM's queue. */
+export { DuePill as PrivacyDuePill };
+
+export function Tile({ icon: Icon, className }: { icon: LucideIcon; className: string }) {
   return <span aria-hidden className={cn("grid size-8 shrink-0 place-items-center rounded-lg", className)}><Icon className="size-4" /></span>;
 }
 

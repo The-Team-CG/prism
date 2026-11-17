@@ -13,6 +13,7 @@ import {
   MessageSquare,
   PackageCheck,
   User,
+  UserRound,
   ShieldCheck,
   Wallet,
   Warehouse,
@@ -48,9 +49,10 @@ export function supplierActiveNavId(section: SupplierDashboardSection): Supplier
   return section === "quotations" ? "requests" : section;
 }
 
-/** Help and privacy requests live in the account menu, out of the way of daily work. */
+/** Account, privacy and help live in the account menu, out of the way of daily work. */
 export function supplierAccountMenuItems(onNavigate: (section: SupplierDashboardSection) => void) {
   return [
+    { id: "account", label: "Account", icon: UserRound, onSelect: () => onNavigate("account") },
     { id: "privacy", label: "Privacy", icon: ShieldCheck, onSelect: () => onNavigate("privacy") },
     { id: "support", label: "Help & support", icon: HelpCircle, onSelect: () => onNavigate("support") },
   ];

@@ -218,6 +218,8 @@ export interface PrismCurrentUser {
   privacyNoticeRequired: boolean;
   /** The privacy notice version this person accepted and when; nulls until they first accept one. */
   privacyNotice: { version: string | null; acknowledgedAt: string | null };
+  /** When this person last signed in, which for the signed-in person is this sign-in. */
+  lastSignInAt: string | null;
   expiresAt: string;
 }
 

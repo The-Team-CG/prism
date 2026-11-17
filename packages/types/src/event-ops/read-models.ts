@@ -145,6 +145,12 @@ export interface PrismPmcmOcularVisit extends PrismClientOcularVisit {
   waivedBy: string | null;
 }
 
+/** A coordinator a client can name and message about one event. */
+export interface PrismClientPmcmContact {
+  eventId: string;
+  coordinatorName: string;
+}
+
 export type PrismClientWorkspace = {
   users: PrismUser[];
   inquiries: PrismInquiry[];
@@ -168,6 +174,11 @@ export type PrismClientWorkspace = {
   billingDisputes?: PrismClientBillingDispute[];
   /** The client's own archived events for read-only history and closeout; never part of active workspace data. */
   archivedEvents?: PrismEvent[];
+  /**
+   * Who at PMCM coordinates each of the client's events: the name only, for assignments still in force. Staff records,
+   * attendance and replacement details stay internal.
+   */
+  pmcmContacts?: PrismClientPmcmContact[];
 };
 
 export interface PrismBillingWorkspace {
