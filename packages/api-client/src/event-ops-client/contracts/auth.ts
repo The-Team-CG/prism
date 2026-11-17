@@ -1,4 +1,7 @@
 import type {
+  ChangeOwnPasswordInput,
+  PrismOwnSignIn,
+  UpdateOwnProfileInput,
   AcknowledgePrivacyNoticeInput,
   ActivateAccountInput,
   CreateAccountInvitationInput,
@@ -25,6 +28,12 @@ export interface EventOpsAuthContract {
     logout(): Promise<void>;
     acknowledgePrivacyNotice(input: AcknowledgePrivacyNoticeInput): Promise<void>;
     me(): Promise<PrismCurrentUser>;
+    /** Changes the signed-in person's own name. */
+    updateMe(input: UpdateOwnProfileInput): Promise<PrismCurrentUser>;
+    /** Changes the signed-in person's own password; every session ends. */
+    changeMyPassword(input: ChangeOwnPasswordInput): Promise<void>;
+    /** The signed-in person's own latest sign-ins. */
+    mySignIns(): Promise<PrismOwnSignIn[]>;
     approvalRequests(): Promise<PrismApprovalRequest[]>;
     approveApprovalRequest(requestId: string): Promise<PrismApprovalRequest>;
     declineApprovalRequest(requestId: string): Promise<PrismApprovalRequest>;

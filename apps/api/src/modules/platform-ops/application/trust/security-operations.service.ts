@@ -88,11 +88,12 @@ export class SecurityOperationsService {
     private readonly notificationOutbox?: NotificationOutboxService,
   ) {}
 
-  async listLoginHistory(userId: string) {
+  async listLoginHistory(userId: string, limit = 5) {
     const entries = await this.prisma.opsLoginHistory.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
-      take: 5,
+      // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: one account's own latest sign-ins, capped at 20.
+      take: Math.min(Math.max(limit, 1), 20),
     });
 
     return entries.map((entry: OpsLoginHistory) => this.mapLoginHistory(entry));

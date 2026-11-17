@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { useResource } from "@prism/portal-query";
+import { useInvalidate, useResource } from "@prism/portal-query";
+import { accountChange, type AccountActions } from "@prism/ui/account-page";
+import { signOutSupplier } from "../../workspace/use-cases/supplier-workspace-actions";
 import { manilaDateKey } from "@prism/ui/format-date";
 import type { AccountContact, AccountIdentity, AccountLink, AccountPrivacySummary, AccountSecuritySummary } from "@prism/ui/account-page";
 import { supplierOwnPrivacyRequestsResource } from "../../privacy/data/supplier-privacy-repository";
 import { supplierSectionHref } from "../../workspace/model/supplier-workspace-types";
-import { supplierCurrentUserResource } from "../data/supplier-account-repository";
+import { supplierAccountRepository, supplierCurrentUserResource, supplierOwnSignInsResource } from "../data/supplier-account-repository";
 
 const OPEN = new Set(["submitted", "approved"]);
 
@@ -20,6 +22,13 @@ const SUPPLIER_LINKS: AccountLink[] = [
 /** The supplier's account page: who they are, how they sign in, who to message at PMCM and their privacy at a glance. */
 export function useSupplierAccountViewModel() {
   const me = useResource(supplierCurrentUserResource, undefined);
+  const signIns = useResource(supplierOwnSignInsResource, undefined);
+  const invalidate = useInvalidate();
+  const actions: AccountActions = {
+    saveName: accountChange(supplierAccountRepository.updateName, () => invalidate(supplierCurrentUserResource)),
+    // Every session ends with the old password, so the person signs in again with the new one.
+    changePassword: accountChange(supplierAccountRepository.changePassword, async () => { await signOutSupplier(); window.location.assign("/sign-in"); }),
+  };
   const privacy = useResource(supplierOwnPrivacyRequestsResource, undefined);
   const user = me.status === "ready" ? me.data : null;
 
@@ -30,6 +39,8 @@ export function useSupplierAccountViewModel() {
   }, [privacy, user]);
 
   return {
+    actions,
+    signIns: signIns.status === "ready" ? signIns.data : null,
     loading: me.status === "pending",
     error: me.status === "error" ? me.error.message || "We could not load your account." : null,
     identity: user ? ({ name: user.name, email: user.email, organization: user.organization, roleLabel: "Supplier" } satisfies AccountIdentity) : null,

@@ -19,6 +19,8 @@ export function SupplierAccountView() {
       contact={vm.contact}
       links={vm.links}
       today={vm.today}
+      actions={vm.actions}
+      signIns={vm.signIns}
     />
   );
 }

@@ -1,6 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import type { PrismOwnSignIn } from "@prism/types";
+import { Button } from "./components/ui/button";
+import { NameEditor, PasswordChanger, SignInList, type AccountChange } from "./account-security";
+export { accountChange } from "./account-security";
 import { ChevronRight, KeyRound, MessageSquare, ShieldCheck } from "lucide-react";
 import { LoadingState } from "./components/ui/loading-state";
 import { formatPortalDate, formatPortalDateTime, manilaCalendarKey } from "./format-date";
@@ -22,6 +26,13 @@ export type AccountPrivacySummary = {
   nextDueAt: string | null;
   notice: { version: string | null; acknowledgedAt: string | null };
   href: string;
+};
+
+/** What the signed-in person can change about their own account; absent where a portal does not offer it. */
+export type AccountActions = {
+  saveName?: AccountChange<{ name: string }>;
+  /** Resolves null once changed; the portal then signs the person out, since every session ended. */
+  changePassword?: AccountChange<{ currentPassword: string; newPassword: string }>;
 };
 
 export type AccountSecuritySummary = {
@@ -52,15 +63,44 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function SecurityCard({ security }: { security: AccountSecuritySummary }) {
+function SecurityCard({ security, changePassword, signIns }: { security: AccountSecuritySummary; changePassword?: AccountActions["changePassword"]; signIns: PrismOwnSignIn[] | null }) {
+  const [changing, setChanging] = useState(false);
   const twoStep = security.twoFactorEnabled ? (security.twoFactorRequired ? "On (required for PMCM staff)" : "On") : "Off";
   return (
     <Card title="Sign-in and security" icon={KeyRound}>
       <dl className="divide-y divide-border">
         <Fact label="This sign-in">{security.signedInAt ? formatPortalDateTime(security.signedInAt) : "Not recorded"}</Fact>
         <Fact label="Two-step sign-in"><span className={cn("font-medium", security.twoFactorEnabled ? "text-success" : "text-muted-foreground")}>{twoStep}</span></Fact>
+        {changePassword ? (
+          <Fact label="Password">{changing ? null : <Button type="button" variant="link" size="sm" className="h-auto px-0 text-primary" onClick={() => setChanging(true)}>Change</Button>}</Fact>
+        ) : null}
       </dl>
+      {changePassword && changing ? <PasswordChanger change={changePassword} onCancel={() => setChanging(false)} /> : null}
+      {signIns ? (
+        <div className="mt-3 border-t border-border pt-3">
+          <h3 className="mb-1 text-xs font-medium text-muted-foreground">Recent sign-ins</h3>
+          <SignInList signIns={signIns} />
+        </div>
+      ) : null}
     </Card>
+  );
+}
+
+function IdentityHeader({ identity, saveName }: { identity: AccountIdentity; saveName?: AccountActions["saveName"] }) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <header className="flex flex-wrap items-center gap-3">
+      <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-xl bg-ink text-sm font-semibold text-white">{initialsOf(identity.name)}</span>
+      {editing && saveName ? <NameEditor name={identity.name} save={saveName} onDone={() => setEditing(false)} /> : (
+        <>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-lg font-semibold text-foreground">{identity.name}</p>
+            <p className="break-words text-sm text-muted-foreground">{[identity.email, identity.organization, identity.roleLabel].filter(Boolean).join(" · ")}</p>
+          </div>
+          {saveName ? <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>Edit name</Button> : null}
+        </>
+      )}
+    </header>
   );
 }
 
@@ -122,8 +162,12 @@ function LinksCard({ links }: { links: AccountLink[] }) {
  * channels, and, where their role has them, their PMCM contact, privacy and role links. Role-neutral: portals pass
  * their own data and panels.
  */
-export function AccountScreen({ identity, loading, error, security, notifications, privacy, contact, links, today }: {
+export function AccountScreen({ identity, loading, error, security, notifications, privacy, contact, links, today, actions = {}, signIns = null }: {
   identity: AccountIdentity | null;
+  /** What the person can change; each portal wires its own API calls. */
+  actions?: AccountActions;
+  /** Their own latest sign-ins, once loaded. */
+  signIns?: PrismOwnSignIn[] | null;
   loading: boolean;
   error: string | null;
   security: AccountSecuritySummary | null;
@@ -138,17 +182,9 @@ export function AccountScreen({ identity, loading, error, security, notification
     <div className="space-y-4">
       {loading ? <LoadingState label="Loading your account…" /> : null}
       {error ? <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{error}</p> : null}
-      {identity ? (
-        <header className="flex items-center gap-3">
-          <span aria-hidden className="grid size-12 shrink-0 place-items-center rounded-xl bg-ink text-sm font-semibold text-white">{initialsOf(identity.name)}</span>
-          <div className="min-w-0">
-            <p className="truncate text-lg font-semibold text-foreground">{identity.name}</p>
-            <p className="break-words text-sm text-muted-foreground">{[identity.email, identity.organization, identity.roleLabel].filter(Boolean).join(" · ")}</p>
-          </div>
-        </header>
-      ) : null}
+      {identity ? <IdentityHeader identity={identity} saveName={actions.saveName} /> : null}
       <div className="grid min-w-0 items-start gap-4 lg:grid-cols-2">
-        {security ? <SecurityCard security={security} /> : null}
+        {security ? <SecurityCard security={security} changePassword={actions.changePassword} signIns={signIns} /> : null}
         {contact || privacy ? (
           <div className="grid min-w-0 gap-4">
             {contact ? <ContactCard contact={contact} /> : null}

@@ -336,6 +336,8 @@ export {
   passwordSchema,
   requestPasswordResetSchema,
   consumePasswordResetSchema,
+  updateOwnProfileSchema,
+  changeOwnPasswordSchema,
   activateAccountSchema,
   createAccountInvitationSchema,
   acknowledgePrivacyNoticeSchema,
@@ -346,6 +348,8 @@ export {
   type VerifyTwoFactorInput,
   type RequestPasswordResetInput,
   type ConsumePasswordResetInput,
+  type UpdateOwnProfileInput,
+  type ChangeOwnPasswordInput,
   type ActivateAccountInput,
   type CreateAccountInvitationInput,
 } from "./auth-inputs.js";

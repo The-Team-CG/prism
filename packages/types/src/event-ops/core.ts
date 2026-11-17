@@ -223,6 +223,15 @@ export interface PrismCurrentUser {
   expiresAt: string;
 }
 
+/** One of the signed-in person's own recent sign-ins: when, whether it worked, and the browser it came from. */
+export interface PrismOwnSignIn {
+  id: string;
+  at: string;
+  succeeded: boolean;
+  /** "Chrome on Windows", or "Unknown device" for older entries. */
+  device: string;
+}
+
 /** Identity administration result; carries no secrets or password material. */
 export interface PrismIdentityAccountSummary {
   id: string;

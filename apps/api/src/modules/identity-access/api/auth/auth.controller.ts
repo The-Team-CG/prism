@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Header, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Headers, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AllowPendingPrivacyNotice, EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
+import { changeOwnPasswordSchema, updateOwnProfileSchema, type ChangeOwnPasswordInput, type UpdateOwnProfileInput } from '@prism/types';
 import { acknowledgePrivacyNoticeSchema, activateAccountSchema, consumePasswordResetSchema, createAccountInvitationSchema, loginSchema, requestApprovalSchema, requestPasswordResetSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type AcknowledgePrivacyNoticeInput, type ActivateAccountInput, type ConsumePasswordResetInput, type CreateAccountInvitationInput, type LoginInput, type RequestApprovalInput, type RequestPasswordResetInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
 import { AuthOperationsService } from '../../application/auth/auth-operations.service';
 import { PasswordResetService } from '../../application/auth/password-reset.service';
@@ -36,8 +37,8 @@ export class OpsAuthController {
   @Post('login')
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
-  login(@Body(zodBody(loginSchema)) dto: LoginInput) {
-    return this.authOperationsService.login(dto.email, dto.password);
+  login(@Body(zodBody(loginSchema)) dto: LoginInput, @Headers('user-agent') userAgent?: string) {
+    return this.authOperationsService.login(dto.email, dto.password, userAgent);
   }
 
   @Post('password-reset/request')
@@ -89,8 +90,8 @@ export class OpsAuthController {
   @Post('2fa/verify')
   @PublicRateLimit('authentication')
   @HttpCode(HttpStatus.OK)
-  verifyTwoFactor(@Body(zodBody(verifyTwoFactorSchema)) dto: VerifyTwoFactorInput) {
-    return this.authOperationsService.verifyTwoFactor(dto.token, dto.code);
+  verifyTwoFactor(@Body(zodBody(verifyTwoFactorSchema)) dto: VerifyTwoFactorInput, @Headers('user-agent') userAgent?: string) {
+    return this.authOperationsService.verifyTwoFactor(dto.token, dto.code, userAgent);
   }
 
   @Post('2fa/development-qr')
@@ -127,6 +128,28 @@ export class OpsAuthController {
   @AllowPendingPrivacyNotice()
   me(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.authOperationsService.currentUser(actor);
+  }
+
+  /** The signed-in person changes their own name. */
+  @Patch('me')
+  @UseGuards(EventSessionGuard)
+  updateMe(@Body(zodBody(updateOwnProfileSchema)) dto: UpdateOwnProfileInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.authOperationsService.updateOwnProfile(actor, dto);
+  }
+
+  /** The signed-in person changes their own password; every session ends, so they sign in again with it. */
+  @Post('me/password')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  changeMyPassword(@Body(zodBody(changeOwnPasswordSchema)) dto: ChangeOwnPasswordInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.authOperationsService.changeOwnPassword(actor, dto);
+  }
+
+  /** The signed-in person's own latest sign-ins. */
+  @Get('me/sign-ins')
+  @UseGuards(EventSessionGuard)
+  mySignIns(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.authOperationsService.listOwnSignIns(actor);
   }
 
   @Post('privacy-notice/acknowledge')
