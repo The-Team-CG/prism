@@ -21,6 +21,8 @@ export const eventOwnSessionsResource = defineResource<void, PrismOwnSession[]>(
 });
 
 export const eventAccountRepository = {
+  requestEmailChange: (input: { newEmail: string; password: string }) => eventApi.auth.requestEmailChange(input),
+  cancelEmailChange: () => eventApi.auth.cancelEmailChange(),
   startTwoStep: (password: string) => eventApi.auth.startMyTwoFactor(password),
   enableTwoStep: (code: string) => eventApi.auth.enableMyTwoFactor(code),
   disableTwoStep: (password: string) => eventApi.auth.disableMyTwoFactor(password),

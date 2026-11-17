@@ -19,3 +19,4 @@ export * from './application/files/document-vault.service';
 export * from './application/closure/closure.mappers';
 export * from './application/closure/event-closure.service';
 export { ClientFloorplanAccessModule } from './client-floorplan-access.module';
+export * from './contracts/account-email-relinker.port';

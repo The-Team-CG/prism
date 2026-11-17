@@ -615,7 +615,7 @@ export class AuthOperationsService {
   async currentUser(actor: PrismVerifiedEventActor): Promise<PrismCurrentUser> {
     const user = await this.prisma.opsUser.findUnique({ where: { id: actor.id } });
     if (!user) throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
-    return this.mapCurrentUser(user, actor.expiresAt);
+    return this.mapCurrentUser(user, actor.expiresAt, await this.pendingEmailOf(user.id));
   }
 
   /** Records that the signed-in person has read the current notice. The session version guard refuses a revoked session. */
@@ -829,7 +829,17 @@ export class AuthOperationsService {
     };
   }
 
-  private mapCurrentUser(user: OpsUser, expiresAt: string): PrismCurrentUser {
+  /** The email change still waiting for its link, shown on the account page. */
+  private async pendingEmailOf(userId: string): Promise<PrismCurrentUser['pendingEmail']> {
+    const open = await this.prisma.opsEmailChangeRequest.findFirst({
+      where: { userId, consumedAt: null, cancelledAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      select: { newEmail: true, expiresAt: true },
+    });
+    return open ? { email: open.newEmail, expiresAt: open.expiresAt.toISOString() } : null;
+  }
+
+  private mapCurrentUser(user: OpsUser, expiresAt: string, pendingEmail: PrismCurrentUser['pendingEmail'] = null): PrismCurrentUser {
     return {
       id: user.id,
       name: user.name,
@@ -840,6 +850,7 @@ export class AuthOperationsService {
       privacyNoticeRequired: privacyNoticeRequired(user.privacyNoticeVersion),
       privacyNotice: { version: user.privacyNoticeVersion ?? null, acknowledgedAt: user.privacyNoticeAcknowledgedAt?.toISOString() ?? null },
       lastSignInAt: user.lastLoginAt?.toISOString() ?? null,
+      pendingEmail,
       expiresAt,
     };
   }

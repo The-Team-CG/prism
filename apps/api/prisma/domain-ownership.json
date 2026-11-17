@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 161,
+    "totalTables": 162,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 51,
-    "targetSameDomainFks": 135,
+    "targetSameDomainFks": 136,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -50,8 +50,8 @@
       {
         "domain": "identity-access",
         "schema": "identity_access",
-        "tables": 6,
-        "columns": 60
+        "tables": 7,
+        "columns": 68
       },
       {
         "domain": "platform-ops",
@@ -140,6 +140,15 @@
       "targetSchema": "identity_access",
       "introducedAfterCutover": true,
       "columnCount": 10
+    },
+    {
+      "model": "OpsEmailChangeRequest",
+      "currentSchema": "identity_access",
+      "table": "email_change_requests",
+      "domain": "identity-access",
+      "targetSchema": "identity_access",
+      "introducedAfterCutover": true,
+      "columnCount": 8
     },
     {
       "model": "OpsUserSession",
@@ -2369,6 +2378,21 @@
       "schema": "identity_access",
       "table": "account_invitations",
       "name": "account_invitations_user_id_fkey",
+      "kind": "f",
+      "definition": "FOREIGN KEY (user_id) REFERENCES identity_access.users(id) ON UPDATE CASCADE ON DELETE CASCADE",
+      "columns": [
+        "user_id"
+      ],
+      "sourceDomain": "identity-access",
+      "targetDomain": "identity-access",
+      "targetCurrentSchema": "identity_access",
+      "targetTable": "users",
+      "sameDomain": true
+    },
+    {
+      "schema": "identity_access",
+      "table": "email_change_requests",
+      "name": "email_change_requests_user_id_fkey",
       "kind": "f",
       "definition": "FOREIGN KEY (user_id) REFERENCES identity_access.users(id) ON UPDATE CASCADE ON DELETE CASCADE",
       "columns": [

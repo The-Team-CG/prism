@@ -23,6 +23,7 @@ import { TransformInterceptor } from './common/transform.interceptor';
 import { PlatformReferenceReadersModule } from './composition/platform-reference-readers.module';
 import { CommunicationAttachmentGateModule } from './composition/communication-attachment-gate.module';
 import { PlatformPrivacyModule } from './modules/platform-ops/platform-privacy.module';
+import { AccountEmailChangeModule } from './composition/account-email-change.module';
 import { EventGamesModule } from './modules/event-games/event-games.module';
 
 @Module({
@@ -36,6 +37,7 @@ import { EventGamesModule } from './modules/event-games/event-games.module';
     PlatformReferenceReadersModule,
     CommunicationAttachmentGateModule,
     PlatformPrivacyModule,
+    AccountEmailChangeModule,
     AccessControlModule,
     IdentityAccessModule,
     EventLifecycleModule,

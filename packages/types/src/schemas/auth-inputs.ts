@@ -28,6 +28,19 @@ export const confirmOwnPasswordSchema = z.object({
 }).strict();
 export type ConfirmOwnPasswordInput = z.infer<typeof confirmOwnPasswordSchema>;
 
+/** Changing the sign-in email: the password proves it is them; the change waits for the link sent to the new address. */
+export const requestEmailChangeSchema = z.object({
+  newEmail: z.string().trim().toLowerCase().email('Enter an email address').max(254),
+  password: z.string().min(1, 'Enter your password').max(200),
+}).strict();
+export type RequestEmailChangeInput = z.infer<typeof requestEmailChangeSchema>;
+
+/** The token from the link in the confirmation email. */
+export const confirmEmailChangeSchema = z.object({
+  token: z.string().trim().min(32).max(200),
+}).strict();
+export type ConfirmEmailChangeInput = z.infer<typeof confirmEmailChangeSchema>;
+
 /** The six-digit code from the authenticator app that was just set up, which turns two-step sign-in on. */
 export const enableOwnTwoFactorSchema = z.object({
   code: z.string().regex(/^\d{6}$/, 'Enter the six-digit code from your app'),

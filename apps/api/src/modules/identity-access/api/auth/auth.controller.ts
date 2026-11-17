@@ -5,7 +5,7 @@ import { AllowPendingPrivacyNotice, EventSessionGuard, VerifiedEventActor } from
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
-import { changeOwnPasswordSchema, confirmOwnPasswordSchema, enableOwnTwoFactorSchema, updateOwnProfileSchema, type ChangeOwnPasswordInput, type ConfirmOwnPasswordInput, type EnableOwnTwoFactorInput, type UpdateOwnProfileInput } from '@prism/types';
+import { changeOwnPasswordSchema, confirmOwnPasswordSchema, enableOwnTwoFactorSchema, requestEmailChangeSchema, updateOwnProfileSchema, type ChangeOwnPasswordInput, type ConfirmOwnPasswordInput, type EnableOwnTwoFactorInput, type RequestEmailChangeInput, type UpdateOwnProfileInput } from '@prism/types';
 import { acknowledgePrivacyNoticeSchema, activateAccountSchema, consumePasswordResetSchema, createAccountInvitationSchema, loginSchema, requestApprovalSchema, requestPasswordResetSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type AcknowledgePrivacyNoticeInput, type ActivateAccountInput, type ConsumePasswordResetInput, type CreateAccountInvitationInput, type LoginInput, type RequestApprovalInput, type RequestPasswordResetInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
 import { AuthOperationsService } from '../../application/auth/auth-operations.service';
 import { PasswordResetService } from '../../application/auth/password-reset.service';
@@ -13,6 +13,7 @@ import { AccountActivationService } from '../../application/auth/account-activat
 import { AccountInvitationService } from '../../application/auth/account-invitation.service';
 import { OwnSessionsService } from '../../application/auth/own-sessions.service';
 import { OwnTwoFactorService } from '../../application/auth/own-two-factor.service';
+import { EmailChangeService } from '../../application/auth/email-change.service';
 
 @Controller('auth')
 export class OpsAuthController {
@@ -24,6 +25,7 @@ export class OpsAuthController {
     private readonly accountInvitationService: AccountInvitationService,
     private readonly ownSessions: OwnSessionsService,
     private readonly ownTwoFactor: OwnTwoFactorService,
+    private readonly emailChange: EmailChangeService,
   ) {}
 
   private async requireAdmin(actor: PrismVerifiedEventActor): Promise<ResolvedEventOpsActor> {
@@ -154,6 +156,22 @@ export class OpsAuthController {
   @UseGuards(EventSessionGuard)
   mySignIns(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.authOperationsService.listOwnSignIns(actor);
+  }
+
+  /** Asks to change the sign-in email: a link goes to the new address, and the change waits for it. */
+  @Post('me/email')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.ACCEPTED)
+  requestEmailChange(@Body(zodBody(requestEmailChangeSchema)) dto: RequestEmailChangeInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.emailChange.request(actor, dto);
+  }
+
+  /** Withdraws an email change that is still waiting for its link. */
+  @Delete('me/email')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  cancelEmailChange(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.emailChange.cancel(actor);
   }
 
   /** Starts adding an authenticator app; two-step sign-in stays off until a code from it is confirmed. */
