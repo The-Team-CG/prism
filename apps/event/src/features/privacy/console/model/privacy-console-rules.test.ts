@@ -1,15 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { PRISM_PRIVACY_REQUEST_UNASSIGNED, listPrivacyRequestsQuerySchema } from "@prism/types";
 import { toQueryString } from "@prism/api-client";
-import { initialPrivacyConsoleFilters, privacyDeadlineLabel, privacyQueueQuery } from "./privacy-console-rules";
+import { initialPrivacyConsoleFilters, isClosedPrivacyRequest, privacyQueueQuery } from "./privacy-console-rules";
 
 /** The query string the client sends for a queue query. */
 const privacyQueueSearch = (query: Parameters<typeof toQueryString>[0]) => `?${toQueryString(query)}`;
 
-const now = new Date("2026-10-19T12:00:00.000Z");
-const request = (overrides: Partial<Parameters<typeof privacyDeadlineLabel>[0]>) => ({
-  status: "submitted", dueAt: "2026-10-25T00:00:00.000Z", overdue: false, ...overrides,
-});
 
 describe("privacy console queue query", () => {
   it("sends only the filters the operator set, and a query the API schema accepts", () => {
@@ -34,19 +30,9 @@ describe("privacy console queue query", () => {
   });
 });
 
-describe("privacyDeadlineLabel", () => {
-  it("counts whole days past the deadline for overdue open requests", () => {
-    expect(privacyDeadlineLabel(request({ overdue: true, dueAt: "2026-10-17T00:00:00.000Z" }), now))
-      .toBe("Overdue by 2 days (due 2026-10-17)");
-  });
-
-  it("shows days left for requests still inside the SLA, never below zero", () => {
-    expect(privacyDeadlineLabel(request({ dueAt: "2026-10-20T06:00:00.000Z" }), now)).toBe("Due 2026-10-20 (1 day left)");
-  });
-
-  it("does not present executed, rejected or withdrawn requests as overdue, however late they were closed", () => {
-    expect(privacyDeadlineLabel(request({ status: "executed", overdue: false, dueAt: "2026-09-01T00:00:00.000Z" }), now)).toBe("Closed");
-    expect(privacyDeadlineLabel(request({ status: "rejected", overdue: false, dueAt: "2026-09-01T00:00:00.000Z" }), now)).toBe("Closed");
-    expect(privacyDeadlineLabel(request({ status: "cancelled", overdue: false, dueAt: "2026-09-01T00:00:00.000Z" }), now)).toBe("Closed");
+describe("isClosedPrivacyRequest", () => {
+  it("treats executed, rejected and withdrawn requests as closed, so they show no countdown or actions", () => {
+    expect(["executed", "rejected", "cancelled"].every(isClosedPrivacyRequest)).toBe(true);
+    expect(["submitted", "approved"].some(isClosedPrivacyRequest)).toBe(false);
   });
 });

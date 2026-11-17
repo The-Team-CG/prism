@@ -8,8 +8,10 @@ import { Field, FieldDescription, FieldGroup } from "@prism/ui/components/field"
 import { Input } from "@prism/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { Textarea } from "@prism/ui/components/textarea";
+import { manilaDateKey } from "@prism/ui/format-date";
+import { PrivacyDuePill, Tile, privacyRequestLook } from "@prism/ui/privacy-requests";
 import { compactTimestamp, cx, label, Panel } from "@/features/pmcm-kit";
-import { isClosedPrivacyRequest, privacyDeadlineLabel } from "../model/privacy-console-rules";
+import { isClosedPrivacyRequest } from "../model/privacy-console-rules";
 import type { PrivacyCorrectionDraft } from "../model/privacy-correction";
 import type { PrivacyConsoleViewModel } from "../view-models/use-privacy-console-view-model";
 
@@ -103,37 +105,36 @@ function requestOwnerLabel(request: PrismPrivacyRequest, vm: PrivacyConsoleViewM
   return vm.users.find((user: PrismUser) => user.id === request.assignedTo)?.name ?? request.assignedTo;
 }
 
+/** A request in PMCM's queue: the same type tile and due pill the requester sees, who it is about, and one row of actions. */
 export function PrivacyRequestCard({ request, vm }: { request: PrismPrivacyRequest; vm: PrivacyConsoleViewModel }) {
   const owner = requestOwnerLabel(request, vm);
   const closed = isClosedPrivacyRequest(request.status);
   const mine = Boolean(vm.operatorId) && request.assignedTo === vm.operatorId;
+  const look = privacyRequestLook(request.requestType);
   return (
-    <article className="rounded-md border border-border bg-background p-3 text-sm" aria-label={`${label(request.requestType)} request for ${request.subjectEmail || request.subjectName}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold capitalize">{label(request.requestType)} request · {label(request.subjectType)}</p>
-          <p className="mt-1 text-muted-foreground">{request.subjectEmail || request.subjectName || "Unnamed subject"}</p>
+    <article className="flex gap-3 rounded-xl border border-border bg-card p-4 text-sm" aria-label={`${label(request.requestType)} request for ${request.subjectEmail || request.subjectName}`}>
+      <Tile icon={look.icon} className={look.tile} />
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <p className="min-w-0"><span className="font-semibold capitalize text-foreground">{label(request.requestType)} · {label(request.subjectType)}</span> <span className="text-muted-foreground">{request.subjectEmail || request.subjectName || "Unnamed subject"}</span></p>
+          {closed
+            ? <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold capitalize text-muted-foreground">{label(request.status)}</span>
+            : <PrivacyDuePill dueAt={request.dueAt} today={manilaDateKey(vm.now)} />}
         </div>
-        <p className="text-xs font-semibold capitalize text-foreground">{label(request.status)}</p>
-      </div>
-      <p className={cx("mt-2 text-xs", request.overdue ? "font-semibold text-danger" : "text-muted-foreground")}>
-        {privacyDeadlineLabel(request, vm.now)}
-      </p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        {request.source === "self_service" ? "Self-service" : "PMCM-logged"} · Owner: {owner} · Logged {compactTimestamp(request.createdAt)}
-      </p>
-      {request.identityConfirmedAt ? (
-        <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-success"><ShieldCheck aria-hidden className="size-3.5" />Identity confirmed with the account password · {compactTimestamp(request.identityConfirmedAt)}</p>
-      ) : null}
-      {request.requestNotes ? <p className="mt-2 text-xs text-muted-foreground">{request.requestNotes}</p> : null}
-      {closed ? null : (
-        <>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <AssignmentActions request={request} vm={vm} mine={mine} />
+        <p className="text-xs text-muted-foreground">
+          <span className="font-medium capitalize text-foreground">{label(request.status)}</span> · {request.source === "self_service" ? "Sent by them" : "Logged by PMCM"} · Owner: {owner} · {compactTimestamp(request.createdAt)}
+        </p>
+        {request.identityConfirmedAt ? (
+          <p className="flex items-center gap-1.5 text-xs font-medium text-success"><ShieldCheck aria-hidden className="size-3.5" />Identity confirmed with the account password · {compactTimestamp(request.identityConfirmedAt)}</p>
+        ) : null}
+        {request.requestNotes ? <p className="text-xs text-muted-foreground">{request.requestNotes}</p> : null}
+        {closed ? null : (
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <PrivacyRequestActions request={request} vm={vm} />
+            <span className="ml-auto flex gap-2"><AssignmentActions request={request} vm={vm} mine={mine} /></span>
           </div>
-          <div className="mt-3 flex flex-wrap gap-2"><PrivacyRequestActions request={request} vm={vm} /></div>
-        </>
-      )}
+        )}
+      </div>
     </article>
   );
 }
@@ -148,7 +149,7 @@ function AssignmentActions({ request, vm, mine }: { request: PrismPrivacyRequest
         </Button>
       )}
       {request.assignedTo ? (
-        <Button type="button" variant="outline" size="sm" disabled={vm.busy} onClick={() => vm.assignRequest(request.id, null)}>
+        <Button type="button" variant="ghost" size="sm" disabled={vm.busy} onClick={() => vm.assignRequest(request.id, null)}>
           Unassign
         </Button>
       ) : null}
@@ -160,7 +161,7 @@ function PrivacyRequestActions({ request, vm }: { request: PrismPrivacyRequest; 
   if (request.status === "submitted") {
     return (
       <>
-        <Button type="button" variant="outline" size="sm" disabled={vm.busy} onClick={() => vm.reviewPrivacyRequest(request.id, "approved")}>Approve</Button>
+        <Button type="button" size="sm" disabled={vm.busy} onClick={() => vm.reviewPrivacyRequest(request.id, "approved")}>Approve</Button>
         <Button type="button" variant="outline" size="sm" disabled={vm.busy} onClick={() => vm.reviewPrivacyRequest(request.id, "rejected")}>Reject</Button>
       </>
     );
@@ -169,7 +170,7 @@ function PrivacyRequestActions({ request, vm }: { request: PrismPrivacyRequest; 
   if (request.requestType === "correction") {
     return <PrivacyCorrectionForm busy={vm.busy} isGuest={request.subjectType === "guest"} onApply={(draft) => vm.executePrivacyRequest(request.id, draft)} />;
   }
-  return <Button type="button" variant="outline" size="sm" disabled={vm.busy} onClick={() => vm.executePrivacyRequest(request.id)}>Execute</Button>;
+  return <Button type="button" size="sm" disabled={vm.busy} onClick={() => vm.executePrivacyRequest(request.id)}>Carry it out</Button>;
 }
 
 export function PrivacyCorrectionForm({ busy, isGuest, onApply }: { busy: boolean; isGuest: boolean; onApply: (draft: PrivacyCorrectionDraft) => void }) {
