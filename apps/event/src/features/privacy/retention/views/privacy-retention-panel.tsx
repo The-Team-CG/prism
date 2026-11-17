@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { ShieldCheck } from "lucide-react";
 
 import type { PrismRetentionPolicy, PrismRetentionReviewItem } from "@prism/types";
@@ -7,6 +8,7 @@ import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Switch } from "@prism/ui/components/switch";
 import { compactTimestamp, label, Panel } from "@/features/pmcm-kit";
 import { retentionPeriodCopy, reviewStatusLabel } from "../model/retention-rules";
 import { usePrivacyRetentionViewModel, type PrivacyRetentionViewModel } from "../view-models/use-privacy-retention-view-model";
@@ -63,21 +65,43 @@ export function PrivacyRetentionView({ vm }: { vm: PrivacyRetentionViewModel }) 
   );
 }
 
+/** What a rule does, in one sentence: when it applies, then what it removes and keeps. */
+function ruleSentence(policy: PrismRetentionPolicy) {
+  const when = retentionPeriodCopy(policy).replace(/\s*\((enabled|disabled)\)$/i, "");
+  return `${when.charAt(0).toUpperCase()}${when.slice(1)}: ${policy.deletionBehavior.charAt(0).toLowerCase()}${policy.deletionBehavior.slice(1)}`;
+}
+
+/**
+ * One retention rule, said in plain words with whether it is on. Changing it (on or off, or its period) opens an editor,
+ * since every change needs a reason on the record.
+ */
 function PolicyRow({ policy, vm }: { policy: PrismRetentionPolicy; vm: PrivacyRetentionViewModel }) {
   // Reference-only categories have no review source: they show their terms but offer no controls.
   const referenceOnly = !vm.canEnable(policy);
+  const [editing, setEditing] = useState(false);
   return (
-    <div className="space-y-2 rounded-md bg-background p-3 text-xs">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="space-y-2 rounded-lg border border-border bg-card p-3 text-sm">
+      <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="font-semibold text-foreground">{policy.label}</p>
-        <p className="text-muted-foreground">{policy.enabled ? "Enabled" : "Disabled"} · revision {policy.revision}</p>
+        <span className={policy.enabled ? "rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success" : "rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"}>{referenceOnly ? "Reference only" : policy.enabled ? "On" : "Off"}</span>
       </div>
-      <p className="text-muted-foreground">{retentionPeriodCopy(policy)}</p>
-      <p className="text-muted-foreground">{policy.deletionBehavior}</p>
+      <p className="text-xs text-muted-foreground">{ruleSentence(policy)}</p>
       {referenceOnly ? (
-        <p className="text-muted-foreground">Reference only. This category has no review source, so it can&apos;t be enabled or changed here.</p>
+        <p className="text-xs text-muted-foreground">This kind of record has no review source, so it can&apos;t be turned on or changed here.</p>
+      ) : !editing ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>Change</Button>
       ) : (
-        <div className="flex min-w-0 flex-col gap-2">
+        <PolicyEditor policy={policy} vm={vm} onDone={() => setEditing(false)} />
+      )}
+    </div>
+  );
+}
+
+function PolicyEditor({ policy, vm, onDone }: { policy: PrismRetentionPolicy; vm: PrivacyRetentionViewModel; onDone: () => void }) {
+  const [enabled, setEnabled] = useState(policy.enabled);
+  return (
+        <div className="flex min-w-0 flex-col gap-2 border-t border-border pt-2 text-xs">
+          <label className="flex items-center gap-2 font-medium text-foreground"><Switch checked={enabled} onCheckedChange={setEnabled} aria-label={`${policy.label} on`} />{enabled ? "On" : "Off"} · revision {policy.revision}</label>
           <Input
             aria-label={`Reason for ${policy.label} change`}
             value={vm.reasonDrafts[policy.category] ?? ""}
@@ -93,16 +117,18 @@ function PolicyRow({ policy, vm }: { policy: PrismRetentionPolicy; vm: PrivacyRe
               onChange={(event) => vm.setPeriodDraft(policy.category, event.target.value)}
               className="h-9 w-24 bg-white"
             />
-            <Button type="button" variant="outline" disabled={vm.busy} onClick={() => vm.savePolicy(policy, { usePeriodDraft: true })}>
-              Save period
+            <span className="text-muted-foreground">days</span>
+            <Button type="button" disabled={vm.busy} onClick={() => {
+              // Saving needs a reason; without one the view model says so and the editor stays open.
+              const hasReason = Boolean((vm.reasonDrafts[policy.category] ?? "").trim());
+              vm.savePolicy(policy, { enabled, usePeriodDraft: true });
+              if (hasReason) onDone();
+            }}>
+              Save
             </Button>
-            <Button type="button" disabled={vm.busy} onClick={() => vm.savePolicy(policy, { enabled: !policy.enabled })}>
-              {policy.enabled ? "Disable" : "Enable"}
-            </Button>
+            <Button type="button" variant="ghost" onClick={onDone}>Cancel</Button>
           </div>
         </div>
-      )}
-    </div>
   );
 }
 

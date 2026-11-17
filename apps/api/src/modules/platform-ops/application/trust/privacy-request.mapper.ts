@@ -73,6 +73,9 @@ export function mapPrivacyRequest(request: OpsPrivacyRequestRecord, now: Date = 
   };
 }
 
+/** The execution note on an export the requester downloaded themselves, so their history can say so. */
+export const SELF_SERVICE_DOWNLOAD_NOTE = 'Downloaded by the requester';
+
 /** Statuses that close a request at review time, so their review date is when it closed. */
 const CLOSED_ON_REVIEW: string[] = [PrivacyRequestStatus.Rejected, PrivacyRequestStatus.Cancelled];
 
@@ -105,7 +108,9 @@ export function mapOwnPrivacyRequest(request: OpsPrivacyRequestRecord): PrismOwn
     submittedAt: request.createdAt.toISOString(),
     dueAt: request.dueAt.toISOString(),
     completedAt: timestamp(request.executedAt) ?? (CLOSED_ON_REVIEW.includes(request.status) ? timestamp(request.reviewedAt) : null),
-    outcomeMessage: ownPrivacyRequestOutcomeMessage(request.status, Boolean(request.identityConfirmedAt)),
+    outcomeMessage: request.executionNotes === SELF_SERVICE_DOWNLOAD_NOTE
+      ? 'You downloaded this copy of your data yourself.'
+      : ownPrivacyRequestOutcomeMessage(request.status, Boolean(request.identityConfirmedAt)),
     cancellable: request.status === PrivacyRequestStatus.Submitted,
     identityConfirmedAt: timestamp(request.identityConfirmedAt),
   };

@@ -1942,6 +1942,10 @@ describe("createEventOpsClient", () => {
     await client.privacy.submitOwnRequest({ requestType: "correction", details: "Fix my company name", password: "right-password" });
     await client.privacy.listOwnRequests();
     await client.privacy.cancelOwnRequest("priv/1");
+    await client.privacy.downloadOwnData({ password: "right-password" });
+
+    expect(fetchMock.mock.calls[3][0]).toBe("http://localhost:4000/api/privacy/requests/mine/export");
+    expect(fetchMock.mock.calls[3][1]).toMatchObject({ method: "POST", body: JSON.stringify({ password: "right-password" }) });
 
     expect(fetchMock.mock.calls[2][0]).toBe("http://localhost:4000/api/privacy/requests/mine/priv%2F1/cancel");
     expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "POST" });

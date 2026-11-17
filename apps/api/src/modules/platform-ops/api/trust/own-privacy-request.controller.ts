@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
-import { submitOwnPrivacyRequestSchema, type PrismVerifiedEventActor, type SubmitOwnPrivacyRequestInput } from '@prism/types';
+import { downloadOwnPrivacyDataSchema, submitOwnPrivacyRequestSchema, type DownloadOwnPrivacyDataInput, type PrismVerifiedEventActor, type SubmitOwnPrivacyRequestInput } from '@prism/types';
 import { AuditService } from '../../application/trust/audit.service';
 import { OwnPrivacyRequestService } from '../../application/trust/own-privacy-request.service';
 import { SecurityOperationsService } from '../../application/trust/security-operations.service';
@@ -38,6 +38,19 @@ export class OpsOwnPrivacyRequestController {
     const actor = resolveActor(verifiedActor);
     await this.policy.requireSelfServiceRequester(actor, 'own privacy requests');
     return this.ownPrivacyRequestService.submit(dto, actor);
+  }
+
+  /** Downloads the requester's own data straight away; the password in the body confirms it is them. */
+  @Post('mine/export')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  async downloadMine(
+    @Body(zodBody(downloadOwnPrivacyDataSchema)) dto: DownloadOwnPrivacyDataInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = resolveActor(verifiedActor);
+    await this.policy.requireSelfServiceRequester(actor, 'own privacy requests');
+    return this.ownPrivacyRequestService.downloadOwn(dto, actor);
   }
 
   @Post('mine/:requestId/cancel')
