@@ -564,6 +564,9 @@ model OpsPrivacyRequest {
   assignedTo     String?   @map("assigned_to")
   /// Who filed the request: `pmcm_logged` (PMCM logged it) or `self_service` (the client or supplier filed it).
   source         String    @default("pmcm_logged")
+  /// When the requester confirmed who they are, and how (`account_password`); null when nobody confirmed it.
+  identityConfirmedAt DateTime? @map("identity_confirmed_at")
+  identityMethod      String?   @map("identity_method")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
 

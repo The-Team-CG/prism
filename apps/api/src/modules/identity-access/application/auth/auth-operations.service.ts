@@ -367,6 +367,25 @@ export class AuthOperationsService {
     };
   }
 
+  /**
+   * Confirms the signed-in person still knows their password, for an action that needs proof of who they are. A wrong
+   * password counts toward the same lockout as sign-in, so a stolen session cannot be used to guess it any faster.
+   * A wrong password is a 403, not a 401: portals treat a 401 as an expired session and would sign the person out.
+   */
+  async confirmPassword(accountId: string, password: string): Promise<Date> {
+    const user = await this.prisma.opsUser.findUnique({ where: { id: accountId } });
+    if (!user) throw new UnauthorizedException('Account is no longer available');
+    const now = new Date();
+    if (user.permanentLockout || Boolean(user.lockedUntil && user.lockedUntil > now)) {
+      throw new ForbiddenException('This account is locked after repeated wrong passwords. Try again later or message PMCM.');
+    }
+    if (!(await AuthSecurityService.verifyPassword(user.password, password))) {
+      await this.recordFailedLoginAttempt(user.id, 'Invalid password when confirming identity');
+      throw new ForbiddenException('That password is not right.');
+    }
+    return now;
+  }
+
   private async recordFailedLoginAttempt(userId: string, failureReason: string, verifiedToken?: VerifiedTwoFactorToken) {
     let result: { user: OpsUser; details: AuthenticationFailureDetails } | undefined;
     for (let attempt = 0; attempt < 3; attempt += 1) {

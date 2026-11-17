@@ -52,7 +52,7 @@ const OWN_REQUEST_NAMES: Record<string, string> = {
 /** What the requester is told when PMCM moves their request on; PMCM's own reasons and notes stay internal. */
 function requesterNotice(requestType: string, status: string): string | null {
   const name = OWN_REQUEST_NAMES[requestType] ?? 'privacy request';
-  if (status === PrivacyRequestStatus.Approved) return `PMCM verified your identity and is working on your ${name}.`;
+  if (status === PrivacyRequestStatus.Approved) return `PMCM accepted your ${name} and is working on it.`;
   if (status === PrivacyRequestStatus.Rejected) return `PMCM closed your ${name} without action. Message PMCM if you need more detail.`;
   if (status === PrivacyRequestStatus.Executed) return `Your ${name} is done.`;
   return null;

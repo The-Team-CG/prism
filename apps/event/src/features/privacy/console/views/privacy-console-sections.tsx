@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
-import { Database } from "lucide-react";
+import { Database, ShieldCheck } from "lucide-react";
 import type { PrismPrivacyLegalHold, PrismPrivacyRequest, PrismUser } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Field, FieldDescription, FieldGroup } from "@prism/ui/components/field";
@@ -122,6 +122,9 @@ export function PrivacyRequestCard({ request, vm }: { request: PrismPrivacyReque
       <p className="mt-1 text-xs text-muted-foreground">
         {request.source === "self_service" ? "Self-service" : "PMCM-logged"} · Owner: {owner} · Logged {compactTimestamp(request.createdAt)}
       </p>
+      {request.identityConfirmedAt ? (
+        <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-success"><ShieldCheck aria-hidden className="size-3.5" />Identity confirmed with the account password · {compactTimestamp(request.identityConfirmedAt)}</p>
+      ) : null}
       {request.requestNotes ? <p className="mt-2 text-xs text-muted-foreground">{request.requestNotes}</p> : null}
       {closed ? null : (
         <>

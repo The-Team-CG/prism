@@ -20,6 +20,8 @@ export type OpsPrivacyRequestRecord = {
   dueAt: Date;
   assignedTo?: string | null;
   source: string;
+  identityConfirmedAt?: Date | null;
+  identityMethod?: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -64,6 +66,8 @@ export function mapPrivacyRequest(request: OpsPrivacyRequestRecord, now: Date = 
     overdue: isPrivacyRequestOverdue(request, now),
     assignedTo: request.assignedTo ?? null,
     source: request.source,
+    identityConfirmedAt: timestamp(request.identityConfirmedAt),
+    identityMethod: request.identityMethod ?? null,
     createdAt: timestamp(request.createdAt) ?? '',
     updatedAt: timestamp(request.updatedAt) ?? '',
   };
@@ -73,12 +77,14 @@ export function mapPrivacyRequest(request: OpsPrivacyRequestRecord, now: Date = 
 const CLOSED_ON_REVIEW: string[] = [PrivacyRequestStatus.Rejected, PrivacyRequestStatus.Cancelled];
 
 /** Requester-safe wording for each status. PMCM review reasons and notes are never shown to the requester. */
-function ownPrivacyRequestOutcomeMessage(status: string): string {
+function ownPrivacyRequestOutcomeMessage(status: string, identityConfirmed: boolean): string {
   switch (status) {
     case PrivacyRequestStatus.Submitted:
-      return 'Received. PMCM verifies your identity before acting on this request.';
+      return identityConfirmed
+        ? 'You confirmed it is you with your password. PMCM is reviewing this request.'
+        : 'Received. PMCM verifies your identity before acting on this request.';
     case PrivacyRequestStatus.Approved:
-      return 'Identity verified. PMCM is carrying out this request.';
+      return 'PMCM accepted this request and is carrying it out.';
     case PrivacyRequestStatus.Rejected:
       return 'Closed without action. Contact PMCM if you need more detail.';
     case PrivacyRequestStatus.Executed:
@@ -99,7 +105,8 @@ export function mapOwnPrivacyRequest(request: OpsPrivacyRequestRecord): PrismOwn
     submittedAt: request.createdAt.toISOString(),
     dueAt: request.dueAt.toISOString(),
     completedAt: timestamp(request.executedAt) ?? (CLOSED_ON_REVIEW.includes(request.status) ? timestamp(request.reviewedAt) : null),
-    outcomeMessage: ownPrivacyRequestOutcomeMessage(request.status),
+    outcomeMessage: ownPrivacyRequestOutcomeMessage(request.status, Boolean(request.identityConfirmedAt)),
     cancellable: request.status === PrivacyRequestStatus.Submitted,
+    identityConfirmedAt: timestamp(request.identityConfirmedAt),
   };
 }

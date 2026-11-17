@@ -1939,7 +1939,7 @@ describe("createEventOpsClient", () => {
       baseUrl: "http://localhost:4000/api",
       getAuthToken: () => "client-session-token",
     });
-    await client.privacy.submitOwnRequest({ requestType: "correction", details: "Fix my company name" });
+    await client.privacy.submitOwnRequest({ requestType: "correction", details: "Fix my company name", password: "right-password" });
     await client.privacy.listOwnRequests();
     await client.privacy.cancelOwnRequest("priv/1");
 
@@ -1948,7 +1948,7 @@ describe("createEventOpsClient", () => {
     expect(fetchMock.mock.calls[0][0]).toBe("http://localhost:4000/api/privacy/requests/mine");
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       method: "POST",
-      body: JSON.stringify({ requestType: "correction", details: "Fix my company name" }),
+      body: JSON.stringify({ requestType: "correction", details: "Fix my company name", password: "right-password" }),
     });
     expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:4000/api/privacy/requests/mine");
     expect(fetchMock.mock.calls[1][1]?.method ?? "GET").toBe("GET");

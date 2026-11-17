@@ -110,6 +110,9 @@ export interface PrismPrivacyRequest {
   assignedTo: string | null;
   /** `self_service` when the client or supplier filed the request; `pmcm_logged` when PMCM logged it. */
   source: "pmcm_logged" | "self_service" | string;
+  /** When the requester confirmed who they are, and how (`account_password`); null when nobody confirmed it. */
+  identityConfirmedAt: string | null;
+  identityMethod: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -128,6 +131,8 @@ export interface PrismOwnPrivacyRequest {
   outcomeMessage: string;
   /** True while PMCM has not reviewed it yet, the only time the requester can withdraw it. */
   cancellable: boolean;
+  /** When the requester confirmed who they are with their account password; null for requests PMCM logged. */
+  identityConfirmedAt: string | null;
 }
 
 /** One page of the PMCM privacy request queue. */
