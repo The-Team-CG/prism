@@ -186,6 +186,60 @@ function itemsByDate<Item extends PortalCalendarItem>(items: Item[]) {
 
 const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
+/** Search, category, timing and the done filter, and the items each leaves on the calendar. */
+function useCalendarFilters<Item extends PortalCalendarItem>(items: Item[], kinds: Record<string, PortalCalendarKind>, opening: CalendarPlace) {
+  const [query, setQuery] = useState("");
+  const [activeKind, setActiveKind] = useState<string | null>(opening.kind);
+  const [timing, setTiming] = useState<CalendarTiming>("all");
+  const [openOnly, setOpenOnly] = useState(opening.openOnly);
+  const matchingItems = useMemo(() => {
+    const needle = query.trim().toLocaleLowerCase();
+    const fitsTiming = (item: Item) => timing === "all" || (timing === "timed") === Boolean(item.startTime);
+    return items.filter((item) => searchText(kinds, item).includes(needle) && !(openOnly && item.done) && fitsTiming(item));
+  }, [items, kinds, query, timing, openOnly]);
+  const filteredItems = useMemo(() => matchingItems.filter((item) => activeKind === null || item.kind === activeKind), [matchingItems, activeKind]);
+  const categoryLabel = activeKind ? kinds[activeKind].label : null;
+  return {
+    query, setQuery, activeKind, setActiveKind, timing, setTiming, openOnly, setOpenOnly,
+    matchingItems, filteredItems, categoryLabel,
+    canFilterDone: openOnly || items.some((item) => item.done),
+    filterCount: [categoryLabel !== null, timing !== "all", openOnly].filter(Boolean).length,
+  };
+}
+
+const searchText = (kinds: Record<string, PortalCalendarKind>, item: PortalCalendarItem) =>
+  [item.title, item.detail, item.chipLabel, item.eventName, kindOf(kinds, item.kind).label].filter(Boolean).join(" ").toLocaleLowerCase();
+
+/** M, W, D and A switch views while no panel is open and the reader is not typing. */
+function useViewShortcuts(paused: boolean, onView: (view: CalendarViewId) => void) {
+  useEffect(() => {
+    if (paused) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
+      const match = CALENDAR_VIEWS.find((entry) => entry.shortcut.toLowerCase() === event.key.toLowerCase());
+      if (match) onView(match.id);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [paused]); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+const periodContextOf = (view: CalendarViewId) => (view === "day" ? "on this day" : "in this period");
+const emptyPeriodText = (view: CalendarViewId, narrowed: boolean) =>
+  narrowed ? `No matching entries ${periodContextOf(view)}. Change the search or filters to see more.` : `Nothing scheduled ${periodContextOf(view)}.`;
+
+function CalendarFooter({ count, view }: { count: number; view: CalendarViewId }) {
+  return (
+    <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
+      <span>{count} {count === 1 ? "entry" : "entries"} {periodContextOf(view)}</span>
+      <Popover>
+        <PopoverTrigger asChild><button type="button" className="inline-flex min-h-8 items-center gap-1.5 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Manila time<Info aria-hidden className="size-3.5" /></button></PopoverTrigger>
+        <PopoverContent align="end" collisionPadding={16} className="w-72 text-sm">All times are Philippine Standard Time.<span className="mt-1 block text-xs text-muted-foreground">Asia/Manila · UTC+08:00</span></PopoverContent>
+      </Popover>
+    </footer>
+  );
+}
+
 /** A calendar with month, week, day and agenda views. Role-neutral: portals decide which items exist and where each leads. */
 export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "month", initialKind, initialOpenOnly = false, syncUrl = false, eventKind = "event", cover, className, onRangeChange, renderItem, detail }: PortalCalendarProps<Item>) {
   const headingId = useId();
@@ -194,39 +248,18 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
   const [dayLayout, setDayLayout] = useState<CalendarDayLayout>("agenda");
   const [anchor, setAnchor] = useState(opening.date);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const [activeKind, setActiveKind] = useState<string | null>(opening.kind);
-  const [timing, setTiming] = useState<CalendarTiming>("all");
-  const [openOnly, setOpenOnly] = useState(opening.openOnly);
+  const filters = useCalendarFilters(items, kinds, opening);
+  const changeView = (next: CalendarViewId) => { setView(next); if (next === "day") setDayLayout("agenda"); };
   useCalendarPlace({
     enabled: syncUrl,
     defaults: opening,
     kinds,
-    place: { kind: activeKind, view, date: anchor, openOnly },
-    apply: (place) => { setActiveKind(place.kind); setView(place.view); setAnchor(place.date); setOpenOnly(place.openOnly); },
+    place: { kind: filters.activeKind, view, date: anchor, openOnly: filters.openOnly },
+    apply: (place) => { filters.setActiveKind(place.kind); setView(place.view); setAnchor(place.date); filters.setOpenOnly(place.openOnly); },
   });
-  const hasDone = items.some((item) => item.done);
-  const matchingItems = useMemo(() => items.filter((item) => {
-    const matchesText = [item.title, item.detail, item.chipLabel, item.eventName, kindOf(kinds, item.kind).label].filter(Boolean).join(" ").toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-    return matchesText && !(openOnly && item.done) && (timing === "all" || (timing === "timed" ? Boolean(item.startTime) : !item.startTime));
-  }), [items, kinds, query, timing, openOnly]);
-  const filteredItems = useMemo(() => matchingItems.filter((item) => activeKind === null || item.kind === activeKind), [matchingItems, activeKind]);
-  const byDate = useMemo(() => itemsByDate(filteredItems), [filteredItems]);
+  useViewShortcuts(selectedId !== null, changeView);
+  const byDate = useMemo(() => itemsByDate(filters.filteredItems), [filters.filteredItems]);
   const selected = detail ? items.find((item) => item.id === selectedId) ?? null : null;
-
-  useEffect(() => {
-    if (selectedId) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) return;
-      const match = CALENDAR_VIEWS.find((entry) => entry.shortcut.toLowerCase() === event.key.toLowerCase());
-      if (match) {
-        setView(match.id);
-        if (match.id === "day") setDayLayout("agenda");
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId]);
 
   const selectChip: PortalCalendarItemRenderer<Item> = ({ item, className: chipClass, style, title, children }) => (
     <Tooltip>
@@ -238,48 +271,31 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
   );
 
   const range = visibleRange(view, anchor);
-  const rangeLabel = periodTitle(view, anchor);
   useEffect(() => {
     onRangeChange?.({ from: range.from, to: range.to });
   }, [range.from, range.to]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const openDay = (dateKey: string) => {
-    setAnchor(dateKey);
-    setView("day");
-    setDayLayout("agenda");
-  };
+  const openDay = (dateKey: string) => { setAnchor(dateKey); changeView("day"); };
   const renderCalendarItem = renderItem ?? selectChip;
-  const viewProps = { items: filteredItems, kinds, today, renderItem: renderCalendarItem };
-  const inPeriod = (item: Item) => view === "month" ? item.date.startsWith(anchor.slice(0, 7)) : item.date >= range.from && item.date <= range.to;
-  const periodItems = matchingItems.filter(inPeriod);
-  const visibleItems = filteredItems.filter(inPeriod);
-  const shownCount = visibleItems.length;
-  const categoryLabel = activeKind ? kinds[activeKind].label : null;
-  const filterCount = Number(categoryLabel !== null) + Number(timing !== "all") + Number(openOnly);
-  const periodContext = view === "day" ? "on this day" : "in this period";
-  const emptyText = query || filterCount ? `No matching entries ${periodContext}. Change the search or filters to see more.` : `Nothing scheduled ${periodContext}.`;
+  const periodStart = view === "month" ? `${anchor.slice(0, 7)}-01` : range.from;
+  const inPeriod = (item: Item) => (view === "month" ? item.date.startsWith(anchor.slice(0, 7)) : item.date >= range.from && item.date <= range.to);
+  const shownCount = filters.filteredItems.filter(inPeriod).length;
 
   return (
     <TooltipProvider delayDuration={300}>
     <section aria-labelledby={headingId} className={cn("min-w-0 overflow-hidden rounded-xl border border-border/80 bg-card [&_[data-slot=button]]:shadow-none", className)}>
-      <CalendarToolbar headingId={headingId} rangeLabel={rangeLabel} anchor={anchor} view={view} dayLayout={dayLayout}
+      <CalendarToolbar headingId={headingId} rangeLabel={periodTitle(view, anchor)} anchor={anchor} view={view} dayLayout={dayLayout}
         onDateChange={setAnchor} onMove={(direction) => setAnchor((current) => shiftAnchor(view, current, direction))} onToday={() => setAnchor(today)}
-        onViewChange={(next) => { setView(next); if (next === "day") setDayLayout("agenda"); }} onDayLayoutChange={setDayLayout}>
-        <CalendarFilters query={query} onQueryChange={setQuery} activeKind={activeKind} onKindChange={setActiveKind}
-          openOnly={openOnly} onOpenOnlyChange={hasDone || openOnly ? setOpenOnly : undefined}
-          timing={timing} onTimingChange={setTiming} kinds={kinds} periodItems={periodItems}
-          categoryLabel={categoryLabel} filterCount={filterCount} />
+        onViewChange={changeView} onDayLayoutChange={setDayLayout}>
+        <CalendarFilters query={filters.query} onQueryChange={filters.setQuery} activeKind={filters.activeKind} onKindChange={filters.setActiveKind}
+          openOnly={filters.openOnly} onOpenOnlyChange={filters.canFilterDone ? filters.setOpenOnly : undefined}
+          timing={filters.timing} onTimingChange={filters.setTiming} kinds={kinds} periodItems={filters.matchingItems.filter(inPeriod)}
+          categoryLabel={filters.categoryLabel} filterCount={filters.filterCount} />
       </CalendarToolbar>
-      <CalendarHighlights items={filteredItems} kinds={kinds} today={today} eventKind={eventKind} cover={cover} renderItem={renderCalendarItem} />
-      {shownCount === 0 ? <EmptyPeriod text={emptyText} items={filteredItems} inPeriod={inPeriod} periodStart={view === "month" ? `${anchor.slice(0, 7)}-01` : range.from} onJump={setAnchor} /> : null}
-      <CalendarContent {...viewProps} view={view} dayLayout={dayLayout} anchor={anchor} byDate={byDate} onOpenDay={openDay} />
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs text-muted-foreground sm:px-5">
-        <span>{shownCount} {shownCount === 1 ? "entry" : "entries"} {periodContext}</span>
-        <Popover>
-          <PopoverTrigger asChild><button type="button" className="inline-flex min-h-8 items-center gap-1.5 rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Manila time<Info aria-hidden className="size-3.5" /></button></PopoverTrigger>
-          <PopoverContent align="end" collisionPadding={16} className="w-72 text-sm">All times are Philippine Standard Time.<span className="mt-1 block text-xs text-muted-foreground">Asia/Manila · UTC+08:00</span></PopoverContent>
-        </Popover>
-      </footer>
+      <CalendarHighlights items={filters.filteredItems} kinds={kinds} today={today} eventKind={eventKind} cover={cover} renderItem={renderCalendarItem} />
+      {shownCount === 0 ? <EmptyPeriod text={emptyPeriodText(view, Boolean(filters.query || filters.filterCount))} items={filters.filteredItems} inPeriod={inPeriod} periodStart={periodStart} onJump={setAnchor} /> : null}
+      <CalendarContent items={filters.filteredItems} kinds={kinds} today={today} renderItem={renderCalendarItem} view={view} dayLayout={dayLayout} anchor={anchor} byDate={byDate} onOpenDay={openDay} />
+      <CalendarFooter count={shownCount} view={view} />
       {detail ? <ItemPanel item={selected} related={selected ? relatedCalendarItems(items, selected, today) : []} kinds={kinds} today={today} eventKind={eventKind} cover={cover} detail={detail} onSelect={setSelectedId} onClose={() => setSelectedId(null)} /> : null}
     </section>
     </TooltipProvider>
@@ -377,9 +393,7 @@ function RelatedEntries<Item extends PortalCalendarItem>({ heading, items, kinds
   );
 }
 
-/** An item's details: its event's picture, what it is and when, the same facts layout on every portal, then the event's other entries. */
-function ItemPanel<Item extends PortalCalendarItem>({ item, related, kinds, today, eventKind, cover, detail, onSelect, onClose }: {
-  item: Item | null;
+type PanelProps<Item extends PortalCalendarItem> = {
   related: Item[];
   kinds: Record<string, PortalCalendarKind>;
   today: string;
@@ -387,30 +401,56 @@ function ItemPanel<Item extends PortalCalendarItem>({ item, related, kinds, toda
   cover?: (item: Item, size: PortalCalendarCoverSize) => ReactNode;
   detail: PortalCalendarDetail<Item>;
   onSelect: (id: string) => void;
-  onClose: () => void;
-}) {
-  const kind = item ? lookOf(kinds, item) : null;
-  const picture = item ? cover?.(item, "banner") : null;
-  const late = item ? lateLabel(item, today) : null;
+};
+
+/** What the entry is, its name, and when: its date and time with a countdown, or how many days late it is. */
+function PanelHeader({ item, kinds, today }: { item: PortalCalendarItem; kinds: Record<string, PortalCalendarKind>; today: string }) {
+  const kind = lookOf(kinds, item);
+  const late = lateLabel(item, today);
+  return (
+    <SheetHeader className="border-b border-border pr-12">
+      <p className="flex items-center gap-2 text-xs text-muted-foreground"><span aria-hidden className={cn("size-2 rounded-full", kind.dot)} />{kind.label}</p>
+      <SheetTitle className="break-words text-lg">{item.title}</SheetTitle>
+      <SheetDescription className="flex flex-wrap items-center gap-2">
+        {[formatPortalDate(item.date), timeRange(item)].filter(Boolean).join(" · ")}
+        {late ? <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-danger">{late}</span> : <CountdownPill date={item.date} todayKey={today} />}
+      </SheetDescription>
+    </SheetHeader>
+  );
+}
+
+/** The facts in one layout on every portal, the portal's own content, then the event's other entries. */
+function PanelBody<Item extends PortalCalendarItem>({ item, related, kinds, today, eventKind, detail, onSelect }: Omit<PanelProps<Item>, "cover"> & { item: Item }) {
+  const facts = [...(item.eventName ? [{ label: "Event", value: item.eventName }] : []), ...(detail.facts?.(item) ?? [])];
+  return (
+    <div className="space-y-3 p-4 text-sm">
+      <PanelFacts facts={facts} />
+      {item.detail && !detail.facts ? <p className="break-words text-foreground">{item.detail}</p> : null}
+      {detail.body?.(item)}
+      <RelatedEntries heading={item.kind === eventKind ? "Coming up for this event" : "Also for this event"} items={related} kinds={kinds} today={today} eventKind={eventKind} onSelect={onSelect} />
+    </div>
+  );
+}
+
+const CLOSE_ON_PICTURE = "[&>button:last-child]:rounded-full [&>button:last-child]:bg-card [&>button:last-child]:p-1 [&>button:last-child]:opacity-100 [&>button:last-child]:shadow-sm";
+
+function PanelContent<Item extends PortalCalendarItem>({ item, cover, detail, ...rest }: PanelProps<Item> & { item: Item }) {
+  const picture = cover?.(item, "banner");
+  return (
+    <SheetContent className={cn("gap-0 overflow-y-auto sm:max-w-md", picture && CLOSE_ON_PICTURE)}>
+      {picture ? <div className="shrink-0">{picture}</div> : null}
+      <PanelHeader item={item} kinds={rest.kinds} today={rest.today} />
+      <PanelBody item={item} detail={detail} {...rest} />
+      {detail.action ? <SheetFooter>{detail.action(item)}</SheetFooter> : null}
+    </SheetContent>
+  );
+}
+
+/** An item's details: its event's picture, what it is and when, the same facts layout on every portal, then the event's other entries. */
+function ItemPanel<Item extends PortalCalendarItem>({ item, onClose, ...panel }: PanelProps<Item> & { item: Item | null; onClose: () => void }) {
   return (
     <Sheet open={item !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
-      {item && kind ? (
-        <SheetContent className={cn("gap-0 overflow-y-auto sm:max-w-md", picture && "[&>button:last-child]:rounded-full [&>button:last-child]:bg-card [&>button:last-child]:p-1 [&>button:last-child]:opacity-100 [&>button:last-child]:shadow-sm")}>
-          {picture ? <div className="shrink-0">{picture}</div> : null}
-          <SheetHeader className="border-b border-border pr-12">
-            <p className="flex items-center gap-2 text-xs text-muted-foreground"><span aria-hidden className={cn("size-2 rounded-full", kind.dot)} />{kind.label}</p>
-            <SheetTitle className="break-words text-lg">{item.title}</SheetTitle>
-            <SheetDescription className="flex flex-wrap items-center gap-2">{[formatPortalDate(item.date), timeRange(item)].filter(Boolean).join(" · ")}{late ? <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-danger">{late}</span> : <CountdownPill date={item.date} todayKey={today} />}</SheetDescription>
-          </SheetHeader>
-          <div className="space-y-3 p-4 text-sm">
-            <PanelFacts facts={[...(item.eventName ? [{ label: "Event", value: item.eventName }] : []), ...(detail.facts?.(item) ?? [])]} />
-            {item.detail && !detail.facts ? <p className="break-words text-foreground">{item.detail}</p> : null}
-            {detail.body?.(item)}
-            <RelatedEntries heading={item.kind === eventKind ? "Coming up for this event" : "Also for this event"} items={related} kinds={kinds} today={today} eventKind={eventKind} onSelect={onSelect} />
-          </div>
-          {detail.action ? <SheetFooter>{detail.action(item)}</SheetFooter> : null}
-        </SheetContent>
-      ) : null}
+      {item ? <PanelContent item={item} {...panel} /> : null}
     </Sheet>
   );
 }
