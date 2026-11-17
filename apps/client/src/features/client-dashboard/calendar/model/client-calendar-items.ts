@@ -20,6 +20,8 @@ export interface ClientCalendarItem {
   look?: PortalCalendarLook;
   /** A payment past its date with money still owed. */
   overdue?: boolean;
+  /** A paid payment or an approved layout. */
+  done?: boolean;
   /** A payment's whole amount and what is still owed on it. */
   amount?: number;
   remaining?: number;
@@ -34,19 +36,19 @@ export type ClientCalendarView =
 
 /**
  * The calendar links PMCM messages and older bookmarks use; each now opens the one calendar filtered to its kind.
- * Due dates and the payment schedule both land on payments, where every entry says paid, late or due.
+ * Due dates are the payments still owed (paid ones hidden); the payment schedule is every payment.
  */
-const VIEW_KINDS: Record<ClientCalendarView, ClientCalendarItemKind> = {
-  "calendar-event-dates": "event",
-  "calendar-meetings": "visit",
-  "calendar-deadlines": "payment",
-  "calendar-payment-due-dates": "payment",
-  "calendar-approval-deadlines": "approval",
+const VIEW_FILTERS: Record<ClientCalendarView, { kind: ClientCalendarItemKind; openOnly: boolean }> = {
+  "calendar-event-dates": { kind: "event", openOnly: false },
+  "calendar-meetings": { kind: "visit", openOnly: false },
+  "calendar-deadlines": { kind: "payment", openOnly: true },
+  "calendar-payment-due-dates": { kind: "payment", openOnly: false },
+  "calendar-approval-deadlines": { kind: "approval", openOnly: false },
 };
 
-/** The category a calendar link opens on; none for the plain calendar. */
-export function clientCalendarKind(view?: string): ClientCalendarItemKind | undefined {
-  return view && view in VIEW_KINDS ? VIEW_KINDS[view as ClientCalendarView] : undefined;
+/** The category a calendar link opens on, and whether it hides what is done; nothing for the plain calendar. */
+export function clientCalendarFilter(view?: string): { kind?: ClientCalendarItemKind; openOnly: boolean } {
+  return view && view in VIEW_FILTERS ? VIEW_FILTERS[view as ClientCalendarView] : { openOnly: false };
 }
 
 /** Calendar dates keep their day; timestamps land on their Philippine date. */
@@ -72,7 +74,7 @@ function paymentDates(state: CalendarState, byId: Map<string, CalendarEvent>, to
     return [{
       id: `payment-${payment.id}`, date, title: payment.label, chipLabel: `${payment.label} ${look.word}`, eventName: event.eventName,
       status: payment.status, kind: "payment" as const, eventId: event.id, look: { chip: look.chip, dot: look.dot, label: look.label },
-      overdue: state === "late", amount: payment.amount, remaining: payment.remainingBalance,
+      overdue: state === "late", done: state === "paid", amount: payment.amount, remaining: payment.remainingBalance,
       detail: state === "paid" ? `${formatPeso(payment.amount)} paid` : `${formatPeso(payment.remainingBalance)} to pay`,
     }];
   });
@@ -91,7 +93,7 @@ function layoutApprovals(state: CalendarState, byId: Map<string, CalendarEvent>)
     const event = byId.get(timeline.eventId);
     const layout = timeline.milestones.find((milestone) => milestone.key === "floor_plan_approved");
     if (!event || !layout?.date || layout.status !== "completed") return [];
-    return [{ id: `layout-${timeline.eventId}`, date: isoDay(layout.date), title: "Layout approved", eventName: event.eventName, status: "approved", kind: "approval" as const, eventId: event.id }];
+    return [{ id: `layout-${timeline.eventId}`, date: isoDay(layout.date), title: "Layout approved", eventName: event.eventName, status: "approved", done: true, kind: "approval" as const, eventId: event.id }];
   });
 }
 

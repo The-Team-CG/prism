@@ -73,6 +73,7 @@ export function EventCalendarWorkspace({
       kinds={PMCM_CALENDAR_KINDS}
       today={today}
       initialDate={today}
+      syncUrl
       onRangeChange={onRangeChange}
       cover={cover}
       detail={{

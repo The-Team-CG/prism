@@ -13,7 +13,7 @@ import { dashboardHref, formatStatusLabel, useClientWorkspace } from "../../work
 import type { ClientDashboardRoute } from "../../workspace/model/client-dashboard-types";
 import { ClientListEmpty } from "../../shared/client-list-ui";
 import { useEventCoverUrl } from "../../events/view-models/use-event-cover-url";
-import { buildClientCalendarItems, clientCalendarKind, type ClientCalendarItem, type ClientCalendarItemKind } from "../model/client-calendar-items";
+import { buildClientCalendarItems, clientCalendarFilter, type ClientCalendarItem, type ClientCalendarItemKind } from "../model/client-calendar-items";
 
 const KIND: Record<ClientCalendarItemKind, { label: string; chip: string; dot: string; route: ClientDashboardRoute; action: string }> = {
   event: { label: "Event day", chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary", route: "overview", action: "Open event" },
@@ -62,8 +62,8 @@ export function ClientCalendarView() {
     return <ClientListEmpty icon={CalendarDays} title="Nothing scheduled yet" description="Event dates, payment due dates, site visits and layout approvals appear here once they're set." />;
   }
 
-  const kind = clientCalendarKind(portalView);
-  const upcoming = items.filter((item) => item.date >= today && (!kind || item.kind === kind));
+  const { kind, openOnly } = clientCalendarFilter(portalView);
+  const upcoming = items.filter((item) => item.date >= today && (!kind || item.kind === kind) && !(openOnly && item.done));
   const cover = (item: ClientCalendarItem, size: PortalCalendarCoverSize) => {
     const event = byId.get(item.eventId);
     return event ? <ClientEventCover event={event} size={size} /> : null;
@@ -76,6 +76,8 @@ export function ClientCalendarView() {
       kinds={KIND}
       today={today}
       initialKind={kind}
+      initialOpenOnly={openOnly}
+      syncUrl
       initialDate={upcoming[0]?.date ?? today}
       cover={cover}
       detail={{

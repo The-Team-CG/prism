@@ -32,6 +32,7 @@ export function CoordinatorCalendar({ items, onOpen }: { items: CoordinatorCalen
       today={today}
       initialDate={initialDate}
       initialView={items.some((item) => item.date === initialDate && item.startTime) ? "day" : "month"}
+      syncUrl
       detail={{
         action: (item) => <Button type="button" onClick={() => onOpen(item.view, item.eventId)}>{ACTIONS[item.kind]}</Button>,
       }}

@@ -65,19 +65,24 @@ export function CalendarHighlights<Item extends PortalCalendarItem>({ items, kin
   if (items.length === 0) return null;
   const highlights = pickCalendarHighlights(items, today, eventKind);
   const overdue = highlights.filter((item) => item.overdue).length;
+  // "Up next" rather than "needs you": a supplier's overdue payment is PMCM's to make.
+  const heading = overdue ? "Overdue and up next" : "Up next";
   const toggle = (isExpanded: boolean, className: string) => (
-    <button type="button" aria-controls={id} aria-expanded={isExpanded} onClick={() => setExpanded(!isExpanded)} className={cn("min-h-8 items-center gap-1 rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
-      {isExpanded ? "Hide highlights" : "Show highlights"}<ChevronDown aria-hidden className={cn("size-3.5", isExpanded && "rotate-180")} />
+    <button type="button" aria-controls={id} aria-expanded={isExpanded} aria-label={`${isExpanded ? "Hide" : "Show"} ${heading.toLowerCase()}`} onClick={() => setExpanded(!isExpanded)} className={cn("min-h-8 items-center gap-1 rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
+      {isExpanded ? "Hide" : "Show"}<ChevronDown aria-hidden className={cn("size-3.5", isExpanded && "rotate-180")} />
     </button>
   );
   return (
     <div className="border-b border-border/60 px-4 py-2 sm:px-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-medium text-muted-foreground">Highlights <span className="ml-1 font-normal tabular-nums">{highlights.length}</span>{overdue ? <span className="ml-1 font-normal text-danger">· {overdue} overdue</span> : null}</p>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-foreground">{heading}{overdue ? <span className="ml-1 font-normal text-danger">· {overdue} overdue</span> : null}</p>
+          <p className="text-[11px] text-muted-foreground">Whatever month you are viewing</p>
+        </div>
         {toggle(expanded ?? true, "hidden sm:inline-flex")}
         {toggle(expanded ?? overdue > 0, "inline-flex sm:hidden")}
       </div>
-      <div id={id} role="region" aria-label="Schedule highlights" hidden={expanded === false} className={cn("grid-cols-1 items-start gap-3 pb-2 pt-2 sm:grid-cols-3", expanded === null ? (overdue ? "grid" : "hidden sm:grid") : expanded ? "grid" : "hidden")}>
+      <div id={id} role="region" aria-label={heading} hidden={expanded === false} className={cn("grid-cols-1 items-start gap-3 pb-2 pt-2 sm:grid-cols-3", expanded === null ? (overdue ? "grid" : "hidden sm:grid") : expanded ? "grid" : "hidden")}>
         {highlights.map((item) => {
           const kind = lookOf(kinds, item);
           const time = item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : null;

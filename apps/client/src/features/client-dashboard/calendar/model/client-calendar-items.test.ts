@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismClientEventTimeline } from "@prism/types";
-import { buildClientCalendarItems, clientCalendarKind } from "./client-calendar-items";
+import { buildClientCalendarItems, clientCalendarFilter } from "./client-calendar-items";
 
 const events = [
   { id: "evt_1", eventName: "Ayala Tech Summit", eventDate: "2026-12-10", status: "planning" },
@@ -54,13 +54,21 @@ describe("buildClientCalendarItems", () => {
     ]);
   });
 
-  it("opens older calendar links on their kind of date, and the plain calendar on everything", () => {
-    expect(clientCalendarKind("calendar-meetings")).toBe("visit");
-    expect(clientCalendarKind("calendar-deadlines")).toBe("payment");
-    expect(clientCalendarKind("calendar-payment-due-dates")).toBe("payment");
-    expect(clientCalendarKind("calendar-approval-deadlines")).toBe("approval");
-    expect(clientCalendarKind("calendar")).toBeUndefined();
-    expect(clientCalendarKind(undefined)).toBeUndefined();
+  it("opens older calendar links on their kind of date, due dates without what is paid, and the plain calendar on everything", () => {
+    expect(clientCalendarFilter("calendar-meetings")).toEqual({ kind: "visit", openOnly: false });
+    expect(clientCalendarFilter("calendar-deadlines")).toEqual({ kind: "payment", openOnly: true });
+    expect(clientCalendarFilter("calendar-payment-due-dates")).toEqual({ kind: "payment", openOnly: false });
+    expect(clientCalendarFilter("calendar-approval-deadlines")).toEqual({ kind: "approval", openOnly: false });
+    expect(clientCalendarFilter("calendar")).toEqual({ openOnly: false });
+    expect(clientCalendarFilter(undefined)).toEqual({ openOnly: false });
+  });
+
+  it("marks paid payments and approved layouts done, and leaves open work and event days not done", () => {
+    const withPaid = {
+      ...state,
+      paymentMilestones: [...state.paymentMilestones, { id: "pay_deposit", eventId: "evt_1", label: "Deposit", dueDate: "2026-10-01", status: "paid", amount: 100000, remainingBalance: 0 }],
+    } as typeof state;
+    expect(buildClientCalendarItems(withPaid, events, "2026-11-15").filter((item) => item.done).map((item) => item.title)).toEqual(["Deposit", "Layout approved"]);
   });
 
   it("labels each payment paid, late or due, and marks a late one overdue with what is still owed", () => {

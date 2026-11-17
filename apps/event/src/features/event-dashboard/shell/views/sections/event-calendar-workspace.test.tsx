@@ -2,11 +2,12 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { PortalQueryProvider } from "@prism/portal-query";
+import { PortalCalendar, calendarPlaceSearch, readCalendarPlace, type CalendarPlace } from "@prism/ui/portal-calendar";
 import type { PmcmCalendarEntry } from "@/features/pmcm-overview";
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
 
 beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-11-12T00:00:00Z")); });
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); vi.useRealTimers(); window.history.replaceState(null, "", "/"); });
 
 // jsdom has no ResizeObserver; the popover that lists a crowded day's hidden items measures itself with one.
 beforeAll(() => {
@@ -108,7 +109,7 @@ describe("EventCalendarWorkspace", () => {
       { ...items[3], id: "future", title: "Next payment", date: "2026-11-15" },
       { ...items[0], id: "outside", title: "Next month event", date: "2026-12-01" },
     ]} onRangeChange={vi.fn()} onOpenItem={onOpenItem} />);
-    const highlights = () => within(screen.getByRole("region", { name: "Schedule highlights" }));
+    const highlights = () => within(screen.getByRole("region", { name: "Up next" }));
     const cards = highlights().getAllByRole("button");
     expect(cards).toHaveLength(3);
     expect(cards[0].textContent).toContain("Today's quote");
@@ -118,8 +119,8 @@ describe("EventCalendarWorkspace", () => {
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Open suppliers" }));
     expect(onOpenItem).toHaveBeenCalledWith(expect.objectContaining({ id: "today" }));
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-    fireEvent.click(screen.getByRole("button", { name: "Hide highlights" }));
-    expect(screen.queryByRole("region", { name: "Schedule highlights" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Hide up next" }));
+    expect(screen.queryByRole("region", { name: "Up next" })).toBeNull();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search schedule" }), { target: { value: "Today's quote" } });
     const cell = document.querySelector<HTMLElement>('[data-date="2026-11-12"]');
     if (!cell) throw new Error("The selected month's date was not rendered");
@@ -131,9 +132,9 @@ describe("EventCalendarWorkspace", () => {
     renderCalendar();
     const search = screen.getByRole("searchbox", { name: "Search schedule" });
     fireEvent.change(search, { target: { value: "Lights" } });
-    expect(within(screen.getByRole("region", { name: "Schedule highlights" })).getAllByRole("button")).toHaveLength(1);
+    expect(within(screen.getByRole("region", { name: "Up next" })).getAllByRole("button")).toHaveLength(1);
     fireEvent.change(search, { target: { value: "No matching item" } });
-    expect(screen.queryByRole("region", { name: "Schedule highlights" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "Up next" })).toBeNull();
     fireEvent.change(search, { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Next period" }));
     expect(screen.getByRole("status").textContent).toContain("Nothing scheduled");
@@ -149,7 +150,7 @@ describe("EventCalendarWorkspace", () => {
       { ...items[3], id: "late", title: "Balance", date: "2026-10-01", overdue: true },
       { ...items[0], id: "gala", date: "2026-11-30" },
     ]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
-    const cards = within(screen.getByRole("region", { name: "Schedule highlights" })).getAllByRole("button");
+    const cards = within(screen.getByRole("region", { name: "Overdue and up next" })).getAllByRole("button");
     expect(cards.map((card) => card.getAttribute("aria-label")?.split(" · ")[0])).toEqual(["Balance", "Lights quote due", "Gala"]);
     expect(screen.getByText("· 1 overdue")).toBeTruthy();
     expect(cards[0].textContent).toContain("42 days late");
@@ -253,7 +254,7 @@ describe("EventCalendarWorkspace", () => {
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     expect(within(cell()).getByRole("button", { name: /Deposit/ })).toBeTruthy();
     expect(within(cell()).queryByRole("button", { name: /^Gala/ })).toBeNull();
-    const highlights = within(screen.getByRole("region", { name: "Schedule highlights" }));
+    const highlights = within(screen.getByRole("region", { name: "Up next" }));
     expect(highlights.getAllByRole("button")).toHaveLength(1);
     expect(highlights.getByRole("button", { name: /^Deposit/ })).toBeTruthy();
     fireEvent.change(search, { target: { value: "No match" } });
@@ -346,6 +347,52 @@ describe("EventCalendarWorkspace", () => {
       ["Bloom Florals arrives · Function Room A", true],
       ["7am – 8am · Gala", true],
     ]);
+  });
+
+  it("opens where the address says and keeps the address in step without adding history entries", () => {
+    window.history.replaceState(null, "", "/dashboard/calendar?kind=payment_due&period=week&date=2026-11-08");
+    const onRangeChange = vi.fn();
+    const length = window.history.length;
+    render(<EventCalendarWorkspace items={items} onRangeChange={onRangeChange} onOpenItem={vi.fn()} />);
+    expect(onRangeChange).toHaveBeenLastCalledWith({ from: "2026-11-08", to: "2026-11-14" });
+    expect(screen.getByRole("button", { name: "Calendar view: Week" })).toBeTruthy();
+    expect(screen.getByText("1 entry in this period")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next period" }));
+    expect(window.location.search).toBe("?kind=payment_due&period=week&date=2026-11-15");
+    fireEvent.keyDown(window, { key: "m" });
+    fireEvent.click(screen.getByRole("button", { name: "Filter schedule" }));
+    fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(window.location.search).toBe("?date=2026-11-15");
+    expect(window.history.length).toBe(length);
+  });
+
+  it("hides paid and done entries on request, and offers the option only when something can be done", () => {
+    const done = { ...items[3], id: "paid", title: "Deposit paid", done: true };
+    render(<PortalCalendar items={[items[2], done]} kinds={{ quote_deadline: { label: "Quote deadline", chip: "", dot: "" }, payment_due: { label: "Payment due", chip: "", dot: "" } }} today="2026-11-12" initialDate="2026-11-12" detail={{}} />);
+    const cell = () => within(document.querySelector<HTMLElement>('[data-date="2026-11-10"]') as HTMLElement);
+    expect(cell().getByRole("button", { name: /Deposit paid/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Filter schedule" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hide paid and done" }));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(cell().queryByRole("button", { name: /Deposit paid/ })).toBeNull();
+    expect(cell().getByRole("button", { name: /Lights quote due/ })).toBeTruthy();
+    expect(screen.getByText("Still open")).toBeTruthy();
+    cleanup();
+
+    render(<EventCalendarWorkspace items={items} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Filter schedule" }));
+    expect(screen.queryByRole("button", { name: "Hide paid and done" })).toBeNull();
+  });
+
+  it("reads only valid places from an address, and writes only what differs from the default while keeping other parameters", () => {
+    const defaults: CalendarPlace = { kind: "payment", view: "month", date: "2026-11-12", openOnly: true };
+    const kinds = { payment: {}, event: {} };
+    expect(readCalendarPlace("?kind=nope&period=year&date=2026-02-30&open=x", defaults, kinds)).toEqual(defaults);
+    expect(readCalendarPlace("?kind=all&period=agenda&date=2026-12-01&open=0", defaults, kinds)).toEqual({ kind: null, view: "agenda", date: "2026-12-01", openOnly: false });
+    expect(calendarPlaceSearch("?view=calendar&event=evt_1", defaults, defaults)).toBe("?view=calendar&event=evt_1");
+    expect(calendarPlaceSearch("?view=calendar&event=evt_1", { kind: null, view: "week", date: "2026-11-22", openOnly: false }, defaults))
+      .toBe("?view=calendar&event=evt_1&kind=all&period=week&date=2026-11-22&open=0");
   });
 
   it("lists a crowded day's hidden items in a popup instead of leaving the month", () => {

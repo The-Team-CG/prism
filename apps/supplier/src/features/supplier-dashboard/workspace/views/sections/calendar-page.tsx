@@ -91,6 +91,7 @@ export function CalendarPage({ workspace, readinessBoard, workflowWorkspace }: {
         kinds={KINDS}
         today={today}
         initialDate={upcoming[0]?.date ?? today}
+        syncUrl
         cover={cover}
         detail={{
           facts: itemFacts,

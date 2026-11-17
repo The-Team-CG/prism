@@ -52,11 +52,25 @@ export function CalendarToolbar({ headingId, rangeLabel, anchor, view, dayLayout
   );
 }
 
-export function CalendarFilters({ query, onQueryChange, activeKind, onKindChange, timing, onTimingChange, kinds, periodItems, categoryLabel, filterCount }: {
+/** The done filter, shown only on calendars that have finished entries (or with it already on). */
+function DoneFilter({ openOnly, onChange }: { openOnly: boolean; onChange?: (openOnly: boolean) => void }) {
+  if (!onChange) return null;
+  return (
+    <div role="group" aria-label="Schedule status" className="space-y-2 border-t border-border pt-3">
+      <p className="text-xs font-medium text-muted-foreground">Status</p>
+      <button type="button" aria-pressed={openOnly} onClick={() => onChange(!openOnly)} className="flex min-h-9 w-full items-center justify-between rounded-md px-2 text-sm hover:bg-muted aria-pressed:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Hide paid and done{openOnly ? <Check aria-hidden className="size-3.5" /> : null}</button>
+    </div>
+  );
+}
+
+export function CalendarFilters({ query, onQueryChange, activeKind, onKindChange, openOnly, onOpenOnlyChange, timing, onTimingChange, kinds, periodItems, categoryLabel, filterCount }: {
   query: string;
   onQueryChange: (query: string) => void;
   activeKind: string | null;
   onKindChange: (kind: string | null) => void;
+  openOnly: boolean;
+  /** Absent when no entry can be done, so the option is not offered. */
+  onOpenOnlyChange?: (openOnly: boolean) => void;
   timing: CalendarTiming;
   onTimingChange: (timing: CalendarTiming) => void;
   kinds: Record<string, PortalCalendarKind>;
@@ -83,10 +97,11 @@ export function CalendarFilters({ query, onQueryChange, activeKind, onKindChange
             <p className="text-xs font-medium text-muted-foreground">Timing</p>
             {TIMING_FILTERS.map((option) => <button key={option.id} type="button" aria-pressed={timing === option.id} onClick={() => onTimingChange(option.id)} className="flex min-h-9 w-full items-center justify-between rounded-md px-2 text-sm hover:bg-muted aria-pressed:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{option.label}{timing === option.id ? <Check aria-hidden className="size-3.5" /> : null}</button>)}
           </div>
-          {filterCount ? <Button variant="ghost" size="sm" onClick={() => { onKindChange(null); onTimingChange("all"); }}>Clear filters</Button> : null}
+          <DoneFilter openOnly={openOnly} onChange={onOpenOnlyChange} />
+          {filterCount ? <Button variant="ghost" size="sm" onClick={() => { onKindChange(null); onTimingChange("all"); onOpenOnlyChange?.(false); }}>Clear filters</Button> : null}
         </PopoverContent>
       </Popover>
-      {categoryLabel || timing !== "all" ? <span className="hidden truncate text-xs text-muted-foreground sm:block">{[categoryLabel, timing === "timed" ? "Timed entries" : timing === "all-day" ? "All-day entries" : null].filter(Boolean).join(" · ")}</span> : null}
+      {categoryLabel || timing !== "all" || openOnly ? <span className="hidden truncate text-xs text-muted-foreground sm:block">{[categoryLabel, timing === "timed" ? "Timed entries" : timing === "all-day" ? "All-day entries" : null, openOnly ? "Still open" : null].filter(Boolean).join(" · ")}</span> : null}
     </div>
   );
 }

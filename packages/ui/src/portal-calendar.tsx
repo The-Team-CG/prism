@@ -6,6 +6,7 @@ import { CalendarFilters, CalendarToolbar, type CalendarDayLayout, type Calendar
 import { monthOfDateKey } from "./calendar-grid";
 import { CalendarHighlights, lateLabel, lookOf, pickCalendarHighlights, relatedCalendarItems } from "./calendar-highlights";
 import { CountdownPill } from "./event-cards/event-card";
+import { useCalendarPlace, type CalendarPlace } from "./calendar-place";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import {
   AGENDA_DAYS,
@@ -51,6 +52,8 @@ export type PortalCalendarItem = {
   overdue?: boolean;
   /** The event the entry belongs to, so its details panel can list the event's other entries. */
   eventId?: string;
+  /** Finished, such as a paid payment or an approved layout: hidden by the "Hide paid and done" filter. */
+  done?: boolean;
   kind: string;
   /** Philippine wall-clock time, HH:mm. Items without one are all-day. */
   startTime?: string;
@@ -60,6 +63,7 @@ export type PortalCalendarItem = {
 };
 export type PortalCalendarKind = { label: string; chip: string; dot: string };
 export { lookOf, pickCalendarHighlights, relatedCalendarItems };
+export { calendarPlaceSearch, readCalendarPlace, type CalendarPlace } from "./calendar-place";
 export type PortalCalendarLook = Partial<PortalCalendarKind> & { chip: string };
 
 export type PaymentCalendarState = "paid" | "late" | "due";
@@ -123,6 +127,10 @@ export type PortalCalendarProps<Item extends PortalCalendarItem> = PortalCalenda
   initialView?: CalendarViewId;
   /** The category the calendar opens filtered to, such as a deep link to payment dates. */
   initialKind?: string;
+  /** Opens with paid and done entries hidden, such as a link to what is still due. */
+  initialOpenOnly?: boolean;
+  /** Keeps the category, view, date and done filter in the address, so links and refreshes open the same place. */
+  syncUrl?: boolean;
   /** The kind that marks an event's own day, so the next one always has a place in the highlights. */
   eventKind?: string;
   /**
@@ -179,19 +187,29 @@ function itemsByDate<Item extends PortalCalendarItem>(items: Item[]) {
 const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 /** A calendar with month, week, day and agenda views. Role-neutral: portals decide which items exist and where each leads. */
-export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "month", initialKind, eventKind = "event", cover, className, onRangeChange, renderItem, detail }: PortalCalendarProps<Item>) {
+export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, today, initialDate, initialView = "month", initialKind, initialOpenOnly = false, syncUrl = false, eventKind = "event", cover, className, onRangeChange, renderItem, detail }: PortalCalendarProps<Item>) {
   const headingId = useId();
-  const [view, setView] = useState<CalendarViewId>(initialView);
+  const opening: CalendarPlace = { kind: initialKind && initialKind in kinds ? initialKind : null, view: initialView, date: initialDate, openOnly: initialOpenOnly };
+  const [view, setView] = useState<CalendarViewId>(opening.view);
   const [dayLayout, setDayLayout] = useState<CalendarDayLayout>("agenda");
-  const [anchor, setAnchor] = useState(initialDate);
+  const [anchor, setAnchor] = useState(opening.date);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [activeKind, setActiveKind] = useState<string | null>(initialKind && initialKind in kinds ? initialKind : null);
+  const [activeKind, setActiveKind] = useState<string | null>(opening.kind);
   const [timing, setTiming] = useState<CalendarTiming>("all");
+  const [openOnly, setOpenOnly] = useState(opening.openOnly);
+  useCalendarPlace({
+    enabled: syncUrl,
+    defaults: opening,
+    kinds,
+    place: { kind: activeKind, view, date: anchor, openOnly },
+    apply: (place) => { setActiveKind(place.kind); setView(place.view); setAnchor(place.date); setOpenOnly(place.openOnly); },
+  });
+  const hasDone = items.some((item) => item.done);
   const matchingItems = useMemo(() => items.filter((item) => {
     const matchesText = [item.title, item.detail, item.chipLabel, item.eventName, kindOf(kinds, item.kind).label].filter(Boolean).join(" ").toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-    return matchesText && (timing === "all" || (timing === "timed" ? Boolean(item.startTime) : !item.startTime));
-  }), [items, kinds, query, timing]);
+    return matchesText && !(openOnly && item.done) && (timing === "all" || (timing === "timed" ? Boolean(item.startTime) : !item.startTime));
+  }), [items, kinds, query, timing, openOnly]);
   const filteredItems = useMemo(() => matchingItems.filter((item) => activeKind === null || item.kind === activeKind), [matchingItems, activeKind]);
   const byDate = useMemo(() => itemsByDate(filteredItems), [filteredItems]);
   const selected = detail ? items.find((item) => item.id === selectedId) ?? null : null;
@@ -237,7 +255,7 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
   const visibleItems = filteredItems.filter(inPeriod);
   const shownCount = visibleItems.length;
   const categoryLabel = activeKind ? kinds[activeKind].label : null;
-  const filterCount = Number(categoryLabel !== null) + Number(timing !== "all");
+  const filterCount = Number(categoryLabel !== null) + Number(timing !== "all") + Number(openOnly);
   const periodContext = view === "day" ? "on this day" : "in this period";
   const emptyText = query || filterCount ? `No matching entries ${periodContext}. Change the search or filters to see more.` : `Nothing scheduled ${periodContext}.`;
 
@@ -248,6 +266,7 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
         onDateChange={setAnchor} onMove={(direction) => setAnchor((current) => shiftAnchor(view, current, direction))} onToday={() => setAnchor(today)}
         onViewChange={(next) => { setView(next); if (next === "day") setDayLayout("agenda"); }} onDayLayoutChange={setDayLayout}>
         <CalendarFilters query={query} onQueryChange={setQuery} activeKind={activeKind} onKindChange={setActiveKind}
+          openOnly={openOnly} onOpenOnlyChange={hasDone || openOnly ? setOpenOnly : undefined}
           timing={timing} onTimingChange={setTiming} kinds={kinds} periodItems={periodItems}
           categoryLabel={categoryLabel} filterCount={filterCount} />
       </CalendarToolbar>
