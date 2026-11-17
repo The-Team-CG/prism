@@ -21,7 +21,8 @@ export function useSupplierPrivacyRequestsViewModel() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
-  async function submit() {
+  /** Sends the request; true once PMCM has it, false with the reason in `error`. */
+  async function submit(): Promise<boolean> {
     setBusy(true);
     setError(null);
     try {
@@ -29,8 +30,10 @@ export function useSupplierPrivacyRequestsViewModel() {
       setDetails("");
       setPassword("");
       await invalidate(supplierOwnPrivacyRequestsResource);
+      return true;
     } catch (cause: unknown) {
       setError(messageOf(cause, "The privacy request could not be submitted."));
+      return false;
     } finally {
       setBusy(false);
     }
