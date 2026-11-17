@@ -29,6 +29,12 @@ export const submitOwnPrivacyRequestSchema = z
   });
 export type SubmitOwnPrivacyRequestInput = z.infer<typeof submitOwnPrivacyRequestSchema>;
 
+/** Downloading your own data straight away: the account password confirms it is you, as for any privacy request. */
+export const downloadOwnPrivacyDataSchema = z.object({
+  password: z.string().min(1, "Enter your password to confirm it is you").max(200),
+}).strict();
+export type DownloadOwnPrivacyDataInput = z.infer<typeof downloadOwnPrivacyDataSchema>;
+
 export const reviewPrivacyRequestSchema = z.object({
   status: z.enum(["approved", "rejected"]),
   reviewReason: optionalTrimmedStringSchema,

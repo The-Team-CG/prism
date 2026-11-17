@@ -81,12 +81,17 @@ describe("PrivacyConsoleView", () => {
 
     render(<PrivacyConsoleView />);
 
-    expect(await screen.findByText(/^Overdue by \d+ days? \(due 2026-10-01\)$/)).toBeTruthy();
-    expect(within(await screen.findByRole("region", { name: "Retention policies" })).getByText("Retention policies and review queue")).toBeTruthy();
+    // The same due pill the requester sees: red, with how many days late.
+    expect((await screen.findByText(/^Due Oct 1, 2026 · \d+ days late$/)).className).toContain("text-danger");
     fireEvent.click(screen.getByRole("button", { name: "Assign to me" }));
 
     await waitFor(() => expect(repository.assignRequest).toHaveBeenCalledWith("priv_overdue", { assignedTo: "usr_maxine" }));
     await waitFor(() => expect(repository.queue).toHaveBeenCalledTimes(2));
+
+    // Retention is its own tab; its panel and data load only once it is opened.
+    expect(retentionLoad).not.toHaveBeenCalled();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Retention" }), { button: 0 });
+    expect(within(await screen.findByRole("region", { name: "Retention policies" })).getByText("Retention policies and review queue")).toBeTruthy();
   });
 
   it("says when a self-service requester confirmed who they are with their password, and says nothing otherwise", async () => {
@@ -129,9 +134,10 @@ describe("PrivacyConsoleView", () => {
 
     render(<PrivacyConsoleView />);
 
-    expect(await screen.findByRole("button", { name: "Execute" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Carry it out" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Assign to me" })).toBeNull();
-    expect(screen.queryByText("Legal holds")).toBeNull();
+    expect(screen.queryByRole("tab", { name: /Legal holds/ })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Retention" })).toBeNull();
     expect(repository.loadLegalHolds).not.toHaveBeenCalled();
     expect(retentionLoad).not.toHaveBeenCalled();
   });

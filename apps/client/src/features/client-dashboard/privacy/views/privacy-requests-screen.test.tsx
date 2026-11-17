@@ -73,9 +73,9 @@ describe("PrivacyRequestsScreen", () => {
   });
 
   it("sends a request in three steps: what, optional details it can skip, then the password", async () => {
-    const { draft } = screenWith([], { type: "export" });
+    const { draft } = screenWith([], { type: "access" });
     openNewRequest();
-    expect(dialog().getByRole("radio", { name: /Export my data/ }).getAttribute("aria-checked")).toBe("true");
+    expect(dialog().getByRole("radio", { name: /Get a copy of my data/ }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(dialog().getByRole("button", { name: "Next" }));
     fireEvent.click(dialog().getByRole("button", { name: "Skip" }));
     const send = dialog().getByRole("button", { name: "Send request" }) as HTMLButtonElement;
@@ -83,6 +83,20 @@ describe("PrivacyRequestsScreen", () => {
     fireEvent.change(dialog().getByLabelText("Your password"), { target: { value: "right-password" } });
     expect(draft.setPassword).toHaveBeenCalledWith("right-password");
     expect(draft.submit).not.toHaveBeenCalled();
+  });
+
+  it("goes straight from choosing a download to confirming it, and says it downloaded", async () => {
+    const { draft } = screenWith([], { type: "export", password: "right-password" });
+    openNewRequest();
+    fireEvent.click(dialog().getByRole("button", { name: "Next" }));
+    expect(dialog().getByText(/Your file downloads straight away/)).toBeTruthy();
+    fireEvent.click(dialog().getByRole("button", { name: "Back" }));
+    expect(dialog().getByRole("radiogroup")).toBeTruthy();
+    fireEvent.click(dialog().getByRole("button", { name: "Next" }));
+    fireEvent.click(dialog().getByRole("button", { name: "Download my data" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(draft.submit).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("status").textContent).toMatch(/^Downloaded./);
   });
 
   it("closes after sending and says it was sent", async () => {

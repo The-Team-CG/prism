@@ -10,11 +10,12 @@ import { useClientPrivacyRequestsViewModel } from "./use-client-privacy-requests
 const wrapper = ({ children }: { children: ReactNode }) => createElement(PortalQueryProvider, { actorKey: "client@example.test", children });
 const render = () => renderHook(() => useClientPrivacyRequestsViewModel(), { wrapper });
 
-const { list, submit, cancel, notice } = vi.hoisted(() => ({ list: vi.fn(), submit: vi.fn(), cancel: vi.fn(), notice: vi.fn() }));
+const { list, submit, cancel, notice, download, savePrivacyDownload } = vi.hoisted(() => ({ list: vi.fn(), submit: vi.fn(), cancel: vi.fn(), notice: vi.fn(), download: vi.fn(), savePrivacyDownload: vi.fn() }));
+vi.mock("@prism/ui/privacy-requests", () => ({ savePrivacyDownload }));
 vi.mock("../data/client-privacy-repository", async () => {
   const { defineResource } = await import("@prism/portal-query");
   return {
-    clientPrivacyRequestRepository: { list, submit, cancel, notice },
+    clientPrivacyRequestRepository: { list, submit, cancel, notice, download },
     clientOwnPrivacyRequestsResource: defineResource({ name: "test.client-privacy", fetch: () => list() }),
     clientPrivacyNoticeResource: defineResource({ name: "test.client-privacy-notice", fetch: () => notice() }),
   };
@@ -103,5 +104,26 @@ describe("useClientPrivacyRequestsViewModel", () => {
     list.mockResolvedValue([]);
     const { result } = render();
     await waitFor(() => expect(result.current.notice).toEqual({ version: "v3", acknowledgedAt: "2026-10-27T02:00:00.000Z" }));
+  });
+
+  it("downloads the data straight away for a download, saves the file, and lists it, without filing a request", async () => {
+    const bundle = { requestId: "priv_9", subjectType: "client", generatedAt: "2026-11-18T01:00:00.000Z", sections: [] };
+    list.mockResolvedValue([]);
+    download.mockResolvedValue({ request: { ...submitted, id: "priv_9", type: "export", status: "executed" }, export: bundle });
+    const { result } = render();
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    act(() => {
+      result.current.setRequestType("export");
+      result.current.setPassword("right-password");
+    });
+    let sent = false;
+    await act(async () => { sent = await result.current.submit(); });
+
+    expect(sent).toBe(true);
+    expect(download).toHaveBeenCalledWith("right-password");
+    expect(savePrivacyDownload).toHaveBeenCalledWith(bundle);
+    expect(submit).not.toHaveBeenCalled();
+    expect(result.current.password).toBe("");
   });
 });
