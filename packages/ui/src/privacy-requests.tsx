@@ -2,7 +2,7 @@
 
 import { useId, useState, type ReactNode } from "react";
 import { Ban, CheckCircle2, ChevronRight, CircleSlash, Download, FileText, PencilLine, Plus, ShieldCheck, Trash2, type LucideIcon } from "lucide-react";
-import type { PrismOwnPrivacyRequest } from "@prism/types";
+import type { PrismOwnPrivacyRequest, PrismPrivacyExportBundle } from "@prism/types";
 import { Button } from "./components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./components/ui/dialog";
 import { Input } from "./components/ui/input";
@@ -20,12 +20,31 @@ type ChoiceLook = { value: PrivacyRequestChoice; title: string; name: string; de
 /** The four things a person can ask PMCM, in plain words, with the icon and colour each one keeps on every portal. */
 export const PRIVACY_REQUEST_CHOICES: readonly ChoiceLook[] = [
   { value: "access", title: "Get a copy of my data", name: "Copy of my data", description: "Everything PMCM holds about you, checked by PMCM first.", icon: FileText, tile: "bg-info-soft text-info" },
-  { value: "export", title: "Export my data", name: "Data export", description: "Your data as a file you can take to another service.", icon: Download, tile: "bg-primary-soft text-primary" },
+  { value: "export", title: "Download my data now", name: "Data download", description: "Your account, inquiries, events and billing as one file, straight away.", icon: Download, tile: "bg-primary-soft text-primary" },
   { value: "correction", title: "Correct something", name: "Correction", description: "A name, number or other detail that is wrong.", icon: PencilLine, tile: "bg-attention-soft text-attention" },
   { value: "deletion", title: "Delete my data", name: "Deletion", description: "PMCM removes what it does not have to keep.", icon: Trash2, tile: "bg-danger-soft text-danger" },
 ];
 
 const choiceOf = (type: string) => PRIVACY_REQUEST_CHOICES.find((choice) => choice.value === type) ?? PRIVACY_REQUEST_CHOICES[0];
+
+/** The icon and colour each kind of request keeps everywhere, PMCM's queue included. */
+export function privacyRequestLook(type: string): { icon: LucideIcon; tile: string } {
+  const choice = choiceOf(type);
+  return { icon: choice.icon, tile: choice.tile };
+}
+
+/** A download needs no details and no PMCM: it skips straight to confirming. */
+const isDownload = (type: PrivacyRequestChoice) => type === "export";
+
+/** Saves a downloaded export as a dated JSON file in the browser. */
+export function savePrivacyDownload(bundle: PrismPrivacyExportBundle) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `prism-my-data-${manilaCalendarKey(bundle.generatedAt)}.json`;
+  anchor.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 /** The four steps every request goes through, in the requester's words. */
 export const PRIVACY_REQUEST_STEPS = ["Sent", "Identity check", "In progress", "Done"] as const;
@@ -241,7 +260,9 @@ function PasswordField({ value, onChange }: { value: string; onChange: (value: s
 function ConfirmStep({ draft }: { draft: PrivacyDraft }) {
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">You are asking PMCM to: <span className="font-semibold text-foreground">{choiceOf(draft.type).title.toLowerCase()}</span>. PMCM finishes within 30 days.</p>
+      {isDownload(draft.type)
+        ? <p className="text-sm text-muted-foreground">Your file downloads straight away, and the download is listed under your requests.</p>
+        : <p className="text-sm text-muted-foreground">You are asking PMCM to: <span className="font-semibold text-foreground">{choiceOf(draft.type).title.toLowerCase()}</span>. PMCM finishes within 30 days.</p>}
       {draft.type === "deletion" ? <DeletionWarning /> : null}
       <PasswordField value={draft.password} onChange={draft.setPassword} />
       {draft.error ? <p role="alert" className="text-sm text-danger">{draft.error}</p> : null}
@@ -259,18 +280,22 @@ function stepReady(step: number, draft: PrivacyDraft): boolean {
 function nextLabel(step: number, draft: PrivacyDraft): string {
   if (step === 1 && draft.type !== "correction" && !draft.details.trim()) return "Skip";
   if (step < 2) return "Next";
-  if (draft.busy) return "Sending…";
+  if (draft.busy) return isDownload(draft.type) ? "Preparing…" : "Sending…";
+  if (isDownload(draft.type)) return "Download my data";
   return draft.type === "deletion" ? "Delete my data" : "Send request";
 }
 
 /** Sending a request: what, then any details, then confirm with the password, one question at a time. */
-function NewRequestDialog({ open, draft, onClose, onSent }: { open: boolean; draft: PrivacyDraft; onClose: () => void; onSent: () => void }) {
+function NewRequestDialog({ open, draft, onClose, onSent }: { open: boolean; draft: PrivacyDraft; onClose: () => void; onSent: (type: PrivacyRequestChoice) => void }) {
   const [step, setStep] = useState(0);
   const close = () => { setStep(0); onClose(); };
   const advance = async () => {
+    if (step === 0 && isDownload(draft.type)) return setStep(2);
     if (step < 2) return setStep(step + 1);
-    if (await draft.submit()) { setStep(0); onSent(); }
+    const type = draft.type;
+    if (await draft.submit()) { setStep(0); onSent(type); }
   };
+  const back = () => setStep(step === 2 && isDownload(draft.type) ? 0 : step - 1);
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) close(); }}>
       <DialogContent className="max-sm:top-auto max-sm:bottom-0 max-sm:max-w-full max-sm:translate-y-0 max-sm:rounded-b-none">
@@ -284,7 +309,7 @@ function NewRequestDialog({ open, draft, onClose, onSent }: { open: boolean; dra
           {step === 2 ? <ConfirmStep draft={draft} /> : null}
         </form>
         <DialogFooter className="flex-row justify-between gap-2 sm:justify-between">
-          {step > 0 ? <Button type="button" variant="outline" onClick={() => setStep(step - 1)}>Back</Button> : <span />}
+          {step > 0 ? <Button type="button" variant="outline" onClick={back}>Back</Button> : <span />}
           <Button type="submit" form="privacy-new-request" variant={step === 2 && draft.type === "deletion" ? "destructive" : "default"} disabled={!stepReady(step, draft)}>{nextLabel(step, draft)}</Button>
         </DialogFooter>
       </DialogContent>
@@ -337,21 +362,21 @@ export function PrivacyRequestsScreen({ requests, loading, loadError, draft, can
   today: string;
 }) {
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState<PrivacyRequestChoice | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
-  const newRequest = <Button type="button" onClick={() => { setSent(false); setSending(true); }}><Plus aria-hidden className="size-4" />New request</Button>;
+  const newRequest = <Button type="button" onClick={() => { setSent(null); setSending(true); }}><Plus aria-hidden className="size-4" />New request</Button>;
   return (
     <div className="space-y-4">
       {loading ? <LoadingState label="Loading your privacy requests…" /> : null}
       {loadError ? <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{loadError}</p> : null}
       <Panel title="Your requests" count={requests.length || undefined} action={newRequest}>
-        {sent ? <p role="status" className="mb-2 rounded-md bg-success-soft px-3 py-2 text-sm text-success">Sent. PMCM finishes each request within 30 days, and you get a notification as it moves on.</p> : null}
+        {sent ? <p role="status" className="mb-2 rounded-md bg-success-soft px-3 py-2 text-sm text-success">{isDownload(sent) ? "Downloaded. The file is in your downloads, and the download is listed below." : "Sent. PMCM finishes each request within 30 days, and you get a notification as it moves on."}</p> : null}
         {requests.length ? (
           <ul className="divide-y divide-border">{byOpenFirst(requests).map((request) => <RequestRow key={request.id} request={request} today={today} onOpen={() => setOpenId(request.id)} />)}</ul>
         ) : <p className="py-2 text-sm text-muted-foreground">No requests yet. Ask PMCM for a copy of your data, a correction, an export or a deletion, and follow it here.</p>}
       </Panel>
       {notice ? <NoticeLine notice={notice} /> : null}
-      <NewRequestDialog open={sending} draft={draft} onClose={() => setSending(false)} onSent={() => { setSending(false); setSent(true); }} />
+      <NewRequestDialog open={sending} draft={draft} onClose={() => setSending(false)} onSent={(type) => { setSending(false); setSent(type); }} />
       <RequestPanel request={requests.find((request) => request.id === openId) ?? null} today={today} cancel={cancel} onClose={() => setOpenId(null)} />
     </div>
   );

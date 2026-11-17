@@ -474,6 +474,23 @@ export class PrivacyOperationsService {
     verifiedActor: ReturnType<typeof requireVerifiedTrustActor>,
     prisma: Prisma.TransactionClient,
   ): Promise<PrismPrivacyExecutionResult> {
+    const bundle = await this.exportAndAudit(request, verifiedActor, prisma);
+    const saved = await prisma.opsPrivacyRequest.update({
+      where: { id: request.id },
+      data: { status: PrivacyRequestStatus.Executed, executionNotes: input.executionNotes ?? '', executedBy: verifiedActor.name, executedAt: new Date() },
+    });
+    return { ...this.mapRequest(saved), export: bundle };
+  }
+
+  /**
+   * Builds a request's export and writes the per-owner receipts and the summary to the audit trail. Used when PMCM
+   * carries out an export and when a client or supplier downloads their own data.
+   */
+  async exportAndAudit(
+    request: OpsPrivacyRequestRecord,
+    verifiedActor: { id: string; name: string; email?: string; role: string },
+    prisma: Prisma.TransactionClient,
+  ): Promise<PrismPrivacyExportBundle> {
     const { bundle, receipts } = await this.buildExport(request, prisma);
     for (const receipt of receipts) {
       await this.auditService.audit(
@@ -504,11 +521,7 @@ export class PrivacyOperationsService {
       affectedLabel: request.subjectEmail || request.subjectName,
       metadata: { actorId: verifiedActor.id, requestId: request.id, surfaces: bundle.sections.map((section) => section.surface), touchedRecords },
     }, { prisma, correlationId: `privacy:${request.id}`, actorId: verifiedActor.id });
-    const saved = await prisma.opsPrivacyRequest.update({
-      where: { id: request.id },
-      data: { status: PrivacyRequestStatus.Executed, executionNotes: input.executionNotes ?? '', executedBy: verifiedActor.name, executedAt: new Date() },
-    });
-    return { ...this.mapRequest(saved), export: bundle };
+    return bundle;
   }
 
   private async buildExport(

@@ -26,6 +26,7 @@ function fixture({ openRequest = null as null | Record<string, unknown>, rows = 
       findMany: vi.fn(async (_args: unknown) => rows),
       updateMany: vi.fn(async (_args: unknown) => ({ count: updated })),
       findUniqueOrThrow: vi.fn(async (_args: unknown) => after),
+      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => ({ ...created, requestType: 'export', ...data })),
     },
     $executeRaw: vi.fn(async () => 0),
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma)),
@@ -37,8 +38,9 @@ function fixture({ openRequest = null as null | Record<string, unknown>, rows = 
       return new Date('2026-11-07T08:00:00.000Z');
     }),
   };
-  const service = new OwnPrivacyRequestService(prisma as never, auditService as never, passwords);
-  return { service, prisma, auditService, passwords };
+  const privacyOperations = { exportAndAudit: vi.fn(async () => ({ requestId: 'priv_1', subjectType: 'client', generatedAt: '2026-11-07T08:00:00.000Z', sections: [] })) };
+  const service = new OwnPrivacyRequestService(prisma as never, auditService as never, passwords, privacyOperations as never);
+  return { service, prisma, auditService, passwords, privacyOperations };
 }
 
 describe('own privacy request service', () => {
@@ -91,6 +93,27 @@ describe('own privacy request service', () => {
     expect(passwords.confirmPassword).toHaveBeenCalledWith('usr_ana', 'guess');
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(prisma.opsPrivacyRequest.create).not.toHaveBeenCalled();
+  });
+
+  it("downloads the requester's own data once their password confirms it, and records it as a finished export", async () => {
+    const { service, prisma, privacyOperations } = fixture();
+
+    const download = await service.downloadOwn({ password: 'right-password' }, clientActor);
+
+    const data = (prisma.opsPrivacyRequest.create.mock.calls[0] as unknown as [{ data: Record<string, unknown> }])[0].data;
+    expect(data).toMatchObject({ requestType: 'export', subjectEmail: 'ana@example.test', subjectType: 'client', source: 'self_service', identityMethod: 'account_password' });
+    expect(privacyOperations.exportAndAudit).toHaveBeenCalledWith(expect.objectContaining({ id: 'priv_1' }), expect.objectContaining({ id: 'usr_ana', email: 'ana@example.test' }), prisma);
+    expect(prisma.opsPrivacyRequest.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: 'executed', executionNotes: 'Downloaded by the requester' }) }));
+    expect(download.request).toMatchObject({ type: 'export', status: 'executed', cancellable: false, outcomeMessage: 'You downloaded this copy of your data yourself.' });
+    expect(download.export.sections).toEqual([]);
+  });
+
+  it('downloads nothing and records nothing when the password is wrong', async () => {
+    const { service, prisma, privacyOperations } = fixture();
+
+    await expect(service.downloadOwn({ password: 'guess' }, clientActor)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.opsPrivacyRequest.create).not.toHaveBeenCalled();
+    expect(privacyOperations.exportAndAudit).not.toHaveBeenCalled();
   });
 
   it('refuses a second open request of the same type from the same requester', async () => {

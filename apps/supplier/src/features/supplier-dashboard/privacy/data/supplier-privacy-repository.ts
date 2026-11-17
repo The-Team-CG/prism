@@ -1,4 +1,4 @@
-import type { PrismCurrentUser, PrismOwnPrivacyRequest, SubmitOwnPrivacyRequestInput } from "@prism/types";
+import type { PrismCurrentUser, PrismOwnPrivacyDownload, PrismOwnPrivacyRequest, SubmitOwnPrivacyRequestInput } from "@prism/types";
 import { defineResource } from "@prism/portal-query";
 import { supplierApi } from "@/lib/prism-api";
 
@@ -10,6 +10,10 @@ export const supplierPrivacyRequestRepository = {
   },
   submit(input: SubmitOwnPrivacyRequestInput): Promise<PrismOwnPrivacyRequest> {
     return supplierApi.privacy.submitOwnRequest(input);
+  },
+  /** The signed-in supplier's own data straight away, confirmed with their password. */
+  download(password: string): Promise<PrismOwnPrivacyDownload> {
+    return supplierApi.privacy.downloadOwnData({ password });
   },
   cancel(requestId: string): Promise<PrismOwnPrivacyRequest> {
     return supplierApi.privacy.cancelOwnRequest(requestId);
