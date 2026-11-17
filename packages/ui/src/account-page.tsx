@@ -2,11 +2,12 @@
 
 import { useState, type ReactNode } from "react";
 import { AlertTriangle, ChevronRight } from "lucide-react";
-import type { PrismOwnSignIn } from "@prism/types";
+import type { PrismOwnSession, PrismOwnSignIn } from "@prism/types";
 import { Button } from "./components/ui/button";
 import { LoadingState } from "./components/ui/loading-state";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./components/ui/sheet";
 import { NameEditor, PasswordChanger, SignInList, type AccountChange } from "./account-security";
+import { SessionList, devicesValue } from "./account-sessions";
 import { formatPortalDate, formatPortalDateTime, manilaCalendarKey } from "./format-date";
 import { cn } from "./utils";
 
@@ -34,6 +35,10 @@ export type AccountActions = {
   saveName?: AccountChange<{ name: string }>;
   /** Resolves null once changed; the portal then signs the person out, since every session ended. */
   changePassword?: AccountChange<{ currentPassword: string; newPassword: string }>;
+  /** Signs out one other browser, by its session id. */
+  signOutSession?: AccountChange<string>;
+  /** Signs out every browser but this one. */
+  signOutOtherSessions?: AccountChange<void>;
 };
 
 export type AccountSecuritySummary = {
@@ -44,7 +49,7 @@ export type AccountSecuritySummary = {
   twoFactorRequired: boolean;
 };
 
-type Panel = "name" | "password" | "sign-ins" | "notifications";
+type Panel = "name" | "password" | "devices" | "sign-ins" | "notifications";
 
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
 
@@ -117,11 +122,18 @@ function latestSignIn(signIns: PrismOwnSignIn[] | null, security: AccountSecurit
   return security.signedInAt ? formatPortalDateTime(security.signedInAt) : "Not recorded";
 }
 
-function SecurityGroup({ security, actions, signIns, open }: { security: AccountSecuritySummary; actions: AccountActions; signIns: PrismOwnSignIn[] | null; open: (panel: Panel) => void }) {
+function SecurityGroup({ security, actions, signIns, sessions, open }: {
+  security: AccountSecuritySummary;
+  actions: AccountActions;
+  signIns: PrismOwnSignIn[] | null;
+  sessions: PrismOwnSession[] | null;
+  open: (panel: Panel) => void;
+}) {
   return (
     <Group title="Sign-in and security">
       {actions.changePassword ? <Row label="Password" value="Change it any time" onOpen={() => open("password")} /> : null}
       <Row label="Two-step sign-in" value={twoStepValue(security)} />
+      {sessions ? <Row label="Devices" value={devicesValue(sessions)} onOpen={() => open("devices")} /> : null}
       <Row label="Recent sign-ins" value={latestSignIn(signIns, security)} onOpen={signIns ? () => open("sign-ins") : undefined} />
     </Group>
   );
@@ -156,6 +168,7 @@ function HelpGroup({ contact, privacy, links }: { contact: AccountContact | null
 const PANEL_TITLES: Record<Panel, { title: string; description: string }> = {
   name: { title: "Your name", description: "How PMCM and your events show you." },
   password: { title: "Change your password", description: "This signs you out everywhere, including here. You sign in again with the new one." },
+  devices: { title: "Where you're signed in", description: "Sign out any device you no longer use or don't recognise. To sign out here, use Sign out in the menu." },
   "sign-ins": { title: "Recent sign-ins", description: "Your last 10. Anything you don't recognise? Change your password." },
   notifications: { title: "Notifications", description: "How PMCM reaches you." },
 };
@@ -165,26 +178,27 @@ type PanelProps = {
   identity: AccountIdentity | null;
   actions: AccountActions;
   signIns: PrismOwnSignIn[] | null;
+  sessions: PrismOwnSession[] | null;
   notifications: ReactNode;
   onPanel: (panel: Panel | null) => void;
   onSaved: (note: string) => void;
 };
 
-function PanelBody({ panel, identity, actions, signIns, notifications, onPanel, onSaved }: PanelProps & { panel: Panel }) {
-  if (panel === "name") {
-    return identity && actions.saveName ? (
-      <NameEditor name={identity.name} save={actions.saveName} onDone={() => onPanel(null)} onSaved={() => onSaved("Name saved. The menu shows it after your next sign-in.")} />
-    ) : null;
-  }
-  if (panel === "password") return actions.changePassword ? <PasswordChanger change={actions.changePassword} onCancel={() => onPanel(null)} /> : null;
-  if (panel === "notifications") return <>{notifications}</>;
-  return signIns ? (
+/** What each panel holds; null when the portal did not pass what it needs. */
+const PANEL_BODIES: Record<Panel, (props: PanelProps) => ReactNode> = {
+  name: ({ identity, actions, onPanel, onSaved }) => identity && actions.saveName ? (
+    <NameEditor name={identity.name} save={actions.saveName} onDone={() => onPanel(null)} onSaved={() => onSaved("Name saved. The menu shows it after your next sign-in.")} />
+  ) : null,
+  password: ({ actions, onPanel }) => actions.changePassword ? <PasswordChanger change={actions.changePassword} onCancel={() => onPanel(null)} /> : null,
+  devices: ({ sessions, actions }) => sessions ? <SessionList sessions={sessions} signOut={actions.signOutSession} signOutOthers={actions.signOutOtherSessions} /> : null,
+  "sign-ins": ({ signIns, actions, onPanel }) => signIns ? (
     <div className="space-y-3">
       <SignInList signIns={signIns} />
       {actions.changePassword ? <Button type="button" variant="outline" size="sm" onClick={() => onPanel("password")}>Change password</Button> : null}
     </div>
-  ) : null;
-}
+  ) : null,
+  notifications: ({ notifications }) => notifications,
+};
 
 /** The one task a row opens, in a side panel that fills the screen on phones. Panels can hand off to each other. */
 function AccountPanel(props: PanelProps) {
@@ -197,7 +211,7 @@ function AccountPanel(props: PanelProps) {
             <SheetTitle>{PANEL_TITLES[panel].title}</SheetTitle>
             <SheetDescription>{PANEL_TITLES[panel].description}</SheetDescription>
           </SheetHeader>
-          <div className="p-4"><PanelBody {...props} panel={panel} /></div>
+          <div className="p-4">{PANEL_BODIES[panel](props)}</div>
         </SheetContent>
       ) : null}
     </Sheet>
@@ -209,7 +223,7 @@ function AccountPanel(props: PanelProps) {
  * anything needs them (a banner only then), and lists each setting as a row with its value now. A row opens its one
  * task in a side panel; nothing is edited in place. Role-neutral: portals pass their own data and panels.
  */
-export function AccountScreen({ identity, loading, error, security, notifications, privacy, contact, links, actions = {}, signIns = null }: {
+export function AccountScreen({ identity, loading, error, security, notifications, privacy, contact, links, actions = {}, signIns = null, sessions = null }: {
   identity: AccountIdentity | null;
   loading: boolean;
   error: string | null;
@@ -224,6 +238,8 @@ export function AccountScreen({ identity, loading, error, security, notification
   actions?: AccountActions;
   /** Their own latest sign-ins, once loaded. */
   signIns?: PrismOwnSignIn[] | null;
+  /** The browsers they are signed in on now, once loaded. */
+  sessions?: PrismOwnSession[] | null;
 }) {
   const [panel, setPanel] = useState<Panel | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -248,12 +264,12 @@ export function AccountScreen({ identity, loading, error, security, notification
           <Row label="Email" value={identity.email} />
         </Group>
       ) : null}
-      {security ? <SecurityGroup security={security} actions={actions} signIns={signIns} open={setPanel} /> : null}
+      {security ? <SecurityGroup security={security} actions={actions} signIns={signIns} sessions={sessions} open={setPanel} /> : null}
       <Group title="Notifications">
         <Row label="Channels" value="Email and Viber" onOpen={() => setPanel("notifications")} />
       </Group>
       <HelpGroup contact={contact} privacy={privacy} links={links} />
-      <AccountPanel panel={panel} identity={identity} actions={actions} signIns={signIns} notifications={notifications} onPanel={setPanel} onSaved={setNote} />
+      <AccountPanel panel={panel} identity={identity} actions={actions} signIns={signIns} sessions={sessions} notifications={notifications} onPanel={setPanel} onSaved={setNote} />
     </div>
   );
 }

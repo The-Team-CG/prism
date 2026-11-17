@@ -21,6 +21,7 @@ export function ClientAccountView() {
       today={vm.today}
       actions={vm.actions}
       signIns={vm.signIns}
+      sessions={vm.sessions}
     />
   );
 }

@@ -9,6 +9,7 @@ import { ParticipantFactsModule } from '@prism/contexts/read-models/participant-
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
 import { OpsAuthController } from './api/auth/auth.controller';
 import { AuthOperationsService } from './application/auth/auth-operations.service';
+import { OwnSessionsService } from './application/auth/own-sessions.service';
 import { TotpService } from './application/auth/totp.service';
 import { AUTH_AUDIT } from './contracts/auth-audit.port';
 import { AuthAuditAdapter } from './infrastructure/auth/auth-audit.adapter';
@@ -28,6 +29,7 @@ import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-m
   controllers: [OpsAuthController],
   providers: [
     AuthOperationsService,
+    OwnSessionsService,
     PasswordResetService,
     AccountActivationService,
     TotpService,

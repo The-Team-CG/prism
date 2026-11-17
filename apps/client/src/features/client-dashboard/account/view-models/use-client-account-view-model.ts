@@ -8,7 +8,7 @@ import { manilaDateKey } from "@prism/ui/format-date";
 import type { AccountContact, AccountIdentity, AccountPrivacySummary, AccountSecuritySummary } from "@prism/ui/account-page";
 import { useClientWorkspace } from "../../workspace/shared";
 import { clientOwnPrivacyRequestsResource } from "../../privacy/data/client-privacy-repository";
-import { clientAccountRepository, clientCurrentUserResource, clientOwnSignInsResource } from "../data/client-account-repository";
+import { clientAccountRepository, clientCurrentUserResource, clientOwnSessionsResource, clientOwnSignInsResource } from "../data/client-account-repository";
 import { clientPmcmContact } from "../model/client-pmcm-contact";
 
 const OPEN = new Set(["submitted", "approved"]);
@@ -17,11 +17,14 @@ const OPEN = new Set(["submitted", "approved"]);
 export function useClientAccountViewModel() {
   const me = useResource(clientCurrentUserResource, undefined);
   const signIns = useResource(clientOwnSignInsResource, undefined);
+  const sessions = useResource(clientOwnSessionsResource, undefined);
   const invalidate = useInvalidate();
   const actions: AccountActions = {
     saveName: accountChange(clientAccountRepository.updateName, () => invalidate(clientCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
     changePassword: accountChange(clientAccountRepository.changePassword, async () => { await signOutClientSession(); window.location.assign("/sign-in"); }),
+    signOutSession: accountChange(clientAccountRepository.signOutSession, () => invalidate(clientOwnSessionsResource)),
+    signOutOtherSessions: accountChange(clientAccountRepository.signOutOtherSessions, () => invalidate(clientOwnSessionsResource)),
   };
   const privacy = useResource(clientOwnPrivacyRequestsResource, undefined);
   const { state, events } = useClientWorkspace();
@@ -43,6 +46,7 @@ export function useClientAccountViewModel() {
   return {
     actions,
     signIns: signIns.status === "ready" ? signIns.data : null,
+    sessions: sessions.status === "ready" ? sessions.data : null,
     loading: me.status === "pending",
     error: me.status === "error" ? me.error.message || "We could not load your account." : null,
     identity: user ? ({ name: user.name, email: user.email, organization: user.organization, roleLabel: "Client" } satisfies AccountIdentity) : null,

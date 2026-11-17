@@ -24,6 +24,8 @@ type SessionTokenPayload = {
   role: PrismEventOpsActorRole;
   organization: string;
   sessionVersion?: number;
+  /** The browser's session row, which can be signed out on its own. */
+  sid?: string;
   iat: number;
   exp: number;
 };
@@ -60,7 +62,7 @@ function isEventOpsActorRole(value: unknown): value is PrismEventOpsActorRole {
 export class AuthSessionService {
   constructor(private readonly configService: ConfigService) {}
 
-  issueSession(user: PrismUser, issuedAt = new Date()): PrismAuthenticatedSession {
+  issueSession(user: PrismUser, issuedAt = new Date(), sessionId?: string): PrismAuthenticatedSession {
     const issuedAtSeconds = Math.floor(issuedAt.getTime() / 1000);
     const ttlSeconds = this.sessionTtlSeconds(user.role);
     const expiresAtSeconds = issuedAtSeconds + ttlSeconds;
@@ -75,6 +77,7 @@ export class AuthSessionService {
         role: user.role,
         organization: user.organization,
         sessionVersion: user.sessionVersion ?? 0,
+        ...(sessionId ? { sid: sessionId } : {}),
         iat: issuedAtSeconds,
         exp: expiresAtSeconds,
       }),
@@ -99,6 +102,7 @@ export class AuthSessionService {
       name: payload.name,
       actorName: payload.name,
       expiresAt,
+      ...(typeof payload.sid === 'string' ? { sessionId: payload.sid } : {}),
     };
   }
 

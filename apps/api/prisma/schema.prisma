@@ -135,6 +135,7 @@ model OpsUser {
   passwordResetTokens OpsPasswordResetToken[]
   accountInvitations  OpsAccountInvitation[]
   approvalRequests    OpsApprovalRequest[]
+  sessions            OpsUserSession[]
 
   @@map("users")
   @@schema("identity_access")
@@ -153,6 +154,25 @@ model OpsPasswordResetToken {
   @@index([userId, expiresAt], map: "password_reset_tokens_user_id_expires_at_idx")
   @@index([expiresAt], map: "password_reset_tokens_expires_at_idx")
   @@map("password_reset_tokens")
+  @@schema("identity_access")
+}
+
+/// One signed-in browser. The session token carries this row's id; signing a device out sets revokedAt.
+/// Rows from an earlier session version are dead (a password change or sign-out bumped the version).
+model OpsUserSession {
+  id             String    @id
+  userId         String    @map("user_id")
+  device         String
+  sessionVersion Int       @map("session_version")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  lastSeenAt     DateTime  @default(now()) @map("last_seen_at")
+  expiresAt      DateTime  @map("expires_at")
+  revokedAt      DateTime? @map("revoked_at")
+
+  user OpsUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt], map: "user_sessions_user_id_expires_at_idx")
+  @@map("user_sessions")
   @@schema("identity_access")
 }
 

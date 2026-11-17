@@ -209,7 +209,7 @@ writer. Inactive drafts stay as history.
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| OpsUser, OpsAccountInvitation, OpsApprovalRequest, OpsPasswordResetToken, OpsPasswordResetRateLimit | identity_access | identity-access; authentication, invitation, approval, lockout, password recovery and account-authentication state. |
+| OpsUser, OpsAccountInvitation, OpsApprovalRequest, OpsPasswordResetToken, OpsPasswordResetRateLimit, OpsUserSession | identity_access | identity-access; authentication, invitation, approval, lockout, password recovery, signed-in browser sessions and account-authentication state. |
 
 OpsLoginHistory and OpsSecurityAlert are platform-ops-owned and live in
 platform_ops. Identity reaches platform audit behavior through AUTH_AUDIT.

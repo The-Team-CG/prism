@@ -6,7 +6,7 @@ import { clearEventSession } from "@/app/lib/session";
 import { manilaDateKey } from "@prism/ui/format-date";
 import type { AccountIdentity, AccountLink, AccountSecuritySummary } from "@prism/ui/account-page";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
-import { eventAccountRepository, eventCurrentUserResource, eventOwnSignInsResource } from "../data/event-account-repository";
+import { eventAccountRepository, eventCurrentUserResource, eventOwnSessionsResource, eventOwnSignInsResource } from "../data/event-account-repository";
 
 /** PMCM admins keep the workspace's own settings, apart from their personal account. */
 const ADMIN_LINKS: AccountLink[] = [
@@ -20,17 +20,21 @@ const ADMIN_LINKS: AccountLink[] = [
 export function useEventAccountViewModel() {
   const me = useResource(eventCurrentUserResource, undefined);
   const signIns = useResource(eventOwnSignInsResource, undefined);
+  const sessions = useResource(eventOwnSessionsResource, undefined);
   const invalidate = useInvalidate();
   const actions: AccountActions = {
     saveName: accountChange(eventAccountRepository.updateName, () => invalidate(eventCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
     changePassword: accountChange(eventAccountRepository.changePassword, () => { clearEventSession(); window.location.assign("/sign-in"); }),
+    signOutSession: accountChange(eventAccountRepository.signOutSession, () => invalidate(eventOwnSessionsResource)),
+    signOutOtherSessions: accountChange(eventAccountRepository.signOutOtherSessions, () => invalidate(eventOwnSessionsResource)),
   };
   const user = me.status === "ready" ? me.data : null;
   const isAdmin = user?.role === "pmcm-admin";
   return {
     actions,
     signIns: signIns.status === "ready" ? signIns.data : null,
+    sessions: sessions.status === "ready" ? sessions.data : null,
     loading: me.status === "pending",
     error: me.status === "error" ? me.error.message || "We could not load your account." : null,
     identity: user ? ({ name: user.name, email: user.email, organization: user.organization, roleLabel: roleLabel(user.role) } satisfies AccountIdentity) : null,

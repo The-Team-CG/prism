@@ -13,6 +13,11 @@ import * as passwordHash from './password-hash.cjs';
 
 const approvalReceipt = { message: 'If an account exists for this email, PMCM will review the request.' };
 
+/** The browser-session table sign-in writes to; these tests do not read it back. */
+function sessionTable() {
+  return { create: vi.fn(async () => ({})), deleteMany: vi.fn(async () => ({ count: 0 })) };
+}
+
 function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean; noAccount?: boolean; accountApproved?: boolean; accountInvited?: boolean } = {}) {
   const state = {
     request: {
@@ -74,6 +79,7 @@ function createApprovalService(options: { requestUpdateFails?: boolean; auditFai
   };
   const transaction = { opsApprovalRequest, opsUser };
   const prisma = {
+    opsUserSession: sessionTable(),
     ...transaction,
     $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => {
       const previousRequest = { ...state.request };
@@ -159,6 +165,7 @@ function createTwoFactorService(options: { purpose?: 'setup' | 'challenge'; vali
     }),
   };
   const prisma = {
+    opsUserSession: sessionTable(),
     opsUser,
     $transaction: vi.fn(async (callback: (tx: { opsUser: typeof opsUser }) => Promise<unknown>) => callback({ opsUser })),
   };
@@ -371,6 +378,7 @@ describe('AuthOperationsService', () => {
       twoFactorChallengeConsumedAt: null as Date | null,
     };
     const prisma = {
+      opsUserSession: sessionTable(),
       opsUser: {
         findUnique: vi.fn(async () => user),
         update: vi.fn(async () => user),
@@ -436,6 +444,7 @@ describe('AuthOperationsService', () => {
       sessionVersion: 0,
     };
     const prisma = {
+      opsUserSession: sessionTable(),
       opsUser: {
         findUnique: vi.fn(async () => user),
         update: vi.fn(async () => user),
@@ -616,6 +625,7 @@ describe('AuthOperationsService', () => {
       sessionVersion: 0,
     };
     const prisma = {
+      opsUserSession: sessionTable(),
       opsUser: {
         findUnique: vi.fn(async () => user),
         update: vi.fn(async () => user),
@@ -680,6 +690,7 @@ function createSignInService(account: Record<string, unknown> | null) {
   };
   const transaction = { opsUser };
   const prisma = {
+    opsUserSession: sessionTable(),
     ...transaction,
     $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction)),
   };
@@ -901,6 +912,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
     };
     const transaction = { opsUser };
     const prisma = {
+      opsUserSession: sessionTable(),
       ...transaction,
       $transaction: vi.fn(async (callback: (tx: typeof transaction) => Promise<unknown>) => callback(transaction)),
     };
@@ -929,7 +941,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
     return { service, guard, authAudit, session, actor, requestWith, user };
   }
 
-  it('revokes every open session on logout, so the guard rejects a token issued before it', async () => {
+  it('ends every open session when a session from before device tracking signs out, so the guard rejects a token issued before it', async () => {
     const { service, guard, authAudit, session, actor, requestWith } = createSessionFixture({
       privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       privacyNoticeAcknowledgedAt: new Date(),

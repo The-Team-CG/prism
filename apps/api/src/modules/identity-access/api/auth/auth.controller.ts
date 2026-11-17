@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Headers, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Headers, HttpCode, HttpStatus, InternalServerErrorException, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AllowPendingPrivacyNotice, EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -11,6 +11,7 @@ import { AuthOperationsService } from '../../application/auth/auth-operations.se
 import { PasswordResetService } from '../../application/auth/password-reset.service';
 import { AccountActivationService } from '../../application/auth/account-activation.service';
 import { AccountInvitationService } from '../../application/auth/account-invitation.service';
+import { OwnSessionsService } from '../../application/auth/own-sessions.service';
 
 @Controller('auth')
 export class OpsAuthController {
@@ -20,6 +21,7 @@ export class OpsAuthController {
     private readonly passwordResetService: PasswordResetService,
     private readonly accountActivationService: AccountActivationService,
     private readonly accountInvitationService: AccountInvitationService,
+    private readonly ownSessions: OwnSessionsService,
   ) {}
 
   private async requireAdmin(actor: PrismVerifiedEventActor): Promise<ResolvedEventOpsActor> {
@@ -150,6 +152,29 @@ export class OpsAuthController {
   @UseGuards(EventSessionGuard)
   mySignIns(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.authOperationsService.listOwnSignIns(actor);
+  }
+
+  /** The browsers the signed-in person is signed in on now. */
+  @Get('me/sessions')
+  @UseGuards(EventSessionGuard)
+  mySessions(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.ownSessions.list(actor);
+  }
+
+  /** Signs out every browser but this one. */
+  @Post('me/sessions/sign-out-others')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  signOutOtherSessions(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.ownSessions.signOutOthers(actor);
+  }
+
+  /** Signs out one other browser. */
+  @Delete('me/sessions/:sessionId')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  signOutSession(@Param('sessionId') sessionId: string, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.ownSessions.signOut(actor, sessionId);
   }
 
   @Post('privacy-notice/acknowledge')

@@ -267,6 +267,7 @@ describe('PrivacyOperationsService', () => {
         updateMany: vi.fn(async (_args: { where: unknown; data: Record<string, unknown> }) => ({ count: 1 })),
       },
       opsPasswordResetToken: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+      opsUserSession: { deleteMany: vi.fn(async () => ({ count: 0 })) },
       opsBillingStatement: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
       opsSupplier: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
       opsSupplierApplication: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
@@ -627,7 +628,7 @@ describe('PrivacyOperationsService', () => {
     expect(rootPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('erases a native client account with its client surfaces in one transaction and revokes its sessions', async () => {
+  it('erases a native client account with its client surfaces in one transaction, revokes its sessions and deletes its device rows', async () => {
     const { execute, request, tx, auditService } = executionFixture({ subjectType: 'account' });
     tx.opsUser.findFirst.mockResolvedValue({ id: 'usr_ana', role: OpsUserRole.Client });
 
@@ -648,6 +649,7 @@ describe('PrivacyOperationsService', () => {
     });
     expect(String(tx.opsUser.updateMany.mock.calls[0][0].data.password)).toMatch(/^erased:/);
     expect(tx.opsPasswordResetToken.deleteMany).toHaveBeenCalledWith({ where: { userId: 'usr_ana' } });
+    expect(tx.opsUserSession.deleteMany).toHaveBeenCalledWith({ where: { userId: 'usr_ana' } });
     expect(auditService.audit).toHaveBeenCalledWith(
       'evt_sample',
       'Mys',

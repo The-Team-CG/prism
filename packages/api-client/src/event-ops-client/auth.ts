@@ -31,6 +31,10 @@ export function createAuthClient(
       updateMe: (input) => prismRequest("/auth/me", withBase(options, { method: "PATCH", body: input })),
       changeMyPassword: (input) => prismRequest<void>("/auth/me/password", withBase(options, { method: "POST", body: input })),
       mySignIns: () => prismRequest("/auth/me/sign-ins", withBase(options, { method: "GET" })),
+      mySessions: () => prismRequest("/auth/me/sessions", withBase(options, { method: "GET" })),
+      signOutSession: (sessionId) =>
+        prismRequest<void>(`/auth/me/sessions/${encodeURIComponent(sessionId)}`, withBase(options, { method: "DELETE" })),
+      signOutOtherSessions: () => prismRequest("/auth/me/sessions/sign-out-others", withBase(options, { method: "POST" })),
       approvalRequests: () =>
         prismRequest<PrismApprovalRequest[]>("/auth/approval-requests", withBase(options)),
       approveApprovalRequest: (requestId) =>

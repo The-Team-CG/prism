@@ -232,6 +232,23 @@ export interface PrismOwnSignIn {
   device: string;
 }
 
+/** A browser the signed-in person is signed in on now. */
+export interface PrismOwnSession {
+  id: string;
+  /** "Chrome on Windows", or "Unknown device". */
+  device: string;
+  signedInAt: string;
+  /** Last request from this browser, to within a few minutes. */
+  lastActiveAt: string;
+  /** The browser asking. It signs out with Sign out, not from this list. */
+  current: boolean;
+}
+
+/** How many other browsers "Sign out everywhere else" signed out. */
+export interface PrismOwnSessionsSignedOut {
+  signedOut: number;
+}
+
 /** Identity administration result; carries no secrets or password material. */
 export interface PrismIdentityAccountSummary {
   id: string;
@@ -256,4 +273,6 @@ export interface PrismVerifiedEventActor extends PrismEventOpsActorContext {
   name: string;
   actorName: string;
   expiresAt: string;
+  /** The signed-in browser's session row. Absent on sessions issued before sessions were tracked per browser. */
+  sessionId?: string;
 }

@@ -23,6 +23,20 @@ const SESSION_USER_SELECT = {
 
 type SessionUser = Prisma.OpsUserGetPayload<{ select: typeof SESSION_USER_SELECT }>;
 
+const BROWSER_SESSION_SELECT = { userId: true, revokedAt: true, lastSeenAt: true } as const satisfies Prisma.OpsUserSessionSelect;
+type BrowserSession = Prisma.OpsUserSessionGetPayload<{ select: typeof BROWSER_SESSION_SELECT }>;
+
+/** How stale "last active" may get before a request refreshes it, so most requests do not write. */
+const LAST_SEEN_REFRESH_MS = 5 * 60 * 1000;
+
+/** A token naming a browser session must name a live one: that is how one device is signed out on its own. */
+function assertBrowserSessionLive(session: BrowserSession | null, actor: PrismVerifiedEventActor) {
+  if (!actor.sessionId) return;
+  if (!session || session.userId !== actor.id || session.revokedAt) {
+    throw new UnauthorizedException('This device has been signed out');
+  }
+}
+
 function isLockedOut(user: SessionUser) {
   return user.permanentLockout || Boolean(user.lockedUntil && user.lockedUntil > new Date());
 }
@@ -54,11 +68,15 @@ export class EventSessionGuard implements CanActivate {
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<EventSessionRequest>();
     const actor = this.authSessionService.verifyAccessToken(this.extractToken(request));
-    const user = await this.prisma.opsUser.findUnique({
-      where: { id: actor.id },
-      select: SESSION_USER_SELECT,
-    });
+    const [user, session] = await Promise.all([
+      this.prisma.opsUser.findUnique({ where: { id: actor.id }, select: SESSION_USER_SELECT }),
+      actor.sessionId
+        ? this.prisma.opsUserSession.findUnique({ where: { id: actor.sessionId }, select: BROWSER_SESSION_SELECT })
+        : Promise.resolve(null),
+    ]);
     assertSessionCurrent(user, actor);
+    assertBrowserSessionLive(session, actor);
+    if (session) this.refreshLastSeen(actor.sessionId!, session.lastSeenAt);
     if (privacyNoticeRequired(user.privacyNoticeVersion) && !this.allowsPendingPrivacyNotice(context)) {
       throw new ForbiddenException({
         code: PRISM_PRIVACY_NOTICE_REQUIRED_CODE,
@@ -67,6 +85,15 @@ export class EventSessionGuard implements CanActivate {
     }
     request.prismActor = actor;
     return true;
+  }
+
+  /** Best effort: a failed refresh only makes "last active" older, so it never fails the request. */
+  private refreshLastSeen(sessionId: string, lastSeenAt: Date) {
+    const now = new Date();
+    if (now.getTime() - lastSeenAt.getTime() < LAST_SEEN_REFRESH_MS) return;
+    void this.prisma.opsUserSession
+      .updateMany({ where: { id: sessionId, lastSeenAt: { lt: new Date(now.getTime() - LAST_SEEN_REFRESH_MS) } }, data: { lastSeenAt: now } })
+      .catch(() => undefined);
   }
 
   private allowsPendingPrivacyNotice(context: ExecutionContext) {

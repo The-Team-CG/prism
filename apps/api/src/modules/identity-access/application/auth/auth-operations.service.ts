@@ -61,6 +61,9 @@ function hashTwoFactorChallenge(challengeId: string) {
 /** How many of their own sign-ins a person sees on their account page. */
 const OWN_SIGN_IN_LIMIT = 10;
 
+/** How long a signed-out or expired browser session row is kept before the person's next sign-in clears it. */
+const ENDED_SESSION_KEEP_MS = 30 * 24 * 60 * 60 * 1000;
+
 @Injectable()
 export class AuthOperationsService {
   constructor(
@@ -84,8 +87,9 @@ export class AuthOperationsService {
     }
 
     await this.assertLoginAllowed(user, normalizedEmail, password);
-    const updated = await this.recordAcceptedSignIn(user, normalizedEmail, password, deviceName(device));
-    return this.issueLoginSession(updated);
+    const browser = deviceName(device);
+    const updated = await this.recordAcceptedSignIn(user, normalizedEmail, password, browser);
+    return this.issueLoginSession(updated, browser);
   }
 
   private async rejectUnknownLogin(normalizedEmail: string) {
@@ -166,7 +170,7 @@ export class AuthOperationsService {
     return updated;
   }
 
-  private async issueLoginSession(updated: OpsUser) {
+  private async issueLoginSession(updated: OpsUser, device: string) {
     if (updated.role === OpsUserRole.Client) {
       await this.inquiryCommands.markPortalInvitationOpenedByEmail(updated.email);
     }
@@ -211,14 +215,23 @@ export class AuthOperationsService {
       };
     }
 
-    return this.issueUserSession(updated);
+    return this.issueUserSession(updated, device);
   }
 
-  private issueUserSession(user: OpsUser): PrismSignInSession {
-    return {
-      ...this.authSessionService.issueSession(this.mapUser(user), new Date()),
-      privacyNoticeRequired: privacyNoticeRequired(user.privacyNoticeVersion),
-    };
+  /**
+   * Issues a session for one browser and records it, so the person can see where they are signed in and sign one
+   * device out. The same write clears this person's rows that ended over a month ago.
+   */
+  private async issueUserSession(user: OpsUser, device: string): Promise<PrismSignInSession> {
+    const now = new Date();
+    const sessionId = randomBytes(24).toString('base64url');
+    const session = this.authSessionService.issueSession(this.mapUser(user), now, sessionId);
+    const ended = new Date(now.getTime() - ENDED_SESSION_KEEP_MS);
+    await this.prisma.opsUserSession.create({
+      data: { id: sessionId, userId: user.id, device, sessionVersion: user.sessionVersion, createdAt: now, lastSeenAt: now, expiresAt: new Date(session.expiresAt) },
+    });
+    await this.prisma.opsUserSession.deleteMany({ where: { userId: user.id, OR: [{ expiresAt: { lt: ended } }, { revokedAt: { lt: ended } }] } });
+    return { ...session, privacyNoticeRequired: privacyNoticeRequired(user.privacyNoticeVersion) };
   }
 
   async setupTwoFactor(token: string) {
@@ -309,8 +322,9 @@ export class AuthOperationsService {
       }
     }
     if (!updated) throw new ConflictException('Two-factor challenge could not be completed; sign in again');
+    const browser = deviceName(device);
     await Promise.all([
-      this.authAudit.recordLoginHistory(updated, user.email, 'success', undefined, deviceName(device)),
+      this.authAudit.recordLoginHistory(updated, user.email, 'success', undefined, browser),
       this.authAudit.recordAuthenticationAudit({
         actor: updated.name,
         action: `Signed in to ${updated.role} portal`,
@@ -323,7 +337,7 @@ export class AuthOperationsService {
         affectedLabel: updated.email,
       }),
     ]);
-    return this.issueUserSession(updated);
+    return this.issueUserSession(updated, browser);
   }
 
   private async findTwoFactorUser(verifiedToken: VerifiedTwoFactorToken) {
@@ -485,7 +499,12 @@ export class AuthOperationsService {
     return { message: APPROVAL_REQUEST_RECEIVED_MESSAGE };
   }
 
+  /**
+   * Signs this browser out. Other devices stay signed in; the account page signs those out. A session from before
+   * devices were tracked has no row of its own, so it ends every session as sign-out always did.
+   */
   async logout(actor: PrismVerifiedEventActor) {
+    if (actor.sessionId) return this.signOutThisDevice(actor, actor.sessionId);
     await this.prisma.$transaction(async (tx) => {
       const revoked = await tx.opsUser.updateMany({
         where: { id: actor.id, sessionVersion: actor.sessionVersion },
@@ -508,6 +527,25 @@ export class AuthOperationsService {
         },
         { prisma: tx, correlationId: actor.id, actorId: actor.id },
       );
+    });
+  }
+
+  private async signOutThisDevice(actor: PrismVerifiedEventActor, sessionId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      const revoked = await tx.opsUserSession.updateMany({
+        where: { id: sessionId, userId: actor.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      if (revoked.count !== 1) throw new UnauthorizedException('Session has already been revoked');
+      await writeAudit(this.authAudit, undefined, actor.name, 'Signed out on this device', {
+        actorRole: actor.role,
+        actorEmail: actor.email,
+        actionType: AuditActionType.General,
+        category: AuditCategory.Access,
+        affectedType: 'account',
+        affectedId: actor.id,
+        affectedLabel: actor.email,
+      }, { prisma: tx, correlationId: actor.id, actorId: actor.id });
     });
   }
 
