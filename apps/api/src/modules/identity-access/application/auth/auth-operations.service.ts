@@ -1,3 +1,4 @@
+import { deviceName } from './device-name';
 import { Inject, Injectable } from '@nestjs/common';
 import {
   BadRequestException,
@@ -19,6 +20,9 @@ import {
   type PrismUser,
   type PrismVerifiedEventActor,
   type RequestApprovalInput,
+  type ChangeOwnPasswordInput,
+  type PrismOwnSignIn,
+  type UpdateOwnProfileInput,
 } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
@@ -54,6 +58,9 @@ function hashTwoFactorChallenge(challengeId: string) {
   return createHash('sha256').update(challengeId, 'utf8').digest('hex');
 }
 
+/** How many of their own sign-ins a person sees on their account page. */
+const OWN_SIGN_IN_LIMIT = 10;
+
 @Injectable()
 export class AuthOperationsService {
   constructor(
@@ -64,7 +71,8 @@ export class AuthOperationsService {
     private readonly totpService: TotpService,
   ) {}
 
-  async login(email: string, password: string) {
+  /** `device` is the browser's user agent, summarised into "Chrome on Windows" for the person's own sign-in list. */
+  async login(email: string, password: string, device?: string) {
     const normalizedEmail = canonicalAccountEmail(email);
     const user = await this.prisma.opsUser.findUnique({ where: { email: normalizedEmail } });
 
@@ -76,7 +84,7 @@ export class AuthOperationsService {
     }
 
     await this.assertLoginAllowed(user, normalizedEmail, password);
-    const updated = await this.recordPasswordVerified(user, normalizedEmail, password);
+    const updated = await this.recordAcceptedSignIn(user, normalizedEmail, password, deviceName(device));
     return this.issueLoginSession(updated);
   }
 
@@ -122,7 +130,7 @@ export class AuthOperationsService {
     }
   }
 
-  private async recordPasswordVerified(user: OpsUser, normalizedEmail: string, password: string) {
+  private async recordAcceptedSignIn(user: OpsUser, normalizedEmail: string, password: string, device?: string) {
     // PMCM admins still need a second factor, so their lock counters reset only when a session is issued
     // (see verifyTwoFactor). Everyone else's counters reset here.
     const requiresTwoFactor = user.role === OpsUserRole.PmcmAdmin;
@@ -140,7 +148,7 @@ export class AuthOperationsService {
 
     if (!requiresTwoFactor) {
       await Promise.all([
-        this.authAudit.recordLoginHistory(updated, normalizedEmail, 'success'),
+        this.authAudit.recordLoginHistory(updated, normalizedEmail, 'success', undefined, device),
         this.authAudit.recordAuthenticationAudit({
           actor: updated.name,
           action: `Signed in to ${updated.role} portal`,
@@ -250,7 +258,7 @@ export class AuthOperationsService {
     return { otpauthUri: this.totpService.otpauthUri(secret, user.email) };
   }
 
-  async verifyTwoFactor(token: string, code: string) {
+  async verifyTwoFactor(token: string, code: string, device?: string) {
     const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
     const user = await this.findTwoFactorUser(verifiedToken);
     if (!user.twoFactorSecret) throw new ForbiddenException('Two-factor setup is required before sign-in');
@@ -302,7 +310,7 @@ export class AuthOperationsService {
     }
     if (!updated) throw new ConflictException('Two-factor challenge could not be completed; sign in again');
     await Promise.all([
-      this.authAudit.recordLoginHistory(updated, user.email, 'success'),
+      this.authAudit.recordLoginHistory(updated, user.email, 'success', undefined, deviceName(device)),
       this.authAudit.recordAuthenticationAudit({
         actor: updated.name,
         action: `Signed in to ${updated.role} portal`,
@@ -501,6 +509,62 @@ export class AuthOperationsService {
         { prisma: tx, correlationId: actor.id, actorId: actor.id },
       );
     });
+  }
+
+  /** Changes the signed-in person's own name. Their sessions carry the old name until they next sign in. */
+  async updateOwnProfile(actor: PrismVerifiedEventActor, input: UpdateOwnProfileInput): Promise<PrismCurrentUser> {
+    return this.prisma.$transaction(async (tx) => {
+      const saved = await tx.opsUser.updateMany({ where: { id: actor.id, sessionVersion: actor.sessionVersion }, data: { name: input.name } });
+      if (saved.count !== 1) throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
+      await writeAudit(this.authAudit, undefined, actor.name, 'Changed their own name', {
+        actorRole: actor.role,
+        actorEmail: actor.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Access,
+        affectedType: 'account',
+        affectedId: actor.id,
+        affectedLabel: actor.email,
+        metadata: { changedFields: ['name'] },
+      }, { prisma: tx, correlationId: actor.id, actorId: actor.id });
+      return this.mapCurrentUser(await tx.opsUser.findUniqueOrThrow({ where: { id: actor.id } }), actor.expiresAt);
+    });
+  }
+
+  /**
+   * Changes the signed-in person's password. The current password proves it is them (a wrong one counts toward the
+   * sign-in lockout, and is a 403 so the portal does not sign them out), and every session ends, this one included,
+   * so they sign in again with the new password.
+   */
+  async changeOwnPassword(actor: PrismVerifiedEventActor, input: ChangeOwnPasswordInput): Promise<void> {
+    await this.confirmPassword(actor.id, input.currentPassword);
+    const hash = await AuthSecurityService.hashPassword(input.newPassword);
+    await this.prisma.$transaction(async (tx) => {
+      const saved = await tx.opsUser.updateMany({
+        where: { id: actor.id, sessionVersion: actor.sessionVersion },
+        data: { password: hash, sessionVersion: { increment: 1 } },
+      });
+      if (saved.count !== 1) throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
+      await writeAudit(this.authAudit, undefined, actor.name, 'Changed their own password and signed out every session', {
+        actorRole: actor.role,
+        actorEmail: actor.email,
+        actionType: AuditActionType.Update,
+        category: AuditCategory.Access,
+        affectedType: 'account',
+        affectedId: actor.id,
+        affectedLabel: actor.email,
+      }, { prisma: tx, correlationId: actor.id, actorId: actor.id });
+    });
+  }
+
+  /** The signed-in person's own latest sign-ins: when, whether it worked, and the browser. No addresses or reasons. */
+  async listOwnSignIns(actor: PrismVerifiedEventActor): Promise<PrismOwnSignIn[]> {
+    const entries = (await this.authAudit.listLoginHistory(actor.id, OWN_SIGN_IN_LIMIT)) as Array<{ id: string; status: string; device: string; createdAt: string }>;
+    return entries.map((entry) => ({
+      id: entry.id,
+      at: entry.createdAt,
+      succeeded: entry.status === 'success',
+      device: !entry.device || entry.device === 'unknown' ? 'Unknown device' : entry.device,
+    }));
   }
 
   async currentUser(actor: PrismVerifiedEventActor): Promise<PrismCurrentUser> {
@@ -765,3 +829,4 @@ export class AuthOperationsService {
     };
   }
 }
+

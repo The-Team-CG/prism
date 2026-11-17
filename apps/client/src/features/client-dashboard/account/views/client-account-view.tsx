@@ -19,6 +19,8 @@ export function ClientAccountView() {
       contact={vm.contact}
       links={[]}
       today={vm.today}
+      actions={vm.actions}
+      signIns={vm.signIns}
     />
   );
 }

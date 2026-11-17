@@ -10,8 +10,8 @@ export interface AuthAuditPort {
   write(input: AuditWriteInput, context?: PrismTransactionContext): Promise<unknown>;
   /** Known audit-chain integrity conflicts are recorded as incidents without blocking authentication. */
   recordAuthenticationAudit(input: AuditWriteInput): Promise<unknown>;
-  recordLoginHistory(user: OpsUser | null, email: string, status: string, failureReason?: string): Promise<unknown>;
+  recordLoginHistory(user: OpsUser | null, email: string, status: string, failureReason?: string, device?: string): Promise<unknown>;
   handleFailedLogin(user: OpsUser, details: AuthenticationFailureDetails): Promise<unknown>;
   handleForbiddenAccess(user: OpsUser, email: string, reason: string): Promise<unknown>;
-  listLoginHistory(userId: string): Promise<unknown[]>;
+  listLoginHistory(userId: string, limit?: number): Promise<unknown[]>;
 }

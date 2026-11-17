@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHash, randomBytes, scryptSync } from 'node:crypto';
 import { ConfigService } from '@nestjs/config';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
+import { PRISM_PRIVACY_NOTICE_VERSION, type PrismVerifiedEventActor } from '@prism/types';
 import type { AuditWriteInput, ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuthSessionService, EventSessionGuard } from '@prism/kernel/event-session';
 import { AuthOperationsService } from './auth-operations.service';
@@ -1010,5 +1010,56 @@ describe('confirmPassword', () => {
     await expect(service.confirmPassword('usr_pmcm', 'anything')).rejects.toThrow(/locked/);
     expect(verify).not.toHaveBeenCalled();
     verify.mockRestore();
+  });
+});
+
+describe('own account changes', () => {
+  const actorOf = (user: Record<string, unknown>) => ({
+    id: String(user.id), name: String(user.name), email: String(user.email), role: 'pmcm-admin', sessionVersion: 0, expiresAt: '2026-11-18T12:00:00.000Z',
+  }) as unknown as PrismVerifiedEventActor;
+
+  it('changes the signed-in person\'s own name and audits which field changed, not the value', async () => {
+    const { service, user, authAudit } = createTwoFactorService();
+
+    const me = await service.updateOwnProfile(actorOf(user), { name: 'Mystica Reyes' });
+
+    expect(user.name).toBe('Mystica Reyes');
+    expect(me).toMatchObject({ name: 'Mystica Reyes', email: 'mys@pmcm.test' });
+    expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Changed their own name', metadata: { changedFields: ['name'] } }), expect.anything());
+  });
+
+  it('changes the password only with the right current one, and ends every session', async () => {
+    const { service, user, authAudit } = createTwoFactorService();
+    const verify = vi.spyOn(AuthSecurityService, 'verifyPassword').mockImplementation(async (_hash, password) => password === 'old-password-123');
+    const hash = vi.spyOn(AuthSecurityService, 'hashPassword').mockResolvedValue('new-hash');
+
+    await expect(service.changeOwnPassword(actorOf(user), { currentPassword: 'guess', newPassword: 'brand-new-password-1' })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(user.password).toBe('hashed-password');
+    expect(user.failedLoginCount).toBe(1);
+
+    await service.changeOwnPassword(actorOf(user), { currentPassword: 'old-password-123', newPassword: 'brand-new-password-1' });
+    expect(user.password).toBe('new-hash');
+    expect(user.sessionVersion).toBe(1);
+    expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Changed their own password and signed out every session' }), expect.anything());
+    expect(JSON.stringify(authAudit.write.mock.calls)).not.toContain('brand-new-password-1');
+    verify.mockRestore();
+    hash.mockRestore();
+  });
+
+  it('lists the person\'s own sign-ins with when, whether it worked and the browser, without addresses', async () => {
+    const { service, user, authAudit } = createTwoFactorService();
+    const listLoginHistory = vi.fn(async () => [
+      { id: 'login_2', status: 'success', device: 'Chrome on Windows', ipAddress: '10.0.0.1', createdAt: '2026-11-18T01:00:00.000Z' },
+      { id: 'login_1', status: 'failed', device: 'unknown', ipAddress: 'unknown', createdAt: '2026-11-17T01:00:00.000Z' },
+    ]);
+    Object.assign(authAudit, { listLoginHistory });
+
+    const signIns = await service.listOwnSignIns(actorOf(user));
+
+    expect(listLoginHistory).toHaveBeenCalledWith('usr_pmcm', 10);
+    expect(signIns).toEqual([
+      { id: 'login_2', at: '2026-11-18T01:00:00.000Z', succeeded: true, device: 'Chrome on Windows' },
+      { id: 'login_1', at: '2026-11-17T01:00:00.000Z', succeeded: false, device: 'Unknown device' },
+    ]);
   });
 });

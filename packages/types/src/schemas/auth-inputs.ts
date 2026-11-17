@@ -9,6 +9,19 @@ export type LoginInput = z.infer<typeof loginSchema>;
 
 export const passwordSchema = z.string().min(12, 'Password must be at least 12 characters').max(128, 'Password must be at most 128 characters').refine((value) => value.trim().length > 0, 'Password cannot be blank');
 
+/** The signed-in person's own details they can change themselves. */
+export const updateOwnProfileSchema = z.object({
+  name: z.string().trim().min(2, 'Enter your name').max(120, 'Keep your name under 120 characters'),
+}).strict();
+export type UpdateOwnProfileInput = z.infer<typeof updateOwnProfileSchema>;
+
+/** Changing the password while signed in: the current one proves it is them, the new one meets the usual rules. */
+export const changeOwnPasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Enter your current password').max(200),
+  newPassword: passwordSchema,
+}).strict().refine((input) => input.currentPassword !== input.newPassword, { path: ['newPassword'], message: 'Choose a password you are not using now' });
+export type ChangeOwnPasswordInput = z.infer<typeof changeOwnPasswordSchema>;
+
 export const requestPasswordResetSchema = z.object({ email: z.string().trim().email() });
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
 

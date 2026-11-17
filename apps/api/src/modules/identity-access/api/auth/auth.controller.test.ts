@@ -79,7 +79,7 @@ describe('OpsAuthController', () => {
       accountInvitationService as never,
     );
 
-    await expect(controller.login({ email: 'maxine@pmcm.test', password: 'secret' })).resolves.toEqual({ id: 'user_pmcm' });
+    await expect(controller.login({ email: 'maxine@pmcm.test', password: 'secret' }, 'Mozilla/5.0 (Windows NT 10.0) Chrome/131.0')).resolves.toEqual({ id: 'user_pmcm' });
     await expect(controller.activateAccount({ token: 'a'.repeat(43), password: 'a sufficiently long password' }))
       .resolves.toEqual({ message: 'Password set. Sign in to continue.' });
     await expect(controller.inviteStaff({ email: 'coord@pmcm.test', name: 'Coordinator', role: 'coordinator', organization: 'PMCM' }, actor))
@@ -102,7 +102,7 @@ describe('OpsAuthController', () => {
     await expect(controller.me(actor)).resolves.toEqual({ id: 'u1' });
     await expect(controller.acknowledgePrivacyNotice({ version: PRISM_PRIVACY_NOTICE_VERSION }, actor)).resolves.toBeUndefined();
 
-    expect(authOperationsService.login).toHaveBeenCalledWith('maxine@pmcm.test', 'secret');
+    expect(authOperationsService.login).toHaveBeenCalledWith('maxine@pmcm.test', 'secret', 'Mozilla/5.0 (Windows NT 10.0) Chrome/131.0');
     expect(authOperationsService.requestApproval).toHaveBeenCalledWith({
       email: 'client@example.test',
       privacyConsentAccepted: true,

@@ -28,6 +28,9 @@ export function createAuthClient(
           withBase(options, { method: "POST", body: input }),
         ),
       me: () => prismRequest("/auth/me", withBase(options, { method: "GET" })),
+      updateMe: (input) => prismRequest("/auth/me", withBase(options, { method: "PATCH", body: input })),
+      changeMyPassword: (input) => prismRequest<void>("/auth/me/password", withBase(options, { method: "POST", body: input })),
+      mySignIns: () => prismRequest("/auth/me/sign-ins", withBase(options, { method: "GET" })),
       approvalRequests: () =>
         prismRequest<PrismApprovalRequest[]>("/auth/approval-requests", withBase(options)),
       approveApprovalRequest: (requestId) =>

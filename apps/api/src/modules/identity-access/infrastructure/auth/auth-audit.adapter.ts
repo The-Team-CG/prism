@@ -23,8 +23,8 @@ export class AuthAuditAdapter implements AuthAuditPort {
     return this.securityOperationsService.recordAuthenticationAudit(input);
   }
 
-  recordLoginHistory(user: OpsUser | null, email: string, status: string, failureReason?: string) {
-    return this.securityOperationsService.recordLoginHistory(user, email, status, failureReason);
+  recordLoginHistory(user: OpsUser | null, email: string, status: string, failureReason?: string, device?: string) {
+    return this.securityOperationsService.recordLoginHistory(user, email, status, failureReason, device ? { device } : {});
   }
 
   handleFailedLogin(user: OpsUser, details: AuthenticationFailureDetails) {
@@ -35,7 +35,7 @@ export class AuthAuditAdapter implements AuthAuditPort {
     return this.securityOperationsService.handleForbiddenAccess(user, email, reason);
   }
 
-  listLoginHistory(userId: string) {
-    return this.securityOperationsService.listLoginHistory(userId);
+  listLoginHistory(userId: string, limit?: number) {
+    return this.securityOperationsService.listLoginHistory(userId, limit);
   }
 }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { useResource } from "@prism/portal-query";
+import { useInvalidate, useResource } from "@prism/portal-query";
+import { accountChange, type AccountActions } from "@prism/ui/account-page";
+import { signOutClientSession } from "../../workspace/use-cases/client-dashboard-actions";
 import { manilaDateKey } from "@prism/ui/format-date";
 import type { AccountContact, AccountIdentity, AccountPrivacySummary, AccountSecuritySummary } from "@prism/ui/account-page";
 import { useClientWorkspace } from "../../workspace/shared";
 import { clientOwnPrivacyRequestsResource } from "../../privacy/data/client-privacy-repository";
-import { clientCurrentUserResource } from "../data/client-account-repository";
+import { clientAccountRepository, clientCurrentUserResource, clientOwnSignInsResource } from "../data/client-account-repository";
 import { clientPmcmContact } from "../model/client-pmcm-contact";
 
 const OPEN = new Set(["submitted", "approved"]);
@@ -14,6 +16,13 @@ const OPEN = new Set(["submitted", "approved"]);
 /** The client's account page: who they are, how they sign in, their PMCM contact and their privacy at a glance. */
 export function useClientAccountViewModel() {
   const me = useResource(clientCurrentUserResource, undefined);
+  const signIns = useResource(clientOwnSignInsResource, undefined);
+  const invalidate = useInvalidate();
+  const actions: AccountActions = {
+    saveName: accountChange(clientAccountRepository.updateName, () => invalidate(clientCurrentUserResource)),
+    // Every session ends with the old password, so the person signs in again with the new one.
+    changePassword: accountChange(clientAccountRepository.changePassword, async () => { await signOutClientSession(); window.location.assign("/sign-in"); }),
+  };
   const privacy = useResource(clientOwnPrivacyRequestsResource, undefined);
   const { state, events } = useClientWorkspace();
   const today = manilaDateKey();
@@ -32,6 +41,8 @@ export function useClientAccountViewModel() {
   }, [privacy, user]);
 
   return {
+    actions,
+    signIns: signIns.status === "ready" ? signIns.data : null,
     loading: me.status === "pending",
     error: me.status === "error" ? me.error.message || "We could not load your account." : null,
     identity: user ? ({ name: user.name, email: user.email, organization: user.organization, roleLabel: "Client" } satisfies AccountIdentity) : null,

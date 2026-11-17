@@ -19,6 +19,8 @@ export function EventAccountView() {
       contact={null}
       links={vm.links}
       today={vm.today}
+      actions={vm.actions}
+      signIns={vm.signIns}
     />
   );
 }
