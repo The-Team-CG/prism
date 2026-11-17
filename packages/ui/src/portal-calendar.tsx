@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperti
 import { Info } from "lucide-react";
 import { CalendarFilters, CalendarToolbar, type CalendarDayLayout, type CalendarTiming } from "./calendar-toolbar";
 import { monthOfDateKey } from "./calendar-grid";
-import { CalendarHighlights, lookOf, pickCalendarHighlights } from "./calendar-highlights";
+import { CalendarHighlights, lateLabel, lookOf, pickCalendarHighlights } from "./calendar-highlights";
 import { CountdownPill } from "./event-cards/event-card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import {
@@ -91,12 +91,15 @@ export type PortalCalendarItemRenderer<Item extends PortalCalendarItem> = (input
   children: ReactNode;
 }) => ReactNode;
 
+/** A strip on a highlight card, or the banner across the top of the details panel. */
+export type PortalCalendarCoverSize = "strip" | "banner";
+
 /** One labelled fact in an item's details panel: "Amount", "₱84,000". */
 export type PortalCalendarFact = { label: string; value: ReactNode };
 
 /** Opt-in details panel: clicking an item opens it in a side panel instead of navigating straight away. */
 export type PortalCalendarDetail<Item extends PortalCalendarItem> = {
-  /** Facts listed under the item's event in the same layout on every portal: amount, status, place, client. */
+  /** Facts listed under the item's event in the same layout on every portal: amount, status, place, client. With facts, the item's `detail` line is left to the agenda. */
   facts?: (item: Item) => PortalCalendarFact[];
   /** Portal content shown under the item's own date, time and detail. */
   body?: (item: Item) => ReactNode;
@@ -124,7 +127,7 @@ export type PortalCalendarProps<Item extends PortalCalendarItem> = PortalCalenda
    * The picture of an item's event (the shared event cover), shown on the next event's highlight and at the top of the
    * details panel. Null when the portal does not know the event.
    */
-  cover?: (item: Item) => ReactNode;
+  cover?: (item: Item, size: PortalCalendarCoverSize) => ReactNode;
   className?: string;
   /** Called with the dates on screen when the calendar opens and whenever the view or period changes. */
   onRangeChange?: (range: VisibleRange) => void;
@@ -137,7 +140,7 @@ type ViewProps<Item extends PortalCalendarItem> = {
   renderItem: PortalCalendarItemRenderer<Item>;
 };
 
-const chipBase = "w-full min-w-0 line-clamp-2 break-words rounded-md border-l-2 border-current/20 px-2 py-1.5 text-left text-xs font-medium leading-relaxed transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const chipBase = "block w-full min-w-0 break-words rounded-md border-l-2 border-current/20 px-2 py-1.5 text-left text-xs font-medium leading-relaxed transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const weekendTexture: CSSProperties = { backgroundImage: "repeating-linear-gradient(135deg, transparent, transparent 4px, color-mix(in srgb, var(--border) 28%, transparent) 4px, color-mix(in srgb, var(--border) 28%, transparent) 5px)" };
 const isWeekend = (dateKey: string) => [0, 6].includes(new Date(`${dateKey}T00:00:00Z`).getUTCDay());
 const kindOf = (kinds: Record<string, PortalCalendarKind>, kind: string) => kinds[kind] ?? { label: kind, chip: "bg-muted text-foreground", dot: "bg-muted-foreground" };
@@ -148,9 +151,12 @@ const chipText = (item: PortalCalendarItem) => [item.chipLabel ?? item.title, it
 function ChipText({ item }: { item: PortalCalendarItem }) {
   return <>{item.chipLabel ?? item.title}{item.eventName ? <span className="font-normal opacity-75"> · {item.eventName}</span> : null}</>;
 }
+/** Two lines at most, clipped inside the text box so a third line never shows in the chip's padding. */
+const CLAMP = "line-clamp-2";
 const timeRange = (item: PortalCalendarItem) => (item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : "All day");
-const tooltip = (item: PortalCalendarItem) => [item.title, item.eventName, item.startTime ? timeRange(item) : null, item.detail].filter(Boolean).join(" · ");
-const secondLine = (item: PortalCalendarItem) => [timeRange(item), item.eventName, item.detail].filter(Boolean).join(" · ");
+// A look's own name ("Payment late") leads, so an entry's state is said in words and never by colour alone.
+const tooltip = (item: PortalCalendarItem) => [item.title, item.look?.label, item.eventName, item.startTime ? timeRange(item) : null, item.detail].filter(Boolean).join(" · ");
+const secondLine = (item: PortalCalendarItem) => [item.look?.label, timeRange(item), item.eventName, item.detail].filter(Boolean).join(" · ");
 
 function itemsByDate<Item extends PortalCalendarItem>(items: Item[]) {
   const byDate = new Map<string, Item[]>();
@@ -314,12 +320,13 @@ function ItemPanel<Item extends PortalCalendarItem>({ item, kinds, today, cover,
   item: Item | null;
   kinds: Record<string, PortalCalendarKind>;
   today: string;
-  cover?: (item: Item) => ReactNode;
+  cover?: (item: Item, size: PortalCalendarCoverSize) => ReactNode;
   detail: PortalCalendarDetail<Item>;
   onClose: () => void;
 }) {
   const kind = item ? lookOf(kinds, item) : null;
-  const picture = item ? cover?.(item) : null;
+  const picture = item ? cover?.(item, "banner") : null;
+  const late = item ? lateLabel(item, today) : null;
   return (
     <Sheet open={item !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
       {item && kind ? (
@@ -328,11 +335,11 @@ function ItemPanel<Item extends PortalCalendarItem>({ item, kinds, today, cover,
           <SheetHeader className="border-b border-border pr-12">
             <p className="flex items-center gap-2 text-xs text-muted-foreground"><span aria-hidden className={cn("size-2 rounded-full", kind.dot)} />{kind.label}</p>
             <SheetTitle className="break-words text-lg">{item.title}</SheetTitle>
-            <SheetDescription className="flex flex-wrap items-center gap-2">{formatPortalDate(item.date)} · {timeRange(item)}<CountdownPill date={item.date} todayKey={today} /></SheetDescription>
+            <SheetDescription className="flex flex-wrap items-center gap-2">{formatPortalDate(item.date)} · {timeRange(item)}{late ? <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-danger">{late}</span> : <CountdownPill date={item.date} todayKey={today} />}</SheetDescription>
           </SheetHeader>
           <div className="space-y-3 p-4 text-sm">
             <PanelFacts facts={[...(item.eventName ? [{ label: "Event", value: item.eventName }] : []), ...(detail.facts?.(item) ?? [])]} />
-            {item.detail ? <p className="break-words text-foreground">{item.detail}</p> : null}
+            {item.detail && !detail.facts ? <p className="break-words text-foreground">{item.detail}</p> : null}
             {detail.body?.(item)}
           </div>
           {detail.action ? <SheetFooter>{detail.action(item)}</SheetFooter> : null}
@@ -356,7 +363,7 @@ function MonthView<Item extends PortalCalendarItem>({ items, kinds, today, rende
         variant: "chip",
         title: tooltip(item),
         className: cn(chipBase, chipOf(kinds, item), outside && "opacity-60"),
-        children: <>{item.startTime ? <span className="mr-1 font-normal opacity-70">{clockLabel(item.startTime)}</span> : null}<ChipText item={item} /></>,
+        children: <span className={CLAMP}>{item.startTime ? <span className="mr-1 font-normal opacity-70">{clockLabel(item.startTime)}</span> : null}<ChipText item={item} /></span>,
       })}
     </Fragment>
   );
@@ -451,7 +458,7 @@ function TimeGridView<Item extends PortalCalendarItem>({ items, kinds, today, re
             {dates.map((dateKey) => (
               <div key={dateKey} className={cn("flex min-w-0 flex-col gap-1.5 border-l border-border/50 p-1.5", dateKey === today && "bg-primary/[0.025]")}>
                 {(byDate.get(dateKey) ?? []).filter((item) => !item.startTime).map((item) => (
-                  <Fragment key={item.id}>{renderItem({ item, variant: "chip", title: tooltip(item), className: cn(chipBase, chipOf(kinds, item)), children: <ChipText item={item} /> })}</Fragment>
+                  <Fragment key={item.id}>{renderItem({ item, variant: "chip", title: tooltip(item), className: cn(chipBase, chipOf(kinds, item)), children: <span className={CLAMP}><ChipText item={item} /></span> })}</Fragment>
                 ))}
               </div>
             ))}

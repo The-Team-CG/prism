@@ -1,7 +1,7 @@
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { manilaCalendarKey, manilaClockKey, manilaDateKey } from "@prism/ui/format-date";
 import { PAYMENT_CALENDAR_LOOK, paymentCalendarState, type PortalCalendarLook } from "@prism/ui/portal-calendar";
-import { buildQuoteByRequest, isRequestClosed } from "./supplier-workspace-rules";
+import { buildQuoteByRequest, formatMoney, isRequestClosed } from "./supplier-workspace-rules";
 import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, SupplierWorkspace } from "./supplier-workspace-types";
 import { supplierSectionHref, supplierWorkTargetHref } from "./supplier-workspace-types";
 
@@ -12,7 +12,7 @@ export type SupplierCalendarItem = {
   date: string;
   title: string;
   chipLabel: string;
-  /** A place, for arrivals and departures. */
+  /** The agenda's extra line: the place of an arrival or departure, what is left to receive on a payment. */
   detail?: string;
   kind: SupplierCalendarItemKind;
   href: string;
@@ -110,6 +110,7 @@ function paymentItems(workflow: PrismSupplierWorkflowWorkspace, eventName: Event
       date,
       title: payable.label,
       chipLabel: `${payable.label} ${look.word}`,
+      detail: `${formatMoney(payable.remainingBalance)} to receive`,
       eventId: payable.eventId,
       eventName: eventName(payable.eventId),
       kind: "payment",

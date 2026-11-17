@@ -8,7 +8,7 @@ import { manilaDateKey } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
 import { EventCover } from "@prism/ui/event-cards";
 import { formatPeso } from "@prism/ui/payment-track";
-import { PortalCalendar, type PortalCalendarFact, type PortalCalendarKind } from "@prism/ui/portal-calendar";
+import { PortalCalendar, type PortalCalendarCoverSize, type PortalCalendarFact, type PortalCalendarKind } from "@prism/ui/portal-calendar";
 import { Card, CardContent } from "@prism/ui/components/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { buildSupplierCalendarItems, type SupplierCalendarItem, type SupplierCalendarItemKind } from "../../model/supplier-calendar-items";
@@ -36,17 +36,20 @@ const ACTIONS: Record<SupplierCalendarItemKind, string> = {
 
 type CoverSource = { eventType?: string | null; coverObjectId?: string | null };
 
+const PLACED: SupplierCalendarItemKind[] = ["arrival", "departure"];
+
 function itemFacts(item: SupplierCalendarItem): PortalCalendarFact[] {
   return [
     ...(item.category ? [{ label: "For", value: item.category }] : []),
+    ...(PLACED.includes(item.kind) && item.detail ? [{ label: "Where", value: item.detail }] : []),
     ...(item.amount !== undefined ? [{ label: "Still to receive", value: formatPeso(item.amount) }] : []),
     ...(item.look?.label ? [{ label: "Status", value: item.look.label }] : []),
   ];
 }
 
-function SupplierEventCover({ eventId, source }: { eventId: string; source: CoverSource }) {
+function SupplierEventCover({ eventId, source, size }: { eventId: string; source: CoverSource; size: PortalCalendarCoverSize }) {
   const imageUrl = useEventCoverUrl(eventId, source.coverObjectId);
-  return <EventCover eventType={source.eventType} imageUrl={imageUrl} />;
+  return <EventCover eventType={source.eventType} imageUrl={imageUrl} small={size === "strip"} />;
 }
 
 export function CalendarPage({ workspace, readinessBoard, workflowWorkspace }: {
@@ -75,9 +78,9 @@ export function CalendarPage({ workspace, readinessBoard, workflowWorkspace }: {
     );
   }
 
-  const cover = (item: SupplierCalendarItem) => {
+  const cover = (item: SupplierCalendarItem, size: PortalCalendarCoverSize) => {
     const source = covers.get(item.eventId);
-    return source ? <SupplierEventCover eventId={item.eventId} source={source} /> : null;
+    return source ? <SupplierEventCover eventId={item.eventId} source={source} size={size} /> : null;
   };
 
   return (

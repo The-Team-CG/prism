@@ -3,14 +3,22 @@
 import { Fragment, useId, useState, type ReactNode } from "react";
 import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { clockLabel } from "./calendar-views";
+import { eventCountdown } from "./event-cards/event-card-model";
 import { formatPortalDate } from "./format-date";
-import type { PortalCalendarItem, PortalCalendarItemRenderer, PortalCalendarKind } from "./portal-calendar";
+import type { PortalCalendarCoverSize, PortalCalendarItem, PortalCalendarItemRenderer, PortalCalendarKind } from "./portal-calendar";
 import { cn } from "./utils";
 
 /** An item's own look laid over its kind's, for the chip, the dot and the name a highlight or details panel shows. */
 export function lookOf(kinds: Record<string, PortalCalendarKind>, item: PortalCalendarItem): PortalCalendarKind {
   const kind = kinds[item.kind] ?? { label: item.kind, chip: "bg-muted text-foreground", dot: "bg-muted-foreground" };
   return { ...kind, ...item.look };
+}
+
+/** "33 days late" for an overdue entry; null when it is not overdue or not yet past. */
+export function lateLabel(item: PortalCalendarItem, today: string): string | null {
+  const days = item.overdue ? eventCountdown(item.date, today)?.days ?? 0 : 0;
+  if (days >= 0) return null;
+  return days === -1 ? "1 day late" : `${-days} days late`;
 }
 
 const byWhen = (a: PortalCalendarItem, b: PortalCalendarItem) => a.date.localeCompare(b.date) || (a.startTime ?? "").localeCompare(b.startTime ?? "") || a.id.localeCompare(b.id);
@@ -35,14 +43,16 @@ export function CalendarHighlights<Item extends PortalCalendarItem>({ items, kin
   kinds: Record<string, PortalCalendarKind>;
   today: string;
   eventKind?: string;
-  cover?: (item: Item) => ReactNode;
+  cover?: (item: Item, size: PortalCalendarCoverSize) => ReactNode;
   renderItem: PortalCalendarItemRenderer<Item>;
 }) {
   const id = useId();
-  // Auto starts open on desktop and closed on phones, without changing the server-rendered markup.
+  // Auto starts open on desktop and closed on phones, without changing the server-rendered markup. Overdue work opens
+  // it on phones too, since the highlights are the only place an overdue entry from an earlier month shows.
   const [expanded, setExpanded] = useState<boolean | null>(null);
   if (items.length === 0) return null;
   const highlights = pickCalendarHighlights(items, today, eventKind);
+  const overdue = highlights.filter((item) => item.overdue).length;
   const toggle = (isExpanded: boolean, className: string) => (
     <button type="button" aria-controls={id} aria-expanded={isExpanded} onClick={() => setExpanded(!isExpanded)} className={cn("min-h-8 items-center gap-1 rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
       {isExpanded ? "Hide highlights" : "Show highlights"}<ChevronDown aria-hidden className={cn("size-3.5", isExpanded && "rotate-180")} />
@@ -51,22 +61,23 @@ export function CalendarHighlights<Item extends PortalCalendarItem>({ items, kin
   return (
     <div className="border-b border-border/60 px-4 py-2 sm:px-5">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-medium text-muted-foreground">Highlights <span className="ml-1 font-normal tabular-nums">{highlights.length}</span></p>
+        <p className="text-xs font-medium text-muted-foreground">Highlights <span className="ml-1 font-normal tabular-nums">{highlights.length}</span>{overdue ? <span className="ml-1 font-normal text-danger">· {overdue} overdue</span> : null}</p>
         {toggle(expanded ?? true, "hidden sm:inline-flex")}
-        {toggle(expanded ?? false, "inline-flex sm:hidden")}
+        {toggle(expanded ?? overdue > 0, "inline-flex sm:hidden")}
       </div>
-      <div id={id} role="region" aria-label="Schedule highlights" hidden={expanded === false} className={cn("grid-cols-1 items-start gap-3 pb-2 pt-2 sm:grid-cols-3", expanded === null ? "hidden sm:grid" : expanded ? "grid" : "hidden")}>
+      <div id={id} role="region" aria-label="Schedule highlights" hidden={expanded === false} className={cn("grid-cols-1 items-start gap-3 pb-2 pt-2 sm:grid-cols-3", expanded === null ? (overdue ? "grid" : "hidden sm:grid") : expanded ? "grid" : "hidden")}>
         {highlights.map((item) => {
           const kind = lookOf(kinds, item);
           const time = item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : "All day";
           const date = item.date === today ? "Today" : formatPortalDate(item.date);
-          const picture = item.kind === (eventKind ?? "event") ? cover?.(item) : null;
+          const picture = item.kind === (eventKind ?? "event") ? cover?.(item, "strip") : null;
+          const late = lateLabel(item, today);
           return <Fragment key={item.id}>{renderItem({
             item,
             variant: "card",
             title: [item.title, item.eventName, date, time, item.detail].filter(Boolean).join(" · "),
             className: "flex min-w-0 flex-col gap-1 overflow-hidden rounded-lg border border-border/70 bg-card bg-linear-to-b from-transparent to-muted/15 p-2.5 text-left shadow-xs transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            children: <>{picture ? <span className="-mx-2.5 -mt-2.5 mb-1 block">{picture}</span> : null}<span className="w-full truncate text-sm font-medium text-foreground">{item.title}</span>{item.eventName ? <span className="w-full truncate text-xs text-foreground/80">{item.eventName}</span> : null}<span className="mb-1 w-full truncate text-xs text-muted-foreground">{date} · {time}</span><span className={cn("mt-auto flex w-full min-w-0 items-center gap-1.5 rounded px-2 py-1.5 text-xs", kind.chip)}><span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", kind.dot)} /><span className="truncate">{kind.label}</span><ArrowUpRight aria-hidden className="ml-auto size-3.5 shrink-0" /></span></>,
+            children: <>{picture ? <span className="-mx-2.5 -mt-2.5 mb-1 block">{picture}</span> : null}<span className="w-full truncate text-sm font-medium text-foreground">{item.title}</span>{item.eventName ? <span className="w-full truncate text-xs text-foreground/80">{item.eventName}</span> : null}<span className="mb-1 w-full truncate text-xs text-muted-foreground">{date} · {time}{late ? <span className="font-medium text-danger"> · {late}</span> : null}</span><span className={cn("mt-auto flex w-full min-w-0 items-center gap-1.5 rounded px-2 py-1.5 text-xs", kind.chip)}><span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", kind.dot)} /><span className="truncate">{kind.label}</span><ArrowUpRight aria-hidden className="ml-auto size-3.5 shrink-0" /></span></>,
           })}</Fragment>;
         })}
       </div>

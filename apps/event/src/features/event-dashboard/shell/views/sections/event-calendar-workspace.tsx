@@ -6,7 +6,7 @@ import type { PrismEvent } from "@prism/types";
 import { manilaDateKey } from "@prism/ui/format-date";
 import type { VisibleRange } from "@prism/ui/calendar-views";
 import { EventCover } from "@prism/ui/event-cards";
-import { PortalCalendar, type PortalCalendarFact } from "@prism/ui/portal-calendar";
+import { PortalCalendar, type PortalCalendarCoverSize, type PortalCalendarFact } from "@prism/ui/portal-calendar";
 import { Button } from "@prism/ui/components/button";
 import { eventRunSheetHref } from "@/features/live-ops/schedule";
 import { PMCM_CALENDAR_KINDS, useEventCoverUrl, type PmcmCalendarEntry, type PmcmCalendarTarget } from "@/features/pmcm-overview";
@@ -20,9 +20,9 @@ const TARGET_ACTIONS: Record<PmcmCalendarTarget, string> = {
 /** What the calendar knows about each event beyond its entries: who it is for, where, and its picture. */
 export type PmcmCalendarEvent = Pick<PrismEvent, "id" | "clientName"> & Partial<Pick<PrismEvent, "venue" | "eventType" | "coverObjectId">>;
 
-function PmcmEventCover({ event }: { event: PmcmCalendarEvent }) {
+function PmcmEventCover({ event, size }: { event: PmcmCalendarEvent; size: PortalCalendarCoverSize }) {
   const imageUrl = useEventCoverUrl(event.id, event.coverObjectId);
-  return <EventCover eventType={event.eventType} imageUrl={imageUrl} />;
+  return <EventCover eventType={event.eventType} imageUrl={imageUrl} small={size === "strip"} />;
 }
 
 function entryFacts(item: PmcmCalendarEntry, event: PmcmCalendarEvent | undefined): PortalCalendarFact[] {
@@ -59,9 +59,9 @@ export function EventCalendarWorkspace({
 }) {
   const today = manilaDateKey();
   const byId = useMemo(() => new Map(events.map((event) => [event.id, event])), [events]);
-  const cover = (item: PmcmCalendarEntry) => {
+  const cover = (item: PmcmCalendarEntry, size: PortalCalendarCoverSize) => {
     const event = byId.get(item.eventId);
-    return event ? <PmcmEventCover event={event} /> : null;
+    return event ? <PmcmEventCover event={event} size={size} /> : null;
   };
 
   return (

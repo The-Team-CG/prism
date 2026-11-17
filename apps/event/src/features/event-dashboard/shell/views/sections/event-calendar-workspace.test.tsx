@@ -150,6 +150,17 @@ describe("EventCalendarWorkspace", () => {
     ]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
     const cards = within(screen.getByRole("region", { name: "Schedule highlights" })).getAllByRole("button");
     expect(cards.map((card) => card.textContent?.split(/(?=Oct|Nov|Today)/)[0])).toEqual(["Balance", "Lights quote due", "Gala"]);
+    expect(screen.getByText("· 1 overdue")).toBeTruthy();
+    expect(cards[0].textContent).toContain("42 days late");
+    fireEvent.click(cards[0]);
+    expect(within(screen.getByRole("dialog")).getByText("42 days late")).toBeTruthy();
+  });
+
+  it("says a payment's state in words on the agenda, not by colour alone", () => {
+    render(<EventCalendarWorkspace items={[{ ...items[3], date: "2026-11-12", look: { chip: "bg-danger-soft text-danger", label: "Payment late" } }]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
+    fireEvent.keyDown(window, { key: "d" });
+    const agenda = within(screen.getByRole("region", { name: "Daily agenda" }));
+    expect(agenda.getByRole("listitem").textContent).toBe("DepositPayment late · All day · Gala");
   });
 
   it("names each entry's event after what is due, and lists it with the portal's facts and the event picture in the details", () => {

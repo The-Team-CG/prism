@@ -8,7 +8,7 @@ import { manilaDateKey } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
 import { EventCover } from "@prism/ui/event-cards";
 import { formatPeso } from "@prism/ui/payment-track";
-import { PortalCalendar, type PortalCalendarFact } from "@prism/ui/portal-calendar";
+import { PortalCalendar, type PortalCalendarCoverSize, type PortalCalendarFact } from "@prism/ui/portal-calendar";
 import { dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
 import type { ClientDashboardRoute } from "../../workspace/model/client-dashboard-types";
 import { ClientListEmpty } from "../../shared/client-list-ui";
@@ -16,7 +16,7 @@ import { useEventCoverUrl } from "../../events/view-models/use-event-cover-url";
 import { buildClientCalendarItems, clientCalendarKind, type ClientCalendarItem, type ClientCalendarItemKind } from "../model/client-calendar-items";
 
 const KIND: Record<ClientCalendarItemKind, { label: string; chip: string; dot: string; route: ClientDashboardRoute; action: string }> = {
-  event: { label: "Event", chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary", route: "overview", action: "Open event" },
+  event: { label: "Event day", chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary", route: "overview", action: "Open event" },
   payment: { label: "Payment", chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention", route: "billing", action: "Open billing" },
   visit: { label: "Site visit", chip: "bg-info-soft text-info hover:bg-info/15", dot: "bg-info", route: "overview", action: "Open event" },
   approval: { label: "Layout approved", chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success", route: "floorplan", action: "Open layout" },
@@ -43,9 +43,9 @@ function itemFacts(item: ClientCalendarItem, venue: string | undefined): PortalC
   return [{ label: "Status", value: formatStatusLabel(item.status) }, ...(item.kind === "event" && venue ? [{ label: "Venue", value: venue }] : [])];
 }
 
-function ClientEventCover({ event }: { event: CoverEvent }) {
+function ClientEventCover({ event, size }: { event: CoverEvent; size: PortalCalendarCoverSize }) {
   const imageUrl = useEventCoverUrl(event.id, event.coverObjectId);
-  return <EventCover eventType={event.eventType} imageUrl={imageUrl} />;
+  return <EventCover eventType={event.eventType} imageUrl={imageUrl} small={size === "strip"} />;
 }
 
 /**
@@ -64,9 +64,9 @@ export function ClientCalendarView() {
 
   const kind = clientCalendarKind(portalView);
   const upcoming = items.filter((item) => item.date >= today && (!kind || item.kind === kind));
-  const cover = (item: ClientCalendarItem) => {
+  const cover = (item: ClientCalendarItem, size: PortalCalendarCoverSize) => {
     const event = byId.get(item.eventId);
-    return event ? <ClientEventCover event={event} /> : null;
+    return event ? <ClientEventCover event={event} size={size} /> : null;
   };
 
   return (
