@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AccountScreen, failedSinceLastVisit } from "@prism/ui/account-page";
+import { devicesValue } from "@prism/ui/account-sessions";
 
 afterEach(cleanup);
 
@@ -93,6 +94,29 @@ describe("AccountScreen panels", () => {
     fireEvent.click(submit());
     expect((await dialog().findByRole("alert")).textContent).toBe("That password is not right.");
     expect(changePassword).toHaveBeenCalledWith({ currentPassword: "old-password-123", newPassword: "brand-new-password-1" });
+  });
+
+  it("lists where they are signed in and signs out one other device, or every other one, but never this one", async () => {
+    const session = (id: string, device: string, current = false) => ({ id, device, current, signedInAt: "2026-11-17T01:00:00.000Z", lastActiveAt: "2026-11-18T01:00:00.000Z" });
+    const signOutSession = vi.fn().mockResolvedValueOnce("That device is already signed out.").mockResolvedValueOnce(null);
+    const signOutOtherSessions = vi.fn(async () => null);
+    render(<AccountScreen {...base} actions={{ signOutSession, signOutOtherSessions }}
+      sessions={[session("here", "Chrome on Windows", true), session("phone", "Safari on iOS"), session("tablet", "Firefox on Android")]} />);
+    fireEvent.click(group("Sign-in and security").getByRole("button", { name: "Devices: This device and 2 others" }));
+    expect(dialog().queryByRole("button", { name: "Sign out Chrome on Windows" })).toBeNull();
+    fireEvent.click(dialog().getByRole("button", { name: "Sign out Safari on iOS" }));
+    expect((await dialog().findByRole("alert")).textContent).toBe("That device is already signed out.");
+    expect(signOutSession).toHaveBeenCalledWith("phone");
+    fireEvent.click(dialog().getByRole("button", { name: "Sign out everywhere else" }));
+    await waitFor(() => expect(signOutOtherSessions).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(dialog().queryByRole("alert")).toBeNull());
+  });
+
+  it("says how many devices without claiming this one when this sign-in predates device tracking", () => {
+    const session = (id: string, current: boolean) => ({ id, device: "Chrome on Windows", current, signedInAt: "2026-11-17T01:00:00.000Z", lastActiveAt: "2026-11-18T01:00:00.000Z" });
+    expect(devicesValue([session("a", true)])).toBe("This device only");
+    expect(devicesValue([session("a", true), session("b", false)])).toBe("This device and 1 other");
+    expect(devicesValue([session("a", false), session("b", false)])).toBe("2 devices");
   });
 
   it("opens the notification channels from their row", () => {

@@ -1,4 +1,4 @@
-import type { ChangeOwnPasswordInput, PrismCurrentUser, PrismOwnSignIn, UpdateOwnProfileInput } from "@prism/types";
+import type { ChangeOwnPasswordInput, PrismCurrentUser, PrismOwnSession, PrismOwnSignIn, UpdateOwnProfileInput } from "@prism/types";
 import { defineResource } from "@prism/portal-query";
 import { clientApi } from "@/lib/prism-api";
 
@@ -14,7 +14,15 @@ export const clientOwnSignInsResource = defineResource<void, PrismOwnSignIn[]>({
   fetch: () => clientApi.auth.mySignIns(),
 });
 
+/** The browsers they are signed in on now. */
+export const clientOwnSessionsResource = defineResource<void, PrismOwnSession[]>({
+  name: "client.own-sessions",
+  fetch: () => clientApi.auth.mySessions(),
+});
+
 export const clientAccountRepository = {
+  signOutSession: (sessionId: string) => clientApi.auth.signOutSession(sessionId),
+  signOutOtherSessions: () => clientApi.auth.signOutOtherSessions(),
   updateName: (input: UpdateOwnProfileInput) => clientApi.auth.updateMe(input),
   changePassword: (input: ChangeOwnPasswordInput) => clientApi.auth.changeMyPassword(input),
 };

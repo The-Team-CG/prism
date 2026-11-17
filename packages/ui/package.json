@@ -11,6 +11,7 @@
     "./file-library": "./src/file-library/index.ts",
     "./action-list": "./src/action-list.tsx",
     "./account-page": "./src/account-page.tsx",
+    "./account-sessions": "./src/account-sessions.tsx",
     "./figures": "./src/figures.ts",
     "./account-help": "./src/account-help.tsx",
     "./document-title": "./src/document-title.tsx",

@@ -21,6 +21,7 @@ export function SupplierAccountView() {
       today={vm.today}
       actions={vm.actions}
       signIns={vm.signIns}
+      sessions={vm.sessions}
     />
   );
 }

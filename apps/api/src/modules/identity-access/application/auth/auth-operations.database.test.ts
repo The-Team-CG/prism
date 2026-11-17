@@ -10,6 +10,8 @@ import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import type { AuthAuditPort } from '../../contracts/auth-audit.port';
 import { AuthAuditAdapter } from '../../infrastructure/auth/auth-audit.adapter';
 import { AuthOperationsService } from './auth-operations.service';
+import { OwnSessionsService } from './own-sessions.service';
+import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
 const enabled = Boolean(databaseUrl && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/prism_p0(?:\?|$)/.test(databaseUrl));
@@ -23,6 +25,8 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
   const failureRequestId = `${prefix}_failure_request`;
   const challengeUserId = `${prefix}_challenge_user`;
   const challengeEmail = `${prefix}_challenge@example.test`;
+  const devicesUserId = `${prefix}_devices_user`;
+  const devicesEmail = `${prefix}_devices@example.test`;
   const secret = 'p0-account-approval-session-secret-long-enough';
   let prisma: PrismaService;
   let sessions: AuthSessionService;
@@ -84,6 +88,17 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       sessionVersion: 0,
     } });
     await prisma.opsUser.create({ data: {
+      id: devicesUserId,
+      name: 'P0 Devices Fixture',
+      email: devicesEmail,
+      password: await AuthSecurityService.hashPassword('P0-devices-password-long-enough'),
+      role: 'supplier',
+      organization: prefix,
+      approvalStatus: 'approved',
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      sessionVersion: 0,
+    } });
+    await prisma.opsUser.create({ data: {
       id: failureUserId,
       name: 'P0 Audit Rollback Fixture',
       email: `${prefix}_failure@example.test`,
@@ -110,7 +125,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
   afterAll(async () => {
     if (!prisma) return;
     await prisma.opsApprovalRequest.deleteMany({ where: { userId: { in: [userId, failureUserId] } } });
-    await prisma.opsUser.deleteMany({ where: { id: { in: [userId, failureUserId, challengeUserId] } } });
+    await prisma.opsUser.deleteMany({ where: { id: { in: [userId, failureUserId, challengeUserId, devicesUserId] } } });
     await prisma.$disconnect();
   }, 30_000);
 
@@ -249,6 +264,60 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       lockedUntil: expect.any(Date),
     });
     await expect(challengeOperations.verifyTwoFactor(thirdLogin.token, '123456')).rejects.toThrow(/invalid|eligible/i);
+  });
+
+  it('lists each signed-in browser; signing one out, or signing out on one, ends that browser only, and everywhere else ends the rest', async () => {
+    const quietAudit: AuthAuditPort = {
+      write: async () => undefined,
+      recordAuthenticationAudit: async () => undefined,
+      recordLoginHistory: async () => undefined,
+      handleFailedLogin: async () => undefined,
+      handleForbiddenAccess: async () => undefined,
+      listLoginHistory: async () => [],
+    };
+    const signIn = new AuthOperationsService(prisma, quietAudit, {} as never, sessions, {} as never);
+    const devices = new OwnSessionsService(prisma, quietAudit);
+    const guard = new EventSessionGuard(sessions, prisma, new Reflector());
+    const tokenFor = async (userAgent: string) => {
+      const session = await signIn.login(devicesEmail, 'P0-devices-password-long-enough', userAgent);
+      if (!('accessToken' in session)) throw new Error('Expected a session');
+      return session.accessToken;
+    };
+    const request = (token: string) => ({ headers: { authorization: `Bearer ${token}` } }) as Record<string, unknown>;
+    const allowed = (token: string) => guard.canActivate({
+      getHandler: () => undefined,
+      getClass: () => undefined,
+      switchToHttp: () => ({ getRequest: () => request(token) }),
+    } as never);
+
+    const laptop = await tokenFor('Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0 Safari/537.36');
+    const phone = await tokenFor('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Version/18.0 Mobile/15E148 Safari/604.1');
+    const tablet = await tokenFor('Mozilla/5.0 (Linux; Android 15) Firefox/133.0');
+    const onLaptop = sessions.verifyAccessToken(laptop);
+
+    const listed = await devices.list(onLaptop);
+    expect(listed[0]).toMatchObject({ device: 'Chrome on Windows', current: true });
+    expect(listed.filter((row) => row.current)).toHaveLength(1);
+    expect(listed.map((row) => row.device).sort()).toEqual(['Chrome on Windows', 'Firefox on Android', 'Safari on iOS']);
+
+    const phoneRow = listed.find((row) => row.device === 'Safari on iOS')!;
+    await devices.signOut(onLaptop, phoneRow.id);
+    await expect(allowed(phone)).rejects.toThrow(/signed out/i);
+    await expect(allowed(laptop)).resolves.toBe(true);
+    await expect(allowed(tablet)).resolves.toBe(true);
+    await expect(devices.signOut(onLaptop, phoneRow.id)).rejects.toThrow(/already signed out/i);
+    await expect(devices.signOut(onLaptop, onLaptop.sessionId!)).rejects.toThrow(/Use Sign out/);
+
+    await expect(devices.signOutOthers(onLaptop)).resolves.toEqual({ signedOut: 1 });
+    await expect(allowed(tablet)).rejects.toThrow(/signed out/i);
+    await expect(allowed(laptop)).resolves.toBe(true);
+    await expect(devices.list(onLaptop)).resolves.toEqual([expect.objectContaining({ device: 'Chrome on Windows', current: true })]);
+
+    const newPhone = await tokenFor('Mozilla/5.0 (Linux; Android 15) Chrome/131.0 Mobile Safari/537.36');
+    await signIn.logout(onLaptop);
+    await expect(allowed(laptop)).rejects.toThrow(/signed out/i);
+    await expect(allowed(newPhone)).resolves.toBe(true);
+    await expect(signIn.logout(onLaptop)).rejects.toThrow(/already been revoked/i);
   });
 
   it('rejects non-canonical and case-variant account emails in direct SQL', async () => {
