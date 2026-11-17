@@ -84,7 +84,7 @@ export class AuthOperationsService {
     }
 
     await this.assertLoginAllowed(user, normalizedEmail, password);
-    const updated = await this.recordPasswordVerified(user, normalizedEmail, password, deviceName(device));
+    const updated = await this.recordAcceptedSignIn(user, normalizedEmail, password, deviceName(device));
     return this.issueLoginSession(updated);
   }
 
@@ -130,7 +130,7 @@ export class AuthOperationsService {
     }
   }
 
-  private async recordPasswordVerified(user: OpsUser, normalizedEmail: string, password: string, device?: string) {
+  private async recordAcceptedSignIn(user: OpsUser, normalizedEmail: string, password: string, device?: string) {
     // PMCM admins still need a second factor, so their lock counters reset only when a session is issued
     // (see verifyTwoFactor). Everyone else's counters reset here.
     const requiresTwoFactor = user.role === OpsUserRole.PmcmAdmin;
