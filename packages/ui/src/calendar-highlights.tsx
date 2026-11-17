@@ -38,6 +38,18 @@ export function pickCalendarHighlights<Item extends PortalCalendarItem>(items: I
   return picked;
 }
 
+/**
+ * The other entries of an item's event, for its details panel: what is overdue or ahead first, filled with the most
+ * recent past ones (a paid deposit beside the balance), then listed in date order.
+ */
+export function relatedCalendarItems<Item extends PortalCalendarItem>(items: Item[], item: Item, today: string, limit = 5): Item[] {
+  if (!item.eventId) return [];
+  const same = items.filter((other) => other.eventId === item.eventId && other.id !== item.id);
+  const open = same.filter((other) => other.overdue || other.date >= today).sort(byWhen);
+  const past = same.filter((other) => !other.overdue && other.date < today).sort((a, b) => byWhen(b, a));
+  return [...open.slice(0, limit), ...past.slice(0, Math.max(0, limit - open.length))].sort(byWhen);
+}
+
 export function CalendarHighlights<Item extends PortalCalendarItem>({ items, kinds, today, eventKind, cover, renderItem }: {
   items: Item[];
   kinds: Record<string, PortalCalendarKind>;
@@ -68,16 +80,17 @@ export function CalendarHighlights<Item extends PortalCalendarItem>({ items, kin
       <div id={id} role="region" aria-label="Schedule highlights" hidden={expanded === false} className={cn("grid-cols-1 items-start gap-3 pb-2 pt-2 sm:grid-cols-3", expanded === null ? (overdue ? "grid" : "hidden sm:grid") : expanded ? "grid" : "hidden")}>
         {highlights.map((item) => {
           const kind = lookOf(kinds, item);
-          const time = item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : "All day";
+          const time = item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : null;
           const date = item.date === today ? "Today" : formatPortalDate(item.date);
+          const when = [date, time].filter(Boolean).join(" · ");
           const picture = item.kind === (eventKind ?? "event") ? cover?.(item, "strip") : null;
           const late = lateLabel(item, today);
           return <Fragment key={item.id}>{renderItem({
             item,
             variant: "card",
-            title: [item.title, item.eventName, date, time, item.detail].filter(Boolean).join(" · "),
+            title: [item.title, item.eventName, when, item.detail].filter(Boolean).join(" · "),
             className: "flex min-w-0 flex-col gap-1 overflow-hidden rounded-lg border border-border/70 bg-card bg-linear-to-b from-transparent to-muted/15 p-2.5 text-left shadow-xs transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            children: <>{picture ? <span className="-mx-2.5 -mt-2.5 mb-1 block">{picture}</span> : null}<span className="w-full truncate text-sm font-medium text-foreground">{item.title}</span>{item.eventName ? <span className="w-full truncate text-xs text-foreground/80">{item.eventName}</span> : null}<span className="mb-1 w-full truncate text-xs text-muted-foreground">{date} · {time}{late ? <span className="font-medium text-danger"> · {late}</span> : null}</span><span className={cn("mt-auto flex w-full min-w-0 items-center gap-1.5 rounded px-2 py-1.5 text-xs", kind.chip)}><span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", kind.dot)} /><span className="truncate">{kind.label}</span><ArrowUpRight aria-hidden className="ml-auto size-3.5 shrink-0" /></span></>,
+            children: <>{picture ? <span className="-mx-2.5 -mt-2.5 mb-1 block">{picture}</span> : null}<span className="w-full truncate text-sm font-medium text-foreground">{item.title}</span>{item.eventName ? <span className="w-full truncate text-xs text-foreground/80">{item.eventName}</span> : null}{item.detail ? <span className="w-full truncate text-xs font-medium tabular-nums text-foreground">{item.detail}</span> : null}<span className="mb-1 w-full truncate text-xs text-muted-foreground">{when}{late ? <span className="font-medium text-danger"> · {late}</span> : null}</span><span className={cn("mt-auto flex w-full min-w-0 items-center gap-1.5 rounded px-2 py-1.5 text-xs", kind.chip)}><span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", kind.dot)} /><span className="truncate">{kind.label}</span><ArrowUpRight aria-hidden className="ml-auto size-3.5 shrink-0" /></span></>,
           })}</Fragment>;
         })}
       </div>

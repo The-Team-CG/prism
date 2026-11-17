@@ -2,10 +2,11 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import type { PrismEvent } from "@prism/types";
+import { derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
 import { manilaDateKey } from "@prism/ui/format-date";
 import type { VisibleRange } from "@prism/ui/calendar-views";
-import { EventCover } from "@prism/ui/event-cards";
+import { EventCover, StageTrack } from "@prism/ui/event-cards";
+import { formatPeso } from "@prism/ui/payment-track";
 import { PortalCalendar, type PortalCalendarCoverSize, type PortalCalendarFact } from "@prism/ui/portal-calendar";
 import { Button } from "@prism/ui/components/button";
 import { eventRunSheetHref } from "@/features/live-ops/schedule";
@@ -17,8 +18,9 @@ const TARGET_ACTIONS: Record<PmcmCalendarTarget, string> = {
   billing: "Open billing",
 };
 
-/** What the calendar knows about each event beyond its entries: who it is for, where, and its picture. */
-export type PmcmCalendarEvent = Pick<PrismEvent, "id" | "clientName"> & Partial<Pick<PrismEvent, "venue" | "eventType" | "coverObjectId">>;
+/** What the calendar knows about each event beyond its entries: who it is for, where, its stage and its picture. */
+export type PmcmCalendarEvent = Pick<PrismEvent, "id" | "clientName" | "status">
+  & Partial<Pick<PrismEvent, "venue" | "eventType" | "coverObjectId" | "archived" | "actualEndedAt" | "clientPortalStatus" | "proposalClientStatus">>;
 
 function PmcmEventCover({ event, size }: { event: PmcmCalendarEvent; size: PortalCalendarCoverSize }) {
   const imageUrl = useEventCoverUrl(event.id, event.coverObjectId);
@@ -28,6 +30,7 @@ function PmcmEventCover({ event, size }: { event: PmcmCalendarEvent; size: Porta
 function entryFacts(item: PmcmCalendarEntry, event: PmcmCalendarEvent | undefined): PortalCalendarFact[] {
   if (!event) return [];
   return [
+    ...(item.amount !== undefined ? [{ label: "Amount due", value: formatPeso(item.amount) }] : []),
     ...(event.clientName ? [{ label: "Client", value: event.clientName }] : []),
     ...(item.kind === "event" && event.venue ? [{ label: "Venue", value: event.venue }] : []),
   ];
@@ -74,6 +77,10 @@ export function EventCalendarWorkspace({
       cover={cover}
       detail={{
         facts: (item) => entryFacts(item, byId.get(item.eventId)),
+        body: (item) => {
+          const event = item.kind === "event" ? byId.get(item.eventId) : undefined;
+          return event ? <StageTrack stage={derivePrismLifecycleStage(event)} /> : null;
+        },
         action: (item) => <EntryActions item={item} onOpenItem={onOpenItem} />,
       }}
     />

@@ -4,7 +4,7 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState, type CSSProperti
 import { Info } from "lucide-react";
 import { CalendarFilters, CalendarToolbar, type CalendarDayLayout, type CalendarTiming } from "./calendar-toolbar";
 import { monthOfDateKey } from "./calendar-grid";
-import { CalendarHighlights, lateLabel, lookOf, pickCalendarHighlights } from "./calendar-highlights";
+import { CalendarHighlights, lateLabel, lookOf, pickCalendarHighlights, relatedCalendarItems } from "./calendar-highlights";
 import { CountdownPill } from "./event-cards/event-card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import {
@@ -49,6 +49,8 @@ export type PortalCalendarItem = {
   eventName?: string;
   /** Past its date and still open, such as a late payment: listed first in the highlights wherever its date falls. */
   overdue?: boolean;
+  /** The event the entry belongs to, so its details panel can list the event's other entries. */
+  eventId?: string;
   kind: string;
   /** Philippine wall-clock time, HH:mm. Items without one are all-day. */
   startTime?: string;
@@ -57,7 +59,7 @@ export type PortalCalendarItem = {
   look?: PortalCalendarLook;
 };
 export type PortalCalendarKind = { label: string; chip: string; dot: string };
-export { lookOf, pickCalendarHighlights };
+export { lookOf, pickCalendarHighlights, relatedCalendarItems };
 export type PortalCalendarLook = Partial<PortalCalendarKind> & { chip: string };
 
 export type PaymentCalendarState = "paid" | "late" | "due";
@@ -145,17 +147,26 @@ const weekendTexture: CSSProperties = { backgroundImage: "repeating-linear-gradi
 const isWeekend = (dateKey: string) => [0, 6].includes(new Date(`${dateKey}T00:00:00Z`).getUTCDay());
 const kindOf = (kinds: Record<string, PortalCalendarKind>, kind: string) => kinds[kind] ?? { label: kind, chip: "bg-muted text-foreground", dot: "bg-muted-foreground" };
 const chipOf = (kinds: Record<string, PortalCalendarKind>, item: PortalCalendarItem) => lookOf(kinds, item).chip;
-/** What a month chip or an all-day block says: what is due, then whose event, so a calendar across events is never ambiguous. */
+/** What an entry says in one line: what is due, then whose event, so a calendar across events is never ambiguous. */
 const chipText = (item: PortalCalendarItem) => [item.chipLabel ?? item.title, item.eventName].filter(Boolean).join(" · ");
-/** The chip's words: what is due in full weight, its event lighter, so the "what" still reads when the chip is cut short. */
+/**
+ * A chip's words. With an event, "what" fills the first line and the event a second, lighter one, each cut on its own,
+ * so a long event name never pushes the "what" out of view. The event's own day may wrap to two lines.
+ */
 function ChipText({ item }: { item: PortalCalendarItem }) {
-  return <>{item.chipLabel ?? item.title}{item.eventName ? <span className="font-normal opacity-75"> · {item.eventName}</span> : null}</>;
+  const time = item.startTime ? <span className="mr-1 font-normal opacity-70">{clockLabel(item.startTime)}</span> : null;
+  if (!item.eventName) return <span className="line-clamp-2">{time}{item.chipLabel ?? item.title}</span>;
+  return (
+    <>
+      <span className="block truncate">{time}{item.chipLabel ?? item.title}</span>
+      <span className="block truncate font-normal opacity-75">{item.eventName}</span>
+    </>
+  );
 }
-/** Two lines at most, clipped inside the text box so a third line never shows in the chip's padding. */
-const CLAMP = "line-clamp-2";
-const timeRange = (item: PortalCalendarItem) => (item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : "All day");
+/** An entry's time; empty for all-day entries, which most are, so only real times are written out. */
+const timeRange = (item: PortalCalendarItem) => (item.startTime ? [clockLabel(item.startTime), item.endTime ? clockLabel(item.endTime) : null].filter(Boolean).join(" – ") : "");
 // A look's own name ("Payment late") leads, so an entry's state is said in words and never by colour alone.
-const tooltip = (item: PortalCalendarItem) => [item.title, item.look?.label, item.eventName, item.startTime ? timeRange(item) : null, item.detail].filter(Boolean).join(" · ");
+const tooltip = (item: PortalCalendarItem) => [item.title, item.look?.label, item.eventName, timeRange(item), item.detail].filter(Boolean).join(" · ");
 const secondLine = (item: PortalCalendarItem) => [item.look?.label, timeRange(item), item.eventName, item.detail].filter(Boolean).join(" · ");
 
 function itemsByDate<Item extends PortalCalendarItem>(items: Item[]) {
@@ -250,7 +261,7 @@ export function PortalCalendar<Item extends PortalCalendarItem>({ items, kinds, 
           <PopoverContent align="end" collisionPadding={16} className="w-72 text-sm">All times are Philippine Standard Time.<span className="mt-1 block text-xs text-muted-foreground">Asia/Manila · UTC+08:00</span></PopoverContent>
         </Popover>
       </footer>
-      {detail ? <ItemPanel item={selected} kinds={kinds} today={today} cover={cover} detail={detail} onClose={() => setSelectedId(null)} /> : null}
+      {detail ? <ItemPanel item={selected} related={selected ? relatedCalendarItems(items, selected, today) : []} kinds={kinds} today={today} eventKind={eventKind} cover={cover} detail={detail} onSelect={setSelectedId} onClose={() => setSelectedId(null)} /> : null}
     </section>
     </TooltipProvider>
   );
@@ -315,13 +326,48 @@ function PanelFacts({ facts }: { facts: PortalCalendarFact[] }) {
   );
 }
 
-/** An item's details: its event's picture, what it is and when, then the same facts layout on every portal. */
-function ItemPanel<Item extends PortalCalendarItem>({ item, kinds, today, cover, detail, onClose }: {
-  item: Item | null;
+/** The event's other entries in the panel; choosing one shows it in the same panel. */
+function RelatedEntries<Item extends PortalCalendarItem>({ heading, items, kinds, today, eventKind, onSelect }: {
+  heading: string;
+  items: Item[];
   kinds: Record<string, PortalCalendarKind>;
   today: string;
+  eventKind: string;
+  onSelect: (id: string) => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <section aria-label={heading} className="space-y-1 border-t border-border pt-3">
+      <h3 className="px-2 text-xs font-medium text-muted-foreground">{heading}</h3>
+      <ul>
+        {items.map((other) => {
+          const look = lookOf(kinds, other);
+          const late = lateLabel(other, today);
+          return (
+            <li key={other.id}>
+              <button type="button" onClick={() => onSelect(other.id)} className="flex min-h-10 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <span aria-hidden className={cn("size-2 shrink-0 rounded-full", look.dot)} />
+                <span className="min-w-0 flex-1 truncate">{other.kind === eventKind ? look.label : other.chipLabel ?? other.title}</span>
+                <span className={cn("shrink-0 text-xs tabular-nums", late ? "font-medium text-danger" : "text-muted-foreground")}>{late ?? formatPortalDate(other.date)}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/** An item's details: its event's picture, what it is and when, the same facts layout on every portal, then the event's other entries. */
+function ItemPanel<Item extends PortalCalendarItem>({ item, related, kinds, today, eventKind, cover, detail, onSelect, onClose }: {
+  item: Item | null;
+  related: Item[];
+  kinds: Record<string, PortalCalendarKind>;
+  today: string;
+  eventKind: string;
   cover?: (item: Item, size: PortalCalendarCoverSize) => ReactNode;
   detail: PortalCalendarDetail<Item>;
+  onSelect: (id: string) => void;
   onClose: () => void;
 }) {
   const kind = item ? lookOf(kinds, item) : null;
@@ -335,12 +381,13 @@ function ItemPanel<Item extends PortalCalendarItem>({ item, kinds, today, cover,
           <SheetHeader className="border-b border-border pr-12">
             <p className="flex items-center gap-2 text-xs text-muted-foreground"><span aria-hidden className={cn("size-2 rounded-full", kind.dot)} />{kind.label}</p>
             <SheetTitle className="break-words text-lg">{item.title}</SheetTitle>
-            <SheetDescription className="flex flex-wrap items-center gap-2">{formatPortalDate(item.date)} · {timeRange(item)}{late ? <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-danger">{late}</span> : <CountdownPill date={item.date} todayKey={today} />}</SheetDescription>
+            <SheetDescription className="flex flex-wrap items-center gap-2">{[formatPortalDate(item.date), timeRange(item)].filter(Boolean).join(" · ")}{late ? <span className="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-danger">{late}</span> : <CountdownPill date={item.date} todayKey={today} />}</SheetDescription>
           </SheetHeader>
           <div className="space-y-3 p-4 text-sm">
             <PanelFacts facts={[...(item.eventName ? [{ label: "Event", value: item.eventName }] : []), ...(detail.facts?.(item) ?? [])]} />
             {item.detail && !detail.facts ? <p className="break-words text-foreground">{item.detail}</p> : null}
             {detail.body?.(item)}
+            <RelatedEntries heading={item.kind === eventKind ? "Coming up for this event" : "Also for this event"} items={related} kinds={kinds} today={today} eventKind={eventKind} onSelect={onSelect} />
           </div>
           {detail.action ? <SheetFooter>{detail.action(item)}</SheetFooter> : null}
         </SheetContent>
@@ -363,7 +410,7 @@ function MonthView<Item extends PortalCalendarItem>({ items, kinds, today, rende
         variant: "chip",
         title: tooltip(item),
         className: cn(chipBase, chipOf(kinds, item), outside && "opacity-60"),
-        children: <span className={CLAMP}>{item.startTime ? <span className="mr-1 font-normal opacity-70">{clockLabel(item.startTime)}</span> : null}<ChipText item={item} /></span>,
+        children: <ChipText item={item} />,
       })}
     </Fragment>
   );
@@ -458,7 +505,7 @@ function TimeGridView<Item extends PortalCalendarItem>({ items, kinds, today, re
             {dates.map((dateKey) => (
               <div key={dateKey} className={cn("flex min-w-0 flex-col gap-1.5 border-l border-border/50 p-1.5", dateKey === today && "bg-primary/[0.025]")}>
                 {(byDate.get(dateKey) ?? []).filter((item) => !item.startTime).map((item) => (
-                  <Fragment key={item.id}>{renderItem({ item, variant: "chip", title: tooltip(item), className: cn(chipBase, chipOf(kinds, item)), children: <span className={CLAMP}><ChipText item={item} /></span> })}</Fragment>
+                  <Fragment key={item.id}>{renderItem({ item, variant: "chip", title: tooltip(item), className: cn(chipBase, chipOf(kinds, item)), children: <ChipText item={item} /> })}</Fragment>
                 ))}
               </div>
             ))}
@@ -503,8 +550,8 @@ function DayColumn<Item extends PortalCalendarItem>({ dateKey, items, kinds, ren
               variant: "block",
               title: tooltip(item),
               style,
-              className: cn("absolute flex flex-col items-start overflow-hidden rounded-md border border-current/5 border-l-2 border-l-current/25 bg-linear-to-b from-card/15 to-transparent px-2 text-left text-xs shadow-xs transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", span.end - span.start < 45 ? "py-0.5" : "py-2", chipOf(kinds, item)),
-              children: <><span className={cn("w-full font-medium leading-snug", span.end - span.start < 60 ? "truncate" : "line-clamp-2")}>{item.title}</span>{span.end - span.start >= 45 ? <span className="mt-1 block w-full truncate opacity-80">{timeRange(item)}</span> : null}{(item.eventName || item.detail) && span.end - span.start >= 90 ? <span className="mt-auto block w-full truncate pt-2 opacity-80">{[item.eventName, item.detail].filter(Boolean).join(" · ")}</span> : null}</>,
+              className: cn("absolute flex flex-col items-start overflow-hidden rounded-md border border-current/5 border-l-2 border-l-current/25 bg-linear-to-b from-card/15 to-transparent px-2 text-left text-xs shadow-xs transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", blockPadding(span.end - span.start), chipOf(kinds, item)),
+              children: <BlockText item={item} minutes={span.end - span.start} />,
             })}
           </Fragment>
         );
@@ -516,6 +563,19 @@ function DayColumn<Item extends PortalCalendarItem>({ dateKey, items, kinds, ren
         </span>
       ) : null}
     </div>
+  );
+}
+
+const blockPadding = (minutes: number) => (minutes < 45 ? "py-0.5" : minutes < 60 ? "py-1" : "py-2");
+
+/** A timed block's words, sized to the block: a title line, then time and event once there is room, the detail on long blocks. */
+function BlockText({ item, minutes }: { item: PortalCalendarItem; minutes: number }) {
+  return (
+    <>
+      <span className={cn("w-full font-medium leading-snug", minutes < 90 ? "truncate" : "line-clamp-2")}>{item.title}</span>
+      {minutes >= 45 ? <span className="mt-0.5 block w-full truncate opacity-80">{[timeRange(item), item.eventName].filter(Boolean).join(" · ")}</span> : null}
+      {item.detail && minutes >= 120 ? <span className="mt-auto block w-full truncate pt-1 opacity-80">{item.detail}</span> : null}
+    </>
   );
 }
 
@@ -540,7 +600,7 @@ function AgendaList<Item extends PortalCalendarItem>({ dates, byDate, kinds, ren
                   variant: "card",
                   title: tooltip(item),
                   className: cn("block w-full min-w-0 rounded-md px-3 py-2.5 text-left", chipOf(kinds, item)),
-                  children: <><span className="block break-words text-sm font-medium">{item.title}</span><span className="mt-0.5 block break-words text-xs opacity-80">{secondLine(item)}</span></>,
+                  children: <><span className="block break-words text-sm font-medium">{item.title}</span>{secondLine(item) ? <span className="mt-0.5 block break-words text-xs opacity-80">{secondLine(item)}</span> : null}</>,
                 })}
               </li>
             ))}

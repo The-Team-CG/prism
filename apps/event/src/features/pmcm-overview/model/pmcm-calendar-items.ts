@@ -1,12 +1,13 @@
 import { PAYMENT_CALENDAR_LOOK, paymentCalendarState, type PortalCalendarItem, type PortalCalendarKind } from "@prism/ui/portal-calendar";
 import { manilaDateKey } from "@prism/ui/format-date";
+import { formatPeso } from "@prism/ui/payment-track";
 import { addDays, type VisibleRange } from "@prism/ui/calendar-views";
 import type { PmcmCalendarQuery, PrismPmcmCalendarItem, PrismPmcmCalendarItemKind } from "@prism/types";
 
 /** The event workspace section where each kind of dated work is handled. */
 export type PmcmCalendarTarget = "overview" | "suppliers" | "billing";
 
-export type PmcmCalendarEntry = PortalCalendarItem & { eventId: string; target: PmcmCalendarTarget; scheduleDayId?: string };
+export type PmcmCalendarEntry = PortalCalendarItem & { eventId: string; target: PmcmCalendarTarget; scheduleDayId?: string; /** What is still owed on a payment. */ amount?: number };
 
 const TARGETS: Record<PrismPmcmCalendarItemKind, PmcmCalendarTarget> = {
   event: "overview",
@@ -60,9 +61,10 @@ export function toCalendarEntries(items: PrismPmcmCalendarItem[], today = manila
       eventId: item.eventId,
       target: TARGETS[item.kind],
       scheduleDayId: item.scheduleDayId,
-      title: isEvent ? item.eventName : item.detail,
+      title: isEvent ? item.eventName : item.label ?? item.detail,
       chipLabel: CHIP_LABELS[item.kind] ?? (isEvent ? item.eventName : item.detail),
       eventName: isEvent ? undefined : item.eventName,
+      ...(item.amount !== undefined ? { amount: item.amount, detail: `${formatPeso(item.amount)} due` } : {}),
       startTime: item.startTime,
       ...paymentLook(item, today),
     };

@@ -75,6 +75,7 @@ describe("buildClientCalendarItems", () => {
     const labels = (today: string) => payments(today).map((item) => [item.chipLabel, item.look?.chip.split(" ")[1], Boolean(item.overdue)]);
     expect(labels("2026-11-15")).toEqual([["Deposit paid", "text-success", false], ["Balance due", "text-attention", false]]);
     expect(labels("2026-12-01")).toEqual([["Deposit paid", "text-success", false], ["Balance late", "text-danger", true]]);
-    expect(payments("2026-12-01")[1]).toMatchObject({ amount: 300000, remaining: 120000 });
+    expect(payments("2026-12-01")[1]).toMatchObject({ amount: 300000, remaining: 120000, detail: "₱120,000 to pay" });
+    expect(payments("2026-12-01")[0].detail).toBe("₱100,000 paid");
   });
 });

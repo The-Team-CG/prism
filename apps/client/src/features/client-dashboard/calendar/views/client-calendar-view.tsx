@@ -3,10 +3,10 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { CalendarDays } from "lucide-react";
-import type { PrismEvent } from "@prism/types";
+import { derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
 import { manilaDateKey } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
-import { EventCover } from "@prism/ui/event-cards";
+import { EventCover, StageTrack } from "@prism/ui/event-cards";
 import { formatPeso } from "@prism/ui/payment-track";
 import { PortalCalendar, type PortalCalendarCoverSize, type PortalCalendarFact } from "@prism/ui/portal-calendar";
 import { dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
@@ -80,6 +80,10 @@ export function ClientCalendarView() {
       cover={cover}
       detail={{
         facts: (item) => itemFacts(item, byId.get(item.eventId)?.venue),
+        body: (item) => {
+          const event = item.kind === "event" ? byId.get(item.eventId) : undefined;
+          return event ? <StageTrack stage={derivePrismLifecycleStage(event)} /> : null;
+        },
         action: (item) => <Button asChild><Link href={itemHref(item)}>{KIND[item.kind].action}</Link></Button>,
       }}
     />

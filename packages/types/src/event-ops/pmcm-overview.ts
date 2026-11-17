@@ -57,6 +57,9 @@ export interface PrismPmcmCalendarItem {
   startTime?: string;
   /** A second line: the supplier and category, the milestone, the place. */
   detail: string;
+  /** Payments only: the milestone's own name ("Downpayment") and what is still owed on it. */
+  label?: string;
+  amount?: number;
   /** The event-day schedule day on this date, whose run sheet this item leads to. Set on schedule days and on the event day when it has one. */
   scheduleDayId?: string;
 }

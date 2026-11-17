@@ -51,8 +51,9 @@ describe("EventCalendarWorkspace", () => {
     expect(onRangeChange).toHaveBeenLastCalledWith({ from: "2026-11-12", to: "2026-11-12" });
     expect(screen.getByRole("button", { name: "Agenda" }).getAttribute("aria-pressed")).toBe("true");
     const agenda = within(screen.getByRole("region", { name: "Daily agenda" }));
+    // All-day entries say no time; only real times are written out.
     expect(agenda.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-      "Quote dueAll day · Gala", "Morning visit9am – 9:15am · Gala", "Afternoon visit2pm · Gala",
+      "Quote dueGala", "Morning visit9am – 9:15am · Gala", "Afternoon visit2pm · Gala",
     ]);
     expect(screen.queryByText("Tomorrow's payment")).toBeNull();
     fireEvent.click(agenda.getByRole("button", { name: /^Morning visit/ }));
@@ -149,7 +150,7 @@ describe("EventCalendarWorkspace", () => {
       { ...items[0], id: "gala", date: "2026-11-30" },
     ]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
     const cards = within(screen.getByRole("region", { name: "Schedule highlights" })).getAllByRole("button");
-    expect(cards.map((card) => card.textContent?.split(/(?=Oct|Nov|Today)/)[0])).toEqual(["Balance", "Lights quote due", "Gala"]);
+    expect(cards.map((card) => card.getAttribute("aria-label")?.split(" · ")[0])).toEqual(["Balance", "Lights quote due", "Gala"]);
     expect(screen.getByText("· 1 overdue")).toBeTruthy();
     expect(cards[0].textContent).toContain("42 days late");
     fireEvent.click(cards[0]);
@@ -160,7 +161,7 @@ describe("EventCalendarWorkspace", () => {
     render(<EventCalendarWorkspace items={[{ ...items[3], date: "2026-11-12", look: { chip: "bg-danger-soft text-danger", label: "Payment late" } }]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
     fireEvent.keyDown(window, { key: "d" });
     const agenda = within(screen.getByRole("region", { name: "Daily agenda" }));
-    expect(agenda.getByRole("listitem").textContent).toBe("DepositPayment late · All day · Gala");
+    expect(agenda.getByRole("listitem").textContent).toBe("DepositPayment late · Gala");
   });
 
   it("names each entry's event after what is due, and lists it with the portal's facts and the event picture in the details", () => {
@@ -168,15 +169,16 @@ describe("EventCalendarWorkspace", () => {
       <PortalQueryProvider actorKey="mys@pmcm.test">
         <EventCalendarWorkspace
           items={[{ ...items[2], detail: undefined, eventName: "Gala" }]}
-          events={[{ id: "evt_1", clientName: "Ayala Corp", eventType: "Gala" }]}
+          events={[{ id: "evt_1", clientName: "Ayala Corp", status: "planning", eventType: "Gala" }]}
           onRangeChange={vi.fn()}
           onOpenItem={vi.fn()}
         />
       </PortalQueryProvider>,
     );
     const cell = within(document.querySelector<HTMLElement>('[data-date="2026-11-10"]') as HTMLElement);
+    // What is due on the first line, the event on its own second line, each cut on its own.
     const chip = cell.getByRole("button", { name: /Lights quote due · Gala/ });
-    expect(chip.textContent).toBe("Lights quote due · Gala");
+    expect([...chip.children].map((line) => line.textContent)).toEqual(["Lights quote due", "Gala"]);
     fireEvent.click(chip);
     const panel = within(screen.getByRole("dialog"));
     const terms = panel.getAllByRole("term").map((term) => [term.textContent, term.nextElementSibling?.textContent]);
@@ -311,11 +313,46 @@ describe("EventCalendarWorkspace", () => {
     expect(within(screen.getByRole("dialog")).getByRole("link", { name: "Open run sheet" }).getAttribute("href")).toBe("/dashboard/events/evt_1/run-sheet?dayId=day_0");
   });
 
+  it("lists the event's other entries in the panel, overdue first in date order, and opens one in place", () => {
+    render(<EventCalendarWorkspace items={[
+      { ...items[0], date: "2026-11-30" },
+      { ...items[3], id: "late", title: "Balance", chipLabel: "Payment late", date: "2026-11-01", overdue: true },
+      { ...items[2], id: "soon", date: "2026-11-14" },
+      { ...entry("other", "payment_due", "billing", "Other event's payment", "Fair"), eventId: "evt_2", date: "2026-11-15" },
+    ]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
+    fireEvent.click(within(document.querySelector<HTMLElement>('[data-date="2026-11-30"]') as HTMLElement).getByRole("button", { name: /^Gala/ }));
+    const related = within(within(screen.getByRole("dialog")).getByRole("region", { name: "Coming up for this event" }));
+    expect(related.getAllByRole("button").map((row) => row.textContent)).toEqual(["Payment late11 days late", "Lights quote dueNov 14, 2026"]);
+    fireEvent.click(related.getByRole("button", { name: /Lights quote due/ }));
+    expect(within(screen.getByRole("dialog")).getByRole("heading", { name: "Lights quote due" })).toBeTruthy();
+    expect(within(screen.getByRole("dialog")).getByRole("region", { name: "Also for this event" })).toBeTruthy();
+  });
+
+  it("shows an event day's stage in its panel", () => {
+    render(
+      <PortalQueryProvider actorKey="mys@pmcm.test">
+        <EventCalendarWorkspace items={[items[0]]} events={[{ id: "evt_1", clientName: "Ayala Corp", status: "planning", clientPortalStatus: "unlocked", proposalClientStatus: "approved" }]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />
+      </PortalQueryProvider>,
+    );
+    fireEvent.click(within(document.querySelector<HTMLElement>('[data-date="2026-11-10"]') as HTMLElement).getByRole("button", { name: /^Gala/ }));
+    expect(within(screen.getByRole("dialog")).getByText(/Planning/)).toBeTruthy();
+  });
+
+  it("fits a one-hour block's title on one line with its time and event under it", () => {
+    render(<EventCalendarWorkspace items={[{ ...items[1], title: "Bloom Florals arrives · Function Room A", detail: undefined, eventName: "Gala", startTime: "07:00", endTime: "08:00" }]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
+    fireEvent.keyDown(window, { key: "w" });
+    const block = within(document.querySelector<HTMLElement>('[data-date="2026-11-10"]') as HTMLElement).getByRole("button", { name: /Bloom Florals/ });
+    expect([...block.children].map((line) => [line.textContent, line.className.includes("truncate")])).toEqual([
+      ["Bloom Florals arrives · Function Room A", true],
+      ["7am – 8am · Gala", true],
+    ]);
+  });
+
   it("lists a crowded day's hidden items in a popup instead of leaving the month", () => {
     const { cell } = renderCalendar();
     fireEvent.click(within(cell()).getByRole("button", { name: "+1 more" }));
 
-    const list = screen.getByText("Nov 10, 2026", { exact: true }).parentElement as HTMLElement;
+    const list = screen.getByText("Nov 10, 2026", { selector: "p" }).parentElement as HTMLElement;
     expect(within(list).getAllByRole("button")).toHaveLength(4);
     expect(within(list).getByRole("button", { name: /Deposit/ })).toBeTruthy();
     expect(screen.getByRole("grid")).toBeTruthy();
@@ -327,7 +364,7 @@ describe("EventCalendarWorkspace", () => {
 
     const panel = screen.getByRole("dialog");
     expect(within(panel).getByText("Lights quote due")).toBeTruthy();
-    expect(within(panel).getByText(/All day/)).toBeTruthy();
+    expect(within(panel).getByText("Nov 10, 2026", { selector: "[data-slot=sheet-description]" })).toBeTruthy();
     expect(onOpenItem).not.toHaveBeenCalled();
 
     fireEvent.click(within(panel).getByRole("button", { name: "Open suppliers" }));

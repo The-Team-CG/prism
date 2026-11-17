@@ -1,5 +1,6 @@
 import { manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
 import { PAYMENT_CALENDAR_LOOK, paymentCalendarState, type PortalCalendarLook } from "@prism/ui/portal-calendar";
+import { formatPeso } from "@prism/ui/payment-track";
 import type { PrismClientWorkspace, PrismEvent } from "@prism/types";
 
 export type ClientCalendarItemKind = "event" | "payment" | "visit" | "approval";
@@ -72,6 +73,7 @@ function paymentDates(state: CalendarState, byId: Map<string, CalendarEvent>, to
       id: `payment-${payment.id}`, date, title: payment.label, chipLabel: `${payment.label} ${look.word}`, eventName: event.eventName,
       status: payment.status, kind: "payment" as const, eventId: event.id, look: { chip: look.chip, dot: look.dot, label: look.label },
       overdue: state === "late", amount: payment.amount, remaining: payment.remainingBalance,
+      detail: state === "paid" ? `${formatPeso(payment.amount)} paid` : `${formatPeso(payment.remainingBalance)} to pay`,
     }];
   });
 }

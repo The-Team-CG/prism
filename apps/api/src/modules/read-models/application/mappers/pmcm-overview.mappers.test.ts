@@ -102,6 +102,7 @@ describe('buildPmcmCalendarItems', () => {
       ['2026-11-20', '18:00', 'supplier_departure'],
     ]);
     expect(items.find((item) => item.kind === 'payment_due')?.detail).toContain('100,000');
+    expect(items.find((item) => item.kind === 'payment_due')).toMatchObject({ label: 'Downpayment', amount: 100_000 });
     expect(items.some((item) => item.id === 'payment:settled')).toBe(false);
   });
 
