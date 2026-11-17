@@ -18,7 +18,7 @@ function row(overrides: Record<string, unknown> = {}) {
 }
 
 function fixture({ openRequest = null as null | Record<string, unknown>, rows = [row()], updated = 1, after = row({ status: 'cancelled', reviewedAt: new Date('2026-11-08T08:00:00.000Z') }) } = {}) {
-  const created = row();
+  const created = row({ identityConfirmedAt: new Date('2026-11-07T08:00:00.000Z'), identityMethod: 'account_password' });
   const prisma = {
     opsPrivacyRequest: {
       findFirst: vi.fn(async (_args: unknown) => openRequest),
@@ -31,15 +31,21 @@ function fixture({ openRequest = null as null | Record<string, unknown>, rows = 
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback(prisma)),
   };
   const auditService = { audit: vi.fn(async () => undefined) };
-  const service = new OwnPrivacyRequestService(prisma as never, auditService as never);
-  return { service, prisma, auditService };
+  const passwords = {
+    confirmPassword: vi.fn(async (_accountId: string, password: string) => {
+      if (password !== 'right-password') throw new ForbiddenException('That password is not right.');
+      return new Date('2026-11-07T08:00:00.000Z');
+    }),
+  };
+  const service = new OwnPrivacyRequestService(prisma as never, auditService as never, passwords);
+  return { service, prisma, auditService, passwords };
 }
 
 describe('own privacy request service', () => {
   it('files a self-service request under the verified requester, not anything the caller supplied', async () => {
     const { service, prisma, auditService } = fixture();
 
-    const result = await service.submit({ requestType: 'access' }, clientActor);
+    const result = await service.submit({ requestType: 'access', password: 'right-password' }, clientActor);
 
     const data = (prisma.opsPrivacyRequest.create.mock.calls[0] as unknown as [{ data: Record<string, unknown> }])[0].data;
     expect(data).toMatchObject({
@@ -51,7 +57,11 @@ describe('own privacy request service', () => {
       source: 'self_service',
       eventId: null,
       createdBy: 'Ana Reyes',
+      identityConfirmedAt: new Date('2026-11-07T08:00:00.000Z'),
+      identityMethod: 'account_password',
     });
+    expect(data).not.toHaveProperty('password');
+    expect(JSON.stringify(auditService.audit.mock.calls)).not.toContain('right-password');
     expect(new Date(data.dueAt as Date).getTime() - new Date(data.createdAt as Date).getTime()).toBe(30 * 24 * 60 * 60 * 1000);
     expect(auditService.audit).toHaveBeenCalledWith(
       undefined, 'Ana Reyes', 'Logged privacy request: access',
@@ -65,24 +75,35 @@ describe('own privacy request service', () => {
       submittedAt: '2026-11-07T08:00:00.000Z',
       dueAt: '2026-12-07T08:00:00.000Z',
       completedAt: null,
-      outcomeMessage: 'Received. PMCM verifies your identity before acting on this request.',
+      outcomeMessage: 'You confirmed it is you with your password. PMCM is reviewing this request.',
       cancellable: true,
+      identityConfirmedAt: '2026-11-07T08:00:00.000Z',
     });
     expect(result).not.toHaveProperty('requestNotes');
     expect(result).not.toHaveProperty('assignedTo');
   });
 
+  it('confirms the requester\'s own password before filing, and files nothing when it is wrong', async () => {
+    const { service, prisma, passwords } = fixture();
+
+    await expect(service.submit({ requestType: 'access', password: 'guess' }, clientActor)).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(passwords.confirmPassword).toHaveBeenCalledWith('usr_ana', 'guess');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.opsPrivacyRequest.create).not.toHaveBeenCalled();
+  });
+
   it('refuses a second open request of the same type from the same requester', async () => {
     const { service, prisma } = fixture({ openRequest: { id: 'priv_open' } });
 
-    await expect(service.submit({ requestType: 'access' }, clientActor)).rejects.toBeInstanceOf(ConflictException);
+    await expect(service.submit({ requestType: 'access', password: 'right-password' }, clientActor)).rejects.toBeInstanceOf(ConflictException);
     expect(prisma.opsPrivacyRequest.create).not.toHaveBeenCalled();
   });
 
   it('checks for an open duplicate only among open statuses, for the same requester and type', async () => {
     const { service, prisma } = fixture();
 
-    await service.submit({ requestType: 'deletion' }, supplierActor);
+    await service.submit({ requestType: 'deletion', password: 'right-password' }, supplierActor);
 
     const where = (prisma.opsPrivacyRequest.findFirst.mock.calls[0] as unknown as [{ where: Record<string, unknown> }])[0].where;
     expect(where).toMatchObject({
@@ -104,7 +125,7 @@ describe('own privacy request service', () => {
     ];
 
     for (const actor of refused) {
-      await expect(service.submit({ requestType: 'access' }, actor)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.submit({ requestType: 'access', password: 'right-password' }, actor)).rejects.toBeInstanceOf(ForbiddenException);
       await expect(service.listOwn(actor)).rejects.toBeInstanceOf(ForbiddenException);
     }
     expect(prisma.opsPrivacyRequest.create).not.toHaveBeenCalled();

@@ -15,6 +15,7 @@ export function useClientPrivacyRequestsViewModel() {
   const invalidate = useInvalidate();
   const [requestType, setRequestType] = useState<PrivacyRequestChoice>("access");
   const [details, setDetails] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -24,8 +25,9 @@ export function useClientPrivacyRequestsViewModel() {
     setBusy(true);
     setError(null);
     try {
-      await submitClientPrivacyRequest({ requestType, details });
+      await submitClientPrivacyRequest({ requestType, details, password });
       setDetails("");
+      setPassword("");
       await invalidate(clientOwnPrivacyRequestsResource);
     } catch (cause: unknown) {
       setError(messageOf(cause, "The privacy request could not be submitted."));
@@ -54,10 +56,12 @@ export function useClientPrivacyRequestsViewModel() {
     notice: notice.status === "ready" ? notice.data : null,
     requestType,
     details,
+    password,
     busy,
     error,
     setRequestType,
     setDetails,
+    setPassword,
     submit,
     cancellingId,
     cancelError,

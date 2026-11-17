@@ -33,11 +33,11 @@ describe('own privacy request controller', () => {
   it('lets a client or supplier file and list only through the verified actor', async () => {
     const { controller, ownPrivacyRequestService } = fixture();
 
-    await expect(controller.submitMine({ requestType: 'access' }, verified('client', 'Ana', 'ana@example.test'))).resolves.toMatchObject({ id: 'priv_1' });
+    await expect(controller.submitMine({ requestType: 'access', password: 'right-password' }, verified('client', 'Ana', 'ana@example.test'))).resolves.toMatchObject({ id: 'priv_1' });
     await expect(controller.listMine(verified('supplier', 'Supplier Co', 'ops@supplier.test'))).resolves.toEqual([{ id: 'priv_1' }]);
 
     expect(ownPrivacyRequestService.submit).toHaveBeenCalledWith(
-      { requestType: 'access' },
+      { requestType: 'access', password: 'right-password' },
       expect.objectContaining({ id: 'usr_requester', role: 'client', email: 'ana@example.test', verified: true }),
     );
     expect(ownPrivacyRequestService.listOwn).toHaveBeenCalledWith(
@@ -51,7 +51,7 @@ describe('own privacy request controller', () => {
       const { controller, ownPrivacyRequestService, auditService } = fixture();
       const actor = verified(role, 'Outsider');
 
-      await expect(controller.submitMine({ requestType: 'access' }, actor)).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(controller.submitMine({ requestType: 'access', password: 'right-password' }, actor)).rejects.toBeInstanceOf(ForbiddenException);
       await expect(controller.listMine(actor)).rejects.toBeInstanceOf(ForbiddenException);
 
       expect(ownPrivacyRequestService.submit).not.toHaveBeenCalled();
@@ -64,11 +64,14 @@ describe('own privacy request controller', () => {
     },
   );
 
-  it('requires details for a correction and allows an access request without them', () => {
-    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'correction' }).success).toBe(false);
-    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'correction', details: '   ' }).success).toBe(false);
-    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'correction', details: 'Fix my company name' }).success).toBe(true);
-    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'access' }).success).toBe(true);
+  it('requires the password, details for a correction, and allows an access request without details', () => {
+    const password = 'right-password';
+    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'correction', password }).success).toBe(false);
+    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'correction', details: '   ', password }).success).toBe(false);
+    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'correction', details: 'Fix my company name', password }).success).toBe(true);
+    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'access' }).success).toBe(false);
+    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'access', password: '' }).success).toBe(false);
+    expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'access', password: 'right-password' }).success).toBe(true);
     expect(submitOwnPrivacyRequestSchema.safeParse({ requestType: 'erasure' }).success).toBe(false);
   });
 });

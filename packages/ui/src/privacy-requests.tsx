@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { Ban, CheckCircle2, CircleSlash, Download, FileText, PencilLine, ShieldCheck, Trash2, type LucideIcon } from "lucide-react";
 import type { PrismOwnPrivacyRequest } from "@prism/types";
 import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
 import { Textarea } from "./components/ui/textarea";
 import { LoadingState } from "./components/ui/loading-state";
 import { eventCountdown } from "./event-cards/event-card-model";
@@ -27,10 +28,13 @@ const choiceOf = (type: string) => PRIVACY_REQUEST_CHOICES.find((choice) => choi
 /** The four steps every request goes through, in the requester's words. */
 export const PRIVACY_REQUEST_STEPS = ["Sent", "Identity check", "In progress", "Done"] as const;
 
-/** Where an open request is: PMCM checks identity while it is submitted, and carries it out once approved. */
-export function privacyRequestStep(status: string): number {
-  if (status === "submitted") return 1;
-  if (status === "approved") return 2;
+/**
+ * Where an open request is. Identity is checked first: a request the requester confirmed with their password has
+ * passed it already, so it waits on PMCM; otherwise it waits on the identity check. Approved means PMCM is on it.
+ */
+export function privacyRequestStep(request: Pick<PrismOwnPrivacyRequest, "status" | "identityConfirmedAt">): number {
+  if (request.status === "submitted") return request.identityConfirmedAt ? 2 : 1;
+  if (request.status === "approved") return 2;
   return 3;
 }
 
@@ -94,7 +98,7 @@ function OpenRequest({ request, today, cancel }: { request: PrismOwnPrivacyReque
           <p className="text-sm"><span className="font-semibold text-foreground">{choice.name}</span> <span className="text-xs text-muted-foreground">· sent {formatPortalDate(dayOf(request.submittedAt))}</span></p>
           <DuePill dueAt={request.dueAt} today={today} />
         </div>
-        <StepTrack step={privacyRequestStep(request.status)} />
+        <StepTrack step={privacyRequestStep(request)} />
         <p className="mt-2 text-xs text-muted-foreground">{request.outcomeMessage}</p>
         <CancelControl request={request} cancel={cancel} />
       </div>
@@ -153,10 +157,13 @@ function RequestList({ requests, today, cancel }: { requests: PrismOwnPrivacyReq
 export type PrivacyDraft = {
   type: PrivacyRequestChoice;
   details: string;
+  /** The requester's own password, which confirms it is them; never stored. */
+  password: string;
   busy: boolean;
   error: string | null;
   setType: (type: PrivacyRequestChoice) => void;
   setDetails: (details: string) => void;
+  setPassword: (password: string) => void;
   submit: () => void;
 };
 
@@ -192,6 +199,18 @@ function DeletionConfirm({ draft, onBack }: { draft: PrivacyDraft; onBack: () =>
   );
 }
 
+/** The requester's own password, which stands in for an ID: it confirms who they are and is never stored. */
+function PasswordField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const id = useId();
+  return (
+    <div className="max-w-sm space-y-1 text-sm">
+      <label htmlFor={id} className="block font-medium text-foreground">Your password</label>
+      <Input id={id} type="password" autoComplete="current-password" value={value} onChange={(event) => onChange(event.target.value)} required maxLength={200} aria-describedby={`${id}-hint`} />
+      <p id={`${id}-hint`} className="text-xs text-muted-foreground">Confirms it is you, so PMCM can start without asking for an ID. It is never stored.</p>
+    </div>
+  );
+}
+
 function RequestForm({ draft }: { draft: PrivacyDraft }) {
   const [confirmingDeletion, setConfirmingDeletion] = useState(false);
   const needsDetails = draft.type === "correction";
@@ -205,11 +224,12 @@ function RequestForm({ draft }: { draft: PrivacyDraft }) {
           <span className="font-medium text-foreground">{needsDetails ? "What is wrong, and what should it say?" : "Anything PMCM should know (optional)"}</span>
           <Textarea value={draft.details} onChange={(event) => draft.setDetails(event.target.value)} maxLength={1000} rows={3} required={needsDetails} />
         </label>
+        <PasswordField value={draft.password} onChange={draft.setPassword} />
         {draft.error ? <p role="alert" className="text-sm text-danger">{draft.error}</p> : null}
         {confirmingDeletion ? <DeletionConfirm draft={draft} onBack={() => setConfirmingDeletion(false)} /> : (
           <Button type="submit" disabled={draft.busy}>{draft.busy ? "Sending…" : draft.type === "deletion" ? "Continue" : "Send request"}</Button>
         )}
-        <p className="text-xs text-muted-foreground">PMCM checks it is really you before acting, and finishes within 30 days.</p>
+        <p className="text-xs text-muted-foreground">PMCM finishes each request within 30 days.</p>
       </form>
     </Panel>
   );

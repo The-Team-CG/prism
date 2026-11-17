@@ -19,6 +19,7 @@ import { AccountActivationService } from './application/auth/account-activation.
 import { AccountInvitationReferenceModule } from './account-invitation-reference.module';
 import { IdentityPrivacyRedactorService } from './application/participants/identity-privacy-redactor.service';
 import { IDENTITY_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port';
+import { ACCOUNT_PASSWORD_CONFIRMATION } from './contracts/account-password-confirmation.port';
 import { PASSWORD_RESET_DELIVERY } from './contracts/password-reset-delivery.port';
 import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-mail.adapter';
 
@@ -37,7 +38,8 @@ import { PasswordResetMailAdapter } from './infrastructure/auth/password-reset-m
     { provide: PASSWORD_RESET_DELIVERY, useClass: PasswordResetMailAdapter },
     { provide: PARTICIPANT_READER, useExisting: ParticipantReaderService },
     { provide: IDENTITY_PRIVACY_REDACTOR, useExisting: IdentityPrivacyRedactorService },
+    { provide: ACCOUNT_PASSWORD_CONFIRMATION, useExisting: AuthOperationsService },
   ],
-  exports: [AuthOperationsService, PARTICIPANT_READER, IDENTITY_PRIVACY_REDACTOR],
+  exports: [AuthOperationsService, PARTICIPANT_READER, IDENTITY_PRIVACY_REDACTOR, ACCOUNT_PASSWORD_CONFIRMATION],
 })
 export class IdentityAccessModule {}

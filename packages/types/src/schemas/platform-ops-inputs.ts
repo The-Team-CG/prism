@@ -19,6 +19,8 @@ export const submitOwnPrivacyRequestSchema = z
   .object({
     requestType: privacyRequestTypeSchema,
     details: z.string().trim().max(1000).optional(),
+    /** The requester's account password, which confirms who they are; checked and never stored. */
+    password: z.string().min(1, "Enter your password to confirm it is you").max(200),
   })
   .superRefine((input, context) => {
     if (input.requestType === "correction" && !input.details) {

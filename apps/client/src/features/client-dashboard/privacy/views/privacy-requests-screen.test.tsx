@@ -8,12 +8,12 @@ afterEach(cleanup);
 
 const request = (overrides: Partial<PrismOwnPrivacyRequest>): PrismOwnPrivacyRequest => ({
   id: "priv_1", type: "access", status: "submitted", submittedAt: "2026-11-10T02:00:00.000Z", dueAt: "2026-12-10T02:00:00.000Z",
-  completedAt: null, outcomeMessage: "Received. PMCM verifies your identity before acting on this request.", cancellable: true, ...overrides,
+  completedAt: null, outcomeMessage: "Received. PMCM verifies your identity before acting on this request.", cancellable: true, identityConfirmedAt: null, ...overrides,
 });
 
 function screenWith(requests: PrismOwnPrivacyRequest[], draft: Partial<PrivacyDraft> = {}, noticeVersion = "v3") {
   const props = {
-    draft: { type: "access" as const, details: "", busy: false, error: null, setType: vi.fn(), setDetails: vi.fn(), submit: vi.fn(), ...draft },
+    draft: { type: "access" as const, details: "", password: "", busy: false, error: null, setType: vi.fn(), setDetails: vi.fn(), setPassword: vi.fn(), submit: vi.fn(), ...draft },
     cancel: { busyId: null, error: null, run: vi.fn() },
   };
   render(
@@ -36,6 +36,7 @@ describe("PrivacyRequestsScreen", () => {
     expect(items[0]).toContain("Due Dec 10, 2026 · in 23 days");
     expect(list.getByRole("img", { name: "Step 2 of 4: Identity check" })).toBeTruthy();
     expect(items[1]).toContain("Due Nov 14, 2026 · 3 days late");
+    expect(list.getAllByRole("img", { name: "Step 3 of 4: In progress" })).toHaveLength(1);
     expect(list.getByRole("img", { name: "Step 3 of 4: In progress" })).toBeTruthy();
     expect(list.getByText("Earlier")).toBeTruthy();
     expect(items[2]).toContain("Correction");
@@ -44,6 +45,22 @@ describe("PrivacyRequestsScreen", () => {
     cleanup();
     screenWith([], {}, "2026-10-25");
     expect(screen.getByText(/Privacy notice of Oct 25, 2026 · you accepted it/)).toBeTruthy();
+  });
+
+  it("moves a request the requester confirmed with their password past the identity check", () => {
+    screenWith([request({ identityConfirmedAt: "2026-11-10T02:00:00.000Z" })]);
+    expect(screen.getByRole("img", { name: "Step 3 of 4: In progress" })).toBeTruthy();
+  });
+
+  it("asks for the password before any request goes out", () => {
+    const { draft } = screenWith([], { type: "export" });
+    const password = screen.getByLabelText("Your password") as HTMLInputElement;
+    expect(password.type).toBe("password");
+    expect(password.required).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Send request" }));
+    expect(draft.submit).not.toHaveBeenCalled();
+    fireEvent.change(password, { target: { value: "right-password" } });
+    expect(draft.setPassword).toHaveBeenCalledWith("right-password");
   });
 
   it("opens on the new request form alone when there are no requests", () => {
@@ -65,7 +82,7 @@ describe("PrivacyRequestsScreen", () => {
   });
 
   it("explains what deleting keeps and asks to confirm before sending a deletion", () => {
-    const { draft } = screenWith([], { type: "deletion" });
+    const { draft } = screenWith([], { type: "deletion", password: "right-password" });
     expect(screen.getByRole("radio", { name: /Delete my data/ }).getAttribute("aria-checked")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(draft.submit).not.toHaveBeenCalled();
@@ -85,7 +102,7 @@ describe("PrivacyRequestsScreen", () => {
   });
 
   it("sends any other request straight away", () => {
-    const { draft } = screenWith([], { type: "export" });
+    const { draft } = screenWith([], { type: "export", password: "right-password" });
     fireEvent.click(screen.getByRole("button", { name: "Send request" }));
     expect(draft.submit).toHaveBeenCalledTimes(1);
   });

@@ -986,3 +986,28 @@ describe('AuthOperationsService account recovery and sessions', () => {
     expect(JSON.stringify(me)).not.toContain('encrypted-totp-secret');
   });
 });
+
+describe('confirmPassword', () => {
+  it('confirms the right password and counts a wrong one toward the same lockout as sign-in', async () => {
+    const { service, user } = createTwoFactorService();
+    const verify = vi.spyOn(AuthSecurityService, 'verifyPassword').mockImplementation(async (_hash, password) => password === 'right-password');
+
+    await expect(service.confirmPassword('usr_pmcm', 'right-password')).resolves.toBeInstanceOf(Date);
+    expect(user.failedLoginCount).toBe(0);
+
+    // A 403, never a 401: a 401 would make the portal sign the person out.
+    await expect(service.confirmPassword('usr_pmcm', 'guess')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(user.failedLoginCount).toBe(1);
+    verify.mockRestore();
+  });
+
+  it('refuses a locked account without checking the password', async () => {
+    const { service, user } = createTwoFactorService();
+    user.lockedUntil = new Date(Date.now() + 60_000);
+    const verify = vi.spyOn(AuthSecurityService, 'verifyPassword');
+
+    await expect(service.confirmPassword('usr_pmcm', 'anything')).rejects.toThrow(/locked/);
+    expect(verify).not.toHaveBeenCalled();
+    verify.mockRestore();
+  });
+});

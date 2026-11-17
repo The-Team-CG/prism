@@ -29,6 +29,7 @@ const submitted: PrismOwnPrivacyRequest = {
   completedAt: null,
   outcomeMessage: "Received. PMCM verifies your identity before acting on this request.",
   cancellable: true,
+  identityConfirmedAt: "2026-11-07T08:00:00.000Z",
 };
 
 afterEach(() => {
@@ -71,11 +72,13 @@ describe("useClientPrivacyRequestsViewModel", () => {
     act(() => {
       result.current.setRequestType("access");
       result.current.setDetails("Please send my records");
+      result.current.setPassword("right-password");
     });
     await act(() => result.current.submit());
 
-    expect(submit).toHaveBeenCalledWith({ requestType: "access", details: "Please send my records" });
+    expect(submit).toHaveBeenCalledWith({ requestType: "access", details: "Please send my records", password: "right-password" });
     expect(result.current.details).toBe("");
+    expect(result.current.password).toBe("");
     expect(result.current.error).toBeNull();
     await waitFor(() => expect(result.current.requests).toEqual([submitted]));
   });

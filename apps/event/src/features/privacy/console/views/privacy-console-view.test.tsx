@@ -34,6 +34,8 @@ function privacyRequest(overrides: Partial<PrismPrivacyRequest>): PrismPrivacyRe
     subjectName: "Ana Reyes",
     requestType: "deletion",
     status: "submitted",
+    identityConfirmedAt: null,
+    identityMethod: null,
     requestNotes: "",
     reviewReason: "",
     executionNotes: "",
@@ -85,6 +87,17 @@ describe("PrivacyConsoleView", () => {
 
     await waitFor(() => expect(repository.assignRequest).toHaveBeenCalledWith("priv_overdue", { assignedTo: "usr_maxine" }));
     await waitFor(() => expect(repository.queue).toHaveBeenCalledTimes(2));
+  });
+
+  it("says when a self-service requester confirmed who they are with their password, and says nothing otherwise", async () => {
+    repository.queue.mockResolvedValueOnce(page([
+      privacyRequest({ id: "priv_self", source: "self_service", subjectEmail: "ana@ayala.test", identityConfirmedAt: "2026-11-17T01:30:00.000Z", identityMethod: "account_password" }),
+      privacyRequest({ id: "priv_logged", subjectEmail: "guest@example.test" }),
+    ]));
+
+    render(<PrivacyConsoleView />);
+
+    expect(await screen.findAllByText(/^Identity confirmed with the account password/)).toHaveLength(1);
   });
 
   it("queries only the operator's own requests when the owner filter is set to mine", async () => {

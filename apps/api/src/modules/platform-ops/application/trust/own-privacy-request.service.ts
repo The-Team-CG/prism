@@ -1,4 +1,5 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ACCOUNT_PASSWORD_CONFIRMATION, type AccountPasswordConfirmation } from '@prism/contexts/identity-access';
 import type { Prisma } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
@@ -52,10 +53,13 @@ export class OwnPrivacyRequestService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    @Inject(ACCOUNT_PASSWORD_CONFIRMATION) private readonly passwords: AccountPasswordConfirmation,
   ) {}
 
+  /** Files a request once the requester has confirmed who they are with their account password. */
   async submit(input: SubmitOwnPrivacyRequestInput, actor: ResolvedEventOpsActor): Promise<PrismOwnPrivacyRequest> {
     const requester = requesterOf(actor);
+    const identityConfirmedAt = await this.passwords.confirmPassword(requester.id, input.password);
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Serialize submissions per requester so two concurrent requests cannot both pass the open-request check below.
       const lockKey = `privacy-self-service:${requester.email}`;
@@ -90,6 +94,8 @@ export class OwnPrivacyRequestService {
           requestNotes: input.details ?? '',
           createdBy: requester.name,
           source: 'self_service',
+          identityConfirmedAt,
+          identityMethod: 'account_password',
         },
       });
 
@@ -101,7 +107,7 @@ export class OwnPrivacyRequestService {
         affectedType: 'privacy_request',
         affectedId: request.id,
         affectedLabel: requester.email,
-        metadata: { actorId: requester.id, requestType: input.requestType, subjectType: requester.subjectType, source: 'self_service' },
+        metadata: { actorId: requester.id, requestType: input.requestType, subjectType: requester.subjectType, source: 'self_service', identityMethod: 'account_password' },
       }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: requester.id });
 
       return mapOwnPrivacyRequest(request);
