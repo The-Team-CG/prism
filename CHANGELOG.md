@@ -92,6 +92,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Security
 
+- The CI dependency audit (`scripts/npm-audit-ci.mjs`) can tolerate a named advisory until a set date when it has no fixed release. It now tolerates only GHSA-fc5q-39xc-vjpf (picomatch, used by dev tooling and absent from the production dependency tree) until 2026-12-18; every other advisory at moderate or above still fails CI, and the exemption fails CI again once its date passes.
 - Privacy exports, corrections, and account erasure require approved, scoped requests. Legal holds block matching erasure, staff account erasure is refused, and audit records retain metadata rather than exported record contents.
 - File access checks event scope, visibility, content, and object identity. Payment evidence is PMCM-only; signed storage URLs must match the configured project and exact object path.
 
