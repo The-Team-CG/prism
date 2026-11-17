@@ -14,7 +14,7 @@ const PORTAL_TITLES: Partial<Record<ClientDashboardRoute, string>> = {
   messages: "Messages",
   files: "Files",
   billing: "Billing & Payments",
-  privacy: "Privacy requests",
+  privacy: "Privacy",
   notifications: "Notifications",
 };
 
@@ -80,7 +80,7 @@ const PORTAL_TRAIL_PARENT: Partial<Record<ClientDashboardRoute, string>> = {
   messages: "Messages",
   files: "Files",
   billing: "Billing & Payments",
-  privacy: "Privacy requests",
+  privacy: "Privacy",
   notifications: "Notifications",
 };
 

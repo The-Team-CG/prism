@@ -958,7 +958,10 @@ describe('AuthOperationsService account recovery and sessions', () => {
       action: 'Acknowledged the privacy notice',
       metadata: { privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION },
     }), expect.anything());
-    await expect(service.currentUser(actor)).resolves.toMatchObject({ privacyNoticeRequired: false });
+    await expect(service.currentUser(actor)).resolves.toMatchObject({
+      privacyNoticeRequired: false,
+      privacyNotice: { version: PRISM_PRIVACY_NOTICE_VERSION, acknowledgedAt: (user.privacyNoticeAcknowledgedAt as Date).toISOString() },
+    });
     await expect(service.acknowledgePrivacyNotice({ ...actor, sessionVersion: 99 }, PRISM_PRIVACY_NOTICE_VERSION))
       .rejects.toThrow(/revoked/i);
   });
@@ -976,6 +979,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
       organization: 'Ana Events',
       twoFactorEnabled: true,
       privacyNoticeRequired: true,
+      privacyNotice: { version: null, acknowledgedAt: null },
       expiresAt: actor.expiresAt,
     });
     expect(JSON.stringify(me)).not.toContain('stored-password-hash');

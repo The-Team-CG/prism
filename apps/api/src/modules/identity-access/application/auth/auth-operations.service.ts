@@ -709,6 +709,7 @@ export class AuthOperationsService {
       organization: user.organization,
       twoFactorEnabled: Boolean(user.twoFactorSecret),
       privacyNoticeRequired: privacyNoticeRequired(user.privacyNoticeVersion),
+      privacyNotice: { version: user.privacyNoticeVersion ?? null, acknowledgedAt: user.privacyNoticeAcknowledgedAt?.toISOString() ?? null },
       expiresAt,
     };
   }

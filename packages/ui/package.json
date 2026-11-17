@@ -17,6 +17,7 @@
     "./auth-shell": "./src/auth-shell.tsx",
     "./portal-path": "./src/portal-path.ts",
     "./privacy-notice": "./src/privacy-notice.tsx",
+    "./privacy-requests": "./src/privacy-requests.tsx",
     "./notification-preferences": "./src/notification-preferences.tsx",
     "./notifications": "./src/notifications/index.ts",
     "./event-cards": "./src/event-cards/index.ts",

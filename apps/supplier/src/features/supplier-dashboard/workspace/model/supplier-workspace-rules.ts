@@ -431,8 +431,8 @@ export function sectionMeta(
     },
     privacy: {
       eyebrow: "Account",
-      title: "Privacy requests",
-      description: "File a privacy request and follow its status. PMCM verifies your identity before acting.",
+      title: "Privacy",
+      description: "Ask PMCM about your personal data and follow each request to its outcome.",
     },
     notifications: {
       eyebrow: "Account",

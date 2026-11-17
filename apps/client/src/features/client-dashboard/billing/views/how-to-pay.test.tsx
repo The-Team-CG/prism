@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { PaymentMethod } from "@prism/types";
 
@@ -14,6 +14,9 @@ const downloads: Array<{ name: string; href: string }> = [];
 beforeAll(() => {
   Object.defineProperty(navigator, "clipboard", { configurable: true, value: clipboard });
   vi.stubGlobal("URL", { ...URL, createObjectURL: vi.fn(() => "blob:qr"), revokeObjectURL: vi.fn() });
+});
+// The client config restores spies after every test, so the download spy is set before each one.
+beforeEach(() => {
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) { downloads.push({ name: this.download, href: this.href }); });
 });
 afterEach(() => {

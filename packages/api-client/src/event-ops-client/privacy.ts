@@ -30,6 +30,11 @@ export function createPrivacyClient(
           "/privacy/requests/mine",
           withBase(options),
         ),
+      cancelOwnRequest: (requestId: string) =>
+        prismRequest<PrismOwnPrivacyRequest>(
+          `/privacy/requests/mine/${encodeURIComponent(requestId)}/cancel`,
+          withBase(options, { method: "POST" }),
+        ),
     },
   };
 }

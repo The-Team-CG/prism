@@ -26,6 +26,7 @@ const SECTION_TARGETS: Record<EventSection, SectionTarget | null> = {
  */
 export function clientNoticeLink(action: NotificationAction | undefined): NoticeLink | null {
   if (action?.kind === "conversation") return { href: `${dashboardHref("messages", action.eventId)}${conversationHash(action.threadId)}`, label: "Open conversation" };
+  if (action?.kind === "privacy_request") return { href: "/dashboard/privacy", label: "Open privacy" };
   if (action?.kind !== "event_section") return null;
   const target = SECTION_TARGETS[action.section];
   return target ? { href: dashboardHref(target.page, action.eventId), label: target.label } : null;

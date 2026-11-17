@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createElement, type ReactNode } from "react";
 import type { PrismOwnPrivacyRequest } from "@prism/types";
 import { PortalQueryProvider } from "@prism/portal-query";
@@ -10,12 +10,13 @@ import { useClientPrivacyRequestsViewModel } from "./use-client-privacy-requests
 const wrapper = ({ children }: { children: ReactNode }) => createElement(PortalQueryProvider, { actorKey: "client@example.test", children });
 const render = () => renderHook(() => useClientPrivacyRequestsViewModel(), { wrapper });
 
-const { list, submit } = vi.hoisted(() => ({ list: vi.fn(), submit: vi.fn() }));
+const { list, submit, cancel, notice } = vi.hoisted(() => ({ list: vi.fn(), submit: vi.fn(), cancel: vi.fn(), notice: vi.fn() }));
 vi.mock("../data/client-privacy-repository", async () => {
   const { defineResource } = await import("@prism/portal-query");
   return {
-    clientPrivacyRequestRepository: { list, submit },
+    clientPrivacyRequestRepository: { list, submit, cancel, notice },
     clientOwnPrivacyRequestsResource: defineResource({ name: "test.client-privacy", fetch: () => list() }),
+    clientPrivacyNoticeResource: defineResource({ name: "test.client-privacy-notice", fetch: () => notice() }),
   };
 });
 
@@ -27,11 +28,16 @@ const submitted: PrismOwnPrivacyRequest = {
   dueAt: "2026-12-07T08:00:00.000Z",
   completedAt: null,
   outcomeMessage: "Received. PMCM verifies your identity before acting on this request.",
+  cancellable: true,
 };
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+});
+
+beforeEach(() => {
+  notice.mockResolvedValue({ version: "v3", acknowledgedAt: "2026-10-27T02:00:00.000Z" });
 });
 
 describe("useClientPrivacyRequestsViewModel", () => {
@@ -72,5 +78,27 @@ describe("useClientPrivacyRequestsViewModel", () => {
     expect(result.current.details).toBe("");
     expect(result.current.error).toBeNull();
     await waitFor(() => expect(result.current.requests).toEqual([submitted]));
+  });
+
+  it("withdraws a request PMCM has not started and refreshes the list, and shows why when PMCM already started", async () => {
+    const withdrawn = { ...submitted, status: "cancelled", cancellable: false };
+    list.mockResolvedValueOnce([submitted]).mockResolvedValueOnce([withdrawn]);
+    cancel.mockResolvedValueOnce(withdrawn).mockRejectedValueOnce(new Error("PMCM has already started on this request, so it can no longer be cancelled."));
+    const { result } = render();
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+
+    await act(() => result.current.cancel(submitted.id));
+    expect(cancel).toHaveBeenCalledWith(submitted.id);
+    await waitFor(() => expect(result.current.requests).toEqual([withdrawn]));
+    expect(result.current.cancellingId).toBeNull();
+
+    await act(() => result.current.cancel(submitted.id));
+    expect(result.current.cancelError).toMatch(/already started/);
+  });
+
+  it("shows which privacy notice the client accepted, and when", async () => {
+    list.mockResolvedValue([]);
+    const { result } = render();
+    await waitFor(() => expect(result.current.notice).toEqual({ version: "v3", acknowledgedAt: "2026-10-27T02:00:00.000Z" }));
   });
 });

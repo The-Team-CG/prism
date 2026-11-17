@@ -69,6 +69,9 @@ export function mapPrivacyRequest(request: OpsPrivacyRequestRecord, now: Date = 
   };
 }
 
+/** Statuses that close a request at review time, so their review date is when it closed. */
+const CLOSED_ON_REVIEW: string[] = [PrivacyRequestStatus.Rejected, PrivacyRequestStatus.Cancelled];
+
 /** Requester-safe wording for each status. PMCM review reasons and notes are never shown to the requester. */
 function ownPrivacyRequestOutcomeMessage(status: string): string {
   switch (status) {
@@ -80,6 +83,8 @@ function ownPrivacyRequestOutcomeMessage(status: string): string {
       return 'Closed without action. Contact PMCM if you need more detail.';
     case PrivacyRequestStatus.Executed:
       return 'Completed. PMCM has carried out this request.';
+    case PrivacyRequestStatus.Cancelled:
+      return 'Cancelled by you before PMCM reviewed it.';
     default:
       throw new Error(`Unknown privacy request status: ${status}`);
   }
@@ -93,7 +98,8 @@ export function mapOwnPrivacyRequest(request: OpsPrivacyRequestRecord): PrismOwn
     status: request.status,
     submittedAt: request.createdAt.toISOString(),
     dueAt: request.dueAt.toISOString(),
-    completedAt: timestamp(request.executedAt) ?? (request.status === PrivacyRequestStatus.Rejected ? timestamp(request.reviewedAt) : null),
+    completedAt: timestamp(request.executedAt) ?? (CLOSED_ON_REVIEW.includes(request.status) ? timestamp(request.reviewedAt) : null),
     outcomeMessage: ownPrivacyRequestOutcomeMessage(request.status),
+    cancellable: request.status === PrivacyRequestStatus.Submitted,
   };
 }

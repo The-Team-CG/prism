@@ -161,6 +161,8 @@ export const PrivacyRequestStatus = {
   Approved: 'approved',
   Rejected: 'rejected',
   Executed: 'executed',
+  /** Withdrawn by the requester before PMCM reviewed it. */
+  Cancelled: 'cancelled',
 } as const;
 
 export const PrivacyRequestType = {

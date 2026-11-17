@@ -861,3 +861,61 @@ describe('PrivacyOperationsService', () => {
     expect(tx.opsInquiry.updateMany).not.toHaveBeenCalled();
   });
 });
+
+describe('PrivacyOperationsService requester notices', () => {
+  function reviewFixture(source: string) {
+    const request = {
+      id: 'priv_7', eventId: null, subjectType: 'client', subjectEmail: 'ana@ayala.test', subjectName: 'Ana Reyes',
+      requestType: PrivacyRequestType.Correction, status: 'submitted', requestNotes: '', reviewReason: '', executionNotes: '',
+      createdBy: 'Ana Reyes', reviewedBy: null, reviewedAt: null, executedBy: null, executedAt: null,
+      dueAt: new Date('2026-12-07T00:00:00.000Z'), assignedTo: null, source,
+      createdAt: new Date('2026-11-07T00:00:00.000Z'), updatedAt: new Date('2026-11-07T00:00:00.000Z'),
+    };
+    const tx = {
+      opsPrivacyRequest: {
+        findUnique: vi.fn(async () => request),
+        updateMany: vi.fn(async () => ({ count: 1 })),
+        findUniqueOrThrow: vi.fn(async () => ({ ...request, status: 'rejected' })),
+      },
+    };
+    const notifications = { write: vi.fn(async () => undefined) };
+    const service = new PrivacyOperationsService(
+      { $transaction: vi.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)) } as never,
+      { audit: vi.fn(async () => undefined) } as never,
+      undefined,
+      new LifecyclePrivacyRedactorService(),
+      new CommercialPrivacyRedactorService(),
+      new OperationsPrivacyRedactorService(),
+      new IdentityPrivacyRedactorService(),
+      new AiTriageRecordEraser(),
+      notifications,
+    );
+    return { service, tx, notifications };
+  }
+
+  it('tells a self-service requester that PMCM closed their request, linking to their Privacy page, without PMCM reasons', async () => {
+    const { service, tx, notifications } = reviewFixture('self_service');
+
+    await service.reviewRequest('priv_7', { status: 'rejected', reviewReason: 'internal: duplicate of priv_3' }, verifiedActor);
+
+    expect(notifications.write).toHaveBeenCalledWith(
+      {
+        eventId: undefined,
+        recipient: 'ana@ayala.test',
+        message: 'PMCM closed your correction request without action. Message PMCM if you need more detail.',
+        channel: undefined,
+        idempotencyKey: 'privacy-request-rejected:priv_7',
+        action: { kind: 'privacy_request', requestId: 'priv_7' },
+      },
+      expect.objectContaining({ prisma: tx }),
+    );
+  });
+
+  it('sends nothing for a request PMCM logged on someone\'s behalf', async () => {
+    const { service, notifications } = reviewFixture('pmcm_logged');
+
+    await service.reviewRequest('priv_7', { status: 'approved' }, verifiedActor);
+
+    expect(notifications.write).not.toHaveBeenCalled();
+  });
+});

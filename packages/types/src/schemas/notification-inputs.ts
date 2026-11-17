@@ -16,6 +16,8 @@ export const notificationActionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('conversation'), eventId: z.string().min(1).max(200), threadId: z.string().min(1).max(200), portal: z.enum(['client', 'supplier', 'event', 'coordinator']).optional() }).strict(),
   /** One payment receipt on PMCM's receipts desk, such as a payment the client reported. */
   z.object({ kind: z.literal('payment_receipt'), receiptId: z.string().min(1).max(200) }).strict(),
+  /** The reader's own privacy requests, on their portal's Privacy page. */
+  z.object({ kind: z.literal('privacy_request'), requestId: z.string().min(1).max(200) }).strict(),
 ]);
 export type NotificationAction = z.infer<typeof notificationActionSchema>;
 
