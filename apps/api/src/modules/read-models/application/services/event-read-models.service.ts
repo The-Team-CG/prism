@@ -442,10 +442,12 @@ export class EventReadModelsService {
       [documents, briefings, floorPlanDrafts, billingStatements, paymentMilestones, allPaymentRecords, auditLogs, ocularVisits, billingDisputes],
       timelineSources,
       notificationLogs,
+      pmcmContacts,
     ] = await Promise.all([
       this.queries.clientWorkspaceForEvents(eventIds),
       this.queries.clientEventTimelineForEvents(eventIds),
       this.queries.clientNotificationsForEvents(eventIds),
+      this.queries.clientPmcmContactsForEvents(eventIds),
     ]);
     const visibleMilestoneIds = new Set(paymentMilestones.map((payment) => payment.id));
     const paymentRecords = allPaymentRecords.filter((record) => visibleMilestoneIds.has(record.milestoneId));
@@ -476,6 +478,7 @@ export class EventReadModelsService {
       briefings: briefings.map((briefing) => mappers.mapBriefing(briefing)),
       supplierQuotes: [],
       coordinatorAssignments: [],
+      pmcmContacts: pmcmContacts.map((contact) => ({ eventId: contact.eventId, coordinatorName: contact.coordinatorName })),
       complianceChecks: [],
       billingStatements: billingStatements.map(mapClientBillingStatement),
       billingDisputes: billingDisputes.map((dispute) => mappers.mapClientBillingDispute(dispute)),

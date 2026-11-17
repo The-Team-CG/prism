@@ -7,7 +7,12 @@ import { EventWorkspaceSwitcher } from "./event-workspace-switcher";
 import { PrismDashboardShell } from "@prism/ui";
 import { buildPmcmCommandGroups, inquiryLogHref } from "../../model/event-command-index";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
+import { UserRound } from "lucide-react";
+import type { PrismAccountMenuItem } from "@prism/ui";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
+
+/** Account sits first in the account menu, apart from the workspace settings in the sidebar. */
+const PMCM_ACCOUNT_MENU: PrismAccountMenuItem[] = [{ id: "account", label: "Account", icon: UserRound, href: "/dashboard/account" }];
 import { EventDashboardSkeleton, eventDashboardSkeletonVariant } from "@/app/(portal)/dashboard/components/event-dashboard-skeleton";
 import { useDocumentTitle } from "@/app/components/document-title";
 import type { EventSession } from "@/app/lib/session";
@@ -39,6 +44,7 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
       sidebarMode="single"
       onNavSelect={viewModel.handleSidebarNav}
       user={{ name: viewModel.session.name, detail: roleLabel(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
+      accountMenuItems={PMCM_ACCOUNT_MENU}
       searchPlaceholder="Search events, suppliers, inquiries..."
       showTopBarSearch={false}
       onSignOut={() => void viewModel.signOut()}
@@ -78,6 +84,7 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       sidebarMode="single"
       onNavSelect={viewModel.handleSidebarNav}
       user={{ name: viewModel.session.name, detail: roleLabel(viewModel.session.role), initials: viewModel.session.name.slice(0, 2).toUpperCase() }}
+      accountMenuItems={PMCM_ACCOUNT_MENU}
       searchPlaceholder="Find events, clients or pages"
       commandGroups={commandGroups}
       commandGroupsLoading={viewModel.commandReferenceLoading}

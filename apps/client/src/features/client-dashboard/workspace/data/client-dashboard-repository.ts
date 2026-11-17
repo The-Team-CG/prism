@@ -62,6 +62,7 @@ export const clientDashboardRepository = {
       briefings: pages.flatMap((page) => page.briefings),
       supplierQuotes: pages.flatMap((page) => page.supplierQuotes),
       coordinatorAssignments: pages.flatMap((page) => page.coordinatorAssignments),
+      pmcmContacts: pages.flatMap((page) => page.pmcmContacts ?? []),
       complianceChecks: pages.flatMap((page) => page.complianceChecks),
       billingStatements: pages.flatMap((page) => page.billingStatements),
       billingDisputes: pages.flatMap((page) => page.billingDisputes ?? []),

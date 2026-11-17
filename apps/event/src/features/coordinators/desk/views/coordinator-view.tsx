@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
-import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, MessageSquare, Radio, UsersRound } from "lucide-react";
+import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, MessageSquare, Radio, UserRound, UsersRound } from "lucide-react";
 import { EventMessagesWorkspace } from '@/features/event-dashboard/messages/views/event-messages-workspace';
+import { EventAccountView } from '@/features/account';
 import { useEventUnreadMessages } from '@/features/event-dashboard/messages/view-models/use-event-unread-messages';
 import { unreadNavBadge } from "@prism/ui/chat";
 import { unreadNoticeBadge } from "@prism/ui/notifications";
@@ -141,10 +142,12 @@ const ACCOUNT_VIEWS: Partial<Record<CoordinatorViewId, (vm: CoordinatorVm, onOpe
   calendar: (vm, onOpen) => <CoordinatorCalendarSection vm={vm} onOpen={onOpen} />,
   notifications: () => <AccountNotificationsView role="coordinator" />,
   messages: (_vm, _onOpen, session) => <EventMessagesWorkspace session={session} />,
+  account: () => <EventAccountView />,
 };
 
 function coordinatorDescription(view: CoordinatorViewId, event: CoordinatorVm['event'], roleName: string) {
   if (view === 'messages') return 'Conversations PMCM has invited you to across your assigned events.';
+  if (view === 'account') return 'Who you are, how you sign in, and how PMCM reaches you.';
   return event ? `${event.eventName} · ${formatPortalDate(event.eventDate)} · ${roleName}` : 'Choose an assigned event to get started.';
 }
 
@@ -258,6 +261,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       headerActions={<ReportIssueButton onReport={() => navigateTo("issues")} />}
       alwaysShowHeaderActions
       user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
+      accountMenuItems={[{ id: "account", label: "Account", icon: UserRound, onSelect: () => navigateTo("account") }]}
       onSignOut={onSignOut}
       searchPlaceholder="Search tasks and issues..."
       commandSectionLabel="Actions"

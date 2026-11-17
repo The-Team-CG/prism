@@ -10,6 +10,7 @@
     "./page-blocks": "./src/page-blocks.tsx",
     "./file-library": "./src/file-library/index.ts",
     "./action-list": "./src/action-list.tsx",
+    "./account-page": "./src/account-page.tsx",
     "./figures": "./src/figures.ts",
     "./account-help": "./src/account-help.tsx",
     "./document-title": "./src/document-title.tsx",

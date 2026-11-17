@@ -12,6 +12,7 @@ import { ClientPortalBillingView } from "../../../billing";
 import { ClientEventWorkspaceView } from "../../../event-workspace";
 import { ClientSharedFloorplansView } from "@/features/client-shared-floorplans/views/client-shared-floorplans-view";
 import { ClientPrivacyRequestsView } from "../../../privacy";
+import { ClientAccountView } from "../../../account";
 import { ClientNotificationsView } from "../../../notifications";
 import type { ClientDashboardRoute } from "../../model/client-dashboard-types";
 
@@ -29,6 +30,7 @@ const PORTAL_ONLY_VIEWS: Partial<Record<ClientDashboardRoute, () => ReactElement
   messages: () => <ClientMessagesView />,
   billing: () => <ClientPortalBillingView />,
   privacy: () => <ClientPrivacyRequestsView />,
+  account: () => <ClientAccountView />,
   notifications: () => <ClientNotificationsView />,
 };
 

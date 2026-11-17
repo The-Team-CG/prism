@@ -729,6 +729,7 @@ export class AuthOperationsService {
       twoFactorEnabled: Boolean(user.twoFactorSecret),
       privacyNoticeRequired: privacyNoticeRequired(user.privacyNoticeVersion),
       privacyNotice: { version: user.privacyNoticeVersion ?? null, acknowledgedAt: user.privacyNoticeAcknowledgedAt?.toISOString() ?? null },
+      lastSignInAt: user.lastLoginAt?.toISOString() ?? null,
       expiresAt,
     };
   }

@@ -25,6 +25,7 @@ import { ProfilePage } from "./profile-page";
 import { QuotationsPage } from "./quotations-page";
 import { RequestsPage } from "./requests-page";
 import { SupplierPrivacyRequestsView } from "../../../privacy";
+import { SupplierAccountView } from "../../../account";
 import { SupplierNotificationsView } from "../../../notifications";
 import { SupportPage } from "./support-page";
 import { Card, CardBody } from "./shell-ui";
@@ -115,6 +116,7 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
   files: (p) => <FilesPage workspace={p.workspace} session={p.session} workflowWorkspace={p.workflowWorkspace} readinessBoard={p.readinessBoard} onDownloadObject={p.onDownloadObject} />,
   profile: (p) => <ProfilePage supplier={p.workspace.supplier} session={p.session} />,
   privacy: () => <SupplierPrivacyRequestsView />,
+  account: () => <SupplierAccountView />,
   notifications: (p) => <SupplierNotificationsView session={p.session} />,
   support: () => <SupportPage />,
 };

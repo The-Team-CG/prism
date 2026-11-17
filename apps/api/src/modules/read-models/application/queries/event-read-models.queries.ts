@@ -602,6 +602,18 @@ export class EventReadModelQueries {
   // Query budget: one bounded client milestone projection for visible event ids.
   // Floorplan drafts and payment milestones hold only the event id, so each is read from its owner table
   // (one row per event) and composed here instead of through a cross-domain Prisma relation.
+  /** The coordinator names on the client's events, for assignments still in force; nothing else about the staff. */
+  async clientPmcmContactsForEvents(eventIds: string[]) {
+    return this.prisma.opsCoordinatorAssignment.findMany({
+      where: {
+        eventId: { in: eventIds },
+        status: { notIn: [CoordinatorAssignmentStatus.Cancelled, CoordinatorAssignmentStatus.Replaced, CoordinatorAssignmentStatus.Declined] },
+      },
+      select: { eventId: true, coordinatorName: true },
+      orderBy: [{ eventId: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
   async clientEventTimelineForEvents(eventIds: string[]) {
     const events = await this.prisma.opsEvent.findMany({
       where: { id: { in: eventIds } },

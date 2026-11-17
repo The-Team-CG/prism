@@ -18,6 +18,7 @@ export type DashboardSection =
   | "finance"
   | "audit"
   | "privacy"
+  | "account"
   | "settings";
 export type RouteState = { section: DashboardSection; tab: DetailTab; eventId?: string; clientId?: string; view?: string };
 
@@ -164,6 +165,7 @@ export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
   finance: "/dashboard/finance",
   audit: "/dashboard/audit",
   privacy: "/dashboard/privacy",
+  account: "/dashboard/account",
   settings: "/dashboard/settings",
   "events-all": "/dashboard/events",
   "events-upcoming": "/dashboard/events/upcoming",
@@ -236,6 +238,7 @@ const SIDEBAR_ITEM_TO_STATE: Record<string, RouteState> = {
   finance: { section: "finance", tab: "billing", view: "overview" },
   audit: { section: "audit", tab: "overview", view: "system-logs" },
   privacy: { section: "privacy", tab: "overview", view: "console" },
+  account: { section: "account", tab: "overview", view: "me" },
   settings: { section: "settings", tab: "overview", view: "organization-profile" },
 };
 
@@ -288,7 +291,8 @@ const ROUTE_LOADING_COPY: Partial<Record<DashboardSection, { eyebrow: string; ti
   finance: { eyebrow: "Finance", title: "Finance Desk" },
   inquiries: { eyebrow: "Inquiries", title: "Inquiries" },
   "events-list": { eyebrow: "Events", title: "Events" },
-  settings: { eyebrow: "Settings", title: "Settings" },
+  account: { eyebrow: "Account", title: "Account" },
+  settings: { eyebrow: "Settings", title: "Workspace settings" },
 };
 
 export function routeStateForSidebarItem(id: string): RouteState | undefined {
@@ -338,6 +342,7 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   messages: "Client, supplier, coordinator, and internal PMCM communication threads.",
   notifications: "What changed across your events, what is new since you last looked, and what asks you to confirm receipt. Every notice opens its item.",
   finance: "What needs you across events: money overdue, to verify and to apply, disputes, and what PMCM owes suppliers.",
+  account: "Who you are, how you sign in, and how PMCM reaches you.",
   settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
   inquiries: "One intake queue, from first contact to the client's portal account. Accepted inquiries continue in Onboarding and Conforme follow-up.",
   "events-list": "Every confirmed event. Open one to work inside it.",
@@ -367,6 +372,8 @@ const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
   suppliers: "Suppliers",
   audit: "Audit",
   privacy: "Privacy",
+  account: "Account",
+  settings: "Workspace settings",
   calendar: "Calendar",
   files: "Files",
   messages: "Messages",

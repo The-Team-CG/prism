@@ -980,6 +980,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
       twoFactorEnabled: true,
       privacyNoticeRequired: true,
       privacyNotice: { version: null, acknowledgedAt: null },
+      lastSignInAt: null,
       expiresAt: actor.expiresAt,
     });
     expect(JSON.stringify(me)).not.toContain('stored-password-hash');
