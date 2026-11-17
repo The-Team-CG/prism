@@ -38,29 +38,35 @@ export const PMCM_CALENDAR_KINDS: Record<PrismPmcmCalendarItemKind, PortalCalend
   schedule_day: { label: "Event-day schedule", chip: "bg-accent text-accent-foreground hover:bg-accent/80", dot: "bg-accent-foreground" },
 };
 
-/** Open payments on the PMCM calendar: late once their date has passed, otherwise due. */
-function paymentLook(item: PrismPmcmCalendarItem, today: string): Pick<PmcmCalendarEntry, "look" | "chipLabel"> {
+/** Open payments on the PMCM calendar: late (and overdue) once their date has passed, otherwise due. */
+function paymentLook(item: PrismPmcmCalendarItem, today: string): Pick<PmcmCalendarEntry, "look" | "chipLabel" | "overdue"> {
   if (item.kind !== "payment_due") return {};
   const state = paymentCalendarState(item.date, today, false);
   const { chip, dot, label } = PAYMENT_CALENDAR_LOOK[state];
-  return { look: { chip, dot, label }, chipLabel: label };
+  return { look: { chip, dot, label }, chipLabel: label, overdue: state === "late" };
 }
 
-/** The event is the headline of its own day; every other kind leads with what is due and shows the event under it. */
+/**
+ * The event is the headline of its own day; every other kind leads with what is due and names its event, which the
+ * shared calendar writes after the chip ("Quote due · Gala") and under the title everywhere else.
+ */
 export function toCalendarEntries(items: PrismPmcmCalendarItem[], today = manilaDateKey()): PmcmCalendarEntry[] {
-  return items.map((item) => ({
-    id: item.id,
-    date: item.date,
-    kind: item.kind,
-    eventId: item.eventId,
-    target: TARGETS[item.kind],
-    scheduleDayId: item.scheduleDayId,
-    title: item.kind === "event" ? item.eventName : item.detail,
-    chipLabel: CHIP_LABELS[item.kind] ?? item.eventName,
-    detail: item.kind === "event" ? item.detail : item.eventName,
-    startTime: item.startTime,
-    ...paymentLook(item, today),
-  }));
+  return items.map((item) => {
+    const isEvent = item.kind === "event";
+    return {
+      id: item.id,
+      date: item.date,
+      kind: item.kind,
+      eventId: item.eventId,
+      target: TARGETS[item.kind],
+      scheduleDayId: item.scheduleDayId,
+      title: isEvent ? item.eventName : item.detail,
+      chipLabel: CHIP_LABELS[item.kind] ?? (isEvent ? item.eventName : item.detail),
+      eventName: isEvent ? undefined : item.eventName,
+      startTime: item.startTime,
+      ...paymentLook(item, today),
+    };
+  });
 }
 
 const startOfMonth = (dateKey: string) => `${dateKey.slice(0, 7)}-01`;

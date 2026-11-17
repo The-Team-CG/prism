@@ -8,13 +8,20 @@ export interface ClientCalendarItem {
   id: string;
   date: string;
   title: string;
-  detail: string;
+  detail?: string;
   status: string;
   kind: ClientCalendarItemKind;
   eventId: string;
+  /** The event the entry belongs to; left out on the event day itself. */
+  eventName?: string;
   /** A short label for a month cell; payments say whether they are paid, late or due. */
   chipLabel?: string;
   look?: PortalCalendarLook;
+  /** A payment past its date with money still owed. */
+  overdue?: boolean;
+  /** A payment's whole amount and what is still owed on it. */
+  amount?: number;
+  remaining?: number;
 }
 
 export type ClientCalendarView =
@@ -25,30 +32,20 @@ export type ClientCalendarView =
   | "calendar-approval-deadlines";
 
 /**
- * Due dates lists the payment dates still open; payment due dates is the whole schedule, paid milestones
- * included. Both are payment dates, so the open-only rule is what separates them.
+ * The calendar links PMCM messages and older bookmarks use; each now opens the one calendar filtered to its kind.
+ * Due dates and the payment schedule both land on payments, where every entry says paid, late or due.
  */
-const VIEW_FILTERS: Record<ClientCalendarView, (item: ClientCalendarItem) => boolean> = {
-  "calendar-event-dates": (item) => item.kind === "event",
-  "calendar-meetings": (item) => item.kind === "visit",
-  "calendar-deadlines": (item) => item.kind === "payment" && item.status !== "paid",
-  "calendar-payment-due-dates": (item) => item.kind === "payment",
-  "calendar-approval-deadlines": (item) => item.kind === "approval",
+const VIEW_KINDS: Record<ClientCalendarView, ClientCalendarItemKind> = {
+  "calendar-event-dates": "event",
+  "calendar-meetings": "visit",
+  "calendar-deadlines": "payment",
+  "calendar-payment-due-dates": "payment",
+  "calendar-approval-deadlines": "approval",
 };
 
-const VIEW_EMPTY_COPY: Record<ClientCalendarView, { title: string; description: string }> = {
-  "calendar-event-dates": { title: "No event dates yet", description: "Event dates appear here once PMCM confirms the date of each event." },
-  "calendar-meetings": { title: "No site visits scheduled", description: "Ocular visits PMCM schedules with you appear here." },
-  "calendar-deadlines": { title: "No open due dates", description: "Payments that are still due appear here with their date." },
-  "calendar-payment-due-dates": { title: "No payment due dates yet", description: "Your payment schedule appears here once PMCM posts it." },
-  "calendar-approval-deadlines": { title: "No layout approvals yet", description: "The day each event layout is approved appears here." },
-};
-
-export const ALL_CALENDAR_EMPTY_COPY = { title: "Nothing scheduled yet", description: "Event dates, payment due dates, site visits and layout approvals appear here once they're set." };
-
-/** Copy for an empty calendar view, so each tab says what would appear in it. */
-export function clientCalendarEmptyCopy(view?: string): { title: string; description: string } {
-  return view && view in VIEW_EMPTY_COPY ? VIEW_EMPTY_COPY[view as ClientCalendarView] : ALL_CALENDAR_EMPTY_COPY;
+/** The category a calendar link opens on; none for the plain calendar. */
+export function clientCalendarKind(view?: string): ClientCalendarItemKind | undefined {
+  return view && view in VIEW_KINDS ? VIEW_KINDS[view as ClientCalendarView] : undefined;
 }
 
 /** Calendar dates keep their day; timestamps land on their Philippine date. */
@@ -60,7 +57,7 @@ type CalendarState = Pick<PrismClientWorkspace, "paymentMilestones" | "ocularVis
 type CalendarEvent = Pick<PrismEvent, "id" | "eventName" | "eventDate" | "status">;
 
 function eventDates(events: CalendarEvent[]): ClientCalendarItem[] {
-  return events.map((event) => ({ id: `event-${event.id}`, date: isoDay(event.eventDate), title: event.eventName, detail: "Event date", status: event.status, kind: "event", eventId: event.id }));
+  return events.map((event) => ({ id: `event-${event.id}`, date: isoDay(event.eventDate), title: event.eventName, status: event.status, kind: "event", eventId: event.id }));
 }
 
 /** Each payment coloured by its state: paid, late, or still due. */
@@ -69,10 +66,12 @@ function paymentDates(state: CalendarState, byId: Map<string, CalendarEvent>, to
     const event = byId.get(payment.eventId);
     if (!event || !payment.dueDate) return [];
     const date = isoDay(payment.dueDate);
-    const look = PAYMENT_CALENDAR_LOOK[paymentCalendarState(date, today, payment.status === "paid")];
+    const state = paymentCalendarState(date, today, payment.status === "paid");
+    const look = PAYMENT_CALENDAR_LOOK[state];
     return [{
-      id: `payment-${payment.id}`, date, title: payment.label, chipLabel: `${payment.label} · ${look.word}`, detail: `${event.eventName} payment ${look.word}`,
+      id: `payment-${payment.id}`, date, title: payment.label, chipLabel: `${payment.label} ${look.word}`, eventName: event.eventName,
       status: payment.status, kind: "payment" as const, eventId: event.id, look: { chip: look.chip, dot: look.dot, label: look.label },
+      overdue: state === "late", amount: payment.amount, remaining: payment.remainingBalance,
     }];
   });
 }
@@ -81,7 +80,7 @@ function siteVisits(state: CalendarState, byId: Map<string, CalendarEvent>): Cli
   return (state.ocularVisits ?? []).flatMap((visit) => {
     const event = byId.get(visit.eventId);
     if (!event || !visit.scheduledAt) return [];
-    return [{ id: `visit-${visit.eventId}`, date: isoDay(visit.scheduledAt), title: "Site visit", detail: event.eventName, status: visit.status, kind: "visit" as const, eventId: event.id }];
+    return [{ id: `visit-${visit.eventId}`, date: isoDay(visit.scheduledAt), title: "Site visit", eventName: event.eventName, status: visit.status, kind: "visit" as const, eventId: event.id }];
   });
 }
 
@@ -90,7 +89,7 @@ function layoutApprovals(state: CalendarState, byId: Map<string, CalendarEvent>)
     const event = byId.get(timeline.eventId);
     const layout = timeline.milestones.find((milestone) => milestone.key === "floor_plan_approved");
     if (!event || !layout?.date || layout.status !== "completed") return [];
-    return [{ id: `layout-${timeline.eventId}`, date: isoDay(layout.date), title: "Layout approved", detail: event.eventName, status: "approved", kind: "approval" as const, eventId: event.id }];
+    return [{ id: `layout-${timeline.eventId}`, date: isoDay(layout.date), title: "Layout approved", eventName: event.eventName, status: "approved", kind: "approval" as const, eventId: event.id }];
   });
 }
 
@@ -99,11 +98,8 @@ function layoutApprovals(state: CalendarState, byId: Map<string, CalendarEvent>)
  * event dates, payment due dates, scheduled site visits and the day a layout was approved.
  * Nothing is inferred from the event date.
  */
-export function buildClientCalendarItems(state: CalendarState, events: CalendarEvent[], view?: string, today = manilaDateKey()): ClientCalendarItem[] {
+export function buildClientCalendarItems(state: CalendarState, events: CalendarEvent[], today = manilaDateKey()): ClientCalendarItem[] {
   const byId = new Map(events.map((event) => [event.id, event]));
   const items = [...eventDates(events), ...paymentDates(state, byId, today), ...siteVisits(state, byId), ...layoutApprovals(state, byId)];
-  const matches = view && view in VIEW_FILTERS ? VIEW_FILTERS[view as ClientCalendarView] : () => true;
-  return items
-    .filter(matches)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  return items.sort((a, b) => a.date.localeCompare(b.date));
 }

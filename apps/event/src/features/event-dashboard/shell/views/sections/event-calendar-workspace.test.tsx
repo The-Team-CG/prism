@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { PortalQueryProvider } from "@prism/portal-query";
 import type { PmcmCalendarEntry } from "@/features/pmcm-overview";
 import { EventCalendarWorkspace } from "./event-calendar-workspace";
 
@@ -98,7 +99,7 @@ describe("EventCalendarWorkspace", () => {
     }
   });
 
-  it("highlights the filtered period's upcoming entries first and preserves the detail action when collapsed", () => {
+  it("highlights upcoming entries soonest first, keeps a place for the next event day, and preserves the detail action when collapsed", () => {
     const onOpenItem = vi.fn();
     render(<EventCalendarWorkspace items={[
       ...items,
@@ -111,7 +112,7 @@ describe("EventCalendarWorkspace", () => {
     expect(cards).toHaveLength(3);
     expect(cards[0].textContent).toContain("Today's quote");
     expect(cards[1].textContent).toContain("Next payment");
-    expect(highlights().queryByText("Next month event")).toBeNull();
+    expect(cards[2].textContent).toContain("Next month event");
     fireEvent.click(cards[0]);
     fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Open suppliers" }));
     expect(onOpenItem).toHaveBeenCalledWith(expect.objectContaining({ id: "today" }));
@@ -125,7 +126,7 @@ describe("EventCalendarWorkspace", () => {
     expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Open suppliers" })).toBeTruthy();
   });
 
-  it("removes stale highlights when searching or navigating to an empty period", () => {
+  it("narrows highlights with the search, and leads an empty period to the nearest entries on either side", () => {
     renderCalendar();
     const search = screen.getByRole("searchbox", { name: "Search schedule" });
     fireEvent.change(search, { target: { value: "Lights" } });
@@ -134,8 +135,44 @@ describe("EventCalendarWorkspace", () => {
     expect(screen.queryByRole("region", { name: "Schedule highlights" })).toBeNull();
     fireEvent.change(search, { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Next period" }));
-    expect(screen.queryByRole("region", { name: "Schedule highlights" })).toBeNull();
     expect(screen.getByRole("status").textContent).toContain("Nothing scheduled");
+    expect(screen.queryByRole("button", { name: /^Next:/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Last: Deposit, Nov 10, 2026" }));
+    expect(screen.getByRole("grid", { name: "November 2026" })).toBeTruthy();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("puts overdue work first in the highlights, even from an earlier month", () => {
+    render(<EventCalendarWorkspace items={[
+      { ...items[2], id: "soon", title: "Lights quote due", date: "2026-11-13" },
+      { ...items[3], id: "late", title: "Balance", date: "2026-10-01", overdue: true },
+      { ...items[0], id: "gala", date: "2026-11-30" },
+    ]} onRangeChange={vi.fn()} onOpenItem={vi.fn()} />);
+    const cards = within(screen.getByRole("region", { name: "Schedule highlights" })).getAllByRole("button");
+    expect(cards.map((card) => card.textContent?.split(/(?=Oct|Nov|Today)/)[0])).toEqual(["Balance", "Lights quote due", "Gala"]);
+  });
+
+  it("names each entry's event after what is due, and lists it with the portal's facts and the event picture in the details", () => {
+    render(
+      <PortalQueryProvider actorKey="mys@pmcm.test">
+        <EventCalendarWorkspace
+          items={[{ ...items[2], detail: undefined, eventName: "Gala" }]}
+          events={[{ id: "evt_1", clientName: "Ayala Corp", eventType: "Gala" }]}
+          onRangeChange={vi.fn()}
+          onOpenItem={vi.fn()}
+        />
+      </PortalQueryProvider>,
+    );
+    const cell = within(document.querySelector<HTMLElement>('[data-date="2026-11-10"]') as HTMLElement);
+    const chip = cell.getByRole("button", { name: /Lights quote due · Gala/ });
+    expect(chip.textContent).toBe("Lights quote due · Gala");
+    fireEvent.click(chip);
+    const panel = within(screen.getByRole("dialog"));
+    const terms = panel.getAllByRole("term").map((term) => [term.textContent, term.nextElementSibling?.textContent]);
+    expect(terms).toEqual([["Event", "Gala"], ["Client", "Ayala Corp"]]);
+    expect(panel.getByText("2 days ago")).toBeTruthy();
+    // With no photo chosen, the event's drawn cover (picked from its type) heads the panel.
+    expect(screen.getByRole("dialog").querySelector("[aria-hidden] svg")).toBeTruthy();
   });
 
   it("opens on Month and counts only that month while loading neighboring grid dates", () => {

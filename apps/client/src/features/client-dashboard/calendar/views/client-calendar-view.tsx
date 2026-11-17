@@ -3,24 +3,17 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { CalendarDays } from "lucide-react";
+import type { PrismEvent } from "@prism/types";
 import { manilaDateKey } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
-import { PortalCalendar } from "@prism/ui/portal-calendar";
+import { EventCover } from "@prism/ui/event-cards";
+import { formatPeso } from "@prism/ui/payment-track";
+import { PortalCalendar, type PortalCalendarFact } from "@prism/ui/portal-calendar";
 import { dashboardHref, formatStatusLabel, useClientWorkspace } from "../../workspace/shared";
-import { CLIENT_PORTAL_VIEW_HREFS } from "../../workspace/model/client-dashboard-navigation";
-import type { ClientDashboardRoute, ClientPortalView } from "../../workspace/model/client-dashboard-types";
+import type { ClientDashboardRoute } from "../../workspace/model/client-dashboard-types";
 import { ClientListEmpty } from "../../shared/client-list-ui";
-import { ClientRouteTabs } from "../../shared/client-route-tabs";
-import { buildClientCalendarItems, clientCalendarEmptyCopy, type ClientCalendarItem, type ClientCalendarItemKind } from "../model/client-calendar-items";
-
-const CALENDAR_TABS: Array<{ id: string; label: string; href: string; view?: ClientPortalView }> = [
-  { id: "calendar-all", label: "All", href: "/dashboard/calendar" },
-  { id: "calendar-event-dates", label: "Event dates", href: CLIENT_PORTAL_VIEW_HREFS["calendar-event-dates"], view: "calendar-event-dates" },
-  { id: "calendar-meetings", label: "Site visits", href: CLIENT_PORTAL_VIEW_HREFS["calendar-meetings"], view: "calendar-meetings" },
-  { id: "calendar-deadlines", label: "Due dates", href: CLIENT_PORTAL_VIEW_HREFS["calendar-deadlines"], view: "calendar-deadlines" },
-  { id: "calendar-payment-due-dates", label: "Payment schedule", href: CLIENT_PORTAL_VIEW_HREFS["calendar-payment-due-dates"], view: "calendar-payment-due-dates" },
-  { id: "calendar-approval-deadlines", label: "Layout approvals", href: CLIENT_PORTAL_VIEW_HREFS["calendar-approval-deadlines"], view: "calendar-approval-deadlines" },
-];
+import { useEventCoverUrl } from "../../events/view-models/use-event-cover-url";
+import { buildClientCalendarItems, clientCalendarKind, type ClientCalendarItem, type ClientCalendarItemKind } from "../model/client-calendar-items";
 
 const KIND: Record<ClientCalendarItemKind, { label: string; chip: string; dot: string; route: ClientDashboardRoute; action: string }> = {
   event: { label: "Event", chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary", route: "overview", action: "Open event" },
@@ -29,37 +22,66 @@ const KIND: Record<ClientCalendarItemKind, { label: string; chip: string; dot: s
   approval: { label: "Layout approved", chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success", route: "floorplan", action: "Open layout" },
 };
 
+type CoverEvent = Pick<PrismEvent, "id" | "eventType" | "coverObjectId">;
+
 function itemHref(item: ClientCalendarItem) {
   return dashboardHref(KIND[item.kind].route, item.eventId);
 }
 
+function paymentFacts(item: ClientCalendarItem): PortalCalendarFact[] {
+  return [
+    ...(item.amount !== undefined ? [{ label: "Amount", value: formatPeso(item.amount) }] : []),
+    ...(item.remaining && item.status !== "paid" ? [{ label: "Still to pay", value: formatPeso(item.remaining) }] : []),
+    { label: "Status", value: item.look?.label ?? formatStatusLabel(item.status) },
+  ];
+}
+
+/** What the details panel lists under the event: a payment's amounts, an event day's status and venue, a visit's status. */
+function itemFacts(item: ClientCalendarItem, venue: string | undefined): PortalCalendarFact[] {
+  if (item.kind === "payment") return paymentFacts(item);
+  if (item.kind === "approval") return [];
+  return [{ label: "Status", value: formatStatusLabel(item.status) }, ...(item.kind === "event" && venue ? [{ label: "Venue", value: venue }] : [])];
+}
+
+function ClientEventCover({ event }: { event: CoverEvent }) {
+  const imageUrl = useEventCoverUrl(event.id, event.coverObjectId);
+  return <EventCover eventType={event.eventType} imageUrl={imageUrl} />;
+}
+
+/**
+ * The client's calendar on the calendar every portal shares. Older links to one kind of date (payments, site visits…)
+ * open it filtered to that kind.
+ */
 export function ClientCalendarView() {
   const { portalView, state, events } = useClientWorkspace();
   const today = manilaDateKey();
-  const items = useMemo(() => (state ? buildClientCalendarItems(state, events, portalView) : []), [events, portalView, state]);
-  const tabs = CALENDAR_TABS.map((tab) => ({ ...tab, count: state ? buildClientCalendarItems(state, events, tab.view).length : 0 })).filter((tab) => tab.id === "calendar-all" || tab.view === portalView || tab.count > 0);
+  const items = useMemo(() => (state ? buildClientCalendarItems(state, events) : []), [events, state]);
+  const byId = useMemo(() => new Map(events.map((event) => [event.id, event])), [events]);
   if (!state) return null;
+  if (items.length === 0) {
+    return <ClientListEmpty icon={CalendarDays} title="Nothing scheduled yet" description="Event dates, payment due dates, site visits and layout approvals appear here once they're set." />;
+  }
 
-  const upcoming = items.filter((item) => item.date >= today);
-  const activeTab = CALENDAR_TABS.find((tab) => tab.view === portalView) ?? CALENDAR_TABS[0];
+  const kind = clientCalendarKind(portalView);
+  const upcoming = items.filter((item) => item.date >= today && (!kind || item.kind === kind));
+  const cover = (item: ClientCalendarItem) => {
+    const event = byId.get(item.eventId);
+    return event ? <ClientEventCover event={event} /> : null;
+  };
 
   return (
-    <div className="min-w-0 space-y-4">
-      {items.length === 0 ? (
-        <><ClientRouteTabs label="Calendar views" activeId={activeTab.id} tabs={tabs} /><ClientListEmpty icon={CalendarDays} {...clientCalendarEmptyCopy(portalView)} /></>
-      ) : (
-        <PortalCalendar
-          categoryControls={{ content: <ClientRouteTabs label="Calendar views" activeId={activeTab.id} tabs={tabs} />, selection: activeTab.id === "calendar-all" ? null : { label: activeTab.label, reset: <Link href="/dashboard/calendar">Clear filters</Link> } }}
-          items={items}
-          kinds={KIND}
-          today={today}
-          initialDate={upcoming[0]?.date ?? today}
-          detail={{
-            body: (item) => <p className="text-muted-foreground">Status: {formatStatusLabel(item.status)}</p>,
-            action: (item) => <Button asChild><Link href={itemHref(item)}>{KIND[item.kind].action}</Link></Button>,
-          }}
-        />
-      )}
-    </div>
+    <PortalCalendar
+      key={portalView ?? "all"}
+      items={items}
+      kinds={KIND}
+      today={today}
+      initialKind={kind}
+      initialDate={upcoming[0]?.date ?? today}
+      cover={cover}
+      detail={{
+        facts: (item) => itemFacts(item, byId.get(item.eventId)?.venue),
+        action: (item) => <Button asChild><Link href={itemHref(item)}>{KIND[item.kind].action}</Link></Button>,
+      }}
+    />
   );
 }

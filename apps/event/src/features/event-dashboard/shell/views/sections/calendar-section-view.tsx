@@ -12,7 +12,7 @@ import { LoadingState } from "@prism/ui/components/loading-state";
 import { Card } from "@prism/ui/components/card";
 
 export function EventDashboardCalendarSectionView() {
-  const { navigateEvent } = useEventDashboardLoadedRouteViewModel();
+  const { navigateEvent, events } = useEventDashboardLoadedRouteViewModel();
   const [range, setRange] = useState<VisibleRange>(() => visibleRange("month", manilaDateKey()));
   const window = useMemo(() => calendarWindow(range), [range]);
   const calendar = useResource(pmcmCalendar, window);
@@ -35,6 +35,7 @@ export function EventDashboardCalendarSectionView() {
       {calendar.status === "pending" ? <LoadingState label="Loading dates…" /> : null}
       <EventCalendarWorkspace
         items={items}
+        events={events}
         onRangeChange={(next) => setRange((current) => (current.from === next.from && current.to === next.to ? current : next))}
         onOpenItem={(item) => navigateEvent(item.eventId, item.target)}
       />

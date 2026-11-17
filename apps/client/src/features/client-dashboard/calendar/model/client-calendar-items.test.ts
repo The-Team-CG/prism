@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismClientEventTimeline } from "@prism/types";
-import { ALL_CALENDAR_EMPTY_COPY, buildClientCalendarItems, clientCalendarEmptyCopy } from "./client-calendar-items";
+import { buildClientCalendarItems, clientCalendarKind } from "./client-calendar-items";
 
 const events = [
   { id: "evt_1", eventName: "Ayala Tech Summit", eventDate: "2026-12-10", status: "planning" },
@@ -44,28 +44,37 @@ describe("buildClientCalendarItems", () => {
     ]);
   });
 
-  it("filters to the kind each calendar view names", () => {
-    expect(buildClientCalendarItems(state, events, "calendar-meetings").map((item) => item.title)).toEqual(["Site visit"]);
-    expect(buildClientCalendarItems(state, events, "calendar-deadlines").map((item) => item.title)).toEqual(["Balance"]);
-    expect(buildClientCalendarItems(state, events, "calendar-approval-deadlines").map((item) => item.title)).toEqual(["Layout approved"]);
+  it("names the event on every entry but the event day itself", () => {
+    expect(buildClientCalendarItems(state, events).map((item) => [item.title, item.eventName])).toEqual([
+      ["Layout approved", "Ayala Tech Summit"],
+      ["Site visit", "Ayala Tech Summit"],
+      ["Balance", "Ayala Tech Summit"],
+      ["Ayala Tech Summit", undefined],
+      ["Year-end party", undefined],
+    ]);
   });
 
-  it("keeps paid milestones in the payment schedule but out of open due dates, and labels each payment paid, late or due", () => {
+  it("opens older calendar links on their kind of date, and the plain calendar on everything", () => {
+    expect(clientCalendarKind("calendar-meetings")).toBe("visit");
+    expect(clientCalendarKind("calendar-deadlines")).toBe("payment");
+    expect(clientCalendarKind("calendar-payment-due-dates")).toBe("payment");
+    expect(clientCalendarKind("calendar-approval-deadlines")).toBe("approval");
+    expect(clientCalendarKind("calendar")).toBeUndefined();
+    expect(clientCalendarKind(undefined)).toBeUndefined();
+  });
+
+  it("labels each payment paid, late or due, and marks a late one overdue with what is still owed", () => {
     const withPaid = {
       ...state,
-      paymentMilestones: [...state.paymentMilestones, { id: "pay_deposit", eventId: "evt_1", label: "Deposit", dueDate: "2026-10-01", status: "paid" }],
+      paymentMilestones: [
+        { ...state.paymentMilestones[0], amount: 300000, remainingBalance: 120000 },
+        { id: "pay_deposit", eventId: "evt_1", label: "Deposit", dueDate: "2026-10-01", status: "paid", amount: 100000, remainingBalance: 0 },
+      ],
     } as typeof state;
-    expect(buildClientCalendarItems(withPaid, events, "calendar-payment-due-dates").map((item) => item.title)).toEqual(["Deposit", "Balance"]);
-    expect(buildClientCalendarItems(withPaid, events, "calendar-deadlines").map((item) => item.title)).toEqual(["Balance"]);
-
-    const labels = (today: string) => buildClientCalendarItems(withPaid, events, "calendar-payment-due-dates", today).map((item) => [item.chipLabel, item.look?.chip.split(" ")[1]]);
-    expect(labels("2026-11-15")).toEqual([["Deposit · paid", "text-success"], ["Balance · due", "text-attention"]]);
-    expect(labels("2026-12-01")).toEqual([["Deposit · paid", "text-success"], ["Balance · late", "text-danger"]]);
-  });
-
-  it("gives every empty calendar view its own copy", () => {
-    const views = ["calendar-event-dates", "calendar-meetings", "calendar-deadlines", "calendar-payment-due-dates", "calendar-approval-deadlines"];
-    expect(new Set(views.map((view) => clientCalendarEmptyCopy(view).title)).size).toBe(views.length);
-    expect(clientCalendarEmptyCopy("calendar").title).toBe(ALL_CALENDAR_EMPTY_COPY.title);
+    const payments = (today: string) => buildClientCalendarItems(withPaid, events, today).filter((item) => item.kind === "payment");
+    const labels = (today: string) => payments(today).map((item) => [item.chipLabel, item.look?.chip.split(" ")[1], Boolean(item.overdue)]);
+    expect(labels("2026-11-15")).toEqual([["Deposit paid", "text-success", false], ["Balance due", "text-attention", false]]);
+    expect(labels("2026-12-01")).toEqual([["Deposit paid", "text-success", false], ["Balance late", "text-danger", true]]);
+    expect(payments("2026-12-01")[1]).toMatchObject({ amount: 300000, remaining: 120000 });
   });
 });

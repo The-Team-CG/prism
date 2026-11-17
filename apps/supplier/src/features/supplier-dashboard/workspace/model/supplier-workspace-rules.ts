@@ -401,7 +401,7 @@ export function sectionMeta(
     },
     calendar: {
       eyebrow: "Calendar",
-      title: "Your calendar",
+      title: "Calendar",
       description: "Event days, quote deadlines, arrivals, deliverables and payments.",
     },
     quotations: {

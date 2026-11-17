@@ -1,7 +1,7 @@
 import type { PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { manilaCalendarKey, manilaClockKey, manilaDateKey } from "@prism/ui/format-date";
 import { PAYMENT_CALENDAR_LOOK, paymentCalendarState, type PortalCalendarLook } from "@prism/ui/portal-calendar";
-import { buildQuoteByRequest, formatMoney, isRequestClosed } from "./supplier-workspace-rules";
+import { buildQuoteByRequest, isRequestClosed } from "./supplier-workspace-rules";
 import type { PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, SupplierWorkspace } from "./supplier-workspace-types";
 import { supplierSectionHref, supplierWorkTargetHref } from "./supplier-workspace-types";
 
@@ -12,13 +12,23 @@ export type SupplierCalendarItem = {
   date: string;
   title: string;
   chipLabel: string;
-  detail: string;
+  /** A place, for arrivals and departures. */
+  detail?: string;
   kind: SupplierCalendarItemKind;
   href: string;
+  eventId: string;
+  /** The event the entry belongs to; left out on the event day itself. */
+  eventName?: string;
+  /** What the supplier is booked or quoting for. */
+  category?: string;
   /** Philippine wall-clock time, HH:mm; absent for all-day items. */
   startTime?: string;
   /** Payments are coloured late once PMCM has missed their date. */
   look?: PortalCalendarLook;
+  /** A payment PMCM has not made by its date. */
+  overdue?: boolean;
+  /** What PMCM still owes on a payment. */
+  amount?: number;
 };
 
 type ReadinessItems = PrismSupplierReadinessBoard["items"];
@@ -34,9 +44,11 @@ function deadlineItems(requests: PrismSupplierQuoteRequest[], isLive: IsLive, ev
   return requests.filter((request) => request.dueDate && isLive(request)).map((request) => ({
     id: `deadline:${request.id}`,
     date: request.dueDate as string,
-    title: `Quote due: ${request.category}`,
-    chipLabel: eventName(request.eventId),
-    detail: eventName(request.eventId),
+    title: `${request.category} quote due`,
+    chipLabel: "Quote due",
+    eventId: request.eventId,
+    eventName: eventName(request.eventId),
+    category: request.category,
     kind: "deadline",
     href: supplierWorkTargetHref("requests", request.id),
   }));
@@ -55,7 +67,8 @@ function eventDayItems(readiness: ReadinessItems, requests: PrismSupplierQuoteRe
       date: item.eventDate,
       title: item.eventName ?? "Assigned event",
       chipLabel: item.eventName ?? "Assigned event",
-      detail: `Event day · ${item.category}`,
+      eventId: item.eventId,
+      category: item.category,
       kind: "event",
       href: supplierWorkTargetHref(isBooked(request) ? "bookings" : "requests", request.id),
     });
@@ -65,11 +78,10 @@ function eventDayItems(readiness: ReadinessItems, requests: PrismSupplierQuoteRe
 
 function scheduleItems(workflow: PrismSupplierWorkflowWorkspace, eventName: EventName): SupplierCalendarItem[] {
   return workflow.schedules.filter((schedule) => schedule.status !== "cancelled").flatMap((schedule): SupplierCalendarItem[] => {
-    const href = supplierWorkTargetHref("bookings", schedule.requestId);
-    const name = eventName(schedule.eventId);
+    const shared = { href: supplierWorkTargetHref("bookings", schedule.requestId), eventId: schedule.eventId, eventName: eventName(schedule.eventId), detail: schedule.location };
     return [
-      { id: `arrival:${schedule.id}`, date: manilaCalendarKey(schedule.ingressAt), title: `Arrive: ${name}`, chipLabel: `Arrive · ${name}`, detail: schedule.location, kind: "arrival", href, startTime: manilaClockKey(schedule.ingressAt) },
-      { id: `departure:${schedule.id}`, date: manilaCalendarKey(schedule.egressAt), title: `Leave: ${name}`, chipLabel: `Leave · ${name}`, detail: schedule.location, kind: "departure", href, startTime: manilaClockKey(schedule.egressAt) },
+      { ...shared, id: `arrival:${schedule.id}`, date: manilaCalendarKey(schedule.ingressAt), title: "Arrival", chipLabel: "Arrive", kind: "arrival", startTime: manilaClockKey(schedule.ingressAt) },
+      { ...shared, id: `departure:${schedule.id}`, date: manilaCalendarKey(schedule.egressAt), title: "Departure", chipLabel: "Leave", kind: "departure", startTime: manilaClockKey(schedule.egressAt) },
     ];
   });
 }
@@ -78,9 +90,10 @@ function deliverableItems(workflow: PrismSupplierWorkflowWorkspace, eventName: E
   return workflow.creativeTasks.filter((task) => task.dueAt && OPEN_TASK_STATUSES.includes(task.status)).map((task) => ({
     id: `deliverable:${task.id}`,
     date: manilaCalendarKey(task.dueAt as string),
-    title: `Due: ${task.title}`,
+    title: task.title,
     chipLabel: task.title,
-    detail: eventName(task.eventId),
+    eventId: task.eventId,
+    eventName: eventName(task.eventId),
     kind: "deliverable",
     href: supplierWorkTargetHref("bookings", task.requestId),
     startTime: manilaClockKey(task.dueAt as string),
@@ -90,16 +103,20 @@ function deliverableItems(workflow: PrismSupplierWorkflowWorkspace, eventName: E
 function paymentItems(workflow: PrismSupplierWorkflowWorkspace, eventName: EventName, today: string): SupplierCalendarItem[] {
   return workflow.payables.filter((payable) => payable.dueDate && UNPAID_PAYABLE_STATUSES.includes(payable.status)).map((payable) => {
     const date = manilaCalendarKey(payable.dueDate as string);
-    const look = PAYMENT_CALENDAR_LOOK[paymentCalendarState(date, today, false)];
+    const state = paymentCalendarState(date, today, false);
+    const look = PAYMENT_CALENDAR_LOOK[state];
     return {
       id: `payment:${payable.id}`,
       date,
-      title: `Payment: ${payable.label}`,
-      chipLabel: `${payable.label} · ${look.word}`,
-      detail: `${formatMoney(payable.remainingBalance)} · ${eventName(payable.eventId)}`,
+      title: payable.label,
+      chipLabel: `${payable.label} ${look.word}`,
+      eventId: payable.eventId,
+      eventName: eventName(payable.eventId),
       kind: "payment",
       href: supplierSectionHref("payments"),
       look: { chip: look.chip, dot: look.dot, label: look.label },
+      overdue: state === "late",
+      amount: payable.remainingBalance,
     };
   });
 }
