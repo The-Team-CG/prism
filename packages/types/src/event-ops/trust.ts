@@ -135,6 +135,12 @@ export interface PrismOwnPrivacyRequest {
   identityConfirmedAt: string | null;
 }
 
+/** A self-service download: the export itself, and the finished request that records it in the person's history. */
+export interface PrismOwnPrivacyDownload {
+  request: PrismOwnPrivacyRequest;
+  export: PrismPrivacyExportBundle;
+}
+
 /** One page of the PMCM privacy request queue. */
 export interface PrismPrivacyRequestPage {
   items: PrismPrivacyRequest[];

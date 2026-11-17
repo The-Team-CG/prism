@@ -1,4 +1,4 @@
-import type { PrismNotificationPreferences, PrismOwnPrivacyRequest, PrismViberLink, SubmitOwnPrivacyRequestInput, UpdateNotificationPreferencesInput } from "@prism/types";
+import type { DownloadOwnPrivacyDataInput, PrismNotificationPreferences, PrismOwnPrivacyDownload, PrismOwnPrivacyRequest, PrismViberLink, SubmitOwnPrivacyRequestInput, UpdateNotificationPreferencesInput } from "@prism/types";
 
 export interface EventOpsNotificationPreferencesContract {
   /** FR-25: the signed-in account's own channels; email always stays on. */
@@ -26,5 +26,7 @@ export interface EventOpsPrivacyContract {
     listOwnRequests(): Promise<PrismOwnPrivacyRequest[]>;
     /** Withdraws one of their own requests while PMCM has not reviewed it. */
     cancelOwnRequest(requestId: string): Promise<PrismOwnPrivacyRequest>;
+    /** Downloads their own data straight away, confirmed with their password. */
+    downloadOwnData(input: DownloadOwnPrivacyDataInput): Promise<PrismOwnPrivacyDownload>;
   };
 }

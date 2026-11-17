@@ -1,4 +1,4 @@
-import type { PrismNotificationPreferences, PrismOwnPrivacyRequest, PrismViberLink, SubmitOwnPrivacyRequestInput, UpdateNotificationPreferencesInput } from "@prism/types";
+import type { DownloadOwnPrivacyDataInput, PrismNotificationPreferences, PrismOwnPrivacyDownload, PrismOwnPrivacyRequest, PrismViberLink, SubmitOwnPrivacyRequestInput, UpdateNotificationPreferencesInput } from "@prism/types";
 import { prismRequest } from "../http";
 import type { EventOpsClient, EventOpsClientOptions } from "./contracts";
 import { withBase } from "./shared";
@@ -29,6 +29,11 @@ export function createPrivacyClient(
         prismRequest<PrismOwnPrivacyRequest[]>(
           "/privacy/requests/mine",
           withBase(options),
+        ),
+      downloadOwnData: (input: DownloadOwnPrivacyDataInput) =>
+        prismRequest<PrismOwnPrivacyDownload>(
+          "/privacy/requests/mine/export",
+          withBase(options, { method: "POST", body: input }),
         ),
       cancelOwnRequest: (requestId: string) =>
         prismRequest<PrismOwnPrivacyRequest>(
