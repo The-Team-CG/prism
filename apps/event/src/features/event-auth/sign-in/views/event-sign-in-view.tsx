@@ -16,7 +16,7 @@ import { signInSubmitLabel, twoFactorCopy } from "../model/event-sign-in-copy";
 import { eventSignInProgress } from "../model/event-sign-in-steps";
 import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { useEventSignInViewModel } from "../view-models/use-event-sign-in-view-model";
-import { AuthenticatorCodeInput } from "./authenticator-code-input";
+import { AuthenticatorCodeInput } from "@prism/ui/authenticator-code-input";
 
 const COPY_FAILED_MESSAGE = "Couldn't copy. Select the key and copy it.";
 
@@ -141,6 +141,7 @@ function TwoFactorStep({ vm, title }: { vm: SignInVm; title: string }) {
           onChange={vm.setCode}
           disabled={vm.busy}
           invalid={Boolean(vm.error)}
+          errorId="event-sign-in-error"
         />
       </Field>
     </div>

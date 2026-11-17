@@ -73,6 +73,7 @@ export class IdentityPrivacyRedactorService implements IdentityPrivacyRedactor {
         permanentLockout: true,
         lockedUntil: null,
         twoFactorSecret: null,
+        twoFactorPendingSecret: null,
         twoFactorChallengeHash: null,
         twoFactorChallengeExpiresAt: null,
         twoFactorChallengeAttempts: 0,

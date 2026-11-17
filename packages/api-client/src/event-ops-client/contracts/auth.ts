@@ -3,6 +3,7 @@ import type {
   PrismOwnSignIn,
   PrismOwnSession,
   PrismOwnSessionsSignedOut,
+  PrismOwnTwoFactorSetup,
   UpdateOwnProfileInput,
   AcknowledgePrivacyNoticeInput,
   ActivateAccountInput,
@@ -36,6 +37,12 @@ export interface EventOpsAuthContract {
     changeMyPassword(input: ChangeOwnPasswordInput): Promise<void>;
     /** The signed-in person's own latest sign-ins. */
     mySignIns(): Promise<PrismOwnSignIn[]>;
+    /** Starts adding an authenticator app with the current password; two-step sign-in stays off until confirmed. */
+    startMyTwoFactor(password: string): Promise<PrismOwnTwoFactorSetup>;
+    /** Turns two-step sign-in on with a code from the app just added. */
+    enableMyTwoFactor(code: string): Promise<void>;
+    /** Turns two-step sign-in off with the current password. */
+    disableMyTwoFactor(password: string): Promise<void>;
     /** The browsers the signed-in person is signed in on now, this one first. */
     mySessions(): Promise<PrismOwnSession[]>;
     /** Signs out one other browser. */

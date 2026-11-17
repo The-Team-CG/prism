@@ -84,16 +84,19 @@ export function isAccountLocked(user: Pick<PrismUser, "lockedUntil" | "permanent
   return Boolean(user.permanentLockout) || Boolean(user.lockedUntil && new Date(user.lockedUntil) > now);
 }
 
-/** Mirrors the API: two-factor reset applies only to PMCM admin accounts, and a resend only to accounts not yet activated. */
+/**
+ * A two-step reset is offered for PMCM admins (they always have it) and for anyone else who turned it on, so PMCM
+ * can help with a lost phone; a resend only for accounts not yet activated.
+ */
 export function adminAccountActionsFor(
-  user: Pick<PrismUser, "role" | "approvalStatus" | "lockedUntil" | "permanentLockout">,
+  user: Pick<PrismUser, "role" | "approvalStatus" | "lockedUntil" | "permanentLockout" | "twoFactorEnabled">,
   viewerRole: PrismUserRole,
   now: Date,
 ): AdminAccountActions {
   const admin = canManageAccounts(viewerRole);
   return {
     unlockAccount: admin && isAccountLocked(user, now),
-    resetTwoFactor: admin && user.role === "pmcm-admin",
+    resetTwoFactor: admin && (user.role === "pmcm-admin" || Boolean(user.twoFactorEnabled)),
     resendInvitation: admin && user.approvalStatus === "invited",
   };
 }

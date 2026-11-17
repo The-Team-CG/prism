@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useInvalidate, useResource } from "@prism/portal-query";
 import { accountChange, type AccountActions } from "@prism/ui/account-page";
+import { twoStepStart } from "@prism/ui/account-two-step";
 import { signOutSupplier } from "../../workspace/use-cases/supplier-workspace-actions";
 import { manilaDateKey } from "@prism/ui/format-date";
 import type { AccountContact, AccountIdentity, AccountLink, AccountPrivacySummary, AccountSecuritySummary } from "@prism/ui/account-page";
@@ -29,6 +30,11 @@ export function useSupplierAccountViewModel() {
     saveName: accountChange(supplierAccountRepository.updateName, () => invalidate(supplierCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
     changePassword: accountChange(supplierAccountRepository.changePassword, async () => { await signOutSupplier(); window.location.assign("/sign-in"); }),
+    twoStep: {
+      start: twoStepStart(supplierAccountRepository.startTwoStep),
+      enable: accountChange(supplierAccountRepository.enableTwoStep, () => invalidate(supplierCurrentUserResource)),
+      disable: accountChange(supplierAccountRepository.disableTwoStep, () => invalidate(supplierCurrentUserResource)),
+    },
     signOutSession: accountChange(supplierAccountRepository.signOutSession, () => invalidate(supplierOwnSessionsResource)),
     signOutOtherSessions: accountChange(supplierAccountRepository.signOutOtherSessions, () => invalidate(supplierOwnSessionsResource)),
   };

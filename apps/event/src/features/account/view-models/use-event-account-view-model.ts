@@ -2,6 +2,7 @@
 
 import { useInvalidate, useResource } from "@prism/portal-query";
 import { accountChange, type AccountActions } from "@prism/ui/account-page";
+import { twoStepStart } from "@prism/ui/account-two-step";
 import { clearEventSession } from "@/app/lib/session";
 import { manilaDateKey } from "@prism/ui/format-date";
 import type { AccountIdentity, AccountLink, AccountSecuritySummary } from "@prism/ui/account-page";
@@ -26,6 +27,11 @@ export function useEventAccountViewModel() {
     saveName: accountChange(eventAccountRepository.updateName, () => invalidate(eventCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
     changePassword: accountChange(eventAccountRepository.changePassword, () => { clearEventSession(); window.location.assign("/sign-in"); }),
+    twoStep: {
+      start: twoStepStart(eventAccountRepository.startTwoStep),
+      enable: accountChange(eventAccountRepository.enableTwoStep, () => invalidate(eventCurrentUserResource)),
+      disable: accountChange(eventAccountRepository.disableTwoStep, () => invalidate(eventCurrentUserResource)),
+    },
     signOutSession: accountChange(eventAccountRepository.signOutSession, () => invalidate(eventOwnSessionsResource)),
     signOutOtherSessions: accountChange(eventAccountRepository.signOutOtherSessions, () => invalidate(eventOwnSessionsResource)),
   };

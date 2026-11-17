@@ -31,6 +31,9 @@ export function createAuthClient(
       updateMe: (input) => prismRequest("/auth/me", withBase(options, { method: "PATCH", body: input })),
       changeMyPassword: (input) => prismRequest<void>("/auth/me/password", withBase(options, { method: "POST", body: input })),
       mySignIns: () => prismRequest("/auth/me/sign-ins", withBase(options, { method: "GET" })),
+      startMyTwoFactor: (password) => prismRequest("/auth/me/two-factor/setup", withBase(options, { method: "POST", body: { password } })),
+      enableMyTwoFactor: (code) => prismRequest<void>("/auth/me/two-factor/enable", withBase(options, { method: "POST", body: { code } })),
+      disableMyTwoFactor: (password) => prismRequest<void>("/auth/me/two-factor/disable", withBase(options, { method: "POST", body: { password } })),
       mySessions: () => prismRequest("/auth/me/sessions", withBase(options, { method: "GET" })),
       signOutSession: (sessionId) =>
         prismRequest<void>(`/auth/me/sessions/${encodeURIComponent(sessionId)}`, withBase(options, { method: "DELETE" })),

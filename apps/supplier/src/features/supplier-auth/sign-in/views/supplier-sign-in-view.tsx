@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@prism/ui/c
 import { Field } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
 import { Label } from "@prism/ui/components/label";
+import { SignInCodeStep } from "@prism/ui/sign-in-code-step";
 import { SUPPLIER_PORTAL_POINTS, SUPPLIER_PORTAL_STATEMENT } from "../model/supplier-portal-copy";
 import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { useSupplierSignInViewModel } from "../view-models/use-supplier-sign-in-view-model";
@@ -82,6 +83,24 @@ function ApprovalRequestPanel({
   );
 }
 
+type SupplierSignInVm = ReturnType<typeof useSupplierSignInViewModel>;
+
+function CodeForm({ vm }: { vm: SupplierSignInVm }) {
+  return (
+    <form className="flex flex-col gap-5" onSubmit={vm.submit} noValidate>
+      <SignInCodeStep code={vm.code} onCodeChange={vm.setCode} busy={vm.busy} invalid={Boolean(vm.error)} errorId="supplier-sign-in-error" onBack={vm.backToPassword} />
+      {vm.error ? (
+        <Alert variant="destructive" id="supplier-sign-in-error" role="alert">
+          <AlertDescription>{vm.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <Button type="submit" disabled={vm.busy || vm.code.length !== 6} className={prismAuthSubmitClassName("supplier")}>
+        {vm.busy ? "Checking..." : "Verify code"}
+      </Button>
+    </form>
+  );
+}
+
 export function SupplierSignInView() {
   const vm = useSupplierSignInViewModel();
 
@@ -106,6 +125,7 @@ export function SupplierSignInView() {
         </div>
       ) : null}
 
+      {vm.twoStepToken ? <CodeForm vm={vm} /> : (
       <form className="flex flex-col gap-5" onSubmit={vm.submit}>
         <Field>
           <Label htmlFor="email">Email address</Label>
@@ -163,6 +183,7 @@ export function SupplierSignInView() {
           {vm.busy ? "Signing in..." : "Sign in"}
         </Button>
       </form>
+      )}
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
         <a href={portalHref("/apply")} className="text-primary transition-colors hover:text-primary/80">

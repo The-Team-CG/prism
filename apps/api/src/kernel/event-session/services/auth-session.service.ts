@@ -35,7 +35,8 @@ export type TwoFactorTokenPurpose = 'setup' | 'challenge';
 export type VerifiedTwoFactorToken = {
   userId: string;
   email: string;
-  role: 'pmcm-admin';
+  /** PMCM admins always have a second step; anyone else who turned two-step sign-in on does too. */
+  role: PrismEventOpsActorRole;
   purpose: TwoFactorTokenPurpose;
   challengeId: string;
   sessionVersion: number;
@@ -107,7 +108,7 @@ export class AuthSessionService {
   }
 
   issueTwoFactorToken(
-    input: { userId: string; email: string; role: 'pmcm-admin'; challengeId: string; sessionVersion: number },
+    input: { userId: string; email: string; role: PrismEventOpsActorRole; challengeId: string; sessionVersion: number },
     purpose: TwoFactorTokenPurpose,
     issuedAt = new Date(),
   ) {
@@ -150,10 +151,10 @@ export class AuthSessionService {
 
   private hasTwoFactorIdentity(
     payload: Record<string, unknown>,
-  ): payload is Record<string, unknown> & { sub: string; email: string; role: 'pmcm-admin'; jti: string } {
+  ): payload is Record<string, unknown> & { sub: string; email: string; role: PrismEventOpsActorRole; jti: string } {
     return typeof payload.sub === 'string'
       && typeof payload.email === 'string'
-      && payload.role === 'pmcm-admin'
+      && isEventOpsActorRole(payload.role)
       && typeof payload.jti === 'string'
       && /^[A-Za-z0-9_-]{43}$/.test(payload.jti);
   }

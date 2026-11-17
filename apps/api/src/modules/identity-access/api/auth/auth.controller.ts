@@ -5,13 +5,14 @@ import { AllowPendingPrivacyNotice, EventSessionGuard, VerifiedEventActor } from
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { PublicRateLimit, zodBody } from '@prism/kernel/shared';
-import { changeOwnPasswordSchema, updateOwnProfileSchema, type ChangeOwnPasswordInput, type UpdateOwnProfileInput } from '@prism/types';
+import { changeOwnPasswordSchema, confirmOwnPasswordSchema, enableOwnTwoFactorSchema, updateOwnProfileSchema, type ChangeOwnPasswordInput, type ConfirmOwnPasswordInput, type EnableOwnTwoFactorInput, type UpdateOwnProfileInput } from '@prism/types';
 import { acknowledgePrivacyNoticeSchema, activateAccountSchema, consumePasswordResetSchema, createAccountInvitationSchema, loginSchema, requestApprovalSchema, requestPasswordResetSchema, twoFactorTokenSchema, verifyTwoFactorSchema, type AcknowledgePrivacyNoticeInput, type ActivateAccountInput, type ConsumePasswordResetInput, type CreateAccountInvitationInput, type LoginInput, type RequestApprovalInput, type RequestPasswordResetInput, type TwoFactorTokenInput, type VerifyTwoFactorInput } from '@prism/types';
 import { AuthOperationsService } from '../../application/auth/auth-operations.service';
 import { PasswordResetService } from '../../application/auth/password-reset.service';
 import { AccountActivationService } from '../../application/auth/account-activation.service';
 import { AccountInvitationService } from '../../application/auth/account-invitation.service';
 import { OwnSessionsService } from '../../application/auth/own-sessions.service';
+import { OwnTwoFactorService } from '../../application/auth/own-two-factor.service';
 
 @Controller('auth')
 export class OpsAuthController {
@@ -22,6 +23,7 @@ export class OpsAuthController {
     private readonly accountActivationService: AccountActivationService,
     private readonly accountInvitationService: AccountInvitationService,
     private readonly ownSessions: OwnSessionsService,
+    private readonly ownTwoFactor: OwnTwoFactorService,
   ) {}
 
   private async requireAdmin(actor: PrismVerifiedEventActor): Promise<ResolvedEventOpsActor> {
@@ -152,6 +154,30 @@ export class OpsAuthController {
   @UseGuards(EventSessionGuard)
   mySignIns(@VerifiedEventActor() actor: PrismVerifiedEventActor) {
     return this.authOperationsService.listOwnSignIns(actor);
+  }
+
+  /** Starts adding an authenticator app; two-step sign-in stays off until a code from it is confirmed. */
+  @Post('me/two-factor/setup')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.OK)
+  startMyTwoFactor(@Body(zodBody(confirmOwnPasswordSchema)) dto: ConfirmOwnPasswordInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.ownTwoFactor.start(actor, dto.password);
+  }
+
+  /** Turns two-step sign-in on with a code from the authenticator just added. */
+  @Post('me/two-factor/enable')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  enableMyTwoFactor(@Body(zodBody(enableOwnTwoFactorSchema)) dto: EnableOwnTwoFactorInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.ownTwoFactor.enable(actor, dto.code);
+  }
+
+  /** Turns two-step sign-in off; PMCM staff keep it. */
+  @Post('me/two-factor/disable')
+  @UseGuards(EventSessionGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  disableMyTwoFactor(@Body(zodBody(confirmOwnPasswordSchema)) dto: ConfirmOwnPasswordInput, @VerifiedEventActor() actor: PrismVerifiedEventActor) {
+    return this.ownTwoFactor.disable(actor, dto.password);
   }
 
   /** The browsers the signed-in person is signed in on now. */

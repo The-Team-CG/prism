@@ -54,6 +54,11 @@ function isPrismaSerializationFailure(error: unknown) {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2034';
 }
 
+/** PMCM admins always sign in with a second step; anyone else does once they have turned two-step sign-in on. */
+function needsSecondStep(user: Pick<OpsUser, 'role' | 'twoFactorSecret'>) {
+  return user.role === OpsUserRole.PmcmAdmin || Boolean(user.twoFactorSecret);
+}
+
 function hashTwoFactorChallenge(challengeId: string) {
   return createHash('sha256').update(challengeId, 'utf8').digest('hex');
 }
@@ -135,9 +140,9 @@ export class AuthOperationsService {
   }
 
   private async recordPasswordVerified(user: OpsUser, normalizedEmail: string, password: string, device?: string) {
-    // PMCM admins still need a second factor, so their lock counters reset only when a session is issued
+    // Anyone with a second step still to pass has their lock counters reset only when a session is issued
     // (see verifyTwoFactor). Everyone else's counters reset here.
-    const requiresTwoFactor = user.role === OpsUserRole.PmcmAdmin;
+    const requiresTwoFactor = needsSecondStep(user);
     const updated = await this.prisma.opsUser.update({
       where: { id: user.id },
       data: {
@@ -175,7 +180,7 @@ export class AuthOperationsService {
       await this.inquiryCommands.markPortalInvitationOpenedByEmail(updated.email);
     }
 
-    if (updated.role === OpsUserRole.PmcmAdmin) {
+    if (needsSecondStep(updated)) {
       const challengeId = randomBytes(32).toString('base64url');
       const issuedAt = new Date();
       const expiresAt = this.authSessionService.twoFactorTokenExpiresAt(issuedAt);
@@ -184,7 +189,7 @@ export class AuthOperationsService {
         {
           userId: updated.id,
           email: updated.email,
-          role: 'pmcm-admin',
+          role: updated.role as PrismUser['role'],
           challengeId,
           sessionVersion: updated.sessionVersion,
         },
@@ -195,7 +200,7 @@ export class AuthOperationsService {
         where: {
           id: updated.id,
           email: updated.email,
-          role: OpsUserRole.PmcmAdmin,
+          role: updated.role,
           approvalStatus: 'approved',
           sessionVersion: updated.sessionVersion,
           permanentLockout: false,
@@ -236,7 +241,9 @@ export class AuthOperationsService {
 
   async setupTwoFactor(token: string) {
     const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
-    if (verifiedToken.purpose !== 'setup') throw new ForbiddenException('Two-factor setup is not available for this token');
+    if (verifiedToken.purpose !== 'setup' || verifiedToken.role !== OpsUserRole.PmcmAdmin) {
+      throw new ForbiddenException('Two-factor setup is not available for this token');
+    }
     const user = await this.findTwoFactorUser(verifiedToken);
     if (user.twoFactorSecret) throw new ForbiddenException('Two-factor setup has already started for this challenge');
     const secret = this.totpService.generateSecret();
@@ -361,7 +368,7 @@ export class AuthOperationsService {
 
   private matchesTwoFactorIdentity(user: OpsUser, verifiedToken: VerifiedTwoFactorToken): boolean {
     return canonicalAccountEmail(user.email) === canonicalAccountEmail(verifiedToken.email)
-      && user.role === OpsUserRole.PmcmAdmin
+      && user.role === verifiedToken.role
       && user.sessionVersion === verifiedToken.sessionVersion;
   }
 
@@ -377,7 +384,7 @@ export class AuthOperationsService {
     return {
       id: verifiedToken.userId,
       email: verifiedToken.email,
-      role: OpsUserRole.PmcmAdmin,
+      role: verifiedToken.role,
       approvalStatus: 'approved',
       sessionVersion: verifiedToken.sessionVersion,
       permanentLockout: false,
@@ -658,12 +665,13 @@ export class AuthOperationsService {
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.opsUser.findUnique({ where: { id: userId } });
       if (!user) throw new NotFoundException('Account not found');
-      if (user.role !== OpsUserRole.PmcmAdmin) throw new BadRequestException('Two-factor reset applies only to PMCM admin accounts');
-      // Bumping sessionVersion revokes every open session; the next sign-in starts two-factor setup again.
+      // Bumping sessionVersion revokes every open session. A PMCM admin's next sign-in starts two-factor setup again;
+      // anyone else signs in with their password and can turn two-step sign-in back on from their account page.
       const saved = await tx.opsUser.update({
         where: { id: user.id },
         data: {
           twoFactorSecret: null,
+          twoFactorPendingSecret: null,
           twoFactorChallengeHash: null,
           twoFactorChallengeExpiresAt: null,
           twoFactorChallengeAttempts: 0,

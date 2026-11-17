@@ -9,6 +9,7 @@ import { Button } from "@prism/ui/components/button";
 import { Field } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
 import { Label } from "@prism/ui/components/label";
+import { SignInCodeStep } from "@prism/ui/sign-in-code-step";
 import { CLIENT_PORTAL_POINTS, CLIENT_PORTAL_STATEMENT } from "../model/client-portal-copy";
 import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { useSignInViewModel } from "../view-models/use-sign-in-view-model";
@@ -34,7 +35,7 @@ export function SignInView() {
         </>
       }
     >
-      {vm.signedInUser ? <SignedInCard user={vm.signedInUser} /> : <SignInForm vm={vm} />}
+      {vm.signedInUser ? <SignedInCard user={vm.signedInUser} /> : vm.twoStepToken ? <CodeForm vm={vm} /> : <SignInForm vm={vm} />}
     </PrismAuthShell>
   );
 }
@@ -50,6 +51,27 @@ function SignedInCard({ user }: { user: NonNullable<SignInVm["signedInUser"]> })
         <a href="/dashboard">Continue to dashboard</a>
       </Button>
     </div>
+  );
+}
+
+function CodeForm({ vm }: { vm: SignInVm }) {
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void vm.submit();
+  }
+
+  return (
+    <form className="flex flex-col gap-5" onSubmit={onSubmit} noValidate>
+      <SignInCodeStep code={vm.code} onCodeChange={vm.setCode} busy={vm.busy} invalid={Boolean(vm.error)} errorId="sign-in-error" onBack={vm.backToPassword} />
+      {vm.error ? (
+        <Alert variant="destructive" id="sign-in-error" role="alert">
+          <AlertDescription>{vm.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <Button type="submit" disabled={vm.busy || vm.code.length !== 6} className={prismAuthSubmitClassName("client")}>
+        {vm.busy ? "Checking..." : "Verify code"}
+      </Button>
+    </form>
   );
 }
 

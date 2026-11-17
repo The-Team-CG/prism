@@ -22,6 +22,18 @@ export const changeOwnPasswordSchema = z.object({
 }).strict().refine((input) => input.currentPassword !== input.newPassword, { path: ['newPassword'], message: 'Choose a password you are not using now' });
 export type ChangeOwnPasswordInput = z.infer<typeof changeOwnPasswordSchema>;
 
+/** The current password, to start or turn off the signed-in person's own two-step sign-in. */
+export const confirmOwnPasswordSchema = z.object({
+  password: z.string().min(1, 'Enter your password').max(200),
+}).strict();
+export type ConfirmOwnPasswordInput = z.infer<typeof confirmOwnPasswordSchema>;
+
+/** The six-digit code from the authenticator app that was just set up, which turns two-step sign-in on. */
+export const enableOwnTwoFactorSchema = z.object({
+  code: z.string().regex(/^\d{6}$/, 'Enter the six-digit code from your app'),
+}).strict();
+export type EnableOwnTwoFactorInput = z.infer<typeof enableOwnTwoFactorSchema>;
+
 export const requestPasswordResetSchema = z.object({ email: z.string().trim().email() });
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
 

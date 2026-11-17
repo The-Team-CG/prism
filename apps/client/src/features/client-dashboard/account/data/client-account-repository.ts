@@ -21,6 +21,9 @@ export const clientOwnSessionsResource = defineResource<void, PrismOwnSession[]>
 });
 
 export const clientAccountRepository = {
+  startTwoStep: (password: string) => clientApi.auth.startMyTwoFactor(password),
+  enableTwoStep: (code: string) => clientApi.auth.enableMyTwoFactor(code),
+  disableTwoStep: (password: string) => clientApi.auth.disableMyTwoFactor(password),
   signOutSession: (sessionId: string) => clientApi.auth.signOutSession(sessionId),
   signOutOtherSessions: () => clientApi.auth.signOutOtherSessions(),
   updateName: (input: UpdateOwnProfileInput) => clientApi.auth.updateMe(input),

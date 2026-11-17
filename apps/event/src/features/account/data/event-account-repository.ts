@@ -21,6 +21,9 @@ export const eventOwnSessionsResource = defineResource<void, PrismOwnSession[]>(
 });
 
 export const eventAccountRepository = {
+  startTwoStep: (password: string) => eventApi.auth.startMyTwoFactor(password),
+  enableTwoStep: (code: string) => eventApi.auth.enableMyTwoFactor(code),
+  disableTwoStep: (password: string) => eventApi.auth.disableMyTwoFactor(password),
   signOutSession: (sessionId: string) => eventApi.auth.signOutSession(sessionId),
   signOutOtherSessions: () => eventApi.auth.signOutOtherSessions(),
   updateName: (input: UpdateOwnProfileInput) => eventApi.auth.updateMe(input),

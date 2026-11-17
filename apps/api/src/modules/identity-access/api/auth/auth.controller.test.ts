@@ -16,6 +16,7 @@ import { AuthOperationsService } from '../../application/auth/auth-operations.se
 import { PasswordResetService } from '../../application/auth/password-reset.service';
 import { AccountActivationService } from '../../application/auth/account-activation.service';
 import { OwnSessionsService } from '../../application/auth/own-sessions.service';
+import { OwnTwoFactorService } from '../../application/auth/own-two-factor.service';
 import { AccountInvitationService } from '../../application/auth/account-invitation.service';
 import { OpsAuthController } from './auth.controller';
 const actor: Parameters<OpsAuthController['listApprovalRequests']>[0] = { id: 'u1', actorId: 'u1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01' };
@@ -26,7 +27,7 @@ function controllerPath(controller: Function): string {
 
 describe('OpsAuthController', () => {
   it('refuses a password reset request whose client address is unavailable instead of bucketing it with others', () => {
-    const controller = new OpsAuthController({} as never, {} as never, {} as never, {} as never, {} as never, {} as never);
+    const controller = new OpsAuthController({} as never, {} as never, {} as never, {} as never, {} as never, {} as never, {} as never);
 
     expect(() => controller.requestPasswordReset({ ip: undefined } as never, { email: 'ana@example.test' }))
       .toThrow(InternalServerErrorException);
@@ -78,6 +79,7 @@ describe('OpsAuthController', () => {
       {} as never,
       accountActivationService as never,
       accountInvitationService as never,
+      {} as never,
       {} as never,
     );
 
@@ -136,6 +138,7 @@ describe('OpsAuthController', () => {
         {} as never,
         {} as never,
         {} as never,
+        {} as never,
       );
       const outsider: Parameters<OpsAuthController['listApprovalRequests']>[0] = {
         id: `${role}_1`, actorId: `${role}_1`, role, actorRole: role, email: `${role}@example.test`, actorEmail: `${role}@example.test`,
@@ -164,6 +167,7 @@ describe('OpsAuthController', () => {
         {} as never,
         {} as never,
         accountInvitationService as never,
+        {} as never,
         {} as never,
       );
       const outsider: Parameters<OpsAuthController['listApprovalRequests']>[0] = {
@@ -194,6 +198,7 @@ const getDevelopmentTwoFactorQr = vi.fn(async (_token: string) => ({ otpauthUri:
     { provide: AccountActivationService, useValue: {} },
     { provide: AccountInvitationService, useValue: {} },
     { provide: OwnSessionsService, useValue: {} },
+    { provide: OwnTwoFactorService, useValue: {} },
     { provide: EventAccessPolicyService, useValue: {} },
     { provide: AuthSessionService, useValue: {} },
     { provide: ConfigService, useValue: { get: () => undefined } },

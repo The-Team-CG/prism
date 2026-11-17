@@ -149,6 +149,8 @@ export interface PrismUser {
   lockedUntil?: string | null;
   permanentLockout?: boolean;
   sessionVersion?: number;
+  /** Whether two-step sign-in is on; PMCM's account list shows it so an admin can reset it for a lost phone. */
+  twoFactorEnabled?: boolean;
 }
 
 export interface PrismAuthenticatedSession extends PrismUser {
@@ -177,6 +179,12 @@ export interface PrismTwoFactorRequired {
 export interface PrismTwoFactorSetup {
   kind: "two_factor_setup";
   token: string;
+  secret: string;
+  otpauthUri: string;
+}
+
+/** What the authenticator app needs to add this account; two-step sign-in is on once a code from it is confirmed. */
+export interface PrismOwnTwoFactorSetup {
   secret: string;
   otpauthUri: string;
 }

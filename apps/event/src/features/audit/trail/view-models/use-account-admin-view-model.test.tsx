@@ -53,10 +53,12 @@ describe("account admin confirmations", () => {
     expect(repositoryMock.unlockUser).not.toHaveBeenCalled();
   });
 
-  it("names the account and the consequence in the confirmation", () => {
+  it("names the account and the consequence in the confirmation, which differs for PMCM admins who must keep it", () => {
     expect(pendingActionCopy({ kind: "reset-two-factor", user: marco })).toMatchObject({
       title: "Reset two-factor for Marco Reyes?",
-      description: expect.stringContaining("open sessions end"),
+      description: expect.stringContaining("two-step sign-in turns off"),
     });
+    expect(pendingActionCopy({ kind: "reset-two-factor", user: { ...marco, role: "pmcm-admin" } }).description)
+      .toContain("set up two-factor again at next sign-in");
   });
 });

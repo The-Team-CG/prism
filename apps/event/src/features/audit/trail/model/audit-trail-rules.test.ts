@@ -25,6 +25,12 @@ describe("audit-trail-rules", () => {
       expected: { unlockAccount: true, resetTwoFactor: true, resendInvitation: false },
     },
     {
+      name: "PMCM admin viewing a coordinator who turned two-step sign-in on",
+      user: { ...active, twoFactorEnabled: true },
+      viewer: "pmcm-admin" as const,
+      expected: { unlockAccount: false, resetTwoFactor: true, resendInvitation: false },
+    },
+    {
       name: "PMCM admin viewing an invited coordinator",
       user: { ...active, approvalStatus: "invited" },
       viewer: "pmcm-admin" as const,

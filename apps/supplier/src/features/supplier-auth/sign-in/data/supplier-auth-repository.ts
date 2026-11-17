@@ -18,6 +18,7 @@ import {
   type PrismApprovalRequestReceipt,
   type PrismAuthResponse,
   type PrismAuthenticatedSession,
+  type PrismSignInSession,
   type RequestApprovalInput,
   type RequestPasswordResetInput,
 } from "@prism/types";
@@ -74,6 +75,14 @@ export const supplierAuthRepository = {
   login(input: LoginInput): Promise<PrismAuthResponse> {
     return runSupplierAuthRequest(
       () => supplierAuthClient.auth.login(input),
+      "Supplier sign in failed",
+    );
+  },
+
+  /** Finishes a two-step sign-in with the code from the authenticator app. */
+  verifyTwoStep(token: string, code: string): Promise<PrismSignInSession> {
+    return runSupplierAuthRequest(
+      () => supplierAuthClient.auth.verifyTwoFactor({ token, code }),
       "Supplier sign in failed",
     );
   },

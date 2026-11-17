@@ -7,6 +7,7 @@ import {
   isPrismAuthenticatedSession,
   type ActivateAccountInput,
   type PrismAuthenticatedSession,
+  type PrismAuthResponse,
   type PrismSignInSession,
   type PrivacyConsentInput,
 } from "@prism/types";
@@ -17,13 +18,14 @@ export type ClientAuthSession = PrismAuthenticatedSession;
 export type ClientAccountActivationOutcome = { status: "activated" } | { status: "invalid_token" };
 
 export const clientAuthRepository = {
-  login(input: { email: string; password: string }): Promise<PrismSignInSession> {
-    return clientApi.auth.login(input).then((response) => {
-      if (!isPrismAuthenticatedSession(response)) {
-        throw new Error("Client sign-in requires an authenticated session.");
-      }
-      return response;
-    });
+  /** A session, or a two-step challenge when the account has two-step sign-in on. */
+  login(input: { email: string; password: string }): Promise<PrismAuthResponse> {
+    return clientApi.auth.login(input);
+  },
+
+  /** Finishes a two-step sign-in with the code from the authenticator app. */
+  verifyTwoStep(token: string, code: string): Promise<PrismSignInSession> {
+    return clientApi.auth.verifyTwoFactor({ token, code });
   },
 
   hasSignedInSession(): boolean {
