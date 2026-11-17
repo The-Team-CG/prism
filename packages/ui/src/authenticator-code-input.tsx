@@ -1,20 +1,24 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { cn } from "@/app/components/ui/utils";
+import { cn } from "./utils";
 
 const CODE_LENGTH = 6;
 
+/** Six boxes for an authenticator code over one real input, so paste, autofill and the phone's number pad all work. */
 export function AuthenticatorCodeInput({
   value,
   onChange,
   disabled = false,
   invalid = false,
+  errorId,
 }: {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
   invalid?: boolean;
+  /** The id of the message that explains an invalid code. */
+  errorId?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
@@ -27,6 +31,7 @@ export function AuthenticatorCodeInput({
         id="two-factor-code"
         type="text"
         inputMode="numeric"
+        aria-label="Authenticator code"
         autoComplete="one-time-code"
         autoFocus
         spellCheck={false}
@@ -34,7 +39,7 @@ export function AuthenticatorCodeInput({
         required
         disabled={disabled}
         aria-invalid={invalid}
-        aria-describedby={invalid ? "event-sign-in-error" : undefined}
+        aria-describedby={invalid ? errorId : undefined}
         value={value}
         onChange={(event) => {
           const digits = event.target.value.replace(/\D/g, "").slice(0, CODE_LENGTH);

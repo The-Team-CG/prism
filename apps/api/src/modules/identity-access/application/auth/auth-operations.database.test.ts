@@ -11,6 +11,7 @@ import type { AuthAuditPort } from '../../contracts/auth-audit.port';
 import { AuthAuditAdapter } from '../../infrastructure/auth/auth-audit.adapter';
 import { AuthOperationsService } from './auth-operations.service';
 import { OwnSessionsService } from './own-sessions.service';
+import { OwnTwoFactorService } from './own-two-factor.service';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 
 const databaseUrl = process.env.P0_TEST_DATABASE_URL?.trim();
@@ -26,6 +27,8 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
   const challengeUserId = `${prefix}_challenge_user`;
   const challengeEmail = `${prefix}_challenge@example.test`;
   const devicesUserId = `${prefix}_devices_user`;
+  const twoStepUserId = `${prefix}_two_step_user`;
+  const twoStepEmail = `${prefix}_two_step@example.test`;
   const devicesEmail = `${prefix}_devices@example.test`;
   const secret = 'p0-account-approval-session-secret-long-enough';
   let prisma: PrismaService;
@@ -99,6 +102,17 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       sessionVersion: 0,
     } });
     await prisma.opsUser.create({ data: {
+      id: twoStepUserId,
+      name: 'P0 Two Step Fixture',
+      email: twoStepEmail,
+      password: await AuthSecurityService.hashPassword('P0-two-step-password-long-enough'),
+      role: 'supplier',
+      organization: prefix,
+      approvalStatus: 'approved',
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      sessionVersion: 0,
+    } });
+    await prisma.opsUser.create({ data: {
       id: failureUserId,
       name: 'P0 Audit Rollback Fixture',
       email: `${prefix}_failure@example.test`,
@@ -125,7 +139,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
   afterAll(async () => {
     if (!prisma) return;
     await prisma.opsApprovalRequest.deleteMany({ where: { userId: { in: [userId, failureUserId] } } });
-    await prisma.opsUser.deleteMany({ where: { id: { in: [userId, failureUserId, challengeUserId, devicesUserId] } } });
+    await prisma.opsUser.deleteMany({ where: { id: { in: [userId, failureUserId, challengeUserId, devicesUserId, twoStepUserId] } } });
     await prisma.$disconnect();
   }, 30_000);
 
@@ -318,6 +332,51 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
     await expect(allowed(laptop)).rejects.toThrow(/signed out/i);
     await expect(allowed(newPhone)).resolves.toBe(true);
     await expect(signIn.logout(onLaptop)).rejects.toThrow(/already been revoked/i);
+  });
+
+  it('lets a supplier turn two-step sign-in on with a confirmed code, then asks for a code at sign-in until they turn it off', async () => {
+    const quietAudit: AuthAuditPort = {
+      write: async () => undefined,
+      recordAuthenticationAudit: async () => undefined,
+      recordLoginHistory: async () => undefined,
+      handleFailedLogin: async () => undefined,
+      handleForbiddenAccess: async () => undefined,
+      listLoginHistory: async () => [],
+    };
+    // Codes are checked against the stored secret, so a code is right only for the secret it was made from.
+    const totp = {
+      generateSecret: () => 'APPSECRET',
+      encryptSecret: (secret: string) => `enc:${secret}`,
+      decryptSecret: (stored: string) => stored.replace(/^enc:/, ''),
+      verifyCode: (secret: string, code: string) => secret === 'APPSECRET' && code === '246810',
+      otpauthUri: (secret: string, email: string) => `otpauth://totp/PRISM:${email}?secret=${secret}`,
+    };
+    const signIn = new AuthOperationsService(prisma, quietAudit, {} as never, sessions, totp as never);
+    const twoStep = new OwnTwoFactorService(prisma, quietAudit, signIn, totp as never);
+    const password = 'P0-two-step-password-long-enough';
+    const first = await signIn.login(twoStepEmail, password, 'Mozilla/5.0 (Windows NT 10.0) Chrome/131.0');
+    if (!('accessToken' in first)) throw new Error('Expected a session before two-step sign-in is on');
+    const actor = sessions.verifyAccessToken(first.accessToken);
+
+    await expect(twoStep.start(actor, 'not-the-password')).rejects.toThrow(/not right/i);
+    await expect(twoStep.start(actor, password)).resolves.toEqual({ secret: 'APPSECRET', otpauthUri: expect.stringContaining(twoStepEmail) });
+    await expect(twoStep.enable(actor, '000000')).rejects.toThrow(/code is not right/i);
+    await expect(prisma.opsUser.findUniqueOrThrow({ where: { id: twoStepUserId } })).resolves.toMatchObject({ twoFactorSecret: null, twoFactorPendingSecret: 'enc:APPSECRET' });
+    await twoStep.enable(actor, '246810');
+    await expect(prisma.opsUser.findUniqueOrThrow({ where: { id: twoStepUserId } })).resolves.toMatchObject({ twoFactorSecret: 'enc:APPSECRET', twoFactorPendingSecret: null });
+    await expect(twoStep.start(actor, password)).rejects.toThrow(/already on/i);
+
+    const challenged = await signIn.login(twoStepEmail, password);
+    expect(challenged).toMatchObject({ kind: 'two_factor_required' });
+    if (!('token' in challenged)) throw new Error('Expected a two-step challenge');
+    await expect(signIn.setupTwoFactor(challenged.token)).rejects.toThrow(/not available/i);
+    await expect(signIn.verifyTwoFactor(challenged.token, '135790')).rejects.toThrow(/invalid two-factor code/i);
+    const second = await signIn.verifyTwoFactor(challenged.token, '246810', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1');
+    expect(second).toMatchObject({ role: 'supplier', accessToken: expect.any(String) });
+
+    await twoStep.disable(actor, password);
+    await expect(signIn.login(twoStepEmail, password)).resolves.toMatchObject({ accessToken: expect.any(String) });
+    await expect(twoStep.disable({ ...actor, role: 'pmcm-admin', actorRole: 'pmcm-admin' }, password)).rejects.toThrow(/required for PMCM staff/i);
   });
 
   it('rejects non-canonical and case-variant account emails in direct SQL', async () => {

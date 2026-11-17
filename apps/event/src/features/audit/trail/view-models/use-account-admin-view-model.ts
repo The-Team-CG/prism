@@ -12,9 +12,14 @@ type AccountFeedback = InvitationOutcomeFeedback & { userId: string };
 export type PendingAccountAction = { kind: "unlock" | "reset-two-factor"; user: PrismUser };
 
 export function pendingActionCopy({ kind, user }: PendingAccountAction) {
-  return kind === "unlock"
-    ? { title: `Unlock ${user.name}'s account?`, description: "This clears the lock and the failed-attempt count.", confirmLabel: "Unlock account" }
-    : { title: `Reset two-factor for ${user.name}?`, description: "Their open sessions end and they set up two-factor again at next sign-in.", confirmLabel: "Reset two-factor" };
+  if (kind === "unlock") {
+    return { title: `Unlock ${user.name}'s account?`, description: "This clears the lock and the failed-attempt count.", confirmLabel: "Unlock account" };
+  }
+  // PMCM admins must have two-step sign-in, so theirs is set up again; anyone else's turns off until they turn it back on.
+  const description = user.role === "pmcm-admin"
+    ? "Their open sessions end and they set up two-factor again at next sign-in."
+    : "Their open sessions end and two-step sign-in turns off. They sign in with their password and can turn it back on from Account.";
+  return { title: `Reset two-factor for ${user.name}?`, description, confirmLabel: "Reset two-factor" };
 }
 
 const emptyDraft: StaffInvitationDraft = { name: "", email: "", organization: "", role: "coordinator" };

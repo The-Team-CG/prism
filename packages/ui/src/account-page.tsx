@@ -8,6 +8,7 @@ import { LoadingState } from "./components/ui/loading-state";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./components/ui/sheet";
 import { NameEditor, PasswordChanger, SignInList, type AccountChange } from "./account-security";
 import { SessionList, devicesValue } from "./account-sessions";
+import { TwoStepPanel, type AccountTwoStepActions } from "./account-two-step";
 import { formatPortalDate, formatPortalDateTime, manilaCalendarKey } from "./format-date";
 import { cn } from "./utils";
 
@@ -39,6 +40,8 @@ export type AccountActions = {
   signOutSession?: AccountChange<string>;
   /** Signs out every browser but this one. */
   signOutOtherSessions?: AccountChange<void>;
+  /** Turns two-step sign-in on or off. */
+  twoStep?: AccountTwoStepActions;
 };
 
 export type AccountSecuritySummary = {
@@ -49,7 +52,7 @@ export type AccountSecuritySummary = {
   twoFactorRequired: boolean;
 };
 
-type Panel = "name" | "password" | "devices" | "sign-ins" | "notifications";
+type Panel = "name" | "password" | "two-step" | "devices" | "sign-ins" | "notifications";
 
 const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "?";
 
@@ -132,7 +135,7 @@ function SecurityGroup({ security, actions, signIns, sessions, open }: {
   return (
     <Group title="Sign-in and security">
       {actions.changePassword ? <Row label="Password" value="Change it any time" onOpen={() => open("password")} /> : null}
-      <Row label="Two-step sign-in" value={twoStepValue(security)} />
+      <Row label="Two-step sign-in" value={twoStepValue(security)} onOpen={actions.twoStep ? () => open("two-step") : undefined} />
       {sessions ? <Row label="Devices" value={devicesValue(sessions)} onOpen={() => open("devices")} /> : null}
       <Row label="Recent sign-ins" value={latestSignIn(signIns, security)} onOpen={signIns ? () => open("sign-ins") : undefined} />
     </Group>
@@ -168,6 +171,7 @@ function HelpGroup({ contact, privacy, links }: { contact: AccountContact | null
 const PANEL_TITLES: Record<Panel, { title: string; description: string }> = {
   name: { title: "Your name", description: "How PMCM and your events show you." },
   password: { title: "Change your password", description: "This signs you out everywhere, including here. You sign in again with the new one." },
+  "two-step": { title: "Two-step sign-in", description: "A code from your phone after your password, so a password alone is not enough to sign in as you." },
   devices: { title: "Where you're signed in", description: "Sign out any device you no longer use or don't recognise. To sign out here, use Sign out in the menu." },
   "sign-ins": { title: "Recent sign-ins", description: "Your last 10. Anything you don't recognise? Change your password." },
   notifications: { title: "Notifications", description: "How PMCM reaches you." },
@@ -176,6 +180,7 @@ const PANEL_TITLES: Record<Panel, { title: string; description: string }> = {
 type PanelProps = {
   panel: Panel | null;
   identity: AccountIdentity | null;
+  security: AccountSecuritySummary | null;
   actions: AccountActions;
   signIns: PrismOwnSignIn[] | null;
   sessions: PrismOwnSession[] | null;
@@ -190,6 +195,10 @@ const PANEL_BODIES: Record<Panel, (props: PanelProps) => ReactNode> = {
     <NameEditor name={identity.name} save={actions.saveName} onDone={() => onPanel(null)} onSaved={() => onSaved("Name saved. The menu shows it after your next sign-in.")} />
   ) : null,
   password: ({ actions, onPanel }) => actions.changePassword ? <PasswordChanger change={actions.changePassword} onCancel={() => onPanel(null)} /> : null,
+  "two-step": ({ security, actions, onPanel, onSaved }) => security && actions.twoStep ? (
+    <TwoStepPanel enabled={security.twoFactorEnabled} required={security.twoFactorRequired} actions={actions.twoStep}
+      onDone={(note) => { onPanel(null); onSaved(note); }} />
+  ) : null,
   devices: ({ sessions, actions }) => sessions ? <SessionList sessions={sessions} signOut={actions.signOutSession} signOutOthers={actions.signOutOtherSessions} /> : null,
   "sign-ins": ({ signIns, actions, onPanel }) => signIns ? (
     <div className="space-y-3">
@@ -269,7 +278,7 @@ export function AccountScreen({ identity, loading, error, security, notification
         <Row label="Channels" value="Email and Viber" onOpen={() => setPanel("notifications")} />
       </Group>
       <HelpGroup contact={contact} privacy={privacy} links={links} />
-      <AccountPanel panel={panel} identity={identity} actions={actions} signIns={signIns} sessions={sessions} notifications={notifications} onPanel={setPanel} onSaved={setNote} />
+      <AccountPanel panel={panel} identity={identity} security={security} actions={actions} signIns={signIns} sessions={sessions} notifications={notifications} onPanel={setPanel} onSaved={setNote} />
     </div>
   );
 }

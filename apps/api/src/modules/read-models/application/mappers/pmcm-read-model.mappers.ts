@@ -65,6 +65,7 @@ export function mapUser(user: OpsUser) {
     lastLoginAt: user.lastLoginAt ? timestamp(user.lastLoginAt) : null,
     lockedUntil: user.lockedUntil ? timestamp(user.lockedUntil) : null,
     permanentLockout: user.permanentLockout,
+    twoFactorEnabled: Boolean(user.twoFactorSecret),
   };
 }
 

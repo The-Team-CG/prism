@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { AuthenticatorCodeInput } from "./authenticator-code-input";
+import { AuthenticatorCodeInput } from "@prism/ui/authenticator-code-input";
 
 afterEach(cleanup);
 

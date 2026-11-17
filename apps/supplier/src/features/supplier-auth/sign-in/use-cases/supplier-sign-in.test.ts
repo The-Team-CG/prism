@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismAuthenticatedSession } from "@prism/types";
 import { supplierAuthRepository } from "../data/supplier-auth-repository";
-import { signInSupplier } from "./supplier-sign-in";
+import { signInSupplier, verifySupplierSignInCode } from "./supplier-sign-in";
 
 const supplierSession: PrismAuthenticatedSession = {
   id: "supplier_1",
@@ -36,16 +36,28 @@ describe("signInSupplier", () => {
     expect(result).toEqual({ session: signedIn, redirectTo: "/dashboard/quotes" });
   });
 
-  it("sends PMCM two-factor responses to the event portal", async () => {
-    vi.spyOn(supplierAuthRepository, "login").mockResolvedValue({
-      kind: "two_factor_required",
-      token: "two-factor-token",
-    });
+  it("asks for the authenticator code when the account has two-step sign-in on, then signs in with it", async () => {
+    vi.spyOn(supplierAuthRepository, "login").mockResolvedValue({ kind: "two_factor_required", token: "two-step-token" });
+    const verify = vi.spyOn(supplierAuthRepository, "verifyTwoStep").mockResolvedValue({ ...supplierSession, privacyNoticeRequired: false });
     const saveSession = vi.spyOn(supplierAuthRepository, "saveSession");
 
-    await expect(
-      signInSupplier({ draft: { email: "pmcm@example.test", password: "pmcm-password" } }),
-    ).rejects.toThrow("event command portal");
+    await expect(signInSupplier({ draft: { email: "supplier@example.test", password: "supplier-password" } }))
+      .resolves.toEqual({ twoStepToken: "two-step-token" });
+    expect(saveSession).not.toHaveBeenCalled();
+
+    await expect(verifySupplierSignInCode({ token: "two-step-token", code: "246810", nextPath: "/dashboard/quotes" }))
+      .resolves.toMatchObject({ redirectTo: "/dashboard/quotes" });
+    expect(verify).toHaveBeenCalledWith("two-step-token", "246810");
+    expect(saveSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends PMCM accounts to the event portal, whether they need two-step setup or pass the code", async () => {
+    vi.spyOn(supplierAuthRepository, "login").mockResolvedValue({ kind: "two_factor_setup_required", token: "setup-token" });
+    vi.spyOn(supplierAuthRepository, "verifyTwoStep").mockResolvedValue({ ...supplierSession, role: "pmcm-admin", privacyNoticeRequired: false });
+    const saveSession = vi.spyOn(supplierAuthRepository, "saveSession");
+
+    await expect(signInSupplier({ draft: { email: "pmcm@example.test", password: "pmcm-password" } })).rejects.toThrow("event command portal");
+    await expect(verifySupplierSignInCode({ token: "two-step-token", code: "246810" })).rejects.toThrow("event command portal");
     expect(saveSession).not.toHaveBeenCalled();
   });
 });

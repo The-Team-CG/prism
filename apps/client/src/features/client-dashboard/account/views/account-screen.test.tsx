@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AccountScreen, failedSinceLastVisit } from "@prism/ui/account-page";
 import { devicesValue } from "@prism/ui/account-sessions";
+import { signInCodeProblem } from "@prism/ui/sign-in-code-step";
 
 afterEach(cleanup);
 
@@ -117,6 +118,58 @@ describe("AccountScreen panels", () => {
     expect(devicesValue([session("a", true)])).toBe("This device only");
     expect(devicesValue([session("a", true), session("b", false)])).toBe("This device and 1 other");
     expect(devicesValue([session("a", false), session("b", false)])).toBe("2 devices");
+  });
+
+  it("turns two-step sign-in on only after the password and a working code from the app just added", async () => {
+    const start = vi.fn()
+      .mockResolvedValueOnce({ error: "That password is not right." })
+      .mockResolvedValueOnce({ setup: { secret: "JBSWY3DPEHPK3PXP", otpauthUri: "otpauth://totp/PRISM:ana@ayala.test?secret=JBSWY3DPEHPK3PXP" } });
+    const enable = vi.fn().mockResolvedValueOnce("That code is not right. Enter the newest code your app shows.").mockResolvedValueOnce(null);
+    render(<AccountScreen {...base} actions={{ twoStep: { start, enable, disable: vi.fn() } }} />);
+    fireEvent.click(group("Sign-in and security").getByRole("button", { name: "Two-step sign-in: Off" }));
+    const continueButton = () => dialog().getByRole("button", { name: "Continue" }) as HTMLButtonElement;
+    expect(continueButton().disabled).toBe(true);
+    fireEvent.change(dialog().getByLabelText("Your password"), { target: { value: "wrong-password" } });
+    fireEvent.click(continueButton());
+    expect((await dialog().findByRole("alert")).textContent).toBe("That password is not right.");
+    fireEvent.change(dialog().getByLabelText("Your password"), { target: { value: "right-password" } });
+    fireEvent.click(continueButton());
+    expect(await dialog().findByRole("img", { name: "QR code for your authenticator app" })).toBeTruthy();
+    expect(dialog().getByText("JBSW Y3DP EHPK 3PXP")).toBeTruthy();
+    expect(start).toHaveBeenLastCalledWith("right-password");
+    const turnOn = () => dialog().getByRole("button", { name: "Turn on" }) as HTMLButtonElement;
+    fireEvent.change(dialog().getByLabelText("Authenticator code", { selector: "input" }), { target: { value: "12345" } });
+    expect(turnOn().disabled).toBe(true);
+    fireEvent.change(dialog().getByLabelText("Authenticator code", { selector: "input" }), { target: { value: "123456" } });
+    fireEvent.click(turnOn());
+    expect((await dialog().findByRole("alert")).textContent).toMatch(/code is not right/);
+    fireEvent.click(turnOn());
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(enable).toHaveBeenLastCalledWith("123456");
+    expect(screen.getByRole("status").textContent).toMatch(/^Two-step sign-in is on/);
+  });
+
+  it("turns two-step sign-in off with the password, but PMCM staff only read why it stays on", async () => {
+    const disable = vi.fn(async () => null);
+    const twoStep = { start: vi.fn(), enable: vi.fn(), disable };
+    const { unmount } = render(<AccountScreen {...base} security={{ ...security, twoFactorEnabled: true }} actions={{ twoStep }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Two-step sign-in: On" }));
+    fireEvent.change(dialog().getByLabelText("Your password"), { target: { value: "right-password" } });
+    fireEvent.click(dialog().getByRole("button", { name: "Turn off" }));
+    await waitFor(() => expect(disable).toHaveBeenCalledWith("right-password"));
+    expect((await screen.findByRole("status")).textContent).toMatch(/^Two-step sign-in is off/);
+    unmount();
+
+    render(<AccountScreen {...base} security={{ ...security, twoFactorEnabled: true, twoFactorRequired: true }} actions={{ twoStep }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Two-step sign-in: On, required for PMCM staff" }));
+    expect(dialog().getByText(/PMCM staff always sign in with a code/)).toBeTruthy();
+    expect(dialog().queryByRole("button", { name: "Turn off" })).toBeNull();
+  });
+
+  it("tells someone at the sign-in code step whether to retry the code or start over", () => {
+    expect(signInCodeProblem("Invalid two-factor code")).toEqual({ text: "That code is not right. Enter the newest code from your app.", restart: false });
+    expect(signInCodeProblem("Invalid, expired, or already-used two-factor token")).toMatchObject({ restart: true });
+    expect(signInCodeProblem("This account is currently locked")).toEqual({ text: "This account is currently locked", restart: false });
   });
 
   it("opens the notification channels from their row", () => {

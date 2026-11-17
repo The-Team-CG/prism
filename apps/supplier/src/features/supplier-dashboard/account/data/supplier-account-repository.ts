@@ -21,6 +21,9 @@ export const supplierOwnSessionsResource = defineResource<void, PrismOwnSession[
 });
 
 export const supplierAccountRepository = {
+  startTwoStep: (password: string) => supplierApi.auth.startMyTwoFactor(password),
+  enableTwoStep: (code: string) => supplierApi.auth.enableMyTwoFactor(code),
+  disableTwoStep: (password: string) => supplierApi.auth.disableMyTwoFactor(password),
   signOutSession: (sessionId: string) => supplierApi.auth.signOutSession(sessionId),
   signOutOtherSessions: () => supplierApi.auth.signOutOtherSessions(),
   updateName: (input: UpdateOwnProfileInput) => supplierApi.auth.updateMe(input),
