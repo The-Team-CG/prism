@@ -50,9 +50,9 @@ function useSubmit<Input>(change: AccountChange<Input>, onDone: () => void) {
 }
 
 /** Editing one's own name in place; the sidebar shows it after the next sign-in, since sessions carry the name. */
-export function NameEditor({ name, save, onDone }: { name: string; save: AccountChange<{ name: string }>; onDone: () => void }) {
+export function NameEditor({ name, save, onDone, onSaved }: { name: string; save: AccountChange<{ name: string }>; onDone: () => void; onSaved?: () => void }) {
   const [value, setValue] = useState(name);
-  const submit = useSubmit(save, onDone);
+  const submit = useSubmit(save, () => { onSaved?.(); onDone(); });
   const onSubmit = (event: FormEvent) => { event.preventDefault(); void submit.run({ name: value.trim() }); };
   return (
     <form onSubmit={onSubmit} className="w-full max-w-sm space-y-2" aria-label="Edit your name">
@@ -89,15 +89,14 @@ export function PasswordChanger({ change, onCancel }: { change: AccountChange<{ 
   const problem = passwordProblem(current, next, repeat);
   const onSubmit = (event: FormEvent) => { event.preventDefault(); if (!problem) void submit.run({ currentPassword: current, newPassword: next }); };
   return (
-    <form onSubmit={onSubmit} className="space-y-3 border-t border-border pt-3" aria-label="Change your password">
+    <form onSubmit={onSubmit} className="space-y-3" aria-label="Change your password">
       <Field label="Current password" type="password" value={current} onChange={setCurrent} autoComplete="current-password" />
       <Field label="New password" type="password" value={next} onChange={setNext} autoComplete="new-password" hint={`At least ${MIN_PASSWORD} characters.`} />
       <Field label="New password again" type="password" value={repeat} onChange={setRepeat} autoComplete="new-password" />
       {current && next && problem ? <p className="text-xs text-muted-foreground">{problem}</p> : null}
       {submit.error ? <p role="alert" className="text-sm text-danger">{submit.error}</p> : null}
-      <p className="text-xs text-muted-foreground">This signs you out everywhere, including here. Sign in again with your new password.</p>
       <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={submit.busy || problem !== null}>{submit.busy ? "Changing…" : "Change password"}</Button>
+        <Button type="submit" size="sm" disabled={submit.busy || problem !== null}>{submit.busy ? "Changing…" : "Change and sign out"}</Button>
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
       </div>
     </form>
@@ -112,10 +111,12 @@ export function SignInList({ signIns }: { signIns: PrismOwnSignIn[] }) {
       {signIns.map((signIn) => {
         const Icon = signIn.succeeded ? CheckCircle2 : XCircle;
         return (
-          <li key={signIn.id} className="flex items-center gap-3 py-2">
-            <Icon aria-hidden className={cn("size-4 shrink-0", signIn.succeeded ? "text-success" : "text-danger")} />
-            <span className="min-w-0 flex-1 truncate text-foreground">{signIn.device}</span>
-            <span className={cn("shrink-0 text-xs", signIn.succeeded ? "text-muted-foreground" : "font-medium text-danger")}>{signIn.succeeded ? "" : "Failed · "}{formatPortalDateTime(signIn.at)}</span>
+          <li key={signIn.id} className="flex items-start gap-3 py-2">
+            <Icon aria-hidden className={cn("mt-0.5 size-4 shrink-0", signIn.succeeded ? "text-success" : "text-danger")} />
+            <span className="min-w-0 flex-1">
+              <span className="block break-words text-foreground">{signIn.device}</span>
+              <span className={cn("block text-xs", signIn.succeeded ? "text-muted-foreground" : "font-medium text-danger")}>{signIn.succeeded ? "" : "Failed · "}{formatPortalDateTime(signIn.at)}</span>
+            </span>
           </li>
         );
       })}
