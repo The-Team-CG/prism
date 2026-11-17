@@ -1,7 +1,6 @@
 import {
   PRISM_PRIVACY_REQUEST_UNASSIGNED,
   type ListPrivacyRequestsQueryInput,
-  type PrismPrivacyRequest,
   type PrivacyRequestStatusFilter,
 } from "@prism/types";
 
@@ -52,21 +51,8 @@ export function privacyQueueQuery(
 }
 
 /** Query string for the queue endpoint; empty filters are omitted so the API applies its defaults. */
-const DAY_MS = 24 * 60 * 60 * 1000;
-
 /** Executed, rejected and withdrawn requests are closed: no countdown and no actions. */
 export function isClosedPrivacyRequest(status: string): boolean {
   return status === "executed" || status === "rejected" || status === "cancelled";
 }
 
-/** Human deadline copy. Closed requests never show a countdown. */
-export function privacyDeadlineLabel(request: Pick<PrismPrivacyRequest, "status" | "dueAt" | "overdue">, now: Date): string {
-  const dueDate = request.dueAt.slice(0, 10);
-  if (isClosedPrivacyRequest(request.status)) return "Closed";
-  if (request.overdue) {
-    const days = Math.max(1, Math.floor((now.getTime() - Date.parse(request.dueAt)) / DAY_MS));
-    return `Overdue by ${days} ${days === 1 ? "day" : "days"} (due ${dueDate})`;
-  }
-  const daysLeft = Math.max(0, Math.ceil((Date.parse(request.dueAt) - now.getTime()) / DAY_MS));
-  return `Due ${dueDate} (${daysLeft} ${daysLeft === 1 ? "day" : "days"} left)`;
-}

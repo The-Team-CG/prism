@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useInvalidate, useResource } from "@prism/portal-query";
-import type { PrivacyRequestChoice } from "@prism/ui/privacy-requests";
+import { savePrivacyDownload, type PrivacyRequestChoice } from "@prism/ui/privacy-requests";
 import { supplierOwnPrivacyRequestsResource, supplierPrivacyNoticeResource, supplierPrivacyRequestRepository } from "../data/supplier-privacy-repository";
 import { submitSupplierPrivacyRequest } from "../use-cases/submit-supplier-privacy-request";
 
@@ -26,7 +26,8 @@ export function useSupplierPrivacyRequestsViewModel() {
     setBusy(true);
     setError(null);
     try {
-      await submitSupplierPrivacyRequest({ requestType, details, password });
+      if (requestType === "export") savePrivacyDownload((await supplierPrivacyRequestRepository.download(password)).export);
+      else await submitSupplierPrivacyRequest({ requestType, details, password });
       setDetails("");
       setPassword("");
       await invalidate(supplierOwnPrivacyRequestsResource);

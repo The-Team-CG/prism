@@ -5,9 +5,10 @@ import { randomUUID } from 'node:crypto';
 import { PrismaService } from '@prism/kernel/database';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory, OpsUserRole, PrivacyRequestStatus } from '@prism/kernel/event-core';
-import type { PrismOwnPrivacyRequest, SubmitOwnPrivacyRequestInput } from '@prism/types';
+import type { DownloadOwnPrivacyDataInput, PrismOwnPrivacyDownload, PrismOwnPrivacyRequest, SubmitOwnPrivacyRequestInput } from '@prism/types';
 import { AuditService } from './audit.service';
-import { mapOwnPrivacyRequest, OPEN_PRIVACY_REQUEST_STATUSES, privacyRequestDueAt } from './privacy-request.mapper';
+import { mapOwnPrivacyRequest, OPEN_PRIVACY_REQUEST_STATUSES, privacyRequestDueAt, SELF_SERVICE_DOWNLOAD_NOTE } from './privacy-request.mapper';
+import { PrivacyOperationsService } from './privacy-operations.service';
 
 /** A requester's own history is a short list, so it is capped rather than paged. */
 export const OWN_PRIVACY_REQUEST_LIST_LIMIT = 50;
@@ -54,7 +55,46 @@ export class OwnPrivacyRequestService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     @Inject(ACCOUNT_PASSWORD_CONFIRMATION) private readonly passwords: AccountPasswordConfirmation,
+    private readonly privacyOperations: PrivacyOperationsService,
   ) {}
+
+  /**
+   * Lets the requester download their own data straight away, once their password confirms it is them. The download
+   * is recorded as a finished export request in their history (and PMCM's queue), and audited like a PMCM export.
+   */
+  async downloadOwn(input: DownloadOwnPrivacyDataInput, actor: ResolvedEventOpsActor): Promise<PrismOwnPrivacyDownload> {
+    const requester = requesterOf(actor);
+    const identityConfirmedAt = await this.passwords.confirmPassword(requester.id, input.password);
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const now = new Date();
+      const record = await tx.opsPrivacyRequest.create({
+        data: {
+          id: `priv_${randomUUID()}`,
+          createdAt: now,
+          dueAt: privacyRequestDueAt(now),
+          eventId: null,
+          subjectType: requester.subjectType,
+          subjectEmail: requester.email,
+          subjectName: requester.name,
+          requestType: 'export',
+          status: PrivacyRequestStatus.Approved,
+          createdBy: requester.name,
+          reviewedBy: requester.name,
+          reviewedAt: now,
+          reviewReason: 'Self-service download',
+          source: 'self_service',
+          identityConfirmedAt,
+          identityMethod: 'account_password',
+        },
+      });
+      const bundle = await this.privacyOperations.exportAndAudit(record, { id: requester.id, name: requester.name, email: requester.email, role: actor.role }, tx);
+      const saved = await tx.opsPrivacyRequest.update({
+        where: { id: record.id },
+        data: { status: PrivacyRequestStatus.Executed, executedBy: requester.name, executedAt: new Date(), executionNotes: SELF_SERVICE_DOWNLOAD_NOTE },
+      });
+      return { request: mapOwnPrivacyRequest(saved), export: bundle };
+    });
+  }
 
   /** Files a request once the requester has confirmed who they are with their account password. */
   async submit(input: SubmitOwnPrivacyRequestInput, actor: ResolvedEventOpsActor): Promise<PrismOwnPrivacyRequest> {

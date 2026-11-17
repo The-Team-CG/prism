@@ -93,7 +93,7 @@ export class AuthOperationsService {
 
     await this.assertLoginAllowed(user, normalizedEmail, password);
     const browser = deviceName(device);
-    const updated = await this.recordPasswordVerified(user, normalizedEmail, password, browser);
+    const updated = await this.recordAcceptedSignIn(user, normalizedEmail, password, browser);
     return this.issueLoginSession(updated, browser);
   }
 
@@ -139,7 +139,7 @@ export class AuthOperationsService {
     }
   }
 
-  private async recordPasswordVerified(user: OpsUser, normalizedEmail: string, password: string, device?: string) {
+  private async recordAcceptedSignIn(user: OpsUser, normalizedEmail: string, password: string, device?: string) {
     // Anyone with a second step still to pass has their lock counters reset only when a session is issued
     // (see verifyTwoFactor). Everyone else's counters reset here.
     const requiresTwoFactor = needsSecondStep(user);
