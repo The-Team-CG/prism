@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Search, SlidersHorizontal } from "lucide-react";
 import { CALENDAR_VIEWS, type CalendarViewId } from "./calendar-views";
 import { cn } from "./utils";
-import type { PortalCalendarItem, PortalCalendarKind, PortalCalendarProps } from "./portal-calendar";
+import type { PortalCalendarItem, PortalCalendarKind } from "./portal-calendar";
 import { Button } from "./components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "./components/ui/popover";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuShortcut, DropdownMenuTrigger } from "./components/ui/dropdown-menu";
@@ -52,16 +52,29 @@ export function CalendarToolbar({ headingId, rangeLabel, anchor, view, dayLayout
   );
 }
 
-export function CalendarFilters({ query, onQueryChange, activeKind, onKindChange, timing, onTimingChange, kinds, periodItems, categoryControls, categoryLabel, filterCount }: {
+/** The done filter, shown only on calendars that have finished entries (or with it already on). */
+function DoneFilter({ openOnly, onChange }: { openOnly: boolean; onChange?: (openOnly: boolean) => void }) {
+  if (!onChange) return null;
+  return (
+    <div role="group" aria-label="Schedule status" className="space-y-2 border-t border-border pt-3">
+      <p className="text-xs font-medium text-muted-foreground">Status</p>
+      <button type="button" aria-pressed={openOnly} onClick={() => onChange(!openOnly)} className="flex min-h-9 w-full items-center justify-between rounded-md px-2 text-sm hover:bg-muted aria-pressed:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Hide paid and done{openOnly ? <Check aria-hidden className="size-3.5" /> : null}</button>
+    </div>
+  );
+}
+
+export function CalendarFilters({ query, onQueryChange, activeKind, onKindChange, openOnly, onOpenOnlyChange, timing, onTimingChange, kinds, periodItems, categoryLabel, filterCount }: {
   query: string;
   onQueryChange: (query: string) => void;
   activeKind: string | null;
   onKindChange: (kind: string | null) => void;
+  openOnly: boolean;
+  /** Absent when no entry can be done, so the option is not offered. */
+  onOpenOnlyChange?: (openOnly: boolean) => void;
   timing: CalendarTiming;
   onTimingChange: (timing: CalendarTiming) => void;
   kinds: Record<string, PortalCalendarKind>;
   periodItems: PortalCalendarItem[];
-  categoryControls: PortalCalendarProps<PortalCalendarItem>["categoryControls"];
   categoryLabel: string | null;
   filterCount: number;
 }) {
@@ -78,16 +91,17 @@ export function CalendarFilters({ query, onQueryChange, activeKind, onKindChange
         <PopoverContent align="start" collisionPadding={16} className="w-80 max-w-[calc(100vw-2rem)] space-y-4">
           <div role="group" aria-label="Schedule categories" className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground">Categories</p>
-            {categoryControls ? <div onClick={(event) => { if (event.target instanceof Element && event.target.closest("a")) setFiltersOpen(false); }}>{categoryControls.content}</div> : <div className="flex flex-col gap-1">{[{ id: null, label: "All scheduled" }, ...availableKinds.map((id) => ({ id, label: kinds[id].label }))].map((kind) => <button key={kind.id ?? "all"} type="button" aria-pressed={activeKind === kind.id} onClick={() => onKindChange(kind.id)} className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted aria-pressed:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{kind.id ? <span aria-hidden className={cn("size-1.5 rounded-full", kinds[kind.id].dot)} /> : null}{kind.label}<span className="ml-auto tabular-nums text-muted-foreground">{periodItems.filter((item) => kind.id === null || item.kind === kind.id).length}</span>{activeKind === kind.id ? <Check aria-hidden className="size-3.5" /> : <span className="size-3.5" />}</button>)}</div>}
+            <div className="flex flex-col gap-1">{[{ id: null, label: "All scheduled" }, ...availableKinds.map((id) => ({ id, label: kinds[id].label }))].map((kind) => <button key={kind.id ?? "all"} type="button" aria-pressed={activeKind === kind.id} onClick={() => onKindChange(kind.id)} className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted aria-pressed:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{kind.id ? <span aria-hidden className={cn("size-1.5 rounded-full", kinds[kind.id].dot)} /> : null}{kind.label}<span className="ml-auto tabular-nums text-muted-foreground">{periodItems.filter((item) => kind.id === null || item.kind === kind.id).length}</span>{activeKind === kind.id ? <Check aria-hidden className="size-3.5" /> : <span className="size-3.5" />}</button>)}</div>
           </div>
           <div role="group" aria-label="Schedule timing" className="space-y-2 border-t border-border pt-3">
             <p className="text-xs font-medium text-muted-foreground">Timing</p>
             {TIMING_FILTERS.map((option) => <button key={option.id} type="button" aria-pressed={timing === option.id} onClick={() => onTimingChange(option.id)} className="flex min-h-9 w-full items-center justify-between rounded-md px-2 text-sm hover:bg-muted aria-pressed:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{option.label}{timing === option.id ? <Check aria-hidden className="size-3.5" /> : null}</button>)}
           </div>
-          {filterCount ? <Button asChild={Boolean(categoryControls?.selection)} variant="ghost" size="sm" onClick={() => { onKindChange(null); onTimingChange("all"); if (categoryControls?.selection) setFiltersOpen(false); }}>{categoryControls?.selection?.reset ?? "Clear filters"}</Button> : null}
+          <DoneFilter openOnly={openOnly} onChange={onOpenOnlyChange} />
+          {filterCount ? <Button variant="ghost" size="sm" onClick={() => { onKindChange(null); onTimingChange("all"); onOpenOnlyChange?.(false); }}>Clear filters</Button> : null}
         </PopoverContent>
       </Popover>
-      {categoryLabel || timing !== "all" ? <span className="hidden truncate text-xs text-muted-foreground sm:block">{[categoryLabel, timing === "timed" ? "Timed entries" : timing === "all-day" ? "All-day entries" : null].filter(Boolean).join(" · ")}</span> : null}
+      {categoryLabel || timing !== "all" || openOnly ? <span className="hidden truncate text-xs text-muted-foreground sm:block">{[categoryLabel, timing === "timed" ? "Timed entries" : timing === "all-day" ? "All-day entries" : null, openOnly ? "Still open" : null].filter(Boolean).join(" · ")}</span> : null}
     </div>
   );
 }

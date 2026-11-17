@@ -15,7 +15,7 @@ beforeEach(() => {
 });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
-const task: CoordinatorCalendarItem = { id: "task", date: "2026-11-12", title: "Confirm load-in", detail: "Gala", kind: "task", eventId: "event-1", view: "tasks" };
+const task: CoordinatorCalendarItem = { id: "task", date: "2026-11-12", title: "Confirm load-in", eventName: "Gala", kind: "task", eventId: "event-1", view: "tasks" };
 
 it.each([
   { item: task, view: "Month" },

@@ -43,21 +43,21 @@ describe("buildSupplierCalendarItems", () => {
       ["arrival", "06:00"],
       ["departure", "18:00"],
     ]);
-    // Month-cell labels name the event, so a chip reads on its own without opening it; a payment says whether it is due or late.
-    expect(items.map((item) => [item.kind, item.chipLabel])).toEqual([
-      ["deadline", "Gala"],
-      ["deliverable", "Slides"],
-      ["payment", "Deposit · due"],
-      ["event", "Gala"],
-      ["arrival", "Arrive · Gala"],
-      ["departure", "Leave · Gala"],
+    // Every entry but the event day names its event, which the shared calendar puts after the chip label; a payment says whether it is due or late.
+    expect(items.map((item) => [item.kind, item.chipLabel, item.eventName])).toEqual([
+      ["deadline", "Quote due", "Gala"],
+      ["deliverable", "Slides", "Gala"],
+      ["payment", "Deposit due", "Gala"],
+      ["event", "Gala", undefined],
+      ["arrival", "Arrive", "Gala"],
+      ["departure", "Leave", "Gala"],
     ]);
     expect(items.find((item) => item.kind === "event")?.href).toBe("/dashboard/bookings#supplier-work-won");
     expect(items.find((item) => item.kind === "deadline")?.href).toBe("/dashboard/requests#supplier-work-open");
     expect(items.find((item) => item.kind === "payment")?.href).toBe("/dashboard/payments");
 
     const late = buildSupplierCalendarItems(workspace, board, workflow, "2026-11-28").find((item) => item.kind === "payment");
-    expect(late?.chipLabel).toBe("Deposit · late");
+    expect(late).toMatchObject({ chipLabel: "Deposit late", overdue: true, amount: 1000 });
     expect(late?.look?.chip).toContain("text-danger");
   });
 

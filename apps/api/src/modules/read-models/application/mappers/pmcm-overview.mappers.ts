@@ -122,7 +122,7 @@ export function buildPmcmCalendarItems(facts: CalendarFacts): PrismPmcmCalendarI
   }
   for (const milestone of facts.milestones) {
     if (owed(milestone) === 0) continue;
-    items.push({ id: `payment:${milestone.id}`, kind: 'payment_due', eventId: milestone.eventId, eventName: nameOf(milestone.eventId), date: calendarDateKeyOf(milestone.dueDate), detail: `${milestone.label} · ${peso.format(owed(milestone))} due` });
+    items.push({ id: `payment:${milestone.id}`, kind: 'payment_due', eventId: milestone.eventId, eventName: nameOf(milestone.eventId), date: calendarDateKeyOf(milestone.dueDate), detail: `${milestone.label} · ${peso.format(owed(milestone))} due`, label: milestone.label, amount: owed(milestone) });
   }
   for (const visit of facts.ocularVisits) {
     items.push({ id: `ocular:${visit.id}`, kind: 'ocular_visit', eventId: visit.eventId, eventName: nameOf(visit.eventId), date: manilaDateKeyOf(visit.scheduledAt), startTime: manilaClockOf(visit.scheduledAt), detail: 'Ocular visit' });
