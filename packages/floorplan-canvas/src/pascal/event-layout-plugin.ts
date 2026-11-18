@@ -1,5 +1,4 @@
-import type { AnyNodeDefinition, DuplicateSubtreeCloneArgs, FloorplanGeometry, NodeDefinition, Plugin } from "@pascal-app/core";
-import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial } from "three";
+import type { AnyNodeDefinition, DuplicateSubtreeCloneArgs, NodeDefinition, Plugin } from "@pascal-app/core";
 import {
   FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID,
   placeableEventPieceSchemaFor,
@@ -7,17 +6,14 @@ import {
   type PrismEventPiece,
   type PrismEventPieceType,
 } from "@prism/types";
+import { eventSymbol } from "./symbols";
+import { eventShape, shapeKey } from "./symbols/event-shapes";
 import { nextTableNumberAmong } from "./tools/place-node";
 
 export const PRISM_EVENT_LAYOUT_PLUGIN_ID = FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID;
 
 type EventPiece = PrismEventPiece;
 type EventPieceType = PrismEventPieceType;
-
-/** Placeholder height until milestone 2 draws each piece: a table top's height. */
-const PLACEHOLDER_HEIGHT_M = 0.75;
-const PLACEHOLDER_COLOR = "#c9b8d6";
-const FOOTPRINT_STYLE = { fill: "#f4eef8", stroke: "#6b4c80", strokeWidth: 0.02, pointerEvents: "all" } as const;
 
 const LABELS: Record<EventPieceType, string> = {
   "prism-table": "Table",
@@ -36,34 +32,6 @@ const LABELS: Record<EventPieceType, string> = {
   "prism-bar": "Bar",
   "prism-zone": "Supplier zone",
 };
-
-function isRound(node: EventPiece): boolean {
-  return node.type === "prism-table" && node.shape !== "rect";
-}
-
-/**
- * A cylinder of the table's width for round and cocktail tables, otherwise a box of the piece's footprint. Pascal moves
- * the returned group's children into the piece's own group, which it places at the piece's position and rotation.
- */
-function placeholderGeometry(node: EventPiece) {
-  const geometry = isRound(node)
-    ? new CylinderGeometry(node.width / 2, node.width / 2, PLACEHOLDER_HEIGHT_M, 32)
-    : new BoxGeometry(node.width, PLACEHOLDER_HEIGHT_M, node.depth);
-  const mesh = new Mesh(geometry, new MeshStandardMaterial({ color: PLACEHOLDER_COLOR }));
-  mesh.position.y = PLACEHOLDER_HEIGHT_M / 2;
-  const group = new Group();
-  group.add(mesh);
-  return group;
-}
-
-/** The piece's outline on the plan, drawn about its centre and placed at its position and rotation. */
-function footprint(node: EventPiece): FloorplanGeometry {
-  const [halfWidth, halfDepth] = [node.width / 2, node.depth / 2];
-  const outline: FloorplanGeometry = isRound(node)
-    ? { kind: "circle", cx: 0, cy: 0, r: halfWidth, ...FOOTPRINT_STYLE }
-    : { kind: "polygon", points: [[-halfWidth, -halfDepth], [halfWidth, -halfDepth], [halfWidth, halfDepth], [-halfWidth, halfDepth]], ...FOOTPRINT_STYLE };
-  return { kind: "group", transform: { translate: [node.position[0], node.position[2]], rotate: -node.rotation }, children: [outline] };
-}
 
 /**
  * A copy keeps the piece's shape, size and place but starts with nobody seated, so it never lists a guest who is
@@ -109,9 +77,9 @@ function sharedDefinition(kind: EventPieceType) {
       duplicable: { subtree: true, prepareSubtreeClone: emptyCopy },
       deletable: true,
     },
-    geometry: (node: EventPiece) => placeholderGeometry(node),
-    geometryKey: (node: EventPiece) => JSON.stringify([node.width, node.depth, isRound(node)]),
-    floorplan: (node: EventPiece) => footprint(node),
+    geometry: (node: EventPiece) => eventShape(node),
+    geometryKey: (node: EventPiece) => shapeKey(node),
+    floorplan: (node: EventPiece) => eventSymbol(node, LABELS[kind]),
     // One placement tool serves every kind: it reads the armed kind and the Library tile's values from the editor.
     tool: () => import("./tools/place-piece-tool"),
     tree: { label: (node: unknown) => treeLabel(node, LABELS[kind]) },

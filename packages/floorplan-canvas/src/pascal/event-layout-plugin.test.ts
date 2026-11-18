@@ -44,16 +44,17 @@ describe("prismEventLayoutPlugin", () => {
     expect(table).toMatchObject({ type: "prism-table", shape: "round", seats: 10, guestIds: ["g1", "g2"] });
   });
 
-  /** Pascal's geometry system moves the built object's children into the scene, so the shape must be a child. */
-  function drawnShape<T>(kind: string, legacyId: string) {
+  /** Pascal's geometry system moves the built object's children into the scene, so every part must be a child. */
+  function drawnParts(kind: string, legacyId: string) {
     const built = definitionOf(kind).geometry?.(definitionOf(kind).schema.parse(convertedNode(legacyId)), {} as never) as Object3D | undefined;
-    expect(built?.children).toHaveLength(1);
-    return built?.children[0] as Mesh<T extends "cylinder" ? CylinderGeometry : BoxGeometry>;
+    return (built?.children ?? []) as Mesh<CylinderGeometry | BoxGeometry>[];
   }
 
-  it("draws a round table as a cylinder of its width and a stage as a box of its footprint, as children Pascal can place", () => {
-    expect(drawnShape<"cylinder">("prism-table", "table_a").geometry.parameters).toMatchObject({ radiusTop: 0.9, radiusBottom: 0.9 });
-    expect(drawnShape<"box">("prism-stage", "stage_a").geometry.parameters).toMatchObject({ width: 6, depth: 3 });
+  it("builds a round table in 3D as its top and a chair per seat, and a stage as one platform of its footprint", () => {
+    const table = drawnParts("prism-table", "table_a");
+    expect(table).toHaveLength(11);
+    expect(table[0]!.geometry.parameters).toMatchObject({ radiusTop: 0.9, radiusBottom: 0.9 });
+    expect(drawnParts("prism-stage", "stage_a").map((part) => part.geometry.parameters)).toEqual([expect.objectContaining({ width: 6, depth: 3 })]);
   });
 
   it("duplicates a seated table as an empty copy, so the copy never seats the same guests twice", () => {

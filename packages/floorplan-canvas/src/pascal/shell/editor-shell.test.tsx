@@ -7,7 +7,7 @@ import { FLOORPLAN_SCENE_FORMAT, type SceneSaveState } from "@prism/types";
 type EditorProps = { navbarSlot: ReactNode; sidebarTabs: Array<{ id: string; label: string }>; columnTabId: string };
 
 vi.mock("@pascal-app/editor", () => {
-  const editorState = { gridSnapStep: 0.5, setViewLayout: vi.fn() };
+  const editorState = { gridSnapStep: 0.5, mode: "select", tool: null, setViewLayout: vi.fn() };
   const useEditor = Object.assign((select: (state: unknown) => unknown) => select(editorState), { getState: () => editorState });
   return {
     Editor: ({ navbarSlot, sidebarTabs, columnTabId }: EditorProps) => (
@@ -43,6 +43,7 @@ vi.mock("@pascal-app/core", () => {
   };
 });
 vi.mock("@pascal-app/nodes", () => ({ builtinPlugin: {} }));
+vi.mock("@pascal-app/viewer", () => ({ useViewer: (select: (state: unknown) => unknown) => select({ selection: { levelId: null } }) }));
 vi.mock("../event-layout-plugin", () => ({ prismEventLayoutPlugin: {} }));
 
 const { PrismFloorplanEditor } = await import("../prism-floorplan-editor");

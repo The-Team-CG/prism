@@ -11,7 +11,11 @@ import { PASCAL_VERSION, fromSceneDocument, toSceneDocument, type PascalSaveScen
 import { EditorFooter } from "./shell/editor-footer";
 import { EditorHeader } from "./shell/editor-header";
 import { LoadingRoom } from "./shell/loading-room";
+import { LensOverlay } from "./shell/lens-overlay";
+import { LensSwitch } from "./shell/lens-switch";
 import { columnTab, railTabs } from "./shell/rail-tabs";
+import { prismLens } from "./lens";
+import { PiecePlacement } from "./tools/piece-placement";
 
 export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOnly"> & {
   scene: FloorplanSceneDocument;
@@ -101,6 +105,11 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);
   // Pascal's camera tips card stays away; the controls are the usual pan, rotate and zoom.
   useEffect(() => useCameraHintFocus.getState().focus([]), []);
+  // Every plan opens as laid out; Seating is gone when the event cannot seat guests.
+  useEffect(() => prismLens.set("layout"), []);
+  useEffect(() => {
+    if (!seating.allowed && prismLens.get() === "seating") prismLens.set("layout");
+  }, [seating.allowed]);
 
   const header = (
     <EditorHeader
@@ -130,6 +139,8 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
               columnTabId={columnTab(readOnly)}
               viewBar={false}
               navbarSlot={header}
+              viewerToolbarLeft={<LensSwitch />}
+              floorplanSceneSlot={<LensOverlay />}
               loadingSlot={<LoadingRoom />}
               onLoad={onLoad}
               onSave={save}
@@ -143,6 +154,7 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
           )}
         </div>
         {ready ? <EditorFooter /> : null}
+        {ready ? <PiecePlacement /> : null}
       </div>
     </PrismFloorplanProvider>
   );
