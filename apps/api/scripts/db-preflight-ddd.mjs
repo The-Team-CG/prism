@@ -143,17 +143,13 @@ WHERE jsonb_typeof(line_items::jsonb) IS DISTINCT FROM 'array'
   {
     id: 'invalid_historical_snapshot_shapes',
     owner: 'floorplan / event-lifecycle',
-    description: 'Published plans and issued addendum snapshots must be JSON objects.',
+    description: 'Issued addendum snapshots and floorplan draft snapshots must be JSON objects.',
     blocking: true,
     tables: [
-      ['floorplan', 'published_snapshots'],
       ['event-lifecycle', 'addenda'],
       ['floorplan', 'floor_plan_drafts'],
     ],
-    query: `SELECT id::text AS opaque_id FROM {{floorplan.published_snapshots}}
-WHERE jsonb_typeof(floor_plan::jsonb) IS DISTINCT FROM 'object'
-UNION ALL
-SELECT id::text FROM {{event-lifecycle.addenda}}
+    query: `SELECT id::text AS opaque_id FROM {{event-lifecycle.addenda}}
 WHERE jsonb_typeof(contract_snapshot::jsonb) IS DISTINCT FROM 'object'
    OR jsonb_typeof(quote_snapshot::jsonb) IS DISTINCT FROM 'object'
 UNION ALL
@@ -305,7 +301,6 @@ WHERE status = 'queued' AND lease_token IS NOT NULL AND lease_expires_at < now()
 ];
 
 const HISTORICAL_PAYLOADS = [
-  { domain: 'floorplan', table: 'published_snapshots', columns: ['floor_plan'] },
   { domain: 'event-lifecycle', table: 'addenda', columns: ['contract_snapshot', 'quote_snapshot'] },
   { domain: 'commercial', table: 'billing_sources', columns: ['line_items', 'payment_schedule', 'payment_methods'] },
   { domain: 'commercial', table: 'billing_statements', columns: ['line_items', 'payment_schedule', 'payment_methods'] },

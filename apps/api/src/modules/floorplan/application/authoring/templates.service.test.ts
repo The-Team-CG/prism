@@ -15,7 +15,6 @@ function templateRow(overrides: Record<string, unknown> = {}) {
     permanentFeatures: [],
     floorPlanId: 'plan_tpl_sample',
     pax: 0,
-    includeGuests: false,
     includeSuppliers: false,
     guests: [],
     suppliers: [],

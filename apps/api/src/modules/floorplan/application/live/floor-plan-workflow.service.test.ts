@@ -382,7 +382,6 @@ describe('FloorPlanWorkflowService', () => {
     state.venueTemplates.push({
       id: 'tpl_gala',
       pax: 120,
-      includeGuests: false,
       includeSuppliers: false,
       guests: [],
       suppliers: [],

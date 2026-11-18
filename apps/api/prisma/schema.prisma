@@ -19,40 +19,16 @@ model FloorPlan {
   ownerId        String   @map("owner_id")
   templateId     String?  @map("template_id")
   eventId        String?  @map("event_id")
-  objects        Json     @default("[]")
-  guests         Json     @default("[]")
-  suppliers      Json     @default("[]")
-  seats          Json     @default("[]")
-  seatCategories Json     @default("[]") @map("seat_categories")
-  /// The Pascal editor's scene graph, written only by the Pascal engine; the legacy columns above stay as they were.
-  scene          Json?
-  /// The scene's storage format ("pascal-v1"); null while the plan has only legacy canvas objects.
-  sceneFormat    String?  @map("scene_format")
+  /// The Pascal editor's scene graph, written by every plan save and every converted legacy plan.
+  scene          Json
+  /// The scene's storage format ("pascal-v1").
+  sceneFormat    String   @map("scene_format")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
-  objectRows FloorPlanObject[]
   asTemplate VenueTemplate?     @relation("TemplateBaseLayout")
-  asEvent    EventInstance?     @relation("EventLayout")
   opsDraft   OpsFloorPlanDraft? @relation("OpsDraftLayout")
 
   @@map("floor_plans")
-  @@schema("floorplan")
-}
-
-model FloorPlanObject {
-  floorPlanId String   @map("floor_plan_id")
-  objectId    String   @map("object_id")
-  kind        String
-  zIndex      Int      @default(0) @map("z_index")
-  objectData  Json     @map("object_data")
-  svgMarkup   String?  @map("svg_markup")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
-
-  floorPlan FloorPlan @relation(fields: [floorPlanId], references: [id], onDelete: Cascade)
-
-  @@id([floorPlanId, objectId])
-  @@map("floor_plan_objects")
   @@schema("floorplan")
 }
 
@@ -66,50 +42,13 @@ model VenueTemplate {
   permanentFeatures Json     @default("[]") @map("permanent_features")
   floorPlanId       String   @unique @map("floor_plan_id")
   pax               Int      @default(0)
-  includeGuests     Boolean  @default(false) @map("include_guests")
-  includeSuppliers  Boolean  @default(false) @map("include_suppliers")
-  guests            Json     @default("[]")
-  suppliers         Json     @default("[]")
   sourceType        String   @default("custom") @map("source_type")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @default(now()) @updatedAt @map("updated_at")
 
-  floorPlan FloorPlan       @relation("TemplateBaseLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
-  events    EventInstance[]
+  floorPlan FloorPlan @relation("TemplateBaseLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
 
   @@map("venue_templates")
-  @@schema("floorplan")
-}
-
-model EventInstance {
-  id          String   @id
-  ownerId     String   @map("owner_id")
-  templateId  String   @map("template_id")
-  floorPlanId String   @unique @map("floor_plan_id")
-  name        String
-  startsAt    DateTime @map("starts_at")
-  status      String   @default("draft")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  template  VenueTemplate      @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  floorPlan FloorPlan          @relation("EventLayout", fields: [floorPlanId], references: [id], onDelete: Cascade)
-  snapshot  PublishedSnapshot?
-
-  @@index([templateId], map: "event_instances_template_id_idx")
-  @@map("event_instances")
-  @@schema("floorplan")
-}
-
-model PublishedSnapshot {
-  id          String   @id
-  slug        String   @unique
-  eventId     String   @unique @map("event_id")
-  floorPlan   Json     @map("floor_plan")
-  publishedAt DateTime @default(now()) @map("published_at")
-
-  event EventInstance @relation(fields: [eventId], references: [id], onDelete: Cascade)
-
-  @@map("published_snapshots")
   @@schema("floorplan")
 }
 

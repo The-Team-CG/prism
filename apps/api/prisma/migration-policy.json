@@ -406,12 +406,6 @@
       "venue_templates": [
         "floorplan"
       ],
-      "event_instances": [
-        "floorplan"
-      ],
-      "published_snapshots": [
-        "floorplan"
-      ],
       "floor_plan_drafts": [
         "floorplan"
       ]

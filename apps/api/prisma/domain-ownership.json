@@ -1,10 +1,10 @@
 {
   "summary": {
-    "totalTables": 162,
+    "totalTables": 159,
     "targetSchemas": 8,
     "tableMoves": 83,
     "currentCrossSchemaFks": 51,
-    "targetSameDomainFks": 136,
+    "targetSameDomainFks": 132,
     "crossDomainFksToDrop": 45,
     "crossDomainPairsToDrop": {
       "platform-ops → event-lifecycle": 8,
@@ -38,8 +38,8 @@
       {
         "domain": "floorplan",
         "schema": "floorplan",
-        "tables": 10,
-        "columns": 105
+        "tables": 7,
+        "columns": 74
       },
       {
         "domain": "live-ops",
@@ -74,15 +74,7 @@
       "table": "floor_plans",
       "domain": "floorplan",
       "targetSchema": "floorplan",
-      "columnCount": 18
-    },
-    {
-      "model": "FloorPlanObject",
-      "currentSchema": "floorplan",
-      "table": "floor_plan_objects",
-      "domain": "floorplan",
-      "targetSchema": "floorplan",
-      "columnCount": 8
+      "columnCount": 13
     },
     {
       "model": "VenueTemplate",
@@ -90,23 +82,7 @@
       "table": "venue_templates",
       "domain": "floorplan",
       "targetSchema": "floorplan",
-      "columnCount": 16
-    },
-    {
-      "model": "EventInstance",
-      "currentSchema": "floorplan",
-      "table": "event_instances",
-      "domain": "floorplan",
-      "targetSchema": "floorplan",
-      "columnCount": 8
-    },
-    {
-      "model": "PublishedSnapshot",
-      "currentSchema": "floorplan",
-      "table": "published_snapshots",
-      "domain": "floorplan",
-      "targetSchema": "floorplan",
-      "columnCount": 5
+      "columnCount": 12
     },
     {
       "model": "OpsUser",
@@ -2088,36 +2064,6 @@
     },
     {
       "schema": "floorplan",
-      "table": "event_instances",
-      "name": "event_instances_floor_plan_id_fkey",
-      "kind": "f",
-      "definition": "FOREIGN KEY (floor_plan_id) REFERENCES floorplan.floor_plans(id) ON UPDATE CASCADE ON DELETE CASCADE",
-      "columns": [
-        "floor_plan_id"
-      ],
-      "sourceDomain": "floorplan",
-      "targetDomain": "floorplan",
-      "targetCurrentSchema": "floorplan",
-      "targetTable": "floor_plans",
-      "sameDomain": true
-    },
-    {
-      "schema": "floorplan",
-      "table": "event_instances",
-      "name": "event_instances_template_id_fkey",
-      "kind": "f",
-      "definition": "FOREIGN KEY (template_id) REFERENCES floorplan.venue_templates(id) ON UPDATE CASCADE ON DELETE CASCADE",
-      "columns": [
-        "template_id"
-      ],
-      "sourceDomain": "floorplan",
-      "targetDomain": "floorplan",
-      "targetCurrentSchema": "floorplan",
-      "targetTable": "venue_templates",
-      "sameDomain": true
-    },
-    {
-      "schema": "floorplan",
       "table": "floor_plan_drafts",
       "name": "floor_plan_drafts_event_id_fkey",
       "kind": "f",
@@ -2160,36 +2106,6 @@
       "targetDomain": "floorplan",
       "targetCurrentSchema": "floorplan",
       "targetTable": "floor_plan_drafts",
-      "sameDomain": true
-    },
-    {
-      "schema": "floorplan",
-      "table": "floor_plan_objects",
-      "name": "floor_plan_objects_floor_plan_id_fkey",
-      "kind": "f",
-      "definition": "FOREIGN KEY (floor_plan_id) REFERENCES floorplan.floor_plans(id) ON UPDATE CASCADE ON DELETE CASCADE",
-      "columns": [
-        "floor_plan_id"
-      ],
-      "sourceDomain": "floorplan",
-      "targetDomain": "floorplan",
-      "targetCurrentSchema": "floorplan",
-      "targetTable": "floor_plans",
-      "sameDomain": true
-    },
-    {
-      "schema": "floorplan",
-      "table": "published_snapshots",
-      "name": "published_snapshots_event_id_fkey",
-      "kind": "f",
-      "definition": "FOREIGN KEY (event_id) REFERENCES floorplan.event_instances(id) ON UPDATE CASCADE ON DELETE CASCADE",
-      "columns": [
-        "event_id"
-      ],
-      "sourceDomain": "floorplan",
-      "targetDomain": "floorplan",
-      "targetCurrentSchema": "floorplan",
-      "targetTable": "event_instances",
       "sameDomain": true
     },
     {
@@ -4180,6 +4096,26 @@
       "targetCurrentSchema": "event_lifecycle",
       "targetTable": "planning_templates",
       "sameDomain": true
+    }
+  ],
+  "retiredTables": [
+    {
+      "domain": "floorplan",
+      "currentSchema": "floorplan",
+      "table": "floor_plan_objects",
+      "retiredBy": "20261127090000_floorplan_drop_legacy_plan_columns"
+    },
+    {
+      "domain": "floorplan",
+      "currentSchema": "floorplan",
+      "table": "event_instances",
+      "retiredBy": "20261127090000_floorplan_drop_legacy_plan_columns"
+    },
+    {
+      "domain": "floorplan",
+      "currentSchema": "floorplan",
+      "table": "published_snapshots",
+      "retiredBy": "20261127090000_floorplan_drop_legacy_plan_columns"
     }
   ]
 }
