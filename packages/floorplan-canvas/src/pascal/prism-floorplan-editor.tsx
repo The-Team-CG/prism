@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import { ChevronLeft, Send } from "lucide-react";
 import { acquireSceneReadOnlyLease, loadPlugin } from "@pascal-app/core";
-import { Editor, getSavedSceneDocument } from "@pascal-app/editor";
+import { Editor, getSavedSceneDocument, useCameraHintFocus } from "@pascal-app/editor";
 import { builtinPlugin } from "@pascal-app/nodes";
 import type { FloorplanSceneDocument } from "@prism/types";
 import { prismEventLayoutPlugin } from "./event-layout-plugin";
@@ -31,6 +31,10 @@ const SIDEBAR_TABS: SidebarTabs = [
     icon: <img alt="" src="/icons/scene.webp" width={32} height={32} />,
   },
 ];
+
+// Read by the Pascal chrome patch (patches/@pascal-app+editor+1.1.6.patch): PRISM hosts the editor, so Pascal hides
+// its plugin manager, level chip, sky control, compass, shortcuts card, scans control and read-only action bars.
+(globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ = true;
 
 let pluginsLoaded: Promise<void> | null = null;
 
@@ -115,6 +119,8 @@ export function PrismFloorplanEditor({ scene, readOnly, onSave, ...header }: Pri
   }, []);
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);
+  // Pascal's camera tips card stays away; the controls are the usual pan, rotate and zoom.
+  useEffect(() => useCameraHintFocus.getState().focus([]), []);
 
   if (!ready) return <div className="p-6 text-sm text-muted-foreground">Loading the floor plan editor…</div>;
   return (
