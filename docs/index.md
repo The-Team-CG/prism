@@ -47,6 +47,7 @@ For environment identity, seed data, or migration history use
 | Release-visible change history | [`../CHANGELOG.md`](../CHANGELOG.md) |
 | Bundle update history | [`log.md`](log.md) |
 | Active design: floor plan editor on Pascal | [`superpowers/specs/2026-11-19-pascal-floorplan-editor-design.md`](superpowers/specs/2026-11-19-pascal-floorplan-editor-design.md) |
+| Active design: floor plan editor UI and event pieces | [`superpowers/specs/2026-11-19-floorplan-editor-ui-design.md`](superpowers/specs/2026-11-19-floorplan-editor-ui-design.md) |
 | Active plan: Pascal spike and foundation | [`superpowers/plans/2026-11-19-pascal-floorplan-editor.md`](superpowers/plans/2026-11-19-pascal-floorplan-editor.md) |
 | Decision: floor plan editor on Pascal | [`architecture/decisions/adr-0010-floorplan-editor-on-pascal.md`](architecture/decisions/adr-0010-floorplan-editor-on-pascal.md) |
 
