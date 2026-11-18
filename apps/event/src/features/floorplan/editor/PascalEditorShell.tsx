@@ -20,6 +20,10 @@ export type PascalEditorShellProps = {
 };
 
 const ignoreSave = async () => undefined;
+// Until the saver reports its state (save-queue task) and the roster is loaded (guests task), the editor sees an
+// always-saved plan with no guests and no seating.
+const NO_SEATING = { allowed: false, reason: null };
+const nothing = () => undefined;
 
 /**
  * The Pascal floor plan editor for a draft. A plan saved by the legacy editor opens converted, and its first save
@@ -40,6 +44,14 @@ export function PascalEditorShell({ plan, role, screenReadOnly, onSave, onSubmit
       eventName={eventName}
       draftName={draftName}
       draftStatus={draftStatus}
+      guests={[]}
+      suppliers={[]}
+      seating={NO_SEATING}
+      guestCount={0}
+      saveState="saved"
+      onRetrySave={nothing}
+      onReload={nothing}
+      unmatchedSeats={0}
     />
   );
 }
