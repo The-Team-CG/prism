@@ -18,6 +18,7 @@
         "db:seed:fixtures": "npm run build && node scripts/run-with-env.mjs scripts/seed-local-fixtures.mjs",
         "test:fixtures:seed": "node --test scripts/seed-local-fixtures.test.mjs scripts/seed.test.mjs",
         "test:db:connection": "node --test scripts/db-connection-config.test.mjs",
+        "test:db:convert-floorplans": "node --test scripts/floorplan-conversion.test.mjs",
         "test:db:preflight:quote-request-fk": "node --test scripts/db-preflight-quote-request-fk.test.mjs",
         "test:db:backup-catalog": "node --test scripts/db-backup-catalog.test.mjs",
         "test:db:preflight:ddd": "node --test scripts/db-preflight-ddd.test.mjs",
