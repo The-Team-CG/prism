@@ -271,7 +271,7 @@ describe("event-ops write schemas", () => {
     expect(parsed.eventDate).toBe("2026-06-18");
   });
 
-  it("maps legacy Private to Individual and offers only the catalog client categories", () => {
+  it("trims and accepts only the catalog client categories", () => {
     const base = {
       clientName: "Maria Santos",
       email: "maria@samplecorp.test",
@@ -282,9 +282,9 @@ describe("event-ops write schemas", () => {
       privacyConsentAccepted: true,
       privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     } as const;
-    expect(createPrismInquirySchema.parse({ ...base, clientType: " Private " }).clientType).toBe("Individual");
+    expect(createPrismInquirySchema.parse({ ...base, clientType: " Individual " }).clientType).toBe("Individual");
     expect(createPrismInquirySchema.parse({ ...base, clientType: "Non-profit" }).clientType).toBe("Non-profit");
-    for (const retired of ["School", "Other", "Private celebration", ""]) {
+    for (const retired of ["Private", " Private ", "School", "Other", "Private celebration", ""]) {
       expect(createPrismInquirySchema.safeParse({ ...base, clientType: retired }).success).toBe(false);
     }
   });
