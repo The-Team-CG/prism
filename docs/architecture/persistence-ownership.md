@@ -4,11 +4,11 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-11-12"
+updated: "2026-11-18"
 authority: normative
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "2026-11-12; offline domain-persistence guard passed for 157 models and 133 relations with no cross-domain relations or private writes; ownership map checked against domain-ownership.json; no live database inspected"
+last_verified: "2026-11-18; offline domain-persistence guard passed for 162 models and 136 relations with no cross-domain relations or private writes; ownership map checked against domain-ownership.json; no live database inspected"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"

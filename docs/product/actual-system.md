@@ -4,11 +4,11 @@ title: "P.R.I.S.M actual system"
 description: "Current product identity, actors, lifecycle, workflows, ownership, and completion evidence for PMCM's event operating system."
 tags: [product, current-state, lifecycle, roles]
 status: canonical
-updated: "2026-11-12"
+updated: "2026-11-18"
 authority: informative
 audience: [product, engineering, design, reviewers]
 scope: "PMCM product identity, actors, lifecycle, workflows, and ownership"
-last_verified: "2026-11-12; static documentation review only, no runtime proof"
+last_verified: "2026-11-18; static documentation review against the feature ledger and shipped portal surfaces, no runtime proof"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -106,6 +106,7 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | Supplier readiness board | Supplier and PMCM view of quote, assignment, contract, readiness, ingress/egress, concerns, and event-day supplier progress. |
 | Coordinator/live-ops workspace | Role-safe event-day task, issue, attendance, replacement, and status surfaces for PMCM/coordinators. |
 | Guest pass and check-in | Lightweight event-code access, pass display, consented name check-in, walk-in flagging, PIN-joined in-event games, and feedback. |
+| Account | Every signed-in person's own identity and security: who is signed in, then one row per setting (name, email, password, two-step sign-in, devices, sign-ins, notifications) opening one task in a side panel. |
 | Privacy and audit console | PMCM-only trust surface for privacy requests, redaction, retention, login/security events, audit integrity, and AI governance evidence. |
 | Archive and learning loop | Post-event closure, deliverables, feedback, insights, testimonials, archive search/comparison, and reusable learning. |
 
@@ -131,53 +132,20 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | Inquiry intake and triage | Public inquiry submission, consent, duplicate detection, referral/source capture, previous rejection flags, PMCM log-on-behalf, accept/pend/decline actions, organization merge/history cues, and audit trail. |
 | Onboarding and conforme gate | Invitation, accepted inquiry state, signed conforme validation, reminder policy, awaiting/opened/expired states, document evidence, and portal unlock rules. |
 | PMCM command dashboard | Event Command Inbox, selected-event summary, lifecycle status, urgent actions, owner visibility, blockers, approvals, overdue tasks, and event health/readiness cues. |
-| Client portal | Conforme-gated dashboard, client action center, own event status, approved proposal review, document requirements, billing statements/milestones, floorplan preference and read-only official layout review, activity/status, and closeout actions. |
+| Client portal | Conforme-gated dashboard that leads with the next event and its next step, own event status and calendar, approved proposal review, one file library, one money view with payment reporting, floorplan preference and read-only official layout review, one inbox for messages, notifications, privacy requests, an Account page, and closeout actions. |
 | Proposal and commercial workflow | CE/bid preparation, proposal source records, venue/styling options, client-approved proposal surfaces, billing source linkage, adapter export decisions, and PMCM-reviewed communication/AI drafts where approved. |
-| Document and file operations | File Requirements Matrix with owner, visibility, due date, required state, generated/uploaded source, validation state, audit, notification intent, and role-filtered views. |
+| Document and file operations | File Requirements Matrix with owner, visibility, due date, required state, generated/uploaded source, validation state, valid-until date, review by PMCM, audit, notification intent, and role-filtered views, shown to every role through one file library. |
 | Supplier network operations | Supplier directory, categories, tiering, PMCM private reviews, certifications, public application/status path, quote request lifecycle, confidential bids, quote revisions, selection, contract metadata, readiness, ingress/egress, creative sub-tickets, performance assessment, and reliability signals. |
 | Coordinator and staffing operations | Coordinator roster, roles, skills, availability, assignments, acknowledgment, attendance, replacement, role-safe event-day views, staffing heatmap, escalation, and live status feed. |
 | Compliance, risk, and change control | Event-type rules, phase rules, severity/layer, override reason audit, risk register, freeze exceptions, addendum conformes, cancellation/postponement impact, decision log, and supplier/coordinator/billing impact review. |
-| Billing and payments | Approved proposal/CE source linkage, billing statements, payment milestones, payment records, receipts, disputes, waivers, typo corrections, post-event additional billing, overdue/payment-at-risk alerts, and client-safe billing visibility. |
+| Billing and payments | Approved proposal/CE source linkage, billing statements, payment milestones, client-reported and PMCM-verified payments, receipts, PMCM's payment details and QR images, a finance desk across events, supplier payout records with supplier confirmation and receipts, disputes, waivers, typo corrections, post-event additional billing, overdue/payment-at-risk alerts, and client-safe billing visibility. |
 | Floorplan and spatial workflow | Venue templates, official floorplan editing, layout objects, table rules, table assignments, client preferences, comments, submitted/approved official snapshots, version locks, approval/revision states, and PMCM-only mutation. |
 | Guest operations | Event access code, guest pass, consent, name check-in, attendance count, walk-in flag, guest feedback, moderation, future masterlist reconciliation, and future QR/camera path when approved. |
 | Closure, archive, and learning loop | Close gates, archive guard, override reason, event insights, feedback capture, testimonial library, archive search/comparison, post-event documents, logistics review, and reusable lessons. |
-| Notifications and communications | Queue-backed notification intent, template/version record, recipient scoping, retry/failure/acknowledgment state, role-safe messages, language preference, and PMCM approval before sensitive or AI-assisted sends. |
-| Security, privacy, and audit | Role-based access, consent, privacy requests, retention, redaction/anonymization, legal hold, audit logs, login history, security alerts, forbidden access tracking, and audit integrity checks. |
+| Notifications and communications | Queue-backed notification intent, template/version record, per-recipient delivery and acknowledgment state, one notification center and one cross-event Messages inbox per portal, language and channel preference, and PMCM approval before sensitive or AI-assisted sends. |
+| Security, privacy, and audit | Role-based access, self-service account security (name, password, devices, optional two-step sign-in, email change), consent, self-service privacy requests and data download, retention, redaction/anonymization, legal hold, audit logs, login history, security alerts, forbidden access tracking, and audit integrity checks. |
 | AI governance and PARE | Data sanitization, ZDR requirement, AI audit log, approval records, PMCM human approval, PARE emergency response planning, reliability scoring, recommendation review, and no autonomous action without approval. |
 | Shared system design | Shared shell, tokens, UI primitives, role-specific density, state language, responsive behavior, no public dashboard shortcuts, and visual consistency without merging role ownership. |
-
-## Full Feature Family Map
-
-| Ledger ID | Full system role |
-| --- | --- |
-| FL-001 | Inquiry intake and triage. |
-| FL-002 | Onboarding and conforme gate. |
-| FL-003 | PMCM command dashboard. |
-| FL-004 | Client portal after conforme. |
-| FL-005 | Proposal, briefing, and commercial workflow. |
-| FL-006 | Documents and file operations. |
-| FL-007 | Supplier network operations. |
-| FL-008 | Coordinator and staffing operations. |
-| FL-009 | Compliance, risk, and change control. |
-| FL-010 | Billing and payments. |
-| FL-011 | Floorplan and spatial workflow. |
-| FL-012 | Guest and lightweight access. |
-| FL-013 | Closure, archive, and learning loop. |
-| FL-014 | Notifications and communications. |
-| FL-015 | Security, privacy, and audit. |
-| FL-016 | Shared design system and shell. |
-| FL-017 | Event Command Inbox. |
-| FL-018 | Event Health Score. |
-| FL-019 | Decision Log. |
-| FL-020 | Client Action Center. |
-| FL-021 | PMCM Handoff Brief. |
-| FL-022 | Supplier Readiness Board. |
-| FL-023 | Coordinator Staffing Heatmap. |
-| FL-024 | File Requirements Matrix. |
-| FL-025 | Risk and Change Register. |
-| FL-026 | Event Day Run Sheet. |
-| FL-027 | Privacy Operations Console. |
-| FL-028 | Workflow Template Builder. |
 
 ## Data Ownership Rules
 
@@ -200,7 +168,7 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 
 | Record family | Examples |
 | --- | --- |
-| Identity and access | Users, roles, sessions, login history, security alerts, actor context. |
+| Identity and access | Users, roles, per-device sessions, two-step secrets, pending email changes, login history, security alerts, actor context. |
 | Inquiry and event | Inquiry, accepted status, event record, lifecycle phase, selected event workspace, approval requests. |
 | Documents and files | Requirements, generated docs, uploaded metadata, visibility, validation, due dates, audit events. |
 | Floorplans | Venue templates, draft layouts, objects, submitted snapshots, approved snapshots, comments, version locks. |
@@ -234,21 +202,6 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | QR/camera | QR scanning must wait for HTTPS/device support, fallback code path, masterlist reconciliation, and consent/privacy review. |
 | AI | AI must wait for ZDR/provider approval, data sanitizer proof, prompt/data policy, audit retention, PMCM approval workflow, and no-autonomous-action enforcement. |
 
-## Outcomes For The Full System
+## Completion rule
 
-| Area | Full-system outcome |
-| --- | --- |
-| UX | The whole system feels like one coherent PMCM operating system across separate role apps, with usable density, clear states, route-level review, and no banned visual treatments. |
-| PMCM operations | PMCM and coordinator workflows are operationally useful: command inbox, selected event workspace, supplier/quote/floorplan/billing/compliance/live-ops/closure evidence, and chosen depth slices. |
-| External portals | External portals are safe and useful: clients, suppliers, and guests can complete their own work without seeing PMCM internals or unrelated event data. |
-| Platform trust | Platform trust is explicit: scoped contracts, session conventions, file matrix, privacy/audit, AI governance, dependency gates, source-ID traceability, and final evidence packet. |
-
-## Actual System Completion Rule
-
-The actual P.R.I.S.M system is complete enough for a milestone claim only when every lifecycle step has a working, role-safe slice or an explicit gate, every `FL-001` through `FL-028` row has an outcome, and every high-risk dependency is either approved with evidence or named as gated/deferred.
-
-Do not use this document to claim the current implementation is complete. Use
-[`feature-ledger.md`](feature-ledger.md) for product gaps and
-[`../architecture/current-architecture.md`](../architecture/current-architecture.md)
-and [`../architecture/decisions/`](../architecture/decisions/) for architecture gaps, and
-[`future-state.md`](future-state.md) for the target transition.
+The milestone completion rule is in [future state](future-state.md#completion-rule). Do not use this document to claim the current implementation is complete: use [`feature-ledger.md`](feature-ledger.md) for product gaps, and [`../architecture/current-architecture.md`](../architecture/current-architecture.md) with [`../architecture/decisions/`](../architecture/decisions/) for architecture gaps.

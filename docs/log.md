@@ -4,6 +4,10 @@ This log records changes to documentation structure and durable contracts. Relea
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md). Git history retains detailed
 implementation and verification history.
 
+## 2026-11-18
+
+- Consolidated the bundle after the Account, billing, files, messages and notification work. Removed the feature ledger's delivery overlay (its treatments were delivered or already recorded in the active ledger and implemented-slices tables) and the actual-system document's feature-family map and outcomes table (duplicates of the ledger and future state), and pointed its completion rule at future state. Added the account-email key to the external-reference lifecycle, described the shared `@prism/ui` screens in current architecture, added the Account page flows to portal accounts, and refreshed the notification screen description in the communications and integrations runbooks.
+
 ## 2026-11-12
 
 - Consolidated release and bundle logs. Retired the stale AI roadmap, promoted its current policy to [`product/ai-data-policy.md`](product/ai-data-policy.md), and kept open qualification evidence in [`runbooks/ai-provider-routing.md`](runbooks/ai-provider-routing.md).

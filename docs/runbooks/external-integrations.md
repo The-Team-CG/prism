@@ -50,8 +50,9 @@ unsigned or wrongly signed callback is refused with 401.
 
 How it works:
 
-- Each signed-in account opens **Notifications** from its account menu: client and supplier portals, the PMCM
-  Settings page, and the coordinator account menu. Email always stays on.
+- Each signed-in account opens **Notifications** from its navigation on every portal; the email and Viber channel
+  settings are in the panel beside the list (also reachable from the Account page's Notifications row). Email always
+  stays on.
 - **Link Viber** creates a 15-minute, single-use code and a deep link that opens the bot. The bot callback links the
   Viber user to the account's email. Only the code's SHA-256 is stored.
 - Outbox rows on the `viber` channel resolve to account emails exactly like email rows. They are sent to accounts

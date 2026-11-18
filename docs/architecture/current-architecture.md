@@ -4,11 +4,11 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-11-12"
+updated: "2026-11-18"
 authority: normative
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-10-29 module/kernel tree, composition, inbox query and owner manifest; 2026-11-07 focused exports, portal-query, guest session and canvas context; 2026-11-12 static AI route-policy reconciliation; deployment state not verified"
+last_verified: "2026-10-29 module/kernel tree, composition, inbox query and owner manifest; 2026-11-07 focused exports, portal-query, guest session and canvas context; 2026-11-12 static AI route-policy reconciliation; 2026-11-18 identity-access, composition and shared-UI descriptions checked against the source tree; deployment state not verified"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -101,7 +101,7 @@ flowchart LR
 | `packages/portal-query` | Portal resource caches and role-neutral background refresh mechanics; role apps supply actor identity, fetchers, and refresh callbacks. |
 | `packages/floorplan-canvas` | Role-neutral editor state, canvas mechanics, and floorplan editor panels, injected with role-owned template storage. Its `/editor` and `/plugin` subpaths host the pinned Pascal editor and the `prism:event-layout` plugin (ADR-0010). It does not read app identity or authorize, persist, or submit workflows. |
 | `packages/floorplan-scene` | Pure floor plan scene logic shared by the API and the editor host: scene validation, table seating extraction, and the legacy-plan converter. No UI, HTTP, or browser state. |
-| `packages/ui` | Shared shells, brand, public blocks, and presentation primitives; no workflow ownership or role data rules. |
+| `packages/ui` | Shared shells, brand, public blocks and presentation primitives, plus screens every portal renders the same way (Account, calendar, notifications, file library, event cards, work list, payment cards, privacy requests). They are presentational: each role app injects its own data, actions and permissions through props, and the package owns no workflow, HTTP call or role data rule. Subpaths are registered in `packages/ui/package.json`. |
 | `packages/tokens` | Shared design tokens, theme values, and typography. |
 
 Event-ops contracts and API-client endpoints are organized into capability
@@ -171,7 +171,7 @@ supported cross-context API.
 | `modules/live-ops` | Event-day tasks, urgent issues, escalation, attendance/replacement, live status | `api`, `application`, `contracts`, `domain` |
 | `modules/floorplan` | Official live floorplans and venue-template authoring/publishing | `api/{live,authoring}`, matching `application/*` |
 | `modules/event-games` | Event game catalog, sessions, PIN join, participants, submissions, scoring, awards, moderation, public lobbies | `api`, `application`, `contracts`, `domain`, `infrastructure` |
-| `modules/identity-access` | Authentication, account invitations, and account approval | `api/auth`, `application/{auth,participants}`, `infrastructure/auth` |
+| `modules/identity-access` | Authentication, account invitations and approval, per-device sessions, optional two-step sign-in, and the account's own profile, password and email-change requests | `api/auth`, `application/{auth,participants}`, `contracts` (email-change port), `infrastructure/auth` |
 | `modules/platform-ops` | Trust/audit, notifications, AI governance, stored objects, retention, privacy | `api/{trust,notifications,ai-governance,storage}`, `application/*` (adds `retention`), `contracts`, `infrastructure/*` |
 | `modules/read-models` | Role-scoped cross-context read composition | `api`, `application/{mappers,queries,services}`, `contracts/ports`, focused subpath readers; no writes |
 
@@ -191,7 +191,7 @@ context ports: it registers the event closure controller and the
 coordinator facts through the operations `COORDINATOR_INSIGHT_FACTS_READER`
 port and delegates persistence to the event-lifecycle `CLOSURE_COMMANDS`
 port; `modules/read-models` remains read-only. `PlatformReferenceReadersModule`
-in `src/composition` binds platform-ops reference reads to read-models.
+in `src/composition` binds platform-ops reference reads to read-models. The email change is a composition root too: `src/composition/account-email-change` confirms the change in one transaction and moves each context's copies of the address through the shared-kernel `AccountEmailRelinker` port, which Lifecycle, Commercial, Operations and Platform-ops each implement for their own tables (identity keeps the account row; history such as signatures, audit and login records keeps the old address).
 
 ### Kernel and local fixtures
 

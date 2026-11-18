@@ -47,8 +47,9 @@ sources:
    The same event cannot queue the same notice twice.
 2. The delivery worker resolves the row to **recipients** (account emails) and records **one delivery per recipient** with its own
    status: `accepted`, `failed` or `skipped`. A group notice is therefore never one shared result.
-3. Each portal shows a signed-in person only their own deliveries (**Notifications**: client and supplier account menus, the PMCM
-   Settings page and the coordinator account menu). A notice outside the person's current event access is not listed.
+3. Each portal shows a signed-in person only their own deliveries on one **Notifications** screen (a navigation item with an unread
+   count on the client, supplier, PMCM and coordinator portals). It lists what needs acknowledging first, then every notice by day,
+   with the event, an unread dot and a link to the item. A notice outside the person's current event access is not listed.
 4. The person can **read** it (opening it records the read) and **acknowledge receipt**. Both are tied to the exact message version
    they saw. If the notice changes after it was opened, acknowledging is refused until it is reviewed again.
 5. The action becomes a link in that person's own portal. A notice names an event area (overview, briefing, proposal, floor plan,

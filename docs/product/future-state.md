@@ -4,11 +4,11 @@ title: "P.R.I.S.M future state"
 description: "Durable target outcomes for a role-safe PMCM event operating system."
 tags: [product, target-state, maturity]
 status: canonical
-updated: "2026-11-12"
+updated: "2026-11-18"
 authority: informative
 audience: [product, engineering, design, reviewers]
 scope: "Prism target product outcomes and maturity boundaries"
-last_verified: "2026-11-12; static documentation review only, no runtime proof"
+last_verified: "2026-11-18; static documentation review only, no runtime proof"
 sources:
   - id: current-system
     resource: "docs/product/actual-system.md"
@@ -59,10 +59,10 @@ does not duplicate that inventory.
 | Closure and testimonials | Closeout, archive search, and testimonial consent/moderation have implemented slices. A broader testimonial library and post-event knowledge search remain open. |
 | Event health | FL-018 still needs a defined formula, thresholds, stale-data behavior, route placement, and evidence. |
 | Files and storage | Verified upload behavior exists for selected flows. Production provider activation, retention, and malware scanning remain gated. |
-| Notifications | Queue-backed notification intent exists. Production delivery, retry outcomes, and delivery health require configured adapters and operational evidence. |
+| Notifications | Per-recipient delivery records, one notification center and a cross-event Messages inbox exist. Production delivery, retry outcomes, and delivery health require configured adapters and operational evidence. |
 | AI | AI use cases have separate code, data, and deployment gates. A provider key or `AI_ZDR_CONFIRMED` setting alone does not qualify a use case or establish an approved ZDR route. Follow the [AI data policy](ai-data-policy.md) and [AI provider routing runbook](../runbooks/ai-provider-routing.md). No AI action may bypass PMCM approval. |
 | QR and camera | QR passes and typed-code paths are distinct from camera support. Camera use depends on HTTPS, browser/device support, fallback behavior, masterlist reconciliation, and privacy review. |
-| External auth | Built-in API auth and RBAC remain the current model. Any provider migration needs approved role mapping, session migration, fallback, tests, and rollback behavior. |
+| External auth | Built-in API auth and RBAC remain the current model, with per-device sessions and optional two-step sign-in on every portal. Any provider migration needs approved role mapping, session migration, fallback, tests, and rollback behavior. |
 
 These boundaries describe product maturity, not a delivery sequence. The
 feature ledger records family decisions and specific implementation limits.

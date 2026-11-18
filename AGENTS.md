@@ -79,7 +79,7 @@ packages/api-client  @prism/api-client  prismRequest/prismJson, createEventOpsCl
 packages/floorplan-canvas  @prism/floorplan-canvas  shared role-neutral floorplan editor mechanics; /editor + /plugin host Pascal
 packages/floorplan-scene  @prism/floorplan-scene  pure scene validation, seating extraction, legacy-plan converter (no UI)
 packages/portal-query  @prism/portal-query  one data cache per portal (resources, prefetch, invalidation)
-packages/ui          shells/brand/public blocks only — no workflows / role data rules
+packages/ui          shells/brand/public blocks and presentational shared screens — no workflows, HTTP or role data rules
 packages/tokens      theme + typography CSS (+ token object)
 docs/                OKF product, architecture, runbook, and reference bundle (see docs/index.md)
 ```
@@ -100,7 +100,7 @@ docs/                OKF product, architecture, runbook, and reference bundle (s
 | **`@prism/floorplan-canvas`** | Shared canvas editor mechanics, panels, and editor-only types; `/editor` (`PrismFloorplanEditor`) and `/plugin` host the pinned Pascal editor (ADR-0010) | Floorplan editor role wrappers; `/editor` only through a client-only dynamic import | Portal APIs, session/auth, workflow ownership, persistence, role decisions |
 | **`@prism/floorplan-scene`** | Pure scene logic: validation, table seating, legacy-plan conversion | API scene saves; the Pascal editor host | UI, HTTP, browser state |
 | **`@prism/portal-query`** | Portal data cache: `defineResource`, `useResource`, `usePrefetch`, `useInvalidate`, `PortalQueryProvider` (dedupe, abort, per-actor cache) | Declaring a read in `features/**/data`; reading it in view-models | HTTP or role logic inside the package; new hand-written module caches |
-| **`@prism/ui`** | Shells, brand, public marketing blocks, shared empty/status chrome | Cross-portal chrome | Role workflows, business rules |
+| **`@prism/ui`** | Shells, brand, public marketing blocks, shared empty/status chrome, and screens every portal renders alike (account, calendar, notifications, file library, event cards); role apps inject data, actions and permissions as props | Cross-portal chrome and shared screens | HTTP, role workflows, business rules, role data decisions |
 | **`@prism/tokens`** | `theme.css`, `typography.css`, `prismTokens` | Portal global CSS / design tokens | Per-app one-off color systems for shared brand |
 
 **Default import map**
@@ -109,7 +109,7 @@ docs/                OKF product, architecture, runbook, and reference bundle (s
 Domain type / Zod schema / session key  →  @prism/types
 Parse untrusted form/API body           →  parseContract / schema.safeParse (@prism/types)
 HTTP                                    →  @prism/api-client in data/
-Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/auth-shell)
+Shell / brand / shared screens          →  @prism/ui  (prefer subpaths: @prism/ui/auth-shell)
 Floorplan editor mechanics              →  @prism/floorplan-canvas from role wrappers; role apps own storage and read-only policy
 Floor plan scene rules                  →  @prism/floorplan-scene (API and editor host)
 Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
