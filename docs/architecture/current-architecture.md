@@ -108,7 +108,7 @@ Event-ops contracts and API-client endpoints are organized into capability
 modules behind the existing package-root exports. Portal consumers keep stable
 imports while ownership and changes stay local to each capability.
 
-Portal role apps import `@prism/floorplan-canvas` through their local floorplan editor wrappers. The client app chooses read-only mode for official layouts and keeps preference workflows; the event app retains PMCM official-plan authoring. Template API adapters stay in each portal. With `NEXT_PUBLIC_PRISM_FLOORPLAN_ENGINE=pascal`, the event app opens drafts in the Pascal editor instead: a legacy plan converts on open, and scene saves go through `PUT /plans/:planId` one at a time against the returned version.
+Portal role apps import `@prism/floorplan-canvas` through their local floorplan editor wrappers. The client app chooses read-only mode for official layouts and keeps preference workflows; the event app retains PMCM official-plan authoring. Template API adapters stay in each portal. With `NEXT_PUBLIC_PRISM_FLOORPLAN_ENGINE=pascal`, the event app opens drafts in the Pascal editor instead: a legacy plan converts on open, and scene saves go through `PUT /plans/:planId` one at a time against the returned version. The Pascal editor seats the event's guest roster; the API checks a scene's seats against that roster, and its zones against the event's booked suppliers, through the `read-models/floorplan-seating` reader.
 
 Floorplan panel context and viewport rules live with the canvas shell UI state,
 so the toolbar can consume them without importing the editor composition.

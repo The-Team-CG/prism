@@ -91,6 +91,19 @@ never saves.
 - **Legacy data:** the `objects`, `guests`, `suppliers` and `seats` columns stay readable and are not written by a scene
   save until the old editor and its columns are removed in the final milestone.
 - **Snapshots:** submitted and approved snapshots carry the scene when the plan has one.
+- **Chrome patch:** Pascal gives no switch for its plugin manager, level chip, sky control, compass, shortcuts card,
+  scans control or the read-only action bars. The editor patch hides them only when the host sets
+  `globalThis.__PRISM_HOST__`, which `@prism/floorplan-canvas/editor` does on import; `pascal-chrome.test.ts` fails
+  if the patch is not applied. Everything else is a supported extension point: `<Editor>` slots, node fields
+  (`floorplan`, `geometry`, `parametrics`, `quickActions`, `movable.override` for locks) and exported stores.
+- **Host-owned placement and lenses:** Pascal mounts a kind's `tool` inside the 3D canvas, which a plan opened in 2D
+  never mounts, so Library placement listens to Pascal's grid events in the host and the 3D tool only draws the ghost.
+  Pascal caches each piece's 2D drawing by node, so the Seating and Supplier zones lenses draw as an overlay in
+  `floorplanSceneSlot` instead of inside `floorplan()`.
+- **Seating source:** the editor seats the event's guest roster (`operations`), not the plan's own guest list. A scene
+  save is checked against the roster through the `read-models/floorplan-seating` reader, and a zone may name only
+  suppliers with a selected quote on the event. Converting a legacy plan seats each legacy guest as the roster guest
+  with exactly the same name and leaves the rest of its seats empty.
 
 ## Verification
 

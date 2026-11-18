@@ -21,6 +21,11 @@ function useTargetTable(scene: FloorplanSceneDocument): Table | null {
   return parsed?.success ? parsed.data : null;
 }
 
+function seatingLine(target: Table | null, readOnly: boolean): string {
+  if (target) return `${readOnly ? "Seated at" : "Seating at"} ${tableName(target)} · ${target.guestIds.length} of ${target.seats}`;
+  return readOnly ? "Guests still to seat" : "Select a table on the plan to seat guests.";
+}
+
 const tableName = (table: Table) => (typeof table.label === "string" && table.label) || (table.number ? `T${table.number}` : "this table");
 
 /** The event's guests still to seat, seated at the target table with a click when the event can seat guests. */
@@ -44,9 +49,7 @@ export function GuestsPanel() {
   return (
     <div className="flex h-full flex-col gap-3 p-3 text-sm">
       {seating.allowed ? (
-        <p className="text-xs text-muted-foreground">
-          {target ? `Seating at ${tableName(target)} · ${target.guestIds.length} of ${target.seats}` : "Select a table on the plan to seat guests."}
-        </p>
+        <p className="text-xs text-muted-foreground">{seatingLine(target, readOnly)}</p>
       ) : (
         <p className="rounded-md bg-muted px-2.5 py-2 text-xs text-foreground">{seating.reason ?? "Guests cannot be seated for this event."}</p>
       )}
