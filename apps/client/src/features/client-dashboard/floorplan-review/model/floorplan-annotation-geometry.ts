@@ -1,5 +1,5 @@
 import { floorplanSceneDocumentSchema } from "@prism/types";
-import type { PlanDrawing } from "@prism/floorplan-scene";
+import type { PlanDrawing } from "@prism/floorplan-scene/plan-drawing";
 import { drawingOfScene } from "@/features/floorplan/drawing-of-scene";
 
 export type ReviewRoom = PlanDrawing;

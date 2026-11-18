@@ -1,4 +1,4 @@
-import { planDrawing, roomSize, type PlanDrawing } from "@prism/floorplan-scene";
+import { planDrawing, roomSize, type PlanDrawing } from "@prism/floorplan-scene/plan-drawing";
 import type { FloorplanSceneDocument } from "@prism/types";
 
 /** The 2D drawing of a saved scene, or null when the plan has no scene or no walls to draw its room from. */

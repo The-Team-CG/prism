@@ -4,7 +4,11 @@
   "private": true,
   "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./plan-drawing": {
+      "types": "./dist/plan-drawing.d.ts",
+      "default": "./dist/plan-drawing.js"
+    }
   },
   "scripts": {
     "build": "node ../../scripts/typescript.mjs --compiler=legacy -p tsconfig.build.json",

@@ -1,7 +1,7 @@
 "use client";
 
 import type { MouseEvent, ReactNode } from "react";
-import type { PlanDrawing } from "@prism/floorplan-scene";
+import type { PlanDrawing } from "@prism/floorplan-scene/plan-drawing";
 
 const ROOM_EDGE = "#C01867";
 const WALL = "#4A3340";
