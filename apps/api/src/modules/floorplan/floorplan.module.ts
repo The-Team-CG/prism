@@ -5,6 +5,7 @@ import { EventCoreModule } from '@prism/kernel/event-core';
 import { EventSessionModule } from '@prism/kernel/event-session';
 import { ClientFloorplanAccessModule, EventLifecycleProjectionModule } from '@prism/contexts/event-lifecycle';
 import { FloorplanReferenceModule } from '@prism/contexts/event-lifecycle/floorplan-reference';
+import { FloorplanSeatingFactsModule } from '@prism/contexts/read-models/floorplan-seating';
 import { PlatformOpsModule } from '../platform-ops/platform-ops.module';
 import { OpsEventFloorplansController } from './api/live/event-floorplans.controller';
 import { LayoutEventsController } from './api/authoring/layout-events.controller';
@@ -21,7 +22,7 @@ import { PublishService } from './application/authoring/publish.service';
 import { TemplatesService } from './application/authoring/templates.service';
 
 @Module({
-  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, EventSessionModule, EventLifecycleProjectionModule, FloorplanReferenceModule, ClientFloorplanAccessModule],
+  imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, EventSessionModule, EventLifecycleProjectionModule, FloorplanReferenceModule, ClientFloorplanAccessModule, FloorplanSeatingFactsModule],
   controllers: [OpsEventFloorplansController, FloorplanClientReviewController, LayoutEventsController, PlansController, PublishController, TemplatesController],
   providers: [
     FloorPlanWorkflowService,

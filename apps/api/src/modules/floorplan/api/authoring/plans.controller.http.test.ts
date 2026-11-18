@@ -11,6 +11,7 @@ import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter } from '@prism
 import { EventSessionGuard, AuthSessionService } from '@prism/kernel/event-session';
 import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser } from '@prism/types';
 import { FLOORPLAN_EVENT_REFERENCE_READER } from '@prism/contexts/event-lifecycle/floorplan-reference';
+import { FLOORPLAN_SEATING_FACTS } from '@prism/contexts/read-models/floorplan-seating';
 import { PlansController } from './plans.controller';
 import { PlansService } from '../../application/authoring/plans.service';
 
@@ -124,6 +125,8 @@ const prismaMock = {
     { provide: PrismaServiceToken, useValue: prismaMock as unknown as PrismaService },
     { provide: AUDIT_WRITER, useValue: auditWriter },
     { provide: FLOORPLAN_EVENT_REFERENCE_READER, useValue: lifecycleEventReferences },
+    // These saves are legacy canvas saves, which never read the event roster.
+    { provide: FLOORPLAN_SEATING_FACTS, useValue: { listSeatingGuests: async () => [], bookedSupplierIds: async () => new Set<string>() } },
   ],
 })
 class PlansHttpTestModule {}
