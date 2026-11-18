@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import type { CreateClientFloorPlanAnnotationInput, DecideClientFloorPlanInput } from '@prism/types';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
@@ -10,6 +10,7 @@ import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSection
 import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReferenceReader } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
+import { canonicalHash } from './canonical-hash.cjs';
 
 const decisionEffects = {
   approve: { audit: 'Client approved submitted floorplan snapshot', action: AuditActionType.Approve, notification: 'Client approved floorplan' },
@@ -67,7 +68,7 @@ export class FloorPlanClientReviewService {
     await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.Client], 'client floorplan decision', eventId);
     this.requireActorId(actor);
     const key = input.idempotencyKey?.trim() || `floorplan-client:${draftId}:${input.snapshotHash}:${actor.id}`;
-    const payloadHash = this.hash({ eventId, draftId, snapshotHash: input.snapshotHash, action: input.action, comment: input.comment });
+    const payloadHash = canonicalHash({ eventId, draftId, snapshotHash: input.snapshotHash, action: input.action, comment: input.comment });
     try {
       return await this.prisma.$transaction(async (tx) => {
         // A retry of a revision request arrives after the draft left review, so the replay is answered before the snapshot is required.
@@ -194,7 +195,7 @@ export class FloorPlanClientReviewService {
       ? draft.approvedSnapshot ?? draft.submittedSnapshot
       : draft.submittedSnapshot;
     if (!snapshot || !['in_review', 'approved'].includes(draft.status)) throw new NotFoundException('Submitted floorplan snapshot not found');
-    return { event, draft, snapshot, snapshotHash: this.hash(snapshot) };
+    return { event, draft, snapshot, snapshotHash: canonicalHash(snapshot) };
   }
 
   private requirePrimaryContact(actor: ResolvedEventOpsActor, inquiryEmail: string) {
@@ -225,17 +226,6 @@ export class FloorPlanClientReviewService {
   private async lockEvent(tx: Prisma.TransactionClient, eventId: string) {
     const event = await this.lifecycleEventReferences.findFloorplanEvent(eventId, { prisma: tx, correlationId: `floorplan-review-event:${eventId}` });
     if (!event) throw new NotFoundException('Event not found');
-  }
-
-  private hash(value: unknown) {
-    return createHash('sha256').update(this.canonicalJson(value)).digest('hex');
-  }
-
-  private canonicalJson(value: unknown): string {
-    if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-    if (Array.isArray(value)) return `[${value.map((item) => this.canonicalJson(item)).join(',')}]`;
-    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
-    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${this.canonicalJson(item)}`).join(',')}}`;
   }
 
   private isUniqueConflict(error: unknown) {
