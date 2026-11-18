@@ -55,6 +55,10 @@ type Screen =
       project: Project;
       /** The stored Pascal scene; null for the legacy engine or a plan the Pascal editor has not saved yet. */
       scene: FloorplanSceneDocument | null;
+      /** Saves the open Pascal scene one autosave at a time, each against the version the last one returned. */
+      saver: SceneSaver | null;
+      /** Changes on every open, so reloading the same draft remounts the editor. */
+      openId: number;
       readOnly: boolean;
     };
 
@@ -77,8 +81,7 @@ export function useEventDashboardShellViewModel({
   }, [initialClientId, initialEventId, initialSection, initialTab, initialView]);
 
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
-  /** Saves the open Pascal scene one autosave at a time, each against the version the last one returned. */
-  const sceneSaver = useRef<SceneSaver | null>(null);
+  const editorOpens = useRef(0);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(routeState.eventId ?? null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(routeState.clientId ?? null);
   const [section, setSection] = useState<DashboardSection>(routeState.section);
@@ -292,12 +295,14 @@ export function useEventDashboardShellViewModel({
     const readOnly = requestedReadOnly || isLockedFloorplanDraft(draft.status);
     if (floorplanEngine() === "pascal") {
       const opened = await commands.loadPlanScene(draft.floorPlanId);
-      sceneSaver.current = createSceneSaver({ planId: draft.floorPlanId, updatedAt: opened.updatedAt, save: commands.savePlanScene });
-      setScreen({ name: "editor", engine: "pascal", event, draft, project: opened.project, scene: opened.scene, readOnly });
+      const saver = createSceneSaver({ planId: draft.floorPlanId, updatedAt: opened.updatedAt, save: commands.savePlanScene });
+      editorOpens.current += 1;
+      setScreen({ name: "editor", engine: "pascal", event, draft, project: opened.project, scene: opened.scene, saver, openId: editorOpens.current, readOnly });
       return;
     }
     const project = await commands.loadPlan(draft.floorPlanId);
-    setScreen({ name: "editor", engine: "legacy", event, draft, project, scene: null, readOnly });
+    editorOpens.current += 1;
+    setScreen({ name: "editor", engine: "legacy", event, draft, project, scene: null, saver: null, openId: editorOpens.current, readOnly });
   }
 
   /** Saves and submits the draft open in either editor, then shows it as in review on the floor plans page. */
@@ -313,9 +318,19 @@ export function useEventDashboardShellViewModel({
     });
   }
 
-  function saveEditorScene(scene: FloorplanSceneDocument) {
-    if (!sceneSaver.current) throw new Error("Open a floor plan in the Pascal editor before saving it.");
-    return sceneSaver.current.save(scene);
+  /** Submitting saves first; after a conflict that save would send nothing, so the submit stops instead. */
+  function saveSceneForSubmit(scene: FloorplanSceneDocument) {
+    const saver = screen.name === "editor" ? screen.saver : null;
+    if (!saver) throw new Error("Open a floor plan in the Pascal editor before submitting it.");
+    if (saver.state() === "conflict") throw new Error("This floor plan changed elsewhere. Reload it before submitting.");
+    return saver.save(scene);
+  }
+
+  /** Opens the draft again from the stored plan, dropping the edits a conflict kept from saving. */
+  function reloadEditor() {
+    if (screen.name !== "editor") return Promise.resolve();
+    const { event, draft, readOnly } = screen;
+    return run("reload floor plan", () => openEditor(event, draft, readOnly));
   }
 
   const navigation = useEventDashboardNavigationViewModel({
@@ -582,8 +597,8 @@ export function useEventDashboardShellViewModel({
     },
     saveEditorPlan: (project: Project) => commands.savePlan(project),
     submitEditorPlan: (project: Project) => submitOpenDraft(() => commands.savePlan(project)),
-    saveEditorScene,
-    submitEditorScene: (scene: FloorplanSceneDocument) => submitOpenDraft(() => saveEditorScene(scene)),
+    submitEditorScene: (scene: FloorplanSceneDocument) => submitOpenDraft(() => saveSceneForSubmit(scene)),
+    reloadEditor,
     closeEditor: () => setScreen({ name: "portal" }),
     refreshCommandInbox,
     changeCommandInboxPage,

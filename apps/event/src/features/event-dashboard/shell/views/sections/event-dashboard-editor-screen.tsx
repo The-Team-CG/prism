@@ -31,30 +31,32 @@ export function EventDashboardEditorScreen({
   screen,
   saveEditorPlan,
   submitEditorPlan,
-  saveEditorScene,
   submitEditorScene,
+  reloadEditor,
   closeEditor,
 }: {
   session: EventSession;
   screen: EditorScreen;
   saveEditorPlan: EventDashboardShellViewModel["saveEditorPlan"];
   submitEditorPlan: EventDashboardShellViewModel["submitEditorPlan"];
-  saveEditorScene: EventDashboardShellViewModel["saveEditorScene"];
   submitEditorScene: EventDashboardShellViewModel["submitEditorScene"];
+  reloadEditor: EventDashboardShellViewModel["reloadEditor"];
   closeEditor: EventDashboardShellViewModel["closeEditor"];
 }) {
   return (
     <div className="h-screen w-full overflow-hidden">
-      {screen.engine === "pascal" ? (
+      {screen.saver ? (
         <PascalEditorShell
+          key={screen.openId}
           plan={{ scene: screen.scene, name: screen.project.name, widthM: screen.project.widthM, heightM: screen.project.heightM, objects: screen.project.objects }}
           role={session.role}
           screenReadOnly={screen.readOnly}
           eventName={screen.event.eventName}
           draftName={screen.draft.name}
           draftStatus={screen.draft.status}
-          onSave={saveEditorScene}
+          saver={screen.saver}
           onSubmit={submitEditorScene}
+          onReload={() => void reloadEditor()}
           onBack={closeEditor}
         />
       ) : (

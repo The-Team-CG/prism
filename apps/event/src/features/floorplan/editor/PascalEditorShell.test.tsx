@@ -15,12 +15,14 @@ vi.mock("@prism/floorplan-canvas/editor", () => ({
 }));
 
 import { PascalEditorShell } from "./PascalEditorShell";
+import type { SceneSaver } from "./use-cases/scene-saver";
 
 const plan = { scene: null, name: "Ballroom", widthM: 20, heightM: 15, objects: [] };
 
 function open(role: "pmcm-admin" | "coordinator", screenReadOnly: boolean) {
   const save = vi.fn(async () => undefined);
-  render(<PascalEditorShell plan={plan} role={role} screenReadOnly={screenReadOnly} onSave={save} onSubmit={vi.fn()} onBack={vi.fn()} />);
+  const saver: SceneSaver = { save, retry: async () => undefined, state: () => "saved", subscribe: () => () => undefined, updatedAt: () => "" };
+  render(<PascalEditorShell plan={plan} role={role} screenReadOnly={screenReadOnly} saver={saver} onSubmit={vi.fn()} onReload={vi.fn()} onBack={vi.fn()} />);
   if (!editorProps.current) throw new Error("The Pascal editor was not mounted");
   return { save, editor: editorProps.current };
 }

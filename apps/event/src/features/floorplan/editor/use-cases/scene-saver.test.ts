@@ -43,4 +43,46 @@ describe("createSceneSaver", () => {
     expect(save).toHaveBeenLastCalledWith("plan_1", scene, "2026-11-19T00:00:00.000Z");
     expect(saver.updatedAt()).toBe("2026-11-19T00:00:05.000Z");
   });
+
+  it("sends nothing after a 409 and stays in conflict, so the plan saved elsewhere is never overwritten", async () => {
+    const conflict = Object.assign(new Error("Floorplan changed since it was loaded"), { status: 409 });
+    const save = vi.fn().mockRejectedValueOnce(conflict);
+    const saver = createSceneSaver({ planId: "plan_1", updatedAt: "2026-11-19T00:00:00.000Z", save });
+
+    await expect(saver.save(scene)).rejects.toThrow("changed since");
+    await expect(saver.save({ ...scene, rootNodeIds: ["later"] })).resolves.toBeUndefined();
+    await saver.retry();
+
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saver.state()).toBe("conflict");
+  });
+
+  it("retries a failure with the latest scene, not the one that failed", async () => {
+    const first = { ...scene, rootNodeIds: ["first"] };
+    const latest = { ...scene, rootNodeIds: ["latest"] };
+    const save = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ updatedAt: "2026-11-19T00:00:05.000Z" });
+    const saver = createSceneSaver({ planId: "plan_1", updatedAt: "2026-11-19T00:00:00.000Z", save });
+
+    await Promise.allSettled([saver.save(first), saver.save(latest)]);
+    expect(saver.state()).toBe("failed");
+    await saver.retry();
+
+    expect(save).toHaveBeenLastCalledWith("plan_1", latest, "2026-11-19T00:00:00.000Z");
+    expect(saver.state()).toBe("saved");
+  });
+
+  it("tells subscribers it is saving, then saved", async () => {
+    const save = vi.fn().mockResolvedValue({ updatedAt: "2026-11-19T00:00:05.000Z" });
+    const saver = createSceneSaver({ planId: "plan_1", updatedAt: "2026-11-19T00:00:00.000Z", save });
+    const heard: string[] = [];
+    saver.subscribe(() => heard.push(saver.state()));
+
+    await saver.save(scene);
+
+    expect(heard).toEqual(["saving", "saved"]);
+  });
 });
