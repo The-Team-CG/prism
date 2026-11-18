@@ -43,6 +43,7 @@ export function PascalEditorShell(props: PascalEditorShellProps) {
   const seating = useMemo(() => seatingFor(pax, eventPrivacy), [pax, eventPrivacy]);
   const save = useCallback((document: FloorplanSceneDocument) => saver.save(document), [saver]);
   const saveState = useSyncExternalStore(saver.subscribe, saver.state, saver.state);
+  const saveMessage = useSyncExternalStore(saver.subscribe, saver.error, saver.error);
   const retry = useCallback(() => void saver.retry(), [saver]);
 
   return (
@@ -60,6 +61,7 @@ export function PascalEditorShell(props: PascalEditorShellProps) {
       seating={seating}
       guestCount={pax}
       saveState={saveState}
+      saveMessage={saveMessage}
       onRetrySave={retry}
       onReload={onReload}
       unmatchedSeats={unmatchedSeats}

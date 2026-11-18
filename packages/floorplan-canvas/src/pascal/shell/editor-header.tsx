@@ -21,10 +21,12 @@ export type EditorHeaderProps = {
 
 type SaveDisplay = "saving" | "saved" | "failed" | "conflict";
 
-/** The host knows about failed and conflicting saves; Pascal knows about edits still waiting for autosave. */
+/**
+ * The host's saver decides failures and conflicts, so a successful Retry clears them even though Pascal's own status
+ * stays at "error" until the next edit. Pascal knows about edits still waiting for autosave.
+ */
 export function saveDisplay(host: SceneSaveState, pascal: SaveStatus): SaveDisplay {
   if (host === "conflict" || host === "failed") return host;
-  if (pascal === "error") return "failed";
   return host === "saving" || pascal === "pending" || pascal === "saving" ? "saving" : "saved";
 }
 
@@ -32,12 +34,12 @@ const iconButton = "inline-grid size-8 place-items-center rounded-md text-muted-
 const quietButton = "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
 
 function SaveStatusLabel({ pascalStatus }: { pascalStatus: SaveStatus }) {
-  const { saveState, onRetrySave, onReload } = usePrismFloorplan();
+  const { saveState, saveMessage, onRetrySave, onReload } = usePrismFloorplan();
   const display = saveDisplay(saveState, pascalStatus);
   if (display === "failed" || display === "conflict") {
     const [label, action] = display === "failed" ? ["Not saved · Retry", onRetrySave] : ["Changed elsewhere · Reload", onReload];
     return (
-      <button type="button" onClick={action} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10">
+      <button type="button" onClick={action} title={saveMessage ?? undefined} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10">
         <TriangleAlert className="size-3.5" aria-hidden />
         {label}
       </button>
@@ -69,21 +71,41 @@ function HistoryButtons() {
 }
 
 function SubmitButton({ currentDocument, onSubmit }: Pick<EditorHeaderProps, "currentDocument" | "onSubmit">) {
+  const { saveState } = usePrismFloorplan();
   const [submitting, setSubmitting] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
   const submit = useCallback(async () => {
     if (!onSubmit) return;
     setSubmitting(true);
+    setRefusal(null);
     try {
       await onSubmit(currentDocument());
+    } catch (error) {
+      setRefusal(error instanceof Error ? error.message : "The plan could not be submitted.");
     } finally {
       setSubmitting(false);
     }
   }, [currentDocument, onSubmit]);
   return (
+    <>
+      {refusal ? (
+        <span role="alert" title={refusal} className="max-w-56 truncate text-xs text-destructive">
+          {refusal}
+        </span>
+      ) : null}
+      <SubmitAction submitting={submitting} blocked={saveState === "conflict"} onClick={() => void submit()} />
+    </>
+  );
+}
+
+/** Submitting is blocked while the plan is in conflict: its latest edits were never saved. */
+function SubmitAction({ submitting, blocked, onClick }: { submitting: boolean; blocked: boolean; onClick(): void }) {
+  return (
     <button
       type="button"
-      onClick={() => void submit()}
-      disabled={submitting}
+      onClick={onClick}
+      disabled={submitting || blocked}
+      title={blocked ? "Reload the plan before submitting it" : undefined}
       className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-60"
     >
       <Send className="size-4" aria-hidden />

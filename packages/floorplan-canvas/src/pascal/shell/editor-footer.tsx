@@ -19,7 +19,7 @@ function capacityText({ guests, seats }: FooterCounts): { text: string; spare: s
 
 /** Below the editor: guests against seats, how many are seated, the room's size and the snapping grid. */
 export function EditorFooter() {
-  const { guests, guestCount, seating } = usePrismFloorplan();
+  const { guests, guestCount, seating, saveState, saveMessage } = usePrismFloorplan();
   const scene = useLiveScene();
   const gridStep = useEditor((state) => state.gridSnapStep);
   const counts = footerCounts(scene, guests, guestCount);
@@ -32,6 +32,11 @@ export function EditorFooter() {
         {capacity.spare ? <span className={capacity.short ? "text-destructive" : undefined}> · {capacity.spare}</span> : null}
       </span>
       {seating.allowed ? <span>Seated {counts.seated} of {counts.guests}</span> : null}
+      {saveState === "failed" && saveMessage ? (
+        <span role="alert" className="min-w-0 truncate text-destructive" title={saveMessage}>
+          Not saved: {saveMessage}
+        </span>
+      ) : null}
       <span className="flex-1" />
       {room ? <span>Room {metres(room.width)} × {metres(room.depth)} m</span> : null}
       <span>Grid {gridStep} m</span>

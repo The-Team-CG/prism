@@ -7,6 +7,8 @@ export type SceneSaver = {
   /** Sends the latest unsaved scene again after a failed save; does nothing otherwise. */
   retry(): Promise<void>;
   state(): SceneSaveState;
+  /** Why the last save failed, as the API said it; null once a save succeeds. */
+  error(): string | null;
   subscribe(listener: () => void): () => void;
   /** The plan version the last successful save returned. */
   updatedAt(): string;
@@ -25,12 +27,14 @@ export function createSceneSaver({ planId, updatedAt, save }: { planId: string; 
   let version = updatedAt;
   let previous: Promise<unknown> = Promise.resolve();
   let state: SceneSaveState = "saved";
+  let message: string | null = null;
   let unsaved: FloorplanSceneDocument | null = null;
   let inFlight = 0;
   const listeners = new Set<() => void>();
-  const setState = (next: SceneSaveState) => {
-    if (state === next) return;
+  const setState = (next: SceneSaveState, nextMessage: string | null = null) => {
+    if (state === next && message === nextMessage) return;
     state = next;
+    message = nextMessage;
     for (const listener of [...listeners]) listener();
   };
 
@@ -53,7 +57,7 @@ export function createSceneSaver({ planId, updatedAt, save }: { planId: string; 
       },
       (error: unknown) => {
         inFlight -= 1;
-        if (state !== "conflict") setState(isConflict(error) ? "conflict" : "failed");
+        if (state !== "conflict") setState(isConflict(error) ? "conflict" : "failed", error instanceof Error ? error.message : "The plan could not be saved.");
         throw error;
       },
     );
@@ -69,6 +73,7 @@ export function createSceneSaver({ planId, updatedAt, save }: { planId: string; 
       return send(unsaved).catch(() => undefined);
     },
     state: () => state,
+    error: () => message,
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

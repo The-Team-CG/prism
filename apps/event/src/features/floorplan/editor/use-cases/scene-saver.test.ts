@@ -68,11 +68,11 @@ describe("createSceneSaver", () => {
     const saver = createSceneSaver({ planId: "plan_1", updatedAt: "2026-11-19T00:00:00.000Z", save });
 
     await Promise.allSettled([saver.save(first), saver.save(latest)]);
-    expect(saver.state()).toBe("failed");
+    expect([saver.state(), saver.error()]).toEqual(["failed", "offline"]);
     await saver.retry();
 
     expect(save).toHaveBeenLastCalledWith("plan_1", latest, "2026-11-19T00:00:00.000Z");
-    expect(saver.state()).toBe("saved");
+    expect([saver.state(), saver.error()]).toEqual(["saved", null]);
   });
 
   it("tells subscribers it is saving, then saved", async () => {

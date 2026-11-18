@@ -6,7 +6,9 @@ import { usePrismFloorplan } from "../editor-context";
 /** The suppliers working in a zone, picked from those booked on the event. */
 export function ZoneSuppliersField({ node, onUpdate }: { node: PrismZoneNode; onUpdate: (patch: Partial<PrismZoneNode>) => void }) {
   const { suppliers, readOnly } = usePrismFloorplan();
-  if (suppliers.length === 0) return <p className="text-xs text-muted-foreground">No suppliers are booked on this event yet.</p>;
+  const booked = new Set(suppliers.map((supplier) => supplier.id));
+  const noLongerBooked = node.supplierIds.filter((id) => !booked.has(id));
+  if (suppliers.length === 0 && noLongerBooked.length === 0) return <p className="text-xs text-muted-foreground">No suppliers are booked on this event yet.</p>;
   const toggle = (id: string, on: boolean) =>
     onUpdate({ supplierIds: on ? [...node.supplierIds, id] : node.supplierIds.filter((supplierId) => supplierId !== id) });
   return (
@@ -18,6 +20,14 @@ export function ZoneSuppliersField({ node, onUpdate }: { node: PrismZoneNode; on
           <span>{supplier.name}</span>
           <span className="text-xs text-muted-foreground">{supplier.kind}</span>
         </label>
+      ))}
+      {noLongerBooked.map((id) => (
+        <p key={id} className="flex items-center gap-2 text-sm text-destructive">
+          <span className="flex-1">A supplier no longer booked on this event</span>
+          <button type="button" onClick={() => toggle(id, false)} className="text-xs">
+            Remove
+          </button>
+        </p>
       ))}
     </fieldset>
   );

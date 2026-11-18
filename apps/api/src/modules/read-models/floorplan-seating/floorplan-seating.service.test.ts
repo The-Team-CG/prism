@@ -4,10 +4,10 @@ import { FloorplanSeatingFactsService } from './floorplan-seating.service';
 
 describe('FloorplanSeatingFactsService', () => {
   it('offers only roster guests who are still invited and eligible, with their RSVP', async () => {
-    const findMany = vi.fn(async () => [{ id: 'gre_ana', rsvp: 'declined' }]);
+    const findMany = vi.fn(async () => [{ id: 'gre_ana', rsvp: 'declined', guestName: 'Ana Reyes' }]);
     const service = new FloorplanSeatingFactsService({ opsGuestRosterEntry: { findMany } } as unknown as PrismaService);
 
-    await expect(service.listSeatingGuests('evt_1')).resolves.toEqual([{ id: 'gre_ana', rsvp: 'declined' }]);
+    await expect(service.listSeatingGuests('evt_1')).resolves.toEqual([{ id: 'gre_ana', rsvp: 'declined', name: 'Ana Reyes' }]);
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { eventId: 'evt_1', withdrawnAt: null, eligibility: 'eligible' } }));
   });
 

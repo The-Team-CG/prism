@@ -1,4 +1,4 @@
-import { convertLegacyPlan } from "@prism/floorplan-scene";
+import { convertLegacyPlan, matchLegacyGuests } from "@prism/floorplan-scene";
 import type { FloorPlanCanvasObject, FloorPlanGuest, FloorplanSceneDocument, PrismFloorplanSeatingGuest } from "@prism/types";
 
 export type PlanToOpen = {
@@ -15,19 +15,24 @@ export type OpenedPlanScene = { scene: FloorplanSceneDocument; converted: boolea
 
 /**
  * Seats on a converted plan name the legacy plan's guests; the editor seats the event roster. Each legacy guest
- * becomes the roster guest with exactly the same name, and a seat whose guest matches nobody is left empty.
+ * becomes the roster guest with exactly the same name (the API compares a first save the same way). A seat whose guest
+ * matches nobody, or whose roster guest is already seated, is left empty and counted.
  */
 function seatRosterGuests(scene: FloorplanSceneDocument, legacyGuests: readonly FloorPlanGuest[], roster: readonly PrismFloorplanSeatingGuest[]) {
-  const rosterIdByName = new Map(roster.map((guest) => [guest.name.trim(), guest.id]));
-  const rosterIdOf = new Map(legacyGuests.map((guest) => [guest.id, rosterIdByName.get(guest.name.trim())]));
+  const rosterIdOf = matchLegacyGuests(legacyGuests, roster);
+  const seated = new Set<string>();
   let unmatchedSeats = 0;
   const nodes = Object.fromEntries(
     Object.entries(scene.nodes).map(([id, node]) => {
       if (node.type !== "prism-table" || !Array.isArray(node.guestIds)) return [id, node];
       const guestIds = (node.guestIds as string[]).flatMap((legacyId) => {
         const rosterId = rosterIdOf.get(legacyId);
-        if (!rosterId) unmatchedSeats += 1;
-        return rosterId ? [rosterId] : [];
+        if (!rosterId || seated.has(rosterId)) {
+          unmatchedSeats += 1;
+          return [];
+        }
+        seated.add(rosterId);
+        return [rosterId];
       });
       return [id, { ...node, guestIds }];
     }),

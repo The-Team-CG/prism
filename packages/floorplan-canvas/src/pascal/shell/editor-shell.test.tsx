@@ -47,6 +47,7 @@ vi.mock("@pascal-app/viewer", () => ({ useViewer: (select: (state: unknown) => u
 vi.mock("../event-layout-plugin", () => ({ prismEventLayoutPlugin: {} }));
 
 const { PrismFloorplanEditor } = await import("../prism-floorplan-editor");
+const { saveDisplay } = await import("./editor-header");
 
 function screenWidth(small: boolean) {
   window.matchMedia = (query: string) =>
@@ -78,6 +79,12 @@ async function openEditor(overrides: { readOnly?: boolean; saveState?: SceneSave
 afterEach(cleanup);
 
 describe("the floor plan editor shell", () => {
+  it("shows Saved once a retry succeeds, though Pascal still remembers the failed autosave", () => {
+    expect(saveDisplay("saved", "error")).toBe("saved");
+    expect(saveDisplay("failed", "saved")).toBe("failed");
+    expect(saveDisplay("saved", "pending")).toBe("saving");
+  });
+
   it("offers Retry after a failed save and Reload after a conflict", async () => {
     screenWidth(false);
     const onRetrySave = vi.fn();

@@ -84,7 +84,7 @@ function usePluginsReady() {
  */
 export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   const { scene, onSave, onSubmit, onBack, eventName, draftName, draftStatus } = props;
-  const { guests, suppliers, seating, guestCount, saveState, onRetrySave, onReload, unmatchedSeats } = props;
+  const { guests, suppliers, seating, guestCount, saveState, saveMessage = null, onRetrySave, onReload, unmatchedSeats } = props;
   const ready = usePluginsReady();
   const smallScreen = useSmallScreen();
   const readOnly = props.readOnly || smallScreen;
@@ -93,16 +93,17 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   const [initialScene] = useState(scene);
   const onLoad = useCallback(async () => fromSceneDocument(initialScene), [initialScene]);
   const save = useCallback(
+    // A plan made view-only by a narrow window still saves the edits made before it narrowed.
     async (saved: PascalSaveScene) => {
-      if (readOnly) return;
+      if (props.readOnly) return;
       await onSave(toSceneDocument(saved, PASCAL_VERSION));
     },
-    [onSave, readOnly],
+    [onSave, props.readOnly],
   );
   const tabs = useMemo(() => railTabs(readOnly), [readOnly]);
   const context = useMemo<PrismFloorplanContextValue>(
-    () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, onRetrySave, onReload, unmatchedSeats }),
-    [readOnly, guests, suppliers, seating, guestCount, saveState, onRetrySave, onReload, unmatchedSeats],
+    () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, unmatchedSeats }),
+    [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, unmatchedSeats],
   );
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);

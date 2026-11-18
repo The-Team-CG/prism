@@ -12,6 +12,8 @@ export type PrismFloorplanContextValue = {
   /** The event's guest count, shown while the roster is empty. */
   guestCount: number;
   saveState: SceneSaveState;
+  /** Why the last save failed, as the API said it, while `saveState` is "failed". */
+  saveMessage?: string | null;
   onRetrySave(): void;
   onReload(): void;
   /** Legacy seats whose guest name matched nobody on the roster when the plan was converted. */

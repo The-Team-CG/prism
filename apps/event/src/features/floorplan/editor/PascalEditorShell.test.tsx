@@ -26,7 +26,7 @@ const plan = { scene: null, name: "Ballroom", widthM: 20, heightM: 15, objects: 
 
 function open(role: "pmcm-admin" | "coordinator", screenReadOnly: boolean, eventPrivacy: "private" | "public" = "private") {
   const save = vi.fn(async () => undefined);
-  const saver: SceneSaver = { save, retry: async () => undefined, state: () => "saved", subscribe: () => () => undefined, updatedAt: () => "" };
+  const saver: SceneSaver = { save, retry: async () => undefined, state: () => "saved", error: () => null, subscribe: () => () => undefined, updatedAt: () => "" };
   render(<PascalEditorShell plan={plan} role={role} screenReadOnly={screenReadOnly} guests={[]} suppliers={[]} pax={120} eventPrivacy={eventPrivacy} saver={saver} onSubmit={vi.fn()} onReload={vi.fn()} onBack={vi.fn()} />);
   if (!editorProps.current) throw new Error("The Pascal editor was not mounted");
   return { save, editor: editorProps.current };

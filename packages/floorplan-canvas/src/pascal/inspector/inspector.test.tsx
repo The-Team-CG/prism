@@ -75,6 +75,22 @@ describe("the table card", () => {
     expect(sidebar.setActiveSidebarPanel).toHaveBeenCalledWith("guests");
   });
 
+  it("flags a seated guest the API would refuse and still lets PMCM unseat them after seating closes", () => {
+    scene.nodes = { t1: { ...table, guestIds: ["g4", "gone"] } };
+    scene.selected = ["t1"];
+    const declined = roster.map((guest) => (guest.id === "g4" ? { ...guest, rsvp: "declined" as const } : guest));
+    render(
+      <PrismFloorplanProvider value={context({ guests: declined, seating: { allowed: false, reason: "Table assignment is only available for private events." } })}>
+        <SeatedGuestsFooter />
+      </PrismFloorplanProvider>,
+    );
+    expect(screen.getByText("Dee Lim").closest("li")?.textContent).toContain("Declined");
+    expect(screen.getByText("Unknown guest").closest("li")?.textContent).toContain("Not on the guest list");
+    fireEvent.click(screen.getByRole("button", { name: "Unseat Dee Lim" }));
+    expect(scene.updateNode).toHaveBeenCalledWith("t1", { guestIds: ["gone"] });
+    expect(screen.queryByRole("button", { name: "Seat guests" })).toBeNull();
+  });
+
   it("offers Seat guests on the action bar only when the event can seat guests", () => {
     hostState.setFacts({ seatingAllowed: true, readOnly: false });
     expect(tableQuickActions({ node: table }).map((action) => action.label)).toEqual(["Seat guests"]);
@@ -98,5 +114,17 @@ describe("the zone card", () => {
     expect(screen.getByRole("checkbox", { name: /Lumen Lights/ })).toHaveProperty("checked", true);
     fireEvent.click(screen.getByRole("checkbox", { name: /Feast Co/ }));
     expect(onUpdate).toHaveBeenCalledWith({ supplierIds: ["s1", "s2"] });
+  });
+
+  it("lets PMCM remove a supplier the zone names who is no longer booked", () => {
+    const onUpdate = vi.fn();
+    render(
+      <PrismFloorplanProvider value={context()}>
+        <ZoneSuppliersField node={{ id: "z1", type: "prism-zone", label: "AV desk", supplierIds: ["s_gone"] } as never} onUpdate={onUpdate} />
+      </PrismFloorplanProvider>,
+    );
+    expect(screen.getByText("A supplier no longer booked on this event")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+    expect(onUpdate).toHaveBeenCalledWith({ supplierIds: [] });
   });
 });

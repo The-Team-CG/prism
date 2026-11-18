@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { tableAssignmentsOf } from '@prism/floorplan-scene';
+import { matchLegacyGuests, tableAssignmentsOf, type NamedGuest } from '@prism/floorplan-scene';
 import {
   type FloorplanSceneDocument,
   SEATING_LIST_MAX_GUESTS,
@@ -67,6 +67,27 @@ export function sceneTableEligibilityObjects(scene: FloorplanSceneDocument, keys
     seats: table.seats,
     hidden: table.hidden,
     assignedGuestIds: table.guestIds,
+  }));
+}
+
+/**
+ * A legacy plan's tables with each seat named by the roster guest the editor seats in its place: the roster guest with
+ * exactly the same name as the legacy guest. Seats with no match are dropped, as the editor drops them on conversion,
+ * so a first scene save compares like with like and the seats it carried over are not new.
+ */
+export function legacyTablesOnRoster(
+  objects: readonly TableEligibilityObject[],
+  legacyGuests: readonly unknown[],
+  roster: readonly NamedGuest[],
+): TableEligibilityObject[] {
+  const named = legacyGuests.flatMap((value) => (isRecord(value) && typeof value.id === 'string' && typeof value.name === 'string' ? [{ id: value.id, name: value.name }] : []));
+  const rosterIdOf = matchLegacyGuests(named, roster);
+  return objects.map((object) => ({
+    ...object,
+    assignedGuestIds: (object.assignedGuestIds ?? []).flatMap((guestId) => {
+      const rosterId = rosterIdOf.get(guestId);
+      return rosterId ? [rosterId] : [];
+    }),
   }));
 }
 

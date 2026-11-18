@@ -60,7 +60,7 @@ function draft(
   };
 }
 
-type SeatingFacts = { roster?: Array<{ id: string; rsvp: string }>; booked?: string[] };
+type SeatingFacts = { roster?: Array<{ id: string; rsvp: string; name: string }>; booked?: string[] };
 
 function createService(opsDraft: unknown, overrides: Record<string, unknown> = {}, facts: SeatingFacts = {}) {
   const audit: AuditWriter = { write: vi.fn().mockResolvedValue(undefined) };
@@ -113,7 +113,7 @@ function createService(opsDraft: unknown, overrides: Record<string, unknown> = {
 
   // The event roster a scene save seats from; by default the same guests the legacy saves list.
   const seatingFacts = {
-    listSeatingGuests: vi.fn(async () => facts.roster ?? [{ id: 'g-ana', rsvp: 'confirmed' }, { id: 'g-ben', rsvp: 'pending' }, { id: 'g-dee', rsvp: 'declined' }]),
+    listSeatingGuests: vi.fn(async () => facts.roster ?? [{ id: 'g-ana', rsvp: 'confirmed', name: 'Ana Reyes' }, { id: 'g-ben', rsvp: 'pending', name: 'Ben Cruz' }, { id: 'g-dee', rsvp: 'declined', name: 'Dee Lim' }]),
     bookedSupplierIds: vi.fn(async () => new Set(facts.booked ?? [])),
   };
   return {
@@ -704,9 +704,11 @@ describe('PlansService Pascal scene saves', () => {
   });
 
   it('refuses new scene seats on a public event but keeps seats carried over from the converted legacy plan', async () => {
+    // The legacy plan seats its own guest; the editor converts that seat to the roster guest of the same name.
     const publicDraft = draft('pmcm_draft', 'Ana Reyes', 'owner@example.test', 'blank', { privacy: 'public' });
     const { service, prisma } = createService(publicDraft, {
-      objectRows: [{ objectId: 't1', objectData: editorTable({ assignedGuestIds: ['g-ana'] }), zIndex: 0 }],
+      guests: [{ id: 'legacy_ana', name: 'Ana Reyes', rsvp: 'confirmed' }],
+      objectRows: [{ objectId: 't1', objectData: editorTable({ assignedGuestIds: ['legacy_ana'] }), zIndex: 0 }],
     });
 
     await expect(
@@ -729,7 +731,7 @@ describe('PlansService Pascal scene saves', () => {
   });
 
   it('checks scene seating against the event roster, not the guest list sent with the save', async () => {
-    const { service, prisma, seatingFacts } = createService(draft('pmcm_draft'), {}, { roster: [{ id: 'g-ana', rsvp: 'declined' }] });
+    const { service, prisma, seatingFacts } = createService(draft('pmcm_draft'), {}, { roster: [{ id: 'g-ana', rsvp: 'declined', name: 'Ana Reyes' }] });
     const confirmedInSave = [{ id: 'g-ana', name: 'Ana Reyes', rsvp: 'confirmed' as const }];
 
     await expect(

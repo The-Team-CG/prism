@@ -18,13 +18,14 @@ import {
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, FloorPlanObject, JsonValue, SavedPlanObject, Seat, SeatCategory } from '@prism/kernel/shared';
 import { validateFloorplanScene, zoneSupplierIds } from '@prism/floorplan-scene';
-import { FLOORPLAN_SEATING_FACTS, type FloorplanSeatingFactsReader } from '@prism/contexts/read-models/floorplan-seating';
+import { FLOORPLAN_SEATING_FACTS, type FloorplanSeatingFactsReader, type FloorplanSeatingGuest } from '@prism/contexts/read-models/floorplan-seating';
 import type { TableEligibilityGuest, TableEligibilityObject, UpdatePlanInput } from '@prism/types';
 import { storedScene } from '../stored-scene';
 import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
 import {
   assertSeatingAllowedForNewAssignments,
   assertTableAssignmentsEligible,
+  legacyTablesOnRoster,
   sceneTableEligibilityObjects,
   storedTableEligibilityGuests,
   storedTableEligibilityObjects,
@@ -53,13 +54,14 @@ type SeatingLayouts = {
   newSeats?: { previous: readonly TableEligibilityObject[]; next: readonly TableEligibilityObject[] };
 };
 
-function seatingLayouts(plan: PlanWithObjects, changes: UpdatePlanChanges): SeatingLayouts {
+function seatingLayouts(plan: PlanWithObjects, changes: UpdatePlanChanges, roster: readonly FloorplanSeatingGuest[] | null): SeatingLayouts {
   const legacy = storedTableEligibilityObjects(plan.objectRows.length ? plan.objectRows.map((row) => row.objectData) : asArray<unknown>(plan.objects));
   const scene = storedScene(plan);
   if (changes.scene) {
     const next = sceneTableEligibilityObjects(changes.scene);
     if (scene) return { next, newSeats: { previous: sceneTableEligibilityObjects(scene), next } };
-    return { next, newSeats: { previous: legacy, next: sceneTableEligibilityObjects(changes.scene, 'legacy') } };
+    const previous = legacyTablesOnRoster(legacy, asArray<unknown>(plan.guests), roster ?? []);
+    return { next, newSeats: { previous, next: sceneTableEligibilityObjects(changes.scene, 'legacy') } };
   }
   if (changes.objects) return { next: changes.objects, newSeats: { previous: legacy, next: changes.objects } };
   return { next: scene ? sceneTableEligibilityObjects(scene) : legacy };
@@ -260,10 +262,10 @@ export class PlansService {
    * checked here because they carry no authoritative guest roster. A save that omits objects or guests
    * is checked against the stored values it leaves in place.
    */
-  private assertTableAssignmentsEligible(plan: PlanWithObjects, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor, eventPrivacy: EventPrivacy, rosterGuests: TableEligibilityGuest[] | null) {
+  private assertTableAssignmentsEligible(plan: PlanWithObjects, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor, eventPrivacy: EventPrivacy, rosterGuests: FloorplanSeatingGuest[] | null) {
     if (actor.role === OpsUserRole.Client) return;
     if (changes.objects === undefined && changes.guests === undefined && changes.scene === undefined) return;
-    const layouts = seatingLayouts(plan, changes);
+    const layouts = seatingLayouts(plan, changes, rosterGuests);
     const guests = rosterGuests ?? changes.guests ?? storedTableEligibilityGuests(asArray<unknown>(plan.guests));
     assertTableAssignmentsEligible(layouts.next, guests);
     if (layouts.newSeats) {
@@ -275,7 +277,7 @@ export class PlansService {
    * A scene save seats guests from the event roster and gives zones only to suppliers booked on the event; a legacy
    * save (null here) keeps checking the plan's own guest list.
    */
-  private async sceneSaveRoster(tx: Prisma.TransactionClient, eventId: string | null, changes: UpdatePlanChanges): Promise<TableEligibilityGuest[] | null> {
+  private async sceneSaveRoster(tx: Prisma.TransactionClient, eventId: string | null, changes: UpdatePlanChanges): Promise<FloorplanSeatingGuest[] | null> {
     if (!changes.scene) return null;
     const zoneSuppliers = zoneSupplierIds(changes.scene);
     if (!eventId) {
