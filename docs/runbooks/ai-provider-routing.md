@@ -4,11 +4,11 @@ title: "AI provider and model routing"
 description: "Configure Prism's live AI provider, understand which data may reach it, and switch providers or models."
 tags: [runbook, ai, providers, routing, privacy]
 status: canonical
-updated: "2026-11-12"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, reviewers, agents]
 scope: "Live AI provider/model selection, the real-data gate, and the AI use cases that depend on it"
-last_verified: "2026-11-12; static review of route configuration and existing gateway tests; live-provider qualification and deployment state not verified"
+last_verified: "2026-11-18 use-case registry, default models and copilot access re-checked against ai-use-cases.ts and the advisory controller; 2026-11-12; static review of route configuration and existing gateway tests; live-provider qualification and deployment state not verified"
 sources:
   - id: ai-gateway
     resource: "apps/api/src/modules/platform-ops/application/ai-governance/gateway"
@@ -105,9 +105,12 @@ from this technical selection.
 | `compliance.advisory` | FR-10+ | Explains the open items of the latest compliance run in plain language and orders the actions. Advice only; the rule results stay the record. | Event type, phase, days to the event, and each open check's title, severity, evidence and remediation. |
 | `theme.suggestions` | FR-11 | Two or three theme concepts (name, palette, moodboard description, search terms) from the briefing. Words and colors, never images. | Event type, guest count, venue type, mood text, budget range and styling budget. No client identity; the mood text is redacted for personal details. |
 | `event.intelligence` | FR-AI-08 | The post-event report: what worked, what failed and why, recommended actions. Built from the insights card; returned to PMCM, stored nowhere. | Event type, guest and check-in counts, insight dimensions, risks, supplier ratings, billed and outstanding totals, client rating. No names or notes. |
+| `operations.assistant` | FR-AI-05 | Answers a PMCM question about one event from its facts, with the fact keys it used and up to three suggested next steps. It has no tools and changes nothing. | Event-level counts and statuses, the question and short history. No client identity. |
+| `event-day.copilot` | FR-AI-07 | Up to eight live alerts for the event-day operator (late suppliers, overdue tasks, absent or late coordinators, check-in pace, issues past SLA), each with one intervention. The panel polls each minute and reuses the last advice while the facts are unchanged. | Minimized live state: counts, relative minutes rounded to five, statuses. No names. |
 | `pare.budget`, `pare.risk`, `pare.message-drafts` | FR-AI-04 | PARE supplier-replacement stages. PMCM approves before anything is sent. | Event, budget, ranked candidates and client preferences with names and ids masked (see PARE below). |
 
-Every use case is PMCM-only and advisory. AI output is never sent, applied or
+Every use case is advisory and PMCM-only, except the event-day copilot, which the
+event's designated operator may also run. AI output is never sent, applied or
 approved automatically: triage changes no inquiry status, a proposal draft only
 fills the form until PMCM issues it, a conforme reminder needs PMCM approval
 before it enters the notification outbox, and a client follow-up is sent only

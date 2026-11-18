@@ -4,11 +4,11 @@ title: "Operational communications"
 description: "How operational notices are queued, delivered, read, acknowledged and escalated, and how to run and verify that flow."
 tags: [runbook, notifications, email, viber, acknowledgment, escalation]
 status: canonical
-updated: "2026-11-11"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, reviewers, operators, agents]
 scope: "Recipient-level delivery tracking, in-app notices, acknowledgments, provider outcomes, escalation and the checks that prove them"
-last_verified: "2026-11-11; recipient inbox, acknowledgment, provider outcome and escalation behaviour covered by unit tests and PostgreSQL tests, a real local mail-capture round trip, and the PMCM delivery details panel exercised in a real browser against a local API (every recipient state, both escalation levels, setting a deadline); no staging environment or linked Viber account exists, so no live provider delivery has been tested"
+last_verified: "2026-11-18 notification screen, escalation links and the CI job name re-checked; 2026-11-11; recipient inbox, acknowledgment, provider outcome and escalation behaviour covered by unit tests and PostgreSQL tests, a real local mail-capture round trip, and the PMCM delivery details panel exercised in a real browser against a local API (every recipient state, both escalation levels, setting a deadline); no staging environment or linked Viber account exists, so no live provider delivery has been tested"
 sources:
   - id: outbox
     resource: "apps/api/src/modules/platform-ops/application/notifications/notification-outbox.service.ts"
@@ -162,7 +162,7 @@ npm run prisma:validate && npm run db:verify:offline
 
 The database-backed tests (independent acknowledgment per recipient, rejection of another recipient's acknowledgment, concurrent
 escalation without duplicates, provider outcome ordering) need the isolated PostgreSQL. They run only against
-`127.0.0.1:55437/prism_p0` and refuse any other target. CI runs them in the `postgres-migrations` job:
+`127.0.0.1:55437/prism_p0` and refuse any other target. CI runs them in the `postgres-migrations` job of the `Database integrity` workflow:
 
 ```bash
 P0_TEST_DATABASE_URL=<isolated url> DB_SSL=false npx vitest run test/integration/notification-delivery.database.test.ts
@@ -181,8 +181,8 @@ Portals: `npm --workspace @prism/client|@prism/supplier|@prism/event run typeche
 
 ## Not yet verified
 
-- **Live provider delivery.** There is no staging environment and no linked Viber test account, so no message has been sent through
-  Resend or Viber. Before relying on this in a deployment, create the environment, set `RESEND_API_KEY`, `PRISM_MAIL_FROM`,
+- **Live provider delivery.** No message has been recorded as sent through Resend or Viber from a deployed environment, and there
+  is no linked Viber test account. Before relying on this in a deployment, create the environment, set `RESEND_API_KEY`, `PRISM_MAIL_FROM`,
   `VIBER_AUTH_TOKEN` and `VIBER_BOT_URI` through the host's secret store (see [deployment secrets](deployment-secrets.md)), register the
   Viber webhook, send one notice to a test address and a linked test account, and confirm the delivery, the outcome and the
   acknowledgment end to end.

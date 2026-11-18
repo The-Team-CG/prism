@@ -4,11 +4,11 @@ title: "Viber, Zoom and Canva integrations"
 description: "Turn on the optional Viber, Zoom and Canva integrations, what each one needs, and how to check it works."
 tags: [runbook, integrations, viber, zoom, canva, notifications]
 status: canonical
-updated: "2026-11-11"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, reviewers, agents]
 scope: "Configuration, provider-side setup and verification for the Viber bot, Zoom meetings and Canva templates"
-last_verified: "2026-11-11; configuration rules, webhook signature checks, token handling and failure states covered by unit tests; no live provider call has been made from this checkout"
+last_verified: "2026-11-18 notification and Workspace settings paths re-checked in the portals; 2026-11-11; configuration rules, webhook signature checks, token handling and failure states covered by unit tests; no live provider call has been made from this checkout"
 sources:
   - id: viber
     resource: "apps/api/src/modules/platform-ops/application/notifications/notification-preference.service.ts"
@@ -105,7 +105,8 @@ Template data fields (text fields in the brand template, named exactly):
 
 How it works:
 
-- A PMCM admin opens **Settings → Canva → Connect Canva** once for the organization. The OAuth request uses PKCE.
+- A PMCM admin opens **Workspace settings → Canva → Connect Canva** once for the organization (Workspace settings is
+  reached from the Account page). The OAuth request uses PKCE.
   Its state is single use and expires in 10 minutes. The access and refresh tokens are stored sealed with
   AES-256-GCM and refreshed when they expire.
 - **Open in Canva** fills the proposal template from the latest issued proposal.
@@ -118,4 +119,4 @@ testimonial consent rule.
 ## Rotating a credential
 
 Change the variable and restart the API. Rotating `CANVA_TOKEN_KEY` makes the stored Canva tokens unreadable;
-reconnect Canva from Settings afterwards. Rotating the Viber token keeps every link: Viber user IDs do not change.
+reconnect Canva from Workspace settings afterwards. Rotating the Viber token keeps every link: Viber user IDs do not change.

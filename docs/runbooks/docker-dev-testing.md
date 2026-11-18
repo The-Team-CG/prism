@@ -4,11 +4,11 @@ title: "P.R.I.S.M local Supabase and Docker development"
 description: "Isolated local database startup, Docker modes, source syncing, and persistent development data."
 tags: [runbook, docker, supabase, development]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, QA, agents]
 scope: "local Prism Node/Docker startup and database isolation"
-last_verified: "2026-10-29; launcher switches, local-supabase lifecycle and generated env, compose files, and Supabase config reviewed; stack not started"
+last_verified: "2026-11-18 Supabase CLI version, Postgres major and launcher switches re-checked; 2026-10-29; launcher switches, local-supabase lifecycle and generated env, compose files, and Supabase config reviewed; stack not started"
 sources:
   - id: startup
     resource: "start-prism.ps1"
@@ -26,7 +26,7 @@ sources:
 
 - **Purpose:** Start Prism on a persistent local database without hosted credentials.
 - **Prerequisites:** Node 26, npm, Docker Desktop with its Linux engine.
-- **Database:** Supabase CLI 2.115.0 (root dev dependency), Postgres 17, Studio, metadata, gateway and REST dependencies. This CLI rejects Postgres 16; the repository's migration CI still replays PostgreSQL 16. Supabase Auth, Realtime, functions, analytics, SMTP and pooler are disabled. Storage is disabled unless `PRISM_LOCAL_SUPABASE_STORAGE=1` is set before startup; the wrapper then starts Supabase Storage, creates a private bucket, and points the API's `supabase` storage adapter at it.
+- **Database:** Supabase CLI (the root `supabase` dev dependency, 3.0.0), Postgres 17 (`supabase/config.toml`), Studio, metadata, gateway and REST dependencies. The repository's migration and browser CI replay PostgreSQL 16. Supabase Auth, Realtime, functions, analytics, SMTP and pooler are disabled. Storage is disabled unless `PRISM_LOCAL_SUPABASE_STORAGE=1` is set before startup; the wrapper then starts Supabase Storage, creates a private bucket, and points the API's `supabase` storage adapter at it.
 - **Schema:** Prisma migrations in `apps/api/prisma/migrations`; Supabase application migrations and automatic seeding are disabled.
 - **Verification:** Launch the selected mode, check API/portal HTTP readiness, and confirm source reload and database persistence when changing startup behavior.
 

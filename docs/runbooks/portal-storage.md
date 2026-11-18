@@ -4,11 +4,11 @@ title: "Portal file storage"
 description: "Configure private file storage and verify portal attachment behavior."
 tags: [runbook, storage, portals, files]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-11-18"
 authority: operational
 audience: [engineering, operators, QA]
 scope: "Platform storage adapters and client, supplier, and PMCM file workflows"
-last_verified: "2026-10-16; local implementation verification; hosted provider activation unverified"
+last_verified: "2026-11-18 provider variables, local Supabase storage switch and upload cleanup sweep re-checked against code; 2026-10-16; local implementation verification; hosted provider activation unverified"
 sources:
   - id: storage
     resource: "apps/api/src/modules/platform-ops/application/storage"
@@ -26,7 +26,7 @@ sources:
 
 - **Default:** Storage is unconfigured. Configure a provider explicitly.
 - **Evidence:** A pending upload or metadata record never proves file receipt.
-- **Production state:** This delivery does not configure a hosted bucket or credentials.
+- **Production state:** The repository configures no hosted bucket or credentials.
 
 ## Local development
 
@@ -35,7 +35,9 @@ absolute directory in the checkout's ignored `.local-dev` folder. Start the API
 against a prepared local database. The API authenticates upload/download bytes
 and verifies actual size, SHA-256, and supported content before confirmation.
 Local disk storage is suitable for development; it is not durable deployment
-storage for a serverless API.
+storage for a serverless API. To exercise the Supabase adapter locally instead,
+set `PRISM_LOCAL_SUPABASE_STORAGE=1` before `start-prism.cmd`; the wrapper starts
+Supabase Storage with a private bucket (see [Docker development](docker-dev-testing.md)).
 
 ## Private Supabase storage
 
@@ -59,6 +61,11 @@ asks the API to confirm them. Confirmation reads the provider bytes, verifies
 the declaration and content, and rechecks actor/event policy before binding.
 Downloads require a fresh scoped API authorization. Signed URLs are bearer
 capabilities; keep them out of logs and analytics.
+
+Uploads that never finished (requested or failed and untouched for three days)
+are removed every six hours with their partial provider bytes; a retry of the
+same upload still resumes. `PRISM_DISABLE_ABANDONED_UPLOAD_CLEANUP_JOB=1` turns
+the sweep off. Confirmed files are never removed by it.
 
 Generic storage deletion rejects supplier document objects, which may be bound
 to immutable contract or creative submissions. Correcting evidence creates a

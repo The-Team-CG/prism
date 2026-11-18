@@ -4,7 +4,7 @@ title: "Role-app boundaries"
 description: "Keep Prism's client, supplier, guest, and PMCM event experiences as separate role-owned applications."
 tags: [architecture, decision, frontend, roles]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-18"
 authority: normative
 audience: [agents, frontend-engineers, product-reviewers]
 scope: "apps/client, apps/supplier, apps/guest, and apps/event"
@@ -65,6 +65,12 @@ It does not own UI rendering or app-local session storage. `packages/ui` may
 provide domain-free shells and presentation primitives, but it cannot absorb
 role workflows or permission rules.
 
+Clarification (2026-11-18): `packages/ui` also holds presentational screens that
+every portal renders the same way, such as the Account page, calendar,
+notifications, file library, event cards and work list. Each takes the role app's
+data, actions and permission flags as props; the package still owns no HTTP call,
+workflow, or rule about which role may see or do what.
+
 Every new cross-app flow names its actor, event scope, allowed fields, forbidden
 fields, audit/notification expectation, empty state, error state, and evidence.
 
@@ -82,7 +88,8 @@ fields, audit/notification expectation, empty state, error state, and evidence.
 
 - Role-specific route ownership and data scoping remain visible in the source
   tree.
-- Shared UI must stay domain-free and role apps can evolve independently.
+- Shared UI owns no role workflow or permission rule, and role apps can evolve
+  independently; a shared screen is presentation fed by each role app.
 - Cross-role experiences require an explicit API contract instead of a copied
   component or broad aggregate state.
 - URL-preserving route groups and feature slices may reorganize an app without
