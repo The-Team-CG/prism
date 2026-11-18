@@ -5,7 +5,7 @@ import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, P
 import { derivePrismLifecycleStage } from "@prism/types";
 import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
-import { floorplanEngine, type FloorplanEngine } from "@/features/floorplan/editor/model/editor-engine";
+import { floorplanEngine, isLockedFloorplanDraft, type FloorplanEngine } from "@/features/floorplan/editor/model/editor-engine";
 import { createSceneSaver, type SceneSaver } from "@/features/floorplan/editor/use-cases/scene-saver";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import { useEventUnreadMessages } from "../../messages/view-models/use-event-unread-messages";
@@ -286,8 +286,9 @@ export function useEventDashboardShellViewModel({
     await openEditor(selectedEvent, draft);
   }
 
-  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, readOnly = false) {
+  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, requestedReadOnly = false) {
     if (!session || !isPmcmAdmin(session.role)) return;
+    const readOnly = requestedReadOnly || isLockedFloorplanDraft(draft.status);
     if (floorplanEngine() === "pascal") {
       const opened = await commands.loadPlanScene(draft.floorPlanId);
       sceneSaver.current = createSceneSaver({ planId: draft.floorPlanId, updatedAt: opened.updatedAt, save: commands.savePlanScene });

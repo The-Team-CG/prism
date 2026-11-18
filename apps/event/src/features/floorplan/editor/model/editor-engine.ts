@@ -8,6 +8,11 @@ export function floorplanEngine(value: string | undefined = process.env.NEXT_PUB
   return value === "pascal" ? "pascal" : "legacy";
 }
 
+/** Submitted and approved drafts are immutable: the API refuses their saves, so the editor opens them read-only. */
+export function isLockedFloorplanDraft(status: string): boolean {
+  return status === "in_review" || status === "approved";
+}
+
 /** Both editors open read-only for anyone but PMCM, and for PMCM on a draft that is submitted or approved. */
 export function isFloorplanEditorReadOnly(screenReadOnly: boolean, role: PrismUserRole): boolean {
   return screenReadOnly || !isPmcmAdmin(role);
