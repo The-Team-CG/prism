@@ -99,8 +99,8 @@ flowchart LR
 | `packages/types` | Shared Zod write schemas, inferred write types, read-model interfaces, session keys, and contract parsing. |
 | `packages/api-client` | Shared request helpers and typed API-client functions for role apps. |
 | `packages/portal-query` | Portal resource caches and role-neutral background refresh mechanics; role apps supply actor identity, fetchers, and refresh callbacks. |
-| `packages/floorplan-canvas` | Role-neutral editor state, canvas mechanics, and floorplan editor panels, injected with role-owned template storage. Its `/editor` and `/plugin` subpaths host the pinned Pascal editor and the `prism:event-layout` plugin (ADR-0010). It does not read app identity or authorize, persist, or submit workflows. |
-| `packages/floorplan-scene` | Pure floor plan scene logic shared by the API and the editor host: scene validation, table seating extraction, and the legacy-plan converter. No UI, HTTP, or browser state. |
+| `packages/floorplan-canvas` | The Pascal editor host (ADR-0010): `/editor` (`PrismFloorplanEditor`) and `/plugin` (the `prism:event-layout` plugin), the editor's seating list, and the template store adapter that role-owned portal storage injects. It does not read app identity or authorize, persist, or submit workflows. |
+| `packages/floorplan-scene` | Pure floor plan scene logic shared by the API, the editor host and the client: scene validation, table seating extraction, plan drawings for the client's 2D views, the venue survey and blank-room builders, and the legacy converter used only by `db:convert:floorplans`. No UI, HTTP, or browser state. |
 | `packages/ui` | Shared shells, brand, public blocks and presentation primitives, plus screens every portal renders the same way (Account, calendar, notifications, file library, event cards, work list, payment cards, privacy requests). They are presentational: each role app injects its own data, actions and permissions through props, and the package owns no workflow, HTTP call or role data rule. Subpaths are registered in `packages/ui/package.json`. |
 | `packages/tokens` | Shared design tokens, theme values, and typography. |
 
@@ -108,7 +108,7 @@ Event-ops contracts and API-client endpoints are organized into capability
 modules behind the existing package-root exports. Portal consumers keep stable
 imports while ownership and changes stay local to each capability.
 
-Portal role apps import `@prism/floorplan-canvas` through their local floorplan editor wrappers. The client app chooses read-only mode for official layouts and keeps preference workflows; the event app retains PMCM official-plan authoring. Template API adapters stay in each portal. With `NEXT_PUBLIC_PRISM_FLOORPLAN_ENGINE=pascal`, the event app opens drafts in the Pascal editor instead: a legacy plan converts on open, and scene saves go through `PUT /plans/:planId` one at a time against the returned version. The Pascal editor seats the event's guest roster; the API checks a scene's seats against that roster, and its zones against the event's booked suppliers, through the `read-models/floorplan-seating` reader.
+Portal role apps import `@prism/floorplan-canvas` through their local floorplan editor wrappers. The client app chooses read-only mode for official layouts and keeps preference workflows; the event app retains PMCM official-plan authoring. Template API adapters stay in each portal. The event app opens every draft in the Pascal editor, and scene saves go through `PUT /plans/:planId` one at a time against the returned version. The client reads each official layout and review pin from the plan's scene through `@prism/floorplan-scene/plan-drawing`, and draws its preference in the Pascal editor. The Pascal editor seats the event's guest roster; the API checks a scene's seats against that roster, and its zones against the event's booked suppliers, through the `read-models/floorplan-seating` reader.
 
 Floorplan panel context and viewport rules live with the canvas shell UI state,
 so the toolbar can consume them without importing the editor composition.
@@ -169,7 +169,7 @@ supported cross-context API.
 | `modules/commercial` | Supplier sourcing, quotes, billing | `api/{quotes,suppliers,billing}`, matching `application/*`, `domain` |
 | `modules/operations` | Staffing and guest workflows | `api/{staffing,guest}`, matching `application/*` |
 | `modules/live-ops` | Event-day tasks, urgent issues, escalation, attendance/replacement, live status | `api`, `application`, `contracts`, `domain` |
-| `modules/floorplan` | Official live floorplans and venue-template authoring/publishing | `api/{live,authoring}`, matching `application/*` |
+| `modules/floorplan` | Official live floorplans and venue-template authoring | `api/{live,authoring}`, matching `application/*` |
 | `modules/event-games` | Event game catalog, sessions, PIN join, participants, submissions, scoring, awards, moderation, public lobbies | `api`, `application`, `contracts`, `domain`, `infrastructure` |
 | `modules/identity-access` | Authentication, account invitations and approval, per-device sessions, optional two-step sign-in, and the account's own profile, password and email-change requests | `api/auth`, `application/{auth,participants}`, `contracts` (email-change port), `infrastructure/auth` |
 | `modules/platform-ops` | Trust/audit, notifications, AI governance, stored objects, retention, privacy | `api/{trust,notifications,ai-governance,storage}`, `application/*` (adds `retention`), `contracts`, `infrastructure/*` |
@@ -250,7 +250,7 @@ boundary.
 | commercial | commercial | Supplier network, quotes, communications, estimates, proposals, billing, payments |
 | operations | operations | Coordinator pool, assignments, acknowledgments, reliability history, guest operations |
 | live-ops | live_ops | Event-day tasks, schedules, operators, handoffs, end-of-day, issues and logs |
-| floorplan | floorplan | Official plans, drafts, projection clock, templates, published copies, review state |
+| floorplan | floorplan | Official plans (Pascal scenes), drafts, projection clock, templates, snapshot versions, review state |
 | identity-access | identity_access | Accounts, invitations, approvals, password recovery, authentication state |
 | platform-ops | platform_ops | Privacy requests and legal holds, retention, security, login history, audit, notifications, AI, storage, command receipts |
 | event-games | event_games | Game definitions, sessions, PINs, participant credentials, submissions, scores, awards, moderation |

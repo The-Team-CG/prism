@@ -205,6 +205,20 @@ means Prisma found a non-empty diff that needs review; exit `1` means the
 comparison failed. A non-empty diff is evidence to investigate, not permission
 to apply the generated SQL automatically.
 
+### Floorplan scene conversion (before `20261127090000`)
+
+The drop migration `20261127090000_floorplan_drop_legacy_plan_columns` needs every floor plan to carry a Pascal scene.
+Run, in order, against the target database:
+
+```powershell
+npm --workspace prism-api run db:convert:floorplans -- --dry-run   # report only
+npm --workspace prism-api run db:convert:floorplans                # idempotent; a re-run writes nothing new
+npm --workspace prism-api run db:migrate:deploy
+```
+
+The migration's first statement fails while any plan has no scene, and the migration runs in one transaction, so nothing
+is dropped on that failure. Re-run the conversion, then the deploy.
+
 ### Password hash rewrite (before the auth-hardening API)
 
 The API now verifies only the current operator password hash format. Run this

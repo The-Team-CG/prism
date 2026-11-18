@@ -70,7 +70,7 @@ not create microservices or a database authorization boundary.
 | commercial | commercial | Suppliers, quotes, communications and their attachments, estimates, proposals, billing, receipts, PMCM payment details, supplier evidence, payables and payout confirmations, client option reviews |
 | operations | operations | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations, registration platforms |
 | live-ops | live_ops | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |
-| floorplan | floorplan | Plans, objects, templates, layout instances, published copies, official drafts, projection clock, snapshot versions, versioned client reviews |
+| floorplan | floorplan | Plans (Pascal scenes), templates, official drafts, projection clock, snapshot versions, versioned client reviews |
 | identity-access | identity_access | Accounts, invitations, approvals, password reset, per-device sessions, email-change requests and authentication state |
 | platform-ops | platform_ops | Privacy requests and legal holds, retention, security, login history, audit, notifications, PARE dispatch, AI, storage, command receipts and integration settings |
 | event-games | event_games | Game catalog, lobbies, config versions, sessions, PINs, participant credentials and grants, submissions, scores, awards, moderation, rate limits |
@@ -187,7 +187,7 @@ database repair or deployment.
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| `FloorPlan`, `FloorPlanObject`, `VenueTemplate`, `PublishedSnapshot`, `OpsFloorPlanDraft` | `floorplan` | `floorplan`; official layout authoring, draft, publish, and snapshot workflows. |
+| `FloorPlan`, `VenueTemplate`, `OpsFloorPlanDraft` | `floorplan` | `floorplan`; official layout authoring, draft, and snapshot workflows. |
 | `OpsFloorPlanClientDecision`, `OpsFloorPlanClientAnnotation` | `floorplan` | `floorplan`; primary-client decisions and annotations bound to an official snapshot hash, separate from PMCM authoring/approval. |
 
 Floorplan owns authoritative official-plan and review state. Event-scoped
@@ -202,9 +202,9 @@ set of events through the `floorplan/event-drafts` subpath.
 
 `floor_plans.scene` (JSONB) and `scene_format` hold the Pascal editor's scene
 graph, written only by the Pascal engine and validated by
-`@prism/floorplan-scene` on every save. The legacy `objects`, `guests`,
-`suppliers` and `seats` columns stay readable and are not written by a scene
-save. Submitted and approved snapshots carry the scene when the plan has one.
+`@prism/floorplan-scene` on every save. Every plan has a scene (the legacy
+canvas columns and `floor_plan_objects` were converted and dropped by migration
+`20261127090000`). Submitted and approved snapshots carry the scene.
 
 An event has at most one active draft. Approval deactivates the previous active
 draft inside the event-locked transaction, and a partial unique index on
@@ -362,10 +362,8 @@ the retired pre-baseline history were not carried into the owner baselines. The
 one exception is `event_games` `wheel_result`, which must be null or an object.
 Payload versions and shapes are enforced by the shared Zod contracts at write time,
 so a writer outside those contracts can store any JSON. Issued, sanitized and
-review snapshots are stored as written and read with explicit compatibility handling. For floorplans, normalized `floor_plan_objects`
-rows are the authority for live authoring; the aggregate `objects` column is
-kept until publisher, template and live readers reach parity, and the latest
-`PublishedSnapshot` is a current copy, not revision history.
+review snapshots are stored as written and read with explicit compatibility handling. For floorplans, the Pascal scene is the only layout
+authority; the snapshot versions are the revision history.
 
 ## Intentional cross-context joins and writes
 
