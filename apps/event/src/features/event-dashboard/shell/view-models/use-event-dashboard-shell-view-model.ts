@@ -7,6 +7,7 @@ import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@pri
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { floorplanEngine, isLockedFloorplanDraft, type FloorplanEngine } from "@/features/floorplan/editor/model/editor-engine";
 import { createSceneSaver, type SceneSaver } from "@/features/floorplan/editor/use-cases/scene-saver";
+import { submitFromEditor } from "@/features/floorplan/editor/use-cases/submit-from-editor";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import { useEventUnreadMessages } from "../../messages/view-models/use-event-unread-messages";
 import { useEventUnreadNotices } from "@/features/account-notifications/view-models/use-event-unread-notices";
@@ -299,6 +300,19 @@ export function useEventDashboardShellViewModel({
     setScreen({ name: "editor", engine: "legacy", event, draft, project, scene: null, readOnly });
   }
 
+  /** Saves and submits the draft open in either editor, then shows it as in review on the floor plans page. */
+  async function submitOpenDraft(save: () => Promise<unknown>) {
+    if (screen.name !== "editor") return;
+    const { event, draft } = screen;
+    await submitFromEditor({
+      save,
+      submit: () => commands.submitFloorPlanDraft(event.id, draft.id),
+      refreshDashboard: () => refresh(session),
+      refreshEventDrafts: () => refreshSelectedEventWorkspace(),
+      close: () => setScreen({ name: "portal" }),
+    });
+  }
+
   function saveEditorScene(scene: FloorplanSceneDocument) {
     if (!sceneSaver.current) throw new Error("Open a floor plan in the Pascal editor before saving it.");
     return sceneSaver.current.save(scene);
@@ -567,21 +581,9 @@ export function useEventDashboardShellViewModel({
       return updated;
     },
     saveEditorPlan: (project: Project) => commands.savePlan(project),
-    submitEditorPlan: async (project: Project) => {
-      if (screen.name !== "editor") return;
-      await commands.savePlan(project);
-      await commands.submitFloorPlanDraft(screen.event.id, screen.draft.id);
-      await refresh(session);
-      setScreen({ name: "portal" });
-    },
+    submitEditorPlan: (project: Project) => submitOpenDraft(() => commands.savePlan(project)),
     saveEditorScene,
-    submitEditorScene: async (scene: FloorplanSceneDocument) => {
-      if (screen.name !== "editor") return;
-      await saveEditorScene(scene);
-      await commands.submitFloorPlanDraft(screen.event.id, screen.draft.id);
-      await refresh(session);
-      setScreen({ name: "portal" });
-    },
+    submitEditorScene: (scene: FloorplanSceneDocument) => submitOpenDraft(() => saveEditorScene(scene)),
     closeEditor: () => setScreen({ name: "portal" }),
     refreshCommandInbox,
     changeCommandInboxPage,
