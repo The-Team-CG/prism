@@ -36,6 +36,21 @@ describe("findBoundaryViolations", () => {
       ]);
     }
   });
+  it("keeps the floorplan scene package free of UI, HTTP and app code", () => {
+    assert.deepEqual(findBoundaryViolations({
+      "packages/floorplan-scene/src/index.ts": 'import type { FloorplanSceneDocument } from "@prism/types";',
+      "packages/floorplan-scene/src/convert-legacy-plan.ts": 'import { WallNode } from "@pascal-app/core";',
+    }), []);
+
+    for (const imported of ["react", "react-dom", "@pascal-app/editor", "@pascal-app/viewer", "@prism/api-client", "@prism/ui", "@prism/floorplan-canvas", "@/lib/prism-api", "apps/event/src/app/page"]) {
+      assert.deepEqual(findBoundaryViolations({
+        "packages/floorplan-scene/src/validate-scene.ts": `import { value } from "${imported}";`,
+      }), [
+        "packages/floorplan-scene/src/validate-scene.ts: floorplan scene logic must stay free of UI, HTTP and app code",
+      ]);
+    }
+  });
+
   it("blocks role app imports across app boundaries", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { EventShell } from "@prism/event";',
