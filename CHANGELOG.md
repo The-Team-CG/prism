@@ -10,6 +10,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- The snapshot query for an event floor plan is validated by a shared Zod schema in `@prism/types` like every other API input; the API no longer runs class-validator, and its global validation pipe is removed.
 - Portals read the API address only from `NEXT_PUBLIC_API_URL`, which must be set (empty means same-origin); `NEXT_PUBLIC_PRISM_API_BASE_URL` is gone, and a missing origin now fails with a clear error instead of falling back to localhost.
 - The portal shells no longer accept the unused `eyebrow` prop; the page title alone names the page, and its copy is removed from the portal route models.
 - Legacy data is migrated and its compatibility code removed. Apply the migrations `20261128090000_event-lifecycle_inquiry_client_type_private`, `20261128091000_event-lifecycle_decision_new_event_date` and `20261128092000_operations_coordinator_assignment_role` before deploying the API. Old "Private" inquiries now read as Individual, coordinators whose assignment had no role become General Coordinators, and notification retries from before idempotency keys are no longer matched.

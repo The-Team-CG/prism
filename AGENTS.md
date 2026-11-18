@@ -67,7 +67,7 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 
 ```text
 apps/api/          Nest modular monolith + Prisma (port 4000)
-  apps/api/src/    bootstrap (prefix `api`, ValidationPipe legacy, Prisma filter in `common/`)
+  apps/api/src/    bootstrap (prefix `api`, Prisma filter in `common/`; request bodies and queries validate with Zod pipes)
     modules/       bounded contexts (api, application, contracts, domain, infrastructure as needed)
     kernel/        database, shared helpers, session/auth primitives, access control, mail, health
     composition/   cross-context composition roots (e.g. event insight generation)
@@ -213,7 +213,7 @@ export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
 | **Nest boundary** | `@Body(zodBody(schema))` from `@prism/kernel/shared` (`ZodValidationPipe`). Prefer over new `class-validator` DTOs. |
 | **Errors** | `safeParse` → 400 problem details / user-safe message; no raw `ZodError` to clients. |
 
-**Nest bodies/queries use Zod** (`zodBody` / `zodQuery`). **Only class-validator left:** `floorplan/api/live/floorplan.dto.ts` (snapshot query); migrate it when touched and add no new class-validator DTOs.
+**Nest bodies/queries use Zod** (`zodBody` / `zodQuery`). **No class-validator DTOs are left;** add none.
 
 **Do not** invent a second DTO type in the app or api-client. api-client may re-export inferred types for convenience; **schemas live only in `@prism/types`**.
 
