@@ -132,7 +132,7 @@ function assertLocalMigrationsApplied(input) {
   ].filter(Boolean);
   throw new Error(
     `Database has not applied every Prisma migration this API ships (${problems.join('; ')}). `
-    + 'Run npm run db:migrate before starting the API.',
+    + 'Apply them with npm --workspace prism-api run db:migrate:deploy before starting the API.',
   );
 }
 

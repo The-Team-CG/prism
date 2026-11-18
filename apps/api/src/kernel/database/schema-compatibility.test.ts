@@ -76,7 +76,7 @@ describe('assertLocalMigrationsApplied', () => {
       return;
     }
     expect(run).toThrow(message);
-    expect(run).toThrow('npm run db:migrate');
+    expect(run).toThrow('db:migrate:deploy before starting the API');
   });
 
   it('accepts equivalent LF and CRLF migration checksums but rejects changed SQL', () => {
