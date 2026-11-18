@@ -1,6 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { FloorPlan as PrismaFloorPlan, FloorPlanObject as PrismaFloorPlanObject } from '@prisma/client';
 import {
   AUDIT_WRITER,
   EventAccessPolicyService,
@@ -15,21 +14,13 @@ import {
   type FloorplanEventReference,
   type FloorplanEventReferenceReader,
 } from '@prism/contexts/event-lifecycle/floorplan-reference';
-import { asArray } from '@prism/kernel/shared';
-import type { CanvasObject, FloorPlan, FloorPlanObject, JsonValue, SavedPlanObject, Seat, SeatCategory } from '@prism/kernel/shared';
 import { tableAssignmentsOf, zoneSupplierIds } from '@prism/floorplan-scene';
 import { FLOORPLAN_SEATING_FACTS, type FloorplanSeatingFactsReader, type FloorplanSeatingGuest } from '@prism/contexts/read-models/floorplan-seating';
-import type { FloorplanSceneDocument, TableEligibilityGuest, TableEligibilityObject, UpdatePlanInput } from '@prism/types';
+import type { FloorplanSceneDocument, TableEligibilityObject, UpdatePlanInput } from '@prism/types';
 import { acceptedScene, storedScene } from '../stored-scene';
-import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
-import {
-  assertSeatingAllowedForNewAssignments,
-  assertTableAssignmentsEligible,
-  legacyTablesOnRoster,
-  sceneTableEligibilityObjects,
-  storedTableEligibilityGuests,
-  storedTableEligibilityObjects,
-} from './table-assignment-guard';
+import { floorPlanScalarPatch } from './plan-patch';
+import { assertSeatingAllowedForNewAssignments, assertTableAssignmentsEligible, sceneTableEligibilityObjects } from './table-assignment-guard';
+import type { FloorPlan } from '@prism/kernel/shared';
 
 type UpdatePlanChanges = Omit<UpdatePlanInput, 'expectedUpdatedAt'>;
 
@@ -37,47 +28,35 @@ const ZONE_SUPPLIER_MESSAGE = 'Zones can only name suppliers booked on this even
 const CLIENT_SEATING_MESSAGE = 'Your event team seats guests on the official layout.';
 const CLIENT_ZONE_SUPPLIER_MESSAGE = 'Only your event team can assign suppliers to zones.';
 
-/** A scene save carries a validated scene and no legacy objects; any other save passes through unchanged. */
-function acceptedPlanChanges(changes: UpdatePlanChanges): UpdatePlanChanges {
-  if (changes.scene === undefined) return changes;
-  if (changes.objects !== undefined) throw new BadRequestException('Send objects or scene, not both');
-  return { ...changes, scene: acceptedScene(changes.scene) };
-}
-
 /** A client draws layout only: seating guests and assigning zone suppliers belong to PMCM on the official layout. */
 function assertClientSceneLeavesSeatingToPmcm(scene: FloorplanSceneDocument) {
   if (tableAssignmentsOf(scene).some((table) => table.guestIds.length > 0)) throw new BadRequestException(CLIENT_SEATING_MESSAGE);
   if (zoneSupplierIds(scene).length > 0) throw new BadRequestException(CLIENT_ZONE_SUPPLIER_MESSAGE);
 }
 
+/** A scene save is validated; any other save passes through unchanged. */
+function acceptedPlanChanges(changes: UpdatePlanChanges): UpdatePlanChanges {
+  if (changes.scene === undefined) return changes;
+  return { ...changes, scene: acceptedScene(changes.scene) };
+}
+
 /**
  * The layout a save leaves in place for the seating rule, and, when the save changes the layout, the before and after
- * to compare for new seats. Each comparison uses the same engine's ids on both sides: a first scene save on a legacy
- * plan names its converted tables by their legacy ids, so the seats it carried over are not new.
+ * to compare for new seats. A scene save compares the stored scene's tables with the saved ones by the same ids.
  */
 type SeatingLayouts = {
   next: readonly TableEligibilityObject[];
   newSeats?: { previous: readonly TableEligibilityObject[]; next: readonly TableEligibilityObject[] };
 };
 
-function seatingLayouts(plan: PlanWithObjects, changes: UpdatePlanChanges, roster: readonly FloorplanSeatingGuest[] | null): SeatingLayouts {
-  const legacy = storedTableEligibilityObjects(plan.objectRows.length ? plan.objectRows.map((row) => row.objectData) : asArray<unknown>(plan.objects));
-  const scene = storedScene(plan);
-  if (changes.scene) {
-    const next = sceneTableEligibilityObjects(changes.scene);
-    if (scene) return { next, newSeats: { previous: sceneTableEligibilityObjects(scene), next } };
-    const previous = legacyTablesOnRoster(legacy, asArray<unknown>(plan.guests), roster ?? []);
-    return { next, newSeats: { previous, next: sceneTableEligibilityObjects(changes.scene, 'legacy') } };
-  }
-  if (changes.objects) return { next: changes.objects, newSeats: { previous: legacy, next: changes.objects } };
-  return { next: scene ? sceneTableEligibilityObjects(scene) : legacy };
+function seatingLayouts(plan: PlanRow, scene: FloorplanSceneDocument): SeatingLayouts {
+  const next = sceneTableEligibilityObjects(scene);
+  return { next, newSeats: { previous: sceneTableEligibilityObjects(storedScene(plan)), next } };
 }
 
-type PlanWithObjects = Prisma.FloorPlanGetPayload<{
-  include: {
-    objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] };
-    opsDraft: { select: { eventId: true; sourceType: true; status: true } };
-  };
+/** A plan row with the draft it belongs to, if any. */
+type PlanRow = Prisma.FloorPlanGetPayload<{
+  include: { opsDraft: { select: { eventId: true; sourceType: true; status: true } } };
 }>;
 
 type PlanWriteState = {
@@ -85,32 +64,6 @@ type PlanWriteState = {
   eventId: string | null;
   opsDraft: { eventId: string; sourceType: string; status: string } | null;
 };
-
-async function updatePlanWithObjects(
-  tx: Prisma.TransactionClient,
-  planId: string,
-  scalarChanges: Omit<UpdatePlanChanges, 'objects'>,
-  objects: SavedPlanObject[],
-  expectedUpdatedAt: Date,
-) {
-  const updated = await tx.floorPlan
-    .update({
-      where: { id: planId, updatedAt: expectedUpdatedAt },
-      data: floorPlanScalarPatch({ ...scalarChanges, objects }),
-      include: {
-        objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-        opsDraft: { select: { eventId: true, sourceType: true, status: true } },
-      },
-    })
-    .catch((error: unknown) => {
-      if (isPrismaRecordMissing(error)) {
-        throw new ConflictException('Floorplan changed since it was loaded; reload before saving');
-      }
-      throw error;
-    });
-  await replaceFloorPlanObjects(tx, planId, objects);
-  return updated;
-}
 
 function isPrismaRecordMissing(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'P2025';
@@ -134,13 +87,7 @@ export class PlansService {
     @Inject(FLOORPLAN_SEATING_FACTS) private readonly seatingFacts: FloorplanSeatingFactsReader,
   ) {}
 
-  private mapPlan(row: PlanWithObjects, eventPrivacy: EventPrivacy, resolvedObjects?: FloorPlanObject[]): PlanView {
-    const objects =
-      resolvedObjects ??
-      (row.objectRows.length
-        ? row.objectRows.map((r) => r.objectData as unknown as CanvasObject)
-        : asArray<CanvasObject>(row.objects));
-
+  private mapPlan(row: PlanRow, eventPrivacy: EventPrivacy): PlanView {
     return {
       id: row.id,
       name: row.name,
@@ -153,13 +100,8 @@ export class PlansService {
       ownerId: row.ownerId,
       templateId: row.templateId,
       eventId: row.eventId,
-      objects,
-      guests: asArray<JsonValue>(row.guests),
-      suppliers: asArray<JsonValue>(row.suppliers),
-      seats: asArray<Seat>(row.seats),
-      seatCategories: asArray<SeatCategory>(row.seatCategories),
       scene: storedScene(row),
-      sceneFormat: row.sceneFormat,
+      sceneFormat: row.sceneFormat ?? storedScene(row).format,
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -190,7 +132,6 @@ export class PlansService {
 
     const { expectedUpdatedAt: expectedUpdatedAtInput, ...requestedChanges } = changes;
     const expectedUpdatedAt = new Date(expectedUpdatedAtInput);
-    const { objects } = requestedChanges;
     const updated = await this.prisma.$transaction(async (tx) => {
       const stateBeforeLocks = await tx.floorPlan.findUnique({
         where: { id: planId },
@@ -198,13 +139,7 @@ export class PlansService {
       });
       if (!stateBeforeLocks) throw new NotFoundException('Plan not found');
       const eventIdBeforeLocks = stateBeforeLocks.opsDraft?.eventId ?? stateBeforeLocks.eventId;
-      const lifecycleEvent = eventIdBeforeLocks
-        ? await this.lifecycleEventReferences.findFloorplanEvent(eventIdBeforeLocks, {
-            prisma: tx,
-            correlationId: `floorplan-plan-update:${planId}`,
-          })
-        : null;
-      if (eventIdBeforeLocks && !lifecycleEvent) throw new NotFoundException('Event not found');
+      const lifecycleEvent = await this.lifecycleEventForUpdate(tx, planId, eventIdBeforeLocks);
 
       // Lifecycle event and ocular rows are locked by the owner capability first. Lock the
       // Floorplan-owned draft second so approval and plan edits follow one stable lock order.
@@ -233,8 +168,7 @@ export class PlansService {
       const rosterGuests = await this.sceneSaveRoster(tx, eventIdAfterLocks, accepted);
       this.assertTableAssignmentsEligible(latestPlan, accepted, actor, lifecycleEvent?.eventPrivacy ?? 'public', rosterGuests);
 
-      const { objects: acceptedObjects, ...scalarChanges } = accepted;
-      const saved = await this.savePlanChanges(tx, planId, scalarChanges, acceptedObjects, expectedUpdatedAt);
+      const saved = await this.savePlanChanges(tx, planId, accepted, expectedUpdatedAt);
 
       await writeAudit(
         this.auditWriter,
@@ -261,20 +195,17 @@ export class PlansService {
       throw error;
     });
 
-    return this.mapPlan(updated, await this.eventPrivacyOf(plan.opsDraft?.eventId ?? plan.eventId), objects);
+    return this.mapPlan(updated, await this.eventPrivacyOf(plan.opsDraft?.eventId ?? plan.eventId));
   }
 
   /**
-   * Official PMCM saves must keep every seat assignment eligible. Client preference saves are not
-   * checked here because they carry no authoritative guest roster. A save that omits objects or guests
-   * is checked against the stored values it leaves in place.
+   * Official PMCM saves that change the layout must keep every seat assignment eligible, and may only add seats where the
+   * event allows seating. Client preference saves carry no guest roster, so they are not checked here.
    */
-  private assertTableAssignmentsEligible(plan: PlanWithObjects, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor, eventPrivacy: EventPrivacy, rosterGuests: FloorplanSeatingGuest[] | null) {
-    if (actor.role === OpsUserRole.Client) return;
-    if (changes.objects === undefined && changes.guests === undefined && changes.scene === undefined) return;
-    const layouts = seatingLayouts(plan, changes, rosterGuests);
-    const guests = rosterGuests ?? changes.guests ?? storedTableEligibilityGuests(asArray<unknown>(plan.guests));
-    assertTableAssignmentsEligible(layouts.next, guests);
+  private assertTableAssignmentsEligible(plan: PlanRow, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor, eventPrivacy: EventPrivacy, rosterGuests: FloorplanSeatingGuest[] | null) {
+    if (actor.role === OpsUserRole.Client || !changes.scene || !rosterGuests) return;
+    const layouts = seatingLayouts(plan, changes.scene);
+    assertTableAssignmentsEligible(layouts.next, rosterGuests);
     if (layouts.newSeats) {
       assertSeatingAllowedForNewAssignments(layouts.newSeats.previous, layouts.newSeats.next, { pax: changes.pax ?? plan.pax, eventPrivacy });
     }
@@ -299,24 +230,25 @@ export class PlansService {
     return guests;
   }
 
+  /** The Lifecycle event a plan update locks against; a plan with no event has none. */
+  private async lifecycleEventForUpdate(tx: Prisma.TransactionClient, planId: string, eventId: string | null) {
+    if (!eventId) return null;
+    const event = await this.lifecycleEventReferences.findFloorplanEvent(eventId, { prisma: tx, correlationId: `floorplan-plan-update:${planId}` });
+    if (!event) throw new NotFoundException('Event not found');
+    return event;
+  }
+
   private async savePlanChanges(
     tx: Prisma.TransactionClient,
     planId: string,
-    scalarChanges: Omit<UpdatePlanChanges, 'objects'>,
-    objects: UpdatePlanChanges['objects'],
+    changes: UpdatePlanChanges,
     expectedUpdatedAt: Date,
-  ): Promise<PlanWithObjects> {
-    if (objects !== undefined) {
-      return updatePlanWithObjects(tx, planId, scalarChanges, objects ?? [], expectedUpdatedAt);
-    }
+  ): Promise<PlanRow> {
     return tx.floorPlan
       .update({
         where: { id: planId, updatedAt: expectedUpdatedAt },
-        data: floorPlanScalarPatch(scalarChanges),
-        include: {
-          objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-          opsDraft: { select: { eventId: true, sourceType: true, status: true } },
-        },
+        data: floorPlanScalarPatch(changes),
+        include: { opsDraft: { select: { eventId: true, sourceType: true, status: true } } },
       })
       .catch((error: unknown) => {
         if (isPrismaRecordMissing(error)) {
@@ -326,7 +258,7 @@ export class PlansService {
       });
   }
 
-  private async assertCanReadPlan(plan: PlanWithObjects, actor: ResolvedEventOpsActor) {
+  private async assertCanReadPlan(plan: PlanRow, actor: ResolvedEventOpsActor) {
     const eventId = plan.opsDraft?.eventId ?? plan.eventId ?? undefined;
     if (actor.role === OpsUserRole.System) return;
     const lifecycleEvent = eventId ? await this.lifecycleEventReferences.findFloorplanEvent(eventId) : null;
@@ -340,7 +272,7 @@ export class PlansService {
   }
 
   private async assertClientCanReadPreference(
-    plan: PlanWithObjects,
+    plan: PlanRow,
     actor: ResolvedEventOpsActor,
     eventId: string | undefined,
     lifecycleEvent: FloorplanEventReference | null,
@@ -368,7 +300,7 @@ export class PlansService {
   }
 
   private async assertCanUpdatePlan(
-    plan: PlanWithObjects,
+    plan: PlanRow,
     actor: ResolvedEventOpsActor,
     changes: UpdatePlanChanges,
     lifecycleEvent: FloorplanEventReference | null,
@@ -384,7 +316,7 @@ export class PlansService {
   }
 
   private async assertClientCanUpdatePreference(
-    plan: PlanWithObjects,
+    plan: PlanRow,
     actor: ResolvedEventOpsActor,
     changes: UpdatePlanChanges,
     lifecycleEvent: FloorplanEventReference | null,
@@ -460,7 +392,6 @@ export class PlansService {
     return database.floorPlan.findUnique({
       where: { id: planId },
       include: {
-        objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
         opsDraft: { select: { eventId: true, sourceType: true, status: true } },
       },
     });

@@ -62,7 +62,6 @@ describe("the Layers list", () => {
       saveState: "saved",
       onRetrySave: () => undefined,
       onReload: () => undefined,
-      unmatchedSeats: 0,
     };
     render(
       <PrismFloorplanProvider value={context}>

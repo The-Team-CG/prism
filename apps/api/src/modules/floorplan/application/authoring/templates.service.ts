@@ -1,13 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type {
-  FloorPlan as PrismaFloorPlan,
-  FloorPlanObject as PrismaFloorPlanObject,
-  Prisma,
-  VenueTemplate as PrismaVenueTemplate,
-} from '@prisma/client';
-import { PrismaService, toPrismaJson } from '@prism/kernel/database';
+import type { FloorPlan as PrismaFloorPlan, Prisma, VenueTemplate as PrismaVenueTemplate } from '@prisma/client';
+import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
-import { defaultSeatCategories } from '@prism/kernel/shared';
 import type { VenueTemplate } from '@prism/kernel/shared';
 import { roomSize } from '@prism/floorplan-scene';
 import type { CreateTemplateInput, FloorplanSceneDocument, UpdateTemplateInput } from '@prism/types';
@@ -33,17 +27,9 @@ function templateRowPatch(input: UpdateTemplateInput): Prisma.VenueTemplateUpdat
   return data as Prisma.VenueTemplateUpdateInput;
 }
 
-type TemplateWithPlan = PrismaVenueTemplate & {
-  floorPlan?: (PrismaFloorPlan & { objectRows?: PrismaFloorPlanObject[] }) | null;
-};
+type TemplateWithPlan = PrismaVenueTemplate & { floorPlan: PrismaFloorPlan };
 
-const PLAN_INCLUDE = {
-  floorPlan: {
-    include: {
-      objectRows: { orderBy: [{ zIndex: 'asc' as const }, { objectId: 'asc' as const }] },
-    },
-  },
-};
+const PLAN_INCLUDE = { floorPlan: true } as const;
 
 @Injectable()
 export class TemplatesService {
@@ -59,11 +45,11 @@ export class TemplatesService {
       venue: row.venue,
       venueRules: row.venueRules,
       floorPlanId: row.floorPlanId,
-      width: plan?.width ?? 0,
-      height: plan?.height ?? 0,
-      gridSize: plan?.gridSize ?? 1,
+      width: plan.width,
+      height: plan.height,
+      gridSize: plan.gridSize,
       pax: row.pax,
-      scene: plan ? storedScene(plan) : null,
+      scene: storedScene(plan),
       sourceType: row.sourceType,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -109,10 +95,6 @@ export class TemplatesService {
           height,
           gridSize: 1,
           pax: input.pax ?? 0,
-          objects: toPrismaJson([]),
-          guests: toPrismaJson([]),
-          suppliers: toPrismaJson([]),
-          seatCategories: toPrismaJson(defaultSeatCategories()),
           ...sceneColumns(scene),
         },
       });
@@ -164,6 +146,7 @@ export class TemplatesService {
     const row = await this.prisma.venueTemplate
       .delete({
         where: { id: templateId },
+        include: PLAN_INCLUDE,
       })
       .catch(() => {
         throw new NotFoundException('Template not found');

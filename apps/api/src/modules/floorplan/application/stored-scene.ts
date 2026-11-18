@@ -5,11 +5,12 @@ import { floorplanSceneDocumentSchema, type FloorplanSceneDocument } from '@pris
 import { validateFloorplanScene } from '@prism/floorplan-scene';
 
 /**
- * The Pascal scene stored on a floor plan, or null while the plan has only legacy canvas objects. Scenes are
- * validated when they are saved, so a stored value that does not parse is corrupt data and fails loudly here.
+ * The Pascal scene stored on a floor plan. Every plan has one: legacy plans were converted before the legacy columns
+ * were dropped, so a missing or unreadable scene is corrupt data and fails loudly here.
  */
-export function storedScene(row: Pick<PrismaFloorPlan, 'scene'>): FloorplanSceneDocument | null {
-  return row.scene === null ? null : floorplanSceneDocumentSchema.parse(row.scene);
+export function storedScene(row: Pick<PrismaFloorPlan, 'scene'>): FloorplanSceneDocument {
+  if (row.scene === null) throw new Error('Floor plan has no scene; run npm --workspace prism-api run db:convert:floorplans');
+  return floorplanSceneDocumentSchema.parse(row.scene);
 }
 
 /** A scene a request saves, checked against the editor's rules; the refusal names each issue. */
@@ -19,8 +20,7 @@ export function acceptedScene(scene: FloorplanSceneDocument): FloorplanSceneDocu
   return validation.scene;
 }
 
-/** The columns a scene writes: the scene and its format, or nothing when the plan has no scene. */
-export function sceneColumns(scene: FloorplanSceneDocument | undefined): { scene?: Prisma.InputJsonValue; sceneFormat?: string } {
-  if (!scene) return {};
+/** The columns a scene writes: the scene and its format. */
+export function sceneColumns(scene: FloorplanSceneDocument): { scene: Prisma.InputJsonValue; sceneFormat: string } {
   return { scene: toPrismaJson(scene), sceneFormat: scene.format };
 }

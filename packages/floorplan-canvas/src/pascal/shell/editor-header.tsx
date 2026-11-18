@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useState, useSyncExternalStore, type FormEvent } from "react";
-import { BookmarkPlus, Check, ChevronLeft, Eye, Layers3, LoaderCircle, Redo2, Send, TriangleAlert, Undo2 } from "lucide-react";
+import { BookmarkPlus, Check, ChevronLeft, Eye, Layers3, LoaderCircle, Printer, Redo2, Send, TriangleAlert, Undo2 } from "lucide-react";
 import { getHistoryCommandState, runRedo, runUndo, subscribeHistoryCommandState, type SaveStatus } from "@pascal-app/editor";
 import type { FloorplanSceneDocument, SceneSaveState } from "@prism/types";
 import { usePrismFloorplan } from "../editor-context";
 import { ViewSwitch } from "./view-switch";
+import { buildSeatingList, printSeatingList } from "./seating-list";
 
 export type EditorHeaderProps = {
   onBack(): void;
@@ -131,6 +132,25 @@ function SaveTemplateAction({ currentDocument, onSaveTemplate }: { currentDocume
   );
 }
 
+/** Prints who sits where, from the scene as it is now. Offered only where guests can be seated, so a client never sees it. */
+function SeatingListAction({ currentDocument, title }: { currentDocument(): FloorplanSceneDocument; title: string }) {
+  const { guests, seating } = usePrismFloorplan();
+  const [refusal, setRefusal] = useState<string | null>(null);
+  if (!seating.allowed) return null;
+  function print() {
+    setRefusal(printSeatingList(title, buildSeatingList(currentDocument(), guests)) ? null : "Allow pop-ups for this site to print the seating list.");
+  }
+  return (
+    <>
+      <button type="button" onClick={print} className={quietButton}>
+        <Printer className="size-4" aria-hidden />
+        Seating list
+      </button>
+      {refusal ? <span role="alert" title={refusal} className="max-w-56 truncate text-xs text-destructive">{refusal}</span> : null}
+    </>
+  );
+}
+
 function SubmitButton({ currentDocument, onSubmit, submitLabel }: Pick<EditorHeaderProps, "currentDocument" | "onSubmit" | "submitLabel">) {
   const { saveState } = usePrismFloorplan();
   const [submitting, setSubmitting] = useState(false);
@@ -194,6 +214,7 @@ export function EditorHeader({ onBack, currentDocument, onSubmit, onSaveTemplate
       <span className="flex-1" />
       {readOnly ? <span className="text-xs font-medium text-muted-foreground">View only</span> : <SaveStatusLabel pascalStatus={pascalStatus} />}
       {readOnly ? null : <HistoryButtons />}
+      {readOnly ? null : <SeatingListAction currentDocument={currentDocument} title={draftName ?? "Seating list"} />}
       <ViewSwitch />
       <span aria-disabled="true" title="Client view arrives with milestone 5" className={quietButton}>
         <Eye className="size-4" aria-hidden />

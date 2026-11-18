@@ -54,7 +54,7 @@ function screenWidth(small: boolean) {
     ({ matches: small && query === "(max-width: 767px)", addEventListener: () => undefined, removeEventListener: () => undefined }) as unknown as MediaQueryList;
 }
 
-async function openEditor(overrides: { readOnly?: boolean; saveState?: SceneSaveState; onRetrySave?: () => void; onReload?: () => void } = {}) {
+async function openEditor(overrides: { readOnly?: boolean; seatingAllowed?: boolean; saveState?: SceneSaveState; onRetrySave?: () => void; onReload?: () => void } = {}) {
   render(
     <PrismFloorplanEditor
       scene={{ format: FLOORPLAN_SCENE_FORMAT, pascalVersion: "1.1.6", nodes: {}, rootNodeIds: [] }}
@@ -64,12 +64,12 @@ async function openEditor(overrides: { readOnly?: boolean; saveState?: SceneSave
       onBack={() => undefined}
       guests={[]}
       suppliers={[]}
-      seating={{ allowed: true, reason: null }}
+      seating={{ allowed: overrides.seatingAllowed ?? true, reason: null }}
       guestCount={120}
       saveState={overrides.saveState ?? "saved"}
       onRetrySave={overrides.onRetrySave ?? (() => undefined)}
       onReload={overrides.onReload ?? (() => undefined)}
-      unmatchedSeats={0}
+      
       draftName="Reception"
     />,
   );
@@ -107,6 +107,18 @@ describe("the floor plan editor shell", () => {
     expect([...rail.children].map((tab) => tab.textContent)).toEqual(["Library", "Guests", "Layers"]);
     expect(screen.getByText("Library").dataset.column).toBe("true");
     expect(screen.getByText("0 seats for 120 guests")).toBeTruthy();
+  });
+
+  it("offers the seating list only to an editor of a plan whose guests can be seated", async () => {
+    screenWidth(false);
+    await openEditor();
+    expect(screen.getByRole("button", { name: /Seating list/ })).toBeTruthy();
+    cleanup();
+    await openEditor({ seatingAllowed: false });
+    expect(screen.queryByRole("button", { name: /Seating list/ })).toBeNull();
+    cleanup();
+    await openEditor({ readOnly: true });
+    expect(screen.queryByRole("button", { name: /Seating list/ })).toBeNull();
   });
 
   it("says View only, with no Submit or Library, when the plan is read-only", async () => {

@@ -16,8 +16,6 @@ export type PrismFloorplanContextValue = {
   saveMessage?: string | null;
   onRetrySave(): void;
   onReload(): void;
-  /** Legacy seats whose guest name matched nobody on the roster when the plan was converted. */
-  unmatchedSeats: number;
 };
 
 const PrismFloorplanContext = createContext<PrismFloorplanContextValue | null>(null);

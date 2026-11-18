@@ -55,7 +55,6 @@ export function PreferenceEditorShell(props: PreferenceEditorShellProps) {
       saveMessage={saveMessage}
       onRetrySave={retry}
       onReload={onReload}
-      unmatchedSeats={0}
     />
   );
 }

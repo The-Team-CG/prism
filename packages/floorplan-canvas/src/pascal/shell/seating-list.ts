@@ -1,5 +1,5 @@
-import { isSeatingListAvailable, type PrismEventPrivacy } from "@prism/types";
-import type { CanvasObject, Guest } from "./types";
+import { tableAssignmentsOf, type SceneTableAssignment } from "@prism/floorplan-scene";
+import type { FloorplanSceneDocument, PrismFloorplanSeatingGuest } from "@prism/types";
 
 export interface SeatingListRow {
   table: string;
@@ -14,36 +14,35 @@ export interface SeatingList {
   totalSeated: number;
 }
 
-function isSeatingTable(object: CanvasObject): boolean {
-  return object.category === "furniture" && (object.seats ?? 0) > 0 && !object.hidden;
-}
-
 function compareNames(left: string, right: string): number {
   return left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
 }
 
-/**
- * Who sits where: one row per visible seating table with its guests by name, and the guests still without a table.
- * Returns null when the event is not a private event under the seating limit, so no list can be printed.
- */
-export function buildSeatingList(project: { objects: readonly CanvasObject[]; guests: readonly Guest[]; pax: number; eventPrivacy?: PrismEventPrivacy }): SeatingList | null {
-  if (!isSeatingListAvailable(project.pax, project.eventPrivacy)) return null;
-  const names = new Map(project.guests.map((guest) => [guest.id, guest.name]));
+/** A table's name on the list: its label, else its number, else a plain fallback. */
+function tableName(scene: FloorplanSceneDocument, table: SceneTableAssignment): string {
+  const node = scene.nodes[table.tableId] as { label?: unknown; number?: unknown };
+  if (typeof node.label === "string" && node.label.trim()) return node.label;
+  return typeof node.number === "number" ? `T${node.number}` : "Table";
+}
+
+/** Who sits where: one row per visible table with its guests by name, and the guests still without a table. */
+export function buildSeatingList(scene: FloorplanSceneDocument, guests: readonly PrismFloorplanSeatingGuest[]): SeatingList {
+  const names = new Map(guests.map((guest) => [guest.id, guest.name]));
   const seatedIds = new Set<string>();
-  const rows = project.objects
-    .filter(isSeatingTable)
+  const rows = tableAssignmentsOf(scene)
+    .filter((table) => !table.hidden)
     .map((table): SeatingListRow => {
-      const guests = (table.assignedGuestIds ?? [])
+      const seated = table.guestIds
         .filter((id) => names.has(id))
         .map((id) => {
           seatedIds.add(id);
           return names.get(id) as string;
         })
         .sort(compareNames);
-      return { table: table.label || table.name, seats: table.seats ?? 0, guests };
+      return { table: tableName(scene, table), seats: table.seats, guests: seated };
     })
     .sort((left, right) => compareNames(left.table, right.table));
-  const unseated = project.guests
+  const unseated = guests
     .filter((guest) => guest.rsvp !== "declined" && !seatedIds.has(guest.id))
     .map((guest) => guest.name)
     .sort(compareNames);

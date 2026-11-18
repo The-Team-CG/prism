@@ -40,7 +40,6 @@ function context(overrides: Partial<PrismFloorplanContextValue> = {}): PrismFloo
     saveState: "saved",
     onRetrySave: () => undefined,
     onReload: () => undefined,
-    unmatchedSeats: 0,
     ...overrides,
   };
 }

@@ -1,5 +1,4 @@
 import type { FloorplanSceneDocument } from "@prism/types";
-import type { CanvasObject } from "./types";
 
 /** A venue library entry: a room saved by PMCM from the Pascal editor, whose scene a new draft copies. */
 export interface FloorPlanTemplate {
@@ -23,9 +22,4 @@ export interface CreateTemplateInput {
   venueRules?: string;
   pax: number;
   scene: FloorplanSceneDocument;
-}
-
-/** Walls, doors, windows, pillars and safety equipment belong to the venue, not to one event's layout. */
-export function isPermanentFeature(object: CanvasObject): boolean {
-  return object.category === "architecture" || object.category === "safety";
 }

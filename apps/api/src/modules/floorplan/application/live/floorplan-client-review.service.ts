@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
-import type { CreateClientFloorPlanAnnotationInput, DecideClientFloorPlanInput } from '@prism/types';
+import { floorplanSceneDocumentSchema, type CreateClientFloorPlanAnnotationInput, type DecideClientFloorPlanInput } from '@prism/types';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
@@ -210,9 +210,10 @@ export class FloorPlanClientReviewService {
     if (event.archived || event.clientPortalStatus !== 'unlocked') throw new BadRequestException('Client floorplan review is locked for this event');
   }
 
+  /** The scene nodes an annotation may point at: every node of the submitted scene. */
   private snapshotObjectIds(snapshot: unknown) {
-    if (!snapshot || typeof snapshot !== 'object' || !('objects' in snapshot) || !Array.isArray(snapshot.objects)) return new Set<string>();
-    return new Set(snapshot.objects.flatMap((object) => object && typeof object === 'object' && 'id' in object && typeof object.id === 'string' ? [object.id] : []));
+    const scene = floorplanSceneDocumentSchema.safeParse((snapshot as { scene?: unknown } | null)?.scene);
+    return new Set(scene.success ? Object.keys(scene.data.nodes) : []);
   }
 
   private mapDecision(decision: { id: string; eventId: string; draftId: string; snapshotHash: string; action: string; comment: string; createdAt: Date }) {

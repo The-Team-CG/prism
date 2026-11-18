@@ -12,11 +12,9 @@ import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloo
 import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import type { DetailTab } from "./client-dashboard-types";
 
+/** PMCM's official plans; a client's own preference is never official, however it was reviewed. */
 export function draftIsOfficial(draft: PrismFloorPlanDraft) {
-  const approvedLegacyPmcmPreference = draft.sourceType === "client_preference" &&
-    draft.status === "approved" &&
-    (draft.createdByRole === "pmcm-admin" || draft.createdByRole === "coordinator");
-  return (draft.sourceType !== "client_preference" || approvedLegacyPmcmPreference) &&
+  return draft.sourceType !== "client_preference" &&
     (draft.status === "in_review" || draft.status === "approved" || draft.status === "revision_requested");
 }
 

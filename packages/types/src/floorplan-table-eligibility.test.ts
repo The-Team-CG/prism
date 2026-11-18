@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { evaluateTableAssignment, findTableAssignmentRejection, isSeatingListAvailable, newTableAssignments, type TableEligibilityObject } from "./floorplan-table-eligibility";
-import { updatePlanSchema } from "./schemas/session-spatial-inputs";
 
 const seatingTable = (overrides: Partial<TableEligibilityObject> = {}): TableEligibilityObject => ({
   id: "t1",
@@ -17,24 +16,6 @@ const guests = [
   { id: "g-ben", rsvp: "pending" },
   { id: "g-dee", rsvp: "declined" },
 ];
-
-const editorObject = {
-  id: "t1",
-  name: "Table 1",
-  kind: "ellipse",
-  category: "furniture",
-  x: 1,
-  y: 2,
-  w: 2,
-  h: 2,
-  rotation: 0,
-  fill: "#fff",
-  stroke: "#000",
-  strokeWidth: 1,
-  seats: 4,
-  locked: false,
-  hidden: false,
-};
 
 describe("table assignment eligibility on saved plans", () => {
   it.each([
@@ -68,62 +49,6 @@ describe("table assignment eligibility on saved plans", () => {
     expect(findTableAssignmentRejection([seatingTable({ assignedGuestIds: ["g-ana", "g-ben"] })], guests)).toBeNull();
   });
 
-  it("parses plan objects saved without assignment fields and keeps unknown editor fields", () => {
-    const parsed = updatePlanSchema.safeParse({
-      expectedUpdatedAt: "2026-05-05T00:00:00.000Z",
-      objects: [{ ...editorObject, customNote: "keep" }],
-      guests: [{ id: "g-ana", name: "Ana", rsvp: "confirmed" }],
-    });
-
-    expect(parsed.success).toBe(true);
-    expect(parsed.success && parsed.data.objects?.[0]).toMatchObject({ id: "t1", customNote: "keep" });
-  });
-
-  it("rejects kernel-shaped plan objects that carry position and size instead of the editor's x, y, w, h", () => {
-    const legacyObject = {
-      id: "legacy-table",
-      kind: "table",
-      position: { x: 1, y: 1 },
-      size: { width: 2, height: 2 },
-      rotation: 0,
-      zIndex: 0,
-    };
-    const parsed = updatePlanSchema.safeParse({
-      expectedUpdatedAt: "2026-05-05T00:00:00.000Z",
-      objects: [legacyObject],
-    });
-
-    expect(parsed.success).toBe(false);
-  });
-
-  it("refuses to parse the same guest listed twice at one table", () => {
-    const parsed = updatePlanSchema.safeParse({
-      expectedUpdatedAt: "2026-05-05T00:00:00.000Z",
-      objects: [{ ...editorObject, assignedGuestIds: ["g-ana", "g-ana"] }],
-    });
-
-    expect(parsed.success).toBe(false);
-  });
-
-  it("parses an editor-shaped supplier roster", () => {
-    const editorSupplier = { id: "s-cater", name: "Mesa Catering", kind: "catering", status: "confirmed", contact: "mesa@example.test" };
-    const parsed = updatePlanSchema.safeParse({
-      expectedUpdatedAt: "2026-05-05T00:00:00.000Z",
-      suppliers: [editorSupplier],
-    });
-
-    expect(parsed.success).toBe(true);
-    expect(parsed.success && parsed.data.suppliers?.[0]).toMatchObject({ id: "s-cater", contact: "mesa@example.test" });
-  });
-
-  it("refuses an editor supplier with a kind outside the supplier list", () => {
-    const parsed = updatePlanSchema.safeParse({
-      expectedUpdatedAt: "2026-05-05T00:00:00.000Z",
-      suppliers: [{ id: "s-x", name: "Unknown", kind: "fireworks", status: "booked" }],
-    });
-
-    expect(parsed.success).toBe(false);
-  });
 });
 
 describe("seating list size limit", () => {

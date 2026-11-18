@@ -11,7 +11,6 @@ import {
 } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import { toPrismaJson } from '@prism/kernel/database';
-import { asArray, defaultSeatCategories, type CanvasObject } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
@@ -23,7 +22,7 @@ import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReference, type Fl
 import type { FloorplanCommands, FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
 import type { FloorplanReader, FloorPlanDraftProjection } from '../../contracts/floorplan-reader.port';
 import { acceptedScene, sceneColumns, storedScene } from '../stored-scene';
-import { withoutSeatedGuests } from '@prism/floorplan-scene';
+import { convertLegacyPlan, PASCAL_VERSION, withoutSeatedGuests } from '@prism/floorplan-scene';
 import type { FloorplanSceneDocument } from '@prism/types';
 
 export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
@@ -32,11 +31,13 @@ function timestamp(value: Date) {
   return value.toISOString();
 }
 
-/** A Pascal plan's snapshot carries its scene; a legacy plan's snapshot keeps the shape it always had. */
-function sceneSnapshotFields(plan: Parameters<typeof storedScene>[0] & { sceneFormat: string | null }) {
-  const scene = storedScene(plan);
-  return scene === null ? {} : { scene, sceneFormat: plan.sceneFormat ?? scene.format };
+/** A blank room of the given size in metres: its four perimeter walls and nothing else. */
+function blankRoomScene(name: string, width: number, height: number): FloorplanSceneDocument {
+  return convertLegacyPlan({ name, widthM: width, heightM: height, objects: [] }, PASCAL_VERSION);
 }
+
+/** The room a client preference starts in when the client has not saved a layout yet. */
+const PREFERENCE_ROOM = { width: 1400, height: 900 } as const;
 
 @Injectable()
 export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanReader {
@@ -51,23 +52,19 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
 
   /**
    * Loads a PMCM venue-library preset inside the write transaction. The preset is authoritative:
-   * layout geometry and objects come from the stored template, not from the request body.
+   * layout geometry and the scene come from the stored template, not from the request body.
    */
   private async loadVenuePreset(tx: Prisma.TransactionClient, venueTemplateId: string) {
     const template = await tx.venueTemplate.findUnique({
       where: { id: venueTemplateId },
-      include: {
-        floorPlan: {
-          include: { objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] } },
-        },
-      },
+      include: { floorPlan: true },
     });
     if (!template?.floorPlan) throw new NotFoundException('Venue preset not found');
     const plan = template.floorPlan;
     // A draft from a venue copies the layout only: the event's roster seats its guests, not the venue's.
     const scene = storedScene(plan);
     return {
-      scene: scene ? withoutSeatedGuests(scene) : null,
+      scene: withoutSeatedGuests(scene),
       width: plan.width,
       height: plan.height,
       gridSize: plan.gridSize,
@@ -90,9 +87,11 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           if (event.ocularVisitStatus !== 'completed' && event.ocularVisitStatus !== 'waived') {
             throw new BadRequestException('Official floor plan requires a completed or waived ocular visit');
           }
+          // A venue draft copies the venue's scene; any other draft starts as a blank room of the requested size.
           const preset = input.venueTemplateId ? await this.loadVenuePreset(tx, input.venueTemplateId) : null;
-          // A venue draft takes its layout from the venue's scene; client-sent objects are ignored.
-          const objects = preset ? [] : input.objects ?? [];
+          const width = preset?.width ?? input.width ?? 1200;
+          const height = preset?.height ?? input.height ?? 800;
+          const scene = preset?.scene ?? blankRoomScene(input.name, width, height);
           await tx.floorPlan.create({
             data: {
               id: floorPlanId,
@@ -100,21 +99,14 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
               venue: input.venue ?? event.eventName,
               ownerId: actor.actorId,
               eventId,
-              width: preset?.width ?? input.width ?? 1200,
-              height: preset?.height ?? input.height ?? 800,
+              width,
+              height,
               gridSize: preset?.gridSize ?? input.gridSize ?? 20,
               pax: preset?.pax ?? input.pax ?? 0,
-              ...sceneColumns(preset?.scene ?? undefined),
-              objects: toPrismaJson(objects),
-              guests: toPrismaJson(input.guests ?? []),
-              suppliers: toPrismaJson(input.suppliers ?? []),
-              seats: toPrismaJson([]),
-              seatCategories: toPrismaJson(defaultSeatCategories()),
+              ...sceneColumns(scene),
               updatedAt: now,
             },
           });
-
-          await this.createFloorPlanObjects(tx, floorPlanId, objects);
 
           const saved = await tx.opsFloorPlanDraft.create({
             data: {
@@ -280,13 +272,10 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
         venue: input.venue ?? eventName,
         ownerId: actor.actorId,
         eventId,
+        width: PREFERENCE_ROOM.width,
+        height: PREFERENCE_ROOM.height,
         pax: input.guestCount,
-        ...sceneColumns(scene),
-        objects: toPrismaJson([]),
-        guests: toPrismaJson([]),
-        suppliers: toPrismaJson([]),
-        seats: toPrismaJson([]),
-        seatCategories: toPrismaJson(defaultSeatCategories()),
+        ...sceneColumns(scene ?? blankRoomScene(input.name, PREFERENCE_ROOM.width, PREFERENCE_ROOM.height)),
         updatedAt: now,
       },
     });
@@ -824,12 +813,8 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       height: plan.height,
       gridSize: plan.gridSize,
       pax: plan.pax,
-      objects: Array.isArray(plan.objects) ? plan.objects : [],
-      guests: Array.isArray(plan.guests) ? plan.guests : [],
-      suppliers: Array.isArray(plan.suppliers) ? plan.suppliers : [],
-      seats: Array.isArray(plan.seats) ? plan.seats : [],
-      seatCategories: Array.isArray(plan.seatCategories) ? plan.seatCategories : [],
-      ...sceneSnapshotFields(plan),
+      scene: storedScene(plan),
+      sceneFormat: plan.sceneFormat ?? storedScene(plan).format,
       updatedAt: plan.updatedAt ? timestamp(plan.updatedAt) : timestamp(new Date()),
     };
   }
@@ -851,23 +836,5 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     if (normalized.includes('submitted')) return AuditActionType.Update;
     if (normalized.includes('created')) return AuditActionType.Create;
     return AuditActionType.General;
-  }
-
-  private async createFloorPlanObjects(tx: Prisma.TransactionClient, floorPlanId: string, objects: unknown[]) {
-    if (objects.length === 0) return;
-
-    await tx.floorPlanObject.createMany({
-      data: objects.map((object, index) => {
-        const row = object as { id?: string; kind?: string; zIndex?: number; svgMarkup?: string };
-        return {
-          floorPlanId,
-          objectId: row.id ?? `obj_${randomUUID()}`,
-          kind: row.kind ?? 'custom-image',
-          zIndex: row.zIndex ?? index,
-          objectData: toPrismaJson(object),
-          svgMarkup: row.svgMarkup ?? null,
-        };
-      }),
-    });
   }
 }

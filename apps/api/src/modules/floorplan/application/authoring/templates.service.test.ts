@@ -84,7 +84,7 @@ describe('TemplatesService', () => {
     const { service, prisma } = createService();
 
     await expect((service as any).deleteTemplate('tpl_sample')).resolves.toMatchObject({ id: 'tpl_sample' });
-    expect(prisma.venueTemplate.delete).toHaveBeenCalledWith({ where: { id: 'tpl_sample' } });
+    expect(prisma.venueTemplate.delete).toHaveBeenCalledWith({ where: { id: 'tpl_sample' }, include: { floorPlan: true } });
   });
 
   it('records the verified author on newly created template records', async () => {

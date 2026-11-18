@@ -18,7 +18,6 @@ import { prismLens } from "./lens";
 import { PiecePlacement } from "./tools/piece-placement";
 import { hostState } from "./inspector/host-state";
 import { SeatedGuestsFooter } from "./inspector/seated-guests-footer";
-import { UnmatchedSeatsNotice } from "./shell/unmatched-seats-notice";
 
 export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOnly"> & {
   scene: FloorplanSceneDocument;
@@ -88,7 +87,7 @@ function usePluginsReady() {
  */
 export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   const { scene, onSave, onSubmit, onSaveTemplate, submitLabel, onBack, eventName, draftName, draftStatus } = props;
-  const { guests, suppliers, seating, guestCount, saveState, saveMessage = null, onRetrySave, onReload, unmatchedSeats } = props;
+  const { guests, suppliers, seating, guestCount, saveState, saveMessage = null, onRetrySave, onReload } = props;
   const ready = usePluginsReady();
   const smallScreen = useSmallScreen();
   const readOnly = props.readOnly || smallScreen;
@@ -106,8 +105,8 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   );
   const tabs = useMemo(() => railTabs(readOnly), [readOnly]);
   const context = useMemo<PrismFloorplanContextValue>(
-    () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, unmatchedSeats }),
-    [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, unmatchedSeats],
+    () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload }),
+    [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload],
   );
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);
@@ -154,7 +153,6 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
               viewerToolbarLeft={<LensSwitch />}
               floorplanSceneSlot={<LensOverlay />}
               inspectorFooter={<SeatedGuestsFooter />}
-              sceneOverlay={<UnmatchedSeatsNotice />}
               loadingSlot={<LoadingRoom />}
               onLoad={onLoad}
               onSave={save}

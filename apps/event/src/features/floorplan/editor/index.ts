@@ -1,8 +1,7 @@
-export { EditorShell } from "./EditorShell";
-export type { CanvasObject, FloorPlanTemplate, Project } from "@prism/floorplan-canvas";
+export type { FloorPlanTemplate } from "@prism/floorplan-canvas";
 export {
   addTemplate,
   loadTemplates,
   removeTemplate,
   renameTemplate,
-} from "./data/templates-repository";
+} from "./data/templates-repository";

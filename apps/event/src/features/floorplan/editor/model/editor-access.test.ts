@@ -1,17 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { floorplanEngine, isFloorplanEditorReadOnly, isLockedFloorplanDraft } from "./editor-engine";
-
-describe("floorplanEngine", () => {
-  it.each([
-    [undefined, "legacy"],
-    ["", "legacy"],
-    ["pascal", "pascal"],
-    ["PASCAL ", "legacy"],
-    ["Pascal", "legacy"],
-  ] as const)("reads %j as the %s engine", (value, engine) => {
-    expect(floorplanEngine(value)).toBe(engine);
-  });
-});
+import { isFloorplanEditorReadOnly, isLockedFloorplanDraft } from "./editor-access";
 
 describe("isLockedFloorplanDraft", () => {
   it("locks the drafts the API refuses to change: submitted and approved", () => {
