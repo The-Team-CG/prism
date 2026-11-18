@@ -1,8 +1,8 @@
 # Floor plan editor on Pascal — design
 
-Status: proposed. When accepted, the architecture decision becomes ADR-0010 and
-this working document is removed once its open decisions and acceptance work
-are done.
+Status: approved 2026-11-19. The architecture decision becomes ADR-0010 in the
+foundation step. This working document is removed once its acceptance work is
+done.
 
 ## Intent
 
@@ -216,8 +216,7 @@ supplier assignment.
 4. **Seat and assign:** number tables, seat guests and assign supplier zones.
 5. **Check:** checks run live. Submit and approval run them again in the API.
 6. **Client options:** PMCM sends Option A and Option B. The client views them
-   in 2D and 3D, chooses one and comments. The open decision below covers
-   whether clients can still draw.
+   in 2D and 3D, chooses one and comments. Clients do not draw.
 7. **Approve and run:**
    - The approved option becomes the official layout.
    - Suppliers see their zones.
@@ -318,13 +317,13 @@ approver to acknowledge each one, and the acknowledgement is audited.
 - **3D models:** parametric where possible. Detailed pieces use models we have
   the rights to ship.
 
-## Open decision (product owner)
+## Product decision
 
-1. **Client role in layouts.** Today a client draws a layout preference in the
-   editor. Either clients keep a reduced editor (more scope, and clients load
-   the full Pascal bundle), or they only choose between PMCM options and pin
-   comments. The second fits "PMCM owns official plans" and is assumed above
-   until decided.
+- **Client role in layouts (decided 2026-11-19).** Clients no longer draw
+  layout preferences. They view PMCM's options in 2D and 3D, choose one, and
+  pin comments. The client portal mounts only the viewer. The client
+  preference editor and its endpoints (`floorplan-preferences` and
+  `reopen-preference`) are retired with the old canvas.
 
 ## Left to the builder
 
