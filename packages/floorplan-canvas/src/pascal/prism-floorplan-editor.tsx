@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { acquireSceneReadOnlyLease, loadPlugin } from "@pascal-app/core";
-import { Editor, getSavedSceneDocument, useCameraHintFocus, type SaveStatus } from "@pascal-app/editor";
+import { Editor, getSavedSceneDocument, useCameraHintFocus, useEditor, type SaveStatus } from "@pascal-app/editor";
 import { builtinPlugin } from "@pascal-app/nodes";
 import type { FloorplanSceneDocument } from "@prism/types";
 import { PrismFloorplanProvider, type PrismFloorplanContextValue } from "./editor-context";
@@ -16,6 +16,8 @@ import { LensSwitch } from "./shell/lens-switch";
 import { columnTab, railTabs } from "./shell/rail-tabs";
 import { prismLens } from "./lens";
 import { PiecePlacement } from "./tools/piece-placement";
+import { hostState } from "./inspector/host-state";
+import { SeatedGuestsFooter } from "./inspector/seated-guests-footer";
 
 export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOnly"> & {
   scene: FloorplanSceneDocument;
@@ -107,9 +109,11 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   useEffect(() => useCameraHintFocus.getState().focus([]), []);
   // Every plan opens as laid out; Seating is gone when the event cannot seat guests.
   useEffect(() => prismLens.set("layout"), []);
+  useEffect(() => hostState.setGuestsPanelOpener(() => useEditor.getState().setActiveSidebarPanel("guests")), []);
   useEffect(() => {
     if (!seating.allowed && prismLens.get() === "seating") prismLens.set("layout");
-  }, [seating.allowed]);
+    hostState.setFacts({ seatingAllowed: seating.allowed, readOnly });
+  }, [seating.allowed, readOnly]);
 
   const header = (
     <EditorHeader
@@ -141,6 +145,7 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
               navbarSlot={header}
               viewerToolbarLeft={<LensSwitch />}
               floorplanSceneSlot={<LensOverlay />}
+              inspectorFooter={<SeatedGuestsFooter />}
               loadingSlot={<LoadingRoom />}
               onLoad={onLoad}
               onSave={save}

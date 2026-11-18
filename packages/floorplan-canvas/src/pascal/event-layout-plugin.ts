@@ -6,6 +6,7 @@ import {
   type PrismEventPiece,
   type PrismEventPieceType,
 } from "@prism/types";
+import { parametricsFor, tableQuickActions } from "./inspector/parametrics";
 import { eventSymbol } from "./symbols";
 import { eventShape, shapeKey } from "./symbols/event-shapes";
 import { nextTableNumberAmong } from "./tools/place-node";
@@ -122,6 +123,11 @@ function anyNodeDefinition<S extends AnyNodeDefinition["schema"]>(definition: No
   return definition as AnyNodeDefinition;
 }
 
+/** A kind's card fields widen the same way: the registry hands them only nodes of that kind. */
+function anyParametrics(descriptor: ReturnType<typeof parametricsFor>): NonNullable<AnyNodeDefinition["parametrics"]> {
+  return descriptor as NonNullable<AnyNodeDefinition["parametrics"]>;
+}
+
 /**
  * The PRISM event pieces, registered with Pascal so its editor can place, move, draw and save them. Milestone 2
  * replaces the placeholder shapes with the event furniture drawings.
@@ -129,5 +135,9 @@ function anyNodeDefinition<S extends AnyNodeDefinition["schema"]>(definition: No
 export const prismEventLayoutPlugin: Plugin = {
   id: PRISM_EVENT_LAYOUT_PLUGIN_ID,
   apiVersion: 1,
-  nodes: prismEventPieceTypes.map((kind) => anyNodeDefinition(eventPieceDefinition(kind))),
+  nodes: prismEventPieceTypes.map((kind) => ({
+    ...anyNodeDefinition(eventPieceDefinition(kind)),
+    parametrics: anyParametrics(parametricsFor(kind)),
+    ...(kind === "prism-table" ? { quickActions: tableQuickActions } : {}),
+  })),
 };
