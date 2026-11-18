@@ -61,8 +61,7 @@ variable, or use it from middleware or a build script. The transport reads it
 when a request executes, including when the client was constructed earlier.
 
 Browsers call the public same-origin `/api` URL. The Next service configuration
-supplies empty `NEXT_PUBLIC_API_URL` and `/api` as
-`NEXT_PUBLIC_PRISM_API_BASE_URL`, overriding standalone local URL settings.
+supplies an empty `NEXT_PUBLIC_API_URL`, which overrides standalone local URL settings.
 Server calls use the internal binding and retain `/api` and bearer tokens.
 There are no API-to-portal or portal-to-portal HTTP calls requiring bindings.
 An explicit per-request `baseUrl` remains an override.

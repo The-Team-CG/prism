@@ -10,6 +10,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Portals read the API address only from `NEXT_PUBLIC_API_URL`, which must be set (empty means same-origin); `NEXT_PUBLIC_PRISM_API_BASE_URL` is gone, and a missing origin now fails with a clear error instead of falling back to localhost.
 - The portal shells no longer accept the unused `eyebrow` prop; the page title alone names the page, and its copy is removed from the portal route models.
 - Legacy data is migrated and its compatibility code removed. Apply the migrations `20261128090000_event-lifecycle_inquiry_client_type_private`, `20261128091000_event-lifecycle_decision_new_event_date` and `20261128092000_operations_coordinator_assignment_role` before deploying the API. Old "Private" inquiries now read as Individual, coordinators whose assignment had no role become General Coordinators, and notification retries from before idempotency keys are no longer matched.
 - A client sees the official floor plan as PMCM built it. Open layout, on the event's Floor plan page and on a shared floor plan, opens the plan in the same Pascal editor PMCM drew it in, read-only and in 3D, with 2D one tap away (linen colours, chair styles, service pieces and zones as PMCM sees them). The page keeps a quick to-scale preview. The editor's new `presentation` flag leaves out PMCM's planning aids for that reader: layout checks and their lenses, capacity estimates and the guest list. On a phone the editor's title no longer covers the 2D/3D switch.

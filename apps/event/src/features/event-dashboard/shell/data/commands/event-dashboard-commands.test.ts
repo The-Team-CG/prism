@@ -4,6 +4,7 @@ import { eventDashboardCommands } from "../event-dashboard-commands";
 
 describe("PMCM dashboard command transport", () => {
   beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:4000");
     vi.stubGlobal("window", {
       localStorage: {
         getItem: vi.fn((key: string) =>
