@@ -2,17 +2,17 @@ import type { AnyNodeDefinition, DuplicateSubtreeCloneArgs, FloorplanGeometry, N
 import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial } from "three";
 import {
   FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID,
-  prismPieceNodeSchema,
-  prismTableNodeSchema,
-  type PrismPieceNode,
-  type PrismPieceNodeType,
-  type PrismTableNode,
+  placeableEventPieceSchemaFor,
+  prismEventPieceTypes,
+  type PrismEventPiece,
+  type PrismEventPieceType,
 } from "@prism/types";
+import { nextTableNumberAmong } from "./tools/place-node";
 
 export const PRISM_EVENT_LAYOUT_PLUGIN_ID = FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID;
 
-type EventPiece = PrismTableNode | PrismPieceNode;
-type EventPieceType = EventPiece["type"];
+type EventPiece = PrismEventPiece;
+type EventPieceType = PrismEventPieceType;
 
 /** Placeholder height until milestone 2 draws each piece: a table top's height. */
 const PLACEHOLDER_HEIGHT_M = 0.75;
@@ -31,6 +31,10 @@ const LABELS: Record<EventPieceType, string> = {
   "prism-safety": "Safety",
   "prism-fixture": "Fixture",
   "prism-shape": "Shape",
+  "prism-seating-block": "Seating block",
+  "prism-dance-floor": "Dance floor",
+  "prism-bar": "Bar",
+  "prism-zone": "Supplier zone",
 };
 
 function isRound(node: EventPiece): boolean {
@@ -78,8 +82,7 @@ const NUMBER_LABEL = /^T?\s*\d+$/i;
 
 /** The copy is the next table in the room: one past the highest table number, with nobody seated yet. */
 function nextTableFields(original: { label?: unknown }, nodes: readonly unknown[]) {
-  const numbers = nodes.map((node) => node as { type?: unknown; number?: unknown }).filter((node) => node.type === "prism-table" && typeof node.number === "number").map((node) => node.number as number);
-  const number = Math.max(0, ...numbers) + 1;
+  const number = nextTableNumberAmong(nodes);
   const keepsLabel = typeof original.label === "string" && original.label !== "" && !NUMBER_LABEL.test(original.label);
   return { number, guestIds: [], ...(keepsLabel ? {} : { label: `T${number}` }) };
 }
@@ -109,6 +112,8 @@ function sharedDefinition(kind: EventPieceType) {
     geometry: (node: EventPiece) => placeholderGeometry(node),
     geometryKey: (node: EventPiece) => JSON.stringify([node.width, node.depth, isRound(node)]),
     floorplan: (node: EventPiece) => footprint(node),
+    // One placement tool serves every kind: it reads the armed kind and the Library tile's values from the editor.
+    tool: () => import("./tools/place-piece-tool"),
     tree: { label: (node: unknown) => treeLabel(node, LABELS[kind]) },
     presentation: { label: LABELS[kind], icon: { kind: "url" as const, src: "/icons/item.webp" }, paletteSection: "furnish" as const, paletteGroup: "Event" },
   };
@@ -121,21 +126,25 @@ function treeLabel(node: unknown, fallback: string): string {
   return typeof variant === "string" && variant ? variant : fallback;
 }
 
-const tableDefinition: NodeDefinition<typeof prismTableNodeSchema> = {
-  ...sharedDefinition("prism-table"),
-  schema: prismTableNodeSchema,
-  defaults: () => ({ ...placementDefaults, shape: "round" as const, width: 1.8, depth: 1.8, seats: 10, chairStyle: "chiavari", linen: "white", guestIds: [] }),
+/** What a piece of each kind starts as when the Library tile gives no value for a field. */
+const KIND_DEFAULTS: Partial<Record<EventPieceType, Record<string, unknown>>> = {
+  "prism-table": { shape: "round", width: 1.8, depth: 1.8, seats: 10, chairStyle: "chiavari", linen: "white", guestIds: [] },
+  "prism-seating-block": { style: "theater", rows: 5, columns: 4, aisle: 0, width: 2, depth: 4.5 },
+  "prism-dance-floor": { width: 6, depth: 6 },
+  "prism-bar": { shape: "straight", width: 3, depth: 0.8 },
+  "prism-zone": { label: "Supplier zone", width: 4, depth: 3 },
 };
 
-function pieceDefinition(kind: PrismPieceNodeType): NodeDefinition<typeof prismPieceNodeSchema> {
-  return {
-    ...sharedDefinition(kind),
-    schema: prismPieceNodeSchema,
-    defaults: () => ({ ...placementDefaults, type: kind, variant: kind.replace(/^prism-/, ""), width: 1, depth: 1 }),
-  };
+export function eventPieceDefaults(kind: EventPieceType): Record<string, unknown> {
+  return { ...placementDefaults, type: kind, ...(KIND_DEFAULTS[kind] ?? { variant: kind.replace(/^prism-/, ""), width: 1, depth: 1 }) };
 }
 
-const pieceTypes = Object.keys(LABELS).filter((kind): kind is PrismPieceNodeType => kind !== "prism-table");
+/** Pascal parses a newly placed node without an id, so each kind's schema mints one. */
+function eventPieceDefinition(kind: EventPieceType) {
+  const schema = placeableEventPieceSchemaFor(kind);
+  const definition: NodeDefinition<typeof schema> = { ...sharedDefinition(kind), schema, defaults: () => eventPieceDefaults(kind) };
+  return definition;
+}
 
 /**
  * Pascal lists plugin nodes as `NodeDefinition<ZodObject<any>>`, whose callbacks take any node, so a definition
@@ -152,5 +161,5 @@ function anyNodeDefinition<S extends AnyNodeDefinition["schema"]>(definition: No
 export const prismEventLayoutPlugin: Plugin = {
   id: PRISM_EVENT_LAYOUT_PLUGIN_ID,
   apiVersion: 1,
-  nodes: [anyNodeDefinition(tableDefinition), ...pieceTypes.map((kind) => anyNodeDefinition(pieceDefinition(kind)))],
+  nodes: prismEventPieceTypes.map((kind) => anyNodeDefinition(eventPieceDefinition(kind))),
 };

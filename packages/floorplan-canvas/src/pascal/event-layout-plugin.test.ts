@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BoxGeometry, CylinderGeometry, Mesh, Object3D } from "three";
 import { convertLegacyPlan } from "@prism/floorplan-scene";
-import { prismPieceNodeTypes, type FloorPlanCanvasObject } from "@prism/types";
+import { prismEventPieceTypes, type FloorPlanCanvasObject } from "@prism/types";
 import { prismEventLayoutPlugin } from "./event-layout-plugin";
 
 function legacy(fields: Partial<FloorPlanCanvasObject> & Pick<FloorPlanCanvasObject, "id" | "name" | "kind" | "category">): FloorPlanCanvasObject {
@@ -36,7 +36,7 @@ function definitionOf(kind: string) {
 describe("prismEventLayoutPlugin", () => {
   it("registers one definition per PRISM event piece type under its plugin id", () => {
     expect(prismEventLayoutPlugin).toMatchObject({ id: "prism:event-layout", apiVersion: 1 });
-    expect(prismEventLayoutPlugin.nodes?.map((definition) => definition.kind).sort()).toEqual(["prism-table", ...prismPieceNodeTypes].sort());
+    expect(prismEventLayoutPlugin.nodes?.map((definition) => definition.kind).sort()).toEqual([...prismEventPieceTypes].sort());
   });
 
   it("parses a converted table through the registered schema, keeping its seated guests", () => {
