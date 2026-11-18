@@ -787,4 +787,19 @@ describe('PlansService Pascal scene saves', () => {
     await expect(service.updatePlan('plan_event_1', changes({ objects: [] }), owner)).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['a guest seated at a table', sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }]), 'Your event team seats guests on the official layout.'],
+    [
+      'a supplier on a zone',
+      sceneWithTables([], [{ id: 'prism-zone_a', type: 'prism-zone', parentId: 'level_1', visible: true, label: 'Catering BOH', position: [1, 0, 1], rotation: 0, width: 4, depth: 3, supplierIds: ['sup_booked'] }]),
+      'Only your event team can assign suppliers to zones.',
+    ],
+  ])('refuses a client scene with %s', async (_label, scene, message) => {
+    const owner = clientActor('owner@example.test');
+    const { service, prisma } = createService(draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'), { ownerId: owner.id });
+
+    await expect(service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, scene }, owner)).rejects.toThrow(message);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
 });

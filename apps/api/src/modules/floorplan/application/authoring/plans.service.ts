@@ -17,9 +17,9 @@ import {
 } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, FloorPlanObject, JsonValue, SavedPlanObject, Seat, SeatCategory } from '@prism/kernel/shared';
-import { zoneSupplierIds } from '@prism/floorplan-scene';
+import { tableAssignmentsOf, zoneSupplierIds } from '@prism/floorplan-scene';
 import { FLOORPLAN_SEATING_FACTS, type FloorplanSeatingFactsReader, type FloorplanSeatingGuest } from '@prism/contexts/read-models/floorplan-seating';
-import type { TableEligibilityGuest, TableEligibilityObject, UpdatePlanInput } from '@prism/types';
+import type { FloorplanSceneDocument, TableEligibilityGuest, TableEligibilityObject, UpdatePlanInput } from '@prism/types';
 import { acceptedScene, storedScene } from '../stored-scene';
 import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
 import {
@@ -34,12 +34,20 @@ import {
 type UpdatePlanChanges = Omit<UpdatePlanInput, 'expectedUpdatedAt'>;
 
 const ZONE_SUPPLIER_MESSAGE = 'Zones can only name suppliers booked on this event.';
+const CLIENT_SEATING_MESSAGE = 'Your event team seats guests on the official layout.';
+const CLIENT_ZONE_SUPPLIER_MESSAGE = 'Only your event team can assign suppliers to zones.';
 
 /** A scene save carries a validated scene and no legacy objects; any other save passes through unchanged. */
 function acceptedPlanChanges(changes: UpdatePlanChanges): UpdatePlanChanges {
   if (changes.scene === undefined) return changes;
   if (changes.objects !== undefined) throw new BadRequestException('Send objects or scene, not both');
   return { ...changes, scene: acceptedScene(changes.scene) };
+}
+
+/** A client draws layout only: seating guests and assigning zone suppliers belong to PMCM on the official layout. */
+function assertClientSceneLeavesSeatingToPmcm(scene: FloorplanSceneDocument) {
+  if (tableAssignmentsOf(scene).some((table) => table.guestIds.length > 0)) throw new BadRequestException(CLIENT_SEATING_MESSAGE);
+  if (zoneSupplierIds(scene).length > 0) throw new BadRequestException(CLIENT_ZONE_SUPPLIER_MESSAGE);
 }
 
 /**
@@ -221,6 +229,7 @@ export class PlansService {
 
       if (Object.keys(requestedChanges).length === 0) return latestPlan;
       const accepted = acceptedPlanChanges(requestedChanges);
+      if (actor.role === OpsUserRole.Client && accepted.scene) assertClientSceneLeavesSeatingToPmcm(accepted.scene);
       const rosterGuests = await this.sceneSaveRoster(tx, eventIdAfterLocks, accepted);
       this.assertTableAssignmentsEligible(latestPlan, accepted, actor, lifecycleEvent?.eventPrivacy ?? 'public', rosterGuests);
 
