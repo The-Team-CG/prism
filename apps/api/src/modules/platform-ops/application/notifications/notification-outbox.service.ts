@@ -13,17 +13,6 @@ import { NotificationPreferenceService } from './notification-preference.service
 
 export type { NotificationOutboxChannel } from '../../contracts/notifications/notification-outbox-writer.port';
 
-type QueuedContent = { eventId?: string; recipient: string; message: string; channel: string; action?: NotificationAction };
-
-/** A retry found by its pre-idempotency-key correlation id must carry exactly the content it was queued with. */
-function legacyRetryDiffers(legacy: OpsNotificationLog, next: QueuedContent) {
-  return legacy.eventId !== (next.eventId ?? null)
-    || legacy.recipient !== next.recipient
-    || legacy.message !== next.message
-    || legacy.channel !== next.channel
-    || Boolean(legacy.action && JSON.stringify(legacy.action) !== JSON.stringify(next.action ?? null));
-}
-
 /**
  * The row saved under an idempotency key holds the content now being queued. Routing metadata added later must not
  * resend an already queued notice that was stored without it, so a row without an action matches its original hash too.
@@ -54,14 +43,6 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
   ) {
     const prisma = context?.prisma ?? this.prisma;
     const correlationId = options.correlationId ?? options.idempotencyKey ?? null;
-    const legacy = await this.findLegacyRetry(prisma, options.idempotencyKey);
-    if (legacy) {
-      if (legacyRetryDiffers(legacy, { eventId, recipient, message, channel, action: options.action })) {
-        throw new ConflictException('Notification idempotency key is bound to different content');
-      }
-      return legacy;
-    }
-
     const payloadHash = createHash('sha256').update(JSON.stringify([eventId ?? null, recipient, message, channel, ...(options.action ? [options.action] : [])])).digest('hex');
     const data = {
         id: `not_${randomUUID()}`,
@@ -146,12 +127,6 @@ export class NotificationOutboxService implements OnApplicationBootstrap, OnAppl
     try { await this.processQueued(); }
     catch { this.logger.warn('Notification queue sweep failed; durable work remains available for retry'); }
     finally { this.running = false; }
-  }
-
-  private findLegacyRetry(prisma: PrismaService | PrismTransactionContext['prisma'], key?: string) {
-    if (!key) return Promise.resolve(null);
-    // Earlier versions stored idempotency only in correlationId. Preserve those retries.
-    return prisma.opsNotificationLog.findFirst({ where: { correlationId: key, idempotencyKey: null } });
   }
 
   async acknowledge(notificationId: string, actor?: PrismVerifiedEventActor) {

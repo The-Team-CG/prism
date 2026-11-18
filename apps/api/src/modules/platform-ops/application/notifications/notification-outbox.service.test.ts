@@ -98,9 +98,6 @@ function createService() {
   const notifications: Array<Record<string, unknown>> = [];
   const prisma = {
     opsNotificationLog: {
-      findFirst: vi.fn(async ({ where }: { where: { correlationId?: string } }) =>
-        notifications.find((notification) => notification.correlationId === where.correlationId && notification.idempotencyKey == null) ?? null,
-      ),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
         const record = { ...data, createdAt: new Date('2026-05-01T08:00:00.000Z') };
         notifications.push(record);
@@ -298,6 +295,16 @@ describe('NotificationOutboxService', () => {
     await expect(service.queue('evt_1', 'client@example.test', 'Changed', 'email', { idempotencyKey: 'same-key' })).rejects.toThrow(/different content/);
     expect(notifications).toHaveLength(1);
   });
+  it('does not match a row stored before idempotency keys by its correlation id', async () => {
+    const { service, notifications } = createService();
+    notifications.push({ id: 'not_before_keys', eventId: 'evt_1', recipient: 'client@example.test', message: 'Original', channel: 'email', correlationId: 'legacy-key', idempotencyKey: null, status: 'sent' });
+
+    const queued = await service.queue('evt_1', 'client@example.test', 'Changed', 'email', { idempotencyKey: 'legacy-key' });
+
+    expect(queued.id).not.toBe('not_before_keys');
+    expect(notifications).toHaveLength(2);
+  });
+
   it('uses an idempotency key to avoid duplicate queued notification work', async () => {
     const { notifications, prisma, service } = createService();
 
