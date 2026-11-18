@@ -65,9 +65,23 @@ function footprint(node: EventPiece): FloorplanGeometry {
  * A copy keeps the piece's shape, size and place but starts with nobody seated, so it never lists a guest who is
  * already seated at the original, and it is a new piece rather than the converted legacy object.
  */
-function emptyCopy({ root }: DuplicateSubtreeCloneArgs) {
+function emptyCopy({ root, nodes }: DuplicateSubtreeCloneArgs) {
   const { legacyId: _legacyId, ...metadata } = (root.metadata ?? {}) as Record<string, unknown>;
-  return { root: { ...root, metadata, ...("guestIds" in root ? { guestIds: [] } : {}) } as typeof root };
+  // Pascal types `root` as one of its own node kinds; a PRISM piece arrives here as one of ours.
+  const piece = root as unknown as { type: string; label?: unknown };
+  const table = piece.type === "prism-table" ? nextTableFields(piece, Object.values(nodes)) : {};
+  return { root: { ...root, metadata, ...table } as typeof root };
+}
+
+/** A label that is only the table's number ("T12", "12") follows the number; any other label is the planner's own. */
+const NUMBER_LABEL = /^T?\s*\d+$/i;
+
+/** The copy is the next table in the room: one past the highest table number, with nobody seated yet. */
+function nextTableFields(original: { label?: unknown }, nodes: readonly unknown[]) {
+  const numbers = nodes.map((node) => node as { type?: unknown; number?: unknown }).filter((node) => node.type === "prism-table" && typeof node.number === "number").map((node) => node.number as number);
+  const number = Math.max(0, ...numbers) + 1;
+  const keepsLabel = typeof original.label === "string" && original.label !== "" && !NUMBER_LABEL.test(original.label);
+  return { number, guestIds: [], ...(keepsLabel ? {} : { label: `T${number}` }) };
 }
 
 const placementDefaults = {

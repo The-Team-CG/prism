@@ -68,6 +68,17 @@ describe("prismEventLayoutPlugin", () => {
     expect((root as { metadata?: Record<string, unknown> }).metadata).not.toHaveProperty("legacyId");
   });
 
+  it("numbers a duplicated table after the highest table in the room, keeping a custom label", () => {
+    const duplicable = definitionOf("prism-table").capabilities.duplicable;
+    if (typeof duplicable !== "object" || !duplicable.prepareSubtreeClone) throw new Error("Tables must duplicate through Pascal's subtree clone");
+    const table = (id: string, number: number, label?: string) => ({ ...convertedNode("table_a"), id, number, ...(label === undefined ? { label: undefined } : { label }) });
+    const nodes = { a: table("a", 1, "T1"), b: table("b", 7, "T7"), c: table("c", 3, "VIP") } as never;
+    const copyOf = (root: object) => duplicable.prepareSubtreeClone!({ root: root as never, descendants: [], rootId: "x" as never, rootPatch: {}, nodes }).root;
+
+    expect(copyOf(table("a", 1, "T1"))).toMatchObject({ number: 8, label: "T8" });
+    expect(copyOf(table("c", 3, "VIP"))).toMatchObject({ number: 8, label: "VIP" });
+  });
+
   it("places the 2D footprint at the piece's plan position, turned by its rotation", () => {
     const stageNode = definitionOf("prism-stage").schema.parse({ ...convertedNode("stage_a"), rotation: Math.PI / 2 });
     const footprint = definitionOf("prism-stage").floorplan?.(stageNode, {} as never);
