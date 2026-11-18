@@ -1,7 +1,7 @@
 import {
   floorplanSceneDocumentSchema,
-  prismPieceNodeSchema,
-  prismTableNodeSchema,
+  isPrismEventPieceType,
+  prismEventPieceSchemaFor,
   type FloorplanSceneDocument,
 } from "@prism/types";
 
@@ -10,12 +10,15 @@ export const SCENE_LIMITS = { maxNodes: 5000, maxBytes: 2_000_000 } as const;
 
 export type SceneValidation = { ok: true; scene: FloorplanSceneDocument } | { ok: false; issues: string[] };
 
-function eventPieceIssue(id: string, node: unknown): string | null {
-  const type = (node as { type?: unknown }).type;
-  if (typeof type !== "string" || !type.startsWith("prism-")) return null;
-  const schema = type === "prism-table" ? prismTableNodeSchema : prismPieceNodeSchema;
-  const parsed = schema.safeParse(node);
-  return parsed.success ? null : `Node ${id} is not a valid ${type}: ${parsed.error.issues.map((issue) => issue.message).join("; ")}`;
+type ParsedPiece = { node: FloorplanSceneDocument["nodes"][string] } | { issue: string } | null;
+
+/** A PRISM event piece parsed with its own schema; null for Pascal's nodes, an issue for a broken or unknown piece. */
+function parseEventPiece(id: string, node: { type: string }): ParsedPiece {
+  if (!node.type.startsWith("prism-")) return null;
+  if (!isPrismEventPieceType(node.type)) return { issue: `Node ${id} is an unknown event piece (${node.type})` };
+  const parsed = prismEventPieceSchemaFor(node.type).safeParse(node);
+  if (parsed.success) return { node: parsed.data };
+  return { issue: `Node ${id} is not a valid ${node.type}: ${parsed.error.issues.map((issue) => issue.message).join("; ")}` };
 }
 
 /**
@@ -44,11 +47,9 @@ export function validateFloorplanScene(input: unknown): SceneValidation {
     const node = scene.nodes[id]!;
     if (node.id !== id) issues.push(`Node ${id} is stored under a different id (${node.id})`);
     if (node.parentId !== null && !(node.parentId in scene.nodes)) issues.push(`Node ${id} has a missing parent ${node.parentId}`);
-    const pieceIssue = eventPieceIssue(id, node);
-    if (pieceIssue) issues.push(pieceIssue);
-    else if (node.type === "prism-table") nodes[id] = prismTableNodeSchema.parse(node);
-    else if (node.type.startsWith("prism-")) nodes[id] = prismPieceNodeSchema.parse(node);
-    else nodes[id] = node;
+    const piece = parseEventPiece(id, node);
+    if (piece && "issue" in piece) issues.push(piece.issue);
+    else nodes[id] = piece ? piece.node : node;
   }
   for (const rootId of scene.rootNodeIds) {
     const root = scene.nodes[rootId];
