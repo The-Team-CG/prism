@@ -4,7 +4,6 @@ import {
   clientBreadcrumbTrail,
   clientLoadingShellCopy,
   clientShellDescription,
-  clientShellEyebrow,
   clientShellTitle,
   isEventScopedClientRoute,
 } from "./client-dashboard-shell-copy";
@@ -13,7 +12,6 @@ describe("client dashboard shell copy", () => {
   it("keeps event-scoped routes on the selected event", () => {
     expect(isEventScopedClientRoute("overview", "evt_1")).toBe(true);
     expect(isEventScopedClientRoute("home")).toBe(false);
-    expect(clientShellEyebrow({ isEventScopedView: true, route: "overview" })).toBe("Event workspace");
   });
 
   it("titles each event tab with its section and keeps the event name in the description", () => {
@@ -49,7 +47,6 @@ describe("client dashboard shell copy", () => {
   it("falls back to loading copy when workspace state is not ready", () => {
     expect(clientLoadingShellCopy({ route: "events" })).toEqual({
       title: "My events",
-      eyebrow: "Event portfolio",
       description: "Loading events…",
     });
   });

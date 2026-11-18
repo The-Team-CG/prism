@@ -64,7 +64,6 @@ import {
   clientBreadcrumbTrail,
   clientShellLayout,
   clientShellDescription,
-  clientShellEyebrow,
   clientShellTitle,
   isEventScopedClientRoute,
 } from "../model/client-dashboard-shell-copy";
@@ -603,7 +602,6 @@ export function ClientDashboardWorkspaceView({
         portal="client"
         productLabel="P.R.I.S.M"
         roleLabel="Client Portal"
-        eyebrow={clientShellEyebrow({ isEventScopedView, route })}
         title={clientShellTitle({ isEventScopedView, portalView, route })}
         description={clientShellDescription({ isEventScopedView, portalView, route, selectedEvent })}
         titleClassName={shellLayout.titleClassName}

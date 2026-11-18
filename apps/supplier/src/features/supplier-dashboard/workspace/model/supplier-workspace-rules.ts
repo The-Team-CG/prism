@@ -385,67 +385,54 @@ export function sectionMeta(
 ): SectionMeta {
   const map: Record<SupplierDashboardSection, SectionMeta> = {
     dashboard: {
-      eyebrow: "Supplier portal",
       title: "Today",
       description: `${workspace?.supplier.categoryName ?? session.organization} — ${workspace?.supplier.name ?? session.organization}`,
     },
     requests: {
-      eyebrow: "Requests",
       title: "Requests & quotes",
       description: "Submit, revise, and track your quotes before the deadline.",
     },
     bookings: {
-      eyebrow: "Bookings",
       title: "Bookings & events",
       description: "Confirm assignments, readiness, contracts, and event-day status.",
     },
     calendar: {
-      eyebrow: "Calendar",
       title: "Calendar",
       description: "Event days, quote deadlines, arrivals, deliverables and payments.",
     },
     quotations: {
-      eyebrow: "Quotations",
       title: "Requests & quotes",
       description: "All submitted quotations with revision history and status.",
     },
     messages: {
-      eyebrow: "Messages",
       title: "Messages",
       description: "Direct communication with the PMCM team.",
     },
     files: {
-      eyebrow: "Files",
       title: "Files",
       description: "Every file for your bookings, and what PMCM still needs from you.",
     },
     payments: {
-      eyebrow: "Payments",
       title: "Payments",
       description: "Payment milestones for your selected and locked quotes.",
     },
     profile: {
-      eyebrow: "Profile",
       title: "Services & profile",
       description: "Your supplier profile, tier, category, and service inclusions.",
     },
     account: {
-      eyebrow: "Account",
       title: "Account",
       description: "Who you are, how you sign in, and where PMCM reaches you.",
     },
     privacy: {
-      eyebrow: "Account",
       title: "Privacy",
       description: "Ask PMCM about your personal data and follow each request to its outcome.",
     },
     notifications: {
-      eyebrow: "Account",
       title: "Notifications",
       description: "What changed on your bookings, what is new since you last looked, and what PMCM asked you to confirm.",
     },
     support: {
-      eyebrow: "Support",
       title: "Support",
       description: "Guidance on portal actions and how to reach PMCM.",
     },

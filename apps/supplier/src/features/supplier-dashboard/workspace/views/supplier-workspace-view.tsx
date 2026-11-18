@@ -39,7 +39,6 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
     <PrismDashboardShell
       portal="supplier"
       roleLabel="Supplier portal"
-      eyebrow={meta.eyebrow}
       title={meta.title}
       description={meta.description}
       breadcrumb={section === "support" ? [meta.title] : undefined}

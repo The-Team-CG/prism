@@ -18,12 +18,6 @@ const PORTAL_TITLES: Partial<Record<ClientDashboardRoute, string>> = {
   notifications: "Notifications",
 };
 
-const PORTAL_EYEBROWS: Partial<Record<ClientDashboardRoute, string>> = {
-  home: "Client home",
-  request: "Signed-in request",
-  events: "Event portfolio",
-};
-
 const PORTAL_DESCRIPTIONS: Partial<Record<ClientDashboardRoute, string>> = {
   request: "Start another event request using your client account details.",
   events: "Your confirmed PMCM events.",
@@ -112,10 +106,6 @@ export function clientShellLayout(input: { isEventScopedView: boolean; route: Cl
   };
 }
 
-export function clientShellEyebrow(input: { isEventScopedView: boolean; route: ClientDashboardRoute }) {
-  if (input.isEventScopedView) return "Event workspace";
-  return PORTAL_EYEBROWS[input.route] ?? "Client portal";
-}
 
 /**
  * Breadcrumb after the role label. Event workspaces trail "My events" and the section; the event name
@@ -158,7 +148,6 @@ export function clientLoadingShellCopy(input: {
   const portalMeta = input.portalView ? CLIENT_PORTAL_VIEW_META[input.portalView] : undefined;
   return {
     title: portalMeta?.title ?? LOADING_TITLES[input.route] ?? "Client portal",
-    eyebrow: PORTAL_EYEBROWS[input.route] ?? "Event workspace",
     description: portalMeta?.description ?? LOADING_DESCRIPTIONS[input.route] ?? "Loading event workspace…",
   };
 }

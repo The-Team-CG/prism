@@ -36,7 +36,6 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
       portal="event"
       productLabel="P.R.I.S.M"
       roleLabel="PMCM Event Command"
-      eyebrow={viewModel.loadingShellCopy.eyebrow}
       title={viewModel.loadingShellCopy.title}
       description="Loading the PMCM event command data, route context, and workspace queue."
       activeItemId={viewModel.activeSidebarItemId}
@@ -74,7 +73,6 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       portal="event"
       productLabel="P.R.I.S.M"
       roleLabel="PMCM Event Command"
-      eyebrow={viewModel.shellCopy.eyebrow}
       title={viewModel.shellCopy.title}
       description={viewModel.shellCopy.description}
       breadcrumb={viewModel.shellCopy.breadcrumb}

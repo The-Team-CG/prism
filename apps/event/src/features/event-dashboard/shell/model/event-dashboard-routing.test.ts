@@ -173,22 +173,22 @@ describe("event-dashboard-routing", () => {
   });
 
   it("keeps loading copy aligned with each route owner", () => {
-    const cases: Array<[RouteState, { eyebrow: string; title: string }]> = [
-      [{ section: "suppliers", tab: "overview" }, { eyebrow: "Supplier directory", title: "Suppliers" }],
-      [{ section: "audit", tab: "overview" }, { eyebrow: "Audit log", title: "Audit" }],
-      [{ section: "clients", tab: "overview" }, { eyebrow: "Clients", title: "Clients" }],
-      [{ section: "calendar", tab: "overview" }, { eyebrow: "Calendar", title: "Calendar" }],
-      [{ section: "tasks", tab: "overview" }, { eyebrow: "Tasks", title: "Tasks" }],
-      [{ section: "team", tab: "overview" }, { eyebrow: "Team", title: "Team" }],
-      [{ section: "files", tab: "overview" }, { eyebrow: "Files", title: "Event File Hub" }],
-      [{ section: "messages", tab: "overview" }, { eyebrow: "Messages", title: "Event Messages" }],
-      [{ section: "finance", tab: "overview" }, { eyebrow: "Finance", title: "Finance Desk" }],
-      [{ section: "inquiries", tab: "overview" }, { eyebrow: "Inquiries", title: "Inquiries" }],
-      [{ section: "events-list", tab: "overview" }, { eyebrow: "Events", title: "Events" }],
-      [{ section: "settings", tab: "overview" }, { eyebrow: "Settings", title: "Workspace settings" }],
-      [{ section: "account", tab: "overview" }, { eyebrow: "Account", title: "Account" }],
-      [{ section: "events", tab: "overview", eventId: "event-42" }, { eyebrow: "Event workspace", title: "Event workspace" }],
-      [{ section: "dashboard", tab: "overview" }, { eyebrow: "Command home", title: "Event Manager" }],
+    const cases: Array<[RouteState, { title: string }]> = [
+      [{ section: "suppliers", tab: "overview" }, { title: "Suppliers" }],
+      [{ section: "audit", tab: "overview" }, { title: "Audit" }],
+      [{ section: "clients", tab: "overview" }, { title: "Clients" }],
+      [{ section: "calendar", tab: "overview" }, { title: "Calendar" }],
+      [{ section: "tasks", tab: "overview" }, { title: "Tasks" }],
+      [{ section: "team", tab: "overview" }, { title: "Team" }],
+      [{ section: "files", tab: "overview" }, { title: "Event File Hub" }],
+      [{ section: "messages", tab: "overview" }, { title: "Event Messages" }],
+      [{ section: "finance", tab: "overview" }, { title: "Finance Desk" }],
+      [{ section: "inquiries", tab: "overview" }, { title: "Inquiries" }],
+      [{ section: "events-list", tab: "overview" }, { title: "Events" }],
+      [{ section: "settings", tab: "overview" }, { title: "Workspace settings" }],
+      [{ section: "account", tab: "overview" }, { title: "Account" }],
+      [{ section: "events", tab: "overview", eventId: "event-42" }, { title: "Event workspace" }],
+      [{ section: "dashboard", tab: "overview" }, { title: "Event Manager" }],
     ];
 
     for (const [routeState, expected] of cases) {
@@ -199,7 +199,6 @@ describe("event-dashboard-routing", () => {
   it("names the event and section in the breadcrumb, so an event page says where you are", () => {
     const event = { eventName: "Launch", clientName: "Acme", eventDate: "2026-09-01" };
     expect(routeShellCopy(eventRouteState("event-42", "briefing"), { activeNavLabel: "Planning & decisions", selectedEvent: event })).toEqual({
-      eyebrow: "Event workspace",
       title: "Planning & decisions",
       description: "Launch · Acme · Sep 1, 2026",
       breadcrumb: ["Events", "Launch", "Planning & decisions"],
@@ -207,14 +206,12 @@ describe("event-dashboard-routing", () => {
     });
     expect(routeShellCopy(eventRouteState("event-42", "overview"), { selectedEvent: event }).description).toBe("Launch · Acme · Sep 1, 2026");
     expect(routeShellCopy({ section: "events", tab: "overview" })).toEqual({
-      eyebrow: "Command home",
       title: "Event Manager",
       description: "Select an event or accept an inquiry to begin.",
       breadcrumb: ["Event Manager"],
       documentTitle: "Event Manager · P.R.I.S.M",
     });
     expect(routeShellCopy({ section: "events", tab: "overview", eventId: "event-42" })).toEqual({
-      eyebrow: "Event workspace",
       title: "Event workspace",
       description: "Select an event or accept an inquiry to begin.",
       breadcrumb: ["Events"],
@@ -229,7 +226,6 @@ describe("event-dashboard-routing", () => {
         { activeNavLabel: "Clients", selectedClient: { name: "Acme Corp" } },
       ),
     ).toEqual({
-      eyebrow: "Clients",
       title: "Acme Corp",
       description: "Every client contact, with their events and inquiries.",
       breadcrumb: ["Clients", "Acme Corp"],
