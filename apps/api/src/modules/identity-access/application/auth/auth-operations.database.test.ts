@@ -144,6 +144,8 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
   }, 30_000);
 
   it('revokes a signed session and makes repeated decline idempotent', async () => {
+    const deviceId = `${prefix}_device`;
+    await prisma.opsUserSession.create({ data: { id: deviceId, userId: userId, device: 'Test browser', sessionVersion: 0, expiresAt: new Date(Date.now() + 3_600_000) } });
     const oldSession = sessions.issueSession({
       id: userId,
       name: 'P0 Revocation Fixture',
@@ -152,7 +154,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       organization: prefix,
       approvalStatus: 'approved',
       sessionVersion: 0,
-    }, new Date(), 'session_test');
+    }, new Date(), deviceId);
     const guard = new EventSessionGuard(sessions, prisma, new Reflector());
 
     await operations.declineApprovalRequest(requestId, actor);

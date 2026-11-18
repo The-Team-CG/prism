@@ -79,6 +79,9 @@ const lifecycleEventReferences = {
 
 const auditWriter: AuditWriter = { write: async () => undefined };
 const transaction = {
+  opsUserSession: {
+    findUnique: async ({ where }: { where: { id: string } }) => ({ userId: where.id.slice('session_'.length), revokedAt: null, lastSeenAt: new Date() }),
+  },
   floorPlan: {
     findUnique: async ({ where }: { where: { id: string } }) => planRows.get(where.id) ?? null,
     update: async () => ({ ...officialDraft, updatedAt: new Date('2026-05-05T00:01:00.000Z') }),
@@ -101,6 +104,9 @@ const prismaMock = {
         ? { sessionVersion: 0, approvalStatus: 'approved', lockedUntil: null, permanentLockout: false, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, ...account }
         : null;
     },
+  },
+  opsUserSession: {
+    findUnique: async ({ where }: { where: { id: string } }) => ({ userId: where.id.slice('session_'.length), revokedAt: null, lastSeenAt: new Date() }),
   },
   floorPlan: {
     findUnique: async ({ where }: { where: { id: string } }) => planRows.get(where.id) ?? null,
@@ -146,9 +152,9 @@ describe('PlansController authenticated HTTP authorization', () => {
       sessionVersion: 0,
     });
     const issuedAt = new Date();
-    ownerToken = session.issueSession(user('client-owner', 'ana.owner@example.test', 'client'), issuedAt, 'session_test').accessToken;
-    otherAnaToken = session.issueSession(user('client-other', 'ana.other@example.test', 'client'), issuedAt, 'session_test').accessToken;
-    pmcmToken = session.issueSession(user('pmcm-user', 'maxine@pmcm.example.test', 'pmcm-admin'), issuedAt, 'session_test').accessToken;
+    ownerToken = session.issueSession(user('client-owner', 'ana.owner@example.test', 'client'), issuedAt, 'session_client-owner').accessToken;
+    otherAnaToken = session.issueSession(user('client-other', 'ana.other@example.test', 'client'), issuedAt, 'session_client-other').accessToken;
+    pmcmToken = session.issueSession(user('pmcm-user', 'maxine@pmcm.example.test', 'pmcm-admin'), issuedAt, 'session_pmcm-user').accessToken;
 
     app = await NestFactory.create(PlansHttpTestModule, new ExpressAdapter(), { logger: false });
     app.setGlobalPrefix('api');
