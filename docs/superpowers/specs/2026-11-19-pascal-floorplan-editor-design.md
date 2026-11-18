@@ -333,3 +333,28 @@ approver to acknowledge each one, and the acknowledgement is audited.
 - PDF title block layout.
 - Panel ordering.
 - Smart-guide tolerances.
+
+## Spike findings (Pascal 1.1.6, 2026-11-19)
+
+The spike mounted `<Editor layoutVersion="v2">` from `@pascal-app/editor@1.1.6` on a throwaway
+`apps/event` route, with `@pascal-app/core`, `viewer` and `nodes` at 1.1.6, three 0.187.0,
+`@react-three/fiber` 9 and `@react-three/drei` 10. Gate result: **pass**.
+
+| # | Question | Answer |
+|---|---|---|
+| 1 | Builds on Next 16 | Yes. Next 16.4.5 (Turbopack) dev compiles and serves the route; `next build` compiles in about 28 s but fails its type-check pass on four errors in Pascal source: three missing declarations (`pdfkit`, `blob-stream`) and one line in `follow-pascal-targets.ts` that relies on Pascal's `noUncheckedIndexedAccess` setting. With the type check skipped, the build succeeds. The editor ships TypeScript source, so our typecheck covers it. Fix in milestone 1: add `@types/pdfkit` and `@types/blob-stream` as dev dependencies, carry a one-line patch for `follow-pascal-targets.ts`, and send the fix upstream. Turning on `noUncheckedIndexedAccess` in PRISM instead would raise about 170 errors in our own code. `@pascal-app/editor` ships TypeScript source, so `three` and the four `@pascal-app/*` packages go in `transpilePackages`. |
+| 2 | Light theme with PRISM tokens | Partly. Pascal uses the same shadcn token names (`--background`, `--primary`, `--border`, …), so importing `@pascal-app/viewer/ui/theme.css` **before** `@prism/tokens/theme.css` lets PRISM's values win. The side panels stay dark because they read Pascal-only `--sidebar-*` and `--shadow-elevation-*` variables. Milestone 2 adds a PRISM mapping for those variables. Tailwind needs `@source` entries for `@pascal-app/editor/src`, `@pascal-app/viewer/dist/ui` and `@pascal-app/nodes/dist`. |
+| 3 | No browser source of truth | Yes. With `onLoad`/`onSave` supplied, the editor never writes the scene locally (the localStorage fallback in `use-auto-save.ts` runs only when `onSave` is absent). No IndexedDB database was created. Pascal keeps UI preferences in localStorage (`pascal-editor-selection:<projectId>`, `pascal-editor-ui-preferences`, `viewer-preferences`, …); these hold no layout data. **Exception:** guide images and uploaded assets go to IndexedDB through `saveAsset` (`core/lib/asset-storage`); milestone 3 must route tracing images through PRISM storage. |
+| 4 | WebGL fallback | Yes. With `navigator.gpu` removed and WebGPU disabled, the 3D view renders through WebGL. |
+| 5 | Added download | Measured on the production build with compression: the route transfers 3.0 MB of JavaScript and 87 KB of WebAssembly (4.1 MB including icons, HDRI and sound), against 0.3 MB of JavaScript for `/sign-in`. Pascal therefore adds about 2.8 MB of compressed JavaScript, loaded only on the editor screen. The 3D canvas appeared in 2.2 s locally and in 5.5 s at 9 Mbit/s with 150 ms latency. That is acceptable for the PMCM desktop editor. Milestone 5 measures the viewer on its own for clients. |
+| 6 | `onSave` payload | `SceneGraph = { nodes: Record<id, AnyNode>; rootNodeIds: string[]; collections?: Record<…>; materials?: Record<…>; installedPlugins?: string[] }`. Autosave calls `onSave` (debounced) and again with `{ keepalive: true }` on `pagehide`/`beforeunload`. The scene document must keep `collections`, `materials` and `installedPlugins`, and the save path must handle repeated autosaves (each returns a new `updatedAt`). |
+| 7 | Plan axes | Plan coordinates are `[x, z]` in metres (walls take `start`/`end` as `[x, z]`); items take `position [x, y, z]` and `rotation` about the vertical axis by three.js rules. Legacy `(x, y)` maps to `(x, z)` and a legacy clockwise rotation `deg` to `-deg·π/180`. The 2D view turns with the 3D camera, so Task 3's rotated-table test pins the sign. |
+| 8 | 2D symbols | Yes without a custom renderer. `FloorplanGeometry` offers `path`, `polygon`, `polyline`, `rect` (with corner radius), `circle`, `line` and text, each with a fill/stroke style; a round table with chairs and place settings is a set of circles and rotated rects. Gradients and soft shadows are not available in 2D; `floorplanSceneSlot` accepts host SVG if needed. |
+| 9 | AI chat to a host endpoint | The open-source editor has no chat panel. It provides point-and-ask (`useViewer.pointedIds`, pins), the `PluginChatExtension` types and tool cards. PRISM builds its own chat tab (`sidebarTabs` / `columnTabId`) that posts to the PRISM API, which matches the design. |
+| 10 | Pascal in Node | Yes. `import('@pascal-app/core')` loads in Node 24 without a DOM in about 1.1 s, and `WallNode.parse({ start, end })` returns a valid node with a typed ID. The converter and the API can use Pascal's own schemas. |
+
+Other findings:
+
+- **The host provides the sidebar tabs and static assets.** The npm packages ship only a Plugins tab. Pascal's own app supplies the Scene and Build tabs and serves `/icons`, `/hdri`, `/audios`, `/material` and `/items` from its `public` folder (about 26 MB in total; icons 2.6 MB, materials 17 MB). PRISM serves the icons, HDRI and sounds it uses from `apps/event/public` and writes its own tabs (Room, Library, Guests, Checks). It does not copy Pascal's Build tab wholesale.
+- **Walls form rooms automatically.** Closing four walls created a room zone with its floor slab, ceiling and area (60 m² for a 10 × 6 m room). A venue room shell is therefore just its walls.
+- **`npm audit` raises no new advisories from Pascal.** The high-severity advisories reported after install are the existing `picomatch` ReDoS in dev tooling (`vitest`, `vite`, `typescript-eslint`, `@nestjs/cli`).

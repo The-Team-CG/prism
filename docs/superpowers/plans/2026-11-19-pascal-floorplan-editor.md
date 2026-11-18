@@ -85,7 +85,7 @@ git commit -m "docs(floorplan): record the Pascal spike findings"
 - **Produces, in `floorplan-scene.ts`:**
   - `FLOORPLAN_SCENE_FORMAT = "pascal-v1"`.
   - `floorplanSceneNodeSchema`: a passthrough object with `id: string`, `type: string`, `parentId: string | null`, and `visible: boolean`, defaulting to `true`.
-  - `floorplanSceneDocumentSchema`: `{ format: literal("pascal-v1"), pascalVersion: string, nodes: record(string, floorplanSceneNodeSchema), rootNodeIds: string[] }`.
+  - `floorplanSceneDocumentSchema`: `{ format: literal("pascal-v1"), pascalVersion: string, nodes: record(string, floorplanSceneNodeSchema), rootNodeIds: string[], collections?: record(string, unknown), materials?: record(string, unknown), installedPlugins?: string[] }`. The optional fields are Pascal's `SceneGraph` fields from spike answer 6; they must round-trip unchanged.
   - Exported type: `FloorplanSceneDocument`.
 - **Produces, event node schemas (each extends the node schema):**
   - `prismTableNodeSchema`:
@@ -147,7 +147,7 @@ Expected: PASS.
 
 **Package setup:**
 - Mirror `packages/portal-query/package.json`: name `@prism/floorplan-scene`, `exports: { ".": "./src/index.ts" }`, and the same `typecheck`, `test`, `test:ci` and `lint` scripts.
-- Dependencies: `@prism/types` only. Add `@pascal-app/core` only if spike answer 10 says a Node-safe entry point is needed.
+- Dependencies: `@prism/types` and `@pascal-app/core@1.1.6`, pinned exactly. Spike answer 10 showed it loads in Node without a DOM.
 - Boundary rule `"floorplan scene must stay pure"`: files under `packages/floorplan-scene/` may not import `react`, `@pascal-app/editor`, `@pascal-app/viewer`, `@prism/api-client`, `@prism/ui` or any app.
 
 **Interfaces:**
@@ -196,7 +196,9 @@ Expected: PASS.
 - **Produces:** `convertLegacyPlan(plan: { name: string; widthM: number; heightM: number; objects: FloorPlanCanvasObject[] }, pascalVersion: string): FloorplanSceneDocument`.
 
 **Mapping:**
-- **Scene skeleton:** `site` → `building` → `level`, using Pascal's built-in node types. A floor `slab` with polygon `[[0,0],[w,0],[w,h],[0,h]]`.
+- **Scene skeleton:** `site` → `building` → `level`, built with Pascal's `SiteNode`, `BuildingNode` and `LevelNode` `.parse()`.
+  - Four perimeter walls (`WallNode`, thickness 0.2) around `[0,0]`–`[widthM,heightM]` give the room. The editor derives its floor, ceiling and zone on load (spike finding).
+  - Every parent's `children` array lists its children's IDs.
 - **Placement:**
   - Every converted object is placed at its centre: `(x + w/2, y + h/2)` → `position [cx, 0, cy]`.
   - Rotation: `rotation = -deg × π / 180`, unless spike answer 7 says otherwise.
@@ -209,7 +211,8 @@ Expected: PASS.
 | Legacy | Scene node |
 |---|---|
 | `category: "architecture"`, name starts `Wall` | Pascal `wall`: `start`/`end` on the long axis through the centre, `thickness` = short side |
-| other `architecture` (Door, Window, Pillar) | `prism-fixture`, `variant` = lower-kebab name, `locked: true` |
+| `architecture`, name starts `Pillar` | Pascal `column` (`ColumnNode.parse`), at the object's centre |
+| other `architecture` (Door, Window) | `prism-fixture`, `variant` = lower-kebab name, `locked: true` |
 | `furniture`, `kind: "ellipse"`, `seats > 0` | `prism-table`, `shape: "round"` |
 | `furniture`, `kind: "ellipse"`, no seats | `prism-table`, `shape: "cocktail"`, `seats: 0` |
 | `furniture`, `kind: "rect"`, `seats > 0` | `prism-table`, `shape: "rect"` |
@@ -229,7 +232,8 @@ Expected: PASS.
   - **Rotated VIP table:** at 90° it gives `rotation` ≈ `-π/2` (tolerance 1e-9).
   - **Hidden, locked chair:** gives `visible:false`, `locked:true` and `type "prism-seat"`.
   - **Line and text:** a `kind:"line"` object and a text-labelled rect with an unknown name both become `prism-shape` with `label` preserved.
-  - **Count and validity:** the converted document passes `validateFloorplanScene`, and node count = objects + 4 (site, building, level, slab).
+  - **Count and validity:** the converted document passes `validateFloorplanScene`, and node count = objects + 7 (site, building, level, four perimeter walls).
+  - **Children:** every node's `parentId` appears in that parent's `children`.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
@@ -237,9 +241,8 @@ Run: `npm --workspace @prism/floorplan-scene run test -- convert-legacy-plan`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement `convertLegacyPlan`**
-  - Build Pascal built-in nodes as plain objects with type-prefixed IDs (`site_`, `building_`, `level_`, `slab_`, `wall_`, plus `nanoid`-style suffixes from `crypto.randomUUID()`).
-  - Check them with the Task 1 node schema.
-  - Use Pascal's own `.parse()` instead if spike answer 10 found a Node-safe entry point.
+  - Build Pascal built-in nodes with their own `.parse()`, which generates the typed IDs.
+  - Build `prism-*` nodes with the Task 1 schemas, using IDs `prism-<kind>_<crypto.randomUUID()>`.
 
 - [ ] **Step 4: Run the tests and typecheck**
 
@@ -309,7 +312,18 @@ Expected: PASS. If `db:check:domain-persistence` is not a workspace script, use 
   - Pin the Pascal packages to the spike version as dependencies.
   - Add `three`, `@react-three/fiber` and `@react-three/drei` as peers.
   - Depend on `@prism/floorplan-scene`.
+- Modify (host integration from the spike):
+  - Root `package.json`:
+    - Add the dev dependencies `@types/pdfkit` and `@types/blob-stream`, plus `patch-package`.
+    - `postinstall` becomes `patch-package && npm --workspace @prism/types run build`.
+  - `patches/@pascal-app+editor+1.1.6.patch`: in `src/lib/follow-pascal-targets.ts`, `buildingOf` declares `let node: Nodes[string] | undefined = nodes[id]`. That is the only Pascal error under PRISM's TypeScript settings. Open the same fix upstream.
+  - `apps/event/next.config.ts`: `transpilePackages` gains `three`, `@pascal-app/core`, `@pascal-app/viewer`, `@pascal-app/editor` and `@pascal-app/nodes`. No `ignoreBuildErrors`.
+  - `apps/event/src/app/globals.css`:
+    - `@import "@pascal-app/viewer/ui/theme.css"` before `@prism/tokens/theme.css`, then `@import "@prism/floorplan-canvas/pascal-theme.css"`.
+    - `@source` for `node_modules/@pascal-app/editor/src`, `@pascal-app/viewer/dist/ui` and `@pascal-app/nodes/dist`.
+  - `apps/event/public/icons/`, `hdri/` and `audios/`: copied from `pascalorg/editor` `apps/editor/public` at the commit published as 1.1.6. Record the source commit in `apps/event/public/PASCAL-ASSETS.md`.
 - Create:
+  - `packages/floorplan-canvas/src/pascal/pascal-theme.css`: maps Pascal's `--sidebar-*` and `--shadow-elevation-*` variables to PRISM tokens, so the side panels render light.
   - `packages/floorplan-canvas/src/pascal/scene-document.ts` + test
   - `src/pascal/prism-floorplan-editor.tsx`
   - `src/pascal/event-layout-plugin.ts` + test
@@ -330,7 +344,8 @@ Expected: PASS. If `db:check:domain-persistence` is not a workspace script, use 
     - A 2D footprint polygon from the same size.
     - `presentation.label` is the variant name.
   - **`PrismFloorplanEditor`** props: `{ scene: FloorplanSceneDocument; readOnly: boolean; onSave(doc: FloorplanSceneDocument): Promise<unknown>; onSubmit?(doc: FloorplanSceneDocument): Promise<unknown>; onBack(): void; eventName?: string; draftName?: string; draftStatus?: string }`.
-    - Mounts `<Editor layoutVersion="v2">` with persistence off (spike answer 3).
+    - Mounts `<Editor layoutVersion="v2">` with `onLoad`/`onSave` always supplied, so Pascal never falls back to local scene storage (spike answer 3).
+    - Passes `sidebarTabs` with the built-in Scene tab (`id: "site"`). Milestone 2 adds Room, Library, Guests and Checks.
     - Loads `builtinPlugin` and `prismEventLayoutPlugin` once.
     - Blocks edits when `readOnly`.
 
@@ -351,8 +366,8 @@ Expected: FAIL.
 
 - [ ] **Step 4: Verify**
 
-Run: `npm --workspace @prism/floorplan-canvas run test && npm --workspace @prism/floorplan-canvas run typecheck && npm run check:boundaries`
-Expected: PASS. The existing legacy canvas tests still pass.
+Run: `npm --workspace @prism/floorplan-canvas run test && npm --workspace @prism/floorplan-canvas run typecheck && npm --workspace @prism/event run typecheck && npm run check:boundaries`
+Expected: PASS, with no errors from `node_modules/@pascal-app`. The existing legacy canvas tests still pass.
 
 - [ ] **Step 5: Commit** `feat(floorplan-canvas): host the Pascal editor with a placeholder event plugin`
 
@@ -390,6 +405,7 @@ Expected: PASS. The existing legacy canvas tests still pass.
   - `editor-engine.test.ts`: `defaults to legacy`; `"pascal" selects pascal`; `"PASCAL " is legacy`. Exact match only.
   - `open-plan-scene.test.ts`: `uses the stored scene`; `converts a legacy plan once and marks converted`.
   - A view-model test: `read-only for a coordinator and for an approved draft on the pascal engine`. Same rule as legacy: `screen.readOnly || !isPmcmAdmin(role)`. `saveEditorScene` is never called while read-only.
+  - A view-model test: `saveEditorScene chains updatedAt across consecutive autosaves`. Pascal autosaves repeatedly (spike answer 6), so each PUT sends the `updatedAt` returned by the previous one, and two quick saves never produce a 409.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
