@@ -18,6 +18,7 @@ import { prismLens } from "./lens";
 import { PiecePlacement } from "./tools/piece-placement";
 import { hostState } from "./inspector/host-state";
 import { SeatedGuestsFooter } from "./inspector/seated-guests-footer";
+import { UnmatchedSeatsNotice } from "./shell/unmatched-seats-notice";
 
 export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOnly"> & {
   scene: FloorplanSceneDocument;
@@ -146,6 +147,7 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
               viewerToolbarLeft={<LensSwitch />}
               floorplanSceneSlot={<LensOverlay />}
               inspectorFooter={<SeatedGuestsFooter />}
+              sceneOverlay={<UnmatchedSeatsNotice />}
               loadingSlot={<LoadingRoom />}
               onLoad={onLoad}
               onSave={save}

@@ -48,7 +48,11 @@ export function EventDashboardEditorScreen({
       {screen.saver ? (
         <PascalEditorShell
           key={screen.openId}
-          plan={{ scene: screen.scene, name: screen.project.name, widthM: screen.project.widthM, heightM: screen.project.heightM, objects: screen.project.objects }}
+          plan={{ scene: screen.scene, name: screen.project.name, widthM: screen.project.widthM, heightM: screen.project.heightM, objects: screen.project.objects, guests: screen.project.guests }}
+          guests={screen.seatingGuests}
+          suppliers={screen.suppliers}
+          pax={screen.project.pax}
+          eventPrivacy={screen.project.eventPrivacy}
           role={session.role}
           screenReadOnly={screen.readOnly}
           eventName={screen.event.eventName}

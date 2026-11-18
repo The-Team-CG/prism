@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { PASCAL_VERSION, PrismFloorplanEditor } from "@prism/floorplan-canvas/editor";
-import type { FloorplanSceneDocument, PrismUserRole } from "@prism/types";
+import type { FloorplanSceneDocument, PrismEventPrivacy, PrismFloorplanSeatingGuest, PrismFloorplanSupplier, PrismUserRole } from "@prism/types";
 import { isFloorplanEditorReadOnly } from "./model/editor-engine";
+import { seatingFor } from "./model/seating";
 import { openPlanScene, type PlanToOpen } from "./use-cases/open-plan-scene";
 import type { SceneSaver } from "./use-cases/scene-saver";
 
@@ -12,6 +13,12 @@ export type PascalEditorShellProps = {
   role: PrismUserRole;
   /** Submitted and approved drafts open read-only even for PMCM. */
   screenReadOnly: boolean;
+  /** The event's guest roster, seated by id, and the suppliers booked on the event. */
+  guests: PrismFloorplanSeatingGuest[];
+  suppliers: PrismFloorplanSupplier[];
+  /** The event's guest count and privacy, which decide whether guests can be seated. */
+  pax: number;
+  eventPrivacy: PrismEventPrivacy | undefined;
   /** Autosaves the scene in order; its state drives the header's save status. */
   saver: SceneSaver;
   onSubmit(scene: FloorplanSceneDocument): Promise<unknown>;
@@ -24,16 +31,16 @@ export type PascalEditorShellProps = {
 };
 
 const ignoreSave = async () => undefined;
-// Until the roster is loaded (guests task), the editor sees no guests and no seating.
-const NO_SEATING = { allowed: false, reason: null };
 
 /**
  * The Pascal floor plan editor for a draft. A plan saved by the legacy editor opens converted, and its first save
  * stores the scene. A read-only session gets no save or submit at all.
  */
-export function PascalEditorShell({ plan, role, screenReadOnly, saver, onSubmit, onReload, onBack, eventName, draftName, draftStatus }: PascalEditorShellProps) {
+export function PascalEditorShell(props: PascalEditorShellProps) {
+  const { plan, role, screenReadOnly, guests, suppliers, pax, eventPrivacy, saver, onSubmit, onReload, onBack, eventName, draftName, draftStatus } = props;
   const readOnly = isFloorplanEditorReadOnly(screenReadOnly, role);
-  const [{ scene }] = useState(() => openPlanScene(plan, PASCAL_VERSION));
+  const [{ scene, unmatchedSeats }] = useState(() => openPlanScene(plan, PASCAL_VERSION, guests));
+  const seating = useMemo(() => seatingFor(pax, eventPrivacy), [pax, eventPrivacy]);
   const save = useCallback((document: FloorplanSceneDocument) => saver.save(document), [saver]);
   const saveState = useSyncExternalStore(saver.subscribe, saver.state, saver.state);
   const retry = useCallback(() => void saver.retry(), [saver]);
@@ -48,14 +55,14 @@ export function PascalEditorShell({ plan, role, screenReadOnly, saver, onSubmit,
       eventName={eventName}
       draftName={draftName}
       draftStatus={draftStatus}
-      guests={[]}
-      suppliers={[]}
-      seating={NO_SEATING}
-      guestCount={0}
+      guests={guests}
+      suppliers={suppliers}
+      seating={seating}
+      guestCount={pax}
       saveState={saveState}
       onRetrySave={retry}
       onReload={onReload}
-      unmatchedSeats={0}
+      unmatchedSeats={unmatchedSeats}
     />
   );
 }
