@@ -22,11 +22,18 @@ import { FLOORPLAN_PROJECTION_WRITER, type FloorplanEventProjection, type Floorp
 import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReference, type FloorplanEventReferenceReader } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import type { FloorplanCommands, FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
 import type { FloorplanReader, FloorPlanDraftProjection } from '../../contracts/floorplan-reader.port';
+import { storedScene } from '../stored-scene';
 
 export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
 
 function timestamp(value: Date) {
   return value.toISOString();
+}
+
+/** A Pascal plan's snapshot carries its scene; a legacy plan's snapshot keeps the shape it always had. */
+function sceneSnapshotFields(plan: Parameters<typeof storedScene>[0] & { sceneFormat: string | null }) {
+  const scene = storedScene(plan);
+  return scene === null ? {} : { scene, sceneFormat: plan.sceneFormat ?? scene.format };
 }
 
 @Injectable()
@@ -829,6 +836,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
       suppliers: Array.isArray(plan.suppliers) ? plan.suppliers : [],
       seats: Array.isArray(plan.seats) ? plan.seats : [],
       seatCategories: Array.isArray(plan.seatCategories) ? plan.seatCategories : [],
+      ...sceneSnapshotFields(plan),
       updatedAt: plan.updatedAt ? timestamp(plan.updatedAt) : timestamp(new Date()),
     };
   }

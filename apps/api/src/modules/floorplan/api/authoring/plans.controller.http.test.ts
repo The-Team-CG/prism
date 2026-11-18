@@ -34,6 +34,8 @@ function planRow(id: string, clientEmail: string, sourceType: string, status: st
     suppliers: [],
     seats: [],
     seatCategories: [],
+    scene: null,
+    sceneFormat: null,
     updatedAt,
     objectRows: [],
     opsDraft: {

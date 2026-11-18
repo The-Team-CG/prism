@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import type { FloorPlan as PrismaFloorPlan, FloorPlanObject as PrismaFloorPlanObject } from '@prisma/client';
 import {
@@ -17,16 +17,50 @@ import {
 } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, FloorPlanObject, JsonValue, SavedPlanObject, Seat, SeatCategory } from '@prism/kernel/shared';
-import type { UpdatePlanInput } from '@prism/types';
+import { validateFloorplanScene } from '@prism/floorplan-scene';
+import type { TableEligibilityObject, UpdatePlanInput } from '@prism/types';
+import { storedScene } from '../stored-scene';
 import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
 import {
   assertSeatingAllowedForNewAssignments,
   assertTableAssignmentsEligible,
+  sceneTableEligibilityObjects,
   storedTableEligibilityGuests,
   storedTableEligibilityObjects,
 } from './table-assignment-guard';
 
 type UpdatePlanChanges = Omit<UpdatePlanInput, 'expectedUpdatedAt'>;
+
+/** A scene save carries a validated scene and no legacy objects; any other save passes through unchanged. */
+function acceptedPlanChanges(changes: UpdatePlanChanges): UpdatePlanChanges {
+  if (changes.scene === undefined) return changes;
+  if (changes.objects !== undefined) throw new BadRequestException('Send objects or scene, not both');
+  const validation = validateFloorplanScene(changes.scene);
+  if (!validation.ok) throw new BadRequestException({ message: 'Floor plan scene is invalid', issues: validation.issues });
+  return { ...changes, scene: validation.scene };
+}
+
+/**
+ * The layout a save leaves in place for the seating rule, and, when the save changes the layout, the before and after
+ * to compare for new seats. Each comparison uses the same engine's ids on both sides: a first scene save on a legacy
+ * plan names its converted tables by their legacy ids, so the seats it carried over are not new.
+ */
+type SeatingLayouts = {
+  next: readonly TableEligibilityObject[];
+  newSeats?: { previous: readonly TableEligibilityObject[]; next: readonly TableEligibilityObject[] };
+};
+
+function seatingLayouts(plan: PlanWithObjects, changes: UpdatePlanChanges): SeatingLayouts {
+  const legacy = storedTableEligibilityObjects(plan.objectRows.length ? plan.objectRows.map((row) => row.objectData) : asArray<unknown>(plan.objects));
+  const scene = storedScene(plan);
+  if (changes.scene) {
+    const next = sceneTableEligibilityObjects(changes.scene);
+    if (scene) return { next, newSeats: { previous: sceneTableEligibilityObjects(scene), next } };
+    return { next, newSeats: { previous: legacy, next: sceneTableEligibilityObjects(changes.scene, 'legacy') } };
+  }
+  if (changes.objects) return { next: changes.objects, newSeats: { previous: legacy, next: changes.objects } };
+  return { next: scene ? sceneTableEligibilityObjects(scene) : legacy };
+}
 
 type PlanWithObjects = Prisma.FloorPlanGetPayload<{
   include: {
@@ -112,6 +146,8 @@ export class PlansService {
       suppliers: asArray<JsonValue>(row.suppliers),
       seats: asArray<Seat>(row.seats),
       seatCategories: asArray<SeatCategory>(row.seatCategories),
+      scene: storedScene(row),
+      sceneFormat: row.sceneFormat,
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -142,7 +178,7 @@ export class PlansService {
 
     const { expectedUpdatedAt: expectedUpdatedAtInput, ...requestedChanges } = changes;
     const expectedUpdatedAt = new Date(expectedUpdatedAtInput);
-    const { objects, ...scalarChanges } = requestedChanges;
+    const { objects } = requestedChanges;
     const updated = await this.prisma.$transaction(async (tx) => {
       const stateBeforeLocks = await tx.floorPlan.findUnique({
         where: { id: planId },
@@ -180,9 +216,11 @@ export class PlansService {
       }
 
       if (Object.keys(requestedChanges).length === 0) return latestPlan;
-      this.assertTableAssignmentsEligible(latestPlan, requestedChanges, actor, lifecycleEvent?.eventPrivacy ?? 'public');
+      const accepted = acceptedPlanChanges(requestedChanges);
+      this.assertTableAssignmentsEligible(latestPlan, accepted, actor, lifecycleEvent?.eventPrivacy ?? 'public');
 
-      const saved = await this.savePlanChanges(tx, planId, scalarChanges, objects, expectedUpdatedAt);
+      const { objects: acceptedObjects, ...scalarChanges } = accepted;
+      const saved = await this.savePlanChanges(tx, planId, scalarChanges, acceptedObjects, expectedUpdatedAt);
 
       await writeAudit(
         this.auditWriter,
@@ -219,15 +257,12 @@ export class PlansService {
    */
   private assertTableAssignmentsEligible(plan: PlanWithObjects, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor, eventPrivacy: EventPrivacy) {
     if (actor.role === OpsUserRole.Client) return;
-    if (changes.objects === undefined && changes.guests === undefined) return;
-    const storedObjects = plan.objectRows.length
-      ? plan.objectRows.map((row) => row.objectData)
-      : asArray<unknown>(plan.objects);
-    const objects = changes.objects ?? storedTableEligibilityObjects(storedObjects);
+    if (changes.objects === undefined && changes.guests === undefined && changes.scene === undefined) return;
+    const layouts = seatingLayouts(plan, changes);
     const guests = changes.guests ?? storedTableEligibilityGuests(asArray<unknown>(plan.guests));
-    assertTableAssignmentsEligible(objects, guests);
-    if (changes.objects !== undefined) {
-      assertSeatingAllowedForNewAssignments(storedTableEligibilityObjects(storedObjects), objects, { pax: changes.pax ?? plan.pax, eventPrivacy });
+    assertTableAssignmentsEligible(layouts.next, guests);
+    if (layouts.newSeats) {
+      assertSeatingAllowedForNewAssignments(layouts.newSeats.previous, layouts.newSeats.next, { pax: changes.pax ?? plan.pax, eventPrivacy });
     }
   }
 

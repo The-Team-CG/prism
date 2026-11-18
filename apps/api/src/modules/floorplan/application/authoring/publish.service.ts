@@ -4,6 +4,7 @@ import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, JsonValue, PublishedSnapshot, Seat, SeatCategory } from '@prism/kernel/shared';
 import { randomUUID } from 'node:crypto';
+import { storedScene } from '../stored-scene';
 
 @Injectable()
 export class PublishService {
@@ -26,6 +27,8 @@ export class PublishService {
       suppliers: asArray<JsonValue>(row.suppliers),
       seats: asArray<Seat>(row.seats),
       seatCategories: asArray<SeatCategory>(row.seatCategories),
+      scene: storedScene(row),
+      sceneFormat: row.sceneFormat,
       updatedAt: row.updatedAt.toISOString(),
     };
   }

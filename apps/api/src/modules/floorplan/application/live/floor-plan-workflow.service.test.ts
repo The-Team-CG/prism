@@ -48,7 +48,7 @@ function createService() {
     },
     floorPlan: {
       create: vi.fn(async ({ data }) => {
-        const row = { ...data, updatedAt: data.updatedAt ?? new Date() };
+        const row = { scene: null, sceneFormat: null, ...data, updatedAt: data.updatedAt ?? new Date() };
         state.floorPlans.push(row);
         return row;
       }),
@@ -1181,6 +1181,29 @@ describe('FloorPlanWorkflowService', () => {
     expect(history[3].snapshot.objects?.[0]).toMatchObject({ x: 25 });
   });
 
+  it('carries a Pascal scene into the submitted and approved snapshots, and leaves it out for a legacy plan', async () => {
+    const { service, state } = createService();
+    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank', objects: [] }, { actorId: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' });
+    const scene = {
+      format: 'pascal-v1',
+      pascalVersion: '1.1.6',
+      nodes: { site_1: { id: 'site_1', type: 'site', parentId: null, visible: true, children: [] } },
+      rootNodeIds: ['site_1'],
+    };
+    state.floorPlans[0].scene = scene;
+    state.floorPlans[0].sceneFormat = 'pascal-v1';
+
+    const submitted = await service.submitFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
+    const approved = await service.approveFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
+
+    expect(submitted.submittedSnapshot).toMatchObject({ scene, sceneFormat: 'pascal-v1' });
+    expect(approved.approvedSnapshot).toMatchObject({ scene, sceneFormat: 'pascal-v1' });
+
+    const legacy = await service.createFloorPlanDraft('evt_sample', { name: 'Legacy Layout', sourceType: 'blank', objects: [] }, { actorId: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' });
+    const legacySubmitted = await service.submitFloorPlanDraft('evt_sample', legacy.id, { name: 'PMCM', role: 'pmcm-admin' });
+    expect(legacySubmitted.submittedSnapshot).not.toHaveProperty('scene');
+  });
+
   it('recovers legacy official drafts that predate persisted snapshots', async () => {
     const { service, state } = createService();
     state.floorPlans.push({
@@ -1196,6 +1219,8 @@ describe('FloorPlanWorkflowService', () => {
       suppliers: [],
       seats: [],
       seatCategories: [],
+      scene: null,
+      sceneFormat: null,
       updatedAt: new Date(),
     });
     state.floorPlanDrafts.push({

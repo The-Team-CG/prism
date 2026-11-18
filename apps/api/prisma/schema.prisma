@@ -24,6 +24,10 @@ model FloorPlan {
   suppliers      Json     @default("[]")
   seats          Json     @default("[]")
   seatCategories Json     @default("[]") @map("seat_categories")
+  /// The Pascal editor's scene graph, written only by the Pascal engine; the legacy columns above stay as they were.
+  scene          Json?
+  /// The scene's storage format ("pascal-v1"); null while the plan has only legacy canvas objects.
+  sceneFormat    String?  @map("scene_format")
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
 
   objectRows FloorPlanObject[]

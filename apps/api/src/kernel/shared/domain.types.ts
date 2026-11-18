@@ -1,3 +1,5 @@
+import type { FloorplanSceneDocument } from "@prism/types";
+
 export type ID = string;
 
 export type ObjectKind =
@@ -95,6 +97,9 @@ export interface FloorPlan {
   suppliers: JsonValue[];
   seats: Seat[];
   seatCategories: SeatCategory[];
+  /** The Pascal editor scene, or null while the plan has only legacy canvas objects. */
+  scene: FloorplanSceneDocument | null;
+  sceneFormat: string | null;
   updatedAt: string;
 }
 

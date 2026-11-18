@@ -1,5 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
+import { tableAssignmentsOf } from '@prism/floorplan-scene';
 import {
+  type FloorplanSceneDocument,
   SEATING_LIST_MAX_GUESTS,
   findTableAssignmentRejection,
   newTableAssignments,
@@ -51,6 +53,26 @@ export function storedTableEligibilityObjects(values: readonly unknown[]): Table
     const parsed = floorPlanCanvasObjectSchema.safeParse(value);
     return parsed.success ? [parsed.data] : [];
   });
+}
+
+/**
+ * A scene's tables in the shape the seating rule reads. With `legacy` keys, a table converted from the legacy editor
+ * is named by its old object id, so the seats it carried over are not counted as new when compared with that plan.
+ */
+export function sceneTableEligibilityObjects(scene: FloorplanSceneDocument, keys: 'scene' | 'legacy' = 'scene'): TableEligibilityObject[] {
+  return tableAssignmentsOf(scene).map((table) => ({
+    id: keys === 'legacy' ? legacyIdOf(scene, table.tableId) ?? table.tableId : table.tableId,
+    kind: 'ellipse',
+    category: 'furniture',
+    seats: table.seats,
+    hidden: table.hidden,
+    assignedGuestIds: table.guestIds,
+  }));
+}
+
+function legacyIdOf(scene: FloorplanSceneDocument, nodeId: string): string | undefined {
+  const metadata: unknown = scene.nodes[nodeId]?.metadata;
+  return isRecord(metadata) && typeof metadata.legacyId === 'string' ? metadata.legacyId : undefined;
 }
 
 /** Reads stored guest roster entries for the seat check, keeping only the fields the rule uses. */
