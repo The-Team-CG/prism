@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync, createWriteStream, copyFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, createWriteStream, copyFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,8 +25,7 @@ export function browserEnvironment(databaseUrl, directory) {
   if (!/^\/prism_browser_[a-f0-9]{12}$/.test(url.pathname)) throw new Error('Browser acceptance requires its own newly created prism_browser database.');
   const env = {
     DATABASE_URL: url.href, DIRECT_URL: '', SUPABASE_DB_URL: '', PRISMA_DATABASE_URL: '', SHADOW_DATABASE_URL: '', DB_SSL: 'false', DB_SSL_CA_FILE: '',
-    PRISM_LOCAL_DEV: '', PRISMA_MIGRATIONS_PATH: '', PRISM_SCHEMA_COMPATIBILITY_MODE: 'exact',
-    PRISM_SCHEMA_REQUIRED_HEAD: readdirSync(join(root, 'apps/api/prisma/migrations')).filter(n => /^\d+_/.test(n)).sort().at(-1),
+    PRISM_LOCAL_DEV: '', PRISMA_MIGRATIONS_PATH: '',
     NODE_ENV: 'development', PORT: String(browserPorts.api), PRISM_SESSION_SECRET: randomBytes(32).toString('hex'), PRISM_SESSION_TTL_SECONDS: '28800',
     PRISM_TRUST_PROXY: 'true', PRISM_SEED_ENV: 'local', PRISM_MAIL_TRANSPORT: 'mailpit', PRISM_MAILPIT_URL: `http://127.0.0.1:${browserPorts.mailpit}`, RESEND_API_KEY: '',
     PRISM_STORAGE_PROVIDER: 'local', PRISM_STORAGE_LOCAL_DIRECTORY: join(directory, 'storage'), PRISM_DISABLE_CONFORME_REMINDER_JOB: 'true',

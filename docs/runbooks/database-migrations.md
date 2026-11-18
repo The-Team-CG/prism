@@ -52,7 +52,7 @@ Keep published migration files immutable; investigate exact mismatches before re
 ## Local development target
 
 The launchers start local Supabase, apply checked-in migrations, and require the
-API ledger to match the checked-in head. `DATABASE_URL` is canonical;
+API ledger to contain every checked-in migration (see [startup check](#startup-check)). `DATABASE_URL` is canonical;
 `DIRECT_URL` is an optional migration override. Hosted connections retain
 verified TLS. To run database commands against the local target from another
 terminal, set `PRISM_ENV_FILE` as described in the
@@ -249,10 +249,12 @@ PostgreSQL 16 database (never a shared or hosted one) and run:
 
 ## Held schema releases
 
-For a release that needs the exact migration ledger at API startup, follow the
-cutover controls in [deployment secrets](deployment-secrets.md#schema-cutover-controls):
-set the hold, run the read-only `Schema cutover preflight (read-only)` workflow,
-then migrate and deploy under the maintenance procedure. The preflight checks
+The API's [startup check](#startup-check) always runs, so no compatibility mode
+needs setting. For a release that must hold automated deployments while the
+schema changes, follow the cutover controls in
+[deployment secrets](deployment-secrets.md#schema-cutover-controls): set the
+hold, run the read-only `Schema cutover preflight (read-only)` workflow, then
+migrate and deploy under the maintenance procedure. The preflight checks
 that the target ledger is a checksum-valid prefix of the checked-in history and
 prints the pending SQL diff; it never applies migrations.
 
@@ -279,6 +281,25 @@ path. Before such a conversion, the read-only
 `npm --workspace prism-api run db:preflight:quote-request-fk` reports orphan
 `commercial.quotes.request_id` values that the baseline's `ON DELETE RESTRICT`
 foreign key would reject; it never deletes or rewrites rows.
+
+## Startup check
+
+The API verifies its migration ledger on every start, before it serves requests.
+It reads the checked-in `apps/api/prisma/migrations` folder and
+`public._prisma_migrations` through the runtime database identity, then refuses
+to start unless every migration in that folder is:
+
+- present in the database,
+- finished (not unfinished and not rolled back), and
+- checksum-identical to the checked-in SQL (LF/CRLF line-ending variants and the
+  pinned historical UAT seeds are accepted).
+
+Migrations the database has that the API folder does not are allowed, because a
+newer API's migrations may already be applied while an older API rolls out. The
+error names the missing, mismatched, or unfinished migrations and says to run
+`npm run db:migrate` before starting the API. There is no setting that turns the
+check off. A deployment that ships a new migration must apply it before the API
+that contains it starts.
 
 ## Data invariants
 

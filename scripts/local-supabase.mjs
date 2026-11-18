@@ -66,7 +66,7 @@ export function developmentEnv(url, project, ports, sessionSecret, { storage, ma
     SUPABASE_DB_URL: '', PRISMA_DATABASE_URL: '', DIRECT_URL: '', SHADOW_DATABASE_URL: '',
     PRISM_LOCAL_DEV: '1', PRISM_LOCAL_DATABASE_HOST: parsed.hostname, PRISM_LOCAL_DATABASE_PORT: String(project.dbPort),
     DB_SSL: 'false', DB_SSL_CA_FILE: '', ALLOW_POOLER_FOR_PRISMA: '', NODE_ENV: 'development',
-    PRISMA_MIGRATIONS_PATH: '', PRISM_SCHEMA_COMPATIBILITY_MODE: 'exact', PRISM_SCHEMA_REQUIRED_HEAD: project.migrationHead || '',
+    PRISMA_MIGRATIONS_PATH: '',
     PORT: String(ports.api), CORS_ORIGIN: corsOriginFor(ports),
     NEXT_PUBLIC_API_URL: apiUrlFor(ports),
     NEXT_PUBLIC_PRISM_API_BASE_URL: `${apiUrlFor(ports)}/api`,
@@ -118,7 +118,7 @@ export async function runLocalSupabase(command = 'start') {
   const migrations = readdirSync(join(root, 'apps/api/prisma/migrations'), { withFileTypes: true })
     .filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
   if (!migrations.length) throw new Error('No checked-in Prisma migrations found.');
-  const project = { ...localProject({ ...checkout, migrationBase: migrations[0] }), migrationHead: migrations.at(-1) };
+  const project = localProject({ ...checkout, migrationBase: migrations[0] });
   const localRoot = join(root, '.local-dev');
   const workdir = join(localRoot, 'supabase');
   const configPath = join(workdir, 'supabase/config.toml');
