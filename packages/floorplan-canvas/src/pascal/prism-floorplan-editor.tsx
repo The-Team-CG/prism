@@ -25,6 +25,10 @@ export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOn
   readOnly: boolean;
   onSave(document: FloorplanSceneDocument): Promise<unknown>;
   onSubmit?(document: FloorplanSceneDocument): Promise<unknown>;
+  /** Labels the review hand-off; defaults to "Submit for review". */
+  submitLabel?: string;
+  /** Saves the scene as a venue template; the host owns the library. */
+  onSaveTemplate?(document: FloorplanSceneDocument, name: string): Promise<unknown>;
   onBack(): void;
   eventName?: string;
   draftName?: string;
@@ -83,7 +87,7 @@ function usePluginsReady() {
  * every scene change, and never calls `onSave`.
  */
 export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
-  const { scene, onSave, onSubmit, onBack, eventName, draftName, draftStatus } = props;
+  const { scene, onSave, onSubmit, onSaveTemplate, submitLabel, onBack, eventName, draftName, draftStatus } = props;
   const { guests, suppliers, seating, guestCount, saveState, saveMessage = null, onRetrySave, onReload, unmatchedSeats } = props;
   const ready = usePluginsReady();
   const smallScreen = useSmallScreen();
@@ -122,6 +126,8 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
       onBack={onBack}
       currentDocument={currentDocument}
       onSubmit={onSubmit}
+      onSaveTemplate={onSaveTemplate}
+      submitLabel={submitLabel}
       pascalStatus={pascalStatus}
       eventName={eventName}
       draftName={draftName}

@@ -40,10 +40,8 @@ export const createFloorPlanPreferenceSchema = z.object({
   constraints: z.array(z.string()),
   notes: optionalTrimmedStringSchema,
   venue: optionalTrimmedStringSchema,
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-  gridSize: z.number().int().positive().optional(),
-  objects: z.array(z.unknown()).optional(),
+  /** The client's layout as a Pascal scene; omitted until the client has saved one. */
+  scene: floorplanSceneDocumentSchema.optional(),
 });
 export type CreateFloorPlanPreferenceInput = z.infer<typeof createFloorPlanPreferenceSchema>;
 

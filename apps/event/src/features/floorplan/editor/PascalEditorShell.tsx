@@ -7,6 +7,7 @@ import { isFloorplanEditorReadOnly } from "./model/editor-engine";
 import { seatingFor } from "./model/seating";
 import { openPlanScene, type PlanToOpen } from "./use-cases/open-plan-scene";
 import type { SceneSaver } from "./use-cases/scene-saver";
+import { addTemplate } from "./data/templates-repository";
 
 export type PascalEditorShellProps = {
   plan: PlanToOpen;
@@ -42,6 +43,8 @@ export function PascalEditorShell(props: PascalEditorShellProps) {
   const [{ scene, unmatchedSeats }] = useState(() => openPlanScene(plan, PASCAL_VERSION, guests));
   const seating = useMemo(() => seatingFor(pax, eventPrivacy), [pax, eventPrivacy]);
   const save = useCallback((document: FloorplanSceneDocument) => saver.save(document), [saver]);
+  /** The venue library keeps the scene under the venue's name, so a later draft starts from this room. */
+  const saveTemplate = useCallback((document: FloorplanSceneDocument, name: string) => addTemplate({ name, venue: name, pax, scene: document }), [pax]);
   const saveState = useSyncExternalStore(saver.subscribe, saver.state, saver.state);
   const saveMessage = useSyncExternalStore(saver.subscribe, saver.error, saver.error);
   const retry = useCallback(() => void saver.retry(), [saver]);
@@ -52,6 +55,7 @@ export function PascalEditorShell(props: PascalEditorShellProps) {
       readOnly={readOnly}
       onSave={readOnly ? ignoreSave : save}
       onSubmit={readOnly ? undefined : onSubmit}
+      onSaveTemplate={readOnly ? undefined : saveTemplate}
       onBack={onBack}
       eventName={eventName}
       draftName={draftName}

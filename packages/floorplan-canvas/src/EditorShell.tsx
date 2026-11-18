@@ -7,7 +7,6 @@ import { RightPanel } from "./RightPanel";
 import { Canvas } from "./Canvas";
 import { StatusBar } from "./StatusBar";
 import type { Project, TableAssignmentIneligibleReason } from "./types";
-import type { TemplateStore } from "./template-store";
 
 /** Role-supplied copy for each refused table assignment code. */
 export type AssignmentRejectionMessages = Record<TableAssignmentIneligibleReason, string>;
@@ -23,7 +22,6 @@ export interface EditorShellProps {
   submitLabel?: string;
   readOnly?: boolean;
   readOnlyLabel: string;
-  templateStore: TemplateStore;
   onSave?: (project: Project) => Promise<unknown>;
   onSubmit?: (project: Project) => Promise<unknown>;
   /** Copy for refused table assignments; read-only shells never trigger them and may omit it. */
@@ -61,19 +59,17 @@ function LeftChrome({
   readOnly,
   leftOpen,
   isNarrow,
-  templateStore,
 }: {
   readOnly: boolean;
   leftOpen: boolean;
   isNarrow: boolean;
-  templateStore: TemplateStore;
 }) {
   if (readOnly) return null;
   if (!leftOpen) return null;
   return (
     <>
       <div className={dockClass(isNarrow, "left")}>
-        <LeftPanel templateStore={templateStore} />
+        <LeftPanel />
       </div>
       <NarrowLeftScrim isNarrow={isNarrow} />
     </>
@@ -132,7 +128,6 @@ function RightChrome({
 
 function Inner({
   onBack,
-  templateStore,
   readOnlyLabel,
   eventName,
   draftName,
@@ -162,7 +157,7 @@ function Inner({
         />
       </div>
       <div className="relative flex min-h-0 min-w-0 flex-1">
-        <LeftChrome readOnly={readOnly} leftOpen={leftOpen} isNarrow={isNarrow} templateStore={templateStore} />
+        <LeftChrome readOnly={readOnly} leftOpen={leftOpen} isNarrow={isNarrow} />
         <CanvasColumn readOnly={readOnly} />
         <RightChrome readOnly={readOnly} rightOpen={rightOpen} isNarrow={isNarrow} />
         <AssignmentRejectionNotice messages={assignmentRejectionMessages} />

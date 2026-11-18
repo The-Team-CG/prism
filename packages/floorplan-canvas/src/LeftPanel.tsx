@@ -1,17 +1,15 @@
 import { useState } from "react";
 import {
-  Armchair, Theater, ClipboardList, Shield, Columns, Layers, Search, Users, Truck, BookmarkPlus, Shapes,
+  Armchair, Theater, ClipboardList, Shield, Columns, Layers, Search, Users, Truck, Shapes,
 } from "lucide-react";
 import { LayersPanel } from "./LayersPanel";
 import { GuestsPanel } from "./GuestsPanel";
 import { SuppliersPanel } from "./SuppliersPanel";
-import { TemplatesPanel } from "./TemplatesPanel";
 import { ASSETS, CATEGORY_LABELS, assetToObject, type AssetDef } from "./assetLibrary";
 import type { ElementCategory } from "./types";
 import { useEditor } from "./store";
-import type { TemplateStore } from "./template-store";
 
-type TabId = "components" | "guests" | "suppliers" | "layers" | "templates";
+type TabId = "components" | "guests" | "suppliers" | "layers";
 
 interface Tab {
   id: TabId;
@@ -25,7 +23,6 @@ const TABS: Tab[] = [
   { id: "layers", label: "Layers", icon: Layers, group: "design" },
   { id: "guests", label: "Guests", icon: Users, group: "event" },
   { id: "suppliers", label: "Suppliers", icon: Truck, group: "event" },
-  { id: "templates", label: "Templates", icon: BookmarkPlus, group: "library" },
 ];
 
 const CATEGORY_TABS: { id: ElementCategory; icon: React.ComponentType<{ size?: number | string }> }[] = [
@@ -155,7 +152,7 @@ function ComponentsPanel() {
   );
 }
 
-export function LeftPanel({ templateStore }: { templateStore: TemplateStore }) {
+export function LeftPanel() {
   const [active, setActive] = useState<TabId>("components");
 
   let content: React.ReactNode;
@@ -171,8 +168,7 @@ export function LeftPanel({ templateStore }: { templateStore: TemplateStore }) {
       </div>
     );
   } else if (active === "guests") content = <GuestsPanel />;
-  else if (active === "suppliers") content = <SuppliersPanel />;
-  else content = <TemplatesPanel store={templateStore} />;
+  else content = <SuppliersPanel />;
 
   return (
     <div className="flex shrink-0 border-r border-neutral-200 bg-white">

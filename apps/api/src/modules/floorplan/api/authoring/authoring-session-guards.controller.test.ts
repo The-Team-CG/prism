@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
+import { convertLegacyPlan } from '@prism/floorplan-scene';
 import { createTemplateSchema, type PrismVerifiedEventActor } from '@prism/types';
 import type { PublishService } from '../../application/authoring/publish.service';
 import { EventSessionGuard } from '@prism/kernel/event-session';
@@ -64,7 +65,7 @@ describe('floorplan authoring session boundaries', () => {
       service as unknown as TemplatesService,
       new EventAccessPolicyService(audit),
     );
-    const input = createTemplateSchema.parse({ name: 'Corporate Gala' });
+    const input = createTemplateSchema.parse({ name: 'Corporate Gala', scene: convertLegacyPlan({ name: 'Corporate Gala', widthM: 30, heightM: 20, objects: [] }, '1.1.6') });
 
     await expect(controller.create(input, actor)).resolves.toEqual({ id: 'tpl_new' });
     expect(service.createTemplate).toHaveBeenCalledWith(input, actor.actorId);
@@ -86,7 +87,7 @@ describe('floorplan authoring session boundaries', () => {
       name: 'Ana', actorName: 'Ana', email: 'ana@example.test', actorEmail: 'ana@example.test',
       expiresAt: '2099-01-01T00:00:00Z',
     };
-    const input = createTemplateSchema.parse({ name: 'Corporate Gala' });
+    const input = createTemplateSchema.parse({ name: 'Corporate Gala', scene: convertLegacyPlan({ name: 'Corporate Gala', widthM: 30, heightM: 20, objects: [] }, '1.1.6') });
 
     await expect(controller.list(client)).rejects.toMatchObject({ status: 403 });
     await expect(controller.create(input, client)).rejects.toMatchObject({ status: 403 });

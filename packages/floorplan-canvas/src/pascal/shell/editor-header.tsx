@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
-import { Check, ChevronLeft, Eye, Layers3, LoaderCircle, Redo2, Send, TriangleAlert, Undo2 } from "lucide-react";
+import { useCallback, useState, useSyncExternalStore, type FormEvent } from "react";
+import { BookmarkPlus, Check, ChevronLeft, Eye, Layers3, LoaderCircle, Redo2, Send, TriangleAlert, Undo2 } from "lucide-react";
 import { getHistoryCommandState, runRedo, runUndo, subscribeHistoryCommandState, type SaveStatus } from "@pascal-app/editor";
 import type { FloorplanSceneDocument, SceneSaveState } from "@prism/types";
 import { usePrismFloorplan } from "../editor-context";
@@ -12,6 +12,10 @@ export type EditorHeaderProps = {
   /** Builds the scene to submit, including edits autosave has not written yet. */
   currentDocument(): FloorplanSceneDocument;
   onSubmit?(document: FloorplanSceneDocument): Promise<unknown>;
+  /** Saves the scene as a venue template under the given name; the header is hidden when the host has no library. */
+  onSaveTemplate?(document: FloorplanSceneDocument, name: string): Promise<unknown>;
+  /** The review hand-off's label; a client's revision returns to PMCM rather than going for review. */
+  submitLabel?: string;
   /** Pascal's own autosave status; the host's `saveState` decides failures and conflicts. */
   pascalStatus: SaveStatus;
   eventName?: string;
@@ -70,7 +74,64 @@ function HistoryButtons() {
   );
 }
 
-function SubmitButton({ currentDocument, onSubmit }: Pick<EditorHeaderProps, "currentDocument" | "onSubmit">) {
+/** Names the venue and saves the scene as its template; the form stays open with the reason when the save is refused. */
+function SaveTemplateAction({ currentDocument, onSaveTemplate }: { currentDocument(): FloorplanSceneDocument; onSaveTemplate(document: FloorplanSceneDocument, name: string): Promise<unknown> }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const close = () => {
+    setOpen(false);
+    setRefusal(null);
+  };
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const venue = name.trim();
+    if (!venue) {
+      setRefusal("Name the venue before saving it.");
+      return;
+    }
+    setBusy(true);
+    setRefusal(null);
+    try {
+      await onSaveTemplate(currentDocument(), venue);
+      setName("");
+      close();
+    } catch (error) {
+      setRefusal(error instanceof Error ? error.message : "The venue template could not be saved.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className={quietButton}>
+        <BookmarkPlus className="size-4" aria-hidden />
+        Save as venue template
+      </button>
+    );
+  }
+  return (
+    <form onSubmit={(event) => void save(event)} className="flex items-center gap-1.5">
+      <label htmlFor="venue-template-name" className="sr-only">Venue name</label>
+      <input
+        id="venue-template-name"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        placeholder="Venue name"
+        autoFocus
+        className="w-44 rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+      />
+      <button type="submit" disabled={busy} className="rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
+        {busy ? "Saving…" : "Save"}
+      </button>
+      <button type="button" onClick={close} className={quietButton}>Cancel</button>
+      {refusal ? <span role="alert" title={refusal} className="max-w-56 truncate text-xs text-destructive">{refusal}</span> : null}
+    </form>
+  );
+}
+
+function SubmitButton({ currentDocument, onSubmit, submitLabel }: Pick<EditorHeaderProps, "currentDocument" | "onSubmit" | "submitLabel">) {
   const { saveState } = usePrismFloorplan();
   const [submitting, setSubmitting] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -93,13 +154,13 @@ function SubmitButton({ currentDocument, onSubmit }: Pick<EditorHeaderProps, "cu
           {refusal}
         </span>
       ) : null}
-      <SubmitAction submitting={submitting} blocked={saveState === "conflict"} onClick={() => void submit()} />
+      <SubmitAction submitting={submitting} blocked={saveState === "conflict"} label={submitLabel ?? "Submit for review"} onClick={() => void submit()} />
     </>
   );
 }
 
 /** Submitting is blocked while the plan is in conflict: its latest edits were never saved. */
-function SubmitAction({ submitting, blocked, onClick }: { submitting: boolean; blocked: boolean; onClick(): void }) {
+function SubmitAction({ submitting, blocked, label, onClick }: { submitting: boolean; blocked: boolean; label: string; onClick(): void }) {
   return (
     <button
       type="button"
@@ -109,13 +170,13 @@ function SubmitAction({ submitting, blocked, onClick }: { submitting: boolean; b
       className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-60"
     >
       <Send className="size-4" aria-hidden />
-      {submitting ? "Submitting…" : "Submit for review"}
+      {submitting ? "Submitting…" : label}
     </button>
   );
 }
 
 /** PRISM's header in Pascal's navbar: the draft, its save state, history, views, and the review hand-off. */
-export function EditorHeader({ onBack, currentDocument, onSubmit, pascalStatus, eventName, draftName, draftStatus }: EditorHeaderProps) {
+export function EditorHeader({ onBack, currentDocument, onSubmit, onSaveTemplate, submitLabel, pascalStatus, eventName, draftName, draftStatus }: EditorHeaderProps) {
   const { readOnly } = usePrismFloorplan();
   return (
     <div className="flex w-full min-w-0 items-center gap-2">
@@ -138,7 +199,8 @@ export function EditorHeader({ onBack, currentDocument, onSubmit, pascalStatus, 
         <Eye className="size-4" aria-hidden />
         Preview as client
       </span>
-      {onSubmit && !readOnly ? <SubmitButton currentDocument={currentDocument} onSubmit={onSubmit} /> : null}
+      {onSaveTemplate && !readOnly ? <SaveTemplateAction currentDocument={currentDocument} onSaveTemplate={onSaveTemplate} /> : null}
+      {onSubmit && !readOnly ? <SubmitButton currentDocument={currentDocument} onSubmit={onSubmit} submitLabel={submitLabel} /> : null}
     </div>
   );
 }

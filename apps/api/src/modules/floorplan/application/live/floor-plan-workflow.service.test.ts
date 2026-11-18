@@ -1,5 +1,6 @@
 import type { OpsFloorPlanSnapshotVersion } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
+import { convertLegacyPlan } from '@prism/floorplan-scene';
 import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
@@ -387,7 +388,8 @@ describe('FloorPlanWorkflowService', () => {
         height: 25,
         gridSize: 2,
         objects: [],
-        objectRows: [{ objectId: 'stage', objectData: { id: 'stage', kind: 'stage' }, zIndex: 0 }],
+        scene: convertLegacyPlan({ name: 'Gala', widthM: 40, heightM: 25, objects: [] }, '1.1.6'),
+        objectRows: [],
       },
     });
 
@@ -404,8 +406,8 @@ describe('FloorPlanWorkflowService', () => {
     );
 
     expect(draft.sourceType).toBe('template');
-    expect(state.floorPlans[0]).toMatchObject({ width: 40, height: 25, gridSize: 2, pax: 120 });
-    expect(state.floorPlanObjects.map((row) => row.objectId)).toEqual(['stage']);
+    expect(state.floorPlans[0]).toMatchObject({ width: 40, height: 25, gridSize: 2, pax: 120, sceneFormat: 'pascal-v1' });
+    expect(state.floorPlanObjects).toEqual([]);
   });
 
   it('rejects a venue-library preset that does not exist without creating a draft', async () => {
@@ -604,7 +606,7 @@ describe('FloorPlanWorkflowService', () => {
         flowNotes: 'Keep registration near entrance.',
         guestCount: 180,
         constraints: ['VIP tables near stage'],
-        objects: [{ id: 'vip-zone', kind: 'zone' }],
+        scene: convertLegacyPlan({ name: 'Client Preference', widthM: 10, heightM: 8, objects: [] }, '1.1.6'),
       },
       { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
     );

@@ -7,7 +7,6 @@ import {
   FloorPlanCardHeader,
   FloorPlanDraftPanel,
   FloorPlanRevisionCommentCard,
-  FloorPlanTemplates,
   GuidedLayoutNotes,
 } from "./sections/client-floorplan-sections";
 import { ClientFloorplanReviewPanel } from "../../floorplan-review/views/client-floorplan-review-panel";
@@ -19,11 +18,9 @@ export function ClientFloorPlanView() {
     officialDraft,
     preferenceDrafts,
     officialLayout,
-    floorPlanTemplates,
     form,
     setForm,
     openFloorplanEditor,
-    createEditorDraft,
     refresh,
     submitPreference,
     busy,
@@ -49,12 +46,6 @@ export function ClientFloorPlanView() {
               activeDraft={activeDraft}
               officialLayout={officialLayout}
               onOpenEditor={openFloorplanEditor}
-            />
-            <FloorPlanTemplates
-              approved={approved || Boolean(officialDraft)}
-              templates={floorPlanTemplates}
-              busy={busy}
-              onCreate={createEditorDraft}
             />
           </div>
         </Card>

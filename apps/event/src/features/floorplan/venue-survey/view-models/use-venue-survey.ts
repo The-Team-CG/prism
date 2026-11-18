@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { venueSurveyFixtures, type VenueWall } from "@prism/floorplan-canvas";
+import { PASCAL_VERSION, venueSurveyFixtures, type VenueWall } from "@prism/floorplan-canvas";
+import { convertLegacyPlan } from "@prism/floorplan-scene";
 import { addTemplate } from "@/features/floorplan/editor/data/templates-repository";
 import { toast } from "@prism/ui/components/sonner";
 
@@ -33,10 +34,11 @@ export function useVenueSurvey() {
         widthM, lengthM, pillars: whole(form.pillars), emergencyExits: whole(form.emergencyExits), doors: whole(form.doors),
         stageWall: form.stageWall, loadingBayWall: form.loadingBayWall || null,
       });
+      // The measured room and its fixed features become the venue's Pascal scene, which every draft from it copies.
+      const scene = convertLegacyPlan({ name: form.venue.trim(), widthM, heightM: lengthM, objects }, PASCAL_VERSION);
       await addTemplate({
         name: form.venue.trim(), venue: form.venue.trim(), description: `Measured on ocular visit: ${widthM} m × ${lengthM} m`,
-        venueRules: form.venueRules, widthM, heightM: lengthM, pax: 0, objects,
-        includeGuests: false, includeSuppliers: false, guests: [], suppliers: [],
+        venueRules: form.venueRules, pax: 0, scene,
       });
       toast.success(`${form.venue.trim()} is in the venue library with ${objects.length} fixed features.`);
       setForm(emptyVenueSurvey);

@@ -3,7 +3,6 @@
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { ArrowRight, MapPinned, MessageSquareText, Send } from "lucide-react";
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import type { FloorPlanTemplate } from "@/features/floorplan/editor";
 import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
@@ -19,10 +18,6 @@ import {
   officialPlanStatusLine,
 } from "../../../workspace/model/client-floorplan-review-rules";
 import { canEditClientFloorPlanPreference } from "../../../workspace/model/client-floorplan-preference-rules";
-
-function templateSubtitle(template: FloorPlanTemplate) {
-  return template.description || template.venue || "Saved PMCM floor plan template";
-}
 
 /** The authoritative plan, shown before any preference controls. Clients can view it; only PMCM edits it. */
 export function OfficialFloorPlanCard({
@@ -152,45 +147,6 @@ export function FloorPlanRevisionCommentCard({ draft, event }: { draft?: PrismFl
     );
   }
   return null;
-}
-
-export function FloorPlanTemplates({
-  approved,
-  templates,
-  busy,
-  onCreate,
-}: {
-  approved: boolean;
-  templates: FloorPlanTemplate[];
-  busy: string | null;
-  onCreate: (template: FloorPlanTemplate) => void;
-}) {
-  if (approved) return null;
-
-  return (
-    <div className="mt-5">
-      <p className="mb-3 text-xs font-medium text-muted-foreground">Saved layout templates</p>
-      {templates.length ? (
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {templates.slice(0, 4).map((template) => (
-            <button
-              key={template.id}
-              disabled={busy === `editor-${template.id}`}
-              onClick={() => onCreate(template)}
-              className="rounded-lg border border-border bg-background p-3.5 text-left transition hover:border-primary/40 hover:bg-primary-soft disabled:opacity-60"
-            >
-              <p className="text-sm font-semibold text-foreground">{template.name}</p>
-              <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{templateSubtitle(template)}</p>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <p className="rounded-lg border border-dashed border-border bg-background p-3.5 text-xs text-muted-foreground">
-          No saved templates yet. Send guided layout notes and PMCM can save reusable templates from confirmed plans.
-        </p>
-      )}
-    </div>
-  );
 }
 
 export function GuidedLayoutNotes({

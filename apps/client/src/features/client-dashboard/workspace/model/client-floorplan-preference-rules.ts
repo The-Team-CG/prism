@@ -2,9 +2,9 @@ import {
   createFloorPlanPreferenceSchema,
   parseContract,
   type CreateFloorPlanPreferenceInput,
+  type FloorplanSceneDocument,
   type PrismFloorPlanDraft,
 } from "@prism/types";
-import type { Project } from "@/features/floorplan/editor";
 
 export type ClientFloorPlanPreferenceForm = Readonly<{
   name: string;
@@ -59,7 +59,7 @@ export function buildFloorPlanPreferencePayload(
 
 export function buildReopenedFloorPlanPreferencePayload(
   draft: PrismFloorPlanDraft,
-  project: Project,
+  scene: FloorplanSceneDocument,
 ): CreateFloorPlanPreferenceInput {
   if (draft.sourceType !== "client_preference" || draft.status !== "revision_requested") {
     throw new Error("Only a reopened client preference can be resubmitted from the editor.");
@@ -67,13 +67,5 @@ export function buildReopenedFloorPlanPreferencePayload(
   const form = preferenceFormFromDraft(draft);
   if (!form) throw new Error("The saved client preference details are unavailable.");
 
-  return buildFloorPlanPreferencePayload(form, {
-    name: project.name,
-    venue: project.venue,
-    width: Math.max(1, Math.round(project.widthM)),
-    height: Math.max(1, Math.round(project.heightM)),
-    gridSize: 1,
-    guestCount: Math.max(1, Math.round(project.pax)),
-    objects: project.objects,
-  });
+  return buildFloorPlanPreferencePayload(form, { scene });
 }

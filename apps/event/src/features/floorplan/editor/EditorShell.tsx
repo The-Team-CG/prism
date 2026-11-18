@@ -2,15 +2,7 @@ import {
   EditorShell as SharedEditorShell,
   type AssignmentRejectionMessages,
   type EditorShellProps,
-  type TemplateStore,
 } from "@prism/floorplan-canvas";
-import { addTemplate, loadTemplates, removeTemplate } from "./data/templates-repository";
-
-const templateStore: TemplateStore = {
-  load: loadTemplates,
-  add: addTemplate,
-  remove: removeTemplate,
-};
 
 /** PMCM copy for each refused table assignment code. */
 const assignmentRejectionMessages: AssignmentRejectionMessages = {
@@ -26,7 +18,7 @@ const assignmentRejectionMessages: AssignmentRejectionMessages = {
 
 type EventEditorShellProps = Omit<
   EditorShellProps,
-  "readOnlyLabel" | "templateStore" | "assignmentRejectionMessages"
+  "readOnlyLabel" | "assignmentRejectionMessages"
 >;
 
 export function EditorShell(props: EventEditorShellProps) {
@@ -34,7 +26,6 @@ export function EditorShell(props: EventEditorShellProps) {
     <SharedEditorShell
       {...props}
       readOnlyLabel="Read-only"
-      templateStore={templateStore}
       assignmentRejectionMessages={assignmentRejectionMessages}
     />
   );

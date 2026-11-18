@@ -303,14 +303,14 @@ describe('PlansService floorplan permissions and versioning', () => {
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 
-  it('allows a verified client to update only their own reopened preference', async () => {
+  it('allows a verified client to save a scene on their own reopened preference', async () => {
     const { service, prisma, audit, lifecycleEventReferences } = createService(
       draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'),
       { ownerId: 'user_owner@example.test' },
     );
 
     await expect(
-      service.updatePlan('plan_event_1', changes({ width: 45 }), clientActor('owner@example.test')),
+      service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, scene: sceneWithTables([]) }, clientActor('owner@example.test')),
     ).resolves.toMatchObject({ id: 'plan_event_1' });
 
     expect(prisma.floorPlan.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -766,14 +766,25 @@ describe('PlansService Pascal scene saves', () => {
     expect(seatingFacts.listSeatingGuests).not.toHaveBeenCalled();
   });
 
-  it('refuses a scene save from a client revising their own preference', async () => {
-    const preference = draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference');
+  it.each([
+    ['the official PMCM draft', draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'blank'), {}],
+    ['a preference PMCM has not reopened', draft('client_submitted', 'Ana Reyes', 'owner@example.test', 'client_preference'), {}],
+    ['a preference another client submitted', draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'), { ownerId: 'user_different@example.test' }],
+  ])('refuses a client scene save on %s', async (_label, opsDraft, overrides) => {
     const owner = clientActor('owner@example.test');
-    const { service, prisma } = createService(preference, { ownerId: owner.id });
+    const { service, prisma } = createService(opsDraft, { ownerId: owner.id, ...overrides });
 
     await expect(
       service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, scene: sceneWithTables([]) }, owner),
     ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses legacy objects from a client even on their own reopened preference', async () => {
+    const owner = clientActor('owner@example.test');
+    const { service, prisma } = createService(draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'), { ownerId: owner.id });
+
+    await expect(service.updatePlan('plan_event_1', changes({ objects: [] }), owner)).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 });

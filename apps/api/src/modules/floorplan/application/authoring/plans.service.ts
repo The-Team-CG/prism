@@ -17,10 +17,10 @@ import {
 } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, FloorPlanObject, JsonValue, SavedPlanObject, Seat, SeatCategory } from '@prism/kernel/shared';
-import { validateFloorplanScene, zoneSupplierIds } from '@prism/floorplan-scene';
+import { zoneSupplierIds } from '@prism/floorplan-scene';
 import { FLOORPLAN_SEATING_FACTS, type FloorplanSeatingFactsReader, type FloorplanSeatingGuest } from '@prism/contexts/read-models/floorplan-seating';
 import type { TableEligibilityGuest, TableEligibilityObject, UpdatePlanInput } from '@prism/types';
-import { storedScene } from '../stored-scene';
+import { acceptedScene, storedScene } from '../stored-scene';
 import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
 import {
   assertSeatingAllowedForNewAssignments,
@@ -39,9 +39,7 @@ const ZONE_SUPPLIER_MESSAGE = 'Zones can only name suppliers booked on this even
 function acceptedPlanChanges(changes: UpdatePlanChanges): UpdatePlanChanges {
   if (changes.scene === undefined) return changes;
   if (changes.objects !== undefined) throw new BadRequestException('Send objects or scene, not both');
-  const validation = validateFloorplanScene(changes.scene);
-  if (!validation.ok) throw new BadRequestException({ message: 'Floor plan scene is invalid', issues: validation.issues });
-  return { ...changes, scene: validation.scene };
+  return { ...changes, scene: acceptedScene(changes.scene) };
 }
 
 /**
@@ -403,9 +401,8 @@ export class PlansService {
       this.toReadableEvent(lifecycleEvent),
       'client floorplan preference',
     );
-    const forbiddenFields = Object.keys(changes).filter(
-      (field) => !['venue', 'width', 'height', 'gridSize', 'pax', 'objects'].includes(field),
-    );
+    // A client's only write is their layout: the scene, on a preference PMCM has reopened for revision.
+    const forbiddenFields = Object.keys(changes).filter((field) => field !== 'scene');
     if (forbiddenFields.length > 0) {
       await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'client floorplan preference mutation', eventId);
       throw new ForbiddenException('Clients may only update layout preferences');

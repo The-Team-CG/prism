@@ -17,3 +17,11 @@ export function tableAssignmentsOf(scene: FloorplanSceneDocument): SceneTableAss
       };
     });
 }
+
+/** The scene with every table's seated guests removed: seats belong to one event's roster, so a copied layout starts empty. */
+export function withoutSeatedGuests(scene: FloorplanSceneDocument): FloorplanSceneDocument {
+  const nodes = Object.fromEntries(
+    Object.entries(scene.nodes).map(([id, node]) => [id, node.type === "prism-table" ? { ...node, guestIds: [] } : node]),
+  );
+  return { ...scene, nodes } as FloorplanSceneDocument;
+}

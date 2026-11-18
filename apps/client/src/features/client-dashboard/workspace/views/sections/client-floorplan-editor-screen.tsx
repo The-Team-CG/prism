@@ -1,15 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import type { Project } from "@/features/floorplan/editor";
-import {
-  saveFloorPlanProject,
-  submitFloorPlanEditorProject,
-} from "../../use-cases/client-dashboard-actions";
+import type { FloorplanSceneDocument, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
+import type { PreferencePlan } from "@/features/floorplan/preference-editor/data/preference-plan-repository";
+import type { SceneSaver } from "@/features/floorplan/preference-editor/use-cases/scene-saver";
 
-const EditorShell = dynamic(
-  () => import("@/features/floorplan/editor").then((mod) => mod.EditorShell),
+const PreferenceEditorShell = dynamic(
+  () => import("@/features/floorplan/preference-editor/views/preference-editor-shell").then((mod) => mod.PreferenceEditorShell),
   {
     ssr: false,
     loading: () => (
@@ -23,43 +20,42 @@ const EditorShell = dynamic(
 export function ClientFloorplanEditorScreen({
   event,
   draft,
-  project,
+  plan,
+  officialScene,
   readOnly,
+  saver,
+  openId,
   onBack,
-  onSubmitted,
+  onReload,
+  onSubmit,
 }: {
   event: PrismEvent;
   draft: PrismFloorPlanDraft;
-  project: Project;
+  plan: PreferencePlan;
+  officialScene: FloorplanSceneDocument | null;
   readOnly: boolean;
+  saver: SceneSaver;
+  /** Changes on every open, so a reload mounts the editor again from the stored plan. */
+  openId: number;
   onBack: () => void;
-  onSubmitted: () => Promise<void>;
+  onReload: () => void;
+  onSubmit: (scene: FloorplanSceneDocument) => Promise<void>;
 }) {
-  const editable = !readOnly && draft.status !== "approved";
-
-  async function handleSave(next: Project) {
-    return saveFloorPlanProject(next);
-  }
-
-  async function handleSubmit(next: Project) {
-    await submitFloorPlanEditorProject(event.id, draft, next);
-    await onSubmitted();
-  }
-
   return (
     <main className="h-screen w-full overflow-hidden bg-background">
-      <EditorShell
-        project={project}
+      <PreferenceEditorShell
+        key={openId}
+        plan={plan}
+        officialScene={officialScene}
+        readOnly={readOnly}
+        guestCount={draft.clientPreference?.guestCount ?? 0}
+        saver={saver}
         eventName={event.eventName}
         draftName={draft.name}
         draftStatus={draft.status}
-        submitLabel={draft.sourceType === "client_preference" && draft.status === "revision_requested"
-          ? "Return preference to PMCM"
-          : undefined}
-        readOnly={readOnly}
+        onSubmit={onSubmit}
+        onReload={onReload}
         onBack={onBack}
-        onSave={editable ? handleSave : undefined}
-        onSubmit={editable ? handleSubmit : undefined}
       />
     </main>
   );

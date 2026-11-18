@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismFloorplanSeatingGuest, PrismFloorplanSupplier, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
 import { derivePrismLifecycleStage } from "@prism/types";
-import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
+import { type FloorPlanTemplate, type Project } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { floorplanEngine, isLockedFloorplanDraft, type FloorplanEngine } from "@/features/floorplan/editor/model/editor-engine";
 import { createSceneSaver, type SceneSaver } from "@/features/floorplan/editor/use-cases/scene-saver";
@@ -284,13 +284,6 @@ export function useEventDashboardShellViewModel({
       sourceType: "template",
       venueTemplateId: template.id,
       venue: template.venue || selectedEvent.eventName,
-      width: template.widthM,
-      height: template.heightM,
-      gridSize: 1,
-      pax: template.pax,
-      objects: cloneTemplateObjects(template),
-      guests: template.includeGuests ? template.guests : [],
-      suppliers: template.includeSuppliers ? template.suppliers : [],
     });
     await openEditor(selectedEvent, draft);
   }

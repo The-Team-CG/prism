@@ -110,17 +110,13 @@ export interface VenueTemplate {
   description: string;
   venue: string;
   venueRules: string;
-  permanentFeatures: CanvasObject[];
   floorPlanId: ID;
   width: number;
   height: number;
   gridSize: number;
   pax: number;
-  objects: CanvasObject[];
-  includeGuests: boolean;
-  includeSuppliers: boolean;
-  guests: JsonValue[];
-  suppliers: JsonValue[];
+  /** The venue's Pascal scene, or null while the venue's plan has only legacy canvas objects. */
+  scene: FloorplanSceneDocument | null;
   sourceType: string;
   createdAt: string;
   updatedAt: string;

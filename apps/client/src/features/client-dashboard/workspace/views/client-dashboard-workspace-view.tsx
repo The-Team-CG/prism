@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type PrismEvent, type PrismFloorPlanDraft, type SubmitBriefingInput } from "@prism/types";
+import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type FloorplanSceneDocument, type PrismEvent, type PrismFloorPlanDraft, type SubmitBriefingInput } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
-import { cloneTemplateObjects, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
+import { loadPreferencePlan, savePreferenceScene, type PreferencePlan } from "@/features/floorplan/preference-editor/data/preference-plan-repository";
+import { createSceneSaver, type SceneSaver } from "@/features/floorplan/preference-editor/use-cases/scene-saver";
 import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import { ClientEventSwitcher } from "./sections/client-event-switcher";
 import { ClientWrongPortalView } from "./sections/client-wrong-portal-view";
@@ -76,12 +77,12 @@ import {
   selectSelectedClientEvent,
 } from "../model/client-dashboard-selectors";
 import {
-  loadFloorPlanProject,
   loadOfficialFloorPlan,
   signOutClientSession,
   submitClientInquiry,
   submitClientOcularVisit,
   submitClientBriefing,
+  submitFloorPlanEditorScene,
   submitFloorPlanPreference,
 } from "../use-cases/client-dashboard-actions";
 import { useClientDashboardViewModel } from "../view-models/use-client-dashboard-view-model";
@@ -91,7 +92,7 @@ export type { ClientDashboardRoute, ClientPortalView };
 
 type Screen =
   | { name: "dashboard" }
-  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project; readOnly: boolean }
+  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; plan: PreferencePlan; officialScene: FloorplanSceneDocument | null; readOnly: boolean; saver: SceneSaver; openId: number }
   | { name: "official"; event: PrismEvent; draft: PrismFloorPlanDraft; layout: ClientPlanLayout };
 
 const initialPreference: PreferenceForm = {
@@ -207,7 +208,7 @@ export function ClientDashboardWorkspaceView({
   const [officialLayout, setOfficialLayout] = useState<ClientPlanLayout | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const floorPlanTemplates: FloorPlanTemplate[] = [];
+  const editorOpens = useRef(0);
 
   const events = useMemo(
     () => selectClientEvents(state, session, route === "summary" ? eventId : undefined),
@@ -290,10 +291,18 @@ export function ClientDashboardWorkspaceView({
     });
   }, [router, selectedEvent]);
 
+  /** A new preference starts from the official layout, when PMCM has one; a preference already saved opens as saved. */
+  async function officialSceneForNewPreference(plan: PreferencePlan, eventId: string): Promise<FloorplanSceneDocument | null> {
+    if (plan.scene || !officialDraft) return null;
+    const layout = await loadOfficialFloorPlan(eventId, officialDraft.id, officialDraft.status === "approved" ? "approved" : "submitted");
+    return layout.scene;
+  }
+
   async function openFloorplanEditor(draft: PrismFloorPlanDraft, readOnly = false) {
     if (!selectedEvent) return;
     try {
-      const locked = readOnly || draft.status === "approved";
+      // The official plan is PMCM's: a client only ever sees it read-only.
+      const locked = readOnly || draft.status === "approved" || draftIsOfficial(draft);
       if (locked && draftIsOfficial(draft)) {
         const layout = await loadOfficialFloorPlan(
           selectedEvent.id,
@@ -303,38 +312,22 @@ export function ClientDashboardWorkspaceView({
         setScreen({ name: "official", event: selectedEvent, draft, layout });
         return;
       }
-      const project = await loadFloorPlanProject(draft.floorPlanId);
-      setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
+      const plan = await loadPreferencePlan(draft.floorPlanId);
+      const officialScene = await officialSceneForNewPreference(plan, selectedEvent.id);
+      editorOpens.current += 1;
+      const saver = createSceneSaver({ planId: draft.floorPlanId, updatedAt: plan.updatedAt, save: savePreferenceScene });
+      setScreen({ name: "editor", event: selectedEvent, draft, plan, officialScene, readOnly: locked, saver, openId: editorOpens.current });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to open floorplan");
     }
   }
 
-  async function createEditorDraft(template: FloorPlanTemplate) {
-    if (!selectedEvent) return;
-    setBusy(`editor-${template.id}`);
-    setError(null);
-    setNotice(null);
-    try {
-      const objects = cloneTemplateObjects(template);
-      const draft = await submitFloorPlanPreference(
-        selectedEvent.id,
-        buildFloorPlanPreferencePayload(form, {
-          name: `${template.name} preference draft`,
-          venue: template.venue || selectedEvent.eventName,
-          width: template.widthM,
-          height: template.heightM,
-          gridSize: 1,
-          objects,
-        }),
-      );
-      await refresh();
-      await openFloorplanEditor(draft);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to open layout view");
-    } finally {
-      setBusy(null);
-    }
+  async function submitEditorScene(scene: FloorplanSceneDocument) {
+    if (screen.name !== "editor") return;
+    await submitFloorPlanEditorScene(screen.event.id, screen.draft, scene);
+    await refresh();
+    setNotice("Your revised layout preference was returned to PMCM.");
+    setScreen({ name: "dashboard" });
   }
 
   async function submitPreference(ev: FormEvent<HTMLFormElement>) {
@@ -500,16 +493,14 @@ export function ClientDashboardWorkspaceView({
       <ClientFloorplanEditorScreen
         event={screen.event}
         draft={screen.draft}
-        project={screen.project}
+        plan={screen.plan}
+        officialScene={screen.officialScene}
         readOnly={screen.readOnly}
+        saver={screen.saver}
+        openId={screen.openId}
         onBack={() => setScreen({ name: "dashboard" })}
-        onSubmitted={async () => {
-          await refresh();
-          setNotice(screen.draft.sourceType === "client_preference" && screen.draft.status === "revision_requested"
-            ? "Your revised layout preference was returned to PMCM."
-            : "Floor plan saved. PMCM approval will lock this plan for review.");
-          setScreen({ name: "dashboard" });
-        }}
+        onReload={() => void openFloorplanEditor(screen.draft, screen.readOnly)}
+        onSubmit={submitEditorScene}
       />
     );
   }
@@ -575,12 +566,10 @@ export function ClientDashboardWorkspaceView({
     eventSearch,
     setEventSearch,
     officialLayout,
-    floorPlanTemplates,
     notifications,
     navigateToEventRoute,
     runClientAction,
     openFloorplanEditor,
-    createEditorDraft,
     submitPreference,
     submitNewEventRequest,
     signOut,

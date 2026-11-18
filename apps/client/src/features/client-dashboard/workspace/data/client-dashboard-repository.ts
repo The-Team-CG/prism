@@ -13,9 +13,8 @@ import {
   type SubmitBriefingInput,
   type PrismBriefing,
 } from "@prism/types";
-import { layoutFromSnapshot, projectFromSnapshot, type ApiFloorPlanSnapshot, type ClientPlanLayout } from "@/features/floorplan/snapshot-project";
+import { layoutFromSnapshot, type ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import { clientApi, clientApiRequest } from "@/lib/prism-api";
-import type { Project } from "@/features/floorplan/editor";
 import type { ClientSession } from "../model/client-dashboard-types";
 
 export type FloorPlanPreferenceInput = CreateFloorPlanPreferenceInput;
@@ -115,23 +114,5 @@ export const clientDashboardRepository = {
   ): Promise<ClientPlanLayout> {
     const plan = await clientApi.clientPortal.floorplanSnapshot<PrismFloorPlanSnapshot>(eventId, draftId, type);
     return layoutFromSnapshot(plan);
-  },
-
-  async loadPlan(planId: string): Promise<Project> {
-    const plan = await clientApi.floorplans.plan<ApiFloorPlanSnapshot>(planId);
-    return projectFromSnapshot(plan);
-  },
-
-  async savePlan(project: Project): Promise<Project> {
-    const plan = await clientApi.floorplans.savePlan<ApiFloorPlanSnapshot>(project.id, {
-      expectedUpdatedAt: new Date(project.updatedAt).toISOString(),
-      venue: project.venue,
-      width: Math.max(1, Math.round(project.widthM)),
-      height: Math.max(1, Math.round(project.heightM)),
-      gridSize: 1,
-      pax: Math.max(0, Math.round(project.pax)),
-      objects: project.objects,
-    });
-    return projectFromSnapshot(plan);
-  },
+  }
 };
