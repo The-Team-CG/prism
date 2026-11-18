@@ -8,7 +8,7 @@ const eventId = 'event-1';
 const gameId = 'game-1';
 
 function actor(overrides: Partial<PrismVerifiedEventActor> = {}): PrismVerifiedEventActor {
-  return {
+  return { sessionId: 'session_test',
     id: 'actor-1',
     actorId: 'actor-1',
     role: 'coordinator',

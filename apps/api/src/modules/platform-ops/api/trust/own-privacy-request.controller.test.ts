@@ -7,7 +7,7 @@ import { OpsOwnPrivacyRequestController } from './own-privacy-request.controller
 
 type Role = 'pmcm-admin' | 'system' | 'client' | 'coordinator' | 'supplier' | 'guest';
 
-const verified = (role: Role, name = 'Requester', email = 'requester@example.test') => ({
+const verified = (role: Role, name = 'Requester', email = 'requester@example.test') => ({ sessionId: 'session_test',
   id: 'usr_requester', actorId: 'usr_requester', role, actorRole: role, email, actorEmail: email, name, actorName: name,
   expiresAt: '2099-01-01T00:00:00.000Z',
 });

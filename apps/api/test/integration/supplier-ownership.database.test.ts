@@ -25,7 +25,7 @@ if (databaseUrl && !live) {
 }
 
 function verifiedSupplierActor(id: string, email: string, name: string): PrismVerifiedEventActor {
-  return {
+  return { sessionId: 'session_test',
     id,
     actorId: id,
     role: OpsUserRole.Supplier,

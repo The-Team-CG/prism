@@ -146,9 +146,9 @@ describe('PlansController authenticated HTTP authorization', () => {
       sessionVersion: 0,
     });
     const issuedAt = new Date();
-    ownerToken = session.issueSession(user('client-owner', 'ana.owner@example.test', 'client'), issuedAt).accessToken;
-    otherAnaToken = session.issueSession(user('client-other', 'ana.other@example.test', 'client'), issuedAt).accessToken;
-    pmcmToken = session.issueSession(user('pmcm-user', 'maxine@pmcm.example.test', 'pmcm-admin'), issuedAt).accessToken;
+    ownerToken = session.issueSession(user('client-owner', 'ana.owner@example.test', 'client'), issuedAt, 'session_test').accessToken;
+    otherAnaToken = session.issueSession(user('client-other', 'ana.other@example.test', 'client'), issuedAt, 'session_test').accessToken;
+    pmcmToken = session.issueSession(user('pmcm-user', 'maxine@pmcm.example.test', 'pmcm-admin'), issuedAt, 'session_test').accessToken;
 
     app = await NestFactory.create(PlansHttpTestModule, new ExpressAdapter(), { logger: false });
     app.setGlobalPrefix('api');

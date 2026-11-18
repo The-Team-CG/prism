@@ -8,7 +8,7 @@ function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
 }
 
-const verifiedPmcmActor: Parameters<OpsInquiriesController['list']>[0] = {
+const verifiedPmcmActor: Parameters<OpsInquiriesController['list']>[0] = { sessionId: 'session_test',
   id: 'user_pmcm',
   actorId: 'user_pmcm',
   role: 'pmcm-admin',

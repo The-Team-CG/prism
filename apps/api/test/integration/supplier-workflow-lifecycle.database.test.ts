@@ -17,7 +17,7 @@ if (databaseUrl && !live) {
 }
 
 function supplierActor(id: string, supplierId: string, email: string): PrismVerifiedEventActor {
-  return {
+  return { sessionId: 'session_test',
     id,
     actorId: id,
     role: OpsUserRole.Supplier,
@@ -32,7 +32,7 @@ function supplierActor(id: string, supplierId: string, email: string): PrismVeri
 }
 
 function pmcmActor(id: string, eventId: string): PrismVerifiedEventActor {
-  return {
+  return { sessionId: 'session_test',
     id,
     actorId: id,
     role: OpsUserRole.PmcmAdmin,

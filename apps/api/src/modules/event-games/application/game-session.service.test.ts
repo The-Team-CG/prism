@@ -17,7 +17,7 @@ const sessionId = '00000000-0000-4000-8000-000000000002';
 const configVersionId = '00000000-0000-4000-8000-000000000003';
 
 function actor(): PrismVerifiedEventActor {
-  return {
+  return { sessionId: 'session_test',
     id: 'actor-1', actorId: 'actor-1', role: 'coordinator', actorRole: 'coordinator',
     email: 'coordinator@example.test', actorEmail: 'coordinator@example.test',
     name: 'Coordinator', actorName: 'Coordinator', expiresAt: '2030-01-01T00:00:00.000Z',

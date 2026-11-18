@@ -145,7 +145,7 @@ describe('scope change, risk, and addendum withdrawal routes, authenticated HTTP
         approvalStatus: 'approved',
         sessionVersion: 0,
       };
-      tokens[id] = session.issueSession(user, issuedAt).accessToken;
+      tokens[id] = session.issueSession(user, issuedAt, 'session_test').accessToken;
     }
 
     app = await NestFactory.create(ScopeChangeRiskHttpTestModule, new ExpressAdapter(), { logger: false });

@@ -54,7 +54,7 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
   it('allows exactly one concurrent consumer, increments epoch once, and rejects the old session', async () => {
     const oldSession = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough', PRISM_SESSION_TTL_SECONDS: '28800' })).issueSession({
       id: userId, name: 'P1 Recovery Fixture', email: `${prefix}@example.test`, role: 'client', organization: 'P1', approvalStatus: 'approved', sessionVersion: 0,
-    });
+    }, new Date(), 'session_test');
     const results = await Promise.allSettled([
       service.consume(rawToken, 'new-password-123'),
       service.consume(rawToken, 'new-password-123'),
@@ -69,7 +69,7 @@ describe.skipIf(!enabled)('native password recovery PostgreSQL integrity', () =>
     const renewed = await prisma.opsUser.findUniqueOrThrow({ where: { id: userId } });
     const newSession = new AuthSessionService(new ConfigService({ PRISM_SESSION_SECRET: 'p1-test-session-secret-long-enough', PRISM_SESSION_TTL_SECONDS: '28800' })).issueSession({
       id: renewed.id, name: renewed.name, email: renewed.email, role: 'client', organization: renewed.organization, approvalStatus: 'approved', sessionVersion: renewed.sessionVersion,
-    });
+    }, new Date(), 'session_test');
     await expect(guard.canActivate(routeContext(`Bearer ${newSession.accessToken}`))).resolves.toBe(true);
   });
 

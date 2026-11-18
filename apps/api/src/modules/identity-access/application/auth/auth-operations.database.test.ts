@@ -152,7 +152,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       organization: prefix,
       approvalStatus: 'approved',
       sessionVersion: 0,
-    });
+    }, new Date(), 'session_test');
     const guard = new EventSessionGuard(sessions, prisma, new Reflector());
 
     await operations.declineApprovalRequest(requestId, actor);
