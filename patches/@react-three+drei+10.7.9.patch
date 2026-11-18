@@ -1,0 +1,30 @@
+diff --git a/node_modules/@react-three/drei/web/Html.js b/node_modules/@react-three/drei/web/Html.js
+index 81d68b7..16e37ca 100644
+--- a/node_modules/@react-three/drei/web/Html.js
++++ b/node_modules/@react-three/drei/web/Html.js
+@@ -140,7 +140,11 @@ const Html = /* @__PURE__ */React.forwardRef(({
+   }, [occlude]);
+   React.useLayoutEffect(() => {
+     if (group.current) {
+-      const currentRoot = root.current = ReactDOM.createRoot(el);
++      // Each run gets its own container, so a new root never shares a node with the one still unmounting below.
++      const container = document.createElement('div');
++      container.style.display = 'contents';
++      el.appendChild(container);
++      const currentRoot = root.current = ReactDOM.createRoot(container);
+       scene.updateMatrixWorld();
+       if (transform) {
+         el.style.cssText = `position:absolute;top:0;left:0;pointer-events:none;overflow:hidden;`;
+@@ -153,7 +157,11 @@ const Html = /* @__PURE__ */React.forwardRef(({
+       }
+       return () => {
+         if (target) target.removeChild(el);
+-        currentRoot.unmount();
++        // Deferred past the current render: React 19 warns about, and can race on, a root unmounted while it renders.
++        queueMicrotask(() => {
++          currentRoot.unmount();
++          container.remove();
++        });
+       };
+     }
+   }, [target, transform]);
