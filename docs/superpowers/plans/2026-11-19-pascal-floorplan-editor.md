@@ -201,7 +201,7 @@ Expected: PASS.
   - Every parent's `children` array lists its children's IDs.
 - **Placement:**
   - Every converted object is placed at its centre: `(x + w/2, y + h/2)` → `position [cx, 0, cy]`.
-  - Rotation: `rotation = -deg × π / 180`, unless spike answer 7 says otherwise.
+  - Rotation: `rotation = -legacy.rotation`. The legacy editor already stores clockwise radians (`ctx.rotate(o.rotation)`, and the angle picker converts degrees to radians), so there is no degree conversion; spike answer 7 fixes the sign.
   - `width = w` and `depth = h`.
   - `hidden` → `visible: false`. `locked` is carried over as-is.
   - `assignedGuestIds` → `guestIds` and `assignedSupplierIds` → `supplierIds`.
@@ -231,7 +231,7 @@ Expected: PASS.
   - **Wall:** `{x:0, y:0, w:4, h:0.2}` becomes `wall` with `start [0,0.1]`, `end [4,0.1]` and `thickness 0.2`.
   - **Rotated VIP table:** at 90° it gives `rotation` ≈ `-π/2` (tolerance 1e-9).
   - **Hidden, locked chair:** gives `visible:false`, `locked:true` and `type "prism-seat"`.
-  - **Line and text:** a `kind:"line"` object and a text-labelled rect with an unknown name both become `prism-shape` with `label` preserved.
+  - **Line and text:** a `kind:"line"` object becomes `prism-shape` with `label` preserved. A labelled rect with an unknown name keeps its `label` on whatever node the table above gives it (every rect category has a rule, so none falls through to `prism-shape`), and a zero-size side gets a positive size.
   - **Count and validity:** the converted document passes `validateFloorplanScene`, and node count = objects + 7 (site, building, level, four perimeter walls).
   - **Children:** every node's `parentId` appears in that parent's `children`.
 
