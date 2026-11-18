@@ -56,7 +56,8 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The pre-production migration history uses seven owner-scoped schema baselines instead of 102 folders. Existing databases must not adopt the replacement history without a verified backup and approved rebuild; replacing migration history does not alter an existing database. See the [database migration runbook](docs/runbooks/database-migrations.md).
 - The inquiry-category migration maps legacy `Private` values to `Individual`; `School` and `Other` remain readable. Existing UAT fixture dates may retain prior local-midnight values until reseeded.
 - AI data handling and activation prerequisites are defined in the [AI data policy](docs/product/ai-data-policy.md); provider-specific qualification gates are in the [provider-routing runbook](docs/runbooks/ai-provider-routing.md).
-- Consolidated the documentation bundle and this changelog's unreleased section: removed the superseded feature-ledger delivery overlay and the duplicate feature map and outcomes tables in the actual-system document, and brought the ledger, architecture, accounts and communications guidance up to date with the Account, billing, files, messages and notification work.
+- Consolidated the documentation bundle and this changelog's unreleased section, and checked every runbook, policy, ADR and architecture register against the code: the persistence register now lists the constraints the migrations actually create, runbooks name the real CI gates, schedulers, AI use cases and settings paths, and stale or duplicated sections are gone.
+- The UAT question bank covers Account and security, Notifications, Privacy, the file library, billing and the Finance desk (56 modules, 242 cases). `uat/UAT-question-bank.md` is now generated from `uat/uat-test-cases.gs` by `node uat/export-google-form.cjs`, and `npm run test:ci:guards` fails when either generated file is out of date.
 
 ### Fixed
 
@@ -77,3 +78,4 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 - Broad sample API routes and browser-local demo fallbacks are retired. Guarded local fixture seeding remains available.
 - Unused API ports, DTOs, portal primitives, package dependencies, and UI exports were removed without changing supported user workflows.
+- `uat/PRISM-UAT-Form.xlsx`, an unmaintained spreadsheet version of the UAT form, is removed; the Google Form built from `uat/uat-test-cases.gs` replaces it.

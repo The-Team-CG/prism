@@ -28,6 +28,10 @@ _Avoid_: Foreign key as authorization
 An external identifier retained to explain a completed action; it does not prove current account access, event scope, or target eligibility.
 _Avoid_: Live authorization
 
+**Account email key**:
+An account's sign-in email used by another owner to recognise the person (client inquiries, supplier record, notices, privacy requests). A change of sign-in email relinks every owner's copies in one transaction; records of what happened keep the old address.
+_Avoid_: Treating email as a stable identity
+
 **Read model**:
 A role-scoped view composed from owner-provided information; it does not change the source information.
 _Avoid_: Shared write model

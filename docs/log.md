@@ -7,6 +7,7 @@ implementation and verification history.
 ## 2026-11-18
 
 - Consolidated the bundle after the Account, billing, files, messages and notification work. Removed the feature ledger's delivery overlay (its treatments were delivered or already recorded in the active ledger and implemented-slices tables) and the actual-system document's feature-family map and outcomes table (duplicates of the ledger and future state), and pointed its completion rule at future state. Added the account-email key to the external-reference lifecycle, described the shared `@prism/ui` screens in current architecture, added the Account page flows to portal accounts, and refreshed the notification screen description in the communications and integrations runbooks.
+- Verified every runbook, product policy, ADR and architecture register against the code. The persistence register no longer claims database CHECK and JSON shape constraints that only the retired pre-baseline history had. ADR-0001 records that `packages/ui` may hold presentational shared screens. The index now links the UAT bank and the acceptance suites. The UAT question bank is generated from `uat/uat-test-cases.gs` and checked in CI, and the unmaintained `uat/PRISM-UAT-Form.xlsx` is removed.
 
 ## 2026-11-12
 

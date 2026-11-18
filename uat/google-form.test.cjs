@@ -73,13 +73,23 @@ function harness() {
   return { context, forms, interruptAfter(number) { failAt = writes + number; } };
 }
 
+// The builder adds a role question, a page and module question per role, a page, grid and comment per
+// module, and a final details page with name and date.
+function expectedShape(bank) {
+  const modules = bank.roles.reduce((sum, role) => sum + role.modules.length, 0);
+  const cases = bank.roles.reduce((sum, role) => sum + role.modules.reduce((n, module) => n + module.cases.length, 0), 0);
+  return { items: 1 + 2 * bank.roles.length + 3 * modules + 3, sections: bank.roles.length + modules + 2, modules, cases };
+}
+
 test('every role routes only to its modules, and each module finishes at details then submit', () => {
   const { context: c, forms } = harness();
   c.buildUatForm();
   const form = forms[0];
-  assert.equal(form.items.length, 167);
-  assert.equal(form.items.filter(i => i.type === 'PAGE_BREAK').length + 1, 58);
-  assert.equal(form.items.filter(i => i.type === 'GRID').reduce((sum, i) => sum + i.rows.length, 0), 197);
+  const shape = expectedShape(c.UAT_FORM);
+  assert.equal(form.items.length, shape.items);
+  assert.ok(shape.items <= 300 && shape.sections <= 75, 'within Google Forms limits');
+  assert.equal(form.items.filter(i => i.type === 'PAGE_BREAK').length + 1, shape.sections);
+  assert.equal(form.items.filter(i => i.type === 'GRID').reduce((sum, i) => sum + i.rows.length, 0), shape.cases);
   assert.equal(form.published, false);
   assert.equal(form.LimitOneResponsePerUser, false);
   const details = form.items.find(i => i.title === c.SUBMISSION_PAGE);
@@ -135,8 +145,9 @@ test('interrupted shell, module, and final details recover without duplicates; r
     h.context.buildUatForm();
     h.context.buildUatForm();
     assert.equal(h.forms.length, 1);
-    assert.equal(h.forms[0].items.length, 167);
-    assert.equal(h.forms[0].items.filter(i => i.type === 'GRID').length, 51);
+    const shape = expectedShape(h.context.UAT_FORM);
+    assert.equal(h.forms[0].items.length, shape.items);
+    assert.equal(h.forms[0].items.filter(i => i.type === 'GRID').length, shape.modules);
   }
 });
 
@@ -148,8 +159,9 @@ test('changed banks require an explicit reset, which preserves the original form
   h.context.resetUatBuild();
   h.context.buildUatForm();
   assert.equal(h.forms.length, 2);
-  assert.equal(h.forms[0].items.length, 167);
-  assert.equal(h.forms[1].items.length, 167);
+  const original = expectedShape(h.context.UAT_FORM).items;
+  assert.equal(h.forms[0].items.length, original);
+  assert.equal(h.forms[1].items.length, original);
 });
 
 test('oversized question banks fail before creating an unusable form', () => {
@@ -158,4 +170,11 @@ test('oversized question banks fail before creating an unusable form', () => {
   while (modules.length < 100) modules.push(modules[0]);
   assert.throws(() => h.context.buildUatForm(), /exceeds Google Forms limits/);
   assert.equal(h.forms.length, 0);
+});
+
+test('the paste-ready script and the question bank are generated from uat-test-cases.gs', () => {
+  const { googleFormScript, questionBank } = require('./export-google-form.cjs');
+  const normalize = (text) => text.replace(/\r\n/g, '\n');
+  assert.equal(normalize(fs.readFileSync(path.join(__dirname, 'PRISM-UAT-Google-Form.gs'), 'utf8')), normalize(googleFormScript()), 'run node uat/export-google-form.cjs');
+  assert.equal(normalize(fs.readFileSync(path.join(__dirname, 'UAT-question-bank.md'), 'utf8')), normalize(questionBank()), 'run node uat/export-google-form.cjs');
 });

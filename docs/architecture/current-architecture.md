@@ -346,9 +346,9 @@ worker restores the idempotent `pare_triggered` activity audit.
 | --- | --- |
 | Database | Prisma-backed Postgres exists; schema separation and audit scripts are maintained. Live audits require the migrated target and credentials. |
 | File storage | Platform-ops verifies and stores object bytes through `STORAGE_ADAPTER` (local filesystem or Supabase Storage; unconfigured by default). Hosted provider activation is an operational step in the [portal storage runbook](../runbooks/portal-storage.md). |
-| Notifications | Outbox, retry, and acknowledgement model exists. Email goes through the kernel `MAIL_TRANSPORT` port, selected by `PRISM_MAIL_TRANSPORT`: Resend, or log/local Mailpit outside production. Other channels remain gated. |
+| Notifications | Outbox, retry, and acknowledgement model exists. Each notice records one delivery per recipient. Email goes through the kernel `MAIL_TRANSPORT` port, selected by `PRISM_MAIL_TRANSPORT`: Resend, or log/local Mailpit outside production. Viber is optional and active only with `VIBER_*` configured ([external integrations](../runbooks/external-integrations.md)); no other channel exists. |
 | AI | The gateway selects Anthropic or OpenRouter, applies data-policy and budget checks, and records audit evidence. Without a configured provider it blocks calls. Eligible routes can process minimized data under the [AI data policy](../product/ai-data-policy.md); provider qualification and deployment evidence remain separate. Outputs stay advisory and PMCM controls approval ([routing runbook](../runbooks/ai-provider-routing.md)). |
-| QR/camera | Guest access-code path exists; QR/camera scanning remains gated by HTTPS/device/masterlist constraints. |
+| QR/camera | Guest access codes and QR passes exist; registration staff scan passes with the browser's QR reader over HTTPS, and typed codes are the fallback where a browser has no reader. |
 
 ## Architecture verification
 

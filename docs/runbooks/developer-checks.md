@@ -40,7 +40,7 @@ sources:
 npm run typecheck              # TypeScript 7 CLI, all workspaces
 npm run lint                   # Oxlint and the five Prism architecture rules
 npm run test:ci                # workspace suites and existing coverage thresholds
-npm run test:ci:guards         # Git selection, required results, hooks, compiler diagnostics
+npm run test:ci:guards         # Git selection, required results, hooks, compiler diagnostics, UAT form bank
 npm run check:boundaries       # independent repository-wide boundary scanner
 npm run hooks:install          # install the tracked pre-push hook
 npm run check:push             # check the committed HEAD against staging
