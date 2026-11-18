@@ -7,6 +7,12 @@ import { z } from "zod";
 
 export const FLOORPLAN_SCENE_FORMAT = "pascal-v1";
 
+/**
+ * The Pascal plugin that registers PRISM's event pieces. Pascal draws a plugin's pieces only in a scene that lists
+ * the plugin in `installedPlugins`, so every PRISM scene lists it.
+ */
+export const FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID = "prism:event-layout";
+
 export const floorplanSceneNodeSchema = z
   .object({
     id: z.string().min(1),

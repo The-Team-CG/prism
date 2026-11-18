@@ -1,5 +1,5 @@
 import type { SceneGraph } from "@pascal-app/editor";
-import { FLOORPLAN_SCENE_FORMAT, floorplanSceneDocumentSchema, type FloorplanSceneDocument } from "@prism/types";
+import { FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID, FLOORPLAN_SCENE_FORMAT, floorplanSceneDocumentSchema, type FloorplanSceneDocument } from "@prism/types";
 
 /** The scene the Pascal editor hands to `onSave` and takes back from `onLoad`. */
 export type PascalSaveScene = SceneGraph;
@@ -24,13 +24,17 @@ export function toSceneDocument(scene: PascalSaveScene, pascalVersion: string): 
   });
 }
 
-/** The stored document as the editor loads it. */
+/**
+ * The stored document as the editor loads it. Pascal draws a plugin's pieces only when the scene lists the plugin,
+ * so the PRISM event pieces are always installed, including in scenes saved before they were.
+ */
 export function fromSceneDocument(document: FloorplanSceneDocument): PascalSaveScene {
+  const installed = document.installedPlugins ?? [];
   return {
     nodes: document.nodes,
     rootNodeIds: document.rootNodeIds,
     ...(document.collections === undefined ? {} : { collections: document.collections }),
     ...(document.materials === undefined ? {} : { materials: document.materials }),
-    ...(document.installedPlugins === undefined ? {} : { installedPlugins: document.installedPlugins }),
+    installedPlugins: installed.includes(FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID) ? installed : [...installed, FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID],
   };
 }

@@ -1,5 +1,6 @@
 import { BuildingNode, ColumnNode, LevelNode, SiteNode, WallNode } from "@pascal-app/core";
 import {
+  FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID,
   FLOORPLAN_SCENE_FORMAT,
   prismPieceNodeSchema,
   prismTableNodeSchema,
@@ -190,5 +191,5 @@ export function convertLegacyPlan(plan: LegacyPlan, pascalVersion: string): Floo
     [level.id]: { ...level, children: contents.map((node) => node.id) },
   };
   for (const node of contents) nodes[node.id] = node;
-  return { format: FLOORPLAN_SCENE_FORMAT, pascalVersion, nodes, rootNodeIds: [site.id] };
+  return { format: FLOORPLAN_SCENE_FORMAT, pascalVersion, nodes, rootNodeIds: [site.id], installedPlugins: [FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID] };
 }

@@ -75,6 +75,7 @@ describe("convertLegacyPlan", () => {
     expect(validation.ok ? [] : validation.issues).toEqual([]);
     expect(Object.keys(scene.nodes)).toHaveLength(objects.length + 7);
     expect(scene.rootNodeIds).toHaveLength(1);
+    expect(scene.installedPlugins).toEqual(["prism:event-layout"]);
     for (const node of Object.values(scene.nodes)) {
       if (node.parentId === null) continue;
       expect((scene.nodes[node.parentId] as Node).children).toContain(node.id);

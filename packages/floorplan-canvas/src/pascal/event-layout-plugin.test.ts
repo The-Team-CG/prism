@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BoxGeometry, CylinderGeometry, Mesh } from "three";
+import type { BoxGeometry, CylinderGeometry, Mesh, Object3D } from "three";
 import { convertLegacyPlan } from "@prism/floorplan-scene";
 import { prismPieceNodeTypes, type FloorPlanCanvasObject } from "@prism/types";
 import { prismEventLayoutPlugin } from "./event-layout-plugin";
@@ -44,12 +44,28 @@ describe("prismEventLayoutPlugin", () => {
     expect(table).toMatchObject({ type: "prism-table", shape: "round", seats: 10, guestIds: ["g1", "g2"] });
   });
 
-  it("draws a round table as a cylinder of its width and a stage as a box of its footprint", () => {
-    const table = definitionOf("prism-table").geometry?.(definitionOf("prism-table").schema.parse(convertedNode("table_a")), {} as never) as Mesh<CylinderGeometry>;
-    expect(table.geometry.parameters).toMatchObject({ radiusTop: 0.9, radiusBottom: 0.9 });
+  /** Pascal's geometry system moves the built object's children into the scene, so the shape must be a child. */
+  function drawnShape<T>(kind: string, legacyId: string) {
+    const built = definitionOf(kind).geometry?.(definitionOf(kind).schema.parse(convertedNode(legacyId)), {} as never) as Object3D | undefined;
+    expect(built?.children).toHaveLength(1);
+    return built?.children[0] as Mesh<T extends "cylinder" ? CylinderGeometry : BoxGeometry>;
+  }
 
-    const stage = definitionOf("prism-stage").geometry?.(definitionOf("prism-stage").schema.parse(convertedNode("stage_a")), {} as never) as Mesh<BoxGeometry>;
-    expect(stage.geometry.parameters).toMatchObject({ width: 6, depth: 3 });
+  it("draws a round table as a cylinder of its width and a stage as a box of its footprint, as children Pascal can place", () => {
+    expect(drawnShape<"cylinder">("prism-table", "table_a").geometry.parameters).toMatchObject({ radiusTop: 0.9, radiusBottom: 0.9 });
+    expect(drawnShape<"box">("prism-stage", "stage_a").geometry.parameters).toMatchObject({ width: 6, depth: 3 });
+  });
+
+  it("duplicates a seated table as an empty copy, so the copy never seats the same guests twice", () => {
+    const duplicable = definitionOf("prism-table").capabilities.duplicable;
+    if (typeof duplicable !== "object" || !duplicable.prepareSubtreeClone) throw new Error("Tables must duplicate through Pascal's subtree clone");
+    expect(duplicable.subtree).toBe(true);
+
+    const original = convertedNode("table_a") as never;
+    const { root } = duplicable.prepareSubtreeClone({ root: original, descendants: [], rootId: "table" as never, rootPatch: {}, nodes: {} });
+
+    expect(root).toMatchObject({ type: "prism-table", shape: "round", seats: 10, width: 1.8, guestIds: [] });
+    expect((root as { metadata?: Record<string, unknown> }).metadata).not.toHaveProperty("legacyId");
   });
 
   it("places the 2D footprint at the piece's plan position, turned by its rotation", () => {

@@ -1,6 +1,7 @@
-import type { AnyNodeDefinition, FloorplanGeometry, NodeDefinition, Plugin } from "@pascal-app/core";
-import { BoxGeometry, CylinderGeometry, Mesh, MeshStandardMaterial } from "three";
+import type { AnyNodeDefinition, DuplicateSubtreeCloneArgs, FloorplanGeometry, NodeDefinition, Plugin } from "@pascal-app/core";
+import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial } from "three";
 import {
+  FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID,
   prismPieceNodeSchema,
   prismTableNodeSchema,
   type PrismPieceNode,
@@ -8,7 +9,7 @@ import {
   type PrismTableNode,
 } from "@prism/types";
 
-export const PRISM_EVENT_LAYOUT_PLUGIN_ID = "prism:event-layout";
+export const PRISM_EVENT_LAYOUT_PLUGIN_ID = FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID;
 
 type EventPiece = PrismTableNode | PrismPieceNode;
 type EventPieceType = EventPiece["type"];
@@ -36,14 +37,19 @@ function isRound(node: EventPiece): boolean {
   return node.type === "prism-table" && node.shape !== "rect";
 }
 
-/** A cylinder of the table's width for round and cocktail tables, otherwise a box of the piece's footprint. */
+/**
+ * A cylinder of the table's width for round and cocktail tables, otherwise a box of the piece's footprint. Pascal moves
+ * the returned group's children into the piece's own group, which it places at the piece's position and rotation.
+ */
 function placeholderGeometry(node: EventPiece) {
   const geometry = isRound(node)
     ? new CylinderGeometry(node.width / 2, node.width / 2, PLACEHOLDER_HEIGHT_M, 32)
     : new BoxGeometry(node.width, PLACEHOLDER_HEIGHT_M, node.depth);
   const mesh = new Mesh(geometry, new MeshStandardMaterial({ color: PLACEHOLDER_COLOR }));
   mesh.position.y = PLACEHOLDER_HEIGHT_M / 2;
-  return mesh;
+  const group = new Group();
+  group.add(mesh);
+  return group;
 }
 
 /** The piece's outline on the plan, drawn about its centre and placed at its position and rotation. */
@@ -53,6 +59,15 @@ function footprint(node: EventPiece): FloorplanGeometry {
     ? { kind: "circle", cx: 0, cy: 0, r: halfWidth, ...FOOTPRINT_STYLE }
     : { kind: "polygon", points: [[-halfWidth, -halfDepth], [halfWidth, -halfDepth], [halfWidth, halfDepth], [-halfWidth, halfDepth]], ...FOOTPRINT_STYLE };
   return { kind: "group", transform: { translate: [node.position[0], node.position[2]], rotate: -node.rotation }, children: [outline] };
+}
+
+/**
+ * A copy keeps the piece's shape, size and place but starts with nobody seated, so it never lists a guest who is
+ * already seated at the original, and it is a new piece rather than the converted legacy object.
+ */
+function emptyCopy({ root }: DuplicateSubtreeCloneArgs) {
+  const { legacyId: _legacyId, ...metadata } = (root.metadata ?? {}) as Record<string, unknown>;
+  return { root: { ...root, metadata, ...("guestIds" in root ? { guestIds: [] } : {}) } as typeof root };
 }
 
 const placementDefaults = {
@@ -73,7 +88,8 @@ function sharedDefinition(kind: EventPieceType) {
       movable: { axes: ["x", "z"] as const, gridSnap: true },
       rotatable: { axes: ["y"] as const },
       selectable: { hitVolume: "bbox" as const },
-      duplicable: true,
+      // Pascal clones a subtree with fresh ids itself; a root-only copy would ask the schema for an id instead.
+      duplicable: { subtree: true, prepareSubtreeClone: emptyCopy },
       deletable: true,
     },
     geometry: (node: EventPiece) => placeholderGeometry(node),

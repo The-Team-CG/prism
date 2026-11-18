@@ -35,6 +35,12 @@ describe("scene document", () => {
     expect(toSceneDocument(fromSceneDocument(converted), converted.pascalVersion)).toEqual(converted);
   });
 
+  it("installs the PRISM event pieces in every scene it loads, so Pascal draws them, without listing it twice", () => {
+    const savedWithoutPlugin = { ...converted, installedPlugins: [] };
+    expect(fromSceneDocument(savedWithoutPlugin).installedPlugins).toEqual(["prism:event-layout"]);
+    expect(fromSceneDocument({ ...converted, installedPlugins: ["other:plugin", "prism:event-layout"] }).installedPlugins).toEqual(["other:plugin", "prism:event-layout"]);
+  });
+
   it("stamps the stored format and the Pascal version that saved the scene", () => {
     expect(toSceneDocument(fromSceneDocument(converted), "1.1.7")).toMatchObject({ format: "pascal-v1", pascalVersion: "1.1.7" });
   });
