@@ -65,14 +65,18 @@ const placementDefaults = {
   locked: false,
 };
 
+/** A locked piece neither moves nor turns, until it is unlocked from the Layers list. */
+const STAY_PUT = { axes: [] as const };
+const isLocked = (node: unknown) => (node as { locked?: unknown }).locked === true;
+
 function sharedDefinition(kind: EventPieceType) {
   return {
     kind,
     schemaVersion: 1,
     category: "furnish" as const,
     capabilities: {
-      movable: { axes: ["x", "z"] as const, gridSnap: true },
-      rotatable: { axes: ["y"] as const },
+      movable: { axes: ["x", "z"] as const, gridSnap: true, override: ({ node }: { node: unknown }) => (isLocked(node) ? STAY_PUT : null) },
+      rotatable: { axes: ["y"] as const, override: ({ node }: { node: unknown }) => (isLocked(node) ? STAY_PUT : null) },
       selectable: { hitVolume: "bbox" as const },
       // Pascal clones a subtree with fresh ids itself; a root-only copy would ask the schema for an id instead.
       duplicable: { subtree: true, prepareSubtreeClone: emptyCopy },
