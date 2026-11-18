@@ -4,3 +4,4 @@ export { convertLegacyPlan, type LegacyPlan } from "./convert-legacy-plan.js";
 export { nextTableNumber, sceneSeatCount, zoneSupplierIds } from "./scene-capacity.js";
 export { isHiddenInScene } from "./scene-visibility.js";
 export { matchLegacyGuests, type NamedGuest } from "./legacy-guest-matching.js";
+export { planDrawing, roomSize, type PlanDrawing } from "./plan-drawing.js";

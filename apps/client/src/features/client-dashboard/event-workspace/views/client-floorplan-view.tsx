@@ -18,7 +18,7 @@ export function ClientFloorPlanView() {
     selectedEvent,
     officialDraft,
     preferenceDrafts,
-    officialProject,
+    officialLayout,
     floorPlanTemplates,
     form,
     setForm,
@@ -34,7 +34,7 @@ export function ClientFloorPlanView() {
 
   return (
     <div className="space-y-5">
-      {officialPlan ? <OfficialFloorPlanCard draft={officialPlan} officialProject={officialProject} onOpenEditor={openFloorplanEditor} /> : null}
+      {officialPlan ? <OfficialFloorPlanCard draft={officialPlan} officialLayout={officialLayout} onOpenEditor={openFloorplanEditor} /> : null}
       {selectedEvent && officialPlan && showReview ? (
         <ClientFloorplanReviewPanel eventId={selectedEvent.id} draftId={officialPlan.id} onDecided={refresh} />
       ) : null}
@@ -47,7 +47,7 @@ export function ClientFloorPlanView() {
               approved={draftApproved}
               isOfficial={isOfficial}
               activeDraft={activeDraft}
-              officialProject={officialProject}
+              officialLayout={officialLayout}
               onOpenEditor={openFloorplanEditor}
             />
             <FloorPlanTemplates

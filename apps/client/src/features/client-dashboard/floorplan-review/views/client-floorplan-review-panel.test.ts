@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { roomWalls, sceneWith, tablePiece } from "@/features/floorplan/scene-fixture";
 import { ClientFloorplanReviewPanel } from "./client-floorplan-review-panel";
 
 const { getReview, decide, annotate } = vi.hoisted(() => ({ getReview: vi.fn(), decide: vi.fn(), annotate: vi.fn() }));
@@ -25,7 +26,7 @@ describe("ClientFloorplanReviewPanel", () => {
     getReview.mockReturnValueOnce(initialLoad).mockResolvedValueOnce({
       draftId: "draft-1",
       snapshotHash: "abcdef1234567890",
-      snapshot: { objects: [{ id: "table-1", name: "Head table" }] },
+      snapshot: { scene: sceneWith([...roomWalls(20, 10), tablePiece("table-1", { x: 4, y: 3, width: 4, depth: 2, label: "Head table" })]) },
       decisions: [],
       annotations: [],
     });
@@ -47,7 +48,7 @@ describe("ClientFloorplanReviewPanel", () => {
   });
 
   it("pins a note to the element clicked on the plan and sends its anchor with the comment", async () => {
-    getReview.mockResolvedValue({ draftId: "draft-1", snapshotHash: "abcdef1234567890abcdef1234567890", snapshot: { width: 20, height: 10, objects: [{ id: "table-1", name: "Head table", kind: "rect", x: 2, y: 2, w: 4, h: 2 }] }, decisions: [], annotations: [] });
+    getReview.mockResolvedValue({ draftId: "draft-1", snapshotHash: "abcdef1234567890abcdef1234567890", snapshot: { scene: sceneWith([...roomWalls(20, 10), tablePiece("table-1", { x: 4, y: 3, width: 4, depth: 2, label: "Head table" })]) }, decisions: [], annotations: [] });
     annotate.mockResolvedValue({});
     render(createElement(ClientFloorplanReviewPanel, { eventId: "event-1", draftId: "draft-1" }));
     const canvas = await screen.findByTestId("floorplan-review-canvas");
@@ -66,7 +67,7 @@ describe("ClientFloorplanReviewPanel", () => {
   });
 
   it("does not offer pinning once a decision exists", async () => {
-    getReview.mockResolvedValue({ draftId: "draft-1", snapshotHash: "abcdef1234567890abcdef1234567890", snapshot: { width: 20, height: 10, objects: [{ id: "table-1", name: "Head table", kind: "rect", x: 2, y: 2, w: 4, h: 2 }] }, decisions: [{ id: "d1", action: "approve" }], annotations: [] });
+    getReview.mockResolvedValue({ draftId: "draft-1", snapshotHash: "abcdef1234567890abcdef1234567890", snapshot: { scene: sceneWith([...roomWalls(20, 10), tablePiece("table-1", { x: 4, y: 3, width: 4, depth: 2, label: "Head table" })]) }, decisions: [{ id: "d1", action: "approve" }], annotations: [] });
     render(createElement(ClientFloorplanReviewPanel, { eventId: "event-1", draftId: "draft-1" }));
     const canvas = await screen.findByTestId("floorplan-review-canvas");
     canvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 100, right: 200, bottom: 100, x: 0, y: 0, toJSON: () => ({}) });
@@ -77,7 +78,7 @@ describe("ClientFloorplanReviewPanel", () => {
   });
 
   it("sends a revision request as one decision and hands the new state to the workspace instead of reloading the review", async () => {
-    getReview.mockResolvedValue({ draftId: "draft-1", snapshotHash: "abcdef1234567890abcdef1234567890", snapshot: { objects: [] }, decisions: [], annotations: [] });
+    getReview.mockResolvedValue({ draftId: "draft-1", snapshotHash: "abcdef1234567890abcdef1234567890", snapshot: {}, decisions: [], annotations: [] });
     decide.mockResolvedValue({ id: "decision-1" });
     const onDecided = vi.fn(async () => undefined);
 

@@ -2,7 +2,8 @@
 
 import { useEditor } from "@pascal-app/editor";
 import { usePrismFloorplan } from "../editor-context";
-import { footerCounts, roomSize, type FooterCounts } from "./footer-counts";
+import { roomSize } from "@prism/floorplan-scene";
+import { footerCounts, type FooterCounts } from "./footer-counts";
 import { useLiveScene } from "./use-live-scene";
 
 const metres = (value: number) => `${Number(value.toFixed(1))}`;

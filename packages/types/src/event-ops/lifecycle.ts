@@ -110,8 +110,8 @@ export interface PrismFloorPlanSnapshot {
   suppliers?: PrismProjectLike["suppliers"];
   seats?: unknown[];
   seatCategories?: unknown[];
-  /** Present only when the plan was saved by the Pascal editor. */
-  scene?: FloorplanSceneDocument;
+  /** The Pascal scene; absent or null for a plan that has none yet. */
+  scene?: FloorplanSceneDocument | null;
   sceneFormat?: string;
   updatedAt?: string;
 }

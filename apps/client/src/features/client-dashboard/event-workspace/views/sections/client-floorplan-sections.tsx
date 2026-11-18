@@ -3,7 +3,8 @@
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { ArrowRight, MapPinned, MessageSquareText, Send } from "lucide-react";
 import type { PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
+import type { FloorPlanTemplate } from "@/features/floorplan/editor";
+import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
 import { Input } from "@prism/ui/components/input";
@@ -26,11 +27,11 @@ function templateSubtitle(template: FloorPlanTemplate) {
 /** The authoritative plan, shown before any preference controls. Clients can view it; only PMCM edits it. */
 export function OfficialFloorPlanCard({
   draft,
-  officialProject,
+  officialLayout,
   onOpenEditor,
 }: {
   draft: PrismFloorPlanDraft;
-  officialProject: Project | null;
+  officialLayout: ClientPlanLayout | null;
   onOpenEditor: (draft: PrismFloorPlanDraft, readOnly: boolean) => void;
 }) {
   return (
@@ -49,7 +50,7 @@ export function OfficialFloorPlanCard({
         </div>
       </header>
       <div className="p-6">
-        <LayoutPreview project={officialProject} />
+        <LayoutPreview layout={officialLayout} />
       </div>
     </Card>
   );
@@ -86,13 +87,13 @@ export function FloorPlanDraftPanel({
   approved,
   isOfficial,
   activeDraft,
-  officialProject,
+  officialLayout,
   onOpenEditor,
 }: {
   approved: boolean;
   isOfficial: boolean;
   activeDraft?: PrismFloorPlanDraft;
-  officialProject: Project | null;
+  officialLayout: ClientPlanLayout | null;
   onOpenEditor: (draft: PrismFloorPlanDraft, readOnly: boolean) => void;
 }) {
   if (!activeDraft) {
@@ -118,7 +119,7 @@ export function FloorPlanDraftPanel({
           {actionLabel} <ArrowRight className="size-4" />
         </Button>
       </div>
-      <LayoutPreview project={approved || isOfficial ? officialProject : null} />
+      <LayoutPreview layout={approved || isOfficial ? officialLayout : null} />
     </div>
   );
 }

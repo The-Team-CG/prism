@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type PrismEvent, type PrismFloorPlanDraft, type SubmitBriefingInput } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { cloneTemplateObjects, type FloorPlanTemplate, type Project } from "@/features/floorplan/editor";
+import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import { ClientEventSwitcher } from "./sections/client-event-switcher";
 import { ClientWrongPortalView } from "./sections/client-wrong-portal-view";
 import { ClientDashboardLoadingShell } from "./sections/client-dashboard-loading-shell";
 import { ClientFloorplanEditorScreen } from "./sections/client-floorplan-editor-screen";
+import { ClientOfficialLayoutScreen } from "./sections/client-official-layout-screen";
 import { ClientDashboardRouteBody } from "./sections/client-dashboard-route-body";
 import { ClientWorkspaceBanners, clientShellMobileActions } from "./sections/client-event-header";
 import { DashboardSessionSkeleton } from "./dashboard-tabs";
@@ -89,7 +91,8 @@ export type { ClientDashboardRoute, ClientPortalView };
 
 type Screen =
   | { name: "dashboard" }
-  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project; readOnly: boolean };
+  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project; readOnly: boolean }
+  | { name: "official"; event: PrismEvent; draft: PrismFloorPlanDraft; layout: ClientPlanLayout };
 
 const initialPreference: PreferenceForm = {
   name: "Client layout preference",
@@ -201,7 +204,7 @@ export function ClientDashboardWorkspaceView({
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
   const [requestForm, setRequestForm] = useState<ClientRequestForm>(initialRequestForm);
   const [eventSearch, setEventSearch] = useState("");
-  const [officialProject, setOfficialProject] = useState<Project | null>(null);
+  const [officialLayout, setOfficialLayout] = useState<ClientPlanLayout | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const floorPlanTemplates: FloorPlanTemplate[] = [];
@@ -238,7 +241,7 @@ export function ClientDashboardWorkspaceView({
 
   useEffect(() => {
     if (route !== "floorplan" || !officialDraft || !selectedEvent) {
-      setOfficialProject(null);
+      setOfficialLayout(null);
       return;
     }
 
@@ -246,7 +249,7 @@ export function ClientDashboardWorkspaceView({
     const cacheKey = floorPlanPreviewCacheKey(selectedEvent.id, officialDraft);
     const cached = floorPlanPreviewCache.get(cacheKey);
     if (cached) {
-      setOfficialProject(cached.project);
+      setOfficialLayout(cached.layout);
       if (isFresh(cached.loadedAt, FLOOR_PLAN_PREVIEW_CACHE_MS)) {
         return () => {
           cancelled = true;
@@ -259,12 +262,12 @@ export function ClientDashboardWorkspaceView({
       officialDraft.id,
       officialDraft.status === "approved" ? "approved" : "submitted",
     )
-      .then((project) => {
-        floorPlanPreviewCache.set(cacheKey, { project, loadedAt: Date.now() });
-        if (!cancelled) setOfficialProject(project);
+      .then((layout) => {
+        floorPlanPreviewCache.set(cacheKey, { layout, loadedAt: Date.now() });
+        if (!cancelled) setOfficialLayout(layout);
       })
       .catch(() => {
-        if (!cancelled) setOfficialProject(null);
+        if (!cancelled) setOfficialLayout(null);
       });
 
     return () => {
@@ -291,13 +294,16 @@ export function ClientDashboardWorkspaceView({
     if (!selectedEvent) return;
     try {
       const locked = readOnly || draft.status === "approved";
-      const project = locked && draftIsOfficial(draft)
-        ? await loadOfficialFloorPlan(
-            selectedEvent.id,
-            draft.id,
-            draft.status === "approved" ? "approved" : "submitted",
-          )
-        : await loadFloorPlanProject(draft.floorPlanId);
+      if (locked && draftIsOfficial(draft)) {
+        const layout = await loadOfficialFloorPlan(
+          selectedEvent.id,
+          draft.id,
+          draft.status === "approved" ? "approved" : "submitted",
+        );
+        setScreen({ name: "official", event: selectedEvent, draft, layout });
+        return;
+      }
+      const project = await loadFloorPlanProject(draft.floorPlanId);
       setScreen({ name: "editor", event: selectedEvent, draft, project, readOnly: locked });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to open floorplan");
@@ -479,6 +485,16 @@ export function ClientDashboardWorkspaceView({
       />
     );
   }
+  if (screen.name === "official") {
+    return (
+      <ClientOfficialLayoutScreen
+        event={screen.event}
+        draft={screen.draft}
+        layout={screen.layout}
+        onBack={() => setScreen({ name: "dashboard" })}
+      />
+    );
+  }
   if (screen.name === "editor") {
     return (
       <ClientFloorplanEditorScreen
@@ -558,7 +574,7 @@ export function ClientDashboardWorkspaceView({
     setRequestForm,
     eventSearch,
     setEventSearch,
-    officialProject,
+    officialLayout,
     floorPlanTemplates,
     notifications,
     navigateToEventRoute,

@@ -5,6 +5,7 @@ import {
   type PrismClientActionCenter,
   type PrismClientWorkspace,
   type PrismFloorPlanDraft,
+  type PrismFloorPlanSnapshot,
   type CreatePrismInquiryInput,
   type CreateFloorPlanPreferenceInput,
   type PrismClientOcularVisit,
@@ -12,7 +13,7 @@ import {
   type SubmitBriefingInput,
   type PrismBriefing,
 } from "@prism/types";
-import { projectFromSnapshot, type ApiFloorPlanSnapshot } from "@/features/floorplan/snapshot-project";
+import { layoutFromSnapshot, projectFromSnapshot, type ApiFloorPlanSnapshot, type ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import { clientApi, clientApiRequest } from "@/lib/prism-api";
 import type { Project } from "@/features/floorplan/editor";
 import type { ClientSession } from "../model/client-dashboard-types";
@@ -111,9 +112,9 @@ export const clientDashboardRepository = {
     eventId: string,
     draftId: string,
     type: "submitted" | "approved" = "approved",
-  ): Promise<Project> {
-    const plan = await clientApi.clientPortal.floorplanSnapshot<ApiFloorPlanSnapshot>(eventId, draftId, type);
-    return projectFromSnapshot(plan);
+  ): Promise<ClientPlanLayout> {
+    const plan = await clientApi.clientPortal.floorplanSnapshot<PrismFloorPlanSnapshot>(eventId, draftId, type);
+    return layoutFromSnapshot(plan);
   },
 
   async loadPlan(planId: string): Promise<Project> {

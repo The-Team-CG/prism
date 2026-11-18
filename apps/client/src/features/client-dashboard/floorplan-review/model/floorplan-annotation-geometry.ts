@@ -1,20 +1,9 @@
-export interface ReviewObject {
-  id?: string;
-  name: string;
-  kind: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  fill: string;
-  stroke: string;
-}
+import { floorplanSceneDocumentSchema } from "@prism/types";
+import type { PlanDrawing } from "@prism/floorplan-scene";
+import { drawingOfScene } from "@/features/floorplan/drawing-of-scene";
 
-export interface ReviewRoom {
-  width: number;
-  height: number;
-  objects: ReviewObject[];
-}
+export type ReviewRoom = PlanDrawing;
+export type ReviewPiece = PlanDrawing["pieces"][number];
 
 export interface AnnotationAnchor {
   /** Position across the room, 0 (left wall) to 1 (right wall). */
@@ -23,77 +12,50 @@ export interface AnnotationAnchor {
   y: number;
 }
 
-const DEFAULT_ROOM = { width: 20, height: 12 };
-
-const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
-
-const text = (value: unknown, fallback: string) => (typeof value === "string" ? value : fallback);
-const positive = (value: unknown): number | null => (finite(value) && value > 0 ? value : null);
-
-type Box = { x: number; y: number; w: number; h: number };
-
-/** Where an object sits: the canonical canvas box. Objects without a finite box are not drawable. */
-function boxOf(item: Record<string, unknown>): Box | null {
-  if (!finite(item.x) || !finite(item.y) || !finite(item.w) || !finite(item.h)) return null;
-  return { x: item.x, y: item.y, w: item.w, h: item.h };
+/** The drawn plan of a submitted snapshot, or null when the snapshot has no scene with walls to draw. */
+export function readReviewRoom(snapshot: unknown): ReviewRoom | null {
+  const scene: unknown = typeof snapshot === "object" && snapshot !== null ? (snapshot as { scene?: unknown }).scene : undefined;
+  const parsed = floorplanSceneDocumentSchema.safeParse(scene);
+  return parsed.success ? drawingOfScene(parsed.data) : null;
 }
 
-/** The label the editor shows, falling back to the object's name. */
-const objectName = (item: Record<string, unknown>) => (typeof item.label === "string" && item.label ? item.label : text(item.name, ""));
-
-/** A drawable object; the PMCM can hide objects from the drawn plan, and those are left out. */
-function readObject(value: unknown): ReviewObject | null {
-  if (typeof value !== "object" || value === null) return null;
-  const item = value as Record<string, unknown>;
-  if (item.hidden === true) return null;
-  const box = boxOf(item);
-  if (!box) return null;
+/** Turns a point in plan metres into an anchor across the room box, kept inside the room. */
+export function anchorFromRoomPoint(room: ReviewRoom, planX: number, planY: number): AnnotationAnchor {
+  const clamp = (value: number) => Math.min(1, Math.max(0, value));
   return {
-    id: typeof item.id === "string" ? item.id : undefined,
-    name: objectName(item),
-    kind: text(item.kind, "rect"),
-    x: box.x,
-    y: box.y,
-    w: Math.max(0, box.w),
-    h: Math.max(0, box.h),
-    fill: text(item.fill, "#FFF4EC"),
-    stroke: text(item.stroke, "#9060A0"),
+    x: clamp((planX - room.room.minX) / room.room.width),
+    y: clamp((planY - room.room.minY) / room.room.depth),
   };
 }
 
-/** The far edge of the objects plus a metre of margin, or the default room size when there are none. */
-function objectExtent(objects: ReviewObject[], edge: (object: ReviewObject) => number, fallback: number) {
-  return objects.length ? Math.max(...objects.map(edge)) + 1 : fallback;
+/** The plan-metre point an anchor sits at. */
+export function roomPointFromAnchor(room: ReviewRoom, anchor: AnnotationAnchor): { x: number; y: number } {
+  return { x: room.room.minX + anchor.x * room.room.width, y: room.room.minY + anchor.y * room.room.depth };
 }
 
 /**
- * The room and drawable objects of a submitted snapshot. The room size comes from the plan; a snapshot without one
- * falls back to the objects' extent so the canvas still shows everything, and objects the PMCM hid are not drawn.
+ * Whether a plan point is on a piece. The piece is drawn turned by -rotation, so the point is turned by +rotation
+ * into the piece's own frame, where a rectangle is its box and a round piece is its inscribed ellipse.
  */
-export function readReviewRoom(snapshot: unknown): ReviewRoom {
-  const record = (typeof snapshot === "object" && snapshot !== null ? snapshot : {}) as Record<string, unknown>;
-  const rawObjects = Array.isArray(record.objects) ? record.objects : [];
-  const objects = rawObjects.map(readObject).filter((object): object is ReviewObject => object !== null);
-  return {
-    width: positive(record.width) ?? positive(record.widthM) ?? objectExtent(objects, (object) => object.x + object.w, DEFAULT_ROOM.width),
-    height: positive(record.height) ?? positive(record.heightM) ?? objectExtent(objects, (object) => object.y + object.h, DEFAULT_ROOM.height),
-    objects,
-  };
+function pieceContains(piece: ReviewPiece, planX: number, planY: number): boolean {
+  const dx = planX - piece.cx;
+  const dy = planY - piece.cy;
+  const cos = Math.cos(piece.rotation);
+  const sin = Math.sin(piece.rotation);
+  const localX = dx * cos - dy * sin;
+  const localY = dx * sin + dy * cos;
+  const halfWidth = piece.width / 2;
+  const halfDepth = piece.depth / 2;
+  if (piece.shape === "circle") return (localX / halfWidth) ** 2 + (localY / halfDepth) ** 2 <= 1;
+  return Math.abs(localX) <= halfWidth && Math.abs(localY) <= halfDepth;
 }
 
-/** Turns a point in room metres into an anchor, kept inside the room. */
-export function anchorFromRoomPoint(room: ReviewRoom, meterX: number, meterY: number): AnnotationAnchor {
-  const clamp = (value: number) => Math.min(1, Math.max(0, value));
-  return { x: clamp(meterX / room.width), y: clamp(meterY / room.height) };
-}
-
-/** The topmost object under an anchor, so a click on a table pins the note to that table. Rotation is ignored. */
-export function objectAtAnchor(room: ReviewRoom, anchor: AnnotationAnchor): ReviewObject | null {
-  const meterX = anchor.x * room.width;
-  const meterY = anchor.y * room.height;
-  for (let index = room.objects.length - 1; index >= 0; index -= 1) {
-    const object = room.objects[index];
-    if (object.id && meterX >= object.x && meterX <= object.x + object.w && meterY >= object.y && meterY <= object.y + object.h) return object;
+/** The topmost piece under an anchor, so a click on a table pins the note to that table. */
+export function objectAtAnchor(room: ReviewRoom, anchor: AnnotationAnchor): ReviewPiece | null {
+  const { x, y } = roomPointFromAnchor(room, anchor);
+  for (let index = room.pieces.length - 1; index >= 0; index -= 1) {
+    const piece = room.pieces[index];
+    if (pieceContains(piece, x, y)) return piece;
   }
   return null;
 }

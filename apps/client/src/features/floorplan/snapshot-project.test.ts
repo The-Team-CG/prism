@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Project } from "@prism/floorplan-canvas";
-import { projectFromSnapshot, type ApiFloorPlanSnapshot } from "./snapshot-project";
+import { layoutFromSnapshot, projectFromSnapshot, type ApiFloorPlanSnapshot } from "./snapshot-project";
+import { sceneWith, roomWalls } from "./scene-fixture";
 
 const snapshot: ApiFloorPlanSnapshot = {
   id: "plan_1", name: "Approved plan", venue: "Hall A", width: 24, height: 12, gridSize: 1, pax: 50,
@@ -23,6 +24,13 @@ describe("snapshot project", () => {
       objects: [object], guests: [guest], suppliers: [supplier],
       createdAt: 1794009600000, updatedAt: 1794009600000,
     });
+  });
+
+  it("reads a saved layout as its Pascal scene, or as no scene when the plan has none", () => {
+    const scene = sceneWith(roomWalls(10, 6));
+    expect(layoutFromSnapshot({ ...snapshot, scene })).toEqual({ id: "plan_1", name: "Approved plan", venue: "Hall A", scene });
+    expect(layoutFromSnapshot({ ...snapshot, scene: null }).scene).toBeNull();
+    expect(layoutFromSnapshot(snapshot).scene).toBeNull();
   });
 
   it("opens an empty snapshot with the current time when no saved timestamp exists", () => {

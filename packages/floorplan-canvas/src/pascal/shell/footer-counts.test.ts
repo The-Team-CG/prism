@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FLOORPLAN_SCENE_FORMAT, type FloorplanSceneDocument, type PrismFloorplanSeatingGuest } from "@prism/types";
-import { footerCounts, roomSize } from "./footer-counts";
+import { footerCounts } from "./footer-counts";
 
 const guest = (id: string, rsvp: PrismFloorplanSeatingGuest["rsvp"] = "confirmed"): PrismFloorplanSeatingGuest => ({
   id,
@@ -42,17 +42,5 @@ describe("footerCounts", () => {
   it("does not count guests at a hidden table", () => {
     const room = scene([{ id: "t1", type: "prism-table", seats: 8, guestIds: ["a"], visible: false }]);
     expect(footerCounts(room, [guest("a")], 0)).toEqual({ guests: 1, seats: 0, seated: 0 });
-  });
-});
-
-describe("roomSize", () => {
-  it("measures the visible walls, and has no size without walls", () => {
-    const room = scene([
-      { id: "w1", type: "wall", start: [0, 0], end: [36, 0] },
-      { id: "w2", type: "wall", start: [36, 0], end: [36, 24.25] },
-      { id: "w3", type: "wall", start: [0, 0], end: [90, 0], visible: false },
-    ]);
-    expect(roomSize(room)).toEqual({ width: 36, depth: 24.25 });
-    expect(roomSize(scene([]))).toBeNull();
   });
 });
