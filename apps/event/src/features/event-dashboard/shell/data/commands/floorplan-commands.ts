@@ -1,6 +1,6 @@
 import type { Project } from "@/features/floorplan/editor";
 import { eventApi as eventOpsClient } from "@/lib/prism-api";
-import type { PrismEventPrivacy, CreateFloorPlanDraftInput } from "@prism/types";
+import type { PrismEventPrivacy, CreateFloorPlanDraftInput, FloorplanSceneDocument, UpdatePlanInput } from "@prism/types";
 
 interface ApiFloorPlan {
   id: string;
@@ -14,7 +14,20 @@ interface ApiFloorPlan {
   objects?: Project["objects"];
   guests?: Project["guests"];
   suppliers?: Project["suppliers"];
+  scene?: FloorplanSceneDocument | null;
   updatedAt?: string;
+}
+
+/** A plan as the Pascal editor opens it: the legacy fields it converts from, its stored scene and its version. */
+export interface PlanSceneToOpen {
+  project: Project;
+  scene: FloorplanSceneDocument | null;
+  updatedAt: string;
+}
+
+function planVersion(plan: ApiFloorPlan): string {
+  if (!plan.updatedAt) throw new Error(`Floor plan ${plan.id} came back without its version`);
+  return plan.updatedAt;
 }
 
 function apiPlanToProject(plan: ApiFloorPlan): Project {
@@ -55,5 +68,12 @@ savePlan: (project: Project) =>
       seats: [],
       seatCategories: [],
     }).then((plan) => apiPlanToProject(plan)),
+loadPlanScene: (planId: string): Promise<PlanSceneToOpen> =>
+    eventOpsClient.floorplans.plan<ApiFloorPlan>(planId).then((plan) => ({ project: apiPlanToProject(plan), scene: plan.scene ?? null, updatedAt: planVersion(plan) })),
+/** Saves a Pascal scene against the version it was loaded or last saved at; the legacy columns are left as they are. */
+savePlanScene: (planId: string, scene: FloorplanSceneDocument, expectedUpdatedAt: string) => {
+    const body: UpdatePlanInput = { expectedUpdatedAt, scene };
+    return eventOpsClient.floorplans.savePlan<ApiFloorPlan>(planId, body).then((plan) => ({ updatedAt: planVersion(plan) }));
+  },
 submitFloorPlanDraft: (eventId: string, draftId: string) => eventOpsClient.floorplans.submitDraft(eventId, draftId),
 };

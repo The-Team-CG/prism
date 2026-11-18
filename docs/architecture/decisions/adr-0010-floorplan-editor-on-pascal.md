@@ -1,0 +1,103 @@
+---
+type: "Decision"
+title: "Floor plan editor on Pascal"
+description: "Build PMCM's floor plan editor on the Pascal editor's npm packages, pinned, with PRISM's event pieces as a Pascal plugin and scenes stored through the PRISM API."
+tags: [architecture, decision, floorplan, editor, pascal]
+status: canonical
+updated: "2026-11-19"
+authority: normative
+audience: [agents, engineers, reviewers]
+scope: "Floor plan authoring engine, scene storage, and the Pascal dependency"
+last_verified: "floorplan-scene, floorplan-canvas, event and API focused tests, typechecks, prisma:validate, db:verify:offline and the migration and boundary checks passed; the browser path is verified by hand"
+decision_date: "2026-11-19"
+sources:
+  - id: scene-contracts
+    resource: "packages/types/src/schemas/floorplan-scene.ts"
+    title: "Scene document and event piece schemas"
+  - id: scene-logic
+    resource: "packages/floorplan-scene/src"
+    title: "Scene validation, seating extraction and the legacy converter"
+  - id: host-adapter
+    resource: "packages/floorplan-canvas/src/pascal"
+    title: "Pascal host adapter and the prism:event-layout plugin"
+  - id: scene-storage
+    resource: "apps/api/src/modules/floorplan/application/authoring/plans.service.ts"
+    title: "Scene saves, validation and seating rules"
+  - id: engine-switch
+    resource: "apps/event/src/features/floorplan/editor"
+    title: "Engine flag, scene opening and serialized autosaves"
+---
+# ADR-0010: Floor plan editor on Pascal
+
+## At a glance
+
+- **Decision:** PMCM's floor plan editor is the Pascal editor (`pascalorg/editor`, MIT), used through its npm
+  packages inside `@prism/floorplan-canvas`. PRISM's event pieces are a Pascal plugin, and scenes save through the
+  PRISM API.
+- **Pinned:** `@pascal-app/*` 1.1.6, exact, with no range. Upgrades are deliberate changes that re-run the checks below.
+- **Storage:** a plan's scene is Pascal's scene graph stored on `floorplan.floor_plans.scene` as format `pascal-v1`.
+  The browser is never the source of truth.
+- **Rollout:** behind `NEXT_PUBLIC_PRISM_FLOORPLAN_ENGINE=pascal`. Legacy plans convert when first opened, and the
+  first save stores the scene. The legacy columns stay until the old editor is removed.
+
+## Context
+
+The legacy editor is a 2D canvas of outlines on a grid. Every layout starts from an empty room, and the client sees
+the same flat drawing. Pascal already provides an editing engine with a 2D plan and 3D view of one scene, direct
+manipulation, undo, guide images, plugins for new kinds of object and agent tools. A throwaway spike on 2026-11-19
+mounted it in `apps/event` and passed every gate. The answers are recorded in the design document's spike findings.
+
+## Decision
+
+The four approaches considered were: depend on Pascal's packages (chosen), copy its source (rejected: we would
+maintain a fast-moving codebase), keep the old editor with only Pascal's viewer for clients (rejected: editing stays
+as it is), and host Pascal's container in an iframe (ruled out: separate login and storage outside PRISM roles).
+
+### Packages
+
+- **`@prism/types`** holds the scene document and the `prism-*` event piece schemas, like every shared contract.
+- **`@prism/floorplan-scene`** is pure TypeScript with no UI. It validates a scene (size limits, dangling parents, piece
+  schemas), lists table seating, and converts legacy plans. The API and the editor both use it.
+- **`@prism/floorplan-canvas`** hosts Pascal. `./editor` is `PrismFloorplanEditor` and `./plugin` is the
+  `prism:event-layout` plugin (`apiVersion: 1`). It still makes no HTTP, session or role decision.
+
+### Plugin contract
+
+Each event piece type is a node definition whose `kind` is its scene `type` and whose `schema` is the Task 1 Zod schema
+from `@prism/types`, so the editor, the API and the converter agree on one shape. Guests and suppliers appear in a
+scene as IDs only.
+
+### Browser state
+
+The editor always gets `onLoad` and `onSave`, so Pascal never writes a scene to local storage or IndexedDB. Pascal
+keeps UI preferences in localStorage; they hold no layout data. Pascal's `saveAsset` writes guide images to IndexedDB,
+so tracing images must go through PRISM storage before guide images are offered.
+
+### Saving
+
+Every scene save is validated by `@prism/floorplan-scene`. It must name the plan version it was based on, and a stale
+version is refused with 409. The legacy seating rules apply to scene tables. The event app sends autosaves one at a
+time, each against the version the previous save returned. A read-only session holds Pascal's read-only lease and
+never saves.
+
+## Consequences
+
+- **Upgrades:** raising the Pascal version means rerunning the spike checks (build, theme, no browser source of truth,
+  WebGL fallback, bundle size), refreshing the copied icons, HDRI and sounds in `apps/event/public` from the new
+  release's commit, and reviewing `patches/@pascal-app+editor+1.1.6.patch`.
+- **Typecheck reach:** the editor ships TypeScript source, so our typecheck covers it. `@types/pdfkit`,
+  `@types/blob-stream` and a one-line patch keep it clean under PRISM's settings.
+- **Bundle:** the editor adds about 2.8 MB of compressed JavaScript, loaded only when a draft opens in it.
+- **Legacy data:** the `objects`, `guests`, `suppliers` and `seats` columns stay readable and are not written by a scene
+  save until the old editor and its columns are removed in the final milestone.
+- **Snapshots:** submitted and approved snapshots carry the scene when the plan has one.
+
+## Verification
+
+```bash
+npm --workspace @prism/floorplan-scene run test
+npm --workspace @prism/floorplan-canvas run test && npm --workspace @prism/floorplan-canvas run typecheck
+npm --workspace prism-api run test -- plans.service floor-plan-workflow
+npm --workspace @prism/event run test && npm --workspace @prism/event run typecheck
+npm run check:boundaries && npm run check:migrations
+```
