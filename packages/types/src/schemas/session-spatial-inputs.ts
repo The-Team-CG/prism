@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { floorPlanCanvasObjectSchema, floorPlanGuestSchema, floorPlanSupplierSchema } from "./floorplan-canvas-inputs.js";
+import { floorplanSceneDocumentSchema } from "./floorplan-scene.js";
 
 export const supplierWithdrawalSchema = z.object({
   reason: z.string().trim().min(1).max(500).optional(),
@@ -18,5 +19,5 @@ export const updateTemplateSchema = z.object(templateFields).partial();
 export type UpdateTemplateInput = z.infer<typeof updateTemplateSchema>;
 const seat = z.object({ id: z.string(), label: z.string(), position: z.object({ x: z.number(), y: z.number() }), categoryId: z.string().nullable() });
 const seatCategory = z.object({ id: z.string(), name: z.string(), colorHex: z.string() });
-export const updatePlanSchema = z.object({ expectedUpdatedAt: z.string().datetime(), venue: z.string().optional(), width: z.number().positive().optional(), height: z.number().positive().optional(), gridSize: z.number().positive().optional(), pax: z.number().int().nonnegative().optional(), objects: planObjects, guests: planGuests, suppliers: planSuppliers, seats: z.array(seat).optional(), seatCategories: z.array(seatCategory).optional() });
+export const updatePlanSchema = z.object({ expectedUpdatedAt: z.string().datetime(), venue: z.string().optional(), width: z.number().positive().optional(), height: z.number().positive().optional(), gridSize: z.number().positive().optional(), pax: z.number().int().nonnegative().optional(), objects: planObjects, guests: planGuests, suppliers: planSuppliers, seats: z.array(seat).optional(), seatCategories: z.array(seatCategory).optional(), scene: floorplanSceneDocumentSchema.optional() });
 export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;
