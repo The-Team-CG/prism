@@ -225,28 +225,7 @@ the important rules: no private cross-context imports, no import
 from local fixture tooling into runtime contexts or kernel, no Prisma writes from read models, budgeted raw
 read queries, and no tracked source under the old API library roots.
 
-The kernel does not import a business context. `kernel/event-core` owns the
-command-receipt port and replay policy; `platform-ops` owns the Prisma adapter
-and receipt persistence, bound globally by `PlatformOpsCommandReceiptModule` at
-the application composition root. Transactional commands with an
-actor- and event-scoped idempotency key and a stable payload hash opt into one durable
-receipt, which is reserved and completed in the same transaction; retries then
-replay the stored projected result after permission checks. A payload hash is
-required so central replay cannot bypass a context's changed-content guard.
-The receipt is a technical trust record; it does not replace an owning
-context's domain record or its domain-specific invariant checks. Existing
-commands without this explicit hash continue through their domain-specific
-idempotency paths until migrated.
-`kernel/access-control` emits
-forbidden-access evidence through the kernel-owned `AUDIT_WRITER` port; the
-composition root binds that port to the platform-ops `AuditWriterAdapter` in
-`PlatformOpsAuditWriterModule`. Identity authentication, document storage,
-notifications, and read-model composition use the same principle through
-focused `AUTH_AUDIT`, `DOCUMENT_VAULT`, `NOTIFICATION_OUTBOX_WRITER`,
-`SUPPLIER_WORKSPACE_READER`, `STAFFING_READER`, `FLOORPLAN_READER`, and
-`GUEST_READER` seams. These are in-process
-contracts today; they make extraction boundaries explicit without claiming
-separate services or databases.
+The kernel does not import a business context. Where it needs business behavior it owns a focused port that a composition root binds: the command-receipt store (`PlatformOpsCommandReceiptModule`) and the forbidden-access `AUDIT_WRITER` (`PlatformOpsAuditWriterModule`). A command opts into a durable receipt with an actor- and event-scoped idempotency key and a payload hash; the receipt is reserved and completed in the command's transaction, and a retry replays the stored result after permission checks. It is a technical record, not the owner's domain record. Contexts use the same pattern for identity audit, document storage, notifications and read-model readers; the [context contracts](context-contracts.md) list every seam. These are in-process contracts, not separate services.
 
 ### Domain depth
 
@@ -291,19 +270,7 @@ authorization isolation. A database still on the retired pre-baseline ledger is
 adopted only through the backed-up rebuild in the
 [domain schema runbook](../runbooks/database-migrations.md#databases-with-the-retired-ledger).
 
-Supplier withdrawal is a durable asynchronous boundary: `commercial` writes the
-withdrawal and audit, then uses the public platform-ops dispatch-writer contract
-inside the same `WorkflowCommandService` transaction to enqueue
-`OpsPareDispatch`. The platform-ops worker claims rows with a lease token,
-reloads the supplier request by ID, executes PARE without a database transaction
-around the call, and settles success, bounded retry, or terminal failure. A
-dispatch ID is stored on `OpsAiApprovalRecord` so a crash after approval creation
-is safe to redeliver. The dispatch stores event and request IDs as scalar
-references with no cross-domain FK; a missing or no-longer-withdrawn request is
-a terminal worker outcome. Execution is bounded below the lease duration, aborts
-provider calls on timeout, and tracks active executions through shutdown. Approval
-recovery validates the sanitized request ID and dispatch ownership, while the
-worker restores the idempotent `pare_triggered` activity audit.
+Supplier withdrawal is a durable asynchronous boundary: `commercial` records the withdrawal and enqueues an `OpsPareDispatch` in the same transaction through the platform-ops dispatch-writer contract. The platform-ops worker claims rows with a lease, runs PARE outside a database transaction, and settles success, bounded retry or terminal failure; the dispatch ID on the approval record makes redelivery after a crash safe.
 
 ## Lifecycle architecture
 

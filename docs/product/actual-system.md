@@ -43,27 +43,7 @@ field records this documentation review, not runtime or browser acceptance.
 
 ## Current correctness limits
 
-The [feature ledger](feature-ledger.md) distinguishes implemented corrections
-from incomplete end-to-end capabilities.
-Signed conforme does not create an approved bill by design: billing statements
-come only from a PMCM-approved billing source. Proposal review requires a real
-issued version. PMCM issues it from the selected event's commercial proposal
-panel, which builds the cost estimate and issues a numbered version together
-with its issued proposal document and a one-page PDF copy; the client sees only
-the title, summary and total. Archive checks five explicit gates; logistics passes with a PMCM-recorded
-completion record and otherwise needs a reasoned override. PMCM privacy
-operations execute access/export, native-account erasure, correction, and
-supported operational redaction. Clients and suppliers file their own requests
-and see their status from their portals. Guests have no self-service path, so
-PMCM logs guest requests on their behalf. AI code and provider configuration do
-not establish approval for a use case or qualify real client data. Follow the
-[AI data policy](ai-data-policy.md) and [AI provider routing runbook](../runbooks/ai-provider-routing.md).
-
-The [authority and lifecycle policy](event-authority-and-lifecycle-policy.md)
-records the approved attendance operator, wrap-up, feedback window and client
-category decisions. Guest feedback stays open for seven days after the recorded
-event end, including after archive; guest check-in and other access still close
-at archive.
+Implemented corrections and open limits are in the [feature ledger](feature-ledger.md); authority, wrap-up and feedback-window rules are in the [authority and lifecycle policy](event-authority-and-lifecycle-policy.md). Two rules shape everything below: a signed conforme never creates billing (statements come only from a PMCM-approved source), and AI configuration alone never qualifies real client data ([AI data policy](ai-data-policy.md)).
 
 ## System Identity
 
