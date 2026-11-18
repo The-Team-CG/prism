@@ -122,6 +122,10 @@ export const recordActualEventEndSchema = z.object({
 });
 export type RecordActualEventEndInput = z.infer<typeof recordActualEventEndSchema>;
 
+/** A guest's reply. Seating refuses declined guests; a roster row without one is pending. */
+export const guestRosterRsvpSchema = z.enum(["confirmed", "pending", "declined"]);
+export type GuestRosterRsvp = z.infer<typeof guestRosterRsvpSchema>;
+
 export const importGuestRosterSchema = z.object({
   source: nonEmptyStringSchema,
   rows: z.array(z.object({
@@ -132,6 +136,10 @@ export const importGuestRosterSchema = z.object({
     category: optionalTrimmedStringSchema,
     table: optionalTrimmedStringSchema,
     eligibility: z.enum(["eligible", "ineligible"]).optional(),
+    /** Left out, a re-import keeps the RSVP already recorded. */
+    rsvp: guestRosterRsvpSchema.optional(),
+    /** Left out, a re-import keeps the dietary needs already recorded. */
+    dietary: optionalTrimmedStringSchema,
   })).min(1).max(1000),
 });
 export type ImportGuestRosterInput = z.infer<typeof importGuestRosterSchema>;

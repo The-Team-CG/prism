@@ -929,7 +929,7 @@
       "table": "guest_roster_entries",
       "domain": "operations",
       "targetSchema": "operations",
-      "columnCount": 21
+      "columnCount": 23
     },
     {
       "model": "OpsGuestRosterImport",

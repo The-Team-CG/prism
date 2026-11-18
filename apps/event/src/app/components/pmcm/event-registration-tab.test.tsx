@@ -12,6 +12,8 @@ const anonymousReview: PrismGuestRosterEntry = {
   id: "gre_review_1",
   eventId: "evt_1",
   sourceKey: "guest-review-headcount:gre_review_1",
+  rsvp: "pending",
+  dietary: "",
   guestName: "Anonymous headcount",
   eligibility: "eligible",
   verificationStatus: "pending" as const,

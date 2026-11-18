@@ -10,6 +10,7 @@ import {
   createGuestFeedbackSchema,
   createGuestCheckInSchema,
   guestRosterSearchSchema,
+  importGuestRosterSchema,
   guestCheckInReceiptSchema,
   guestPrivacyClassificationSchema,
   updateGuestPrivacyClassificationSchema,
@@ -382,6 +383,17 @@ describe("event-ops write schemas", () => {
         [privateField]: "private",
       }).success).toBe(false);
     }
+  });
+
+  it("imports each roster row's RSVP and dietary needs, and names the row of an unknown RSVP", () => {
+    const rows = [
+      { sourceKey: "a", guestName: "Ana Reyes", rsvp: "confirmed", dietary: " Vegetarian " },
+      { sourceKey: "b", guestName: "Ben Cruz", rsvp: "maybe" },
+    ];
+    expect(importGuestRosterSchema.parse({ source: "csv", rows: [rows[0]] }).rows[0]).toMatchObject({ rsvp: "confirmed", dietary: "Vegetarian" });
+    const result = importGuestRosterSchema.safeParse({ source: "csv", rows });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.path).toEqual(["rows", 1, "rsvp"]);
   });
 
   it("accepts the review queue flag only as a boolean", () => {
