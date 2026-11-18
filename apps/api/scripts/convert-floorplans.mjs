@@ -18,19 +18,20 @@ function parseArguments(argv) {
   return { dryRun: argv.includes('--dry-run') };
 }
 
-async function loadRows(client) {
+/** Reads every row the conversion needs, each query on its own pooled connection. */
+async function loadRows(pool) {
   const [plans, objectRows, drafts, versions, templates, roster, annotations, decisions] = await Promise.all([
-    client.query('select id, name, width, height, objects, guests, scene from floorplan.floor_plans'),
-    client.query('select floor_plan_id, object_id, z_index, object_data from floorplan.floor_plan_objects'),
-    client.query('select id, event_id, floor_plan_id, source_type, submitted_snapshot, approved_snapshot from floorplan.floor_plan_drafts'),
-    client.query('select id, draft_id, snapshot from floorplan.floor_plan_snapshot_versions'),
-    client.query('select floor_plan_id from floorplan.venue_templates'),
-    client.query(
+    pool.query('select id, name, width, height, objects, guests, scene from floorplan.floor_plans'),
+    pool.query('select floor_plan_id, object_id, z_index, object_data from floorplan.floor_plan_objects'),
+    pool.query('select id, event_id, floor_plan_id, source_type, submitted_snapshot, approved_snapshot from floorplan.floor_plan_drafts'),
+    pool.query('select id, draft_id, snapshot from floorplan.floor_plan_snapshot_versions'),
+    pool.query('select floor_plan_id from floorplan.venue_templates'),
+    pool.query(
       `select id, event_id, guest_name from operations.guest_roster_entries
         where eligibility = 'eligible' and withdrawn_at is null and rsvp <> 'declined'`,
     ),
-    client.query('select id, draft_id, snapshot_hash, object_id from floorplan.client_annotations'),
-    client.query('select id, event_id, draft_id, snapshot_hash, action, comment from floorplan.client_decisions'),
+    pool.query('select id, draft_id, snapshot_hash, object_id from floorplan.client_annotations'),
+    pool.query('select id, event_id, draft_id, snapshot_hash, action, comment from floorplan.client_decisions'),
   ]);
 
   const rowsByPlan = new Map();
@@ -57,7 +58,7 @@ export async function convertFloorplans({ dryRun, connectionString, ssl }) {
   try {
     const client = await pool.connect();
     try {
-      const data = await loadRows(client);
+      const data = await loadRows(pool);
       const { statements, report } = planFloorplanConversion(data);
       console.log(formatReport(report, { dryRun }));
       if (dryRun) return report;
