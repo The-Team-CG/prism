@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { acquireSceneReadOnlyLease, loadPlugin } from "@pascal-app/core";
-import { Editor, getSavedSceneDocument, useCameraHintFocus, useEditor, type SaveStatus } from "@pascal-app/editor";
+import { Editor, getSavedSceneDocument, useCameraHintFocus, useSidebarStore, type SaveStatus } from "@pascal-app/editor";
 import { builtinPlugin } from "@pascal-app/nodes";
 import type { FloorplanSceneDocument } from "@prism/types";
 import { PrismFloorplanProvider, type PrismFloorplanContextValue } from "./editor-context";
@@ -17,6 +17,7 @@ import { LensSwitch } from "./shell/lens-switch";
 import { PlanMeasures } from "./shell/plan-measures";
 import { PlanPanel } from "./shell/plan-panel";
 import { SIDE_PANEL_TAB } from "./shell/side-panel";
+import { ZoomControl } from "./shell/zoom-control";
 import { prismLens } from "./lens";
 import { PiecePlacement } from "./tools/piece-placement";
 import { hostState } from "./inspector/host-state";
@@ -42,6 +43,11 @@ export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOn
 (globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ = true;
 
 const SIDE_PANEL_TABS = [SIDE_PANEL_TAB];
+
+/** Pascal's earlier default width for the left column, which browsers that opened the editor before still keep. */
+const PASCAL_OLD_COLUMN_WIDTH = 360;
+/** The left panel's width in the docked frame. */
+const PANEL_WIDTH = 288;
 
 let pluginsLoaded: Promise<void> | null = null;
 
@@ -118,6 +124,10 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   useEffect(() => useCameraHintFocus.getState().focus([]), []);
   // Every plan opens as laid out; Seating is gone when the event cannot seat guests.
   useEffect(() => prismLens.set("layout"), []);
+  // Moves a browser still on Pascal's old default to the docked frame's width; a width the planner chose is kept.
+  useEffect(() => {
+    if (useSidebarStore.getState().chatWidth === PASCAL_OLD_COLUMN_WIDTH) useSidebarStore.getState().setChatWidth(PANEL_WIDTH);
+  }, []);
   useEffect(() => {
     if (!seating.allowed && prismLens.get() === "seating") prismLens.set("layout");
     hostState.setFacts({ seatingAllowed: seating.allowed, readOnly });
@@ -157,7 +167,12 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
               toolDock={false}
               viewBar={false}
               navbarSlot={header}
-              sceneOverlay={<LensSwitch />}
+              sceneOverlay={
+                <>
+                  <LensSwitch />
+                  <ZoomControl />
+                </>
+              }
               floorplanSceneSlot={
                 <>
                   <LensOverlay />

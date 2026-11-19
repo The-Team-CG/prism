@@ -53,10 +53,47 @@ index dc0eea8..023f215 100644
      </div>
    )
 diff --git a/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx b/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx
-index 429ec62..0755a72 100644
+index 429ec62..490a916 100644
 --- a/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx
 +++ b/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx
-@@ -11585,6 +11585,8 @@ export function FloorplanPanel({
+@@ -1,5 +1,6 @@
+ 'use client'
+ 
++import { floorplanZoom } from '../../lib/floorplan-zoom'
+ import { Icon } from '@iconify/react'
+ import {
+   type AnyNode,
+@@ -7752,6 +7753,29 @@ export function FloorplanPanel({
+     ],
+   )
+ 
++  // The host's zoom control (`floorplanZoom`): zoom about the plan's middle, fit, and the zoom as a percentage.
++  useEffect(() => {
++    floorplanZoom.attach({
++      zoomBy: (factor) => {
++        const rect = svgRef.current?.getBoundingClientRect()
++        if (!rect) return
++        zoomViewportAtClientPoint(rect.left + rect.width / 2, rect.top + rect.height / 2, 1 / factor)
++      },
++      fit: () => {
++        stopFloorplanViewAnimation()
++        hasUserAdjustedViewportRef.current = false
++        latestViewportRef.current = null
++        setViewport(null)
++      },
++    })
++    return () => floorplanZoom.attach(null)
++  }, [zoomViewportAtClientPoint, stopFloorplanViewAnimation])
++
++  useEffect(() => {
++    if (!fittedViewport) return
++    floorplanZoom.setPercent(Math.round((fittedViewport.width / (viewport?.width ?? fittedViewport.width)) * 100))
++  }, [viewport, fittedViewport])
++
+   useEffect(
+     () => () => {
+       if (floorplanZoomCommitTimerRef.current !== null) {
+@@ -11585,6 +11609,8 @@ export function FloorplanPanel({
          <FloorplanDrawingTypeSwitch className={planOnRight ? 'right-24 left-auto' : undefined} />
  
          {!isStudioWorkspace &&
@@ -353,6 +390,63 @@ index 5c2f161..d4d7295 100644
  /** Whether a panel renders inside the shared right column (in flow) rather than on its own. */
  export function useInRightStack() {
    return useContext(RightStackContext)
+diff --git a/node_modules/@pascal-app/editor/src/index.tsx b/node_modules/@pascal-app/editor/src/index.tsx
+index 1a0f0a6..8e6018a 100644
+--- a/node_modules/@pascal-app/editor/src/index.tsx
++++ b/node_modules/@pascal-app/editor/src/index.tsx
+@@ -481,6 +481,7 @@ export {
+   shortcutDisplayValue,
+ } from './components/ui/primitives/shortcut-token'
+ export { useSidebarStore } from './components/ui/primitives/sidebar'
++export { floorplanZoom } from './lib/floorplan-zoom'
+ export { Slider } from './components/ui/primitives/slider'
+ export type { ExtraPanel } from './components/ui/sidebar/icon-rail'
+ export { ItemsPanel } from './components/ui/sidebar/panels/items-panel'
+diff --git a/node_modules/@pascal-app/editor/src/lib/floorplan-zoom.ts b/node_modules/@pascal-app/editor/src/lib/floorplan-zoom.ts
+new file mode 100644
+index 0000000..8085441
+--- /dev/null
++++ b/node_modules/@pascal-app/editor/src/lib/floorplan-zoom.ts
+@@ -0,0 +1,39 @@
++/**
++ * The floor plan's zoom, for a host that draws its own zoom control. The plan pane attaches its zoom while it is on
++ * screen and publishes how far it is zoomed against the fitted view (100% = the whole plan in view).
++ */
++type FloorplanZoomControls = { zoomBy(factor: number): void; fit(): void }
++
++let controls: FloorplanZoomControls | null = null
++let percent = 100
++const listeners = new Set<() => void>()
++
++function publish() {
++  for (const listener of [...listeners]) listener()
++}
++
++export const floorplanZoom = {
++  attach(next: FloorplanZoomControls | null) {
++    controls = next
++    publish()
++  },
++  setPercent(next: number) {
++    if (next === percent) return
++    percent = next
++    publish()
++  },
++  /** Zooms about the middle of the plan: above 1 zooms in. Does nothing while no plan pane is on screen. */
++  zoomBy(factor: number) {
++    controls?.zoomBy(factor)
++  },
++  /** Back to the whole plan in view. */
++  fit() {
++    controls?.fit()
++  },
++  percent: () => percent,
++  attached: () => controls !== null,
++  subscribe(listener: () => void): () => void {
++    listeners.add(listener)
++    return () => listeners.delete(listener)
++  },
++}
 diff --git a/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts b/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts
 index 8adafe9..dad3f88 100644
 --- a/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts

@@ -22,6 +22,8 @@ vi.mock("@pascal-app/editor", () => {
       );
     },
     useEditor,
+    useSidebarStore: { getState: () => ({ chatWidth: 288, setChatWidth: vi.fn() }) },
+    floorplanZoom: { subscribe: () => () => undefined, percent: () => 100, attached: () => false, zoomBy: vi.fn(), fit: vi.fn() },
     visibleScene: () => "2d",
     sceneLayout: (scene: string) => scene,
     getSavedSceneDocument: () => ({ nodes: {}, rootNodeIds: [] }),
