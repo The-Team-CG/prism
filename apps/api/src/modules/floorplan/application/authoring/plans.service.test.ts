@@ -60,7 +60,9 @@ function draft(
   };
 }
 
-function createService(opsDraft: unknown, overrides: Record<string, unknown> = {}) {
+type SeatingFacts = { roster?: Array<{ id: string; rsvp: string; name: string }>; booked?: string[] };
+
+function createService(opsDraft: unknown, overrides: Record<string, unknown> = {}, facts: SeatingFacts = {}) {
   const audit: AuditWriter = { write: vi.fn().mockResolvedValue(undefined) };
   const accessPolicy = new EventAccessPolicyService(audit);
   const update = vi.fn().mockResolvedValue(floorPlanRow({ opsDraft }));
@@ -109,8 +111,14 @@ function createService(opsDraft: unknown, overrides: Record<string, unknown> = {
     ),
   } as unknown as PrismaService;
 
+  // The event roster a scene save seats from; by default the same guests the legacy saves list.
+  const seatingFacts = {
+    listSeatingGuests: vi.fn(async () => facts.roster ?? [{ id: 'g-ana', rsvp: 'confirmed', name: 'Ana Reyes' }, { id: 'g-ben', rsvp: 'pending', name: 'Ben Cruz' }, { id: 'g-dee', rsvp: 'declined', name: 'Dee Lim' }]),
+    bookedSupplierIds: vi.fn(async () => new Set(facts.booked ?? [])),
+  };
   return {
-    service: new PlansService(prisma, accessPolicy, audit, lifecycleEventReferences),
+    service: new PlansService(prisma, accessPolicy, audit, lifecycleEventReferences, seatingFacts),
+    seatingFacts,
     prisma: { ...prisma, floorPlan, floorPlanObject, $queryRawUnsafe: queryRawUnsafe },
     audit,
     accessPolicy,
@@ -696,9 +704,11 @@ describe('PlansService Pascal scene saves', () => {
   });
 
   it('refuses new scene seats on a public event but keeps seats carried over from the converted legacy plan', async () => {
+    // The legacy plan seats its own guest; the editor converts that seat to the roster guest of the same name.
     const publicDraft = draft('pmcm_draft', 'Ana Reyes', 'owner@example.test', 'blank', { privacy: 'public' });
     const { service, prisma } = createService(publicDraft, {
-      objectRows: [{ objectId: 't1', objectData: editorTable({ assignedGuestIds: ['g-ana'] }), zIndex: 0 }],
+      guests: [{ id: 'legacy_ana', name: 'Ana Reyes', rsvp: 'confirmed' }],
+      objectRows: [{ objectId: 't1', objectData: editorTable({ assignedGuestIds: ['legacy_ana'] }), zIndex: 0 }],
     });
 
     await expect(
@@ -718,6 +728,42 @@ describe('PlansService Pascal scene saves', () => {
       service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, guests: [] }, pmcmActor()),
     ).rejects.toThrow('Only guests on this event guest list can be seated.');
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('checks scene seating against the event roster, not the guest list sent with the save', async () => {
+    const { service, prisma, seatingFacts } = createService(draft('pmcm_draft'), {}, { roster: [{ id: 'g-ana', rsvp: 'declined', name: 'Ana Reyes' }] });
+    const confirmedInSave = [{ id: 'g-ana', name: 'Ana Reyes', rsvp: 'confirmed' as const }];
+
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }]), { guests: confirmedInSave }), pmcmActor()),
+    ).rejects.toThrow('Guests who declined cannot be seated.');
+    expect(seatingFacts.listSeatingGuests).toHaveBeenCalledWith('evt_1', expect.anything());
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('seats nobody who is no longer on the roster', async () => {
+    const { service } = createService(draft('pmcm_draft'), {}, { roster: [] });
+
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }])), pmcmActor()),
+    ).rejects.toThrow('Only guests on this event guest list can be seated.');
+  });
+
+  it('gives a zone only to suppliers booked on the event', async () => {
+    const zone = { id: 'prism-zone_a', type: 'prism-zone', parentId: 'level_1', visible: true, label: 'Catering BOH', position: [1, 0, 1], rotation: 0, width: 4, depth: 3, supplierIds: ['sup_booked'] };
+    const unbooked = { ...zone, supplierIds: ['sup_other'] };
+    const { service, prisma } = createService(draft('pmcm_draft'), {}, { booked: ['sup_booked'] });
+
+    await expect(service.updatePlan('plan_event_1', sceneSave(sceneWithTables([], [unbooked])), pmcmActor())).rejects.toThrow('Zones can only name suppliers booked on this event.');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+    await expect(service.updatePlan('plan_event_1', sceneSave(sceneWithTables([], [zone])), pmcmActor())).resolves.toMatchObject({ id: 'plan_event_1' });
+  });
+
+  it('keeps checking a legacy save against the plan guest list', async () => {
+    const { service, seatingFacts } = createService(draft('pmcm_draft'));
+
+    await expect(service.updatePlan('plan_event_1', changes({ objects: [editorTable({ assignedGuestIds: ['g-ana'] })], guests: eventGuestRoster }), pmcmActor())).resolves.toMatchObject({ id: 'plan_event_1' });
+    expect(seatingFacts.listSeatingGuests).not.toHaveBeenCalled();
   });
 
   it('refuses a scene save from a client revising their own preference', async () => {

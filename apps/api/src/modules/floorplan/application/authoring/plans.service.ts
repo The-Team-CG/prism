@@ -17,19 +17,23 @@ import {
 } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { asArray } from '@prism/kernel/shared';
 import type { CanvasObject, FloorPlan, FloorPlanObject, JsonValue, SavedPlanObject, Seat, SeatCategory } from '@prism/kernel/shared';
-import { validateFloorplanScene } from '@prism/floorplan-scene';
-import type { TableEligibilityObject, UpdatePlanInput } from '@prism/types';
+import { validateFloorplanScene, zoneSupplierIds } from '@prism/floorplan-scene';
+import { FLOORPLAN_SEATING_FACTS, type FloorplanSeatingFactsReader, type FloorplanSeatingGuest } from '@prism/contexts/read-models/floorplan-seating';
+import type { TableEligibilityGuest, TableEligibilityObject, UpdatePlanInput } from '@prism/types';
 import { storedScene } from '../stored-scene';
 import { floorPlanScalarPatch, replaceFloorPlanObjects } from './plan-patch';
 import {
   assertSeatingAllowedForNewAssignments,
   assertTableAssignmentsEligible,
+  legacyTablesOnRoster,
   sceneTableEligibilityObjects,
   storedTableEligibilityGuests,
   storedTableEligibilityObjects,
 } from './table-assignment-guard';
 
 type UpdatePlanChanges = Omit<UpdatePlanInput, 'expectedUpdatedAt'>;
+
+const ZONE_SUPPLIER_MESSAGE = 'Zones can only name suppliers booked on this event.';
 
 /** A scene save carries a validated scene and no legacy objects; any other save passes through unchanged. */
 function acceptedPlanChanges(changes: UpdatePlanChanges): UpdatePlanChanges {
@@ -50,13 +54,14 @@ type SeatingLayouts = {
   newSeats?: { previous: readonly TableEligibilityObject[]; next: readonly TableEligibilityObject[] };
 };
 
-function seatingLayouts(plan: PlanWithObjects, changes: UpdatePlanChanges): SeatingLayouts {
+function seatingLayouts(plan: PlanWithObjects, changes: UpdatePlanChanges, roster: readonly FloorplanSeatingGuest[] | null): SeatingLayouts {
   const legacy = storedTableEligibilityObjects(plan.objectRows.length ? plan.objectRows.map((row) => row.objectData) : asArray<unknown>(plan.objects));
   const scene = storedScene(plan);
   if (changes.scene) {
     const next = sceneTableEligibilityObjects(changes.scene);
     if (scene) return { next, newSeats: { previous: sceneTableEligibilityObjects(scene), next } };
-    return { next, newSeats: { previous: legacy, next: sceneTableEligibilityObjects(changes.scene, 'legacy') } };
+    const previous = legacyTablesOnRoster(legacy, asArray<unknown>(plan.guests), roster ?? []);
+    return { next, newSeats: { previous, next: sceneTableEligibilityObjects(changes.scene, 'legacy') } };
   }
   if (changes.objects) return { next: changes.objects, newSeats: { previous: legacy, next: changes.objects } };
   return { next: scene ? sceneTableEligibilityObjects(scene) : legacy };
@@ -120,6 +125,7 @@ export class PlansService {
     private readonly eventAccessPolicyService: EventAccessPolicyService,
     @Inject(AUDIT_WRITER) private readonly auditWriter: AuditWriter,
     @Inject(FLOORPLAN_EVENT_REFERENCE_READER) private readonly lifecycleEventReferences: FloorplanEventReferenceReader,
+    @Inject(FLOORPLAN_SEATING_FACTS) private readonly seatingFacts: FloorplanSeatingFactsReader,
   ) {}
 
   private mapPlan(row: PlanWithObjects, eventPrivacy: EventPrivacy, resolvedObjects?: FloorPlanObject[]): PlanView {
@@ -217,7 +223,8 @@ export class PlansService {
 
       if (Object.keys(requestedChanges).length === 0) return latestPlan;
       const accepted = acceptedPlanChanges(requestedChanges);
-      this.assertTableAssignmentsEligible(latestPlan, accepted, actor, lifecycleEvent?.eventPrivacy ?? 'public');
+      const rosterGuests = await this.sceneSaveRoster(tx, eventIdAfterLocks, accepted);
+      this.assertTableAssignmentsEligible(latestPlan, accepted, actor, lifecycleEvent?.eventPrivacy ?? 'public', rosterGuests);
 
       const { objects: acceptedObjects, ...scalarChanges } = accepted;
       const saved = await this.savePlanChanges(tx, planId, scalarChanges, acceptedObjects, expectedUpdatedAt);
@@ -255,15 +262,34 @@ export class PlansService {
    * checked here because they carry no authoritative guest roster. A save that omits objects or guests
    * is checked against the stored values it leaves in place.
    */
-  private assertTableAssignmentsEligible(plan: PlanWithObjects, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor, eventPrivacy: EventPrivacy) {
+  private assertTableAssignmentsEligible(plan: PlanWithObjects, changes: UpdatePlanChanges, actor: ResolvedEventOpsActor, eventPrivacy: EventPrivacy, rosterGuests: FloorplanSeatingGuest[] | null) {
     if (actor.role === OpsUserRole.Client) return;
     if (changes.objects === undefined && changes.guests === undefined && changes.scene === undefined) return;
-    const layouts = seatingLayouts(plan, changes);
-    const guests = changes.guests ?? storedTableEligibilityGuests(asArray<unknown>(plan.guests));
+    const layouts = seatingLayouts(plan, changes, rosterGuests);
+    const guests = rosterGuests ?? changes.guests ?? storedTableEligibilityGuests(asArray<unknown>(plan.guests));
     assertTableAssignmentsEligible(layouts.next, guests);
     if (layouts.newSeats) {
       assertSeatingAllowedForNewAssignments(layouts.newSeats.previous, layouts.newSeats.next, { pax: changes.pax ?? plan.pax, eventPrivacy });
     }
+  }
+
+  /**
+   * A scene save seats guests from the event roster and gives zones only to suppliers booked on the event; a legacy
+   * save (null here) keeps checking the plan's own guest list.
+   */
+  private async sceneSaveRoster(tx: Prisma.TransactionClient, eventId: string | null, changes: UpdatePlanChanges): Promise<FloorplanSeatingGuest[] | null> {
+    if (!changes.scene) return null;
+    const zoneSuppliers = zoneSupplierIds(changes.scene);
+    if (!eventId) {
+      if (zoneSuppliers.length) throw new BadRequestException(ZONE_SUPPLIER_MESSAGE);
+      return [];
+    }
+    const [guests, booked] = await Promise.all([
+      this.seatingFacts.listSeatingGuests(eventId, tx),
+      zoneSuppliers.length ? this.seatingFacts.bookedSupplierIds(eventId, tx) : Promise.resolve(new Set<string>()),
+    ]);
+    if (zoneSuppliers.some((id) => !booked.has(id))) throw new BadRequestException(ZONE_SUPPLIER_MESSAGE);
+    return guests;
   }
 
   private async savePlanChanges(

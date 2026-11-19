@@ -1,3 +1,92 @@
+diff --git a/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx b/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx
+index 429ec62..0755a72 100644
+--- a/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx
++++ b/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx
+@@ -11585,6 +11585,8 @@ export function FloorplanPanel({
+         <FloorplanDrawingTypeSwitch className={planOnRight ? 'right-24 left-auto' : undefined} />
+ 
+         {!isStudioWorkspace &&
++          // PRISM host patch: an event room has no use for north, so PRISM hides the compass (ADR-0010).
++          (globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ !== true &&
+           sceneLeft !== null &&
+           (levelNode?.type === 'level' || hasAmbientBuildingLevel) &&
+           (compassHost ? (
+diff --git a/node_modules/@pascal-app/editor/src/components/editor/index.tsx b/node_modules/@pascal-app/editor/src/components/editor/index.tsx
+index d1b77a1..a3087e1 100644
+--- a/node_modules/@pascal-app/editor/src/components/editor/index.tsx
++++ b/node_modules/@pascal-app/editor/src/components/editor/index.tsx
+@@ -159,6 +159,9 @@ import { WallMoveSideHandles } from './wall-move-side-handles'
+ import { WallOpeningHighlights } from './wall-opening-highlights'
+ import { WallRegionHandles } from './wall-region-handles'
+ 
++/** PRISM host patch: PRISM sets this flag when it hosts the editor and hides building-editor chrome (ADR-0010). */
++const isPrismHost = () => (globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ === true
++
+ const CAMERA_CONTROLS_HINT_DISMISSED_STORAGE_KEY = 'editor-camera-controls-hint-dismissed:v1'
+ const PREVIEW_STAGE_SWITCHER_POSITION =
+   'top-28 right-4 left-auto translate-x-0 md:top-4 md:right-auto md:left-1/2 md:-translate-x-1/2'
+@@ -964,6 +967,9 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
+   // boundary flags) so the framed shot stays clean.
+   const isCaptureMode = useEditor((s) => s.isCaptureMode)
+   const noEditing = isVersionPreviewMode || isFirstPersonMode || isStudioMode || isCaptureMode
++  // PRISM host patch: a read-only PRISM scene shows no action bars, since every action on them would be refused.
++  const sceneReadOnly = useScene((s) => s.readOnly)
++  const noActionMenus = noEditing || isXRMode || (isPrismHost() && sceneReadOnly)
+   return (
+     <>
+       <SceneEnvironment />
+@@ -979,9 +985,9 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
+       {!noEditing && <WallMoveSideHandles />}
+       {!noEditing && <WallRegionHandles />}
+       {!noEditing && <FenceTangentLines3D />}
+-      {!(noEditing || isXRMode) && <FloatingActionMenu />}
+-      {!(noEditing || isXRMode) && <GroupFloatingActionMenu />}
+-      {!(noEditing || isXRMode) && <FloatingBuildingActionMenu />}
++      {!noActionMenus && <FloatingActionMenu />}
++      {!noActionMenus && <GroupFloatingActionMenu />}
++      {!noActionMenus && <FloatingBuildingActionMenu />}
+       {!(noEditing || isXRMode) && <RoomLabels3D />}
+       {!(isFirstPersonMode || isXRMode) && <WallMeasurementLabel />}
+       <ExportManager />
+@@ -1433,6 +1439,7 @@ const ViewerCanvas = memo(function ViewerCanvas({
+               {!showLoader &&
+               textures &&
+               !isMobile &&
++              !isPrismHost() &&
+               !(
+                 isFirstPersonMode ||
+                 isStudioMode ||
+@@ -2064,7 +2071,7 @@ function EditorContent({
+               overlays={
+                 <>
+                   <SceneRegion>
+-                    {!(isCaptureMode || stageOverlay) && <FloatingLevelSelector />}
++                    {!(isCaptureMode || stageOverlay || isPrismHost()) && <FloatingLevelSelector />}
+                     {!(isVersionPreviewMode || isCaptureMode || isStudioMode) &&
+                       (dockMenuOnTop ? (
+                         // Own row under the toolbar, below the level selector's opening list (z-20).
+@@ -2085,7 +2092,7 @@ function EditorContent({
+                   <RightStack
+                     belowTopMenu={topMenuShown}
+                     reserveBottomMenu={!dockMenuOnTop}
+-                    helper={isCaptureMode ? null : <HelperManager />}
++                    helper={isCaptureMode || isPrismHost() ? null : <HelperManager />}
+                     inspector={
+                       isVersionPreviewMode || isCaptureMode || isStudioMode ? null : (
+                         <PanelManager
+diff --git a/node_modules/@pascal-app/editor/src/components/ui/action-menu/view-toggles.tsx b/node_modules/@pascal-app/editor/src/components/ui/action-menu/view-toggles.tsx
+index 7cea638..2025dc7 100644
+--- a/node_modules/@pascal-app/editor/src/components/ui/action-menu/view-toggles.tsx
++++ b/node_modules/@pascal-app/editor/src/components/ui/action-menu/view-toggles.tsx
+@@ -1153,6 +1153,8 @@ function RiserControl() {
+ // ── Exports ─────────────────────────────────────────────────────────────────
+ 
+ export function SecondaryToggles() {
++  // PRISM host patch: venue plans are traced from PRISM's Room panel, so the dock's scans control is hidden (ADR-0010).
++  if ((globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ === true) return null
+   return (
+     <div className="flex items-center gap-1">
+       <ReferencesControl />
 diff --git a/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts b/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts
 index 8adafe9..dad3f88 100644
 --- a/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts
@@ -11,3 +100,16 @@ index 8adafe9..dad3f88 100644
    for (let guard = 0; node && guard < 32; guard += 1) {
      if (node.type === 'building') return node.id
      node = node.parentId ? nodes[node.parentId] : undefined
+diff --git a/node_modules/@pascal-app/editor/src/lib/plugin-panels.ts b/node_modules/@pascal-app/editor/src/lib/plugin-panels.ts
+index 3d7cce2..1d5cdee 100644
+--- a/node_modules/@pascal-app/editor/src/lib/plugin-panels.ts
++++ b/node_modules/@pascal-app/editor/src/lib/plugin-panels.ts
+@@ -233,6 +233,8 @@ export function showsPluginManager({
+   readOnly: boolean
+   workspaceMode: string
+ }): boolean {
++  // PRISM host patch: PRISM's event pieces are always installed, so it hides the plugin manager (ADR-0010).
++  if ((globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ === true) return false
+   if (workspaceMode !== 'edit') return false
+   return managedPluginCount > 0 || !readOnly
+ }

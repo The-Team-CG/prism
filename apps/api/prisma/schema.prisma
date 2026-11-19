@@ -3192,6 +3192,9 @@ model OpsGuestRosterEntry {
   category                 String    @default("")
   table                    String    @default("")
   eligibility              String    @default("eligible")
+  /// "confirmed", "pending" or "declined"; seating refuses declined guests.
+  rsvp                     String    @default("pending")
+  dietary                  String    @default("")
   verificationStatus       String    @default("pending") @map("verification_status")
   source                   String    @default("manual")
   privacyConsentAccepted   Boolean   @default(false) @map("privacy_consent_accepted")

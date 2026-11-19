@@ -43,3 +43,18 @@ describe("validateFloorplanScene", () => {
     expect(issuesOf({ nodes: [] }).length).toBeGreaterThan(0);
   });
 });
+
+describe("validateFloorplanScene with the Library's pieces", () => {
+  const base = { parentId: "level_1", position: [1, 0, 1], rotation: 0, width: 3, depth: 3 };
+
+  it("accepts a seating block and refuses a zone without a label", () => {
+    const blockNode = { id: "prism-seating-block_a", type: "prism-seating-block", style: "classroom", rows: 3, columns: 4, ...base };
+    expect(validateFloorplanScene(sceneWith([blockNode])).ok).toBe(true);
+    const zoneNode = { id: "prism-zone_a", type: "prism-zone", label: "", ...base };
+    expect(issuesOf(sceneWith([zoneNode])).join(" ")).toContain("prism-zone_a");
+  });
+
+  it("refuses an unknown prism piece type", () => {
+    expect(issuesOf(sceneWith([{ id: "prism-rocket_a", type: "prism-rocket", ...base }])).join(" ")).toContain("prism-rocket_a");
+  });
+});

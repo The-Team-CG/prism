@@ -53,6 +53,7 @@ export const prismTableNodeSchema = floorplanSceneNodeSchema.extend({
   number: z.number().int().positive().optional(),
   chairStyle: z.string().min(1).default("chiavari"),
   linen: z.string().min(1).default("white"),
+  centerpiece: z.string().min(1).optional(),
   guestIds: z.array(z.string().min(1)).refine(hasUniqueEntries, "A guest can be listed at a table only once").default([]),
 });
 
@@ -74,10 +75,86 @@ export const prismPieceNodeSchema = floorplanSceneNodeSchema.extend({
   variant: z.string().min(1),
   ...placement,
   label: z.string().optional(),
+  /** A stage's front steps and platform height; ignored by other pieces. */
+  steps: z.boolean().optional(),
+  heightM: z.number().positive().optional(),
 });
+
+/** Theater or classroom rows of chairs, laid out as one piece. Its chairs count as seats; guests are seated at tables. */
+export const prismSeatingBlockNodeSchema = floorplanSceneNodeSchema.extend({
+  type: z.literal("prism-seating-block"),
+  style: z.enum(["theater", "classroom"]),
+  ...placement,
+  rows: z.number().int().min(1),
+  columns: z.number().int().min(1),
+  /** Centre aisle width in metres; 0 for none. */
+  aisle: z.number().min(0).default(0),
+});
+
+export const prismDanceFloorNodeSchema = floorplanSceneNodeSchema.extend({
+  type: z.literal("prism-dance-floor"),
+  ...placement,
+});
+
+export const prismBarNodeSchema = floorplanSceneNodeSchema.extend({
+  type: z.literal("prism-bar"),
+  shape: z.enum(["straight", "l"]),
+  ...placement,
+});
+
+/** An area of the room given to suppliers, such as catering back-of-house or the AV desk. */
+export const prismZoneNodeSchema = floorplanSceneNodeSchema.extend({
+  type: z.literal("prism-zone"),
+  ...placement,
+  label: z.string().trim().min(1),
+});
+
+export const prismEventPieceTypes = [
+  "prism-table",
+  ...prismPieceNodeTypes,
+  "prism-seating-block",
+  "prism-dance-floor",
+  "prism-bar",
+  "prism-zone",
+] as const;
+export type PrismEventPieceType = (typeof prismEventPieceTypes)[number];
+
+export function isPrismEventPieceType(type: string): type is PrismEventPieceType {
+  return (prismEventPieceTypes as readonly string[]).includes(type);
+}
+
+/** The schema an event piece of `type` is stored and validated with. */
+export function prismEventPieceSchemaFor(type: PrismEventPieceType) {
+  switch (type) {
+    case "prism-table":
+      return prismTableNodeSchema;
+    case "prism-seating-block":
+      return prismSeatingBlockNodeSchema;
+    case "prism-dance-floor":
+      return prismDanceFloorNodeSchema;
+    case "prism-bar":
+      return prismBarNodeSchema;
+    case "prism-zone":
+      return prismZoneNodeSchema;
+    default:
+      return prismPieceNodeSchema;
+  }
+}
+
+const mintedId = (type: PrismEventPieceType) => z.string().min(1).default(() => `${type}_${crypto.randomUUID()}`);
+
+/** The same schema, minting `${type}_<uuid>` when no id is given: Pascal's placement tools parse new nodes without one. */
+export function placeableEventPieceSchemaFor(type: PrismEventPieceType) {
+  return prismEventPieceSchemaFor(type).extend({ id: mintedId(type) });
+}
 
 export type FloorplanSceneNode = z.infer<typeof floorplanSceneNodeSchema>;
 export type FloorplanSceneDocument = z.infer<typeof floorplanSceneDocumentSchema>;
 export type PrismTableNode = z.infer<typeof prismTableNodeSchema>;
 export type PrismPieceNodeType = (typeof prismPieceNodeTypes)[number];
 export type PrismPieceNode = z.infer<typeof prismPieceNodeSchema>;
+export type PrismSeatingBlockNode = z.infer<typeof prismSeatingBlockNodeSchema>;
+export type PrismDanceFloorNode = z.infer<typeof prismDanceFloorNodeSchema>;
+export type PrismBarNode = z.infer<typeof prismBarNodeSchema>;
+export type PrismZoneNode = z.infer<typeof prismZoneNodeSchema>;
+export type PrismEventPiece = PrismTableNode | PrismPieceNode | PrismSeatingBlockNode | PrismDanceFloorNode | PrismBarNode | PrismZoneNode;
