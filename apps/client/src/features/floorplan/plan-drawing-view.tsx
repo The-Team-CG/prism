@@ -10,18 +10,21 @@ const PIECE_STROKE = "#9060A0";
 
 type Piece = PlanDrawing["pieces"][number];
 
-/** A piece's outline: its ellipse, its box, or a U's or hollow square's runs, each run a box in the piece's frame. */
-function Outline({ piece }: { piece: Piece }) {
-  if (piece.shape === "circle") return <ellipse cx={piece.cx} cy={piece.cy} rx={piece.width / 2} ry={piece.depth / 2} fill={PIECE_FILL} stroke={PIECE_STROKE} />;
+/**
+ * A piece's outline: its ellipse, its box, or a U's or hollow square's runs, each run a box in the piece's frame. The plan is
+ * drawn in metres, so the line is given a width in metres too; left unset, SVG would draw a 1 m outline.
+ */
+function Outline({ piece, line }: { piece: Piece; line: number }) {
+  if (piece.shape === "circle") return <ellipse cx={piece.cx} cy={piece.cy} rx={piece.width / 2} ry={piece.depth / 2} fill={PIECE_FILL} stroke={PIECE_STROKE} strokeWidth={line} />;
   const boxes = piece.shape === "runs" ? piece.runs : [{ x: 0, y: 0, width: piece.width, depth: piece.depth }];
   return boxes.map((box, index) => (
-    <rect key={index} x={piece.cx + box.x - box.width / 2} y={piece.cy + box.y - box.depth / 2} width={box.width} height={box.depth} fill={PIECE_FILL} stroke={PIECE_STROKE} />
+    <rect key={index} x={piece.cx + box.x - box.width / 2} y={piece.cy + box.y - box.depth / 2} width={box.width} height={box.depth} fill={PIECE_FILL} stroke={PIECE_STROKE} strokeWidth={line} />
   ));
 }
 
 /** A piece's outline, turned as the Pascal editor turns it: by -rotation, in SVG's clockwise-positive frame. */
-function PieceShape({ piece }: { piece: Piece }) {
-  const outline = <Outline piece={piece} />;
+function PieceShape({ piece, line }: { piece: Piece; line: number }) {
+  const outline = <Outline piece={piece} line={line} />;
   return <g data-piece-id={piece.id} transform={`rotate(${(-piece.rotation * 180) / Math.PI} ${piece.cx} ${piece.cy})`}>{outline}</g>;
 }
 
@@ -52,7 +55,7 @@ export function PlanDrawingView({ drawing, label, className, onClick, testId = "
       {drawing.walls.map((wall) => (
         <line key={wall.id} x1={wall.x1} y1={wall.y1} x2={wall.x2} y2={wall.y2} stroke={WALL} strokeWidth={scale * 0.012} strokeLinecap="square" />
       ))}
-      {drawing.pieces.map((piece) => <PieceShape key={piece.id} piece={piece} />)}
+      {drawing.pieces.map((piece) => <PieceShape key={piece.id} piece={piece} line={scale * 0.0025} />)}
       {drawing.pieces.map((piece) => (
         <text key={`${piece.id}-name`} x={piece.cx} y={piece.cy} textAnchor="middle" dominantBaseline="central" fontSize={scale * 0.022} fill="#2B1D27" pointerEvents="none">
           {piece.name}
