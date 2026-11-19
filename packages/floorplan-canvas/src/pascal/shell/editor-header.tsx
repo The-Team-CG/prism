@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useState, useSyncExternalStore, type FormEvent } from "react";
-import { BookmarkPlus, Check, ChevronLeft, Eye, Layers3, LoaderCircle, Printer, Redo2, Send, TriangleAlert, Undo2 } from "lucide-react";
+import { BookmarkPlus, Check, ChevronDown, ChevronLeft, Eye, LoaderCircle, Printer, Redo2, Send, TriangleAlert, Undo2 } from "lucide-react";
 import { getHistoryCommandState, runRedo, runUndo, subscribeHistoryCommandState, type SaveStatus } from "@pascal-app/editor";
 import type { FloorplanSceneDocument, SceneSaveState } from "@prism/types";
 import { usePrismFloorplan } from "../editor-context";
+import { Menu, menuItem } from "./menu";
+import { ToolGroup } from "./tool-group";
 import { ViewSwitch } from "./view-switch";
 import { buildSeatingList, seatingListHtml } from "./seating-list";
 import { planHtml, printHtml, pullSheetHtml } from "./print-documents";
@@ -14,7 +16,7 @@ export type EditorHeaderProps = {
   /** Builds the scene to submit, including edits autosave has not written yet. */
   currentDocument(): FloorplanSceneDocument;
   onSubmit?(document: FloorplanSceneDocument): Promise<unknown>;
-  /** Saves the scene as a venue template under the given name; the header is hidden when the host has no library. */
+  /** Saves the scene as a venue template under the given name; the menu item is hidden when the host has no library. */
   onSaveTemplate?(document: FloorplanSceneDocument, name: string): Promise<unknown>;
   /** The review hand-off's label; a client's revision returns to PMCM rather than going for review. */
   submitLabel?: string;
@@ -36,8 +38,8 @@ export function saveDisplay(host: SceneSaveState, pascal: SaveStatus): SaveDispl
   return host === "saving" || pascal === "pending" || pascal === "saving" ? "saving" : "saved";
 }
 
-const iconButton = "inline-grid size-8 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40";
-const quietButton = "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground aria-disabled:cursor-not-allowed aria-disabled:opacity-60";
+const iconButton =
+  "inline-grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent aria-expanded:bg-muted aria-expanded:text-foreground";
 
 function SaveStatusLabel({ pascalStatus }: { pascalStatus: SaveStatus }) {
   const { saveState, saveMessage, onRetrySave, onReload } = usePrismFloorplan();
@@ -45,7 +47,7 @@ function SaveStatusLabel({ pascalStatus }: { pascalStatus: SaveStatus }) {
   if (display === "failed" || display === "conflict") {
     const [label, action] = display === "failed" ? ["Not saved · Retry", onRetrySave] : ["Changed elsewhere · Reload", onReload];
     return (
-      <button type="button" onClick={action} title={saveMessage ?? undefined} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10">
+      <button type="button" onClick={action} title={saveMessage ?? undefined} className="mr-1 inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-destructive hover:bg-destructive/10">
         <TriangleAlert className="size-3.5" aria-hidden />
         {label}
       </button>
@@ -54,7 +56,7 @@ function SaveStatusLabel({ pascalStatus }: { pascalStatus: SaveStatus }) {
   const saving = display === "saving";
   const Icon = saving ? LoaderCircle : Check;
   return (
-    <span role="status" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+    <span role="status" className="mr-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
       <Icon className={saving ? "size-3.5 animate-spin" : "size-3.5"} aria-hidden />
       {saving ? "Saving…" : "Saved"}
     </span>
@@ -76,16 +78,13 @@ function HistoryButtons() {
   );
 }
 
+type TemplateSaver = { currentDocument(): FloorplanSceneDocument; onSaveTemplate(document: FloorplanSceneDocument, name: string): Promise<unknown> };
+
 /** Names the venue and saves the scene as its template; the form stays open with the reason when the save is refused. */
-function SaveTemplateAction({ currentDocument, onSaveTemplate }: { currentDocument(): FloorplanSceneDocument; onSaveTemplate(document: FloorplanSceneDocument, name: string): Promise<unknown> }) {
-  const [open, setOpen] = useState(false);
+function TemplateForm({ currentDocument, onSaveTemplate, onDone }: TemplateSaver & { onDone(): void }) {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
-  const close = () => {
-    setOpen(false);
-    setRefusal(null);
-  };
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const venue = name.trim();
@@ -97,39 +96,97 @@ function SaveTemplateAction({ currentDocument, onSaveTemplate }: { currentDocume
     setRefusal(null);
     try {
       await onSaveTemplate(currentDocument(), venue);
-      setName("");
-      close();
+      onDone();
     } catch (error) {
       setRefusal(error instanceof Error ? error.message : "The venue template could not be saved.");
     } finally {
       setBusy(false);
     }
   }
-  if (!open) {
-    return (
-      <button type="button" onClick={() => setOpen(true)} className={quietButton}>
-        <BookmarkPlus className="size-4" aria-hidden />
-        Save as venue template
-      </button>
-    );
-  }
   return (
-    <form onSubmit={(event) => void save(event)} className="flex items-center gap-1.5">
-      <label htmlFor="venue-template-name" className="sr-only">Venue name</label>
+    <form onSubmit={(event) => void save(event)} className="w-64 space-y-2 p-1.5">
+      <label htmlFor="venue-template-name" className="block text-xs font-medium text-foreground">
+        Save as venue template
+      </label>
       <input
         id="venue-template-name"
         value={name}
         onChange={(event) => setName(event.target.value)}
         placeholder="Venue name"
         autoFocus
-        className="w-44 rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+        className="h-8 w-full rounded-lg bg-muted px-2.5 text-[13px] text-foreground outline-none focus:ring-2 focus:ring-ring/40"
       />
-      <button type="submit" disabled={busy} className="rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-60">
-        {busy ? "Saving…" : "Save"}
-      </button>
-      <button type="button" onClick={close} className={quietButton}>Cancel</button>
-      {refusal ? <span role="alert" title={refusal} className="max-w-56 truncate text-xs text-destructive">{refusal}</span> : null}
+      {refusal ? (
+        <p role="alert" className="text-xs text-destructive">
+          {refusal}
+        </p>
+      ) : null}
+      <div className="flex justify-end gap-1.5">
+        <button type="button" onClick={onDone} className="h-8 rounded-lg px-2.5 text-[13px] text-muted-foreground hover:bg-muted">
+          Cancel
+        </button>
+        <button type="submit" disabled={busy} className="h-8 rounded-lg bg-primary px-3 text-[13px] font-medium text-primary-foreground disabled:opacity-60">
+          {busy ? "Saving…" : "Save"}
+        </button>
+      </div>
     </form>
+  );
+}
+
+type PlanMenuProps = { eventName?: string; draftName?: string; draftStatus?: string; onBack(): void; saver: TemplateSaver | null };
+
+function PlanName({ eventName, draftName, draftStatus }: Pick<PlanMenuProps, "eventName" | "draftName" | "draftStatus">) {
+  return (
+    <>
+      {eventName ? <span className="truncate text-muted-foreground">{eventName}</span> : null}
+      {eventName ? <span className="text-muted-foreground/60">/</span> : null}
+      <span className="truncate font-semibold text-foreground">{draftName ?? "Floor plan"}</span>
+      {draftStatus ? <span className="shrink-0 text-muted-foreground">· {draftStatus}</span> : null}
+    </>
+  );
+}
+
+/** The plan's name in the middle of the bar, as Figma names its file; its menu saves the plan as a venue template and goes back. */
+function PlanMenu({ onBack, saver, ...name }: PlanMenuProps) {
+  const [naming, setNaming] = useState(false);
+  return (
+    <Menu
+      align="center"
+      trigger={({ open, toggle }) => (
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => {
+            setNaming(false);
+            toggle();
+          }}
+          className="inline-flex h-8 max-w-[28rem] items-center gap-1.5 rounded-lg px-2.5 text-[13px] hover:bg-muted aria-expanded:bg-muted"
+        >
+          <PlanName {...name} />
+          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+        </button>
+      )}
+    >
+      {(close) =>
+        naming && saver ? (
+          <TemplateForm {...saver} onDone={close} />
+        ) : (
+          <>
+            {saver ? (
+              <button type="button" role="menuitem" onClick={() => setNaming(true)} className={menuItem}>
+                <BookmarkPlus className="size-4 text-muted-foreground" aria-hidden />
+                Save as venue template…
+              </button>
+            ) : null}
+            <button type="button" role="menuitem" onClick={onBack} className={menuItem}>
+              <ChevronLeft className="size-4 text-muted-foreground" aria-hidden />
+              Back to floor plans
+            </button>
+          </>
+        )
+      }
+    </Menu>
   );
 }
 
@@ -139,33 +196,43 @@ function SaveTemplateAction({ currentDocument, onSaveTemplate }: { currentDocume
  */
 function PrintMenu({ currentDocument, title }: { currentDocument(): FloorplanSceneDocument; title: string }) {
   const { guests, seating } = usePrismFloorplan();
-  const [open, setOpen] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
   const documents = [
     { label: "Floor plan", html: () => planHtml(title, currentDocument()) },
     { label: "Pull sheet", html: () => pullSheetHtml(title, currentDocument()) },
     ...(seating.allowed ? [{ label: "Seating list", html: () => seatingListHtml(title, buildSeatingList(currentDocument(), guests)) }] : []),
   ];
-  function print(html: () => string) {
-    setOpen(false);
-    setRefusal(printHtml(html()) ? null : "Allow pop-ups for this site to print.");
-  }
   return (
     <div className="relative">
-      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((shown) => !shown)} className={quietButton}>
-        <Printer className="size-4" aria-hidden />
-        Print
-      </button>
-      {open ? (
-        <div role="menu" className="absolute right-0 top-full z-50 mt-1 min-w-40 rounded-md border border-border bg-popover p-1 shadow-md">
-          {documents.map(({ label, html }) => (
-            <button key={label} type="button" role="menuitem" onClick={() => print(html)} className="block w-full rounded px-2.5 py-1.5 text-left text-sm hover:bg-muted">
+      <Menu
+        trigger={({ open, toggle }) => (
+          <button type="button" aria-haspopup="menu" aria-expanded={open} aria-label="Print" title="Print" onClick={toggle} className={iconButton}>
+            <Printer className="size-4" aria-hidden />
+          </button>
+        )}
+      >
+        {(close) =>
+          documents.map(({ label, html }) => (
+            <button
+              key={label}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                close();
+                setRefusal(printHtml(html()) ? null : "Allow pop-ups for this site to print.");
+              }}
+              className={menuItem}
+            >
               {label}
             </button>
-          ))}
-        </div>
+          ))
+        }
+      </Menu>
+      {refusal ? (
+        <span role="alert" title={refusal} className="absolute right-0 top-full mt-1 max-w-56 truncate text-xs text-destructive">
+          {refusal}
+        </span>
       ) : null}
-      {refusal ? <span role="alert" title={refusal} className="absolute right-0 top-full mt-1 max-w-56 truncate text-xs text-destructive">{refusal}</span> : null}
     </div>
   );
 }
@@ -206,40 +273,47 @@ function SubmitAction({ submitting, blocked, label, onClick }: { submitting: boo
       onClick={onClick}
       disabled={submitting || blocked}
       title={blocked ? "Reload the plan before submitting it" : undefined}
-      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-60"
+      className="ml-1.5 inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-[13px] font-medium text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_1px_2px_rgb(190_24_93/0.35)] disabled:opacity-60"
     >
-      <Send className="size-4" aria-hidden />
+      <Send className="size-3.5" aria-hidden />
       {submitting ? "Submitting…" : label}
     </button>
   );
 }
 
-/** PRISM's header in Pascal's navbar: the draft, its save state, history, views, and the review hand-off. */
+const Divider = () => <span aria-hidden className="mx-1.5 h-5 w-px bg-border" />;
+
+/**
+ * PRISM's top bar in Pascal's navbar, the editor's one toolbar: back, the tools and the view on the left; the plan's
+ * name in the middle; its save state, history, printing, preview and the review hand-off on the right.
+ */
 export function EditorHeader({ onBack, currentDocument, onSubmit, onSaveTemplate, submitLabel, pascalStatus, eventName, draftName, draftStatus }: EditorHeaderProps) {
   const { readOnly } = usePrismFloorplan();
+  const saver = onSaveTemplate && !readOnly ? { currentDocument, onSaveTemplate } : null;
   return (
-    <div className="flex w-full min-w-0 items-center gap-2">
+    <div className="relative flex h-12 w-full min-w-0 shrink-0 items-center gap-0.5 border-b border-border bg-background px-2.5">
       <button type="button" onClick={onBack} aria-label="Back to floor plans" title="Back to floor plans" className={iconButton}>
         <ChevronLeft className="size-4" aria-hidden />
       </button>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-foreground">{draftName ?? "Floor plan"}</p>
-        <p className="truncate text-xs text-muted-foreground">{[eventName, draftStatus].filter(Boolean).join(" · ")}</p>
-      </div>
-      <span aria-disabled="true" title="Phases arrive with milestone 7" className={`${quietButton} ml-3`}>
-        <Layers3 className="size-4" aria-hidden />
-        Phases
-      </span>
-      <span className="flex-1" />
-      {readOnly ? <span className="text-xs font-medium text-muted-foreground">View only</span> : <SaveStatusLabel pascalStatus={pascalStatus} />}
-      {readOnly ? null : <HistoryButtons />}
-      <PrintMenu currentDocument={currentDocument} title={draftName ?? "Floor plan"} />
+      <Divider />
+      {readOnly ? null : (
+        <>
+          <ToolGroup />
+          <Divider />
+        </>
+      )}
       <ViewSwitch />
-      <span aria-disabled="true" title="Client view arrives with milestone 5" className={quietButton}>
+      <div className="absolute left-1/2 -translate-x-1/2">
+        <PlanMenu eventName={eventName} draftName={draftName} draftStatus={draftStatus} onBack={onBack} saver={saver} />
+      </div>
+      <span className="flex-1" />
+      {readOnly ? <span className="mr-1.5 text-xs font-medium text-muted-foreground">View only</span> : <SaveStatusLabel pascalStatus={pascalStatus} />}
+      {readOnly ? null : <HistoryButtons />}
+      <Divider />
+      <PrintMenu currentDocument={currentDocument} title={draftName ?? "Floor plan"} />
+      <button type="button" disabled aria-label="Preview as client" title="Preview as client arrives with milestone 5" className={iconButton}>
         <Eye className="size-4" aria-hidden />
-        Preview as client
-      </span>
-      {onSaveTemplate && !readOnly ? <SaveTemplateAction currentDocument={currentDocument} onSaveTemplate={onSaveTemplate} /> : null}
+      </button>
       {onSubmit && !readOnly ? <SubmitButton currentDocument={currentDocument} onSubmit={onSubmit} submitLabel={submitLabel} /> : null}
     </div>
   );

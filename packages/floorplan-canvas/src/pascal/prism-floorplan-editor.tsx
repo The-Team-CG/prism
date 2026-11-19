@@ -14,7 +14,9 @@ import { EditorHeader } from "./shell/editor-header";
 import { LoadingRoom } from "./shell/loading-room";
 import { LensOverlay } from "./shell/lens-overlay";
 import { LensSwitch } from "./shell/lens-switch";
-import { columnTab, railTabs } from "./shell/rail-tabs";
+import { PlanMeasures } from "./shell/plan-measures";
+import { PlanPanel } from "./shell/plan-panel";
+import { SIDE_PANEL_TAB } from "./shell/side-panel";
 import { prismLens } from "./lens";
 import { PiecePlacement } from "./tools/piece-placement";
 import { hostState } from "./inspector/host-state";
@@ -38,6 +40,8 @@ export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOn
 // Read by the Pascal chrome patch (patches/@pascal-app+editor+1.1.6.patch): PRISM hosts the editor, so Pascal hides
 // its plugin manager, level chip, sky control, compass, shortcuts card, scans control and read-only action bars.
 (globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ = true;
+
+const SIDE_PANEL_TABS = [SIDE_PANEL_TAB];
 
 let pluginsLoaded: Promise<void> | null = null;
 
@@ -104,7 +108,6 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
     },
     [onSave, props.readOnly],
   );
-  const tabs = useMemo(() => railTabs(readOnly), [readOnly]);
   const context = useMemo<PrismFloorplanContextValue>(
     () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload }),
     [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload],
@@ -115,7 +118,6 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   useEffect(() => useCameraHintFocus.getState().focus([]), []);
   // Every plan opens as laid out; Seating is gone when the event cannot seat guests.
   useEffect(() => prismLens.set("layout"), []);
-  useEffect(() => hostState.setGuestsPanelOpener(() => useEditor.getState().setActiveSidebarPanel("guests")), []);
   useEffect(() => {
     if (!seating.allowed && prismLens.get() === "seating") prismLens.set("layout");
     hostState.setFacts({ seatingAllowed: seating.allowed, readOnly });
@@ -147,12 +149,21 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
             <Editor
               layoutVersion="v2"
               projectId={null}
-              sidebarTabs={tabs}
-              columnTabId={columnTab(readOnly)}
+              sidebarTabs={SIDE_PANEL_TABS}
+              columnTabId={SIDE_PANEL_TAB.id}
+              sideMenu={false}
+              dockInspector
+              inspectorEmpty={<PlanPanel />}
+              toolDock={false}
               viewBar={false}
               navbarSlot={header}
-              viewerToolbarLeft={<LensSwitch />}
-              floorplanSceneSlot={<LensOverlay />}
+              sceneOverlay={<LensSwitch />}
+              floorplanSceneSlot={
+                <>
+                  <LensOverlay />
+                  <PlanMeasures />
+                </>
+              }
               inspectorFooter={<SeatedGuestsFooter />}
               loadingSlot={<LoadingRoom />}
               onLoad={onLoad}
@@ -161,7 +172,7 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
             />
           ) : (
             <div className="flex h-full flex-col">
-              <div className="flex h-14 shrink-0 items-center border-b border-border px-3">{header}</div>
+              {header}
               <LoadingRoom />
             </div>
           )}
