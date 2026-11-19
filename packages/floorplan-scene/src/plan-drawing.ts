@@ -1,12 +1,19 @@
-import { isPrismEventPieceType, prismEventPieceSchemaFor, type FloorplanSceneDocument } from "@prism/types";
+import { isPrismEventPieceType, prismEventPieceSchemaFor, type FloorplanSceneDocument, type PrismEventPiece } from "@prism/types";
 import { isHiddenInScene } from "./scene-visibility.js";
+import { joinedRuns, RUN_DEPTH_M } from "./seat-layout.js";
 
 type SceneNode = FloorplanSceneDocument["nodes"][string] & Record<string, unknown>;
+
+/** A box centred at (x, y) in a piece's own frame, before the piece turns. */
+export type PieceBox = { x: number; y: number; width: number; depth: number };
+
+/** How a piece is outlined: its box, the ellipse inside it, or (a U or hollow square) the boxes of its joined runs. */
+export type PieceOutline = { shape: "rect" } | { shape: "circle" } | { shape: "runs"; runs: PieceBox[] };
 
 export type PlanDrawing = {
   room: { minX: number; minY: number; width: number; depth: number };
   walls: Array<{ id: string; x1: number; y1: number; x2: number; y2: number }>;
-  pieces: Array<{ id: string; type: string; name: string; shape: "rect" | "circle"; cx: number; cy: number; width: number; depth: number; rotation: number }>;
+  pieces: Array<{ id: string; type: string; name: string; cx: number; cy: number; width: number; depth: number; rotation: number } & PieceOutline>;
 };
 
 type Extent = { minX: number; minY: number; width: number; depth: number };
@@ -51,18 +58,27 @@ export function pieceName(node: SceneNode): string {
   return node.type.replace(/^prism-/, "");
 }
 
+function outlineOf(piece: PrismEventPiece): PieceOutline {
+  if (piece.type !== "prism-table") return { shape: "rect" };
+  if (piece.shape === "round" || piece.shape === "cocktail") return { shape: "circle" };
+  if (piece.shape !== "u-shape" && piece.shape !== "hollow-square") return { shape: "rect" };
+  const runs = joinedRuns(piece).map(({ length, centre: [x, y], alongZ }) =>
+    alongZ ? { x, y, width: RUN_DEPTH_M, depth: length } : { x, y, width: length, depth: RUN_DEPTH_M },
+  );
+  return { shape: "runs", runs };
+}
+
 /** A visible event piece as a drawable shape, or null when it is not an event piece or fails its schema. */
 function drawnPiece(node: SceneNode): PlanDrawing["pieces"][number] | null {
   if (!isPrismEventPieceType(node.type)) return null;
   const parsed = prismEventPieceSchemaFor(node.type).safeParse(node);
   if (!parsed.success) return null;
   const piece = parsed.data;
-  const round = piece.type === "prism-table" && (piece.shape === "round" || piece.shape === "cocktail");
   return {
     id: node.id,
     type: node.type,
     name: pieceName(node),
-    shape: round ? "circle" : "rect",
+    ...outlineOf(piece),
     cx: piece.position[0],
     cy: piece.position[2],
     width: piece.width,
@@ -73,7 +89,7 @@ function drawnPiece(node: SceneNode): PlanDrawing["pieces"][number] | null {
 
 /**
  * What a 2D view needs to draw a Pascal scene: the room box from its visible walls, each visible wall as a line, and
- * each visible event piece as a shape. Hidden nodes, and anything under a hidden node, are left out. Throws for a
+ * each visible event piece as a shape (a U or hollow square as its runs). Hidden nodes, and anything under a hidden node, are left out. Throws for a
  * scene without walls, since every PRISM plan has a room.
  */
 export function planDrawing(scene: FloorplanSceneDocument): PlanDrawing {

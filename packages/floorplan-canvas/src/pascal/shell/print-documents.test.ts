@@ -20,9 +20,20 @@ describe("printed documents", () => {
     const html = planHtml("Gala", plan());
     expect(html).toContain("Room 20 × 15 m");
     expect(html.match(/<line [^>]*stroke-width="0.2"/g)).toHaveLength(4);
-    expect(html).toContain(">T1</text>");
+    expect(html).toContain(">1</text>");
     expect(html).toContain("Round table 1.8 m");
     expect(html).toContain("Chiavari chairs");
+  });
+
+  it("prints a setup drawing as ink on white: no colour fills or shadows, every piece and label still drawn", () => {
+    const html = planHtml("Gala", plan(), "drafting");
+    const svg = html.slice(html.indexOf("<svg"), html.indexOf("</svg>"));
+    const fills = new Set([...svg.matchAll(/ fill="([^"]+)"/g)].map(([, fill]) => fill));
+    expect([...fills].every((fill) => ["#ffffff", "none", "#1f2937"].includes(fill))).toBe(true);
+    expect(svg).not.toContain("fill-opacity");
+    expect(html).toContain("Gala · Setup drawing");
+    expect(svg).toContain(">1</text>");
+    expect(svg).toContain("&lt;b&gt;Main&lt;/b&gt; stage");
   });
 
   it("escapes what people typed", () => {

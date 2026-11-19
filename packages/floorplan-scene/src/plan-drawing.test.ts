@@ -39,6 +39,22 @@ describe("planDrawing", () => {
     expect(drawing.pieces.map((piece) => piece.id)).toEqual(["shown"]);
   });
 
+  it("draws a U-shape as its three runs, open at the front, and a hollow square closed", () => {
+    const joined = (id: string, shape: string) => ({ ...table(id), shape, width: 6, depth: 5, seats: 18 });
+    const drawing = planDrawing(sceneWith([wall("wall_a", [0, 0], [10, 0]), joined("u", "u-shape"), joined("square", "hollow-square")]));
+    const [u, square] = drawing.pieces;
+
+    expect(u).toMatchObject({
+      shape: "runs",
+      runs: [
+        { x: 0, y: -2.125, width: 6, depth: 0.75 },
+        { x: -2.625, y: 0.375, width: 0.75, depth: 4.25 },
+        { x: 2.625, y: 0.375, width: 0.75, depth: 4.25 },
+      ],
+    });
+    expect(square).toMatchObject({ shape: "runs", runs: expect.arrayContaining([{ x: 0, y: 2.125, width: 6, depth: 0.75 }]) });
+  });
+
   it("throws for a scene without walls", () => {
     expect(() => planDrawing(sceneWith([table("t1")]))).toThrow("This floor plan has no walls");
   });

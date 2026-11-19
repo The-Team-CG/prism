@@ -64,7 +64,7 @@ export function cylinder(
   slot: SlotId,
   size: Vec3,
   position: Vec3,
-  extras: { rotation?: Vec3; segments?: number; when?: Expr } = {},
+  extras: { rotation?: Vec3; segments?: number; inner?: number; when?: Expr } = {},
 ): Shape {
   return { id, primitive: "cylinder", slot, size, position, ...extras };
 }

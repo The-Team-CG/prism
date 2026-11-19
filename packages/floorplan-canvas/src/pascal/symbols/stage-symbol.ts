@@ -1,6 +1,6 @@
 import type { FloorplanGeometry } from "@pascal-app/core";
 import type { PrismPieceNode } from "@prism/types";
-import { INK, centredRect, label, placed } from "./symbol-kit";
+import { LOOK, centredRect, label, placed, shadowOf } from "./symbol-kit";
 
 const STEP_WIDTH_M = 1.2;
 const STEP_TREAD_M = 0.3;
@@ -14,7 +14,7 @@ function steps(node: PrismPieceNode): FloorplanGeometry[] {
     kind: "group",
     metadata: { part: "step" },
     transform: { translate: [0, front + STEP_TREAD_M * (index + 0.5)] },
-    children: [centredRect(STEP_WIDTH_M, STEP_TREAD_M, { fill: INK.tint })],
+    children: [centredRect(STEP_WIDTH_M, STEP_TREAD_M, { fill: LOOK.stageStep })],
   }));
 }
 
@@ -23,15 +23,17 @@ const backdrop = (node: PrismPieceNode): FloorplanGeometry => ({
   kind: "group",
   metadata: { part: "backdrop" },
   transform: { translate: [0, -node.depth / 2 + TRUSS_M / 2] },
-  children: [centredRect(node.width, TRUSS_M, { fill: INK.muted })],
+  children: [centredRect(node.width, TRUSS_M, { fill: LOOK.stageDrop })],
 });
 
-/** The stage platform, its label, its steps and its backdrop when it has them. */
+/** The stage platform in its dark deck over a soft shadow, its label in white, its steps and its backdrop when it has them. */
 export function stageSymbol(node: PrismPieceNode): FloorplanGeometry {
+  const deck = centredRect(node.width, node.depth, { fill: LOOK.stage });
   return placed(node, [
-    centredRect(node.width, node.depth, { fill: INK.tint }),
+    shadowOf(deck),
     ...(node.steps ? steps(node) : []),
+    deck,
     ...(node.backdrop ? [backdrop(node)] : []),
-    label(node.label || "Stage", 0, Math.min(0.7, node.width / 8)),
+    label(node.label || "Stage", 0, Math.min(0.7, node.width / 8), { fill: LOOK.onDark, weight: 600 }),
   ]);
 }

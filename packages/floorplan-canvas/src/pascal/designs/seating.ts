@@ -1,6 +1,6 @@
 import type { PrismSeatingBlockNode } from "@prism/types";
 import type { ChairStyle } from "../dressing";
-import { CHAIR_PARAMETERS, chairShapes, chairValues } from "./chairs";
+import { CHAIR_PARAMETERS, chairShapes } from "./chairs";
 import { box, count, designOf, div, INDEX, mul, param, part, sub, add, type EventDesign } from "./kit";
 
 /** A classroom desk sits in front of its row of chairs, a fraction of a row's pitch away. */
@@ -14,11 +14,11 @@ const DESK_SETBACK = 0.28;
 export function chairDesign(style: ChairStyle, sashed: boolean): EventDesign {
   const recipe = designOf({
     name: "Chair",
-    description: "One event chair; its style comes from its flags and slots.",
+    description: `One ${style} chair.`,
     parameters: [...CHAIR_PARAMETERS],
-    parts: [part("chair", "Chair", 1, chairShapes())],
+    parts: [part("chair", "Chair", 1, chairShapes(style))],
   });
-  return { recipe, values: chairValues(style, sashed) };
+  return { recipe, values: { sash: sashed ? 1 : 0 } };
 }
 
 /** A ceremony block's aisle runner, from the front row to the back; other blocks and a block with no aisle have none. */

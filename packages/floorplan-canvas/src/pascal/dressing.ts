@@ -7,21 +7,21 @@ export const CHAIR_STYLES = ["chiavari", "tiffany", "banquet", "ghost", "cross-b
 export type ChairStyle = (typeof CHAIR_STYLES)[number];
 
 /**
- * Fabric colours for linens, overlays, runners and sashes: `ref` is Pascal's library material the 3D cloth wears, `fill`
- * the colour the plan lays in under the drawing.
+ * Fabric colours for linens, overlays, runners and sashes: `dye` is the colour the 3D cloth is woven in, `fill` the
+ * colour the plan lays the table in.
  */
 export const FABRICS = {
-  white: { ref: "library:fabric-linen", fill: "#ffffff" },
-  ivory: { ref: "library:preset-cream", fill: "#f3ecd8" },
-  champagne: { ref: "library:preset-beige", fill: "#eadcc3" },
-  black: { ref: "library:preset-nearblack", fill: "#4a4247" },
-  blush: { ref: "library:preset-blush", fill: "#f0d6d6" },
-  "dusty rose": { ref: "library:preset-dustyrose", fill: "#d9a9a6" },
-  sage: { ref: "library:preset-sage", fill: "#b9c4a7" },
-  navy: { ref: "library:preset-navy", fill: "#3b4a6b" },
-  burgundy: { ref: "library:preset-oxblood", fill: "#7a3040" },
-  gold: { ref: "library:preset-gold", fill: "#d8b55b" },
-  silver: { ref: "library:preset-lightgrey", fill: "#d4d6d9" },
+  white: { dye: "#f7f5f0", fill: "#ffffff" },
+  ivory: { dye: "#efe6d0", fill: "#f3ecd8" },
+  champagne: { dye: "#e2d1b0", fill: "#eadcc3" },
+  black: { dye: "#262225", fill: "#4a4247" },
+  blush: { dye: "#ecc9c6", fill: "#f0d6d6" },
+  "dusty rose": { dye: "#c99592", fill: "#d9a9a6" },
+  sage: { dye: "#a3b28f", fill: "#b9c4a7" },
+  navy: { dye: "#27334f", fill: "#3b4a6b" },
+  burgundy: { dye: "#5e1f2c", fill: "#7a3040" },
+  gold: { dye: "#c9a356", fill: "#d8b55b" },
+  silver: { dye: "#c3c6ca", fill: "#d4d6d9" },
 } as const;
 export type Fabric = keyof typeof FABRICS;
 export const FABRIC_NAMES = Object.keys(FABRICS) as Fabric[];

@@ -1,13 +1,16 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { BoxGeometry, InstancedMesh, Mesh, MeshStandardMaterial, type Object3D } from "three";
 import { evaluateRecipe, validateDesign } from "@pascal-app/core/procedural-items";
-import { CHAIR_STYLES } from "../dressing";
+import { CENTERPIECES, CHAIR_STYLES, FABRICS } from "../dressing";
 import { placeableEventPieceSchemaFor, type PrismEventPiece, type PrismEventPieceType } from "@prism/types";
 import { eventPieceDefaults } from "../event-layout-plugin";
 import { LIBRARY_CATALOG } from "../library/catalog";
 import { placeNode } from "../tools/place-node";
 import { buildEventPiece, designFor, setDesignRuntime } from ".";
+import { GOLD, linen, satin } from "./materials";
+import { placeSettingDesign } from "./place-setting";
 import { chairDesign, deskDesign, runnerDesign } from "./seating";
+import { centrepieceDesign } from "./tables";
 
 /**
  * Stands in for Pascal's runtime. Building uses Pascal's own recipe evaluation, one box per evaluated shape grouped by
@@ -44,6 +47,8 @@ describe("event designs", () => {
         preset.type === "prism-seating-block" ? [deskDesign(preset), runnerDesign(preset)].filter((design) => design !== null) : [designFor(preset)],
       ),
       ...CHAIR_STYLES.flatMap((style) => [chairDesign(style, false), chairDesign(style, true)]),
+      placeSettingDesign(),
+      ...CENTERPIECES.flatMap((centerpiece) => centrepieceDesign(piece("prism-table", { centerpiece }) as never) ?? []),
     ];
     for (const { recipe, values } of designs) {
       const validation = validateDesign(recipe, { parameters: values });
@@ -65,8 +70,8 @@ describe("event designs", () => {
   it("builds every Library piece, dressed in its card's linen, overlay, sash and chair style", () => {
     for (const preset of presets) expect(buildEventPiece(preset).children.length, preset.type).toBeGreaterThan(0);
     const dressed = lookOf(buildEventPiece(piece("prism-table", { shape: "round", seats: 8, linen: "ivory", chairStyle: "chiavari", overlay: "blush", sash: "gold" })));
-    for (const ref of ["library:preset-cream", "library:metal-brass", "library:preset-blush", "library:preset-gold"]) expect(dressed).toContain(ref);
-    expect(lookOf(buildEventPiece(piece("prism-table", { shape: "round", seats: 8, overlay: "none" })))).not.toContain("library:preset-gold");
+    for (const ref of [linen(FABRICS.ivory.dye), GOLD, satin(FABRICS.blush.dye), satin(FABRICS.gold.dye), linen(FABRICS.blush.dye)]) expect(dressed).toContain(ref);
+    expect(lookOf(buildEventPiece(piece("prism-table", { shape: "round", seats: 8, overlay: "none" })))).not.toContain(satin(FABRICS.gold.dye));
   });
 
   it("draws a 300-seat block as one instanced chair per material", () => {

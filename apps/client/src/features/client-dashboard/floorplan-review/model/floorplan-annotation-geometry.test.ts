@@ -44,6 +44,15 @@ describe("annotation anchors", () => {
     expect(objectAtAnchor(room, corner)).toBeNull();
   });
 
+  it("pins to a U-shape's runs, and not to the open floor inside the U", () => {
+    const withU = readReviewRoom({
+      scene: sceneWith([...roomWalls(20, 10), { ...tablePiece("u", { x: 10, y: 5, width: 6, depth: 5 }), shape: "u-shape", seats: 18 }]),
+    });
+    if (!withU) throw new Error("the fixture plan has a room");
+    expect(objectAtAnchor(withU, { x: 10 / 20, y: (5 - 2.2) / 10 })?.id).toBe("u");
+    expect(objectAtAnchor(withU, { x: 10 / 20, y: 5 / 10 })).toBeNull();
+  });
+
   it("follows a rotated piece's box, turned by its rotation", () => {
     const rotated = readReviewRoom({
       scene: sceneWith([...roomWalls(20, 10), tablePiece("bar", { x: 10, y: 5, width: 4, depth: 0.4, rotation: Math.PI / 6 })]),

@@ -20,7 +20,7 @@ describe("event symbols", () => {
   it("draws a table's chairs by its seat count and its number", () => {
     const round = eventSymbol(piece("prism-table", { shape: "round", seats: 8, number: 4 }), "Table");
     expect(chairs(round)).toHaveLength(8);
-    expect(texts(round)).toEqual(["T4"]);
+    expect(texts(round)).toEqual(["4"]);
     const banquet = eventSymbol(piece("prism-table", { shape: "rect", width: 2.4, depth: 0.75, seats: 7, label: "Family" }), "Table");
     expect(chairs(banquet)).toHaveLength(7);
     expect(texts(banquet)).toEqual(["Family"]);
