@@ -55,7 +55,7 @@ describe.skipIf(!databaseUrl)('closeout against PostgreSQL', () => {
       eventDate: new Date('2026-09-01T00:00:00Z'), status: 'event_day', clientPortalStatus: 'unlocked',
       inquiry: { create: {
         id: inquiryId, clientName: 'P0 closeout client', email: `${inquiryId}@closeout.test`,
-        eventName: 'P0 closeout fixture', clientType: 'Private', eventDate: new Date('2026-09-01T00:00:00Z'),
+        eventName: 'P0 closeout fixture', clientType: 'Individual', eventDate: new Date('2026-09-01T00:00:00Z'),
       } },
     } });
   }

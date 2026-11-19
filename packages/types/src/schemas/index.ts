@@ -53,7 +53,6 @@ export {
   inquiryClientCategorySchema,
   inquiryPendingFullDetails,
   logInquiryOnBehalfSchema,
-  normalizeInquiryClientType,
   type InquiryClientCategory,
   type LogInquiryOnBehalfInput,
   INQUIRY_EDIT_WINDOW_HOURS,

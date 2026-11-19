@@ -613,7 +613,7 @@ describe('InquiriesService', () => {
       await service.createInquiry({
         privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
         clientName: 'Walk Client', email: 'walk@example.test', eventName: 'Quiet Party',
-        eventDate: '2026-07-20', clientType: 'Private', message: 'Small gathering', privacyConsentAccepted: true,
+        eventDate: '2026-07-20', clientType: 'Individual', message: 'Small gathering', privacyConsentAccepted: true,
       });
       expect(notifications.filter(([input]) => input.recipient === 'pmcm-inquiry-desk')).toHaveLength(0);
     } finally {

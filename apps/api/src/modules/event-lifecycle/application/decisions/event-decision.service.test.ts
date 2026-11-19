@@ -285,40 +285,40 @@ describe('EventDecisionService', () => {
     expect(tx.opsEventDecision.create).not.toHaveBeenCalled();
   });
 
-  it('replays a legacy postponement using its persisted reschedule target', async () => {
+  it('replays a postponement against its stored requested date without touching assignments', async () => {
     const { service, tx, staffingCommands } = setup();
     const input = postpone('preserve_obligations');
     tx.opsEventDecision.findUnique.mockResolvedValue({
-      id: 'legacy-postponement',
+      id: 'decision-postponed',
       eventId: 'evt-1',
       decision: input.decision,
       reason: input.reason,
       supplierImpact: input.supplierImpact,
-      financialImpact: { cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment },
+      financialImpact: { cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment, newEventDate: input.newEventDate },
       assignmentImpact: { reschedule: { toDate: `${input.newEventDate}T00:00:00.000Z` } },
     } as never);
 
-    await expect(service.decide('evt-1', { ...input, idempotencyKey: 'legacy-key' }, actor))
-      .resolves.toMatchObject({ id: 'legacy-postponement' });
+    await expect(service.decide('evt-1', { ...input, idempotencyKey: 'postpone-key' }, actor))
+      .resolves.toMatchObject({ id: 'decision-postponed' });
     expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
   });
 
-  it('replays a legacy postponement without assignment rows when event state proves its target date', async () => {
-    const { service, tx, staffingCommands } = setup({ eventOverrides: { eventDate: new Date('2026-12-10T00:00:00.000Z') } });
+  it('rejects a replay whose requested date differs from the stored one, even when the reschedule target matches', async () => {
+    const { service, tx } = setup();
     const input = postpone('preserve_obligations');
     tx.opsEventDecision.findUnique.mockResolvedValue({
-      id: 'legacy-postponement-no-assignments',
+      id: 'decision-postponed',
       eventId: 'evt-1',
       decision: input.decision,
       reason: input.reason,
       supplierImpact: input.supplierImpact,
-      financialImpact: { cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment },
-      assignmentImpact: {},
+      financialImpact: { cancellationFeeAmount: input.cancellationFeeAmount, depositTreatment: input.depositTreatment, newEventDate: '2026-12-11' },
+      assignmentImpact: { reschedule: { toDate: `${input.newEventDate}T00:00:00.000Z` } },
     } as never);
 
-    await expect(service.decide('evt-1', { ...input, idempotencyKey: 'legacy-key-no-assignments' }, actor))
-      .resolves.toMatchObject({ id: 'legacy-postponement-no-assignments' });
-    expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
+    await expect(service.decide('evt-1', { ...input, idempotencyKey: 'postpone-key' }, actor))
+      .rejects.toThrow('Decision idempotency key was reused for different content');
+    expect(tx.opsEventDecision.create).not.toHaveBeenCalled();
   });
 });
 
