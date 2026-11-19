@@ -12,7 +12,7 @@ import type {
 import { PrismaService } from '@prism/kernel/database';
 import { AuditCategory, CoordinatorAssignmentStatus, OpsUserRole } from '@prism/kernel/event-core';
 import { canReadDocumentRow, requirementVisibilityFor, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
-import { PRISM_PMCM_COMMAND_INBOX_MAX_PAGE } from '@prism/types';
+import { CLIENT_MESSAGE_TRIGGER_POLICY, PRISM_PMCM_COMMAND_INBOX_MAX_PAGE, proposalRevisionAreaSchema, type ProposalRevisionArea } from '@prism/types';
 import { findFloorPlanDraftsByEvent, withFloorPlanDrafts } from '@prism/contexts/floorplan/event-drafts';
 import { CLIENT_CHANGE_REQUEST_SELECT } from '@prism/contexts/event-lifecycle';
 
@@ -43,6 +43,15 @@ type SupplierWithProfile = Omit<SupplierProfileBase, 'reviews' | 'reliabilityNot
 };
 
 export const MAX_VISIBLE_EVENTS = 500;
+/** Per source: open proposals, revision requests and unsigned addenda the PMCM Inbox reads. */
+export const MAX_PMCM_CLIENT_DECISION_ROWS = 500;
+
+/** The client's note and areas from a proposal review audit. Older audits carry no areas. */
+function parseRevisionRequest(metadata: unknown): { note: string; areas: ProposalRevisionArea[] } {
+  const record = metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : {};
+  const areas = proposalRevisionAreaSchema.array().safeParse(record.revisionAreas ?? []);
+  return { note: typeof record.revisionNote === 'string' ? record.revisionNote : '', areas: areas.success ? areas.data : [] };
+}
 export const MAX_EVENT_FLOORPLAN_DRAFTS = 100;
 export const MAX_LIVE_OPS_TASKS = 500;
 export const MAX_LIVE_OPS_ISSUES = 500;
@@ -806,6 +815,7 @@ export class EventReadModelQueries {
       closeoutResponses,
       changeRequests,
       addenda,
+      proposalVersions,
     ] = await Promise.all([
       readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
         this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
@@ -853,9 +863,13 @@ export class EventReadModelQueries {
       ),
       readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
         this.prisma.opsAddendum.findMany({
+          // Open signatures, and those settled inside the same window as decided change requests.
           where: {
             eventId: { in: eventIds },
-            conformeExecution: { is: { status: 'awaiting_client' } },
+            OR: [
+              { conformeExecution: { is: { status: { in: ['awaiting_client', 'awaiting_pmcm'] } } } },
+              { conformeExecution: { is: { status: 'completed', completedAt: { gte: changeDecisionsSince } } } },
+            ],
             ...(afterId ? { id: { gt: afterId } } : {}),
           },
           select: {
@@ -863,9 +877,18 @@ export class EventReadModelQueries {
             eventId: true,
             versionNumber: true,
             title: true,
+            financialDelta: true,
             issuedAt: true,
-            conformeExecution: { select: { status: true } },
+            conformeExecution: { select: { status: true, completedAt: true } },
           },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS,
+        }),
+      ),
+      // Issued versions only: drafts are PMCM's. Version numbers and the change note are client-visible on the proposal.
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsProposalVersion.findMany({
+          where: { eventId: { in: eventIds }, status: 'issued', ...(afterId ? { id: { gt: afterId } } : {}) },
+          select: { id: true, eventId: true, versionNumber: true, revisionNote: true, issuedAt: true },
           orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS,
         }),
       ),
@@ -883,6 +906,7 @@ export class EventReadModelQueries {
       closeoutResponses,
       sortByDate(changeRequests, (row) => row.requestedAt, 'desc'),
       sortByDate(addenda, (row) => row.issuedAt, 'desc'),
+      proposalVersions,
     ] as const;
   }
   // Supplier and event eligibility is applied before each bounded keyset page.
@@ -1174,6 +1198,71 @@ export class EventReadModelQueries {
       take: files.length,
     });
     return new Map(rows.map((row) => [`${row.eventId}:${row.key}`, row.label]));
+  }
+
+  /**
+   * Client decisions PMCM should act on: proposal changes the client asked for, and proposals or addenda the client
+   * has left unanswered past the follow-up threshold. Each source is bounded; the Inbox lists the oldest first.
+   */
+  async pmcmClientDecisionInbox(now: Date) {
+    const proposalCutoff = new Date(now.getTime() - CLIENT_MESSAGE_TRIGGER_POLICY.proposalUnansweredDays * 86_400_000);
+    const addendumCutoff = new Date(now.getTime() - CLIENT_MESSAGE_TRIGGER_POLICY.addendumUnsignedDays * 86_400_000);
+    const [openEvents, unsignedAddenda] = await Promise.all([
+      this.prisma.opsEvent.findMany({
+        where: { archived: false, clientPortalStatus: 'unlocked', proposalClientStatus: { in: ['pending', 'revision_requested'] } },
+        select: { id: true, proposalClientStatus: true, proposalReviewedAt: true },
+        orderBy: [{ id: 'asc' }],
+        take: MAX_PMCM_CLIENT_DECISION_ROWS,
+      }),
+      this.prisma.opsAddendumConformeExecution.findMany({
+        where: { status: 'awaiting_client', createdAt: { lte: addendumCutoff }, event: { archived: false } },
+        select: { eventId: true, addendumId: true, versionNumber: true, createdAt: true, addendum: { select: { title: true } } },
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        take: MAX_PMCM_CLIENT_DECISION_ROWS,
+      }),
+    ]);
+    const pendingIds = openEvents.filter((event) => event.proposalClientStatus === 'pending').map((event) => event.id);
+    const revisionEvents = openEvents.filter((event) => event.proposalClientStatus === 'revision_requested');
+    const [versions, reviews] = await Promise.all([
+      pendingIds.length
+        ? this.prisma.opsProposalVersion.findMany({
+          where: { eventId: { in: pendingIds }, status: 'issued', issuedAt: { not: null } },
+          select: { eventId: true, versionNumber: true, issuedAt: true },
+        })
+        : Promise.resolve([]),
+      revisionEvents.length
+        ? this.prisma.opsAuditLog.findMany({
+          where: { eventId: { in: revisionEvents.map((event) => event.id) }, affectedType: 'proposal_client_review' },
+          select: { eventId: true, metadata: true, createdAt: true },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        })
+        : Promise.resolve([]),
+    ]);
+    const latestVersion = new Map<string, { versionNumber: number; issuedAt: Date }>();
+    for (const version of versions) {
+      if (!version.issuedAt) continue;
+      const previous = latestVersion.get(version.eventId);
+      if (!previous || version.versionNumber > previous.versionNumber) latestVersion.set(version.eventId, { versionNumber: version.versionNumber, issuedAt: version.issuedAt });
+    }
+    const latestReview = new Map<string, unknown>();
+    for (const review of reviews) if (review.eventId && !latestReview.has(review.eventId)) latestReview.set(review.eventId, review.metadata);
+    return {
+      proposalsAwaitingClient: [...latestVersion]
+        .filter(([, version]) => version.issuedAt <= proposalCutoff)
+        .map(([eventId, version]) => ({ eventId, ...version })),
+      revisionRequests: revisionEvents.map((event) => ({
+        eventId: event.id,
+        requestedAt: event.proposalReviewedAt,
+        ...parseRevisionRequest(latestReview.get(event.id)),
+      })),
+      unsignedAddenda: unsignedAddenda.map((row) => ({
+        eventId: row.eventId,
+        addendumId: row.addendumId,
+        versionNumber: row.versionNumber,
+        title: row.addendum.title,
+        sentAt: row.createdAt,
+      })),
+    };
   }
 
   pmcmCommandInboxEventRefs(eventIds: string[]) {

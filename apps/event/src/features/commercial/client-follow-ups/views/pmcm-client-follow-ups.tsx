@@ -6,6 +6,7 @@ import { useClientFollowUps } from "../view-models/use-client-follow-ups";
 
 const TITLES: Record<ClientMessageTrigger, string> = {
   proposal_unanswered: "Proposal waiting for the client",
+  addendum_unsigned: "Addendum waiting for the client's signature",
   balance_due: "Balance payment due soon",
   floorplan_pending: "Floor plan waiting for approval",
 };
@@ -17,7 +18,7 @@ export function PmcmClientFollowUps({ eventId }: { eventId: string }) {
   return (
     <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="client-follow-ups-heading">
       <h2 id="client-follow-ups-heading" className="text-lg font-semibold">Client follow-ups</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Suggested when a proposal waits 3 days, a balance is due within 48 hours, or a floor plan waits 2 days for approval.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Suggested when a proposal or addendum waits 3 days, a balance is due within 48 hours, or a floor plan waits 2 days for approval.</p>
       {vm.error ? <p role="alert" className="mt-3 text-sm text-destructive">{vm.error}</p> : null}
       {vm.triggers.length === 0 ? <p className="mt-4 text-sm text-muted-foreground">No follow-ups are due for this event.</p> : null}
       <ul className="mt-4 space-y-4">

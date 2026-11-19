@@ -82,6 +82,8 @@ export type AiProposalEventSource = {
 export type ClientMessageTriggerFacts = {
   event: AiProposalEventSource & { proposalClientStatus: string; floorPlanStatus: string; floorPlanSubmittedAt: Date | null; clientEmail: string };
   latestIssuedProposal: { versionNumber: number; issuedAt: Date } | null;
+  /** The longest-waiting addendum PMCM has sent the client to sign. */
+  oldestUnsignedAddendum: { versionNumber: number; sentAt: Date } | null;
   nextUnpaidMilestone: { label: string; remainingBalance: number; dueDate: Date } | null;
 };
 

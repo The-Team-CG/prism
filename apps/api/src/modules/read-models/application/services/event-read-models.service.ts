@@ -539,6 +539,7 @@ export class EventReadModelsService {
     const closeoutResponses: ClientActionSources[7] = [];
     const changeRequests: ClientActionSources[8] = [];
     const addenda: ClientActionSources[9] = [];
+    const proposalVersions: ClientActionSources[10] = [];
     const now = new Date();
     const changeDecisionsSince = new Date(now.getTime() - CLIENT_CHANGE_DECISION_REVIEW_DAYS * 24 * 60 * 60 * 1000);
     for (let offset = 0; offset < visibleEvents.length; offset += 100) {
@@ -554,6 +555,7 @@ export class EventReadModelsService {
         batchCloseoutResponses,
         batchChangeRequests,
         batchAddenda,
+        batchProposalVersions,
       ] =
       await this.queries.clientActionCenterForEvents(eventBatch.map((event) => event.id), changeDecisionsSince);
       briefings.push(...batchBriefings);
@@ -566,6 +568,7 @@ export class EventReadModelsService {
       closeoutResponses.push(...batchCloseoutResponses);
       changeRequests.push(...batchChangeRequests);
       addenda.push(...batchAddenda);
+      proposalVersions.push(...batchProposalVersions);
     }
     const items = collectClientActionItems({
       visibleEvents,
@@ -579,6 +582,8 @@ export class EventReadModelsService {
       closeoutResponses,
       changeRequests,
       addenda,
+      proposalVersions,
+      actorEmail: actor.email ?? null,
       now,
     });
 
@@ -685,8 +690,16 @@ export class EventReadModelsService {
   }
 
   private async commandInboxItems(page: number, pageSize: number) {
-    const pageData = await this.queries.pmcmCommandInbox(page, pageSize);
+    const now = new Date();
+    // Client decisions are a short, bounded list rather than a paged source, so they lead the first page only.
+    const [pageData, clientDecisions] = await Promise.all([
+      this.queries.pmcmCommandInbox(page, pageSize, now),
+      page === 0 ? this.queries.pmcmClientDecisionInbox(now) : Promise.resolve(undefined),
+    ]);
     const eventIds = [...new Set([
+      ...(clientDecisions
+        ? [...clientDecisions.revisionRequests, ...clientDecisions.proposalsAwaitingClient, ...clientDecisions.unsignedAddenda].map((row) => row.eventId)
+        : []),
       ...pageData.events.map((event) => event.id),
       ...pageData.paymentMilestones.map((row) => row.eventId),
       ...pageData.quoteRequests.map((row) => row.eventId),
@@ -726,6 +739,8 @@ export class EventReadModelsService {
         corrections: pageData.billingCorrections,
         supplierPayouts: pageData.supplierPayouts,
       },
+      clientDecisions,
+      now,
     });
     return { items, summary, hasMore: pageData.hasMore };
   }

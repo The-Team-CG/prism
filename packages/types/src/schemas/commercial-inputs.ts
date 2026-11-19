@@ -8,9 +8,14 @@ import {
 } from "./common.js";
 /* Proposal and estimate writes. */
 
+/** The parts of a proposal a client can ask PMCM to change; they tell PMCM where to look before reading the note. */
+export const proposalRevisionAreaSchema = z.enum(["venue", "styling", "budget", "program", "guest_count", "suppliers", "other"]);
+export type ProposalRevisionArea = z.infer<typeof proposalRevisionAreaSchema>;
+
 export const reviewEventProposalSchema = z.object({
   action: z.enum(["approve", "request_revision"]),
   revisionNote: optionalTrimmedStringSchema,
+  revisionAreas: z.array(proposalRevisionAreaSchema).max(7).optional(),
   idempotencyKey: optionalTrimmedStringSchema,
 }).superRefine((value, ctx) => {
   if (value.action === "request_revision" && !value.revisionNote?.trim()) {

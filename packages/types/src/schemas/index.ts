@@ -86,6 +86,8 @@ export {
   briefingVenueTypeSchema,
   type BriefingVenueType,
   reviewEventProposalSchema,
+  proposalRevisionAreaSchema,
+  type ProposalRevisionArea,
   createProposalCommentSchema,
   archiveSearchFiltersSchema,
   archiveComparisonQuerySchema,

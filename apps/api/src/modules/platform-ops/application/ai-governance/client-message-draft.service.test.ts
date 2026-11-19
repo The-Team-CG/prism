@@ -14,14 +14,15 @@ function facts(overrides: Record<string, unknown> = {}) {
       ...overrides,
     },
     latestIssuedProposal: { versionNumber: 2, issuedAt: day(-3) },
+    oldestUnsignedAddendum: { versionNumber: 4, sentAt: day(-3) },
     nextUnpaidMilestone: { label: 'Balance', remainingBalance: 250_000, dueDate: day(1) },
   };
 }
 
 describe('FR-AI-09 client message triggers', () => {
   it('applies the catalog thresholds and stays quiet for archived or locked events', () => {
-    expect(activeClientMessageTriggers(facts() as never, NOW).map((item) => item.trigger)).toEqual(['proposal_unanswered', 'balance_due', 'floorplan_pending']);
-    const early = { ...facts(), latestIssuedProposal: { versionNumber: 2, issuedAt: day(-2) }, nextUnpaidMilestone: { label: 'Balance', remainingBalance: 1, dueDate: day(3) } };
+    expect(activeClientMessageTriggers(facts() as never, NOW).map((item) => item.trigger)).toEqual(['proposal_unanswered', 'addendum_unsigned', 'balance_due', 'floorplan_pending']);
+    const early = { ...facts(), latestIssuedProposal: { versionNumber: 2, issuedAt: day(-2) }, oldestUnsignedAddendum: { versionNumber: 4, sentAt: day(-2) }, nextUnpaidMilestone: { label: 'Balance', remainingBalance: 1, dueDate: day(3) } };
     expect(activeClientMessageTriggers({ ...early, event: { ...early.event, floorPlanSubmittedAt: day(-1) } } as never, NOW)).toEqual([]);
     expect(activeClientMessageTriggers(facts({ archived: true }) as never, NOW)).toEqual([]);
     expect(activeClientMessageTriggers(facts({ clientPortalStatus: 'locked' }) as never, NOW)).toEqual([]);

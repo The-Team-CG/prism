@@ -217,8 +217,9 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
       },
     });
     if (!event) return null;
-    const [proposal, milestone] = await Promise.all([
+    const [proposal, addendum, milestone] = await Promise.all([
       this.prisma.opsProposalVersion.findFirst({ where: { eventId, status: 'issued', issuedAt: { not: null } }, orderBy: { versionNumber: 'desc' }, select: { versionNumber: true, issuedAt: true } }),
+      this.prisma.opsAddendumConformeExecution.findFirst({ where: { eventId, status: 'awaiting_client' }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { versionNumber: true, createdAt: true } }),
       this.prisma.opsPaymentMilestone.findFirst({ where: { eventId, supersededAt: null, status: { not: 'paid' }, remainingBalance: { gt: 0 } }, orderBy: [{ dueDate: 'asc' }, { id: 'asc' }], select: { label: true, remainingBalance: true, dueDate: true } }),
     ]);
     return {
@@ -235,6 +236,7 @@ export class PlatformReferenceReadModelsService implements PlatformReferenceRead
         clientEmail: event.inquiry?.email ?? '',
       },
       latestIssuedProposal: proposal?.issuedAt ? { versionNumber: proposal.versionNumber, issuedAt: proposal.issuedAt } : null,
+      oldestUnsignedAddendum: addendum ? { versionNumber: addendum.versionNumber, sentAt: addendum.createdAt } : null,
       nextUnpaidMilestone: milestone,
     };
   }

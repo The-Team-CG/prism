@@ -232,6 +232,8 @@ function createPmcmReadModelService() {
     opsSupplierPayableMilestone: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsClientCloseoutResponse: { findMany: vi.fn(async (): Promise<Array<{ id: string; eventId: string }>> => []) },
     opsAddendum: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
+    opsAddendumConformeExecution: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
+    opsProposalVersion: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsEventFreezeException: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsApprovalRequest: { count: vi.fn(async () => 2) },
     // The event's own document, which is not a file waiting for review.
@@ -976,7 +978,7 @@ describe('EventReadModelsService', () => {
       ['change-request:fx_rejected', 'not_approved', 'attention'],
       ['change-request:fx_pending', 'under_review', 'info'],
     ]);
-    const allowedKeys = ['id', 'kind', 'priority', 'label', 'description', 'status', 'eventId', 'eventName', 'dueAt', 'href'];
+    const allowedKeys = ['id', 'stage', 'kind', 'priority', 'label', 'description', 'status', 'eventId', 'eventName', 'dueAt', 'href', 'decidedAt'];
     for (const item of actionCenter.items) {
       expect(Object.keys(item).every((key) => allowedKeys.includes(key))).toBe(true);
     }
@@ -1245,6 +1247,7 @@ describe('EventReadModelsService', () => {
       opsPostEventDocument: { findMany: vi.fn(async () => []) },
       opsClientCloseoutResponse: { findMany: vi.fn(async () => []) },
       opsAddendum: { findMany: vi.fn(async () => []) },
+      opsProposalVersion: { findMany: vi.fn(async () => []) },
       opsEventFreezeException: { findMany: vi.fn(async () => []) },
     };
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);
