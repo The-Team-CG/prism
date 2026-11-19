@@ -4,11 +4,11 @@ title: "Parallel worktrees"
 description: "Run Prism checkouts concurrently with isolated ports and safe linked-worktree setup and removal."
 tags: [runbook, git, worktrees, local-development]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, agents]
 scope: "Prism linked worktree ports, environment setup, and safe removal"
-last_verified: "2026-10-29; prism-worktree, prism-ports, and local-supabase scripts and package commands reviewed; runtime behavior not rerun"
+last_verified: "2026-11-18 worktree commands, branch prefix and setup flags re-checked; 2026-10-29; prism-worktree, prism-ports, and local-supabase scripts and package commands reviewed; runtime behavior not rerun"
 sources:
   - id: ports
     resource: "scripts/prism-ports.mjs"
@@ -98,3 +98,8 @@ deletes only what remains, then runs `git worktree remove --force` (falling back
 to `git worktree prune`). It refuses any path that is not a direct child of
 `.worktrees`.
 `scripts/prism-worktree.test.mjs` proves a linked dependency file survives.
+
+A `node_modules` junction also means the worktree resolves the primary checkout's
+built packages. If the worktree changes `@prism/types` (or another built package),
+typecheck and the pre-push hook read the primary's stale `dist/` and fail; install
+dependencies in the worktree itself, or rebuild the package from the worktree, before pushing.

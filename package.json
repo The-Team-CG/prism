@@ -64,7 +64,7 @@
     "test:browser:guards": "node --test scripts/e2e/browser/run.test.mjs scripts/e2e/browser/compare-timings.test.mjs",
     "check:push": "node scripts/ci/pre-push.mjs",
     "hooks:install": "node scripts/ci/install-hooks.mjs",
-    "test:ci:guards": "node --test scripts/ci/*.test.mjs scripts/typescript.test.mjs scripts/verify-vitest-projects.test.mjs",
+    "test:ci:guards": "node --test scripts/ci/*.test.mjs scripts/typescript.test.mjs scripts/verify-vitest-projects.test.mjs uat/google-form.test.cjs",
     "prepare": "node scripts/ci/install-hooks.mjs",
     "benchmark:typecheck": "node scripts/benchmark-typecheck.mjs"
   },

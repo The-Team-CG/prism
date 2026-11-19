@@ -4,11 +4,11 @@ title: "Prism database migrations"
 description: "Create, review, deploy, and recover Prism's Prisma migrations without changing the applied history by hand."
 tags: [runbook, database, migrations, prisma, drift, recovery]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, reviewers, QA, operators, agents]
 scope: "apps/api Prisma migration creation, static review, deployment, drift recovery, and retired-ledger databases"
-last_verified: "2026-10-29; scripts, migration folders, owner policy, and db-integrity/schema-cutover-preflight workflows reviewed against this text; no database contacted"
+last_verified: "2026-11-18 deploy workflow (no migration step) and script names re-checked; 2026-10-29; scripts, migration folders, owner policy, and db-integrity/schema-cutover-preflight workflows reviewed against this text; no database contacted"
 sources:
   - id: migration-config
     resource: "apps/api/prisma.config.ts"
@@ -184,6 +184,11 @@ history:
 ```powershell
 npm --workspace prism-api run db:migrate:deploy
 ```
+
+The `Deploy` workflow never runs migrations. Apply a release's pending migrations to
+the target before the API build that needs them goes out; the changelog names each
+migration an API change depends on, and an API that reads a missing table or column
+fails those requests.
 
 For the local bootstrap path, `npm --workspace prism-api run db:setup` runs the
 doctor and deploy together. Migration connections should use the configured

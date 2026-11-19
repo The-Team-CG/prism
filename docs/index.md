@@ -45,6 +45,8 @@ For environment identity, seed data, or migration history use
 | Domain language | [../GLOSSARY.md](../GLOSSARY.md) |
 | Human setup and commands | [`../README.md`](../README.md) |
 | Release-visible change history | [`../CHANGELOG.md`](../CHANGELOG.md) |
+| UAT form and question bank | [`../uat/README.md`](../uat/README.md) |
+| Browser and lifecycle acceptance suites | [`../scripts/e2e/browser/README.md`](../scripts/e2e/browser/README.md), [`../scripts/e2e/lifecycle/README.md`](../scripts/e2e/lifecycle/README.md) |
 | Bundle update history | [`log.md`](log.md) |
 | Active design: floor plan editor on Pascal | [`superpowers/specs/2026-11-19-pascal-floorplan-editor-design.md`](superpowers/specs/2026-11-19-pascal-floorplan-editor-design.md) |
 | Active design: floor plan editor UI and event pieces | [`superpowers/specs/2026-11-19-floorplan-editor-ui-design.md`](superpowers/specs/2026-11-19-floorplan-editor-ui-design.md) |

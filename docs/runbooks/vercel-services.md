@@ -4,11 +4,11 @@ title: "Vercel services deployment"
 description: "Build and route the API and four role portals as one Vercel project."
 tags: [deployment, vercel, services]
 status: active
-updated: "2026-10-28"
+updated: "2026-11-18"
 authority: operational
 audience: [maintainers, engineers]
 scope: "single-project Vercel services deployment"
-last_verified: "2026-10-14"
+last_verified: "2026-11-18 environment requirements, AI and mail gates and the scheduler inventory re-checked against code; services routing last exercised 2026-10-14"
 sources:
   - resource: "vercel.json"
     title: "Service and public routing configuration"
@@ -109,12 +109,13 @@ Configure real deployment inputs through Vercel environment settings:
   links go to the portal for the account's role. Use `https`; `http` is accepted
   only for localhost. No credentials or fragments. The API refuses to start
   without all three. Guests sign in with event codes and need no origin here.
-- Resend is approved (2026-10-25) and used for auth emails: password reset and
-  account invitations. Outbox notifications stay gated until their recipients
-  resolve to real addresses; Viber and other channels also remain gated and are not
-  configured here.
-- Configure AI and external delivery providers only for intended capabilities.
-  Retain the mock AI profile until live use is explicitly configured.
+- Resend carries account mail (password reset, invitations, email-change links)
+  and workflow notices, one delivery per recipient; see
+  [operational communications](operational-communications.md). Viber, Zoom and
+  Canva are optional and configured as in [external integrations](external-integrations.md).
+- Configure an AI provider only for intended capabilities. With none configured,
+  every AI call is blocked (there is no mock provider); see the
+  [AI provider routing runbook](ai-provider-routing.md).
 
 Vercel environment variables are shared across the project's services. Keep
 secrets server-only and out of `NEXT_PUBLIC_*`. Do not upload local Supabase
@@ -122,9 +123,13 @@ credentials as production settings.
 
 ## Background work and storage limitations
 
-The API currently starts interval-based compliance, conforme, wrap-up, payment
-risk, coordinator reminder and supplier ingress workers. Notification and PARE
-outbox services also poll with timers and run an initial sweep on bootstrap.
+The API starts interval-based schedulers in its contexts: compliance re-evaluation,
+auto-freeze, conforme and inquiry-draft reminders, file-requirement reminders,
+wrap-up reminders, payment risk, supplier readiness requests and late ingress,
+coordinator acknowledgment reminders, overdue tasks, notification escalation,
+privacy retention, abandoned-upload cleanup, and event-game start and retention.
+The notification delivery and PARE dispatch workers also poll with timers and run
+an initial sweep on bootstrap.
 Vercel functions do not guarantee a continuously running process. Those workers
 need durable scheduled execution before this target can replace the existing
 full operational deployment. HTTP readiness does not verify reminder or outbox
@@ -169,19 +174,13 @@ with the intended role. Verify forbidden roles remain forbidden. Build with
 `PRISM_VERCEL_SERVICES=1` so the deployed prefixes are exercised. Passing local tests does not
 prove a cloud deployment, database migration or durable worker execution.
 
-## Verification evidence
+## Status
 
-The Services-mode monorepo build and monorepo typecheck passed. Shared API
-transport tests passed 36/36; client, event, supplier and guest suites passed
-72/72, 247/247, 26/26 and 17/17. The boundary scan passed for 1,460 files,
-and 59 boundary tooling tests passed. Built portal landing pages and one prefixed Next asset per portal
-returned HTTP 200, with role-prefixed native links. Runbook metadata,
-relative links and diff whitespace checks passed.
-
-Vercel CLI 64.0.1 detected all five services during `vercel dev -L`, but
-dependency synchronization stalled. Full local service routing, live API
-bindings, authenticated cloud behavior and cloud deployment remain unverified.
-Temporary verification servers were stopped. No project was linked or deployed.
+The configuration is prepared for review; no project is linked or deployed. A local
+`vercel dev -L` run detected all five services but stalled on dependency
+synchronization, so full local service routing, live API bindings, authenticated cloud
+behavior and cloud deployment remain unverified. Production deploys use the Render API
+and four Vercel projects described in [deployment secrets](deployment-secrets.md).
 
 ## References
 

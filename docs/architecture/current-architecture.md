@@ -4,11 +4,11 @@ title: "P.R.I.S.M current architecture"
 description: "Current runtime topology, role-app ownership, shared packages, backend bounded contexts, technical kernel, persistence, and lifecycle boundaries."
 tags: [architecture, current-state, modular-monolith, roles]
 status: canonical
-updated: "2026-11-12"
+updated: "2026-11-18"
 authority: normative
 audience: [agents, engineers, reviewers]
 scope: "all Prism portals, API, packages, and runtime boundaries"
-last_verified: "2026-10-29 module/kernel tree, composition, inbox query and owner manifest; 2026-11-07 focused exports, portal-query, guest session and canvas context; 2026-11-12 static AI route-policy reconciliation; deployment state not verified"
+last_verified: "2026-10-29 module/kernel tree, composition, inbox query and owner manifest; 2026-11-07 focused exports, portal-query, guest session and canvas context; 2026-11-12 static AI route-policy reconciliation; 2026-11-18 identity-access, composition and shared-UI descriptions checked against the source tree; deployment state not verified"
 sources:
   - id: agent-rules
     resource: "AGENTS.md"
@@ -101,7 +101,7 @@ flowchart LR
 | `packages/portal-query` | Portal resource caches and role-neutral background refresh mechanics; role apps supply actor identity, fetchers, and refresh callbacks. |
 | `packages/floorplan-canvas` | Role-neutral editor state, canvas mechanics, and floorplan editor panels, injected with role-owned template storage. Its `/editor` and `/plugin` subpaths host the pinned Pascal editor and the `prism:event-layout` plugin (ADR-0010). It does not read app identity or authorize, persist, or submit workflows. |
 | `packages/floorplan-scene` | Pure floor plan scene logic shared by the API and the editor host: scene validation, table seating extraction, and the legacy-plan converter. No UI, HTTP, or browser state. |
-| `packages/ui` | Shared shells, brand, public blocks, and presentation primitives; no workflow ownership or role data rules. |
+| `packages/ui` | Shared shells, brand, public blocks and presentation primitives, plus screens every portal renders the same way (Account, calendar, notifications, file library, event cards, work list, payment cards, privacy requests). They are presentational: each role app injects its own data, actions and permissions through props, and the package owns no workflow, HTTP call or role data rule. Subpaths are registered in `packages/ui/package.json`. |
 | `packages/tokens` | Shared design tokens, theme values, and typography. |
 
 Event-ops contracts and API-client endpoints are organized into capability
@@ -171,7 +171,7 @@ supported cross-context API.
 | `modules/live-ops` | Event-day tasks, urgent issues, escalation, attendance/replacement, live status | `api`, `application`, `contracts`, `domain` |
 | `modules/floorplan` | Official live floorplans and venue-template authoring/publishing | `api/{live,authoring}`, matching `application/*` |
 | `modules/event-games` | Event game catalog, sessions, PIN join, participants, submissions, scoring, awards, moderation, public lobbies | `api`, `application`, `contracts`, `domain`, `infrastructure` |
-| `modules/identity-access` | Authentication, account invitations, and account approval | `api/auth`, `application/{auth,participants}`, `infrastructure/auth` |
+| `modules/identity-access` | Authentication, account invitations and approval, per-device sessions, optional two-step sign-in, and the account's own profile, password and email-change requests | `api/auth`, `application/{auth,participants}`, `contracts` (email-change port), `infrastructure/auth` |
 | `modules/platform-ops` | Trust/audit, notifications, AI governance, stored objects, retention, privacy | `api/{trust,notifications,ai-governance,storage}`, `application/*` (adds `retention`), `contracts`, `infrastructure/*` |
 | `modules/read-models` | Role-scoped cross-context read composition | `api`, `application/{mappers,queries,services}`, `contracts/ports`, focused subpath readers; no writes |
 
@@ -191,7 +191,7 @@ context ports: it registers the event closure controller and the
 coordinator facts through the operations `COORDINATOR_INSIGHT_FACTS_READER`
 port and delegates persistence to the event-lifecycle `CLOSURE_COMMANDS`
 port; `modules/read-models` remains read-only. `PlatformReferenceReadersModule`
-in `src/composition` binds platform-ops reference reads to read-models.
+in `src/composition` binds platform-ops reference reads to read-models. The email change is a composition root too: `src/composition/account-email-change` confirms the change in one transaction and moves each context's copies of the address through the shared-kernel `AccountEmailRelinker` port, which Lifecycle, Commercial, Operations and Platform-ops each implement for their own tables (identity keeps the account row; history such as signatures, audit and login records keeps the old address).
 
 ### Kernel and local fixtures
 
@@ -225,28 +225,7 @@ the important rules: no private cross-context imports, no import
 from local fixture tooling into runtime contexts or kernel, no Prisma writes from read models, budgeted raw
 read queries, and no tracked source under the old API library roots.
 
-The kernel does not import a business context. `kernel/event-core` owns the
-command-receipt port and replay policy; `platform-ops` owns the Prisma adapter
-and receipt persistence, bound globally by `PlatformOpsCommandReceiptModule` at
-the application composition root. Transactional commands with an
-actor- and event-scoped idempotency key and a stable payload hash opt into one durable
-receipt, which is reserved and completed in the same transaction; retries then
-replay the stored projected result after permission checks. A payload hash is
-required so central replay cannot bypass a context's changed-content guard.
-The receipt is a technical trust record; it does not replace an owning
-context's domain record or its domain-specific invariant checks. Existing
-commands without this explicit hash continue through their domain-specific
-idempotency paths until migrated.
-`kernel/access-control` emits
-forbidden-access evidence through the kernel-owned `AUDIT_WRITER` port; the
-composition root binds that port to the platform-ops `AuditWriterAdapter` in
-`PlatformOpsAuditWriterModule`. Identity authentication, document storage,
-notifications, and read-model composition use the same principle through
-focused `AUTH_AUDIT`, `DOCUMENT_VAULT`, `NOTIFICATION_OUTBOX_WRITER`,
-`SUPPLIER_WORKSPACE_READER`, `STAFFING_READER`, `FLOORPLAN_READER`, and
-`GUEST_READER` seams. These are in-process
-contracts today; they make extraction boundaries explicit without claiming
-separate services or databases.
+The kernel does not import a business context. Where it needs business behavior it owns a focused port that a composition root binds: the command-receipt store (`PlatformOpsCommandReceiptModule`) and the forbidden-access `AUDIT_WRITER` (`PlatformOpsAuditWriterModule`). A command opts into a durable receipt with an actor- and event-scoped idempotency key and a payload hash; the receipt is reserved and completed in the command's transaction, and a retry replays the stored result after permission checks. It is a technical record, not the owner's domain record. Contexts use the same pattern for identity audit, document storage, notifications and read-model readers; the [context contracts](context-contracts.md) list every seam. These are in-process contracts, not separate services.
 
 ### Domain depth
 
@@ -291,19 +270,7 @@ authorization isolation. A database still on the retired pre-baseline ledger is
 adopted only through the backed-up rebuild in the
 [domain schema runbook](../runbooks/database-migrations.md#databases-with-the-retired-ledger).
 
-Supplier withdrawal is a durable asynchronous boundary: `commercial` writes the
-withdrawal and audit, then uses the public platform-ops dispatch-writer contract
-inside the same `WorkflowCommandService` transaction to enqueue
-`OpsPareDispatch`. The platform-ops worker claims rows with a lease token,
-reloads the supplier request by ID, executes PARE without a database transaction
-around the call, and settles success, bounded retry, or terminal failure. A
-dispatch ID is stored on `OpsAiApprovalRecord` so a crash after approval creation
-is safe to redeliver. The dispatch stores event and request IDs as scalar
-references with no cross-domain FK; a missing or no-longer-withdrawn request is
-a terminal worker outcome. Execution is bounded below the lease duration, aborts
-provider calls on timeout, and tracks active executions through shutdown. Approval
-recovery validates the sanitized request ID and dispatch ownership, while the
-worker restores the idempotent `pare_triggered` activity audit.
+Supplier withdrawal is a durable asynchronous boundary: `commercial` records the withdrawal and enqueues an `OpsPareDispatch` in the same transaction through the platform-ops dispatch-writer contract. The platform-ops worker claims rows with a lease, runs PARE outside a database transaction, and settles success, bounded retry or terminal failure; the dispatch ID on the approval record makes redelivery after a crash safe.
 
 ## Lifecycle architecture
 
@@ -346,9 +313,9 @@ worker restores the idempotent `pare_triggered` activity audit.
 | --- | --- |
 | Database | Prisma-backed Postgres exists; schema separation and audit scripts are maintained. Live audits require the migrated target and credentials. |
 | File storage | Platform-ops verifies and stores object bytes through `STORAGE_ADAPTER` (local filesystem or Supabase Storage; unconfigured by default). Hosted provider activation is an operational step in the [portal storage runbook](../runbooks/portal-storage.md). |
-| Notifications | Outbox, retry, and acknowledgement model exists. Email goes through the kernel `MAIL_TRANSPORT` port, selected by `PRISM_MAIL_TRANSPORT`: Resend, or log/local Mailpit outside production. Other channels remain gated. |
+| Notifications | Outbox, retry, and acknowledgement model exists. Each notice records one delivery per recipient. Email goes through the kernel `MAIL_TRANSPORT` port, selected by `PRISM_MAIL_TRANSPORT`: Resend, or log/local Mailpit outside production. Viber is optional and active only with `VIBER_*` configured ([external integrations](../runbooks/external-integrations.md)); no other channel exists. |
 | AI | The gateway selects Anthropic or OpenRouter, applies data-policy and budget checks, and records audit evidence. Without a configured provider it blocks calls. Eligible routes can process minimized data under the [AI data policy](../product/ai-data-policy.md); provider qualification and deployment evidence remain separate. Outputs stay advisory and PMCM controls approval ([routing runbook](../runbooks/ai-provider-routing.md)). |
-| QR/camera | Guest access-code path exists; QR/camera scanning remains gated by HTTPS/device/masterlist constraints. |
+| QR/camera | Guest access codes and QR passes exist; registration staff scan passes with the browser's QR reader over HTTPS, and typed codes are the fallback where a browser has no reader. |
 
 ## Architecture verification
 
