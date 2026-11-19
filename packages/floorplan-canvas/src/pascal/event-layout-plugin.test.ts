@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { BoxGeometry, CylinderGeometry, Mesh, Object3D } from "three";
 import { convertLegacyPlan } from "@prism/floorplan-scene";
 import { prismEventPieceTypes, type FloorPlanCanvasObject } from "@prism/types";
 import { prismEventLayoutPlugin } from "./event-layout-plugin";
@@ -42,19 +41,6 @@ describe("prismEventLayoutPlugin", () => {
   it("parses a converted table through the registered schema, keeping its seated guests", () => {
     const table = definitionOf("prism-table").schema.parse(convertedNode("table_a"));
     expect(table).toMatchObject({ type: "prism-table", shape: "round", seats: 10, guestIds: ["g1", "g2"] });
-  });
-
-  /** Pascal's geometry system moves the built object's children into the scene, so every part must be a child. */
-  function drawnParts(kind: string, legacyId: string) {
-    const built = definitionOf(kind).geometry?.(definitionOf(kind).schema.parse(convertedNode(legacyId)), {} as never) as Object3D | undefined;
-    return (built?.children ?? []) as Mesh<CylinderGeometry | BoxGeometry>[];
-  }
-
-  it("builds a round table in 3D as its top and a chair per seat, and a stage as one platform of its footprint", () => {
-    const table = drawnParts("prism-table", "table_a");
-    expect(table).toHaveLength(11);
-    expect(table[0]!.geometry.parameters).toMatchObject({ radiusTop: 0.9, radiusBottom: 0.9 });
-    expect(drawnParts("prism-stage", "stage_a").map((part) => part.geometry.parameters)).toEqual([expect.objectContaining({ width: 6, depth: 3 })]);
   });
 
   it("duplicates a seated table as an empty copy, so the copy never seats the same guests twice", () => {

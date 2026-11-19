@@ -7,8 +7,8 @@ import {
   type PrismEventPieceType,
 } from "@prism/types";
 import { parametricsFor, tableQuickActions } from "./inspector/parametrics";
-import { eventSymbol } from "./symbols";
-import { eventShape, shapeKey } from "./symbols/event-shapes";
+import { eventSymbol, type SymbolView } from "./symbols";
+import { buildEventPiece, shapeKey } from "./designs";
 import { nextTableNumberAmong } from "./tools/place-node";
 
 export const PRISM_EVENT_LAYOUT_PLUGIN_ID = FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID;
@@ -82,9 +82,10 @@ function sharedDefinition(kind: EventPieceType) {
       duplicable: { subtree: true, prepareSubtreeClone: emptyCopy },
       deletable: true,
     },
-    geometry: (node: EventPiece) => eventShape(node),
+    // Pascal passes the editor's shading as a third argument, which picks the library materials' look.
+    geometry: (node: EventPiece, _ctx: unknown, shading?: string) => buildEventPiece(node, shading),
     geometryKey: (node: EventPiece) => shapeKey(node),
-    floorplan: (node: EventPiece) => eventSymbol(node, LABELS[kind]),
+    floorplan: (node: EventPiece, ctx?: { viewState?: SymbolView }) => eventSymbol(node, LABELS[kind], ctx?.viewState),
     // One placement tool serves every kind: it reads the armed kind and the Library tile's values from the editor.
     tool: () => import("./tools/place-piece-tool"),
     tree: { label: (node: unknown) => treeLabel(node, LABELS[kind]) },

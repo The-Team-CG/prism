@@ -45,6 +45,7 @@ vi.mock("@pascal-app/core", () => {
 vi.mock("@pascal-app/nodes", () => ({ builtinPlugin: {} }));
 vi.mock("@pascal-app/viewer", () => ({ useViewer: (select: (state: unknown) => unknown) => select({ selection: { levelId: null } }) }));
 vi.mock("../event-layout-plugin", () => ({ prismEventLayoutPlugin: {} }));
+vi.mock("../pascal-runtime", () => ({}));
 
 const { PrismFloorplanEditor } = await import("../prism-floorplan-editor");
 const { saveDisplay } = await import("./editor-header");

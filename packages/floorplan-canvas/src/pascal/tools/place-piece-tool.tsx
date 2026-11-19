@@ -7,13 +7,13 @@ import { emitter, type GridEvent } from "@pascal-app/core";
 import { useEditor } from "@pascal-app/editor";
 import { useViewer } from "@pascal-app/viewer";
 import { isPrismEventPieceType, type PrismEventPiece, type PrismEventPieceType } from "@prism/types";
-import { eventShape } from "../symbols/event-shapes";
+import { buildEventPiece } from "../designs";
 import { placeNode } from "./place-node";
 import { snappedPosition, useArmedPieceValues } from "./piece-placement";
 
 /** A see-through copy of the piece's 3D shape, on its own materials so placed pieces stay solid. */
 function ghostOf(piece: PrismEventPiece): Group {
-  const ghost = eventShape(piece);
+  const ghost = buildEventPiece(piece);
   ghost.traverse((child) => {
     const mesh = child as Mesh;
     if (!mesh.isMesh) return;

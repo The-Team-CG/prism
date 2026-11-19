@@ -18,6 +18,6 @@ export function seatingBlockSymbol(node: PrismSeatingBlockNode): FloorplanGeomet
     node.style === "classroom"
       ? rows.map((y) => ({ kind: "group", transform: { translate: [0, y - pitch * 0.28] }, children: [centredRect(node.width, pitch * 0.3, { fill: INK.surface })] }))
       : [];
-  const chairs = rows.flatMap((y) => xs.map((x) => chair(x, node.style === "classroom" ? y + pitch * 0.12 : y, Math.PI)));
+  const chairs = rows.flatMap((y) => xs.map((x) => chair(x, node.style === "classroom" ? y + pitch * 0.12 : y, Math.PI, "banquet")));
   return placed(node, [centredRect(node.width, node.depth, { fill: "transparent", dashed: true }), ...desks, ...chairs]);
 }

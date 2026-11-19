@@ -34,6 +34,16 @@ describe("event symbols", () => {
     expect(texts(eventSymbol(piece("prism-zone", { label: "Catering back of house" }), "Zone"))).toEqual(["Catering back of house"]);
   });
 
+  it("draws chairs in the card's style and the linen in its colour, and shows Pascal's selection outline", () => {
+    const dressed = piece("prism-table", { shape: "round", seats: 6, chairStyle: "chiavari", linen: "ivory" });
+    const symbol = eventSymbol(dressed, "Table");
+    expect(chairs(symbol).map((chair) => (chair.kind === "group" ? chair.metadata?.style : null))).toEqual(Array(6).fill("chiavari"));
+    expect(flatten(symbol)).toContainEqual(expect.objectContaining({ kind: "circle", fill: "#f3ecd8" }));
+    const selected = eventSymbol(dressed, "Table", { selected: true, palette: { selectedStroke: "#ff00aa" } });
+    expect(flatten(selected)).toContainEqual(expect.objectContaining({ stroke: "#ff00aa", pointerEvents: "none" }));
+    expect(flatten(symbol)).not.toContainEqual(expect.objectContaining({ pointerEvents: "none" }));
+  });
+
   it("places every symbol at the piece's plan position, turned by its rotation", () => {
     for (const type of ["prism-table", "prism-bar", "prism-av"] as const) {
       const symbol = eventSymbol(piece(type, { shape: type === "prism-bar" ? "l" : "round", seats: 6, variant: "led-wall", rotation: Math.PI / 2 }), type);

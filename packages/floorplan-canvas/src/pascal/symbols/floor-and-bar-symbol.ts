@@ -1,6 +1,6 @@
 import type { FloorplanGeometry } from "@pascal-app/core";
 import type { PrismBarNode, PrismDanceFloorNode } from "@prism/types";
-import { INK, centredRect, label, placed } from "./symbol-kit";
+import { CHAIR_STROKE, INK, PIECE_STROKE, centredRect, label, placed } from "./symbol-kit";
 
 /** A dance floor drawn as its 1 m panels. */
 export function danceFloorSymbol(node: PrismDanceFloorNode): FloorplanGeometry {
@@ -8,7 +8,7 @@ export function danceFloorSymbol(node: PrismDanceFloorNode): FloorplanGeometry {
     Array.from({ length: Math.max(0, Math.ceil(count) - 1) }, (_, index) => {
       const at = -count / 2 + index + 1;
       const [x1, y1, x2, y2] = along === "x" ? [at, -node.depth / 2, at, node.depth / 2] : [-node.width / 2, at, node.width / 2, at];
-      return { kind: "line", x1, y1, x2, y2, stroke: INK.muted, strokeWidth: 0.75, vectorEffect: "non-scaling-stroke" };
+      return { kind: "line", x1, y1, x2, y2, ...CHAIR_STROKE };
     });
   return placed(node, [centredRect(node.width, node.depth, { fill: INK.page }), ...lines(node.width, "x"), ...lines(node.depth, "y"), label("Dance floor")]);
 }
@@ -20,7 +20,7 @@ export function barSymbol(node: PrismBarNode): FloorplanGeometry {
   const [w, d] = [node.width / 2, node.depth / 2];
   const points: [number, number][] = [[-w, -d], [w, -d], [w, -d + counter], [-w + counter, -d + counter], [-w + counter, d], [-w, d]];
   return placed(node, [
-    { kind: "polygon", points, fill: INK.tint, stroke: INK.line, strokeWidth: 1.25, vectorEffect: "non-scaling-stroke", pointerEvents: "all" } as FloorplanGeometry,
+    { kind: "polygon", points, fill: INK.tint, ...PIECE_STROKE, pointerEvents: "all" } as FloorplanGeometry,
     label("Bar", -d + counter / 2, 0.4),
   ]);
 }
