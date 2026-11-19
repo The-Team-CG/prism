@@ -1,8 +1,8 @@
 import {
-  BadgeCheck,
   CalendarClock,
   CalendarDays,
   ClipboardList,
+  FileSignature,
   FileText,
   Home,
   LayoutGrid,
@@ -47,13 +47,6 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
     route: "calendar",
   },
   {
-    id: "approvals",
-    label: "Approvals",
-    icon: BadgeCheck,
-    section: "Client Portal",
-    route: "approvals",
-  },
-  {
     id: "messages",
     label: "Messages",
     icon: MessageSquareText,
@@ -84,10 +77,10 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
 ];
 
 /** Account-level entries that only forward into one event's section when the client has a single event. */
-const EVENT_OWNED_SIDEBAR_IDS = new Set(["approvals", "messages", "files", "billing-payments"]);
+const EVENT_OWNED_SIDEBAR_IDS = new Set(["messages", "files", "billing-payments"]);
 
 /**
- * With one event, Approvals, Messages, Files and Billing would each bounce into that event's own tab, so
+ * With one event, Messages, Files and Billing would each bounce into that event's own tab, so
  * the portal sidebar keeps Home, Events and Calendar and the event workspace carries the rest.
  */
 export function clientPortalSidebarItems(eventCount: number): ClientSidebarNavItem[] {
@@ -98,9 +91,9 @@ export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
   { id: "event-overview", label: "Overview", route: "overview", requiresEvent: true, eventScoped: true },
   { id: "event-progress", label: "Planning", route: "progress", requiresEvent: true, eventScoped: true },
   { id: "event-briefing", label: "Event briefing", route: "briefing", requiresEvent: true, eventScoped: true },
+  { id: "event-proposal", label: "Proposal", route: "proposal", requiresEvent: true, eventScoped: true },
   { id: "event-guests", label: "Guest access", route: "guests", requiresEvent: true, eventScoped: true },
   { id: "event-floorplan", label: "Floor plan", route: "floorplan", requiresEvent: true, eventScoped: true },
-  { id: "event-approvals", label: "Approvals", route: "approvals", requiresEvent: true, eventScoped: true },
   { id: "event-billing", label: "Billing", route: "billing", requiresEvent: true, eventScoped: true },
   { id: "event-files", label: "Files", route: "documents", requiresEvent: true, eventScoped: true },
   { id: "event-messages", label: "Messages", route: "messages", requiresEvent: true, eventScoped: true },
@@ -113,7 +106,7 @@ const EVENT_NAV_ICONS: Record<string, LucideIcon> = {
   "event-briefing": FileText,
   "event-guests": TicketCheck,
   "event-floorplan": MapPinned,
-  "event-approvals": BadgeCheck,
+  "event-proposal": FileSignature,
   "event-billing": WalletCards,
   "event-files": FileText,
   "event-messages": MessageSquareText,
@@ -182,7 +175,6 @@ export const PORTAL_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, stri
   request: "client-dashboard",
   events: "my-events",
   calendar: "calendar",
-  approvals: "approvals",
   files: "files",
   billing: "billing-payments",
   messages: "messages",
@@ -207,12 +199,11 @@ export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, strin
   preferences: "event-progress",
   briefing: "event-briefing",
   floorplan: "event-floorplan",
-  proposal: "event-approvals",
+  proposal: "event-proposal",
   documents: "event-files",
   billing: "event-billing",
   payments: "event-billing",
   messages: "event-messages",
-  approvals: "event-approvals",
   files: "event-files",
   changes: "event-progress",
   summary: "event-closeout",
@@ -233,7 +224,6 @@ export const ROUTE_TO_DETAIL_TAB: Partial<Record<ClientDashboardRoute, DetailTab
   billing: "billing",
   payments: "billing",
   messages: "activity",
-  approvals: "proposal",
   files: "documents",
   changes: "activity",
   summary: "overview",
@@ -252,7 +242,6 @@ export const DETAIL_TAB_TO_ROUTE: Record<DetailTab, ClientDashboardRoute> = {
 export const CLIENT_PORTAL_VIEW_HREFS: Record<ClientPortalView, string> = {
   "dashboard-overview": "/dashboard",
   "dashboard-upcoming-events": "/dashboard/events/upcoming",
-  "dashboard-pending-approvals": "/dashboard/approvals/pending",
   "events-all": "/dashboard/events",
   "events-upcoming": "/dashboard/events/upcoming",
   "events-in-planning": "/dashboard/events/in-planning",
@@ -263,13 +252,6 @@ export const CLIENT_PORTAL_VIEW_HREFS: Record<ClientPortalView, string> = {
   "calendar-meetings": "/dashboard/calendar/meetings",
   "calendar-deadlines": "/dashboard/calendar/deadlines",
   "calendar-payment-due-dates": "/dashboard/calendar/payment-due-dates",
-  "calendar-approval-deadlines": "/dashboard/calendar/approval-deadlines",
-  "approvals-pending": "/dashboard/approvals/pending",
-  "approvals-approved": "/dashboard/approvals/approved",
-  "approvals-needs-revision": "/dashboard/approvals/needs-revision",
-  "approvals-contracts": "/dashboard/approvals/contracts",
-  "approvals-quotations": "/dashboard/approvals/quotations",
-  "approvals-final-confirmation": "/dashboard/approvals/final-confirmation",
   "files-all": "/dashboard/files",
   "files-contracts": "/dashboard/files/contracts",
   "files-quotations": "/dashboard/files/quotations",
@@ -281,7 +263,6 @@ export const CLIENT_PORTAL_VIEW_HREFS: Record<ClientPortalView, string> = {
 export const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; description: string }> = {
   "dashboard-overview": { title: "Home", description: "Your events and the decisions that need your attention." },
   "dashboard-upcoming-events": { title: "Upcoming events", description: "Confirmed PMCM events that still need planning attention." },
-  "dashboard-pending-approvals": { title: "Pending approvals", description: "Client-visible items waiting for approval or review." },
   "events-all": { title: "All events", description: "Your confirmed PMCM event workspaces." },
   "events-upcoming": { title: "Upcoming events", description: "Events that are still ahead on the calendar." },
   "events-in-planning": { title: "In planning", description: "Events currently moving through PMCM planning." },
@@ -292,13 +273,6 @@ export const CLIENT_PORTAL_VIEW_META: Record<ClientPortalView, { title: string; 
   "calendar-meetings": { title: "Site visits", description: "Ocular visits PMCM has scheduled with you." },
   "calendar-deadlines": { title: "Due dates", description: "Payment due dates PMCM has set for your events." },
   "calendar-payment-due-dates": { title: "Payment due dates", description: "Payment milestones across active events." },
-  "calendar-approval-deadlines": { title: "Approvals", description: "The days your event layouts were approved." },
-  "approvals-pending": { title: "Pending approval", description: "Contracts, layouts, quotations, and final checks still awaiting action." },
-  "approvals-approved": { title: "Approved", description: "Client-visible approvals already accepted for the selected event." },
-  "approvals-needs-revision": { title: "Needs revision", description: "Items that need PMCM changes before approval." },
-  "approvals-contracts": { title: "Contracts", description: "Conforme, MOA, NDA, and related contract files." },
-  "approvals-quotations": { title: "Quotations", description: "Client-facing quotation and billing approval references." },
-  "approvals-final-confirmation": { title: "Final confirmation", description: "Final client-facing readiness and confirmation status." },
   "files-all": { title: "Files", description: "Every file for your events, and what PMCM still needs from you." },
   "files-contracts": { title: "Contracts", description: "Conforme, MOA, NDA, and other contract files." },
   "files-quotations": { title: "Quotations", description: "Client-facing quotation files and references." },
@@ -332,7 +306,6 @@ const PORTAL_HREFS: Partial<Record<ClientDashboardRoute, string>> = {
   request: "/dashboard/request",
   events: "/dashboard/events",
   calendar: "/dashboard/calendar",
-  approvals: "/dashboard/approvals",
   messages: "/dashboard/messages",
   files: "/dashboard/files",
   billing: "/dashboard/billing",

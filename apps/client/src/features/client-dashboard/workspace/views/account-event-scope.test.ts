@@ -97,9 +97,9 @@ describe("account pages with multiple events", () => {
     expect(markup).not.toContain("All events");
   });
 
-  it("links approvals to the chosen event instead of a temporary selection", () => {
-    const markup = renderToStaticMarkup(createElement(ClientAccountEventPicker, { purpose: "approvals", destination: "approvals" }));
-    expect(markup).toContain('href="/dashboard/events/event-a/approvals"');
-    expect(markup).toContain('href="/dashboard/events/event-b/approvals"');
+  it("links billing to the chosen event instead of a temporary selection", () => {
+    const markup = renderToStaticMarkup(createElement(ClientAccountEventPicker, { purpose: "billing", destination: "billing" }));
+    expect(markup).toContain('href="/dashboard/events/event-a/billing"');
+    expect(markup).toContain('href="/dashboard/events/event-b/billing"');
   });
 });

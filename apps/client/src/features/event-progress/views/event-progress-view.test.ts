@@ -26,8 +26,8 @@ const baseProgress: EventProgressViewModel = {
   ],
   paymentMilestones: [],
   clientEventDayStatus: null,
-  clientActions: [],
-  runClientAction: vi.fn(),
+  needsYouCount: 0,
+  actionsHref: "/dashboard/events/evt_1/actions",
 };
 
 const useEventProgressViewMock = vi.mocked(useEventProgressView);

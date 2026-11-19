@@ -5,7 +5,6 @@ import { ClientHomeView } from "../../../home";
 import { ClientEventsView } from "../../../events";
 import { ClientRequestView } from "../../../request";
 import { ClientCalendarView } from "../../../calendar";
-import { ClientApprovalsView } from "../../../approvals";
 import { ClientFilesView } from "../../../files";
 import { ClientMessagesView } from "../../../messages";
 import { ClientPortalBillingView } from "../../../billing";
@@ -26,7 +25,6 @@ const PORTAL_ROUTE_VIEWS: Partial<Record<ClientDashboardRoute, () => ReactElemen
 };
 
 const PORTAL_ONLY_VIEWS: Partial<Record<ClientDashboardRoute, () => ReactElement>> = {
-  approvals: () => <ClientApprovalsView />,
   messages: () => <ClientMessagesView />,
   billing: () => <ClientPortalBillingView />,
   privacy: () => <ClientPrivacyRequestsView />,

@@ -139,13 +139,20 @@ function billingBadgeCounts(payments: Parameters<typeof overduePaymentCount>[0] 
   return { overduePayments: overduePaymentCount(payments, today), eventOverduePayments: eventId ? overduePaymentCount(payments, today, eventId) : undefined };
 }
 
-function eventNavItemBadge<T extends { id: string }>(item: T, unreadMessages?: number, overduePayments?: number): T {
+/** What the client owes, for the Home and Planning badges: across events, and for the open event. */
+function needsYouCounts(actionCenter: { items: Array<{ stage: string; eventId: string }> } | null, eventId: string | undefined) {
+  const own = (actionCenter?.items ?? []).filter((item) => item.stage === "needs_client");
+  return { needsYou: own.length, eventNeedsYou: eventId ? own.filter((item) => item.eventId === eventId).length : undefined };
+}
+
+function eventNavItemBadge<T extends { id: string }>(item: T, unreadMessages?: number, overduePayments?: number, needsYou?: number): T {
+  if (item.id === "event-progress") return { ...item, ...countNavBadge(needsYou, "thing needs you", "things need you") };
   if (item.id === "event-messages") return { ...item, ...unreadNavBadge(unreadMessages) };
   if (item.id === "event-billing") return { ...item, ...countNavBadge(overduePayments, "overdue payment") };
   return item;
 }
 
-function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, unreadNotices, eventUnreadMessages, overduePayments, eventOverduePayments }: {
+function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, unreadNotices, eventUnreadMessages, overduePayments, eventOverduePayments, needsYou, eventNeedsYou }: {
   route: ClientDashboardRoute;
   portalView?: ClientPortalView;
   isEventScopedView: boolean;
@@ -156,9 +163,12 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
   eventUnreadMessages?: number;
   overduePayments?: number;
   eventOverduePayments?: number;
+  needsYou?: number;
+  eventNeedsYou?: number;
 }) {
   const shellNavItems = clientPortalSidebarItems(events.length).map((item) => ({
     ...item,
+    ...(item.id === "client-dashboard" ? countNavBadge(needsYou, "thing needs you", "things need you") : {}),
     ...(item.id === "messages" ? unreadNavBadge(unreadMessages) : {}),
     ...(item.id === "notifications" ? unreadNoticeBadge(unreadNotices) : {}),
     ...(item.id === "billing-payments" ? countNavBadge(overduePayments, "overdue payment") : {}),
@@ -177,7 +187,7 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
       ? EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview"
       : sidebarActiveItemId(route, isEventScopedView, portalView),
     sidebarNavItems: inEventWorkspace && selectedEvent
-      ? clientEventSidebarItems(selectedEvent.id, selectedEvent).map((item) => eventNavItemBadge(item, eventUnreadMessages, eventOverduePayments))
+      ? clientEventSidebarItems(selectedEvent.id, selectedEvent).map((item) => eventNavItemBadge(item, eventUnreadMessages, eventOverduePayments, eventNeedsYou))
       : [...shellNavItems, ...clientOpenEventSidebarItems(events)],
   };
 }
@@ -508,6 +518,7 @@ export function ClientDashboardWorkspaceView({
   const { inEventWorkspace, activeShellItemId, sidebarNavItems } = clientWorkspaceShellNavigation({
     route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, unreadNotices, eventUnreadMessages,
     ...billingBadgeCounts(state?.paymentMilestones, selectedEvent?.id),
+    ...needsYouCounts(resolvedActionCenter, selectedEvent?.id),
   });
 
   function handleShellNavSelect(id: string) {

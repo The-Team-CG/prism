@@ -5,7 +5,7 @@ import { clientHomeFigures, clientHomeLead, clientHomeSummaryLine, orderClientAc
 
 function action(id: string, patch: Partial<ClientDashboardAction> = {}): ClientDashboardAction {
   return {
-    id, title: id, description: "", detail: "", ctaLabel: "Open", icon: () => null, targetTab: "overview", status: "open", tone: "primary", nextActor: "you", ...patch,
+    id, title: id, description: "", detail: "", ctaLabel: "Open", icon: () => null, targetTab: "overview", status: "open", tone: "primary", stage: "needs_client", ...patch,
   } as ClientDashboardAction;
 }
 
@@ -31,7 +31,7 @@ describe("client home attention summary", () => {
 
   it("marks figures with nothing to report as empty so a stat row can leave them out", () => {
     expect(figures([]).map((figure) => Boolean(figure.empty))).toEqual([true, true, true, true]);
-    expect(figures([action("a"), action("b", { nextActor: "pmcm" })]).map((figure) => Boolean(figure.empty))).toEqual([false, false, true, true]);
+    expect(figures([action("a"), action("b", { stage: "with_pmcm" })]).map((figure) => Boolean(figure.empty))).toEqual([false, false, true, true]);
   });
 
   it("puts blockers first, then what holds a stage back, and keeps the given order otherwise", () => {

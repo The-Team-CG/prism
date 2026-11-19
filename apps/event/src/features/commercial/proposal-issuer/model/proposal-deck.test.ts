@@ -5,6 +5,7 @@ import { proposalDeckSlides } from "./proposal-deck";
 const proposal: PrismIssuedProposalSummary = {
   id: "p1", eventId: "e1", versionNumber: 2, title: "Acme Gala proposal", summary: "Evening gala for 200.\n\nStage, AV and styling.",
   totalAmount: 900000, alternativeTotalAmount: 1200000, revisionNote: "", issuedAt: "2026-11-10T00:00:00.000Z", clientStatus: "pending",
+  decider: { name: "Acme contact", isYou: false },
 };
 
 describe("FR-59 PowerPoint export", () => {

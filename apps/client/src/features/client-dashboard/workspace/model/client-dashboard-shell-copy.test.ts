@@ -26,9 +26,7 @@ describe("client dashboard shell copy", () => {
   });
 
   it("uses portal view meta before generic route titles", () => {
-    expect(clientShellTitle({ isEventScopedView: false, portalView: "approvals-pending", route: "approvals" })).toBe(
-      "Pending approval",
-    );
+    expect(clientShellTitle({ isEventScopedView: false, portalView: "files-contracts", route: "files" })).toBe("Contracts");
     expect(clientShellTitle({ isEventScopedView: false, route: "billing" })).toBe("Billing & Payments");
     expect(clientShellDescription({ isEventScopedView: false, route: "calendar" })).toContain("Event dates");
   });

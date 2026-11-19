@@ -19,7 +19,7 @@ export function ClientHomeView() {
 
   const todayKey = manilaDateKey();
   const actions = selectClientAccountActions(actionCenter);
-  const own = actions.filter((action) => (action.nextActor ?? "you") === "you");
+  const own = actions.filter((action) => action.stage === "needs_client");
   const lead = clientHomeLead(events, own, todayKey);
   const eventHref = (eventId: string) => dashboardHref("overview", eventId);
   // The hero and list already say what needs the client and when the next event is, so only the

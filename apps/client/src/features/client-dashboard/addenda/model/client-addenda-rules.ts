@@ -1,4 +1,12 @@
 import type { PrismAddendum, PrismAddendumConformeExecution } from "@prism/types";
+import { money } from "../../workspace/model/client-dashboard-view-rules";
+
+/** "+₱48,000 to your contract", "−₱5,000 from your contract", or no money change: what signing commits the client to. */
+export function addendumAmountLabel(financialDelta: number) {
+  if (financialDelta > 0) return `+${money.format(financialDelta)} to your contract`;
+  if (financialDelta < 0) return `−${money.format(-financialDelta)} from your contract`;
+  return "No change to your contract amount";
+}
 
 /** Addenda whose conforme is waiting for this client's acknowledgment. */
 export function addendaAwaitingClientAcknowledgment(addenda: readonly PrismAddendum[]) {

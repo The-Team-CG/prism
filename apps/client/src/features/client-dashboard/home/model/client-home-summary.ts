@@ -128,8 +128,8 @@ export function clientHomeFigures(input: {
   formatMoney: MoneyFormat;
   formatDate: (value: string) => string;
 }): Figure[] {
-  const own = input.actions.filter((action) => (action.nextActor ?? "you") === "you");
-  const withPmcm = input.actions.filter((action) => action.nextActor === "pmcm").length;
+  const own = input.actions.filter((action) => action.stage === "needs_client");
+  const withPmcm = input.actions.filter((action) => action.stage === "with_pmcm").length;
   const eventIds = new Set(input.events.map((event) => event.id));
   return [
     needsYouFigure(own),

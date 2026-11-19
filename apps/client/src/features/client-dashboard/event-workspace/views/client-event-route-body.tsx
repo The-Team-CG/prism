@@ -6,7 +6,9 @@ import { ClientBillingTab } from "../../billing";
 import { ClientBriefingTab } from "../../briefing";
 import { ClientDocumentsTab } from "../../documents";
 import { ClientProposalTab } from "../../proposal";
-import { ClientActionGroup } from "../../shared/client-action-group";
+import { manilaDateKey } from "@prism/ui/format-date";
+import { ClientActionLists } from "../../shared/client-action-lists";
+import { ClientChangeDeadlineNotice } from "../../shared/client-change-deadline-notice";
 import { dashboardHref, useClientWorkspace, type ClientWorkspaceValue } from "../../workspace/shared";
 import { ClientRouteTabs } from "../../shared/client-route-tabs";
 import { ClientOverviewTab } from "./client-overview-tab";
@@ -19,7 +21,6 @@ import { ClientPreferencesView } from "./client-preferences-view";
 import { ClientFloorPlanView } from "./client-floorplan-view";
 import { ClientFinalSummaryView } from "./client-final-summary-view";
 import { ClientMessagesView } from "../../messages";
-import { ClientApprovalsView } from "../../approvals";
 import { ClientCloseoutView } from "../../closeout/views/client-closeout-view";
 import { ClientChangeRequestsPanel } from "../../change-requests";
 import type { ClientDashboardRoute } from "../../workspace/shared";
@@ -57,28 +58,17 @@ function renderOverview(ctx: ClientWorkspaceValue) {
 }
 
 function renderActions(ctx: ClientWorkspaceValue) {
-  const needsAction = ctx.clientActions.filter((a) => a.tone === "primary" || a.tone === "warning");
-  const waiting = ctx.clientActions.filter((a) => a.tone === "neutral");
-  const completed = ctx.clientActions.filter((a) => a.tone === "success");
+  const event = ctx.selectedEvent;
+  if (!event) return null;
   return (
-    <div className="space-y-6">
-      <ClientActionGroup
-        title="Needs your action"
-        description="Client decisions that can move planning forward."
-        actions={needsAction}
+    <div className="space-y-4">
+      <ClientChangeDeadlineNotice event={event} todayKey={manilaDateKey()} />
+      <ClientActionLists
+        actions={ctx.clientActions}
         onAction={ctx.runClientAction}
-      />
-      <ClientActionGroup
-        title="Waiting on PMCM"
-        description="Being prepared or reviewed by the event team."
-        actions={waiting}
-        onAction={ctx.runClientAction}
-      />
-      <ClientActionGroup
-        title="Completed"
-        description="Finished client-visible workflow items."
-        actions={completed}
-        onAction={ctx.runClientAction}
+        todayKey={manilaDateKey()}
+        scope="event"
+        emptyAction={event.archived ? undefined : { label: "Request a change", href: dashboardHref("changes", event.id) }}
       />
     </div>
   );
@@ -124,7 +114,6 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
     />
   ) : null,
   proposal: renderProposal,
-  approvals: () => <ClientApprovalsView />,
   floorplan: () => <ClientFloorPlanView />,
   documents: () => <ClientDocumentsTab />,
   billing: (ctx) => <ClientBillingTab eventId={ctx.selectedEvent?.id} eventName={ctx.selectedEvent?.eventName} payments={ctx.payments} billing={ctx.billing} disputes={ctx.disputes} />,

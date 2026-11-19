@@ -5,21 +5,17 @@ import { PrismBillingMilestoneList } from "@prism/ui/blocks";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { PrismSection } from "@prism/ui/page-blocks";
 import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS } from "@prism/types";
-import { ClientActionGroup } from "@/features/client-dashboard/shared/client-action-group";
+import Link from "next/link";
 import { ClientEventStepper, type ClientStepperStep } from "@/features/client-dashboard/shared/client-event-stepper";
 import { useEventProgressView } from "../view-models/use-event-progress-view";
 
 export function EventProgressView() {
   const progress = useEventProgressView();
-  const { clientActions, runClientAction } = progress;
 
   if (!progress.hasEvent) {
     return null;
   }
 
-  const needsAction = clientActions.filter((a) => a.tone === "primary" || a.tone === "warning");
-  const waiting = clientActions.filter((a) => a.tone === "neutral");
-  const completedActions = clientActions.filter((a) => a.tone === "success");
   const doneCheckpoints = progress.checkpoints.filter((c) => c.done).length;
   const lifecycleSteps: ClientStepperStep[] = PRISM_LIFECYCLE_STAGES.map((stage, index) => ({
     key: stage,
@@ -33,6 +29,11 @@ export function EventProgressView() {
         id="progress-stage"
         title={`Current stage: ${progress.lifecycleStage}`}
         description={`Stage ${progress.lifecycleIndex + 1} of ${PRISM_LIFECYCLE_STAGES.length}`}
+        action={progress.actionsHref ? (
+          <Link href={progress.actionsHref} className="text-sm font-medium text-primary hover:text-primary/80">
+            {progress.needsYouCount === 0 ? "Nothing needs you" : progress.needsYouCount === 1 ? "1 thing needs you" : `${progress.needsYouCount} things need you`}
+          </Link>
+        ) : undefined}
       >
         <ClientEventStepper steps={lifecycleSteps} label="Event lifecycle" />
       </PrismSection>
@@ -76,28 +77,6 @@ export function EventProgressView() {
         </PrismSection>
       </div>
 
-      <ClientActionGroup
-        title="Needs your action"
-        description="Client decisions that can move planning forward."
-        actions={needsAction}
-        onAction={runClientAction}
-      />
-      {waiting.length > 0 ? (
-        <ClientActionGroup
-          title="Waiting on PMCM"
-          description="Being prepared or reviewed by the event team."
-          actions={waiting}
-          onAction={runClientAction}
-        />
-      ) : null}
-      {completedActions.length > 0 ? (
-        <ClientActionGroup
-          title="Completed"
-          description="Finished client-visible workflow items."
-          actions={completedActions}
-          onAction={runClientAction}
-        />
-      ) : null}
     </div>
   );
 }

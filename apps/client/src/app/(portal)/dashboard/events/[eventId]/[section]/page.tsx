@@ -9,7 +9,6 @@ const sectionRoutes: Record<string, ClientDashboardRoute> = {
   guests: "guests",
   preferences: "preferences",
   actions: "actions",
-  approvals: "approvals",
   briefing: "briefing",
   proposal: "proposal",
   "floor-plan": "floorplan",

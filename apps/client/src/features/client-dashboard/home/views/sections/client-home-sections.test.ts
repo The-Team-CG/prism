@@ -9,7 +9,7 @@ describe('ClientHomeActionCenter', () => {
   const loaded: PrismClientActionCenter = {
     generatedAt: '2026-10-19T00:00:00.000Z',
     counts: { critical: 0, warning: 0, attention: 1, info: 0 },
-    items: [{ id: 'briefing:evt_other', kind: 'briefing', priority: 'attention', label: 'Complete event briefing', description: '', status: 'missing', eventId: 'evt_other', eventName: 'Other' }],
+    items: [{ id: 'briefing:evt_other', stage: 'needs_client', kind: 'briefing', priority: 'attention', label: 'Complete event briefing', description: '', status: 'missing', eventId: 'evt_other', eventName: 'Other' }],
   };
 
   it('shows actions from each event with their event names and destinations', () => {
