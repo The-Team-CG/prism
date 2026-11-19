@@ -1,15 +1,16 @@
 import { useSyncExternalStore } from "react";
 
-/**
- * Host facts that Pascal's node callbacks read outside React (quick actions run from Pascal's action bar), and the
- * table the Guests panel seats guests at.
- */
-type HostState = { seatingAllowed: boolean; readOnly: boolean; seatingTarget: string | null };
+/** The tabs of the editor's left panel. */
+export type PanelTab = "library" | "guests" | "layers";
 
-let state: HostState = { seatingAllowed: false, readOnly: true, seatingTarget: null };
+/**
+ * Host facts that Pascal's node callbacks read outside React (quick actions run from Pascal's action bar), the table
+ * the Guests panel seats guests at, and the left panel's open tab.
+ */
+type HostState = { seatingAllowed: boolean; readOnly: boolean; seatingTarget: string | null; panelTab: PanelTab };
+
+let state: HostState = { seatingAllowed: false, readOnly: true, seatingTarget: null, panelTab: "library" };
 const listeners = new Set<() => void>();
-/** Set by the editor host, which owns Pascal's side menu; this module stays free of Pascal's editor runtime. */
-let openGuestsPanel: () => void = () => undefined;
 
 function update(next: Partial<HostState>) {
   state = { ...state, ...next };
@@ -20,9 +21,7 @@ export const hostState = {
   get: (): HostState => state,
   setFacts: (facts: Pick<HostState, "seatingAllowed" | "readOnly">) => update(facts),
   setSeatingTarget: (tableId: string | null) => update({ seatingTarget: tableId }),
-  setGuestsPanelOpener(open: () => void) {
-    openGuestsPanel = open;
-  },
+  setPanelTab: (panelTab: PanelTab) => update({ panelTab }),
   subscribe(listener: () => void): () => void {
     listeners.add(listener);
     return () => listeners.delete(listener);
@@ -32,8 +31,10 @@ export const hostState = {
 const seatingTarget = () => state.seatingTarget;
 export const useSeatingTarget = () => useSyncExternalStore(hostState.subscribe, seatingTarget, seatingTarget);
 
-/** Opens the Guests panel to seat guests at `tableId`. */
+const panelTab = () => state.panelTab;
+export const usePanelTab = () => useSyncExternalStore(hostState.subscribe, panelTab, panelTab);
+
+/** Opens the Guests tab to seat guests at `tableId`. */
 export function openSeating(tableId: string) {
-  hostState.setSeatingTarget(tableId);
-  openGuestsPanel();
+  update({ seatingTarget: tableId, panelTab: "guests" });
 }

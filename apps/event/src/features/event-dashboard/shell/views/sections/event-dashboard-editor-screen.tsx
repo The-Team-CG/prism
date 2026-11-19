@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { EventSession } from "@/app/lib/session";
+import { draftStatusLabel } from "@/features/floorplan/editor/model/editor-access";
 import type { EventDashboardShellViewModel } from "../../view-models/use-event-dashboard-shell-view-model";
 
 function EditorLoading() {
@@ -46,7 +47,7 @@ export function EventDashboardEditorScreen({
         screenReadOnly={screen.readOnly}
         eventName={screen.event.eventName}
         draftName={screen.draft.name}
-        draftStatus={screen.draft.status}
+        draftStatus={draftStatusLabel(screen.draft.status)}
         saver={screen.saver}
         onSubmit={submitEditorScene}
         onReload={() => void reloadEditor()}

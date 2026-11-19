@@ -28,6 +28,11 @@ test('installed dependencies require matching installer inputs and runtime, whil
   for (const [key, value] of [['node', 'v24.20.0'], ['platform', 'win32'], ['arch', 'arm64'], ['image', 'ubuntu24']]) {
     assert.notEqual(dependencyCacheKeys(repo, { ...runtime, [key]: value }).dependencies, original.dependencies, key);
   }
+  write('patches/editor+1.0.0.patch', 'diff one');
+  const patched = dependencyCacheKeys(repo, runtime);
+  assert.notEqual(patched.dependencies, original.dependencies, 'A new patch changes what postinstall installs.');
+  write('patches/editor+1.0.0.patch', 'diff two');
+  assert.notEqual(dependencyCacheKeys(repo, runtime).dependencies, patched.dependencies, 'An edited patch cannot reuse node_modules patched by the old one.');
   write('.npmrc', 'ignore-scripts=true');
   assert.notEqual(dependencyCacheKeys(repo, runtime).dependencies, original.dependencies);
   write('package-lock.json', { packages: { 'node_modules/@playwright/test': { version: '1.65.0' } } });

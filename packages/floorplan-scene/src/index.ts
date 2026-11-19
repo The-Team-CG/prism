@@ -22,5 +22,6 @@ export {
   type SeatSpot,
   type TableRun,
 } from "./seat-layout.js";
+export { footprint, gapBetween, type Footprint } from "./footprints.js";
 export { LAYOUT_RULES, layoutChecks } from "./layout-checks.js";
 export { SEATING_STYLES, fillRoom, roomCapacity, type PlannedPiece, type RoomFill, type SeatingStyle } from "./room-planning.js";

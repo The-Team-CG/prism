@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { acquireSceneReadOnlyLease, loadPlugin } from "@pascal-app/core";
-import { Editor, getSavedSceneDocument, useCameraHintFocus, useEditor, type SaveStatus } from "@pascal-app/editor";
+import { Editor, getSavedSceneDocument, useCameraHintFocus, useSidebarStore, type SaveStatus } from "@pascal-app/editor";
 import { builtinPlugin } from "@pascal-app/nodes";
 import type { FloorplanSceneDocument } from "@prism/types";
 import { PrismFloorplanProvider, type PrismFloorplanContextValue } from "./editor-context";
@@ -14,7 +14,10 @@ import { EditorHeader } from "./shell/editor-header";
 import { LoadingRoom } from "./shell/loading-room";
 import { LensOverlay } from "./shell/lens-overlay";
 import { LensSwitch } from "./shell/lens-switch";
-import { columnTab, railTabs } from "./shell/rail-tabs";
+import { PlanMeasures } from "./shell/plan-measures";
+import { PlanPanel } from "./shell/plan-panel";
+import { SIDE_PANEL_TAB } from "./shell/side-panel";
+import { ZoomControl } from "./shell/zoom-control";
 import { prismLens } from "./lens";
 import { PiecePlacement } from "./tools/piece-placement";
 import { hostState } from "./inspector/host-state";
@@ -38,6 +41,13 @@ export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOn
 // Read by the Pascal chrome patch (patches/@pascal-app+editor+1.1.6.patch): PRISM hosts the editor, so Pascal hides
 // its plugin manager, level chip, sky control, compass, shortcuts card, scans control and read-only action bars.
 (globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ = true;
+
+const SIDE_PANEL_TABS = [SIDE_PANEL_TAB];
+
+/** Pascal's earlier default width for the left column, which browsers that opened the editor before still keep. */
+const PASCAL_OLD_COLUMN_WIDTH = 360;
+/** The left panel's width in the docked frame. */
+const PANEL_WIDTH = 288;
 
 let pluginsLoaded: Promise<void> | null = null;
 
@@ -104,7 +114,6 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
     },
     [onSave, props.readOnly],
   );
-  const tabs = useMemo(() => railTabs(readOnly), [readOnly]);
   const context = useMemo<PrismFloorplanContextValue>(
     () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload }),
     [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload],
@@ -115,7 +124,10 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   useEffect(() => useCameraHintFocus.getState().focus([]), []);
   // Every plan opens as laid out; Seating is gone when the event cannot seat guests.
   useEffect(() => prismLens.set("layout"), []);
-  useEffect(() => hostState.setGuestsPanelOpener(() => useEditor.getState().setActiveSidebarPanel("guests")), []);
+  // Moves a browser still on Pascal's old default to the docked frame's width; a width the planner chose is kept.
+  useEffect(() => {
+    if (useSidebarStore.getState().chatWidth === PASCAL_OLD_COLUMN_WIDTH) useSidebarStore.getState().setChatWidth(PANEL_WIDTH);
+  }, []);
   useEffect(() => {
     if (!seating.allowed && prismLens.get() === "seating") prismLens.set("layout");
     hostState.setFacts({ seatingAllowed: seating.allowed, readOnly });
@@ -147,12 +159,26 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
             <Editor
               layoutVersion="v2"
               projectId={null}
-              sidebarTabs={tabs}
-              columnTabId={columnTab(readOnly)}
+              sidebarTabs={SIDE_PANEL_TABS}
+              columnTabId={SIDE_PANEL_TAB.id}
+              sideMenu={false}
+              dockInspector
+              inspectorEmpty={<PlanPanel />}
+              toolDock={false}
               viewBar={false}
               navbarSlot={header}
-              viewerToolbarLeft={<LensSwitch />}
-              floorplanSceneSlot={<LensOverlay />}
+              sceneOverlay={
+                <>
+                  <LensSwitch />
+                  <ZoomControl />
+                </>
+              }
+              floorplanSceneSlot={
+                <>
+                  <LensOverlay />
+                  <PlanMeasures />
+                </>
+              }
               inspectorFooter={<SeatedGuestsFooter />}
               loadingSlot={<LoadingRoom />}
               onLoad={onLoad}
@@ -161,7 +187,7 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
             />
           ) : (
             <div className="flex h-full flex-col">
-              <div className="flex h-14 shrink-0 items-center border-b border-border px-3">{header}</div>
+              {header}
               <LoadingRoom />
             </div>
           )}

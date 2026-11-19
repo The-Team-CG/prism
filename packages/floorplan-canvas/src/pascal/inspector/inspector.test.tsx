@@ -5,7 +5,6 @@ import type { PrismFloorplanSeatingGuest, PrismTableNode } from "@prism/types";
 import { PrismFloorplanProvider, type PrismFloorplanContextValue } from "../editor-context";
 
 const scene = vi.hoisted(() => ({ nodes: {} as Record<string, unknown>, selected: [] as string[], updateNode: vi.fn() }));
-const sidebar = vi.hoisted(() => ({ setActiveSidebarPanel: vi.fn() }));
 
 vi.mock("@pascal-app/core", () => ({
   useScene: Object.assign((select: (state: unknown) => unknown) => select({ nodes: scene.nodes }), {
@@ -16,9 +15,10 @@ vi.mock("@pascal-app/viewer", () => ({ useViewer: (select: (state: unknown) => u
 
 const { SeatedGuestsFooter } = await import("./seated-guests-footer");
 const { ZoneSuppliersField } = await import("./zone-suppliers-field");
+const { ShapeField } = await import("./shape-field");
+const SashField = (await import("./swatch-field")).swatchField("sash", "Sash");
 const { tableParametrics, tableQuickActions } = await import("./parametrics");
 const { hostState } = await import("./host-state");
-hostState.setGuestsPanelOpener(() => sidebar.setActiveSidebarPanel("guests"));
 
 const roster: PrismFloorplanSeatingGuest[] = ["Ana Reyes", "Ben Cruz", "Cara Diaz", "Dee Lim", "Eli Tan", "Fay Uy"].map((name, index) => ({
   id: `g${index + 1}`,
@@ -52,7 +52,7 @@ afterEach(() => {
 describe("the table card", () => {
   it("offers the table fields with their ranges, and never drops seats below the guests seated", () => {
     const fields = tableParametrics.groups.flatMap((group) => group.fields);
-    expect(fields.map((field) => field.label)).toEqual(["Shape", "Size", "Depth", "Seats", "Seated", "Crescent", "Number", "Chairs", "Sash", "Linen", "Overlay", "Centerpiece"]);
+    expect(fields.map((field) => field.label)).toEqual(["Shape", "Size", "Depth", "Seats", "Seated", "Crescent", "Number", "Chairs", "Linen", "Overlay", "Sash", "Centerpiece"]);
     expect(fields.find((field) => field.label === "Size")).toMatchObject({ min: 0.6, max: 20, step: 0.1 });
     expect(fields.find((field) => field.label === "Seats")).toMatchObject({ min: 0, max: 60, step: 1 });
     expect(tableParametrics.derive?.({ ...table, seats: 4 }, { seats: 4 })).toMatchObject({ seats: 6 });
@@ -71,7 +71,7 @@ describe("the table card", () => {
     expect(screen.getByText("2 open seats")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Seat guests" }));
     expect(hostState.get().seatingTarget).toBe("t1");
-    expect(sidebar.setActiveSidebarPanel).toHaveBeenCalledWith("guests");
+    expect(hostState.get().panelTab).toBe("guests");
   });
 
   it("flags a seated guest the API would refuse and still lets PMCM unseat them after seating closes", () => {
@@ -95,6 +95,28 @@ describe("the table card", () => {
     expect(tableQuickActions({ node: table }).map((action) => action.label)).toEqual(["Seat guests"]);
     hostState.setFacts({ seatingAllowed: false, readOnly: false });
     expect(tableQuickActions({ node: table })).toEqual([]);
+  });
+
+  it("picks the shape and the cloth colours from drawn buttons and swatches, and only while the plan is editable", () => {
+    const onUpdate = vi.fn();
+    const card = (readOnly: boolean) =>
+      render(
+        <PrismFloorplanProvider value={context({ readOnly })}>
+          <ShapeField node={table} onUpdate={onUpdate} />
+          <SashField node={{ ...table, sash: "blush" }} onUpdate={onUpdate} />
+        </PrismFloorplanProvider>,
+      );
+    card(false);
+    fireEvent.click(screen.getByRole("button", { name: "U-shape" }));
+    expect(onUpdate).toHaveBeenCalledWith({ shape: "u-shape" });
+    expect(screen.getByRole("radio", { name: "Blush" }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "None" }));
+    expect(onUpdate).toHaveBeenLastCalledWith({ sash: undefined });
+    cleanup();
+
+    card(true);
+    expect((screen.getByRole("button", { name: "U-shape" }) as HTMLButtonElement).matches(":disabled")).toBe(true);
+    expect((screen.getByRole("radio", { name: "Blush" }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
 

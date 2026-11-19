@@ -14,7 +14,9 @@ export function dependencyCacheKeys(repo, runtime = {
   const patterns = manifest.workspaces;
   if (!Array.isArray(patterns) || patterns.some(pattern => typeof pattern !== 'string' || pattern.split('/').includes('..'))) throw new Error('Invalid cache workspace patterns.');
   const manifests = globSync(patterns.map(pattern => `${pattern}/package.json`), { cwd: repo, exclude: ['**/node_modules/**'] });
-  const files = ['package.json', 'package-lock.json', ...manifests,
+  // postinstall applies patches/ to the installed packages, so a changed patch needs a fresh install, not a restored one.
+  const patches = globSync('patches/*.patch', { cwd: repo });
+  const files = ['package.json', 'package-lock.json', ...manifests, ...patches,
     'apps/api/prisma/schema.prisma', 'apps/api/prisma.config.ts', 'apps/api/src/kernel/database/db-connection-config.cjs'];
   if (existsSync(resolve(repo, '.npmrc'))) files.push('.npmrc');
   const hash = createHash('sha256');

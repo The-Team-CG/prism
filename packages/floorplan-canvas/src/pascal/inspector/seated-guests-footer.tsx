@@ -33,8 +33,8 @@ export function SeatedGuestsFooter() {
   // Unseating stays open even when seating has closed, so a refused seat can always be cleared.
   const editable = !readOnly;
   return (
-    <section aria-label="Seated guests" className="space-y-2 border-t border-border px-3 py-2.5 text-sm">
-      <p className="flex justify-between text-xs font-semibold text-muted-foreground">
+    <section aria-label="Seated guests" className="space-y-2 border-t border-border px-3 py-3 text-[13px]">
+      <p className="flex justify-between text-[11.5px] font-semibold text-foreground">
         <span>Seated</span>
         <span>
           {table.guestIds.length} of {table.seats}
@@ -60,7 +60,7 @@ export function SeatedGuestsFooter() {
       </ol>
       <p className="text-xs text-muted-foreground">{open === 0 ? (table.seats > 0 ? "Full · Unseat guests first to remove seats" : "No seats") : `${open} open ${open === 1 ? "seat" : "seats"}`}</p>
       {editable && seating.allowed && open > 0 ? (
-        <button type="button" onClick={() => openSeating(table.id)} className="w-full rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground">
+        <button type="button" onClick={() => openSeating(table.id)} className="h-8 w-full rounded-lg bg-background text-[13px] font-medium text-foreground shadow-[0_0_0_1px_var(--input),0_1px_2px_rgb(24_19_26/0.05)] hover:bg-muted">
           Seat guests
         </button>
       ) : null}
