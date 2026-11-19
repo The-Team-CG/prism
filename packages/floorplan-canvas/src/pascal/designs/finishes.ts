@@ -18,6 +18,10 @@ export type Finish = {
   repeat?: number;
   /** How strongly the texture's relief shows, 1 being as Pascal ships it. */
   relief?: number;
+  /** How see-through the surface is, 1 being solid; only a library material that is already transparent honours it. */
+  opacity?: number;
+  /** Light the surface gives off itself, for bulbs, screens and flames: its colour and strength (1 matches its own colour). */
+  glow?: { color: string; intensity: number };
 };
 
 const PREFIX = "prism-finish:";

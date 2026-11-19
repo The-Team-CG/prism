@@ -15,6 +15,9 @@ export const satin = (color: string) => dyed("fabric-cotton", color, { repeat: 1
 export const velvet = (color: string) => dyed("fabric-velvet", color, { repeat: 6, roughness: 0.6, relief: 0.7 });
 /** A smooth glazed or lacquered surface with no texture: porcelain, painted resin, wax. */
 export const glazed = (color: string, roughness: number) => finish({ library: "metal-chrome", mode: "dye", color, roughness, metalness: 0 });
+/** A surface that lights itself: a bulb, a flame, an LED face. `color` is how it looks unlit, `glow` the light it gives. */
+export const lit = (color: string, glow: string, intensity: number) =>
+  finish({ library: "metal-chrome", mode: "dye", color, roughness: 0.4, metalness: 0, glow: { color: glow, intensity } });
 /** Polished gold leaf, as on chiavari chairs, chargers and gilt frames. */
 export const GOLD = finish({ library: "metal-brass", mode: "dye", color: "#d6ad62", roughness: 0.28, metalness: 0.9 });
 
@@ -34,7 +37,7 @@ const FIXED_REFS: Partial<Record<SlotId, string>> = {
   stage_deck: stained("wood-woodplank48", "#4a403b", { repeat: 0.6 }),
   stage_skirt: velvet("#2a2629"),
   backdrop_fabric: velvet("#2a2629"),
-  led_panel: glazed("#0f1115", 0.12),
+  led_panel: lit("#0c111d", "#1a2448", 0.8),
   zone: "library:preset-glass-tinted",
   table_top: "library:wood-finewood27",
   pedestal: "library:metal-steel",
@@ -52,15 +55,17 @@ const FIXED_REFS: Partial<Record<SlotId, string>> = {
   florals: dyed("fabric-suede", "#f1d3d3", { repeat: 12, roughness: 0.8 }),
   greenery: dyed("fabric-suede", "#5d7650", { repeat: 12, roughness: 0.75 }),
   candle: glazed("#f5efe0", 0.55),
+  flame: lit("#ffd58a", "#ffad42", 2.2),
   number_card: glazed("#fbfaf7", 0.6),
   dance_white: glazed("#f7f7f6", 0.12),
   dance_light: glazed("#f7f7f6", 0.15),
   dance_dark: glazed("#1d1b1d", 0.15),
-  led_floor: "library:preset-glass-frosted",
-  screen: glazed("#fbfbfb", 0.8),
+  led_floor: lit("#f2eefb", "#e4dcff", 0.55),
+  screen: lit("#fbfbfb", "#f4f1ea", 0.18),
   light_body: "library:metal-black",
-  light_beam: "library:preset-glass-frosted",
-  bulb: "library:preset-glass-frosted",
+  light_beam: finish({ library: "preset-glass-frosted", mode: "dye", color: "#fff0dc", opacity: 0.16, glow: { color: "#ffc27a", intensity: 0.3 } }),
+  bulb: lit("#fff1d2", "#ffc670", 1.8),
+  ring_light: lit("#fbfaf7", "#fffaf2", 1.1),
   bar_wood: stained("wood-finewood27", "#8a6448"),
   bar_top: "library:flooring-statuarettowhite",
   sofa: dyed("fabric-boucle", "#e9e2d6", { repeat: 6, roughness: 0.9, relief: 0.8 }),

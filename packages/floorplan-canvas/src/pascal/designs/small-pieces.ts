@@ -1,5 +1,5 @@
 import type { PrismPieceNode } from "@prism/types";
-import { HALF_PI, add, box, cylinder, designOf, div, ellipsoid, floor, INDEX, max, min, mul, param, part, revolve, roundedBox, sub, type EventDesign, type Part } from "./kit";
+import { HALF_PI, add, box, cylinder, designOf, div, ellipsoid, floor, INDEX, max, min, mul, param, part, revolve, roundedBox, sub, type EventDesign, type Part, type Profile } from "./kit";
 import { isKey } from "./lookup";
 import type { Expr } from "@pascal-app/core/procedural-items";
 
@@ -157,10 +157,13 @@ function speaker(): Part[] {
   ];
 }
 
-/** A floor uplight washing the wall behind it: a can and its soft beam. */
+/** A floor uplight washing the wall behind it: a can with its lit lens, and its soft beam. */
 function uplight(): Part[] {
   return [
-    part("can", "Can", 1, [cylinder("can", "light_body", [0.2, 0.22, 0.2], [0, 0.15, 0], { segments: 16, rotation: [-0.3, 0, 0] })]),
+    part("can", "Can", 1, [
+      cylinder("can", "light_body", [0.2, 0.22, 0.2], [0, 0.15, 0], { segments: 16, rotation: [-0.3, 0, 0] }),
+      cylinder("lens", "bulb", [0.17, 0.012, 0.17], [0, 0.262, -0.034], { segments: 16, rotation: [-0.3, 0, 0] }),
+    ]),
     part("beam", "Beam", 1, [revolve("beam", "light_beam", [[0.1, 0.2], [0.45, 2.6], [0, 2.6]], [0, 0, 0], { segments: 24, rotation: [-0.3, 0, 0] })]),
   ];
 }
@@ -232,7 +235,7 @@ function photoBooth(): Part[] {
     ]),
     part("ring", "Ring light", 1, [
       cylinder("stand", "light_body", [0.03, 1.5, 0.03], [0, 0.75, front(0.2)], { segments: 8 }),
-      cylinder("ring", "bulb", [0.5, 0.04, 0.5], [0, 1.6, front(0.2)], { rotation: [HALF_PI, 0, 0], segments: 32 }),
+      cylinder("ring", "ring_light", [0.5, 0.04, 0.5], [0, 1.6, front(0.2)], { rotation: [HALF_PI, 0, 0], segments: 32, inner: 0.72 }),
     ]),
     part("props", "Props table", 1, [box("props", "lectern", [0.6, 0.8, 0.4], [sub(div(WIDTH, 2), 0.4), 0.4, front(0.4)])]),
   ];
@@ -294,6 +297,8 @@ function umbrella(): Part[] {
 }
 
 const STRANDS = 6;
+/** A festoon globe hanging from its strand, turned from this profile; a few sides keep a hundred of them light to draw. */
+const FESTOON_GLOBE: Profile = [[0, 0], [0.026, 0.012], [0.036, 0.042], [0.03, 0.07], [0.012, 0.09], [0, 0.095]];
 
 /** Festoon string lights: strands across the area at 3 m, each a line of bulbs, on posts at both ends. */
 function stringLights(): Part[] {
@@ -305,7 +310,7 @@ function stringLights(): Part[] {
     part("strands", "Strands", strands, [box("wire", "light_body", [WIDTH, 0.01, 0.01], [0, 3.1, strandZ])]),
     ...Array.from({ length: STRANDS }, (_, strand) =>
       part(`bulbs_${strand}`, `Bulbs ${strand + 1}`, bulbs, [
-        box("bulb", "bulb", [0.06, 0.08, 0.06], [spreadAcross(bulbs), 3.04, add(mul(-0.5, DEPTH), mul(div(DEPTH, strands), strand + 0.5))]),
+        revolve("bulb", "bulb", FESTOON_GLOBE, [spreadAcross(bulbs), 2.995, add(mul(-0.5, DEPTH), mul(div(DEPTH, strands), strand + 0.5))], { segments: 10 }),
       ], { when: max(0, sub(strands, strand)) }),
     ),
   ];

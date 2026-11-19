@@ -87,13 +87,14 @@ function tallFloral(): Shape[] {
   ];
 }
 
-/** Three pillar candles of stepped heights, each in a hurricane glass, on a ring of greenery. */
+/** Three lit pillar candles of stepped heights, each in a hurricane glass, on a ring of greenery. */
 function candles(): Shape[] {
   return [0, 1, 2].flatMap((index) => {
     const dx = (index - 1) * 0.12;
     const height = 0.14 + index * 0.06;
     return [
       cylinder(`pillar_${index}`, "candle", [0.07, height, 0.07], [dx, TABLE_TOP_M + height / 2, 0], { segments: 16 }),
+      ellipsoid(`flame_${index}`, "flame", [0.018, 0.04, 0.018], [dx, TABLE_TOP_M + height + 0.024, 0]),
       cylinder(`hurricane_${index}`, "vase", [0.11, height + 0.08, 0.11], [dx, TABLE_TOP_M + (height + 0.08) / 2, 0], { segments: 20 }),
       ellipsoid(`sprig_${index}`, "greenery", [0.14, 0.03, 0.06], [dx, TABLE_TOP_M + 0.015, 0.08]),
     ];

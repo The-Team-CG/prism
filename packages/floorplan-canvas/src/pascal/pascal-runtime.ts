@@ -19,7 +19,8 @@ configureViewer({
 /**
  * A library material's textures in our colour: a dyed finish drops the baked colour and its baked shading (ambient
  * occlusion, which reads as blotches once the colour changes) and keeps the relief; a stained one keeps them all and
- * multiplies. Pascal caches the material by its preset, so each finish builds once.
+ * multiplies. A glowing finish also lights itself, which the viewer's bloom picks up in high-quality renders. Pascal
+ * caches the material by its preset, so each finish builds once.
  */
 function finishMaterial(spec: Finish, shading: RenderShading) {
   const preset = getMaterialPresetByRef(`library:${spec.library}`);
@@ -39,6 +40,9 @@ function finishMaterial(spec: Finish, shading: RenderShading) {
         repeatY: repeat,
         normalScaleX: normalScale,
         normalScaleY: normalScale,
+        opacity: spec.opacity ?? preset.mapProperties.opacity,
+        emissiveColor: spec.glow?.color ?? preset.mapProperties.emissiveColor,
+        emissiveIntensity: spec.glow?.intensity ?? preset.mapProperties.emissiveIntensity,
       },
     },
     shading,
