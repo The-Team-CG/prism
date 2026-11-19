@@ -1,4 +1,5 @@
 import { isHiddenInScene } from "@prism/floorplan-scene";
+import { isRoundTable } from "../table-layout";
 import { isPrismEventPieceType, type FloorplanSceneDocument } from "@prism/types";
 import { tableFill, type PrismLens, type TableFill } from "../lens";
 
@@ -30,7 +31,7 @@ function markFor(piece: Piece, lens: PrismLens): LensMark {
   return {
     id: piece.id,
     look,
-    round: piece.type === "prism-table" && piece.shape !== "rect",
+    round: isRoundTable(piece),
     x: piece.position[0],
     y: piece.position[2],
     rotation: piece.rotation,

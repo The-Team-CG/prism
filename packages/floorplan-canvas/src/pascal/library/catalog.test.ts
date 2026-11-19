@@ -11,8 +11,10 @@ describe("the Library catalog", () => {
       "Seating blocks",
       "Stage & floor",
       "Food & bar",
-      "AV",
-      "Décor & safety",
+      "AV & lighting",
+      "Décor",
+      "Outdoor & services",
+      "Safety & guest flow",
       "Zones",
     ]);
     const registered = new Set(prismEventLayoutPlugin.nodes?.map((definition) => definition.kind));

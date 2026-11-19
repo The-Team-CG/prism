@@ -44,6 +44,23 @@ describe("event symbols", () => {
     expect(flatten(symbol)).not.toContainEqual(expect.objectContaining({ pointerEvents: "none" }));
   });
 
+  it("turns every chair's back away from its table, and leaves a crescent's front open", () => {
+    /** Where a chair's back points: its +y turned by the plan's clockwise rotate. */
+    const backOf = (chair: FloorplanGeometry) => {
+      if (chair.kind !== "group") throw new Error("not a chair");
+      const turn = chair.transform?.rotate ?? 0;
+      const [x, y] = chair.transform?.translate ?? [0, 0];
+      return { x, y, back: [-Math.sin(turn), Math.cos(turn)] as const };
+    };
+    for (const fields of [{ shape: "round", seats: 8 }, { shape: "u-shape", width: 6, depth: 5, seats: 18 }, { shape: "rect", width: 4.8, depth: 1.2, seats: 12, seatSides: "around" }]) {
+      const seats = chairs(eventSymbol(piece("prism-table", { ...fields, position: [0, 0, 0] }), "Table"));
+      expect(seats.length).toBe(fields.seats);
+      for (const { x, y, back } of seats.map(backOf)) expect(back[0] * x + back[1] * y, JSON.stringify(fields)).toBeGreaterThan(0);
+    }
+    const crescent = chairs(eventSymbol(piece("prism-table", { shape: "round", seats: 6, crescent: true, position: [0, 0, 0] }), "Table")).map(backOf);
+    expect(crescent.every(({ y, x }) => y < 0.9 || Math.abs(x) > 0.9)).toBe(true);
+  });
+
   it("places every symbol at the piece's plan position, turned by its rotation", () => {
     for (const type of ["prism-table", "prism-bar", "prism-av"] as const) {
       const symbol = eventSymbol(piece(type, { shape: type === "prism-bar" ? "l" : "round", seats: 6, variant: "led-wall", rotation: Math.PI / 2 }), type);

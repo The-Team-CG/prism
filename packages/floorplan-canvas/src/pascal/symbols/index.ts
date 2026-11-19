@@ -6,6 +6,8 @@ import { smallPieceSymbol } from "./small-piece-symbol";
 import { stageSymbol } from "./stage-symbol";
 import { tableSymbol } from "./table-symbol";
 import { zoneSymbol } from "./zone-symbol";
+import { hasSmallPieceDesign } from "../designs/small-pieces";
+import { isRoundTable } from "../table-layout";
 
 /** What Pascal tells a kind about how the piece is shown: selected, highlighted or hovered, and the plan's palette. */
 export type SymbolView = { selected?: boolean; highlighted?: boolean; hovered?: boolean; palette?: Partial<FloorplanPalette> };
@@ -23,7 +25,7 @@ function symbolOf(node: PrismEventPiece, fallbackName: string): FloorplanGeometr
     case "prism-zone":
       return zoneSymbol(node);
     case "prism-stage":
-      return stageSymbol(node);
+      return hasSmallPieceDesign(node.variant) ? smallPieceSymbol(node, fallbackName) : stageSymbol(node);
     default:
       return smallPieceSymbol(node, fallbackName);
   }
@@ -34,7 +36,7 @@ function viewChrome(node: PrismEventPiece, view: SymbolView | undefined): Floorp
   const active = Boolean(view?.selected || view?.highlighted);
   const stroke = active ? (view?.palette?.selectedStroke ?? "#3b82f6") : view?.hovered ? (view.palette?.wallHoverStroke ?? "#93c5fd") : null;
   if (!stroke) return null;
-  const round = node.type === "prism-table" && node.shape !== "rect";
+  const round = isRoundTable(node);
   const style = { stroke, strokeWidth: 2, vectorEffect: "non-scaling-stroke", pointerEvents: "none", fill: active ? (view?.palette?.selectedFill ?? stroke) : "none", fillOpacity: 0.12 } as const;
   const pad = node.type === "prism-table" ? 0.75 : 0.05;
   return round
