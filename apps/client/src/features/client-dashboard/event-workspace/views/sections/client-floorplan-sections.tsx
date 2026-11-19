@@ -22,8 +22,8 @@ type OpenDraft = (draft: PrismFloorPlanDraft, readOnly: boolean) => void;
 const metres = (value: number) => (Number.isInteger(value) ? String(value) : value.toFixed(1));
 
 /**
- * The plan PMCM owns, first on the page: one heading with where it stands, the scene drawn to scale, and one button to
- * open it full screen. While a version waits for the client's review, the review panel below replaces the drawing.
+ * The plan PMCM owns, first on the page: one heading with where it stands, a quick to-scale preview of its scene, and one
+ * button that opens it in the editor PMCM drew it in, read-only. While a version waits for the client's review, the review panel below replaces the drawing.
  */
 export function OfficialLayoutSection({ draft, layout, reviewing, onOpenEditor }: {
   draft?: PrismFloorPlanDraft;
@@ -61,7 +61,7 @@ export function OfficialLayoutSection({ draft, layout, reviewing, onOpenEditor }
             <PlanDrawingView drawing={drawing} label={`Official layout: ${layout.name}`} className="max-h-[34rem] w-full" />
           </div>
           <figcaption className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
-            {draft.name} · {metres(drawing.room.width)} × {metres(drawing.room.depth)} m
+            Preview of {draft.name} · {metres(drawing.room.width)} × {metres(drawing.room.depth)} m · Open the layout to see it as PMCM drew it
           </figcaption>
         </figure>
       ) : (

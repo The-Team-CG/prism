@@ -98,7 +98,7 @@ function usePluginsReady() {
  */
 export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   const { scene, onSave, onSubmit, onSaveTemplate, submitLabel, onBack, eventName, draftName, draftStatus } = props;
-  const { guests, suppliers, seating, guestCount, saveState, saveMessage = null, onRetrySave, onReload } = props;
+  const { guests, suppliers, seating, guestCount, saveState, saveMessage = null, onRetrySave, onReload, presentation = false } = props;
   const ready = usePluginsReady();
   const smallScreen = useSmallScreen();
   const readOnly = props.readOnly || smallScreen;
@@ -115,8 +115,8 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
     [onSave, props.readOnly],
   );
   const context = useMemo<PrismFloorplanContextValue>(
-    () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload }),
-    [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload],
+    () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, presentation }),
+    [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, presentation],
   );
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);

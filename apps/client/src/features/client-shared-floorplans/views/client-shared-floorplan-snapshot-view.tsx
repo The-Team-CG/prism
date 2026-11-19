@@ -1,6 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MapPinned } from "lucide-react";
@@ -18,6 +19,11 @@ import { OfficialLayoutDrawing } from "@/features/floorplan/official-layout-draw
 import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import { clientSharedFloorplanSnapshotHref } from "../model/client-shared-floorplans";
 import { useClientSharedFloorplanSnapshotViewModel } from "../view-models/use-client-shared-floorplans-view-model";
+
+const OfficialLayoutViewer = dynamic(
+  () => import("@/features/floorplan/official-layout-viewer").then((mod) => mod.OfficialLayoutViewer),
+  { ssr: false, loading: () => <div className="grid size-full place-items-center bg-background text-sm text-muted-foreground">Loading layout view...</div> },
+);
 
 const SNAPSHOT_LABEL: Record<PrismClientFloorplanSnapshotType, string> = {
   approved: "Approved version",
@@ -70,6 +76,16 @@ export function ClientSharedFloorplanSnapshotView({
   const vm = useClientSharedFloorplanSnapshotViewModel(eventId, draftId, snapshotType);
   const type = snapshotType as PrismClientFloorplanSnapshotType;
   const title = vm.entry ? vm.entry.draftName : "Shared floorplan";
+  // Open layout shows the plan in the editor PMCM drew it in, read-only and full screen.
+  const [open, setOpen] = useState(false);
+
+  if (open && vm.layout?.scene && vm.entry) {
+    return (
+      <main className="h-screen w-full overflow-hidden bg-background">
+        <OfficialLayoutViewer scene={vm.layout.scene} eventName={vm.entry.eventName} draftName={vm.entry.draftName} draftStatus={vm.entry.draftStatus} onBack={() => setOpen(false)} />
+      </main>
+    );
+  }
 
   return (
     <SnapshotFrame title={title} session={vm.session} onNavigate={(href) => router.push(href)}>
@@ -80,7 +96,10 @@ export function ClientSharedFloorplanSnapshotView({
               <span className="font-medium text-foreground">{vm.entry.eventName}</span> · {formatPortalDate(vm.entry.eventDate)}
               <span className="block">{snapshotLine(type, vm.layout)}</span>
             </p>
-            <SnapshotSwitch entry={vm.entry} current={type} />
+            <div className="flex flex-wrap items-center gap-2">
+              <SnapshotSwitch entry={vm.entry} current={type} />
+              {vm.layout.scene ? <Button type="button" onClick={() => setOpen(true)}>Open layout</Button> : null}
+            </div>
           </div>
           <Card className="grid place-items-center gap-0 overflow-hidden bg-surface-raised p-4">
             <OfficialLayoutDrawing layout={vm.layout} className="max-h-[calc(100dvh-14rem)] w-full" />

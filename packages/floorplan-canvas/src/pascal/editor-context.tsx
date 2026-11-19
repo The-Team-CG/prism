@@ -16,6 +16,11 @@ export type PrismFloorplanContextValue = {
   saveMessage?: string | null;
   onRetrySave(): void;
   onReload(): void;
+  /**
+   * A finished plan shown to someone who did not draw it, such as a client reading the official layout: the planner's
+   * aids (layout checks and their lenses, capacity estimates, the guest list) stay out, and the plan is what remains.
+   */
+  presentation?: boolean;
 };
 
 const PrismFloorplanContext = createContext<PrismFloorplanContextValue | null>(null);

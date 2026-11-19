@@ -61,7 +61,7 @@ function Checks({ issues }: { issues: PrismLayoutIssue[] }) {
  */
 export function PlanPanel() {
   const selected = useViewer((state) => state.selection.selectedIds.length);
-  const { guests, guestCount, seating } = usePrismFloorplan();
+  const { guests, guestCount, seating, presentation } = usePrismFloorplan();
   const scene = useLiveScene();
   const issues = useLayoutChecks();
   if (selected > 0) return null;
@@ -80,19 +80,21 @@ export function PlanPanel() {
       </header>
       <Section title="Seats">
         <Row label="Seats placed" value={number.format(counts.seats)} />
-        <Row label="Guests" value={number.format(counts.guests)} />
+        {presentation ? null : <Row label="Guests" value={number.format(counts.guests)} />}
         {seating.allowed ? <Row label="Seated" value={`${number.format(counts.seated)} of ${number.format(counts.guests)}`} /> : null}
       </Section>
-      {room ? (
+      {room && !presentation ? (
         <Section title="The room holds">
           {roomCapacity(scene).map((entry) => (
             <Row key={entry.style} label={entry.label} value={`about ${number.format(entry.guests)}`} />
           ))}
         </Section>
       ) : null}
-      <Section title="Checks" aside={issues.length > 0 ? String(issues.length) : undefined}>
-        <Checks issues={issues} />
-      </Section>
+      {presentation ? null : (
+        <Section title="Checks" aside={issues.length > 0 ? String(issues.length) : undefined}>
+          <Checks issues={issues} />
+        </Section>
+      )}
     </div>
   );
 }

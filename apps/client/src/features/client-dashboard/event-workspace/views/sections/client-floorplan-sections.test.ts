@@ -44,7 +44,7 @@ describe("client floor plan page", () => {
       draft: official, layout: { id: "plan_1", name: "Official layout v1", venue: "Garden Pavilion", scene }, reviewing: false, onOpenEditor: () => undefined,
     }));
     expect(markup).toContain("<ellipse");
-    expect(markup).toContain("Official layout v1 · 40 × 25 m");
+    expect(markup).toContain("Preview of Official layout v1 · 40 × 25 m");
     expect(markup).toContain("Approved Nov 19, 2026");
     expect(markup).toContain("Open layout");
     expect(markup).not.toContain("will appear here");

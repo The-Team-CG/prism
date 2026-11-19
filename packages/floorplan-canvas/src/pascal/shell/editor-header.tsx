@@ -304,10 +304,12 @@ export function EditorHeader({ onBack, currentDocument, onSubmit, onSaveTemplate
         </>
       )}
       <ViewSwitch />
-      <div className="absolute left-1/2 -translate-x-1/2">
+      {/* Centred from tablet width up; on a phone it would sit on top of the view switch and take its taps, so there it
+          follows the switch in the row and shortens to fit. */}
+      <div className="min-w-0 flex-1 overflow-hidden px-1 md:absolute md:left-1/2 md:flex-none md:-translate-x-1/2 md:overflow-visible md:px-0">
         <PlanMenu eventName={eventName} draftName={draftName} draftStatus={draftStatus} onBack={onBack} saver={saver} />
       </div>
-      <span className="flex-1" />
+      <span className="hidden flex-1 md:block" />
       {readOnly ? <span className="mr-1.5 text-xs font-medium text-muted-foreground">View only</span> : <SaveStatusLabel pascalStatus={pascalStatus} />}
       {readOnly ? null : <HistoryButtons />}
       <Divider />
