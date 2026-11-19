@@ -34,10 +34,13 @@ const verifiedPmcmActor = {
   name: 'Ms. Mys',
   actorName: 'Ms. Mys',
   sessionVersion: 0,
+  sessionId: 'session_pmcm',
   expiresAt: '2099-01-01T00:00:00.000Z',
 };
 
-function prismaFor(version = 0, overrides: Record<string, unknown> = {}) {
+const LIVE_DEVICE_SESSION = { userId: 'user_pmcm', revokedAt: null, lastSeenAt: new Date() };
+
+function prismaFor(version = 0, overrides: Record<string, unknown> = {}, deviceSession: unknown = LIVE_DEVICE_SESSION) {
   return {
     opsUser: {
       findUnique: vi.fn().mockResolvedValue({
@@ -51,6 +54,7 @@ function prismaFor(version = 0, overrides: Record<string, unknown> = {}) {
         ...overrides,
       }),
     },
+    opsUserSession: { findUnique: vi.fn().mockResolvedValue(deviceSession) },
   } as never;
 }
 
@@ -99,7 +103,11 @@ describe('EventSessionGuard', () => {
         actorEmail: 'client@example.test',
       })),
     } as unknown as AuthSessionService;
-    const guard = new EventSessionGuard(authSessionService, prismaFor(0, { role: 'client', email: 'client@example.test' }), new Reflector());
+    const guard = new EventSessionGuard(
+      authSessionService,
+      prismaFor(0, { role: 'client', email: 'client@example.test' }, { ...LIVE_DEVICE_SESSION, userId: 'user_client' }),
+      new Reflector(),
+    );
     const context = createContext({ headers: { 'x-prism-session': 'session-token' } });
 
     await expect(guard.canActivate(context)).resolves.toBe(true);
@@ -152,9 +160,22 @@ describe('EventSessionGuard', () => {
     expect(request).toHaveProperty('prismActor', verifiedPmcmActor);
   });
 
+  it.each([
+    ['signed out', { ...LIVE_DEVICE_SESSION, revokedAt: new Date() }],
+    ['missing', null],
+  ])('rejects a token whose device session is %s, with the signed-out device message', async (_label, deviceSession) => {
+    const authSessionService = { verifyAccessToken: vi.fn(() => verifiedPmcmActor) } as unknown as AuthSessionService;
+    const guard = new EventSessionGuard(authSessionService, prismaFor(0, {}, deviceSession), new Reflector());
+
+    await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow(
+      new UnauthorizedException('This device has been signed out'),
+    );
+  });
+
   it('does not allow a guard without a durable user lookup', async () => {
-    const authSessionService = { verifyAccessToken: vi.fn(() => ({ id: 'user_1', sessionVersion: 0 })) } as unknown as AuthSessionService;
-    const prisma = { opsUser: { findUnique: vi.fn().mockResolvedValue(null) } } as never;
+    const authSessionService = { verifyAccessToken: vi.fn(() => ({ id: 'user_1', sessionVersion: 0, sessionId: 'session_1' })) } as unknown as AuthSessionService;
+    const prisma = prismaFor(0);
+    (prisma as unknown as { opsUser: { findUnique: ReturnType<typeof vi.fn> } }).opsUser.findUnique.mockResolvedValue(null);
     const guard = new EventSessionGuard(authSessionService, prisma, new Reflector());
     await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow('revoked');
   });

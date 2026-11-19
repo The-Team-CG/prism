@@ -11,7 +11,7 @@ function controllerPath(controller: Function): string {
 }
 
 function verifiedActor(role: PrismVerifiedEventActor['actorRole'] = OpsUserRole.PmcmAdmin): PrismVerifiedEventActor {
-  return {
+  return { sessionId: 'session_test',
     id: 'pmcm_session', actorId: 'pmcm_session', role, actorRole: role,
     email: 'pmcm@pmcm.test', actorEmail: 'pmcm@pmcm.test', name: 'Maxine', actorName: 'Maxine',
     expiresAt: '2026-08-25T00:00:00.000Z',

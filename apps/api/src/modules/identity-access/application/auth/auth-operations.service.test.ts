@@ -15,7 +15,7 @@ const approvalReceipt = { message: 'If an account exists for this email, PMCM wi
 
 /** The browser-session table sign-in writes to; these tests do not read it back. */
 function sessionTable() {
-  return { create: vi.fn(async () => ({})), deleteMany: vi.fn(async () => ({ count: 0 })) };
+  return { create: vi.fn(async () => ({})), deleteMany: vi.fn(async () => ({ count: 0 })), findUnique: vi.fn(async () => null) };
 }
 
 function createApprovalService(options: { requestUpdateFails?: boolean; auditFails?: boolean; noAccount?: boolean; accountApproved?: boolean; accountInvited?: boolean } = {}) {
@@ -290,7 +290,7 @@ describe('AuthOperationsService', () => {
       organization: state.user.organization,
       approvalStatus: 'approved',
       sessionVersion: 0,
-    });
+    }, new Date(), 'session_test');
     const actor = {
       id: 'pmcm_user_1', role: OpsUserRole.PmcmAdmin, name: 'Anthony Torres', email: 'anthony@pmcm.test',
       explicit: true, verified: true,
@@ -932,7 +932,7 @@ describe('AuthOperationsService account recovery and sessions', () => {
       organization: 'Ana Events',
       approvalStatus: 'approved',
       sessionVersion: 0,
-    });
+    }, new Date(), 'session_test');
     const actor = authSessionService.verifyAccessToken(session.accessToken);
     const requestWith = (token: string) => ({
       getHandler: () => function route() {},
@@ -941,23 +941,6 @@ describe('AuthOperationsService account recovery and sessions', () => {
     } as never);
     return { service, guard, authAudit, session, actor, requestWith, user };
   }
-
-  it('ends every open session when a session from before device tracking signs out, so the guard rejects a token issued before it', async () => {
-    const { service, guard, authAudit, session, actor, requestWith } = createSessionFixture({
-      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
-      privacyNoticeAcknowledgedAt: new Date(),
-    });
-    await expect(guard.canActivate(requestWith(session.accessToken))).resolves.toBe(true);
-
-    await expect(service.logout(actor)).resolves.toBeUndefined();
-
-    await expect(guard.canActivate(requestWith(session.accessToken))).rejects.toThrow(/revoked/i);
-    expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({
-      actor: 'Ana Reyes',
-      action: 'Signed out and revoked open sessions',
-    }), expect.anything());
-    await expect(service.logout(actor)).rejects.toThrow(/already been revoked/i);
-  });
 
   it('stores the acknowledged notice version and time, audits it, and clears the prompt for that version', async () => {
     const { service, actor, authAudit, user } = createSessionFixture({ privacyNoticeVersion: '2026-05-01' });

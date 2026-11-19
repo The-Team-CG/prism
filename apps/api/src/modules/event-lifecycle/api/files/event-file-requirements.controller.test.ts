@@ -51,7 +51,7 @@ function createController() {
   return { controller, fileRequirementsMatrixService, eventAccessPolicyService, fileRequirementCommands };
 }
 
-const verified = (role: OpsUserRole, name: string, email = `${name.toLowerCase().replaceAll(' ', '.')}@pmcm.test`) => ({
+const verified = (role: OpsUserRole, name: string, email = `${name.toLowerCase().replaceAll(' ', '.')}@pmcm.test`) => ({ sessionId: 'session_test',
   id: `usr-${name}`,
   role,
   email,

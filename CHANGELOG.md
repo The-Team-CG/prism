@@ -81,6 +81,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Security
 
+- Sessions from before device tracking now have to sign in again: every token names its device session, and one without it is refused as signed out.
 - The CI dependency audit tolerates GHSA-fc5q-39xc-vjpf (dev-only picomatch) until 2026-12-18; every other moderate-or-higher advisory still fails.
 - Privacy exports, corrections and erasure need approved, scoped requests and respect legal holds.
 - File access checks event scope, visibility, content and object identity; payment evidence is PMCM-only.

@@ -27,7 +27,7 @@ describe('floorplan authoring session boundaries', () => {
   });
 
   it('attributes new templates to the verified PMCM actor', async () => {
-    const actor: PrismVerifiedEventActor = {
+    const actor: PrismVerifiedEventActor = { sessionId: 'session_test',
       id: 'user_pmcm_1',
       actorId: 'user_pmcm_1',
       role: 'pmcm-admin',
@@ -61,7 +61,7 @@ describe('floorplan authoring session boundaries', () => {
       service as unknown as TemplatesService,
       new EventAccessPolicyService(audit),
     );
-    const client: PrismVerifiedEventActor = {
+    const client: PrismVerifiedEventActor = { sessionId: 'session_test',
       id: 'client_ana', actorId: 'client_ana', role: 'client', actorRole: 'client',
       name: 'Ana', actorName: 'Ana', email: 'ana@example.test', actorEmail: 'ana@example.test',
       expiresAt: '2099-01-01T00:00:00Z',

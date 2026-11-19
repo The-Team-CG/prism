@@ -11,7 +11,7 @@ function controllerPath(controller: Function): string {
 
 describe('trust-ops audit/privacy controllers', () => {
   const queue = (input: Record<string, string> = {}) => listPrivacyRequestsQuerySchema.parse(input);
-  const verified = (role: 'pmcm-admin' | 'system' | 'client' | 'coordinator' | 'supplier' | 'guest' = 'pmcm-admin', name = 'PMCM Admin') => ({ id: 'u1', actorId: 'u1', role, actorRole: role, email: 'user@example.test', actorEmail: 'user@example.test', name, actorName: name, expiresAt: '2099-01-01T00:00:00.000Z' });
+  const verified = (role: 'pmcm-admin' | 'system' | 'client' | 'coordinator' | 'supplier' | 'guest' = 'pmcm-admin', name = 'PMCM Admin') => ({ sessionId: 'session_test', id: 'u1', actorId: 'u1', role, actorRole: role, email: 'user@example.test', actorEmail: 'user@example.test', name, actorName: name, expiresAt: '2099-01-01T00:00:00.000Z' });
   it('keeps public audit and privacy route bases stable under trust ownership', () => {
     expect(controllerPath(OpsAuditController)).toBe('audit');
     expect(controllerPath(OpsPrivacyController)).toBe('privacy');

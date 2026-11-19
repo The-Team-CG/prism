@@ -12,7 +12,7 @@ const live = Boolean(databaseUrl && /^postgresql:\/\/[^@]+@127\.0\.0\.1:55437\/p
 if (databaseUrl && !live) throw new Error('P0_TEST_DATABASE_URL must target 127.0.0.1:55437/prism_p0');
 
 function verifiedActor(id: string, role: OpsUserRole, name: string, email: string): PrismVerifiedEventActor {
-  return {
+  return { sessionId: 'session_test',
     id, actorId: id, role, actorRole: role, name, actorName: name, email, actorEmail: email,
     expiresAt: '2099-01-01',
   };

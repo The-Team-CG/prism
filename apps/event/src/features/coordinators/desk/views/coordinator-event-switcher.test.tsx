@@ -170,11 +170,11 @@ it("titles the tab after the view on screen, including a coordinator redirected 
   expect(document.title).toBe("Tasks · P.R.I.S.M");
 });
 
-it("rewrites old section links to the readable view and keeps the event", () => {
+it("sends an old section link to My shift with the outside-portal notice and keeps the event", () => {
   window.history.replaceState(null, "", "/dashboard?section=coord-queue&event=evt_current");
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
 
-  expect(window.location.search).toBe("?view=tasks&event=evt_current");
+  expect(window.location.search).toBe("?view=shift&event=evt_current&notice=outside-portal");
 });
 
 it("opens the issue form from the top bar in one step", () => {

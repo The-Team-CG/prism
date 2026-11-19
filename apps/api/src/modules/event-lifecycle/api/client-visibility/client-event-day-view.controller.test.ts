@@ -17,7 +17,7 @@ const actor = {
   verified: true,
 };
 
-const verifiedActor = {
+const verifiedActor = { sessionId: 'session_test',
   id: 'pmcm_1',
   actorId: 'pmcm_1',
   role: OpsUserRole.PmcmAdmin,

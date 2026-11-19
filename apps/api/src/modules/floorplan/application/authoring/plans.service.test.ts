@@ -126,7 +126,7 @@ function verifiedActor(
   name: string,
 ): PrismVerifiedEventActor {
   const actorId = `user_${email}`;
-  return {
+  return { sessionId: 'session_test',
     id: actorId,
     actorId,
     role,

@@ -20,7 +20,7 @@ import { OwnTwoFactorService } from '../../application/auth/own-two-factor.servi
 import { EmailChangeService } from '../../application/auth/email-change.service';
 import { AccountInvitationService } from '../../application/auth/account-invitation.service';
 import { OpsAuthController } from './auth.controller';
-const actor: Parameters<OpsAuthController['listApprovalRequests']>[0] = { id: 'u1', actorId: 'u1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01' };
+const actor: Parameters<OpsAuthController['listApprovalRequests']>[0] = { sessionId: 'session_test', id: 'u1', actorId: 'u1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01' };
 
 function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
@@ -143,7 +143,7 @@ describe('OpsAuthController', () => {
         {} as never,
         {} as never,
       );
-      const outsider: Parameters<OpsAuthController['listApprovalRequests']>[0] = {
+      const outsider: Parameters<OpsAuthController['listApprovalRequests']>[0] = { sessionId: 'session_test',
         id: `${role}_1`, actorId: `${role}_1`, role, actorRole: role, email: `${role}@example.test`, actorEmail: `${role}@example.test`,
         name: 'Outsider', actorName: 'Outsider', expiresAt: '2099-01-01',
       };
@@ -174,7 +174,7 @@ describe('OpsAuthController', () => {
         {} as never,
         {} as never,
       );
-      const outsider: Parameters<OpsAuthController['listApprovalRequests']>[0] = {
+      const outsider: Parameters<OpsAuthController['listApprovalRequests']>[0] = { sessionId: 'session_test',
         id: `${role}_1`, actorId: `${role}_1`, role, actorRole: role, email: `${role}@example.test`, actorEmail: `${role}@example.test`,
         name: 'Outsider', actorName: 'Outsider', expiresAt: '2099-01-01',
       };
