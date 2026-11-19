@@ -18,7 +18,8 @@ function loadBank() {
   return vm.runInContext('UAT_FORM', context);
 }
 
-const cell = (text) => String(text).replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
+// Backslashes first, so an escaped pipe in the source cannot turn back into a cell break.
+const cell = (text) => String(text).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 
 function questionBank(bank = loadBank()) {
   const roles = bank.roles;
