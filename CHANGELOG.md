@@ -10,6 +10,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- The floor plan editor prints a setup drawing alongside the colour plan: the same plan as black line work on white, for the crew setting up the room and for photocopying.
 - Clients see U-shape and hollow-square tables as their joined runs on the official layout, and a review note dropped inside a U pins to the floor, not the table.
 - Floor plan pieces look real: in 3D, linens, sashes and seats are Pascal's woven textures in the card's colours, each chair style is drawn as itself, round cloths fall in folds, every dining seat is laid with a charger, plate, napkin, cutlery and glasses, centrepieces repeat along long tables, and string lights, LED walls and floors, uplights, ring lights and candles glow; in 2D, tables are drawn in their linen colour with covers and bold numbers, chairs in their style's colours, every service, AV, décor and safety piece as itself, and zones as tinted areas.
 - Floor plan pieces look real: in 3D, linens, sashes and seats are Pascal's woven textures in the card's colours, each chair style is drawn as itself, round cloths fall in folds, every dining seat is laid with a charger, plate, napkin, cutlery and glasses, and centrepieces repeat along long tables; in 2D, tables are drawn in their linen colour with covers and bold numbers, chairs in their style's colours, every service, AV, décor and safety piece as itself, and zones as tinted areas.

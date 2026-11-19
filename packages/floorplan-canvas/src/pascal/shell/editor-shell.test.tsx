@@ -133,13 +133,13 @@ describe("the floor plan editor shell", () => {
       return screen.getAllByRole("menuitem").map((item) => item.textContent);
     };
     await openEditor();
-    expect(printable()).toEqual(["Floor plan", "Pull sheet", "Seating list"]);
+    expect(printable()).toEqual(["Floor plan", "Setup drawing", "Pull sheet", "Seating list"]);
     cleanup();
     await openEditor({ seatingAllowed: false });
-    expect(printable()).toEqual(["Floor plan", "Pull sheet"]);
+    expect(printable()).toEqual(["Floor plan", "Setup drawing", "Pull sheet"]);
     cleanup();
     await openEditor({ readOnly: true });
-    expect(printable()).toEqual(["Floor plan", "Pull sheet", "Seating list"]);
+    expect(printable()).toEqual(["Floor plan", "Setup drawing", "Pull sheet", "Seating list"]);
   });
 
   it("names the plan in the middle of the bar, and its menu saves the plan as a venue template", async () => {

@@ -191,14 +191,15 @@ function PlanMenu({ onBack, saver, ...name }: PlanMenuProps) {
 }
 
 /**
- * Prints the plan as it is now: the floor plan drawing, the pull sheet suppliers pack from, and, where guests can be
- * seated, who sits where. The seating list is never offered to a client.
+ * Prints the plan as it is now: the floor plan drawing in colour, the same plan as line work for the setup crew, the pull
+ * sheet suppliers pack from, and, where guests can be seated, who sits where. The seating list is never offered to a client.
  */
 function PrintMenu({ currentDocument, title }: { currentDocument(): FloorplanSceneDocument; title: string }) {
   const { guests, seating } = usePrismFloorplan();
   const [refusal, setRefusal] = useState<string | null>(null);
   const documents = [
     { label: "Floor plan", html: () => planHtml(title, currentDocument()) },
+    { label: "Setup drawing", html: () => planHtml(title, currentDocument(), "drafting") },
     { label: "Pull sheet", html: () => pullSheetHtml(title, currentDocument()) },
     ...(seating.allowed ? [{ label: "Seating list", html: () => seatingListHtml(title, buildSeatingList(currentDocument(), guests)) }] : []),
   ];

@@ -92,6 +92,40 @@ export function geometrySvg(geometry: FloorplanGeometry): string {
   }
 }
 
+/**
+ * How the plan prints: `presentation` as the editor draws it, in colour, for showing a client; `drafting` as black line
+ * work on white, for the crew setting the room up and for photocopying.
+ */
+export type PlanStyle = "presentation" | "drafting";
+
+const INK = "#1f2937";
+const PAPER = "#ffffff";
+const HAIRLINE_M = 0.015;
+
+type Shape = FloorplanGeometry & Record<string, unknown>;
+
+/** A see-through fill with no edge: a shadow or a wash, which line work leaves out. */
+const isWash = (shape: Shape) => typeof shape.fillOpacity === "number" && shape.fillOpacity < 0.5 && (shape.stroke === undefined || shape.stroke === "none");
+
+/** A filled or outlined shape as line work: white inside an inked edge, or just the edge where it was see-through. */
+function inked(shape: Shape): FloorplanGeometry {
+  const { fillOpacity, ...rest } = shape;
+  const hollow = shape.fill === "none" || (typeof fillOpacity === "number" && fillOpacity < 0.5);
+  return { ...rest, fill: hollow ? "none" : PAPER, stroke: INK, strokeWidth: shape.strokeWidth ?? HAIRLINE_M } as FloorplanGeometry;
+}
+
+/** A presentation symbol as line work: shadows and washes go, shapes are white with inked edges, lines and text are inked. */
+export function drafted(geometry: FloorplanGeometry): FloorplanGeometry | null {
+  const shape = geometry as Shape;
+  if (geometry.kind === "group") {
+    const children = geometry.children.flatMap((child) => drafted(child) ?? []);
+    return children.length ? { ...geometry, children } : null;
+  }
+  if (geometry.kind === "text") return { ...shape, fill: INK } as FloorplanGeometry;
+  if (geometry.kind === "line") return { ...shape, stroke: INK } as FloorplanGeometry;
+  return isWash(shape) ? null : inked(shape);
+}
+
 /** Every visible event piece on the plan. */
 function visiblePieces(scene: FloorplanSceneDocument): PrismEventPiece[] {
   return Object.values(scene.nodes).flatMap((node) =>
@@ -111,21 +145,28 @@ function frameOf(room: { minX: number; minY: number; width: number; depth: numbe
   return [minX - MARGIN_M, minY - MARGIN_M, maxX - minX + 2 * MARGIN_M, maxY - minY + 2 * MARGIN_M];
 }
 
-/** The plan drawn as it is in the editor: its walls and every piece's symbol, in metres, with a 5 m scale bar. */
-export function planSvg(scene: FloorplanSceneDocument): string {
+const symbolSvg = (piece: PrismEventPiece, style: PlanStyle) => {
+  const symbol = eventSymbol(piece, "Piece");
+  const drawn = style === "drafting" ? drafted(symbol) : symbol;
+  return drawn ? geometrySvg(drawn) : "";
+};
+
+/** The plan drawn in the given style: its walls and every piece's symbol, in metres, with a 5 m scale bar. */
+export function planSvg(scene: FloorplanSceneDocument, style: PlanStyle = "presentation"): string {
   const { room, walls } = planDrawing(scene);
   const visible = visiblePieces(scene);
   const [x, y, w, h] = frameOf(room, visible);
   const wallLines = walls.map((wall) => `<line x1="${wall.x1}" y1="${wall.y1}" x2="${wall.x2}" y2="${wall.y2}" stroke="#1f2937" stroke-width="0.2" stroke-linecap="square"/>`).join("");
-  const pieces = visible.map((piece) => geometrySvg(eventSymbol(piece, "Piece"))).join("");
+  const pieces = visible.map((piece) => symbolSvg(piece, style)).join("");
   const scaleY = room.minY + room.depth + MARGIN_M * 0.6;
   const scale = `<g><line x1="${room.minX}" y1="${scaleY}" x2="${room.minX + 5}" y2="${scaleY}" stroke="#1f2937" stroke-width="0.06"/><text x="${room.minX + 5.3}" y="${scaleY}" font-size="0.45" dominant-baseline="central" fill="#1f2937">5 m</text></g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" style="width:100%;max-height:70vh">${wallLines}${pieces}${scale}</svg>`;
 }
 
-/** A print-ready floor plan: the drawing, its room size, and what it needs brought in. */
-export function planHtml(title: string, scene: FloorplanSceneDocument): string {
+/** A print-ready floor plan in the given style: the drawing, its room size, and what it needs brought in. */
+export function planHtml(title: string, scene: FloorplanSceneDocument, style: PlanStyle = "presentation"): string {
   const { room } = planDrawing(scene);
   const size = `Room ${Math.round(room.width * 10) / 10} × ${Math.round(room.depth * 10) / 10} m`;
-  return page(`${title} · Floor plan`, `<h1>${escapeHtml(title)}</h1><p>${size}</p>${planSvg(scene)}<h2>What the plan needs</h2>${pullSheetSections(pullSheet(scene))}`, true);
+  const name = style === "drafting" ? `${title} · Setup drawing` : title;
+  return page(`${name} · Floor plan`, `<h1>${escapeHtml(name)}</h1><p>${size}</p>${planSvg(scene, style)}<h2>What the plan needs</h2>${pullSheetSections(pullSheet(scene))}`, true);
 }
