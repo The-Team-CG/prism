@@ -1,7 +1,8 @@
 "use client";
 
-import { ReceiptText } from "lucide-react";
+import { Plus, ReceiptText } from "lucide-react";
 import type { PrismPaymentReceipt } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { formatPortalDate } from "@prism/ui/format-date";
@@ -66,9 +67,22 @@ function FilterSelect({ value, onChange }: { value: ReceiptFilter; onChange: (va
   );
 }
 
-export function ReceiptList({ vm }: { vm: PaymentReceiptsViewModel }) {
+export function ReceiptList({ vm, onRecordReceipt }: { vm: PaymentReceiptsViewModel; onRecordReceipt: () => void }) {
   return (
-    <PrismSection id="payment-receipts" title="Receipts" count={vm.receipts.length} flush action={<FilterSelect value={vm.filter} onChange={vm.setFilter} />}>
+    <PrismSection
+      id="payment-receipts"
+      title="Receipts"
+      count={vm.receipts.length}
+      flush
+      action={
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterSelect value={vm.filter} onChange={vm.setFilter} />
+          <Button type="button" size="sm" onClick={onRecordReceipt} className="rounded-lg font-semibold">
+            <Plus className="size-4" /> Record receipt
+          </Button>
+        </div>
+      }
+    >
       <ListBody vm={vm} />
     </PrismSection>
   );
