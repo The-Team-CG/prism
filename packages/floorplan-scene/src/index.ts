@@ -6,3 +6,4 @@ export { nextTableNumber, sceneSeatCount, zoneSupplierIds } from "./scene-capaci
 export { isHiddenInScene } from "./scene-visibility.js";
 export { matchLegacyGuests, type NamedGuest } from "./legacy-guest-matching.js";
 export { planDrawing, roomSize, type PlanDrawing } from "./plan-drawing.js";
+export { displayName, pullSheet } from "./pull-sheet.js";
