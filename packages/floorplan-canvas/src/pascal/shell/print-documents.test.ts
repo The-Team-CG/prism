@@ -20,7 +20,7 @@ describe("printed documents", () => {
     const html = planHtml("Gala", plan());
     expect(html).toContain("Room 20 × 15 m");
     expect(html.match(/<line [^>]*stroke-width="0.2"/g)).toHaveLength(4);
-    expect(html).toContain(">T1</text>");
+    expect(html).toContain(">1</text>");
     expect(html).toContain("Round table 1.8 m");
     expect(html).toContain("Chiavari chairs");
   });
