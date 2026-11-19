@@ -696,7 +696,7 @@ export async function run(ctx) {
   await step("portal wiring: API-only endpoints with no portal caller", async () => {
     const guestSource = readFileSync(join(repoRoot, "apps/guest/src/features/guest-checkin/dashboard/data/guest-dashboard-repository.ts"), "utf8");
     const eventSource = readFileSync(join(repoRoot, "apps/event/src/features/event-dashboard/shell/data/commands/operations-commands.ts"), "utf8");
-    expect(guestSource.includes("consent-withdrawal") && eventSource.includes('method: "DELETE"'), "consent withdrawal or operator revoke has no portal data caller");
+    expect(guestSource.includes("withdrawFeedbackConsent") && eventSource.includes("revokeOperator"), "consent withdrawal or operator revoke has no portal data caller");
   });
 
   // ---------------------------------------------------------------- event games smoke
