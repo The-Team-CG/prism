@@ -41,8 +41,10 @@ export function EventDashboardTeamSectionView() {
   const roster = teamView === "archived" ? coordinators.filter((coordinator) => !coordinator.active) : coordinators;
   return (
     <div className="grid gap-5">
-      <WorkspaceRouteTabs label="Team views" tabs={TEAM_VIEW_TABS} activeId={teamView} />
-      <StaffInvitePanel vm={invitations} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <WorkspaceRouteTabs label="Team views" tabs={TEAM_VIEW_TABS} activeId={teamView === "archived" ? "archived" : "all"} />
+        <StaffInvitePanel vm={invitations} />
+      </div>
       {selectedEvent && teamView !== "archived" ? (
         <CoordinatorAssignmentDesk
           event={selectedEvent}
