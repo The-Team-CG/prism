@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 import { useEditor } from "@pascal-app/editor";
 import { usePrismFloorplan } from "../editor-context";
 import { searchCatalog, type LibraryItem } from "./catalog";
+import { RoomPlanner } from "./room-planner";
 
 /** A top-down outline in the tile's real proportions: round tables as circles, everything else as a rectangle. */
 function TileSymbol({ tile }: { tile: LibraryItem }) {
@@ -68,6 +69,7 @@ export function LibraryPanel() {
           className="w-full bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
         />
       </label>
+      <RoomPlanner />
       {active ? (
         <p role="status" className="rounded-md bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary">
           Click the plan to place · Esc

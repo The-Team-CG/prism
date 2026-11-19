@@ -101,12 +101,23 @@ function visiblePieces(scene: FloorplanSceneDocument): PrismEventPiece[] {
 
 const MARGIN_M = 1.5;
 
+/** The box the drawing frames: the room, and any piece standing outside it, with a margin. */
+function frameOf(room: { minX: number; minY: number; width: number; depth: number }, pieces: PrismEventPiece[]): [number, number, number, number] {
+  const reach = (piece: PrismEventPiece) => Math.hypot(piece.width, piece.depth) / 2;
+  const minX = Math.min(room.minX, ...pieces.map((piece) => piece.position[0] - reach(piece)));
+  const minY = Math.min(room.minY, ...pieces.map((piece) => piece.position[2] - reach(piece)));
+  const maxX = Math.max(room.minX + room.width, ...pieces.map((piece) => piece.position[0] + reach(piece)));
+  const maxY = Math.max(room.minY + room.depth, ...pieces.map((piece) => piece.position[2] + reach(piece)));
+  return [minX - MARGIN_M, minY - MARGIN_M, maxX - minX + 2 * MARGIN_M, maxY - minY + 2 * MARGIN_M];
+}
+
 /** The plan drawn as it is in the editor: its walls and every piece's symbol, in metres, with a 5 m scale bar. */
 export function planSvg(scene: FloorplanSceneDocument): string {
   const { room, walls } = planDrawing(scene);
-  const [x, y, w, h] = [room.minX - MARGIN_M, room.minY - MARGIN_M, room.width + 2 * MARGIN_M, room.depth + 2 * MARGIN_M];
+  const visible = visiblePieces(scene);
+  const [x, y, w, h] = frameOf(room, visible);
   const wallLines = walls.map((wall) => `<line x1="${wall.x1}" y1="${wall.y1}" x2="${wall.x2}" y2="${wall.y2}" stroke="#1f2937" stroke-width="0.2" stroke-linecap="square"/>`).join("");
-  const pieces = visiblePieces(scene).map((piece) => geometrySvg(eventSymbol(piece, "Piece"))).join("");
+  const pieces = visible.map((piece) => geometrySvg(eventSymbol(piece, "Piece"))).join("");
   const scaleY = room.minY + room.depth + MARGIN_M * 0.6;
   const scale = `<g><line x1="${room.minX}" y1="${scaleY}" x2="${room.minX + 5}" y2="${scaleY}" stroke="#1f2937" stroke-width="0.06"/><text x="${room.minX + 5.3}" y="${scaleY}" font-size="0.45" dominant-baseline="central" fill="#1f2937">5 m</text></g>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" style="width:100%;max-height:70vh">${wallLines}${pieces}${scale}</svg>`;

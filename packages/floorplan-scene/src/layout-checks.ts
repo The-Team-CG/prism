@@ -34,6 +34,8 @@ type Placed = { piece: PrismEventPiece; name: string; centre: Point; body: Footp
 
 const variantOf = (piece: PrismEventPiece): string => ("variant" in piece && typeof piece.variant === "string" ? piece.variant : "");
 const seatedTable = (piece: PrismEventPiece): piece is PrismTableNode => piece.type === "prism-table" && piece.shape !== "cocktail" && piece.seats > 0;
+/** Gaps within a centimetre of a rule pass it: footprints are drawn to the centimetre, not the micron. */
+const TOLERANCE_M = 0.01;
 const metres = (value: number) => `${Math.round(value * 10) / 10} m`;
 
 function place(piece: PrismEventPiece, node: FloorplanSceneDocument["nodes"][string]): Placed {
@@ -41,7 +43,8 @@ function place(piece: PrismEventPiece, node: FloorplanSceneDocument["nodes"][str
   const body = footprint(piece, round);
   const occupied = seatedTable(piece) ? footprint(piece, round, CHAIR_REACH_M) : body;
   const centre: Point = [piece.position[0], piece.position[2]];
-  return { piece, name: pieceName(node as never), centre, body, occupied, reach: reachOf(occupied, centre) };
+  const name = pieceName(node as never);
+  return { piece, name: name.charAt(0).toUpperCase() + name.slice(1), centre, body, occupied, reach: reachOf(occupied, centre) };
 }
 
 /** Every visible event piece that stands on the floor: zones, drawn shapes and overhead pieces are left out. */
@@ -65,7 +68,7 @@ function pairIssue(a: Placed, b: Placed): PrismLayoutIssue | null {
   if (gapBetween(a.occupied, b.occupied) === 0) return { kind: "overlap", pieceIds: ids, message: `The chairs at ${a.name} and ${b.name} run into each other.` };
   if (!seatedTable(a.piece) || !seatedTable(b.piece)) return null;
   const gap = gapBetween(a.body, b.body);
-  if (gap >= LAYOUT_RULES.seatedTableGapM) return null;
+  if (gap >= LAYOUT_RULES.seatedTableGapM - TOLERANCE_M) return null;
   return { kind: "tight", pieceIds: ids, message: `${a.name} and ${b.name} are ${metres(gap)} apart; seated tables need ${metres(LAYOUT_RULES.seatedTableGapM)} for chairs and service.` };
 }
 

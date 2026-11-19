@@ -62,6 +62,6 @@ describe("layoutChecks", () => {
     ]);
     const sightlines = layoutChecks(scene).filter((issue) => issue.kind === "sightline");
     expect(sightlines.map((issue) => issue.pieceIds)).toEqual([["T1"]]);
-    expect(sightlines[0]?.message).toMatch(/^T1: \d seats? cannot see stage past speaker\.$/);
+    expect(sightlines[0]?.message).toMatch(/^T1: \d seats? cannot see Stage past Speaker\.$/);
   });
 });
