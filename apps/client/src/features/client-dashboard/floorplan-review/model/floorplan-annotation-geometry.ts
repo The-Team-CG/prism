@@ -35,7 +35,8 @@ export function roomPointFromAnchor(room: ReviewRoom, anchor: AnnotationAnchor):
 
 /**
  * Whether a plan point is on a piece. The piece is drawn turned by -rotation, so the point is turned by +rotation
- * into the piece's own frame, where a rectangle is its box and a round piece is its inscribed ellipse.
+ * into the piece's own frame, where a rectangle is its box, a round piece is its inscribed ellipse, and a U or hollow
+ * square is its runs (a point in the open middle is not on the table).
  */
 function pieceContains(piece: ReviewPiece, planX: number, planY: number): boolean {
   const dx = planX - piece.cx;
@@ -47,6 +48,7 @@ function pieceContains(piece: ReviewPiece, planX: number, planY: number): boolea
   const halfWidth = piece.width / 2;
   const halfDepth = piece.depth / 2;
   if (piece.shape === "circle") return (localX / halfWidth) ** 2 + (localY / halfDepth) ** 2 <= 1;
+  if (piece.shape === "runs") return piece.runs.some((run) => Math.abs(localX - run.x) <= run.width / 2 && Math.abs(localY - run.y) <= run.depth / 2);
   return Math.abs(localX) <= halfWidth && Math.abs(localY) <= halfDepth;
 }
 

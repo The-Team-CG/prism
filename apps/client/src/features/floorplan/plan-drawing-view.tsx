@@ -10,11 +10,18 @@ const PIECE_STROKE = "#9060A0";
 
 type Piece = PlanDrawing["pieces"][number];
 
+/** A piece's outline: its ellipse, its box, or a U's or hollow square's runs, each run a box in the piece's frame. */
+function Outline({ piece }: { piece: Piece }) {
+  if (piece.shape === "circle") return <ellipse cx={piece.cx} cy={piece.cy} rx={piece.width / 2} ry={piece.depth / 2} fill={PIECE_FILL} stroke={PIECE_STROKE} />;
+  const boxes = piece.shape === "runs" ? piece.runs : [{ x: 0, y: 0, width: piece.width, depth: piece.depth }];
+  return boxes.map((box, index) => (
+    <rect key={index} x={piece.cx + box.x - box.width / 2} y={piece.cy + box.y - box.depth / 2} width={box.width} height={box.depth} fill={PIECE_FILL} stroke={PIECE_STROKE} />
+  ));
+}
+
 /** A piece's outline, turned as the Pascal editor turns it: by -rotation, in SVG's clockwise-positive frame. */
 function PieceShape({ piece }: { piece: Piece }) {
-  const outline = piece.shape === "circle"
-    ? <ellipse cx={piece.cx} cy={piece.cy} rx={piece.width / 2} ry={piece.depth / 2} fill={PIECE_FILL} stroke={PIECE_STROKE} />
-    : <rect x={piece.cx - piece.width / 2} y={piece.cy - piece.depth / 2} width={piece.width} height={piece.depth} fill={PIECE_FILL} stroke={PIECE_STROKE} />;
+  const outline = <Outline piece={piece} />;
   return <g data-piece-id={piece.id} transform={`rotate(${(-piece.rotation * 180) / Math.PI} ${piece.cx} ${piece.cy})`}>{outline}</g>;
 }
 
