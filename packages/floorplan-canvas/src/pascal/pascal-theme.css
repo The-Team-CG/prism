@@ -89,3 +89,26 @@ body:has(.prism-pascal-editor) {
 .prism-tile-glyph [stroke]:not([stroke="none"]) {
   stroke: color-mix(in oklab, var(--foreground) 62%, transparent);
 }
+
+/* Number rows scrub from their label, as in Figma, with no grip dots; every row starts at the same inset. */
+.prism-pascal-editor [data-docked-inspector] .cursor-ew-resize > .grid {
+  display: none;
+}
+.prism-pascal-editor [data-docked-inspector] div:has(> .cursor-ew-resize) {
+  padding-inline: 0.75rem;
+}
+.prism-pascal-editor [data-docked-inspector] .cursor-ew-resize > span {
+  font-weight: 400;
+  color: color-mix(in oklab, var(--foreground) 80%, transparent);
+}
+/* Pascal's boxed toggles become plain rows with the checkbox at the end. */
+.prism-pascal-editor [data-docked-inspector] .group.h-10.cursor-pointer {
+  height: 2rem;
+  border: 0;
+  background: transparent;
+  padding-inline: 0.75rem;
+  font-size: 0.75rem;
+}
+.prism-pascal-editor [data-docked-inspector] .group.h-10.cursor-pointer > .select-none {
+  color: color-mix(in oklab, var(--foreground) 80%, transparent);
+}

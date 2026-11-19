@@ -15,6 +15,8 @@ vi.mock("@pascal-app/viewer", () => ({ useViewer: (select: (state: unknown) => u
 
 const { SeatedGuestsFooter } = await import("./seated-guests-footer");
 const { ZoneSuppliersField } = await import("./zone-suppliers-field");
+const { ShapeField } = await import("./shape-field");
+const SashField = (await import("./swatch-field")).swatchField("sash", "Sash");
 const { tableParametrics, tableQuickActions } = await import("./parametrics");
 const { hostState } = await import("./host-state");
 
@@ -93,6 +95,28 @@ describe("the table card", () => {
     expect(tableQuickActions({ node: table }).map((action) => action.label)).toEqual(["Seat guests"]);
     hostState.setFacts({ seatingAllowed: false, readOnly: false });
     expect(tableQuickActions({ node: table })).toEqual([]);
+  });
+
+  it("picks the shape and the cloth colours from drawn buttons and swatches, and only while the plan is editable", () => {
+    const onUpdate = vi.fn();
+    const card = (readOnly: boolean) =>
+      render(
+        <PrismFloorplanProvider value={context({ readOnly })}>
+          <ShapeField node={table} onUpdate={onUpdate} />
+          <SashField node={{ ...table, sash: "blush" }} onUpdate={onUpdate} />
+        </PrismFloorplanProvider>,
+      );
+    card(false);
+    fireEvent.click(screen.getByRole("button", { name: "U-shape" }));
+    expect(onUpdate).toHaveBeenCalledWith({ shape: "u-shape" });
+    expect(screen.getByRole("radio", { name: "Blush" }).getAttribute("aria-checked")).toBe("true");
+    fireEvent.click(screen.getByRole("radio", { name: "None" }));
+    expect(onUpdate).toHaveBeenLastCalledWith({ sash: undefined });
+    cleanup();
+
+    card(true);
+    expect((screen.getByRole("button", { name: "U-shape" }) as HTMLButtonElement).matches(":disabled")).toBe(true);
+    expect((screen.getByRole("radio", { name: "Blush" }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
 

@@ -8,10 +8,10 @@ import type {
   PrismTableNode,
   PrismZoneNode,
 } from "@prism/types";
-import { prismTableShapes } from "@prism/types";
 import { CENTERPIECES, CHAIR_STYLES } from "../dressing";
 import { isRoundTable } from "@prism/floorplan-scene";
 import { hostState, openSeating } from "./host-state";
+import { ShapeField } from "./shape-field";
 import { swatchField } from "./swatch-field";
 import { ZoneSuppliersField } from "./zone-suppliers-field";
 
@@ -50,7 +50,7 @@ export const tableParametrics: ParametricDescriptor<PrismTableNode> = {
       label: "Table",
       defaultExpanded: true,
       fields: [
-        { key: "shape", label: "Shape", kind: "enum", options: prismTableShapes },
+        { key: "shape", label: "Shape", kind: "custom", component: ShapeField },
         { key: "width", label: "Size", kind: "number", unit: "m", min: 0.6, max: 20, step: 0.1 },
         { key: "depth", label: "Depth", kind: "number", unit: "m", min: 0.6, max: 20, step: 0.05, visibleIf: (table) => !isRoundTable(table) },
         { key: "seats", label: "Seats", kind: "number", min: 0, max: 60, step: 1 },

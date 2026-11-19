@@ -26,6 +26,7 @@ export function Segmented<T extends string>({ label, options, value, onChange, f
           key={option.value}
           type="button"
           title={option.title}
+          aria-label={option.title}
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={`${fill ? "flex-1" : ""} inline-flex h-7 items-center justify-center gap-1.5 rounded-[7px] px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-[0_0_0_0.5px_rgb(24_19_26/0.12),0_1px_2px_rgb(24_19_26/0.08)]`}
