@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync, createWriteStream, copyFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, writeFileSync, createWriteStream, copyFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
