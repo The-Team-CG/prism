@@ -6,10 +6,11 @@ import { barDesign } from "./bar";
 import { danceFloorDesign } from "./dance-floor";
 import { clampedValues, type EventDesign } from "./kit";
 import { slotMaterial } from "./materials";
+import { placeSettingDesign } from "./place-setting";
 import { chairDesign, deskDesign, runnerDesign } from "./seating";
 import { hasSmallPieceDesign, smallPieceDesign } from "./small-pieces";
 import { stageDesign } from "./stage";
-import { tableDesign } from "./tables";
+import { centrepieceDesign, centrepieceSpots, tableDesign } from "./tables";
 import { zoneDesign } from "./zone";
 
 import { designRuntime } from "./runtime";
@@ -69,8 +70,8 @@ const UNIT = new Vector3(1, 1, 1);
 /** A chair standing at (x, z), turned about the vertical by `turn` from facing +z. */
 type ChairAt = { x: number; z: number; turn: number };
 
-/** A piece's chairs as one instanced mesh per chair material: copies of one chair in its style. */
-function chairs(piece: PrismTableNode | PrismSeatingBlockNode, design: EventDesign, spots: ChairAt[], shading: string): Mesh[] {
+/** Copies of one design at seat spots, as one instanced mesh per material: a piece's chairs, or its place settings. */
+function copiesAt(piece: PrismTableNode | PrismSeatingBlockNode, design: EventDesign, spots: ChairAt[], shading: string): Mesh[] {
   if (spots.length === 0) return [];
   return buildDesign(design).map(({ slot, geometry }) => {
     const instanced = new InstancedMesh(geometry, slotMaterial(piece, slot, shading), spots.length);
@@ -86,14 +87,17 @@ function chairs(piece: PrismTableNode | PrismSeatingBlockNode, design: EventDesi
 function seatingBlock(block: PrismSeatingBlockNode, shading: string): Mesh[] {
   const spots = blockSeatSpots(block).map(({ x, z }) => ({ x, z, turn: Math.PI }));
   const extras = [deskDesign(block), runnerDesign(block)].filter((design) => design !== null);
-  return [...chairs(block, chairDesign(chairStyleOf(block.chairStyle), false), spots, shading), ...extras.flatMap((design) => meshes(block, design, shading))];
+  return [...copiesAt(block, chairDesign(chairStyleOf(block.chairStyle), false), spots, shading), ...extras.flatMap((design) => meshes(block, design, shading))];
 }
 
-/** A table's own design, and its chairs at its seat spots, each turned to face the table. */
+/** A table's own design, and its chairs at its seat spots, each turned to face the table with a cover laid before it. */
 function table(node: PrismTableNode, shading: string): Mesh[] {
   const spots = seatSpots(node).map(({ x, z, away: [ax, az] }) => ({ x, z, turn: Math.atan2(-ax, -az) }));
   const design = chairDesign(chairStyleOf(node.chairStyle), accentOf(node.sash) !== null);
-  return [...meshes(node, tableDesign(node), shading), ...chairs(node, design, spots, shading)];
+  const covers = node.shape === "cocktail" ? [] : copiesAt(node, placeSettingDesign(), spots, shading);
+  const centrepiece = centrepieceDesign(node);
+  const arrangements = centrepiece ? copiesAt(node, centrepiece, centrepieceSpots(node).map((spot) => ({ ...spot, turn: 0 })), shading) : [];
+  return [...meshes(node, tableDesign(node), shading), ...copiesAt(node, design, spots, shading), ...covers, ...arrangements];
 }
 
 /**
