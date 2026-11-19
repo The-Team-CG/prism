@@ -54,7 +54,6 @@ export function ClientDashboardLoadingShell({
       portal="client"
       productLabel="P.R.I.S.M"
       roleLabel="Client Portal"
-      eyebrow={copy.eyebrow}
       title={copy.title}
       description={copy.description}
       activeItemId={activeItemId}

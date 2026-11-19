@@ -69,7 +69,6 @@ export function developmentEnv(url, project, ports, sessionSecret, { storage, ma
     PRISMA_MIGRATIONS_PATH: '',
     PORT: String(ports.api), CORS_ORIGIN: corsOriginFor(ports),
     NEXT_PUBLIC_API_URL: apiUrlFor(ports),
-    NEXT_PUBLIC_PRISM_API_BASE_URL: `${apiUrlFor(ports)}/api`,
     NEXT_PUBLIC_CLIENT_ORIGIN: `http://${publicHostFor()}:${ports.client}`,
     ...portalUrlsFor(ports),
     // Local mail is written to the API log instead of sent. Production rejects this transport.

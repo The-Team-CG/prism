@@ -89,6 +89,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Removed
 
+- The snapshot query for an event floor plan is validated by a shared Zod schema in `@prism/types` like every other API input; the API no longer runs class-validator, and its global validation pipe is removed.
+- Portals read the API address only from `NEXT_PUBLIC_API_URL`, which must be set (empty means same-origin); `NEXT_PUBLIC_PRISM_API_BASE_URL` is gone, and a missing origin now fails with a clear error instead of falling back to localhost.
+- The portal shells no longer accept the unused `eyebrow` prop; the page title alone names the page, and its copy is removed from the portal route models.
 - Sample API routes and browser-local demo fallbacks.
 - Unused API ports, DTOs, portal primitives, dependencies and UI exports.
 - `uat/PRISM-UAT-Form.xlsx`, replaced by the Google Form.

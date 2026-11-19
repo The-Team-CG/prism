@@ -277,22 +277,22 @@ const EVENT_SCOPED_SIDEBAR_ITEM: Partial<Record<DashboardSection, string>> = {
   finance: "event-budget",
 };
 
-const ROUTE_LOADING_COPY: Partial<Record<DashboardSection, { eyebrow: string; title: string }>> = {
-  suppliers: { eyebrow: "Supplier directory", title: "Suppliers" },
-  audit: { eyebrow: "Audit log", title: "Audit" },
-  privacy: { eyebrow: "Privacy operations", title: "Privacy" },
-  clients: { eyebrow: "Clients", title: "Clients" },
-  calendar: { eyebrow: "Calendar", title: "Calendar" },
-  tasks: { eyebrow: "Tasks", title: "Tasks" },
-  team: { eyebrow: "Team", title: "Team" },
-  files: { eyebrow: "Files", title: "Event File Hub" },
-  messages: { eyebrow: "Messages", title: "Event Messages" },
-  notifications: { eyebrow: "Notifications", title: "Notifications" },
-  finance: { eyebrow: "Finance", title: "Finance Desk" },
-  inquiries: { eyebrow: "Inquiries", title: "Inquiries" },
-  "events-list": { eyebrow: "Events", title: "Events" },
-  account: { eyebrow: "Account", title: "Account" },
-  settings: { eyebrow: "Settings", title: "Workspace settings" },
+const ROUTE_LOADING_COPY: Partial<Record<DashboardSection, { title: string }>> = {
+  suppliers: { title: "Suppliers" },
+  audit: { title: "Audit" },
+  privacy: { title: "Privacy" },
+  clients: { title: "Clients" },
+  calendar: { title: "Calendar" },
+  tasks: { title: "Tasks" },
+  team: { title: "Team" },
+  files: { title: "Event File Hub" },
+  messages: { title: "Event Messages" },
+  notifications: { title: "Notifications" },
+  finance: { title: "Finance Desk" },
+  inquiries: { title: "Inquiries" },
+  "events-list": { title: "Events" },
+  account: { title: "Account" },
+  settings: { title: "Workspace settings" },
 };
 
 export function routeStateForSidebarItem(id: string): RouteState | undefined {
@@ -316,12 +316,11 @@ export function activeSidebarItemFromRoute(routeState: RouteState): string | und
 export function routeLoadingShellCopy(routeState: RouteState) {
   const copy = ROUTE_LOADING_COPY[routeState.section];
   if (copy) return copy;
-  if (routeState.eventId) return { eyebrow: "Event workspace", title: "Event workspace" };
-  return { eyebrow: "Command home", title: "Event Manager" };
+  if (routeState.eventId) return { title: "Event workspace" };
+  return { title: "Event Manager" };
 }
 
 export type EventDashboardShellCopy = {
-  eyebrow: string;
   title: string;
   description: string;
   /** Breadcrumb labels after the role. Sections without a sidebar entry are named here. */
@@ -352,14 +351,12 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
 /** Copy for a view that has its own page inside a section, keyed `section:view`. */
 const VIEW_SHELL_COPY: Record<string, EventDashboardShellCopy> = {
   "finance:receipts": {
-    eyebrow: "Finance",
     title: "Payments received",
     description: "Money clients paid outside P.R.I.S.M, checked against the statement and applied to the milestones it settles.",
     breadcrumb: ["Finance", "Receipts"],
     documentTitle: "Receipts · Finance · P.R.I.S.M",
   },
   "finance:payment-details": {
-    eyebrow: "Finance",
     title: "Payment details",
     description: "Where clients are told to send money: your bank accounts, e-wallets and cheque payee, with the QR they scan.",
     breadcrumb: ["Finance", "Payment details"],
@@ -402,7 +399,6 @@ export function routeShellCopy(
   if (routeState.eventId) {
     const event = options.selectedEvent;
     return {
-      eyebrow: loadingCopy.eyebrow,
       title: sectionLabel ?? "Event workspace",
       description: event
         ? [event.eventName, `${event.clientName} · ${formatPortalDate(event.eventDate)}`].filter(Boolean).join(" · ")
@@ -415,7 +411,6 @@ export function routeShellCopy(
   if (routeState.section === "clients" && options.selectedClient) {
     const clientName = options.selectedClient.name;
     return {
-      eyebrow: loadingCopy.eyebrow,
       title: clientName,
       description: ROUTE_DESCRIPTIONS.clients ?? "",
       breadcrumb: ["Clients", clientName],
@@ -428,7 +423,6 @@ export function routeShellCopy(
 
   const title = ROUTE_TITLES[routeState.section] ?? sectionLabel ?? loadingCopy.title;
   return {
-    eyebrow: loadingCopy.eyebrow,
     title,
     description: ROUTE_DESCRIPTIONS[routeState.section] ?? "Select an event or accept an inquiry to begin.",
     breadcrumb: [title],

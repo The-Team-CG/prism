@@ -4,6 +4,7 @@ import { clientBillingDisputeRepository } from "./client-billing-dispute-reposit
 
 describe("clientBillingDisputeRepository", () => {
   beforeEach(() => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:4000");
     vi.stubGlobal("fetch", vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({ data: { id: "dispute_1" } }), { status: 201, headers: { "content-type": "application/json" } }))));
   });
 

@@ -75,7 +75,6 @@ export type BookingStep = {
 };
 
 export type SectionMeta = {
-  eyebrow: string;
   title: string;
   description: string;
 };

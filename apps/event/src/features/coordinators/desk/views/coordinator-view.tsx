@@ -252,7 +252,6 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       portal="event"
       productLabel="P.R.I.S.M"
       roleLabel="Coordinator Portal"
-      eyebrow="Event operations"
       title={COORDINATOR_VIEW_LABELS[activeView]}
       description={coordinatorDescription(activeView, vm.event, roleName)}
       activeItemId={activeView}

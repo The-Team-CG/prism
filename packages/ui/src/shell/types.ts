@@ -86,8 +86,6 @@ export interface PrismAppShellProps {
   portal: "client" | "supplier" | "guest" | "event";
   productLabel?: string;
   roleLabel: string;
-  /** @deprecated Eyebrows are not shown; the title names the page. */
-  eyebrow?: string;
   title: string;
   description?: string;
   /** The sidebar item that owns the page. Omit it when no sidebar item does; nothing is highlighted then. */

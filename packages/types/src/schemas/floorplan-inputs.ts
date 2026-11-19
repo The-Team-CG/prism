@@ -63,3 +63,19 @@ export const prismFloorPlanSnapshotSchema = z.object({
   scene: floorplanSceneDocumentSchema,
   sceneFormat: z.string(),
 });
+
+/* ── Floorplan snapshot query (type plus optional actor hints; unknown keys are rejected) ── */
+
+export const floorPlanSnapshotQuerySchema = z.object({
+  type: z.enum(["submitted", "approved"]).optional(),
+  actorId: z.string().optional(),
+  actorRole: z.enum(["pmcm-admin", "client", "supplier", "coordinator", "guest", "system", "unknown"]).optional(),
+  actorEmail: z.string().email().optional(),
+  actorName: z.string().optional(),
+  clientName: z.string().optional(),
+  supplierId: z.string().optional(),
+  coordinatorId: z.string().optional(),
+  eventId: z.string().optional(),
+  accessCode: z.string().optional(),
+}).strict();
+export type FloorPlanSnapshotQuery = z.infer<typeof floorPlanSnapshotQuerySchema>;

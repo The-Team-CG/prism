@@ -50,7 +50,6 @@ const nextConfig: NextConfig = {
   basePath,
   ...(serviceMode ? { env: {
     NEXT_PUBLIC_API_URL: "",
-    NEXT_PUBLIC_PRISM_API_BASE_URL: "/api",
     NEXT_PUBLIC_PORTAL_BASE_PATH: basePath,
     NEXT_PUBLIC_CLIENT_PORTAL_URL: "/",
     NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "/supplier",

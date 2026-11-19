@@ -191,6 +191,8 @@ export {
   createFloorPlanPreferenceSchema,
   prismFloorPlanPreferenceSchema,
   prismFloorPlanSnapshotSchema,
+  floorPlanSnapshotQuerySchema,
+  type FloorPlanSnapshotQuery,
   eventDecisionSchema,
   recordEventDecisionSchema,
   resolveVenueConfirmationSchema,
