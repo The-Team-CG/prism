@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { PrismaService } from '@prism/kernel/database';
-import type { FloorPlanCanvasObject, FloorPlanGuest, PrismVerifiedEventActor, UpdatePlanInput } from '@prism/types';
+import type { FloorPlanCanvasObject, FloorPlanGuest, FloorplanSceneDocument, PrismVerifiedEventActor, UpdatePlanInput } from '@prism/types';
 import { PlansService } from './plans.service';
 
 const planUpdatedAt = '2026-05-05T00:00:00.000Z';
@@ -25,6 +25,8 @@ function floorPlanRow(overrides: Record<string, unknown> = {}) {
     suppliers: [],
     seats: [],
     seatCategories: [],
+    scene: null,
+    sceneFormat: null,
     objectRows: [],
     updatedAt: new Date(planUpdatedAt),
     ...overrides,
@@ -589,6 +591,143 @@ describe('PlansService table assignment eligibility on official saves', () => {
     await expect(
       service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, guests: [] }, pmcmActor()),
     ).rejects.toThrow('Only guests on this event guest list can be seated.');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+});
+
+type SceneTable = { id: string; seats?: number; guestIds?: string[]; legacyId?: string };
+
+/** A site, building and level holding the given round tables, as the Pascal editor saves it. */
+function sceneWithTables(tables: SceneTable[], extraLevelChildren: Record<string, unknown>[] = []): FloorplanSceneDocument {
+  const children = [...tables.map((table) => table.id), ...extraLevelChildren.map((node) => String(node.id))];
+  const nodes: FloorplanSceneDocument['nodes'] = {
+    site_1: { id: 'site_1', type: 'site', parentId: null, visible: true, children: ['building_1'] },
+    building_1: { id: 'building_1', type: 'building', parentId: 'site_1', visible: true, children: ['level_1'] },
+    level_1: { id: 'level_1', type: 'level', parentId: 'building_1', visible: true, children },
+  };
+  for (const table of tables) {
+    nodes[table.id] = {
+      id: table.id,
+      type: 'prism-table',
+      parentId: 'level_1',
+      visible: true,
+      shape: 'round',
+      position: [2, 0, 3],
+      rotation: 0,
+      width: 1.8,
+      depth: 1.8,
+      seats: table.seats ?? 2,
+      guestIds: table.guestIds ?? [],
+      ...(table.legacyId ? { metadata: { legacyId: table.legacyId } } : {}),
+    };
+  }
+  for (const node of extraLevelChildren) nodes[String(node.id)] = node as FloorplanSceneDocument['nodes'][string];
+  return { format: 'pascal-v1', pascalVersion: '1.1.6', nodes, rootNodeIds: ['site_1'] };
+}
+
+function sceneSave(scene: FloorplanSceneDocument, overrides: Partial<UpdatePlanInput> = {}): UpdatePlanInput {
+  return { expectedUpdatedAt: planUpdatedAt, scene, guests: eventGuestRoster, ...overrides };
+}
+
+async function badRequestIssues(attempt: Promise<unknown>): Promise<string[]> {
+  const error = await attempt.then(() => null, (caught: unknown) => caught);
+  expect(error).toBeInstanceOf(BadRequestException);
+  const response = (error as BadRequestException).getResponse() as { issues?: string[] };
+  return response.issues ?? [];
+}
+
+describe('PlansService Pascal scene saves', () => {
+  it('stores a valid scene with its format and returns it, leaving the legacy objects untouched', async () => {
+    const scene = sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }]);
+    const { service, prisma } = createService(draft('pmcm_draft'));
+    prisma.floorPlan.update.mockResolvedValueOnce(floorPlanRow({ opsDraft: draft('pmcm_draft'), scene, sceneFormat: 'pascal-v1' }));
+
+    const saved = await service.updatePlan('plan_event_1', sceneSave(scene), pmcmActor());
+
+    const { data } = prisma.floorPlan.update.mock.calls[0][0];
+    expect(data).toMatchObject({ sceneFormat: 'pascal-v1', scene: { format: 'pascal-v1', rootNodeIds: ['site_1'] } });
+    expect(data).not.toHaveProperty('objects');
+    expect(prisma.floorPlanObject.deleteMany).not.toHaveBeenCalled();
+    expect(saved).toMatchObject({ sceneFormat: 'pascal-v1', scene: { rootNodeIds: ['site_1'] } });
+  });
+
+  it('rejects an invalid scene with the issues and writes nothing', async () => {
+    const orphan = { id: 'prism-table_orphan', type: 'prism-table', parentId: 'level_missing', visible: true };
+    const { service, prisma, audit } = createService(draft('pmcm_draft'));
+
+    const issues = await badRequestIssues(service.updatePlan('plan_event_1', sceneSave(sceneWithTables([], [orphan])), pmcmActor()));
+
+    expect(issues.join(' ')).toContain('prism-table_orphan');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+    expect(audit.write).not.toHaveBeenCalled();
+  });
+
+  it('refuses a save that sends legacy objects and a scene together', async () => {
+    const { service, prisma } = createService(draft('pmcm_draft'));
+
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([]), { objects: [] }), pmcmActor()),
+    ).rejects.toThrow('Send objects or scene, not both');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 for a scene save made against a stale version', async () => {
+    const { service, prisma } = createService(draft('pmcm_draft'));
+
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([]), { expectedUpdatedAt: '2026-05-06T00:00:00.000Z' }), pmcmActor()),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { case: 'declined guest', tables: [{ id: 'prism-table_a', guestIds: ['g-dee'] }], message: 'Guests who declined cannot be seated.' },
+    { case: 'full table', tables: [{ id: 'prism-table_a', seats: 1, guestIds: ['g-ana', 'g-ben'] }], message: 'This table has no free seats.' },
+    {
+      case: 'guest seated twice',
+      tables: [{ id: 'prism-table_a', guestIds: ['g-ana'] }, { id: 'prism-table_b', guestIds: ['g-ana'] }],
+      message: 'A guest can only be seated at one table.',
+    },
+  ])('refuses scene seating with a $case and writes nothing', async ({ tables, message }) => {
+    const { service, prisma } = createService(draft('pmcm_draft'));
+
+    await expect(service.updatePlan('plan_event_1', sceneSave(sceneWithTables(tables)), pmcmActor())).rejects.toThrow(message);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses new scene seats on a public event but keeps seats carried over from the converted legacy plan', async () => {
+    const publicDraft = draft('pmcm_draft', 'Ana Reyes', 'owner@example.test', 'blank', { privacy: 'public' });
+    const { service, prisma } = createService(publicDraft, {
+      objectRows: [{ objectId: 't1', objectData: editorTable({ assignedGuestIds: ['g-ana'] }), zIndex: 0 }],
+    });
+
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', legacyId: 't1', guestIds: ['g-ana'] }])), pmcmActor()),
+    ).resolves.toMatchObject({ id: 'plan_event_1' });
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', legacyId: 't1', guestIds: ['g-ana', 'g-ben'] }])), pmcmActor()),
+    ).rejects.toThrow('Table assignment is only available for private events.');
+    expect(prisma.floorPlan.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks a guest roster save against the seats in the stored scene', async () => {
+    const stored = sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }]);
+    const { service, prisma } = createService(draft('pmcm_draft'), { scene: stored, sceneFormat: 'pascal-v1' });
+
+    await expect(
+      service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, guests: [] }, pmcmActor()),
+    ).rejects.toThrow('Only guests on this event guest list can be seated.');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a scene save from a client revising their own preference', async () => {
+    const preference = draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference');
+    const owner = clientActor('owner@example.test');
+    const { service, prisma } = createService(preference, { ownerId: owner.id });
+
+    await expect(
+      service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, scene: sceneWithTables([]) }, owner),
+    ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 });

@@ -59,7 +59,7 @@ const nextConfig: NextConfig = {
   } } : {}),
   ...(process.env.PRISM_DOCKER_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   outputFileTracingRoot: path.join(__dirname, "../.."),
-  transpilePackages: ["@prism/ui", "@prism/tokens", "@prism/api-client", "@prism/types", "@prism/portal-query"],
+  transpilePackages: ["@prism/ui", "@prism/tokens", "@prism/api-client", "@prism/types", "@prism/portal-query", "three", "@pascal-app/core", "@pascal-app/viewer", "@pascal-app/editor", "@pascal-app/nodes"],
   async redirects() {
     return [
       ...DEAD_VIEW_REDIRECTS.map((rule) => ({ ...rule, permanent: true })),

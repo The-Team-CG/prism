@@ -1,0 +1,29 @@
+/*
+ * The Pascal editor in PRISM's light theme. Pascal's panels read the shadcn sidebar roles, which PRISM's app shell
+ * sets to its dark ink sidebar, so inside the editor those roles map to PRISM's light surfaces instead. Pascal's
+ * elevation shadows are drawn in PRISM ink. Scoped to the editor so the app shell keeps its own sidebar.
+ */
+.prism-pascal-editor {
+  --sidebar: var(--prism-surface);
+  --sidebar-foreground: var(--prism-ink);
+  --sidebar-primary: var(--prism-magenta);
+  --sidebar-primary-foreground: var(--prism-surface);
+  --sidebar-accent: var(--prism-tint);
+  --sidebar-accent-foreground: var(--prism-ink);
+  --sidebar-border: var(--prism-line);
+  --sidebar-ring: var(--prism-magenta);
+
+  --shadow-color: rgb(23 18 22 / 0.08);
+  --shadow-elevation-0: 0 0 0 1px var(--prism-line);
+  --shadow-elevation-1: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color);
+  --shadow-elevation-2: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color);
+  --shadow-elevation-3: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color),
+    0 6px 6px -3px var(--shadow-color);
+  --shadow-elevation-4: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color),
+    0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color);
+  --shadow-elevation-5: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color),
+    0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color);
+  --shadow-elevation-6: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color),
+    0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color),
+    0 48px 48px -24px var(--shadow-color);
+}

@@ -1,0 +1,156 @@
+import type { AnyNodeDefinition, DuplicateSubtreeCloneArgs, FloorplanGeometry, NodeDefinition, Plugin } from "@pascal-app/core";
+import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial } from "three";
+import {
+  FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID,
+  prismPieceNodeSchema,
+  prismTableNodeSchema,
+  type PrismPieceNode,
+  type PrismPieceNodeType,
+  type PrismTableNode,
+} from "@prism/types";
+
+export const PRISM_EVENT_LAYOUT_PLUGIN_ID = FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID;
+
+type EventPiece = PrismTableNode | PrismPieceNode;
+type EventPieceType = EventPiece["type"];
+
+/** Placeholder height until milestone 2 draws each piece: a table top's height. */
+const PLACEHOLDER_HEIGHT_M = 0.75;
+const PLACEHOLDER_COLOR = "#c9b8d6";
+const FOOTPRINT_STYLE = { fill: "#f4eef8", stroke: "#6b4c80", strokeWidth: 0.02, pointerEvents: "all" } as const;
+
+const LABELS: Record<EventPieceType, string> = {
+  "prism-table": "Table",
+  "prism-seat": "Seat",
+  "prism-stage": "Stage",
+  "prism-av": "Audio-visual",
+  "prism-catering": "Catering",
+  "prism-registration": "Registration",
+  "prism-booth": "Booth",
+  "prism-decor": "Decor",
+  "prism-safety": "Safety",
+  "prism-fixture": "Fixture",
+  "prism-shape": "Shape",
+};
+
+function isRound(node: EventPiece): boolean {
+  return node.type === "prism-table" && node.shape !== "rect";
+}
+
+/**
+ * A cylinder of the table's width for round and cocktail tables, otherwise a box of the piece's footprint. Pascal moves
+ * the returned group's children into the piece's own group, which it places at the piece's position and rotation.
+ */
+function placeholderGeometry(node: EventPiece) {
+  const geometry = isRound(node)
+    ? new CylinderGeometry(node.width / 2, node.width / 2, PLACEHOLDER_HEIGHT_M, 32)
+    : new BoxGeometry(node.width, PLACEHOLDER_HEIGHT_M, node.depth);
+  const mesh = new Mesh(geometry, new MeshStandardMaterial({ color: PLACEHOLDER_COLOR }));
+  mesh.position.y = PLACEHOLDER_HEIGHT_M / 2;
+  const group = new Group();
+  group.add(mesh);
+  return group;
+}
+
+/** The piece's outline on the plan, drawn about its centre and placed at its position and rotation. */
+function footprint(node: EventPiece): FloorplanGeometry {
+  const [halfWidth, halfDepth] = [node.width / 2, node.depth / 2];
+  const outline: FloorplanGeometry = isRound(node)
+    ? { kind: "circle", cx: 0, cy: 0, r: halfWidth, ...FOOTPRINT_STYLE }
+    : { kind: "polygon", points: [[-halfWidth, -halfDepth], [halfWidth, -halfDepth], [halfWidth, halfDepth], [-halfWidth, halfDepth]], ...FOOTPRINT_STYLE };
+  return { kind: "group", transform: { translate: [node.position[0], node.position[2]], rotate: -node.rotation }, children: [outline] };
+}
+
+/**
+ * A copy keeps the piece's shape, size and place but starts with nobody seated, so it never lists a guest who is
+ * already seated at the original, and it is a new piece rather than the converted legacy object.
+ */
+function emptyCopy({ root, nodes }: DuplicateSubtreeCloneArgs) {
+  const { legacyId: _legacyId, ...metadata } = (root.metadata ?? {}) as Record<string, unknown>;
+  // Pascal types `root` as one of its own node kinds; a PRISM piece arrives here as one of ours.
+  const piece = root as unknown as { type: string; label?: unknown };
+  const table = piece.type === "prism-table" ? nextTableFields(piece, Object.values(nodes)) : {};
+  return { root: { ...root, metadata, ...table } as typeof root };
+}
+
+/** A label that is only the table's number ("T12", "12") follows the number; any other label is the planner's own. */
+const NUMBER_LABEL = /^T?\s*\d+$/i;
+
+/** The copy is the next table in the room: one past the highest table number, with nobody seated yet. */
+function nextTableFields(original: { label?: unknown }, nodes: readonly unknown[]) {
+  const numbers = nodes.map((node) => node as { type?: unknown; number?: unknown }).filter((node) => node.type === "prism-table" && typeof node.number === "number").map((node) => node.number as number);
+  const number = Math.max(0, ...numbers) + 1;
+  const keepsLabel = typeof original.label === "string" && original.label !== "" && !NUMBER_LABEL.test(original.label);
+  return { number, guestIds: [], ...(keepsLabel ? {} : { label: `T${number}` }) };
+}
+
+const placementDefaults = {
+  parentId: null,
+  visible: true,
+  position: [0, 0, 0] as [number, number, number],
+  rotation: 0,
+  supplierIds: [],
+  locked: false,
+};
+
+function sharedDefinition(kind: EventPieceType) {
+  return {
+    kind,
+    schemaVersion: 1,
+    category: "furnish" as const,
+    capabilities: {
+      movable: { axes: ["x", "z"] as const, gridSnap: true },
+      rotatable: { axes: ["y"] as const },
+      selectable: { hitVolume: "bbox" as const },
+      // Pascal clones a subtree with fresh ids itself; a root-only copy would ask the schema for an id instead.
+      duplicable: { subtree: true, prepareSubtreeClone: emptyCopy },
+      deletable: true,
+    },
+    geometry: (node: EventPiece) => placeholderGeometry(node),
+    geometryKey: (node: EventPiece) => JSON.stringify([node.width, node.depth, isRound(node)]),
+    floorplan: (node: EventPiece) => footprint(node),
+    tree: { label: (node: unknown) => treeLabel(node, LABELS[kind]) },
+    presentation: { label: LABELS[kind], icon: { kind: "url" as const, src: "/icons/item.webp" }, paletteSection: "furnish" as const, paletteGroup: "Event" },
+  };
+}
+
+/** The layer list names a piece by its label, then its variant, then its type. */
+function treeLabel(node: unknown, fallback: string): string {
+  const { label, variant } = node as { label?: unknown; variant?: unknown };
+  if (typeof label === "string" && label) return label;
+  return typeof variant === "string" && variant ? variant : fallback;
+}
+
+const tableDefinition: NodeDefinition<typeof prismTableNodeSchema> = {
+  ...sharedDefinition("prism-table"),
+  schema: prismTableNodeSchema,
+  defaults: () => ({ ...placementDefaults, shape: "round" as const, width: 1.8, depth: 1.8, seats: 10, chairStyle: "chiavari", linen: "white", guestIds: [] }),
+};
+
+function pieceDefinition(kind: PrismPieceNodeType): NodeDefinition<typeof prismPieceNodeSchema> {
+  return {
+    ...sharedDefinition(kind),
+    schema: prismPieceNodeSchema,
+    defaults: () => ({ ...placementDefaults, type: kind, variant: kind.replace(/^prism-/, ""), width: 1, depth: 1 }),
+  };
+}
+
+const pieceTypes = Object.keys(LABELS).filter((kind): kind is PrismPieceNodeType => kind !== "prism-table");
+
+/**
+ * Pascal lists plugin nodes as `NodeDefinition<ZodObject<any>>`, whose callbacks take any node, so a definition
+ * typed by its own schema widens here. The registry parses each node with that schema before calling them.
+ */
+function anyNodeDefinition<S extends AnyNodeDefinition["schema"]>(definition: NodeDefinition<S>): AnyNodeDefinition {
+  return definition as AnyNodeDefinition;
+}
+
+/**
+ * The PRISM event pieces, registered with Pascal so its editor can place, move, draw and save them. Milestone 2
+ * replaces the placeholder shapes with the event furniture drawings.
+ */
+export const prismEventLayoutPlugin: Plugin = {
+  id: PRISM_EVENT_LAYOUT_PLUGIN_ID,
+  apiVersion: 1,
+  nodes: [anyNodeDefinition(tableDefinition), ...pieceTypes.map((kind) => anyNodeDefinition(pieceDefinition(kind)))],
+};

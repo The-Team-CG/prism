@@ -200,6 +200,12 @@ versioned projection writer; direct writes do not transfer event ownership.
 Drafts reference the event by scalar ID only. Other contexts read drafts for a
 set of events through the `floorplan/event-drafts` subpath.
 
+`floor_plans.scene` (JSONB) and `scene_format` hold the Pascal editor's scene
+graph, written only by the Pascal engine and validated by
+`@prism/floorplan-scene` on every save. The legacy `objects`, `guests`,
+`suppliers` and `seats` columns stay readable and are not written by a scene
+save. Submitted and approved snapshots carry the scene when the plan has one.
+
 An event has at most one active draft. Approval deactivates the previous active
 draft inside the event-locked transaction, and a partial unique index on
 `floorplan.floor_plan_drafts(event_id) WHERE is_active` enforces it for every

@@ -1,0 +1,13 @@
+diff --git a/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts b/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts
+index 8adafe9..dad3f88 100644
+--- a/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts
++++ b/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts
+@@ -36,7 +36,7 @@ function unionOf(boxes: readonly (Box | null)[]): Box | null {
+ }
+ 
+ function buildingOf(nodes: Nodes, id: string): string | null {
+-  let node = nodes[id]
++  let node: Nodes[string] | undefined = nodes[id]
+   for (let guard = 0; node && guard < 32; guard += 1) {
+     if (node.type === 'building') return node.id
+     node = node.parentId ? nodes[node.parentId] : undefined

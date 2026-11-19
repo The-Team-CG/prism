@@ -568,6 +568,7 @@ export * from "./file-requirement-inputs.js";
 export * from "./notification-inputs.js";
 export * from "./file-requirement-template-inputs.js";
 export * from "./floorplan-canvas-inputs.js";
+export * from "./floorplan-scene.js";
 export * from "./event-day-start.js";
 
 export { prismJsonRecordSchema, prismEmailAddressSchema } from "./common.js";

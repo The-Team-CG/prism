@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { CoordinatorRole, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
 import { derivePrismLifecycleStage } from "@prism/types";
 import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
+import { floorplanEngine, isLockedFloorplanDraft, type FloorplanEngine } from "@/features/floorplan/editor/model/editor-engine";
+import { createSceneSaver, type SceneSaver } from "@/features/floorplan/editor/use-cases/scene-saver";
+import { submitFromEditor } from "@/features/floorplan/editor/use-cases/submit-from-editor";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import { useEventUnreadMessages } from "../../messages/view-models/use-event-unread-messages";
 import { useEventUnreadNotices } from "@/features/account-notifications/view-models/use-event-unread-notices";
@@ -44,7 +47,16 @@ export type { EventDashboardClientProps };
 
 type Screen =
   | { name: "portal" }
-  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project; readOnly: boolean };
+  | {
+      name: "editor";
+      engine: FloorplanEngine;
+      event: PrismEvent;
+      draft: PrismFloorPlanDraft;
+      project: Project;
+      /** The stored Pascal scene; null for the legacy engine or a plan the Pascal editor has not saved yet. */
+      scene: FloorplanSceneDocument | null;
+      readOnly: boolean;
+    };
 
 export function useEventDashboardShellViewModel({
   section: initialSection,
@@ -65,6 +77,8 @@ export function useEventDashboardShellViewModel({
   }, [initialClientId, initialEventId, initialSection, initialTab, initialView]);
 
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
+  /** Saves the open Pascal scene one autosave at a time, each against the version the last one returned. */
+  const sceneSaver = useRef<SceneSaver | null>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(routeState.eventId ?? null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(routeState.clientId ?? null);
   const [section, setSection] = useState<DashboardSection>(routeState.section);
@@ -273,10 +287,35 @@ export function useEventDashboardShellViewModel({
     await openEditor(selectedEvent, draft);
   }
 
-  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, readOnly = false) {
+  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, requestedReadOnly = false) {
     if (!session || !isPmcmAdmin(session.role)) return;
+    const readOnly = requestedReadOnly || isLockedFloorplanDraft(draft.status);
+    if (floorplanEngine() === "pascal") {
+      const opened = await commands.loadPlanScene(draft.floorPlanId);
+      sceneSaver.current = createSceneSaver({ planId: draft.floorPlanId, updatedAt: opened.updatedAt, save: commands.savePlanScene });
+      setScreen({ name: "editor", engine: "pascal", event, draft, project: opened.project, scene: opened.scene, readOnly });
+      return;
+    }
     const project = await commands.loadPlan(draft.floorPlanId);
-    setScreen({ name: "editor", event, draft, project, readOnly });
+    setScreen({ name: "editor", engine: "legacy", event, draft, project, scene: null, readOnly });
+  }
+
+  /** Saves and submits the draft open in either editor, then shows it as in review on the floor plans page. */
+  async function submitOpenDraft(save: () => Promise<unknown>) {
+    if (screen.name !== "editor") return;
+    const { event, draft } = screen;
+    await submitFromEditor({
+      save,
+      submit: () => commands.submitFloorPlanDraft(event.id, draft.id),
+      refreshDashboard: () => refresh(session),
+      refreshEventDrafts: () => refreshSelectedEventWorkspace(),
+      close: () => setScreen({ name: "portal" }),
+    });
+  }
+
+  function saveEditorScene(scene: FloorplanSceneDocument) {
+    if (!sceneSaver.current) throw new Error("Open a floor plan in the Pascal editor before saving it.");
+    return sceneSaver.current.save(scene);
   }
 
   const navigation = useEventDashboardNavigationViewModel({
@@ -542,13 +581,9 @@ export function useEventDashboardShellViewModel({
       return updated;
     },
     saveEditorPlan: (project: Project) => commands.savePlan(project),
-    submitEditorPlan: async (project: Project) => {
-      if (screen.name !== "editor") return;
-      await commands.savePlan(project);
-      await commands.submitFloorPlanDraft(screen.event.id, screen.draft.id);
-      await refresh(session);
-      setScreen({ name: "portal" });
-    },
+    submitEditorPlan: (project: Project) => submitOpenDraft(() => commands.savePlan(project)),
+    saveEditorScene,
+    submitEditorScene: (scene: FloorplanSceneDocument) => submitOpenDraft(() => saveEditorScene(scene)),
     closeEditor: () => setScreen({ name: "portal" }),
     refreshCommandInbox,
     changeCommandInboxPage,

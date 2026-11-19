@@ -1,5 +1,6 @@
 import type { PrismAccountInvitationOutcome, PrismProjectLike, PrismUserRole } from "./core.js";
 import type { PrismLifecycleStage } from "../lifecycle.js";
+import type { FloorplanSceneDocument } from "../schemas/floorplan-scene.js";
 
 /** A client portal invitation re-sent for an inquiry, with the inquiry as it now stands. */
 export interface PrismPortalInvitationResend {
@@ -109,6 +110,9 @@ export interface PrismFloorPlanSnapshot {
   suppliers?: PrismProjectLike["suppliers"];
   seats?: unknown[];
   seatCategories?: unknown[];
+  /** Present only when the plan was saved by the Pascal editor. */
+  scene?: FloorplanSceneDocument;
+  sceneFormat?: string;
   updatedAt?: string;
 }
 

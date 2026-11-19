@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { floorplanSceneDocumentSchema } from "./floorplan-scene.js";
 import { optionalTrimmedStringSchema } from "./common.js";
 
 export const tableAssignmentIneligibleReasonSchema = z.enum([
@@ -69,4 +70,6 @@ export const prismFloorPlanSnapshotSchema = z.object({
   seats: z.array(z.unknown()).optional(),
   seatCategories: z.array(z.unknown()).optional(),
   updatedAt: z.string().optional(),
+  scene: floorplanSceneDocumentSchema.optional(),
+  sceneFormat: z.string().optional(),
 });

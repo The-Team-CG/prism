@@ -19,7 +19,7 @@ export function jsonIfDefined(data: Record<string, unknown>, key: string, value:
 
 export type FloorPlanPatchInput =
   Pick<CreateFloorPlanDraftInput, 'venue' | 'width' | 'height' | 'gridSize' | 'pax' | 'guests' | 'suppliers' | 'objects'>
-  & Pick<UpdatePlanInput, 'seats' | 'seatCategories'>;
+  & Pick<UpdatePlanInput, 'seats' | 'seatCategories' | 'scene'>;
 
 const PLAIN_PATCH_FIELDS = ['width', 'height', 'gridSize', 'venue', 'pax'] as const;
 const JSON_PATCH_FIELDS = ['guests', 'suppliers', 'seats', 'seatCategories', 'objects'] as const;
@@ -31,6 +31,11 @@ export function floorPlanScalarPatch(changes: FloorPlanPatchInput): Prisma.Floor
   }
   for (const field of JSON_PATCH_FIELDS) {
     if (changes[field] !== undefined) data[field] = toPrismaJson(changes[field]);
+  }
+  // A Pascal scene replaces the layout; the legacy object columns are left exactly as they were.
+  if (changes.scene !== undefined) {
+    data.scene = toPrismaJson(changes.scene);
+    data.sceneFormat = changes.scene.format;
   }
   return data as Prisma.FloorPlanUpdateInput;
 }
