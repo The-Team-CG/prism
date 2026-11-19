@@ -50,11 +50,13 @@ Approved mockup: option A, "premium pass" (session scratchpad `editor-premium.ht
   Guests · Layers). "Seat guests" switches the tab. "Plan the room" collapses to one
   row that opens the planner in place. Library tiles have no border, show the piece's
   outline and a size/seats line; sections past the first three start collapsed.
-- **Canvas.** Lens switch centred at the top; zoom control bottom-right if Pascal's
-  floor-plan zoom can be driven from the host, else left out; room dimensions on two
-  edges; the selection's size and its gap to the nearest piece.
+- **Canvas.** Lens switch centred at the top; zoom control bottom-right (zoom out, the
+  zoom against the whole plan, zoom in, fit) through a `floorplanZoom` bridge the patch
+  adds to Pascal's plan pane; room dimensions on two edges; the selection's size and its
+  gap to the nearest piece, with labels kept level when the view is turned.
 - **Inspector.** Pascal's panel restyled through `pascal-theme.css`; linen, overlay and
-  sash as swatch rows (custom fields); table shape as a segmented control. With nothing
+  sash as swatch rows (custom fields); table shape as five drawn buttons; Pascal's number
+  rows lose their grip dots and its toggles become plain rows. With nothing
   selected: a Plan panel (room size, capacity, counts, layout checks; a check selects
   its pieces).
 - **Status bar.** Counts · the first layout check · room size and grid.
