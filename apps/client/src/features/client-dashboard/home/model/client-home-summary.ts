@@ -1,8 +1,7 @@
 import { daysUntil, dueLabel, manilaCalendarKey } from "@prism/ui/format-date";
-import type { PrismEvent, PrismPaymentMilestone } from "@prism/types";
+import type { PrismEvent } from "@prism/types";
 import type { ClientDashboardAction } from "../../workspace/model/client-dashboard-view-rules";
-import type { ClientFigure as Figure, ClientRowTone } from "../../shared/client-list-ui";
-import { clientMilestoneRemaining } from "../../billing/model/client-billing-rules";
+import type { ClientRowTone } from "../../shared/client-list-ui";
 
 const PAST_STATUSES = new Set(["completed", "cancelled", "closed"]);
 
@@ -26,13 +25,6 @@ export function eventCountdown(eventDate: string | null | undefined, todayKey: s
   if (days === 1) return "Tomorrow";
   if (days > 1) return `In ${days} days`;
   return days === -1 ? "Yesterday" : `${-days} days ago`;
-}
-
-/** The earliest unpaid milestone across the client's events, if any. */
-export function nextClientPayment(payments: PrismPaymentMilestone[], eventIds: ReadonlySet<string>) {
-  return payments
-    .filter((payment) => eventIds.has(payment.eventId) && payment.status !== "paid" && clientMilestoneRemaining(payment) > 0)
-    .sort((a, b) => String(a.dueDate ?? "").localeCompare(String(b.dueDate ?? "")))[0];
 }
 
 /** Due phrase and urgency for a dated item; undated items have neither. */
@@ -87,55 +79,3 @@ export function clientHomeSummaryLine(own: ClientDashboardAction[]): string {
   const things = own.length === 1 ? "1 thing needs you" : `${own.length} things need you`;
   return events > 1 ? `${things} across ${events} events.` : `${things}.`;
 }
-
-type HrefFor = (route: "overview" | "billing", eventId: string) => string;
-type MoneyFormat = (amount: number) => string;
-
-function needsYouFigure(own: ClientDashboardAction[]): Figure {
-  const blocking = own.filter((action) => action.blocking).length;
-  if (blocking) return { label: "Needs you", value: own.length, detail: `${blocking} blocking now`, tone: "urgent" };
-  if (own.length) return { label: "Needs you", value: own.length, detail: `${own.length === 1 ? "1 item" : `${own.length} items`}, none blocking`, tone: "attention" };
-  return { label: "Needs you", value: 0, detail: "All caught up", empty: true };
-}
-
-function nextEventFigure(events: PrismEvent[], todayKey: string, hrefFor: HrefFor, formatDate: (value: string) => string): Figure {
-  const next = orderClientEvents(events).find((event) => !isPastClientEvent(event));
-  if (!next) return { label: "Next event", value: "—", detail: "No upcoming event", empty: true };
-  return { label: "Next event", value: eventCountdown(next.eventDate, todayKey) ?? "Date pending", detail: `${next.eventName} · ${formatDate(next.eventDate)}`, href: hrefFor("overview", next.id) };
-}
-
-/** "Next payment" figure: the earliest unpaid milestone, red once it is overdue. */
-export function nextPaymentFigure(payments: PrismPaymentMilestone[], eventIds: ReadonlySet<string>, todayKey: string, formatMoney: MoneyFormat, hrefFor?: HrefFor): Figure {
-  const payment = nextClientPayment(payments, eventIds);
-  if (!payment) return { label: "Next payment", value: "—", detail: "Nothing due", empty: true };
-  const due = dueState(payment.dueDate, todayKey);
-  return {
-    label: "Next payment",
-    value: formatMoney(clientMilestoneRemaining(payment)),
-    detail: due ? `${payment.label} · ${due.label}` : payment.label,
-    tone: due?.tone === "urgent" ? "urgent" : undefined,
-    href: hrefFor?.("billing", payment.eventId),
-  };
-}
-
-/** The four Home figures: what needs the client, what is with PMCM, the next event and the next payment. */
-export function clientHomeFigures(input: {
-  actions: ClientDashboardAction[];
-  events: PrismEvent[];
-  payments: PrismPaymentMilestone[];
-  todayKey: string;
-  hrefFor: HrefFor;
-  formatMoney: MoneyFormat;
-  formatDate: (value: string) => string;
-}): Figure[] {
-  const own = input.actions.filter((action) => action.stage === "needs_client");
-  const withPmcm = input.actions.filter((action) => action.stage === "with_pmcm").length;
-  const eventIds = new Set(input.events.map((event) => event.id));
-  return [
-    needsYouFigure(own),
-    { label: "With PMCM", value: withPmcm, detail: withPmcm ? "Waiting on PMCM" : "Nothing pending", empty: withPmcm === 0 },
-    nextEventFigure(input.events, input.todayKey, input.hrefFor, input.formatDate),
-    nextPaymentFigure(input.payments, eventIds, input.todayKey, input.formatMoney, input.hrefFor),
-  ];
-}
-

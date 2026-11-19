@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismClientActionItem } from "@prism/types";
 import { selectClientDashboardActions } from "../workspace/model/client-dashboard-selectors";
-import { ClientActionLists } from "./client-action-lists";
+import { ClientActionLists, isClientActionNow } from "./client-action-lists";
 import { clientChangeDeadline } from "./client-change-deadline";
 
 const base = { eventId: "evt_1", eventName: "Founders gala", description: "", status: "open" };
@@ -33,10 +33,12 @@ describe("ClientActionLists", () => {
     const positions = order.map((text) => markup.indexOf(text));
     expect(positions.every((position) => position >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-    expect(markup).toContain("What changed: Dinner moved to 7 PM");
-    expect(markup).toContain("2 change requests left");
-    expect(markup).toContain("+₱48,000 to your contract");
-    expect(markup).toContain('aria-label="Review proposal for Founders gala"');
+    expect(markup).toContain("What changed:</span> Dinner moved to 7 PM");
+    expect(markup).toContain(">2 of 3 left<");
+    expect(markup).toContain(">+₱48,000<");
+    // Inside an event the first decision carries the one filled button; Home leaves it to the hero.
+    expect(markup.match(/bg-primary px-3 py-2/g)).toHaveLength(1);
+    expect(render("account").match(/bg-primary px-3 py-2/g)).toBeNull();
   });
 
   it("keeps settled decisions to the event page", () => {
@@ -50,6 +52,20 @@ describe("ClientActionLists", () => {
     }));
     expect(markup).toContain("all caught up");
     expect(markup).toContain('href="/dashboard/events/evt_1/changes"');
+  });
+});
+
+describe("isClientActionNow", () => {
+  it("keeps decisions, blockers and what is due within a week in Needs you, and lets the rest wait", () => {
+    const [action] = selectClientDashboardActions({ items: [{ ...base, id: "x", stage: "needs_client", kind: "briefing", priority: "info", label: "Task" }] }, "evt_1");
+    expect(isClientActionNow({ ...action, dueAt: "2026-11-17" }, "2026-11-10")).toBe(true);
+    expect(isClientActionNow({ ...action, dueAt: "2026-11-18" }, "2026-11-10")).toBe(false);
+    expect(isClientActionNow({ ...action, dueAt: null }, "2026-11-10")).toBe(false);
+    expect(isClientActionNow({ ...action, priority: "critical" }, "2026-11-10")).toBe(true);
+    // A payment due soon holds a stage back but follows its date; an undated blocker cannot wait.
+    expect(isClientActionNow({ ...action, blocking: true, dueAt: "2026-11-21" }, "2026-11-10")).toBe(false);
+    expect(isClientActionNow({ ...action, blocking: true, dueAt: null }, "2026-11-10")).toBe(true);
+    expect(isClientActionNow({ ...action, decision: items[0].decision }, "2026-11-10")).toBe(true);
   });
 });
 

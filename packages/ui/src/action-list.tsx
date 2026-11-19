@@ -43,9 +43,9 @@ const STATUS: Record<PrismListTone, string> = {
 
 const ROW_GRID = "grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3 gap-y-1 py-3 pl-3 pr-4 sm:grid-cols-[2rem_minmax(0,1fr)_10rem_11rem] sm:items-center";
 
-function Tile({ icon: Icon, tone }: { icon: LucideIcon; tone: PrismListTone }) {
+function Tile({ icon: Icon, tone, decision = false }: { icon: LucideIcon; tone: PrismListTone; decision?: boolean }) {
   return (
-    <span aria-hidden className={cn("grid size-8 place-items-center rounded-md", TILE[tone])}>
+    <span aria-hidden className={cn("grid size-8 place-items-center rounded-md", decision ? "bg-card text-primary" : TILE[tone])}>
       <Icon className="size-4" />
     </span>
   );
@@ -64,6 +64,10 @@ function RowTitle({ title, href, onOpen, link: Link }: { title: string; href?: s
 /**
  * One aligned row. The title is the row's link (the whole row is clickable); `status` sits in a fixed column so
  * rows line up, coloured by `statusTone` (the row's tone by default), and `action` names what opening the row does.
+ *
+ * A `decision` row is something the reader must decide: it keeps the same grid but is tinted, and can carry a
+ * `detail` line (what changed) and a `statusDetail` under the status (what the figure means). `primary` draws the
+ * action as the screen's one filled button; the row stays a single link either way.
  */
 export function PrismListRow({
   icon,
@@ -71,14 +75,18 @@ export function PrismListRow({
   title,
   meta,
   metaTitle,
+  detail,
   tag,
   status,
   statusTone,
   statusTitle,
+  statusDetail,
   action,
   href,
   onOpen,
   link = PlainLink,
+  decision = false,
+  primary = false,
   testId,
 }: {
   icon: LucideIcon;
@@ -87,14 +95,20 @@ export function PrismListRow({
   meta?: ReactNode;
   /** The full detail when `meta` is cut short. */
   metaTitle?: string;
+  /** A second line under `meta` that is never cut short, such as what changed in a version. */
+  detail?: ReactNode;
   tag?: string;
   status?: ReactNode;
   statusTone?: PrismListTone;
   statusTitle?: string;
+  /** A small line under `status` that says what its figure is. */
+  statusDetail?: ReactNode;
   action?: string;
   href?: string;
   onOpen?: () => void;
   link?: PrismListLink;
+  decision?: boolean;
+  primary?: boolean;
   testId?: string;
 }) {
   const opens = Boolean(href || onOpen);
@@ -105,20 +119,35 @@ export function PrismListRow({
         "relative border-l-[3px] transition-colors",
         ROW_GRID,
         BAR[tone],
-        opens && "hover:bg-surface-raised has-[a:focus-visible]:bg-surface-raised has-[button:focus-visible]:bg-surface-raised",
+        decision && "bg-primary/5 py-4",
+        opens && (decision
+          ? "hover:bg-primary/10 has-[a:focus-visible]:bg-primary/10 has-[button:focus-visible]:bg-primary/10"
+          : "hover:bg-surface-raised has-[a:focus-visible]:bg-surface-raised has-[button:focus-visible]:bg-surface-raised"),
       )}
     >
-      <Tile icon={icon} tone={tone} />
+      <Tile icon={icon} tone={tone} decision={decision} />
       <div className="min-w-0">
         <p className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
           <RowTitle title={title} href={href} onOpen={onOpen} link={link} />
           {tag ? <Tag tone={tone}>{tag}</Tag> : null}
         </p>
         {meta ? <p title={metaTitle} className="truncate text-xs text-muted-foreground">{meta}</p> : null}
+        {detail ? <p className="mt-1 text-sm text-foreground">{detail}</p> : null}
       </div>
-      <p title={statusTitle} className={cn("col-start-2 whitespace-nowrap text-xs tabular-nums sm:col-start-auto sm:text-sm", STATUS[statusTone ?? tone])}>{status}</p>
+      <div title={statusTitle} className={cn("col-start-2 text-xs tabular-nums sm:col-start-auto sm:text-sm", STATUS[statusTone ?? tone])}>
+        {/* On a phone the figure and what it means read as one line; in the column they stack. */}
+        <p className="whitespace-nowrap">
+          {status}
+          {statusDetail ? <span className="ml-1 text-xs font-normal text-muted-foreground sm:hidden">{statusDetail}</span> : null}
+        </p>
+        {statusDetail ? <p className="hidden text-xs font-normal text-muted-foreground sm:block">{statusDetail}</p> : null}
+      </div>
       <span className="col-start-2 flex items-center gap-1 whitespace-nowrap text-sm font-medium text-primary sm:col-start-auto sm:justify-end">
-        {action && opens ? <>{action}<ChevronRight className="size-4" aria-hidden /></> : null}
+        {action && opens
+          ? primary
+            ? <span className="mt-1 rounded-md bg-primary px-3 py-2 font-semibold text-primary-foreground sm:mt-0">{action}</span>
+            : <>{action}<ChevronRight className="size-4" aria-hidden /></>
+          : null}
       </span>
     </li>
   );

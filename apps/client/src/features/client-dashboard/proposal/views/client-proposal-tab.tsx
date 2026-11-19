@@ -1,7 +1,7 @@
 "use client";
 
 import { formatPortalDate } from "@prism/ui/format-date";
-import { Presentation, ThumbsUp } from "lucide-react";
+import { ThumbsUp } from "lucide-react";
 import type { PrismIssuedProposalSummary } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Checkbox } from "@prism/ui/components/checkbox";
@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@prism/ui/components/label";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Textarea } from "@prism/ui/components/textarea";
-import { Card, CardBody, CardHeader, DataRow, money } from "../../shared/tab-ui";
+import { PrismSection } from "@prism/ui/page-blocks";
+import { DataRow, money } from "../../shared/tab-ui";
 import type { DetailTab } from "../../workspace/shared";
 import { CLIENT_PROPOSAL_REVISION_CAP, PROPOSAL_REVISION_AREA_OPTIONS, proposalClientStatus } from "../model/proposal-review-rules";
 import { useClientProposalTabViewModel, type ClientProposalTabViewModel } from "../view-models/use-client-proposal-tab-view-model";
@@ -74,42 +75,30 @@ function ProposalStatusHero({ vm, onOpenBriefing }: { vm: ClientProposalTabViewM
       </div>
     );
   }
+  // The page's lead, not a card: one heading, one sentence and, when it is the reader's turn, the two answers.
   return (
-    <Card>
-      <CardBody>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className="text-xl font-semibold text-foreground">{vm.proposal && vm.packageReady && status === "pending" ? `Proposal version ${vm.proposal.versionNumber} is ready to review` : vm.headline}</h2>
-          <StatusBadge status={badge.status} label={badge.label} />
-        </div>
-        <div className="mt-2">{body}</div>
-      </CardBody>
-    </Card>
+    <section aria-labelledby="proposal-status-heading" className="space-y-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h2 id="proposal-status-heading" className="text-lg font-semibold text-foreground">{vm.proposal && vm.packageReady && status === "pending" ? `Version ${vm.proposal.versionNumber} is ready to review` : vm.headline}</h2>
+        <StatusBadge status={badge.status} label={badge.label} />
+      </div>
+      {body}
+    </section>
   );
 }
 
 function ProposalDetails({ proposal }: { proposal: PrismIssuedProposalSummary }) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Presentation className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Proposal version {proposal.versionNumber}</h3>
-        </div>
-      </CardHeader>
-      <CardBody className="py-2">
+    <PrismSection id="proposal-details" title={`Proposal version ${proposal.versionNumber}`} headerOutside>
         <DataRow label="Package" value={proposal.title} />
         <DataRow label={proposal.alternativeTotalAmount ? "Option A total" : "Total"} value={money.format(proposal.totalAmount)} />
         {proposal.alternativeTotalAmount ? <DataRow label="Option B total" value={money.format(proposal.alternativeTotalAmount)} /> : null}
         <DataRow label="Sent" value={formatPortalDate(proposal.issuedAt)} />
         {proposal.revisionNote.trim() ? (
-          <div className="mt-3 rounded-md bg-muted/60 px-3 py-2 text-sm">
-            <p className="font-semibold text-foreground">What changed in this version</p>
-            <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground">{proposal.revisionNote}</p>
-          </div>
+          <p className="whitespace-pre-wrap pt-3 text-sm text-foreground"><span className="font-semibold">What changed:</span> {proposal.revisionNote}</p>
         ) : null}
-        {proposal.summary ? <p className="whitespace-pre-wrap pt-3 text-sm leading-6 text-foreground">{proposal.summary}</p> : null}
-      </CardBody>
-    </Card>
+        {proposal.summary ? <p className="whitespace-pre-wrap pt-3 text-sm leading-6 text-muted-foreground">{proposal.summary}</p> : null}
+    </PrismSection>
   );
 }
 

@@ -4,13 +4,13 @@ import Link from "next/link";
 import { FileSignature, Send } from "lucide-react";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { Button } from "@prism/ui/components/button";
-import { PrismPageColumn, PrismStatRow } from "@prism/ui/page-blocks";
+import { PrismPageColumn } from "@prism/ui/page-blocks";
 import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { CLIENT_CONFORME_REVIEW_HREF } from "../../workspace/model/client-dashboard-navigation";
 import { selectClientAccountActions } from "../../workspace/model/client-dashboard-selectors";
 import { money } from "../../workspace/model/client-dashboard-view-rules";
 import { dashboardHref, useClientWorkspace } from "../../workspace/shared";
-import { clientHomeFigures, clientHomeLead, clientHomeSummaryLine, timeOfDayGreeting } from "../model/client-home-summary";
+import { clientHomeLead, clientHomeSummaryLine, timeOfDayGreeting } from "../model/client-home-summary";
 import { ClientHomeActionCenter, ClientHomeEvents, ClientHomeEventTeam, ClientHomeHero } from "./sections/client-home-sections";
 
 export function ClientHomeView() {
@@ -22,18 +22,6 @@ export function ClientHomeView() {
   const own = actions.filter((action) => action.stage === "needs_client");
   const lead = clientHomeLead(events, own, todayKey);
   const eventHref = (eventId: string) => dashboardHref("overview", eventId);
-  // The hero and lists already say what needs the client, what is with PMCM and when the next event is, so only the
-  // figures that appear nowhere else are shown.
-  const repeatedElsewhere = new Set(["Needs you", "With PMCM", "Next event"]);
-  const figures = clientHomeFigures({
-    actions,
-    events,
-    payments: state.paymentMilestones,
-    todayKey,
-    hrefFor: (route, eventId) => dashboardHref(route, eventId),
-    formatMoney: (amount) => money.format(amount),
-    formatDate: (value) => formatPortalDate(value),
-  }).filter((figure) => !repeatedElsewhere.has(figure.label));
   const support = pmcmSupportContactFromEnvironment();
   const firstName = session.name.trim().split(/\s+/)[0];
 
@@ -54,10 +42,6 @@ export function ClientHomeView() {
       {actionCenter || actionCenterLoadFailed ? (
         <ClientHomeActionCenter actionCenter={actionCenter} clientActions={actions} runClientAction={runClientAction} loadFailed={actionCenterLoadFailed} todayKey={todayKey} leadActionId={lead?.action?.id} />
       ) : null}
-      <PrismStatRow
-        label="Your account at a glance"
-        stats={figures.map((figure) => ({ ...figure, tone: figure.tone === "urgent" || figure.tone === "attention" ? figure.tone : undefined }))}
-      />
       <ClientHomeEvents
         events={events}
         viewAllHref="/dashboard/events"

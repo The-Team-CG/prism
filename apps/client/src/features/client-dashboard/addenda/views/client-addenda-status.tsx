@@ -79,7 +79,7 @@ function AddendumRow({
       {addendum.status !== "withdrawn" ? <p className="text-xs text-muted-foreground">{addendumConformeStatusLabel(addendum.conforme)}</p> : null}
       {awaiting && addendum.conforme ? (
         <div className="space-y-2">
-          <p className={addendum.financialDelta === 0 ? "text-sm font-medium" : "rounded-md bg-attention-soft px-3 py-2 text-sm font-semibold text-attention"}>
+          <p className={addendum.financialDelta === 0 ? "text-sm font-medium" : "text-sm font-semibold text-attention"}>
             {addendumAmountLabel(addendum.financialDelta)}{addendum.financialDelta === 0 ? "" : " once PMCM countersigns"}
           </p>
           <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-background p-3 text-xs">{addendum.conforme.documentContent}</pre>
