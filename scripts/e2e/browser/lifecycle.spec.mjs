@@ -242,7 +242,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.goto(path('floorplans'));
       // Picking a template creates the PMCM draft and opens it in the editor; submission and approval live in the draft list.
       await pmcm.page.getByRole('button', { name: /Browser acceptance layout/ }).first().click();
-      await expect(pmcm.page.getByRole('button', { name: 'Submit review' })).toBeVisible();
+      await expect(pmcm.page.getByRole('button', { name: 'Submit for review' })).toBeVisible();
       await pmcm.page.goto(path('floorplans'));
       await pmcm.page.getByRole('button', { name: 'Submit', exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Approve', exact: true }).click();
