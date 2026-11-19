@@ -10,3 +10,16 @@ export function isLockedFloorplanDraft(status: string): boolean {
 export function isFloorplanEditorReadOnly(screenReadOnly: boolean, role: PrismUserRole): boolean {
   return screenReadOnly || !isPmcmAdmin(role);
 }
+
+const DRAFT_STATUS_LABELS: Readonly<Record<string, string>> = {
+  client_submitted: "From the client",
+  pmcm_draft: "Draft",
+  in_review: "In review",
+  revision_requested: "Revision requested",
+  approved: "Approved",
+};
+
+/** The draft's status as the editor's title names it; a status the editor has no word for is left unnamed. */
+export function draftStatusLabel(status: string): string | undefined {
+  return DRAFT_STATUS_LABELS[status];
+}
