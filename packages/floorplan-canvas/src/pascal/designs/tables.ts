@@ -1,12 +1,12 @@
 import type { Expr } from "@pascal-app/core/procedural-items";
 import type { PrismTableNode } from "@prism/types";
 import { accentOf, centerpieceOf, type Centerpiece } from "../dressing";
-import { RUN_DEPTH_M, joinedRuns, type TableRun } from "../table-layout";
+import { RUN_DEPTH_M, joinedRuns, type TableRun } from "@prism/floorplan-scene";
 import { PI, add, box, cylinder, designOf, div, ellipsoid, flag, mul, param, part, revolve, roundedBox, type EventDesign, type Shape, type Vec3 } from "./kit";
 
 /**
  * A table's own design: its cloth, overlay or runner, centrepiece and number card. Its chairs are not part of it; they
- * stand at the table's seat spots (`table-layout.ts`), drawn as copies of one chair (see `index.ts`).
+ * stand at the table's seat spots (`seatSpots` in `@prism/floorplan-scene`), drawn as copies of one chair (see `index.ts`).
  */
 
 const DINING_HEIGHT_M = 0.75;

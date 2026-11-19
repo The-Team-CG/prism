@@ -10,7 +10,7 @@ import type {
 } from "@prism/types";
 import { prismTableShapes } from "@prism/types";
 import { CENTERPIECES, CHAIR_STYLES, FABRIC_NAMES } from "../dressing";
-import { isRoundTable } from "../table-layout";
+import { isRoundTable } from "@prism/floorplan-scene";
 import { hostState, openSeating } from "./host-state";
 import { ZoneSuppliersField } from "./zone-suppliers-field";
 

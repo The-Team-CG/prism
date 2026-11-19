@@ -102,4 +102,21 @@ describe("lenses", () => {
     expect(looks("seating")).toEqual({ full: "full", zone: "muted" });
     expect(looks("supplier-zones")).toEqual({ full: "muted", zone: "zone" });
   });
+
+  it("marks what the layout checks flag under Guest flow, and only sight lines under Sightlines", () => {
+    const nodes = [
+      piece("prism-table", { id: "a", shape: "round", seats: 8, position: [4, 0, 6] }),
+      piece("prism-table", { id: "b", shape: "round", seats: 8, position: [6.5, 0, 6] }),
+      piece("prism-table", { id: "c", shape: "round", seats: 8, position: [14, 0, 6] }),
+    ];
+    const scene: FloorplanSceneDocument = {
+      format: FLOORPLAN_SCENE_FORMAT,
+      pascalVersion: "1.1.6",
+      rootNodeIds: ["level"],
+      nodes: Object.fromEntries([{ id: "level", type: "level", parentId: null, visible: true }, ...nodes].map((node) => [node.id, node])),
+    };
+    const looks = (lens: "sightlines" | "guest-flow") => Object.fromEntries(lensMarks(scene, lens).map((mark) => [mark.id, mark.look]));
+    expect(looks("guest-flow")).toEqual({ a: "issue", b: "issue", c: "muted" });
+    expect(looks("sightlines")).toEqual({ a: "muted", b: "muted", c: "muted" });
+  });
 });

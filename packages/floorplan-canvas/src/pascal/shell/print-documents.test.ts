@@ -7,11 +7,12 @@ import { planHtml, pullSheetHtml } from "./print-documents";
 function plan(): FloorplanSceneDocument {
   const { scene, levelId } = roomScene({ name: "Ballroom", widthM: 20, heightM: 15 }, "1.1.6");
   const pieces = {
-    t1: { id: "t1", type: "prism-table", parentId: levelId, shape: "round", position: [5, 0, 5], rotation: 0, width: 1.8, depth: 1.8, seats: 8, number: 1, guestIds: [] },
-    s1: { id: "s1", type: "prism-stage", parentId: levelId, variant: "stage", label: "<b>Main</b> stage", position: [10, 0, 2], rotation: 0, width: 6, depth: 4, steps: true },
+    t1: { id: "t1", type: "prism-table", parentId: levelId, visible: true, shape: "round", position: [5, 0, 5], rotation: 0, width: 1.8, depth: 1.8, seats: 8, number: 1, guestIds: [] },
+    s1: { id: "s1", type: "prism-stage", parentId: levelId, visible: true, variant: "stage", label: "<b>Main</b> stage", position: [10, 0, 2], rotation: 0, width: 6, depth: 4, steps: true },
   };
-  const level = scene.nodes[levelId] as { children: string[] };
-  return { ...scene, nodes: { ...scene.nodes, [levelId]: { ...scene.nodes[levelId]!, children: [...level.children, "t1", "s1"] }, ...pieces } };
+  const level = scene.nodes[levelId]!;
+  const children = [...(level.children as string[]), "t1", "s1"];
+  return { ...scene, nodes: { ...scene.nodes, [levelId]: { ...level, children }, ...pieces } };
 }
 
 describe("printed documents", () => {

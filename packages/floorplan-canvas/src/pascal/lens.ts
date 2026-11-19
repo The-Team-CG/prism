@@ -1,7 +1,13 @@
 import { useSyncExternalStore } from "react";
 
-/** How the plan is coloured: as laid out, by how full each table is, or by supplier zone. */
-export type PrismLens = "layout" | "seating" | "supplier-zones";
+/**
+ * How the plan is coloured: as laid out, by how full each table is, by supplier zone, or by what the layout checks find
+ * (seats that cannot see the stage under Sightlines, everything else under Guest flow).
+ */
+export type PrismLens = "layout" | "seating" | "supplier-zones" | "sightlines" | "guest-flow";
+
+/** The lenses that show the layout checks. */
+export const isCheckLens = (lens: PrismLens): lens is "sightlines" | "guest-flow" => lens === "sightlines" || lens === "guest-flow";
 
 let current: PrismLens = "layout";
 const listeners = new Set<() => void>();

@@ -1,7 +1,7 @@
 import type { FloorplanGeometry } from "@pascal-app/core";
 import type { PrismTableNode } from "@prism/types";
 import { accentOf, chairStyleOf, fabricOf } from "../dressing";
-import { joinedRuns, RUN_DEPTH_M, seatSpots, type TableRun } from "../table-layout";
+import { joinedRuns, RUN_DEPTH_M, seatSpots, type TableRun } from "@prism/floorplan-scene";
 import { CHAIR_STROKE, DASH, INK, PIECE_STROKE, centredRect, chair, facingAway, label, placed } from "./symbol-kit";
 
 /** How far the linen hangs past the table top; the linen ring is laid in lightly so the plan stays a drawing. */

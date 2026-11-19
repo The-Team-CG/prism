@@ -209,3 +209,20 @@ export interface PrismPullSheetLine {
   quantity: number;
   unit: "pcs" | "m" | "m²";
 }
+
+/* ── Layout checks ─────────────────────────────────────────────── */
+
+/**
+ * What a floor plan's layout checks find: pieces on top of each other, seated tables too close for chairs and service,
+ * pieces outside the room, something in an emergency exit's clear area, a seating aisle too narrow or a row too long
+ * without one, and seats that cannot see the stage.
+ */
+export const prismLayoutIssueKinds = ["overlap", "tight", "outside-room", "exit-blocked", "aisle", "sightline"] as const;
+export type PrismLayoutIssueKind = (typeof prismLayoutIssueKinds)[number];
+
+/** One finding of the layout checks: what is wrong, which pieces it concerns, and a sentence a planner can act on. */
+export interface PrismLayoutIssue {
+  kind: PrismLayoutIssueKind;
+  pieceIds: string[];
+  message: string;
+}

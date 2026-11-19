@@ -1,12 +1,12 @@
 import { Group, InstancedMesh, Matrix4, Mesh, Quaternion, Vector3, type BufferGeometry } from "three";
 import type { PrismEventPiece, PrismPieceNode, PrismSeatingBlockNode, PrismTableNode } from "@prism/types";
 import { accentOf, chairStyleOf } from "../dressing";
-import { seatSpots } from "../table-layout";
+import { blockSeatSpots, seatSpots } from "@prism/floorplan-scene";
 import { barDesign } from "./bar";
 import { danceFloorDesign } from "./dance-floor";
 import { clampedValues, type EventDesign } from "./kit";
 import { slotMaterial } from "./materials";
-import { chairDesign, deskDesign, runnerDesign, seatingChairPositions } from "./seating";
+import { chairDesign, deskDesign, runnerDesign } from "./seating";
 import { hasSmallPieceDesign, smallPieceDesign } from "./small-pieces";
 import { stageDesign } from "./stage";
 import { tableDesign } from "./tables";
@@ -84,7 +84,7 @@ function chairs(piece: PrismTableNode | PrismSeatingBlockNode, design: EventDesi
 
 /** A block's chairs facing its front (−z), plus a classroom's desks and a ceremony's aisle runner. */
 function seatingBlock(block: PrismSeatingBlockNode, shading: string): Mesh[] {
-  const spots = seatingChairPositions(block).map(([x, z]) => ({ x, z, turn: Math.PI }));
+  const spots = blockSeatSpots(block).map(({ x, z }) => ({ x, z, turn: Math.PI }));
   const extras = [deskDesign(block), runnerDesign(block)].filter((design) => design !== null);
   return [...chairs(block, chairDesign(chairStyleOf(block.chairStyle), false), spots, shading), ...extras.flatMap((design) => meshes(block, design, shading))];
 }

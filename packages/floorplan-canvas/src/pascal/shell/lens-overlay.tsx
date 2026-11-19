@@ -4,13 +4,14 @@ import { usePrismLens } from "../lens";
 import { lensMarks, type LensMark } from "./lens-marks";
 import { useLiveScene } from "./use-live-scene";
 
-/** PRISM token colours: success for full tables, attention for part-full, muted for empty, blue for zones. */
+/** PRISM token colours: success for full tables, attention for part-full, muted for empty, blue for zones, red for a check's finding. */
 const LOOKS: Record<LensMark["look"], { fill: string; opacity: number; stroke?: string }> = {
   full: { fill: "#1f7a4b", opacity: 0.45 },
   part: { fill: "#b8480f", opacity: 0.4 },
   empty: { fill: "#9a8a93", opacity: 0.25 },
   muted: { fill: "#fff8f2", opacity: 0.72 },
   zone: { fill: "#40a0d0", opacity: 0.22, stroke: "#40a0d0" },
+  issue: { fill: "#c4242b", opacity: 0.3, stroke: "#c4242b" },
 };
 
 function Mark({ mark }: { mark: LensMark }) {

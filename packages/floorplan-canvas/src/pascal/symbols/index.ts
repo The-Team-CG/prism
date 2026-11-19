@@ -7,7 +7,7 @@ import { stageSymbol } from "./stage-symbol";
 import { tableSymbol } from "./table-symbol";
 import { zoneSymbol } from "./zone-symbol";
 import { hasSmallPieceDesign } from "../designs/small-pieces";
-import { isRoundTable } from "../table-layout";
+import { isRoundTable } from "@prism/floorplan-scene";
 
 /** What Pascal tells a kind about how the piece is shown: selected, highlighted or hovered, and the plan's palette. */
 export type SymbolView = { selected?: boolean; highlighted?: boolean; hovered?: boolean; palette?: Partial<FloorplanPalette> };

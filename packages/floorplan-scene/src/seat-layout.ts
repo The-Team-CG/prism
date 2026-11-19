@@ -1,8 +1,8 @@
-import type { PrismTableNode } from "@prism/types";
+import type { PrismSeatingBlockNode, PrismTableNode } from "@prism/types";
 
 /**
- * Where a table's chairs go, in the table's own frame (x across, z toward its front). The 3D design and the plan symbol
- * both place chairs from here, so the two views always seat a table the same way.
+ * Where a table's or a seating block's chairs go, in the piece's own frame (x across, z toward its front). The 3D design,
+ * the plan symbol and the layout checks all place chairs from here, so every view seats a piece the same way.
  */
 
 /** How far a chair's centre stands out from the table edge: clear of the linen and the seat's depth. */
@@ -110,3 +110,22 @@ export function seatSpots(node: PrismTableNode): SeatSpot[] {
 
 /** Whether a table stands on a round footprint (a round dining or cocktail table). */
 export const isRoundTable = (node: { type: string; shape?: unknown }) => node.type === "prism-table" && (node.shape === "round" || node.shape === "cocktail");
+
+/** A classroom block's chairs sit a little behind their row's centre line, clear of the desk in front. */
+const CLASSROOM_SETBACK = 0.12;
+
+/**
+ * Every chair of a seating block, rows front (−z) to back, columns split by the aisle, all facing the front with their
+ * backs to the rear (+z).
+ */
+export function blockSeatSpots(node: PrismSeatingBlockNode): SeatSpot[] {
+  const pitch = node.depth / node.rows;
+  const across = (node.width - node.aisle) / node.columns;
+  const half = Math.floor(node.columns / 2);
+  const setback = node.style === "classroom" ? pitch * CLASSROOM_SETBACK : 0;
+  return Array.from({ length: node.rows * node.columns }, (_, index) => {
+    const [row, column] = [Math.floor(index / node.columns), index % node.columns];
+    const aisle = column >= half && node.aisle > 0 ? node.aisle : 0;
+    return { x: -node.width / 2 + across * (column + 0.5) + aisle, z: -node.depth / 2 + pitch * (row + 0.5) + setback, away: [0, 1] };
+  });
+}
