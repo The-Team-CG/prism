@@ -40,6 +40,7 @@ if (health.status !== 200) {
 }
 
 const ctx = createContext();
+console.log(`Setup: ${await ctx.ensurePaymentDetails()}`);
 const files = readdirSync(join(here, "phases")).filter((f) => f.endsWith(".mjs")).sort();
 for (const file of files) {
   const phase = await import(pathToFileURL(join(here, "phases", file)).href);

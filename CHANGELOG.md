@@ -64,6 +64,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- The nightly Lifecycle E2E passes again (476 checks). It builds floor plans as Pascal scenes, turns on a PMCM payment method before issuing statements, and counts a capability as reachable from a portal when the portal calls the `@prism/api-client` method that wraps its route (`scripts/e2e/lifecycle/portal-wiring.mjs`), instead of looking for the route spelled in portal code.
 - Guest portal `.tsx` tests now run.
 - PMCM can share files from an event's Files page.
 - "Show older notifications" stops at 200 notices, and a failed load offers Try again.

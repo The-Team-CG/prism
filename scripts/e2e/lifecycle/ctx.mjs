@@ -120,5 +120,19 @@ export function createContext() {
     expectStatus(await http("PATCH", `${base}/proposal/review`, { token: clientToken, body: { action: "approve" } }), 200);
   }
 
-  return { as, newEvent, issueMinimalProposal, prepareEventDay, reserveDate, ensureCoordinator, accounts: ACCOUNTS };
+  /**
+   * Statements cannot be issued until PMCM has a payment method turned on, and the accounts seed adds none. A fresh
+   * database gets one bank account; a database that already has an enabled method is left as it is.
+   */
+  async function ensurePaymentDetails() {
+    const admin = await as("admin");
+    const details = expectStatus(await http("GET", "/payment-details", { token: admin }), 200);
+    if ((details.methods ?? []).some((method) => method.enabled)) return "payment details already set";
+    expectStatus(await http("PUT", "/payment-details", { token: admin, body: { expectedRevision: details.revision ?? 0, methods: [
+      { kind: "bank", id: randomUUID(), label: "Lifecycle bank account", accountName: "PMCM Events", accountNumber: "0000-1111-2222", instructions: "", qrImageId: null, enabled: true },
+    ] } }), 200);
+    return "one bank account turned on";
+  }
+
+  return { as, newEvent, issueMinimalProposal, prepareEventDay, reserveDate, ensureCoordinator, ensurePaymentDetails, accounts: ACCOUNTS };
 }
