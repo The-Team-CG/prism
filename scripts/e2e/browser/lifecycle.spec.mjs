@@ -240,9 +240,10 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await api('POST', `/events/${eventId}/ocular-visit/waive`, { reason: 'Synthetic browser acceptance venue fixture' });
       await api('POST', '/templates', { name: 'Browser acceptance layout', venue: 'Browser acceptance venue', pax: 120, scene: oneTableScene('Browser acceptance layout') });
       await pmcm.page.goto(path('floorplans'));
-      // Picking a template creates the PMCM draft and opens it in the editor; submission and approval live in the draft list.
+      // Picking a template creates the PMCM draft and opens it in the editor (view-only on a phone, so no submit there);
+      // submission and approval live in the draft list.
       await pmcm.page.getByRole('button', { name: /Browser acceptance layout/ }).first().click();
-      await expect(pmcm.page.getByRole('button', { name: 'Submit for review' })).toBeVisible();
+      await expect(pmcm.page.getByRole('button', { name: 'Back to floor plans' })).toBeVisible();
       await pmcm.page.goto(path('floorplans'));
       await pmcm.page.getByRole('button', { name: 'Submit', exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Approve', exact: true }).click();
