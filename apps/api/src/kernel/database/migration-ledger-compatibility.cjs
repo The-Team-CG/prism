@@ -31,11 +31,12 @@ function migrationChecksumVariants(sql, name) {
   ])];
   return [...checksums, ...historicalMigrationChecksums(name, checksums)];
 }
+
 function sortByName(values) {
   return [...values].sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
 }
 
-function validateLocalMigrations(localMigrations, requiredHead) {
+function validateLocalMigrations(localMigrations) {
   const local = sortByName(localMigrations);
   if (local.length === 0) throw new Error('No local Prisma migrations were found.');
 
@@ -49,27 +50,19 @@ function validateLocalMigrations(localMigrations, requiredHead) {
     }
     localByName.set(migration.name, migration);
   }
-
-  const localHead = local[local.length - 1].name;
-  if (requiredHead !== localHead) {
-    throw new Error(`Required schema head ${requiredHead} does not match local head ${localHead}.`);
-  }
-  return { local, localByName, localHead };
+  return { local, localByName };
 }
 
-function activeAppliedMigrations(appliedMigrations) {
-  const unfinished = appliedMigrations.filter(
-    (migration) => migration.finishedAt === null && migration.rolledBackAt === null,
-  );
-  if (unfinished.length > 0) {
-    throw new Error(`Database has unfinished Prisma migrations: ${unfinished.map(({ name }) => name).join(', ')}.`);
-  }
+function unfinishedMigrationNames(appliedMigrations) {
+  return appliedMigrations
+    .filter((migration) => migration.finishedAt === null && migration.rolledBackAt === null)
+    .map(({ name }) => name);
+}
 
+function completedMigrations(appliedMigrations) {
   const applied = appliedMigrations.filter(
     (migration) => migration.finishedAt !== null && migration.rolledBackAt === null,
   );
-  if (applied.length === 0) throw new Error('Database has no completed Prisma migrations.');
-
   const seen = new Set();
   for (const migration of applied) {
     if (seen.has(migration.name)) {
@@ -80,8 +73,16 @@ function activeAppliedMigrations(appliedMigrations) {
   return applied;
 }
 
+function activeAppliedMigrations(appliedMigrations) {
+  const unfinished = unfinishedMigrationNames(appliedMigrations);
+  if (unfinished.length > 0) {
+    throw new Error(`Database has unfinished Prisma migrations: ${unfinished.join(', ')}.`);
+  }
+  return completedMigrations(appliedMigrations);
+}
+
 function assertKnownMigrationPrefix(input) {
-  const { local, localByName, localHead } = validateLocalMigrations(input.localMigrations, input.requiredHead);
+  const { local, localByName } = validateLocalMigrations(input.localMigrations);
   const applied = activeAppliedMigrations(input.appliedMigrations);
 
   for (const migration of applied) {
@@ -94,9 +95,10 @@ function assertKnownMigrationPrefix(input) {
   }
 
   const orderedApplied = sortByName(applied);
+  if (orderedApplied.length === 0) throw new Error('Database has no completed Prisma migrations.');
   for (let index = 0; index < orderedApplied.length; index += 1) {
     if (orderedApplied[index].name !== local[index]?.name) {
-      throw new Error(`Database migration history is not a prefix of local history at ${local[index]?.name ?? localHead}.`);
+      throw new Error(`Database migration history is not a prefix of local history at ${local[index]?.name}.`);
     }
   }
 
@@ -106,12 +108,37 @@ function assertKnownMigrationPrefix(input) {
   };
 }
 
-function assertExactMigrationCompatibility(input) {
-  const prefix = assertKnownMigrationPrefix(input);
-  if (prefix.pendingMigrations.length > 0) {
-    throw new Error(`Database is missing local Prisma migration ${prefix.pendingMigrations[0].name}.`);
+// Every migration this API ships must be applied, finished, and checksum-identical.
+// Rows the API does not ship are allowed: the database may be ahead during a rollout.
+function assertLocalMigrationsApplied(input) {
+  const { local } = validateLocalMigrations(input.localMigrations);
+  const unfinished = unfinishedMigrationNames(input.appliedMigrations);
+  const completed = completedMigrations(input.appliedMigrations);
+  const completedByName = new Map(completed.map((migration) => [migration.name, migration]));
+
+  const missing = [];
+  const mismatched = [];
+  for (const migration of local) {
+    const row = completedByName.get(migration.name);
+    if (!row) missing.push(migration.name);
+    else if (![migration.checksum, ...(migration.checksumVariants ?? [])].includes(row.checksum)) mismatched.push(migration.name);
   }
-  return prefix.appliedHead;
+
+  if (missing.length + mismatched.length + unfinished.length === 0) return local[local.length - 1].name;
+  const problems = [
+    missing.length > 0 && `missing: ${missing.join(', ')}`,
+    mismatched.length > 0 && `checksum mismatch: ${mismatched.join(', ')}`,
+    unfinished.length > 0 && `unfinished or rolled back: ${unfinished.join(', ')}`,
+  ].filter(Boolean);
+  throw new Error(
+    `Database has not applied every Prisma migration this API ships (${problems.join('; ')}). `
+    + 'Apply them with npm --workspace prism-api run db:migrate:deploy before starting the API.',
+  );
 }
 
-module.exports = { assertExactMigrationCompatibility, assertKnownMigrationPrefix, migrationChecksumVariants, historicalMigrationChecksums };
+module.exports = {
+  assertKnownMigrationPrefix,
+  assertLocalMigrationsApplied,
+  migrationChecksumVariants,
+  historicalMigrationChecksums,
+};

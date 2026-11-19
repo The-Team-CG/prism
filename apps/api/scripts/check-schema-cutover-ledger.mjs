@@ -38,9 +38,6 @@ async function loadLocalMigrations() {
 }
 
 async function checkLedger() {
-  const requiredHead = process.env.PRISM_SCHEMA_REQUIRED_HEAD?.trim();
-  if (!requiredHead) throw new Error('PRISM_SCHEMA_REQUIRED_HEAD is required for schema cutover preflight.');
-
   const localMigrations = await loadLocalMigrations();
   const database = selectDatabaseConnection({ purpose: 'migration' });
   const pool = new Pool({
@@ -62,7 +59,7 @@ async function checkLedger() {
       finishedAt: row.finished_at,
       rolledBackAt: row.rolled_back_at,
     }));
-    const prefix = assertKnownMigrationPrefix({ localMigrations, appliedMigrations, requiredHead });
+    const prefix = assertKnownMigrationPrefix({ localMigrations, appliedMigrations });
     console.log(`Migration ledger is a known contiguous prefix through ${prefix.appliedHead}.`);
     console.log(`Pending checked-in migrations: ${prefix.pendingMigrations.length}.`);
     for (const migration of prefix.pendingMigrations) console.log(`PENDING ${migration.name}`);

@@ -55,6 +55,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- The API now refuses to start until every migration it ships with is applied to the database, and the `PRISM_SCHEMA_COMPATIBILITY_MODE` and `PRISM_SCHEMA_REQUIRED_HEAD` settings are gone.
 - Privacy is one status-first screen for clients and suppliers: requests are confirmed with the account password, can be withdrawn, and include an instant "Download my data now".
 - PMCM's privacy console is tabbed: Queue, Log a request, Legal holds and Retention.
 - One calendar on every portal (Month, Week, Day, Agenda), with payment states and links that keep the view in the address.

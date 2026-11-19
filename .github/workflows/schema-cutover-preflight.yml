@@ -46,8 +46,6 @@ jobs:
           BACKUP_CONFIRMED: ${{ inputs.backup_confirmed }}
           SERVICES_DRAINED: ${{ inputs.services_drained }}
           CUTOVER_HOLD: ${{ vars.PRISM_SCHEMA_CUTOVER_HOLD }}
-          COMPATIBILITY_MODE: ${{ vars.PRISM_SCHEMA_COMPATIBILITY_MODE }}
-          CONFIGURED_REQUIRED_HEAD: ${{ vars.PRISM_SCHEMA_REQUIRED_HEAD }}
         run: |
           set -euo pipefail
           case "$TARGET_ENVIRONMENT" in
@@ -57,11 +55,9 @@ jobs:
           esac
           test "$DISPATCH_REF" = "$expected_ref" || { echo "Dispatch from the matching trusted branch is required"; exit 1; }
           test "$CUTOVER_HOLD" = "true" || { echo "Set PRISM_SCHEMA_CUTOVER_HOLD=true before schema preflight"; exit 1; }
-          test "$COMPATIBILITY_MODE" = "exact" || { echo "Set PRISM_SCHEMA_COMPATIBILITY_MODE=exact before schema preflight"; exit 1; }
           test "$BACKUP_CONFIRMED" = "true" || { echo "A current restorable backup must be confirmed"; exit 1; }
           test "$SERVICES_DRAINED" = "true" || { echo "Database writers and in-flight deploys must be drained"; exit 1; }
           test -n "$REQUIRED_HEAD" || { echo "required_head is required"; exit 1; }
-          test "$CONFIGURED_REQUIRED_HEAD" = "$REQUIRED_HEAD" || { echo "PRISM_SCHEMA_REQUIRED_HEAD must exactly match required_head"; exit 1; }
           node -e 'const fs=require("node:fs"); const dirs=fs.readdirSync("apps/api/prisma/migrations",{withFileTypes:true}).filter((entry)=>entry.isDirectory()).map((entry)=>entry.name).sort(); const head=dirs.at(-1); if (!head || head!==process.env.REQUIRED_HEAD) { console.error(`Requested migration head ${process.env.REQUIRED_HEAD} does not match checked-out head ${head ?? "(none)"}`); process.exit(1); }'
 
   inspect-target:
@@ -90,7 +86,6 @@ jobs:
       - name: Check the target ledger as a known applied prefix
         env:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
-          PRISM_SCHEMA_REQUIRED_HEAD: ${{ vars.PRISM_SCHEMA_REQUIRED_HEAD }}
         run: node apps/api/scripts/check-schema-cutover-ledger.mjs
       - name: Capture the read-only desired SQL diff for owner review
         env:

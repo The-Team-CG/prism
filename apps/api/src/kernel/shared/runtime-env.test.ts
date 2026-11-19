@@ -27,7 +27,7 @@ const deployment = {
 function generatedLocalDevEnv(): Record<string, string> {
   const script = [
     "import('./scripts/local-supabase.mjs').then(({ developmentEnv }) => {",
-    "  const env = developmentEnv('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { dbPort: 54322, migrationHead: '' },",
+    "  const env = developmentEnv('postgresql://postgres:postgres@127.0.0.1:54322/postgres', { dbPort: 54322 },",
     "    { api: 4000, client: 3001, supplier: 3002, guest: 3003, event: 3004 }, process.env.SESSION_SECRET);",
     "  process.stdout.write(JSON.stringify(env));",
     "});",

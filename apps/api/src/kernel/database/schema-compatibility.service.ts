@@ -20,17 +20,6 @@ export class SchemaCompatibilityService implements OnApplicationBootstrap {
   constructor(private readonly prisma: PrismaService) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    const mode = (process.env.PRISM_SCHEMA_COMPATIBILITY_MODE ?? 'disabled').trim();
-    if (mode === 'disabled') return;
-    if (mode !== 'exact') {
-      throw new Error(`Unsupported PRISM_SCHEMA_COMPATIBILITY_MODE: ${mode}.`);
-    }
-
-    const requiredHead = process.env.PRISM_SCHEMA_REQUIRED_HEAD?.trim();
-    if (!requiredHead) {
-      throw new Error('PRISM_SCHEMA_REQUIRED_HEAD is required when exact schema compatibility is enabled.');
-    }
-
     const localMigrations = await this.readLocalMigrations();
     // QUERY_AUDIT_RAW_SQL: Reads Prisma's own _prisma_migrations ledger, which has no Prisma model delegate, to compare applied checksums with the local migration set; catalog-style read, no lock or write.
     const rows = await this.prisma.$queryRaw<PrismaMigrationRow[]>`
@@ -45,8 +34,8 @@ export class SchemaCompatibilityService implements OnApplicationBootstrap {
       rolledBackAt: row.rolled_back_at,
     }));
 
-    const head = migrationLedger.assertExactMigrationCompatibility({ localMigrations, appliedMigrations, requiredHead });
-    this.logger.log(`Database migration history is compatible with required head ${head}.`);
+    const latestLocal = migrationLedger.assertLocalMigrationsApplied({ localMigrations, appliedMigrations });
+    this.logger.log(`Database has applied every bundled migration through ${latestLocal}.`);
   }
 
   private async readLocalMigrations(): Promise<LocalMigration[]> {
