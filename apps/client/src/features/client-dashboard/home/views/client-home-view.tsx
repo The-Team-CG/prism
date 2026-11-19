@@ -22,9 +22,9 @@ export function ClientHomeView() {
   const own = actions.filter((action) => action.stage === "needs_client");
   const lead = clientHomeLead(events, own, todayKey);
   const eventHref = (eventId: string) => dashboardHref("overview", eventId);
-  // The hero and list already say what needs the client and when the next event is, so only the
+  // The hero and lists already say what needs the client, what is with PMCM and when the next event is, so only the
   // figures that appear nowhere else are shown.
-  const repeatedElsewhere = new Set(["Needs you", "Next event"]);
+  const repeatedElsewhere = new Set(["Needs you", "With PMCM", "Next event"]);
   const figures = clientHomeFigures({
     actions,
     events,

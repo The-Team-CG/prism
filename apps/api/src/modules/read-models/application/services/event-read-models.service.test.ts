@@ -234,6 +234,7 @@ function createPmcmReadModelService() {
     opsAddendum: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsAddendumConformeExecution: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsProposalVersion: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
+    opsScopeChangeRequest: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsEventFreezeException: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []) },
     opsApprovalRequest: { count: vi.fn(async () => 2) },
     // The event's own document, which is not a file waiting for review.
@@ -1248,6 +1249,7 @@ describe('EventReadModelsService', () => {
       opsClientCloseoutResponse: { findMany: vi.fn(async () => []) },
       opsAddendum: { findMany: vi.fn(async () => []) },
       opsProposalVersion: { findMany: vi.fn(async () => []) },
+      opsScopeChangeRequest: { findMany: vi.fn(async () => []) },
       opsEventFreezeException: { findMany: vi.fn(async () => []) },
     };
     const policy = new EventAccessPolicyService({ write: vi.fn() } as any);

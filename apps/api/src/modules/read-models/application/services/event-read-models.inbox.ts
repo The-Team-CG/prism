@@ -44,6 +44,8 @@ export type ClientAddendumActionRef = {
   issuedAt: Date;
   conformeExecution: { status: string; completedAt: Date | null } | null;
 };
+/** A scope change the client asked for, with only the client-safe columns: no PMCM reasons, impacts or actors. */
+export type ClientScopeChangeRef = { id: string; eventId: string; title: string; status: string; clientResponse: string | null; decidedAt: Date | null };
 /** An issued proposal version: what the client is asked to decide on. */
 export type ClientProposalVersionRef = { eventId: string; versionNumber: number; revisionNote: string; issuedAt: Date | null };
 
@@ -124,6 +126,7 @@ export function collectClientActionItems(input: {
   postEventDocuments: OpsPostEventDocument[];
   closeoutResponses?: CloseoutResponseRef[];
   changeRequests?: ClientChangeRequestRef[];
+  scopeChanges?: ClientScopeChangeRef[];
   addenda?: ClientAddendumActionRef[];
   proposalVersions?: ClientProposalVersionRef[];
   /** The signed-in client's email: only the event's primary contact can decide on its proposal. */
@@ -146,6 +149,7 @@ export function collectClientActionItems(input: {
     ...collectClientClosureActionItems(input.postEventDocuments, input.visibleEvents),
     ...collectClientFeedbackActionItems(input.visibleEvents, new Set((input.closeoutResponses ?? []).map((row) => row.eventId))),
     ...collectClientChangeRequestItems(input.changeRequests ?? [], input.visibleEvents, now),
+    ...collectClientScopeChangeItems(input.scopeChanges ?? [], input.visibleEvents),
     ...collectClientAddendumActionItems(input.addenda ?? [], input.visibleEvents, now),
   ];
   items.sort((left, right) => {
@@ -156,13 +160,6 @@ export function collectClientActionItems(input: {
     return left.id.localeCompare(right.id);
   });
   return items;
-}
-
-/** "Adds ₱48,000 to", "Lowers ... by ₱5,000", or no money change: the effect a client signs for. */
-function addendumAmountPhrase(financialDelta: number) {
-  if (financialDelta > 0) return `Adds ${peso(financialDelta)} to your contract once PMCM countersigns.`;
-  if (financialDelta < 0) return `Lowers your contract by ${peso(-financialDelta)} once PMCM countersigns.`;
-  return 'No change to your contract amount. Takes effect once PMCM countersigns.';
 }
 
 /**
@@ -189,7 +186,8 @@ function collectClientAddendumActionItems(addenda: ClientAddendumActionRef[], ev
         stage: 'needs_client',
         priority: 'attention',
         label: `Sign addendum ${addendum.versionNumber}: ${addendum.title}`,
-        description: addendumAmountPhrase(addendum.financialDelta),
+        // The amount travels in `decision`, so the portal states it once beside the decision.
+        description: 'Takes effect once PMCM countersigns after you.',
         status: 'awaiting_client',
         decision: { kind: 'addendum', addendumId: addendum.id, versionNumber: addendum.versionNumber, financialDelta: addendum.financialDelta },
       });
@@ -575,6 +573,34 @@ function collectClientChangeRequestItems(requests: ClientChangeRequestRef[], eve
   return items;
 }
 
+/**
+ * A scope change the client asked for: with PMCM while it is reviewed, then news for the client once PMCM answers.
+ * The query already leaves out withdrawn requests and answers older than the review window.
+ */
+function collectClientScopeChangeItems(requests: ClientScopeChangeRef[], events: ClientEventRef[]) {
+  const items: PrismClientActionItem[] = [];
+  for (const request of requests) {
+    const event = eventById(events, request.eventId);
+    if (!event || request.status === 'withdrawn') continue;
+    const decided = request.status === 'approved' || request.status === 'rejected';
+    const response = request.clientResponse?.trim();
+    items.push({
+      id: `scope-change:${request.id}`,
+      kind: 'change_request',
+      stage: decided ? 'to_review' : 'with_pmcm',
+      priority: request.status === 'rejected' ? 'attention' : 'info',
+      label: request.status === 'approved' ? `Change approved: ${request.title}` : request.status === 'rejected' ? `Change not approved: ${request.title}` : request.title,
+      description: decided ? (response ? `PMCM: ${response}` : 'PMCM answered your change request.') : 'PMCM is reviewing your change request.',
+      status: request.status === 'rejected' ? 'not_approved' : decided ? 'approved' : 'under_review',
+      decidedAt: toIso(request.decidedAt),
+      eventId: event.id,
+      eventName: event.eventName,
+      href: `/dashboard/events/${event.id}/changes`,
+    });
+  }
+  return items;
+}
+
 /** The most urgent items each event card shows; the rest are counted. */
 export const EVENT_ATTENTION_TOP = 3;
 
@@ -668,7 +694,7 @@ function collectClientDecisionInboxItems(decisions: PmcmInboxClientDecisions | u
     const event = eventsById.get(proposal.eventId);
     if (!event) continue;
     items.push({
-      id: `proposal-waiting:${event.id}`, kind: 'approval', severity: 'info', status: 'awaiting_client',
+      id: `proposal-waiting:${event.id}`, kind: 'approval', severity: 'attention', status: 'awaiting_client',
       label: 'Proposal waiting on the client',
       description: `Version ${proposal.versionNumber} sent ${wholeDaysSince(proposal.issuedAt, now)} days ago with no answer. Send a follow-up.`,
       createdAt: toIso(proposal.issuedAt),
@@ -680,7 +706,7 @@ function collectClientDecisionInboxItems(decisions: PmcmInboxClientDecisions | u
     const event = eventsById.get(addendum.eventId);
     if (!event) continue;
     items.push({
-      id: `addendum-waiting:${addendum.addendumId}`, kind: 'addendum', severity: 'info', status: 'awaiting_client',
+      id: `addendum-waiting:${addendum.addendumId}`, kind: 'addendum', severity: 'attention', status: 'awaiting_client',
       label: 'Addendum waiting for the client to sign',
       description: `Addendum ${addendum.versionNumber} (${addendum.title}) sent ${wholeDaysSince(addendum.sentAt, now)} days ago. Send a follow-up.`,
       createdAt: toIso(addendum.sentAt),

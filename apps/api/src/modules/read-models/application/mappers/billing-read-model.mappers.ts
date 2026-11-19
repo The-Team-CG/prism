@@ -34,6 +34,12 @@ export function mapBillingEvent(event: EventWithDrafts) {
     clientEventDayViewEnabled: event.clientEventDayViewEnabled,
     disabledModules: event.disabledModules as PrismEvent['disabledModules'],
     proposalClientStatus: event.proposalClientStatus,
+    // The client's own decision history and change cutoff: how many change requests are used, when they last
+    // decided, and when changes close. PMCM's freeze reason and exceptions stay out.
+    proposalRevisionCount: event.proposalRevisionCount,
+    proposalReviewedAt: event.proposalReviewedAt?.toISOString() ?? null,
+    freezeStatus: event.freezeStatus,
+    freezeDeadlineAt: event.freezeDeadlineAt?.toISOString() ?? null,
     readiness: event.readiness,
     archived: event.archived,
     floorPlanStatus: event.floorPlanStatus,

@@ -816,6 +816,7 @@ export class EventReadModelQueries {
       changeRequests,
       addenda,
       proposalVersions,
+      scopeChanges,
     ] = await Promise.all([
       readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
         this.prisma.opsBriefing.findMany({ where: { eventId: { in: eventIds }, ...(afterId ? { id: { gt: afterId } } : {}) },
@@ -892,6 +893,18 @@ export class EventReadModelQueries {
           orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS,
         }),
       ),
+      // Client-safe scope change columns only: the client's title, the status and PMCM's client-facing answer.
+      readAllRowsById(MAX_CLIENT_ACTION_CENTER_ROWS, (afterId) =>
+        this.prisma.opsScopeChangeRequest.findMany({
+          where: {
+            eventId: { in: eventIds },
+            OR: [{ status: { in: ['submitted', 'under_review'] } }, { status: { in: ['approved', 'rejected'] }, decidedAt: { gte: changeDecisionsSince } }],
+            ...(afterId ? { id: { gt: afterId } } : {}),
+          },
+          select: { id: true, eventId: true, title: true, status: true, clientResponse: true, decidedAt: true },
+          orderBy: { id: 'asc' }, take: MAX_CLIENT_ACTION_CENTER_ROWS,
+        }),
+      ),
     ]);
     return [
       sortByDate(briefings, (row) => row.submittedAt, 'desc'),
@@ -907,6 +920,7 @@ export class EventReadModelQueries {
       sortByDate(changeRequests, (row) => row.requestedAt, 'desc'),
       sortByDate(addenda, (row) => row.issuedAt, 'desc'),
       proposalVersions,
+      scopeChanges,
     ] as const;
   }
   // Supplier and event eligibility is applied before each bounded keyset page.

@@ -540,6 +540,7 @@ export class EventReadModelsService {
     const changeRequests: ClientActionSources[8] = [];
     const addenda: ClientActionSources[9] = [];
     const proposalVersions: ClientActionSources[10] = [];
+    const scopeChanges: ClientActionSources[11] = [];
     const now = new Date();
     const changeDecisionsSince = new Date(now.getTime() - CLIENT_CHANGE_DECISION_REVIEW_DAYS * 24 * 60 * 60 * 1000);
     for (let offset = 0; offset < visibleEvents.length; offset += 100) {
@@ -556,6 +557,7 @@ export class EventReadModelsService {
         batchChangeRequests,
         batchAddenda,
         batchProposalVersions,
+        batchScopeChanges,
       ] =
       await this.queries.clientActionCenterForEvents(eventBatch.map((event) => event.id), changeDecisionsSince);
       briefings.push(...batchBriefings);
@@ -569,6 +571,7 @@ export class EventReadModelsService {
       changeRequests.push(...batchChangeRequests);
       addenda.push(...batchAddenda);
       proposalVersions.push(...batchProposalVersions);
+      scopeChanges.push(...batchScopeChanges);
     }
     const items = collectClientActionItems({
       visibleEvents,
@@ -583,6 +586,7 @@ export class EventReadModelsService {
       changeRequests,
       addenda,
       proposalVersions,
+      scopeChanges,
       actorEmail: actor.email ?? null,
       now,
     });

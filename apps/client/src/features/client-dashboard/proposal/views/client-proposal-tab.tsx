@@ -67,7 +67,7 @@ function ProposalStatusHero({ vm, onOpenBriefing }: { vm: ClientProposalTabViewM
           </Button>
           <span className="text-xs text-muted-foreground">
             {vm.canRequestRevision
-              ? `${changeRequestsLeft(vm.remainingRevisions)} of ${CLIENT_PROPOSAL_REVISION_CAP}`
+              ? `${vm.remainingRevisions} of ${CLIENT_PROPOSAL_REVISION_CAP} change requests left`
               : `You've used all ${CLIENT_PROPOSAL_REVISION_CAP} change requests. Approve this version or message PMCM.`}
           </span>
         </div>
@@ -141,7 +141,7 @@ function RequestChangesDialog({ vm }: { vm: ClientProposalTabViewModel }) {
         <DialogHeader>
           <DialogTitle>Ask PMCM for changes</DialogTitle>
           <DialogDescription>
-            You have {changeRequestsLeft(vm.remainingRevisions)} of {CLIENT_PROPOSAL_REVISION_CAP}. After this one, {after === 0 ? "you'll need to approve the next version or message PMCM" : `${changeRequestsLeft(after)}`}.
+            This uses one of your {vm.remainingRevisions} remaining change requests.{after === 0 ? " After it, you can only approve the next version or message PMCM." : ""}
           </DialogDescription>
         </DialogHeader>
         <form

@@ -31,11 +31,28 @@ describe('client action center', () => {
     ]));
     expect(addenda).toHaveLength(3);
     expect(addenda.find((item) => item.id === 'addendum:add_7')).toMatchObject({
-      description: 'Adds ₱48,000 to your contract once PMCM countersigns.',
+      description: 'Takes effect once PMCM countersigns after you.',
       href: '/dashboard/events/evt_gala/overview#client-addendum-add_7',
       decision: { kind: 'addendum', addendumId: 'add_7', versionNumber: 7, financialDelta: 48000 },
     });
     expect(addenda.find((item) => item.id === 'addendum:add_5')?.decidedAt).toBe('2026-11-03T00:00:00.000Z');
+  });
+
+  it('keeps a scope change with PMCM while it is reviewed and shows PMCM\'s client answer once decided', () => {
+    const items = collectClientActionItems({
+      visibleEvents: [{ id: 'evt_gala', eventName: 'Founders gala', status: 'planning' }] as unknown as Input['visibleEvents'],
+      briefings: [{ eventId: 'evt_gala' }] as unknown as Input['briefings'],
+      documents: [], floorPlanDrafts: [], billingStatements: [], paymentMilestones: [], paymentRecords: [], postEventDocuments: [],
+      scopeChanges: [
+        { id: 'sc_1', eventId: 'evt_gala', title: 'Add a second registration desk', status: 'under_review', clientResponse: null, decidedAt: null },
+        { id: 'sc_2', eventId: 'evt_gala', title: 'Move dinner outdoors', status: 'rejected', clientResponse: 'The garden is booked that night.', decidedAt: new Date('2026-11-05T00:00:00Z') },
+      ],
+      now: new Date('2026-11-06T00:00:00Z'),
+    });
+    expect(items.filter((item) => item.kind === 'change_request').map((item) => [item.stage, item.label, item.description])).toEqual(expect.arrayContaining([
+      ['with_pmcm', 'Add a second registration desk', 'PMCM is reviewing your change request.'],
+      ['to_review', 'Change not approved: Move dinner outdoors', 'PMCM: The garden is booked that night.'],
+    ]));
   });
 
   it('lets only the primary contact decide on an issued proposal, then tracks the request or approval', () => {
