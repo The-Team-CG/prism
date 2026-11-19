@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { cfg, http, login, latestMailTo, tokenFromMail, msg, expect, expectStatus } from "./lib.mjs";
+import { oneTableScene } from "../floorplan-fixture.mjs";
 
 const ACCOUNTS = {
   admin: { email: "mys@pmcm.test", password: () => cfg.password.admin },
@@ -108,8 +109,7 @@ export function createContext() {
     const base = `/events/${eventId}`;
     expectStatus(await http("POST", `${base}/ocular-visit/waive`, { token: admin, body: { reason: "Synthetic lifecycle verification" } }), 200, 201);
     const template = expectStatus(await http("POST", "/templates", { token: admin, body: {
-      name: `Lifecycle venue ${eventId}`, venue: "Verification venue", width: 1200, height: 800, gridSize: 20, pax: 120,
-      objects: [{ id: "table-1", kind: "ellipse", name: "Table", category: "furniture", x: 100, y: 100, w: 80, h: 80, rotation: 0, fill: "#FFFFFF", stroke: "#000000", strokeWidth: 1, locked: false, hidden: false }],
+      name: `Lifecycle venue ${eventId}`, venue: "Verification venue", pax: 120, scene: oneTableScene(`Lifecycle venue ${eventId}`),
     } }), 201);
     const draft = expectStatus(await http("POST", `${base}/floorplans`, { token: admin, body: { name: "Official lifecycle layout", sourceType: "template", venueTemplateId: template.id } }), 201);
     expectStatus(await http("POST", `${base}/floorplans/${draft.id}/submit`, { token: admin }), 200);

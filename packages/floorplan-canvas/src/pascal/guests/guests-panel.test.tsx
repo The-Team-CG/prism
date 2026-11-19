@@ -38,7 +38,6 @@ function openGuests(seating: PrismFloorplanContextValue["seating"] = { allowed: 
     saveState: "saved",
     onRetrySave: () => undefined,
     onReload: () => undefined,
-    unmatchedSeats: 0,
   };
   render(
     <PrismFloorplanProvider value={context}>

@@ -38,14 +38,14 @@ describe('PlansController auth boundary', () => {
 
     await expect(controller.getOne('plan_1', verifiedPmcmActor as any)).resolves.toEqual({ id: 'plan_1' });
     await expect(
-      controller.update('plan_1', { expectedUpdatedAt: '2026-05-05T00:00:00.000Z', objects: [] }, verifiedPmcmActor as any),
+      controller.update('plan_1', { expectedUpdatedAt: '2026-05-05T00:00:00.000Z', width: 30 }, verifiedPmcmActor as any),
     ).resolves.toEqual({ id: 'plan_1', updated: true });
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedPmcmActor);
     expect(plansService.getPlan).toHaveBeenCalledWith('plan_1', resolvedActor);
     expect(plansService.updatePlan).toHaveBeenCalledWith(
       'plan_1',
-      { expectedUpdatedAt: '2026-05-05T00:00:00.000Z', objects: [] },
+      { expectedUpdatedAt: '2026-05-05T00:00:00.000Z', width: 30 },
       resolvedActor,
     );
   });

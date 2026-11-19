@@ -1,76 +1,35 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type {
-  FloorPlan as PrismaFloorPlan,
-  FloorPlanObject as PrismaFloorPlanObject,
-  Prisma,
-  VenueTemplate as PrismaVenueTemplate,
-} from '@prisma/client';
-import { PrismaService, toPrismaJson } from '@prism/kernel/database';
-import { asArray } from '@prism/kernel/shared';
-import type { CanvasObject, JsonValue, VenueTemplate } from '@prism/kernel/shared';
+import type { FloorPlan as PrismaFloorPlan, Prisma, VenueTemplate as PrismaVenueTemplate } from '@prisma/client';
+import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
-import { defaultSeatCategories } from '@prism/kernel/shared';
-import type { CreateFloorPlanDraftInput, UpdatePlanInput } from '@prism/types';
-import {
-  floorPlanScalarPatch,
-  jsonIfDefined,
-  replaceFloorPlanObjects,
-  setIfDefined,
-} from './plan-patch';
+import type { VenueTemplate } from '@prism/kernel/shared';
+import { roomSize } from '@prism/floorplan-scene';
+import type { CreateTemplateInput, FloorplanSceneDocument, UpdateTemplateInput } from '@prism/types';
+import { floorPlanScalarPatch, setIfDefined } from './plan-patch';
+import { acceptedScene, sceneColumns, storedScene } from '../stored-scene';
 
 const TEMPLATE_LIST_LIMIT = 100;
-const TEMPLATE_PLAN_KEYS = ['objects', 'width', 'height', 'gridSize', 'venue', 'pax', 'guests', 'suppliers'] as const;
 
-type TemplateUpdateInput = Pick<
-  CreateFloorPlanDraftInput,
-  'venue' | 'width' | 'height' | 'gridSize' | 'pax' | 'guests' | 'suppliers'
-> & {
-  name?: string;
-  description?: string;
-  venueRules?: string;
-  permanentFeatures?: UpdatePlanInput['objects'];
-  includeGuests?: boolean;
-  includeSuppliers?: boolean;
-  sourceType?: string;
-} & Pick<UpdatePlanInput, 'objects'>;
+/** A template's room is measured from its scene's walls, so the plan's size and the scene can never disagree. */
+function sceneDimensions(scene: FloorplanSceneDocument) {
+  const room = roomSize(scene);
+  return { width: Math.round(room?.width ?? 0), height: Math.round(room?.depth ?? 0) };
+}
 
-function templateRowPatch(input: TemplateUpdateInput): Prisma.VenueTemplateUpdateInput {
+function templateRowPatch(input: UpdateTemplateInput): Prisma.VenueTemplateUpdateInput {
   const data: Record<string, unknown> = {};
   setIfDefined(data, 'name', input.name);
   setIfDefined(data, 'description', input.description);
   setIfDefined(data, 'venue', input.venue);
   setIfDefined(data, 'venueRules', input.venueRules);
-  jsonIfDefined(data, 'permanentFeatures', input.permanentFeatures);
   setIfDefined(data, 'pax', input.pax);
-  setIfDefined(data, 'includeGuests', input.includeGuests);
-  setIfDefined(data, 'includeSuppliers', input.includeSuppliers);
-  jsonIfDefined(data, 'guests', input.guests);
-  jsonIfDefined(data, 'suppliers', input.suppliers);
   setIfDefined(data, 'sourceType', input.sourceType);
   return data as Prisma.VenueTemplateUpdateInput;
 }
 
-function templatePlanNeedsUpdate(input: TemplateUpdateInput) {
-  return TEMPLATE_PLAN_KEYS.some((key) => input[key] !== undefined);
-}
+type TemplateWithPlan = PrismaVenueTemplate & { floorPlan: PrismaFloorPlan };
 
-async function syncTemplateFloorPlan(
-  tx: Prisma.TransactionClient,
-  floorPlanId: string,
-  input: TemplateUpdateInput,
-) {
-  await tx.floorPlan.update({
-    where: { id: floorPlanId },
-    data: floorPlanScalarPatch(input),
-  });
-  if (input.objects !== undefined) {
-    await replaceFloorPlanObjects(tx, floorPlanId, input.objects);
-  }
-}
-
-type TemplateWithPlan = PrismaVenueTemplate & {
-  floorPlan?: (PrismaFloorPlan & { objectRows?: PrismaFloorPlanObject[] }) | null;
-};
+const PLAN_INCLUDE = { floorPlan: true } as const;
 
 @Injectable()
 export class TemplatesService {
@@ -78,11 +37,6 @@ export class TemplatesService {
 
   private mapTemplate(row: TemplateWithPlan): VenueTemplate {
     const plan = row.floorPlan;
-    const objects =
-      plan?.objectRows?.length
-        ? plan.objectRows.map((object) => object.objectData as unknown as CanvasObject)
-        : asArray<CanvasObject>(plan?.objects);
-
     return {
       id: row.id,
       ownerId: row.ownerId,
@@ -90,17 +44,12 @@ export class TemplatesService {
       description: row.description,
       venue: row.venue,
       venueRules: row.venueRules,
-      permanentFeatures: asArray<CanvasObject>(row.permanentFeatures),
       floorPlanId: row.floorPlanId,
-      width: plan?.width ?? 0,
-      height: plan?.height ?? 0,
-      gridSize: plan?.gridSize ?? 1,
+      width: plan.width,
+      height: plan.height,
+      gridSize: plan.gridSize,
       pax: row.pax,
-      objects,
-      includeGuests: row.includeGuests,
-      includeSuppliers: row.includeSuppliers,
-      guests: asArray<JsonValue>(row.guests),
-      suppliers: asArray<JsonValue>(row.suppliers),
+      scene: storedScene(plan),
       sourceType: row.sourceType,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -111,13 +60,7 @@ export class TemplatesService {
     const rows = await this.prisma.venueTemplate.findMany({
       orderBy: { createdAt: 'desc' },
       take: TEMPLATE_LIST_LIMIT,
-      include: {
-        floorPlan: {
-          include: {
-            objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-          },
-        },
-      },
+      include: PLAN_INCLUDE,
     });
 
     return rows.map((row) => this.mapTemplate(row));
@@ -126,13 +69,7 @@ export class TemplatesService {
   async getTemplate(templateId: string): Promise<VenueTemplate> {
     const row = await this.prisma.venueTemplate.findUnique({
       where: { id: templateId },
-      include: {
-        floorPlan: {
-          include: {
-            objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-          },
-        },
-      },
+      include: PLAN_INCLUDE,
     });
 
     if (!row) throw new NotFoundException('Template not found');
@@ -140,27 +77,11 @@ export class TemplatesService {
     return this.mapTemplate(row);
   }
 
-  async createTemplate(input: {
-    name: string;
-    description?: string;
-    venue?: string;
-    venueRules?: string;
-    permanentFeatures?: UpdatePlanInput['objects'];
-    objects?: UpdatePlanInput['objects'];
-    width?: number;
-    height?: number;
-    gridSize?: number;
-    pax?: number;
-    includeGuests?: boolean;
-    includeSuppliers?: boolean;
-    guests?: unknown[];
-    suppliers?: unknown[];
-    sourceType?: string;
-  }, actorId: string): Promise<VenueTemplate> {
+  async createTemplate(input: CreateTemplateInput, actorId: string): Promise<VenueTemplate> {
     const planId = randomUUID();
     const templateId = randomUUID();
-    const objects = input.objects ?? [];
-    const gridSize = input.gridSize ?? 1;
+    const scene = acceptedScene(input.scene);
+    const { width, height } = sceneDimensions(scene);
 
     const template = await this.prisma.$transaction(async (tx) => {
       await tx.floorPlan.create({
@@ -170,29 +91,13 @@ export class TemplatesService {
           venue: input.venue ?? '',
           ownerId: actorId,
           templateId,
-          width: input.width ?? 30,
-          height: input.height ?? 20,
-          gridSize,
+          width,
+          height,
+          gridSize: 1,
           pax: input.pax ?? 0,
-          objects: toPrismaJson(objects),
-          guests: toPrismaJson(input.guests ?? []),
-          suppliers: toPrismaJson(input.suppliers ?? []),
-          seatCategories: toPrismaJson(defaultSeatCategories()),
+          ...sceneColumns(scene),
         },
       });
-
-      if (objects.length > 0) {
-        await tx.floorPlanObject.createMany({
-          data: objects.map((object, index) => ({
-            floorPlanId: planId,
-            objectId: object.id,
-            kind: object.kind,
-            zIndex: 'zIndex' in object && typeof object.zIndex === 'number' ? object.zIndex : index,
-            objectData: toPrismaJson(object),
-            svgMarkup: 'svgMarkup' in object && typeof object.svgMarkup === 'string' ? object.svgMarkup : null,
-          })),
-        });
-      }
 
       return tx.venueTemplate.create({
         data: {
@@ -202,47 +107,35 @@ export class TemplatesService {
           description: input.description ?? '',
           venue: input.venue ?? '',
           venueRules: input.venueRules ?? '',
-          permanentFeatures: toPrismaJson(input.permanentFeatures ?? []),
           floorPlanId: planId,
           pax: input.pax ?? 0,
-          includeGuests: input.includeGuests ?? false,
-          includeSuppliers: input.includeSuppliers ?? false,
-          guests: toPrismaJson(input.guests ?? []),
-          suppliers: toPrismaJson(input.suppliers ?? []),
           sourceType: input.sourceType ?? 'custom',
         },
-        include: {
-          floorPlan: {
-            include: {
-              objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-            },
-          },
-        },
+        include: PLAN_INCLUDE,
       });
     });
 
     return this.mapTemplate(template);
   }
 
-  async updateTemplate(templateId: string, input: TemplateUpdateInput): Promise<VenueTemplate> {
+  async updateTemplate(templateId: string, input: UpdateTemplateInput): Promise<VenueTemplate> {
     const row = await this.prisma.venueTemplate
       .update({
         where: { id: templateId },
         data: templateRowPatch(input),
-        include: {
-          floorPlan: {
-            include: {
-              objectRows: { orderBy: [{ zIndex: 'asc' }, { objectId: 'asc' }] },
-            },
-          },
-        },
+        include: PLAN_INCLUDE,
       })
       .catch(() => {
         throw new NotFoundException('Template not found');
       });
 
-    if (templatePlanNeedsUpdate(input)) {
-      await this.prisma.$transaction((tx) => syncTemplateFloorPlan(tx, row.floorPlanId, input));
+    if (input.scene !== undefined) {
+      const scene = acceptedScene(input.scene);
+      const { width, height } = sceneDimensions(scene);
+      await this.prisma.floorPlan.update({
+        where: { id: row.floorPlanId },
+        data: floorPlanScalarPatch({ scene, width, height }),
+      });
       return this.getTemplate(templateId);
     }
 
@@ -253,6 +146,7 @@ export class TemplatesService {
     const row = await this.prisma.venueTemplate
       .delete({
         where: { id: templateId },
+        include: PLAN_INCLUDE,
       })
       .catch(() => {
         throw new NotFoundException('Template not found');

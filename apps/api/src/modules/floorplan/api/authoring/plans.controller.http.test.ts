@@ -10,6 +10,7 @@ import { PrismaService as PrismaServiceToken } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { EventSessionGuard, AuthSessionService } from '@prism/kernel/event-session';
 import { PRISM_PRIVACY_NOTICE_VERSION, type PrismUser } from '@prism/types';
+import { convertLegacyPlan, roomScene } from '@prism/floorplan-scene';
 import { FLOORPLAN_EVENT_REFERENCE_READER } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import { FLOORPLAN_SEATING_FACTS } from '@prism/contexts/read-models/floorplan-seating';
 import { PlansController } from './plans.controller';
@@ -30,15 +31,9 @@ function planRow(id: string, clientEmail: string, sourceType: string, status: st
     ownerId: 'pmcm-user',
     templateId: null,
     eventId: null,
-    objects: [],
-    guests: [],
-    suppliers: [],
-    seats: [],
-    seatCategories: [],
-    scene: null,
-    sceneFormat: null,
+    scene: roomScene({ name: 'Main Hall', widthM: 14, heightM: 9 }, '1.1.6').scene,
+    sceneFormat: 'pascal-v1',
     updatedAt,
-    objectRows: [],
     opsDraft: {
       eventId: `event-${id}`,
       sourceType,
@@ -125,8 +120,8 @@ const prismaMock = {
     { provide: PrismaServiceToken, useValue: prismaMock as unknown as PrismaService },
     { provide: AUDIT_WRITER, useValue: auditWriter },
     { provide: FLOORPLAN_EVENT_REFERENCE_READER, useValue: lifecycleEventReferences },
-    // These saves are legacy canvas saves, which never read the event roster.
-    { provide: FLOORPLAN_SEATING_FACTS, useValue: { listSeatingGuests: async () => [], bookedSupplierIds: async () => new Set<string>() } },
+    // Scene saves seat from the event roster; Dee Lim has declined.
+    { provide: FLOORPLAN_SEATING_FACTS, useValue: { listSeatingGuests: async () => [{ id: 'g-dee', name: 'Dee Lim', rsvp: 'declined' }], bookedSupplierIds: async () => new Set<string>() } },
   ],
 })
 class PlansHttpTestModule {}
@@ -207,47 +202,18 @@ describe('PlansController authenticated HTTP authorization', () => {
   });
 
   it('rejects a PMCM official save that seats a declined guest with user-safe copy', async () => {
+    const seatedDeclined = convertLegacyPlan({
+      name: 'Main Hall',
+      widthM: 14,
+      heightM: 9,
+      objects: [{ id: 't1', name: 'Table 1', kind: 'ellipse', category: 'furniture', x: 1, y: 1, w: 2, h: 2, rotation: 0, fill: '#ffffff', stroke: '#000000', strokeWidth: 1, seats: 2, assignedGuestIds: ['g-dee'], locked: false, hidden: false }],
+    }, '1.1.6');
     const declinedSeat = await fetch(`${baseUrl}/plans/${officialDraft.id}`, {
       method: 'PUT',
       headers: { authorization: `Bearer ${pmcmToken}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        expectedUpdatedAt: updatedAt.toISOString(),
-        objects: [
-          {
-            id: 't1',
-            name: 'Table 1',
-            kind: 'ellipse',
-            category: 'furniture',
-            x: 1,
-            y: 1,
-            w: 2,
-            h: 2,
-            rotation: 0,
-            fill: '#ffffff',
-            stroke: '#000000',
-            strokeWidth: 1,
-            seats: 2,
-            assignedGuestIds: ['g-dee'],
-            locked: false,
-            hidden: false,
-          },
-        ],
-        guests: [{ id: 'g-dee', name: 'Dee Lim', rsvp: 'declined' }],
-      }),
+      body: JSON.stringify({ expectedUpdatedAt: updatedAt.toISOString(), scene: seatedDeclined }),
     });
     expect(declinedSeat.status).toBe(400);
     await expect(declinedSeat.json()).resolves.toMatchObject({ message: 'Guests who declined cannot be seated.' });
-  });
-
-  it('accepts a PMCM official save carrying the editor supplier roster', async () => {
-    const withSuppliers = await fetch(`${baseUrl}/plans/${officialDraft.id}`, {
-      method: 'PUT',
-      headers: { authorization: `Bearer ${pmcmToken}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        expectedUpdatedAt: updatedAt.toISOString(),
-        suppliers: [{ id: 's-cater', name: 'Mesa Catering', kind: 'catering', status: 'confirmed', contact: 'mesa@example.test' }],
-      }),
-    });
-    expect(withSuppliers.status).toBe(200);
   });
 });

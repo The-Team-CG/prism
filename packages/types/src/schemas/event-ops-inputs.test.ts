@@ -3,6 +3,8 @@ import { acknowledgePrivacyNoticeSchema, requestApprovalSchema } from "./auth-in
 import { PRISM_PRIVACY_NOTICE_VERSION } from "../privacy.js";
 import { createFileRequirementSchema, updateFileRequirementSchema, reviewRequirementFileSchema } from "./file-requirement-inputs.js";
 import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
+
+const scene = { format: "pascal-v1", pascalVersion: "1.1.6", nodes: { site_a: { id: "site_a", type: "site", parentId: null, polygon: { type: "polygon", points: [] } } }, rootNodeIds: ["site_a"] };
 import { blockEventDayTaskSchema } from "./live-ops-inputs.js";
 import { inquiryPendingFullDetails, logInquiryOnBehalfSchema } from "./event-lifecycle-inputs.js";
 import {
@@ -116,15 +118,14 @@ describe("supplier capacity rating contract", () => {
 });
 
 describe("venue library template contract", () => {
-  const editorObject = { id: "o1", name: "Wall", kind: "rect", category: "architecture", x: 1, y: 1, w: 4, h: 0.2, rotation: 0, fill: "#000", stroke: "#000", strokeWidth: 1, locked: false, hidden: false };
 
-  it("accepts the floorplan editor shape for layout and permanent features, with the venue rules", () => {
-    const parsed = createTemplateSchema.safeParse({ name: "Hall", venueRules: "No confetti", objects: [editorObject], permanentFeatures: [editorObject], width: 20, height: 12, gridSize: 1, pax: 100 });
-    expect(parsed.success).toBe(true);
+  it("accepts a venue as its Pascal scene, with the venue rules", () => {
+    expect(createTemplateSchema.safeParse({ name: "Hall", venueRules: "No confetti", pax: 100, scene }).success).toBe(true);
   });
 
-  it("still refuses objects that fit neither shape", () => {
-    expect(createTemplateSchema.safeParse({ name: "Hall", objects: [{ id: "x", kind: "blob" }] }).success).toBe(false);
+  it("requires a scene and refuses the legacy canvas objects", () => {
+    expect(createTemplateSchema.safeParse({ name: "Hall", pax: 100 }).success).toBe(false);
+    expect(createTemplateSchema.safeParse({ name: "Hall", pax: 100, objects: [], scene: { format: "pascal-v2" } }).success).toBe(false);
   });
 });
 
@@ -716,6 +717,7 @@ describe("event-ops write schemas", () => {
         flowNotes: "Keep a wide aisle",
         guestCount: 120,
         constraints: ["Accessible entrance"],
+        scene,
       }).success,
     ).toBe(true);
     expect(

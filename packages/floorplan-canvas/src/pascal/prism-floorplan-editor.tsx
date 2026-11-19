@@ -18,13 +18,16 @@ import { prismLens } from "./lens";
 import { PiecePlacement } from "./tools/piece-placement";
 import { hostState } from "./inspector/host-state";
 import { SeatedGuestsFooter } from "./inspector/seated-guests-footer";
-import { UnmatchedSeatsNotice } from "./shell/unmatched-seats-notice";
 
 export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOnly"> & {
   scene: FloorplanSceneDocument;
   readOnly: boolean;
   onSave(document: FloorplanSceneDocument): Promise<unknown>;
   onSubmit?(document: FloorplanSceneDocument): Promise<unknown>;
+  /** Labels the review hand-off; defaults to "Submit for review". */
+  submitLabel?: string;
+  /** Saves the scene as a venue template; the host owns the library. */
+  onSaveTemplate?(document: FloorplanSceneDocument, name: string): Promise<unknown>;
   onBack(): void;
   eventName?: string;
   draftName?: string;
@@ -83,8 +86,8 @@ function usePluginsReady() {
  * every scene change, and never calls `onSave`.
  */
 export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
-  const { scene, onSave, onSubmit, onBack, eventName, draftName, draftStatus } = props;
-  const { guests, suppliers, seating, guestCount, saveState, saveMessage = null, onRetrySave, onReload, unmatchedSeats } = props;
+  const { scene, onSave, onSubmit, onSaveTemplate, submitLabel, onBack, eventName, draftName, draftStatus } = props;
+  const { guests, suppliers, seating, guestCount, saveState, saveMessage = null, onRetrySave, onReload } = props;
   const ready = usePluginsReady();
   const smallScreen = useSmallScreen();
   const readOnly = props.readOnly || smallScreen;
@@ -102,8 +105,8 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
   );
   const tabs = useMemo(() => railTabs(readOnly), [readOnly]);
   const context = useMemo<PrismFloorplanContextValue>(
-    () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, unmatchedSeats }),
-    [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, unmatchedSeats],
+    () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload }),
+    [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload],
   );
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);
@@ -122,6 +125,8 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
       onBack={onBack}
       currentDocument={currentDocument}
       onSubmit={onSubmit}
+      onSaveTemplate={onSaveTemplate}
+      submitLabel={submitLabel}
       pascalStatus={pascalStatus}
       eventName={eventName}
       draftName={draftName}
@@ -148,7 +153,6 @@ export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
               viewerToolbarLeft={<LensSwitch />}
               floorplanSceneSlot={<LensOverlay />}
               inspectorFooter={<SeatedGuestsFooter />}
-              sceneOverlay={<UnmatchedSeatsNotice />}
               loadingSlot={<LoadingRoom />}
               onLoad={onLoad}
               onSave={save}

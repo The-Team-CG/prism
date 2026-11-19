@@ -4,7 +4,8 @@ import { AuthSecurityService } from '@prism/contexts/identity-access';
 import { AuditService } from '@prism/contexts/platform-ops';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { OpsUserRole } from '@prism/kernel/event-core';
-import { defaultSeatCategories } from '@prism/kernel/shared';
+import { convertLegacyPlan, PASCAL_VERSION } from '@prism/floorplan-scene';
+import type { FloorPlanCanvasObject } from '@prism/types';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
 
 const LOCAL_FIXTURE_OWNER_ID = 'owner-sample';
@@ -1129,7 +1130,7 @@ export class LocalFixtureSeeder {
         },
       });
 
-      const fixtureFloorPlanObjects = [
+      const fixtureFloorPlanObjects: FloorPlanCanvasObject[] = [
         {
           id: 'stage_sample',
           name: 'Main stage',
@@ -1148,6 +1149,7 @@ export class LocalFixtureSeeder {
           hidden: false,
         },
       ];
+      const fixtureFloorPlanScene = convertLegacyPlan({ name: 'Ayala Tech Summit ballroom layout', widthM: 1200, heightM: 800, objects: fixtureFloorPlanObjects }, PASCAL_VERSION);
       const fixtureFloorPlanSnapshot = {
         id: 'plan_sample_ayala_main',
         name: 'Ayala Tech Summit ballroom layout',
@@ -1156,11 +1158,8 @@ export class LocalFixtureSeeder {
         height: 800,
         gridSize: 20,
         pax: 0,
-        objects: fixtureFloorPlanObjects,
-        guests: [],
-        suppliers: [],
-        seats: [],
-        seatCategories: defaultSeatCategories(),
+        scene: fixtureFloorPlanScene,
+        sceneFormat: fixtureFloorPlanScene.format,
         updatedAt: createdAt.toISOString(),
       };
 
@@ -1173,9 +1172,8 @@ export class LocalFixtureSeeder {
           width: 1200,
           height: 800,
           gridSize: 20,
-          objects: toPrismaJson(fixtureFloorPlanObjects),
-          seats: toPrismaJson([]),
-          seatCategories: toPrismaJson(defaultSeatCategories()),
+          scene: toPrismaJson(fixtureFloorPlanScene),
+          sceneFormat: fixtureFloorPlanScene.format,
           updatedAt: createdAt,
         },
       });

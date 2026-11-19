@@ -61,15 +61,15 @@ export function useClientFloorplanReview(eventId: string, draftId: string, onDec
     const requestedKey = `${eventId}:${draftId}`;
     setBusy(true); setError(null);
     try {
-      const pinned = anchor ? objectAtAnchor(readReviewRoom(visibleReview.snapshot), anchor) : null;
+      const drawn = readReviewRoom(visibleReview.snapshot);
+      const pinned = drawn && anchor ? objectAtAnchor(drawn, anchor) : null;
       const input = parseContract(createClientFloorPlanAnnotationSchema, { snapshotHash: visibleReview.snapshotHash, objectId: pinned?.id, comment: annotation, anchorX: anchor?.x, anchorY: anchor?.y }, "Floorplan annotation");
       await clientFloorplanReviewRepository.annotate(eventId, draftId, input);
       setAnnotation(""); setAnchor(null); await load();
     } catch (cause) { if (currentKey.current === requestedKey) setError(cause instanceof Error ? cause.message : "Could not add the annotation."); }
     finally { if (currentKey.current === requestedKey) setBusy(false); }
   };
-  const objects = (visibleReview?.snapshot as { objects?: Array<{ id?: string; kind?: string; name?: string }> } | undefined)?.objects ?? [];
   const room = readReviewRoom(visibleReview?.snapshot);
-  const pinnedObject = anchor ? objectAtAnchor(room, anchor) : null;
-  return { review: visibleReview, loading, comment, setComment, anchor, setAnchor, pinnedObject, room, annotation, setAnnotation, busy, error, load, decide, annotate, objects, decision: visibleReview?.decisions.at(-1) };
+  const pinnedObject = room && anchor ? objectAtAnchor(room, anchor) : null;
+  return { review: visibleReview, loading, comment, setComment, anchor, setAnchor, pinnedObject, room, annotation, setAnnotation, busy, error, load, decide, annotate, decision: visibleReview?.decisions.at(-1) };
 }

@@ -1,6 +1,7 @@
 import { test, expect, devices } from '@playwright/test';
 import { api, origins, password, inbox, mailLink, persona, privacyIfNeeded, fillStable } from './helpers.mjs';
 import { submitPublicInquiry } from './inquiry-actions.mjs';
+import { oneTableScene } from '../floorplan-fixture.mjs';
 
 // Each supplier booking is a card; its title opens the booking's checklist in a side panel named after the event.
 async function openBooking(page, eventName) {
@@ -237,11 +238,12 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
     await test.step('PMCM approves the official plan and starts event day when its overview action opens', async () => {
       await api('POST', `/events/${eventId}/ocular-visit/waive`, { reason: 'Synthetic browser acceptance venue fixture' });
-      await api('POST', '/templates', { name: 'Browser acceptance layout', venue: 'Browser acceptance venue', width: 1200, height: 800, gridSize: 20, pax: 120, objects: [{ id: 'table-1', kind: 'ellipse', name: 'Table', category: 'furniture', x: 100, y: 100, w: 80, h: 80, rotation: 0, fill: '#FFFFFF', stroke: '#000000', strokeWidth: 1, locked: false, hidden: false }] });
+      await api('POST', '/templates', { name: 'Browser acceptance layout', venue: 'Browser acceptance venue', pax: 120, scene: oneTableScene('Browser acceptance layout') });
       await pmcm.page.goto(path('floorplans'));
-      // Picking a template creates the PMCM draft and opens it in the editor; submission and approval live in the draft list.
+      // Picking a template creates the PMCM draft and opens it in the editor (view-only on a phone, so no submit there);
+      // submission and approval live in the draft list.
       await pmcm.page.getByRole('button', { name: /Browser acceptance layout/ }).first().click();
-      await expect(pmcm.page.getByRole('button', { name: 'Submit review' })).toBeVisible();
+      await expect(pmcm.page.getByRole('button', { name: 'Back to floor plans' })).toBeVisible();
       await pmcm.page.goto(path('floorplans'));
       await pmcm.page.getByRole('button', { name: 'Submit', exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Approve', exact: true }).click();

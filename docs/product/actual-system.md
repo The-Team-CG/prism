@@ -119,7 +119,7 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | Coordinator and staffing operations | Coordinator roster, roles, skills, availability, assignments, acknowledgment, attendance, replacement, role-safe event-day views, staffing heatmap, escalation, and live status feed. |
 | Compliance, risk, and change control | Event-type rules, phase rules, severity/layer, override reason audit, risk register, freeze exceptions, addendum conformes, cancellation/postponement impact, decision log, and supplier/coordinator/billing impact review. |
 | Billing and payments | Approved proposal/CE source linkage, billing statements, payment milestones, client-reported and PMCM-verified payments, receipts, PMCM's payment details and QR images, a finance desk across events, supplier payout records with supplier confirmation and receipts, disputes, waivers, typo corrections, post-event additional billing, overdue/payment-at-risk alerts, and client-safe billing visibility. |
-| Floorplan and spatial workflow | Venue templates, official floorplan editing, layout objects, table rules, table assignments, client preferences, comments, submitted/approved official snapshots, version locks, approval/revision states, and PMCM-only mutation. |
+| Floorplan and spatial workflow | Venue templates, official floorplan editing in the Pascal editor (one scene per plan), table rules, table assignments, client preferences drawn in the same editor, comments, submitted/approved official snapshots, version locks, approval/revision states, and PMCM-only mutation. |
 | Guest operations | Event access code, guest pass, consent, name check-in, attendance count, walk-in flag, guest feedback, moderation, future masterlist reconciliation, and future QR/camera path when approved. |
 | Closure, archive, and learning loop | Close gates, archive guard, override reason, event insights, feedback capture, testimonial library, archive search/comparison, post-event documents, logistics review, and reusable lessons. |
 | Notifications and communications | Queue-backed notification intent, template/version record, per-recipient delivery and acknowledgment state, one notification center and one cross-event Messages inbox per portal, language and channel preference, and PMCM approval before sensitive or AI-assisted sends. |
@@ -151,7 +151,7 @@ P.R.I.S.M is not a public SaaS product. It is not a generic venue, ticketing, su
 | Identity and access | Users, roles, per-device sessions, two-step secrets, pending email changes, login history, security alerts, actor context. |
 | Inquiry and event | Inquiry, accepted status, event record, lifecycle phase, selected event workspace, approval requests. |
 | Documents and files | Requirements, generated docs, uploaded metadata, visibility, validation, due dates, audit events. |
-| Floorplans | Venue templates, draft layouts, objects, submitted snapshots, approved snapshots, comments, version locks. |
+| Floorplans | Venue templates, draft layouts as Pascal scenes, submitted snapshots, approved snapshots, comments, version locks. |
 | Suppliers | Supplier profile, category, certification, review, quote request, quote, assignment, contract metadata, readiness, reliability note. |
 | Coordinators | Coordinator profile, skills, availability, assignment, task, replacement, attendance, reliability note. |
 | Operations | Compliance rules/checks, risk/change records, live logs, urgent issues, event-day run sheet, handoff brief. |

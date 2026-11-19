@@ -24,7 +24,7 @@ function renderPanel(status: string) {
     approved: false,
     isOfficial: false,
     activeDraft: draft(status),
-    officialProject: null,
+    officialLayout: null,
     onOpenEditor: () => undefined,
   }));
 }

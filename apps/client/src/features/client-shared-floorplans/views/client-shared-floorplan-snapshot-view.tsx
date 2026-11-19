@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PrismDashboardShell } from "@prism/ui";
@@ -12,17 +11,7 @@ import { CLIENT_ACCOUNT_MENU_ITEMS, clientEventSidebarItems, dashboardHref } fro
 import { useClientSharedFloorplanSnapshotViewModel } from "../view-models/use-client-shared-floorplans-view-model";
 import { LoadingState } from "@prism/ui/components/loading-state";
 
-const EditorShell = dynamic(
-  () => import("@/features/floorplan/editor").then((module) => module.EditorShell),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="grid size-full place-items-center bg-background text-sm text-muted-foreground">
-        Loading floorplan view…
-      </div>
-    ),
-  },
-);
+import { OfficialLayoutDrawing } from "@/features/floorplan/official-layout-drawing";
 
 export function ClientSharedFloorplanSnapshotView({
   eventId,
@@ -36,19 +25,21 @@ export function ClientSharedFloorplanSnapshotView({
   const router = useRouter();
   const vm = useClientSharedFloorplanSnapshotViewModel(eventId, draftId, snapshotType);
 
-  if (vm.project && vm.entry) {
+  if (vm.layout && vm.entry) {
     return (
       <SnapshotFrame eventId={eventId} session={vm.session} onNavigate={(href) => router.push(href)}>
-      <div className="h-[70dvh] w-full overflow-hidden rounded-lg border border-border bg-background">
-        <EditorShell
-          project={vm.project}
-          eventName={vm.entry.eventName}
-          draftName={vm.entry.draftName}
-          draftStatus={vm.entry.draftStatus}
-          readOnly
-          onBack={() => router.push(dashboardHref("floorplan", eventId))}
-        />
-      </div>
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">{vm.entry.eventName}</p>
+              <h1 className="text-xl font-semibold text-foreground">{vm.entry.draftName}</h1>
+            </div>
+            <Button variant="outline" onClick={() => router.push(dashboardHref("floorplan", eventId))}>Back to floor plan</Button>
+          </div>
+          <div className="grid place-items-center overflow-hidden rounded-lg border border-border bg-background p-4">
+            <OfficialLayoutDrawing layout={vm.layout} className="max-h-[70dvh] w-full" />
+          </div>
+        </div>
       </SnapshotFrame>
     );
   }

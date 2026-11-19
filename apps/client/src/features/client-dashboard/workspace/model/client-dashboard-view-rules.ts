@@ -9,24 +9,13 @@ import {
   ReceiptText,
 } from "lucide-react";
 import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
-import type { CanvasObject as VenueObject, Project } from "@/features/floorplan/editor";
+import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import type { DetailTab } from "./client-dashboard-types";
 
+/** PMCM's official plans; a client's own preference is never official, however it was reviewed. */
 export function draftIsOfficial(draft: PrismFloorPlanDraft) {
-  const approvedLegacyPmcmPreference = draft.sourceType === "client_preference" &&
-    draft.status === "approved" &&
-    (draft.createdByRole === "pmcm-admin" || draft.createdByRole === "coordinator");
-  return (draft.sourceType !== "client_preference" || approvedLegacyPmcmPreference) &&
+  return draft.sourceType !== "client_preference" &&
     (draft.status === "in_review" || draft.status === "approved" || draft.status === "revision_requested");
-}
-
-export function objectBox(object: VenueObject, project: Project) {
-  return {
-    left: `${Math.max(0, Math.min(96, (object.x / Math.max(1, project.widthM)) * 100))}%`,
-    top: `${Math.max(0, Math.min(94, (object.y / Math.max(1, project.heightM)) * 100))}%`,
-    width: `${Math.max(4, Math.min(80, (object.w / Math.max(1, project.widthM)) * 100))}%`,
-    height: `${Math.max(4, Math.min(70, (object.h / Math.max(1, project.heightM)) * 100))}%`,
-  };
 }
 
 /** Enum values read as sentence case: "in_planning" → "In planning". */
@@ -226,7 +215,7 @@ export function eventProgressDots(ev: PrismEvent, state: PrismClientWorkspace) {
 export const FLOOR_PLAN_PREVIEW_CACHE_MS = 60_000;
 export const floorPlanPreviewCache = new Map<
   string,
-  { project: Project; loadedAt: number }
+  { layout: ClientPlanLayout; loadedAt: number }
 >();
 
 export function isFresh(loadedAt: number, ttl: number) {

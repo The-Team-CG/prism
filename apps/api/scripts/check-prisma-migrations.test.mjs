@@ -359,6 +359,20 @@ describe('Prisma migration policy', () => {
     assert.ok(result.errors.some((error) => error.includes('table supplier_ops.unmapped_table is not owned by commercial')));
   });
 
+  it('lets the owner drop a table it retired from the persistence model', () => {
+    const manifest = {
+      ...strictOwnershipManifest,
+      retiredTables: [{ domain: 'commercial', currentSchema: 'supplier_ops', table: 'old_quotes' }],
+    };
+    const result = auditMigrationSet(
+      [ownerAwareMigration({ sql: 'DROP TABLE "supplier_ops"."old_quotes";' })],
+      strictFuturePolicy,
+      manifest,
+    );
+
+    assert.equal(result.errors.some((error) => error.includes('old_quotes')), false);
+  });
+
   it('requires table schema moves to match an exact migration-name transition', () => {
     const move = ownerAwareMigration({
       slug: 'move_quotes',

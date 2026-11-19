@@ -222,15 +222,6 @@
       "targetOwner": "identity-access"
     },
     {
-      "source": "EventInstance.ownerId",
-      "target": "OpsUser.id",
-      "profile": "identity-history",
-      "meaning": "Verified account attribution for an event-instance owner.",
-      "status": "transitional",
-      "sourceOwner": "floorplan",
-      "targetOwner": "identity-access"
-    },
-    {
       "source": "OpsEventDecision.actorId",
       "target": "OpsUser.id",
       "profile": "identity-history",

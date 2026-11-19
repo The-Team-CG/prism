@@ -1,6 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import { PrismaService } from '@prism/kernel/database';
+import { PrismaService, toPrismaJson } from '@prism/kernel/database';
+import { roomScene } from '@prism/floorplan-scene';
 import { WorkflowCommandService, OpsUserRole } from '@prism/kernel/event-core';
 import { FloorPlanWorkflowService } from '../../src/modules/floorplan/application/live/floor-plan-workflow.service';
 import { FloorPlanClientReviewService } from '../../src/modules/floorplan/application/live/floorplan-client-review.service';
@@ -57,7 +58,7 @@ describe.skipIf(!live)('official floorplan and client review serialization again
       } });
       await prisma.floorPlan.create({ data: {
         id: planId, name: 'Official layout', ownerId: 'pmcm-test', eventId,
-        objects: [{ id: 'stage', kind: 'stage', x: 10, y: 10 }],
+        scene: toPrismaJson(roomScene({ name: 'Official layout', widthM: 20, heightM: 15 }, '1.1.6').scene), sceneFormat: 'pascal-v1',
       } });
       await prisma.opsFloorPlanDraft.create({ data: {
         id: draftId, eventId, floorPlanId: planId, name: 'Official layout', status: 'pmcm_draft',
@@ -69,10 +70,11 @@ describe.skipIf(!live)('official floorplan and client review serialization again
       const oldHash = oldReview.snapshotHash;
       expect(stableHash(oldReview.snapshot)).toBe(oldHash);
 
-      await prisma.floorPlan.update({ where: { id: planId }, data: { objects: [{ id: 'stage', kind: 'stage', x: 42, y: 10 }] } });
+      const widerScene = roomScene({ name: 'Official layout', widthM: 42, heightM: 15 }, '1.1.6').scene;
+      await prisma.floorPlan.update({ where: { id: planId }, data: { scene: toPrismaJson(widerScene), sceneFormat: 'pascal-v1' } });
       await workflow.approveFloorPlanDraft(eventId, draftId, { name: 'Portal Test PMCM', role: OpsUserRole.PmcmAdmin });
       const current = await prisma.opsFloorPlanDraft.findUniqueOrThrow({ where: { id: draftId } });
-      expect((current.approvedSnapshot as { objects: Array<{ x: number }> }).objects[0]?.x).toBe(42);
+      expect((current.approvedSnapshot as { scene: unknown }).scene).toEqual(widerScene);
       await expect(review.decide(eventId, draftId, {
         snapshotHash: oldHash, action: 'approve', comment: '', idempotencyKey: `old-snapshot-${suffix}`,
       }, client)).rejects.toThrow('The floorplan changed after this review was opened; reload the latest snapshot');

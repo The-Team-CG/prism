@@ -20,15 +20,3 @@ export function footerCounts(scene: FloorplanSceneDocument, guests: readonly Pri
   );
   return { guests: guests.length === 0 ? guestCount : attending, seats: sceneSeatCount(scene), seated: seated.size };
 }
-
-const isPoint = (value: unknown): value is [number, number] =>
-  Array.isArray(value) && typeof value[0] === "number" && typeof value[1] === "number";
-
-/** The extent of the visible walls in metres, or null for a plan without walls. */
-export function roomSize(scene: FloorplanSceneDocument): RoomSize | null {
-  const points = visibleNodes(scene, "wall").flatMap((wall) => [wall.start, wall.end].filter(isPoint));
-  if (points.length === 0) return null;
-  const xs = points.map(([x]) => x);
-  const zs = points.map(([, z]) => z);
-  return { width: Math.max(...xs) - Math.min(...xs), depth: Math.max(...zs) - Math.min(...zs) };
-}

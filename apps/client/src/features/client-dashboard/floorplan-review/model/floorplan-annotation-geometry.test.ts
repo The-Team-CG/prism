@@ -1,57 +1,59 @@
 import { describe, expect, it } from "vitest";
+import { roomWalls, sceneWith, tablePiece } from "@/features/floorplan/scene-fixture";
 import { anchorFromRoomPoint, objectAtAnchor, readReviewRoom } from "./floorplan-annotation-geometry";
 
-const snapshot = {
-  width: 20,
-  height: 10,
-  objects: [
-    { id: "floor-table", label: "Table 1", kind: "ellipse", x: 2, y: 2, w: 4, h: 4 },
-    { id: "stage", name: "Stage", kind: "rect", x: 3, y: 3, w: 2, h: 2 },
-    { id: "ghost", name: "Hidden", kind: "rect", x: 0, y: 0, w: 20, h: 10, hidden: true },
-    { name: "No id", kind: "rect", x: 10, y: 1, w: 2, h: 2 },
-    { id: "bad", kind: "rect", x: "left", y: 0, w: 1, h: 1 },
-  ],
-};
+const plan = sceneWith([
+  ...roomWalls(20, 10),
+  tablePiece("floor-table", { x: 4, y: 3, width: 4, depth: 4, shape: "round", label: "Table 1" }),
+  tablePiece("stage", { x: 4, y: 4, width: 2, depth: 2, label: "Stage" }),
+  tablePiece("hidden-table", { x: 15, y: 5, width: 4, depth: 4, visible: false }),
+]);
 
 describe("readReviewRoom", () => {
-  it("keeps the plan's room size and only the objects that can be drawn", () => {
-    const room = readReviewRoom(snapshot);
+  it("draws the submitted scene's room and its visible pieces, leaving hidden ones out", () => {
+    const room = readReviewRoom({ scene: plan });
 
-    expect([room.width, room.height]).toEqual([20, 10]);
-    expect(room.objects.map((object) => object.name)).toEqual(["Table 1", "Stage", "No id"]);
+    expect(room?.room).toEqual({ minX: 0, minY: 0, width: 20, depth: 10 });
+    expect(room?.pieces.map((piece) => piece.name)).toEqual(["Table 1", "Stage"]);
   });
 
-  it("draws a submitted plan's canvas objects at their saved box", () => {
-    const room = readReviewRoom({
-      width: 1200,
-      height: 800,
-      objects: [
-        { id: "coverage-table", name: "Table", kind: "ellipse", category: "furniture", x: 100, y: 100, w: 80, h: 80, rotation: 0, fill: "#FFFFFF", stroke: "#000000", strokeWidth: 1, locked: false, hidden: false },
-      ],
-    });
-
-    expect(room.objects).toMatchObject([{ id: "coverage-table", name: "Table", kind: "ellipse", x: 100, y: 100, w: 80, h: 80 }]);
-  });
-
-  it("falls back to the objects' extent, then to a default room, when the plan carries no size", () => {
-    expect(readReviewRoom({ objects: [{ id: "a", x: 1, y: 1, w: 4, h: 2 }] })).toMatchObject({ width: 6, height: 4 });
-    expect(readReviewRoom(null)).toMatchObject({ width: 20, height: 12, objects: [] });
-    expect(readReviewRoom({ widthM: 8, heightM: 5, objects: [] })).toMatchObject({ width: 8, height: 5 });
+  it("has no drawn room for a snapshot without a scene, or with a scene that has no walls", () => {
+    expect(readReviewRoom({ objects: [{ id: "legacy", x: 1, y: 1, w: 2, h: 2 }] })).toBeNull();
+    expect(readReviewRoom({ scene: sceneWith([tablePiece("t", { x: 1, y: 1, width: 1, depth: 1 })]) })).toBeNull();
+    expect(readReviewRoom(null)).toBeNull();
   });
 });
 
 describe("annotation anchors", () => {
-  const room = readReviewRoom(snapshot);
+  const room = readReviewRoom({ scene: plan });
+  if (!room) throw new Error("the fixture plan has a room");
 
-  it("turns a point in metres into a 0 to 1 anchor and clamps points outside the room", () => {
+  it("turns a point in plan metres into a 0 to 1 anchor and clamps points outside the room", () => {
     expect(anchorFromRoomPoint(room, 10, 5)).toEqual({ x: 0.5, y: 0.5 });
     expect(anchorFromRoomPoint(room, -3, 99)).toEqual({ x: 0, y: 1 });
   });
 
-  it("pins to the topmost object under the point, and to nothing in open floor or on an object without an id", () => {
+  it("pins to the piece under the point, and to nothing on open floor", () => {
     expect(objectAtAnchor(room, { x: 4 / 20, y: 4 / 10 })?.id).toBe("stage");
     expect(objectAtAnchor(room, { x: 2.5 / 20, y: 2.5 / 10 })?.id).toBe("floor-table");
     expect(objectAtAnchor(room, { x: 15 / 20, y: 8 / 10 })).toBeNull();
-    expect(objectAtAnchor(room, { x: 11 / 20, y: 2 / 10 })).toBeNull();
+  });
+
+  it("does not pin to the corner of a round table's box, which is outside the table", () => {
+    const corner = { x: (4 - 1.9) / 20, y: (3 - 1.9) / 10 };
+    expect(objectAtAnchor(room, corner)).toBeNull();
+  });
+
+  it("follows a rotated piece's box, turned by its rotation", () => {
+    const rotated = readReviewRoom({
+      scene: sceneWith([...roomWalls(20, 10), tablePiece("bar", { x: 10, y: 5, width: 4, depth: 0.4, rotation: Math.PI / 6 })]),
+    });
+    if (!rotated) throw new Error("the fixture plan has a room");
+    // A point 1.8 m along the piece's long side at 30 degrees: on the piece once turned, off it when unturned.
+    const alongLongSide = { x: (10 + 1.8 * Math.cos(Math.PI / 6)) / 20, y: (5 - 1.8 * Math.sin(Math.PI / 6)) / 10 };
+    expect(objectAtAnchor(rotated, alongLongSide)?.id).toBe("bar");
+    const unturned = readReviewRoom({ scene: sceneWith([...roomWalls(20, 10), tablePiece("bar", { x: 10, y: 5, width: 4, depth: 0.4 })]) });
+    if (!unturned) throw new Error("the fixture plan has a room");
+    expect(objectAtAnchor(unturned, alongLongSide)).toBeNull();
   });
 });

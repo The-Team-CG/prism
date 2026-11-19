@@ -7,7 +7,6 @@ import {
   FloorPlanCardHeader,
   FloorPlanDraftPanel,
   FloorPlanRevisionCommentCard,
-  FloorPlanTemplates,
   GuidedLayoutNotes,
 } from "./sections/client-floorplan-sections";
 import { ClientFloorplanReviewPanel } from "../../floorplan-review/views/client-floorplan-review-panel";
@@ -18,12 +17,10 @@ export function ClientFloorPlanView() {
     selectedEvent,
     officialDraft,
     preferenceDrafts,
-    officialProject,
-    floorPlanTemplates,
+    officialLayout,
     form,
     setForm,
     openFloorplanEditor,
-    createEditorDraft,
     refresh,
     submitPreference,
     busy,
@@ -34,7 +31,7 @@ export function ClientFloorPlanView() {
 
   return (
     <div className="space-y-5">
-      {officialPlan ? <OfficialFloorPlanCard draft={officialPlan} officialProject={officialProject} onOpenEditor={openFloorplanEditor} /> : null}
+      {officialPlan ? <OfficialFloorPlanCard draft={officialPlan} officialLayout={officialLayout} onOpenEditor={openFloorplanEditor} /> : null}
       {selectedEvent && officialPlan && showReview ? (
         <ClientFloorplanReviewPanel eventId={selectedEvent.id} draftId={officialPlan.id} onDecided={refresh} />
       ) : null}
@@ -47,14 +44,8 @@ export function ClientFloorPlanView() {
               approved={draftApproved}
               isOfficial={isOfficial}
               activeDraft={activeDraft}
-              officialProject={officialProject}
+              officialLayout={officialLayout}
               onOpenEditor={openFloorplanEditor}
-            />
-            <FloorPlanTemplates
-              approved={approved || Boolean(officialDraft)}
-              templates={floorPlanTemplates}
-              busy={busy}
-              onCreate={createEditorDraft}
             />
           </div>
         </Card>

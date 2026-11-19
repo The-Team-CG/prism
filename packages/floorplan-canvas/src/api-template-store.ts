@@ -1,6 +1,5 @@
+import type { FloorplanSceneDocument } from "@prism/types";
 import type { CreateTemplateInput, FloorPlanTemplate } from "./templates";
-import { isPermanentFeature } from "./templates";
-import type { CanvasObject, Guest, Supplier } from "./types";
 
 export interface TemplateApiRequestInit {
   method?: "POST" | "PATCH" | "DELETE";
@@ -20,14 +19,8 @@ type ApiTemplate = {
   venueRules?: string;
   width: number;
   height: number;
-  gridSize: number;
   pax: number;
-  objects?: CanvasObject[];
-  permanentFeatures?: CanvasObject[];
-  includeGuests: boolean;
-  includeSuppliers: boolean;
-  guests?: Guest[];
-  suppliers?: Supplier[];
+  scene: FloorplanSceneDocument | null;
   createdAt: string;
 };
 
@@ -41,12 +34,7 @@ function toTemplate(template: ApiTemplate): FloorPlanTemplate {
     widthM: template.width,
     heightM: template.height,
     pax: template.pax,
-    // Venue fixtures are stored apart from the movable layout and rejoin it, locked, when the template is used.
-    objects: [...(template.permanentFeatures ?? []).map((object) => ({ ...object, locked: true })), ...(template.objects ?? [])],
-    includeGuests: template.includeGuests,
-    includeSuppliers: template.includeSuppliers,
-    guests: template.guests ?? [],
-    suppliers: template.suppliers ?? [],
+    scene: template.scene,
     createdAt: new Date(template.createdAt).getTime(),
   };
 }
@@ -67,16 +55,8 @@ export function createTemplateStoreAdapter(request: TemplateApiRequest) {
           description: template.description,
           venue: template.venue,
           venueRules: template.venueRules?.trim() ?? "",
-          width: Math.max(1, Math.round(template.widthM)),
-          height: Math.max(1, Math.round(template.heightM)),
-          gridSize: 1,
           pax: Math.max(0, Math.round(template.pax)),
-          objects: template.objects.filter((object) => !isPermanentFeature(object)),
-          permanentFeatures: template.objects.filter(isPermanentFeature),
-          includeGuests: template.includeGuests,
-          includeSuppliers: template.includeSuppliers,
-          guests: template.includeGuests ? template.guests : [],
-          suppliers: template.includeSuppliers ? template.suppliers : [],
+          scene: template.scene,
           sourceType: "custom",
         },
       });

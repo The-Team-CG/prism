@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { venueSurveyFixtures, type VenueWall } from "@prism/floorplan-canvas";
+import { venueSurveyScene, type VenueWall } from "@prism/floorplan-scene";
 import { addTemplate } from "@/features/floorplan/editor/data/templates-repository";
 import { toast } from "@prism/ui/components/sonner";
 
@@ -29,16 +29,18 @@ export function useVenueSurvey() {
     setBusy(true);
     setError(null);
     try {
-      const objects = venueSurveyFixtures({
+      const survey = {
         widthM, lengthM, pillars: whole(form.pillars), emergencyExits: whole(form.emergencyExits), doors: whole(form.doors),
         stageWall: form.stageWall, loadingBayWall: form.loadingBayWall || null,
-      });
+      };
+      // The measured room and its fixed features become the venue's Pascal scene, which every draft from it copies.
+      const scene = venueSurveyScene(survey, form.venue.trim());
+      const fixedFeatures = Object.values(scene.nodes).filter((node) => node.type === "prism-fixture" || node.type === "column").length;
       await addTemplate({
         name: form.venue.trim(), venue: form.venue.trim(), description: `Measured on ocular visit: ${widthM} m × ${lengthM} m`,
-        venueRules: form.venueRules, widthM, heightM: lengthM, pax: 0, objects,
-        includeGuests: false, includeSuppliers: false, guests: [], suppliers: [],
+        venueRules: form.venueRules, pax: 0, scene,
       });
-      toast.success(`${form.venue.trim()} is in the venue library with ${objects.length} fixed features.`);
+      toast.success(`${form.venue.trim()} is in the venue library with ${fixedFeatures} fixed features.`);
       setForm(emptyVenueSurvey);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not save the venue.");

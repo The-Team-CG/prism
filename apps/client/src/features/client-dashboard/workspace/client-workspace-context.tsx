@@ -2,7 +2,7 @@
 
 import { createContext, useContext, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import type { PrismBillingStatement, PrismBriefing, PrismClientActionCenter, PrismClientBillingDispute, PrismClientOcularVisit, PrismClientWorkspace, PrismDocument, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone, PrismAuditLog, PrismNotificationLog, SubmitBriefingInput, InquiryClientCategory } from "@prism/types";
-import type { FloorPlanTemplate, Project } from "@/features/floorplan/editor";
+import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import type { ClientDashboardRoute, ClientPortalView, ClientSession, DetailTab } from "./model/client-dashboard-types";
 import type { ClientDashboardAction } from "./model/client-dashboard-view-rules";
 
@@ -73,13 +73,11 @@ export type ClientWorkspaceValue = {
   setRequestForm: Dispatch<SetStateAction<ClientRequestForm>>;
   eventSearch: string;
   setEventSearch: (v: string) => void;
-  officialProject: Project | null;
-  floorPlanTemplates: FloorPlanTemplate[];
+  officialLayout: ClientPlanLayout | null;
   notifications: PrismNotificationLog[];
   navigateToEventRoute: (next: DetailTab | ClientDashboardRoute, nextEventId?: string) => void;
   runClientAction: (action: ClientDashboardAction) => void;
   openFloorplanEditor: (draft: PrismFloorPlanDraft, readOnly?: boolean) => Promise<void>;
-  createEditorDraft: (template: FloorPlanTemplate) => Promise<void>;
   submitPreference: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
   submitNewEventRequest: (ev: FormEvent<HTMLFormElement>) => Promise<void>;
   signOut: () => Promise<void>;

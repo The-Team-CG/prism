@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismFloorplanSeatingGuest, PrismFloorplanSupplier, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
+import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, PrismEvent, PrismEventPrivacy, PrismFloorPlanDraft, PrismFloorplanSeatingGuest, PrismFloorplanSupplier, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
 import { derivePrismLifecycleStage } from "@prism/types";
-import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
+import { type FloorPlanTemplate } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
-import { floorplanEngine, isLockedFloorplanDraft, type FloorplanEngine } from "@/features/floorplan/editor/model/editor-engine";
+import { isLockedFloorplanDraft } from "@/features/floorplan/editor/model/editor-access";
 import { createSceneSaver, type SceneSaver } from "@/features/floorplan/editor/use-cases/scene-saver";
 import { loadSeatingGuests } from "@/features/floorplan/editor/data/seating-data";
 import { bookedSuppliers } from "@/features/floorplan/editor/model/seating";
@@ -51,15 +51,15 @@ type Screen =
   | { name: "portal" }
   | {
       name: "editor";
-      engine: FloorplanEngine;
       event: PrismEvent;
       draft: PrismFloorPlanDraft;
-      project: Project;
-      /** The stored Pascal scene; null for the legacy engine or a plan the Pascal editor has not saved yet. */
-      scene: FloorplanSceneDocument | null;
+      /** The plan's stored Pascal scene, the guest count and privacy that decide seating, and the plan's version. */
+      scene: FloorplanSceneDocument;
+      pax: number;
+      eventPrivacy: PrismEventPrivacy;
       /** Saves the open Pascal scene one autosave at a time, each against the version the last one returned. */
-      saver: SceneSaver | null;
-      /** The event's roster as the Pascal editor seats it, and its booked suppliers; empty for the legacy editor. */
+      saver: SceneSaver;
+      /** The event's roster as the Pascal editor seats it, and its booked suppliers. */
       seatingGuests: PrismFloorplanSeatingGuest[];
       suppliers: PrismFloorplanSupplier[];
       /** Changes on every open, so reloading the same draft remounts the editor. */
@@ -270,9 +270,6 @@ export function useEventDashboardShellViewModel({
       height: 30,
       gridSize: 1,
       pax: briefing?.guestCount,
-      objects: [],
-      guests: [],
-      suppliers: [],
     });
     await openEditor(selectedEvent, draft);
   }
@@ -284,13 +281,6 @@ export function useEventDashboardShellViewModel({
       sourceType: "template",
       venueTemplateId: template.id,
       venue: template.venue || selectedEvent.eventName,
-      width: template.widthM,
-      height: template.heightM,
-      gridSize: 1,
-      pax: template.pax,
-      objects: cloneTemplateObjects(template),
-      guests: template.includeGuests ? template.guests : [],
-      suppliers: template.includeSuppliers ? template.suppliers : [],
     });
     await openEditor(selectedEvent, draft);
   }
@@ -298,16 +288,10 @@ export function useEventDashboardShellViewModel({
   async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, requestedReadOnly = false) {
     if (!session || !isPmcmAdmin(session.role)) return;
     const readOnly = requestedReadOnly || isLockedFloorplanDraft(draft.status);
-    if (floorplanEngine() === "pascal") {
-      const [opened, seatingGuests] = await Promise.all([commands.loadPlanScene(draft.floorPlanId), loadSeatingGuests(event.id)]);
-      const saver = createSceneSaver({ planId: draft.floorPlanId, updatedAt: opened.updatedAt, save: commands.savePlanScene });
-      editorOpens.current += 1;
-      setScreen({ name: "editor", engine: "pascal", event, draft, project: opened.project, scene: opened.scene, saver, seatingGuests, suppliers: bookedSuppliers(quoteRequests, event.id), openId: editorOpens.current, readOnly });
-      return;
-    }
-    const project = await commands.loadPlan(draft.floorPlanId);
+    const [opened, seatingGuests] = await Promise.all([commands.loadPlanScene(draft.floorPlanId), loadSeatingGuests(event.id)]);
+    const saver = createSceneSaver({ planId: draft.floorPlanId, updatedAt: opened.updatedAt, save: commands.savePlanScene });
     editorOpens.current += 1;
-    setScreen({ name: "editor", engine: "legacy", event, draft, project, scene: null, saver: null, seatingGuests: [], suppliers: [], openId: editorOpens.current, readOnly });
+    setScreen({ name: "editor", event, draft, scene: opened.scene, pax: opened.pax, eventPrivacy: opened.eventPrivacy, saver, seatingGuests, suppliers: bookedSuppliers(quoteRequests, event.id), openId: editorOpens.current, readOnly });
   }
 
   /** Saves and submits the draft open in either editor, then shows it as in review on the floor plans page. */
@@ -600,8 +584,6 @@ export function useEventDashboardShellViewModel({
       await refresh();
       return updated;
     },
-    saveEditorPlan: (project: Project) => commands.savePlan(project),
-    submitEditorPlan: (project: Project) => submitOpenDraft(() => commands.savePlan(project)),
     submitEditorScene: (scene: FloorplanSceneDocument) => submitOpenDraft(() => saveSceneForSubmit(scene)),
     reloadEditor,
     closeEditor: () => setScreen({ name: "portal" }),
