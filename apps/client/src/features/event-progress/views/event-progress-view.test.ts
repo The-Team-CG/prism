@@ -16,15 +16,13 @@ const baseProgress: EventProgressViewModel = {
   hasEvent: true,
   lifecycleStage: "Planning",
   lifecycleIndex: 3,
-  checkpoints: [],
-  timeline: [
-    { id: "conforme_signed", title: "Conforme signed", status: "completed", meta: "2026-06-01" },
-    { id: "proposal_accepted", title: "Proposal accepted", status: "completed", meta: "2026-06-05" },
-    { id: "floor_plan_approved", title: "Floor plan approved", status: "current", meta: "Date pending" },
-    { id: "balance_payment_due", title: "Balance payment due", status: "pending", meta: "2026-08-15" },
-    { id: "event_date", title: "Event date", status: "pending", meta: "2026-10-01" },
+  milestones: [
+    { kind: "conforme", title: "Conforme signed", state: "done", date: "2026-06-01", dated: true },
+    { kind: "briefing", title: "Briefing sent", state: "done", date: "2026-06-03T07:40:45.687Z", dated: false, href: "/b" },
+    { kind: "floorplan", title: "Floor plan approved", state: "next", date: null, dated: true, href: "/f" },
+    { kind: "payment", title: "Balance paid", state: "upcoming", date: "2026-08-15", dated: true, href: "/p" },
+    { kind: "event", title: "Event day", state: "upcoming", date: "2026-10-01", dated: true },
   ],
-  paymentMilestones: [],
   clientEventDayStatus: null,
   needsYouCount: 0,
   actionsHref: "/dashboard/events/evt_1/actions",
@@ -32,37 +30,34 @@ const baseProgress: EventProgressViewModel = {
 
 const useEventProgressViewMock = vi.mocked(useEventProgressView);
 
-describe("EventProgressView client timeline", () => {
-  it("renders the five source-backed statuses and pending-date copy", () => {
+describe("EventProgressView milestones", () => {
+  it("shows one dated list with readable dates and an action only on what is next", () => {
     useEventProgressViewMock.mockReturnValue(baseProgress);
     render(createElement(EventProgressView));
 
-    const rows = within(screen.getByText("Conforme signed").closest("ol, ul") as HTMLElement).getAllByRole("listitem");
-    expect(rows).toHaveLength(5);
+    const list = screen.getByRole("region", { name: "Milestones" });
+    const rows = within(list).getAllByRole("listitem");
     expect(rows.map((row) => row.textContent)).toEqual([
       expect.stringContaining("Conforme signed"),
-      expect.stringContaining("Proposal accepted"),
+      expect.stringContaining("Briefing sent"),
       expect.stringContaining("Floor plan approved"),
-      expect.stringContaining("Balance payment due"),
-      expect.stringContaining("Event date"),
+      expect.stringContaining("Balance paid"),
+      expect.stringContaining("Event day"),
     ]);
-    expect(within(rows[0]).getByText("Completed")).toBeTruthy();
-    expect(within(rows[2]).getByText("Current")).toBeTruthy();
-    expect(within(rows[2]).getByText("Date pending")).toBeTruthy();
+    expect(list.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+    expect(rows[1].textContent).toContain("Jun 3, 2026");
+    expect(rows[2].textContent).toContain("Up next");
+    expect(rows[2].textContent).toContain("Date to be set");
+    expect(rows[3].textContent).toContain("Due Aug 15, 2026");
+    expect(within(list).getAllByText(/^Open /)).toHaveLength(1);
   });
 
   it("shows only the generic event-day status supplied by the selected event view model", () => {
-    useEventProgressViewMock.mockReturnValue({
-      ...baseProgress,
-      clientEventDayStatus: "Event day is in progress.",
-    });
+    useEventProgressViewMock.mockReturnValue({ ...baseProgress, clientEventDayStatus: "Event day is in progress." });
     const { rerender } = render(createElement(EventProgressView));
     expect(screen.getByRole("status").textContent).toContain("Event day is in progress.");
 
-    useEventProgressViewMock.mockReturnValue({
-      ...baseProgress,
-      clientEventDayStatus: null,
-    });
+    useEventProgressViewMock.mockReturnValue({ ...baseProgress, clientEventDayStatus: null });
     rerender(createElement(EventProgressView));
     expect(screen.queryByRole("status")).toBeNull();
   });

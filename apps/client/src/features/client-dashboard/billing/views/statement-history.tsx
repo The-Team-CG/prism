@@ -3,7 +3,7 @@
 import { Download } from "lucide-react";
 import type { PrismStatementOfAccount } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
-import { Card } from "@prism/ui/components/card";
+import { PrismSection } from "@prism/ui/page-blocks";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { formatPeso } from "@prism/ui/payment-track";
 import { billingDocumentsRepository } from "../data/billing-documents-repository";
@@ -11,7 +11,6 @@ import { statementLineAmount, statementLineLabel } from "../model/statement-of-a
 import type { BillingDocumentDownload } from "../view-models/use-billing-document-download";
 
 function HistoryLines({ statement }: { statement: PrismStatementOfAccount }) {
-  if (statement.lines.length === 0) return <p className="px-4 py-3 text-sm text-muted-foreground">Nothing has been received yet.</p>;
   return (
     <ul className="divide-y divide-border">
       {statement.lines.map((line) => (
@@ -27,28 +26,32 @@ function HistoryLines({ statement }: { statement: PrismStatementOfAccount }) {
   );
 }
 
-/** Every payment, credit and refund on record, oldest first, folded away until wanted; plus the printable statement of account. */
+/**
+ * Every payment, credit and refund on record, oldest first, with the printable statement of account. Before anything
+ * is received there is nothing to list, so the section stays away.
+ */
 export function StatementHistory({ statement, documents }: { statement: PrismStatementOfAccount; documents: BillingDocumentDownload }) {
+  if (statement.lines.length === 0) return null;
+  const held = [
+    statement.refunded > 0 ? `${formatPeso(statement.refunded)} paid back to you` : null,
+    statement.creditHeld > 0 ? `${formatPeso(statement.creditHeld)} credit held for you` : null,
+    statement.lines.some((line) => line.reversed) ? "A reversed payment is shown for completeness and is not counted." : null,
+  ].filter(Boolean).join(" · ");
   return (
-    <Card className="gap-0 overflow-hidden py-0">
-      <details>
-        <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2 px-4 py-3">
-          <span className="text-sm font-semibold text-foreground">Payment history <span className="font-normal tabular-nums text-muted-foreground">{statement.lines.length}</span></span>
-          <span className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-            {statement.refunded > 0 ? <span>{formatPeso(statement.refunded)} paid back to you</span> : null}
-            {statement.creditHeld > 0 ? <span>{formatPeso(statement.creditHeld)} credit held for you</span> : null}
-          </span>
-        </summary>
-        <div className="border-t border-border">
-          <HistoryLines statement={statement} />
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2.5">
-            <p className="text-xs text-muted-foreground">{statement.lines.some((line) => line.reversed) ? "A reversed payment is shown for completeness and is not counted." : "The statement of account lists every figure above."}</p>
-            <Button variant="outline" size="sm" disabled={documents.busyKey === "statement"} onClick={() => void documents.download("statement", () => billingDocumentsRepository.statementOfAccount(statement.eventId))}>
-              <Download className="size-3.5" aria-hidden /> {documents.busyKey === "statement" ? "Preparing…" : "Statement of account"}
-            </Button>
-          </div>
-        </div>
-      </details>
-    </Card>
+    <PrismSection
+      id="client-payment-history"
+      title="Payment history"
+      count={statement.lines.length}
+      description={held || undefined}
+      headerOutside
+      flush
+      action={(
+        <Button variant="outline" size="sm" disabled={documents.busyKey === "statement"} onClick={() => void documents.download("statement", () => billingDocumentsRepository.statementOfAccount(statement.eventId))}>
+          <Download className="size-3.5" aria-hidden /> {documents.busyKey === "statement" ? "Preparing…" : "Statement of account"}
+        </Button>
+      )}
+    >
+      <HistoryLines statement={statement} />
+    </PrismSection>
   );
 }

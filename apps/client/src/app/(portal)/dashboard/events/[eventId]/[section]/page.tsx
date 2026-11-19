@@ -3,11 +3,8 @@ import { ClientDashboardWorkspaceView, type ClientDashboardRoute } from "@/featu
 
 const sectionRoutes: Record<string, ClientDashboardRoute> = {
   overview: "overview",
-  details: "details",
   progress: "progress",
-  schedule: "schedule",
   guests: "guests",
-  preferences: "preferences",
   actions: "actions",
   briefing: "briefing",
   proposal: "proposal",

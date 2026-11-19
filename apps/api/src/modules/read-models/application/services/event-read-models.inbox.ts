@@ -178,7 +178,7 @@ function collectClientAddendumActionItems(addenda: ClientAddendumActionRef[], ev
       kind: 'addendum' as const,
       eventId: event.id,
       eventName: event.eventName,
-      href: `/dashboard/events/${event.id}/overview#client-addendum-${encodeURIComponent(addendum.id)}`,
+      href: `/dashboard/events/${event.id}/actions?addendum=${encodeURIComponent(addendum.id)}`,
     };
     if (execution.status === 'awaiting_client') {
       items.push({

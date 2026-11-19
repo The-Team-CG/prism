@@ -9,8 +9,7 @@ import {
   CheckCircle2,
   ClipboardList,
   FileText,
-  ListChecks,
-  MapPin,
+    MapPin,
   MapPinned,
   MessageSquareText,
   PartyPopper,
@@ -18,7 +17,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import type { PrismClientActionItem, PrismBillingStatement, PrismBriefing, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
+import type { PrismBillingStatement, PrismBriefing, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone } from "@prism/types";
 import { formatPortalDate, formatPortalDateTime, formatPortalTime, manilaDateKey } from "@prism/ui/format-date";
 import { AgendaList, EventCover, MoneyBar } from "@prism/ui/event-cards";
 import { PrismPanel } from "@prism/ui/page-blocks";
@@ -28,17 +27,21 @@ import { cn } from "@/app/components/ui/utils";
 import { ClientEventHero, ClientEventHeroStep, clientEventDaysToGo } from "../../../shared/client-event-hero";
 import { money, portalBadgeStatus, portalStatusLabel } from "../../../shared/tab-ui";
 import { dashboardHref, type DetailTab } from "../../../workspace/shared";
+import type { ClientDashboardAction } from "../../../workspace/model/client-dashboard-view-rules";
 import { layoutSteps, paymentTotals, type GettingStartedStep, type SinceLastVisitItem } from "../../model/client-overview-glance";
 
 /** The overview's lead: the event, how far away it is, where it stands, what is new and the one thing to do next. */
 export function OverviewNextDecision({
   selectedEvent,
   nextAction,
+  onAction,
   coverUrl,
   since,
 }: {
   selectedEvent: PrismEvent;
-  nextAction?: PrismClientActionItem;
+  /** The first of what needs the client, in the same order as the Actions list. */
+  nextAction?: ClientDashboardAction;
+  onAction: (action: ClientDashboardAction) => void;
   coverUrl?: string;
   /** What is new since the client's last visit, under the stage track. */
   since?: ReactNode;
@@ -51,16 +54,12 @@ export function OverviewNextDecision({
         <>
           <ClientEventHeroStep
             label={`Your next step${nextAction.dueAt ? ` · due ${formatPortalDate(nextAction.dueAt)}` : ""}`}
-            title={nextAction.label}
+            title={nextAction.title}
             description={nextAction.description || undefined}
           />
-          {nextAction.href ? (
-            <Button asChild className="shrink-0">
-              <a href={nextAction.href}>
-                Open <ArrowRight className="size-4" aria-hidden="true" />
-              </a>
-            </Button>
-          ) : null}
+          <Button type="button" className="shrink-0" onClick={() => onAction(nextAction)}>
+            {nextAction.ctaLabel} <ArrowRight className="size-4" aria-hidden="true" />
+          </Button>
         </>
       ) : (
         <p className="text-sm text-ink-foreground/70">Nothing needs your action right now. PMCM will let you know when it does.</p>
@@ -142,49 +141,46 @@ function Figure({ value, caption, tone = "text-foreground" }: { value: ReactNode
   );
 }
 
-/** A new event's first steps, side by side so the client sees how far along they are and which one is next. */
-export function OverviewGettingStarted({ steps, setTab }: { steps: GettingStartedStep[]; setTab: (tab: DetailTab) => void }) {
+/**
+ * A new event's first steps as one line rather than a card: how many are done, each step with its tick, and the next
+ * one as a link. The hero already carries the filled button, so nothing here competes with it.
+ */
+export function OverviewFirstSteps({ steps, setTab }: { steps: GettingStartedStep[]; setTab: (tab: DetailTab) => void }) {
   const done = steps.filter((step) => step.done).length;
   const next = steps.find((step) => !step.done);
   return (
-    <PrismPanel id="overview-get-started" title="Get started" icon={ListChecks} aside={`${done} of ${steps.length} done`}>
-      <ol className="grid gap-2 sm:grid-cols-5">
-        {steps.map((step, index) => {
-          const current = step === next;
-          return (
-            <li key={step.id} className="min-w-0">
-              <button
-                type="button"
-                disabled={step.done || step.tab === "overview"}
-                onClick={() => setTab(step.tab)}
-                className={cn(
-                  "flex h-full w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors sm:flex-col sm:items-start sm:gap-2",
-                  current ? "border-primary/40 bg-primary-soft" : "border-transparent bg-muted/60",
-                  "enabled:hover:border-primary/40",
-                )}
-              >
-                <span aria-hidden className={cn(
-                  "grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold",
-                  step.done ? "bg-success text-success-foreground" : current ? "bg-primary text-primary-foreground" : "bg-card text-muted-foreground ring-1 ring-border",
-                )}>
-                  {step.done ? <Check className="size-3.5" /> : index + 1}
-                </span>
-                <span className={cn("leading-snug", step.done ? "text-muted-foreground line-through" : current ? "font-semibold text-foreground" : "text-foreground")}>{step.label}</span>
-                <span className="sr-only">{step.done ? " (done)" : current ? " (next)" : ""}</span>
-              </button>
-            </li>
-          );
-        })}
+    <section aria-labelledby="overview-first-steps" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+      <h2 id="overview-first-steps" className="text-sm font-semibold text-foreground">
+        First steps <span className="font-normal tabular-nums text-muted-foreground">{done} of {steps.length} done</span>
+      </h2>
+      <ol className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        {steps.map((step, index) => (
+          <li key={step.id} className="flex items-center gap-1.5">
+            <span aria-hidden className={cn(
+              "grid size-5 shrink-0 place-items-center rounded-full text-2xs font-semibold",
+              step.done ? "bg-success-soft text-success" : step === next ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+            )}>
+              {step.done ? <Check className="size-3" /> : index + 1}
+            </span>
+            {step === next && step.tab !== "overview" ? (
+              <button type="button" onClick={() => setTab(step.tab)} className="font-medium text-primary hover:text-primary/80">{step.label}</button>
+            ) : (
+              <span className={step.done ? "text-muted-foreground" : "text-foreground"}>{step.label}</span>
+            )}
+            <span className="sr-only">{step.done ? " (done)" : step === next ? " (next)" : ""}</span>
+          </li>
+        ))}
       </ol>
-    </PrismPanel>
+    </section>
   );
 }
 
-export type ComingUpLine = { id: string; label: string; at: string | null; href?: string };
+/** `allDay` lines (the event day, a cutoff) are dates without a time. */
+export type ComingUpLine = { id: string; label: string; at: string | null; href?: string; allDay?: boolean; note?: string };
 
 /** The event's next dated steps on calendar leaves, soonest first: payments due, reviews, the venue visit. */
 export function OverviewComingUp({ lines }: { lines: ComingUpLine[] }) {
-  const items = lines.map((line) => ({ id: line.id, title: line.label, date: line.at, detail: line.at ? formatPortalTime(line.at) : undefined, href: line.href }));
+  const items = lines.map((line) => ({ id: line.id, title: line.label, date: line.at, detail: [line.at && !line.allDay && line.at.includes("T") ? formatPortalTime(line.at) : null, line.note].filter(Boolean).join(" · ") || undefined, href: line.href }));
   return (
     <PrismPanel id="overview-coming-up" title="Coming up" icon={CalendarClock}>
       {items.length === 0

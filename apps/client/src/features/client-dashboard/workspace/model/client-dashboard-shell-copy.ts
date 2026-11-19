@@ -50,12 +50,9 @@ const LOADING_DESCRIPTIONS: Partial<Record<ClientDashboardRoute, string>> = {
 /** The section an event workspace route shows, so each event tab's H1 names the section rather than the event. */
 const EVENT_SECTION_LABELS: Partial<Record<ClientDashboardRoute, string>> = {
   overview: "Overview",
-  actions: "Actions",
-  details: "Details",
+  actions: "Planning",
   progress: "Planning",
-  schedule: "Schedule",
   guests: "Guest access",
-  preferences: "Preferences",
   briefing: "Briefing",
   proposal: "Proposal",
   floorplan: "Floor plan",
@@ -64,7 +61,7 @@ const EVENT_SECTION_LABELS: Partial<Record<ClientDashboardRoute, string>> = {
   billing: "Billing",
   payments: "Billing",
   messages: "Messages",
-  changes: "Changes",
+  changes: "Planning",
   summary: "Closeout & feedback",
 };
 

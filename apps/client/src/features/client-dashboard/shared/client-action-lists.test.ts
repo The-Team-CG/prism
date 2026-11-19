@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismClientActionItem } from "@prism/types";
 import { selectClientDashboardActions } from "../workspace/model/client-dashboard-selectors";
-import { ClientActionLists, isClientActionNow } from "./client-action-lists";
+import { ClientActionLists, ClientNeedsYouPreview, isClientActionNow, orderNeedsYou } from "./client-action-lists";
 import { clientChangeDeadline } from "./client-change-deadline";
 
 const base = { eventId: "evt_1", eventName: "Founders gala", description: "", status: "open" };
@@ -52,6 +52,22 @@ describe("ClientActionLists", () => {
     }));
     expect(markup).toContain("all caught up");
     expect(markup).toContain('href="/dashboard/events/evt_1/changes"');
+  });
+});
+
+describe("ClientNeedsYouPreview", () => {
+  it("lists what needs the client after the step the overview leads with, in the same order, and links to the rest", () => {
+    const actions = selectClientDashboardActions({ items }, "evt_1");
+    const lead = orderNeedsYou(actions.filter((action) => action.stage === "needs_client"))[0];
+    const markup = renderToStaticMarkup(createElement(ClientNeedsYouPreview, {
+      actions, onAction: vi.fn(), todayKey: "2026-11-10", leadActionId: lead.id, allHref: "/dashboard/events/evt_1/actions", limit: 1,
+    }));
+    expect(lead.title).toBe("Sign addendum 3: Extra guests");
+    expect(markup).toContain("Also needs you");
+    expect(markup).toContain("Review proposal version 2");
+    expect(markup).not.toContain("Sign addendum 3");
+    expect(markup).not.toContain("Change request under review");
+    expect(markup).toContain('href="/dashboard/events/evt_1/actions"');
   });
 });
 

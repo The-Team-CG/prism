@@ -39,7 +39,7 @@ describe("ClientFloorplanReviewPanel", () => {
     expect(screen.queryByText("Loading current floorplan…")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Retry loading floorplan" }));
-    expect(await screen.findByText("Version fingerprint: abcdef123456… · 1 layout object")).toBeTruthy();
+    expect(await screen.findByTestId("floorplan-review-canvas")).toBeTruthy();
     expect(getReview).toHaveBeenCalledTimes(2);
     expect(getReview).toHaveBeenLastCalledWith("event-1", "draft-1");
     expect(screen.getByRole("button", { name: "Approve this version" })).toBeTruthy();

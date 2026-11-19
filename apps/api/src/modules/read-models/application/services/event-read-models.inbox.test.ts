@@ -32,7 +32,7 @@ describe('client action center', () => {
     expect(addenda).toHaveLength(3);
     expect(addenda.find((item) => item.id === 'addendum:add_7')).toMatchObject({
       description: 'Takes effect once PMCM countersigns after you.',
-      href: '/dashboard/events/evt_gala/overview#client-addendum-add_7',
+      href: '/dashboard/events/evt_gala/actions?addendum=add_7',
       decision: { kind: 'addendum', addendumId: 'add_7', versionNumber: 7, financialDelta: 48000 },
     });
     expect(addenda.find((item) => item.id === 'addendum:add_5')?.decidedAt).toBe('2026-11-03T00:00:00.000Z');

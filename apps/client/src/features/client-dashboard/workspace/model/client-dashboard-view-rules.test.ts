@@ -80,13 +80,13 @@ describe("client dashboard action rules", () => {
       label: "Acknowledge addendum: Updated lighting plan",
       description: "Version 7 is waiting for your acknowledgment.",
       status: "awaiting_client",
-      href: "/dashboard/events/evt_1/overview#client-addendum-add_7",
+      href: "/dashboard/events/evt_1/actions?addendum=add_7",
     });
 
     expect(action).toMatchObject({
       ctaLabel: "Review and sign",
       targetTab: "overview",
-      href: "/dashboard/events/evt_1/overview#client-addendum-add_7",
+      href: "/dashboard/events/evt_1/actions?addendum=add_7",
       stage: "needs_client",
     });
   });

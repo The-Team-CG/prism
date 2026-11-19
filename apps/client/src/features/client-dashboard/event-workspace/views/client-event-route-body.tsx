@@ -12,14 +12,10 @@ import { ClientChangeDeadlineNotice } from "../../shared/client-change-deadline-
 import { dashboardHref, useClientWorkspace, type ClientWorkspaceValue } from "../../workspace/shared";
 import { ClientRouteTabs } from "../../shared/client-route-tabs";
 import { ClientOverviewTab } from "./client-overview-tab";
-import { ClientEventDetailsView } from "./client-event-details-view";
 import { ClientOcularVisitPanel } from "./client-ocular-visit-panel";
 import { ClientProgressView } from "./client-progress-view";
-import { ClientScheduleView } from "./client-schedule-view";
 import { ClientGuestsView } from "./client-guests-view";
-import { ClientPreferencesView } from "./client-preferences-view";
 import { ClientFloorPlanView } from "./client-floorplan-view";
-import { ClientFinalSummaryView } from "./client-final-summary-view";
 import { ClientMessagesView } from "../../messages";
 import { ClientCloseoutView } from "../../closeout/views/client-closeout-view";
 import { ClientChangeRequestsPanel } from "../../change-requests";
@@ -38,7 +34,7 @@ function renderOverview(ctx: ClientWorkspaceValue) {
     <div className="space-y-4">
       <ClientOverviewTab
         ocularVisit={ctx.ocularVisit}
-        afterLead={visitOpen && !visitAsked ? <ClientOcularVisitPanel visit={ctx.ocularVisit} busy={ctx.busy === "ocular-visit"} onSubmit={ctx.submitOcularVisit} /> : null}
+        afterLead={visitOpen && !visitAsked ? <ClientOcularVisitPanel busy={ctx.busy === "ocular-visit"} onSubmit={ctx.submitOcularVisit} /> : null}
         selectedEvent={selectedEvent}
         briefing={ctx.briefing}
         payments={ctx.payments}
@@ -82,27 +78,22 @@ function renderProposal(ctx: ClientWorkspaceValue) {
 }
 
 function renderChanges(ctx: ClientWorkspaceValue) {
+  const event = ctx.selectedEvent;
+  if (!event) return null;
   return (
-    <div className="space-y-4">
-      {ctx.selectedEvent ? (
-        <ClientOcularVisitPanel
-          visit={ctx.ocularVisit}
-          busy={ctx.busy === "ocular-visit"}
-          onSubmit={ctx.submitOcularVisit}
-        />
-      ) : null}
-      {ctx.selectedEvent ? <ClientChangeRequestsPanel key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} /> : null}
-    </div>
+    <ClientChangeRequestsPanel
+      key={event.id}
+      eventId={event.id}
+      canRequest={!event.archived}
+      notice={<ClientChangeDeadlineNotice event={event} todayKey={manilaDateKey()} />}
+    />
   );
 }
 
 const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWorkspaceValue) => ReactNode>> = {
   overview: renderOverview,
-  details: () => <ClientEventDetailsView />,
   progress: () => <ClientProgressView />,
-  schedule: () => <ClientScheduleView />,
   guests: () => <ClientGuestsView />,
-  preferences: () => <ClientPreferencesView />,
   actions: renderActions,
   briefing: (ctx) => ctx.selectedEvent ? (
     <ClientBriefingTab
@@ -119,14 +110,13 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
   billing: (ctx) => <ClientBillingTab eventId={ctx.selectedEvent?.id} eventName={ctx.selectedEvent?.eventName} payments={ctx.payments} billing={ctx.billing} disputes={ctx.disputes} />,
   messages: () => <ClientMessagesView />,
   changes: renderChanges,
-  summary: (ctx) => <div className="space-y-4"><ClientFinalSummaryView />{ctx.selectedEvent ? <ClientCloseoutView key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} archived={ctx.selectedEvent.archived} /> : null}</div>,
+  summary: (ctx) => ctx.selectedEvent ? <ClientCloseoutView key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} archived={ctx.selectedEvent.archived} /> : null,
 };
 
-/** Planning is one sidebar item with five views; the tabs are the way between them. */
+/** Planning is one sidebar item with three views; the tabs are the way between them. */
 const PLANNING_TABS: Array<{ route: ClientDashboardRoute; label: string }> = [
   { route: "progress", label: "Progress" },
   { route: "actions", label: "Actions" },
-  { route: "details", label: "Details" },
   { route: "changes", label: "Changes" },
 ];
 

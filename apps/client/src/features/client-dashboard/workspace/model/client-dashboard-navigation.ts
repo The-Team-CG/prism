@@ -90,7 +90,7 @@ export function clientPortalSidebarItems(eventCount: number): ClientSidebarNavIt
 export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
   { id: "event-overview", label: "Overview", route: "overview", requiresEvent: true, eventScoped: true },
   { id: "event-progress", label: "Planning", route: "progress", requiresEvent: true, eventScoped: true },
-  { id: "event-briefing", label: "Event briefing", route: "briefing", requiresEvent: true, eventScoped: true },
+  { id: "event-briefing", label: "Briefing", route: "briefing", requiresEvent: true, eventScoped: true },
   { id: "event-proposal", label: "Proposal", route: "proposal", requiresEvent: true, eventScoped: true },
   { id: "event-guests", label: "Guest access", route: "guests", requiresEvent: true, eventScoped: true },
   { id: "event-floorplan", label: "Floor plan", route: "floorplan", requiresEvent: true, eventScoped: true },
@@ -192,11 +192,8 @@ export const CLIENT_ACCOUNT_MENU_ITEMS: PrismAccountMenuItem[] = [
 export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, string>> = {
   overview: "event-overview",
   actions: "event-progress",
-  details: "event-overview",
   progress: "event-progress",
-  schedule: "event-progress",
   guests: "event-guests",
-  preferences: "event-progress",
   briefing: "event-briefing",
   floorplan: "event-floorplan",
   proposal: "event-proposal",
@@ -212,11 +209,8 @@ export const EVENT_ROUTE_TO_NAV_ITEM: Partial<Record<ClientDashboardRoute, strin
 export const ROUTE_TO_DETAIL_TAB: Partial<Record<ClientDashboardRoute, DetailTab>> = {
   overview: "overview",
   actions: "overview",
-  details: "overview",
   progress: "overview",
-  schedule: "overview",
   guests: "briefing",
-  preferences: "briefing",
   briefing: "briefing",
   proposal: "proposal",
   floorplan: "floorplan",

@@ -190,3 +190,31 @@ export function ClientActionLists({
     </div>
   );
 }
+
+/**
+ * The top of an event's "Needs you" on its overview: a few rows in the shared order after the step the hero leads
+ * with, and a link to the full list. Nothing renders when the hero's step is all there is.
+ */
+export function ClientNeedsYouPreview({ actions, onAction, todayKey, leadActionId, allHref, limit = 3 }: {
+  actions: ClientDashboardAction[];
+  onAction: OnAction;
+  todayKey: string;
+  leadActionId?: string;
+  allHref: string;
+  limit?: number;
+}) {
+  const rest = orderNeedsYou(actions.filter((action) => action.stage === "needs_client" && action.id !== leadActionId));
+  if (rest.length === 0) return null;
+  return (
+    <PrismSection
+      id="overview-needs-you"
+      title={leadActionId ? "Also needs you" : "Needs you"}
+      count={rest.length}
+      headerOutside
+      flush
+      action={<Link href={allHref} className="text-sm font-medium text-primary hover:text-primary/80">{rest.length > limit ? `See all ${rest.length}` : "Open actions"}</Link>}
+    >
+      <RowList actions={rest.slice(0, limit)} todayKey={todayKey} onAction={onAction} showEvent={false} />
+    </PrismSection>
+  );
+}

@@ -13,16 +13,19 @@ export function useClientAddendaViewModel(eventId: string) {
   const [consentByAddendum, setConsentByAddendum] = useState<Record<string, boolean>>({});
   const [signingAddendumId, setSigningAddendumId] = useState<string | null>(null);
 
-  async function acknowledge(addendum: PrismAddendum) {
-    if (signingAddendumId) return;
+  /** Resolves true once the signature is recorded, so the caller can close what it opened. */
+  async function acknowledge(addendum: PrismAddendum): Promise<boolean> {
+    if (signingAddendumId) return false;
     setSigningAddendumId(addendum.id);
     setActionError(null);
     try {
       await acknowledgeAddendumConformeUseCase(eventId, addendum);
       setConsentByAddendum((current) => ({ ...current, [addendum.id]: false }));
       await invalidate(clientEventAddendaResource, eventId);
+      return true;
     } catch (cause) {
       setActionError(cause instanceof Error ? cause.message : "Unable to record your acknowledgment.");
+      return false;
     } finally {
       setSigningAddendumId(null);
     }

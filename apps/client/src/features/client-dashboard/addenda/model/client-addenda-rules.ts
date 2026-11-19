@@ -13,9 +13,9 @@ export function addendumAmountLabel(financialDelta: number) {
   return "No change to your contract amount";
 }
 
-/** Addenda whose conforme is waiting for this client's acknowledgment. */
-export function addendaAwaitingClientAcknowledgment(addenda: readonly PrismAddendum[]) {
-  return addenda.filter((addendum) => addendum.conforme?.status === "awaiting_client");
+/** The addendum's conforme is waiting for this client to sign. */
+export function addendumAwaitsClient(addendum: Pick<PrismAddendum, "conforme">) {
+  return addendum.conforme?.status === "awaiting_client";
 }
 
 /** Pending until PMCM countersigns; effective once the billing and quote changes are applied; withdrawn with the PMCM reason. */

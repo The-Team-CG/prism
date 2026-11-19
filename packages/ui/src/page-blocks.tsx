@@ -150,7 +150,7 @@ export function PrismSection({
           {title}
           {count !== undefined ? <span className="text-sm font-normal tabular-nums text-muted-foreground">{count}</span> : null}
         </h2>
-        {description ? <p className="mt-0.5 max-w-prose text-sm text-muted-foreground">{description}</p> : null}
+        {description ? <div className="mt-0.5 max-w-prose text-sm text-muted-foreground">{description}</div> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </header>
