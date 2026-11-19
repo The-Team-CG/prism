@@ -49,6 +49,9 @@ describe("convertLegacyPlan", () => {
     const unknown = nodeFor(scene, "draw_2");
     expect(unknown).toMatchObject({ type: "prism-decor", variant: "mystery", label: "Sign here" });
     expect(unknown.depth).toBeGreaterThan(0);
+    // Separators around a name never reach the variant, however many there are.
+    const dashed = { ...legacyAssets.labelledRect, name: `${"-".repeat(5000)} Mystery ${"-".repeat(5000)}` };
+    expect(nodeFor(convert([dashed]), dashed.id)).toMatchObject({ variant: "mystery" });
   });
 
   it.each([

@@ -27,8 +27,9 @@ const MIN_SIZE_M = 0.01;
 /** A seatless rectangle smaller than this on both sides is a chair. */
 const SEAT_MAX_SIDE_M = 0.6;
 
+/** "Round Banquet (10pax)" → "round-banquet-10pax". Splitting on the separators keeps it linear on any name. */
 function kebab(value: string, fallback: string): string {
-  const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const slug = value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).join("-");
   return slug || fallback;
 }
 
