@@ -135,7 +135,9 @@ export async function main(args = process.argv.slice(2)) {
     const profiles = ['accounts', 'portal-uat', ...(process.env.BROWSER_SEED_HISTORY === '1' ? ['history'] : [])];
     for (const profile of profiles) await run(join(apiDir, 'scripts/seed.mjs'), ['--profile', profile, '--scenario-date', new Date().toISOString().slice(0, 10), '--env-file', envFile], apiDir, env, `seed-${profile}`);
     if (execution.buildApi) await run(createRequire(join(apiDir, 'package.json')).resolve('@nestjs/cli/bin/nest.js'), ['build', 'api', '--path', 'tsconfig.e2e.json'], apiDir, env, 'build-api');
-    for (const asset of ['kernel/database/db-connection-config.cjs', 'kernel/database/migration-ledger-compatibility.cjs', 'modules/identity-access/application/auth/password-hash.cjs']) {
+    // tsc does not emit CommonJS sources, so every .cjs under src is copied, as nest-cli.json does for the real build.
+    const cjsAssets = readdirSync(join(apiDir, 'src'), { recursive: true }).map(String).filter(name => name.endsWith('.cjs'));
+    for (const asset of cjsAssets) {
       const destination = join(apiDir, '.e2e-dist/apps/api/src', asset);
       mkdirSync(dirname(destination), { recursive: true });
       copyFileSync(join(apiDir, 'src', asset), destination);
