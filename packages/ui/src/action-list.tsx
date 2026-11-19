@@ -61,6 +61,26 @@ function RowTitle({ title, href, onOpen, link: Link }: { title: string; href?: s
   return <span className="truncate">{title}</span>;
 }
 
+/** The status column: the figure, and under it (beside it on a phone) what the figure means. */
+function RowStatus({ status, detail, title, tone }: { status?: ReactNode; detail?: ReactNode; title?: string; tone: PrismListTone }) {
+  return (
+    <div title={title} className={cn("col-start-2 text-xs tabular-nums sm:col-start-auto sm:text-sm", STATUS[tone])}>
+      {/* On a phone the figure and what it means read as one line; in the column they stack. */}
+      <p className="whitespace-nowrap">
+        {status}
+        {detail ? <span className="ml-1 text-xs font-normal text-muted-foreground sm:hidden">{detail}</span> : null}
+      </p>
+      {detail ? <p className="hidden text-xs font-normal text-muted-foreground sm:block">{detail}</p> : null}
+    </div>
+  );
+}
+
+/** What opening the row does: a text link, or the screen's one filled button. */
+function RowAction({ label, primary }: { label: string; primary: boolean }) {
+  if (primary) return <span className="mt-1 rounded-md bg-primary px-3 py-2 font-semibold text-primary-foreground sm:mt-0">{label}</span>;
+  return <>{label}<ChevronRight className="size-4" aria-hidden /></>;
+}
+
 /**
  * One aligned row. The title is the row's link (the whole row is clickable); `status` sits in a fixed column so
  * rows line up, coloured by `statusTone` (the row's tone by default), and `action` names what opening the row does.
@@ -134,20 +154,9 @@ export function PrismListRow({
         {meta ? <p title={metaTitle} className="truncate text-xs text-muted-foreground">{meta}</p> : null}
         {detail ? <p className="mt-1 text-sm text-foreground">{detail}</p> : null}
       </div>
-      <div title={statusTitle} className={cn("col-start-2 text-xs tabular-nums sm:col-start-auto sm:text-sm", STATUS[statusTone ?? tone])}>
-        {/* On a phone the figure and what it means read as one line; in the column they stack. */}
-        <p className="whitespace-nowrap">
-          {status}
-          {statusDetail ? <span className="ml-1 text-xs font-normal text-muted-foreground sm:hidden">{statusDetail}</span> : null}
-        </p>
-        {statusDetail ? <p className="hidden text-xs font-normal text-muted-foreground sm:block">{statusDetail}</p> : null}
-      </div>
+      <RowStatus status={status} detail={statusDetail} title={statusTitle} tone={statusTone ?? tone} />
       <span className="col-start-2 flex items-center gap-1 whitespace-nowrap text-sm font-medium text-primary sm:col-start-auto sm:justify-end">
-        {action && opens
-          ? primary
-            ? <span className="mt-1 rounded-md bg-primary px-3 py-2 font-semibold text-primary-foreground sm:mt-0">{action}</span>
-            : <>{action}<ChevronRight className="size-4" aria-hidden /></>
-          : null}
+        {action && opens ? <RowAction label={action} primary={primary} /> : null}
       </span>
     </li>
   );

@@ -56,6 +56,24 @@ function rowStatus(action: ClientDashboardAction, todayKey: string): { status: s
   return { status: formatStatusLabel(action.status) };
 }
 
+/** Colour marks only what the client still owes: settled rows read as done, decisions and other people's work stay grey. */
+function rowTone(action: ClientDashboardAction): PrismListTone {
+  if (action.stage === "done") return "done";
+  if (action.stage !== "needs_client" || action.decision) return "neutral";
+  return clientActionRowTone(action);
+}
+
+function rowMeta(action: ClientDashboardAction, showEvent: boolean): string | undefined {
+  const meta = [showEvent ? action.eventName : null, action.description].filter(Boolean).join(" · ");
+  return meta || undefined;
+}
+
+/** What changed in a proposal version, as the decision row's second line. */
+function changeNoteDetail(action: ClientDashboardAction) {
+  const note = action.decision?.kind === "proposal" ? action.decision.changeNote.trim() : "";
+  return note ? <><span className="font-semibold">What changed:</span> {note}</> : undefined;
+}
+
 function ActionRow({ action, todayKey, onAction, showEvent, primary }: {
   action: ClientDashboardAction;
   todayKey: string;
@@ -63,22 +81,20 @@ function ActionRow({ action, todayKey, onAction, showEvent, primary }: {
   showEvent: boolean;
   primary: boolean;
 }) {
-  const settled = action.stage === "done";
-  const tone = settled ? "done" : action.stage === "needs_client" && !action.decision ? clientActionRowTone(action) : "neutral";
-  const meta = [showEvent ? action.eventName : null, action.description].filter(Boolean).join(" · ");
-  const changeNote = action.decision?.kind === "proposal" ? action.decision.changeNote.trim() : "";
+  const owed = action.stage === "needs_client";
+  const meta = rowMeta(action, showEvent);
   const status = rowStatus(action, todayKey);
   return (
     <ClientListRow
-      icon={settled ? CheckCircle2 : action.icon}
-      tone={tone}
-      decision={Boolean(action.decision) && action.stage === "needs_client"}
+      icon={action.stage === "done" ? CheckCircle2 : action.icon}
+      tone={rowTone(action)}
+      decision={owed && Boolean(action.decision)}
       primary={primary}
       title={action.title}
-      meta={meta || undefined}
-      metaTitle={meta || undefined}
-      detail={changeNote ? <><span className="font-semibold">What changed:</span> {changeNote}</> : undefined}
-      tag={action.stage === "needs_client" && action.priority === "critical" ? "Blocking" : undefined}
+      meta={meta}
+      metaTitle={meta}
+      detail={changeNoteDetail(action)}
+      tag={owed && action.priority === "critical" ? "Blocking" : undefined}
       status={status.status}
       statusDetail={status.detail}
       statusTone={status.tone}
@@ -110,6 +126,77 @@ function laterSummary(actions: ClientDashboardAction[]): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+type ListScope = "account" | "event";
+
+/**
+ * The client's actions sorted into the list's sections. On Home, what needs the client splits into now and Later;
+ * inside an event every owed item is "now", and recently decided items get their own section.
+ */
+function clientActionGroups(actions: ClientDashboardAction[], scope: ListScope, todayKey: string, leadActionId?: string) {
+  const own = orderNeedsYou(actions.filter((action) => action.stage === "needs_client" && action.id !== leadActionId));
+  const inEvent = scope === "event";
+  const now = inEvent ? own : own.filter((action) => isClientActionNow(action, todayKey));
+  return {
+    own,
+    now,
+    later: inEvent ? [] : own.filter((action) => !isClientActionNow(action, todayKey)),
+    withPmcm: actions.filter((action) => action.stage === "with_pmcm"),
+    toReview: actions.filter((action) => action.stage === "to_review"),
+    done: inEvent ? actions.filter((action) => action.stage === "done").sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? "")) : [],
+    // Inside an event the first decision carries the screen's one filled button; on Home the hero already has it.
+    primaryId: inEvent ? now.find((action) => action.decision)?.id : undefined,
+    hasLead: Boolean(leadActionId && actions.some((action) => action.id === leadActionId)),
+  };
+}
+
+type ActionGroups = ReturnType<typeof clientActionGroups>;
+type RowProps = { todayKey: string; onAction: OnAction; showEvent: boolean };
+
+function NeedsYouSection({ groups, rows }: { groups: ActionGroups; rows: RowProps }) {
+  const { own, now, later, primaryId, hasLead } = groups;
+  return (
+    <PrismSection id="client-actions" title={hasLead ? "Also needs you" : "Needs you"} count={own.length} headerOutside flush>
+      <ul className="divide-y divide-border">
+        {now.map((action) => <ActionRow key={action.id} action={action} {...rows} primary={action.id === primaryId} />)}
+        {later.length ? (
+          <PrismListCluster icon={Clock} title={`Later · ${later.length}`} meta={laterSummary(later)}>
+            {later.map((action) => <ActionRow key={action.id} action={action} {...rows} primary={false} />)}
+          </PrismListCluster>
+        ) : null}
+      </ul>
+    </PrismSection>
+  );
+}
+
+/** Inside an event with nothing owed: one line, and a way to ask for a change when there is one. */
+function CaughtUpSection({ restWithPmcm, emptyAction }: { restWithPmcm: boolean; emptyAction?: { label: string; href: string } }) {
+  return (
+    <PrismSection id="client-actions" title="Needs you" count={0} headerOutside>
+      <PrismEmptyLine
+        icon={CheckCircle2}
+        action={emptyAction ? <Button asChild variant="outline" size="sm"><Link href={emptyAction.href}>{emptyAction.label}</Link></Button> : undefined}
+      >
+        <span className="font-semibold text-foreground">You&apos;re all caught up.</span>{" "}
+        {restWithPmcm ? "The rest is with PMCM. We'll let you know when something is ready for you." : "PMCM will let you know when something is ready for you."}
+      </PrismEmptyLine>
+    </PrismSection>
+  );
+}
+
+function RowsSection({ id, title, description, actions, rows }: { id: string; title: string; description?: string; actions: ClientDashboardAction[]; rows: RowProps }) {
+  if (actions.length === 0) return null;
+  return (
+    <PrismSection id={id} title={title} count={actions.length} description={description} headerOutside flush>
+      <RowList actions={actions} {...rows} />
+    </PrismSection>
+  );
+}
+
+/** Home has nothing at all for the client: no owed work, nothing with PMCM, no news, and no hero step. */
+function nothingOnHome(groups: ActionGroups) {
+  return groups.own.length + groups.withPmcm.length + groups.toReview.length === 0 && !groups.hasLead;
+}
+
 /**
  * Everything the client's action list holds, in one order on every screen: what needs the client, what is with
  * PMCM, news to read and, inside one event, what was recently decided. Each section is one heading and one surface
@@ -127,66 +214,26 @@ export function ClientActionLists({
   actions: ClientDashboardAction[];
   onAction: OnAction;
   todayKey: string;
-  scope: "account" | "event";
+  scope: ListScope;
   leadActionId?: string;
   /** Offered beside "You're all caught up" inside an event. */
   emptyAction?: { label: string; href: string };
 }) {
-  const own = orderNeedsYou(actions.filter((action) => action.stage === "needs_client" && action.id !== leadActionId));
-  const now = scope === "event" ? own : own.filter((action) => isClientActionNow(action, todayKey));
-  const later = scope === "event" ? [] : own.filter((action) => !isClientActionNow(action, todayKey));
-  const withPmcm = actions.filter((action) => action.stage === "with_pmcm");
-  const toReview = actions.filter((action) => action.stage === "to_review");
-  const done = scope === "event"
-    ? actions.filter((action) => action.stage === "done").sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""))
-    : [];
-  const showEvent = scope === "account";
-  const primaryId = scope === "event" ? now.find((action) => action.decision)?.id : undefined;
-  const hasLead = Boolean(leadActionId && actions.some((action) => action.id === leadActionId));
+  const groups = clientActionGroups(actions, scope, todayKey, leadActionId);
+  const rows: RowProps = { todayKey, onAction, showEvent: scope === "account" };
+  const owesSomething = groups.now.length + groups.later.length > 0;
 
-  if (scope === "account" && own.length + withPmcm.length + toReview.length === 0 && !hasLead) {
+  if (scope === "account" && nothingOnHome(groups)) {
     return <ClientListEmpty icon={CheckCircle2} title="You're all caught up" description="Nothing needs you right now. PMCM will let you know when something is ready for you." />;
   }
 
   return (
     <div className="space-y-6">
-      {now.length || later.length ? (
-        <PrismSection id="client-actions" title={hasLead ? "Also needs you" : "Needs you"} count={own.length} headerOutside flush>
-          <ul className="divide-y divide-border">
-            {now.map((action) => <ActionRow key={action.id} action={action} todayKey={todayKey} onAction={onAction} showEvent={showEvent} primary={action.id === primaryId} />)}
-            {later.length ? (
-              <PrismListCluster icon={Clock} title={`Later · ${later.length}`} meta={laterSummary(later)}>
-                {later.map((action) => <ActionRow key={action.id} action={action} todayKey={todayKey} onAction={onAction} showEvent={showEvent} primary={false} />)}
-              </PrismListCluster>
-            ) : null}
-          </ul>
-        </PrismSection>
-      ) : scope === "event" ? (
-        <PrismSection id="client-actions" title="Needs you" count={0} headerOutside>
-          <PrismEmptyLine
-            icon={CheckCircle2}
-            action={emptyAction ? <Button asChild variant="outline" size="sm"><Link href={emptyAction.href}>{emptyAction.label}</Link></Button> : undefined}
-          >
-            <span className="font-semibold text-foreground">You&apos;re all caught up.</span>{" "}
-            {withPmcm.length ? "The rest is with PMCM. We'll let you know when something is ready for you." : "PMCM will let you know when something is ready for you."}
-          </PrismEmptyLine>
-        </PrismSection>
-      ) : null}
-      {withPmcm.length ? (
-        <PrismSection id="client-actions-pmcm" title="Waiting on PMCM" count={withPmcm.length} description="You've done your part. PMCM has these now." headerOutside flush>
-          <RowList actions={withPmcm} todayKey={todayKey} onAction={onAction} showEvent={showEvent} />
-        </PrismSection>
-      ) : null}
-      {toReview.length ? (
-        <PrismSection id="client-actions-updates" title="New to read" count={toReview.length} headerOutside flush>
-          <RowList actions={toReview} todayKey={todayKey} onAction={onAction} showEvent={showEvent} />
-        </PrismSection>
-      ) : null}
-      {done.length ? (
-        <PrismSection id="client-actions-done" title="Recently decided" count={done.length} headerOutside flush>
-          <RowList actions={done} todayKey={todayKey} onAction={onAction} showEvent={false} />
-        </PrismSection>
-      ) : null}
+      {owesSomething ? <NeedsYouSection groups={groups} rows={rows} /> : null}
+      {!owesSomething && scope === "event" ? <CaughtUpSection restWithPmcm={groups.withPmcm.length > 0} emptyAction={emptyAction} /> : null}
+      <RowsSection id="client-actions-pmcm" title="Waiting on PMCM" description="You've done your part. PMCM has these now." actions={groups.withPmcm} rows={rows} />
+      <RowsSection id="client-actions-updates" title="New to read" actions={groups.toReview} rows={rows} />
+      <RowsSection id="client-actions-done" title="Recently decided" actions={groups.done} rows={{ ...rows, showEvent: false }} />
     </div>
   );
 }

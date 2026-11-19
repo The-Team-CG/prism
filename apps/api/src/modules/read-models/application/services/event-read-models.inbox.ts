@@ -442,6 +442,57 @@ function latestIssuedProposalVersions(versions: ClientProposalVersionRef[]) {
   return latest;
 }
 
+type ClientProposalItemBase = Pick<PrismClientActionItem, 'kind' | 'eventId' | 'eventName' | 'href'>;
+
+/** An approval already given, or changes the client asked for that PMCM is now preparing; null while still open. */
+function settledProposalItem(event: ClientEventRef, base: ClientProposalItemBase): PrismClientActionItem | null {
+  const status = event.proposalClientStatus ?? 'pending';
+  if (status === 'approved') {
+    return {
+      ...base, id: `approval:proposal-approved:${event.id}`, stage: 'done', priority: 'info', status: 'approved',
+      label: 'Proposal approved', description: `${event.clientName} approved the proposal.`,
+      decidedAt: toIso(event.proposalReviewedAt),
+    };
+  }
+  if (status !== 'revision_requested') return null;
+  const requested = event.proposalReviewedAt ? ` on ${shortDate(event.proposalReviewedAt)}` : '';
+  return {
+    ...base, id: `approval:proposal-revision:${event.id}`, stage: 'with_pmcm', priority: 'info', status: 'revision_requested',
+    label: 'Proposal changes requested', description: `${event.clientName} asked for changes${requested}. PMCM is preparing a new version.`,
+  };
+}
+
+/** An issued version waiting for a decision: the primary contact's to decide, anyone else's to read. */
+function issuedProposalItem(
+  event: ClientEventRef,
+  base: ClientProposalItemBase,
+  document: OpsDocument,
+  version: ClientProposalVersionRef,
+  actorEmail: string | null,
+): PrismClientActionItem {
+  const decider = { name: event.clientName, isYou: isPrimaryClientContact(actorEmail, event.inquiry?.email ?? '') };
+  return {
+    ...base,
+    id: `approval:proposal:${document.id}`,
+    stage: decider.isYou ? 'needs_client' : 'to_review',
+    priority: decider.isYou ? 'attention' : 'info',
+    status: 'issued',
+    label: `Review proposal version ${version.versionNumber}`,
+    description: decider.isYou
+      ? `Approving moves ${event.eventName} into planning.`
+      : `${decider.name} is the primary contact and decides on this proposal. You can read it and comment.`,
+    decision: {
+      kind: 'proposal',
+      versionNumber: version.versionNumber,
+      changeNote: version.revisionNote,
+      revisionsLeft: Math.max(0, MAX_PROPOSAL_REVISIONS - (event.proposalRevisionCount ?? 0)),
+      decider,
+    },
+  };
+}
+
+const proposalClosed = (event: ClientEventRef) => event.archived || Boolean(event.actualEndedAt) || ['completed', 'closed', 'cancelled'].includes(event.status);
+
 /**
  * The proposal as the client sees it: an issued version to decide on, a requested revision PMCM is working on,
  * or an approval already given. Only the primary contact decides; anyone else on the account sees whose turn it is.
@@ -455,45 +506,13 @@ function collectClientProposalActionItems(input: {
   const documents = latestIssuedProposalDocuments(input.documents);
   const versions = latestIssuedProposalVersions(input.versions);
   return input.events.flatMap((event): PrismClientActionItem[] => {
-    if (event.archived || event.actualEndedAt || ['completed', 'closed', 'cancelled'].includes(event.status)) return [];
-    const base = { kind: 'approval' as const, eventId: event.id, eventName: event.eventName, href: `/dashboard/events/${event.id}/proposal` };
-    const status = event.proposalClientStatus ?? 'pending';
-    if (status === 'approved') {
-      return [{
-        ...base, id: `approval:proposal-approved:${event.id}`, stage: 'done', priority: 'info', status: 'approved',
-        label: 'Proposal approved', description: `${event.clientName} approved the proposal.`,
-        decidedAt: toIso(event.proposalReviewedAt),
-      }];
-    }
-    if (status === 'revision_requested') {
-      const requested = event.proposalReviewedAt ? ` on ${shortDate(event.proposalReviewedAt)}` : '';
-      return [{
-        ...base, id: `approval:proposal-revision:${event.id}`, stage: 'with_pmcm', priority: 'info', status: 'revision_requested',
-        label: 'Proposal changes requested', description: `${event.clientName} asked for changes${requested}. PMCM is preparing a new version.`,
-      }];
-    }
+    if (proposalClosed(event)) return [];
+    const base: ClientProposalItemBase = { kind: 'approval', eventId: event.id, eventName: event.eventName, href: `/dashboard/events/${event.id}/proposal` };
+    const settled = settledProposalItem(event, base);
+    if (settled) return [settled];
     const document = documents.get(event.id);
     const version = versions.get(event.id);
-    if (!document || !version) return [];
-    const decider = { name: event.clientName, isYou: isPrimaryClientContact(input.actorEmail, event.inquiry?.email ?? '') };
-    return [{
-      ...base,
-      id: `approval:proposal:${document.id}`,
-      stage: decider.isYou ? 'needs_client' : 'to_review',
-      priority: decider.isYou ? 'attention' : 'info',
-      status: 'issued',
-      label: `Review proposal version ${version.versionNumber}`,
-      description: decider.isYou
-        ? `Approving moves ${event.eventName} into planning.`
-        : `${decider.name} is the primary contact and decides on this proposal. You can read it and comment.`,
-      decision: {
-        kind: 'proposal',
-        versionNumber: version.versionNumber,
-        changeNote: version.revisionNote,
-        revisionsLeft: Math.max(0, MAX_PROPOSAL_REVISIONS - (event.proposalRevisionCount ?? 0)),
-        decider,
-      },
-    }];
+    return document && version ? [issuedProposalItem(event, base, document, version, input.actorEmail)] : [];
   });
 }
 
@@ -573,32 +592,42 @@ function collectClientChangeRequestItems(requests: ClientChangeRequestRef[], eve
   return items;
 }
 
+/** How each scope change status reads to the client: whose turn it is, how loud, and what it is called. */
+const SCOPE_CHANGE_VIEW: Record<'approved' | 'rejected' | 'pending', { stage: PrismClientActionItem['stage']; priority: PrismClientActionItem['priority']; status: string; label: (title: string) => string }> = {
+  approved: { stage: 'to_review', priority: 'info', status: 'approved', label: (title) => `Change approved: ${title}` },
+  rejected: { stage: 'to_review', priority: 'attention', status: 'not_approved', label: (title) => `Change not approved: ${title}` },
+  pending: { stage: 'with_pmcm', priority: 'info', status: 'under_review', label: (title) => title },
+};
+
+function scopeChangeItem(request: ClientScopeChangeRef, event: ClientEventRef): PrismClientActionItem {
+  const decided = request.status === 'approved' || request.status === 'rejected';
+  const view = SCOPE_CHANGE_VIEW[decided ? request.status as 'approved' | 'rejected' : 'pending'];
+  const response = request.clientResponse?.trim();
+  const answered = response ? `PMCM: ${response}` : 'PMCM answered your change request.';
+  return {
+    id: `scope-change:${request.id}`,
+    kind: 'change_request',
+    stage: view.stage,
+    priority: view.priority,
+    label: view.label(request.title),
+    description: decided ? answered : 'PMCM is reviewing your change request.',
+    status: view.status,
+    decidedAt: toIso(request.decidedAt),
+    eventId: event.id,
+    eventName: event.eventName,
+    href: `/dashboard/events/${event.id}/changes`,
+  };
+}
+
 /**
  * A scope change the client asked for: with PMCM while it is reviewed, then news for the client once PMCM answers.
  * The query already leaves out withdrawn requests and answers older than the review window.
  */
 function collectClientScopeChangeItems(requests: ClientScopeChangeRef[], events: ClientEventRef[]) {
-  const items: PrismClientActionItem[] = [];
-  for (const request of requests) {
+  return requests.flatMap((request) => {
     const event = eventById(events, request.eventId);
-    if (!event || request.status === 'withdrawn') continue;
-    const decided = request.status === 'approved' || request.status === 'rejected';
-    const response = request.clientResponse?.trim();
-    items.push({
-      id: `scope-change:${request.id}`,
-      kind: 'change_request',
-      stage: decided ? 'to_review' : 'with_pmcm',
-      priority: request.status === 'rejected' ? 'attention' : 'info',
-      label: request.status === 'approved' ? `Change approved: ${request.title}` : request.status === 'rejected' ? `Change not approved: ${request.title}` : request.title,
-      description: decided ? (response ? `PMCM: ${response}` : 'PMCM answered your change request.') : 'PMCM is reviewing your change request.',
-      status: request.status === 'rejected' ? 'not_approved' : decided ? 'approved' : 'under_review',
-      decidedAt: toIso(request.decidedAt),
-      eventId: event.id,
-      eventName: event.eventName,
-      href: `/dashboard/events/${event.id}/changes`,
-    });
-  }
-  return items;
+    return event && request.status !== 'withdrawn' ? [scopeChangeItem(request, event)] : [];
+  });
 }
 
 /** The most urgent items each event card shows; the rest are counted. */
@@ -667,54 +696,63 @@ const REVISION_AREA_LABELS: Record<ProposalRevisionArea, string> = {
 
 const wholeDaysSince = (from: Date, now: Date) => Math.max(0, Math.floor((now.getTime() - from.getTime()) / DAY_MS));
 
+const decisionEventFields = (event: EventRef) => ({ eventId: event.id, eventName: event.eventName, clientName: event.clientName });
+const decisionHref = (eventId: string, part: string) => `/dashboard/events/${eventId}/briefing?part=${part}`;
+
+function revisionRequestItem(request: PmcmInboxClientDecisions['revisionRequests'][number], event: EventRef): PrismCommandInboxItem {
+  const areas = request.areas.map((area) => REVISION_AREA_LABELS[area]).join(', ');
+  const parts = [areas ? `Areas: ${areas}.` : '', request.note ? `“${request.note}”` : ''].filter(Boolean);
+  return {
+    id: `proposal-revision:${event.id}`, kind: 'approval', severity: 'attention', status: 'revision_requested',
+    label: 'Client asked for proposal changes',
+    description: parts.length ? parts.join(' ') : `${event.clientName} asked for changes to the proposal.`,
+    createdAt: toIso(request.requestedAt),
+    href: decisionHref(event.id, 'proposal'),
+    ...decisionEventFields(event),
+  };
+}
+
+function proposalWaitingItem(proposal: PmcmInboxClientDecisions['proposalsAwaitingClient'][number], event: EventRef, now: Date): PrismCommandInboxItem {
+  return {
+    id: `proposal-waiting:${event.id}`, kind: 'approval', severity: 'attention', status: 'awaiting_client',
+    label: 'Proposal waiting on the client',
+    description: `Version ${proposal.versionNumber} sent ${wholeDaysSince(proposal.issuedAt, now)} days ago with no answer. Send a follow-up.`,
+    createdAt: toIso(proposal.issuedAt),
+    href: decisionHref(event.id, 'follow-ups'),
+    ...decisionEventFields(event),
+  };
+}
+
+function addendumWaitingItem(addendum: PmcmInboxClientDecisions['unsignedAddenda'][number], event: EventRef, now: Date): PrismCommandInboxItem {
+  return {
+    id: `addendum-waiting:${addendum.addendumId}`, kind: 'addendum', severity: 'attention', status: 'awaiting_client',
+    label: 'Addendum waiting for the client to sign',
+    description: `Addendum ${addendum.versionNumber} (${addendum.title}) sent ${wholeDaysSince(addendum.sentAt, now)} days ago. Send a follow-up.`,
+    createdAt: toIso(addendum.sentAt),
+    href: decisionHref(event.id, 'follow-ups'),
+    ...decisionEventFields(event),
+  };
+}
+
+/** One inbox item per record whose event is known; records for an event outside the list are left out. */
+function itemsForKnownEvents<T extends { eventId: string }>(records: T[], eventsById: Map<string, EventRef>, build: (record: T, event: EventRef) => PrismCommandInboxItem) {
+  return records.flatMap((record) => {
+    const event = eventsById.get(record.eventId);
+    return event ? [build(record, event)] : [];
+  });
+}
+
 /**
  * The client's side of the proposal and addenda, as PMCM work: a revision to prepare, or a decision the client has
  * left waiting past the follow-up threshold. A waiting decision opens the event's follow-ups to draft a reminder.
  */
 function collectClientDecisionInboxItems(decisions: PmcmInboxClientDecisions | undefined, eventsById: Map<string, EventRef>, now: Date) {
   if (!decisions) return [];
-  const items: PrismCommandInboxItem[] = [];
-  const eventFields = (event: EventRef) => ({ eventId: event.id, eventName: event.eventName, clientName: event.clientName });
-  const planning = (eventId: string, part: string) => `/dashboard/events/${eventId}/briefing?part=${part}`;
-  for (const request of decisions.revisionRequests) {
-    const event = eventsById.get(request.eventId);
-    if (!event) continue;
-    const areas = request.areas.map((area) => REVISION_AREA_LABELS[area]).join(', ');
-    const parts = [areas ? `Areas: ${areas}.` : '', request.note ? `“${request.note}”` : ''].filter(Boolean);
-    items.push({
-      id: `proposal-revision:${event.id}`, kind: 'approval', severity: 'attention', status: 'revision_requested',
-      label: 'Client asked for proposal changes',
-      description: parts.length ? parts.join(' ') : `${event.clientName} asked for changes to the proposal.`,
-      createdAt: toIso(request.requestedAt),
-      href: planning(event.id, 'proposal'),
-      ...eventFields(event),
-    });
-  }
-  for (const proposal of decisions.proposalsAwaitingClient) {
-    const event = eventsById.get(proposal.eventId);
-    if (!event) continue;
-    items.push({
-      id: `proposal-waiting:${event.id}`, kind: 'approval', severity: 'attention', status: 'awaiting_client',
-      label: 'Proposal waiting on the client',
-      description: `Version ${proposal.versionNumber} sent ${wholeDaysSince(proposal.issuedAt, now)} days ago with no answer. Send a follow-up.`,
-      createdAt: toIso(proposal.issuedAt),
-      href: planning(event.id, 'follow-ups'),
-      ...eventFields(event),
-    });
-  }
-  for (const addendum of decisions.unsignedAddenda) {
-    const event = eventsById.get(addendum.eventId);
-    if (!event) continue;
-    items.push({
-      id: `addendum-waiting:${addendum.addendumId}`, kind: 'addendum', severity: 'attention', status: 'awaiting_client',
-      label: 'Addendum waiting for the client to sign',
-      description: `Addendum ${addendum.versionNumber} (${addendum.title}) sent ${wholeDaysSince(addendum.sentAt, now)} days ago. Send a follow-up.`,
-      createdAt: toIso(addendum.sentAt),
-      href: planning(event.id, 'follow-ups'),
-      ...eventFields(event),
-    });
-  }
-  return items;
+  return [
+    ...itemsForKnownEvents(decisions.revisionRequests, eventsById, revisionRequestItem),
+    ...itemsForKnownEvents(decisions.proposalsAwaitingClient, eventsById, (proposal, event) => proposalWaitingItem(proposal, event, now)),
+    ...itemsForKnownEvents(decisions.unsignedAddenda, eventsById, (addendum, event) => addendumWaitingItem(addendum, event, now)),
+  ];
 }
 
 function collectInquiryInboxItems(inquiries: PmcmInboxInquiry[]) {

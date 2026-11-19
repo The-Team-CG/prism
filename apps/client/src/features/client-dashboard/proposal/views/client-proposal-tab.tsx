@@ -28,61 +28,81 @@ function proposalBadge(status: string, packageReady: boolean) {
 
 const changeRequestsLeft = (count: number) => (count === 1 ? "1 change request left" : `${count} change requests left`);
 
+type ProposalEvent = NonNullable<ClientProposalTabViewModel["selectedEvent"]>;
+
+/** Approve and Ask for changes, with how many change requests are left. */
+function DecisionButtons({ vm, event }: { vm: ClientProposalTabViewModel; event: ProposalEvent }) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">Read the package below. Approving moves {event.eventName} into planning.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" disabled={!vm.canApprove || vm.reviewing} onClick={() => vm.setDialog("approve")}>
+          <ThumbsUp className="size-4" /> Approve proposal
+        </Button>
+        <Button type="button" variant="outline" disabled={!vm.canRequestRevision || vm.reviewing} onClick={() => vm.setDialog("revise")}>
+          Ask for changes
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {vm.canRequestRevision
+            ? `${vm.remainingRevisions} of ${CLIENT_PROPOSAL_REVISION_CAP} change requests left`
+            : `You've used all ${CLIENT_PROPOSAL_REVISION_CAP} change requests. Approve this version or message PMCM.`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** While PMCM prepares the package: the briefing it is waiting on, or a promise to say when it is ready. */
+function PreparingBody({ needsBriefing, onOpenBriefing }: { needsBriefing: boolean; onOpenBriefing: () => void }) {
+  if (!needsBriefing) return <p className="text-sm text-muted-foreground">We&apos;ll let you know as soon as it&apos;s ready to review.</p>;
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <p className="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">PMCM prices your package from the event briefing. Finish it so they can prepare your proposal.</p>
+      <Button type="button" onClick={onOpenBriefing}>Complete briefing</Button>
+    </div>
+  );
+}
+
+/** The sentence under the heading, for where the proposal stands and whose turn it is. */
+function ProposalStatusBody({ vm, event, status, onOpenBriefing }: {
+  vm: ClientProposalTabViewModel;
+  event: ProposalEvent;
+  status: ReturnType<typeof proposalClientStatus>;
+  onOpenBriefing: () => void;
+}) {
+  if (status === "approved") {
+    const when = event.proposalReviewedAt ? ` on ${formatPortalDate(event.proposalReviewedAt)}` : "";
+    return <p className="text-sm text-muted-foreground">Approved by {event.clientName}{when}. PMCM is planning your event with this version. Later changes go through a change request.</p>;
+  }
+  if (status === "revision_requested") {
+    return <p className="text-sm text-muted-foreground">PMCM will send a new version for you to review. {changeRequestsLeft(vm.remainingRevisions)} after that.</p>;
+  }
+  if (!vm.packageReady) return <PreparingBody needsBriefing={vm.needsBriefing} onOpenBriefing={onOpenBriefing} />;
+  if (!vm.isDecider) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {vm.decider?.name ?? "The primary contact"} is the primary contact on this event and decides on the proposal. You can read it and leave comments below.
+      </p>
+    );
+  }
+  return <DecisionButtons vm={vm} event={event} />;
+}
+
 /** One sentence on where the proposal stands and, when it is the reader's turn, the two ways to answer. */
 function ProposalStatusHero({ vm, onOpenBriefing }: { vm: ClientProposalTabViewModel; onOpenBriefing: () => void }) {
   const event = vm.selectedEvent;
   if (!event) return null;
   const status = proposalClientStatus(event);
   const badge = proposalBadge(status, vm.packageReady);
-  let body: React.ReactNode;
-  if (status === "approved") {
-    const when = event.proposalReviewedAt ? ` on ${formatPortalDate(event.proposalReviewedAt)}` : "";
-    body = <p className="text-sm text-muted-foreground">Approved by {event.clientName}{when}. PMCM is planning your event with this version. Later changes go through a change request.</p>;
-  } else if (status === "revision_requested") {
-    body = <p className="text-sm text-muted-foreground">PMCM will send a new version for you to review. {changeRequestsLeft(vm.remainingRevisions)} after that.</p>;
-  } else if (!vm.packageReady) {
-    body = vm.needsBriefing ? (
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">PMCM prices your package from the event briefing. Finish it so they can prepare your proposal.</p>
-        <Button type="button" onClick={onOpenBriefing}>Complete briefing</Button>
-      </div>
-    ) : (
-      <p className="text-sm text-muted-foreground">We&apos;ll let you know as soon as it&apos;s ready to review.</p>
-    );
-  } else if (!vm.isDecider) {
-    body = (
-      <p className="text-sm text-muted-foreground">
-        {vm.decider?.name ?? "The primary contact"} is the primary contact on this event and decides on the proposal. You can read it and leave comments below.
-      </p>
-    );
-  } else {
-    body = (
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">Read the package below. Approving moves {event.eventName} into planning.</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="button" disabled={!vm.canApprove || vm.reviewing} onClick={() => vm.setDialog("approve")}>
-            <ThumbsUp className="size-4" /> Approve proposal
-          </Button>
-          <Button type="button" variant="outline" disabled={!vm.canRequestRevision || vm.reviewing} onClick={() => vm.setDialog("revise")}>
-            Ask for changes
-          </Button>
-          <span className="text-xs text-muted-foreground">
-            {vm.canRequestRevision
-              ? `${vm.remainingRevisions} of ${CLIENT_PROPOSAL_REVISION_CAP} change requests left`
-              : `You've used all ${CLIENT_PROPOSAL_REVISION_CAP} change requests. Approve this version or message PMCM.`}
-          </span>
-        </div>
-      </div>
-    );
-  }
+  const ready = vm.proposal && vm.packageReady && status === "pending";
   // The page's lead, not a card: one heading, one sentence and, when it is the reader's turn, the two answers.
   return (
     <section aria-labelledby="proposal-status-heading" className="space-y-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 id="proposal-status-heading" className="text-lg font-semibold text-foreground">{vm.proposal && vm.packageReady && status === "pending" ? `Version ${vm.proposal.versionNumber} is ready to review` : vm.headline}</h2>
+        <h2 id="proposal-status-heading" className="text-lg font-semibold text-foreground">{ready ? `Version ${vm.proposal?.versionNumber} is ready to review` : vm.headline}</h2>
         <StatusBadge status={badge.status} label={badge.label} />
       </div>
-      {body}
+      <ProposalStatusBody vm={vm} event={event} status={status} onOpenBriefing={onOpenBriefing} />
     </section>
   );
 }
