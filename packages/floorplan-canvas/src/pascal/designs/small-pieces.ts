@@ -7,7 +7,7 @@ const WIDTH = "width";
 const DEPTH = "depth";
 const TWO_SIDES = 2;
 const THREE = 3;
-const FIVE = 5;
+const ARCH_BLOOMS = 7;
 
 /** Spreads `repeats` items evenly across the piece's width, from the left edge. */
 const spreadAcross = (repeats: Expr) => add(mul(-0.5, WIDTH), div(mul(WIDTH, add(INDEX, 0.5)), repeats));
@@ -209,8 +209,10 @@ function arch(): Part[] {
   return [
     part("posts", "Posts", TWO_SIDES, [cylinder("post", "decor_frame", [0.08, 2.4, 0.08], [sideOf(0.04), 1.2, 0])]),
     part("beam", "Beam", 1, [box("beam", "decor_frame", [WIDTH, 0.1, 0.1], [0, 2.4, 0])]),
-    part("florals", "Florals", FIVE, [ellipsoid("bloom", "florals", [0.5, 0.35, 0.4], [spreadAcross(FIVE), 2.5, 0])]),
+    part("florals", "Florals", ARCH_BLOOMS, [ellipsoid("bloom", "florals", [0.42, 0.32, 0.36], [spreadAcross(ARCH_BLOOMS), 2.5, 0])]),
+    part("leaves", "Leaves", ARCH_BLOOMS, [ellipsoid("leaf", "greenery", [0.36, 0.22, 0.42], [spreadAcross(ARCH_BLOOMS), 2.4, 0.06])]),
     part("greens", "Greenery", TWO_SIDES, [ellipsoid("cascade", "greenery", [0.3, 1.2, 0.3], [sideOf(0.04), 1.8, 0])]),
+    part("corner_blooms", "Corner blooms", TWO_SIDES, [ellipsoid("corner", "florals", [0.36, 0.5, 0.34], [sideOf(0.1), 2.15, 0.04])]),
   ];
 }
 
@@ -255,12 +257,26 @@ function lounge(): Part[] {
   ];
 }
 
+/** A potted plant's leaves as overlapping clumps, given as [dx, lift, dz, size] against the plant's spread. */
+const LEAF_CLUSTER: Array<[number, number, number, number]> = [
+  [0, 1.25, 0, 0.55],
+  [0.22, 1.05, 0.05, 0.5],
+  [-0.2, 1.08, 0.08, 0.48],
+  [0.04, 1.0, -0.22, 0.5],
+  [-0.06, 0.92, 0.22, 0.45],
+  [0.18, 1.32, -0.12, 0.4],
+  [-0.16, 1.3, -0.08, 0.42],
+];
+const PLANT_SPREAD = min(WIDTH, 0.9);
+
 function plant(): Part[] {
   return [
     part("pot", "Pot", 1, [revolve("pot", "plant_pot", [[0, 0], [0.16, 0], [0.2, 0.45], [0, 0.45]], [0, 0, 0], { segments: 24 })]),
     part("foliage", "Foliage", 1, [
-      ellipsoid("crown", "greenery", [min(WIDTH, 0.9), 0.9, min(DEPTH, 0.9)], [0, 1.1, 0]),
       cylinder("trunk", "wood_board", [0.04, 0.5, 0.04], [0, 0.65, 0], { segments: 8 }),
+      ...LEAF_CLUSTER.map(([dx, lift, dz, size], index) =>
+        ellipsoid(`leaves_${index}`, "greenery", [mul(PLANT_SPREAD, size), mul(PLANT_SPREAD, size * 0.75), mul(PLANT_SPREAD, size)], [mul(PLANT_SPREAD, dx), lift, mul(PLANT_SPREAD, dz)]),
+      ),
     ]),
   ];
 }
