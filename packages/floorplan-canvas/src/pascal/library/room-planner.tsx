@@ -50,14 +50,19 @@ export function RoomPlanner() {
   const capacity = roomCapacity(scene);
   const target = count ?? footerCounts(scene, guests, guestCount).guests;
   return (
-    <section aria-label="Plan the room" className="rounded-md border border-border">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((shown) => !shown)} className="flex w-full items-center gap-2 px-2.5 py-2 text-left text-sm font-medium text-foreground">
-        <Wand2 className="size-4 text-muted-foreground" aria-hidden />
-        <span className="flex-1">Plan the room</span>
+    <section aria-label="Plan the room" className="rounded-[10px] shadow-[0_0_0_1px_var(--border)]">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((shown) => !shown)} className="flex w-full items-center gap-2.5 px-2.5 py-2 text-left">
+        <span className="inline-grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+          <Wand2 className="size-3.5" aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block text-xs font-semibold text-foreground">Plan the room</span>
+          <span className="block truncate text-[11px] text-muted-foreground">Fits about {capacity[0]!.guests.toLocaleString("en")} at {capacity[0]!.label.toLowerCase()}</span>
+        </span>
         <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
       {open ? (
-        <div className="space-y-2 border-t border-border px-2.5 py-2">
+        <div className="space-y-2 border-t border-border p-2.5">
           <div role="radiogroup" aria-label="Seating style" className="grid grid-cols-2 gap-1">
             {capacity.map((entry) => (
               <button
@@ -66,7 +71,7 @@ export function RoomPlanner() {
                 role="radio"
                 aria-checked={style === entry.style}
                 onClick={() => setStyle(entry.style)}
-                className="rounded border border-border px-2 py-1 text-left aria-checked:border-primary aria-checked:bg-primary/5"
+                className="rounded-lg px-2 py-1.5 text-left shadow-[inset_0_0_0_1px_var(--border)] aria-checked:bg-primary/5 aria-checked:shadow-[inset_0_0_0_1.5px_var(--primary)]"
               >
                 <span className="block text-xs font-medium text-foreground">{entry.label}</span>
                 <span className="block text-[11px] text-muted-foreground">holds about {entry.guests}</span>
@@ -80,13 +85,13 @@ export function RoomPlanner() {
               min={1}
               value={target}
               onChange={(event) => setCount(Math.max(1, Number(event.target.value) || 1))}
-              className="w-20 rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+              className="h-7 w-20 rounded-lg bg-muted px-2 text-[13px] tabular-nums text-foreground outline-none"
             />
           </label>
           <button
             type="button"
             onClick={() => setResult(placeFill(scene, style, target, levelId))}
-            className="w-full rounded-md bg-primary px-2.5 py-1.5 text-sm font-medium text-primary-foreground"
+            className="h-8 w-full rounded-lg bg-primary px-2.5 text-[13px] font-medium text-primary-foreground"
           >
             Fill with {SEATING_STYLES[style].label.toLowerCase()}
           </button>

@@ -76,7 +76,7 @@ describe("the Library panel", () => {
     openLibrary();
     fireEvent.change(screen.getByRole("searchbox", { name: "Search pieces" }), { target: { value: "round" } });
     const tables = screen.getByRole("region", { name: "Tables" });
-    expect(within(tables).getAllByRole("button").map((tile) => tile.textContent)).toEqual(["Round · 81.8 m · 8 seats", "Round · 101.8 m · 10 seats"]);
+    expect(within(tables).getAllByRole("button", { pressed: false }).map((tile) => tile.textContent)).toEqual(["Round · 81.8 m · 8 seats", "Round · 101.8 m · 10 seats"]);
     expect(screen.queryByRole("region", { name: "AV & lighting" })).toBeNull();
   });
 

@@ -9,9 +9,10 @@ import type {
   PrismZoneNode,
 } from "@prism/types";
 import { prismTableShapes } from "@prism/types";
-import { CENTERPIECES, CHAIR_STYLES, FABRIC_NAMES } from "../dressing";
+import { CENTERPIECES, CHAIR_STYLES } from "../dressing";
 import { isRoundTable } from "@prism/floorplan-scene";
 import { hostState, openSeating } from "./host-state";
+import { swatchField } from "./swatch-field";
 import { ZoneSuppliersField } from "./zone-suppliers-field";
 
 const size = <N extends { width: number; depth: number }>(min = 0.3, max = 40): ParamField<N>[] => [
@@ -19,8 +20,9 @@ const size = <N extends { width: number; depth: number }>(min = 0.3, max = 40): 
   { key: "depth", label: "Depth", kind: "number", unit: "m", min, max, step: 0.1 },
 ];
 
-/** A sash or overlay is optional: "none" leaves it off. */
-const ACCENTS = ["none", ...FABRIC_NAMES] as const;
+const LinenField = swatchField("linen", "Linen");
+const OverlayField = swatchField("overlay", "Overlay");
+const SashField = swatchField("sash", "Sash");
 
 /** The smallest a U or hollow square can be laid out: two runs and a gap across, and down. */
 const JOINED_MIN_M = 3;
@@ -61,9 +63,9 @@ export const tableParametrics: ParametricDescriptor<PrismTableNode> = {
       label: "Dressing",
       fields: [
         { key: "chairStyle", label: "Chairs", kind: "enum", options: CHAIR_STYLES },
-        { key: "sash", label: "Sash", kind: "enum", options: ACCENTS },
-        { key: "linen", label: "Linen", kind: "enum", options: FABRIC_NAMES },
-        { key: "overlay", label: "Overlay", kind: "enum", options: ACCENTS },
+        { key: "linen", label: "Linen", kind: "custom", component: LinenField },
+        { key: "overlay", label: "Overlay", kind: "custom", component: OverlayField },
+        { key: "sash", label: "Sash", kind: "custom", component: SashField },
         { key: "centerpiece", label: "Centerpiece", kind: "enum", options: CENTERPIECES },
       ],
     },

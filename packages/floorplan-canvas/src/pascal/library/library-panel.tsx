@@ -1,27 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronRight, Search } from "lucide-react";
 import { useEditor } from "@pascal-app/editor";
 import { usePrismFloorplan } from "../editor-context";
 import { searchCatalog, type LibraryItem } from "./catalog";
 import { RoomPlanner } from "./room-planner";
+import { tileGlyph } from "./tile-glyph";
 
-/** A top-down outline in the tile's real proportions: round tables as circles, everything else as a rectangle. */
+/** The piece as the plan draws it, chairs and all. */
 function TileSymbol({ tile }: { tile: LibraryItem }) {
-  const { shape, width = 1, depth = 1 } = tile.preset as { shape?: string; width?: number; depth?: number };
-  const scale = 28 / Math.max(width, depth);
-  const [w, d] = [Math.max(width * scale, 4), Math.max(depth * scale, 4)];
-  const round = shape === "round" || shape === "cocktail";
-  return (
-    <svg viewBox="0 0 32 32" className="size-8 text-muted-foreground" aria-hidden>
-      {round ? (
-        <circle cx="16" cy="16" r={w / 2} fill="none" stroke="currentColor" strokeWidth="1.5" />
-      ) : (
-        <rect x={16 - w / 2} y={16 - d / 2} width={w} height={d} rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
-      )}
-    </svg>
-  );
+  const glyph = useMemo(() => tileGlyph(tile), [tile]);
+  return <svg viewBox={glyph.viewBox} className="prism-tile-glyph size-9" aria-hidden dangerouslySetInnerHTML={{ __html: glyph.body }} />;
 }
 
 function useArmedTile() {
@@ -36,13 +26,33 @@ function useArmedTile() {
     useEditor.getState().armToolMode({ mode: "build", tool: tile.kind });
     setArmedId(tile.id);
   };
-  return { armed: armedId, isArmed: (tile: LibraryItem) => armedId === tile.id && armedKind === tile.kind, arm, disarm, active: armedId !== null && armedKind !== null };
+  return { isArmed: (tile: LibraryItem) => armedId === tile.id && armedKind === tile.kind, arm, disarm, active: armedId !== null && armedKind !== null };
+}
+
+/** Sections open when the panel opens; the rest open on a click, so the list starts short. */
+const OPEN_AT_START = 3;
+
+function Tile({ tile, armed, onArm }: { tile: LibraryItem; armed: boolean; onArm(): void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={armed}
+      onClick={onArm}
+      title={`${tile.label} · ${tile.meta}`}
+      className="flex h-[82px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-center hover:bg-muted aria-pressed:bg-primary/5 aria-pressed:shadow-[inset_0_0_0_1.5px_var(--primary)]"
+    >
+      <TileSymbol tile={tile} />
+      <span className="mt-1 w-full truncate text-[11.5px] font-medium text-foreground">{tile.label}</span>
+      <span className="w-full truncate text-[10.5px] text-muted-foreground">{tile.meta}</span>
+    </button>
+  );
 }
 
 /** The pieces a planner places by clicking a tile, then the plan. */
 export function LibraryPanel() {
   const { readOnly } = usePrismFloorplan();
   const [query, setQuery] = useState("");
+  const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
   const { isArmed, arm, disarm, active } = useArmedTile();
 
   useEffect(() => {
@@ -56,47 +66,58 @@ export function LibraryPanel() {
 
   if (readOnly) return null;
   const sections = searchCatalog(query);
+  const searching = query.trim() !== "";
+  const isOpen = (index: number, section: string) => searching || (index < OPEN_AT_START) !== toggled.has(section);
+  const toggle = (section: string) =>
+    setToggled((current) => {
+      const next = new Set(current);
+      if (!next.delete(section)) next.add(section);
+      return next;
+    });
   return (
-    <div className="flex h-full flex-col gap-3 p-3">
-      <label className="flex items-center gap-2 rounded-md bg-muted px-2.5 py-1.5 text-sm">
-        <Search className="size-4 text-muted-foreground" aria-hidden />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search pieces"
-          aria-label="Search pieces"
-          className="w-full bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
-        />
-      </label>
-      <RoomPlanner />
-      {active ? (
-        <p role="status" className="rounded-md bg-primary/10 px-2.5 py-1.5 text-xs font-medium text-primary">
-          Click the plan to place · Esc
-        </p>
-      ) : null}
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
-        {sections.length === 0 ? <p className="text-sm text-muted-foreground">No pieces match “{query}”.</p> : null}
-        {sections.map(({ section, items }) => (
-          <section key={section} aria-label={section}>
-            <h3 className="mb-1.5 text-xs font-semibold text-muted-foreground">{section}</h3>
-            <div className="grid grid-cols-2 gap-1.5">
-              {items.map((tile) => (
-                <button
-                  key={tile.id}
-                  type="button"
-                  aria-pressed={isArmed(tile)}
-                  onClick={() => arm(tile)}
-                  className="flex flex-col items-center gap-1 rounded-md border border-border p-2 text-center hover:bg-muted aria-pressed:border-primary aria-pressed:bg-primary/5"
-                >
-                  <TileSymbol tile={tile} />
-                  <span className="text-xs font-medium text-foreground">{tile.label}</span>
-                  <span className="text-[11px] text-muted-foreground">{tile.meta}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="space-y-2 px-3 pb-3">
+        <label className="flex h-8 items-center gap-2 rounded-lg bg-muted px-2.5 text-[13px]">
+          <Search className="size-3.5 text-muted-foreground" aria-hidden />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search pieces"
+            aria-label="Search pieces"
+            className="w-full bg-transparent text-foreground outline-none placeholder:text-muted-foreground"
+          />
+        </label>
+        <RoomPlanner />
+        {active ? (
+          <p role="status" className="rounded-lg bg-primary/5 px-2.5 py-1.5 text-xs font-medium text-primary">
+            Click the plan to place · Esc
+          </p>
+        ) : null}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {sections.length === 0 ? <p className="px-3 text-sm text-muted-foreground">No pieces match “{query}”.</p> : null}
+        {sections.map(({ section, items }, index) => {
+          const open = isOpen(index, section);
+          return (
+            <section key={section} aria-label={section} className="border-t border-border">
+              <button type="button" aria-expanded={open} onClick={() => toggle(section)} className="flex h-9 w-full items-center justify-between px-3 text-[11.5px] font-semibold text-foreground">
+                {section}
+                <span className="flex items-center gap-1.5 font-medium text-muted-foreground">
+                  {items.length}
+                  <ChevronRight className={`size-3.5 transition-transform ${open ? "rotate-90" : ""}`} aria-hidden />
+                </span>
+              </button>
+              {open ? (
+                <div className="grid grid-cols-3 gap-1 px-2 pb-2">
+                  {items.map((tile) => (
+                    <Tile key={tile.id} tile={tile} armed={isArmed(tile)} onArm={() => arm(tile)} />
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          );
+        })}
       </div>
     </div>
   );
