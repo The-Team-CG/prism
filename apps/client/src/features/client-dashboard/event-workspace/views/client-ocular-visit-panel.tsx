@@ -1,23 +1,15 @@
 "use client";
-import { formatPortalDateTime } from "@prism/ui/format-date";
-import { Card } from "@prism/ui/components/card";
 
 import { useState, type FormEvent } from "react";
-import type { PrismClientOcularVisit } from "@prism/types";
+import { Button } from "@prism/ui/components/button";
+import { Input } from "@prism/ui/components/input";
+import { PrismSection } from "@prism/ui/page-blocks";
 
-function formatScheduledAt(scheduledAt: string | null) {
-  return formatPortalDateTime(scheduledAt, "Date pending");
-}
-
-export function ClientOcularVisitPanel({
-  visit,
-  busy,
-  onSubmit,
-}: {
-  visit: PrismClientOcularVisit | null;
-  busy: boolean;
-  onSubmit: (clientNote: string) => Promise<void>;
-}) {
+/**
+ * Asking PMCM for a venue visit, shown on the overview until the client asks. Once asked, the visit is a Coming up
+ * line (waiting on PMCM, then dated with PMCM's note), so this only ever offers the request.
+ */
+export function ClientOcularVisitPanel({ busy, onSubmit }: { busy: boolean; onSubmit: (clientNote: string) => Promise<void> }) {
   const [clientNote, setClientNote] = useState("");
 
   function submitRequest(event: FormEvent<HTMLFormElement>) {
@@ -25,71 +17,20 @@ export function ClientOcularVisitPanel({
     void onSubmit(clientNote.trim());
   }
 
-  const statusCopy = visit
-    ? {
-        requested: {
-          title: "Ocular visit requested",
-          detail: "PMCM has received your request and will coordinate a schedule.",
-        },
-        scheduled: {
-          title: "Ocular visit scheduled",
-          detail: `PMCM scheduled the visit for ${formatScheduledAt(visit.scheduledAt)}.`,
-        },
-        completed: {
-          title: "Ocular visit completed",
-          detail: "The ocular visit is complete.",
-        },
-        waived: {
-          title: "Ocular visit waived",
-          detail: "PMCM marked this visit step as waived.",
-        },
-      }[visit.status]
-    : null;
-
   return (
-    <Card role="region" aria-labelledby="client-ocular-visit-title" className="gap-3 p-5">
-      <div>
-        <h2 id="client-ocular-visit-title" className="text-base font-semibold text-foreground">
-          Ocular visit
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Coordinate a venue visit with the PMCM event team.
-        </p>
-      </div>
-
-      {visit && statusCopy ? (
-        <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4" aria-live="polite">
-          <p className="font-medium text-foreground">{statusCopy.title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{statusCopy.detail}</p>
-          {visit.scheduleNote ? (
-            <div className="mt-3">
-              <p className="text-xs font-semibold text-muted-foreground">Note from PMCM</p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-foreground">{visit.scheduleNote}</p>
-            </div>
-          ) : null}
+    <PrismSection
+      id="client-ocular-visit-title"
+      title="Venue visit"
+      description="Walk the venue with PMCM before the layout is drawn. Ask, and PMCM sets the date."
+      headerOutside
+    >
+      <form className="flex flex-wrap items-end gap-3" onSubmit={submitRequest}>
+        <div className="min-w-0 flex-1 basis-64 space-y-1.5">
+          <label htmlFor="ocular-visit-client-note" className="block text-sm font-medium text-foreground">Note for PMCM (optional)</label>
+          <Input id="ocular-visit-client-note" value={clientNote} onChange={(event) => setClientNote(event.target.value)} placeholder="Weekday mornings suit us best" disabled={busy} />
         </div>
-      ) : (
-        <form className="mt-4 space-y-3" onSubmit={submitRequest}>
-          <label htmlFor="ocular-visit-client-note" className="block text-sm font-medium text-foreground">
-            Optional note for PMCM
-          </label>
-          <textarea
-            id="ocular-visit-client-note"
-            value={clientNote}
-            onChange={(event) => setClientNote(event.target.value)}
-            rows={3}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
-            disabled={busy}
-          />
-          <button
-            type="submit"
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={busy}
-          >
-            {busy ? "Submitting request…" : "Request ocular visit"}
-          </button>
-        </form>
-      )}
-    </Card>
+        <Button type="submit" variant="outline" disabled={busy}>{busy ? "Sending…" : "Ask for a venue visit"}</Button>
+      </form>
+    </PrismSection>
   );
 }

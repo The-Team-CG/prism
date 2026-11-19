@@ -27,9 +27,9 @@ function ballroom(): FloorplanSceneDocument {
 
 const context = { readOnly: false, guests: [], suppliers: [], seating: { allowed: true, reason: null }, guestCount: 20, saveState: "saved", onRetrySave: () => undefined, onReload: () => undefined } as unknown as PrismFloorplanContextValue;
 
-function openPanel() {
+function openPanel(overrides: Partial<PrismFloorplanContextValue> = {}) {
   render(
-    <PrismFloorplanProvider value={context}>
+    <PrismFloorplanProvider value={{ ...context, ...overrides }}>
       <PlanPanel />
     </PrismFloorplanProvider>,
   );
@@ -49,6 +49,16 @@ describe("the Plan panel", () => {
     expect(within(screen.getByRole("region", { name: "Seats" })).getByText("16")).toBeTruthy();
     fireEvent.click(within(screen.getByRole("region", { name: "Checks" })).getByRole("button", { name: /A and B are 1.4 m apart/ }));
     expect(viewer.setSelection).toHaveBeenCalledWith({ selectedIds: ["A", "B"] });
+  });
+
+  it("shows a presented plan without the planner's checks, capacity estimates or guest count", () => {
+    live.scene = ballroom();
+    openPanel({ readOnly: true, presentation: true });
+    expect(screen.getByText("Room 20 × 15 m")).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Seats" })).getByText("16")).toBeTruthy();
+    expect(screen.queryByRole("region", { name: "Checks" })).toBeNull();
+    expect(screen.queryByText("The room holds")).toBeNull();
+    expect(screen.queryByText("Guests")).toBeNull();
   });
 
   it("steps aside while something is selected, so the inspector shows the selection", () => {

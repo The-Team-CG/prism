@@ -38,7 +38,7 @@ function FirstCheck() {
 
 /** The status bar: guests against seats, how many are seated, the first layout check, the room's size and the grid. */
 export function EditorFooter() {
-  const { guests, guestCount, seating, saveState, saveMessage, readOnly } = usePrismFloorplan();
+  const { guests, guestCount, seating, saveState, saveMessage, readOnly, presentation } = usePrismFloorplan();
   const scene = useLiveScene();
   const gridStep = useEditor((state) => state.gridSnapStep);
   const counts = footerCounts(scene, guests, guestCount);
@@ -46,10 +46,14 @@ export function EditorFooter() {
   const room = roomSize(scene);
   return (
     <footer className="flex h-7 shrink-0 items-center gap-2 border-t border-border bg-background px-3 text-[11px] tabular-nums text-muted-foreground">
-      <span>
-        {capacity.text}
-        {capacity.spare ? <span className={capacity.short ? "text-destructive" : undefined}> · {capacity.spare}</span> : null}
-      </span>
+      {presentation ? (
+        <span>{counts.seats} seats</span>
+      ) : (
+        <span>
+          {capacity.text}
+          {capacity.spare ? <span className={capacity.short ? "text-destructive" : undefined}> · {capacity.spare}</span> : null}
+        </span>
+      )}
       {seating.allowed ? (
         <>
           <Dot />

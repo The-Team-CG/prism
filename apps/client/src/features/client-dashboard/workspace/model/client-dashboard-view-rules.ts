@@ -8,7 +8,7 @@ import {
   Presentation,
   ReceiptText,
 } from "lucide-react";
-import type { PrismClientActionItem, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
+import type { PrismClientActionItem, PrismClientActionStage, PrismClientDecisionFacts, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
 import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import type { DetailTab } from "./client-dashboard-types";
 
@@ -84,12 +84,16 @@ export type ClientDashboardAction = {
   targetTab: DetailTab;
   status: string;
   tone: "primary" | "success" | "warning" | "neutral";
-  nextActor?: "you" | "pmcm" | "update";
+  /** Who moves it next, as the server decided: the client, PMCM, nobody (news), or settled. */
+  stage: PrismClientActionStage;
   /** Urgent or overdue now, rather than a requirement for a later stage. */
   blocking?: boolean;
   /** Server priority and raw due date, for list colour and due phrases. */
   priority?: PrismClientActionItem["priority"];
   dueAt?: string | null;
+  decidedAt?: string | null;
+  /** What the client needs to know to decide; present on proposal and addendum decisions. */
+  decision?: PrismClientDecisionFacts;
 };
 
 export const money = new Intl.NumberFormat("en-PH", {
@@ -143,23 +147,17 @@ export function actionCenterItemToDashboardAction(
     targetTab: clientActionTarget(item.kind),
     status: item.status,
     tone: clientActionTone(item.priority),
-    nextActor: clientActionNextActor(item),
-    blocking: item.priority === "critical" || item.priority === "warning",
+    stage: item.stage,
+    blocking: item.stage === "needs_client" && (item.priority === "critical" || item.priority === "warning"),
     priority: item.priority,
     dueAt: item.dueAt ?? null,
+    decidedAt: item.decidedAt ?? null,
+    decision: item.decision,
   };
 }
 
-function clientActionNextActor(item: PrismClientActionItem): "you" | "pmcm" | "update" {
-  if (item.id.startsWith("floorplan:preference:") && ["submitted", "in_review"].includes(item.status)) return "pmcm";
-  if (item.kind === "document" && !["rejected", "needs_update"].includes(item.status)) return "update";
-  if (item.kind === "change_request" && ["submitted", "pending", "in_review", "under_review"].includes(item.status)) return "pmcm";
-  if (item.kind === "approval" && item.status === "issued" && !item.id.startsWith("approval:proposal:")) return "update";
-  return "you";
-}
-
 const CLIENT_ACTION_LABEL: Partial<Record<PrismClientActionItem["kind"], string>> = {
-  addendum: "Review and acknowledge",
+  addendum: "Review and sign",
   billing: "Review payment",
   briefing: "Complete briefing",
   feedback: "Share feedback",
@@ -170,7 +168,9 @@ const CLIENT_ACTION_LABEL: Partial<Record<PrismClientActionItem["kind"], string>
 
 function clientActionLabel(item: PrismClientActionItem): string {
   if (item.kind === "floorplan") return item.id.startsWith("floorplan:preferences:") ? "Add preferences" : "View layout";
-  if (item.id.startsWith("approval:proposal:")) return "Review proposal";
+  if (item.decision?.kind === "proposal") return item.stage === "needs_client" ? "Review proposal" : "Read proposal";
+  if (item.kind === "approval" && item.href?.endsWith("/proposal")) return "View proposal";
+  if (item.kind === "addendum" && item.stage !== "needs_client") return "View addendum";
   return CLIENT_ACTION_LABEL[item.kind] ?? "View details";
 }
 

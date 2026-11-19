@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type FloorplanSceneDocument, type PrismEvent, type PrismFloorPlanDraft, type SubmitBriefingInput } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { loadPreferencePlan, savePreferenceScene, type PreferencePlan } from "@/features/floorplan/preference-editor/data/preference-plan-repository";
@@ -13,6 +13,7 @@ import { ClientDashboardLoadingShell } from "./sections/client-dashboard-loading
 import { ClientFloorplanEditorScreen } from "./sections/client-floorplan-editor-screen";
 import { ClientOfficialLayoutScreen } from "./sections/client-official-layout-screen";
 import { ClientDashboardRouteBody } from "./sections/client-dashboard-route-body";
+import { ClientAddendumDeepLink } from "../../addenda";
 import { ClientWorkspaceBanners, clientShellMobileActions } from "./sections/client-event-header";
 import { DashboardSessionSkeleton } from "./dashboard-tabs";
 import {
@@ -139,13 +140,20 @@ function billingBadgeCounts(payments: Parameters<typeof overduePaymentCount>[0] 
   return { overduePayments: overduePaymentCount(payments, today), eventOverduePayments: eventId ? overduePaymentCount(payments, today, eventId) : undefined };
 }
 
-function eventNavItemBadge<T extends { id: string }>(item: T, unreadMessages?: number, overduePayments?: number): T {
+/** What the client owes, for the Home and Planning badges: across events, and for the open event. */
+function needsYouCounts(actionCenter: { items: Array<{ stage: string; eventId: string }> } | null, eventId: string | undefined) {
+  const own = (actionCenter?.items ?? []).filter((item) => item.stage === "needs_client");
+  return { needsYou: own.length, eventNeedsYou: eventId ? own.filter((item) => item.eventId === eventId).length : undefined };
+}
+
+function eventNavItemBadge<T extends { id: string }>(item: T, unreadMessages?: number, overduePayments?: number, needsYou?: number): T {
+  if (item.id === "event-progress") return { ...item, ...countNavBadge(needsYou, "thing needs you", "things need you") };
   if (item.id === "event-messages") return { ...item, ...unreadNavBadge(unreadMessages) };
   if (item.id === "event-billing") return { ...item, ...countNavBadge(overduePayments, "overdue payment") };
   return item;
 }
 
-function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, unreadNotices, eventUnreadMessages, overduePayments, eventOverduePayments }: {
+function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, unreadNotices, eventUnreadMessages, overduePayments, eventOverduePayments, needsYou, eventNeedsYou }: {
   route: ClientDashboardRoute;
   portalView?: ClientPortalView;
   isEventScopedView: boolean;
@@ -156,9 +164,12 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
   eventUnreadMessages?: number;
   overduePayments?: number;
   eventOverduePayments?: number;
+  needsYou?: number;
+  eventNeedsYou?: number;
 }) {
   const shellNavItems = clientPortalSidebarItems(events.length).map((item) => ({
     ...item,
+    ...(item.id === "client-dashboard" ? countNavBadge(needsYou, "thing needs you", "things need you") : {}),
     ...(item.id === "messages" ? unreadNavBadge(unreadMessages) : {}),
     ...(item.id === "notifications" ? unreadNoticeBadge(unreadNotices) : {}),
     ...(item.id === "billing-payments" ? countNavBadge(overduePayments, "overdue payment") : {}),
@@ -177,7 +188,7 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
       ? EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview"
       : sidebarActiveItemId(route, isEventScopedView, portalView),
     sidebarNavItems: inEventWorkspace && selectedEvent
-      ? clientEventSidebarItems(selectedEvent.id, selectedEvent).map((item) => eventNavItemBadge(item, eventUnreadMessages, eventOverduePayments))
+      ? clientEventSidebarItems(selectedEvent.id, selectedEvent).map((item) => eventNavItemBadge(item, eventUnreadMessages, eventOverduePayments, eventNeedsYou))
       : [...shellNavItems, ...clientOpenEventSidebarItems(events)],
   };
 }
@@ -192,6 +203,7 @@ export function ClientDashboardWorkspaceView({
   portalView?: ClientPortalView;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { actionCenter, actionCenterLoadFailed, error, refresh, selectedEventId, session, setError, setSelectedEventId, state } = useClientDashboardViewModel({
     route,
     eventId,
@@ -405,6 +417,11 @@ export function ClientDashboardWorkspaceView({
   }
 
   function runClientAction(action: ClientDashboardAction) {
+    const addendumId = action.href ? new URL(action.href, "https://portal.invalid").searchParams.get("addendum") : null;
+    if (addendumId && action.eventId === selectedEvent?.id && pathname.startsWith(`/dashboard/events/${action.eventId}/`)) {
+      router.push(`${pathname}?addendum=${encodeURIComponent(addendumId)}`, { scroll: false });
+      return;
+    }
     if (action.href?.startsWith("/dashboard")) {
       router.push(action.href);
       return;
@@ -508,6 +525,7 @@ export function ClientDashboardWorkspaceView({
   const { inEventWorkspace, activeShellItemId, sidebarNavItems } = clientWorkspaceShellNavigation({
     route, portalView, isEventScopedView, selectedEvent, events, unreadMessages, unreadNotices, eventUnreadMessages,
     ...billingBadgeCounts(state?.paymentMilestones, selectedEvent?.id),
+    ...needsYouCounts(resolvedActionCenter, selectedEvent?.id),
   });
 
   function handleShellNavSelect(id: string) {
@@ -616,6 +634,7 @@ export function ClientDashboardWorkspaceView({
         <div className={shellLayout.contentClassName}>
           <ClientWorkspaceBanners error={error} notice={notice} />
           <ClientDashboardRouteBody route={route} isEventScopedView={isEventScopedView} />
+          {selectedEvent ? <ClientAddendumDeepLink eventId={selectedEvent.id} /> : null}
         </div>
       </PrismDashboardShell>
     </ClientWorkspaceProvider>

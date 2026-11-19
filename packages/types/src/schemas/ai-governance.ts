@@ -218,8 +218,15 @@ export const commsDraftResultSchema = z
 export type CommsDraftResult = z.infer<typeof commsDraftResultSchema>;
 
 /** FR-AI-09 workflow trigger points beyond the unsigned conforme: each drafts a message PMCM reviews and sends. */
-export const CLIENT_MESSAGE_TRIGGERS = ["proposal_unanswered", "balance_due", "floorplan_pending"] as const;
+export const CLIENT_MESSAGE_TRIGGERS = ["proposal_unanswered", "addendum_unsigned", "balance_due", "floorplan_pending"] as const;
 export const clientMessageTriggerSchema = z.enum(CLIENT_MESSAGE_TRIGGERS);
+/** FR-AI-09 thresholds from the catalog; the PMCM Inbox flags a waiting client decision at the same point. */
+export const CLIENT_MESSAGE_TRIGGER_POLICY = {
+  proposalUnansweredDays: 3,
+  addendumUnsignedDays: 3,
+  balanceDueWithinHours: 48,
+  floorPlanPendingDays: 2,
+} as const;
 export type ClientMessageTrigger = z.infer<typeof clientMessageTriggerSchema>;
 
 export const clientMessageDraftRequestSchema = z.object({ eventId: nonEmptyStringSchema, trigger: clientMessageTriggerSchema }).strict();
@@ -233,6 +240,8 @@ export const clientMessageDraftInputSchema = z
     daysUntilEvent: z.number().int(),
     proposalVersion: z.number().int().positive().optional(),
     daysSinceProposalIssued: z.number().int().nonnegative().optional(),
+    addendumVersion: z.number().int().positive().optional(),
+    daysSinceAddendumSent: z.number().int().nonnegative().optional(),
     milestoneLabel: z.string().trim().optional(),
     amountDue: z.number().int().nonnegative().optional(),
     dueDate: z.string().trim().optional(),

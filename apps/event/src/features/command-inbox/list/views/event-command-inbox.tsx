@@ -22,7 +22,7 @@ import {
 import type { PrismCommandInboxItem, PrismCommandInboxKind, PrismPmcmCommandInbox } from "@prism/types";
 import { daysUntil, dueLabel, formatPortalDate, formatPortalDateTime, formatPortalTime, manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
 import { selectCommandInboxTriage } from "../model/command-inbox-selectors";
-import { COMMAND_INBOX_ACTION_LABEL, COMMAND_INBOX_AREA_LABEL } from "../model/command-inbox-labels";
+import { COMMAND_INBOX_AREA_LABEL, commandInboxActionLabel } from "../model/command-inbox-labels";
 import { Button } from "@prism/ui/components/button";
 import { cx } from "@/features/pmcm-kit";
 import { LoadingState } from "@prism/ui/components/loading-state";
@@ -78,7 +78,7 @@ function InboxRow({ item, todayKey }: { item: PrismCommandInboxItem; todayKey: s
       status={when?.label}
       statusTone={when?.tone}
       statusTitle={when?.title}
-      action={COMMAND_INBOX_ACTION_LABEL[item.kind]}
+      action={commandInboxActionLabel(item)}
       href={item.href}
       link={Link}
     />

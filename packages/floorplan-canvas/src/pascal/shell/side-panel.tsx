@@ -18,13 +18,14 @@ const PANELS: Record<PanelTab, { label: string; component: () => React.ReactNode
   layers: { label: "Layers", component: LayersPanel },
 };
 
-/** The tabs a plan offers: a read-only plan places nothing, so it has no Library. */
-export const panelTabs = (readOnly: boolean): PanelTab[] => (readOnly ? ["guests", "layers"] : ["library", "guests", "layers"]);
+/** The tabs a plan offers: a read-only plan places nothing, so it has no Library; a presented plan has no guest list either. */
+export const panelTabs = (readOnly: boolean, presentation = false): PanelTab[] =>
+  presentation ? ["layers"] : readOnly ? ["guests", "layers"] : ["library", "guests", "layers"];
 
 /** The editor's one left panel: Library, Guests and Layers as tabs in its own header. */
 export function SidePanel() {
-  const { readOnly } = usePrismFloorplan();
-  const tabs = panelTabs(readOnly);
+  const { readOnly, presentation } = usePrismFloorplan();
+  const tabs = panelTabs(readOnly, presentation);
   const picked = usePanelTab();
   const open = tabs.includes(picked) ? picked : tabs[0]!;
   const Panel = PANELS[open].component;

@@ -1,6 +1,7 @@
 import type { PrismAddendumConformeExecution } from "../conforme-signing.js";
 import type { AddendumPlannedImpacts } from "../schemas/session-w26-inputs.js";
 import type { PrismProjectLike } from "./core.js";
+import type { PrismProposalDecider } from "./read-models.js";
 
 type CreateFloorPlanDraftInput = {
   name: string;
@@ -66,6 +67,8 @@ export interface PrismIssuedProposalSummary {
   issuedAt: string;
   /** The client's decision on the current event proposal: approved means a new version can no longer be issued. */
   clientStatus: "pending" | "approved" | "revision_requested";
+  /** Who can approve or send it back; only that person sees the decision buttons. */
+  decider: PrismProposalDecider;
 }
 
 export interface PrismEventProposalResponse {

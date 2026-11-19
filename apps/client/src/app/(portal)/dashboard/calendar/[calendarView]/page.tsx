@@ -6,7 +6,6 @@ const calendarViews: Record<string, ClientPortalView> = {
   meetings: "calendar-meetings",
   deadlines: "calendar-deadlines",
   "payment-due-dates": "calendar-payment-due-dates",
-  "approval-deadlines": "calendar-approval-deadlines",
 };
 
 type Props = { params: Promise<{ calendarView: string }> };

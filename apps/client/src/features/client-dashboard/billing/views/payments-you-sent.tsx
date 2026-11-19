@@ -3,7 +3,7 @@
 import { CheckCircle2, Hourglass, Paperclip, RotateCcw, XCircle, type LucideIcon } from "lucide-react";
 import { PAYMENT_RECEIPT_EVIDENCE_ACCEPT, type PrismPaymentSubmission, type PrismPaymentSubmissionState } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
-import { Card } from "@prism/ui/components/card";
+import { PrismSection } from "@prism/ui/page-blocks";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { formatPeso } from "@prism/ui/payment-track";
 import { cn } from "@/app/components/ui/utils";
@@ -48,11 +48,7 @@ export function PaymentsYouSent({
 }) {
   if (submissions.length === 0) return null;
   return (
-    <Card role="region" aria-labelledby="client-payments-sent" className="gap-0 overflow-hidden py-0">
-      <header className="border-b border-border px-4 py-3">
-        <h2 id="client-payments-sent" className="text-sm font-semibold text-foreground">Payments you sent</h2>
-        <p className="text-xs text-muted-foreground">PMCM matches each one against their bank or wallet statement before it counts.</p>
-      </header>
+    <PrismSection id="client-payments-sent" title="Payments you sent" count={submissions.length} description="PMCM matches each one against their bank or wallet statement before it counts." headerOutside flush>
       <ul className="divide-y divide-border">
         {submissions.map((submission) => {
           const look = STATE[submission.state];
@@ -77,6 +73,6 @@ export function PaymentsYouSent({
           );
         })}
       </ul>
-    </Card>
+    </PrismSection>
   );
 }

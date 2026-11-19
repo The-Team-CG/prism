@@ -314,6 +314,8 @@ export interface PrismDocument {
   eventId: string;
   type: string;
   fileName: string;
+  /** The stored file's own name when the record has one (an issued proposal's PDF is "proposal-v3.pdf"). */
+  generatedFileName?: string | null;
   status: string;
   uploadedAt: string;
 }

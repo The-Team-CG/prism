@@ -5,179 +5,62 @@ import {
   type PrismClientTimelineMilestoneKey,
   type PrismClientWorkspace,
   type PrismEvent,
-  type PrismPaymentMilestone,
 } from "@prism/types";
-import { formatPortalDate } from "@prism/ui/format-date";
-import type {
-  EventProgressSnapshot,
-  EventTimelineStep,
-  PaymentMilestoneRow,
-  ProgressCheckpoint,
-} from "./event-progress-types";
+import { manilaCalendarKey } from "@prism/ui/format-date";
+import type { EventProgressSnapshot, ProgressMilestone } from "./event-progress-types";
 
 /** Index into PRISM_LIFECYCLE_STAGES, from the stage every portal shares. */
 export function deriveLifecycleIndex(event: PrismEvent): number {
   return PRISM_LIFECYCLE_STAGES.indexOf(derivePrismLifecycleStage(event));
 }
 
-function countLabel(count: number, singular: string, plural: string) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
+type Draft = Omit<ProgressMilestone, "state"> & { done: boolean };
 
-function checkpoint(
-  id: string,
-  label: string,
-  done: boolean,
-  doneDetail: string,
-  pendingDetail: string,
-): ProgressCheckpoint {
-  return {
-    id,
-    label,
-    detail: done ? doneDetail : pendingDetail,
-    done,
-    status: done ? "done" : "attention",
-  };
-}
+const plural = (count: number, singular: string, many: string) => `${count} ${count === 1 ? singular : many}`;
 
-function documentsAreComplete(docs: { status: string }[]) {
-  if (docs.length === 0) return false;
-  return !docs.some((doc) => /needs|pending|requested/i.test(doc.status));
-}
+/**
+ * The client's one list of milestones, in the order an event moves through them. The persisted timeline gives the
+ * dated milestones (conforme, proposal, floor plan, balance, event day); the briefing and suppliers fill the gaps.
+ * The first unfinished milestone is "next", and an unfinished one whose date has passed is "late".
+ */
+export function deriveMilestones(event: PrismEvent, workspace: PrismClientWorkspace, todayKey: string): ProgressMilestone[] {
+  const timeline = workspace.clientEventTimelines.find((item) => item.eventId === event.id);
+  const fact = (key: PrismClientTimelineMilestoneKey) => timeline?.milestones.find((milestone) => milestone.key === key);
+  const timed = (key: PrismClientTimelineMilestoneKey) => ({ done: fact(key)?.status === "completed", date: fact(key)?.date ?? null, dated: true });
 
-function documentsDetail(docs: { status: string }[]) {
-  if (docs.length === 0) return "No documents uploaded yet";
-  return `${countLabel(docs.length, "file", "files")} uploaded`;
-}
+  const briefing = workspace.briefings.find((item) => item.eventId === event.id);
+  const suppliers = workspace.supplierQuotes.filter((quote) => quote.eventId === event.id).length;
 
-function billingIsCurrent(
-  hasPaidMilestone: boolean,
-  billingStatus: string | undefined,
-) {
-  if (hasPaidMilestone) return true;
-  return billingStatus === "paid" || billingStatus === "approved";
-}
-
-function billingDetail(
-  hasPaidMilestone: boolean,
-  billingStatus: string | undefined,
-) {
-  if (hasPaidMilestone) return "Payments are up to date";
-  if (billingStatus) return `Status: ${billingStatus.replaceAll("_", " ")}`;
-  return "No billing statement yet";
-}
-
-function suppliersDetail(count: number) {
-  if (count === 0) return "Pending supplier assignment";
-  return `${countLabel(count, "supplier", "suppliers")} assigned`;
-}
-
-export function deriveCheckpoints(
-  event: PrismEvent,
-  workspace: PrismClientWorkspace,
-): ProgressCheckpoint[] {
-  const briefing = workspace.briefings.find((b) => b.eventId === event.id);
-  const docs = workspace.documents.filter((d) => d.eventId === event.id);
-  const billing = workspace.billingStatements.find(
-    (b) => b.eventId === event.id,
-  );
-  const floorPlanApproved = workspace.floorPlanDrafts.some(
-    (d) => d.eventId === event.id && d.status === "approved",
-  );
-  const supplierQuotes = workspace.supplierQuotes.filter(
-    (q) => q.eventId === event.id,
-  );
-  const hasPaidMilestone = workspace.paymentMilestones.some(
-    (m) => m.eventId === event.id && (m.status === "paid" || m.status === "approved"),
-  );
-  const docsComplete = documentsAreComplete(docs);
-  const billingCurrent = billingIsCurrent(hasPaidMilestone, billing?.status);
-  const docsText = documentsDetail(docs);
-  const billingText = billingDetail(hasPaidMilestone, billing?.status);
-
-  return [
-    checkpoint(
-      "briefing",
-      "Briefing submitted",
-      Boolean(briefing),
-      `Submitted ${briefing?.submittedAt}`,
-      "Awaiting briefing details",
-    ),
-    checkpoint(
-      "floorplan",
-      "Floor plan approved",
-      floorPlanApproved,
-      "Official layout confirmed",
-      "PMCM is preparing the layout",
-    ),
-    checkpoint(
-      "suppliers",
-      "Suppliers selected",
-      supplierQuotes.length > 0,
-      suppliersDetail(supplierQuotes.length),
-      "Pending supplier assignment",
-    ),
-    checkpoint("documents", "Documents complete", docsComplete, docsText, docsText),
-    checkpoint("billing", "Billing current", billingCurrent, billingText, billingText),
+  const drafts: Draft[] = [
+    { kind: "conforme", title: "Conforme signed", ...timed("conforme_signed") },
+    {
+      kind: "briefing", title: "Briefing sent", done: Boolean(briefing), date: briefing?.submittedAt ?? null, dated: false, route: "briefing",
+      detail: briefing ? undefined : "Tell PMCM about your venue, guests and budget",
+    },
+    { kind: "proposal", title: "Proposal approved", ...timed("proposal_accepted"), route: "proposal" },
+    { kind: "floorplan", title: "Floor plan approved", ...timed("floor_plan_approved"), route: "floorplan" },
+    {
+      kind: "suppliers", title: "Suppliers confirmed", done: suppliers > 0, date: null, dated: false,
+      detail: suppliers > 0 ? `${plural(suppliers, "supplier", "suppliers")} booked` : "PMCM books them during planning",
+    },
+    { kind: "payment", title: "Balance paid", ...timed("balance_payment_due"), route: "billing" },
+    { kind: "event", title: "Event day", ...timed("event_date") },
   ];
+
+  const nextIndex = drafts.findIndex((draft) => !draft.done);
+  return drafts.map(({ done, ...milestone }, index) => {
+    const late = !done && milestone.date !== null && milestone.kind !== "event" && manilaCalendarKey(milestone.date) < todayKey;
+    const state = done ? "done" : late ? "late" : index === nextIndex ? "next" : "upcoming";
+    return { ...milestone, state };
+  });
 }
 
-const CLIENT_TIMELINE_TITLES: Record<PrismClientTimelineMilestoneKey, string> = {
-  conforme_signed: "Conforme signed",
-  proposal_accepted: "Proposal accepted",
-  floor_plan_approved: "Floor plan approved",
-  balance_payment_due: "Balance payment due",
-  event_date: "Event date",
-};
-
-export function deriveTimeline(
-  event: PrismEvent,
-  workspace: PrismClientWorkspace,
-): EventTimelineStep[] {
-  const timeline = workspace.clientEventTimelines.find(
-    (item) => item.eventId === event.id,
-  );
-
-  return timeline?.milestones.map((milestone) => ({
-    id: milestone.key,
-    title: CLIENT_TIMELINE_TITLES[milestone.key],
-    status: milestone.status,
-    meta: milestone.date ? formatPortalDate(milestone.date) : "Date pending",
-  })) ?? [];
-}
-
-export function derivePaymentMilestones(
-  milestones: PrismPaymentMilestone[],
-  eventId: string,
-): PaymentMilestoneRow[] {
-  return milestones
-    .filter((m) => m.eventId === eventId)
-    .map((m) => ({
-      id: m.id,
-      label: m.label,
-      amount: `₱${m.amount.toLocaleString()}`,
-      status: m.status,
-      due: m.dueDate,
-    }));
-}
-
-export function computeEventProgress(
-  event: PrismEvent,
-  workspace: PrismClientWorkspace,
-): EventProgressSnapshot {
+export function computeEventProgress(event: PrismEvent, workspace: PrismClientWorkspace, todayKey: string): EventProgressSnapshot {
   const lifecycleIndex = deriveLifecycleIndex(event);
-  const checkpoints = deriveCheckpoints(event, workspace);
-  const timeline = deriveTimeline(event, workspace);
-  const paymentMilestones = derivePaymentMilestones(
-    workspace.paymentMilestones,
-    event.id,
-  );
   return {
     lifecycleStage: PRISM_LIFECYCLE_STAGE_LABELS[PRISM_LIFECYCLE_STAGES[lifecycleIndex]],
     lifecycleIndex,
-    checkpoints,
-    timeline,
-    paymentMilestones,
+    milestones: deriveMilestones(event, workspace, todayKey),
     clientEventDayStatus: event.clientEventDayViewEnabled === true && event.status === "event_day"
       ? "Event day is in progress."
       : null,

@@ -10,10 +10,9 @@ import { Progress } from "@prism/ui/components/progress";
 import { PrismEmptyLine, PrismSection, PrismSectionGroupLabel } from "@prism/ui/page-blocks";
 import { ClientEventHero, clientEventStage } from "../../../shared/client-event-hero";
 import { useEventCoverUrl } from "../../../events/view-models/use-event-cover-url";
-import { formatStatusLabel, type ClientDashboardAction } from "../../../workspace/shared";
-import { ClientListEmpty, ClientListRow } from "../../../shared/client-list-ui";
-import { groupClientActionsByEvent } from "../../model/client-home-action-groups";
-import { clientActionRowTone, dueState, eventCountdown, isPastClientEvent, orderClientActionsByUrgency, orderClientEvents, type ClientHomeLead } from "../../model/client-home-summary";
+import type { ClientDashboardAction } from "../../../workspace/shared";
+import { ClientActionLists } from "../../../shared/client-action-lists";
+import { eventCountdown, isPastClientEvent, orderClientEvents, type ClientHomeLead } from "../../model/client-home-summary";
 
 /** Days to the event, for a step with no due date of its own. */
 function eventCountdownFigure(daysToGo: number | null) {
@@ -70,28 +69,9 @@ export function ClientHomeHero({
   );
 }
 
-function ActionRow({ action, todayKey, onAction, showEvent }: { action: ClientDashboardAction; todayKey: string; onAction: (action: ClientDashboardAction) => void; showEvent: boolean }) {
-  const due = dueState(action.dueAt, todayKey);
-  const tone = clientActionRowTone(action);
-  const meta = [showEvent ? action.eventName : null, action.description].filter(Boolean).join(" · ");
-  return (
-    <ClientListRow
-      icon={action.icon}
-      tone={tone}
-      title={action.title}
-      meta={meta || undefined}
-      tag={action.priority === "critical" ? "Blocking" : undefined}
-      status={due?.label ?? formatStatusLabel(action.status)}
-      statusTitle={action.dueAt ? formatPortalDateTime(action.dueAt) : undefined}
-      action={action.ctaLabel}
-      onOpen={() => onAction(action)}
-    />
-  );
-}
-
 /**
- * What needs the client, as one list ordered by urgency and grouped by event when the items span
- * more than one event. `leadActionId` is the step the hero already shows, so it is not listed twice.
+ * The client's account-wide action list below the hero. `leadActionId` is the step the hero already shows, so it is
+ * not listed twice. Settled items stay inside each event's Actions page.
  */
 export function ClientHomeActionCenter({
   actionCenter,
@@ -112,43 +92,9 @@ export function ClientHomeActionCenter({
     return <p role="status" className="rounded-lg bg-attention-soft px-4 py-3 text-sm text-attention">We could not load your event updates. Refresh the page to try again.</p>;
   }
   if (!actionCenter) return null;
-  const own = clientActions.filter((action) => (action.nextActor ?? "you") === "you");
-  const withPmcm = clientActions.filter((action) => action.nextActor === "pmcm");
-  const updates = clientActions.filter((action) => action.nextActor === "update");
-  if (clientActions.length === 0) {
-    return <ClientListEmpty icon={CheckCircle2} title="You're all caught up" description="Nothing needs you right now. PMCM will let you know when something is ready for you." />;
-  }
-  const rest = orderClientActionsByUrgency(own).filter((action) => action.id !== leadActionId);
-  const several = new Set(own.map((action) => action.eventId ?? "")).size > 1;
-  const groups = groupClientActionsByEvent(rest);
   return (
-    <div className="space-y-6">
-      {rest.length ? (
-        <PrismSection id="client-actions" title={rest.length === own.length ? "Needs you" : "Also needs you"} count={rest.length} flush>
-          {groups.map((group, index) => (
-            <div key={group.eventId || "account"} className={index ? "border-t border-border" : undefined}>
-              {several ? <PrismSectionGroupLabel>{group.eventName}</PrismSectionGroupLabel> : null}
-              <ul className="divide-y divide-border">
-                {[...group.now, ...group.later].map((action) => <ActionRow key={action.id} action={action} todayKey={todayKey} onAction={runClientAction} showEvent={false} />)}
-              </ul>
-            </div>
-          ))}
-        </PrismSection>
-      ) : null}
-      {withPmcm.length ? (
-        <PrismSection id="client-actions-pmcm" title="Waiting for PMCM" count={withPmcm.length} description="These are with PMCM. Open one to see where it stands." flush>
-          <ul className="divide-y divide-border">
-            {withPmcm.map((action) => <ActionRow key={action.id} action={{ ...action, priority: "info", blocking: false }} todayKey={todayKey} onAction={runClientAction} showEvent={several} />)}
-          </ul>
-        </PrismSection>
-      ) : null}
-      {updates.length ? (
-        <PrismSection id="client-actions-updates" title="New to review" count={updates.length} flush>
-          <ul className="divide-y divide-border">
-            {updates.map((action) => <ActionRow key={action.id} action={{ ...action, priority: "info", blocking: false }} todayKey={todayKey} onAction={runClientAction} showEvent={several} />)}
-          </ul>
-        </PrismSection>
-      ) : null}
+    <div className="space-y-2">
+      <ClientActionLists actions={clientActions} onAction={runClientAction} todayKey={todayKey} scope="account" leadActionId={leadActionId} />
       <p className="text-xs text-muted-foreground">Updated {formatPortalDateTime(actionCenter.generatedAt)} · Philippine time</p>
     </div>
   );

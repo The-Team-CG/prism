@@ -1,8 +1,21 @@
 import type { PrismAddendum, PrismAddendumConformeExecution } from "@prism/types";
+import { money } from "../../workspace/model/client-dashboard-view-rules";
 
-/** Addenda whose conforme is waiting for this client's acknowledgment. */
-export function addendaAwaitingClientAcknowledgment(addenda: readonly PrismAddendum[]) {
-  return addenda.filter((addendum) => addendum.conforme?.status === "awaiting_client");
+/** "+₱48,000" or "−₱5,000": an addendum's change to the contract amount, signed. */
+export function addendumSignedAmount(financialDelta: number) {
+  return financialDelta < 0 ? `−${money.format(-financialDelta)}` : `+${money.format(financialDelta)}`;
+}
+
+/** "+₱48,000 to your contract", "−₱5,000 from your contract", or no money change: what signing commits the client to. */
+export function addendumAmountLabel(financialDelta: number) {
+  if (financialDelta > 0) return `${addendumSignedAmount(financialDelta)} to your contract`;
+  if (financialDelta < 0) return `${addendumSignedAmount(financialDelta)} from your contract`;
+  return "No change to your contract amount";
+}
+
+/** The addendum's conforme is waiting for this client to sign. */
+export function addendumAwaitsClient(addendum: Pick<PrismAddendum, "conforme">) {
+  return addendum.conforme?.status === "awaiting_client";
 }
 
 /** Pending until PMCM countersigns; effective once the billing and quote changes are applied; withdrawn with the PMCM reason. */
