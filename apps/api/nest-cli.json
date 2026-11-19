@@ -17,10 +17,6 @@
           {
             "include": "**/*.cjs",
             "outDir": "dist/apps/api"
-          },
-          {
-            "include": "modules/floorplan/application/live/canonical-hash.cjs",
-            "outDir": "dist/apps/api"
           }
         ]
       }
