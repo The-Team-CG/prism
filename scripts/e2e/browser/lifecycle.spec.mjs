@@ -82,10 +82,11 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await client.getByLabel(/^Venue preference/).fill('Browser acceptance venue');
       await client.getByLabel(/^Expected guest count/).fill('120');
       await client.getByLabel(/^Budget range/).fill('PHP 150k-500k');
-      await client.getByLabel(/^Service requirements/).fill('Registration\nVenue coordination');
-      await client.getByLabel(/^Additional notes/).fill('Synthetic event for cross-persona browser acceptance.');
-      await client.getByRole('button', { name: 'Submit briefing', exact: true }).click();
-      await expect(client.getByRole('button', { name: 'Submit updated briefing', exact: true })).toBeVisible();
+      await client.getByLabel(/^Services you need/).fill('Registration\nVenue coordination');
+      await client.getByLabel(/^Notes for PMCM/).fill('Synthetic event for cross-persona browser acceptance.');
+      await client.getByRole('button', { name: 'Send briefing', exact: true }).click();
+      // A sent briefing reads as a summary; editing it is a separate step.
+      await expect(client.getByRole('button', { name: 'Edit briefing', exact: true })).toBeVisible();
       await pmcm.page.goto(path('briefing'));
       await pmcm.page.getByRole('tab', { name: 'Proposal', exact: true }).click();
       const proposal = pmcm.page.locator('section').filter({ has: pmcm.page.getByRole('heading', { name: 'Commercial proposal', exact: true }) });
@@ -99,9 +100,13 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await proposal.getByRole('button', { name: 'Confirm and issue', exact: true }).click();
       await expect(proposal.getByRole('status')).toContainText('Version 1 is issued');
       await client.goto(`${origins.client}/dashboard/events/${eventId}/proposal`);
-      await client.getByPlaceholder('Describe the change you need.').fill('Please clarify the venue package before approval.');
-      await client.getByRole('button', { name: 'Request revision', exact: true }).click();
-      await expect(client.getByText('Revision request sent to PMCM. Your notes are recorded with this proposal.', { exact: true })).toBeVisible();
+      // Asking for changes opens a short form: the areas to change and a note.
+      await client.getByRole('button', { name: 'Ask for changes', exact: true }).click();
+      const changes = client.getByRole('dialog', { name: 'Ask PMCM for changes' });
+      await changes.getByLabel('Venue', { exact: true }).check();
+      await changes.getByLabel('Tell PMCM what to change', { exact: true }).fill('Please clarify the venue package before approval.');
+      await changes.getByRole('button', { name: 'Send change request', exact: true }).click();
+      await expect(client.getByText("Your change request is with PMCM. They'll send a new version for you to review.", { exact: true })).toBeVisible();
       await pmcm.page.goto(path('briefing'));
       await pmcm.page.getByRole('tab', { name: 'Proposal', exact: true }).click();
       const revisedProposal = pmcm.page.locator('section').filter({ has: pmcm.page.getByRole('heading', { name: 'Commercial proposal', exact: true }) });
@@ -132,7 +137,9 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('button', { name: 'Send to client', exact: true }).first().click();
       await expect.poll(async () => (await api('GET', `/pmcm/events/${eventId}/workspace`)).billingStatements.some(statement => Boolean(statement.sentAt))).toBe(true);
       await client.goto(`${origins.client}/dashboard/events/${eventId}/proposal`);
+      // Approving is confirmed in a dialog that says what approving does.
       await client.getByRole('button', { name: 'Approve proposal', exact: true }).click();
+      await client.getByRole('dialog').getByRole('button', { name: 'Approve proposal', exact: true }).click();
       await expect(client.getByText('Approved', { exact: true }).first()).toBeVisible();
     });
 
@@ -334,11 +341,11 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
       // The actual end opened the client's feedback window; closeout lives on the client event summary.
       await client.goto(`${origins.client}/dashboard/events/${eventId}/summary`);
-      const feedback = client.locator('form', { has: client.getByRole('heading', { name: 'Your feedback', exact: true }) });
-      await feedback.getByRole('combobox', { name: 'Rating', exact: true }).click();
-      await client.getByRole('option', { name: '5 / 5', exact: true }).click();
+      // Feedback starts with no rating chosen; the client picks one before sending.
+      const feedback = client.getByRole('region', { name: 'Your feedback' });
+      await feedback.getByRole('radio', { name: '5 of 5', exact: true }).click();
       await feedback.getByLabel('Feedback', { exact: true }).fill('Browser lifecycle: smooth planning and a well-run event day.');
-      await feedback.getByRole('button', { name: 'Submit feedback', exact: true }).click();
+      await feedback.getByRole('button', { name: 'Send feedback', exact: true }).click();
       await expect(feedback.getByRole('button', { name: 'Update feedback', exact: true })).toBeVisible();
 
       await expect.poll(async () => (await api('GET', `/events/${eventId}/close-gates`)).missingKeys).toEqual([]);
