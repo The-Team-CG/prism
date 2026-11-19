@@ -5,6 +5,7 @@ import { INK, centredRect, label, placed } from "./symbol-kit";
 const STEP_WIDTH_M = 1.2;
 const STEP_TREAD_M = 0.3;
 const STEP_COUNT = 3;
+const TRUSS_M = 0.3;
 
 /** Front steps in the middle of the stage's front edge (+y), one tread per step. */
 function steps(node: PrismPieceNode): FloorplanGeometry[] {
@@ -17,7 +18,20 @@ function steps(node: PrismPieceNode): FloorplanGeometry[] {
   }));
 }
 
-/** The stage platform, its label, and its steps when it has them. */
+/** The truss backdrop along the back edge (−y). */
+const backdrop = (node: PrismPieceNode): FloorplanGeometry => ({
+  kind: "group",
+  metadata: { part: "backdrop" },
+  transform: { translate: [0, -node.depth / 2 + TRUSS_M / 2] },
+  children: [centredRect(node.width, TRUSS_M, { fill: INK.muted })],
+});
+
+/** The stage platform, its label, its steps and its backdrop when it has them. */
 export function stageSymbol(node: PrismPieceNode): FloorplanGeometry {
-  return placed(node, [centredRect(node.width, node.depth, { fill: INK.tint }), ...(node.steps ? steps(node) : []), label(node.label || "Stage", 0, Math.min(0.7, node.width / 8))]);
+  return placed(node, [
+    centredRect(node.width, node.depth, { fill: INK.tint }),
+    ...(node.steps ? steps(node) : []),
+    ...(node.backdrop ? [backdrop(node)] : []),
+    label(node.label || "Stage", 0, Math.min(0.7, node.width / 8)),
+  ]);
 }

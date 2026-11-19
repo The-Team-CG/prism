@@ -52,9 +52,9 @@ afterEach(() => {
 describe("the table card", () => {
   it("offers the table fields with their ranges, and never drops seats below the guests seated", () => {
     const fields = tableParametrics.groups.flatMap((group) => group.fields);
-    expect(fields.map((field) => field.label)).toEqual(["Shape", "Size", "Depth", "Seats", "Number", "Chairs", "Linen", "Centerpiece"]);
-    expect(fields.find((field) => field.label === "Size")).toMatchObject({ min: 0.6, max: 3.6, step: 0.1 });
-    expect(fields.find((field) => field.label === "Seats")).toMatchObject({ min: 0, max: 24, step: 1 });
+    expect(fields.map((field) => field.label)).toEqual(["Shape", "Size", "Depth", "Seats", "Seated", "Crescent", "Number", "Chairs", "Sash", "Linen", "Overlay", "Centerpiece"]);
+    expect(fields.find((field) => field.label === "Size")).toMatchObject({ min: 0.6, max: 20, step: 0.1 });
+    expect(fields.find((field) => field.label === "Seats")).toMatchObject({ min: 0, max: 60, step: 1 });
     expect(tableParametrics.derive?.({ ...table, seats: 4 }, { seats: 4 })).toMatchObject({ seats: 6 });
   });
 

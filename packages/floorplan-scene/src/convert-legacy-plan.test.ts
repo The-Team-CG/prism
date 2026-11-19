@@ -76,7 +76,9 @@ describe("convertLegacyPlan", () => {
 
     const validation = validateFloorplanScene(scene);
     expect(validation.ok ? [] : validation.issues).toEqual([]);
-    expect(Object.keys(scene.nodes)).toHaveLength(objects.length + 7);
+    // Site, building, level, four walls and the floor plate.
+    expect(Object.keys(scene.nodes)).toHaveLength(objects.length + 8);
+    expect(Object.values(scene.nodes)).toContainEqual(expect.objectContaining({ type: "slab", materialPreset: "library:concrete-polished" }));
     expect(scene.rootNodeIds).toHaveLength(1);
     expect(scene.installedPlugins).toEqual(["prism:event-layout"]);
     for (const node of Object.values(scene.nodes)) {

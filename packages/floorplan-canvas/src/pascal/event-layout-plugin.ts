@@ -1,4 +1,5 @@
-import type { AnyNodeDefinition, DuplicateSubtreeCloneArgs, NodeDefinition, Plugin } from "@pascal-app/core";
+import { spatialGridManager, type AnyNodeDefinition, type DuplicateSubtreeCloneArgs, type NodeDefinition, type Plugin } from "@pascal-app/core";
+import { Group } from "three";
 import {
   FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID,
   placeableEventPieceSchemaFor,
@@ -7,11 +8,25 @@ import {
   type PrismEventPieceType,
 } from "@prism/types";
 import { parametricsFor, tableQuickActions } from "./inspector/parametrics";
-import { eventSymbol } from "./symbols";
-import { eventShape, shapeKey } from "./symbols/event-shapes";
+import { eventSymbol, type SymbolView } from "./symbols";
+import { buildEventPiece, shapeKey } from "./designs";
 import { nextTableNumberAmong } from "./tools/place-node";
 
 export const PRISM_EVENT_LAYOUT_PLUGIN_ID = FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID;
+
+/** The height of the floor under a piece's centre: a room's floor plate stands a few centimetres off the ground. */
+const floorUnder = (node: EventPiece) => (node.parentId ? spatialGridManager.getSlabElevationAt(node.parentId, node.position[0], node.position[2]) : 0);
+
+/** Stands a built piece on the floor at `height`; Pascal places the piece's group at its position on the ground. */
+function onTheFloor(built: Group, height: number): Group {
+  if (height === 0) return built;
+  const lifted = new Group();
+  lifted.position.y = height;
+  if (built.children.length) lifted.add(...built.children);
+  const wrapper = new Group();
+  wrapper.add(lifted);
+  return wrapper;
+}
 
 type EventPiece = PrismEventPiece;
 type EventPieceType = PrismEventPieceType;
@@ -82,9 +97,10 @@ function sharedDefinition(kind: EventPieceType) {
       duplicable: { subtree: true, prepareSubtreeClone: emptyCopy },
       deletable: true,
     },
-    geometry: (node: EventPiece) => eventShape(node),
-    geometryKey: (node: EventPiece) => shapeKey(node),
-    floorplan: (node: EventPiece) => eventSymbol(node, LABELS[kind]),
+    // Pascal passes the editor's shading as a third argument, which picks the library materials' look.
+    geometry: (node: EventPiece, _ctx: unknown, shading?: string) => onTheFloor(buildEventPiece(node, shading), floorUnder(node)),
+    geometryKey: (node: EventPiece) => `${shapeKey(node)}@${floorUnder(node)}`,
+    floorplan: (node: EventPiece, ctx?: { viewState?: SymbolView }) => eventSymbol(node, LABELS[kind], ctx?.viewState),
     // One placement tool serves every kind: it reads the armed kind and the Library tile's values from the editor.
     tool: () => import("./tools/place-piece-tool"),
     tree: { label: (node: unknown) => treeLabel(node, LABELS[kind]) },

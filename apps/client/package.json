@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node ../../scripts/sync-pascal-assets.mjs client",
     "dev": "node ../../scripts/dev-portal.mjs --app client --mode dev",
-    "prebuild": "node ../../scripts/clean-next-dev.cjs",
+    "prebuild": "node ../../scripts/clean-next-dev.cjs && node ../../scripts/sync-pascal-assets.mjs client",
     "build": "next build",
     "start": "node ../../scripts/dev-portal.mjs --app client --mode start",
     "typecheck": "node ../../scripts/clean-next-dev.cjs && node ../../scripts/typescript.mjs --noEmit",

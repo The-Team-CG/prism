@@ -1,4 +1,4 @@
-import { BuildingNode, ColumnNode, LevelNode, SiteNode, WallNode } from "@pascal-app/core";
+import { BuildingNode, ColumnNode, LevelNode, SiteNode, SlabNode, WallNode } from "@pascal-app/core";
 import {
   FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID,
   FLOORPLAN_SCENE_FORMAT,
@@ -20,6 +20,8 @@ type PieceMapping = { type: PrismPieceNodeType; variant: string; locked?: true }
 type Mapping = { type: "wall" } | { type: "column" } | { type: "prism-table"; shape: TableShape } | PieceMapping;
 
 const PERIMETER_WALL_THICKNESS = 0.2;
+/** An event hall's floor: polished concrete from Pascal's material library. */
+const VENUE_FLOOR = "library:concrete-polished";
 /** The site extends this far past the room on every side, so nothing near a wall falls outside it. */
 const SITE_MARGIN_M = 5;
 /** Scene pieces need a positive size; a legacy object can be saved with a zero side. */
@@ -175,6 +177,26 @@ function perimeterWalls(plan: RoomPlan, parentId: string): SceneNode[] {
   );
 }
 
+/**
+ * The room's floor plate, as Pascal's room card builds it when its Floor is switched on: the room grown by half a wall,
+ * following the walls. Without it the room has no floor and the site's ground shows through.
+ */
+function floorPlate(plan: RoomPlan, parentId: string): SceneNode {
+  const t = PERIMETER_WALL_THICKNESS / 2;
+  const [w, h] = [plan.widthM, plan.heightM];
+  return SlabNode.parse({
+    parentId,
+    name: "Floor plate",
+    polygon: [[-t, -t], [w + t, -t], [w + t, h + t], [-t, h + t]],
+    elevation: 0.05,
+    thickness: 0.05,
+    plateRole: "base",
+    boundary: "auto",
+    autoFromWalls: true,
+    materialPreset: VENUE_FLOOR,
+  });
+}
+
 /** The Pascal version the scenes this package builds are written for. */
 export const PASCAL_VERSION = "1.1.6";
 
@@ -189,7 +211,7 @@ export function withLevelNodes(scene: FloorplanSceneDocument, levelId: string, n
   return { ...scene, nodes: next };
 }
 
-/** A site, building and level around a room, with its four perimeter walls and nothing else. */
+/** A site, building and level around a room, with its four perimeter walls and its floor. */
 export function roomScene(plan: RoomPlan, pascalVersion: string): { scene: FloorplanSceneDocument; levelId: string } {
   const [w, h, m] = [plan.widthM, plan.heightM, SITE_MARGIN_M];
   const site = SiteNode.parse({ polygon: { type: "polygon", points: [[-m, -m], [w + m, -m], [w + m, h + m], [-m, h + m]] } });
@@ -201,7 +223,7 @@ export function roomScene(plan: RoomPlan, pascalVersion: string): { scene: Floor
     [level.id]: { ...level, children: [] },
   };
   const scene: FloorplanSceneDocument = { format: FLOORPLAN_SCENE_FORMAT, pascalVersion, nodes, rootNodeIds: [site.id], installedPlugins: [FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID] };
-  return { scene: withLevelNodes(scene, level.id, perimeterWalls(plan, level.id)), levelId: level.id };
+  return { scene: withLevelNodes(scene, level.id, [...perimeterWalls(plan, level.id), floorPlate(plan, level.id)]), levelId: level.id };
 }
 
 /**

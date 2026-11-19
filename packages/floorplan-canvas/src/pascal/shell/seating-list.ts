@@ -1,5 +1,6 @@
 import { tableAssignmentsOf, type SceneTableAssignment } from "@prism/floorplan-scene";
 import type { FloorplanSceneDocument, PrismFloorplanSeatingGuest } from "@prism/types";
+import { escapeHtml } from "./print-documents";
 
 export interface SeatingListRow {
   table: string;
@@ -49,10 +50,6 @@ export function buildSeatingList(scene: FloorplanSceneDocument, guests: readonly
   return { rows, unseated, totalSeated: seatedIds.size };
 }
 
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-
 /** A self-contained, print-ready page; every name is escaped because guest names are typed by people. */
 export function seatingListHtml(title: string, list: SeatingList): string {
   const tables = list.rows
@@ -76,14 +73,3 @@ export function seatingListHtml(title: string, list: SeatingList): string {
   );
 }
 
-/** Opens the seating list in its own window and prints it. Returns false when the browser blocked the window. */
-export function printSeatingList(title: string, list: SeatingList): boolean {
-  const popup = window.open("", "_blank");
-  if (!popup) return false;
-  popup.document.open();
-  popup.document.write(seatingListHtml(title, list));
-  popup.document.close();
-  popup.focus();
-  popup.print();
-  return true;
-}

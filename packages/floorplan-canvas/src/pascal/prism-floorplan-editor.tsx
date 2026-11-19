@@ -7,6 +7,7 @@ import { builtinPlugin } from "@pascal-app/nodes";
 import type { FloorplanSceneDocument } from "@prism/types";
 import { PrismFloorplanProvider, type PrismFloorplanContextValue } from "./editor-context";
 import { prismEventLayoutPlugin } from "./event-layout-plugin";
+import "./pascal-runtime";
 import { PASCAL_VERSION, fromSceneDocument, toSceneDocument, type PascalSaveScene } from "./scene-document";
 import { EditorFooter } from "./shell/editor-footer";
 import { EditorHeader } from "./shell/editor-header";

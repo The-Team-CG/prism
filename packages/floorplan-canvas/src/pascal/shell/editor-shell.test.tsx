@@ -45,6 +45,7 @@ vi.mock("@pascal-app/core", () => {
 vi.mock("@pascal-app/nodes", () => ({ builtinPlugin: {} }));
 vi.mock("@pascal-app/viewer", () => ({ useViewer: (select: (state: unknown) => unknown) => select({ selection: { levelId: null } }) }));
 vi.mock("../event-layout-plugin", () => ({ prismEventLayoutPlugin: {} }));
+vi.mock("../pascal-runtime", () => ({}));
 
 const { PrismFloorplanEditor } = await import("../prism-floorplan-editor");
 const { saveDisplay } = await import("./editor-header");
@@ -109,16 +110,20 @@ describe("the floor plan editor shell", () => {
     expect(screen.getByText("0 seats for 120 guests")).toBeTruthy();
   });
 
-  it("offers the seating list only to an editor of a plan whose guests can be seated", async () => {
+  it("prints the floor plan and pull sheet, and the seating list only where guests can be seated", async () => {
     screenWidth(false);
+    const printable = () => {
+      fireEvent.click(screen.getByRole("button", { name: /Print/ }));
+      return screen.getAllByRole("menuitem").map((item) => item.textContent);
+    };
     await openEditor();
-    expect(screen.getByRole("button", { name: /Seating list/ })).toBeTruthy();
+    expect(printable()).toEqual(["Floor plan", "Pull sheet", "Seating list"]);
     cleanup();
     await openEditor({ seatingAllowed: false });
-    expect(screen.queryByRole("button", { name: /Seating list/ })).toBeNull();
+    expect(printable()).toEqual(["Floor plan", "Pull sheet"]);
     cleanup();
     await openEditor({ readOnly: true });
-    expect(screen.queryByRole("button", { name: /Seating list/ })).toBeNull();
+    expect(printable()).toEqual(["Floor plan", "Pull sheet", "Seating list"]);
   });
 
   it("says View only, with no Submit or Library, when the plan is read-only", async () => {

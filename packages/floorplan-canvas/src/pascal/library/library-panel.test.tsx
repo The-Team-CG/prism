@@ -77,7 +77,7 @@ describe("the Library panel", () => {
     fireEvent.change(screen.getByRole("searchbox", { name: "Search pieces" }), { target: { value: "round" } });
     const tables = screen.getByRole("region", { name: "Tables" });
     expect(within(tables).getAllByRole("button").map((tile) => tile.textContent)).toEqual(["Round · 81.8 m · 8 seats", "Round · 101.8 m · 10 seats"]);
-    expect(screen.queryByRole("region", { name: "AV" })).toBeNull();
+    expect(screen.queryByRole("region", { name: "AV & lighting" })).toBeNull();
   });
 
   it("offers nothing to place on a read-only plan", () => {

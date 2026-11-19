@@ -6,7 +6,8 @@ import { getHistoryCommandState, runRedo, runUndo, subscribeHistoryCommandState,
 import type { FloorplanSceneDocument, SceneSaveState } from "@prism/types";
 import { usePrismFloorplan } from "../editor-context";
 import { ViewSwitch } from "./view-switch";
-import { buildSeatingList, printSeatingList } from "./seating-list";
+import { buildSeatingList, seatingListHtml } from "./seating-list";
+import { planHtml, printHtml, pullSheetHtml } from "./print-documents";
 
 export type EditorHeaderProps = {
   onBack(): void;
@@ -132,22 +133,40 @@ function SaveTemplateAction({ currentDocument, onSaveTemplate }: { currentDocume
   );
 }
 
-/** Prints who sits where, from the scene as it is now. Offered only where guests can be seated, so a client never sees it. */
-function SeatingListAction({ currentDocument, title }: { currentDocument(): FloorplanSceneDocument; title: string }) {
+/**
+ * Prints the plan as it is now: the floor plan drawing, the pull sheet suppliers pack from, and, where guests can be
+ * seated, who sits where. The seating list is never offered to a client.
+ */
+function PrintMenu({ currentDocument, title }: { currentDocument(): FloorplanSceneDocument; title: string }) {
   const { guests, seating } = usePrismFloorplan();
+  const [open, setOpen] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
-  if (!seating.allowed) return null;
-  function print() {
-    setRefusal(printSeatingList(title, buildSeatingList(currentDocument(), guests)) ? null : "Allow pop-ups for this site to print the seating list.");
+  const documents = [
+    { label: "Floor plan", html: () => planHtml(title, currentDocument()) },
+    { label: "Pull sheet", html: () => pullSheetHtml(title, currentDocument()) },
+    ...(seating.allowed ? [{ label: "Seating list", html: () => seatingListHtml(title, buildSeatingList(currentDocument(), guests)) }] : []),
+  ];
+  function print(html: () => string) {
+    setOpen(false);
+    setRefusal(printHtml(html()) ? null : "Allow pop-ups for this site to print.");
   }
   return (
-    <>
-      <button type="button" onClick={print} className={quietButton}>
+    <div className="relative">
+      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((shown) => !shown)} className={quietButton}>
         <Printer className="size-4" aria-hidden />
-        Seating list
+        Print
       </button>
-      {refusal ? <span role="alert" title={refusal} className="max-w-56 truncate text-xs text-destructive">{refusal}</span> : null}
-    </>
+      {open ? (
+        <div role="menu" className="absolute right-0 top-full z-50 mt-1 min-w-40 rounded-md border border-border bg-popover p-1 shadow-md">
+          {documents.map(({ label, html }) => (
+            <button key={label} type="button" role="menuitem" onClick={() => print(html)} className="block w-full rounded px-2.5 py-1.5 text-left text-sm hover:bg-muted">
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {refusal ? <span role="alert" title={refusal} className="absolute right-0 top-full mt-1 max-w-56 truncate text-xs text-destructive">{refusal}</span> : null}
+    </div>
   );
 }
 
@@ -214,7 +233,7 @@ export function EditorHeader({ onBack, currentDocument, onSubmit, onSaveTemplate
       <span className="flex-1" />
       {readOnly ? <span className="text-xs font-medium text-muted-foreground">View only</span> : <SaveStatusLabel pascalStatus={pascalStatus} />}
       {readOnly ? null : <HistoryButtons />}
-      {readOnly ? null : <SeatingListAction currentDocument={currentDocument} title={draftName ?? "Seating list"} />}
+      <PrintMenu currentDocument={currentDocument} title={draftName ?? "Floor plan"} />
       <ViewSwitch />
       <span aria-disabled="true" title="Client view arrives with milestone 5" className={quietButton}>
         <Eye className="size-4" aria-hidden />

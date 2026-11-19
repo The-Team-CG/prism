@@ -43,7 +43,7 @@ export function roomSize(scene: FloorplanSceneDocument): { width: number; depth:
 }
 
 /** The name a piece shows on a plan: its label, then a table's number, then its variant, then its kind. */
-function pieceName(node: SceneNode): string {
+export function pieceName(node: SceneNode): string {
   const label = typeof node.label === "string" ? node.label.trim() : "";
   if (label) return label;
   if (node.type === "prism-table" && typeof node.number === "number") return `T${node.number}`;
