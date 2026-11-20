@@ -524,9 +524,11 @@ function candidateAssignmentState(
   return { assignedHere: true, otherRole: undefined, acknowledgement: null };
 }
 
-function candidateActionLabel(assignedHere: boolean, hasConflict: boolean) {
+/** Already holding another role here, assigning adds this one alongside it; Move here swaps it instead. */
+function candidateActionLabel(assignedHere: boolean, hasConflict: boolean, hasOtherRole = false) {
   if (assignedHere) return "Assigned";
-  return hasConflict ? "Review conflict" : "Quick assign";
+  if (hasConflict) return "Review conflict";
+  return hasOtherRole ? "Add this role" : "Quick assign";
 }
 
 function CoordinatorCandidateItem({
@@ -549,7 +551,7 @@ function CoordinatorCandidateItem({
   onMove?: (assignmentId: string, role: CoordinatorRole) => Promise<void>;
 }) {
   const { assignedHere, otherRole, acknowledgement } = candidateAssignmentState(eventAssignments, coordinator.id, role);
-  const actionLabel = candidateActionLabel(assignedHere, Boolean(conflict));
+  const actionLabel = candidateActionLabel(assignedHere, Boolean(conflict), Boolean(otherRole));
   return (
     <Item role="group" aria-label={`${role}: ${coordinator.name}`} variant="outline" className="min-w-0 flex-wrap items-start">
       <ItemMedia>

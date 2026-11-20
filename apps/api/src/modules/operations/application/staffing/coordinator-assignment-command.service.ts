@@ -220,6 +220,9 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       },
       sideEffects: async (assignment, transactionContext) => {
         if (!plan || replayed) return;
+        // Each notice is keyed by the assignment it announces. Keyed by coordinator and event alone, a second role on the
+        // same event collided with the first notice, and a re-assignment after a withdrawal was never announced.
+        const noticeKey = `${commandContext.idempotencyKey}:${assignment.id}`;
         await Promise.all([
           this.auditWriter.write({
             eventId,
@@ -241,7 +244,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
             recipient: plan.coordinator.email,
             message: `Coordinator assignment issued: ${plan.event.eventName} (${plan.role})`,
             correlationId: commandContext.correlationId,
-            idempotencyKey: `${commandContext.idempotencyKey}:email`,
+            idempotencyKey: `${noticeKey}:email`,
           }, transactionContext),
           this.notificationOutboxWriter.write({
             eventId,
@@ -249,7 +252,7 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
             message: `Coordinator assignment issued: ${plan.event.eventName} (${plan.role})`,
             channel: 'viber',
             correlationId: commandContext.correlationId,
-            idempotencyKey: `${commandContext.idempotencyKey}:viber`,
+            idempotencyKey: `${noticeKey}:viber`,
           }, transactionContext),
         ]);
       },

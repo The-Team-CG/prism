@@ -375,6 +375,15 @@ describe("CoordinatorAssignmentDesk role changes", () => {
     expect(props.onChangeRole).toHaveBeenCalledWith("assignment_1", "Stage Director");
   });
 
+  it("offers adding the role alongside, labelled as such, next to Move here", () => {
+    const props = renderDesk({ coordinators: twoRoles, onChangeRole: vi.fn(async () => {}) });
+    const card = within(screen.getByRole("group", { name: "Stage Director: Jordan Lee" }));
+
+    fireEvent.click(card.getByRole("button", { name: "Add this role" }));
+
+    expect(props.onAssign).toHaveBeenCalledWith(expect.objectContaining({ id: "coord_1" }), "Stage Director");
+  });
+
   it("offers a catalog role to an assignment saved with a role from before the catalog", () => {
     const legacy = assignments.map((assignment) => assignment.id === "assignment_1" ? { ...assignment, role: "Volunteer Lead" } : assignment);
     const props = renderDesk({ assignments: legacy, onChangeRole: vi.fn(async () => {}) });
