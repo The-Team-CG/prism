@@ -130,9 +130,10 @@ export type CoordinatorTaskFormModel = {
   dueAt: string;
   setDueAt: (value: string) => void;
   assignToMe: boolean;
-  assignToMeRequired: boolean;
   setAssignToMe: (value: boolean) => void;
   roleOptions: CoordinatorRole[];
+  /** Set when this coordinator cannot log tasks at all, saying why; null otherwise. */
+  blockedReason: string | null;
   routesAway: boolean;
   busy: boolean;
   error: string | null;
@@ -202,14 +203,9 @@ export function CoordinatorTaskFormFields({ taskForm, onDone }: { taskForm: Coor
         <DateTimePicker value={taskForm.dueAt} onValueChange={(next) => taskForm.setDueAt(next)} />
       </label>
       <label className="flex items-center gap-2">
-        <input type="checkbox" checked={taskForm.assignToMe} disabled={taskForm.assignToMeRequired} onChange={(e) => taskForm.setAssignToMe(e.target.checked)} className="size-4" />
-        <span className={FIELD_LABEL}>{taskForm.assignToMeRequired ? "Assign to my queue" : "Assign to me"}</span>
+        <input type="checkbox" checked={taskForm.assignToMe} onChange={(e) => taskForm.setAssignToMe(e.target.checked)} className="size-4" />
+        <span className={FIELD_LABEL}>Assign to me</span>
       </label>
-      {taskForm.assignToMeRequired ? (
-        <p className="text-xs text-muted-foreground">
-          Your saved role is outside the current role catalog, so new tasks use General Coordinator and stay in your named queue until PMCM updates the assignment.
-        </p>
-      ) : null}
       {copy.routesAwayNotice ? <p className="rounded-md bg-attention/10 px-3 py-2 text-xs text-attention">{copy.routesAwayNotice}</p> : null}
       {taskForm.error ? <p role="alert" className={FORM_ALERT}>{taskForm.error}</p> : null}
       <button type="button" disabled={taskForm.busy || !taskForm.title.trim()} onClick={() => void submit()} className={FORM_SUBMIT}>
@@ -321,10 +317,14 @@ export function CoordinatorTaskSheet({ taskForm, open, onOpenChange, side = "rig
   );
 }
 
-/** Tasks: the work grouped by where it stands, then the operator's controls. Its status line and Log a task sit above. */
-function CoordinatorTasksPage({ roleView, reassignment, taskActions, operatorActions }: Omit<CoordinatorRoleDataProps, "section" | "roleViewLoading" | "roleViewError" | "roleView"> & { roleView: PrismCoordinatorRoleView }) {
+/**
+ * Tasks: the work grouped by where it stands, then the operator's controls. Its status line and Log a task sit above;
+ * a coordinator who cannot log tasks is told why instead.
+ */
+function CoordinatorTasksPage({ roleView, taskForm, reassignment, taskActions, operatorActions }: Omit<CoordinatorRoleDataProps, "section" | "roleViewLoading" | "roleViewError" | "roleView"> & { roleView: PrismCoordinatorRoleView }) {
   return (
     <div className="grid gap-4">
+      {taskForm.blockedReason ? <p role="note" className="max-w-3xl rounded-lg bg-attention-soft px-3 py-2 text-sm text-attention">{taskForm.blockedReason}</p> : null}
       <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
       {roleView.isDesignatedOperator ? (
         <PrismSection bare id="coordinator-team-checks" title="Team controls" description="As the event day operator: reassign tasks and update colleagues' attendance." className="mt-2 max-w-3xl">

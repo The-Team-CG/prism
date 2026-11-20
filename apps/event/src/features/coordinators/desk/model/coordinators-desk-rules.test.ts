@@ -114,15 +114,14 @@ describe("buildCoordinatorTaskInput", () => {
     expect(input.ownerName).not.toBe(session.name);
   });
 
-  it("keeps new tasks in the named queue when the saved role is outside the catalog", () => {
+  it("names an owner only when assign-to-me is on, whatever the saved role", () => {
     const input = buildCoordinatorTaskInput({
       ...base,
       assignedRole: "General Coordinator",
       assignToMe: false,
       roleView: { ...roleView, role: "Volunteer Lead" },
     });
-    expect(input.assignedRole).toBe("General Coordinator");
-    expect(input.ownerName).toBe("Marco Santos");
+    expect("ownerName" in input).toBe(false);
   });
 
   it("omits blank optional fields rather than sending empty strings", () => {
@@ -233,10 +232,13 @@ describe("taskAssignedRoleOptions", () => {
     ]);
   });
 
-  it("offers General Coordinator, never the unknown text, to a coordinator with a legacy role", () => {
-    const options = taskAssignedRoleOptions({ ...roleView, role: "Drone Marshal" }, { canAssignAnyRole: false });
-    expect(options).not.toContain("Drone Marshal");
-    expect(options).toEqual(["General Coordinator"]);
+  // The API refuses new tasks from an assignment whose role predates the catalog (#518), so no role would be accepted.
+  it("offers no role to a coordinator whose saved role is outside the catalog", () => {
+    expect(taskAssignedRoleOptions({ ...roleView, role: "Drone Marshal" }, { canAssignAnyRole: false })).toEqual([]);
+  });
+
+  it("still offers the whole catalog to a designated operator with a legacy role", () => {
+    expect(taskAssignedRoleOptions({ ...roleView, role: "Drone Marshal" }, { canAssignAnyRole: true })).toHaveLength(7);
   });
 });
 

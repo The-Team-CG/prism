@@ -41,9 +41,9 @@ function roleView(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderRoleData(view: Record<string, unknown>, actions: { operator?: Record<string, unknown>; taskTitle?: string } = {}, section: "tasks" | "issues" = "tasks") {
+function renderRoleData(view: Record<string, unknown>, actions: { operator?: Record<string, unknown>; taskTitle?: string; taskBlockedReason?: string } = {}, section: "tasks" | "issues" = "tasks") {
   const models = {
-    taskForm: { title: actions.taskTitle ?? "", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], routesAway: false, busy: false, error: null, submit: vi.fn(async () => true) },
+    taskForm: { blockedReason: actions.taskBlockedReason ?? null, title: actions.taskTitle ?? "", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], routesAway: false, busy: false, error: null, submit: vi.fn(async () => true) },
     reassignment: { busy: false, error: null, request: vi.fn() },
     taskActions: { busy: false, error: null, updateStatus: vi.fn(), blockTask: vi.fn(), unblockTask: vi.fn() },
     operatorActions: { busy: false, error: null, supplierBusy: false, supplierError: null, updateAttendance: vi.fn(), verifySupplier: vi.fn(), reportSupplierStatus: vi.fn(), ...actions.operator },
@@ -308,6 +308,12 @@ describe("coordinator queues", () => {
     expect(screen.getByRole("button", { name: "Unblock" })).toBeTruthy();
   });
 
+  it("tells a coordinator who cannot log tasks why", () => {
+    renderRoleData(roleView({ tasks: [] }), { taskBlockedReason: "Ask PMCM to update your assignment." });
+
+    expect(screen.getByRole("note").textContent).toBe("Ask PMCM to update your assignment.");
+  });
+
   it("says when nothing is assigned", () => {
     renderRoleData(roleView({ tasks: [] }));
 
@@ -316,7 +322,7 @@ describe("coordinator queues", () => {
 
   it("closes the Log a task panel once the task is saved", async () => {
     const onOpenChange = vi.fn();
-    const taskForm = { title: "Stage cue check", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, assignToMeRequired: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], routesAway: false, busy: false, error: null, submit: vi.fn(async () => true) } as unknown as CoordinatorTaskFormModel;
+    const taskForm = { title: "Stage cue check", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], blockedReason: null, routesAway: false, busy: false, error: null, submit: vi.fn(async () => true) } as unknown as CoordinatorTaskFormModel;
     render(<CoordinatorTaskSheet taskForm={taskForm} open onOpenChange={onOpenChange} />);
 
     fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Log task" }));

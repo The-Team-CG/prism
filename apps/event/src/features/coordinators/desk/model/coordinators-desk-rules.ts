@@ -103,13 +103,14 @@ function trimmed(value?: string): string {
 
 /**
  * The roles a coordinator may give a new task, matching the API's task scope check: the designated Event Day System
- * Operator (and PMCM) may use any catalog role; every other coordinator only their own. New tasks use only the shared
- * catalog; an own role outside it (historical text) falls back to General Coordinator, and stays readable in existing
- * task and assignment read models.
+ * Operator (and PMCM) may use any catalog role; every other coordinator only their own. A coordinator whose role is
+ * outside the catalog (text saved before the catalog was enforced) gets none: the API refuses their new tasks
+ * outright, so there is no role the desk could offer. Their existing tasks stay readable and updatable.
  */
 export function taskAssignedRoleOptions(roleView: CoordinatorRoleViewLike, { canAssignAnyRole }: { canAssignAnyRole: boolean }): CoordinatorRole[] {
   if (canAssignAnyRole) return [...COORDINATOR_ROLES];
-  return [canonicalCoordinatorRole(roleView.role) ?? GENERAL_COORDINATOR];
+  const ownRole = canonicalCoordinatorRole(roleView.role);
+  return ownRole ? [ownRole] : [];
 }
 
 /**
@@ -154,7 +155,6 @@ export function buildCoordinatorTaskInput({
   roleView: CoordinatorRoleViewLike;
 }): CreateEventDayTaskInput {
   const isoDueAt = asIsoDateTime(trimmed(dueAt));
-  const unmappedOwnRole = !canonicalCoordinatorRole(roleView.role);
   return {
     title: trimmed(title),
     assignedRole,
@@ -163,7 +163,7 @@ export function buildCoordinatorTaskInput({
     ...(isoDueAt ? { dueAt: isoDueAt } : {}),
     // Finding 8: the backend compares ownerName against the assignment name,
     // so this must be assignment.coordinatorName and never session.name.
-    ...(assignToMe || unmappedOwnRole ? { ownerName: roleView.assignment.coordinatorName } : {}),
+    ...(assignToMe ? { ownerName: roleView.assignment.coordinatorName } : {}),
   };
 }
 

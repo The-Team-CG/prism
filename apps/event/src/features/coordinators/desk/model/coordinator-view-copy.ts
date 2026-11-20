@@ -16,6 +16,15 @@ export function coordinatorAttendanceRecordLine(choiceLabel: string, markedAt: s
   return time ? `Marked ${choiceLabel} at ${time}` : `Marked ${choiceLabel}`;
 }
 
+/**
+ * Why a coordinator cannot log tasks: their assignment's role predates the role catalog, and the API refuses new
+ * tasks from such an assignment until PMCM gives it a catalog role.
+ */
+export function coordinatorTaskLoggingBlockedCopy(role: string): string {
+  const named = role.trim() ? `, "${role.trim()}",` : "";
+  return `Your role on this event${named} isn't in the coordinator role catalog, so you can't log tasks yet. Ask PMCM to update your assignment.`;
+}
+
 export function coordinatorTaskFormCopy(busy: boolean, routesAway: boolean) {
   return {
     submitLabel: busy ? "Logging task..." : "Log task",

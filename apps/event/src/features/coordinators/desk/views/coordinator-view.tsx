@@ -251,6 +251,7 @@ function useCoordinatorPanels(vm: CoordinatorVm, navigateTo: NavigateTo) {
 function pageStatus(view: CoordinatorViewId, vm: CoordinatorVm, panels: Panels) {
   if (!vm.roleView) return {};
   if (view === "tasks") {
+    if (vm.taskForm.blockedReason) return { summary: tasksSummary(vm.roleView.tasks) };
     return { summary: tasksSummary(vm.roleView.tasks), action: <Button type="button" size="sm" variant="outline" className="min-h-10" onClick={panels.onLogTask}><Plus className="size-4" aria-hidden />Log a task</Button> };
   }
   if (view === "issues") {

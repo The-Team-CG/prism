@@ -64,6 +64,7 @@ import {
   isCoordinatorAttendanceOpen,
   type CoordinatorAttendanceChoice,
 } from "../model/coordinators-desk-rules";
+import { coordinatorTaskLoggingBlockedCopy } from "../model/coordinator-view-copy";
 
 export type CoordinatorViewStatus = "idle" | "loading" | "success" | "error";
 
@@ -202,10 +203,11 @@ export function useCoordinatorViewModel({
     refreshOnEnable: false,
   });
 
-  const taskOwnerAssignmentRequired = Boolean(roleView && !canonicalCoordinatorRole(roleView.role));
-  // The API lets only the designated operator give a task another role; everyone else logs for their own role.
+  // The API lets only the designated operator give a task another role; everyone else logs for their own role, and a
+  // coordinator whose role is outside the catalog cannot log tasks at all.
   const taskRoleOptions = roleView ? taskAssignedRoleOptions(roleView, { canAssignAnyRole: Boolean(roleView.isDesignatedOperator) }) : [];
   const taskRoleChoice = resolveCoordinatorTaskRole(taskRole, roleView?.role, taskRoleOptions);
+  const taskLoggingBlocked = roleView && !taskRoleOptions.length ? coordinatorTaskLoggingBlockedCopy(roleView.role) : null;
 
   // HIDE half: once the assignment can no longer be marked — replaced by PMCM,
   // or gone from the workspace entirely — drop any open confirm prompt so it
@@ -267,6 +269,10 @@ export function useCoordinatorViewModel({
 
   async function logTask(): Promise<boolean> {
     if (!isWritableCoordinatorEvent(event) || !roleView) return false;
+    if (taskLoggingBlocked) {
+      setTaskError(taskLoggingBlocked);
+      return false;
+    }
     setTaskBusy(true);
     setTaskError(null);
     try {
@@ -278,7 +284,7 @@ export function useCoordinatorViewModel({
           priority: taskPriority,
           notes: taskNotes,
           dueAt: taskDueAt,
-          assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
+          assignToMe: taskAssignToMe,
           roleView,
         }),
         "Create coordinator task",
@@ -551,17 +557,15 @@ export function useCoordinatorViewModel({
       setNotes: setTaskNotes,
       dueAt: taskDueAt,
       setDueAt: setTaskDueAt,
-      assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
-      assignToMeRequired: taskOwnerAssignmentRequired,
-      setAssignToMe: (value: boolean) => {
-        if (!taskOwnerAssignmentRequired) setTaskAssignToMe(value);
-      },
+      assignToMe: taskAssignToMe,
+      setAssignToMe: setTaskAssignToMe,
       roleOptions: taskRoleOptions,
+      blockedReason: taskLoggingBlocked,
       routesAway: roleView
         ? isTaskOutsideOwnQueue({
             assignedRole: taskRoleChoice,
             ownRole: roleView.role,
-            assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
+            assignToMe: taskAssignToMe,
           })
         : false,
       busy: taskBusy,
