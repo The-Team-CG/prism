@@ -111,6 +111,12 @@ const CLIENT_FILE_SEARCH_LIMIT = 100;
 /** An upload left requested or failed this long is abandoned. */
 const ABANDONED_UPLOAD_DAYS = 3;
 const ABANDONED_UPLOAD_BATCH = 200;
+/** How many pages of conversation files one sweep reads past sent ones before it stops until the next run. */
+const UNATTACHED_SWEEP_MAX_PAGES = 50;
+/** An event's file list shows at most this many files the actor may see, read in pages of EVENT_FILE_PAGE. */
+const EVENT_FILE_LIST_LIMIT = 500;
+const EVENT_FILE_PAGE = 500;
+const EVENT_FILE_MAX_PAGES = 20;
 /** A conversation file stored but never attached to a message this long is removed. */
 const UNATTACHED_CONVERSATION_FILE_HOURS = 24;
 const ABANDONED_UPLOAD_CLEANUP_ACTOR: ResolvedEventOpsActor = {
@@ -755,14 +761,28 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
     const scoped = resolveFileEventScope(actor, event);
     actor = scoped.actor;
     await this.accessPolicy.requireCanReadEvent(actor, event, 'list event documents', scoped.scope);
-    const objects = await this.prisma.opsStoredObject.findMany({
-      where: { eventId, lifecycleState: { in: ['requested', 'stored', 'failed'] } },
-      orderBy: { createdAt: 'desc' },
-      take: 500,
-    });
-    const contextFor = await this.readAccessContexts(actor, eventId, objects);
-    const permitted = objects.filter((object) => canListStoredObject(actor, object, contextFor(object)));
-    return permitted.map((object) => this.presentForActor(actor, this.mapObject(object)));
+    // The cap applies to what this actor may see: files the actor cannot see (guest photos, other suppliers' papers)
+    // are filtered page by page, so they never push the actor's own older files, such as the contract, off the list.
+    const permitted: OpsStoredObject[] = [];
+    let cursor: { createdAt: Date; id: string } | null = null;
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: pages of EVENT_FILE_PAGE rows, at most EVENT_FILE_MAX_PAGES per listing.
+    for (let page = 0; page < EVENT_FILE_MAX_PAGES && permitted.length < EVENT_FILE_LIST_LIMIT; page += 1) {
+      const objects: OpsStoredObject[] = await this.prisma.opsStoredObject.findMany({
+        where: {
+          eventId,
+          lifecycleState: { in: ['requested', 'stored', 'failed'] },
+          ...(cursor ? { OR: [{ createdAt: { lt: cursor.createdAt } }, { createdAt: cursor.createdAt, id: { gt: cursor.id } }] } : {}),
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        take: EVENT_FILE_PAGE,
+      });
+      const contextFor = await this.readAccessContexts(actor, eventId, objects);
+      permitted.push(...objects.filter((object) => canListStoredObject(actor, object, contextFor(object))));
+      if (objects.length < EVENT_FILE_PAGE) break;
+      const last = objects[objects.length - 1]!;
+      cursor = { createdAt: last.createdAt, id: last.id };
+    }
+    return permitted.slice(0, EVENT_FILE_LIST_LIMIT).map((object) => this.presentForActor(actor, this.mapObject(object)));
   }
 
   /** Provider keys, uploader ids, and failure detail stay with PMCM. */
@@ -896,18 +916,30 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
    */
   private async cleanUpUnattachedConversationFiles(now: Date): Promise<number> {
     const cutoff = new Date(now.getTime() - UNATTACHED_CONVERSATION_FILE_HOURS * 60 * 60 * 1000);
-    const candidates = await this.prisma.opsStoredObject.findMany({
-      where: { usage: 'communication_attachment', lifecycleState: 'stored', deletedAt: null, storedAt: { lt: cutoff } },
-      orderBy: [{ storedAt: 'asc' }, { id: 'asc' }],
-      take: ABANDONED_UPLOAD_BATCH,
-    });
-    if (!candidates.length) return 0;
-    if (!this.attachmentGate) throw new ServiceUnavailableException('Conversation access is unavailable');
-    const unattached = await this.attachmentGate.unattachedObjectIds(candidates.map((object) => object.id));
     let removed = 0;
-    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the same bounded batch; each file has its own provider bytes to delete.
-    for (const object of candidates) {
-      if (unattached.has(object.id) && await this.removeUnattachedFile(object, cutoff)) removed += 1;
+    let cursor: { storedAt: Date; id: string } | null = null;
+    // Sent files stay stored for good and are the oldest rows, so the sweep pages past them instead of re-reading the
+    // same batch every run; otherwise unsent files stop being removed once a batch's worth of sent ones is old.
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: pages of ABANDONED_UPLOAD_BATCH rows, at most UNATTACHED_SWEEP_MAX_PAGES per sweep.
+    for (let page = 0; page < UNATTACHED_SWEEP_MAX_PAGES && removed < ABANDONED_UPLOAD_BATCH; page += 1) {
+      const candidates: OpsStoredObject[] = await this.prisma.opsStoredObject.findMany({
+        where: {
+          usage: 'communication_attachment', lifecycleState: 'stored', deletedAt: null, storedAt: { lt: cutoff },
+          ...(cursor ? { OR: [{ storedAt: { gt: cursor.storedAt } }, { storedAt: cursor.storedAt, id: { gt: cursor.id } }] } : {}),
+        },
+        orderBy: [{ storedAt: 'asc' }, { id: 'asc' }],
+        take: ABANDONED_UPLOAD_BATCH,
+      });
+      if (!candidates.length) break;
+      if (!this.attachmentGate) throw new ServiceUnavailableException('Conversation access is unavailable');
+      const unattached = await this.attachmentGate.unattachedObjectIds(candidates.map((object) => object.id));
+      // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: the same bounded page; each file has its own provider bytes to delete.
+      for (const object of candidates) {
+        if (unattached.has(object.id) && await this.removeUnattachedFile(object, cutoff)) removed += 1;
+      }
+      if (candidates.length < ABANDONED_UPLOAD_BATCH) break;
+      const last = candidates[candidates.length - 1]!;
+      cursor = { storedAt: last.storedAt!, id: last.id };
     }
     return removed;
   }
@@ -919,28 +951,30 @@ export class StorageObjectService implements StoredSupplierUploadReader, StoredR
   private async removeUnattachedFile(object: OpsStoredObject, cutoff: Date) {
     const stillUnattached = await this.attachmentGate?.unattachedObjectIds([object.id]);
     if (!stillUnattached?.has(object.id)) return false;
-    if (object.providerObjectKey && this.adapter) {
-      await this.adapter.deleteObject({ objectId: object.id, providerObjectKey: object.providerObjectKey }).catch(() => undefined);
-    }
+    // The record is marked deleted first, and the bytes go only when that guarded update won.
     const changed = await this.prisma.opsStoredObject.updateMany({
       where: { id: object.id, usage: 'communication_attachment', lifecycleState: 'stored', deletedAt: null, storedAt: { lt: cutoff } },
       data: { lifecycleState: 'deleted', deletedAt: new Date() },
     });
     if (changed.count !== 1) return false;
+    if (object.providerObjectKey && this.adapter) {
+      await this.adapter.deleteObject({ objectId: object.id, providerObjectKey: object.providerObjectKey }).catch(() => undefined);
+    }
     await this.auditStorageAction(ABANDONED_UPLOAD_CLEANUP_ACTOR, { ...object, lifecycleState: 'deleted' }, 'Removed a file that was never sent', AuditActionType.General, 'unattached_removed', { previousState: 'stored' });
     return true;
   }
 
   private async removeAbandonedUpload(object: OpsStoredObject, cutoff: Date) {
-    if (object.providerObjectKey && this.adapter) {
-      await this.adapter.deleteObject({ objectId: object.id, providerObjectKey: object.providerObjectKey }).catch(() => undefined);
-    }
-    // Only if it is still unfinished and untouched: an upload that resumed meanwhile is left alone.
+    // Only if it is still unfinished and untouched: an upload that resumed meanwhile is left alone, bytes included,
+    // so the record is claimed first and the provider bytes are deleted only after that guarded update won.
     const changed = await this.prisma.opsStoredObject.updateMany({
       where: { id: object.id, storedAt: null, updatedAt: { lt: cutoff }, lifecycleState: { in: ['requested', 'failed'] } },
       data: { lifecycleState: 'deleted', deletedAt: new Date() },
     });
     if (changed.count !== 1) return false;
+    if (object.providerObjectKey && this.adapter) {
+      await this.adapter.deleteObject({ objectId: object.id, providerObjectKey: object.providerObjectKey }).catch(() => undefined);
+    }
     await this.auditStorageAction(ABANDONED_UPLOAD_CLEANUP_ACTOR, { ...object, lifecycleState: 'deleted' }, 'Removed an upload that never finished', AuditActionType.General, 'abandoned_removed', { previousState: object.lifecycleState });
     return true;
   }
