@@ -78,39 +78,56 @@ export function EventFloorplansTab({
         </details>
       ) : null}
 
-      <WorkspaceSection id="floorplan-start-draft" title="Start a PMCM draft" note={ocularVisit.cleared ? undefined : "Available once the ocular visit is done or waived"}>
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            {onCreateBlankDraft ? (
-              <button
-                type="button"
-                disabled={!ocularVisit.cleared}
-                onClick={() => void onCreateBlankDraft()}
-                className="min-h-11 rounded-md border border-dashed border-primary/40 bg-background p-3 text-left hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-background"
-              >
-                <span className="block text-sm font-semibold text-foreground">Blank layout</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">{ocularVisit.cleared ? "Empty room using the briefing's venue and guest count" : "After the ocular visit"}</span>
-              </button>
-            ) : null}
-            {floorPlanTemplates.slice(0, onCreateBlankDraft ? 3 : 4).map((template) => (
-              <button
-                key={template.id}
-                type="button"
-                disabled={!ocularVisit.cleared}
-                onClick={() => void onCreateTemplateDraft(template)}
-                className="min-h-11 rounded-md border border-border bg-background p-3 text-left hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-background"
-              >
-                <span className="block break-words text-sm font-semibold text-foreground">{template.name}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">{ocularVisit.cleared ? template.description || template.venue || "Saved PMCM template" : "After the ocular visit"}</span>
-              </button>
-            ))}
-          </div>
-          {floorPlanTemplates.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">No saved templates yet. In the editor, "Save current as template" makes a layout reusable for later events.</p>
-          ) : null}
-      </WorkspaceSection>
+      <StartDraftSection templates={floorPlanTemplates} cleared={ocularVisit.cleared} onCreateTemplateDraft={onCreateTemplateDraft} onCreateBlankDraft={onCreateBlankDraft} />
 
       {accessPanel}
     </div>
+  );
+}
+
+/** Ways to start a PMCM draft: a blank room, or one of the first saved templates. All wait on the ocular visit. */
+function StartDraftSection({
+  templates,
+  cleared,
+  onCreateTemplateDraft,
+  onCreateBlankDraft,
+}: {
+  templates: FloorPlanTemplate[];
+  cleared: boolean;
+  onCreateTemplateDraft: (template: FloorPlanTemplate) => void | Promise<void>;
+  onCreateBlankDraft?: () => void | Promise<void>;
+}) {
+  return (
+    <WorkspaceSection id="floorplan-start-draft" title="Start a PMCM draft" note={cleared ? undefined : "Available once the ocular visit is done or waived"}>
+      <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {onCreateBlankDraft ? (
+          <button
+            type="button"
+            disabled={!cleared}
+            onClick={() => void onCreateBlankDraft()}
+            className="min-h-11 rounded-md border border-dashed border-primary/40 bg-background p-3 text-left hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-background"
+          >
+            <span className="block text-sm font-semibold text-foreground">Blank layout</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">{cleared ? "Empty room using the briefing's venue and guest count" : "After the ocular visit"}</span>
+          </button>
+        ) : null}
+        {templates.slice(0, onCreateBlankDraft ? 3 : 4).map((template) => (
+          <button
+            key={template.id}
+            type="button"
+            disabled={!cleared}
+            onClick={() => void onCreateTemplateDraft(template)}
+            className="min-h-11 rounded-md border border-border bg-background p-3 text-left hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-background"
+          >
+            <span className="block break-words text-sm font-semibold text-foreground">{template.name}</span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">{cleared ? template.description || template.venue || "Saved PMCM template" : "After the ocular visit"}</span>
+          </button>
+        ))}
+      </div>
+      {templates.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">No saved templates yet. In the editor, "Save current as template" makes a layout reusable for later events.</p>
+      ) : null}
+    </WorkspaceSection>
   );
 }
 

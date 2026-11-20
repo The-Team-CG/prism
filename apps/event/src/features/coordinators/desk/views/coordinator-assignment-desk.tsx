@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { ChevronDown } from "lucide-react";
 
 import type {
@@ -45,6 +45,18 @@ function coordinatorRoleTags(coordinator: PrismCoordinator) {
   if (Array.isArray(coordinator.roleTags)) return coordinator.roleTags;
   if (Array.isArray(legacy.roles)) return legacy.roles;
   return [];
+}
+
+/** Active, tagged for the chosen role, free that day when only available ones are shown, and holding every chosen skill. */
+function fitsFinder(c: PrismCoordinator, { roleFilter, selectedSkills, booked }: { roleFilter: CoordinatorRole | "all"; selectedSkills: string[]; booked: boolean }) {
+  if (!c.active || booked) return false;
+  if (roleFilter !== "all" && !coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === roleFilter)) return false;
+  return coordinatorHasAllSkills(c, selectedSkills);
+}
+
+function matchesSearch(c: PrismCoordinator, query: string) {
+  const needle = query.trim().toLowerCase();
+  return !needle || [c.name, c.email, ...coordinatorRoleTags(c), ...c.skillsTags].join(" ").toLowerCase().includes(needle);
 }
 
 export function CoordinatorAssignmentDesk({
@@ -153,16 +165,8 @@ export function CoordinatorAssignmentDesk({
     );
   }
 
-  const filteredCoordinators = coordinators.filter((c) => {
-    if (!c.active) return false;
-    if (roleFilter !== "all" && !coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === roleFilter)) return false;
-    if (onlyAvailable && conflictFor(c.id)) return false;
-    if (!coordinatorHasAllSkills(c, selectedSkills)) return false;
-    return true;
-  });
-
-  const needle = query.trim().toLowerCase();
-  const visibleCoordinators = filteredCoordinators.filter((c) => !needle || [c.name, c.email, ...coordinatorRoleTags(c), ...c.skillsTags].join(" ").toLowerCase().includes(needle));
+  const filteredCoordinators = coordinators.filter((c) => fitsFinder(c, { roleFilter, selectedSkills, booked: onlyAvailable && Boolean(conflictFor(c.id)) }));
+  const visibleCoordinators = filteredCoordinators.filter((c) => matchesSearch(c, query));
 
   async function assign(coordinator: CoordinatorIdentity, role: CoordinatorRole) {
     const conflict = conflictFor(coordinator.id);
@@ -250,18 +254,7 @@ export function CoordinatorAssignmentDesk({
               <input type="checkbox" checked={onlyAvailable} onChange={(e) => setOnlyAvailable(e.target.checked)} className="size-4 rounded" />
               Available only
             </label>
-            <details className="relative">
-              <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-background px-3 text-sm text-foreground">
-                Skills{selectedSkills.length ? ` · ${selectedSkills.length}` : ""}<ChevronDown aria-hidden className="size-4" />
-              </summary>
-              <div className="absolute right-0 z-20 mt-1 grid w-72 gap-3 rounded-lg border border-border bg-popover p-3 shadow-lg">
-                <CoordinatorSkillFilters roleFilter={roleFilter} status={skillSuggestionStatus} options={skillOptions} selected={selectedSkills} onChange={updateSelectedSkill} />
-                <Button type="button" size="sm" disabled={roleFilter === "all" || skillSuggestionStatus === "loading"} onClick={() => void findSkillSuggestions()}>
-                  Find skill matches
-                </Button>
-                {roleFilter === "all" ? <FieldDescription>Choose a role to search by skill.</FieldDescription> : null}
-              </div>
-            </details>
+            <SkillFilterMenu roleFilter={roleFilter} status={skillSuggestionStatus} options={skillOptions} selected={selectedSkills} onChange={updateSelectedSkill} onFind={() => void findSkillSuggestions()} />
           </div>
           <CoordinatorSkillResults status={skillSuggestionStatus} suggestions={skillSuggestions} busy={busy} onAssign={assign} />
         </header>
@@ -395,6 +388,25 @@ export function CoordinatorAssignmentDesk({
         </Dialog>
       )}
     </div>
+  );
+}
+
+/** The finder's "Skills" menu: required skill tags for the chosen role, and a search for coordinators who hold them. */
+function SkillFilterMenu({ onFind, ...filters }: ComponentProps<typeof CoordinatorSkillFilters> & { onFind: () => void }) {
+  const { roleFilter, status, selected } = filters;
+  return (
+    <details className="relative">
+      <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-background px-3 text-sm text-foreground">
+        Skills{selected.length ? ` · ${selected.length}` : ""}<ChevronDown aria-hidden className="size-4" />
+      </summary>
+      <div className="absolute right-0 z-20 mt-1 grid w-72 gap-3 rounded-lg border border-border bg-popover p-3 shadow-lg">
+        <CoordinatorSkillFilters {...filters} />
+        <Button type="button" size="sm" disabled={roleFilter === "all" || status === "loading"} onClick={onFind}>
+          Find skill matches
+        </Button>
+        {roleFilter === "all" ? <FieldDescription>Choose a role to search by skill.</FieldDescription> : null}
+      </div>
+    </details>
   );
 }
 

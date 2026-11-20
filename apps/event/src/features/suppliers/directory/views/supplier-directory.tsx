@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ChevronDown, Plus, Users } from "lucide-react";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
@@ -17,6 +17,12 @@ import { SupplierDetailDrawer } from "./supplier-detail-drawer";
 import { SupplierDirectoryCards } from "./supplier-directory-table";
 import styles from "./supplier-workspace.module.css";
 
+/** Each supplier's next confirmed booking, by supplier id; undefined until it loads. */
+function useSupplierNextBookings() {
+  const upcoming = useResource(pmcmSupplierNextBookings, "signed-in").data?.items;
+  return useMemo(() => (upcoming ? new Map(upcoming.map((booking) => [booking.supplierId, booking] as const)) : undefined), [upcoming]);
+}
+
 export function SupplierDirectory({
   view,
   session,
@@ -27,8 +33,7 @@ export function SupplierDirectory({
   onOpenEvent: (eventId: string) => void;
 }) {
   const directory = useSupplierDirectoryViewModel({ view, session });
-  const upcoming = useResource(pmcmSupplierNextBookings, "signed-in").data?.items;
-  const nextBookings = upcoming ? new Map(upcoming.map((booking) => [booking.supplierId, booking] as const)) : undefined;
+  const nextBookings = useSupplierNextBookings();
   const [applicationsOpen, setApplicationsOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateSupplierInput>({ categoryId: "", name: "", tier: "pending_first_event" });

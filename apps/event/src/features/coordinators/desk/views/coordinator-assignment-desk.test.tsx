@@ -7,6 +7,9 @@ import { chooseSelectOption, openSelect } from "../../../../test-utils/radix-sel
 
 afterEach(cleanup);
 
+// jsdom has no scrollIntoView; "Field as" scrolls the finder into view.
+HTMLElement.prototype.scrollIntoView = () => {};
+
 const coordinators = [
   { id: "coord_1", name: "Jordan Lee", email: "jordan@example.test", active: true, roleTags: ["Floor Director"], skillsTags: [] },
   { id: "coord_2", name: "Sam Cruz", email: "sam@example.test", active: true, roleTags: ["Stage Director"], skillsTags: [] },

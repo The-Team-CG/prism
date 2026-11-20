@@ -205,16 +205,11 @@ export function EventRegister({ events, data = {}, onOpenEvent }: { events: Pris
   const pathname = usePathname();
   const [query, setQuery] = useListFilter("q");
   const [stage, setStage] = useState<PrismLifecycleStage | null>(null);
-  const [showAllDone, setShowAllDone] = useState(false);
-  const [showAllLater, setShowAllLater] = useState(false);
   const todayKey = manilaDateKey();
   const plan = planEventRegister(events.filter((event) => matches(event, query)), todayKey);
   const inStage = (event: PrismEvent) => !stage || derivePrismLifecycleStage(event) === stage;
   const near = plan.near.filter(inStage);
-  const later = plan.later.filter(inStage);
   const total = plan.near.length + plan.later.length + plan.done.length;
-  const card = (event: PrismEvent, compact = false) => <PmcmEventCard key={event.id} event={event} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} compact={compact} />;
-  const done = showAllDone ? plan.done : plan.done.slice(0, DONE_PREVIEW);
   return (
     <div className="grid gap-6">
       <EventRegisterToolbar activeId={pathname} query={query} onQuery={setQuery} counts={data.viewCounts} />
@@ -222,28 +217,48 @@ export function EventRegister({ events, data = {}, onOpenEvent }: { events: Pris
       {total === 0 ? <NoEvents query={query} /> : null}
       <StageFilter stages={plan.stages} active={stage} onPick={setStage} />
       <CardSection id="events-near" title={`Next ${EVENT_CARD_WINDOW_DAYS} days`} count={near.length}>
-        <EventCardGrid>{near.map((event) => card(event))}</EventCardGrid>
+        <EventCardGrid>{near.map((event) => <PmcmEventCard key={event.id} event={event} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} />)}</EventCardGrid>
       </CardSection>
-      <CardSection id="events-later" title={near.length ? "Later" : "Events"} count={later.length} description={later.some((event) => event.eventDate.slice(0, 10) < todayKey) ? "Events whose date has passed come first: each is owed its close-out." : undefined}>
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-          {(showAllLater || query ? later : later.slice(0, LATER_PREVIEW)).map((event) => <EventRow key={event.id} event={event} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} />)}
-        </ul>
-        {!showAllLater && !query && later.length > LATER_PREVIEW ? (
-          <button type="button" onClick={() => setShowAllLater(true)} className="justify-self-start rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-raised">
-            Show all {later.length} later events
-          </button>
-        ) : null}
-      </CardSection>
-      {stage ? null : (
-        <CardSection id="events-done" title="Done" count={plan.done.length}>
-          <EventCardGrid>{done.map((event) => card(event, true))}</EventCardGrid>
-          {plan.done.length > done.length ? (
-            <button type="button" onClick={() => setShowAllDone(true)} className="justify-self-start rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-raised">
-              Show all {plan.done.length} finished events
-            </button>
-          ) : null}
-        </CardSection>
-      )}
+      <LaterEvents events={plan.later.filter(inStage)} afterNear={near.length > 0} query={query} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} />
+      {stage ? null : <DoneEvents events={plan.done} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} />}
     </div>
+  );
+}
+
+type RegisterListProps = { data: EventRegisterData; todayKey: string; onOpenEvent: (id: string) => void };
+
+/** Everything still being worked past the next two weeks, one row each; a search shows every match. */
+function LaterEvents({ events, afterNear, query, data, todayKey, onOpenEvent }: RegisterListProps & { events: PrismEvent[]; afterNear: boolean; query: string }) {
+  const [showAll, setShowAll] = useState(false);
+  const expanded = showAll || Boolean(query);
+  const shown = expanded ? events : events.slice(0, LATER_PREVIEW);
+  const hasPast = events.some((event) => event.eventDate.slice(0, 10) < todayKey);
+  return (
+    <CardSection id="events-later" title={afterNear ? "Later" : "Events"} count={events.length} description={hasPast ? "Events whose date has passed come first: each is owed its close-out." : undefined}>
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        {shown.map((event) => <EventRow key={event.id} event={event} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} />)}
+      </ul>
+      {!expanded && events.length > LATER_PREVIEW ? (
+        <button type="button" onClick={() => setShowAll(true)} className="justify-self-start rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-raised">
+          Show all {events.length} later events
+        </button>
+      ) : null}
+    </CardSection>
+  );
+}
+
+/** Finished events as compact cards, the most recent few first. */
+function DoneEvents({ events, data, todayKey, onOpenEvent }: RegisterListProps & { events: PrismEvent[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? events : events.slice(0, DONE_PREVIEW);
+  return (
+    <CardSection id="events-done" title="Done" count={events.length}>
+      <EventCardGrid>{shown.map((event) => <PmcmEventCard key={event.id} event={event} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} compact />)}</EventCardGrid>
+      {events.length > shown.length ? (
+        <button type="button" onClick={() => setShowAll(true)} className="justify-self-start rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-raised">
+          Show all {events.length} finished events
+        </button>
+      ) : null}
+    </CardSection>
   );
 }

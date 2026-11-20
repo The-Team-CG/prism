@@ -42,7 +42,12 @@ export class PmcmOverviewQueries {
 
   /** Each event's client closeout rating, once the client sent one. */
   closeoutRatings() {
-    return this.prisma.opsClientCloseoutResponse.findMany({ select: { eventId: true, rating: true }, orderBy: [{ eventId: 'asc' }], take: MAX_ROWS });
+    return this.prisma.opsClientCloseoutResponse.findMany({
+      select: { eventId: true, rating: true },
+      orderBy: [{ eventId: 'asc' }],
+      // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: one small row per closed event, read whole to rate each client; MAX_ROWS keeps it finite.
+      take: MAX_ROWS,
+    });
   }
 
   /** Every event with its inquiry email, newest first, for matching clients to their portal accounts. */
@@ -50,6 +55,7 @@ export class PmcmOverviewQueries {
     return this.prisma.opsEvent.findMany({
       select: { id: true, inquiry: { select: { email: true } } },
       orderBy: [{ eventDate: 'desc' }, { id: 'asc' }],
+      // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: every event maps to its client by email; MAX_ROWS keeps the read finite.
       take: MAX_ROWS,
     });
   }

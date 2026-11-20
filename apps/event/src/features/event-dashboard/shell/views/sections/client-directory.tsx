@@ -330,22 +330,14 @@ export function ClientDossier({
   onOpenEvent: (id: string, tab?: DetailTab) => void;
 }) {
   const summary = summarizeClientDossier(client, manilaDateKey());
-  const email = client.inquiries.find((inquiry) => inquiry.email)?.email;
-  const contact = client.contact && client.contact !== client.name ? client.contact : undefined;
-  const rawType = client.inquiries.find((inquiry) => inquiry.clientType)?.clientType;
-  const type = rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1) : undefined;
+  const { email, contact, heroLabel } = dossierIdentity(client);
   return (
     <div className="grid min-w-0 gap-6">
       <button type="button" onClick={onBack} className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
         <ArrowLeft aria-hidden="true" className="size-4" />
         All clients
       </button>
-      <PrismHero
-        label={[type, contact, email].filter(Boolean).join(" · ") || "Client"}
-        title={client.name}
-        meta={[summary.since ? `With PMCM since ${formatPortalDate(summary.since)}` : null, lifetime?.lastActiveAt ? `Last active ${formatPortalDate(lifetime.lastActiveAt)}` : null].filter(Boolean).join(" · ") || undefined}
-        figure={{ value: balance, label: "balance due" }}
-      >
+      <PrismHero label={heroLabel} title={client.name} meta={dossierHeroMeta(summary.since, lifetime)} figure={{ value: balance, label: "balance due" }}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-ink-foreground/70">{clientStatusLine(client)}</p>
           {email ? (
@@ -353,25 +345,50 @@ export function ClientDossier({
           ) : null}
         </div>
       </PrismHero>
-      <PrismStatRow
-        label="Client figures"
-        stats={[
-          { label: "Events with PMCM", value: summary.figures.events, detail: `${summary.figures.upcoming} upcoming · ${summary.figures.completed} completed` },
-          { label: "Lifetime billed", value: lifetime ? php.format(lifetime.billed) : "—" },
-          { label: "Average rating", value: lifetime?.averageRating ? `${lifetime.averageRating.toFixed(1)} / 5` : "—", detail: lifetime ? (lifetime.ratings ? `From ${lifetime.ratings} closeout ${lifetime.ratings === 1 ? "survey" : "surveys"}` : "No closeout survey yet") : undefined },
-          { label: "Inquiries", value: summary.figures.inquiries },
-        ]}
-      />
+      <PrismStatRow label="Client figures" stats={dossierFigures(summary.figures, lifetime)} />
       <WorkspaceRouteTabs
         label="Client views"
         tabs={CLIENT_DOSSIER_VIEWS.map((item) => ({ id: item.view, label: item.label, href: clientDossierHref(client.id, item.view) }))}
         activeId={CLIENT_DOSSIER_VIEWS.some((item) => item.view === view) ? view : "overview"}
       />
-      {view === "history" ? <DossierHistory summary={summary} onOpenEvent={onOpenEvent} /> : null}
-      {view === "contacts" ? <DossierContacts client={client} /> : null}
-      {view !== "history" && view !== "contacts" ? <DossierOverview summary={summary} clientId={client.id} onOpenEvent={onOpenEvent} /> : null}
+      <DossierView view={view} client={client} summary={summary} onOpenEvent={onOpenEvent} />
     </div>
   );
+}
+
+function DossierView({ view, client, summary, onOpenEvent }: { view: string; client: EventClientRecord; summary: ClientDossierSummary; onOpenEvent: (id: string, tab?: DetailTab) => void }) {
+  if (view === "history") return <DossierHistory summary={summary} onOpenEvent={onOpenEvent} />;
+  if (view === "contacts") return <DossierContacts client={client} />;
+  return <DossierOverview summary={summary} clientId={client.id} onOpenEvent={onOpenEvent} />;
+}
+
+/** Who the client is, for the hero's label: type, contact person and email, whichever are on record. */
+function dossierIdentity(client: EventClientRecord) {
+  const email = client.inquiries.find((inquiry) => inquiry.email)?.email;
+  const contact = client.contact && client.contact !== client.name ? client.contact : undefined;
+  const rawType = client.inquiries.find((inquiry) => inquiry.clientType)?.clientType;
+  const type = rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1) : undefined;
+  return { email, contact, heroLabel: [type, contact, email].filter(Boolean).join(" · ") || "Client" };
+}
+
+function dossierHeroMeta(since: string | null, lifetime: ClientLifetime | undefined) {
+  const parts = [since ? `With PMCM since ${formatPortalDate(since)}` : null, lifetime?.lastActiveAt ? `Last active ${formatPortalDate(lifetime.lastActiveAt)}` : null];
+  return parts.filter(Boolean).join(" · ") || undefined;
+}
+
+function ratingDetail(lifetime: ClientLifetime | undefined) {
+  if (!lifetime) return undefined;
+  if (!lifetime.ratings) return "No closeout survey yet";
+  return `From ${lifetime.ratings} closeout ${lifetime.ratings === 1 ? "survey" : "surveys"}`;
+}
+
+function dossierFigures(figures: ClientDossierSummary["figures"], lifetime: ClientLifetime | undefined) {
+  return [
+    { label: "Events with PMCM", value: figures.events, detail: `${figures.upcoming} upcoming · ${figures.completed} completed` },
+    { label: "Lifetime billed", value: lifetime ? php.format(lifetime.billed) : "—" },
+    { label: "Average rating", value: lifetime?.averageRating ? `${lifetime.averageRating.toFixed(1)} / 5` : "—", detail: ratingDetail(lifetime) },
+    { label: "Inquiries", value: figures.inquiries },
+  ];
 }
 
 /** One line for the hero's footer: what the client has going on. */

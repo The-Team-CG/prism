@@ -134,64 +134,76 @@ export function LiveOpsOverview({
   today: string;
   onReload: () => Promise<void>;
 }) {
-  const suppliers = liveOps?.supplierStatuses.length ?? 0;
-  const coordinators = liveOps?.coordinatorAssignments.length ?? 0;
-  const refresh = (
-    <button type="button" disabled={busy} onClick={onReload} className="inline-flex h-10 items-center gap-2 rounded-md border border-ink-foreground/20 px-3 text-sm font-semibold text-ink-foreground disabled:opacity-60">
-      <RefreshCw className="size-4" aria-hidden /> Refresh
-    </button>
+  if (stage === "before") return <LiveDeskBefore event={event} today={today} />;
+  if (stage === "after") return <LiveDeskAfter event={event} liveOps={liveOps} metrics={metrics} />;
+  return <LiveDeskDay event={event} liveOps={liveOps} metrics={metrics} busy={busy} onReload={onReload} />;
+}
+
+function LiveDeskBefore({ event, today }: { event: PrismEvent; today: string }) {
+  const days = Math.max(1, daysBetween(today, event.eventDate));
+  return (
+    <PrismHero
+      label="Live desk"
+      title={`Opens on ${formatPortalDate(event.eventDate)}`}
+      meta={`${event.clientName} · check coordinators, supplier arrivals and the run sheet before the day.`}
+      figure={{ value: String(days), label: days === 1 ? "day to go" : "days to go" }}
+    />
   );
-  if (stage === "before") {
-    const days = Math.max(1, daysBetween(today, event.eventDate));
-    return (
-      <PrismHero
-        label="Live desk"
-        title={`Opens on ${formatPortalDate(event.eventDate)}`}
-        meta={`${event.clientName} · check coordinators, supplier arrivals and the run sheet before the day.`}
-        figure={{ value: String(days), label: days === 1 ? "day to go" : "days to go" }}
-      />
-    );
-  }
-  if (stage === "after") {
-    return (
-      <PrismHero
-        label={`Ended ${formatPortalDate(event.eventDate)}`}
-        title="How the day went"
-        meta={[`${liveOps?.guestAttendanceCount ?? 0} guests checked in`, `${metrics.completedTasks} tasks done`, metrics.openIssues ? `${metrics.openIssues} issues still open` : "no open issues"].join(" · ")}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p role="status" className="text-sm text-ink-foreground/70">Live entry is closed; the record below is kept for closure.</p>
-          <Link href={`/dashboard/events/${encodeURIComponent(event.id)}/closure`} className="rounded-md bg-ink-foreground px-3 py-2 text-sm font-semibold text-ink hover:opacity-90">Go to closure</Link>
-        </div>
-      </PrismHero>
-    );
-  }
-  const expected = liveOps?.briefing?.guestCount ?? 0;
-  const run = liveNowNext(liveOps?.schedule, liveOps?.timer, new Date().toISOString());
-  const stats: Array<{ label: string; value: string; danger?: boolean }> = [
-    { label: "Guests checked in", value: expected ? `${liveOps?.guestAttendanceCount ?? 0} of ${expected}` : String(liveOps?.guestAttendanceCount ?? 0) },
-    { label: "Suppliers verified", value: suppliers ? `${metrics.verifiedSuppliers} of ${suppliers}` : String(metrics.verifiedSuppliers) },
-    { label: "Coordinators on site", value: coordinators ? `${metrics.presentCoordinators} of ${coordinators}` : String(metrics.presentCoordinators) },
+}
+
+function LiveDeskAfter({ event, liveOps, metrics }: { event: PrismEvent; liveOps: PrismLiveOps | null; metrics: LiveOpsVm["metrics"] }) {
+  const meta = [`${liveOps?.guestAttendanceCount ?? 0} guests checked in`, `${metrics.completedTasks} tasks done`, metrics.openIssues ? `${metrics.openIssues} issues still open` : "no open issues"].join(" · ");
+  return (
+    <PrismHero label={`Ended ${formatPortalDate(event.eventDate)}`} title="How the day went" meta={meta}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p role="status" className="text-sm text-ink-foreground/70">Live entry is closed; the record below is kept for closure.</p>
+        <Link href={`/dashboard/events/${encodeURIComponent(event.id)}/closure`} className="rounded-md bg-ink-foreground px-3 py-2 text-sm font-semibold text-ink hover:opacity-90">Go to closure</Link>
+      </div>
+    </PrismHero>
+  );
+}
+
+/** "3 of 5" when there is an expected count to measure against, else just the count. */
+const ofExpected = (count: number, expected: number) => (expected ? `${count} of ${expected}` : String(count));
+
+function liveCounts(liveOps: PrismLiveOps | null, metrics: LiveOpsVm["metrics"]): Array<{ label: string; value: string; danger?: boolean }> {
+  return [
+    { label: "Guests checked in", value: ofExpected(liveOps?.guestAttendanceCount ?? 0, liveOps?.briefing?.guestCount ?? 0) },
+    { label: "Suppliers verified", value: ofExpected(metrics.verifiedSuppliers, liveOps?.supplierStatuses.length ?? 0) },
+    { label: "Coordinators on site", value: ofExpected(metrics.presentCoordinators, liveOps?.coordinatorAssignments.length ?? 0) },
     { label: "Tasks done", value: String(metrics.completedTasks) },
     { label: "Open issues", value: String(metrics.openIssues), danger: metrics.openIssues > 0 },
   ];
+}
+
+/** What is on now and what is next on the run sheet, for the hero's label, meta and countdown. */
+function runHeroCopy(event: PrismEvent, run: ReturnType<typeof liveNowNext>) {
+  const { now, next, minutesToNext } = run;
+  const nextLine = next ? `Next: ${next.title} at ${formatPortalTime(next.startAt)}${next.location ? ` · ${next.location}` : ""}` : null;
+  return {
+    label: now ? `Now · until ${formatPortalTime(now.endAt)}` : `Live now · ${event.clientName}`,
+    title: now?.title ?? event.eventName,
+    meta: nextLine ?? (now ? event.eventName : formatPortalDate(event.eventDate)),
+    figure: minutesToNext !== null && minutesToNext <= 180 ? { value: `${minutesToNext} min`, label: `to ${next?.title ?? "next"}` } : undefined,
+  };
+}
+
+function LiveDeskDay({ event, liveOps, metrics, busy, onReload }: { event: PrismEvent; liveOps: PrismLiveOps | null; metrics: LiveOpsVm["metrics"]; busy: boolean; onReload: () => Promise<void> }) {
+  const copy = runHeroCopy(event, liveNowNext(liveOps?.schedule, liveOps?.timer, new Date().toISOString()));
   return (
-    <PrismHero
-      label={run.now ? `Now · until ${formatPortalTime(run.now.endAt)}` : `Live now · ${event.clientName}`}
-      title={run.now?.title ?? event.eventName}
-      meta={run.next ? `Next: ${run.next.title} at ${formatPortalTime(run.next.startAt)}${run.next.location ? ` · ${run.next.location}` : ""}` : run.now ? event.eventName : formatPortalDate(event.eventDate)}
-      figure={run.minutesToNext !== null && run.minutesToNext <= 180 ? { value: `${run.minutesToNext} min`, label: `to ${run.next?.title ?? "next"}` } : undefined}
-    >
+    <PrismHero label={copy.label} title={copy.title} meta={copy.meta} figure={copy.figure}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <dl aria-label="Live counts" className="grid flex-1 grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-5">
-          {stats.map((stat) => (
+          {liveCounts(liveOps, metrics).map((stat) => (
             <div key={stat.label}>
               <dt className="text-xs text-ink-foreground/70">{stat.label}</dt>
               <dd className={cx("text-xl font-semibold tabular-nums", stat.danger ? "text-danger" : "text-ink-foreground")}>{stat.value}</dd>
             </div>
           ))}
         </dl>
-        {refresh}
+        <button type="button" disabled={busy} onClick={onReload} className="inline-flex h-10 items-center gap-2 rounded-md border border-ink-foreground/20 px-3 text-sm font-semibold text-ink-foreground disabled:opacity-60">
+          <RefreshCw className="size-4" aria-hidden /> Refresh
+        </button>
       </div>
     </PrismHero>
   );

@@ -90,51 +90,23 @@ export function Phase4ClosureBoard({
             const destination = gate.passed ? null : closeGateDestination(gate.key);
             const lead = gate === firstOpen;
             const inline = destination?.kind === "closure-tab" && destination.tabId !== currentStep && renderStep ? destination.tabId : null;
-            if (inline) {
-              // The gate's own step opens under it; the first open gate starts open.
+            if (destination && inline && renderStep) {
+              const open = toggled[gate.key] ?? lead;
               return (
-                <li key={gate.key} className={cx(lead && "-mx-5 bg-primary/5 px-5")}>
-                  <details open={toggled[gate.key] ?? lead} onToggle={(e) => { const open = e.currentTarget.open; setToggled((current) => (current[gate.key] === open ? current : { ...current, [gate.key]: open })); }} className="group">
-                    <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 py-3">
-                      <span className="flex min-w-0 flex-1 basis-64 items-start gap-3">
-                        <span aria-hidden className={cx("grid size-6 shrink-0 place-items-center rounded-full border text-xs font-semibold", lead ? "border-primary text-primary" : "border-border text-muted-foreground")}>{index + 1}</span>
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-foreground">{gate.label}<span className="sr-only">, open</span></span>
-                          <span className="block text-sm text-muted-foreground">{gate.detail}</span>
-                        </span>
-                      </span>
-                      <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm font-semibold text-foreground">
-                        <span className="group-open:hidden">{destination!.label}</span>
-                        <span className="hidden group-open:inline">Hide</span>
-                      </span>
-                    </summary>
-                    {toggled[gate.key] ?? lead ? <div className="mb-4 rounded-lg border border-border bg-card p-4">{renderStep!(inline)}</div> : null}
-                  </details>
-                </li>
+                <InlineGateRow
+                  key={gate.key}
+                  gate={gate}
+                  index={index}
+                  lead={lead}
+                  open={open}
+                  buttonLabel={destination.label}
+                  onToggle={(next) => setToggled((current) => (current[gate.key] === next ? current : { ...current, [gate.key]: next }))}
+                >
+                  {open ? renderStep(inline) : null}
+                </InlineGateRow>
               );
             }
-            return (
-              <li key={gate.key} className={cx("flex flex-wrap items-start justify-between gap-3 py-3", lead && "-mx-5 bg-primary/5 px-5")}>
-                <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
-                  <span aria-hidden className={gate.passed ? "grid size-6 shrink-0 place-items-center rounded-full bg-success text-xs font-semibold text-success-foreground" : cx("grid size-6 shrink-0 place-items-center rounded-full border text-xs font-semibold", lead ? "border-primary text-primary" : "border-border text-muted-foreground")}>
-                    {gate.passed ? "✓" : index + 1}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{gate.label}<span className="sr-only">{gate.passed ? ", passed" : ", open"}</span></p>
-                    <p className="text-sm text-muted-foreground">{gate.detail}</p>
-                  </div>
-                </div>
-                {destination ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpenDestination(destination)}
-                    className={lead ? "h-9 shrink-0 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90" : "h-9 shrink-0 rounded-md border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface-raised"}
-                  >
-                    {destination.label}
-                  </button>
-                ) : null}
-              </li>
-            );
+            return <LinkedGateRow key={gate.key} gate={gate} index={index} lead={lead} destination={destination} onOpenDestination={onOpenDestination} />;
           })}
         </ol>
       ) : null}
@@ -486,5 +458,88 @@ export function Phase4InsightsSection({
         </Empty>
       )}
     </section>
+  );
+}
+
+type CloseGate = PrismCloseGates["gates"][number];
+
+const gateNumberClass = (lead: boolean) =>
+  cx("grid size-6 shrink-0 place-items-center rounded-full border text-xs font-semibold", lead ? "border-primary text-primary" : "border-border text-muted-foreground");
+
+/** An open gate whose own closure step opens under it, so it is cleared in place; the first open gate starts open. */
+function InlineGateRow({
+  gate,
+  index,
+  lead,
+  open,
+  buttonLabel,
+  onToggle,
+  children,
+}: {
+  gate: CloseGate;
+  index: number;
+  lead: boolean;
+  open: boolean;
+  buttonLabel: string;
+  onToggle: (open: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <li className={cx(lead && "-mx-5 bg-primary/5 px-5")}>
+      <details open={open} onToggle={(e) => onToggle(e.currentTarget.open)} className="group">
+        <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 py-3">
+          <span className="flex min-w-0 flex-1 basis-64 items-start gap-3">
+            <span aria-hidden className={gateNumberClass(lead)}>{index + 1}</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-foreground">{gate.label}<span className="sr-only">, open</span></span>
+              <span className="block text-sm text-muted-foreground">{gate.detail}</span>
+            </span>
+          </span>
+          <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm font-semibold text-foreground">
+            <span className="group-open:hidden">{buttonLabel}</span>
+            <span className="hidden group-open:inline">Hide</span>
+          </span>
+        </summary>
+        {children ? <div className="mb-4 rounded-lg border border-border bg-card p-4">{children}</div> : null}
+      </details>
+    </li>
+  );
+}
+
+/** A passed gate, or an open one with a button to the place that clears it. */
+function LinkedGateRow({
+  gate,
+  index,
+  lead,
+  destination,
+  onOpenDestination,
+}: {
+  gate: CloseGate;
+  index: number;
+  lead: boolean;
+  destination: CloseGateDestination | null;
+  onOpenDestination: (destination: CloseGateDestination) => void;
+}) {
+  return (
+    <li className={cx("flex flex-wrap items-start justify-between gap-3 py-3", lead && "-mx-5 bg-primary/5 px-5")}>
+      <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
+        <span aria-hidden className={gate.passed ? "grid size-6 shrink-0 place-items-center rounded-full bg-success text-xs font-semibold text-success-foreground" : gateNumberClass(lead)}>
+          {gate.passed ? "✓" : index + 1}
+        </span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">{gate.label}<span className="sr-only">{gate.passed ? ", passed" : ", open"}</span></p>
+          <p className="text-sm text-muted-foreground">{gate.detail}</p>
+        </div>
+      </div>
+      {destination ? (
+        <button
+          type="button"
+          onClick={() => onOpenDestination(destination)}
+          className={lead ? "h-9 shrink-0 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90" : "h-9 shrink-0 rounded-md border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface-raised"}
+        >
+          {destination.label}
+        </button>
+      ) : null}
+    </li>
   );
 }

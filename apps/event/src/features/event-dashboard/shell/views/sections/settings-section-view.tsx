@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ComponentProps } from "react";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
 import { EventModulesControl } from "@/features/event-settings/modules/views/event-modules-control";
@@ -36,20 +37,9 @@ export function EventDashboardSettingsSectionView() {
   } = useEventDashboardLoadedRouteViewModel();
   const accounts = useAccountAdminViewModel({ onAccountsChanged: () => refresh() });
   const admin = isPmcmAdmin(session.role);
-  const tabs: Array<{ id: SettingsTab; label: string }> = [
-    ...(admin
-      ? [
-          { id: "rules" as const, label: "Event rules" },
-          { id: "templates" as const, label: "Templates" },
-          { id: "people" as const, label: "People and access" },
-          { id: "integrations" as const, label: "Integrations" },
-        ]
-      : []),
-    ...(selectedEvent ? [{ id: "event" as const, label: selectedEvent.eventName }] : []),
-  ];
+  const tabs = settingsTabs(admin, selectedEvent?.eventName);
   const [requested, setTab] = useListFilter("tab", tabs[0]?.id ?? "event");
   const tab = tabs.some((entry) => entry.id === requested) ? (requested as SettingsTab) : tabs[0]?.id;
-  const catalog = useResource(complianceRuleCatalog, tab === "rules" ? "signed-in" : null).data;
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -71,11 +61,7 @@ export function EventDashboardSettingsSectionView() {
         <Link href="/dashboard/notifications#notification-settings" className="text-sm font-medium text-primary hover:underline">Notification settings</Link>
       </div>
       <section id={`settings-panel-${tab}`} role="tabpanel" className="space-y-5">
-        {tab === "rules" ? (
-          <>
-            <ComplianceRulesSettings rules={complianceRules} catalog={catalog} busy={Boolean(busy)} onCreateRule={createComplianceRule} />
-          </>
-        ) : null}
+        {tab === "rules" ? <EventRulesPanel rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} /> : null}
         {tab === "templates" ? <PlanningTemplatesSettings /> : null}
         {tab === "people" ? <AccountAdminPanel users={reference.users} viewerRole={session.role} vm={accounts} /> : null}
         {tab === "integrations" ? <CanvaConnectionCard /> : null}
@@ -93,4 +79,23 @@ export function EventDashboardSettingsSectionView() {
       </section>
     </div>
   );
+}
+
+/** Admins see the organisation-wide tabs; anyone with an event open also sees that event's own controls. */
+function settingsTabs(admin: boolean, eventName: string | undefined): Array<{ id: SettingsTab; label: string }> {
+  const tabs: Array<{ id: SettingsTab; label: string }> = admin
+    ? [
+        { id: "rules", label: "Event rules" },
+        { id: "templates", label: "Templates" },
+        { id: "people", label: "People and access" },
+        { id: "integrations", label: "Integrations" },
+      ]
+    : [];
+  return eventName ? [...tabs, { id: "event", label: eventName }] : tabs;
+}
+
+/** Custom rules beside the built-in checks; the built-in catalog loads only while this tab is open. */
+function EventRulesPanel(props: Omit<ComponentProps<typeof ComplianceRulesSettings>, "catalog">) {
+  const catalog = useResource(complianceRuleCatalog, "signed-in").data;
+  return <ComplianceRulesSettings {...props} catalog={catalog} />;
 }
