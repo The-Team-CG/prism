@@ -32,7 +32,17 @@ function clearSeats(object) {
   return asArray(object.assignedGuestIds).length === 0 ? object : { ...object, assignedGuestIds: [] };
 }
 
-/** Rewrites each seat from a legacy guest id to a roster id. Returns the dropped-seat count too. */
+/** How many guests a legacy object can seat: none when hidden, its seat count when it has one, else no limit. */
+function seatCapacity(object) {
+  if (object.hidden) return 0;
+  return Number.isInteger(object.seats) && object.seats >= 0 ? object.seats : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * Rewrites each seat from a legacy guest id to a roster id. A seat over the table's seat count or on a hidden table is
+ * dropped like an unmatched one: the scene's seating rule would refuse every later save of the plan otherwise.
+ * Returns the dropped-seat count too.
+ */
 export function seatOnRoster(objects, guests, roster) {
   const matches = matchLegacyGuests(guests, roster);
   const seated = new Set();
@@ -43,7 +53,7 @@ export function seatOnRoster(objects, guests, roster) {
     const kept = [];
     for (const legacyGuestId of assigned) {
       const rosterId = matches.get(legacyGuestId);
-      if (rosterId === undefined || seated.has(rosterId)) {
+      if (rosterId === undefined || seated.has(rosterId) || kept.length >= seatCapacity(object)) {
         dropped += 1;
         continue;
       }
@@ -106,6 +116,8 @@ function emptyReport() {
     annotationObjectsUnmatched: 0,
     decisionsRehashed: 0,
     seatsDroppedByEvent: {},
+    /** Rows the conversion could not read: each is left as it was and named, so the operator can fix it and rerun. */
+    skipped: [],
   };
 }
 
@@ -128,20 +140,29 @@ export function planFloorplanConversion(data) {
   const isPreference = (draft) => draft?.sourceType === 'client_preference';
   const seatingRosterFor = (draft) => (draft && !isPreference(draft) ? data.roster.get(draft.eventId) ?? [] : null);
 
+  const skip = (row, reason) => report.skipped.push({ ...row, reason: reason instanceof Error ? reason.message.split('\n')[0] : String(reason) });
+
   for (const plan of data.plans) {
     if (plan.scene) continue;
     const draft = draftsByPlan.get(plan.id);
     const kind = draft ? (isPreference(draft) ? 'clientPreference' : 'eventDraft') : data.templatePlanIds.has(plan.id) ? 'venueTemplate' : 'other';
-    report.plans[kind] += 1;
     const roster = seatingRosterFor(draft);
-    const { scene, dropped } = convertPlanScene({
-      name: plan.name,
-      width: plan.width,
-      height: plan.height,
-      objects: legacyObjectsOf(plan.objectRows, plan.objects),
-      guests: asArray(plan.guests),
-      roster,
-    });
+    let converted;
+    try {
+      converted = convertPlanScene({
+        name: plan.name,
+        width: plan.width,
+        height: plan.height,
+        objects: legacyObjectsOf(plan.objectRows, plan.objects),
+        guests: asArray(plan.guests),
+        roster,
+      });
+    } catch (error) {
+      skip({ table: 'floor_plans', id: plan.id }, error);
+      continue;
+    }
+    const { scene, dropped } = converted;
+    report.plans[kind] += 1;
     if (draft && roster) report.seatsDroppedByEvent[draft.eventId] = (report.seatsDroppedByEvent[draft.eventId] ?? 0) + dropped;
     statements.push({
       unitId: plan.id,
@@ -153,19 +174,27 @@ export function planFloorplanConversion(data) {
   for (const draft of data.drafts) {
     const roster = seatingRosterFor(draft);
     const rehashed = new Map();
-    for (const column of ['submittedSnapshot', 'approvedSnapshot']) {
-      const stored = draft[column];
-      if (!stored || stored.scene) continue;
-      const oldHash = canonicalHash(stored);
-      const converted = convertSnapshot(stored, roster);
-      rehashed.set(oldHash, converted);
-      report.draftSnapshots += 1;
-      statements.push({
-        unitId: draft.floorPlanId,
-        text: `update floorplan.floor_plan_drafts set ${column === 'submittedSnapshot' ? 'submitted_snapshot' : 'approved_snapshot'} = $1 where id = $2`,
-        values: [converted.snapshot, draft.id],
-      });
+    // A draft's writes are planned together, so one unreadable snapshot leaves the whole draft untouched.
+    const draftStatements = [];
+    try {
+      for (const column of ['submittedSnapshot', 'approvedSnapshot']) {
+        const stored = draft[column];
+        if (!stored || stored.scene) continue;
+        const oldHash = canonicalHash(stored);
+        const converted = convertSnapshot(stored, roster);
+        rehashed.set(oldHash, converted);
+        draftStatements.push({
+          unitId: draft.floorPlanId,
+          text: `update floorplan.floor_plan_drafts set ${column === 'submittedSnapshot' ? 'submitted_snapshot' : 'approved_snapshot'} = $1 where id = $2`,
+          values: [converted.snapshot, draft.id],
+        });
+      }
+    } catch (error) {
+      skip({ table: 'floor_plan_drafts', id: draft.id, planId: draft.floorPlanId }, error);
+      continue;
     }
+    report.draftSnapshots += draftStatements.length;
+    statements.push(...draftStatements);
     if (rehashed.size === 0) continue;
     planSnapshotRehash(data, draft, rehashed, statements, report);
   }
@@ -174,7 +203,13 @@ export function planFloorplanConversion(data) {
     if (version.snapshot?.scene) continue;
     const draft = data.drafts.find((candidate) => candidate.id === version.draftId);
     if (!draft) continue;
-    const converted = convertSnapshot(version.snapshot, seatingRosterFor(draft));
+    let converted;
+    try {
+      converted = convertSnapshot(version.snapshot, seatingRosterFor(draft));
+    } catch (error) {
+      skip({ table: 'floor_plan_snapshot_versions', id: version.id, planId: draft.floorPlanId }, error);
+      continue;
+    }
     report.snapshots += 1;
     statements.push({
       unitId: draft.floorPlanId,
@@ -242,6 +277,10 @@ export function formatReport(report, { dryRun }) {
     `Decisions rehashed: ${report.decisionsRehashed}`,
     `Seats dropped per event: ${JSON.stringify(report.seatsDroppedByEvent)}`,
   ];
+  if (report.skipped.length > 0) {
+    lines.push(`Skipped ${report.skipped.length} row(s) that could not be read; fix each and run the conversion again before migration 20261127090000:`);
+    for (const row of report.skipped) lines.push(`  ${row.table} ${row.id}${row.planId ? ` (plan ${row.planId})` : ''}: ${row.reason}`);
+  }
   if (dryRun) lines.push('Dry run: nothing was written.');
   return lines.join('\n');
 }

@@ -106,6 +106,36 @@ test('a legacy room keeps its size in metres, and the old pixel-era default read
   }
 });
 
+test('an event draft seats no more guests than a table holds, and none at a hidden table', () => {
+  const guests = [{ id: 'lg-1', name: 'A One' }, { id: 'lg-2', name: 'B Two' }, { id: 'lg-3', name: 'C Three' }];
+  const eventRoster = [{ id: 'r-1', name: 'A One' }, { id: 'r-2', name: 'B Two' }, { id: 'r-3', name: 'C Three' }];
+  const small = { ...table('t-small', 'T1', ['lg-1', 'lg-2', 'lg-3']), seats: 2 };
+  const hidden = { ...table('t-hidden', 'T2', []), hidden: true };
+  const data = fixture({
+    plans: [{ id: 'plan-1', name: 'Gala', width: 20, height: 15, objects: [small, { ...hidden, assignedGuestIds: ['lg-3'] }], guests, scene: null, objectRows: [] }],
+    drafts: [{ id: 'draft-1', eventId: 'event-1', floorPlanId: 'plan-1', sourceType: 'blank', submittedSnapshot: null, approvedSnapshot: null }],
+    versions: [], annotations: [], decisions: [],
+    roster: new Map([['event-1', eventRoster]]),
+  });
+
+  const { statements, report } = planFloorplanConversion(data);
+  const scene = statements.find((statement) => statement.text.startsWith('update floorplan.floor_plans')).values[0];
+  const seatsAt = (legacyId) => sceneTables(scene).find((node) => node.metadata?.legacyId === legacyId)?.guestIds ?? [];
+  assert.deepEqual(seatsAt('t-small'), ['r-1', 'r-2']);
+  assert.deepEqual(seatsAt('t-hidden'), []);
+  assert.equal(report.seatsDroppedByEvent['event-1'], 2);
+});
+
+test('a row the conversion cannot read is skipped and named, and every other row is still converted', () => {
+  const broken = { id: 'plan-broken', name: 'Broken', width: 20, height: 15, objects: [null], guests: [], scene: null, objectRows: [] };
+  const data = fixture({ plans: [...fixture().plans, broken] });
+
+  const { statements, report } = planFloorplanConversion(data);
+  assert.deepEqual(report.skipped.map(({ table: name, id }) => [name, id]), [['floor_plans', 'plan-broken']]);
+  assert.ok(statements.some((statement) => statement.unitId === 'plan-1'));
+  assert.ok(!statements.some((statement) => statement.unitId === 'plan-broken'));
+});
+
 test('a second run after the first writes nothing', () => {
   const first = planFloorplanConversion(fixture());
   const second = planFloorplanConversion(applyToRows(fixture(), first.statements));
