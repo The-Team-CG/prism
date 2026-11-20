@@ -31,12 +31,16 @@ export type RequestCardFacts = {
 
 const dayWord = (days: number) => (days === 1 ? "1 day" : `${days} days`);
 
+/** Days from today to the quote deadline, a Philippine calendar day that PMCM accepts quotes through to its end. */
+function daysToDeadline(dueDate: string | null | undefined, now: Date): number | null {
+  return dueDate ? daysUntil(manilaCalendarKey(dueDate), manilaDateKey(now)) : null;
+}
+
 function deadline(dueDate: string | null | undefined, stage: RequestStage, now: Date): RequestCardFacts["deadline"] {
-  if (!dueDate || stage === "closed") return null;
-  const days = daysUntil(manilaCalendarKey(dueDate), manilaDateKey(now));
+  if (stage === "closed") return null;
+  const days = daysToDeadline(dueDate, now);
   if (days === null) return null;
-  const passed = new Date(dueDate).getTime() < now.getTime();
-  if (passed || days < 0) return { label: days < 0 ? `Overdue ${dayWord(-days)}` : "Overdue", tone: "overdue", days };
+  if (days < 0) return { label: `Overdue ${dayWord(-days)}`, tone: "overdue", days };
   if (days === 0) return { label: "Due today", tone: "soon", days };
   return { label: `Due in ${dayWord(days)}`, tone: days <= SOON_DAYS ? "soon" : "later", days };
 }
@@ -56,7 +60,8 @@ export function requestCardFacts(
 ): RequestCardFacts {
   const closed = isRequestClosed(request, quote);
   const stage: RequestStage = closed ? "closed" : quote ? "sent" : "to-quote";
-  const canRevise = stage === "sent" && !isQuoteLocked(request, quote);
+  // PMCM refuses a revision once the deadline day is over, so the card stops offering one then too.
+  const canRevise = stage === "sent" && !isQuoteLocked(request, quote) && (daysToDeadline(request.dueDate, now) ?? 0) >= 0;
   return {
     request,
     quote,

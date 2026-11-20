@@ -26,6 +26,16 @@ describe("request cards", () => {
     expect(requestCardFacts(request("a", { dueDate: "2026-11-18T09:00:00.000Z" }), undefined, undefined, NOW).deadline).toMatchObject({ label: "Overdue 2 days", tone: "overdue" });
   });
 
+  it("keeps a date-only deadline open through the end of its day in Manila", () => {
+    // The API sends the due date as a calendar day; at noon on it in Manila the quote is still due today.
+    const noonOnDueDay = new Date("2026-11-20T04:00:00.000Z");
+    expect(requestCardFacts(request("a", { dueDate: "2026-11-20" }), undefined, undefined, noonOnDueDay).deadline).toMatchObject({ label: "Due today", tone: "soon" });
+    expect(requestCardFacts(request("a", { dueDate: "2026-11-20" }), quote(), undefined, noonOnDueDay).canRevise).toBe(true);
+    const nextMorning = new Date("2026-11-20T17:00:00.000Z");
+    expect(requestCardFacts(request("a", { dueDate: "2026-11-20" }), undefined, undefined, nextMorning).deadline).toMatchObject({ label: "Overdue 1 day", tone: "overdue" });
+    expect(requestCardFacts(request("a", { dueDate: "2026-11-20" }), quote(), undefined, nextMorning)).toMatchObject({ canRevise: false, action: "View quote" });
+  });
+
   it("offers the one revision on a sent quote, and only a view once it is used", () => {
     expect(requestCardFacts(request("a"), quote(), undefined, NOW)).toMatchObject({ stage: "sent", canRevise: true, action: "Revise quote", status: { title: "1 revision left" } });
     expect(requestCardFacts(request("a"), quote({ revisionNumber: 2 }), undefined, NOW)).toMatchObject({ stage: "sent", canRevise: false, action: "View quote" });
