@@ -22,6 +22,8 @@ const DEAD_VIEW_REDIRECTS = [
   { source: `${DASHBOARD}/tasks/:view`, destination: DASHBOARD },
   { source: `${DASHBOARD}/team/:view(roles|assignments|workload|departments)`, destination: `${DASHBOARD}/team` },
   { source: `${DASHBOARD}/clients/:clientId/:view(files|messages|contracts|invoices|notes|activity-log)`, destination: `${DASHBOARD}/clients/:clientId` },
+  // A client's events moved into History, folded by year with their settled inquiries.
+  { source: `${DASHBOARD}/clients/:clientId/events`, destination: `${DASHBOARD}/clients/:clientId/history` },
   // Supplier contracts live on each event's Suppliers page; what PMCM owes suppliers is on the finance desk.
   { source: `${DASHBOARD}/suppliers/contracts`, destination: `${DASHBOARD}/events` },
   { source: `${DASHBOARD}/suppliers/payments`, destination: `${DASHBOARD}/finance` },

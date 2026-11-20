@@ -1,13 +1,17 @@
 "use client";
 
-import { formatPortalDate } from "@prism/ui/format-date";
+import Link from "next/link";
+import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import { ArrowLeft, ChevronRight, CircleUserRound, Search } from "lucide-react";
+import { PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent, type PrismInquiry } from "@prism/types";
+import { dateTileParts } from "@prism/ui/event-cards";
+import { PrismEmptyLine, PrismHero, PrismSection, PrismStatRow } from "@prism/ui/page-blocks";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import { RouteLink, label, useListFilter } from "@/features/pmcm-kit";
+import { RouteLink, cx, label, useListFilter } from "@/features/pmcm-kit";
+import { isOpenClientEvent, summarizeClientDossier, type ClientDossierSummary } from "../../model/client-dossier";
 import type { EventClientRecord } from "../../model/event-dashboard-selectors";
 import { CLIENT_DOSSIER_VIEWS, clientDossierHref, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
-import { portalHref } from "@prism/ui/portal-path";
 import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@prism/ui/components/tooltip";
 import type { ReactElement } from "react";
@@ -23,16 +27,11 @@ function FullValueTooltip({ value, children }: { value: string; children: ReactE
   );
 }
 
-const CLOSED_EVENT_STATUSES = ["completed", "cancelled", "closed"];
 const STATUS_ORDER: Record<string, number> = { active: 0, prospect: 1, "past client": 2 };
 const php = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 
-function isOpenEvent(event: EventClientRecord["events"][number]) {
-  return !event.archived && !CLOSED_EVENT_STATUSES.includes(event.status);
-}
-
 function clientStatus(client: EventClientRecord) {
-  return client.events.some(isOpenEvent) ? "active" : client.events.length ? "past client" : "prospect";
+  return client.events.some(isOpenClientEvent) ? "active" : client.events.length ? "past client" : "prospect";
 }
 
 function initials(name: string) {
@@ -42,7 +41,7 @@ function initials(name: string) {
 /** The soonest open event, or the most recent one when every event is finished. */
 function nextEvent(client: EventClientRecord) {
   const byDate = [...client.events].sort((left, right) => String(left.eventDate).localeCompare(String(right.eventDate)));
-  const open = byDate.find(isOpenEvent);
+  const open = byDate.find(isOpenClientEvent);
   if (open) return { event: open, upcoming: true };
   const last = byDate.at(-1);
   return last ? { event: last, upcoming: false } : null;
@@ -62,9 +61,16 @@ function directoryOrder(left: EventClientRecord, right: EventClientRecord) {
   return dates || left.name.localeCompare(right.name);
 }
 
-const ROW_GRID = "sm:grid sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_7.5rem_8rem_6.5rem_1rem] sm:items-center sm:gap-4";
+const ROW_GRID = "sm:grid sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_minmax(0,1fr)_8rem_1rem] sm:items-center sm:gap-4";
 
-/** Every client contact PMCM works with, one row each. */
+const SEGMENTS = [
+  { id: "active", label: "Active" },
+  { id: "prospect", label: "Prospects" },
+  { id: "past client", label: "Past" },
+  { id: "all", label: "All" },
+] as const;
+
+/** Every client contact PMCM works with, one row each, narrowed to active clients, prospects or past clients. */
 export function ClientDirectory({
   clients,
   balances,
@@ -75,13 +81,29 @@ export function ClientDirectory({
   onOpenClient: (id: string) => void;
 }) {
   const [query, setQuery] = useListFilter("q");
+  const counts = Object.fromEntries(SEGMENTS.map((segment) => [segment.id, segment.id === "all" ? clients.length : clients.filter((client) => clientStatus(client) === segment.id).length]));
+  const [segment, setSegment] = useListFilter("segment", counts.active > 0 ? "active" : "all");
   const needle = query.trim().toLowerCase();
   const rows = clients
+    .filter((client) => segment === "all" || clientStatus(client) === segment)
     .filter((client) => `${client.name} ${client.contact ?? ""} ${client.inquiries.map((inquiry) => inquiry.email).join(" ")}`.toLowerCase().includes(needle))
     .sort(directoryOrder);
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
+        <div role="group" aria-label="Which clients" className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+          {SEGMENTS.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              aria-pressed={segment === entry.id}
+              onClick={() => setSegment(entry.id)}
+              className={cx("rounded-md px-3 py-1.5 text-sm transition-colors", segment === entry.id ? "bg-card font-medium text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}
+            >
+              {entry.label}<span className="ml-1.5 tabular-nums text-muted-foreground">{counts[entry.id]}</span>
+            </button>
+          ))}
+        </div>
         <label className="relative w-full sm:max-w-80">
           <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -112,9 +134,8 @@ export function ClientDirectory({
             <div aria-hidden="true" className={`hidden border-b border-border px-4 py-2.5 text-xs text-muted-foreground ${ROW_GRID}`}>
               <span>Client</span>
               <span>Next event</span>
-              <span>Inquiries</span>
+              <span>With PMCM</span>
               <span className="text-right">Balance due</span>
-              <span>Status</span>
               <span />
             </div>
             <ul className="divide-y divide-border">
@@ -134,7 +155,6 @@ function ClientDirectoryRow({ client, balance, onOpenClient }: { client: EventCl
   const contact = client.contact !== client.name ? client.contact : undefined;
   const next = nextEvent(client);
   const reviewCount = toReview(client);
-  const status = clientStatus(client);
   return (
     <li className={`relative grid gap-2 px-4 py-3.5 transition-colors hover:bg-surface-raised has-[a:focus-visible]:bg-surface-raised has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-inset has-[a:focus-visible]:ring-ring ${ROW_GRID}`}>
       <div className="flex min-w-0 items-center gap-3">
@@ -153,11 +173,8 @@ function ClientDirectoryRow({ client, balance, onOpenClient }: { client: EventCl
         </div>
       </div>
       <ClientNextEvent next={next} />
-      <ClientInquiryCount reviewCount={reviewCount} total={client.inquiries.length} />
+      <ClientHistoryCount client={client} reviewCount={reviewCount} />
       <ClientBalance balance={balance} />
-      <div className="pl-12 sm:pl-0">
-        <StatusBadge status={status} label={label(status)} />
-      </div>
       <ChevronRight aria-hidden="true" className="hidden size-4 text-muted-foreground sm:block" />
     </li>
   );
@@ -173,9 +190,16 @@ function ClientNextEvent({ next }: { next: ReturnType<typeof nextEvent> }) {
   );
 }
 
-function ClientInquiryCount({ reviewCount, total }: { reviewCount: number; total: number }) {
-  if (reviewCount > 0) return <p className="pl-12 text-sm font-medium text-attention sm:pl-0">{reviewCount} to review</p>;
-  return <p className="pl-12 text-sm text-muted-foreground sm:pl-0">{total} {total === 1 ? "inquiry" : "inquiries"}</p>;
+/** How much business the client has brought: events, how many are in progress, and inquiries waiting on PMCM. */
+function ClientHistoryCount({ client, reviewCount }: { client: EventClientRecord; reviewCount: number }) {
+  const events = client.events.length;
+  const open = client.events.filter(isOpenClientEvent).length;
+  return (
+    <div className="min-w-0 pl-12 text-sm sm:pl-0">
+      <p className="truncate text-foreground">{events ? `${events} ${events === 1 ? "event" : "events"}${open ? ` · ${open} in progress` : ""}` : "No events yet"}</p>
+      {reviewCount > 0 ? <p className="text-xs font-medium text-attention">{reviewCount} inquiry{reviewCount === 1 ? "" : "s"} to review</p> : <p className="text-xs text-muted-foreground">{client.inquiries.length} {client.inquiries.length === 1 ? "inquiry" : "inquiries"}</p>}
+    </div>
+  );
 }
 
 function ClientBalance({ balance }: { balance: number }) {
@@ -187,15 +211,100 @@ function ClientBalance({ balance }: { balance: number }) {
   );
 }
 
-/** One client: who they are, their events and their inquiries, each opening the work it belongs to. */
-/** Each dossier route shows its own content; records that live per event link into that event's section. */
-const DOSSIER_EVENT_SECTIONS: Record<string, { title: string; tab: DetailTab; note: string }> = {
-  files: { title: "Files", tab: "files", note: "Files are kept in each event's workspace." },
-  contracts: { title: "Contracts", tab: "files", note: "Conforme and contract files are kept in each event's files." },
-  invoices: { title: "Invoices", tab: "billing", note: "Statements and payments are kept in each event's billing." },
-  messages: { title: "Messages", tab: "messages", note: "Client conversations are kept in each event's Messages." },
-};
+function DossierEventRow({ event, onOpenEvent }: { event: PrismEvent; onOpenEvent: (id: string, tab?: DetailTab) => void }) {
+  const tile = dateTileParts(event.eventDate);
+  return (
+    <li className="relative flex items-center gap-3 px-4 py-3 transition-colors hover:bg-surface-raised has-[a:focus-visible]:bg-surface-raised">
+      <span className="w-10 shrink-0 text-center">
+        <span className="block text-[11px] font-medium text-primary">{tile?.month ?? "TBC"}</span>
+        <span className="block text-base font-semibold leading-none tabular-nums text-foreground">{tile?.day ?? "–"}</span>
+      </span>
+      <span className="min-w-0 flex-1">
+        <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="block truncate text-sm font-semibold text-foreground outline-none after:absolute after:inset-0">
+          {event.eventName}
+        </RouteLink>
+        <span className="block truncate text-xs text-muted-foreground">{[formatPortalDate(event.eventDate), PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]].join(" · ")}</span>
+      </span>
+      <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+    </li>
+  );
+}
 
+function DossierInquiryRow({ inquiry }: { inquiry: PrismInquiry }) {
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold text-foreground">{inquiry.eventName}</span>
+        <span className="block text-xs text-muted-foreground">
+          {formatPortalDate(inquiry.eventDate, "Date pending")} · {inquiry.source || "Source not recorded"}
+        </span>
+      </span>
+      <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
+    </li>
+  );
+}
+
+/** What is going on with the client now: events still being worked, then inquiries waiting on a decision. */
+function DossierOverview({ summary, clientId, onOpenEvent }: { summary: ClientDossierSummary; clientId: string; onOpenEvent: (id: string, tab?: DetailTab) => void }) {
+  const earlier = summary.history.reduce((sum, year) => sum + year.events.length + year.inquiries.length, 0);
+  return (
+    <div className="grid gap-6">
+      <PrismSection id="client-active-events" title="Active and upcoming" count={summary.active.length} headerOutside flush>
+        {summary.active.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-muted-foreground">Nothing in progress. An accepted inquiry with a signed conforme becomes an event.</p>
+        ) : (
+          <ul className="divide-y divide-border">{summary.active.map((event) => <DossierEventRow key={event.id} event={event} onOpenEvent={onOpenEvent} />)}</ul>
+        )}
+      </PrismSection>
+      {summary.openInquiries.length > 0 ? (
+        <PrismSection id="client-open-inquiries" title="Open inquiries" count={summary.openInquiries.length} headerOutside flush>
+          <ul className="divide-y divide-border">{summary.openInquiries.map((inquiry) => <DossierInquiryRow key={inquiry.id} inquiry={inquiry} />)}</ul>
+        </PrismSection>
+      ) : null}
+      {earlier > 0 ? (
+        <Link href={clientDossierHref(clientId, "history")} className="justify-self-start text-sm font-medium text-primary hover:underline">
+          {earlier} earlier {earlier === 1 ? "event or inquiry" : "events and inquiries"} in History
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+/** Everything settled, one fold per year, newest first; the latest year starts open. */
+function DossierHistory({ summary, onOpenEvent }: { summary: ClientDossierSummary; onOpenEvent: (id: string, tab?: DetailTab) => void }) {
+  if (summary.history.length === 0) {
+    return <PrismEmptyLine className="rounded-lg border border-dashed border-border px-4 py-3">No past events or settled inquiries yet.</PrismEmptyLine>;
+  }
+  return (
+    <section aria-labelledby="client-history-title" className="grid gap-3">
+      <h2 id="client-history-title" className="text-base font-semibold text-foreground">History</h2>
+      <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card py-0">
+        {summary.history.map((year, index) => (
+          <details key={year.year} open={index === 0} className="group border-t border-border first:border-t-0">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 hover:bg-surface-raised">
+              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <ChevronRight aria-hidden className="size-4 text-muted-foreground transition-transform group-open:rotate-90" />
+                {year.year}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {[year.events.length ? `${year.events.length} ${year.events.length === 1 ? "event" : "events"}` : null, year.inquiries.length ? `${year.inquiries.length} ${year.inquiries.length === 1 ? "inquiry" : "inquiries"}` : null].filter(Boolean).join(" · ")}
+              </span>
+            </summary>
+            <ul className="divide-y divide-border border-t border-border bg-muted/20">
+              {year.events.map((event) => <DossierEventRow key={event.id} event={event} onOpenEvent={onOpenEvent} />)}
+              {year.inquiries.map((inquiry) => <DossierInquiryRow key={inquiry.id} inquiry={inquiry} />)}
+            </ul>
+          </details>
+        ))}
+      </Card>
+    </section>
+  );
+}
+
+/**
+ * One client's relationship with PMCM: a lead block with who they are and what they owe, four figures, then what is
+ * active now, their history folded by year, and their contacts. Each event opens its own workspace.
+ */
 export function ClientDossier({
   client,
   balance,
@@ -209,158 +318,56 @@ export function ClientDossier({
   onBack: () => void;
   onOpenEvent: (id: string, tab?: DetailTab) => void;
 }) {
-  const eventSection = DOSSIER_EVENT_SECTIONS[view];
-  const showEvents = view === "overview" || view === "events";
-  const showInquiries = view === "overview";
-  const facts = [
-    { label: "Contact", value: client.contact ?? "Not recorded" },
-    { label: "Company", value: client.company ?? client.name },
-    { label: "Email", value: client.inquiries[0]?.email ?? "Not recorded" },
-    { label: "Balance due", value: balance },
-  ];
+  const summary = summarizeClientDossier(client, manilaDateKey());
+  const email = client.inquiries.find((inquiry) => inquiry.email)?.email;
+  const contact = client.contact && client.contact !== client.name ? client.contact : undefined;
+  const type = client.inquiries.find((inquiry) => inquiry.clientType)?.clientType;
   return (
     <div className="grid min-w-0 gap-6">
       <button type="button" onClick={onBack} className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
         <ArrowLeft aria-hidden="true" className="size-4" />
         All clients
       </button>
-      <section aria-label="Client summary" className="rounded-lg border border-border bg-card p-5">
-        <StatusBadge status={clientStatus(client)} />
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {facts.map((fact) => (
-            <div key={fact.label} className="min-w-0">
-              <dt className="text-xs text-muted-foreground">{fact.label}</dt>
-              <dd className="mt-0.5 min-w-0 font-semibold text-foreground">
-                <FullValueTooltip value={fact.value}>
-                  <span className="block truncate">{fact.value}</span>
-                </FullValueTooltip>
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
+      <PrismHero
+        label={[type, contact, email].filter(Boolean).join(" · ") || "Client"}
+        title={client.name}
+        meta={summary.since ? `With PMCM since ${formatPortalDate(summary.since)}` : undefined}
+        figure={{ value: balance, label: "balance due" }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-ink-foreground/70">{clientStatusLine(client)}</p>
+          {email ? (
+            <a href={`mailto:${email}`} className="rounded-md bg-ink-foreground px-3 py-2 text-sm font-semibold text-ink hover:opacity-90">Email {contact ?? client.name}</a>
+          ) : null}
+        </div>
+      </PrismHero>
+      <PrismStatRow
+        label="Client figures"
+        stats={[
+          { label: "Events with PMCM", value: summary.figures.events },
+          { label: "Upcoming", value: summary.figures.upcoming },
+          { label: "Completed", value: summary.figures.completed },
+          { label: "Inquiries", value: summary.figures.inquiries },
+        ]}
+      />
       <WorkspaceRouteTabs
         label="Client views"
         tabs={CLIENT_DOSSIER_VIEWS.map((item) => ({ id: item.view, label: item.label, href: clientDossierHref(client.id, item.view) }))}
-        activeId={view}
+        activeId={CLIENT_DOSSIER_VIEWS.some((item) => item.view === view) ? view : "overview"}
       />
-
-      {eventSection ? <DossierEventLinks client={client} section={eventSection} onOpenEvent={onOpenEvent} /> : null}
+      {view === "history" ? <DossierHistory summary={summary} onOpenEvent={onOpenEvent} /> : null}
       {view === "contacts" ? <DossierContacts client={client} /> : null}
-      {view === "notes" ? (
-        <DossierNotice title="Notes">Client notes aren&apos;t recorded in P.R.I.S.M yet. Decisions about this client&apos;s events are in each event&apos;s decision log.</DossierNotice>
-      ) : null}
-      {view === "activity-log" ? (
-        <DossierNotice title="Activity log">
-          Actions on this client&apos;s records are in the{" "}
-          <a href={portalHref("/dashboard/audit")} className="font-medium text-primary hover:text-primary/80">audit trail</a>.
-        </DossierNotice>
-      ) : null}
-
-      {showEvents ? (
-      <section aria-labelledby="client-events-title" className="grid gap-3">
-        <h3 id="client-events-title" className="text-base font-semibold text-foreground">Events</h3>
-        <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
-          {client.events.length === 0 ? (
-            <p className="px-4 py-5 text-sm text-muted-foreground">No events yet. An accepted inquiry with a signed conforme becomes an event.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {client.events.map((event) => (
-                <li key={event.id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
-                  <span className="min-w-0">
-                    <span className="block truncate font-semibold text-foreground">{event.eventName}</span>
-                    <span className="block text-xs text-muted-foreground">{formatPortalDate(event.eventDate)}</span>
-                  </span>
-                  <span className="flex shrink-0 flex-wrap items-center gap-3">
-                    <StatusBadge status={event.status} />
-                    <RouteLink href={eventWorkspaceHref(event.id)} onNavigate={() => onOpenEvent(event.id)} className="text-sm font-semibold text-muted-foreground hover:text-foreground">
-                      Open<span className="sr-only"> {event.eventName}</span>
-                    </RouteLink>
-                    <RouteLink href={eventWorkspaceHref(event.id, "files")} onNavigate={() => onOpenEvent(event.id, "files")} className="text-sm text-muted-foreground hover:text-foreground">Files</RouteLink>
-                    <RouteLink href={eventWorkspaceHref(event.id, "billing")} onNavigate={() => onOpenEvent(event.id, "billing")} className="text-sm text-muted-foreground hover:text-foreground">Billing</RouteLink>
-                    <RouteLink href={eventWorkspaceHref(event.id, "messages")} onNavigate={() => onOpenEvent(event.id, "messages")} className="text-sm text-muted-foreground hover:text-foreground">Messages</RouteLink>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </section>
-
-      ) : null}
-
-      {showInquiries ? (
-      <section aria-labelledby="client-inquiries-title" className="grid gap-3">
-        <h3 id="client-inquiries-title" className="text-base font-semibold text-foreground">Inquiries</h3>
-        <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
-          {client.inquiries.length === 0 ? (
-            <p className="px-4 py-5 text-sm text-muted-foreground">No inquiries on record for this client.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {client.inquiries.map((inquiry) => (
-                <li key={inquiry.id} className="flex flex-wrap items-center justify-between gap-4 px-4 py-3">
-                  <span className="min-w-0">
-                    <span className="block truncate font-semibold text-foreground">{inquiry.eventName}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {formatPortalDate(inquiry.eventDate, "Date pending")} · {inquiry.source || "Source not recorded"}
-                    </span>
-                  </span>
-                  <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-      </section>
-      ) : null}
+      {view !== "history" && view !== "contacts" ? <DossierOverview summary={summary} clientId={client.id} onOpenEvent={onOpenEvent} /> : null}
     </div>
   );
 }
 
-function DossierNotice({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="grid gap-3">
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
-      <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">{children}</p>
-    </section>
-  );
-}
-
-function DossierEventLinks({
-  client,
-  section,
-  onOpenEvent,
-}: {
-  client: EventClientRecord;
-  section: { title: string; tab: DetailTab; note: string };
-  onOpenEvent: (id: string, tab?: DetailTab) => void;
-}) {
-  return (
-    <section aria-labelledby="client-dossier-section-title" className="grid gap-3">
-      <div>
-        <h3 id="client-dossier-section-title" className="text-base font-semibold text-foreground">{section.title}</h3>
-        <p className="text-sm text-muted-foreground">{section.note}</p>
-      </div>
-      {client.events.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">This client has no events yet, so there are no {section.title.toLowerCase()} on record.</p>
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border bg-card">
-          {client.events.map((event) => (
-            <li key={event.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <span className="min-w-0">
-                <span className="block break-words font-semibold text-foreground">{event.eventName}</span>
-                <span className="block text-xs text-muted-foreground">{formatPortalDate(event.eventDate)}</span>
-              </span>
-              <RouteLink href={eventWorkspaceHref(event.id, section.tab)} onNavigate={() => onOpenEvent(event.id, section.tab)} className="inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:text-primary-strong">
-                Open {section.title.toLowerCase()}<span className="sr-only"> for {event.eventName}</span>
-              </RouteLink>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
+/** One line for the hero's footer: what the client has going on. */
+function clientStatusLine(client: EventClientRecord) {
+  const open = client.events.filter(isOpenClientEvent).length;
+  const review = toReview(client);
+  const parts = [open ? `${open} ${open === 1 ? "event" : "events"} in progress` : "No event in progress", review ? `${review} ${review === 1 ? "inquiry" : "inquiries"} to review` : null];
+  return parts.filter(Boolean).join(" · ");
 }
 
 function DossierContacts({ client }: { client: EventClientRecord }) {

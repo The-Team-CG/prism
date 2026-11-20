@@ -65,13 +65,13 @@ export const EVENT_TAB_BY_ROUTE = Object.fromEntries(
 /** The client dossier's tabs, in display order. Each one is its own URL. */
 export const CLIENT_DOSSIER_VIEWS: ReadonlyArray<{ view: string; label: string }> = [
   { view: "overview", label: "Overview" },
-  { view: "events", label: "Events" },
+  { view: "history", label: "History" },
   { view: "contacts", label: "Contacts" },
 ];
 
 export const CLIENT_DETAIL_ROUTES: Record<string, string> = {
   "client-overview": "overview",
-  "client-events": "events",
+  "client-events": "history",
   "client-contacts": "contacts",
   "client-files": "files",
   "client-messages": "messages",
