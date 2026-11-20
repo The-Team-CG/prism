@@ -5,14 +5,15 @@ import { useRouter } from "next/navigation";
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from "@prism/types";
 import { useBackgroundRefresh } from "@prism/portal-query";
 
-/** How often a guest in a live game checks for the host's moves: often enough to see a new question while it is open. */
-const LIVE_GAME_REFRESH_MS = 5_000;
 import {
   getEventGameParticipantState,
   getEventGameParticipantMediaAuthorization,
   leaveEventGamesFromSession,
   submitEventGameParticipantAction,
 } from "../use-cases/event-game-participant";
+
+/** How often a guest in a live game checks for the host's moves: often enough to see a new question while it is open. */
+const LIVE_GAME_REFRESH_MS = 5_000;
 
 export function useEventGamePlayViewModel(sessionId: string) {
   const router = useRouter();

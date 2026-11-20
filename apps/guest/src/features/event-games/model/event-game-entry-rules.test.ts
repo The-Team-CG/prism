@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  createAnonymousParticipantAlias,
   isActiveMultiplayerGameKind,
   isValidGamePin,
   normalizeGamePin,
@@ -23,12 +22,5 @@ describe("event game entry rules", () => {
     expect(isActiveMultiplayerGameKind("split-the-room")).toBe(true);
     expect(isActiveMultiplayerGameKind("word-scramble")).toBe(false);
     expect(isActiveMultiplayerGameKind("spot-the-difference")).toBe(false);
-  });
-
-  it("creates a non-identifying guest alias", () => {
-    const alias = createAnonymousParticipantAlias("event-scoped-credential");
-    expect(alias).toMatch(/^Guest \d{4}$/);
-    expect(alias).not.toContain("@");
-    expect(createAnonymousParticipantAlias("event-scoped-credential")).toBe(alias);
   });
 });

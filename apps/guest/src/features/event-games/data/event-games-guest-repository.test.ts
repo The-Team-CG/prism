@@ -172,10 +172,12 @@ describe("event games guest repository", () => {
       photoUrl: "https://example.test/photo.png",
     }));
 
+    // The server's non-identifying game alias is kept so the lobby can say who the guest plays as; profile fields go.
     expect(eventGamesGuestRepository.readParticipantSession()).toEqual({
       eventId: "event-a",
       currentSessionId: "session-a1",
       participantCredential: "A".repeat(43),
+      participantAlias: "Legacy alias",
     });
     expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("displayName");
     expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("photoUrl");
@@ -423,11 +425,12 @@ describe("event games guest repository", () => {
 
     expect(api.getParticipantState).toHaveBeenCalledWith("session-a1", "A".repeat(43));
 
+    // The alias the server showed in that game replaces whatever was stored, so the lobby names the guest the same way.
     expect(eventGamesGuestRepository.readParticipantSession()).toEqual({
       eventId: "event-a", currentSessionId: null, participantCredential: "A".repeat(43),
+      participantAlias: participantState.participant.participantAlias,
     });
     expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("name");
-    expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("participantAlias");
   });
 
   it("returns only the public participant state fields", async () => {
@@ -448,6 +451,8 @@ describe("event games guest repository", () => {
     expect(JSON.stringify(result)).not.toContain("staff-only");
     expect(JSON.stringify(result)).not.toContain("Private name");
     expect(JSON.stringify(result)).not.toContain("correctAnswer");
+    // The lobby and PIN screens show this same server name for the guest.
+    expect(eventGamesGuestRepository.readParticipantSession()?.participantAlias).toBe("Guest A1B2C3D4E5");
   });
 
   it("keeps Family Feud read data to the participant's team label only", async () => {

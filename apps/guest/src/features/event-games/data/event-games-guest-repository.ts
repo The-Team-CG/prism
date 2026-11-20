@@ -27,10 +27,12 @@ export interface GuestGameParticipantSession {
   participantCredential: string;
   /** The PIN this credential joined with, so typing the same PIN again rejoins as the same player. */
   joinedWithPin?: string;
+  /** The name the guest plays under in their current game, as the server shows it on the game and the leaderboard. */
+  participantAlias?: string;
 }
 
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.gameParticipant;
-const SESSION_FIELDS = new Set(["eventId", "currentSessionId", "participantCredential", "joinedWithPin"]);
+const SESSION_FIELDS = new Set(["eventId", "currentSessionId", "participantCredential", "joinedWithPin", "participantAlias"]);
 const PARTICIPANT_CREDENTIAL_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const PIN_ERROR = "Enter the 6-digit game PIN.";
 const JOIN_ERROR = "This game is unavailable. Check the PIN and try again.";
@@ -61,7 +63,8 @@ function isGuestGameParticipantSession(value: unknown): value is GuestGamePartic
     && (value.currentSessionId === null || (typeof value.currentSessionId === "string" && value.currentSessionId.length > 0))
     && typeof value.participantCredential === "string"
     && PARTICIPANT_CREDENTIAL_PATTERN.test(value.participantCredential)
-    && isOptionalGamePin(value.joinedWithPin);
+    && isOptionalGamePin(value.joinedWithPin)
+    && (value.participantAlias === undefined || (typeof value.participantAlias === "string" && value.participantAlias.length <= 80));
 }
 
 function readSession(): GuestGameParticipantSession | null {
@@ -76,6 +79,7 @@ function readSession(): GuestGameParticipantSession | null {
     currentSessionId: stored.currentSessionId,
     participantCredential: stored.participantCredential,
     ...(stored.joinedWithPin ? { joinedWithPin: stored.joinedWithPin } : {}),
+    ...(stored.participantAlias ? { participantAlias: stored.participantAlias } : {}),
   };
   if (Object.keys(stored).some((field) => !SESSION_FIELDS.has(field))) {
     savePrismSession(SESSION_KEY, session);
@@ -642,8 +646,12 @@ export const eventGamesGuestRepository = {
         await eventGames.getParticipantState(sessionId, session.participantCredential),
         sessionId,
       );
+      // The server's name for the guest in this game is kept, so the lobby and PIN screens say the same name.
+      const remembered = { ...session, participantAlias: state.participant.participantAlias };
       if (state.status === "completed" || state.status === "cancelled") {
-        savePrismSession(SESSION_KEY, { ...session, currentSessionId: null });
+        savePrismSession(SESSION_KEY, { ...remembered, currentSessionId: null });
+      } else if (session.participantAlias !== remembered.participantAlias) {
+        savePrismSession(SESSION_KEY, remembered);
       }
       return state;
     } catch (error) {
