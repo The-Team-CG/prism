@@ -10,10 +10,15 @@ import {
   OpsUserRole,
 } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotification } from '@prism/contexts/platform-ops';
-import { CANCELLATION_FEE_POLICY, cancellationFeeBounds, type EventDecisionInput, type PrismCancellationSummary, type PrismVenueConfirmationTask, type ResolveVenueConfirmationInput } from '@prism/types';
+import { CANCELLATION_FEE_POLICY, cancellationFeeBounds, derivePrismLifecycleStage, isBeforePrismEventDay, type EventDecisionInput, type PrismCancellationSummary, type PrismVenueConfirmationTask, type ResolveVenueConfirmationInput } from '@prism/types';
 import { COMMERCIAL_FACTS_READER, type CommercialFactsReader } from '@prism/contexts/read-models/commercial-facts-reader';
 import { STAFFING_COMMANDS, type StaffingCommands } from '@prism/contexts/operations';
 import { CONFIRMED_CANCELLATION_FEE_WRITER, type ConfirmedCancellationFeeWriter, EVENT_DECISION_SUPPLIER_OWNER, type EventDecisionSupplierOwner } from '@prism/contexts/commercial';
+
+const DATE_TO_BE_CONFIRMED = 'date_to_be_confirmed';
+/** "postponed" is the status the older rule left on a postponed event; a postponement now keeps the status. */
+const PAUSED_STATUSES = new Set([DATE_TO_BE_CONFIRMED, 'postponed']);
+const TERMINAL_STATUSES = new Set(['cancelled', 'archived']);
 
 @Injectable()
 export class EventDecisionService {
@@ -103,14 +108,14 @@ export class EventDecisionService {
         const decisionId = `decision_${randomUUID()}`;
         // Consumption happens before any Operations or Commercial side effect, so a lost race stops the decision early.
         const freezeExceptionId = await this.consumeFreezeExceptionForDecision(tx, eventId, event.freezeStatus, input, decisionId);
-        const priorState = this.validateEventState(event.status, event.eventDate, input);
+        const { nextDate, nextStatus, ...priorState } = await this.validateEventState(tx, event, input);
         await this.assertCancellationFee(eventId, input, tx);
-        const impacts = await this.loadImpacts(tx, eventId, input, event.eventDate, priorState.nextDate, actor);
+        const impacts = await this.loadImpacts(tx, eventId, input, event.eventDate, nextDate, actor);
         const fee = input.cancellationFeeAmount > 0 ? await this.cancellationFeeWriter.createConfirmedCancellationFeeSource(eventId, {
           amount: input.cancellationFeeAmount, reason: input.reason, idempotencyKey: `event-decision-fee:${decisionId}`,
         }, { id: actor.id ?? '', name: actor.name, role: actor.role, email: actor.email }, { prisma: tx, actorId: actor.id, correlationId: decisionId }) : null;
         const decision = await this.createDecision(tx, decisionId, eventId, input, actor, priorState, impacts.assignmentImpact, freezeExceptionId, fee?.id ?? null);
-        await this.applyTransition(tx, eventId, input, impacts, priorState.nextDate);
+        await this.applyTransition(tx, eventId, input, nextStatus, nextDate);
         if (input.decision !== 'cancelled') {
           // FR-97: a moved date needs the venue re-confirmed; the downpayment carries over and no fee applies.
           await tx.opsVenueConfirmationTask.create({ data: {
@@ -165,11 +170,35 @@ export class EventDecisionService {
     return meta?.code === '40001' || (error.code === 'P2010' && message.includes('40001'));
   }
 
-  private validateEventState(status: string, eventDate: Date, input: EventDecisionInput) {
-    if (['cancelled', 'archived'].includes(status)) throw new BadRequestException(`Event is already ${status}`);
+  /**
+   * A decision is recorded only before event day. Postponing moves the date and keeps the event's status, so
+   * planning carries on to event day on the new date. "Date to be confirmed" pauses the event until a later
+   * postponement sets a date and restores the status the pause replaced. Cancelling is terminal.
+   */
+  private async validateEventState(tx: Prisma.TransactionClient, event: Awaited<ReturnType<EventDecisionService['requireEvent']>>, input: EventDecisionInput) {
+    const { status, eventDate } = event;
+    if (event.archived || TERMINAL_STATUSES.has(status)) throw new BadRequestException(`Event is already ${event.archived ? 'archived' : status}`);
+    if (!isBeforePrismEventDay(derivePrismLifecycleStage(event))) throw new BadRequestException('Decisions cannot be recorded once event day has started');
     const nextDate = input.decision === 'postponed' && input.newEventDate ? new Date(input.newEventDate) : eventDate;
     if (Number.isNaN(nextDate.getTime())) throw new BadRequestException('New event date is invalid');
-    return { status, eventDate: eventDate.toISOString(), nextDate };
+    const nextStatus = input.decision === 'cancelled' ? 'cancelled'
+      : input.decision === 'date_to_be_confirmed' ? DATE_TO_BE_CONFIRMED
+        : PAUSED_STATUSES.has(status) ? await this.statusBeforePause(tx, event.id) : status;
+    return { status, eventDate: eventDate.toISOString(), nextDate, nextStatus };
+  }
+
+  /**
+   * The status a paused event resumes: the newest decision's prior status that was not itself a pause. Events
+   * left at "postponed" by the older rule resume the same way.
+   */
+  private async statusBeforePause(tx: Prisma.TransactionClient, eventId: string): Promise<string> {
+    // QUERY_AUDIT_ALLOW_UNBOUNDED: one row per decision on a single event.
+    const decisions = await tx.opsEventDecision.findMany({ where: { eventId }, orderBy: { decidedAt: 'desc' }, select: { priorState: true } });
+    for (const decision of decisions) {
+      const prior = this.asJsonRecord(decision.priorState).status;
+      if (typeof prior === 'string' && !PAUSED_STATUSES.has(prior) && !TERMINAL_STATUSES.has(prior)) return prior;
+    }
+    return 'planning';
   }
 
   private async loadImpacts(
@@ -231,8 +260,8 @@ export class EventDecisionService {
     } });
   }
 
-  private async applyTransition(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, impacts: Awaited<ReturnType<EventDecisionService['loadImpacts']>>, nextDate: Date) {
-    await tx.opsEvent.update({ where: { id: eventId }, data: { status: input.decision, eventDate: nextDate } });
+  private async applyTransition(tx: Prisma.TransactionClient, eventId: string, input: EventDecisionInput, nextStatus: string, nextDate: Date) {
+    await tx.opsEvent.update({ where: { id: eventId }, data: { status: nextStatus, eventDate: nextDate } });
     if (input.decision === 'cancelled' || input.supplierImpact === 'release_obligations') {
       await this.supplierDecisionOwner.releaseEventSupplierObligations(eventId, {
         prisma: tx,

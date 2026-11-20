@@ -152,14 +152,21 @@ export class FileRequirementsMatrixService {
   }
 
   async closeGates(eventId: string, prisma: Prisma.TransactionClient = this.prisma) {
-    const matrix = await this.buildForEvent(eventId, prisma);
+    const [matrix, event] = await Promise.all([
+      this.buildForEvent(eventId, prisma),
+      prisma.opsEvent.findUnique({ where: { id: eventId }, select: { status: true } }),
+    ]);
     const byKey = new Map(matrix.items.map((item) => [item.key, item]));
+    // A cancelled event never had an event day, so its deliverables, logistics and client feedback gates do not apply.
+    const afterEventDay = (key: string, label: string, item: FileRequirementMatrixItem | undefined) => event?.status === 'cancelled'
+      ? { key, label, passed: true, detail: 'Not needed: the event was cancelled before event day' }
+      : this.gate(key, label, item);
     const gates = [
-      this.gate('documents', 'Deliverables', byKey.get('post_event_documents')),
+      afterEventDay('documents', 'Deliverables', byKey.get('post_event_documents')),
       this.gate('billing', 'Billing and payment schedule', byKey.get('billing_statement')),
-      this.gate('logistics', 'Logistics', byKey.get('logistics')),
+      afterEventDay('logistics', 'Logistics', byKey.get('logistics')),
       this.gate('issues', 'Issues', byKey.get('issues')),
-      this.gate('feedback', 'Client feedback indicator', byKey.get('client_feedback')),
+      afterEventDay('feedback', 'Client feedback indicator', byKey.get('client_feedback')),
     ];
 
     return {

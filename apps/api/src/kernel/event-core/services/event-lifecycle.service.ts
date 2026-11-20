@@ -55,7 +55,8 @@ export class EventLifecycleService {
     if (event.archived || event.status === 'archived') {
       throw new BadRequestException('Event is already archived');
     }
-    this.assertCanTransition(this.stageForEvent(event), EventLifecycleStage.ClosureArchive);
+    // A cancelled event never reaches event day; PMCM closes it out and archives it from whatever stage it stopped at.
+    if (event.status !== 'cancelled') this.assertCanTransition(this.stageForEvent(event), EventLifecycleStage.ClosureArchive);
     if (!closeGates.ready && !overrideReason) {
       throw new BadRequestException('Close gates must pass before archive, or PMCM must provide an override reason');
     }
