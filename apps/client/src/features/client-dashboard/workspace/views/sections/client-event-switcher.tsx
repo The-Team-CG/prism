@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowLeft, Check, ChevronsUpDown } from "lucide-react";
 import type { PrismEvent } from "@prism/types";
-import { formatPortalDate } from "@prism/ui/format-date";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +13,7 @@ import {
 } from "@prism/ui/components/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@prism/ui/components/tooltip";
 import { formatStatusLabel } from "../../shared";
+import { clientEventDateLabel } from "../../model/client-dashboard-view-rules";
 
 type SwitcherEvent = Pick<PrismEvent, "id" | "eventName" | "eventDate" | "status">;
 
@@ -44,7 +44,7 @@ export function ClientEventSwitcher({
         <span className="grid min-w-0 flex-1">
           <Tooltip><TooltipTrigger asChild><span className="truncate text-sm font-semibold text-foreground">{selected.eventName}</span></TooltipTrigger><TooltipContent side="right">{selected.eventName}</TooltipContent></Tooltip>
           <span className="truncate text-xs text-muted-foreground">
-            {formatPortalDate(selected.eventDate)} · {formatStatusLabel(selected.status)}
+            {clientEventDateLabel(selected)} · {formatStatusLabel(selected.status)}
           </span>
         </span>
         <ChevronsUpDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -58,7 +58,7 @@ export function ClientEventSwitcher({
             <span className="grid min-w-0 flex-1">
               <Tooltip><TooltipTrigger asChild><span className="truncate font-medium">{event.eventName}</span></TooltipTrigger><TooltipContent side="right">{event.eventName}</TooltipContent></Tooltip>
               <span className="truncate text-xs text-muted-foreground">
-                {formatPortalDate(event.eventDate)} · {formatStatusLabel(event.status)}
+                {clientEventDateLabel(event)} · {formatStatusLabel(event.status)}
               </span>
             </span>
             {event.id === selected.id ? <Check aria-hidden="true" className="mt-0.5 size-4" /> : null}

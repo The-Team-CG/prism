@@ -40,6 +40,15 @@ describe('PMCM mapEvent', () => {
     }
   });
 
+  it('gives the client the change cutoff: the automatic freeze for an open event, the recorded deadline once frozen, none without a confirmed date', () => {
+    const open = { ...event, status: 'planning', freezeStatus: 'open', freezeDeadlineAt: null } as never;
+    // 8 Sep in Manila begins 7 Sep 16:00 UTC; scope freezes five days earlier.
+    expect(mapBillingEvent(open).freezeDeadlineAt).toBe('2026-09-02T16:00:00.000Z');
+    expect(mapBillingEvent({ ...event, freezeStatus: 'frozen', freezeDeadlineAt: new Date('2026-09-01T00:00:00.000Z') } as never).freezeDeadlineAt).toBe('2026-09-01T00:00:00.000Z');
+    expect(mapBillingEvent({ ...event, status: 'date_to_be_confirmed', freezeStatus: 'open', freezeDeadlineAt: null } as never).freezeDeadlineAt).toBeNull();
+    expect(mapBillingEvent({ ...event, status: 'cancelled', freezeStatus: 'open', freezeDeadlineAt: null } as never).freezeDeadlineAt).toBeNull();
+  });
+
   it('exposes the recorded actual end so PMCM closure can correct it, without the recording staff id', () => {
     const mapped = mapEvent({ ...event, actualEndedAt: new Date('2026-09-08T22:00:00.000Z'), actualEndedBy: 'usr_pmcm' } as never, dependencies);
     expect(mapped).toMatchObject({ actualEndedAt: '2026-09-08T22:00:00.000Z' });

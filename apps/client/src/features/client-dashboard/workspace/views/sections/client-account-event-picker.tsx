@@ -3,12 +3,12 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { FileText, WalletCards, type LucideIcon } from "lucide-react";
-import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import { manilaDateKey } from "@prism/ui/format-date";
 import type { PrismClientWorkspace, PrismEvent } from "@prism/types";
 import { useClientWorkspace } from "../../client-workspace-context";
 import { dashboardHref } from "../../model/client-dashboard-navigation";
 import type { ClientDashboardRoute } from "../../model/client-dashboard-types";
-import { formatStatusLabel, money } from "../../model/client-dashboard-view-rules";
+import { formatStatusLabel, money, clientEventDateLabel } from "../../model/client-dashboard-view-rules";
 import { ClientListRow, ClientListSection, type ClientRowTone } from "../../../shared/client-list-ui";
 import { clientMilestoneRemaining } from "../../../billing/model/client-billing-rules";
 import { eventCountdown, orderClientEvents } from "../../../home/model/client-home-summary";
@@ -30,7 +30,7 @@ function eventSummary(destination: EventDestination, event: PrismEvent, state: P
     const count = state.documents.filter((document) => document.eventId === event.id).length;
     return { label: count === 1 ? "1 file" : `${count} files`, tone: "neutral" };
   }
-  return { label: eventCountdown(event.eventDate, today) ?? formatStatusLabel(event.status), tone: "neutral" };
+  return { label: eventCountdown(event, today) ?? formatStatusLabel(event.status), tone: "neutral" };
 }
 
 /**
@@ -66,7 +66,7 @@ export function ClientAccountEventPicker({ purpose, destination }: { purpose: st
             icon={icon}
             tone={summary.tone}
             title={event.eventName}
-            meta={[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed", formatStatusLabel(event.status)].join(" · ")}
+            meta={[clientEventDateLabel(event), event.venue || "Venue to be confirmed", formatStatusLabel(event.status)].join(" · ")}
             status={summary.label}
             action={action}
             href={dashboardHref(destination, event.id)}

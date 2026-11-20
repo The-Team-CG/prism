@@ -11,7 +11,7 @@ import { CLOSURE_TABS, Phase4Workspace, type CloseGateDestination, type ClosureS
 import { useListFilter } from "@/features/pmcm-kit";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { PostponementImpactPanel } from "@/features/event-decisions/postponement-impact";
-import { ChangeRegisterPanel } from "@/features/change-management/register";
+import { ChangeRegisterPanel, eventDecisionClosedReason } from "@/features/change-management/register";
 import { EventPlanPanel } from "@/features/planning/event-plan";
 import { DateImpactPanel } from "@/features/planning/date-impact";
 import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
@@ -234,7 +234,7 @@ export function EventWorkspaceBriefingTab() {
     { id: "date-change", label: "Date change", adminOnly: true, render: () => <DateImpactPanel eventId={selectedEvent.id} /> },
     { id: "follow-ups", label: "Client follow-ups", adminOnly: true, render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> },
     { id: "assistant", label: "Ask P.R.I.S.M", adminOnly: true, render: () => <OperationsAssistantPanel eventId={selectedEvent.id} /> },
-    { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} /> },
+    { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} decisionClosedReason={eventDecisionClosedReason(selectedEvent)} /> },
     { id: "decisions", label: "Decision log", adminOnly: true, render: () => <DecisionLogPanel eventId={selectedEvent.id} /> },
     { id: "pre-conforme", label: "Pre-conforme context", adminOnly: true, render: () => <PreConformeContextPanel eventId={selectedEvent.id} /> },
     { id: "accreditation", label: "Accreditation", adminOnly: true, hidden: !isEventModuleEnabled(selectedEvent, "accreditation"), render: () => <AccreditationPanel eventId={selectedEvent.id} /> },

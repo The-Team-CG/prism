@@ -1,4 +1,4 @@
-import type { PrismAddendum, PrismEventFreezeException, RecordEventDecisionInput } from "@prism/types";
+import { derivePrismLifecycleStage, isBeforePrismEventDay, type PrismAddendum, type PrismEventFreezeException, type PrismLifecycleStageFacts, type RecordEventDecisionInput } from "@prism/types";
 
 /** The decision form works in pesos; the API stores the cancellation fee in minor units (centavos). */
 export type RecordDecisionDraft = Omit<RecordEventDecisionInput, "cancellationFeeAmount"> & { cancellationFeePesos: string };
@@ -58,6 +58,14 @@ export const supplierImpactOptions = [
   { value: "release_obligations", label: "Release supplier obligations" },
   { value: "preserve_obligations", label: "Preserve supplier obligations" },
 ] as const;
+
+/** Mirrors the API: an event is cancelled or postponed only before event day, and never once cancelled or archived. */
+export function eventDecisionClosedReason(event: PrismLifecycleStageFacts): string | null {
+  if (event.archived || event.status === "archived") return "This event is archived, so it can no longer be cancelled or postponed.";
+  if (event.status === "cancelled") return "This event is cancelled. Close it out and archive it from Closure.";
+  if (!isBeforePrismEventDay(derivePrismLifecycleStage(event))) return "Event day has started, so the event can no longer be cancelled or postponed.";
+  return null;
+}
 
 /** A cancellation or postponement can be sent only once it is fully specified and its impact review confirmed. */
 export function canRecordDecision(draft: {

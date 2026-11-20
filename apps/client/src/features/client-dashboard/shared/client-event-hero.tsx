@@ -2,10 +2,11 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
-import { daysUntil, formatPortalDate, manilaCalendarKey } from "@prism/ui/format-date";
+import { PRISM_LIFECYCLE_STAGES, PRISM_LIFECYCLE_STAGE_LABELS, derivePrismLifecycleStage, isPrismEventDateConfirmed, type PrismEvent } from "@prism/types";
+import { daysUntil, manilaCalendarKey } from "@prism/ui/format-date";
 import { StageTrack } from "@prism/ui/event-cards";
 import { PrismHero } from "@prism/ui/page-blocks";
+import { clientEventDateLabel } from "../workspace/model/client-dashboard-view-rules";
 
 /** Where an event stands in its six stages, as a number for the progress bar and a label beside it. */
 export function clientEventStage(event: PrismEvent) {
@@ -19,9 +20,9 @@ export function clientEventStage(event: PrismEvent) {
   };
 }
 
-/** Whole days from today (a Manila date key) to the event; null when the event has no date. */
-export function clientEventDaysToGo(event: Pick<PrismEvent, "eventDate">, todayKey: string): number | null {
-  return event.eventDate ? daysUntil(manilaCalendarKey(event.eventDate), todayKey) : null;
+/** Whole days from today (a Manila date key) to the event; null when the event has no date or it is not confirmed. */
+export function clientEventDaysToGo(event: Pick<PrismEvent, "eventDate" | "status">, todayKey: string): number | null {
+  return event.eventDate && isPrismEventDateConfirmed(event) ? daysUntil(manilaCalendarKey(event.eventDate), todayKey) : null;
 }
 
 /** "12 days to go", "1 day to go", "Today". A date that has passed has no countdown. */
@@ -64,7 +65,7 @@ export function ClientEventHero({
       title={eventHref ? <Link href={eventHref} onClick={onOpen} className="outline-none hover:underline focus-visible:underline">{event.eventName}</Link> : event.eventName}
       meta={
         <>
-          <p>{[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed"].join(" · ")}</p>
+          <p>{[clientEventDateLabel(event), event.venue || "Venue to be confirmed"].join(" · ")}</p>
           <div className="mt-4 max-w-sm"><StageTrack stage={derivePrismLifecycleStage(event)} onInk /></div>
           {extra ? <div className="mt-4">{extra}</div> : null}
         </>

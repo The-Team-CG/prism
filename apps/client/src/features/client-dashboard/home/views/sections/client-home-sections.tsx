@@ -13,6 +13,7 @@ import { useEventCoverUrl } from "../../../events/view-models/use-event-cover-ur
 import type { ClientDashboardAction } from "../../../workspace/shared";
 import { ClientActionLists } from "../../../shared/client-action-lists";
 import { eventCountdown, isPastClientEvent, orderClientEvents, type ClientHomeLead } from "../../model/client-home-summary";
+import { clientEventDateLabel } from "../../../workspace/model/client-dashboard-view-rules";
 
 /** Days to the event, for a step with no due date of its own. */
 function eventCountdownFigure(daysToGo: number | null) {
@@ -44,7 +45,7 @@ export function ClientHomeHero({
       <NextStepHero
         when={action.dueAt ? `due ${formatPortalDate(action.dueAt)}` : undefined}
         title={action.title}
-        event={<p><Link href={eventHref(event.id)} onClick={() => onOpen(event.id)} className="font-medium text-ink-foreground hover:underline">{event.eventName}</Link> · {formatPortalDate(event.eventDate)}</p>}
+        event={<p><Link href={eventHref(event.id)} onClick={() => onOpen(event.id)} className="font-medium text-ink-foreground hover:underline">{event.eventName}</Link> · {clientEventDateLabel(event)}</p>}
         detail={action.description}
         figure={dueFigure(action.dueAt, manilaDateKey()) ?? eventCountdownFigure(daysToGo)}
         cover={cover}
@@ -155,7 +156,7 @@ export function ClientHomeEvents({
                 >
                   <p className="truncate text-base font-semibold text-foreground" title={event.eventName}>{event.eventName}</p>
                   <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    {[formatPortalDate(event.eventDate), eventCountdown(event.eventDate, todayKey)].filter(Boolean).join(" · ")}
+                    {[clientEventDateLabel(event), eventCountdown(event, todayKey)].filter(Boolean).join(" · ")}
                   </p>
                   <Progress value={stage.percent} className="mt-4" aria-label={`Stage ${stage.number} of ${stage.total}`} />
                   <p className="mt-2 text-xs text-muted-foreground">Stage {stage.number} of {stage.total} · <span className="font-medium text-foreground">{stage.label}</span></p>
