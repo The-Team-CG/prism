@@ -167,7 +167,9 @@ function createGuestWorkflowFixture() {
         ).length,
       ),
       findFirst: vi.fn(async ({ where }: any) => state.guestCheckIns.find((item) =>
-        item.eventId === where.eventId && item.rosterEntryId === where.rosterEntryId && item.status === where.status,
+        item.eventId === where.eventId && (item.rosterEntryId ?? null) === where.rosterEntryId && item.status === where.status
+        && (where.walkIn === undefined || item.walkIn === where.walkIn)
+        && (where.guestName === undefined || String(item.guestName ?? '').toLowerCase() === String(where.guestName.equals).toLowerCase()),
       ) ?? null),
       findMany: vi.fn(async ({ where }: any = {}) => {
         const eventIds = where?.eventId?.in as string[] | undefined;
@@ -738,6 +740,27 @@ describe('GuestWorkflowService', () => {
       checkInMode: 'name_search', guestName: 'Threshold Walk In', privacyConsentAccepted: true,
     }))).resolves.toEqual({ accepted: true });
     expect(state.guestCheckIns.slice(-2).map((checkIn) => checkIn.guestName)).toEqual(['Open Walk In', 'Threshold Walk In']);
+
+    // The same walk-in checking in again (a reload, another key) is one arrival, not two.
+    const before = state.guestCheckIns.length;
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      checkInMode: 'name_search', guestName: 'open walk in', privacyConsentAccepted: true,
+    }))).resolves.toEqual({ accepted: true });
+    expect(state.guestCheckIns).toHaveLength(before);
+  });
+
+  it('takes no guest check-ins for a cancelled event or one whose date is to be confirmed', async () => {
+    for (const status of ['cancelled', 'date_to_be_confirmed']) {
+      const { service, state } = createGuestWorkflowFixture();
+      (state.events[0] as any).status = status;
+      const before = state.guestCheckIns.length;
+      await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+        checkInMode: 'name_search', guestName: 'Late Guest', privacyConsentAccepted: true,
+      }))).rejects.toThrow('Check-in is not open for this event');
+      expect(state.guestCheckIns).toHaveLength(before);
+    }
   });
 
   it('deduplicates roster check-in by roster identity when names repeat', async () => {

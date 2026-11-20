@@ -83,6 +83,9 @@ function guestFeedbackAvailability(actualEndedAt: Date | null): PrismGuestFeedba
   return Date.now() > actualEndedAt.getTime() + GUEST_FEEDBACK_WINDOW_MS ? 'closed' : 'open';
 }
 
+/** Statuses in which an event takes no guest check-ins: cancelled, or paused until a new date is set. */
+const GUEST_CHECK_IN_CLOSED_STATUSES: ReadonlySet<string> = new Set(['cancelled', 'date_to_be_confirmed', 'postponed']);
+
 @Injectable()
 export class GuestWorkflowService implements GuestCommands {
   constructor(
@@ -377,6 +380,8 @@ export class GuestWorkflowService implements GuestCommands {
         if (!event) throw new NotFoundException('Guest event code was not found');
         const currentEvent = await this.eventReferences.findOperationsEvent(event.id, context);
         if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
+        // A guest checks in to an event that is on: not one cancelled or waiting for a new date.
+        if (GUEST_CHECK_IN_CLOSED_STATUSES.has(currentEvent.status)) throw new BadRequestException('Check-in is not open for this event');
         const checkInEvent = await this.eventReferences.findGuestCheckInEventReference(event.id, context);
         if (!checkInEvent) throw new NotFoundException('Guest event was not found or archived');
 
@@ -422,6 +427,12 @@ export class GuestWorkflowService implements GuestCommands {
             where: { eventId: event.id, rosterEntryId: matchedRoster.id, status: 'checked_in' },
           });
           if (existingRosterCheckIn) return { accepted: true };
+        } else if (walkIn && resolvedGuestName) {
+          // A walk-in who checks in again by the same name (a reload, a second tap) is the same arrival, not another.
+          const existingWalkIn = await db.opsGuestCheckIn.findFirst({
+            where: { eventId: event.id, rosterEntryId: null, walkIn: true, status: 'checked_in', guestName: { equals: resolvedGuestName, mode: 'insensitive' } },
+          });
+          if (existingWalkIn) return { accepted: true };
         }
 
         if (ambiguousNameMatch || requiresNewCl1Review) {
