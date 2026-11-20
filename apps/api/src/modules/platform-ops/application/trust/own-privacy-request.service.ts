@@ -126,7 +126,9 @@ export class OwnPrivacyRequestService {
           createdAt: submittedAt,
           dueAt: privacyRequestDueAt(submittedAt),
           eventId: null,
-          subjectType: requester.subjectType,
+          // The requester signed in with their own account, so the request is about that account: PMCM executes a
+          // deletion or correction against a native account only under the account subject.
+          subjectType: 'account',
           subjectEmail: requester.email,
           subjectName: requester.name,
           requestType: input.requestType,
@@ -147,7 +149,7 @@ export class OwnPrivacyRequestService {
         affectedType: 'privacy_request',
         affectedId: request.id,
         affectedLabel: requester.email,
-        metadata: { actorId: requester.id, requestType: input.requestType, subjectType: requester.subjectType, source: 'self_service', identityMethod: 'account_password' },
+        metadata: { actorId: requester.id, requestType: input.requestType, subjectType: 'account', accountRole: requester.subjectType, source: 'self_service', identityMethod: 'account_password' },
       }, { prisma: tx, correlationId: `privacy:${request.id}`, actorId: requester.id });
 
       return mapOwnPrivacyRequest(request);
