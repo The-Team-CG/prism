@@ -345,12 +345,17 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       handleForbiddenAccess: async () => undefined,
       listLoginHistory: async () => [],
     };
-    // Codes are checked against the stored secret, so a code is right only for the secret it was made from.
+    // Codes are checked against the stored secret, so a code is right only for the secret it was made from. Each code
+    // belongs to a time step, and a step at or before the last accepted one is refused, as the real service does.
+    const steps: Record<string, number> = { '246810': 1, '246811': 2 };
     const totp = {
       generateSecret: () => 'APPSECRET',
       encryptSecret: (secret: string) => `enc:${secret}`,
       decryptSecret: (stored: string) => stored.replace(/^enc:/, ''),
-      acceptedStep: (secret: string, code: string) => (secret === 'APPSECRET' && code === '246810' ? 1 : null),
+      acceptedStep: (secret: string, code: string, lastAcceptedStep: number | null = null) => {
+        const step = secret === 'APPSECRET' ? steps[code] : undefined;
+        return step !== undefined && (lastAcceptedStep === null || step > lastAcceptedStep) ? step : null;
+      },
       otpauthUri: (secret: string, email: string) => `otpauth://totp/PRISM:${email}?secret=${secret}`,
     };
     const signIn = new AuthOperationsService(prisma, quietAudit, {} as never, sessions, totp as never);
@@ -373,7 +378,9 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
     if (!('token' in challenged)) throw new Error('Expected a two-step challenge');
     await expect(signIn.setupTwoFactor(challenged.token)).rejects.toThrow(/not available/i);
     await expect(signIn.verifyTwoFactor(challenged.token, '135790')).rejects.toThrow(/invalid two-factor code/i);
-    const second = await signIn.verifyTwoFactor(challenged.token, '246810', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1');
+    // The code that turned two-step on was accepted once already, so it cannot complete a sign-in too.
+    await expect(signIn.verifyTwoFactor(challenged.token, '246810')).rejects.toThrow(/invalid two-factor code/i);
+    const second = await signIn.verifyTwoFactor(challenged.token, '246811', 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Safari/604.1');
     expect(second).toMatchObject({ role: 'supplier', accessToken: expect.any(String) });
 
     await twoStep.disable(actor, password);
