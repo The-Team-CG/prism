@@ -8,7 +8,7 @@ export const COORDINATOR_VIEWS = ["shift", "tasks", "issues", "run-sheet", "cale
 export type CoordinatorViewId = (typeof COORDINATOR_VIEWS)[number];
 
 export const COORDINATOR_VIEW_LABELS: Record<CoordinatorViewId, string> = {
-  shift: "My shift",
+  shift: "Now",
   tasks: "Tasks",
   issues: "Issues",
   "run-sheet": "Run sheet",
@@ -41,7 +41,7 @@ export function isCoordinatorHomePath(pathname: string): boolean {
 /**
  * Where a coordinator's current URL must be corrected, or null when it is already canonical. Paths outside the
  * home route go home with the outside-portal notice. A `section` id is rewritten to its `view`, and an unknown one
- * goes to My shift with the notice.
+ * goes to Now with the notice.
  */
 export function coordinatorLocationRedirect({ pathname, search }: { pathname: string; search: string }): { search: string } | null {
   const params = new URLSearchParams(search);

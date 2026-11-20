@@ -1,59 +1,7 @@
-import { formatPortalDate, formatPortalTime } from "@prism/ui/format-date";
+import { formatPortalTime } from "@prism/ui/format-date";
 
 export function optionalNavBadge(count?: number) {
   return count || undefined;
-}
-
-export function coordinatorTaskActionCopy(loading: boolean, error: string | null, count: number) {
-  if (loading) return { description: "Loading tasks assigned to you.", status: "loading" };
-  if (error) return { description: "Task data is unavailable.", status: "unavailable" };
-  return {
-    description: count ? `${count} ${count === 1 ? "task" : "tasks"} assigned to you. Open it to see owners, deadlines and next steps.` : "No tasks assigned to you yet.",
-    status: count > 0 ? "open" : "clear",
-  };
-}
-
-export function coordinatorIssueActionCopy(loading: boolean, error: string | null, count: number) {
-  if (loading) return { description: "Loading open issues.", status: "loading" };
-  if (error) return { description: "Issue data is unavailable.", status: "unavailable" };
-  return {
-    description: count ? `${count} open ${count === 1 ? "issue" : "issues"}. PMCM receives escalations.` : "No open issues. You can still report a new problem.",
-    status: count > 0 ? "open" : "clear",
-  };
-}
-
-export function coordinatorAcknowledgeCopy(status?: string) {
-  if (status === "acknowledged") {
-    return {
-      label: "Assignment confirmed",
-      description: "Your acknowledgment has been recorded for PMCM.",
-      active: true,
-    };
-  }
-  return {
-    label: "Confirm assignment",
-    description: "Confirm this assignment before event day.",
-    active: false,
-  };
-}
-
-export function coordinatorShellDescription(event: { clientName: string; eventDate: string } | undefined, roleName: string) {
-  if (!event) return "No assignment matched to this coordinator account.";
-  return `${event.clientName} — ${event.eventDate}. Role: ${roleName}`;
-}
-
-export function coordinatorGreetingCopy(event: { eventName: string; clientName: string; eventDate: string } | undefined) {
-  if (!event) {
-    return {
-      title: "No assigned event",
-      description:
-        "No assignment is matched to this coordinator account. Contact PMCM to confirm your event assignment.",
-    };
-  }
-  return {
-    title: event.eventName,
-    description: `Client: ${event.clientName} · ${formatPortalDate(event.eventDate)}. Your view is limited to your tasks, issues, and attendance.`,
-  };
 }
 
 /** Attendance as the coordinator reads it: "Not yet marked" until a mark is recorded, then the chosen status. */
@@ -66,6 +14,15 @@ export function coordinatorAttendanceSummary(attendanceStatus: string, statusLab
 export function coordinatorAttendanceRecordLine(choiceLabel: string, markedAt: string | null) {
   const time = markedAt ? formatPortalTime(markedAt, "") : "";
   return time ? `Marked ${choiceLabel} at ${time}` : `Marked ${choiceLabel}`;
+}
+
+/**
+ * Why a coordinator cannot log tasks: their assignment's role predates the role catalog, and the API refuses new
+ * tasks from such an assignment until PMCM gives it a catalog role.
+ */
+export function coordinatorTaskLoggingBlockedCopy(role: string): string {
+  const named = role.trim() ? `, "${role.trim()}",` : "";
+  return `Your role on this event${named} isn't in the coordinator role catalog, so you can't log tasks yet. Ask PMCM to update your assignment.`;
 }
 
 export function coordinatorTaskFormCopy(busy: boolean, routesAway: boolean) {

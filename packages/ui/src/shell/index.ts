@@ -3,6 +3,7 @@ export type {
   PrismAppShellProps,
   PrismCommandGroup,
   PrismMobileAction,
+  PrismMobileTabAction,
   PrismNavItem,
   PrismNavSubItem,
   PrismPageAction,

@@ -19,7 +19,10 @@ const ROUTES = {
     '/dashboard/events/evt_hist_241/overview', '/dashboard/events/evt_hist_241/live-ops', '/dashboard/events/evt_hist_195/billing', '/dashboard/events/evt_hist_195/suppliers',
     '/dashboard/events/evt_hist_188/closure', '/dashboard/events/evt_hist_005/overview', '/dashboard/settings',
   ],
-  coordinator: ['/dashboard', '/dashboard?view=tasks', '/dashboard?view=calendar', '/dashboard?view=assignments', '/dashboard?view=notifications'],
+  coordinator: [
+    '/dashboard', '/dashboard?view=tasks', '/dashboard?view=issues', '/dashboard?view=run-sheet', '/dashboard?view=calendar', '/dashboard?view=assignments',
+    '/dashboard?view=registration', '/dashboard?view=notifications', '/dashboard?view=messages', '/dashboard?view=account',
+  ],
 };
 const ORIGIN = { client: 'client', supplier: 'supplier', pmcm: 'event', coordinator: 'event' };
 
@@ -39,6 +42,8 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
       await page.goto(`${origins[ORIGIN[role]]}${path}`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('main')).toBeVisible();
       await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+      // The coordinator's event data loads after the page; wait for it so the capture shows the work, not a skeleton.
+      if (role === 'coordinator') await page.getByText('Loading your tasks, issues and check-ins').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => {});
       if (path.includes('calendar')) {
         // The history coordinator's opening date has only an event date, so it also uses the month overview.
         const openingView = 'Month';
@@ -115,6 +120,15 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
       const name = path.replace(/^\//, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '') || 'home';
       await capture(`${String(index + 1).padStart(2, '0')}-${name}.png`);
       await expect(page.locator('main')).not.toContainText(/Application error|Internal Server Error|This page could not be found/);
+    }
+    if (role === 'coordinator' && process.env.BROWSER_GALLERY_CALENDAR_ONLY !== '1') {
+      // The quick report, opened from the floating button on a phone and the top bar on a desktop.
+      await page.goto(`${origins.event}/dashboard`, { waitUntil: 'domcontentloaded' });
+      await page.getByText('Loading your tasks, issues and check-ins').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => {});
+      await page.getByRole('button', { name: 'Report an issue' }).filter({ visible: true }).first().click();
+      const report = page.getByRole('dialog', { name: 'Report an issue' });
+      await report.getByRole('button', { name: 'Supplier' }).click();
+      await page.screenshot({ path: join(directory, 'report-issue-panel.png'), animations: 'disabled', style: 'nextjs-portal { visibility: hidden; }' });
     }
   } finally {
     await context.close();
