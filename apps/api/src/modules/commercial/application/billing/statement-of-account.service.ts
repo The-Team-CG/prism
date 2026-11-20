@@ -8,13 +8,15 @@ import type { PrismStatementOfAccount, PrismVerifiedEventActor } from '@prism/ty
 import { LIVE_RECEIPT_STATUSES, receiptBalance } from '../../domain/payment-receipt.policy';
 import { buildStatementOfAccount, type StatementViewer } from '../../domain/statement-of-account.policy';
 import { readLivePaymentDetails } from './live-payment-details';
+import { paymentStatus } from './payment-ledger.store';
+import { CLIENT_VISIBLE_MILESTONE } from './client-visible-milestone';
 
 /** An event has a handful of each of these; the bounds only keep every read finite. */
 const MAX_ROWS = 2000;
 
 /** A billing statement, its milestones and payments reach the client only after PMCM sends the statement. */
 const CLIENT_VISIBLE_STATEMENT = { sentAt: { not: null } } satisfies Prisma.OpsBillingStatementWhereInput;
-const CLIENT_VISIBLE_MILESTONE = { OR: [{ statementId: null }, { statement: { is: { sentAt: { not: null } } } }] } satisfies Prisma.OpsPaymentMilestoneWhereInput;
+const PMCM_VISIBLE_MILESTONE = { supersededAt: null } satisfies Prisma.OpsPaymentMilestoneWhereInput;
 
 /**
  * The statement of account for one event: what a client sees of its money, and the same view for PMCM. A client reads
@@ -52,7 +54,7 @@ export class StatementOfAccountService {
 
   async buildStatement(eventId: string, eventName: string, viewer: StatementViewer): Promise<PrismStatementOfAccount> {
     const clientView = viewer === 'client';
-    const milestoneVisibility = clientView ? CLIENT_VISIBLE_MILESTONE : {};
+    const milestoneVisibility = clientView ? CLIENT_VISIBLE_MILESTONE : PMCM_VISIBLE_MILESTONE;
     const [statement, milestones, records, receipts, openDisputes, paymentDetails] = await Promise.all([
       this.prisma.opsBillingStatement.findFirst({
         where: { eventId, ...(clientView ? CLIENT_VISIBLE_STATEMENT : {}) },
@@ -60,7 +62,7 @@ export class StatementOfAccountService {
         select: { id: true, number: true, totalAmount: true, sentAt: true, generatedAt: true, paymentDetailsRevision: true },
       }),
       this.prisma.opsPaymentMilestone.findMany({
-        where: { eventId, supersededAt: null, ...milestoneVisibility },
+        where: { eventId, ...milestoneVisibility },
         orderBy: [{ dueDate: 'asc' }, { id: 'asc' }],
         select: { id: true, label: true, dueDate: true, amount: true, amountPaid: true, creditApplied: true, remainingBalance: true, status: true },
         // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: an event has a handful of these; MAX_ROWS only keeps the read finite.
@@ -68,7 +70,7 @@ export class StatementOfAccountService {
       }),
       // Only payments on the milestones the viewer may see: payments on a replaced milestone are carried forward as credit.
       this.prisma.opsPaymentRecord.findMany({
-        where: { eventId, milestone: { supersededAt: null, ...milestoneVisibility } },
+        where: { eventId, milestone: milestoneVisibility },
         orderBy: [{ paymentDate: 'asc' }, { id: 'asc' }],
         select: { id: true, milestoneId: true, receiptId: true, amountReceived: true, paymentDate: true, paymentMethod: true, referenceNumber: true, reversesRecordId: true },
         // QUERY_AUDIT_ALLOW_BOUNDED_TAKE: an event has a handful of these; MAX_ROWS only keeps the read finite.
@@ -97,7 +99,8 @@ export class StatementOfAccountService {
     const figures = buildStatementOfAccount({
       viewer,
       statement,
-      milestones,
+      // A milestone the client still reads while its correction is unsent shows where its payments left it.
+      milestones: milestones.map((milestone) => milestone.status === 'superseded' ? { ...milestone, status: paymentStatus(milestone.amountPaid, milestone.amount) } : milestone),
       records,
       refunds: live.flatMap((receipt) => receipt.refunds),
       receipts: receipts.map((receipt) => ({

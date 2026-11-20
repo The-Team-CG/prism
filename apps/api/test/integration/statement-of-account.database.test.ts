@@ -45,7 +45,7 @@ describe.skipIf(!live)('client statement of account against PostgreSQL', () => {
     service = new StatementOfAccountService(prisma, policy);
     submissions = new ClientPaymentSubmissionService(prisma, policy, service, auditWriter, undefined, notifications);
 
-    for (const key of ['a', 'b', 'c']) {
+    for (const key of ['a', 'b', 'c', 'd']) {
       await prisma.opsInquiry.create({ data: {
         id: id(`inquiry_${key}`), clientName: 'Statement Client', email: clientEmail, normalizedEmail: `${key}-${clientEmail}`,
         eventName: `Statement Event ${key.toUpperCase()}`, eventDate: new Date('2031-04-18T09:00:00.000Z'), clientType: 'corporate',
@@ -78,19 +78,26 @@ describe.skipIf(!live)('client statement of account against PostgreSQL', () => {
     // Event C: a sent statement the client reports payments against.
     await prisma.opsBillingStatement.create({ data: { id: id('statement_c'), eventId: id('event_c'), number: `SOC-${suffix}`, totalAmount: 80000, status: 'sent', sentAt: new Date('2026-10-01T00:00:00.000Z') } });
     await prisma.opsPaymentMilestone.create({ data: { id: id('milestone_c'), eventId: id('event_c'), statementId: id('statement_c'), label: 'Downpayment', amount: 80000, remainingBalance: 80000, dueDate: new Date('2026-12-01T00:00:00.000Z') } });
+
+    // Event D: a sent statement PMCM corrected; the replacement is approved but not sent yet.
+    await prisma.opsBillingStatement.create({ data: { id: id('statement_d'), eventId: id('event_d'), number: `SOD-${suffix}`, totalAmount: 60000, status: 'superseded', sentAt: new Date('2026-10-01T00:00:00.000Z') } });
+    await prisma.opsPaymentMilestone.create({ data: { id: id('milestone_d'), eventId: id('event_d'), statementId: id('statement_d'), label: 'Full payment', amount: 60000, remainingBalance: 60000, status: 'superseded', supersededAt: new Date('2026-10-20T00:00:00.000Z'), dueDate: new Date('2026-12-01T00:00:00.000Z') } });
+    await prisma.opsBillingStatement.create({ data: { id: id('statement_d2'), eventId: id('event_d'), number: `SOD2-${suffix}`, totalAmount: 70000, supersedesStatementId: id('statement_d') } });
+    await prisma.opsPaymentMilestone.create({ data: { id: id('milestone_d2'), eventId: id('event_d'), statementId: id('statement_d2'), label: 'Full payment', amount: 70000, remainingBalance: 70000, dueDate: new Date('2026-12-01T00:00:00.000Z') } });
   });
 
   afterAll(async () => {
     if (!live) return;
-    const eventIds = [id('event_a'), id('event_b'), id('event_c')];
+    const eventIds = [id('event_a'), id('event_b'), id('event_c'), id('event_d')];
     await prisma.opsPaymentRecord.deleteMany({ where: { eventId: { in: eventIds }, reversesRecordId: { not: null } } });
     await prisma.opsPaymentRecord.deleteMany({ where: { eventId: { in: eventIds } } });
     await prisma.opsPaymentRefund.deleteMany({ where: { recordedBy: finance.name } });
     await prisma.opsPaymentReceipt.deleteMany({ where: { OR: [{ recordedBy: finance.name }, { eventId: { in: eventIds } }] } });
     await prisma.opsPaymentMilestone.deleteMany({ where: { eventId: { in: eventIds } } });
+    await prisma.opsBillingStatement.deleteMany({ where: { eventId: { in: eventIds }, supersedesStatementId: { not: null } } });
     await prisma.opsBillingStatement.deleteMany({ where: { eventId: { in: eventIds } } });
     await prisma.opsEvent.deleteMany({ where: { id: { in: eventIds } } });
-    await prisma.opsInquiry.deleteMany({ where: { id: { in: [id('inquiry_a'), id('inquiry_b'), id('inquiry_c')] } } });
+    await prisma.opsInquiry.deleteMany({ where: { id: { in: [id('inquiry_a'), id('inquiry_b'), id('inquiry_c'), id('inquiry_d')] } } });
     await prisma.$disconnect();
   });
 
@@ -125,6 +132,22 @@ describe.skipIf(!live)('client statement of account against PostgreSQL', () => {
 
     expect(client).toMatchObject({ available: false, billed: 0, balance: 0, milestones: [], lines: [] });
     expect(pmcm).toMatchObject({ available: true, statementNumber: `SOB-${suffix}`, billed: 90000, balance: 90000 });
+  });
+
+  it('keeps a corrected statement in force for the client until PMCM sends the correction', async () => {
+    const client = actor(OpsUserRole.Client, clientEmail);
+    const pending = await service.statementFor(id('event_d'), client);
+    // Not "paid in full" with nothing listed: the client still reads the statement they were sent, and can report against it.
+    expect(pending.milestones.map((milestone) => [milestone.id, milestone.status])).toEqual([[id('milestone_d'), 'pending']]);
+    expect(pending.balance).toBe(60000);
+    const report = await submissions.submit(id('event_d'), { amount: 1000, paidDate: '2026-11-10', method: 'GCash', referenceNumber: `GC-D-${suffix}`, milestoneId: id('milestone_d') }, client);
+    expect(report).toMatchObject({ amount: 1000 });
+    expect((await service.statementFor(id('event_d'), actor(OpsUserRole.PmcmAdmin))).milestones.map((milestone) => milestone.id)).toEqual([id('milestone_d2')]);
+
+    await prisma.opsBillingStatement.update({ where: { id: id('statement_d2') }, data: { status: 'sent', sentAt: new Date() } });
+    const sent = await service.statementFor(id('event_d'), client);
+    expect(sent.milestones.map((milestone) => milestone.id)).toEqual([id('milestone_d2')]);
+    expect(sent.balance).toBe(70000);
   });
 
   it('refuses another client, and every role that is not the client, PMCM or the system', async () => {
