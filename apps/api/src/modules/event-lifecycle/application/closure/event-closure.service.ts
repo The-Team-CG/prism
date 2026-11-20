@@ -5,7 +5,7 @@ import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { WRAP_UP_WINDOW_HOURS, prismEventDayStart } from '@prism/types';
+import { WRAP_UP_WINDOW_HOURS } from '@prism/types';
 import type { ArchiveComparisonQuery, ArchiveSearchFilters, PrismCoordinatorInsightFacts, RecordActualEventEndInput, RecordLogisticsCompletionInput, StartEventWrapUpInput, UpdateEventWrapUpInput } from '@prism/types';
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
@@ -59,10 +59,6 @@ export class EventClosureService {
       const current = await this.requireEvent(eventId, tx);
       if (!['event_day', 'closure_archive', 'archived'].includes(current.status)) {
         throw new BadRequestException('Actual event end can only be recorded during event day or closure');
-      }
-      // An event ends after it starts: no earlier than the start of its event day in Philippine time.
-      if (actualEndedAt.getTime() < prismEventDayStart(current.eventDate).getTime()) {
-        throw new BadRequestException('Actual event end cannot be before the event started');
       }
       const isChanged = !current.actualEndedAt || current.actualEndedAt.getTime() !== actualEndedAt.getTime();
       if (current.actualEndedAt && current.actualEndedAt.getTime() !== actualEndedAt.getTime() && !input.correctionReason?.trim()) {

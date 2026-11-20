@@ -4,7 +4,7 @@ import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventClosureService } from './event-closure.service';
 
 function harness(actualEndedAt: Date | null = null) {
-  const event = { id: 'evt_1', eventDate: new Date('2026-09-07T00:00:00.000Z'), actualEndedAt, actualEndedBy: actualEndedAt ? 'old' : null, status: 'event_day', archived: false };
+  const event = { id: 'evt_1', actualEndedAt, actualEndedBy: actualEndedAt ? 'old' : null, status: 'event_day', archived: false };
   const tx = { opsEvent: { findUnique: vi.fn(async () => event), update: vi.fn(async ({ data }: any) => ({ ...event, ...data })) }, opsEventWrapUp: { upsert: vi.fn(async ({ create }: any) => create) } };
   const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) };
   const auditWriter = { write: vi.fn(async () => undefined) };
@@ -33,12 +33,6 @@ describe('EventClosureService actual end', () => {
   it('rejects future timestamps', async () => {
     const { service } = harness();
     await expect(service.recordActualEventEnd('evt_1', { actualEndedAt: '2999-01-01T00:00:00.000Z' }, actor)).rejects.toBeInstanceOf(BadRequestException);
-  });
-  it('rejects an end before the event day began in Manila', async () => {
-    const { service, tx } = harness();
-    // The event day of 2026-09-07 begins at 2026-09-06T16:00Z (midnight in Manila).
-    await expect(service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-06T12:00:00.000Z' }, actor)).rejects.toThrow('before the event started');
-    expect(tx.opsEvent.update).not.toHaveBeenCalled();
   });
   it('requires a reason for corrections and records the new value', async () => {
     const { service, auditWriter } = harness(new Date('2026-09-07T12:00:00.000Z'));
