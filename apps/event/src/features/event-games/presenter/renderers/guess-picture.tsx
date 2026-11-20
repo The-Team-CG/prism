@@ -14,7 +14,6 @@ const GuessPictureRenderer: PresenterRenderer = ({ state }) => {
   return (
     <div className="space-y-10">
       <section aria-label="Current picture" className="flex flex-col items-center gap-8 py-8 text-center">
-        <p className="max-w-5xl text-5xl font-bold leading-tight md:text-7xl">{round.prompt}</p>
         <p className="text-3xl text-white/80 md:text-4xl">
           <span className="font-bold tabular-nums text-amber-300">{state.participantCount}</span>{" "}
           {state.participantCount === 1 ? "person" : "people"} in the room

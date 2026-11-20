@@ -74,6 +74,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- The event games presenter screen shows the guest join address beside the game PIN, and each round's prompt once instead of twice. Presenter Deck word-cloud slides and paused Spin the Wheel slides show their prompt again.
 - On the client's floor plan pages, pieces have a thin outline again. The 2D plan is drawn in metres and the outline had no width, so each table carried a 1 m purple border that hid it and its number.
 - The nightly Lifecycle E2E passes again (476 checks). It builds floor plans as Pascal scenes, turns on a PMCM payment method before issuing statements, and counts a capability as reachable from a portal when the portal calls the `@prism/api-client` method that wraps its route (`scripts/e2e/lifecycle/portal-wiring.mjs`), instead of looking for the route spelled in portal code.
 - Guest portal `.tsx` tests now run.

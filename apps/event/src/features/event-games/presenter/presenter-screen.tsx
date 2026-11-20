@@ -73,7 +73,7 @@ export interface PresenterScreenProps {
 }
 
 /** Game PIN only, shown in the header so the main screen stays full width. */
-function PinControl({ pin, issuingPin, pinError, onIssuePin }: Pick<PresenterScreenProps, "pin" | "issuingPin" | "pinError" | "onIssuePin">) {
+function PinControl({ pin, issuingPin, pinError, onIssuePin, joinUrl, joinError }: Pick<PresenterScreenProps, "pin" | "issuingPin" | "pinError" | "onIssuePin" | "joinUrl" | "joinError">) {
   return (
     <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-white px-5 py-3 text-slate-950">
       {pin ? (
@@ -91,6 +91,12 @@ function PinControl({ pin, issuingPin, pinError, onIssuePin }: Pick<PresenterScr
       >
         {issuingPin ? "Issuing…" : pin ? "Rotate PIN" : "Issue PIN"}
       </button>
+      {joinUrl ? (
+        <p className="w-full text-lg text-slate-700">
+          Join at <span className="break-all font-semibold text-slate-950">{joinUrl}</span>
+        </p>
+      ) : null}
+      {joinError ? <p role="status" className="w-full text-sm text-rose-700">{joinError}</p> : null}
       {pinError ? <p role="alert" className="w-full text-sm text-rose-700">{pinError}</p> : null}
     </div>
   );
@@ -99,7 +105,7 @@ function PinControl({ pin, issuingPin, pinError, onIssuePin }: Pick<PresenterScr
 type PresenterRound = NonNullable<PrismGameHostState["currentRound"]>;
 
 /** Title, round counter, session status, player count and, while guests can still join, the PIN control. */
-function PresenterHeader({ state, pin, issuingPin, pinError, onIssuePin }: Pick<PresenterScreenProps, "state" | "pin" | "issuingPin" | "pinError" | "onIssuePin">) {
+function PresenterHeader({ state, pin, issuingPin, pinError, onIssuePin, joinUrl, joinError }: Pick<PresenterScreenProps, "state" | "pin" | "issuingPin" | "pinError" | "onIssuePin" | "joinUrl" | "joinError">) {
   const round = state.currentRound;
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
@@ -111,7 +117,7 @@ function PresenterHeader({ state, pin, issuingPin, pinError, onIssuePin }: Pick<
           {state.participantCount} {state.participantCount === 1 ? "player" : "players"}
         </span>
         {JOINABLE_STATUSES.has(state.status) ? (
-          <PinControl pin={pin} issuingPin={issuingPin} pinError={pinError} onIssuePin={onIssuePin} />
+          <PinControl pin={pin} issuingPin={issuingPin} pinError={pinError} onIssuePin={onIssuePin} joinUrl={joinUrl} joinError={joinError} />
         ) : null}
       </div>
     </header>
@@ -164,7 +170,7 @@ export function PresenterScreen(props: PresenterScreenProps) {
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950 text-white">
       <main className="mx-auto flex min-h-full max-w-[1800px] flex-col gap-8 p-6 md:p-10">
-        <PresenterHeader state={state} pin={props.pin} issuingPin={props.issuingPin} pinError={props.pinError} onIssuePin={props.onIssuePin} />
+        <PresenterHeader state={state} pin={props.pin} issuingPin={props.issuingPin} pinError={props.pinError} onIssuePin={props.onIssuePin} joinUrl={props.joinUrl} joinError={props.joinError} />
 
         {error ? <p role="status" className="rounded-2xl bg-rose-500/20 px-5 py-3 text-lg text-rose-100">{error}</p> : null}
 

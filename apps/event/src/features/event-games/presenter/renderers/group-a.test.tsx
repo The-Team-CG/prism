@@ -42,13 +42,12 @@ function hostState(
 }
 
 describe("Live Trivia presenter", () => {
-  it("shows the live question and room size, never the answer or pending text", () => {
+  it("shows the room size and phone instruction, never the answer or pending text", () => {
     render(<LiveTriviaPresenter state={hostState("live-trivia", {}, {
       prompt: "Capital of France?",
       revealedAnswer: "Paris",
     })} />);
 
-    expect(screen.getByText("Capital of France?")).toBeTruthy();
     expect(screen.getByText("12")).toBeTruthy();
     expect(screen.getByText("Answer on your phone")).toBeTruthy();
     expect(screen.queryByText(/Paris/)).toBeNull();
@@ -67,15 +66,13 @@ describe("Live Trivia presenter", () => {
       revealedAnswer: "Paris",
     })} />);
     expect(screen.getByText("Answer: Paris")).toBeTruthy();
-    expect(screen.getByText("Capital of France?")).toBeTruthy();
   });
 });
 
 describe("Bingo presenter", () => {
-  it("shows the prompt and participant count without called numbers or pending text", () => {
+  it("shows the participant count without called numbers or pending text", () => {
     render(<BingoPresenter state={hostState("bingo", {}, { prompt: "Full house?" })} />);
 
-    expect(screen.getByText("Full house?")).toBeTruthy();
     expect(screen.getByText("12")).toBeTruthy();
     expect(screen.getByText(/host console/)).toBeTruthy();
     expect(screen.queryByText(/Unreviewed secret/)).toBeNull();
@@ -92,10 +89,9 @@ describe("Bingo presenter", () => {
 });
 
 describe("Guess the Picture presenter", () => {
-  it("shows the prompt and a neutral guessing line while live", () => {
+  it("shows a neutral guessing line while live", () => {
     render(<GuessPicturePresenter state={hostState("guess-picture", {}, { prompt: "Name this landmark" })} />);
 
-    expect(screen.getByText("Name this landmark")).toBeTruthy();
     expect(screen.getByText("Guess on your phone")).toBeTruthy();
     expect(screen.queryByText(/Unscored secret/)).toBeNull();
   });
@@ -111,12 +107,6 @@ describe("Guess the Picture presenter", () => {
 });
 
 describe("Spin the Wheel presenter", () => {
-  it("shows the live prompt", () => {
-    render(<SpinWheelPresenter state={hostState("spin-wheel", {}, { prompt: "Spin for a prize" })} />);
-
-    expect(screen.getByText("Spin for a prize")).toBeTruthy();
-  });
-
   it("shows the selected outcome label and points when a result is set", () => {
     render(<SpinWheelPresenter state={hostState("spin-wheel", {
       sessionResult: { kind: "spin-wheel", outcomeId: "outcome-1", label: "Free coffee", points: 25 },
@@ -130,13 +120,12 @@ describe("Spin the Wheel presenter", () => {
 describe("Family Feud presenter", () => {
   const answerBoard = [{ answer: "Pizza", alternatives: ["Pie", "Flatbread"], points: 40 }];
 
-  it("shows the prompt and room size while live, with the board hidden", () => {
+  it("shows room size while live, with the board hidden", () => {
     render(<FamilyFeudPresenter state={hostState("family-feud", {}, {
       prompt: "Name a food you eat on Friday",
       answerBoard,
     })} />);
 
-    expect(screen.getByText("Name a food you eat on Friday")).toBeTruthy();
     expect(screen.getByText("12")).toBeTruthy();
     expect(screen.queryByText("Pizza")).toBeNull();
     expect(screen.queryByText("Pie, Flatbread")).toBeNull();
