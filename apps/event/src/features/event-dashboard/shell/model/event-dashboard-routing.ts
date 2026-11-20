@@ -276,7 +276,7 @@ const ROUTE_LOADING_COPY: Partial<Record<DashboardSection, { title: string }>> =
   inquiries: { title: "Inquiries" },
   "events-list": { title: "Events" },
   account: { title: "Account" },
-  settings: { title: "Workspace settings" },
+  settings: { title: "Settings" },
 };
 
 export function routeStateForSidebarItem(id: string): RouteState | undefined {
@@ -315,17 +315,17 @@ export type EventDashboardShellCopy = {
 
 const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   suppliers: "Who PMCM books, how often, how they are rated, and what PMCM is missing for each.",
-  audit: "Complete audit trail of all actions, approvals, and system events.",
+  audit: "Who did what, and when, across P.R.I.S.M.",
   privacy: "Privacy requests with 30-day deadlines, owners, execution, legal holds, and retention policies.",
   clients: "Every client contact, with their events and inquiries.",
   calendar: "Event days, quote deadlines, payments, ocular visits and supplier schedules across events. Click an item to open its event.",
-  team: "PMCM coordinators, their roles and availability. Assign them inside each event.",
+  team: "PMCM coordinators, when they are free, and what they have worked. Assign them inside each event.",
   files: "Operational documents, official floorplans, billing statements, contracts, and closeout records.",
   messages: "Client, supplier, coordinator, and internal PMCM communication threads.",
   notifications: "What changed across your events, what is new since you last looked, and what asks you to confirm receipt. Every notice opens its item.",
   finance: "What needs you across events: money overdue, to verify and to apply, disputes, and what PMCM owes suppliers.",
   account: "Who you are, how you sign in, and how PMCM reaches you.",
-  settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
+  settings: "The rules every event is checked against, reusable templates, who can sign in, and integrations.",
   inquiries: "From first contact to a signed conforme. Each step opens its list.",
   "events-list": "Every confirmed event. Open one to work inside it.",
   dashboard: "What needs PMCM, across every event. Every item opens the work it belongs to.",
@@ -353,7 +353,7 @@ const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
   audit: "Audit",
   privacy: "Privacy",
   account: "Account",
-  settings: "Workspace settings",
+  settings: "Settings",
   calendar: "Calendar",
   files: "Files",
   messages: "Messages",

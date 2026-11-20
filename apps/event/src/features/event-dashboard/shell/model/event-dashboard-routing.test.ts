@@ -183,7 +183,7 @@ describe("event-dashboard-routing", () => {
       [{ section: "finance", tab: "overview" }, { title: "Finance Desk" }],
       [{ section: "inquiries", tab: "overview" }, { title: "Inquiries" }],
       [{ section: "events-list", tab: "overview" }, { title: "Events" }],
-      [{ section: "settings", tab: "overview" }, { title: "Workspace settings" }],
+      [{ section: "settings", tab: "overview" }, { title: "Settings" }],
       [{ section: "account", tab: "overview" }, { title: "Account" }],
       [{ section: "events", tab: "overview", eventId: "event-42" }, { title: "Event workspace" }],
       [{ section: "dashboard", tab: "overview" }, { title: "Event Manager" }],

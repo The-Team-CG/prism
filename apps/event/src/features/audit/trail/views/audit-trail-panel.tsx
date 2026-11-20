@@ -1,16 +1,9 @@
 "use client";
 
 import type { PrismAuthenticatedSession, PrismEvent, PrismUser } from "@prism/types";
-import { useAccountAdminViewModel } from "../view-models/use-account-admin-view-model";
 import { useAuditTrailViewModel } from "../view-models/use-audit-trail-view-model";
-import { AccountAdminPanel } from "./account-admin-panel";
 import { LoadingState } from "@prism/ui/components/loading-state";
-import {
-  AuditTrailOverview,
-  LoginHistoryPanel,
-  PrivacyConsoleLinkPanel,
-  SecurityAlertsPanel,
-} from "./audit-trail-sections";
+import { AuditTrailOverview, SecurityAlertsPanel } from "./audit-trail-sections";
 
 export function AuditTrailPanel({
   events: eventsProp,
@@ -22,7 +15,6 @@ export function AuditTrailPanel({
   session?: PrismAuthenticatedSession;
 } = {}) {
   const vm = useAuditTrailViewModel();
-  const accounts = useAccountAdminViewModel({ onAccountsChanged: vm.refreshUsers });
   const session = sessionProp ?? vm.session;
   const events = eventsProp ?? vm.events;
   const users = usersProp ?? vm.users;
@@ -33,15 +25,9 @@ export function AuditTrailPanel({
 
   return (
     <div className="space-y-5">
+      {/* Security alerts lead only when there are any; with none, the header says so in one word. */}
+      {vm.alerts.length ? <SecurityAlertsPanel alerts={vm.alerts} /> : null}
       <AuditTrailOverview vm={vm} events={events} users={users} />
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="flex flex-col gap-5">
-          <PrivacyConsoleLinkPanel />
-          <LoginHistoryPanel loginHistory={vm.loginHistory} />
-        </div>
-        <SecurityAlertsPanel alerts={vm.alerts} />
-      </div>
-      <AccountAdminPanel users={users} viewerRole={session.role} vm={accounts} />
     </div>
   );
 }

@@ -1,19 +1,31 @@
 "use client";
 
+import Link from "next/link";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
 import { EventModulesControl } from "@/features/event-settings/modules/views/event-modules-control";
 import { ComplianceRulesSettings } from "@/features/compliance/rules";
 import { PlanningTemplatesSettings } from "@/features/planning/templates";
-import { portalHref } from "@prism/ui/portal-path";
-import { SegmentedAnchorNav } from "@/features/pmcm-kit";
 import { CanvaConnectionCard } from "@/features/event-settings/canva/views/canva-connection-card";
+import { AccountAdminPanel } from "@/features/audit/trail/views/account-admin-panel";
+import { useAccountAdminViewModel } from "@/features/audit/trail/view-models/use-account-admin-view-model";
+import { cx, useListFilter } from "@/features/pmcm-kit";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 
+type SettingsTab = "rules" | "templates" | "people" | "integrations" | "event";
+
+/**
+ * PMCM's settings as tabs, each one subject: the rules every event is checked against, reusable templates, who can
+ * sign in and how, integrations, and (with an event open) that event's own controls. Notification settings live on
+ * the shared Notifications page. "Signed in as" and "Default workspace" are gone: Account already says who you are,
+ * and nothing read the default workspace.
+ */
 export function EventDashboardSettingsSectionView() {
   const {
     session,
     selectedEvent,
+    reference,
+    refresh,
     toggleClientEventDayView,
     setEventPrivacy,
     setEventModules,
@@ -21,39 +33,62 @@ export function EventDashboardSettingsSectionView() {
     createComplianceRule,
     busy,
   } = useEventDashboardLoadedRouteViewModel();
+  const accounts = useAccountAdminViewModel({ onAccountsChanged: () => refresh() });
+  const admin = isPmcmAdmin(session.role);
+  const tabs: Array<{ id: SettingsTab; label: string }> = [
+    ...(admin
+      ? [
+          { id: "rules" as const, label: "Event rules" },
+          { id: "templates" as const, label: "Templates" },
+          { id: "people" as const, label: "People and access" },
+          { id: "integrations" as const, label: "Integrations" },
+        ]
+      : []),
+    ...(selectedEvent ? [{ id: "event" as const, label: selectedEvent.eventName }] : []),
+  ];
+  const [requested, setTab] = useListFilter("tab", tabs[0]?.id ?? "event");
+  const tab = tabs.some((entry) => entry.id === requested) ? (requested as SettingsTab) : tabs[0]?.id;
   return (
     <div className="space-y-5">
-      <SegmentedAnchorNav
-        label="Settings sections"
-        items={[
-          { id: "workspace-settings", label: "Workspace", href: "#workspace-settings" },
-          ...(isPmcmAdmin(session.role)
-            ? [
-                { id: "event-controls", label: "Event controls", href: "#event-controls" },
-                { id: "compliance-settings", label: "Compliance", href: "#compliance-settings" },
-                { id: "planning-settings", label: "Planning templates", href: "#planning-settings" },
-                { id: "integrations-settings", label: "Integrations", href: "#integrations-settings" },
-              ]
-            : []),
-          {
-            id: "notification-settings",
-            label: "Notification settings",
-            href: portalHref("/dashboard/notifications#notification-settings"),
-          },
-        ]}
-      />
-      <section id="workspace-settings" className="scroll-mt-6"><EventSettingsWorkspace
-        session={session}
-        selectedEvent={selectedEvent}
-        onToggleClientEventDayView={toggleClientEventDayView}
-        onSetEventPrivacy={setEventPrivacy}
-      /></section>
-      {isPmcmAdmin(session.role) ? <section id="event-controls" className="scroll-mt-6"><EventModulesControl selectedEvent={selectedEvent} onSave={setEventModules} /></section> : null}
-      {isPmcmAdmin(session.role) ? (
-        <section id="compliance-settings" className="scroll-mt-6"><ComplianceRulesSettings rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} /></section>
-      ) : null}
-      {isPmcmAdmin(session.role) ? <section id="planning-settings" className="scroll-mt-6"><PlanningTemplatesSettings /></section> : null}
-      {isPmcmAdmin(session.role) ? <section id="integrations-settings" className="scroll-mt-6"><CanvaConnectionCard /></section> : null}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div role="tablist" aria-label="Settings" className="flex flex-wrap gap-1 rounded-lg bg-muted p-1">
+          {tabs.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === entry.id}
+              aria-controls={`settings-panel-${entry.id}`}
+              onClick={() => setTab(entry.id)}
+              className={cx("max-w-56 truncate rounded-md px-3 py-1.5 text-sm transition-colors", tab === entry.id ? "bg-card font-medium text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground")}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+        <Link href="/dashboard/notifications#notification-settings" className="text-sm font-medium text-primary hover:underline">Notification settings</Link>
+      </div>
+      <section id={`settings-panel-${tab}`} role="tabpanel" className="space-y-5">
+        {tab === "rules" ? (
+          <>
+            <ComplianceRulesSettings rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} />
+          </>
+        ) : null}
+        {tab === "templates" ? <PlanningTemplatesSettings /> : null}
+        {tab === "people" ? <AccountAdminPanel users={reference.users} viewerRole={session.role} vm={accounts} /> : null}
+        {tab === "integrations" ? <CanvaConnectionCard /> : null}
+        {tab === "event" && selectedEvent ? (
+          <>
+            <EventSettingsWorkspace
+              session={session}
+              selectedEvent={selectedEvent}
+              onToggleClientEventDayView={toggleClientEventDayView}
+              onSetEventPrivacy={setEventPrivacy}
+            />
+            {admin ? <EventModulesControl selectedEvent={selectedEvent} onSave={setEventModules} /> : null}
+          </>
+        ) : null}
+      </section>
     </div>
   );
 }
