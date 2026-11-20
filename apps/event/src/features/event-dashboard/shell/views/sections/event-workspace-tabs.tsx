@@ -372,7 +372,7 @@ export function EventWorkspaceSuppliersTab() {
           <h2 id="supplier-bookings-title" className="flex items-baseline gap-2 text-base font-semibold text-foreground">
             Bookings and contracts<span className="text-sm font-normal tabular-nums text-muted-foreground">{assigned.length}</span>
           </h2>
-          <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} />
+          <PmcmSupplierWorkflowsPanel eventId={event.id} eventDate={event.eventDate} requests={vm.quoteRequests} quotes={vm.quotes} />
           {assigned.length ? (
             <details className="rounded-lg border border-border bg-card px-5 py-3" open={part === "emergency"}>
               <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">Replace a supplier <span className="font-normal text-muted-foreground">· if a booked supplier drops out</span></summary>
