@@ -6,8 +6,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { formatAttachmentSize, type ChatStoredFile } from "./chat-display";
 import type { ComposerAttachment } from "./composer";
 
-/** The attach menu: a file from the device, or one already in the event's Files. */
-export function AttachButton({ onAttachFile, onAttachStoredFile, onListStoredFiles }: { onAttachFile: (file: File) => void; onAttachStoredFile: (file: ChatStoredFile) => void; onListStoredFiles: () => Promise<ChatStoredFile[]> }) {
+/**
+ * The attach menu: a file from the device, or one already in the event's Files. `remaining` is how many more files
+ * the message can carry; picking more at once from the device attaches only that many, so nothing is uploaded that
+ * the send would then refuse.
+ */
+export function AttachButton({ onAttachFile, onAttachStoredFile, onListStoredFiles, remaining }: { onAttachFile: (file: File) => void; onAttachStoredFile: (file: ChatStoredFile) => void; onListStoredFiles: () => Promise<ChatStoredFile[]>; remaining: number }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [picking, setPicking] = useState(false);
   return (
@@ -30,7 +34,7 @@ export function AttachButton({ onAttachFile, onAttachStoredFile, onListStoredFil
         className="hidden"
         aria-label="Upload a file from this device"
         onChange={(input) => {
-          Array.from(input.target.files ?? []).forEach(onAttachFile);
+          Array.from(input.target.files ?? []).slice(0, Math.max(0, remaining)).forEach(onAttachFile);
           input.target.value = "";
         }}
       />

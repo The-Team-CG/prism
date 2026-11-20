@@ -20,6 +20,15 @@ describe("client file archive", () => {
     ])).toEqual(["Other/permit.pdf", "Other/Permit (2).pdf", "Contracts/permit.pdf", "Other/a-b-c.pdf", "Other/README", "Other/README (2)"]);
   });
 
+  it("never renames a repeated file onto a name another file already has", () => {
+    expect(uniqueArchivePaths([
+      { objectId: "1", name: "a.pdf", folder: "Other" },
+      { objectId: "2", name: "a (2).pdf", folder: "Other" },
+      { objectId: "3", name: "a.pdf", folder: "Other" },
+      { objectId: "4", name: "a (2).pdf", folder: "Other" },
+    ])).toEqual(["Other/a.pdf", "Other/a (2).pdf", "Other/a (3).pdf", "Other/a (2) (2).pdf"]);
+  });
+
   it("reuses a file by having the server store a copy for this event, then sends the copy for the requirement", async () => {
     repository.copy.mockResolvedValue({ id: "copy", eventId: "event-new" });
 
