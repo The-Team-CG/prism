@@ -126,6 +126,7 @@ describe('CommercialWorkflowService', () => {
       data: expect.objectContaining({ eventId: 'evt_1', categoryId: 'cat_tech', roundNumber: 1 }),
     });
     expect(created.map(({ supplierId }) => supplierId)).toEqual(['sup_a', 'sup_b']);
+    expect(created[0].message).toBe('Client / Summit quote request.');
     expect(notificationOutboxWriter.write).toHaveBeenCalledTimes(4);
     expect(notificationOutboxWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,6 +143,13 @@ describe('CommercialWorkflowService', () => {
       actorEmail: actor.email,
       metadata: expect.objectContaining({ actorId: actor.id }),
     }), undefined);
+
+    // A confidential bid tells the supplier neither the client nor the event, whose name often carries the client's.
+    const confidential = await service.requestSupplierQuotes('evt_1', { categoryId: 'cat_tech', confidentialBid: true }, actor);
+    expect(confidential.map((request) => request.message)).toEqual([
+      'Technicals quote request with event and client details hidden until selection.',
+      'Technicals quote request with event and client details hidden until selection.',
+    ]);
   });
 
   it('attributes manually entered supplier quotes to the verified PMCM actor', async () => {

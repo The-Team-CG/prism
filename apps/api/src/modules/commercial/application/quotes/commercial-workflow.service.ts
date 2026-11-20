@@ -248,7 +248,8 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
               accessTokenExpiresAt: new Date(Date.now() + QUOTE_ACCESS_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
               confidentialBid: Boolean(input.confidentialBid),
               message: input.confidentialBid
-                ? `${event!.eventName} quote request with client details hidden until selection.`
+                // Event names often carry the client's name, so a confidential bid names only the category.
+                ? `${category!.name} quote request with event and client details hidden until selection.`
                 : `${event!.clientName} / ${event!.eventName} quote request.`,
               status: SupplierQuoteRequestStatus.Open,
               roundId: round.id,
