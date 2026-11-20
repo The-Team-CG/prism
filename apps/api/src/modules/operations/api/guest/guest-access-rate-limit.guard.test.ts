@@ -56,4 +56,15 @@ describe('GuestAccessRateLimitGuard', () => {
     expect(guard.canActivate(contextFor({ ip: '10.0.0.3', method: 'POST', params: { accessCode: 'AAA111' } }).context)).toBe(true);
     expect(guard.canActivate(contextFor({ ip: '10.0.0.2', method: 'POST', params: { accessCode: 'BBB222' } }).context)).toBe(true);
   });
+
+  it('refuses one address writing to code after code, so access codes cannot be guessed one write at a time', () => {
+    const guard = new GuestAccessRateLimitGuard();
+    const guess = (code: string) => guard.canActivate(contextFor({ ip: '10.0.0.4', method: 'POST', params: { accessCode: code } }).context);
+    for (let index = 0; index < 12; index += 1) expect(guess(`GALA-${String(index).padStart(4, '0')}`)).toBe(true);
+
+    expect(() => guess('GALA-9999')).toThrow(HttpException);
+    // A code the address already uses keeps working, and other addresses are untouched.
+    expect(guess('GALA-0000')).toBe(true);
+    expect(guard.canActivate(contextFor({ ip: '10.0.0.5', method: 'POST', params: { accessCode: 'GALA-9999' } }).context)).toBe(true);
+  });
 });
