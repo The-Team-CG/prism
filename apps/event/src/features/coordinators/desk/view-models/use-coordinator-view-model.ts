@@ -300,7 +300,8 @@ export function useCoordinatorViewModel({
     }
   }
 
-  async function logUrgentIssue(): Promise<boolean> {
+  /** Reports the issue in the form, or the one passed in by the quick report, which fills its own fields in one go. */
+  async function logUrgentIssue(quick?: CoordinatorQuickIssue): Promise<boolean> {
     if (!isWritableCoordinatorEvent(event) || !roleView) return false;
     setIssueBusy(true);
     setIssueError(null);
@@ -308,10 +309,10 @@ export function useCoordinatorViewModel({
       const input = parseContract(
         createUrgentIssueSchema,
         buildCoordinatorIssueInput({
-          title: issueTitle,
-          severity: issueSeverity,
-          affectedArea: issueAffectedArea,
-          description: issueDescription,
+          title: quick?.title ?? issueTitle,
+          severity: quick?.severity ?? issueSeverity,
+          affectedArea: quick?.affectedArea ?? issueAffectedArea,
+          description: quick?.description ?? issueDescription,
           slaDueAt: issueSlaDueAt,
           assignToMe: issueAssignToMe,
           roleView,
@@ -617,6 +618,9 @@ export function useCoordinatorViewModel({
     },
   };
 }
+
+/** What the quick report sends: its own title, severity, area and note, instead of the form's. */
+export type CoordinatorQuickIssue = { title: string; severity: string; affectedArea: string; description: string };
 
 function isWritableCoordinatorEvent(event: PrismEvent | undefined): event is PrismEvent {
   return Boolean(event && !event.archived);

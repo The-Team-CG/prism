@@ -3,7 +3,7 @@ import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 
 import { AlertTriangle, CheckCircle2, CircleCheck, Plus, Radio, ShieldCheck } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useId, useRef } from "react";
 import { Button } from "@prism/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import { PrismListRow } from "@prism/ui/action-list";
@@ -15,12 +15,11 @@ import {
   coordinatorIssueFormCopy,
   coordinatorTaskFormCopy,
 } from "../../model/coordinator-view-copy";
-import { isIngressOrEgressRole, recordedAttendanceLabel, type CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
+import { recordedAttendanceLabel, type CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
 import { isOpenIssue, isOpenTask, issueTone, openIssues } from "../../model/coordinator-shift";
 import type { CoordinatorRole, PrismCoordinatorRoleView } from "@prism/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
-import { CoordinatorRoleBriefCard } from "@/features/coordinators/role-briefs/views/coordinator-role-brief-card";
 import { LoadingState } from "@prism/ui/components/loading-state";
 import {
   CoordinatorRoleActions,
@@ -155,11 +154,11 @@ export type CoordinatorIssueFormModel = {
   setAssignToMe: (value: boolean) => void;
   busy: boolean;
   error: string | null;
-  /** Resolves true once the issue is reported. */
-  submit: () => Promise<boolean>;
+  /** Resolves true once the issue is reported. The quick report passes its own fields instead of the form's. */
+  submit: (quick?: { title: string; severity: string; affectedArea: string; description: string }) => Promise<boolean>;
 };
 
-function CoordinatorTaskFormFields({ taskForm, onDone }: { taskForm: CoordinatorTaskFormModel; onDone: () => void }) {
+export function CoordinatorTaskFormFields({ taskForm, onDone }: { taskForm: CoordinatorTaskFormModel; onDone: () => void }) {
   const copy = coordinatorTaskFormCopy(taskForm.busy, taskForm.routesAway);
   const fieldId = useId();
   async function submit() {
@@ -219,7 +218,7 @@ function CoordinatorTaskFormFields({ taskForm, onDone }: { taskForm: Coordinator
   );
 }
 
-/** The issue form, in the side panel the top bar's "Report an issue" opens from any view. */
+/** The full issue form, behind "More details" in the quick report. */
 export function CoordinatorIssueFormFields({ issueForm, onDone }: { issueForm: CoordinatorIssueFormModel; onDone: () => void }) {
   const copy = coordinatorIssueFormCopy(issueForm.busy);
   const fieldId = useId();
@@ -282,6 +281,8 @@ type CoordinatorRoleDataProps = {
   operatorActions: CoordinatorOperatorActionsModel;
   /** Opens the issue form; the Issues page offers it beside the open issues. */
   onReportIssue?: () => void;
+  /** Opens the Log a task panel; Tasks offers it from a tablet up, More on a phone. */
+  onLogTask?: () => void;
 };
 
 export function CoordinatorRoleData({ section = "tasks", roleViewLoading, roleViewError, roleView, ...rest }: CoordinatorRoleDataProps) {
@@ -308,41 +309,38 @@ export function CoordinatorRoleError({ message }: { message: string }) {
   );
 }
 
-function CoordinatorTasksPage({ roleView, taskForm, reassignment, taskActions, operatorActions }: Omit<CoordinatorRoleDataProps, "section" | "roleViewLoading" | "roleViewError" | "roleView"> & { roleView: PrismCoordinatorRoleView }) {
-  const [logging, setLogging] = useState(false);
+/** The Log a task form in a side panel, opened from Tasks or from More. It closes once the task is saved. */
+export function CoordinatorTaskSheet({ taskForm, open, onOpenChange, side = "right" }: { taskForm: CoordinatorTaskFormModel; open: boolean; onOpenChange: (open: boolean) => void; side?: "right" | "bottom" }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side={side} className={side === "bottom" ? "max-h-[92dvh] overflow-y-auto rounded-t-2xl" : "w-full overflow-y-auto sm:max-w-lg"}>
+        <SheetHeader>
+          <SheetTitle>Log a task</SheetTitle>
+          <SheetDescription>Something that needs doing on the day. It goes to the queue of the role you choose.</SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-6"><CoordinatorTaskFormFields taskForm={taskForm} onDone={() => onOpenChange(false)} /></div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+/** Tasks: just the work, grouped by where it stands. The operator's team controls follow. */
+function CoordinatorTasksPage({ roleView, reassignment, taskActions, operatorActions, onLogTask }: Omit<CoordinatorRoleDataProps, "section" | "roleViewLoading" | "roleViewError" | "roleView"> & { roleView: PrismCoordinatorRoleView }) {
   const open = roleView.tasks.filter(isOpenTask).length;
-  const hasChecks = Boolean(roleView.isDesignatedOperator) || isIngressOrEgressRole(roleView.role);
   return (
     <div className="grid gap-6">
       <PrismSection
         id="coordinator-tasks"
         title="Your tasks"
         count={open}
-        description="Blocked work first, then what you have started and what is next, soonest due first."
-        action={<Button type="button" size="sm" onClick={() => setLogging(true)}><Plus className="size-4" aria-hidden />Log a task</Button>}
+        description={<span className="hidden sm:inline">Blocked first, then what you have started, then what is next.</span>}
+        action={onLogTask ? <Button type="button" size="sm" className="hidden md:inline-flex" onClick={onLogTask}><Plus className="size-4" aria-hidden />Log a task</Button> : undefined}
         flush
       >
         <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
       </PrismSection>
-      <Sheet open={logging} onOpenChange={setLogging}>
-        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>Log a task</SheetTitle>
-            <SheetDescription>Something that needs doing on the day. It goes to the queue of the role you choose.</SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-6"><CoordinatorTaskFormFields taskForm={taskForm} onDone={() => setLogging(false)} /></div>
-        </SheetContent>
-      </Sheet>
-      <div className="grid gap-6 lg:grid-cols-2">
-        <PrismSection id="coordinator-role-brief" title="Your role brief" description="Call time, attire, script and instructions PMCM set for your role.">
-          <CoordinatorRoleBriefCard eventId={roleView.assignment.eventId} />
-        </PrismSection>
-        <PrismSection id="coordinator-event-briefing" title="Event briefing" description="What PMCM shared about the venue and the guests.">
-          <CoordinatorBriefing roleView={roleView} />
-        </PrismSection>
-      </div>
-      {hasChecks ? (
-        <PrismSection bare id="coordinator-team-checks" title="Team and supplier checks" description="Reassign tasks, update colleagues' attendance and check supplier setup.">
+      {roleView.isDesignatedOperator ? (
+        <PrismSection bare id="coordinator-team-checks" title="Team controls" description="As the event day operator: reassign tasks and update colleagues' attendance.">
           <div className="grid gap-4"><CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} /></div>
         </PrismSection>
       ) : null}
@@ -351,7 +349,7 @@ function CoordinatorTasksPage({ roleView, taskForm, reassignment, taskActions, o
 }
 
 /** Venue, guests, services and notes. The budget stays with PMCM: coordinators do not see cost data. */
-function CoordinatorBriefing({ roleView }: { roleView: PrismCoordinatorRoleView }) {
+export function CoordinatorBriefing({ roleView }: { roleView: PrismCoordinatorRoleView }) {
   const briefing = roleView.briefing;
   if (!briefing) return <p className="text-sm text-muted-foreground">PMCM has not shared the event briefing yet.</p>;
   const facts = [

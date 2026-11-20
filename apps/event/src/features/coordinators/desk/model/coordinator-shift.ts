@@ -74,7 +74,7 @@ export function openIssues(issues: Issue[]): Issue[] {
 
 export type ShiftItem = { kind: "task" | "issue"; id: string; title: string; detail: string; due: string | null; tone: ShiftTone };
 
-/** What is waiting on the coordinator, for My shift: open issues first, then open tasks by deadline. */
+/** What is waiting on the coordinator, for Now: open issues first, then open tasks by deadline. */
 export function shiftNextUp(roleView: Pick<PrismCoordinatorRoleView, "tasks" | "urgentIssues">, limit = 5): ShiftItem[] {
   const issues = openIssues(roleView.urgentIssues).map((issue): ShiftItem => ({
     kind: "issue",
@@ -106,4 +106,79 @@ export function eventCountdown(eventDate: string | undefined, todayKey: string):
   if (!Number.isFinite(days) || days < 0) return undefined;
   if (days === 0) return { value: "Today", label: "Event day" };
   return { value: String(days), label: days === 1 ? "day to go" : "days to go" };
+}
+
+/** Where the coordinator is relative to the event: preparing, on the day, or after it. */
+export type EventPhase = "before" | "day" | "after";
+
+export function eventPhase(eventDate: string | undefined, todayKey: string): EventPhase {
+  if (!eventDate) return "before";
+  const days = dayNumber(eventDate) - dayNumber(todayKey);
+  if (days > 0) return "before";
+  return days === 0 ? "day" : "after";
+}
+
+type Schedule = NonNullable<PrismCoordinatorRoleView["schedule"]>;
+type Segment = Schedule["days"][number]["segments"][number];
+type Timer = PrismCoordinatorRoleView["timer"];
+
+/**
+ * What is on now and what comes next, from the published run sheet. The live timer names the running segment; without
+ * one, the first segment still marked active counts as on now, and the next is the first one still planned after it.
+ */
+export function runSheetNowAndNext(schedule: Schedule | undefined, timer: Timer): { now?: Segment; next?: Segment; secondsRemaining?: number } {
+  if (!schedule?.authored) return {};
+  const segments = schedule.days.flatMap((day) => day.segments).sort((left, right) => left.plannedStartAt.localeCompare(right.plannedStartAt) || left.sequence - right.sequence);
+  const now = segments.find((segment) => segment.id === timer?.segmentId) ?? segments.find((segment) => segment.status === "active");
+  const after = now ? segments.slice(segments.indexOf(now) + 1) : segments;
+  const next = after.find((segment) => segment.status === "planned");
+  return { now, next, secondsRemaining: timer?.secondsRemaining };
+}
+
+/** Countdown text for the live panel: "8:42", or "1:05:00" past an hour. */
+export function formatCountdown(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const rest = String(total % 60).padStart(2, "0");
+  return hours ? `${hours}:${String(minutes).padStart(2, "0")}:${rest}` : `${minutes}:${rest}`;
+}
+
+/** The kinds of problem a coordinator reports on site. The kind leads the issue's title, so PMCM sees it in every list. */
+export const QUICK_ISSUE_TYPES = ["Supplier", "Guest", "Equipment", "Venue or safety", "Other"] as const;
+export type QuickIssueType = (typeof QUICK_ISSUE_TYPES)[number];
+
+/** "Supplier: Caterer is 30 minutes late", or "Supplier issue · Kitchen" when nothing was typed. */
+export function quickIssueTitle(type: QuickIssueType, note: string, area: string): string {
+  const firstLine = note.trim().split("\n")[0]?.trim() ?? "";
+  if (firstLine) return `${type}: ${firstLine}`.slice(0, 120);
+  return area.trim() ? `${type} issue · ${area.trim()}` : `${type} issue`;
+}
+
+/** Places to pick from when reporting: the run sheet's locations, then areas used in earlier reports, then the venue. */
+export function issueAreaOptions(roleView: Pick<PrismCoordinatorRoleView, "schedule" | "urgentIssues">, venue: string | undefined, limit = 6): string[] {
+  const fromSchedule = (roleView.schedule?.days ?? []).flatMap((day) => day.segments.map((segment) => segment.location));
+  const fromIssues = roleView.urgentIssues.map((issue) => issue.affectedArea);
+  const seen = new Set<string>();
+  const options: string[] = [];
+  for (const area of [...fromSchedule, ...fromIssues, venue ?? ""]) {
+    const name = area?.trim();
+    if (!name || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    options.push(name);
+  }
+  return options.slice(0, limit);
+}
+
+/** Ready-made reasons for blocking a task, so the most common ones take one tap. */
+export const TASK_BLOCK_REASONS = ["Waiting on supplier", "Waiting on venue", "Need PMCM"] as const;
+
+/** How Now shows attendance: nothing, the one-tap arrival, the recorded mark as a line, or all three choices. */
+export type QuickAttendanceMode = "hidden" | "one-tap" | "recorded" | "choices";
+
+export function quickAttendanceMode(form: { hasAssignment: boolean; windowOpen: boolean; canMark: boolean; replaced: boolean; status: string; pendingChoice: string | null }, recorded: boolean, expanded: boolean): QuickAttendanceMode {
+  if (!form.hasAssignment || (!form.windowOpen && !recorded)) return "hidden";
+  if (expanded || form.pendingChoice) return "choices";
+  if (recorded) return "recorded";
+  return form.windowOpen && form.canMark && !form.replaced ? "one-tap" : "choices";
 }

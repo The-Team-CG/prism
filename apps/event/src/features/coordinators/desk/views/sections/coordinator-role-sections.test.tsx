@@ -2,7 +2,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CoordinatorAttendanceControl, CoordinatorRoleData, type CoordinatorAttendanceFormModel } from "./coordinator-role-sections";
+import { CoordinatorAttendanceControl, CoordinatorRoleData, CoordinatorTaskSheet, type CoordinatorAttendanceFormModel, type CoordinatorTaskFormModel } from "./coordinator-role-sections";
+import { canCheckSuppliers, CoordinatorSupplierChecks, type CoordinatorOperatorActionsModel } from "./coordinator-operator-sections";
 import { COORDINATOR_ATTENDANCE_CHOICES } from "../../model/coordinators-desk-rules";
 import { chooseSelectOption, openSelect } from "../../../../../test-utils/radix-select";
 
@@ -50,6 +51,13 @@ function renderRoleData(view: Record<string, unknown>, actions: { operator?: Rec
   const props = { section, roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, onReportIssue: actions.onReportIssue, ...models };
   render(<CoordinatorRoleData {...(props as unknown as ComponentProps<typeof CoordinatorRoleData>)} />);
   return models;
+}
+
+/** Supplier check-ins as Now shows them to the operator and the ingress and egress coordinators. */
+function renderSupplierChecks(view: Record<string, unknown>, operator: Record<string, unknown> = {}) {
+  const actions = { busy: false, error: null, supplierBusy: false, supplierError: null, updateAttendance: vi.fn(), verifySupplier: vi.fn(), reportSupplierStatus: vi.fn(), ...operator };
+  render(<CoordinatorSupplierChecks roleView={view as never} actions={actions as unknown as CoordinatorOperatorActionsModel} />);
+  return { operatorActions: actions };
 }
 
 // Sam's attendance row reads "Sam Cruz · Stage Director · present"; the reassignment picker lists "Sam Cruz · Stage Director" too.
@@ -144,8 +152,10 @@ describe("Event Day System Operator controls", () => {
   });
 
   it("can check supplier setup even when the operator is not on ingress", () => {
-    renderRoleData(operatorView({ supplierStatuses: [supplier({ id: "req_1", supplierName: "Harvest Table" })] }));
+    const view = operatorView({ supplierStatuses: [supplier({ id: "req_1", supplierName: "Harvest Table" })] });
+    expect(canCheckSuppliers(view as never)).toBe(true);
 
+    renderSupplierChecks(view);
     expect(screen.getByText(/Harvest Table/)).toBeTruthy();
   });
 });
@@ -163,7 +173,7 @@ describe("supplier setup checks", () => {
   });
 
   it("lists only confirmed suppliers to an egress coordinator and passes their note with a dispute", () => {
-    const models = renderRoleData(ingressView());
+    const models = renderSupplierChecks(ingressView());
 
     expect(screen.getByText(/Harvest Table/)).toBeTruthy();
     expect(screen.queryByText(/Pending Florals/)).toBeNull();
@@ -177,7 +187,7 @@ describe("supplier setup checks", () => {
   });
 
   it("offers each confirmed supplier only its next on-site step and passes the note with it", () => {
-    const models = renderRoleData(ingressView({
+    const models = renderSupplierChecks(ingressView({
       supplierStatuses: [
         supplier({ id: "req_new", supplierName: "Harvest Table", eventDayStatus: "not_started" }),
         supplier({ id: "req_set", supplierName: "Sound Co", eventDayStatus: "set_up_ready" }),
@@ -195,15 +205,13 @@ describe("supplier setup checks", () => {
   });
 
   it("shows a failed check to a coordinator who is not the operator", () => {
-    renderRoleData(ingressView(), { operator: { supplierError: "Unable to update supplier setup status." } });
+    renderSupplierChecks(ingressView(), { supplierError: "Unable to update supplier setup status." });
 
     expect(screen.getByRole("alert").textContent).toBe("Unable to update supplier setup status.");
   });
 
   it("gives other roles no supplier checks", () => {
-    renderRoleData(roleView({ supplierStatuses: [supplier({ id: "req_ok", supplierName: "Harvest Table" })] }));
-
-    expect(screen.queryByText(/Supplier setup checks/)).toBeNull();
+    expect(canCheckSuppliers(roleView({ supplierStatuses: [supplier({ id: "req_ok", supplierName: "Harvest Table" })] }) as never)).toBe(false);
   });
 });
 
@@ -304,16 +312,24 @@ describe("coordinator queues", () => {
     expect(screen.getByRole("button", { name: "Unblock" })).toBeTruthy();
   });
 
-  it("logs a task from a side panel and closes it once the task is saved", async () => {
-    const models = renderRoleData(roleView({ tasks: [] }), { taskTitle: "Stage cue check" });
+  it("offers Log a task beside the tasks and says when nothing is assigned", () => {
+    const onLogTask = vi.fn();
+    render(<CoordinatorRoleData {...({ section: "tasks", roleViewLoading: false, roleViewError: null, roleView: roleView({ tasks: [] }), registrationRole: false, onLogTask, reassignment: {}, taskActions: { busy: false, error: null }, operatorActions: {} } as unknown as ComponentProps<typeof CoordinatorRoleData>)} />);
 
     expect(screen.getByText(/No tasks assigned to you yet/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Log a task" }));
-    const panel = await screen.findByRole("dialog");
-    fireEvent.click(within(panel).getByRole("button", { name: "Log task" }));
+    expect(onLogTask).toHaveBeenCalledTimes(1);
+  });
 
-    expect(models.taskForm.submit).toHaveBeenCalledTimes(1);
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  it("closes the Log a task panel once the task is saved", async () => {
+    const onOpenChange = vi.fn();
+    const taskForm = { title: "Stage cue check", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, assignToMeRequired: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], routesAway: false, busy: false, error: null, submit: vi.fn(async () => true) } as unknown as CoordinatorTaskFormModel;
+    render(<CoordinatorTaskSheet taskForm={taskForm} open onOpenChange={onOpenChange} />);
+
+    fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Log task" }));
+
+    expect(taskForm.submit).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 });
 

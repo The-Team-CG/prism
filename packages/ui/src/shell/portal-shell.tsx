@@ -138,6 +138,64 @@ function NavLinkRow({ item, activeId, onSelect }: NavRowProps) {
   );
 }
 
+/** The phone tab bar: a few destinations within thumb reach, each a link when it has a route. */
+function MobileTabBar({ items, activeId, onSelect }: { items: PrismNavItem[]; activeId: string; onSelect: (id: string) => void }) {
+  return (
+    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <ul className="grid" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+        {items.map((item) => {
+          // A tab such as More stands for several pages; it lights up on any of them, listed as its subItems.
+          const current = item.id === activeId || Boolean(item.subItems?.some((sub) => sub.id === activeId));
+          const body = (
+            <>
+              <span className="relative">
+                <item.icon aria-hidden="true" className="size-5" />
+                {hasBadge(item.badge) ? (
+                  <span aria-label={item.badgeLabel} className="absolute -right-2.5 -top-1.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-semibold leading-4 text-white">{item.badge}</span>
+                ) : null}
+              </span>
+              <span className="truncate">{item.label}</span>
+            </>
+          );
+          const className = cn("flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium outline-none focus-visible:bg-muted", current ? "text-primary" : "text-muted-foreground");
+          return (
+            <li key={item.id} className="min-w-0">
+              {item.href ? (
+                <a href={portalHref(item.href)} aria-current={current ? "page" : undefined} className={className} onClick={(event) => navLinkClick(event, () => onSelect(item.id))}>{body}</a>
+              ) : (
+                <button type="button" aria-current={current ? "page" : undefined} className={className} onClick={() => onSelect(item.id)}>{body}</button>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+/**
+ * Class changes when a portal opts into phone tabs: the menu button and page heading give way to the tabs and the
+ * top bar's title, the content clears the tab bar, and a floating action replaces the top bar's actions on a phone.
+ */
+function phoneLayout(tabs: boolean, action: boolean) {
+  return {
+    trigger: tabs ? "hidden md:inline-flex" : undefined,
+    title: tabs ? "hidden md:grid" : undefined,
+    content: tabs ? "pt-4 pb-36 md:pt-6 md:pb-6" : undefined,
+    headerActions: (alwaysShow: boolean) => (alwaysShow && !(tabs && action) ? "flex" : "hidden md:flex"),
+  };
+}
+
+function PhoneChrome({ tabs, action, activeId, onSelect }: { tabs?: PrismNavItem[]; action?: React.ReactNode; activeId: string; onSelect: (id: string) => void }) {
+  if (!tabs?.length) return null;
+  return (
+    <>
+      {action ? <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-40 md:hidden">{action}</div> : null}
+      <MobileTabBar items={tabs} activeId={activeId} onSelect={onSelect} />
+    </>
+  );
+}
+
 /** A group with sub-destinations, or a destination the portal resolves itself: a button. */
 function NavButtonRow({ item, activeId, onSelect, open, setOpen }: NavRowProps & { open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
   const hasSub = Boolean(item.subItems?.length);
@@ -429,6 +487,8 @@ export function PrismPortalShell({
   onCommandPaletteOpen,
   headerActions,
   alwaysShowHeaderActions = false,
+  mobileTabs,
+  mobileAction,
   sidebarContext,
   accountMenuItems,
   onSignOut,
@@ -440,6 +500,7 @@ export function PrismPortalShell({
 }: PrismPortalShellProps) {
   const select = React.useCallback((id: string) => onNavSelect?.(id), [onNavSelect]);
   const trail = breadcrumb ?? findTrail(navItems, activeItemId);
+  const phone = phoneLayout(Boolean(mobileTabs?.length), Boolean(mobileAction));
   useDocumentTitle(title ? `${title} · ${productLabel}` : undefined);
   return (
     <TooltipProvider delayDuration={300}>
@@ -468,7 +529,7 @@ export function PrismPortalShell({
         </Sidebar>
         <SidebarInset style={portalBackgroundStyle} className="min-w-0 md:peer-data-[variant=inset]:border md:peer-data-[variant=inset]:border-border md:peer-data-[variant=inset]:shadow-none">
           <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 sm:px-6">
-            <SidebarTrigger className="-ml-1.5" />
+            <SidebarTrigger className={cn("-ml-1.5", phone.trigger)} />
             <Separator orientation="vertical" className="hidden !h-4 sm:block" />
             <p className="min-w-0 truncate text-sm font-semibold text-foreground md:hidden">{trail[trail.length - 1] ?? roleLabel}</p>
             <Breadcrumb className="hidden min-w-0 flex-1 overflow-hidden md:block">
@@ -499,16 +560,18 @@ export function PrismPortalShell({
                   onSelect={select}
                 />
               ) : null}
-              {headerActions ? <div className={cn("shrink-0 items-center gap-2", alwaysShowHeaderActions ? "flex" : "hidden md:flex")}>{headerActions}</div> : null}
+              {headerActions ? <div className={cn("shrink-0 items-center gap-2", phone.headerActions(alwaysShowHeaderActions))}>{headerActions}</div> : null}
             </div>
           </header>
-          <div className={cn("mx-auto min-w-0 w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", contentClassName)}>
-            <div className={cn("mb-5 grid gap-1", titleClassName)}>
+          <div className={cn("mx-auto min-w-0 w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", phone.content, contentClassName)}>
+            {/* With phone tabs the top bar already names the page, so the heading shows from a tablet up. */}
+            <div className={cn("mb-5 grid gap-1", phone.title, titleClassName)}>
               <h1 className="min-w-0 font-heading text-2xl font-semibold leading-tight text-foreground"><TruncatedText>{title}</TruncatedText></h1>
               {description ? <p className="max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
             </div>
             {children}
           </div>
+          <PhoneChrome tabs={mobileTabs} action={mobileAction} activeId={activeItemId} onSelect={select} />
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

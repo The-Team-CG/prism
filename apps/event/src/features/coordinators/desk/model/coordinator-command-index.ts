@@ -20,7 +20,7 @@ export function coordinatorAttendanceActionDescription({
   return "Not available right now";
 }
 
-/** The coordinator's always-visible actions: the two that the top bar and My shift also offer. */
+/** The coordinator's always-visible actions: the two that the top bar and Now also offer. */
 export function buildCoordinatorCommandActions(
   attendance: { canMark: boolean; hasAssignment: boolean; windowOpen: boolean },
   onNavigate: CoordinatorCommandNavigate,

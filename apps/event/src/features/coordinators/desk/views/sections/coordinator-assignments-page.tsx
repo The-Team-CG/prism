@@ -47,7 +47,7 @@ function PastYear({ year, rows, open, canOpen, onOpen }: { year: string; rows: A
 
 /**
  * Assignments: the open event's assignment with its decisions, the coordinator's record with PMCM, what is coming up
- * and every past event by year. Rows open their event on My shift.
+ * and every past event by year. Rows open their event on Now.
  */
 export function CoordinatorAssignmentsPage({ event, assignment, assignments, events, busy, onAcknowledge, onDecline, onWithdraw, onOpenEvent }: {
   event?: PrismEvent;

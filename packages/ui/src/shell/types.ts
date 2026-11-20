@@ -119,6 +119,13 @@ export interface PrismAppShellProps {
   accountMenuItems?: PrismAccountMenuItem[];
   rightRail?: React.ReactNode;
   mobileActions?: PrismMobileAction[];
+  /**
+   * Opt-in tab bar along the bottom of a phone screen, for portals used on the move. When set, phones get these tabs
+   * instead of the menu button, and the page title shows once, in the top bar. Desktop is unchanged.
+   */
+  mobileTabs?: PrismNavItem[];
+  /** One floating action above the phone tab bar, such as "Report". Only shown with `mobileTabs`. */
+  mobileAction?: React.ReactNode;
   sidebarMode?: "auto" | "single";
   sidebarContent?: React.ReactNode | ((props: PrismSidebarRenderProps) => React.ReactNode);
   onSignOut?: () => void;
