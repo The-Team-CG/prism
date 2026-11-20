@@ -1,6 +1,6 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsCoordinator, OpsCoordinatorAssignment, Prisma } from '@prisma/client';
-import type { CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput } from '@prism/types';
+import { isActiveCoordinatorAssignmentStatus, type CreateCoordinatorAvailabilityInput, type CreateCoordinatorCoverageRequirementInput } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { randomUUID } from 'node:crypto';
@@ -360,15 +360,10 @@ export class CoordinatorsService {
     actor: { id?: string | null; coordinatorId?: string | null; email?: string | null },
   ) {
     const coordinator = await this.resolveCoordinatorForActor(actor);
-    const assignments = (await this.listAssignmentsForEvent(eventId)).filter(
-      (item) => item.status !== CoordinatorAssignmentStatus.Cancelled && item.status !== CoordinatorAssignmentStatus.Replaced,
-    );
-    return (
-      assignments.find(
-        (item) =>
-          sameText(item.coordinatorId, coordinator.id),
-      ) ?? null
-    );
+    // Only an assignment the coordinator still works counts: a declined one grants nothing. When PMCM has given them
+    // another role since, the newest one is the role they work now.
+    const assignments = (await this.listAssignmentsForEvent(eventId)).filter((item) => isActiveCoordinatorAssignmentStatus(item.status));
+    return [...assignments].reverse().find((item) => sameText(item.coordinatorId, coordinator.id)) ?? null;
   }
 
   mapCoordinator(coordinator: OpsCoordinator) {
