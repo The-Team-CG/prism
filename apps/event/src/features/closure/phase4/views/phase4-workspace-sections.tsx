@@ -46,36 +46,65 @@ function Phase4Status({ value, label: text }: { value: string; label: string }) 
   );
 }
 
+/**
+ * Closing an event as one list of its gates, the same on every closure tab: each gate passed or numbered, what it
+ * needs, and a way to the place that clears it, with the first open gate's button filled. Archive opens when all pass.
+ * It replaces four figure cards that summarised the gates without saying how to clear them.
+ */
 export function Phase4ClosureBoard({
   event,
   closeGates,
-  cards,
+  onOpenDestination,
 }: {
   event: PrismEvent;
   closeGates: PrismCloseGates | null;
-  cards: Array<{ label: string; value: string | number; detail: string; tone: string }>;
+  onOpenDestination: (destination: CloseGateDestination) => void;
 }) {
   const archive = phase4ArchiveStatus(event.archived, closeGates?.ready);
+  const gates = closeGates?.gates ?? [];
+  const passed = gates.filter((gate) => gate.passed).length;
+  const firstOpen = gates.find((gate) => !gate.passed && closeGateDestination(gate.key));
   return (
-    <section className="rounded-lg border border-border bg-card p-5">
+    <section aria-labelledby="closure-board-title" className="rounded-lg border border-border bg-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Close out this event</h2>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
-            Work through the steps below. The event can be archived once every close gate passes.
+          <h2 id="closure-board-title" className="text-lg font-semibold text-foreground">Close out this event</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {closeGates ? `${passed} of ${gates.length} gates passed · archive opens when every gate passes` : "Loading the close gates…"}
           </p>
         </div>
         <Phase4Status value={archive.toneKey} label={archive.label} />
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-        {cards.map((card) => (
-          <div key={card.label} className="rounded-lg border border-border bg-secondary/35 px-3 py-2 sm:px-4 sm:py-3">
-            <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
-            <p className={cx("mt-1 text-lg font-semibold", card.tone)}>{card.value}</p>
-            <p className="mt-1 hidden text-xs text-muted-foreground sm:block">{card.detail}</p>
-          </div>
-        ))}
-      </div>
+      {gates.length ? (
+        <ol className="mt-3 divide-y divide-border">
+          {gates.map((gate, index) => {
+            const destination = gate.passed ? null : closeGateDestination(gate.key);
+            const lead = gate === firstOpen;
+            return (
+              <li key={gate.key} className={cx("flex flex-wrap items-start justify-between gap-3 py-3", lead && "-mx-5 bg-primary/5 px-5")}>
+                <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
+                  <span aria-hidden className={gate.passed ? "grid size-6 shrink-0 place-items-center rounded-full bg-success text-xs font-semibold text-success-foreground" : cx("grid size-6 shrink-0 place-items-center rounded-full border text-xs font-semibold", lead ? "border-primary text-primary" : "border-border text-muted-foreground")}>
+                    {gate.passed ? "✓" : index + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{gate.label}<span className="sr-only">{gate.passed ? ", passed" : ", open"}</span></p>
+                    <p className="text-sm text-muted-foreground">{gate.detail}</p>
+                  </div>
+                </div>
+                {destination ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenDestination(destination)}
+                    className={lead ? "h-9 shrink-0 rounded-md bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90" : "h-9 shrink-0 rounded-md border border-border bg-card px-3 text-sm font-semibold text-foreground hover:bg-surface-raised"}
+                  >
+                    {destination.label}
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
     </section>
   );
 }
