@@ -132,6 +132,8 @@ describe("inquiry-submit-rules", () => {
     expect(mapInquirySubmitError(new Error("boom"))).toBe("boom");
     expect(mapInquirySubmitError({})).toBe("Unable to submit inquiry");
     expect(inquiryMinDate(new Date("2026-05-10T12:00:00.000Z"))).toBe("2026-05-10");
+    // 06:00 on the 11th in Manila is still the 10th in UTC; the picker must start at Manila's today.
+    expect(inquiryMinDate(new Date("2026-05-10T22:00:00.000Z"))).toBe("2026-05-11");
     expect(buildInquiryReference(new Date("2026-01-01T00:00:00.000Z"), 0.5)).toBe("INQ-2026-5500");
   });
 

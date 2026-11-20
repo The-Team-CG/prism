@@ -1,7 +1,7 @@
 import { Inject, Injectable, BadRequestException, ConflictException, ForbiddenException, Logger, NotFoundException } from '@nestjs/common';
 import type { OpsDocument, OpsEvent, OpsInquiry, OpsInquiryMerge, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
-import { INQUIRY_EDIT_WINDOW_HOURS, type ClientLanguage, type SetClientLanguageInput, type EditPublicInquiryInput, type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type PrismPublicInquiryEdit, type SetInquiryIntakePathInput, type UpdateInquiryCompanyNameInput } from '@prism/types';
+import { INQUIRY_EDIT_WINDOW_HOURS, prismCalendarDateKey, type ClientLanguage, type SetClientLanguageInput, type EditPublicInquiryInput, type MergeInquiryInput, type PrismAccountInvitationOutcome, type PrismCompanyNameChange, type PrismPublicInquiryEdit, type SetInquiryIntakePathInput, type UpdateInquiryCompanyNameInput } from '@prism/types';
 import {
   ACCOUNT_PROVISIONING,
   type AccountInvitationActor,
@@ -110,6 +110,14 @@ function mapCompanyNameChange(row: { id: string; inquiryId: string; fromName: st
   return { id: row.id, inquiryId: row.inquiryId, fromName: row.fromName, toName: row.toName, reason: row.reason, changedBy: row.changedBy, changedAt: row.changedAt.toISOString() };
 }
 
+/** An inquiry is for an event still ahead: its date may be today or later on the Philippine calendar. */
+function upcomingEventDate(value: string): Date {
+  const eventDate = new Date(value);
+  if (Number.isNaN(eventDate.getTime())) throw new BadRequestException('Invalid event date');
+  if (value.slice(0, 10) < prismCalendarDateKey()) throw new BadRequestException('Choose an event date from today onward');
+  return eventDate;
+}
+
 @Injectable()
 export class InquiriesService {
   private readonly logger = new Logger(InquiriesService.name);
@@ -149,7 +157,7 @@ export class InquiriesService {
     const data: Prisma.OpsInquiryUpdateInput = {
       ...(input.eventName !== undefined ? { eventName: input.eventName } : {}),
       ...(input.eventType !== undefined ? { eventType: input.eventType } : {}),
-      ...(input.eventDate !== undefined ? { eventDate: new Date(input.eventDate) } : {}),
+      ...(input.eventDate !== undefined ? { eventDate: upcomingEventDate(input.eventDate) } : {}),
       ...(input.message !== undefined ? { message: input.message } : {}),
       ...(input.seatingArrangement !== undefined ? { seatingArrangement: input.seatingArrangement } : {}),
       ...(input.stagePosition !== undefined ? { stagePosition: input.stagePosition } : {}),
@@ -242,6 +250,10 @@ export class InquiriesService {
         if (input.status === 'accepted' && locked.status === 'accepted') return locked;
         if (locked.status === 'declined' && input.status !== 'declined') {
           throw new BadRequestException('Declined inquiries are permanently flagged and cannot be reopened');
+        }
+        // A signed conforme made the inquiry a live event; stopping it is an event decision, not an inquiry status.
+        if (locked.conformeSignedAt) {
+          throw new BadRequestException('This inquiry has a signed conforme. Cancel or postpone the event instead of changing the inquiry status');
         }
         movedToAccepted = input.status === 'accepted';
         movedToDeclined = input.status === 'declined' && locked.status !== 'declined';
@@ -446,6 +458,12 @@ export class InquiriesService {
               throw new BadRequestException('Conforme requires a confirmed stored W10 signed-conforme object');
             }
             await this.activateAfterConforme(tx, lockedInquiry.id, now);
+            // The scanned conforme is the signed record now; an in-app version still awaiting signatures would
+            // otherwise stay open on the client's conforme page and refuse every acknowledgment.
+            await tx.opsConformeExecution.updateMany({
+              where: { inquiryId: lockedInquiry.id, status: { in: ['awaiting_client', 'awaiting_pmcm'] } },
+              data: { status: 'superseded' },
+            });
           }
 
           const document = await tx.opsDocument.create({
@@ -554,8 +572,7 @@ export class InquiriesService {
 
   private async createInquiryRecord(input: CreateInquiryInput, actor?: ResolvedEventOpsActor & { id: string; verified: true }, editToken?: string) {
     const normalizedEmail = normalizeEmail(input.email);
-    const eventDate = new Date(input.eventDate);
-    if (Number.isNaN(eventDate.getTime())) throw new BadRequestException('Invalid event date');
+    const eventDate = upcomingEventDate(input.eventDate);
 
     const source = input.source ?? '';
     if (source === 'Log on Behalf' && !actor) {

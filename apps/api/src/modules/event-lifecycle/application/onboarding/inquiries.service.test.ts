@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { InquiriesService, inquiryDeclinedMessage } from './inquiries.service';
@@ -63,6 +63,7 @@ function createService(
   const notifications: any[] = [];
   const audits: any[] = [];
   const merges: any[] = [];
+  const conformeExecutions: any[] = [];
   const transaction = {
     $queryRaw: vi.fn(async () => []),
     opsInquiryCompanyNameChange: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { const row = { ...data, changedAt: new Date('2026-05-04T00:00:00.000Z') }; nameChanges.push(row); return row; }) },
@@ -83,6 +84,13 @@ function createService(
     opsPostEventDocument: { createMany: vi.fn(async () => ({ count: 2 })) },
     opsStoredObject: {
       findUnique: vi.fn(async ({ where }) => ({ id: where.id, eventId: events[0]?.id, usage: 'signed_conforme', lifecycleState: 'stored' })),
+    },
+    opsConformeExecution: {
+      updateMany: vi.fn(async ({ where, data }) => {
+        const hits = conformeExecutions.filter((row) => row.inquiryId === where.inquiryId && where.status.in.includes(row.status));
+        hits.forEach((row) => Object.assign(row, data));
+        return { count: hits.length };
+      }),
     },
     opsDocument: {
       create: vi.fn(async ({ data }) => { const row = { ...data }; documents.push(row); return row; }),
@@ -144,7 +152,7 @@ function createService(
     accountProvisioning as any,
     { client: 'https://client.example.test', supplier: 'https://supplier.example.test', event: 'https://event.example.test' },
   );
-  return { service, records, notifications, audits, prisma, merges, accountProvisioning, nameChanges, transaction };
+  return { service, records, notifications, audits, prisma, merges, accountProvisioning, nameChanges, transaction, conformeExecutions };
 }
 
 const pmcmActor = {
@@ -172,6 +180,13 @@ describe('inquiryDeclinedMessage', () => {
 });
 
 describe('InquiriesService', () => {
+  // Inquiry dates must be today or later in Manila; pin the calendar so the 2026 fixture dates stay ahead.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-06-01T04:00:00.000Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+
   it('logs a PMCM company name change with its reason and moves the inquiry to the new organization', async () => {
     const { service, records, nameChanges } = createService([inquiry({ id: 'inq_1', companyName: 'Acme Corp' })]);
     (service as any).prisma.$transaction = vi.fn(async (callback: (tx: unknown) => Promise<unknown>) => callback({ ...(service as any).prisma, opsInquiryCompanyNameChange: { create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => { const row = { ...data, changedAt: new Date() }; nameChanges.push(row); return row; }) } }));
@@ -244,6 +259,18 @@ describe('InquiriesService', () => {
     records[0].createdAt = new Date(Date.now() - 25 * 3_600_000);
     await expect(service.getPublicEdit(created.editToken)).rejects.toThrow('24-hour edit window');
     await expect(service.getPublicEdit('x'.repeat(32))).rejects.toThrow('not valid');
+  });
+
+  it('refuses an event date before today in Manila, on submission and on the 24-hour edit', async () => {
+    // 2026-06-01 06:00 Manila is still 2026-05-31 in UTC: Manila's today is the 1st.
+    vi.setSystemTime(new Date('2026-05-31T22:00:00.000Z'));
+    const base = { privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, clientName: 'Ana', email: 'ana@acme.test', eventName: 'Gala', clientType: 'Corporate', message: 'Planning' };
+    const { service, records } = createService([]);
+    await expect(service.createInquiry({ ...base, eventDate: '2026-05-31' })).rejects.toThrow('from today onward');
+    expect(records).toHaveLength(0);
+    const created = await service.createInquiry({ ...base, eventDate: '2026-06-01' });
+    records[0].createdAt = new Date();
+    await expect(service.updatePublicEdit(created.editToken, { eventDate: '2020-01-01' })).rejects.toThrow('from today onward');
   });
 
   it('tells PMCM when a client returns after more than a year without an event, and not for a recent client', async () => {
@@ -488,6 +515,18 @@ describe('InquiriesService', () => {
       expect(records[0]).toMatchObject({ status: 'declined' });
     });
 
+    it.each(['declined', 'pending', 'new'] as const)('refuses to move an inquiry with a signed conforme to %s and sends nothing', async (status) => {
+      const signed = inquiry({ status: 'accepted', conformeSignedAt: new Date('2026-06-01T00:00:00.000Z') });
+      const { service, notifications, records } = createService([signed]);
+
+      await expect(service.updateInquiryStatus('inq_existing', { status, ...(status === 'declined' ? { declineReason: 'Other' as const } : {}) }, pmcmActor))
+        .rejects.toThrow('signed conforme');
+      await expect(service.updateInquiryStatus('inq_existing', { status: 'accepted' }, pmcmActor)).resolves.toMatchObject({ status: 'accepted' });
+
+      expect(notifications).toHaveLength(0);
+      expect(records[0]).toMatchObject({ status: 'accepted' });
+    });
+
     it('refuses to decline a merged inquiry and sends nothing to its client', async () => {
       const { service, notifications } = createService([inquiry({ mergedInto: { id: 'merge_1' } })]);
 
@@ -529,6 +568,22 @@ describe('InquiriesService', () => {
 
     expect(prisma.opsBillingSource.create).not.toHaveBeenCalled();
     expect(prisma.opsBillingStatement.create).not.toHaveBeenCalled();
+  });
+
+  it('closes the in-app conforme still awaiting signatures when a stored scanned conforme activates the event', async () => {
+    const { service, records, conformeExecutions } = createService([inquiry({ status: 'accepted' })]);
+    conformeExecutions.push(
+      { id: 'cfx_open', inquiryId: 'inq_existing', status: 'awaiting_pmcm' },
+      { id: 'cfx_other', inquiryId: 'inq_other', status: 'awaiting_client' },
+    );
+
+    await service.uploadConforme('inq_existing', { fileName: 'signed-conforme.pdf', storageObjectId: 'obj_conforme' }, pmcmActor);
+
+    expect(records[0].conformeSignedAt).toBeInstanceOf(Date);
+    expect(conformeExecutions).toEqual([
+      { id: 'cfx_open', inquiryId: 'inq_existing', status: 'superseded' },
+      { id: 'cfx_other', inquiryId: 'inq_other', status: 'awaiting_client' },
+    ]);
   });
 
   it('rejects non-conforme document types before activating the portal', async () => {
