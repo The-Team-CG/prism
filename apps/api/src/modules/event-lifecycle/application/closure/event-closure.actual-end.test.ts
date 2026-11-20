@@ -4,7 +4,7 @@ import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventClosureService } from './event-closure.service';
 
 function harness(actualEndedAt: Date | null = null) {
-  const event = { id: 'evt_1', eventDate: new Date('2026-09-07T00:00:00.000Z'), actualStartedAt: null, actualEndedAt, actualEndedBy: actualEndedAt ? 'old' : null, status: 'event_day', archived: false };
+  const event = { id: 'evt_1', eventDate: new Date('2026-09-07T00:00:00.000Z'), actualEndedAt, actualEndedBy: actualEndedAt ? 'old' : null, status: 'event_day', archived: false };
   const tx = { opsEvent: { findUnique: vi.fn(async () => event), update: vi.fn(async ({ data }: any) => ({ ...event, ...data })) }, opsEventWrapUp: { upsert: vi.fn(async ({ create }: any) => create) } };
   const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) };
   const auditWriter = { write: vi.fn(async () => undefined) };

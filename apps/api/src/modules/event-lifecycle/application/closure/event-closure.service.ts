@@ -60,9 +60,8 @@ export class EventClosureService {
       if (!['event_day', 'closure_archive', 'archived'].includes(current.status)) {
         throw new BadRequestException('Actual event end can only be recorded during event day or closure');
       }
-      // An event ends after it starts: its recorded start, or the start of its event day in Philippine time.
-      const startedAt = current.actualStartedAt ?? prismEventDayStart(current.eventDate);
-      if (actualEndedAt.getTime() < startedAt.getTime()) {
+      // An event ends after it starts: no earlier than the start of its event day in Philippine time.
+      if (actualEndedAt.getTime() < prismEventDayStart(current.eventDate).getTime()) {
         throw new BadRequestException('Actual event end cannot be before the event started');
       }
       const isChanged = !current.actualEndedAt || current.actualEndedAt.getTime() !== actualEndedAt.getTime();
