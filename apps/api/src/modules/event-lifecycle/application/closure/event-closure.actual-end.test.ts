@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventClosureService } from './event-closure.service';
 
-function harness(actualEndedAt: Date | null = null) {
-  const event = { id: 'evt_1', actualEndedAt, actualEndedBy: actualEndedAt ? 'old' : null, status: 'event_day', archived: false };
+function harness(actualEndedAt: Date | null = null, actualStartedAt: Date | null = null) {
+  const event = { id: 'evt_1', actualStartedAt, actualEndedAt, actualEndedBy: actualEndedAt ? 'old' : null, status: 'event_day', archived: false };
   const tx = { opsEvent: { findUnique: vi.fn(async () => event), update: vi.fn(async ({ data }: any) => ({ ...event, ...data })) }, opsEventWrapUp: { upsert: vi.fn(async ({ create }: any) => create) } };
   const prisma = { $transaction: vi.fn(async (fn: any) => fn(tx)) };
   const auditWriter = { write: vi.fn(async () => undefined) };
@@ -30,6 +30,16 @@ describe('EventClosureService actual end', () => {
     expect(tx.opsEvent.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ actualEndedBy: 'user_pmcm' }) }));
     expect(auditWriter.write).toHaveBeenCalled();
   });
+  it('refuses an end before event day started, and allows one before the event date when event day started early', async () => {
+    const started = harness(null, new Date(Date.UTC(2026, 8, 7, 1)));
+    await expect(started.service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-06T23:00:00.000Z' }, actor)).rejects.toThrow('before event day started');
+    expect(started.tx.opsEvent.update).not.toHaveBeenCalled();
+
+    // No recorded start (an event that started before it was kept): nothing to check against.
+    const legacy = harness();
+    await expect(legacy.service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-06T23:00:00.000Z' }, actor)).resolves.toBeDefined();
+  });
+
   it('rejects future timestamps', async () => {
     const { service } = harness();
     await expect(service.recordActualEventEnd('evt_1', { actualEndedAt: '2999-01-01T00:00:00.000Z' }, actor)).rejects.toBeInstanceOf(BadRequestException);

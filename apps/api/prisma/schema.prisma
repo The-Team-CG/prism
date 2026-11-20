@@ -379,6 +379,8 @@ model OpsEvent {
   walkInPolicy               String    @default("closed") @map("walk_in_policy")
   walkInThreshold            Int       @default(200) @map("walk_in_threshold")
   guestPrivacyClassification String    @default("unclassified") @map("guest_privacy_classification")
+  /// When PMCM started event day; null for events started before this was recorded. An actual end cannot precede it.
+  actualStartedAt            DateTime? @map("actual_started_at")
   actualEndedAt              DateTime? @map("actual_ended_at")
   actualEndedBy              String?   @map("actual_ended_by")
   status                     String    @default("planning")

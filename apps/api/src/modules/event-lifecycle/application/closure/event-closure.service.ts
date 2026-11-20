@@ -60,6 +60,10 @@ export class EventClosureService {
       if (!['event_day', 'closure_archive', 'archived'].includes(current.status)) {
         throw new BadRequestException('Actual event end can only be recorded during event day or closure');
       }
+      // Event day may start ahead of the event date, so the end is checked against when it actually started.
+      if (current.actualStartedAt && actualEndedAt.getTime() < current.actualStartedAt.getTime()) {
+        throw new BadRequestException('Actual event end cannot be before event day started');
+      }
       const isChanged = !current.actualEndedAt || current.actualEndedAt.getTime() !== actualEndedAt.getTime();
       if (current.actualEndedAt && current.actualEndedAt.getTime() !== actualEndedAt.getTime() && !input.correctionReason?.trim()) {
         throw new BadRequestException('A correction reason is required when changing the recorded event end');
