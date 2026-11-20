@@ -12,8 +12,10 @@ import type {
 import { canonicalCoordinatorRole } from "@prism/types";
 
 import { Button } from "@prism/ui/components/button";
-import { StatusBadge } from "@prism/ui/components/status-badge";
+import { PrismEmptyLine, PrismSection } from "@prism/ui/page-blocks";
+import { CoordinatorEmpty } from "./coordinator-blocks";
 import { label } from "@/features/pmcm-kit";
+import { TASK_BLOCK_REASONS, TASK_GROUPS, groupTasks, taskDue, taskTone } from "../../model/coordinator-shift";
 import {
   canCoordinatorUpdateTask,
   confirmedSupplierChecks,
@@ -59,7 +61,6 @@ type SupplierStatus = PrismCoordinatorRoleView["supplierStatuses"][number];
 
 /** Radix Select cannot take an empty-string item value, so "any coordinator" uses this sentinel. */
 const ANY_OWNER_COORDINATOR = "__any_owner_coordinator__";
-const SELECT_FIELD = "h-10 rounded-md border border-border bg-background px-2 text-sm text-foreground";
 const FIELD_CAPTION = "grid gap-1 text-xs font-semibold text-muted-foreground";
 
 export function CoordinatorRoleActions({ roleView, reassignment, operatorActions }: {
@@ -72,115 +73,141 @@ export function CoordinatorRoleActions({ roleView, reassignment, operatorActions
     <>
       {operator ? <CoordinatorOperatorControls roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} /> : null}
       {operator ? <EventDayCopilotPanel eventId={roleView.event.id} /> : null}
-      {operator || isIngressOrEgressRole(roleView.role) ? <CoordinatorSupplierChecks roleView={roleView} actions={operatorActions} /> : null}
     </>
   );
 }
 
+/** The coordinator's tasks grouped by where they stand, each with the one next step it allows. */
 export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: PrismCoordinatorRoleView; taskActions: CoordinatorTaskActionsModel }) {
+  const groups = groupTasks(roleView.tasks);
+  const shown = TASK_GROUPS.filter((group) => groups[group.id].length > 0);
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Assigned to you</h3>
-          {roleView.tasks.length > 0 && (
-            <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-3xs font-semibold text-primary">{roleView.tasks.length}</span>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent id="coordinator-role-queue" className="scroll-mt-24">
-        {roleView.tasks.length === 0 && <p className="text-sm text-muted-foreground">No tasks assigned to you yet.</p>}
-        <div className="space-y-2">
-          {roleView.tasks.map((task) => (
-            <CoordinatorTaskQueueRow key={task.id} task={task} taskActions={taskActions} canUpdate={canCoordinatorUpdateTask(task, roleView)} />
-          ))}
-        </div>
-        {taskActions.error && <p role="alert" className={FORM_ALERT}>{taskActions.error}</p>}
-      </CardContent>
-    </Card>
+    <div id="coordinator-role-queue" className="grid max-w-3xl scroll-mt-24 gap-4">
+      {shown.length === 0 ? (
+        <CoordinatorEmpty icon={ClipboardList} title="No tasks assigned to you yet">Tasks PMCM gives your role show up here.</CoordinatorEmpty>
+      ) : null}
+      {shown.map((group) => (
+        <section key={group.id} aria-label={group.title} className="grid gap-1.5">
+          <h2 className="px-1 text-xs font-semibold text-muted-foreground">{group.title} · {groups[group.id].length}</h2>
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+            {groups[group.id].map((task) => (
+              <CoordinatorTaskQueueRow key={task.id} task={task} taskActions={taskActions} canUpdate={canCoordinatorUpdateTask(task, roleView)} />
+            ))}
+          </ul>
+        </section>
+      ))}
+      {taskActions.error ? <p role="alert" className={FORM_ALERT}>{taskActions.error}</p> : null}
+    </div>
   );
+}
+
+const TASK_BAR: Record<string, string> = { urgent: "border-l-danger", attention: "border-l-attention" };
+
+function taskMeta(task: RoleViewTask): string {
+  const due = taskDue(task);
+  return [task.ownerName || task.assignedRole, due ? `Due ${formatPortalDateTime(due)}` : "No deadline", task.priority && task.priority !== "normal" ? `${label(task.priority)} priority` : null].filter(Boolean).join(" · ");
 }
 
 function CoordinatorTaskQueueRow({ task, taskActions, canUpdate }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel; canUpdate: boolean }) {
-  return (
-    <div className="space-y-3 rounded-lg bg-muted/40 p-3.5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">{task.title}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {task.assignedRole}{task.notes ? " — " + task.notes : ""}{task.slaDueAt ? " · Due " + formatPortalDateTime(task.slaDueAt) : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusBadge status={task.status} />
-          {canUpdate ? (
-            <Button type="button" size="sm" variant="outline" disabled={taskActions.busy || task.status === "blocked"} onClick={() => taskActions.updateStatus(task.id, nextCoordinatorTaskStatus(task.status))}>
-              {coordinatorTaskActionLabel(task.status)}
-            </Button>
-          ) : null}
-        </div>
-      </div>
-      {canUpdate ? <CoordinatorTaskBlocking task={task} taskActions={taskActions} /> : null}
-    </div>
-  );
+  return <li className={`border-l-[3px] border-l-transparent px-4 py-3.5 sm:px-5 ${TASK_BAR[taskTone(task)] ?? ""}`}><CoordinatorTaskItem task={task} taskActions={taskActions} canUpdate={canUpdate} /></li>;
 }
 
-function CoordinatorTaskBlocking({ task, taskActions }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel }) {
-  if (task.status === "blocked") return <CoordinatorBlockedNotice task={task} taskActions={taskActions} />;
-  if (task.status === "done") return null;
-  return <CoordinatorBlockForm task={task} taskActions={taskActions} />;
-}
-
-function CoordinatorBlockedNotice({ task, taskActions }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <p className="text-xs text-danger">
-        Blocker: {task.blockedReason}
-        {task.blockedBy ? ` · Blocked by ${task.blockedBy}` : ""}
-        {task.blockedAt ? ` · ${formatPortalDateTime(task.blockedAt)}` : ""}
-      </p>
-      <Button type="button" size="sm" variant="outline" disabled={taskActions.busy} onClick={() => taskActions.unblockTask(task.id)}>
-        Unblock
-      </Button>
-    </div>
-  );
-}
-
-function CoordinatorBlockForm({ task, taskActions }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel }) {
+/**
+ * One task with the one step it allows next, as a thumb-sized button. Blocking it takes one tap on a ready-made
+ * reason ("Waiting on venue"); "Other" opens a text box for anything else.
+ */
+export function CoordinatorTaskItem({ task, taskActions, canUpdate }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel; canUpdate: boolean }) {
   const [blocking, setBlocking] = useState(false);
+  const done = task.status === "done";
+  return (
+    <div className="grid gap-2.5">
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2.5">
+        <div className="min-w-0 flex-1 basis-56">
+          <p className={done ? "text-sm font-semibold text-muted-foreground line-through" : "text-[15px] font-semibold text-foreground"}>{task.title}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{taskMeta(task)}</p>
+          {task.notes ? <p className="mt-1 text-sm text-foreground">{task.notes}</p> : null}
+          {task.status === "blocked" ? <CoordinatorBlockedNotice task={task} /> : null}
+        </div>
+        {canUpdate && !blocking ? <TaskRowActions task={task} taskActions={taskActions} onBlock={() => setBlocking(true)} /> : null}
+      </div>
+      {blocking ? <CoordinatorBlockForm task={task} taskActions={taskActions} onClose={() => setBlocking(false)} /> : null}
+    </div>
+  );
+}
+
+const TASK_ACTION = "min-h-11 flex-1 sm:flex-none";
+
+/** The task's one next step, and Blocked while it can still be blocked. Full width on a phone. */
+function TaskRowActions({ task, taskActions, onBlock }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel; onBlock: () => void }) {
+  const blocked = task.status === "blocked";
+  return (
+    <div className="flex w-full gap-2 sm:w-auto">
+      {task.status !== "done" && !blocked ? (
+        <Button type="button" variant="outline" className={TASK_ACTION} disabled={taskActions.busy} onClick={onBlock}>Blocked</Button>
+      ) : null}
+      {blocked ? (
+        <Button type="button" variant="outline" className={TASK_ACTION} disabled={taskActions.busy} onClick={() => taskActions.unblockTask(task.id)}>Unblock</Button>
+      ) : (
+        <Button type="button" variant={task.status === "done" ? "outline" : "default"} className={TASK_ACTION} disabled={taskActions.busy} onClick={() => taskActions.updateStatus(task.id, nextCoordinatorTaskStatus(task.status))}>
+          {coordinatorTaskActionLabel(task.status)}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function CoordinatorBlockedNotice({ task }: { task: RoleViewTask }) {
+  return (
+    <p className="mt-1 text-sm text-danger">
+      {task.blockedReason || "Blocked"}
+      <span className="text-xs text-muted-foreground">
+        {task.blockedBy ? ` · ${task.blockedBy}` : ""}
+        {task.blockedAt ? ` · ${formatPortalDateTime(task.blockedAt)}` : ""}
+      </span>
+    </p>
+  );
+}
+
+function CoordinatorBlockForm({ task, taskActions, onClose }: { task: RoleViewTask; taskActions: CoordinatorTaskActionsModel; onClose: () => void }) {
+  const [other, setOther] = useState(false);
   const [reason, setReason] = useState("");
 
-  function confirmBlock(event: FormEvent<HTMLFormElement>) {
+  function block(text: string) {
+    if (!text.trim()) return;
+    taskActions.blockTask(task.id, text.trim());
+    onClose();
+  }
+  function confirmOther(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!reason.trim()) return;
-    taskActions.blockTask(task.id, reason);
-    setBlocking(false);
-    setReason("");
+    block(reason);
   }
 
-  if (!blocking) {
-    return (
-      <Button type="button" size="sm" variant="outline" disabled={taskActions.busy} onClick={() => setBlocking(true)}>
-        Mark blocked
-      </Button>
-    );
-  }
   return (
-    <form className="flex flex-wrap items-end gap-2" onSubmit={confirmBlock}>
-      <label className="grid min-w-0 flex-1 gap-1 text-xs font-medium text-muted-foreground">
-        Blocker reason
-        <input
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          maxLength={500}
-          placeholder="What is stopping this task?"
-          className="h-9 rounded-md border border-border bg-white px-3 text-sm font-normal text-foreground"
-        />
-      </label>
-      <Button type="submit" size="sm" disabled={taskActions.busy || !reason.trim()}>Confirm blocked</Button>
-      <Button type="button" size="sm" variant="outline" onClick={() => { setBlocking(false); setReason(""); }}>Cancel</Button>
-    </form>
+    <div role="group" aria-label="Why is this task blocked?" className="grid gap-2 rounded-lg bg-muted/50 p-2.5">
+      <p className="text-xs font-medium text-muted-foreground">What's stopping it?</p>
+      <div className="flex flex-wrap gap-2">
+        {TASK_BLOCK_REASONS.map((preset) => (
+          <Button key={preset} type="button" size="sm" variant="outline" className="min-h-10" disabled={taskActions.busy} onClick={() => block(preset)}>{preset}</Button>
+        ))}
+        <Button type="button" size="sm" variant="ghost" className="min-h-10" aria-pressed={other} onClick={() => setOther((value) => !value)}>Other</Button>
+        <Button type="button" size="sm" variant="ghost" className="min-h-10" onClick={onClose}>Cancel</Button>
+      </div>
+      {other ? (
+        <form className="flex flex-wrap items-end gap-2" onSubmit={confirmOther}>
+          <label className="grid min-w-0 flex-1 gap-1 text-xs font-medium text-muted-foreground">
+            What is stopping this task?
+            <input
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              maxLength={500}
+              autoFocus
+              className="h-11 rounded-md border border-border bg-white px-3 text-sm font-normal text-foreground"
+            />
+          </label>
+          <Button type="submit" className="min-h-11" disabled={taskActions.busy || !reason.trim()}>Confirm blocked</Button>
+        </form>
+      ) : null}
+    </div>
   );
 }
 
@@ -265,7 +292,8 @@ function ReassignmentRequestForm({ roleView, reassignment }: { roleView: PrismCo
             <SelectValue placeholder="Select role" />
           </SelectTrigger>
           <SelectContent>
-            {taskAssignedRoleOptions(roleView).map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+            {/* Only the designated operator sees this form, and may route a task to any role. */}
+            {taskAssignedRoleOptions(roleView, { canAssignAnyRole: true }).map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
           </SelectContent>
         </Select>
       </label>
@@ -345,9 +373,19 @@ function DelegatedAttendanceRow({ item, busy, onMark }: { item: PrismCoordinator
   );
 }
 
-function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoordinatorRoleView; actions: CoordinatorOperatorActionsModel }) {
+/** The operator and the ingress and egress coordinators check suppliers in and out on site. */
+export function canCheckSuppliers(roleView: Pick<PrismCoordinatorRoleView, "isDesignatedOperator" | "role">): boolean {
+  return Boolean(roleView.isDesignatedOperator) || isIngressOrEgressRole(roleView.role);
+}
+
+/**
+ * Suppliers on site: each confirmed supplier with its next on-site step as a full-width button, and Verify or Dispute
+ * once it is set up. Suppliers PMCM has not confirmed are not checked in here.
+ */
+export function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoordinatorRoleView; actions: CoordinatorOperatorActionsModel }) {
   const [note, setNote] = useState("");
   const suppliers = confirmedSupplierChecks(roleView.supplierStatuses);
+  const arrived = suppliers.filter((supplier) => supplier.eventDayStatus).length;
 
   function check(supplier: SupplierStatus, status: "verified" | "disputed") {
     actions.verifySupplier(supplier.id, status, note);
@@ -360,28 +398,24 @@ function CoordinatorSupplierChecks({ roleView, actions }: { roleView: PrismCoord
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Truck className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Supplier setup checks</h3>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {suppliers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No confirmed suppliers to check yet.</p>
-        ) : (
+    <PrismSection id="coordinator-suppliers-on-site" title="Suppliers on site" description={suppliers.length ? `${arrived} of ${suppliers.length} checked in` : undefined} flush>
+      {suppliers.length === 0 ? (
+        <PrismEmptyLine icon={Truck} className="px-5 py-4">No confirmed suppliers to check in yet.</PrismEmptyLine>
+      ) : (
+        <div className="grid gap-3 px-4 pb-4 sm:px-5">
           <label className={FIELD_CAPTION}>
             Note for PMCM (optional)
-            <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="What you saw at the setup" className={SELECT_FIELD} />
+            <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="What you saw at the setup" className="h-11 rounded-md border border-border bg-background px-3 text-sm font-normal text-foreground" />
           </label>
-        )}
-        {suppliers.map((supplier) => (
-          <SupplierCheckRow key={supplier.id} supplier={supplier} busy={actions.supplierBusy} onCheck={(status) => check(supplier, status)} onReport={(status) => report(supplier, status)} />
-        ))}
-        {actions.supplierError ? <p role="alert" className={FORM_ALERT}>{actions.supplierError}</p> : null}
-      </CardContent>
-    </Card>
+          <ul className="grid gap-2">
+            {suppliers.map((supplier) => (
+              <SupplierCheckRow key={supplier.id} supplier={supplier} busy={actions.supplierBusy} onCheck={(status) => check(supplier, status)} onReport={(status) => report(supplier, status)} />
+            ))}
+          </ul>
+        </div>
+      )}
+      {actions.supplierError ? <p role="alert" className={`mx-4 mb-4 sm:mx-5 ${FORM_ALERT}`}>{actions.supplierError}</p> : null}
+    </PrismSection>
   );
 }
 
@@ -395,18 +429,17 @@ function SupplierCheckRow({ supplier, busy, onCheck, onReport }: {
   const next = nextSupplierSiteStep(supplier);
   const verification = label(supplier.verificationStatus ?? "self_reported");
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-3">
-      <div>
-        <p className="text-sm font-semibold">{supplier.supplierName} · {supplier.category}</p>
-        <p className="text-xs text-muted-foreground">
-          {reported} · verification {verification}{supplier.verifiedBy ? " by " + supplier.verifiedBy : ""}
-        </p>
+    <li className="grid gap-2.5 rounded-xl border border-border bg-card p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="text-[15px] font-semibold text-foreground">{supplier.supplierName}</p>
+        <p className="text-xs text-muted-foreground">{reported}</p>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {next ? <Button type="button" size="sm" disabled={busy} onClick={() => onReport(next.status)}>Mark {next.label.toLowerCase()}</Button> : null}
-        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onCheck("verified")}>Verify setup</Button>
-        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => onCheck("disputed")}>Dispute</Button>
+      <p className="-mt-1.5 text-xs text-muted-foreground">{supplier.category} · verification {verification}{supplier.verifiedBy ? " by " + supplier.verifiedBy : ""}</p>
+      {next ? <Button type="button" className="min-h-11 w-full" disabled={busy} onClick={() => onReport(next.status)}>Mark {next.label.toLowerCase()}</Button> : null}
+      <div className="grid grid-cols-2 gap-2">
+        <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => onCheck("verified")}>Verify setup</Button>
+        <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => onCheck("disputed")}>Dispute</Button>
       </div>
-    </div>
+    </li>
   );
 }

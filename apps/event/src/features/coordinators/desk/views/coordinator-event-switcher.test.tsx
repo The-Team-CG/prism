@@ -129,11 +129,11 @@ it("gives each sidebar view a real link to its readable URL", () => {
   expect(screen.getByRole("link", { name: "Issues" }).getAttribute("href")).toBe("/dashboard?view=issues&event=evt_current");
 });
 
-it("keeps a non-registration coordinator on My shift when opening a registration bookmark", () => {
+it("keeps a non-registration coordinator on Now when opening a registration bookmark", () => {
   window.history.replaceState(null, "", "/dashboard?view=registration&event=evt_current");
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
   expect(screen.queryByRole("link", { name: "Registration" })).toBeNull();
-  expect(document.title).toBe("My shift · P.R.I.S.M");
+  expect(document.title).toBe("Now · P.R.I.S.M");
   expect(screen.queryByText("Registration is available to the assigned registration coordinator.")).toBeNull();
   expect(screen.getByRole("button", { name: "Report an issue" })).toBeTruthy();
 });
@@ -161,7 +161,7 @@ it("titles the tab after the view on screen, including a coordinator redirected 
   window.history.replaceState(null, "", "/dashboard/suppliers");
   const { unmount } = render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
   expect(navigation.replace).toHaveBeenCalledWith("/dashboard?view=shift&notice=outside-portal");
-  expect(document.title).toBe("My shift · P.R.I.S.M");
+  expect(document.title).toBe("Now · P.R.I.S.M");
   unmount();
 
   navigation.pathname = "/dashboard";
@@ -170,17 +170,28 @@ it("titles the tab after the view on screen, including a coordinator redirected 
   expect(document.title).toBe("Tasks · P.R.I.S.M");
 });
 
-it("sends an old section link to My shift with the outside-portal notice and keeps the event", () => {
+it("sends an old section link to Now with the outside-portal notice and keeps the event", () => {
   window.history.replaceState(null, "", "/dashboard?section=coord-queue&event=evt_current");
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
 
   expect(window.location.search).toBe("?view=shift&event=evt_current&notice=outside-portal");
 });
 
-it("opens the issue form from the top bar in one step", () => {
+it("opens the issue form from the top bar in one step, before the event's data has arrived", async () => {
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
 
   fireEvent.click(screen.getAllByRole("button", { name: "Report an issue" })[0]);
 
+  expect(await screen.findByRole("dialog", { name: "Report an issue" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Supplier" })).toBeTruthy();
+});
+
+it("sends a coordinator on an archived event to Issues instead of opening the form", () => {
+  window.history.replaceState(null, "", "/dashboard?event=evt_past");
+  render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
+
+  fireEvent.click(screen.getAllByRole("button", { name: "Report an issue" })[0]);
+
+  expect(screen.queryByRole("dialog", { name: "Report an issue" })).toBeNull();
   expect(new URLSearchParams(window.location.search).get("view")).toBe("issues");
 });

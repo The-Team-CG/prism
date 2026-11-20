@@ -64,6 +64,7 @@ import {
   isCoordinatorAttendanceOpen,
   type CoordinatorAttendanceChoice,
 } from "../model/coordinators-desk-rules";
+import { coordinatorTaskLoggingBlockedCopy } from "../model/coordinator-view-copy";
 
 export type CoordinatorViewStatus = "idle" | "loading" | "success" | "error";
 
@@ -202,7 +203,11 @@ export function useCoordinatorViewModel({
     refreshOnEnable: false,
   });
 
-  const taskOwnerAssignmentRequired = Boolean(roleView && !canonicalCoordinatorRole(roleView.role));
+  // The API lets only the designated operator give a task another role; everyone else logs for their own role, and a
+  // coordinator whose role is outside the catalog cannot log tasks at all.
+  const taskRoleOptions = roleView ? taskAssignedRoleOptions(roleView, { canAssignAnyRole: Boolean(roleView.isDesignatedOperator) }) : [];
+  const taskRoleChoice = resolveCoordinatorTaskRole(taskRole, roleView?.role, taskRoleOptions);
+  const taskLoggingBlocked = roleView && !taskRoleOptions.length ? coordinatorTaskLoggingBlockedCopy(roleView.role) : null;
 
   // HIDE half: once the assignment can no longer be marked — replaced by PMCM,
   // or gone from the workspace entirely — drop any open confirm prompt so it
@@ -262,8 +267,12 @@ export function useCoordinatorViewModel({
     }
   }
 
-  async function logTask() {
-    if (!isWritableCoordinatorEvent(event) || !roleView) return;
+  async function logTask(): Promise<boolean> {
+    if (!isWritableCoordinatorEvent(event) || !roleView) return false;
+    if (taskLoggingBlocked) {
+      setTaskError(taskLoggingBlocked);
+      return false;
+    }
     setTaskBusy(true);
     setTaskError(null);
     try {
@@ -271,11 +280,11 @@ export function useCoordinatorViewModel({
         createEventDayTaskSchema,
         buildCoordinatorTaskInput({
           title: taskTitle,
-          assignedRole: resolveCoordinatorTaskRole(taskRole, roleView.role),
+          assignedRole: taskRoleChoice,
           priority: taskPriority,
           notes: taskNotes,
           dueAt: taskDueAt,
-          assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
+          assignToMe: taskAssignToMe,
           roleView,
         }),
         "Create coordinator task",
@@ -289,27 +298,34 @@ export function useCoordinatorViewModel({
       setTaskTitle("");
       setTaskNotes("");
       setTaskDueAt("");
+      return true;
     } catch (err) {
       // PA-294: do NOT setRoleView(null) here. A failed submission must not
       // blank the coordinator screen mid-event.
       setTaskError(err instanceof Error ? err.message : "Unable to log the task.");
+      return false;
     } finally {
       setTaskBusy(false);
     }
   }
 
-  async function logUrgentIssue() {
-    if (!isWritableCoordinatorEvent(event) || !roleView) return;
+  /** Reports the issue in the form, or the one passed in by the quick report, which fills its own fields in one go. */
+  async function logUrgentIssue(quick?: CoordinatorQuickIssue): Promise<boolean> {
+    if (!isWritableCoordinatorEvent(event)) return false;
+    if (!roleView) {
+      setIssueError("Your event is still loading. Try again in a moment; what you entered is kept.");
+      return false;
+    }
     setIssueBusy(true);
     setIssueError(null);
     try {
       const input = parseContract(
         createUrgentIssueSchema,
         buildCoordinatorIssueInput({
-          title: issueTitle,
-          severity: issueSeverity,
-          affectedArea: issueAffectedArea,
-          description: issueDescription,
+          title: quick?.title ?? issueTitle,
+          severity: quick?.severity ?? issueSeverity,
+          affectedArea: quick?.affectedArea ?? issueAffectedArea,
+          description: quick?.description ?? issueDescription,
           slaDueAt: issueSlaDueAt,
           assignToMe: issueAssignToMe,
           roleView,
@@ -326,9 +342,11 @@ export function useCoordinatorViewModel({
       setIssueAffectedArea("");
       setIssueDescription("");
       setIssueSlaDueAt("");
+      return true;
     } catch (err) {
       // PA-294: same constraint as logTask.
       setIssueError(err instanceof Error ? err.message : "Unable to log the urgent issue.");
+      return false;
     } finally {
       setIssueBusy(false);
     }
@@ -531,7 +549,7 @@ export function useCoordinatorViewModel({
     taskForm: {
       title: taskTitle,
       setTitle: setTaskTitle,
-      role: resolveCoordinatorTaskRole(taskRole, roleView?.role),
+      role: taskRoleChoice,
       setRole: (value: string) => setTaskRole(canonicalCoordinatorRole(value) ?? ""),
       priority: taskPriority,
       setPriority: setTaskPriority,
@@ -539,17 +557,15 @@ export function useCoordinatorViewModel({
       setNotes: setTaskNotes,
       dueAt: taskDueAt,
       setDueAt: setTaskDueAt,
-      assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
-      assignToMeRequired: taskOwnerAssignmentRequired,
-      setAssignToMe: (value: boolean) => {
-        if (!taskOwnerAssignmentRequired) setTaskAssignToMe(value);
-      },
-      roleOptions: roleView ? taskAssignedRoleOptions(roleView) : [],
+      assignToMe: taskAssignToMe,
+      setAssignToMe: setTaskAssignToMe,
+      roleOptions: taskRoleOptions,
+      blockedReason: taskLoggingBlocked,
       routesAway: roleView
         ? isTaskOutsideOwnQueue({
-            assignedRole: resolveCoordinatorTaskRole(taskRole, roleView.role),
+            assignedRole: taskRoleChoice,
             ownRole: roleView.role,
-            assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
+            assignToMe: taskAssignToMe,
           })
         : false,
       busy: taskBusy,
@@ -613,6 +629,9 @@ export function useCoordinatorViewModel({
     },
   };
 }
+
+/** What the quick report sends: its own title, severity, area and note, instead of the form's. */
+export type CoordinatorQuickIssue = { title: string; severity: string; affectedArea: string; description: string };
 
 function isWritableCoordinatorEvent(event: PrismEvent | undefined): event is PrismEvent {
   return Boolean(event && !event.archived);
