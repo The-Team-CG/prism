@@ -6,7 +6,8 @@ import { useInvalidate, useResource } from "@prism/portal-query";
 import { clientEventAddendaResource } from "../data/client-addenda-repository";
 import { acknowledgeAddendumConformeUseCase } from "../use-cases/acknowledge-addendum-conforme";
 
-export function useClientAddendaViewModel(eventId: string) {
+/** `onChanged` refreshes what else shows the addendum, such as the client's action list. */
+export function useClientAddendaViewModel(eventId: string, onChanged?: () => unknown) {
   const list = useResource(clientEventAddendaResource, eventId);
   const invalidate = useInvalidate();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -22,6 +23,7 @@ export function useClientAddendaViewModel(eventId: string) {
       await acknowledgeAddendumConformeUseCase(eventId, addendum);
       setConsentByAddendum((current) => ({ ...current, [addendum.id]: false }));
       await invalidate(clientEventAddendaResource, eventId);
+      void onChanged?.();
       return true;
     } catch (cause) {
       setActionError(cause instanceof Error ? cause.message : "Unable to record your acknowledgment.");

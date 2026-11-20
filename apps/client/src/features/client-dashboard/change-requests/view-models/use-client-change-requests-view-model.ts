@@ -6,7 +6,8 @@ import { useInvalidate, useResource } from "@prism/portal-query";
 import { clientEventChangeRequestsResource } from "../data/client-change-request-repository";
 import { submitScopeChangeUseCase, withdrawScopeChangeUseCase } from "../use-cases/client-scope-change-use-cases";
 
-export function useClientChangeRequestsViewModel(eventId: string) {
+/** `onChanged` refreshes what else shows the request, such as the client's action list. */
+export function useClientChangeRequestsViewModel(eventId: string, onChanged?: () => unknown) {
   const list = useResource(clientEventChangeRequestsResource, eventId);
   const invalidate = useInvalidate();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -19,6 +20,7 @@ export function useClientChangeRequestsViewModel(eventId: string) {
     try {
       await action();
       await invalidate(clientEventChangeRequestsResource, eventId);
+      void onChanged?.();
       return true;
     } catch (cause: unknown) {
       setActionError(cause instanceof Error ? cause.message : "The change request could not be saved.");
@@ -26,7 +28,7 @@ export function useClientChangeRequestsViewModel(eventId: string) {
     } finally {
       setBusy(false);
     }
-  }, [eventId, invalidate]);
+  }, [eventId, invalidate, onChanged]);
 
   return {
     requests: list.status === "error" ? [] : list.data ?? [],
