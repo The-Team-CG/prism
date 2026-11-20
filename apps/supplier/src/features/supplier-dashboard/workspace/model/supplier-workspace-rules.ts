@@ -390,7 +390,7 @@ export function sectionMeta(
     },
     requests: {
       title: "Requests & quotes",
-      description: "Submit, revise, and track your quotes before the deadline.",
+      description: "Price new requests before their deadline and follow the quotes PMCM is reviewing.",
     },
     bookings: {
       title: "Bookings & events",
@@ -402,7 +402,7 @@ export function sectionMeta(
     },
     quotations: {
       title: "Requests & quotes",
-      description: "All submitted quotations with revision history and status.",
+      description: "Every quote you have sent and what PMCM decided.",
     },
     messages: {
       title: "Messages",
@@ -414,11 +414,11 @@ export function sectionMeta(
     },
     payments: {
       title: "Payments",
-      description: "Payment milestones for your selected and locked quotes.",
+      description: "What PMCM pays you for each booking, and when.",
     },
     profile: {
       title: "Services & profile",
-      description: "Your supplier profile, tier, category, and service inclusions.",
+      description: "Your record with PMCM: how they reach you and what you offer.",
     },
     account: {
       title: "Account",
@@ -434,7 +434,7 @@ export function sectionMeta(
     },
     support: {
       title: "Support",
-      description: "Guidance on portal actions and how to reach PMCM.",
+      description: "How to reach PMCM, and how work moves from quote to payment.",
     },
   };
   return map[section];

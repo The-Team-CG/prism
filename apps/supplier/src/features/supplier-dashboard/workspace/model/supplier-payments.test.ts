@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismSupplierPayableMilestone } from "@prism/types";
-import { newPayoutReleases, payoutReceiptState, payoutStep, supplierBookings, supplierPaymentTotals } from "./supplier-payments";
+import { newPayoutReleases, payoutReceiptState, payoutStep, supplierBookings, supplierPaymentTotals, unscheduledBookings } from "./supplier-payments";
 
 const TODAY = "2026-11-14";
 
@@ -54,6 +54,19 @@ describe("supplier payments", () => {
     });
 
     expect(bookings.map((booking) => [booking.eventName, booking.contract, booking.payables.length])).toEqual([["Operations Booking", 485000, 1], ["Florals", 90000, 0]]);
+  });
+
+  it("counts what was agreed on bookings without a schedule as still to come, so the total is never ₱0 while money is owed", () => {
+    const bookings = supplierBookings({
+      payables: [payable({ requestId: "req_1", remainingBalance: 100000 })],
+      selectedQuotes: [{ id: "q1", requestId: "req_1", amount: 100000 }, { id: "q2", requestId: "req_2", amount: 485000 }, { id: "q3", requestId: "req_3", amount: 180000 }] as never,
+      quoteRequests: [] as never,
+      readinessBoard: null,
+    });
+    const waiting = unscheduledBookings(bookings);
+    expect(waiting.bookings.map((booking) => booking.requestId)).toEqual(["req_2", "req_3"]);
+    expect(waiting.agreed).toBe(665000);
+    expect(supplierPaymentTotals(bookings.flatMap((booking) => booking.payables), TODAY, waiting.agreed)).toMatchObject({ toCome: 765000, unscheduled: 665000 });
   });
 
   it("marks payouts sent since the last visit as new, and without a visit only those from the last two weeks", () => {

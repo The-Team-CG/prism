@@ -55,6 +55,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- The supplier portal's Requests, Submitted quotes, Profile and Support are redesigned: requests are event cards grouped by Needs your quote, Sent to PMCM and Closed, with the deadline on the cover and the quote form in a side panel (amount echo, one-tap payment terms); quotes show what PMCM selected; Profile shows your record with PMCM and how to reach them; Support explains each stage. Payments counts booked work that has no schedule yet.
 - PMCM Settings shows its section links as one segmented control that marks the section you jumped to. On Team, Invite staff sits on the same row as the All/Archived views and its form opens below them. On Finance receipts, the totals sit in a full-width card and Record receipt sits beside the Receipts filter.
 - The API now refuses to start until every migration it ships with is applied to the database, and the `PRISM_SCHEMA_COMPATIBILITY_MODE` and `PRISM_SCHEMA_REQUIRED_HEAD` settings are gone.
 - Privacy is one status-first screen for clients and suppliers: requests are confirmed with the account password, can be withdrawn, and include an instant "Download my data now".
@@ -72,6 +73,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- An event card for an event without a date shows a blank date tile instead of failing to render.
 - On the client's floor plan pages, pieces have a thin outline again. The 2D plan is drawn in metres and the outline had no width, so each table carried a 1 m purple border that hid it and its number.
 - The nightly Lifecycle E2E passes again (476 checks). It builds floor plans as Pascal scenes, turns on a PMCM payment method before issuing statements, and counts a capability as reachable from a portal when the portal calls the `@prism/api-client` method that wraps its route (`scripts/e2e/lifecycle/portal-wiring.mjs`), instead of looking for the route spelled in portal code.
 - Guest portal `.tsx` tests now run.
