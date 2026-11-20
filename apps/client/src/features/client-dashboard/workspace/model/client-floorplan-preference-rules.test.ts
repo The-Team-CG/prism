@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismFloorPlanDraft } from "@prism/types";
-import type { Project } from "@/features/floorplan/editor";
+import { roomWalls, sceneWith } from "@/features/floorplan/scene-fixture";
 import {
   buildReopenedFloorPlanPreferencePayload,
   buildFloorPlanPreferencePayload,
@@ -33,18 +33,12 @@ describe("buildFloorPlanPreferencePayload", () => {
       buildFloorPlanPreferencePayload(form, {
         name: "Template preference draft",
         venue: "Grand Hall",
-        width: 30,
-        height: 20,
-        gridSize: 1,
-        objects: [],
+        scene: sceneWith(roomWalls(30, 20)),
       }),
     ).toMatchObject({
       name: "Template preference draft",
       venue: "Grand Hall",
-      width: 30,
-      height: 20,
-      gridSize: 1,
-      objects: [],
+      scene: { format: "pascal-v1" },
     });
   });
 
@@ -94,37 +88,18 @@ describe("client floorplan preference lifecycle", () => {
     });
   });
 
-  it("builds a resubmission from the reopened preference and edited canvas", () => {
-    const project: Project = {
-      id: "plan_preference",
-      name: "Revised Summit layout",
-      venue: "Grand Hall",
-      widthM: 35.4,
-      heightM: 22.4,
-      pax: 200,
-      objects: [{
-        id: "stage", name: "Main stage", kind: "rect", category: "stage", x: 4, y: 5, w: 6, h: 2,
-        rotation: 0, fill: "#fff", stroke: "#000", strokeWidth: 1, locked: false, hidden: false,
-      }],
-      guests: [],
-      suppliers: [],
-      createdAt: 0,
-      updatedAt: 0,
-    };
+  it("builds a resubmission from the reopened preference and the scene the client saved", () => {
+    const scene = sceneWith(roomWalls(35, 22));
 
-    expect(buildReopenedFloorPlanPreferencePayload(preferenceDraft, project)).toEqual({
-      name: "Revised Summit layout",
+    expect(buildReopenedFloorPlanPreferencePayload(preferenceDraft, scene)).toEqual({
+      name: "Summit seating preference",
       seatingStyle: "Banquet",
       stagePreference: "North wall",
       flowNotes: "Keep registration near the entrance",
-      guestCount: 200,
+      guestCount: 180,
       constraints: ["Keep exits clear", "Reserve sponsor space"],
       notes: "Keep a clear photo wall access.",
-      venue: "Grand Hall",
-      width: 35,
-      height: 22,
-      gridSize: 1,
-      objects: project.objects,
+      scene,
     });
   });
 });

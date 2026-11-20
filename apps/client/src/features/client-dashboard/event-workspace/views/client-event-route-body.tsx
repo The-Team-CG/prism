@@ -6,20 +6,17 @@ import { ClientBillingTab } from "../../billing";
 import { ClientBriefingTab } from "../../briefing";
 import { ClientDocumentsTab } from "../../documents";
 import { ClientProposalTab } from "../../proposal";
-import { ClientActionGroup } from "../../shared/client-action-group";
+import { manilaDateKey } from "@prism/ui/format-date";
+import { ClientActionLists } from "../../shared/client-action-lists";
+import { ClientChangeDeadlineNotice } from "../../shared/client-change-deadline-notice";
 import { dashboardHref, useClientWorkspace, type ClientWorkspaceValue } from "../../workspace/shared";
 import { ClientRouteTabs } from "../../shared/client-route-tabs";
 import { ClientOverviewTab } from "./client-overview-tab";
-import { ClientEventDetailsView } from "./client-event-details-view";
 import { ClientOcularVisitPanel } from "./client-ocular-visit-panel";
 import { ClientProgressView } from "./client-progress-view";
-import { ClientScheduleView } from "./client-schedule-view";
 import { ClientGuestsView } from "./client-guests-view";
-import { ClientPreferencesView } from "./client-preferences-view";
 import { ClientFloorPlanView } from "./client-floorplan-view";
-import { ClientFinalSummaryView } from "./client-final-summary-view";
 import { ClientMessagesView } from "../../messages";
-import { ClientApprovalsView } from "../../approvals";
 import { ClientCloseoutView } from "../../closeout/views/client-closeout-view";
 import { ClientChangeRequestsPanel } from "../../change-requests";
 import type { ClientDashboardRoute } from "../../workspace/shared";
@@ -37,7 +34,7 @@ function renderOverview(ctx: ClientWorkspaceValue) {
     <div className="space-y-4">
       <ClientOverviewTab
         ocularVisit={ctx.ocularVisit}
-        afterLead={visitOpen && !visitAsked ? <ClientOcularVisitPanel visit={ctx.ocularVisit} busy={ctx.busy === "ocular-visit"} onSubmit={ctx.submitOcularVisit} /> : null}
+        afterLead={visitOpen && !visitAsked ? <ClientOcularVisitPanel busy={ctx.busy === "ocular-visit"} onSubmit={ctx.submitOcularVisit} /> : null}
         selectedEvent={selectedEvent}
         briefing={ctx.briefing}
         payments={ctx.payments}
@@ -57,28 +54,17 @@ function renderOverview(ctx: ClientWorkspaceValue) {
 }
 
 function renderActions(ctx: ClientWorkspaceValue) {
-  const needsAction = ctx.clientActions.filter((a) => a.tone === "primary" || a.tone === "warning");
-  const waiting = ctx.clientActions.filter((a) => a.tone === "neutral");
-  const completed = ctx.clientActions.filter((a) => a.tone === "success");
+  const event = ctx.selectedEvent;
+  if (!event) return null;
   return (
-    <div className="space-y-6">
-      <ClientActionGroup
-        title="Needs your action"
-        description="Client decisions that can move planning forward."
-        actions={needsAction}
+    <div className="space-y-4">
+      <ClientChangeDeadlineNotice event={event} todayKey={manilaDateKey()} />
+      <ClientActionLists
+        actions={ctx.clientActions}
         onAction={ctx.runClientAction}
-      />
-      <ClientActionGroup
-        title="Waiting on PMCM"
-        description="Being prepared or reviewed by the event team."
-        actions={waiting}
-        onAction={ctx.runClientAction}
-      />
-      <ClientActionGroup
-        title="Completed"
-        description="Finished client-visible workflow items."
-        actions={completed}
-        onAction={ctx.runClientAction}
+        todayKey={manilaDateKey()}
+        scope="event"
+        emptyAction={event.archived ? undefined : { label: "Request a change", href: dashboardHref("changes", event.id) }}
       />
     </div>
   );
@@ -92,27 +78,22 @@ function renderProposal(ctx: ClientWorkspaceValue) {
 }
 
 function renderChanges(ctx: ClientWorkspaceValue) {
+  const event = ctx.selectedEvent;
+  if (!event) return null;
   return (
-    <div className="space-y-4">
-      {ctx.selectedEvent ? (
-        <ClientOcularVisitPanel
-          visit={ctx.ocularVisit}
-          busy={ctx.busy === "ocular-visit"}
-          onSubmit={ctx.submitOcularVisit}
-        />
-      ) : null}
-      {ctx.selectedEvent ? <ClientChangeRequestsPanel key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} /> : null}
-    </div>
+    <ClientChangeRequestsPanel
+      key={event.id}
+      eventId={event.id}
+      canRequest={!event.archived}
+      notice={<ClientChangeDeadlineNotice event={event} todayKey={manilaDateKey()} />}
+    />
   );
 }
 
 const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWorkspaceValue) => ReactNode>> = {
   overview: renderOverview,
-  details: () => <ClientEventDetailsView />,
   progress: () => <ClientProgressView />,
-  schedule: () => <ClientScheduleView />,
   guests: () => <ClientGuestsView />,
-  preferences: () => <ClientPreferencesView />,
   actions: renderActions,
   briefing: (ctx) => ctx.selectedEvent ? (
     <ClientBriefingTab
@@ -124,20 +105,18 @@ const EVENT_ROUTE_RENDERERS: Partial<Record<ClientDashboardRoute, (ctx: ClientWo
     />
   ) : null,
   proposal: renderProposal,
-  approvals: () => <ClientApprovalsView />,
   floorplan: () => <ClientFloorPlanView />,
   documents: () => <ClientDocumentsTab />,
   billing: (ctx) => <ClientBillingTab eventId={ctx.selectedEvent?.id} eventName={ctx.selectedEvent?.eventName} payments={ctx.payments} billing={ctx.billing} disputes={ctx.disputes} />,
   messages: () => <ClientMessagesView />,
   changes: renderChanges,
-  summary: (ctx) => <div className="space-y-4"><ClientFinalSummaryView />{ctx.selectedEvent ? <ClientCloseoutView key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} archived={ctx.selectedEvent.archived} /> : null}</div>,
+  summary: (ctx) => ctx.selectedEvent ? <ClientCloseoutView key={ctx.selectedEvent.id} eventId={ctx.selectedEvent.id} archived={ctx.selectedEvent.archived} /> : null,
 };
 
-/** Planning is one sidebar item with five views; the tabs are the way between them. */
+/** Planning is one sidebar item with three views; the tabs are the way between them. */
 const PLANNING_TABS: Array<{ route: ClientDashboardRoute; label: string }> = [
   { route: "progress", label: "Progress" },
   { route: "actions", label: "Actions" },
-  { route: "details", label: "Details" },
   { route: "changes", label: "Changes" },
 ];
 

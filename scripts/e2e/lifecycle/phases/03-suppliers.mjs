@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { cfg, http, login, msg, step, startPhase, blocked, gap, expect, mailsTo, waitForMail } from "../lib.mjs";
+import { portalCallers } from "../portal-wiring.mjs";
 
 export const name = "Suppliers";
 
@@ -976,12 +977,13 @@ export async function run(ctx) {
 
   // ------------------------------------------------------------------ 7. portal wiring (static)
   const supplierSrc = sourceCorpus("apps/supplier/src"), eventSrc = sourceCorpus("apps/event/src");
-  const wiredIn = (corpus, re) => corpus.some((f) => re.test(f.text));
+  // A portal reaches a route by spelling it or by calling the @prism/api-client method that wraps it.
+  const wiredIn = (corpus, re) => portalCallers(corpus === supplierSrc ? "supplier" : "event", re).length > 0;
   const wiring = [
     ["quote round comparison (GET /events/:id/quote-rounds/:roundId/comparison)", () => wiredIn(eventSrc, /quote-rounds|quoteRound/i)],
     ["PMCM manual quote entry (POST /events/:id/supplier-quotes)", () => wiredIn(eventSrc, /supplier-quotes[`"']/)],
     ["resend supplier account invitation (POST /supplier-applications/:id/account-invitation/resend)", () => wiredIn(eventSrc, /account-invitation\/resend|resendAccountInvitation/)],
-    ["supplier availability (POST /suppliers/:id/availability)", () => wiredIn(eventSrc, /suppliers\/\$\{[^}]+\}\/availability|supplierPath\([^)]*["']\/?availability["']/)],
+    ["supplier availability (POST /suppliers/:id/availability)", () => wiredIn(eventSrc, /suppliers\/\$\{[^}]+\}\/availability|(?:supplierPath|supplier)\([^)]*["']\/?availability["']/)],
     ["supplier schedule workspace and acknowledgement", () => wiredIn(supplierSrc, /supplierWorkflows\.detail/) && wiredIn(supplierSrc, /supplierWorkflows\.acknowledgeSchedule/)],
     ["verified stored-object contract submission", () => wiredIn(supplierSrc, /uploadStorageObject/) && wiredIn(supplierSrc, /supplierWorkflows\.bindContract/)],
     ["supplier reads request by token (GET /quote-requests/:token)", () => routeFilesOf("apps/supplier/src/app").some((p) => /quote/i.test(p.replace(ROOT, ""))) || wiredIn(supplierSrc, /quote-requests\/\$\{[^}]+\}[`"']/)],
@@ -994,15 +996,16 @@ export async function run(ctx) {
       return "verified portal source caller; HTTP behavior is exercised in this phase";
     });
   }
+  // Portals call the API through @prism/api-client, so a capability counts as wired by its route or by its client method.
   const must = [
     ["supplier", /supplierWorkspace\.confirmAssignment/, "assignment confirm"], ["supplier", /supplierWorkspace\.confirmReadiness/, "readiness confirm"],
     ["supplier", /supplierWorkspace\.updateEventStatus/, "event-day status"], ["supplier", /supplierWorkflows\.(bindContract|acknowledgeSchedule|requestScheduleChange|updateCreativeProgress|submitCreativeTask)/, "contract, schedule and creative actions"],
-    ["supplier", /quote-requests\/\$\{encodeURIComponent\(token\)\}\/quote/, "quote submit/revise"], ["supplier", /supplier-applications/, "public application and status"],
+    ["supplier", /quote-requests\/\$\{encodeURIComponent\(token\)\}\/quote/, "quote submit/revise"], ["supplier", /supplier-applications|supplierApplications\.(create|getStatus)/, "public application and status"],
     ["event", /supplierWorkflows\.(reviewContract|createCreativeTask|reviewCreativeTask|createPayable|releasePayout|reversePayout|createSchedule)/, "PMCM contract/creative/payable/schedule actions"],
-    ["event", /supplierApplications\.review|supplierApplications\.listInbox/, "application inbox review"], ["event", /quote-requests`/, "request quotes"],
-    ["event", /supplier-quotes\/\$\{quoteId\}\/select/, "select quote"], ["event", /\/withdraw/, "withdraw supplier"],
-    ["event", /suppliers\/directory/, "directory"], ["event", /reliability-notes/, "reliability notes"], ["event", /\/tier/, "tier change"], ["event", /\/promote/, "promotion"],
-    ["event", /\/certifications/, "certifications"], ["event", /supplier-status/, "verify event-day status"],
+    ["event", /supplierApplications\.review|supplierApplications\.listInbox/, "application inbox review"], ["event", /quote-requests`|requestSupplierQuotes/, "request quotes"],
+    ["event", /supplier-quotes\/\$\{quoteId\}\/select|selectSupplierQuote/, "select quote"], ["event", /\/withdraw|withdrawQuoteRequest/, "withdraw supplier"],
+    ["event", /suppliers\/directory|supplierDirectory/, "directory"], ["event", /reliability-notes|addSupplierReliabilityNote/, "reliability notes"], ["event", /\/tier|changeSupplierTier/, "tier change"], ["event", /\/promote|promoteSupplier/, "promotion"],
+    ["event", /\/certifications|addSupplierCertification/, "certifications"], ["event", /supplier-status|verifySupplierStatus/, "verify event-day status"],
   ];
   await step("every other supplier capability has a portal data call", async () => {
     const missing = must.filter(([app, re]) => !wiredIn(app === "supplier" ? supplierSrc : eventSrc, re)).map(([, , label]) => label);

@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const repository = vi.hoisted(() => ({
   createFloorPlanPreference: vi.fn(),
-  savePlan: vi.fn(),
   logout: vi.fn(),
 }));
 
@@ -12,10 +11,10 @@ vi.mock("../data/client-dashboard-repository", async (importOriginal) => {
 });
 
 import { PRISM_SESSION_STORAGE_KEYS, type PrismFloorPlanDraft } from "@prism/types";
-import type { Project } from "@/features/floorplan/editor";
-import { signOutClientSession, submitFloorPlanEditorProject } from "./client-dashboard-actions";
+import { roomWalls, sceneWith } from "@/features/floorplan/scene-fixture";
+import { signOutClientSession, submitFloorPlanEditorScene } from "./client-dashboard-actions";
 
-describe("submitFloorPlanEditorProject", () => {
+describe("submitFloorPlanEditorScene", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("resubmits a reopened preference with the updated canvas through the preference command", async () => {
@@ -38,34 +37,15 @@ describe("submitFloorPlanEditorProject", () => {
       createdAt: "2026-10-01T00:00:00.000Z",
       updatedAt: "2026-10-02T00:00:00.000Z",
     };
-    const project: Project = {
-      id: "plan_preference",
-      name: "Revised summit preference",
-      venue: "Grand Hall",
-      widthM: 35,
-      heightM: 22,
-      pax: 200,
-      objects: [{
-        id: "stage", name: "Main stage", kind: "rect", category: "stage", x: 4, y: 5, w: 6, h: 2,
-        rotation: 0, fill: "#fff", stroke: "#000", strokeWidth: 1, locked: false, hidden: false,
-      }],
-      guests: [],
-      suppliers: [],
-      createdAt: 0,
-      updatedAt: 0,
-    };
+    const scene = sceneWith(roomWalls(35, 22));
 
-    await submitFloorPlanEditorProject("evt_1", draft, project);
+    await submitFloorPlanEditorScene("evt_1", draft, scene);
 
     expect(repository.createFloorPlanPreference).toHaveBeenCalledWith("evt_1", expect.objectContaining({
-      name: "Revised summit preference",
-      guestCount: 200,
-      venue: "Grand Hall",
-      width: 35,
-      height: 22,
-      objects: project.objects,
+      name: "Summit layout preference",
+      guestCount: 180,
+      scene,
     }));
-    expect(repository.savePlan).not.toHaveBeenCalled();
   });
 });
 

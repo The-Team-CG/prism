@@ -4,7 +4,7 @@ import type { Request } from 'express';
 import type { Prisma } from '@prisma/client';
 import { PRISM_PRIVACY_NOTICE_REQUIRED_CODE, privacyNoticeRequired, type PrismVerifiedEventActor } from '@prism/types';
 import { PrismaService } from '../../database';
-import { AuthSessionService } from '../services/auth-session.service';
+import { AuthSessionService, DEVICE_SIGNED_OUT_MESSAGE } from '../services/auth-session.service';
 import { ALLOW_PENDING_PRIVACY_NOTICE_METADATA } from '../decorators/allow-pending-privacy-notice.decorator';
 
 export type EventSessionRequest = Request & {
@@ -29,11 +29,10 @@ type BrowserSession = Prisma.OpsUserSessionGetPayload<{ select: typeof BROWSER_S
 /** How stale "last active" may get before a request refreshes it, so most requests do not write. */
 const LAST_SEEN_REFRESH_MS = 5 * 60 * 1000;
 
-/** A token naming a browser session must name a live one: that is how one device is signed out on its own. */
-function assertBrowserSessionLive(session: BrowserSession | null, actor: PrismVerifiedEventActor) {
-  if (!actor.sessionId) return;
+/** A token's browser session must be live: that is how one device is signed out on its own. */
+function assertBrowserSessionLive(session: BrowserSession | null, actor: PrismVerifiedEventActor): asserts session is BrowserSession {
   if (!session || session.userId !== actor.id || session.revokedAt) {
-    throw new UnauthorizedException('This device has been signed out');
+    throw new UnauthorizedException(DEVICE_SIGNED_OUT_MESSAGE);
   }
 }
 
@@ -70,13 +69,11 @@ export class EventSessionGuard implements CanActivate {
     const actor = this.authSessionService.verifyAccessToken(this.extractToken(request));
     const [user, session] = await Promise.all([
       this.prisma.opsUser.findUnique({ where: { id: actor.id }, select: SESSION_USER_SELECT }),
-      actor.sessionId
-        ? this.prisma.opsUserSession.findUnique({ where: { id: actor.sessionId }, select: BROWSER_SESSION_SELECT })
-        : Promise.resolve(null),
+      this.prisma.opsUserSession.findUnique({ where: { id: actor.sessionId }, select: BROWSER_SESSION_SELECT }),
     ]);
     assertSessionCurrent(user, actor);
     assertBrowserSessionLive(session, actor);
-    if (session) this.refreshLastSeen(actor.sessionId!, session.lastSeenAt);
+    this.refreshLastSeen(actor.sessionId, session.lastSeenAt);
     if (privacyNoticeRequired(user.privacyNoticeVersion) && !this.allowsPendingPrivacyNotice(context)) {
       throw new ForbiddenException({
         code: PRISM_PRIVACY_NOTICE_REQUIRED_CODE,

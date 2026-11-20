@@ -66,6 +66,9 @@ const prismaMock = {
       return account ? { sessionVersion: 0, approvalStatus: 'approved', lockedUntil: null, permanentLockout: false, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, ...account } : null;
     },
   },
+  opsUserSession: {
+    findUnique: async ({ where }: { where: { id: string } }) => ({ userId: where.id.slice('session_'.length), revokedAt: null, lastSeenAt: new Date() }),
+  },
   opsEvent: {
     findUnique: async () => ({
       id: eventId, eventName: 'Launch Gala', clientName: 'Ana Reyes', clientPortalStatus: 'unlocked', archived: false, freezeStatus: 'open',
@@ -145,7 +148,7 @@ describe('scope change, risk, and addendum withdrawal routes, authenticated HTTP
         approvalStatus: 'approved',
         sessionVersion: 0,
       };
-      tokens[id] = session.issueSession(user, issuedAt).accessToken;
+      tokens[id] = session.issueSession(user, issuedAt, `session_${id}`).accessToken;
     }
 
     app = await NestFactory.create(ScopeChangeRiskHttpTestModule, new ExpressAdapter(), { logger: false });

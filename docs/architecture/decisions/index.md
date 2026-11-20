@@ -9,6 +9,7 @@
 * [ADR-0007: Retire the broad sample runtime; keep local fixture seeding](adr-0007-retire-sample-runtime-keep-local-fixture-seeding.md) - remove aggregate routes and browser-local demo state; preserve a guarded seed-only development path.
 * [ADR-0008: One PostgreSQL schema per owning domain](adr-0008-domain-owned-postgres-schemas.md) - one write owner and target schema per domain; same-domain foreign keys are allowed, cross-domain foreign keys are not.
 * [ADR-0009: Privacy legal-hold scope and authority](adr-0009-privacy-legal-hold-scope-and-authority.md) - subject/event scope, PMCM-admin control, fail-closed redaction, and retained release evidence.
+* [ADR-0010: Floor plan editor on Pascal](adr-0010-floorplan-editor-on-pascal.md) - pinned Pascal packages, the `prism:event-layout` plugin, scenes stored through the API, and no browser source of truth.
 
 ADR status is current unless an accepted successor explicitly supersedes the
 record. Each record includes its source paths and verification commands.

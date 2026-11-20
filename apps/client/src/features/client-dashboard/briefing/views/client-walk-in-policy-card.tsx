@@ -49,7 +49,7 @@ export function ClientWalkInPolicyCard({ eventId }: { eventId: string }) {
   }
 
   return (
-    <PrismSection id="client-walk-in-heading" title="Walk-in guests" description="For private events under 200 guests. You can change this until event day.">
+    <PrismSection id="client-walk-in-heading" title="Walk-in guests" description="For private events under 200 guests. You can change this until event day." headerOutside>
       <div className="space-y-4">
         <RadioGroup value={policy} onValueChange={(value) => setPolicy(value as WalkInPolicy)} disabled={saving} aria-label="Walk-in policy">
           {OPTIONS.map((option) => (
@@ -70,7 +70,9 @@ export function ClientWalkInPolicyCard({ eventId }: { eventId: string }) {
         ) : null}
         {error ? <FieldDescription role="alert" className="text-destructive">{error}</FieldDescription> : null}
         {message ? <FieldDescription aria-live="polite">{message}</FieldDescription> : null}
-        <Button type="button" variant="outline" onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save walk-in policy"}</Button>
+        <div className="flex justify-end">
+          <Button type="button" variant="outline" onClick={() => void save()} disabled={saving}>{saving ? "Saving…" : "Save walk-in policy"}</Button>
+        </div>
       </div>
     </PrismSection>
   );

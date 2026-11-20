@@ -1,15 +1,8 @@
-import type { ClientMessageTrigger, PrismClientMessageTriggerState } from '@prism/types';
+import { CLIENT_MESSAGE_TRIGGER_POLICY, type ClientMessageTrigger, type PrismClientMessageTriggerState } from '@prism/types';
 import type { ClientMessageTriggerFacts } from '@prism/contexts/read-models';
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
-
-/** FR-AI-09 thresholds from the catalog. */
-export const CLIENT_MESSAGE_TRIGGER_POLICY = {
-  proposalUnansweredDays: 3,
-  balanceDueWithinHours: 48,
-  floorPlanPendingDays: 2,
-} as const;
 
 function wholeDays(from: Date, now: Date) {
   return Math.floor((now.getTime() - from.getTime()) / DAY_MS);
@@ -24,7 +17,14 @@ const proposalUnanswered: TriggerCheck = ({ event, latestIssuedProposal: proposa
   return { trigger: 'proposal_unanswered', since: proposal.issuedAt.toISOString(), detail: `Proposal version ${proposal.versionNumber} unanswered for ${days} days` };
 };
 
-const balanceDue: TriggerCheck = ({ nextUnpaidMilestone: milestone }, now) => {
+const addendumUnsigned: TriggerCheck = ({ oldestUnsignedAddendum: addendum }, now) => {
+  if (!addendum) return null;
+  const days = wholeDays(addendum.sentAt, now);
+  if (days < CLIENT_MESSAGE_TRIGGER_POLICY.addendumUnsignedDays) return null;
+  return { trigger: 'addendum_unsigned', since: addendum.sentAt.toISOString(), detail: `Addendum ${addendum.versionNumber} unsigned for ${days} days` };
+};
+
+const balanceDue: TriggerCheck =({ nextUnpaidMilestone: milestone }, now) => {
   if (!milestone) return null;
   const untilDue = milestone.dueDate.getTime() - now.getTime();
   if (untilDue < 0 || untilDue > CLIENT_MESSAGE_TRIGGER_POLICY.balanceDueWithinHours * HOUR_MS) return null;
@@ -41,7 +41,7 @@ const floorPlanPending: TriggerCheck = ({ event }, now) => {
 /** Which client follow-ups apply to the event right now. */
 export function activeClientMessageTriggers(facts: ClientMessageTriggerFacts, now: Date): PrismClientMessageTriggerState[] {
   if (facts.event.archived || facts.event.clientPortalStatus !== 'unlocked') return [];
-  return [proposalUnanswered, balanceDue, floorPlanPending]
+  return [proposalUnanswered, addendumUnsigned, balanceDue, floorPlanPending]
     .map((check) => check(facts, now))
     .filter((item): item is PrismClientMessageTriggerState => item !== null);
 }

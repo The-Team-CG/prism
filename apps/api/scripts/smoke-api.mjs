@@ -166,40 +166,8 @@ if (plan.id !== template.floorPlanId) {
 
 await expectOk('update plan', `/api/plans/${template.floorPlanId}`, {
   method: 'PUT',
-  body: JSON.stringify({
-    width: 1200,
-    height: 800,
-    gridSize: 20,
-    objects: [],
-    seats: [],
-    seatCategories: [],
-  }),
+  body: JSON.stringify({ expectedUpdatedAt: plan.updatedAt, width: 1200, height: 800, gridSize: 20 }),
 });
-
-const event = await expectOk('create event', '/api/layout-events', {
-  method: 'POST',
-  body: JSON.stringify({
-    templateId: template.id,
-    name: `Smoke Event ${now}`,
-    startsAt: new Date(now + 86_400_000).toISOString(),
-  }),
-});
-
-if (!event.id) {
-  throw new Error(`event response missing id: ${JSON.stringify(event)}`);
-}
-
-await expectOk('list events', '/api/layout-events');
-
-const published = await expectOk('publish event', `/api/publish/events/${event.id}`, {
-  method: 'POST',
-});
-
-if (!published.slug) {
-  throw new Error(`publish response missing slug: ${JSON.stringify(published)}`);
-}
-
-await expectOk('fetch published snapshot', `/api/publish/${published.slug}`);
 
 await expectBadRequest('reject unknown template field', '/api/templates', {
   method: 'POST',
@@ -342,33 +310,10 @@ if (secondDraft.status !== 'pmcm_draft' || secondDraft.createdByRole !== 'pmcm-a
   throw new Error(`PMCM floorplan draft response is incomplete: ${JSON.stringify(secondDraft)}`);
 }
 
+const currentPreferencePlan = await expectOk('read event floorplan plan', `/api/plans/${preferenceDraft.floorPlanId}`);
 await expectOk('save event floorplan plan', `/api/plans/${preferenceDraft.floorPlanId}`, {
   method: 'PUT',
-  body: JSON.stringify({
-    width: 1300,
-    height: 850,
-    gridSize: 20,
-    objects: [
-      {
-        id: 'smoke_stage',
-        kind: 'rect',
-        name: 'Stage',
-        category: 'stage',
-        x: 60,
-        y: 40,
-        w: 200,
-        h: 80,
-        rotation: 0,
-        fill: '#FFF4EC',
-        stroke: '#9060A0',
-        strokeWidth: 1,
-        locked: false,
-        hidden: false,
-      },
-    ],
-    seats: [],
-    seatCategories: [],
-  }),
+  body: JSON.stringify({ expectedUpdatedAt: currentPreferencePlan.updatedAt, scene: currentPreferencePlan.scene }),
 });
 
 const submittedDraft = await expectOk('submit event floorplan draft', `/api/events/${opsEvent.id}/floorplans/${preferenceDraft.id}/submit`, {

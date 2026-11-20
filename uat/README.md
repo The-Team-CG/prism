@@ -1,6 +1,6 @@
 # P.R.I.S.M Google Forms UAT
 
-One form covers the existing question bank: 5 roles, 51 modules, 197 test cases.
+One form covers the question bank: 5 roles, 56 modules, 242 test cases. It includes the Account, Notifications, Privacy, file library, billing and Finance flows.
 Each submission records one module.
 
 ## Create the Google Form
@@ -59,13 +59,13 @@ The selected format uses one ratings grid and one required comment box per modul
 
 Role selection routes the questionnaire; it does not authenticate the tester's application role. Testers still need the correct portal accounts and event assignments.
 
-The builder creates 167 items including page breaks, across 58 sections. This fits Google's documented [300 content items and 75 sections](https://support.google.com/docs/answer/2839737?hl=en).
+The builder creates 182 items including page breaks, across 63 sections. This fits Google's documented [300 content items and 75 sections](https://support.google.com/docs/answer/2839737?hl=en).
 
 The form carries the UAT bank as written; it does not certify that every case passes or that the bank matches current implementation coverage. The [question bank](UAT-question-bank.md) contains all steps and expected results.
 
 ## Maintain and verify
 
-Edit `uat-test-cases.gs` for test content and portal names. Edit `build-uat-form.gs` for form behavior. Rebuild the combined file and check it:
+Edit `uat-test-cases.gs` for test content and portal names. Edit `build-uat-form.gs` for form behavior. The export generates both the combined Apps Script file and [`UAT-question-bank.md`](UAT-question-bank.md); never edit either by hand. Rebuild and check them (CI runs the same test through `npm run test:ci:guards`, and it fails when a generated file is out of date):
 
 ```powershell
 node uat/export-google-form.cjs

@@ -1,64 +1,34 @@
 "use client";
 
-import { Card } from "@prism/ui/components/card";
 import { useClientWorkspace } from "../../workspace/shared";
-import {
-  OfficialFloorPlanCard,
-  FloorPlanCardHeader,
-  FloorPlanDraftPanel,
-  FloorPlanRevisionCommentCard,
-  FloorPlanTemplates,
-  GuidedLayoutNotes,
-} from "./sections/client-floorplan-sections";
+import { GuidedLayoutNotes, LayoutIdeasSection, OfficialLayoutSection } from "./sections/client-floorplan-sections";
 import { ClientFloorplanReviewPanel } from "../../floorplan-review/views/client-floorplan-review-panel";
 import { selectClientFloorPlanLayout } from "../../workspace/model/client-floorplan-review-rules";
 
+/** The official layout first, then the client's own ideas and, until the layout is approved, a way to send more. */
 export function ClientFloorPlanView() {
   const {
     selectedEvent,
     officialDraft,
     preferenceDrafts,
-    officialProject,
-    floorPlanTemplates,
+    officialLayout,
     form,
     setForm,
     openFloorplanEditor,
-    createEditorDraft,
     refresh,
     submitPreference,
     busy,
   } = useClientWorkspace();
 
-  const { officialPlan, activeDraft, isOfficial, draftApproved, approved, showReview, showPreferenceCard } =
-    selectClientFloorPlanLayout(officialDraft, preferenceDrafts);
+  const { officialPlan, approved, showReview } = selectClientFloorPlanLayout(officialDraft, preferenceDrafts);
 
   return (
-    <div className="space-y-5">
-      {officialPlan ? <OfficialFloorPlanCard draft={officialPlan} officialProject={officialProject} onOpenEditor={openFloorplanEditor} /> : null}
+    <div className="space-y-6">
+      <OfficialLayoutSection draft={officialPlan} layout={officialLayout} reviewing={showReview} onOpenEditor={openFloorplanEditor} />
       {selectedEvent && officialPlan && showReview ? (
         <ClientFloorplanReviewPanel eventId={selectedEvent.id} draftId={officialPlan.id} onDecided={refresh} />
       ) : null}
-      <FloorPlanRevisionCommentCard draft={officialPlan ?? activeDraft} event={selectedEvent} />
-      {showPreferenceCard ? (
-        <Card className="gap-0 py-0">
-          <FloorPlanCardHeader approved={draftApproved} isOfficial={isOfficial} activeDraft={activeDraft} />
-          <div className="p-6">
-            <FloorPlanDraftPanel
-              approved={draftApproved}
-              isOfficial={isOfficial}
-              activeDraft={activeDraft}
-              officialProject={officialProject}
-              onOpenEditor={openFloorplanEditor}
-            />
-            <FloorPlanTemplates
-              approved={approved || Boolean(officialDraft)}
-              templates={floorPlanTemplates}
-              busy={busy}
-              onCreate={createEditorDraft}
-            />
-          </div>
-        </Card>
-      ) : null}
+      <LayoutIdeasSection drafts={preferenceDrafts} approved={approved} onOpenEditor={openFloorplanEditor} />
       <GuidedLayoutNotes
         approved={approved}
         preferenceDraft={preferenceDrafts.find((draft) => draft.sourceType === "client_preference")}

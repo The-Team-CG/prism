@@ -53,7 +53,6 @@ export {
   inquiryClientCategorySchema,
   inquiryPendingFullDetails,
   logInquiryOnBehalfSchema,
-  normalizeInquiryClientType,
   type InquiryClientCategory,
   type LogInquiryOnBehalfInput,
   INQUIRY_EDIT_WINDOW_HOURS,
@@ -86,6 +85,8 @@ export {
   briefingVenueTypeSchema,
   type BriefingVenueType,
   reviewEventProposalSchema,
+  proposalRevisionAreaSchema,
+  type ProposalRevisionArea,
   createProposalCommentSchema,
   archiveSearchFiltersSchema,
   archiveComparisonQuerySchema,
@@ -190,6 +191,8 @@ export {
   createFloorPlanPreferenceSchema,
   prismFloorPlanPreferenceSchema,
   prismFloorPlanSnapshotSchema,
+  floorPlanSnapshotQuerySchema,
+  type FloorPlanSnapshotQuery,
   eventDecisionSchema,
   recordEventDecisionSchema,
   resolveVenueConfirmationSchema,
@@ -568,6 +571,7 @@ export * from "./file-requirement-inputs.js";
 export * from "./notification-inputs.js";
 export * from "./file-requirement-template-inputs.js";
 export * from "./floorplan-canvas-inputs.js";
+export * from "./floorplan-scene.js";
 export * from "./event-day-start.js";
 
 export { prismJsonRecordSchema, prismEmailAddressSchema } from "./common.js";

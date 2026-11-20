@@ -28,7 +28,7 @@ function createController() {
   };
 }
 
-const verifiedActor = {
+const verifiedActor = { sessionId: 'session_test',
   id: 'pmcm_admin',
   actorId: 'pmcm_admin',
   role: OpsUserRole.PmcmAdmin,

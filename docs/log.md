@@ -4,6 +4,12 @@ This log records changes to documentation structure and durable contracts. Relea
 notes are in [`../CHANGELOG.md`](../CHANGELOG.md). Git history retains detailed
 implementation and verification history.
 
+## 2026-11-18
+
+- Verified the bundle against the code; removed the ledger delivery overlay and duplicated actual-system tables, and condensed the ledger slices and changelog.
+- ADR-0001 allows presentational shared screens in `packages/ui`; the persistence register lists only constraints the current migrations create.
+- The UAT question bank is generated from `uat/uat-test-cases.gs` and checked in CI; the unmaintained spreadsheet form is removed.
+
 ## 2026-11-12
 
 - Consolidated release and bundle logs. Retired the stale AI roadmap, promoted its current policy to [`product/ai-data-policy.md`](product/ai-data-policy.md), and kept open qualification evidence in [`runbooks/ai-provider-routing.md`](runbooks/ai-provider-routing.md).

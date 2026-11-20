@@ -1,0 +1,114 @@
+/*
+ * The Pascal editor in PRISM's light theme. Pascal's panels read the shadcn sidebar roles, which PRISM's app shell
+ * sets to its dark ink sidebar, so inside the editor those roles map to PRISM's light surfaces instead. Pascal's
+ * elevation shadows are drawn in PRISM ink. Scoped to the editor so the app shell keeps its own sidebar.
+ */
+.prism-pascal-editor {
+  --sidebar: var(--prism-surface);
+  --sidebar-foreground: var(--prism-ink);
+  --sidebar-primary: var(--prism-magenta);
+  --sidebar-primary-foreground: var(--prism-surface);
+  --sidebar-accent: var(--prism-tint);
+  --sidebar-accent-foreground: var(--prism-ink);
+  --sidebar-border: var(--prism-line);
+  --sidebar-ring: var(--prism-magenta);
+
+  --shadow-color: rgb(23 18 22 / 0.08);
+  --shadow-elevation-0: 0 0 0 1px var(--prism-line);
+  --shadow-elevation-1: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color);
+  --shadow-elevation-2: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color);
+  --shadow-elevation-3: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color),
+    0 6px 6px -3px var(--shadow-color);
+  --shadow-elevation-4: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color),
+    0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color);
+  --shadow-elevation-5: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color),
+    0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color);
+  --shadow-elevation-6: 0 0 0 1px var(--prism-line), 0 1px 1px -0.5px var(--shadow-color), 0 3px 3px -1.5px var(--shadow-color),
+    0 6px 6px -3px var(--shadow-color), 0 12px 12px -6px var(--shadow-color), 0 24px 24px -12px var(--shadow-color),
+    0 48px 48px -24px var(--shadow-color);
+}
+
+/*
+ * One neutral frame, as in the signed-in shell: greys for surfaces, hairlines and quiet fills, so magenta marks only
+ * Submit, the armed piece and the selection. Menus render outside the editor, so the body takes the same values.
+ */
+.prism-pascal-editor,
+body:has(.prism-pascal-editor) {
+  --prism-page: #f6f4f3;
+  --prism-line: #ebe8e6;
+  --prism-line-strong: #d9d5d2;
+  --prism-tint: #f2f0ef;
+  --prism-muted: #6f6a6d;
+  --background: var(--prism-surface);
+  --muted: var(--prism-tint);
+  --muted-foreground: var(--prism-muted);
+  --accent: var(--prism-tint);
+  --border: var(--prism-line);
+  --input: var(--prism-line-strong);
+  --sidebar: var(--prism-surface);
+  --sidebar-accent: var(--prism-tint);
+  --sidebar-border: var(--prism-line);
+}
+
+/* The docked inspector: section titles as quiet headings, one row scale, numbers in the text face. */
+.prism-pascal-editor [data-docked-inspector] .group\/section {
+  height: 2.25rem;
+  background: transparent;
+  color: var(--foreground);
+}
+.prism-pascal-editor [data-docked-inspector] .group\/section > span {
+  font-size: 0.71875rem;
+  font-weight: 600;
+}
+.prism-pascal-editor [data-docked-inspector] .font-mono {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.prism-pascal-editor [data-docked-inspector] [data-panel-header] h2 {
+  font-size: 0.8125rem;
+}
+.prism-pascal-editor [data-docked-inspector] select {
+  appearance: none;
+  height: 1.75rem;
+  min-width: 7.5rem;
+  border: 0;
+  border-radius: 0.4375rem;
+  background: var(--muted)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236f6a6d' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E")
+    no-repeat right 0.5rem center;
+  padding: 0 1.75rem 0 0.625rem;
+  font-size: 0.75rem;
+}
+
+/* Library tiles draw each piece with its plan symbol, a few metres wide in 36 px: hairlines in ink at any scale. */
+.prism-tile-glyph * {
+  vector-effect: non-scaling-stroke;
+  stroke-width: 1px;
+}
+.prism-tile-glyph [stroke]:not([stroke="none"]) {
+  stroke: color-mix(in oklab, var(--foreground) 62%, transparent);
+}
+
+/* Number rows scrub from their label, as in Figma, with no grip dots; every row starts at the same inset. */
+.prism-pascal-editor [data-docked-inspector] .cursor-ew-resize > .grid {
+  display: none;
+}
+.prism-pascal-editor [data-docked-inspector] div:has(> .cursor-ew-resize) {
+  padding-inline: 0.75rem;
+}
+.prism-pascal-editor [data-docked-inspector] .cursor-ew-resize > span {
+  font-weight: 400;
+  color: color-mix(in oklab, var(--foreground) 80%, transparent);
+}
+/* Pascal's boxed toggles become plain rows with the checkbox at the end. */
+.prism-pascal-editor [data-docked-inspector] .group.h-10.cursor-pointer {
+  height: 2rem;
+  border: 0;
+  background: transparent;
+  padding-inline: 0.75rem;
+  font-size: 0.75rem;
+}
+.prism-pascal-editor [data-docked-inspector] .group.h-10.cursor-pointer > .select-none {
+  color: color-mix(in oklab, var(--foreground) 80%, transparent);
+}

@@ -506,41 +506,11 @@ export class AuthOperationsService {
     return { message: APPROVAL_REQUEST_RECEIVED_MESSAGE };
   }
 
-  /**
-   * Signs this browser out. Other devices stay signed in; the account page signs those out. A session from before
-   * devices were tracked has no row of its own, so it ends every session as sign-out always did.
-   */
+  /** Signs this browser out. Other devices stay signed in; the account page signs those out. */
   async logout(actor: PrismVerifiedEventActor) {
-    if (actor.sessionId) return this.signOutThisDevice(actor, actor.sessionId);
-    await this.prisma.$transaction(async (tx) => {
-      const revoked = await tx.opsUser.updateMany({
-        where: { id: actor.id, sessionVersion: actor.sessionVersion },
-        data: { sessionVersion: { increment: 1 } },
-      });
-      if (revoked.count !== 1) throw new UnauthorizedException('Session has already been revoked');
-      await writeAudit(
-        this.authAudit,
-        undefined,
-        actor.name,
-        'Signed out and revoked open sessions',
-        {
-          actorRole: actor.role,
-          actorEmail: actor.email,
-          actionType: AuditActionType.General,
-          category: AuditCategory.Access,
-          affectedType: 'account',
-          affectedId: actor.id,
-          affectedLabel: actor.email,
-        },
-        { prisma: tx, correlationId: actor.id, actorId: actor.id },
-      );
-    });
-  }
-
-  private async signOutThisDevice(actor: PrismVerifiedEventActor, sessionId: string) {
     await this.prisma.$transaction(async (tx) => {
       const revoked = await tx.opsUserSession.updateMany({
-        where: { id: sessionId, userId: actor.id, revokedAt: null },
+        where: { id: actor.sessionId, userId: actor.id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
       if (revoked.count !== 1) throw new UnauthorizedException('Session has already been revoked');

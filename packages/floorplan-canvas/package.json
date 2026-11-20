@@ -4,7 +4,10 @@
   "private": true,
   "types": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./editor": "./src/pascal/editor-entry.ts",
+    "./plugin": "./src/pascal/plugin-entry.ts",
+    "./pascal-theme.css": "./src/pascal/pascal-theme.css"
   },
   "scripts": {
     "typecheck": "node ../../scripts/typescript.mjs -p tsconfig.json --noEmit",
@@ -13,14 +16,31 @@
     "lint": "node ../../scripts/lint.mjs"
   },
   "dependencies": {
+    "@pascal-app/core": "1.1.6",
+    "@pascal-app/editor": "1.1.6",
+    "@pascal-app/nodes": "1.1.6",
+    "@pascal-app/viewer": "1.1.6",
+    "@prism/floorplan-scene": "*",
     "@prism/types": "*"
   },
   "peerDependencies": {
-    "lucide-react": "^1.66.0",
-    "react": "^19.3.1"
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
+    "lucide-react": "^1.73.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "three": "^0.187.0"
   },
   "devDependencies": {
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
+    "@types/three": "^0.187.0",
+    "jsdom": "^31.0.0",
+    "three": "0.187.0",
     "typescript": "^6.0.3",
     "vitest": "^5.1.0"
   }

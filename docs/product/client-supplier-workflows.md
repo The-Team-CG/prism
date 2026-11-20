@@ -4,11 +4,11 @@ title: "Client and supplier workflows"
 description: "Ownership, durable evidence, and operational limits for client and supplier portal actions."
 tags: [product, client, supplier, files, approvals, payments]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-18"
 authority: normative
 audience: [product, engineering, agents, reviewers]
 scope: "Client and supplier portal workflows and their PMCM controls"
-last_verified: "2026-10-29; client/supplier routes, floorplan client-review and annotation endpoints, PMCM event files view"
+last_verified: "2026-11-18 Files routes, file library, payout confirmation and client payment reporting re-checked against the portals; 2026-10-29; client/supplier routes, floorplan client-review and annotation endpoints, PMCM event files view"
 sources:
   - id: shared-contracts
     resource: "packages/types/src"
@@ -57,11 +57,20 @@ Supplier document objects are preserved as workflow evidence: generic PMCM
 storage deletion is rejected for that usage. Corrections create new versions;
 retention and privacy disposal remain separate owner-controlled processes.
 
-PMCM opens stored files from the event workspace's Files entry at
-`/dashboard/events/:eventId/files`. Floorplans retain their separate route and
-official authoring controls. Clients open shared files from their own event's
-Documents screen; the conforme entry remains visible for clients who already
-have another active event.
+Every role sees files through the same library (`@prism/ui/file-library`). PMCM's
+`/dashboard/files` starts on a card per event and opens an event's library, also at
+`/dashboard/events/:eventSlug/files`; files waiting for PMCM review come first.
+Clients open Files at `/dashboard/files` (an event's Files tab shows the same
+library), and suppliers from their Files section, which lists what PMCM still needs
+first. Floorplans retain their separate route and official authoring controls. The
+conforme entry remains visible for clients who already have another active event.
+
+PMCM approves or rejects a client's or supplier's requirement file with a reason,
+and the sender is told. A newer upload replaces the sender's earlier unreviewed
+file. A file may carry a valid-until date; an expired file cannot be reused for a
+requirement, and the reminder sweep warns the sender once before and once after
+expiry. A file attached to a conversation message is a copy only that
+conversation's active members can open.
 
 The local filesystem adapter is for development. The Supabase adapter requires
 an explicitly configured private bucket and server credentials. Its direct
@@ -81,6 +90,7 @@ retention, legal hold, or malware scanning.
 | Creative deliverables | PMCM creates assignment tasks with payload-bound idempotent retries. Suppliers report progress and submit notes or stored files; PMCM accepts, requests changes, or cancels through its review contract. Numbered submissions retain the evidence reviewed. |
 | Payable schedule | PMCM creates arbitrary positive milestones against the selected locked quote. Their total cannot exceed that quote. |
 | Payment release | PMCM records an actual release with amount, date, method, and reference. The supplier sees its own recorded releases and remaining balance. Quote locking alone creates no payment evidence. |
+| Payout confirmation | The supplier confirms a recorded release reached them and may attach its official receipt then or later; PMCM is told and sees the confirmation on the release. A reversed release cannot be confirmed. Confirmation is the supplier's statement, not bank evidence. |
 | Payment correction | PMCM records a reasoned reversal. Original releases remain in the ledger; net releases determine the balance. Idempotent retries and database locks prevent duplicate or excess releases. |
 
 Supplier payables are distinct from client invoices and receipts. A recorded
@@ -112,6 +122,11 @@ PMCM issues immutable venue and styling options with numbered versions.
 Clients approve or request revision against the current issued version.
 These decisions do not approve a budget, create a payable, or replace the
 commercial proposal approval workflow.
+
+A client may report a payment with proof against a sent statement. It counts toward
+the balance only after PMCM verifies it; until then the client sees it as being
+checked, and a payment PMCM does not accept shows PMCM's reason. The statement shows
+PMCM's current payment details, and a statement cannot be issued while none is on.
 
 An issued commercial proposal is reviewable without a billing statement. Client
 approval and revision requests refer to the issued version; after requesting a

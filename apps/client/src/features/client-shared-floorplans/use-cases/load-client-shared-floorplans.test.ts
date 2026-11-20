@@ -30,7 +30,7 @@ describe("loadClientSharedFloorplanSnapshot", () => {
 
   it("loads a snapshot only when the read model advertises that snapshot type", async () => {
     await expect(loadClientSharedFloorplanSnapshot("evt_1", "draft_1", "submitted"))
-      .resolves.toEqual({ entry: ENTRY, project: { id: "snapshot_1" } });
+      .resolves.toEqual({ entry: ENTRY, layout: { id: "snapshot_1" } });
     expect(clientSharedFloorplansRepository.loadSnapshot)
       .toHaveBeenCalledWith("evt_1", "draft_1", "submitted");
 

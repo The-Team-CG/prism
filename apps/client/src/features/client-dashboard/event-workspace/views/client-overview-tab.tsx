@@ -1,13 +1,13 @@
 "use client";
 
 import { derivePrismLifecycleStage, type PrismBillingStatement, type PrismBriefing, type PrismClientOcularVisit, type PrismDocument, type PrismEvent, type PrismFloorPlanDraft, type PrismPaymentMilestone } from "@prism/types";
+import { manilaDateKey } from "@prism/ui/format-date";
 import type { DetailTab } from "../../workspace/shared";
-import { useClientWorkspace } from "../../workspace/shared";
-import { selectEventNextAction } from "../model/client-event-next-action";
+import { dashboardHref, useClientWorkspace } from "../../workspace/shared";
+import { ClientNeedsYouPreview, orderNeedsYou } from "../../shared/client-action-lists";
+import { clientChangeDeadline } from "../../shared/client-change-deadline";
 import { gettingStartedSteps, ocularVisitLine, showGettingStarted, sinceLastVisitItems } from "../model/client-overview-glance";
 import { useClientStageReached } from "../view-models/use-client-stage-reached";
-import { ClientChangeRequestsPanel } from "../../change-requests";
-import { ClientAddendaStatus } from "../../addenda";
 import { comingUpForEvent } from "../../events/views/client-event-cards";
 import { useEventCoverUrl } from "../../events/view-models/use-event-cover-url";
 import { useClientNewFileCount } from "../../files";
@@ -16,8 +16,8 @@ import { useClientUnreadNotices } from "../../notifications/view-models/use-clie
 import {
   OverviewComingUp,
   OverviewEventDetails,
+  OverviewFirstSteps,
   OverviewFloorPlanCard,
-  OverviewGettingStarted,
   OverviewNextDecision,
   OverviewNextPayment,
   OverviewSinceLastVisit,
@@ -28,6 +28,11 @@ import {
 /** How many dated steps the overview lists. */
 const COMING_UP_LIMIT = 4;
 
+/**
+ * The event at a glance, top to bottom: the event and the one step the client should take next (the same step the
+ * Actions list leads with), the first steps while the event is new, the rest of what needs the client, then four
+ * cards of facts. Change requests and addenda live on Planning; an addendum is read and signed in its own dialog.
+ */
 export function ClientOverviewTab({
   selectedEvent,
   briefing,
@@ -55,9 +60,9 @@ export function ClientOverviewTab({
   onOpenOfficialFloorplan?: () => void;
   setTab: (tab: DetailTab) => void;
 }) {
-  const { actionCenter, session } = useClientWorkspace();
-  const actions = actionCenter?.items ?? [];
-  const nextAction = selectEventNextAction(actions, selectedEvent.id);
+  const { actionCenter, clientActions, runClientAction, session } = useClientWorkspace();
+  const todayKey = manilaDateKey();
+  const nextAction = orderNeedsYou(clientActions.filter((action) => action.stage === "needs_client"))[0];
   const coverUrl = useEventCoverUrl(selectedEvent.id, selectedEvent.coverObjectId);
   const stage = useClientStageReached(session?.id, selectedEvent.id, derivePrismLifecycleStage(selectedEvent));
   const unreadMessages = useClientUnreadMessages({ eventId: selectedEvent.id });
@@ -66,29 +71,34 @@ export function ClientOverviewTab({
   const sinceItems = sinceLastVisitItems({ unreadMessages, newFiles, unreadNotices });
   const steps = gettingStartedSteps({ event: selectedEvent, hasBriefing: Boolean(briefing), hasLayoutIdeas: preferenceDraftCount > 0 || Boolean(officialDraft), payments });
   const visit = ocularVisitLine(ocularVisit);
-  const comingUp: ComingUpLine[] = [
+  const cutoff = clientChangeDeadline(selectedEvent, todayKey);
+  const dated: ComingUpLine[] = [
     ...(visit ? [{ id: "ocular-visit", ...visit }] : []),
-    ...comingUpForEvent(selectedEvent, actions, COMING_UP_LIMIT).map((item) => ({ id: item.id, label: item.label, at: item.dueAt ?? null, href: item.href })),
-  ].slice(0, COMING_UP_LIMIT);
-  const starting = showGettingStarted(selectedEvent, steps);
-
-  const comingUpPanel = <OverviewComingUp lines={comingUp} />;
+    ...comingUpForEvent(selectedEvent, actionCenter?.items ?? [], COMING_UP_LIMIT).map((item) => ({ id: item.id, label: item.label, at: item.dueAt ?? null, href: item.href })),
+    ...(cutoff?.kind === "open" ? [{ id: "change-cutoff", label: "Change requests close", at: cutoff.deadlineAt, href: dashboardHref("changes", selectedEvent.id), allDay: true }] : []),
+  ];
+  // The event day always closes the list, so it is never empty.
+  const comingUp = dated
+    .sort((a, b) => (a.at ?? "9999").localeCompare(b.at ?? "9999"))
+    .slice(0, COMING_UP_LIMIT - 1)
+    .concat({ id: "event-day", label: "Event day", at: selectedEvent.eventDate, allDay: true });
   const since = <OverviewSinceLastVisit eventId={selectedEvent.id} items={sinceItems} loaded={unreadMessages !== undefined && newFiles !== undefined && unreadNotices !== undefined} />;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <OverviewStageBanner message={stage.message} onDismiss={stage.dismiss} />
-      <OverviewNextDecision selectedEvent={selectedEvent} nextAction={nextAction} coverUrl={coverUrl} since={since} />
+      <OverviewNextDecision selectedEvent={selectedEvent} nextAction={nextAction} onAction={runClientAction} coverUrl={coverUrl} since={since} />
       {afterLead}
-      {/* A new event leads with its checklist beside the dates; later on, the dates join the cards below. */}
-      {starting ? (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="min-w-0 lg:col-span-2"><OverviewGettingStarted steps={steps} setTab={setTab} /></div>
-          {comingUpPanel}
-        </div>
-      ) : null}
-      <div className={starting ? "grid gap-4 lg:grid-cols-3" : "grid gap-4 md:grid-cols-2 xl:grid-cols-4"}>
-        {starting ? null : comingUpPanel}
+      {showGettingStarted(selectedEvent, steps) ? <OverviewFirstSteps steps={steps} setTab={setTab} /> : null}
+      <ClientNeedsYouPreview
+        actions={clientActions}
+        onAction={runClientAction}
+        todayKey={todayKey}
+        leadActionId={nextAction?.id}
+        allHref={dashboardHref("actions", selectedEvent.id)}
+      />
+      <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+        <OverviewComingUp lines={comingUp} />
         <OverviewEventDetails selectedEvent={selectedEvent} briefing={briefing} setTab={setTab} />
         <OverviewFloorPlanCard
           officialDraft={officialDraft}
@@ -98,9 +108,6 @@ export function ClientOverviewTab({
         />
         <OverviewNextPayment billing={billing} payments={payments} setTab={setTab} />
       </div>
-      {/* Changes and addenda are later-stage reference; they sit below the facts, with the form collapsed. */}
-      <ClientChangeRequestsPanel eventId={selectedEvent.id} />
-      <ClientAddendaStatus eventId={selectedEvent.id} />
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { PAYMENT_CALENDAR_LOOK, paymentCalendarState, type PortalCalendarLook } 
 import { formatPeso } from "@prism/ui/payment-track";
 import type { PrismClientWorkspace, PrismEvent } from "@prism/types";
 
-export type ClientCalendarItemKind = "event" | "payment" | "visit" | "approval";
+export type ClientCalendarItemKind = "event" | "payment" | "visit" | "change_cutoff";
 
 export interface ClientCalendarItem {
   id: string;
@@ -20,7 +20,7 @@ export interface ClientCalendarItem {
   look?: PortalCalendarLook;
   /** A payment past its date with money still owed. */
   overdue?: boolean;
-  /** A paid payment or an approved layout. */
+  /** A paid payment. */
   done?: boolean;
   /** A payment's whole amount and what is still owed on it. */
   amount?: number;
@@ -31,8 +31,7 @@ export type ClientCalendarView =
   | "calendar-event-dates"
   | "calendar-meetings"
   | "calendar-deadlines"
-  | "calendar-payment-due-dates"
-  | "calendar-approval-deadlines";
+  | "calendar-payment-due-dates";
 
 /**
  * The calendar links PMCM messages and older bookmarks use; each now opens the one calendar filtered to its kind.
@@ -43,7 +42,6 @@ const VIEW_FILTERS: Record<ClientCalendarView, { kind: ClientCalendarItemKind; o
   "calendar-meetings": { kind: "visit", openOnly: false },
   "calendar-deadlines": { kind: "payment", openOnly: true },
   "calendar-payment-due-dates": { kind: "payment", openOnly: false },
-  "calendar-approval-deadlines": { kind: "approval", openOnly: false },
 };
 
 /** The category a calendar link opens on, and whether it hides what is done; nothing for the plain calendar. */
@@ -57,7 +55,7 @@ function isoDay(value: string) {
 }
 
 type CalendarState = Pick<PrismClientWorkspace, "paymentMilestones" | "ocularVisits" | "clientEventTimelines">;
-type CalendarEvent = Pick<PrismEvent, "id" | "eventName" | "eventDate" | "status">;
+type CalendarEvent = Pick<PrismEvent, "id" | "eventName" | "eventDate" | "status"> & Partial<Pick<PrismEvent, "archived" | "freezeStatus" | "freezeDeadlineAt">>;
 
 function eventDates(events: CalendarEvent[]): ClientCalendarItem[] {
   return events.map((event) => ({ id: `event-${event.id}`, date: isoDay(event.eventDate), title: event.eventName, status: event.status, kind: "event", eventId: event.id }));
@@ -88,22 +86,21 @@ function siteVisits(state: CalendarState, byId: Map<string, CalendarEvent>): Cli
   });
 }
 
-function layoutApprovals(state: CalendarState, byId: Map<string, CalendarEvent>): ClientCalendarItem[] {
-  return state.clientEventTimelines.flatMap((timeline) => {
-    const event = byId.get(timeline.eventId);
-    const layout = timeline.milestones.find((milestone) => milestone.key === "floor_plan_approved");
-    if (!event || !layout?.date || layout.status !== "completed") return [];
-    return [{ id: `layout-${timeline.eventId}`, date: isoDay(layout.date), title: "Layout approved", eventName: event.eventName, status: "approved", done: true, kind: "approval" as const, eventId: event.id }];
+/** The last day the client can request changes freely; after it a change needs a PMCM exception. */
+function changeCutoffs(events: CalendarEvent[]): ClientCalendarItem[] {
+  return events.flatMap((event) => {
+    if (event.archived || event.freezeStatus === "frozen" || !event.freezeDeadlineAt) return [];
+    return [{ id: `cutoff-${event.id}`, date: isoDay(event.freezeDeadlineAt), title: "Change requests close", eventName: event.eventName, status: "open", kind: "change_cutoff" as const, eventId: event.id }];
   });
 }
 
 /**
  * Every dated entry the client calendar shows. Only dates PMCM or the client recorded appear:
- * event dates, payment due dates, scheduled site visits and the day a layout was approved.
+ * event dates, payment due dates, scheduled site visits and the day change requests close.
  * Nothing is inferred from the event date.
  */
 export function buildClientCalendarItems(state: CalendarState, events: CalendarEvent[], today = manilaDateKey()): ClientCalendarItem[] {
   const byId = new Map(events.map((event) => [event.id, event]));
-  const items = [...eventDates(events), ...paymentDates(state, byId, today), ...siteVisits(state, byId), ...layoutApprovals(state, byId)];
+  const items = [...eventDates(events), ...paymentDates(state, byId, today), ...siteVisits(state, byId), ...changeCutoffs(events)];
   return items.sort((a, b) => a.date.localeCompare(b.date));
 }

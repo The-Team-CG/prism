@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { appendFileSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,11 +8,10 @@ export function createCIEnvironment(databaseUrl, root) {
   if (!["127.0.0.1", "localhost", "[::1]"].includes(database.hostname) || database.pathname !== "/prism_e2e_flow") {
     throw new Error("CI requires a loopback prism_e2e_flow database.");
   }
-  const migrations = readdirSync(join(root, "apps/api/prisma/migrations")).filter(name => /^\d+_/.test(name)).sort();
   const env = {
     DATABASE_URL: databaseUrl, DIRECT_URL: "", SUPABASE_DB_URL: "", PRISMA_DATABASE_URL: "", SHADOW_DATABASE_URL: "",
     PRISM_LOCAL_DEV: "", DB_SSL: "false", DB_SSL_CA_FILE: "", NODE_ENV: "development", PRISM_SEED_ENV: "local",
-    PRISM_SCHEMA_REQUIRED_HEAD: migrations.at(-1), PORT: "4100", PRISM_TRUST_PROXY: "true",
+    PORT: "4100", PRISM_TRUST_PROXY: "true",
     PRISM_MAIL_TRANSPORT: "log", PRISM_SESSION_SECRET: randomBytes(32).toString("hex"), PRISM_SESSION_TTL_SECONDS: "28800",
     PRISM_STORAGE_PROVIDER: "local", PRISM_STORAGE_LOCAL_DIRECTORY: join(root, ".local-dev/lifecycle-ci-storage"),
     PRISM_CLIENT_PORTAL_URL: "http://localhost:3001", PRISM_SUPPLIER_PORTAL_URL: "http://localhost:3002",

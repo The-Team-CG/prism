@@ -3,6 +3,8 @@ import { acknowledgePrivacyNoticeSchema, requestApprovalSchema } from "./auth-in
 import { PRISM_PRIVACY_NOTICE_VERSION } from "../privacy.js";
 import { createFileRequirementSchema, updateFileRequirementSchema, reviewRequirementFileSchema } from "./file-requirement-inputs.js";
 import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops-inputs.js";
+
+const scene = { format: "pascal-v1", pascalVersion: "1.1.6", nodes: { site_a: { id: "site_a", type: "site", parentId: null, polygon: { type: "polygon", points: [] } } }, rootNodeIds: ["site_a"] };
 import { blockEventDayTaskSchema } from "./live-ops-inputs.js";
 import { inquiryPendingFullDetails, logInquiryOnBehalfSchema } from "./event-lifecycle-inputs.js";
 import {
@@ -10,6 +12,7 @@ import {
   createGuestFeedbackSchema,
   createGuestCheckInSchema,
   guestRosterSearchSchema,
+  importGuestRosterSchema,
   guestCheckInReceiptSchema,
   guestPrivacyClassificationSchema,
   updateGuestPrivacyClassificationSchema,
@@ -115,15 +118,14 @@ describe("supplier capacity rating contract", () => {
 });
 
 describe("venue library template contract", () => {
-  const editorObject = { id: "o1", name: "Wall", kind: "rect", category: "architecture", x: 1, y: 1, w: 4, h: 0.2, rotation: 0, fill: "#000", stroke: "#000", strokeWidth: 1, locked: false, hidden: false };
 
-  it("accepts the floorplan editor shape for layout and permanent features, with the venue rules", () => {
-    const parsed = createTemplateSchema.safeParse({ name: "Hall", venueRules: "No confetti", objects: [editorObject], permanentFeatures: [editorObject], width: 20, height: 12, gridSize: 1, pax: 100 });
-    expect(parsed.success).toBe(true);
+  it("accepts a venue as its Pascal scene, with the venue rules", () => {
+    expect(createTemplateSchema.safeParse({ name: "Hall", venueRules: "No confetti", pax: 100, scene }).success).toBe(true);
   });
 
-  it("still refuses objects that fit neither shape", () => {
-    expect(createTemplateSchema.safeParse({ name: "Hall", objects: [{ id: "x", kind: "blob" }] }).success).toBe(false);
+  it("requires a scene and refuses the legacy canvas objects", () => {
+    expect(createTemplateSchema.safeParse({ name: "Hall", pax: 100 }).success).toBe(false);
+    expect(createTemplateSchema.safeParse({ name: "Hall", pax: 100, objects: [], scene: { format: "pascal-v2" } }).success).toBe(false);
   });
 });
 
@@ -269,7 +271,7 @@ describe("event-ops write schemas", () => {
     expect(parsed.eventDate).toBe("2026-06-18");
   });
 
-  it("maps legacy Private to Individual and offers only the catalog client categories", () => {
+  it("trims and accepts only the catalog client categories", () => {
     const base = {
       clientName: "Maria Santos",
       email: "maria@samplecorp.test",
@@ -280,9 +282,9 @@ describe("event-ops write schemas", () => {
       privacyConsentAccepted: true,
       privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
     } as const;
-    expect(createPrismInquirySchema.parse({ ...base, clientType: " Private " }).clientType).toBe("Individual");
+    expect(createPrismInquirySchema.parse({ ...base, clientType: " Individual " }).clientType).toBe("Individual");
     expect(createPrismInquirySchema.parse({ ...base, clientType: "Non-profit" }).clientType).toBe("Non-profit");
-    for (const retired of ["School", "Other", "Private celebration", ""]) {
+    for (const retired of ["Private", " Private ", "School", "Other", "Private celebration", ""]) {
       expect(createPrismInquirySchema.safeParse({ ...base, clientType: retired }).success).toBe(false);
     }
   });
@@ -382,6 +384,17 @@ describe("event-ops write schemas", () => {
         [privateField]: "private",
       }).success).toBe(false);
     }
+  });
+
+  it("imports each roster row's RSVP and dietary needs, and names the row of an unknown RSVP", () => {
+    const rows = [
+      { sourceKey: "a", guestName: "Ana Reyes", rsvp: "confirmed", dietary: " Vegetarian " },
+      { sourceKey: "b", guestName: "Ben Cruz", rsvp: "maybe" },
+    ];
+    expect(importGuestRosterSchema.parse({ source: "csv", rows: [rows[0]] }).rows[0]).toMatchObject({ rsvp: "confirmed", dietary: "Vegetarian" });
+    const result = importGuestRosterSchema.safeParse({ source: "csv", rows });
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.error.issues[0]?.path).toEqual(["rows", 1, "rsvp"]);
   });
 
   it("accepts the review queue flag only as a boolean", () => {
@@ -704,6 +717,7 @@ describe("event-ops write schemas", () => {
         flowNotes: "Keep a wide aisle",
         guestCount: 120,
         constraints: ["Accessible entrance"],
+        scene,
       }).success,
     ).toBe(true);
     expect(

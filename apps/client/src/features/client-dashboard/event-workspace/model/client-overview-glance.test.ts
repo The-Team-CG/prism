@@ -32,6 +32,7 @@ describe("client overview at a glance", () => {
     const visit = { eventId: "e1", clientNote: null, scheduleNote: null, requestedAt: "2026-11-10T02:00:00.000Z", scheduledAt: null };
     expect(ocularVisitLine({ ...visit, status: "requested" })).toEqual({ label: "Venue visit requested · PMCM will set the date", at: null });
     expect(ocularVisitLine({ ...visit, status: "scheduled", scheduledAt: "2026-11-20T02:00:00.000Z" })).toEqual({ label: "Venue visit", at: "2026-11-20T02:00:00.000Z" });
+    expect(ocularVisitLine({ ...visit, status: "scheduled", scheduledAt: "2026-11-20T02:00:00.000Z", scheduleNote: "Bring the Gate 2 badge" })?.note).toBe("Bring the Gate 2 badge");
     expect(ocularVisitLine({ ...visit, status: "completed" })).toBeNull();
     expect(ocularVisitLine(null)).toBeNull();
   });

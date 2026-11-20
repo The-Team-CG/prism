@@ -1,6 +1,11 @@
 @import "@prism/tokens/fonts.css";
 @import "tailwindcss";
+@import "@pascal-app/viewer/ui/theme.css";
 @import "@prism/tokens/theme.css";
 @import "@prism/tokens/typography.css";
+@import "@prism/floorplan-canvas/pascal-theme.css";
 @source "../../../../packages/ui/src/**/*.{ts,tsx}";
 @source "../../../../packages/floorplan-canvas/src/**/*.{ts,tsx}";
+@source "../../../../node_modules/@pascal-app/editor/src";
+@source "../../../../node_modules/@pascal-app/viewer/dist/ui";
+@source "../../../../node_modules/@pascal-app/nodes/dist";

@@ -10,8 +10,7 @@ import {
   submitBriefingSchema,
   type SubmitBriefingInput,
 } from "@prism/types";
-import type { Project } from "@/features/floorplan/editor";
-import type { PrismFloorPlanDraft } from "@prism/types";
+import type { FloorplanSceneDocument, PrismFloorPlanDraft } from "@prism/types";
 import { buildReopenedFloorPlanPreferencePayload } from "../model/client-floorplan-preference-rules";
 
 export function readClientSession() {
@@ -65,18 +64,7 @@ export function loadOfficialFloorPlan(
   return clientDashboardRepository.loadFloorPlanSnapshot(eventId, draftId, type);
 }
 
-export function loadFloorPlanProject(planId: string) {
-  return clientDashboardRepository.loadPlan(planId);
-}
-
-export function saveFloorPlanProject(project: Project) {
-  return clientDashboardRepository.savePlan(project);
-}
-
-export function submitFloorPlanEditorProject(eventId: string, draft: PrismFloorPlanDraft, project: Project) {
-  if (draft.sourceType === "client_preference" && draft.status === "revision_requested") {
-    const input = buildReopenedFloorPlanPreferencePayload(draft, project);
-    return clientDashboardRepository.createFloorPlanPreference(eventId, input);
-  }
-  return clientDashboardRepository.savePlan(project);
+/** Sends the client's scene to PMCM as their revised preference; only a preference PMCM has reopened can take one. */
+export function submitFloorPlanEditorScene(eventId: string, draft: PrismFloorPlanDraft, scene: FloorplanSceneDocument) {
+  return clientDashboardRepository.createFloorPlanPreference(eventId, buildReopenedFloorPlanPreferencePayload(draft, scene));
 }

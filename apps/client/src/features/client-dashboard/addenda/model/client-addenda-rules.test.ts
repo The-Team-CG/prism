@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismAddendum, PrismAddendumConformeStatus } from "@prism/types";
-import { addendaAwaitingClientAcknowledgment, addendumConformeStatusLabel, addendumStatusLabel } from "./client-addenda-rules";
+import { addendumAwaitsClient, addendumConformeStatusLabel, addendumStatusLabel } from "./client-addenda-rules";
 
 function addendum(id: string, conforme: PrismAddendum["conforme"]): PrismAddendum {
   return {
@@ -21,7 +21,7 @@ describe("client addenda rules", () => {
     const pending = addendum("addendum_2", execution("awaiting_pmcm"));
     const notRequested = addendum("addendum_3", null);
 
-    expect(addendaAwaitingClientAcknowledgment([awaiting, pending, notRequested])).toEqual([awaiting]);
+    expect([awaiting, pending, notRequested].filter(addendumAwaitsClient)).toEqual([awaiting]);
   });
 
   it("explains where a conforme stands without exposing the other party's signing step", () => {

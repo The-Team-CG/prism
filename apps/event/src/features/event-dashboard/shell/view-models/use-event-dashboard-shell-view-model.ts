@@ -1,10 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { CoordinatorRole, PrismConformeExecution, PrismEvent, PrismFloorPlanDraft, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, PrismEvent, PrismEventPrivacy, PrismFloorPlanDraft, PrismFloorplanSeatingGuest, PrismFloorplanSupplier, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
 import { derivePrismLifecycleStage } from "@prism/types";
-import { type FloorPlanTemplate, type Project, cloneTemplateObjects } from "@prism/floorplan-canvas";
+import { type FloorPlanTemplate } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
+import { isLockedFloorplanDraft } from "@/features/floorplan/editor/model/editor-access";
+import { createSceneSaver, type SceneSaver } from "@/features/floorplan/editor/use-cases/scene-saver";
+import { loadSeatingGuests } from "@/features/floorplan/editor/data/seating-data";
+import { bookedSuppliers } from "@/features/floorplan/editor/model/seating";
+import { submitFromEditor } from "@/features/floorplan/editor/use-cases/submit-from-editor";
 import { eventPortalNavItems, loadingShellNavItems } from "./use-event-dashboard-nav";
 import { useEventUnreadMessages } from "../../messages/view-models/use-event-unread-messages";
 import { useEventUnreadNotices } from "@/features/account-notifications/view-models/use-event-unread-notices";
@@ -44,7 +49,23 @@ export type { EventDashboardClientProps };
 
 type Screen =
   | { name: "portal" }
-  | { name: "editor"; event: PrismEvent; draft: PrismFloorPlanDraft; project: Project; readOnly: boolean };
+  | {
+      name: "editor";
+      event: PrismEvent;
+      draft: PrismFloorPlanDraft;
+      /** The plan's stored Pascal scene, the guest count and privacy that decide seating, and the plan's version. */
+      scene: FloorplanSceneDocument;
+      pax: number;
+      eventPrivacy: PrismEventPrivacy;
+      /** Saves the open Pascal scene one autosave at a time, each against the version the last one returned. */
+      saver: SceneSaver;
+      /** The event's roster as the Pascal editor seats it, and its booked suppliers. */
+      seatingGuests: PrismFloorplanSeatingGuest[];
+      suppliers: PrismFloorplanSupplier[];
+      /** Changes on every open, so reloading the same draft remounts the editor. */
+      openId: number;
+      readOnly: boolean;
+    };
 
 export function useEventDashboardShellViewModel({
   section: initialSection,
@@ -65,6 +86,7 @@ export function useEventDashboardShellViewModel({
   }, [initialClientId, initialEventId, initialSection, initialTab, initialView]);
 
   const [screen, setScreen] = useState<Screen>({ name: "portal" });
+  const editorOpens = useRef(0);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(routeState.eventId ?? null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(routeState.clientId ?? null);
   const [section, setSection] = useState<DashboardSection>(routeState.section);
@@ -248,9 +270,6 @@ export function useEventDashboardShellViewModel({
       height: 30,
       gridSize: 1,
       pax: briefing?.guestCount,
-      objects: [],
-      guests: [],
-      suppliers: [],
     });
     await openEditor(selectedEvent, draft);
   }
@@ -262,21 +281,45 @@ export function useEventDashboardShellViewModel({
       sourceType: "template",
       venueTemplateId: template.id,
       venue: template.venue || selectedEvent.eventName,
-      width: template.widthM,
-      height: template.heightM,
-      gridSize: 1,
-      pax: template.pax,
-      objects: cloneTemplateObjects(template),
-      guests: template.includeGuests ? template.guests : [],
-      suppliers: template.includeSuppliers ? template.suppliers : [],
     });
     await openEditor(selectedEvent, draft);
   }
 
-  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, readOnly = false) {
+  async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, requestedReadOnly = false) {
     if (!session || !isPmcmAdmin(session.role)) return;
-    const project = await commands.loadPlan(draft.floorPlanId);
-    setScreen({ name: "editor", event, draft, project, readOnly });
+    const readOnly = requestedReadOnly || isLockedFloorplanDraft(draft.status);
+    const [opened, seatingGuests] = await Promise.all([commands.loadPlanScene(draft.floorPlanId), loadSeatingGuests(event.id)]);
+    const saver = createSceneSaver({ planId: draft.floorPlanId, updatedAt: opened.updatedAt, save: commands.savePlanScene });
+    editorOpens.current += 1;
+    setScreen({ name: "editor", event, draft, scene: opened.scene, pax: opened.pax, eventPrivacy: opened.eventPrivacy, saver, seatingGuests, suppliers: bookedSuppliers(quoteRequests, event.id), openId: editorOpens.current, readOnly });
+  }
+
+  /** Saves and submits the draft open in either editor, then shows it as in review on the floor plans page. */
+  async function submitOpenDraft(save: () => Promise<unknown>) {
+    if (screen.name !== "editor") return;
+    const { event, draft } = screen;
+    await submitFromEditor({
+      save,
+      submit: () => commands.submitFloorPlanDraft(event.id, draft.id),
+      refreshDashboard: () => refresh(session),
+      refreshEventDrafts: () => refreshSelectedEventWorkspace(),
+      close: () => setScreen({ name: "portal" }),
+    });
+  }
+
+  /** Submitting saves first; after a conflict that save would send nothing, so the submit stops instead. */
+  function saveSceneForSubmit(scene: FloorplanSceneDocument) {
+    const saver = screen.name === "editor" ? screen.saver : null;
+    if (!saver) throw new Error("Open a floor plan in the Pascal editor before submitting it.");
+    if (saver.state() === "conflict") throw new Error("This floor plan changed elsewhere. Reload it before submitting.");
+    return saver.save(scene);
+  }
+
+  /** Opens the draft again from the stored plan, dropping the edits a conflict kept from saving. */
+  function reloadEditor() {
+    if (screen.name !== "editor") return Promise.resolve();
+    const { event, draft, readOnly } = screen;
+    return run("reload floor plan", () => openEditor(event, draft, readOnly));
   }
 
   const navigation = useEventDashboardNavigationViewModel({
@@ -541,14 +584,8 @@ export function useEventDashboardShellViewModel({
       await refresh();
       return updated;
     },
-    saveEditorPlan: (project: Project) => commands.savePlan(project),
-    submitEditorPlan: async (project: Project) => {
-      if (screen.name !== "editor") return;
-      await commands.savePlan(project);
-      await commands.submitFloorPlanDraft(screen.event.id, screen.draft.id);
-      await refresh(session);
-      setScreen({ name: "portal" });
-    },
+    submitEditorScene: (scene: FloorplanSceneDocument) => submitOpenDraft(() => saveSceneForSubmit(scene)),
+    reloadEditor,
     closeEditor: () => setScreen({ name: "portal" }),
     refreshCommandInbox,
     changeCommandInboxPage,

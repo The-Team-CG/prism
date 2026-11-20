@@ -20,13 +20,12 @@ export interface KnownMigrationPrefix {
 export function assertKnownMigrationPrefix(input: {
   localMigrations: readonly LocalMigration[];
   appliedMigrations: readonly AppliedMigration[];
-  requiredHead: string;
 }): KnownMigrationPrefix;
 
-export function assertExactMigrationCompatibility(input: {
+/** Returns the latest local migration name when every shipped migration is applied, finished and checksum-identical. */
+export function assertLocalMigrationsApplied(input: {
   localMigrations: readonly LocalMigration[];
   appliedMigrations: readonly AppliedMigration[];
-  requiredHead: string;
 }): string;
 
 export function migrationChecksumVariants(sql: string | Uint8Array, name?: string): [string, ...string[]];

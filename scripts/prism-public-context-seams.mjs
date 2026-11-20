@@ -2,6 +2,7 @@ export const publicContextSeams = new Set([
   '@prism/contexts/read-models/closeout',
   '@prism/contexts/read-models/event-scope',
   '@prism/contexts/read-models/participant-facts',
+  '@prism/contexts/read-models/floorplan-seating',
   '@prism/contexts/read-models/guest-events',
   '@prism/contexts/read-models/account-contacts',
   '@prism/contexts/read-models/commercial-facts-reader',

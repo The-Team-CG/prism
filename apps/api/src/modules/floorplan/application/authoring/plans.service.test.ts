@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import type { PrismaService } from '@prism/kernel/database';
-import type { FloorPlanCanvasObject, FloorPlanGuest, PrismVerifiedEventActor, UpdatePlanInput } from '@prism/types';
+import type { FloorplanSceneDocument, PrismVerifiedEventActor, UpdatePlanInput } from '@prism/types';
 import { PlansService } from './plans.service';
 
 const planUpdatedAt = '2026-05-05T00:00:00.000Z';
@@ -20,12 +20,8 @@ function floorPlanRow(overrides: Record<string, unknown> = {}) {
     ownerId: 'owner_sample',
     templateId: null,
     eventId: 'evt_1',
-    objects: [],
-    guests: [],
-    suppliers: [],
-    seats: [],
-    seatCategories: [],
-    objectRows: [],
+    scene: sceneWithTables([]),
+    sceneFormat: 'pascal-v1',
     updatedAt: new Date(planUpdatedAt),
     ...overrides,
   };
@@ -58,7 +54,9 @@ function draft(
   };
 }
 
-function createService(opsDraft: unknown, overrides: Record<string, unknown> = {}) {
+type SeatingFacts = { roster?: Array<{ id: string; rsvp: string; name: string }>; booked?: string[] };
+
+function createService(opsDraft: unknown, overrides: Record<string, unknown> = {}, facts: SeatingFacts = {}) {
   const audit: AuditWriter = { write: vi.fn().mockResolvedValue(undefined) };
   const accessPolicy = new EventAccessPolicyService(audit);
   const update = vi.fn().mockResolvedValue(floorPlanRow({ opsDraft }));
@@ -107,8 +105,14 @@ function createService(opsDraft: unknown, overrides: Record<string, unknown> = {
     ),
   } as unknown as PrismaService;
 
+  // The event roster a scene save seats from.
+  const seatingFacts = {
+    listSeatingGuests: vi.fn(async () => facts.roster ?? [{ id: 'g-ana', rsvp: 'confirmed', name: 'Ana Reyes' }, { id: 'g-ben', rsvp: 'pending', name: 'Ben Cruz' }, { id: 'g-dee', rsvp: 'declined', name: 'Dee Lim' }]),
+    bookedSupplierIds: vi.fn(async () => new Set(facts.booked ?? [])),
+  };
   return {
-    service: new PlansService(prisma, accessPolicy, audit, lifecycleEventReferences),
+    service: new PlansService(prisma, accessPolicy, audit, lifecycleEventReferences, seatingFacts),
+    seatingFacts,
     prisma: { ...prisma, floorPlan, floorPlanObject, $queryRawUnsafe: queryRawUnsafe },
     audit,
     accessPolicy,
@@ -122,7 +126,7 @@ function verifiedActor(
   name: string,
 ): PrismVerifiedEventActor {
   const actorId = `user_${email}`;
-  return {
+  return { sessionId: 'session_test',
     id: actorId,
     actorId,
     role,
@@ -146,7 +150,7 @@ function pmcmActor() {
 }
 
 function changes(overrides: Partial<UpdatePlanInput> = {}): UpdatePlanInput {
-  return { expectedUpdatedAt: planUpdatedAt, objects: [], ...overrides };
+  return { expectedUpdatedAt: planUpdatedAt, ...overrides };
 }
 
 describe('PlansService floorplan permissions and versioning', () => {
@@ -293,14 +297,14 @@ describe('PlansService floorplan permissions and versioning', () => {
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 
-  it('allows a verified client to update only their own reopened preference', async () => {
+  it('allows a verified client to save a scene on their own reopened preference', async () => {
     const { service, prisma, audit, lifecycleEventReferences } = createService(
       draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'),
       { ownerId: 'user_owner@example.test' },
     );
 
     await expect(
-      service.updatePlan('plan_event_1', changes({ width: 45 }), clientActor('owner@example.test')),
+      service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, scene: sceneWithTables([]) }, clientActor('owner@example.test')),
     ).resolves.toMatchObject({ id: 'plan_event_1' });
 
     expect(prisma.floorPlan.update).toHaveBeenCalledWith(expect.objectContaining({
@@ -329,11 +333,11 @@ describe('PlansService floorplan permissions and versioning', () => {
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 
-  it('does not let a client add guest, supplier, or seating data to a preference', async () => {
+  it('does not let a client change anything but the layout scene of a preference', async () => {
     const { service, prisma } = createService(draft('client_submitted'));
 
     await expect(
-      service.updatePlan('plan_event_1', changes({ guests: [] }), clientActor('owner@example.test')),
+      service.updatePlan('plan_event_1', changes({ venue: 'Changed venue' }), clientActor('owner@example.test')),
     ).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
@@ -424,7 +428,7 @@ describe('PlansService floorplan permissions and versioning', () => {
   it('allows a verified PMCM actor to update an open draft and records the actor in the transaction audit', async () => {
     const { service, prisma, audit } = createService(draft('pmcm_draft'));
 
-    await expect(service.updatePlan('plan_event_1', changes(), pmcmActor())).resolves.toMatchObject({
+    await expect(service.updatePlan('plan_event_1', changes({ width: 30 }), pmcmActor())).resolves.toMatchObject({
       id: 'plan_event_1',
     });
 
@@ -443,79 +447,28 @@ describe('PlansService floorplan permissions and versioning', () => {
     const systemActor = { role: OpsUserRole.System, name: 'System', explicit: true, verified: true };
 
     await expect(service.getPlan('plan_event_1', systemActor)).resolves.toMatchObject({ id: 'plan_event_1' });
-    await expect(service.updatePlan('plan_event_1', changes(), systemActor)).resolves.toMatchObject({
+    await expect(service.updatePlan('plan_event_1', changes({ width: 30 }), systemActor)).resolves.toMatchObject({
       id: 'plan_event_1',
     });
     expect(prisma.floorPlan.update).toHaveBeenCalled();
   });
 });
 
-const eventGuestRoster: FloorPlanGuest[] = [
-  { id: 'g-ana', name: 'Ana Reyes', rsvp: 'confirmed' },
-  { id: 'g-ben', name: 'Ben Cruz', rsvp: 'pending' },
-  { id: 'g-dee', name: 'Dee Lim', rsvp: 'declined' },
-];
-
-function editorTable(overrides: Partial<FloorPlanCanvasObject> = {}): FloorPlanCanvasObject {
-  return {
-    id: 't1',
-    name: 'Table 1',
-    kind: 'ellipse',
-    category: 'furniture',
-    x: 1,
-    y: 1,
-    w: 2,
-    h: 2,
-    rotation: 0,
-    fill: '#ffffff',
-    stroke: '#000000',
-    strokeWidth: 1,
-    seats: 2,
-    locked: false,
-    hidden: false,
-    ...overrides,
-  };
-}
-
-describe('PlansService table assignment eligibility on official saves', () => {
+describe('PlansService table assignment eligibility on official scene saves', () => {
   it.each([
+    { case: 'unknown guest', tables: [{ id: 'prism-table_a', guestIds: ['g-nobody'] }], message: 'Only guests on this event guest list can be seated.' },
+    { case: 'declined guest', tables: [{ id: 'prism-table_a', guestIds: ['g-dee'] }], message: 'Guests who declined cannot be seated.' },
+    { case: 'hidden table', tables: [{ id: 'prism-table_a', guestIds: ['g-ana'], hidden: true }], message: 'Hidden tables cannot take guests.' },
+    { case: 'table over capacity', tables: [{ id: 'prism-table_a', seats: 1, guestIds: ['g-ana', 'g-ben'] }], message: 'This table has no free seats.' },
     {
-      case: 'unknown guest',
-      objects: [editorTable({ assignedGuestIds: ['g-nobody'] })],
-      message: 'Only guests on this event guest list can be seated.',
-    },
-    {
-      case: 'declined guest',
-      objects: [editorTable({ assignedGuestIds: ['g-dee'] })],
-      message: 'Guests who declined cannot be seated.',
-    },
-    {
-      case: 'non-table object',
-      objects: [editorTable({ category: 'stage', assignedGuestIds: ['g-ana'] })],
-      message: 'Guests can only be seated at visible seating tables.',
-    },
-    {
-      case: 'hidden table',
-      objects: [editorTable({ hidden: true, assignedGuestIds: ['g-ana'] })],
-      message: 'Hidden tables cannot take guests.',
-    },
-    {
-      case: 'table over capacity',
-      objects: [editorTable({ seats: 1, assignedGuestIds: ['g-ana', 'g-ben'] })],
-      message: 'This table has no free seats.',
-    },
-    {
-      case: 'guest listed at two tables',
-      objects: [
-        editorTable({ assignedGuestIds: ['g-ana'] }),
-        editorTable({ id: 't2', assignedGuestIds: ['g-ana'] }),
-      ],
+      case: 'guest seated at two tables',
+      tables: [{ id: 'prism-table_a', guestIds: ['g-ana'] }, { id: 'prism-table_b', guestIds: ['g-ana'] }],
       message: 'A guest can only be seated at one table.',
     },
-  ])('rejects a PMCM save with a $case and writes nothing', async ({ objects, message }) => {
+  ])('rejects a PMCM scene save with a $case and writes nothing', async ({ tables, message }) => {
     const { service, prisma, audit } = createService(draft('pmcm_draft'));
 
-    const attempt = service.updatePlan('plan_event_1', changes({ objects, guests: eventGuestRoster }), pmcmActor());
+    const attempt = service.updatePlan('plan_event_1', sceneSave(sceneWithTables(tables)), pmcmActor());
 
     await expect(attempt).rejects.toBeInstanceOf(BadRequestException);
     await expect(attempt).rejects.toThrow(message);
@@ -523,72 +476,209 @@ describe('PlansService table assignment eligibility on official saves', () => {
     expect(audit.write).not.toHaveBeenCalled();
   });
 
-  it('accepts a save whose seated guests are known, not declined, and within table capacity', async () => {
+  it('accepts a scene whose seated guests are known, not declined, and within table capacity', async () => {
     const { service, prisma } = createService(draft('pmcm_draft'));
-    const objects = [
-      editorTable({ assignedGuestIds: ['g-ana', 'g-ben'] }),
-      editorTable({ id: 't2', assignedGuestIds: [] }),
-    ];
 
     await expect(
-      service.updatePlan('plan_event_1', changes({ objects, guests: eventGuestRoster }), pmcmActor()),
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana', 'g-ben'] }, { id: 'prism-table_b' }])), pmcmActor()),
     ).resolves.toMatchObject({ id: 'plan_event_1' });
     expect(prisma.floorPlan.update).toHaveBeenCalled();
   });
 
   it('refuses new seat assignments when the event expects 200 guests or more, but keeps seats already made', async () => {
-    const seated = editorTable({ assignedGuestIds: ['g-ana'] });
-    const { service, prisma } = createService(draft('pmcm_draft'), {
-      objectRows: [{ objectId: 't1', objectData: seated, zIndex: 0 }],
-    });
-    const addSeat = [editorTable({ assignedGuestIds: ['g-ana', 'g-ben'] })];
+    const stored = sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }]);
+    const { service, prisma } = createService(draft('pmcm_draft'), { scene: stored, sceneFormat: 'pascal-v1' });
+    const addSeat = sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana', 'g-ben'] }]);
 
     await expect(
-      service.updatePlan('plan_event_1', changes({ objects: addSeat, guests: eventGuestRoster, pax: 200 }), pmcmActor()),
+      service.updatePlan('plan_event_1', sceneSave(addSeat, { pax: 200 }), pmcmActor()),
     ).rejects.toThrow('Table assignment is only available for events under 200 guests.');
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
 
     await expect(
-      service.updatePlan('plan_event_1', changes({ objects: [seated], guests: eventGuestRoster, pax: 450 }), pmcmActor()),
+      service.updatePlan('plan_event_1', sceneSave(stored, { pax: 450 }), pmcmActor()),
     ).resolves.toMatchObject({ id: 'plan_event_1' });
     await expect(
-      service.updatePlan('plan_event_1', changes({ objects: addSeat, guests: eventGuestRoster, pax: 150 }), pmcmActor()),
+      service.updatePlan('plan_event_1', sceneSave(addSeat, { pax: 150 }), pmcmActor()),
     ).resolves.toMatchObject({ id: 'plan_event_1' });
   });
 
   it('refuses new seat assignments on a public event even under 200 guests', async () => {
     const { service, prisma } = createService(draft('pmcm_draft', 'Ana Reyes', 'owner@example.test', 'blank', { privacy: 'public' }));
-    const addSeat = [editorTable({ assignedGuestIds: ['g-ana'] })];
 
     await expect(
-      service.updatePlan('plan_event_1', changes({ objects: addSeat, guests: eventGuestRoster, pax: 120 }), pmcmActor()),
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }]), { pax: 120 }), pmcmActor()),
     ).rejects.toThrow('Table assignment is only available for private events.');
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 
-  it('keeps saving plans that carry no seat assignment fields', async () => {
+  it('keeps saving a scene that seats nobody', async () => {
     const { service, prisma } = createService(draft('pmcm_draft'));
-    const stage = editorTable({ id: 'stage-1', name: 'Stage', kind: 'rect', category: 'stage', w: 4, h: 2 });
 
     await expect(
-      service.updatePlan(
-        'plan_event_1',
-        changes({ objects: [editorTable(), stage], guests: eventGuestRoster }),
-        pmcmActor(),
-      ),
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a' }])), pmcmActor()),
     ).resolves.toMatchObject({ id: 'plan_event_1' });
     expect(prisma.floorPlan.update).toHaveBeenCalled();
   });
+});
 
-  it('checks stored seat assignments when a guest roster save would strand a seated guest', async () => {
-    const seated = editorTable({ assignedGuestIds: ['g-ana'] });
-    const { service, prisma } = createService(draft('pmcm_draft'), {
-      objectRows: [{ objectId: 't1', objectData: seated, zIndex: 0 }],
-    });
+type SceneTable = { id: string; seats?: number; guestIds?: string[]; legacyId?: string; hidden?: boolean };
+
+/** A site, building and level holding the given round tables, as the Pascal editor saves it. */
+function sceneWithTables(tables: SceneTable[], extraLevelChildren: Record<string, unknown>[] = []): FloorplanSceneDocument {
+  const children = [...tables.map((table) => table.id), ...extraLevelChildren.map((node) => String(node.id))];
+  const nodes: FloorplanSceneDocument['nodes'] = {
+    site_1: { id: 'site_1', type: 'site', parentId: null, visible: true, children: ['building_1'] },
+    building_1: { id: 'building_1', type: 'building', parentId: 'site_1', visible: true, children: ['level_1'] },
+    level_1: { id: 'level_1', type: 'level', parentId: 'building_1', visible: true, children },
+  };
+  for (const table of tables) {
+    nodes[table.id] = {
+      id: table.id,
+      type: 'prism-table',
+      parentId: 'level_1',
+      visible: !table.hidden,
+      shape: 'round',
+      position: [2, 0, 3],
+      rotation: 0,
+      width: 1.8,
+      depth: 1.8,
+      seats: table.seats ?? 2,
+      guestIds: table.guestIds ?? [],
+      ...(table.legacyId ? { metadata: { legacyId: table.legacyId } } : {}),
+    };
+  }
+  for (const node of extraLevelChildren) nodes[String(node.id)] = node as FloorplanSceneDocument['nodes'][string];
+  return { format: 'pascal-v1', pascalVersion: '1.1.6', nodes, rootNodeIds: ['site_1'] };
+}
+
+function sceneSave(scene: FloorplanSceneDocument, overrides: Partial<UpdatePlanInput> = {}): UpdatePlanInput {
+  return { expectedUpdatedAt: planUpdatedAt, scene, ...overrides };
+}
+
+async function badRequestIssues(attempt: Promise<unknown>): Promise<string[]> {
+  const error = await attempt.then(() => null, (caught: unknown) => caught);
+  expect(error).toBeInstanceOf(BadRequestException);
+  const response = (error as BadRequestException).getResponse() as { issues?: string[] };
+  return response.issues ?? [];
+}
+
+describe('PlansService Pascal scene saves', () => {
+  it('stores a valid scene with its format and returns it', async () => {
+    const scene = sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }]);
+    const { service, prisma } = createService(draft('pmcm_draft'));
+    prisma.floorPlan.update.mockResolvedValueOnce(floorPlanRow({ opsDraft: draft('pmcm_draft'), scene, sceneFormat: 'pascal-v1' }));
+
+    const saved = await service.updatePlan('plan_event_1', sceneSave(scene), pmcmActor());
+
+    const { data } = prisma.floorPlan.update.mock.calls[0][0];
+    expect(data).toMatchObject({ sceneFormat: 'pascal-v1', scene: { format: 'pascal-v1', rootNodeIds: ['site_1'] } });
+    expect(data).not.toHaveProperty('objects');
+    expect(saved).toMatchObject({ sceneFormat: 'pascal-v1', scene: { rootNodeIds: ['site_1'] } });
+  });
+
+  it('rejects an invalid scene with the issues and writes nothing', async () => {
+    const orphan = { id: 'prism-table_orphan', type: 'prism-table', parentId: 'level_missing', visible: true };
+    const { service, prisma, audit } = createService(draft('pmcm_draft'));
+
+    const issues = await badRequestIssues(service.updatePlan('plan_event_1', sceneSave(sceneWithTables([], [orphan])), pmcmActor()));
+
+    expect(issues.join(' ')).toContain('prism-table_orphan');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+    expect(audit.write).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 for a scene save made against a stale version', async () => {
+    const { service, prisma } = createService(draft('pmcm_draft'));
 
     await expect(
-      service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, guests: [] }, pmcmActor()),
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([]), { expectedUpdatedAt: '2026-05-06T00:00:00.000Z' }), pmcmActor()),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { case: 'declined guest', tables: [{ id: 'prism-table_a', guestIds: ['g-dee'] }], message: 'Guests who declined cannot be seated.' },
+    { case: 'full table', tables: [{ id: 'prism-table_a', seats: 1, guestIds: ['g-ana', 'g-ben'] }], message: 'This table has no free seats.' },
+    {
+      case: 'guest seated twice',
+      tables: [{ id: 'prism-table_a', guestIds: ['g-ana'] }, { id: 'prism-table_b', guestIds: ['g-ana'] }],
+      message: 'A guest can only be seated at one table.',
+    },
+  ])('refuses scene seating with a $case and writes nothing', async ({ tables, message }) => {
+    const { service, prisma } = createService(draft('pmcm_draft'));
+
+    await expect(service.updatePlan('plan_event_1', sceneSave(sceneWithTables(tables)), pmcmActor())).rejects.toThrow(message);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses new scene seats on a public event but keeps seats already in the stored scene', async () => {
+    const publicDraft = draft('pmcm_draft', 'Ana Reyes', 'owner@example.test', 'blank', { privacy: 'public' });
+    const { service, prisma } = createService(publicDraft, { scene: sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }]), sceneFormat: 'pascal-v1' });
+
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }])), pmcmActor()),
+    ).resolves.toMatchObject({ id: 'plan_event_1' });
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana', 'g-ben'] }])), pmcmActor()),
+    ).rejects.toThrow('Table assignment is only available for private events.');
+    expect(prisma.floorPlan.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks scene seating against the event roster, not the guest list sent with the save', async () => {
+    const { service, prisma, seatingFacts } = createService(draft('pmcm_draft'), {}, { roster: [{ id: 'g-ana', rsvp: 'declined', name: 'Ana Reyes' }] });
+
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }])), pmcmActor()),
+    ).rejects.toThrow('Guests who declined cannot be seated.');
+    expect(seatingFacts.listSeatingGuests).toHaveBeenCalledWith('evt_1', expect.anything());
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('seats nobody who is no longer on the roster', async () => {
+    const { service } = createService(draft('pmcm_draft'), {}, { roster: [] });
+
+    await expect(
+      service.updatePlan('plan_event_1', sceneSave(sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }])), pmcmActor()),
     ).rejects.toThrow('Only guests on this event guest list can be seated.');
+  });
+
+  it('gives a zone only to suppliers booked on the event', async () => {
+    const zone = { id: 'prism-zone_a', type: 'prism-zone', parentId: 'level_1', visible: true, label: 'Catering BOH', position: [1, 0, 1], rotation: 0, width: 4, depth: 3, supplierIds: ['sup_booked'] };
+    const unbooked = { ...zone, supplierIds: ['sup_other'] };
+    const { service, prisma } = createService(draft('pmcm_draft'), {}, { booked: ['sup_booked'] });
+
+    await expect(service.updatePlan('plan_event_1', sceneSave(sceneWithTables([], [unbooked])), pmcmActor())).rejects.toThrow('Zones can only name suppliers booked on this event.');
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+    await expect(service.updatePlan('plan_event_1', sceneSave(sceneWithTables([], [zone])), pmcmActor())).resolves.toMatchObject({ id: 'plan_event_1' });
+  });
+
+  it.each([
+    ['the official PMCM draft', draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'blank'), {}],
+    ['a preference PMCM has not reopened', draft('client_submitted', 'Ana Reyes', 'owner@example.test', 'client_preference'), {}],
+    ['a preference another client submitted', draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'), { ownerId: 'user_different@example.test' }],
+  ])('refuses a client scene save on %s', async (_label, opsDraft, overrides) => {
+    const owner = clientActor('owner@example.test');
+    const { service, prisma } = createService(opsDraft, { ownerId: owner.id, ...overrides });
+
+    await expect(
+      service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, scene: sceneWithTables([]) }, owner),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.floorPlan.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['a guest seated at a table', sceneWithTables([{ id: 'prism-table_a', guestIds: ['g-ana'] }]), 'Your event team seats guests on the official layout.'],
+    [
+      'a supplier on a zone',
+      sceneWithTables([], [{ id: 'prism-zone_a', type: 'prism-zone', parentId: 'level_1', visible: true, label: 'Catering BOH', position: [1, 0, 1], rotation: 0, width: 4, depth: 3, supplierIds: ['sup_booked'] }]),
+      'Only your event team can assign suppliers to zones.',
+    ],
+  ])('refuses a client scene with %s', async (_label, scene, message) => {
+    const owner = clientActor('owner@example.test');
+    const { service, prisma } = createService(draft('revision_requested', 'Ana Reyes', 'owner@example.test', 'client_preference'), { ownerId: owner.id });
+
+    await expect(service.updatePlan('plan_event_1', { expectedUpdatedAt: planUpdatedAt, scene }, owner)).rejects.toThrow(message);
     expect(prisma.floorPlan.update).not.toHaveBeenCalled();
   });
 });

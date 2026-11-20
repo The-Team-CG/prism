@@ -67,12 +67,21 @@ describe("client file library", () => {
 
   it("lists a PMCM record once when its file is also stored, keeps newest first, and searches by name or requirement", () => {
     const files = buildClientFileLibrary(
-      [object("obj_conforme", { originalFileName: "Signed-Conforme.pdf", usage: "signed_conforme", storedAt: "2026-10-01T00:00:00Z" })],
-      [doc("doc_conforme", "signed_conforme", "signed-conforme.pdf"), doc("doc_statement", "billing_statement", "statement.pdf", "2026-11-05T00:00:00Z")],
+      [
+        object("obj_conforme", { originalFileName: "Signed-Conforme.pdf", usage: "signed_conforme", storedAt: "2026-10-01T00:00:00Z" }),
+        object("obj_proposal", { originalFileName: "proposal-v3.pdf", usage: "event_deliverable", uploaderActorRole: "pmcm-admin", storedAt: "2026-09-01T00:00:00Z" }),
+      ],
+      [
+        doc("doc_conforme", "signed_conforme", "signed-conforme.pdf"),
+        doc("doc_statement", "billing_statement", "statement.pdf", "2026-11-05T00:00:00Z"),
+        // An issued proposal names its record after the package and its PDF after the version.
+        { ...doc("doc_proposal", "proposal", "Proposal v3 - Garden package.pdf"), generatedFileName: "proposal-v3.pdf" },
+      ],
       [requirement("Guest list", { uploadedObjectId: "obj_conforme" })],
     );
 
-    expect(files.map((file) => file.id)).toEqual(["doc_statement", "obj_conforme"]);
+    expect(files.map((file) => file.id)).toEqual(["doc_statement", "obj_conforme", "obj_proposal"]);
+    expect(files[2].category).toBe("files-quotations");
     expect(files[1].category).toBe("files-contracts");
     expect(filterClientLibrary(files, "all", "guest").map((file) => file.id)).toEqual(["obj_conforme"]);
   });

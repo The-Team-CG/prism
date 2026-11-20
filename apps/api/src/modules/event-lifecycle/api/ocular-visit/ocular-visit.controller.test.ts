@@ -17,7 +17,7 @@ const clientActor = {
   explicit: true,
   verified: true,
 };
-const clientVerifiedActor = {
+const clientVerifiedActor = { sessionId: 'session_test',
   id: clientActor.id,
   actorId: clientActor.id,
   role: OpsUserRole.Client,

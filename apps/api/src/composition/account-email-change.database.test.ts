@@ -43,7 +43,7 @@ describe.skipIf(!enabled)('account email change across contexts (PostgreSQL)', (
       return new Date();
     },
   };
-  const actorFor = (user: { id: string; email: string }, role: 'client' | 'supplier'): PrismVerifiedEventActor => ({
+  const actorFor = (user: { id: string; email: string }, role: 'client' | 'supplier'): PrismVerifiedEventActor => ({ sessionId: 'session_test',
     id: user.id, actorId: user.id, role, actorRole: role, email: user.email, actorEmail: user.email,
     name: 'P0 Email Fixture', actorName: 'P0 Email Fixture', sessionVersion: 0, expiresAt: '2099-01-01T00:00:00.000Z',
   });
@@ -105,7 +105,9 @@ describe.skipIf(!enabled)('account email change across contexts (PostgreSQL)', (
 
   it('moves a client to the new address with their events, notification inbox and settings and privacy requests, and ends their sessions', async () => {
     const newEmail = `${prefix}_ana.new@example.test`;
-    const oldSession = sessions.issueSession({ id: client.id, name: 'P0 Email Fixture', email: client.email, role: 'client', organization: prefix, approvalStatus: 'approved', sessionVersion: 0 });
+    const deviceId = `${prefix}_device`;
+    await prisma.opsUserSession.create({ data: { id: deviceId, userId: client.id, device: 'Test browser', sessionVersion: 0, expiresAt: new Date(Date.now() + 3_600_000) } });
+    const oldSession = sessions.issueSession({ id: client.id, name: 'P0 Email Fixture', email: client.email, role: 'client', organization: prefix, approvalStatus: 'approved', sessionVersion: 0 }, new Date(), deviceId);
     await expect(emailChange.request(actorFor(client, 'client'), { newEmail, password: 'wrong' })).rejects.toThrow(/not right/);
     await expect(emailChange.request(actorFor(client, 'client'), { newEmail: client.email, password: 'right-password' })).rejects.toThrow(/already your sign-in email/);
 

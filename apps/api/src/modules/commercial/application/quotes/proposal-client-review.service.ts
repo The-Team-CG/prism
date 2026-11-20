@@ -14,6 +14,11 @@ import {
   nextProposalClientReview,
 } from '../../domain/proposal-client-review.policy';
 
+/** The areas a revision request names, deduplicated and in a stable order; an approval names none. */
+function revisionAreas(input: ReviewEventProposalInput): string[] {
+  return input.action === 'request_revision' ? [...new Set(input.revisionAreas ?? [])].sort() : [];
+}
+
 // Floorplan owns drafts; the event only carries ids, so the drafts are read through Floorplan's reader.
 @Injectable()
 export class ProposalClientReviewService {
@@ -62,9 +67,10 @@ export class ProposalClientReviewService {
   ) {
     const prior = await this.commercialFacts.findProposalReviewAudit(eventId, reviewKey, tx);
     if (!prior) return null;
-    const metadata = prior.metadata as { action?: string; revisionNote?: string | null; actorEmail?: string | null; actorId?: string | null; proposalDocumentId?: string };
+    const metadata = prior.metadata as { action?: string; revisionNote?: string | null; revisionAreas?: string[]; actorEmail?: string | null; actorId?: string | null; proposalDocumentId?: string };
     const samePayload = metadata.action === input.action &&
       (metadata.revisionNote ?? null) === (input.revisionNote ?? null) &&
+      (metadata.revisionAreas ?? []).join(',') === revisionAreas(input).join(',') &&
       (metadata.actorEmail ?? null) === (actor.email ?? null) &&
       (metadata.actorId ?? null) === (actor.id ?? null) &&
       metadata.proposalDocumentId === proposalId;
@@ -124,6 +130,7 @@ export class ProposalClientReviewService {
           metadata: {
             action: input.action,
             revisionNote: input.revisionNote ?? null,
+            revisionAreas: revisionAreas(input),
             actorEmail: actor.email ?? null,
             actorId: actor.id ?? null,
             revisionCount: next.revisionCount,

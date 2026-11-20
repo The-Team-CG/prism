@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismClientEventTimeline, PrismClientWorkspace, PrismEvent } from "@prism/types";
-import { computeEventProgress, deriveCheckpoints, deriveLifecycleIndex, deriveTimeline } from "./event-progress-rules";
+import { computeEventProgress, deriveLifecycleIndex, deriveMilestones } from "./event-progress-rules";
 
 const event: PrismEvent = {
   id: "evt_1",
@@ -40,107 +40,50 @@ describe("event-progress-rules", () => {
     expect(deriveLifecycleIndex({ ...event, clientPortalStatus: "locked" })).toBe(1);
   });
 
-  it("keeps documents detail independent of completion", () => {
-    const incomplete = deriveCheckpoints(
-      event,
-      workspace({
-        documents: [
-          { id: "d1", eventId: "evt_1", status: "pending_review" },
-          { id: "d2", eventId: "evt_1", status: "approved" },
-        ],
-      } as Partial<PrismClientWorkspace>),
-    ).find((item) => item.id === "documents");
-
-    expect(incomplete).toMatchObject({
-      done: false,
-      detail: "2 files uploaded",
-      status: "attention",
-    });
-
-    const empty = deriveCheckpoints(event, workspace()).find((item) => item.id === "documents");
-    expect(empty).toMatchObject({
-      done: false,
-      detail: "No documents uploaded yet",
-    });
-  });
-
-  it("uses billing status copy when a statement exists but is unpaid", () => {
-    const billed = deriveCheckpoints(
-      event,
-      workspace({
-        billingStatements: [{ id: "b1", eventId: "evt_1", status: "issued" }],
-      } as Partial<PrismClientWorkspace>),
-    ).find((item) => item.id === "billing");
-
-    expect(billed).toMatchObject({
-      done: false,
-      detail: "Status: issued",
-    });
-
-    const unpaidMilestone = deriveCheckpoints(
-      event,
-      workspace({
-        billingStatements: [{ id: "b1", eventId: "evt_1", status: "awaiting_payment" }],
-        paymentMilestones: [{ id: "p1", eventId: "evt_1", status: "pending" }],
-      } as Partial<PrismClientWorkspace>),
-    ).find((item) => item.id === "billing");
-
-    expect(unpaidMilestone).toMatchObject({
-      done: false,
-      detail: "Status: awaiting payment",
-    });
-  });
-
-  it("uses only the selected event's five persisted milestones", () => {
-    const selectedTimeline: PrismClientEventTimeline = {
+  it("lists every milestone once, in order, with the first unfinished one next and a passed due date late", () => {
+    const timeline: PrismClientEventTimeline = {
       eventId: "evt_1",
       milestones: [
         { key: "conforme_signed", date: "2026-06-01", status: "completed" },
-        { key: "proposal_accepted", date: "2026-06-05", status: "completed" },
-        { key: "floor_plan_approved", date: null, status: "current" },
-        { key: "balance_payment_due", date: "2026-08-15", status: "pending" },
-        { key: "event_date", date: "2026-10-01", status: "pending" },
+        { key: "proposal_accepted", date: null, status: "current" },
+        { key: "floor_plan_approved", date: null, status: "pending" },
+        { key: "balance_payment_due", date: "2026-07-15", status: "pending" },
+        { key: "event_date", date: "2026-08-01", status: "pending" },
       ],
     };
-    const otherTimeline: PrismClientEventTimeline = {
-      ...selectedTimeline,
-      eventId: "evt_other",
-      milestones: [
-        { key: "conforme_signed", date: "1999-01-01", status: "pending" },
-        selectedTimeline.milestones[1],
-        selectedTimeline.milestones[2],
-        selectedTimeline.milestones[3],
-        selectedTimeline.milestones[4],
-      ],
-    };
+    const other: PrismClientEventTimeline = { ...timeline, eventId: "evt_other", milestones: timeline.milestones.map((m) => ({ ...m, status: "completed" })) as PrismClientEventTimeline["milestones"] };
+    const milestones = deriveMilestones(event, workspace({
+      clientEventTimelines: [other, timeline],
+      briefings: [{ eventId: "evt_1", submittedAt: "2026-06-03T07:40:45.687Z" }],
+    } as Partial<PrismClientWorkspace>), "2026-07-20");
 
-    const steps = deriveTimeline(
-      event,
-      workspace({ clientEventTimelines: [otherTimeline, selectedTimeline] }),
-    );
-
-    expect(steps).toHaveLength(5);
-    expect(steps.map((step) => [step.id, step.title, step.status, step.meta])).toEqual([
-      ["conforme_signed", "Conforme signed", "completed", "Jun 1, 2026"],
-      ["proposal_accepted", "Proposal accepted", "completed", "Jun 5, 2026"],
-      ["floor_plan_approved", "Floor plan approved", "current", "Date pending"],
-      ["balance_payment_due", "Balance payment due", "pending", "Aug 15, 2026"],
-      ["event_date", "Event date", "pending", "Oct 1, 2026"],
+    expect(milestones.map((m) => [m.kind, m.state, m.date])).toEqual([
+      ["conforme", "done", "2026-06-01"],
+      ["briefing", "done", "2026-06-03T07:40:45.687Z"],
+      ["proposal", "next", null],
+      ["floorplan", "upcoming", null],
+      ["suppliers", "upcoming", null],
+      ["payment", "late", "2026-07-15"],
+      ["event", "upcoming", "2026-08-01"],
     ]);
+    expect(milestones.find((m) => m.kind === "suppliers")?.detail).toBe("PMCM books them during planning");
   });
 
   it("gates the generic live status on the selected event's saved flag and event-day state", () => {
     const enabledDuringEvent = computeEventProgress(
       { ...event, status: "event_day", clientEventDayViewEnabled: true },
       workspace(),
+      "2026-07-01",
     );
     const disabledDuringEvent = computeEventProgress(
       { ...event, status: "event_day", clientEventDayViewEnabled: false },
       workspace(),
+      "2026-07-01",
     );
     const enabledBeforeEvent = computeEventProgress(
       { ...event, status: "planning", clientEventDayViewEnabled: true },
       workspace(),
+      "2026-07-01",
     );
 
     expect(enabledDuringEvent.clientEventDayStatus).toBe("Event day is in progress.");

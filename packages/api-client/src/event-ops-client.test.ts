@@ -1184,7 +1184,6 @@ describe("prismRequest", () => {
     vi.stubGlobal("window", {});
     vi.stubEnv("PRISM_API_URL", "https://internal.example.test");
     vi.stubEnv("NEXT_PUBLIC_API_URL", "");
-    vi.stubEnv("NEXT_PUBLIC_PRISM_API_BASE_URL", "/api");
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [] })));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1195,18 +1194,18 @@ describe("prismRequest", () => {
     });
   });
 
-  it("keeps an explicit API target and local development defaults", async () => {
+  it("fails fast when NEXT_PUBLIC_API_URL is unset and keeps an explicit API target", async () => {
     vi.stubGlobal("window", undefined);
     vi.stubEnv("PRISM_API_URL", undefined);
     vi.stubEnv("NEXT_PUBLIC_API_URL", undefined);
-    vi.stubEnv("NEXT_PUBLIC_PRISM_API_BASE_URL", undefined);
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ data: [] })));
     vi.stubGlobal("fetch", fetchMock);
-    await prismRequest("/events");
-    vi.stubEnv("PRISM_API_URL", "https://internal.example.test");
+    await expect(prismRequest("/events")).rejects.toThrow(
+      "NEXT_PUBLIC_API_URL is not set: set it to the API origin, or to an empty string for same-origin.",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
     await prismRequest("/events", { baseUrl: "https://explicit.example.test/api" });
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "http://localhost:4000/api/events", expect.any(Object));
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "https://explicit.example.test/api/events", expect.any(Object));
+    expect(fetchMock).toHaveBeenCalledWith("https://explicit.example.test/api/events", expect.any(Object));
   });
 
   it("builds JSON requests from a base URL and path", async () => {

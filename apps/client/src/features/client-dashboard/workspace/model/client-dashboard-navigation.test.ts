@@ -24,9 +24,7 @@ describe("client-dashboard navigation", () => {
     expect(dashboardHref("billing")).toBe("/dashboard/billing");
     expect(dashboardHref("floorplan", "evt_1")).toBe("/dashboard/events/evt_1/floor-plan");
     expect(dashboardHref("overview", "evt_1")).toBe("/dashboard/events/evt_1/overview");
-    expect(dashboardHref("home", undefined, "dashboard-pending-approvals")).toBe(
-      "/dashboard/approvals/pending",
-    );
+    expect(dashboardHref("proposal", "evt_1")).toBe("/dashboard/events/evt_1/proposal");
   });
 
   it("resolves active nav ids for portal and event scopes", () => {
@@ -35,7 +33,7 @@ describe("client-dashboard navigation", () => {
     expect(activeNavItemId("shared-floorplans", false)).toBe("my-events");
     expect(activeNavItemId("floorplan", true)).toBe("event-floorplan");
     expect(sidebarActiveItemId("floorplan", true)).toBe("my-events");
-    expect(sidebarActiveItemId("approvals", false, "approvals-pending")).toBe("approvals-pending");
+    expect(activeNavItemId("proposal", true)).toBe("event-proposal");
   });
 
   it("keeps event-owned sections inside the event when the client has one event", () => {

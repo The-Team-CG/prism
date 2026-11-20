@@ -67,7 +67,7 @@ inquiry → conforme → briefing/proposal → planning → event day → closur
 
 ```text
 apps/api/          Nest modular monolith + Prisma (port 4000)
-  apps/api/src/    bootstrap (prefix `api`, ValidationPipe legacy, Prisma filter in `common/`)
+  apps/api/src/    bootstrap (prefix `api`, Prisma filter in `common/`; request bodies and queries validate with Zod pipes)
     modules/       bounded contexts (api, application, contracts, domain, infrastructure as needed)
     kernel/        database, shared helpers, session/auth primitives, access control, mail, health
     composition/   cross-context composition roots (e.g. event insight generation)
@@ -76,9 +76,10 @@ apps/api/          Nest modular monolith + Prisma (port 4000)
 apps/{client,supplier,guest,event}/   Next portals 3001–3004
 packages/types       @prism/types     Zod write schemas + domain types + session keys
 packages/api-client  @prism/api-client  prismRequest/prismJson, createEventOpsClient, PrismApiError
-packages/floorplan-canvas  @prism/floorplan-canvas  shared role-neutral floorplan editor mechanics
+packages/floorplan-canvas  @prism/floorplan-canvas  Pascal editor host (/editor + /plugin), seating list, template store adapter
+packages/floorplan-scene  @prism/floorplan-scene  pure scene validation, seating, client plan drawings, scene builders (no UI)
 packages/portal-query  @prism/portal-query  one data cache per portal (resources, prefetch, invalidation)
-packages/ui          shells/brand/public blocks only — no workflows / role data rules
+packages/ui          shells/brand/public blocks and presentational shared screens — no workflows, HTTP or role data rules
 packages/tokens      theme + typography CSS (+ token object)
 docs/                OKF product, architecture, runbook, and reference bundle (see docs/index.md)
 ```
@@ -96,9 +97,10 @@ docs/                OKF product, architecture, runbook, and reference bundle (s
 | --- | --- | --- | --- |
 | **`@prism/types`** | Zod **write** schemas + `z.infer` types; domain **read** interfaces; session/storage keys; `parseContract` | Any shared contract, FE model, API body, repository typing | App-local copy of the same shape |
 | **`@prism/api-client`** | HTTP transport + `createEventOpsClient` | **`features/**/data/*` only** (and thin `lib/prism-api` adapters) | Views, pages, view-models calling HTTP |
-| **`@prism/floorplan-canvas`** | Shared canvas editor mechanics, panels, and editor-only types | Floorplan editor role wrappers | Portal APIs, session/auth, workflow ownership, persistence, role decisions |
+| **`@prism/floorplan-canvas`** | The pinned Pascal editor host: `/editor` (`PrismFloorplanEditor`) and `/plugin` (ADR-0010), the seating list, and the template store adapter | Floorplan editor role wrappers; `/editor` only through a client-only dynamic import | Portal APIs, session/auth, workflow ownership, persistence, role decisions |
+| **`@prism/floorplan-scene`** | Pure scene logic: validation, table seating, client plan drawings, scene builders; the legacy converter for the one-off conversion script | API scene saves; the Pascal editor host | UI, HTTP, browser state |
 | **`@prism/portal-query`** | Portal data cache: `defineResource`, `useResource`, `usePrefetch`, `useInvalidate`, `PortalQueryProvider` (dedupe, abort, per-actor cache) | Declaring a read in `features/**/data`; reading it in view-models | HTTP or role logic inside the package; new hand-written module caches |
-| **`@prism/ui`** | Shells, brand, public marketing blocks, shared empty/status chrome | Cross-portal chrome | Role workflows, business rules |
+| **`@prism/ui`** | Shells, brand, public marketing blocks, shared empty/status chrome, and screens every portal renders alike (account, calendar, notifications, file library, event cards); role apps inject data, actions and permissions as props | Cross-portal chrome and shared screens | HTTP, role workflows, business rules, role data decisions |
 | **`@prism/tokens`** | `theme.css`, `typography.css`, `prismTokens` | Portal global CSS / design tokens | Per-app one-off color systems for shared brand |
 
 **Default import map**
@@ -107,8 +109,9 @@ docs/                OKF product, architecture, runbook, and reference bundle (s
 Domain type / Zod schema / session key  →  @prism/types
 Parse untrusted form/API body           →  parseContract / schema.safeParse (@prism/types)
 HTTP                                    →  @prism/api-client in data/
-Shell / brand / public blocks           →  @prism/ui  (prefer subpaths: @prism/ui/auth-shell)
+Shell / brand / shared screens          →  @prism/ui  (prefer subpaths: @prism/ui/auth-shell)
 Floorplan editor mechanics              →  @prism/floorplan-canvas from role wrappers; role apps own storage and read-only policy
+Floor plan scene rules                  →  @prism/floorplan-scene (API and editor host)
 Global CSS                              →  @prism/tokens/typography.css (+ theme.css)
 Local development fixtures             →  `apps/api/src/fixtures`, invoked only by the guarded seed CLI; never runtime API or browser state
 ```
@@ -210,7 +213,7 @@ export type CreatePrismInquiryInput = z.infer<typeof createPrismInquirySchema>;
 | **Nest boundary** | `@Body(zodBody(schema))` from `@prism/kernel/shared` (`ZodValidationPipe`). Prefer over new `class-validator` DTOs. |
 | **Errors** | `safeParse` → 400 problem details / user-safe message; no raw `ZodError` to clients. |
 
-**Nest bodies/queries use Zod** (`zodBody` / `zodQuery`). **Only class-validator left:** `floorplan/api/live/floorplan.dto.ts` (snapshot query); migrate it when touched and add no new class-validator DTOs.
+**Nest bodies/queries use Zod** (`zodBody` / `zodQuery`). **No class-validator DTOs are left;** add none.
 
 **Do not** invent a second DTO type in the app or api-client. api-client may re-export inferred types for convenience; **schemas live only in `@prism/types`**.
 

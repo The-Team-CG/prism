@@ -17,6 +17,9 @@ import {
 
 const TOKEN_HEADER = { alg: 'HS256', typ: 'JWT' } as const;
 
+/** The answer for a token whose device session is missing or signed out; the portals send the person to sign in again. */
+export const DEVICE_SIGNED_OUT_MESSAGE = 'This device has been signed out';
+
 type SessionTokenPayload = {
   sub: string;
   name: string;
@@ -24,7 +27,7 @@ type SessionTokenPayload = {
   role: PrismEventOpsActorRole;
   organization: string;
   sessionVersion?: number;
-  /** The browser's session row, which can be signed out on its own. */
+  /** The browser's session row, which can be signed out on its own. Every token carries one. */
   sid?: string;
   iat: number;
   exp: number;
@@ -63,7 +66,7 @@ function isEventOpsActorRole(value: unknown): value is PrismEventOpsActorRole {
 export class AuthSessionService {
   constructor(private readonly configService: ConfigService) {}
 
-  issueSession(user: PrismUser, issuedAt = new Date(), sessionId?: string): PrismAuthenticatedSession {
+  issueSession(user: PrismUser, issuedAt: Date, sessionId: string): PrismAuthenticatedSession {
     const issuedAtSeconds = Math.floor(issuedAt.getTime() / 1000);
     const ttlSeconds = this.sessionTtlSeconds(user.role);
     const expiresAtSeconds = issuedAtSeconds + ttlSeconds;
@@ -78,7 +81,7 @@ export class AuthSessionService {
         role: user.role,
         organization: user.organization,
         sessionVersion: user.sessionVersion ?? 0,
-        ...(sessionId ? { sid: sessionId } : {}),
+        sid: sessionId,
         iat: issuedAtSeconds,
         exp: expiresAtSeconds,
       }),
@@ -90,6 +93,7 @@ export class AuthSessionService {
 
   verifyAccessToken(token: string): PrismVerifiedEventActor {
     const payload = this.verifyPayload(token);
+    if (typeof payload.sid !== 'string') throw new UnauthorizedException(DEVICE_SIGNED_OUT_MESSAGE);
     const expiresAt = new Date(payload.exp * 1000).toISOString();
 
     return {
@@ -103,7 +107,7 @@ export class AuthSessionService {
       name: payload.name,
       actorName: payload.name,
       expiresAt,
-      ...(typeof payload.sid === 'string' ? { sessionId: payload.sid } : {}),
+      sessionId: payload.sid,
     };
   }
 

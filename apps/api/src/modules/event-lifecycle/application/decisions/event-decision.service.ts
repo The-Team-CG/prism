@@ -97,7 +97,7 @@ export class EventDecisionService {
       return await this.prisma.$transaction(async (tx) => {
         if (input.idempotencyKey) {
           const replay = await tx.opsEventDecision.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
-          if (replay) return this.requireMatchingReplay(replay, eventId, input, tx);
+          if (replay) return this.requireMatchingReplay(replay, eventId, input);
         }
         const event = await this.requireEvent(eventId, tx);
         const decisionId = `decision_${randomUUID()}`;
@@ -137,58 +137,22 @@ export class EventDecisionService {
     }
   }
 
-  private async requireMatchingReplay(
-    replay: OpsEventDecision,
-    eventId: string,
-    input: EventDecisionInput,
-    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
-  ) {
+  private requireMatchingReplay(replay: OpsEventDecision, eventId: string, input: EventDecisionInput) {
     if (replay.eventId !== eventId) throw new BadRequestException('Decision idempotency key belongs to another event');
     const storedImpact = this.asJsonRecord(replay.financialImpact);
-    const hasStoredNewEventDate = Object.prototype.hasOwnProperty.call(storedImpact, 'newEventDate');
-    const targetDateMatches = hasStoredNewEventDate
-      ? (storedImpact.newEventDate ?? null) === (input.newEventDate ?? null)
-      : await this.legacyTargetDateMatches(replay, eventId, input, prisma);
     const samePayload = replay.decision === input.decision
       && replay.reason === input.reason
       && replay.supplierImpact === input.supplierImpact
       && storedImpact.cancellationFeeAmount === input.cancellationFeeAmount
       && storedImpact.depositTreatment === input.depositTreatment
       && (storedImpact.freezeExceptionId ?? null) === (input.freezeExceptionId ?? null)
-      && targetDateMatches;
+      && (storedImpact.newEventDate ?? null) === (input.newEventDate ?? null);
     if (!samePayload) throw new BadRequestException('Decision idempotency key was reused for different content');
     return replay;
   }
 
   private asJsonRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
-  }
-
-  private async legacyTargetDateMatches(
-    replay: OpsEventDecision,
-    eventId: string,
-    input: EventDecisionInput,
-    prisma: Prisma.TransactionClient | PrismaService,
-  ): Promise<boolean> {
-    const storedReschedule = this.asJsonRecord(this.asJsonRecord(replay.assignmentImpact).reschedule);
-    const storedTarget = storedReschedule.toDate;
-    if (typeof storedTarget === 'string') {
-      return Boolean(input.newEventDate && this.sameEventDate(input.newEventDate, storedTarget));
-    }
-    if (replay.decision === 'postponed' && input.newEventDate) {
-      // Legacy records did not persist the requested date in financialImpact.
-      // Use the persisted reschedule impact when present; otherwise current event
-      // state is the only available proof and may reject a replay after later changes.
-      const currentEvent = await prisma.opsEvent.findUnique({ where: { id: eventId }, select: { eventDate: true } });
-      return Boolean(currentEvent && this.sameEventDate(input.newEventDate, currentEvent.eventDate));
-    }
-    return !input.newEventDate;
-  }
-
-  private sameEventDate(requestedDate: string, storedDate: Date | string): boolean {
-    const requested = new Date(requestedDate);
-    const stored = storedDate instanceof Date ? storedDate : new Date(storedDate);
-    return !Number.isNaN(requested.getTime()) && !Number.isNaN(stored.getTime()) && requested.getTime() === stored.getTime();
   }
 
   private isIdempotencyRace(error: unknown): boolean {

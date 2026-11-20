@@ -1,5 +1,6 @@
 import type { PrismAccountInvitationOutcome, PrismProjectLike, PrismUserRole } from "./core.js";
 import type { PrismLifecycleStage } from "../lifecycle.js";
+import type { FloorplanSceneDocument } from "../schemas/floorplan-scene.js";
 
 /** A client portal invitation re-sent for an inquiry, with the inquiry as it now stands. */
 export interface PrismPortalInvitationResend {
@@ -109,6 +110,9 @@ export interface PrismFloorPlanSnapshot {
   suppliers?: PrismProjectLike["suppliers"];
   seats?: unknown[];
   seatCategories?: unknown[];
+  /** The Pascal scene; absent or null for a plan that has none yet. */
+  scene?: FloorplanSceneDocument | null;
+  sceneFormat?: string;
   updatedAt?: string;
 }
 
@@ -310,6 +314,8 @@ export interface PrismDocument {
   eventId: string;
   type: string;
   fileName: string;
+  /** The stored file's own name when the record has one (an issued proposal's PDF is "proposal-v3.pdf"). */
+  generatedFileName?: string | null;
   status: string;
   uploadedAt: string;
 }

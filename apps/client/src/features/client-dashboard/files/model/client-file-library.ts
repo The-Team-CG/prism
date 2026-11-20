@@ -10,7 +10,7 @@ export type ClientFileFilter = ClientFileCategory | "all";
 /** The fixed shelves of an event's library. Document types are free text from the API, so each shelf matches the words its records use. */
 export const CLIENT_FILE_CATEGORIES: ReadonlyArray<{ id: Exclude<ClientFileCategory, "other">; label: string; pattern: RegExp }> = [
   { id: "files-contracts", label: "Contracts", pattern: /contract|conforme|moa|nda|agreement/i },
-  { id: "files-quotations", label: "Quotes", pattern: /quot|proposal|estimate/i },
+  { id: "files-quotations", label: "Proposals & quotes", pattern: /quot|proposal|estimate/i },
   { id: "files-invoices-receipts", label: "Billing", pattern: /invoice|receipt|billing|statement|payment/i },
   { id: "files-event-layouts", label: "Layouts", pattern: /layout|floor/i },
 ];
@@ -136,7 +136,8 @@ export function buildClientFileLibrary(objects: PrismStoredObject[], documents: 
     });
   const storedNames = new Set(stored.map((file) => file.name.toLowerCase()));
   const records = documents
-    .filter((document) => !storedNames.has(document.fileName.toLowerCase()))
+    // An issued record whose PDF is already listed (by its own name or its stored file's) is that file, not a second one.
+    .filter((document) => !storedNames.has(document.fileName.toLowerCase()) && !storedNames.has((document.generatedFileName ?? "").toLowerCase()))
     .map((document): ClientLibraryFile => ({
       id: document.id,
       name: document.fileName,

@@ -20,7 +20,7 @@ function render(input: ClientStepperStep[]) {
 describe("client event stepper", () => {
   it("names the current stage and gives every stage the one colour for its state", () => {
     const doc = render(steps);
-    const items = [...doc.querySelectorAll("ol[aria-label='Event lifecycle'] > li")];
+    const items = [...doc.querySelectorAll("ol > li")];
 
     expect(items.map((item) => item.textContent?.trim())).toEqual([
       "Inquiry: done",
@@ -32,9 +32,7 @@ describe("client event stepper", () => {
     expect(items.find((item) => item.getAttribute("aria-current") === "step")?.textContent).toContain("Planning");
   });
 
-  it("tells the progress bar which stage is current", () => {
-    const doc = render(steps);
-    const bar = doc.querySelector("[role='progressbar']");
-    expect(bar?.getAttribute("aria-label")).toBe("Event lifecycle: stage 3 of 4");
+  it("says which stage is current out of how many", () => {
+    expect(render(steps).querySelector("ol")?.getAttribute("aria-label")).toBe("Event lifecycle: stage 3 of 4");
   });
 });

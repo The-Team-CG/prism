@@ -4,7 +4,7 @@ title: "Focused ports and composition-root adapters"
 description: "Invert real cross-context dependencies with focused ports while keeping the current modular monolith as one deployable system."
 tags: [architecture, decision, ddd, modular-monolith, ports, extraction]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-18"
 authority: normative
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/src/kernel and bounded-context composition seams"
@@ -60,7 +60,8 @@ or domain-safe inputs, and have a test replacement. The adapter may depend on
 the owning context's implementation. Nest module imports are allowed at module
 composition roots only.
 
-The current implementations are:
+Examples of this pattern (the complete, maintained inventory is the
+[context contracts seam inventory](../context-contracts.md#current-seam-inventory)):
 
 | Consumer need | Port/token | Adapter/composition |
 | --- | --- | --- |
@@ -70,8 +71,10 @@ The current implementations are:
 | Notification outbox writes | `platform-ops` `NOTIFICATION_OUTBOX_WRITER` | notification adapter binds the outbox implementation |
 | Cross-context dashboard reads | `SUPPLIER_WORKSPACE_READER`, `STAFFING_READER`, `FLOORPLAN_READER`, `GUEST_READER` | owning contexts bind readers; `read-models` maps and never writes |
 | Platform reference reads | `PLATFORM_REFERENCE_READ_MODEL` | `PlatformReferenceReadersModule` in `src/composition` binds the read-models implementation |
+| Conversation attachment access | `platform-ops` `COMMUNICATION_ATTACHMENT_GATE` | `CommunicationAttachmentGateModule` in `src/composition` binds Commercial's membership gate |
+| Account email change | shared-kernel `AccountEmailRelinker`, one `*_ACCOUNT_EMAIL_RELINKER` per owner | `src/composition/account-email-change` runs Identity's claim and every owner's relinker in one transaction |
 
-The table is an implementation inventory, not permission to add a new broad
+The table illustrates the pattern; it is not permission to add a new broad
 facade. New seams require an owner, a reason, a contract, and verification.
 
 ## Rejected alternatives

@@ -82,7 +82,7 @@ describe.skipIf(!databaseUrl)('privacy execution against PostgreSQL', () => {
       eventDate: new Date('2026-09-01T00:00:00Z'),
       inquiry: { create: {
         id: inquiryId, clientName: 'Identifiable client', email: email.toUpperCase(),
-        normalizedEmail, eventName: 'P0 privacy fixture', clientType: 'Private',
+        normalizedEmail, eventName: 'P0 privacy fixture', clientType: 'Individual',
         eventDate: new Date('2026-09-01T00:00:00Z'),
       } },
     } });

@@ -220,37 +220,21 @@ describe('EventLiveOpsCommandService event scoping', () => {
     expect(liveOperationsService.createEventDayTask).toHaveBeenCalledTimes(1);
   });
 
-  it('allows an unmapped historical role only to create a canonical task in its own named queue', async () => {
+  it('refuses a role-less coordinator assignment from creating a task, even in its own General Coordinator queue', async () => {
     const { service, liveOperationsService, prisma } = createService(
-      coordinatorAssignmentRow({ role: 'Volunteer Lead' }),
+      coordinatorAssignmentRow({ role: '   ' }),
     );
     prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
-    liveOperationsService.createEventDayTask.mockResolvedValue({
-      id: 'task_legacy_role',
-      eventId: 'evt_sample_ayala',
-      title: 'Check arrival desk',
-      assignedRole: 'General Coordinator',
-      ownerName: 'Marco Santos',
-      priority: 'normal',
-      status: 'open',
-      notes: '',
-      dueAt: null,
-      slaDueAt: null,
-      createdAt: new Date('2026-09-02T00:00:00.000Z'),
-      updatedAt: new Date('2026-09-02T00:00:00.000Z'),
-    } as never);
 
-    await service.createEventDayTask(
-      'evt_sample_ayala',
-      { title: 'Check arrival desk', assignedRole: 'General Coordinator', ownerName: 'Marco Santos' },
-      coordinatorActor(),
-    );
+    await expect(
+      service.createEventDayTask(
+        'evt_sample_ayala',
+        { title: 'Check arrival desk', assignedRole: 'General Coordinator', ownerName: 'Marco Santos' },
+        coordinatorActor(),
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
 
-    expect(liveOperationsService.createEventDayTask).toHaveBeenCalledWith(
-      'evt_sample_ayala',
-      expect.objectContaining({ assignedRole: 'General Coordinator', ownerName: 'Marco Santos' }),
-      expect.objectContaining({ role: OpsUserRole.Coordinator }),
-    );
+    expect(liveOperationsService.createEventDayTask).not.toHaveBeenCalled();
   });
 
   it('does not let an unmapped historical role submit a task without its own queue name', async () => {
@@ -299,7 +283,7 @@ describe('EventLiveOpsCommandService event scoping', () => {
     );
   });
 
-  it('lets an unmapped-role coordinator update their own General Coordinator fallback task', async () => {
+  it('refuses a role-less coordinator assignment from updating a General Coordinator task in its queue', async () => {
     const { service, liveOperationsService, prisma } = createService(
       coordinatorAssignmentRow({ role: 'Volunteer Lead' }),
     );
@@ -312,19 +296,11 @@ describe('EventLiveOpsCommandService event scoping', () => {
       status: 'open',
     } as never);
 
-    await service.updateEventDayTask(
-      'evt_sample_ayala',
-      'task_legacy_role',
-      { status: 'in_progress' },
-      coordinatorActor(),
-    );
+    await expect(
+      service.updateEventDayTask('evt_sample_ayala', 'task_legacy_role', { status: 'in_progress' }, coordinatorActor()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
 
-    expect(liveOperationsService.updateEventDayTask).toHaveBeenCalledWith(
-      'evt_sample_ayala',
-      'task_legacy_role',
-      { status: 'in_progress' },
-      expect.objectContaining({ role: OpsUserRole.Coordinator }),
-    );
+    expect(liveOperationsService.updateEventDayTask).not.toHaveBeenCalled();
   });
 
   it('keeps another coordinator out of an unmapped-role fallback task queue', async () => {

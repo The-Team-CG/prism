@@ -50,7 +50,6 @@ const nextConfig: NextConfig = {
   basePath,
   ...(serviceMode ? { env: {
     NEXT_PUBLIC_API_URL: "",
-    NEXT_PUBLIC_PRISM_API_BASE_URL: "/api",
     NEXT_PUBLIC_PORTAL_BASE_PATH: basePath,
     NEXT_PUBLIC_CLIENT_PORTAL_URL: "/",
     NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "/supplier",
@@ -59,7 +58,7 @@ const nextConfig: NextConfig = {
   } } : {}),
   ...(process.env.PRISM_DOCKER_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   outputFileTracingRoot: path.join(__dirname, "../.."),
-  transpilePackages: ["@prism/ui", "@prism/tokens", "@prism/api-client", "@prism/types", "@prism/portal-query"],
+  transpilePackages: ["@prism/ui", "@prism/tokens", "@prism/api-client", "@prism/types", "@prism/portal-query", "three", "@pascal-app/core", "@pascal-app/viewer", "@pascal-app/editor", "@pascal-app/nodes"],
   async redirects() {
     return [
       ...DEAD_VIEW_REDIRECTS.map((rule) => ({ ...rule, permanent: true })),

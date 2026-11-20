@@ -8,10 +8,10 @@ const nextConfig: NextConfig = {
   ...(process.env.PRISM_PUBLIC_HOST ? { allowedDevOrigins: [process.env.PRISM_PUBLIC_HOST] } : {}),
   ...(process.env.PRISM_NEXT_DIST_DIR ? { distDir: process.env.PRISM_NEXT_DIST_DIR } : {}),
   basePath,
-  ...(serviceMode ? { env: { NEXT_PUBLIC_API_URL: "", NEXT_PUBLIC_PRISM_API_BASE_URL: "/api", NEXT_PUBLIC_PORTAL_BASE_PATH: basePath, NEXT_PUBLIC_CLIENT_PORTAL_URL: "/", NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "/supplier", NEXT_PUBLIC_GUEST_PORTAL_URL: "/guest", NEXT_PUBLIC_EVENT_PORTAL_URL: "/event" } } : {}),
+  ...(serviceMode ? { env: { NEXT_PUBLIC_API_URL: "", NEXT_PUBLIC_PORTAL_BASE_PATH: basePath, NEXT_PUBLIC_CLIENT_PORTAL_URL: "/", NEXT_PUBLIC_SUPPLIER_PORTAL_URL: "/supplier", NEXT_PUBLIC_GUEST_PORTAL_URL: "/guest", NEXT_PUBLIC_EVENT_PORTAL_URL: "/event" } } : {}),
   ...(process.env.PRISM_DOCKER_STANDALONE === "1" ? { output: "standalone" as const } : {}),
   outputFileTracingRoot: path.join(__dirname, "../.."),
-  transpilePackages: ["@prism/ui", "@prism/tokens", "@prism/api-client", "@prism/types", "@prism/portal-query"],
+  transpilePackages: ["@prism/ui", "@prism/tokens", "@prism/api-client", "@prism/types", "@prism/portal-query", "three", "@pascal-app/core", "@pascal-app/viewer", "@pascal-app/editor", "@pascal-app/nodes"],
   async redirects() {
     return [
       { source: "/dashboard/events/:eventId/preferences", destination: "/dashboard/events/:eventId/briefing", permanent: true },

@@ -1,6 +1,7 @@
 // Phase 5: floorplans, file requirements and uploads, compliance, change control, notifications.
 import { readFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
+import { convertLegacyPlan, PASCAL_VERSION } from "@prism/floorplan-scene";
 import { cfg, http, msg, step, startPhase, blocked, gap, expect, expectStatus, mailsTo, waitForMail } from "../lib.mjs";
 
 export const name = "Floorplans, files, compliance, change control";
@@ -8,7 +9,14 @@ export const name = "Floorplans, files, compliance, change control";
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const PDF = (tag) => Buffer.from(`%PDF-1.4\n% e2e ${tag} ${randomUUID()}\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n`);
-const table = (id = "t1") => ({ id, kind: "ellipse", name: "Table", category: "furniture", x: 100, y: 100, w: 80, h: 80, rotation: 0, fill: "#FFFFFF", stroke: "#000000", strokeWidth: 1, locked: false, hidden: false });
+// Layouts are Pascal scenes. Pieces are built from editor-shaped objects (metres) so each scene node keeps the
+// object's id as metadata.legacyId, which the steps below use to find a piece again.
+const table = (id = "t1", x = 4) => ({ id, kind: "ellipse", name: "Round Banquet (10pax)", category: "furniture", x, y: 4, w: 1.8, h: 1.8, rotation: 0, fill: "#FFF4EC", stroke: "#9060A0", strokeWidth: 0.04, seats: 10, locked: false, hidden: false });
+const regDesk = () => ({ ...table("reg-desk", 12), kind: "rect", name: "Registration desk", category: "registration", w: 2.4, h: 0.8, seats: undefined });
+const scene = (name, objects) => convertLegacyPlan({ name, widthM: 30, heightM: 20, objects }, PASCAL_VERSION);
+const pieces = (doc) => Object.values(doc?.nodes ?? {}).filter((node) => node.metadata?.legacyId);
+const nodeIdOf = (doc, legacyId) => pieces(doc).find((node) => node.metadata.legacyId === legacyId)?.id;
+const hasPiece = (doc, legacyId) => Boolean(nodeIdOf(doc, legacyId));
 const pdfType = "application/pdf";
 
 /** Posts raw bytes (the shared helper only sends JSON). Returns the HTTP status. */
@@ -55,7 +63,7 @@ export async function run(ctx) {
 
   // ---------------------------------------------------------------- floorplans: client preference
   await step("client submits a layout preference", async () => {
-    const r = await http("POST", `${base()}/floorplan-preferences`, { token: s.client, body: { name: "Client preference", seatingStyle: "Banquet", stagePreference: "North wall", flowNotes: "Entrance on the east", guestCount: 100, constraints: ["pillar near stage"], notes: "Prefer round tables", objects: [table("pref-t1")] } });
+    const r = await http("POST", `${base()}/floorplan-preferences`, { token: s.client, body: { name: "Client preference", seatingStyle: "Banquet", stagePreference: "North wall", flowNotes: "Entrance on the east", guestCount: 100, constraints: ["pillar near stage"], notes: "Prefer round tables", scene: scene("Client preference", [table("pref-t1")]) } });
     s.pref = expectStatus(r, 201);
     expect(s.pref.status === "client_submitted" && s.pref.sourceType === "client_preference", `unexpected draft ${s.pref.status}/${s.pref.sourceType}`);
     return s.pref.status;
@@ -83,7 +91,7 @@ export async function run(ctx) {
     const reopened = expectStatus(await http("POST", `${base()}/floorplans/${s.pref.id}/reopen-preference`, { token: s.admin }), 200);
     expect(reopened.status === "revision_requested", `status ${reopened.status}`);
     const plan = expectStatus(await http("GET", `/plans/${s.pref.floorPlanId}`, { token: s.client }), 200);
-    expectStatus(await http("PUT", `/plans/${s.pref.floorPlanId}`, { token: s.client, body: { expectedUpdatedAt: plan.updatedAt, pax: 110, objects: [table("pref-t1"), table("pref-t2")] } }), 200);
+    expectStatus(await http("PUT", `/plans/${s.pref.floorPlanId}`, { token: s.client, body: { expectedUpdatedAt: plan.updatedAt, scene: scene("Client preference", [table("pref-t1"), table("pref-t2", 8)]) } }), 200);
     const again = expectStatus(await http("POST", `${base()}/floorplan-preferences`, { token: s.client, body: { name: "Client preference v2", seatingStyle: "Cabaret", stagePreference: "East", flowNotes: "revised", guestCount: 110, constraints: ["pillar near stage"] } }), 201);
     expect(again.id === s.pref.id && again.status === "client_submitted", `resubmission produced ${again.id === s.pref.id ? "same" : "a different"} draft in ${again.status}`);
     return "reopen -> client edit -> resubmit on the same draft";
@@ -116,13 +124,13 @@ export async function run(ctx) {
 
   // ---------------------------------------------------------------- venue templates + official plan
   await step("venue template library is PMCM-only and validated", async () => {
-    const t = expectStatus(await http("POST", `/templates`, { token: s.admin, body: { name: `FFC Ballroom ${Date.now()}`, venue: "Grand Ballroom", width: 1200, height: 800, gridSize: 20, pax: 100, objects: [table("tpl-t1")] } }), 201);
+    const t = expectStatus(await http("POST", `/templates`, { token: s.admin, body: { name: `FFC Ballroom ${Date.now()}`, venue: "Grand Ballroom", pax: 100, scene: scene("FFC Ballroom", [table("tpl-t1")]) } }), 201);
     s.template = t;
     const list = expectStatus(await http("GET", `/templates`, { token: s.admin }), 200);
     expect(list.some((x) => x.id === t.id), "created template is not in the PMCM list");
     await refused([
       ["client lists templates", "GET", `/templates`, s.client],
-      ["coordinator creates a template", "POST", `/templates`, s.coord, { name: "Nope Nope" }],
+      ["coordinator creates a template", "POST", `/templates`, s.coord, { name: "Nope Nope", scene: scene("Nope Nope", []) }],
       ["anonymous lists templates", "GET", `/templates`, undefined, undefined, 401],
       ["invalid template name", "POST", `/templates`, s.admin, { name: "x" }, 400],
     ]);
@@ -135,9 +143,9 @@ export async function run(ctx) {
     expect(d.status === "pmcm_draft", `status ${d.status}`);
     s.d1 = d;
     const plan = expectStatus(await http("GET", `/plans/${d.floorPlanId}`, { token: s.admin }), 200);
-    expect(plan.objects?.some((o) => o.id === "tpl-t1"), "template objects were not copied into the official plan");
+    expect(hasPiece(plan.scene, "tpl-t1"), "the template's scene was not copied into the official plan");
     s.plan1 = plan;
-    return `${plan.objects.length} object(s) copied from the template`;
+    return `${pieces(plan.scene).length} piece(s) copied from the template`;
   });
   await step("an invalid official plan body is a 400", async () => {
     const r = await http("POST", `${base()}/floorplans`, { token: s.admin, body: { name: "x", sourceType: "nonsense" } });
@@ -167,8 +175,8 @@ export async function run(ctx) {
   });
   await step("PMCM edits the official plan with optimistic locking", async () => {
     if (!s.d1) blocked("no official draft");
-    const saved = expectStatus(await http("PUT", `/plans/${s.d1.floorPlanId}`, { token: s.admin, body: { expectedUpdatedAt: s.plan1.updatedAt, pax: 120, objects: [...s.plan1.objects, table("added-t2")] } }), 200);
-    expect(saved.pax === 120 && saved.objects.length === s.plan1.objects.length + 1, "edit was not persisted");
+    const saved = expectStatus(await http("PUT", `/plans/${s.d1.floorPlanId}`, { token: s.admin, body: { expectedUpdatedAt: s.plan1.updatedAt, pax: 120, scene: scene("Official layout v1", [table("tpl-t1"), table("added-t2", 8)]) } }), 200);
+    expect(saved.pax === 120 && pieces(saved.scene).length === pieces(s.plan1.scene).length + 1 && hasPiece(saved.scene, "added-t2"), "edit was not persisted");
     const stale = await http("PUT", `/plans/${s.d1.floorPlanId}`, { token: s.admin, body: { expectedUpdatedAt: s.plan1.updatedAt, pax: 130 } });
     expect(stale.status === 409, `stale save returned ${stale.status}: ${msg(stale)}`);
     const bad = await http("PUT", `/plans/${s.d1.floorPlanId}`, { token: s.admin, body: { pax: -3 } });
@@ -189,7 +197,8 @@ export async function run(ctx) {
   await step("client sees the submitted layout read-only, approved snapshot not yet available", async () => {
     if (!s.d1) blocked("no submitted layout");
     const sub = expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/snapshot?type=submitted`, { token: s.client }), 200);
-    expect(sub.objects?.length >= 2, "submitted snapshot is missing objects");
+    expect(pieces(sub.scene).length >= 2, "submitted snapshot is missing pieces");
+    s.tableNodeId = nodeIdOf(sub.scene, "tpl-t1");
     const appr = await http("GET", `${base()}/floorplans/${s.d1.id}/snapshot?type=approved`, { token: s.client });
     expect(appr.status === 404, `approved snapshot before approval returned ${appr.status}`);
     const bad = await http("GET", `${base()}/floorplans/${s.d1.id}/snapshot?type=bogus`, { token: s.client });
@@ -217,7 +226,7 @@ export async function run(ctx) {
     expect(stale.status === 400, `annotation on a wrong hash returned ${stale.status}`);
     const badTarget = await http("POST", `${base()}/floorplans/${s.d1.id}/client-annotations`, { token: s.client, body: { snapshotHash: s.hash1, objectId: "no-such-object", comment: "x" } });
     expect(badTarget.status === 400, `annotation on a missing object returned ${badTarget.status}`);
-    const ok = expectStatus(await http("POST", `${base()}/floorplans/${s.d1.id}/client-annotations`, { token: s.client, body: { snapshotHash: s.hash1, objectId: "tpl-t1", comment: "Move this table away from the entrance", anchorX: 0.2, anchorY: 0.3 } }), 200, 201);
+    const ok = expectStatus(await http("POST", `${base()}/floorplans/${s.d1.id}/client-annotations`, { token: s.client, body: { snapshotHash: s.hash1, objectId: s.tableNodeId, comment: "Move this table away from the entrance", anchorX: 0.2, anchorY: 0.3 } }), 200, 201);
     const lone = await http("POST", `${base()}/floorplans/${s.d1.id}/client-annotations`, { token: s.client, body: { snapshotHash: s.hash1, comment: "half anchor", anchorX: 0.5 } });
     expect(lone.status === 400, `one-sided anchor returned ${lone.status}`);
     return `annotation ${ok.id ?? "saved"}`;
@@ -247,7 +256,7 @@ export async function run(ctx) {
   await step("PMCM revises and resubmits; the old snapshot hash can no longer be approved", async () => {
     if (!s.d1) blocked("no revision request");
     const plan = expectStatus(await http("GET", `/plans/${s.d1.floorPlanId}`, { token: s.admin }), 200);
-    expectStatus(await http("PUT", `/plans/${s.d1.floorPlanId}`, { token: s.admin, body: { expectedUpdatedAt: plan.updatedAt, objects: [...plan.objects, { ...table("reg-desk"), kind: "rect", name: "Registration desk", category: "registration", x: 400, y: 50 }] } }), 200);
+    expectStatus(await http("PUT", `/plans/${s.d1.floorPlanId}`, { token: s.admin, body: { expectedUpdatedAt: plan.updatedAt, scene: scene("Official layout v1", [table("tpl-t1"), table("added-t2", 8), regDesk()]) } }), 200);
     expectStatus(await http("POST", `${base()}/floorplans/${s.d1.id}/submit`, { token: s.admin }), 200);
     const review = expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/client-review`, { token: s.client }), 200);
     expect(review.snapshotHash !== s.hash1, "resubmitted snapshot has the same hash as the first one");
@@ -282,7 +291,7 @@ export async function run(ctx) {
   await step("client reads the approved snapshot; coordinator may too; client still cannot edit it", async () => {
     if (!s.d1) blocked("no approved plan");
     const client = expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/snapshot?type=approved`, { token: s.client }), 200);
-    expect(client.objects.some((o) => o.id === "reg-desk"), "approved snapshot does not contain the revision");
+    expect(hasPiece(client.scene, "reg-desk"), "approved snapshot does not contain the revision");
     expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/snapshot?type=approved`, { token: s.coord }), 200, 403);
     const put = await http("PUT", `/plans/${s.d1.floorPlanId}`, { token: s.client, body: { expectedUpdatedAt: client.updatedAt, pax: 1 } });
     expect(put.status === 403, `client edit of the approved plan returned ${put.status}`);
@@ -312,16 +321,11 @@ export async function run(ctx) {
     ["client grants access", "POST", `${base()}/client-floorplan-access`, s.client, { userId: "someone" }],
     ["PMCM lists access", "GET", `${base()}/client-floorplan-access`, s.admin, undefined, 200],
   ]));
-  await step("layout publishing is PMCM-only", async () => refused([
-    ["client publishes", "POST", `/publish/events/${E()}`, s.client],
-    ["coordinator lists layout events", "GET", `/layout-events`, s.coord],
-    ["PMCM lists layout events", "GET", `/layout-events`, s.admin, undefined, 200],
-  ]));
   await step("floorplan history retains prior rounds and hides unapproved history from external roles", async () => {
     const history = expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/history`, { token: s.admin }), 200);
     const submitted = history.filter((item) => item.snapshotType === "submitted");
     expect(submitted.length >= 2 && new Set(submitted.map((item) => item.round)).size >= 2, "resubmission did not retain both historical rounds");
-    expect(submitted.some((item) => !item.snapshot.objects.some((object) => object.id === "reg-desk")) && submitted.some((item) => item.snapshot.objects.some((object) => object.id === "reg-desk")), "old and revised layout snapshots are not both retained");
+    expect(submitted.some((item) => !hasPiece(item.snapshot.scene, "reg-desk")) && submitted.some((item) => hasPiece(item.snapshot.scene, "reg-desk")), "old and revised layout snapshots are not both retained");
     const client = expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/history`, { token: s.client }), 200);
     expect(client.every((item) => item.snapshotType === "approved"), "client history exposes an unapproved historical version");
     expectStatus(await http("GET", `${base()}/floorplans/${s.d1.id}/history`, { token: s.otherClient }), 403);

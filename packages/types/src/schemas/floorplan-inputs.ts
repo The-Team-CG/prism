@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { floorplanSceneDocumentSchema } from "./floorplan-scene.js";
 import { optionalTrimmedStringSchema } from "./common.js";
 
 export const tableAssignmentIneligibleReasonSchema = z.enum([
@@ -17,16 +18,13 @@ export type TableAssignmentIneligibleReason = z.infer<typeof tableAssignmentInel
 export const createFloorPlanDraftSchema = z.object({
   name: z.string(),
   sourceType: z.enum(["blank", "template", "client_preference"]),
-  /** PMCM venue library preset to copy server-side; when set, client-sent layout objects are ignored. */
+  /** PMCM venue library preset to copy server-side; when set, the venue's scene is copied and no layout is sent. */
   venueTemplateId: optionalTrimmedStringSchema,
   venue: optionalTrimmedStringSchema,
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
   gridSize: z.number().int().positive().optional(),
   pax: z.number().int().nonnegative().optional(),
-  objects: z.array(z.unknown()).optional(),
-  guests: z.array(z.unknown()).optional(),
-  suppliers: z.array(z.unknown()).optional(),
 });
 export type CreateFloorPlanDraftInput = z.infer<typeof createFloorPlanDraftSchema>;
 
@@ -39,10 +37,8 @@ export const createFloorPlanPreferenceSchema = z.object({
   constraints: z.array(z.string()),
   notes: optionalTrimmedStringSchema,
   venue: optionalTrimmedStringSchema,
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-  gridSize: z.number().int().positive().optional(),
-  objects: z.array(z.unknown()).optional(),
+  /** The client's layout as a Pascal scene; omitted until the client has saved one. */
+  scene: floorplanSceneDocumentSchema.optional(),
 });
 export type CreateFloorPlanPreferenceInput = z.infer<typeof createFloorPlanPreferenceSchema>;
 
@@ -63,10 +59,23 @@ export const prismFloorPlanSnapshotSchema = z.object({
   height: z.number(),
   gridSize: z.number(),
   pax: z.number(),
-  objects: z.array(z.unknown()).optional(),
-  guests: z.array(z.unknown()).optional(),
-  suppliers: z.array(z.unknown()).optional(),
-  seats: z.array(z.unknown()).optional(),
-  seatCategories: z.array(z.unknown()).optional(),
   updatedAt: z.string().optional(),
+  scene: floorplanSceneDocumentSchema,
+  sceneFormat: z.string(),
 });
+
+/* ── Floorplan snapshot query (type plus optional actor hints; unknown keys are rejected) ── */
+
+export const floorPlanSnapshotQuerySchema = z.object({
+  type: z.enum(["submitted", "approved"]).optional(),
+  actorId: z.string().optional(),
+  actorRole: z.enum(["pmcm-admin", "client", "supplier", "coordinator", "guest", "system", "unknown"]).optional(),
+  actorEmail: z.string().email().optional(),
+  actorName: z.string().optional(),
+  clientName: z.string().optional(),
+  supplierId: z.string().optional(),
+  coordinatorId: z.string().optional(),
+  eventId: z.string().optional(),
+  accessCode: z.string().optional(),
+}).strict();
+export type FloorPlanSnapshotQuery = z.infer<typeof floorPlanSnapshotQuerySchema>;

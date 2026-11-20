@@ -31,34 +31,39 @@ describe("proposal-review-rules", () => {
   });
 
   it("blocks approve after the primary contact already approved", () => {
-    expect(canApproveProposal(event(), true)).toBe(true);
-    expect(canApproveProposal(event({ proposalClientStatus: "approved" }), true)).toBe(false);
+    expect(canApproveProposal(event(), true, true)).toBe(true);
+    expect(canApproveProposal(event({ proposalClientStatus: "approved" }), true, true)).toBe(false);
+  });
+
+  it("gives the decision only to the primary contact", () => {
+    expect(canApproveProposal(event(), true, false)).toBe(false);
+    expect(canRequestProposalRevision(event(), true, false)).toBe(false);
   });
 
   it("caps revisions at three", () => {
     expect(remainingProposalRevisions(event({ proposalRevisionCount: 2 }))).toBe(1);
-    expect(canRequestProposalRevision(event({ proposalRevisionCount: 3 }), true)).toBe(false);
+    expect(canRequestProposalRevision(event({ proposalRevisionCount: 3 }), true, true)).toBe(false);
   });
 
   it("keeps the same key after a lost response, including equivalent trimmed notes", () => {
-    const input = { eventId: 'event_1', documentId: 'proposal_v1', action: 'request_revision' as const, revisionNote: ' Adjust scope ' };
-    const pending = retainProposalDecisionKey(null, input, () => 'first-key');
-    const retry = retainProposalDecisionKey(pending, { ...input, revisionNote: 'Adjust scope' }, () => 'must-not-be-used');
+    const input = { eventId: 'event_1', documentId: 'proposal_v1', action: 'request_revision' as const, revisionNote: ' Adjust scope ', revisionAreas: ['venue', 'budget'] as const };
+    const pending = retainProposalDecisionKey(null, { ...input, revisionAreas: [...input.revisionAreas] }, () => 'first-key');
+    const retry = retainProposalDecisionKey(pending, { ...input, revisionNote: 'Adjust scope', revisionAreas: ['budget', 'venue'] }, () => 'must-not-be-used');
     expect(retry.key).toBe('first-key');
     expect(retry.revisionNote).toBe('Adjust scope');
   });
 
   it.each([
     { eventId: 'event_2' }, { documentId: 'proposal_v2' },
-    { action: 'approve' as const }, { revisionNote: 'Different decision' },
+    { action: 'approve' as const }, { revisionNote: 'Different decision' }, { revisionAreas: ['styling' as const] },
   ])("uses a new key for a different decision identity: %j", (change) => {
-    const input = { eventId: 'event_1', documentId: 'proposal_v1', action: 'request_revision' as const, revisionNote: 'Adjust scope' };
+    const input = { eventId: 'event_1', documentId: 'proposal_v1', action: 'request_revision' as const, revisionNote: 'Adjust scope', revisionAreas: ['venue' as const] };
     const pending = retainProposalDecisionKey(null, input, () => 'first-key');
     expect(retainProposalDecisionKey(pending, { ...input, ...change }, () => 'new-key').key).toBe('new-key');
   });
 
   it("denies client actions after locking or archive", () => {
-    expect(canApproveProposal(event({ archived: true }), true)).toBe(false);
-    expect(canRequestProposalRevision(event({ clientPortalStatus: 'locked' }), true)).toBe(false);
+    expect(canApproveProposal(event({ archived: true }), true, true)).toBe(false);
+    expect(canRequestProposalRevision(event({ clientPortalStatus: 'locked' }), true, true)).toBe(false);
   });
 });

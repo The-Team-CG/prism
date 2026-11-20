@@ -30,6 +30,9 @@ export function buildClientMessageDraftInput(facts: ClientMessageTriggerFacts, t
   if (trigger === 'proposal_unanswered' && facts.latestIssuedProposal) {
     return clientMessageDraftInputSchema.parse({ ...base, proposalVersion: facts.latestIssuedProposal.versionNumber, daysSinceProposalIssued: Math.floor((now.getTime() - facts.latestIssuedProposal.issuedAt.getTime()) / DAY_MS) });
   }
+  if (trigger === 'addendum_unsigned' && facts.oldestUnsignedAddendum) {
+    return clientMessageDraftInputSchema.parse({ ...base, addendumVersion: facts.oldestUnsignedAddendum.versionNumber, daysSinceAddendumSent: Math.floor((now.getTime() - facts.oldestUnsignedAddendum.sentAt.getTime()) / DAY_MS) });
+  }
   if (trigger === 'balance_due' && facts.nextUnpaidMilestone) {
     return clientMessageDraftInputSchema.parse({ ...base, milestoneLabel: facts.nextUnpaidMilestone.label, amountDue: facts.nextUnpaidMilestone.remainingBalance, dueDate: facts.nextUnpaidMilestone.dueDate.toISOString().slice(0, 10) });
   }

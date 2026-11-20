@@ -12,13 +12,13 @@ const render = (ui: ReactElement) => renderPlain(createElement(PortalQueryProvid
 afterEach(cleanup);
 
 const event = (id: string, eventDate: string, status = "planning") => ({ id, eventName: `Event ${id}`, eventDate, status, archived: false, venue: "" }) as PrismEvent;
-const action = (eventId: string, priority: PrismClientActionItem["priority"], label: string): PrismClientActionItem =>
-  ({ id: `${eventId}:${label}`, kind: "approval", priority, label, description: "", status: "open", eventId, eventName: "", href: `/dashboard/events/${eventId}/proposal` });
+const action = (eventId: string, priority: PrismClientActionItem["priority"], label: string, stage: PrismClientActionItem["stage"] = "needs_client"): PrismClientActionItem =>
+  ({ id: `${eventId}:${label}`, stage, kind: "approval", priority, label, description: "", status: "open", eventId, eventName: "", href: `/dashboard/events/${eventId}/proposal` });
 
 const events = [event("next", "2026-11-23"), event("later", "2026-12-12"), event("done", "2026-10-01", "completed")];
 const actions = [
   action("next", "warning", "Review and approve the proposal"),
-  action("later", "info", "Read the briefing notes"),
+  action("later", "info", "Read the briefing notes", "to_review"),
   { ...action("next", "attention", "Downpayment due"), dueAt: "2026-11-18T00:00:00.000Z" },
   { ...action("next", "info", "Confirm the walk-through"), dueAt: "2026-11-20T00:00:00.000Z" },
 ];
@@ -39,7 +39,7 @@ describe("client events as cards", () => {
     fireEvent.click(within(hero).getByRole("link", { name: "Event next" }));
     expect(onOpen).toHaveBeenCalledWith("next");
 
-    // An informational item is not a step for the client, so the later event says nothing waits on them.
+    // News to read is not a step for the client, so the later event says nothing waits on them.
     const later = screen.getByRole("link", { name: "Event later" }).closest("article") as HTMLElement;
     expect(within(later).getByText("in 26 days")).toBeTruthy();
     expect(within(later).getByText("Nothing waiting on you")).toBeTruthy();

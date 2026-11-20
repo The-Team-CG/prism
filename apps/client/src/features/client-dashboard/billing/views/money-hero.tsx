@@ -11,12 +11,12 @@ import { manilaDateKey } from "@prism/ui/format-date";
 import { amountToSend, type MoneyHeadline, type MoneyTone } from "../model/client-money-rules";
 import { HowToPay } from "./how-to-pay";
 
-const TONE: Record<MoneyTone, { icon: LucideIcon; text: string; chip: string }> = {
-  danger: { icon: AlertTriangle, text: "text-danger", chip: "bg-danger-soft text-danger" },
-  attention: { icon: CalendarClock, text: "text-attention", chip: "bg-attention-soft text-attention" },
-  info: { icon: Hourglass, text: "text-info", chip: "bg-info-soft text-info" },
-  success: { icon: CheckCircle2, text: "text-success", chip: "bg-success-soft text-success" },
-  neutral: { icon: Scale, text: "text-foreground", chip: "bg-muted text-muted-foreground" },
+const TONE: Record<MoneyTone, { icon: LucideIcon; text: string }> = {
+  danger: { icon: AlertTriangle, text: "text-danger" },
+  attention: { icon: CalendarClock, text: "text-attention" },
+  info: { icon: Hourglass, text: "text-info" },
+  success: { icon: CheckCircle2, text: "text-success" },
+  neutral: { icon: Scale, text: "text-foreground" },
 };
 
 function Figure({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
@@ -54,10 +54,8 @@ export function MoneyHero({
       <div className="flex flex-wrap items-center gap-4 sm:gap-6">
         <PaymentRing paid={paid} total={statement.billed} label={`${formatPeso(paid)} of ${formatPeso(statement.billed)} paid`} />
         <div className="min-w-0 flex-1 basis-64">
-          <span className={cn("inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium", look.chip)}>
-            <Icon className="size-3.5" aria-hidden /> {statement.statementNumber ? `Statement ${statement.statementNumber}` : "Billing"}
-          </span>
-          <h2 className={cn("mt-1.5 text-xl font-semibold tabular-nums sm:text-2xl", look.text)}>{headline.title}</h2>
+          {statement.statementNumber ? <p className="text-xs text-muted-foreground">Statement {statement.statementNumber}</p> : null}
+          <h2 className={cn("mt-0.5 flex items-center gap-2 text-xl font-semibold tabular-nums sm:text-2xl", look.text)}><Icon className="size-5 shrink-0" aria-hidden />{headline.title}</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">{headline.detail}</p>
         </div>
         <div className="grid grid-cols-3 gap-4 sm:gap-6">

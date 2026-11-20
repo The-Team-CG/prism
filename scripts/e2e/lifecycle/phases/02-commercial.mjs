@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { http, msg, step, startPhase, blocked, gap, review, expect, expectStatus } from "../lib.mjs";
+import { portalCallers } from "../portal-wiring.mjs";
 
 export const name = "Commercial";
 
@@ -18,7 +19,8 @@ function sourceFiles(dir, out = []) {
   return out;
 }
 const portalFiles = { event: sourceFiles(join(repoRoot, "apps", "event", "src")), client: sourceFiles(join(repoRoot, "apps", "client", "src")) };
-const callers = (app, pattern) => portalFiles[app].filter((file) => pattern.test(readFileSync(file, "utf8"))).map((file) => file.slice(repoRoot.length + 1).replace(/\\/g, "/"));
+// A portal reaches a route by spelling it or by calling the @prism/api-client method that wraps it.
+const callers = (app, pattern) => portalCallers(app, pattern);
 
 const asList = (body) => (Array.isArray(body) ? body : body?.items ?? []);
 const idem = (label) => `e2e-${label}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
@@ -594,7 +596,8 @@ export async function run(ctx) {
     const milestone = billing.paymentMilestones.find((m) => m.id === s.down.id);
     expect(milestone?.history?.length > 0, "client has no payment evidence for a receipt");
     const source = readFileSync(join(repoRoot, "apps/client/src/features/client-dashboard/billing/views/client-billing-tab.tsx"), "utf8");
-    expect(source.includes("createPaymentReceiptPdf") && source.includes("downloadReceipt(record, payment.label)"), "client receipt download is not wired to recorded payment history");
+    // Receipts are PDFs the API renders; the billing page downloads each recorded payment's receipt through the client library.
+    expect(source.includes("billingDocumentsRepository.paymentReceipt(eventId, record.id)"), "client receipt download is not wired to recorded payment history");
     return "Payment history exercised over HTTP; receipt PDF generation is covered by the client payment-receipt unit test; download wiring is a source check.";
   });
   await step("a past-due milestone is flagged overdue to PMCM and the client", async () => {

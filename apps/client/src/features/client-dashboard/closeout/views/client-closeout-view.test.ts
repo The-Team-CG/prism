@@ -61,15 +61,14 @@ describe("ClientCloseoutView", () => {
 
     render(createElement(ClientCloseoutView, { eventId: "evt-archived", archived: true }));
 
-    expect((screen.getByRole("button", { name: "Acknowledge wrap-up" }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: "Acknowledge receipt" }) as HTMLButtonElement).disabled).toBe(true);
+    for (const button of screen.getAllByRole("button", { name: "Confirm receipt" })) expect((button as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Update feedback" }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByLabelText("Feedback") as HTMLTextAreaElement).disabled).toBe(true);
     expect((screen.getByLabelText("Optional testimonial") as HTMLTextAreaElement).disabled).toBe(true);
     expect((screen.getByRole("button", { name: "Withdraw testimonial consent" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("clears the previous event's feedback, testimonial, consent, and note when the event changes", async () => {
+  it("starts with no rating and clears the previous event's feedback, testimonial and consent when the event changes", async () => {
     const priorResponse = {
       eventId: "evt-first",
       rating: 2,
@@ -93,7 +92,8 @@ describe("ClientCloseoutView", () => {
       expect((screen.getByLabelText("Feedback") as HTMLTextAreaElement).value).toBe("");
       expect((screen.getByLabelText("Optional testimonial") as HTMLTextAreaElement).value).toBe("");
       expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe("false");
-      expect((screen.getByLabelText("Acknowledgement note (optional)") as HTMLInputElement).value).toBe("");
+      expect(screen.getAllByRole("radio").some((star) => star.getAttribute("aria-checked") === "true")).toBe(false);
+      expect((screen.getByRole("button", { name: "Send feedback" }) as HTMLButtonElement).disabled).toBe(true);
     });
   });
 });

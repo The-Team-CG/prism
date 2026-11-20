@@ -1,10 +1,15 @@
 import type { OpsFloorPlanSnapshotVersion } from '@prisma/client';
 import { describe, expect, it, vi } from 'vitest';
+import { convertLegacyPlan } from '@prism/floorplan-scene';
 import { FloorPlanWorkflowService } from './floor-plan-workflow.service';
 import { WorkflowCommandService } from '@prism/kernel/event-core';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { FloorplanProjectionInput, FloorplanProjectionWriter } from '@prism/contexts/event-lifecycle';
+
+function sceneWithRoot(rootId: string) {
+  return { format: 'pascal-v1', pascalVersion: '1.1.6', nodes: { [rootId]: { id: rootId, type: 'site', parentId: null, visible: true, children: [] } }, rootNodeIds: [rootId] };
+}
 
 function createService() {
   const state = {
@@ -48,7 +53,7 @@ function createService() {
     },
     floorPlan: {
       create: vi.fn(async ({ data }) => {
-        const row = { ...data, updatedAt: data.updatedAt ?? new Date() };
+        const row = { scene: null, sceneFormat: null, ...data, updatedAt: data.updatedAt ?? new Date() };
         state.floorPlans.push(row);
         return row;
       }),
@@ -232,7 +237,7 @@ describe('FloorPlanWorkflowService', () => {
       sourceType: 'blank',
       createdByRole: 'pmcm-admin',
       clientPreference: { seatingStyle: 'banquet', stagePreference: 'center', flowNotes: 'Clear entrance', guestCount: 120, constraints: [] },
-      submittedSnapshot: { id: 'plan_1', name: 'Official', venue: 'Hall A', width: 100, height: 60, gridSize: 10, pax: 120, objects: [] },
+      submittedSnapshot: { id: 'plan_1', name: 'Official', venue: 'Hall A', width: 100, height: 60, gridSize: 10, pax: 120, scene: sceneWithRoot('site_1'), sceneFormat: 'pascal-v1' },
       approvedSnapshot: ['unexpected', 'array'],
       submittedAt: now,
       reviewedAt: null,
@@ -342,7 +347,7 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.floorPlanDrafts).toHaveLength(1);
   });
 
-  it('creates PMCM official floorplan drafts with canvas object rows intact', async () => {
+  it('creates PMCM official floorplan drafts on a blank room scene', async () => {
     const { service, state, auditWriter } = createService();
 
     const draft = await service.createFloorPlanDraft(
@@ -350,7 +355,6 @@ describe('FloorPlanWorkflowService', () => {
       {
         name: 'Official Layout',
         sourceType: 'blank',
-        objects: [{ id: 'stage', kind: 'stage', x: 10, y: 20, svgMarkup: '<svg />' }],
       },
       { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     );
@@ -360,7 +364,7 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.floorPlans).toHaveLength(1);
     expect(state.floorPlans[0]).toMatchObject({ ownerId: 'user_pmcm_1' });
     expect(state.floorPlanDrafts[0]).toMatchObject({ name: 'Official Layout', status: 'pmcm_draft' });
-    expect(state.floorPlanObjects[0]).toMatchObject({ objectId: 'stage', kind: 'stage', svgMarkup: '<svg />' });
+    expect(state.floorPlans[0]).toMatchObject({ scene: { format: 'pascal-v1' } });
     expect(state.events[0]).toMatchObject({ floorPlanStatus: 'pmcm_draft', readiness: 'Floorplan draft in progress' });
     expect(auditWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -378,7 +382,6 @@ describe('FloorPlanWorkflowService', () => {
     state.venueTemplates.push({
       id: 'tpl_gala',
       pax: 120,
-      includeGuests: false,
       includeSuppliers: false,
       guests: [],
       suppliers: [],
@@ -387,7 +390,8 @@ describe('FloorPlanWorkflowService', () => {
         height: 25,
         gridSize: 2,
         objects: [],
-        objectRows: [{ objectId: 'stage', objectData: { id: 'stage', kind: 'stage' }, zIndex: 0 }],
+        scene: convertLegacyPlan({ name: 'Gala', widthM: 40, heightM: 25, objects: [] }, '1.1.6'),
+        objectRows: [],
       },
     });
 
@@ -397,15 +401,14 @@ describe('FloorPlanWorkflowService', () => {
         name: 'Gala Layout',
         sourceType: 'template',
         venueTemplateId: 'tpl_gala',
-        objects: [{ id: 'client-table', kind: 'table' }],
         width: 5,
       },
       { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' },
     );
 
     expect(draft.sourceType).toBe('template');
-    expect(state.floorPlans[0]).toMatchObject({ width: 40, height: 25, gridSize: 2, pax: 120 });
-    expect(state.floorPlanObjects.map((row) => row.objectId)).toEqual(['stage']);
+    expect(state.floorPlans[0]).toMatchObject({ width: 40, height: 25, gridSize: 2, pax: 120, sceneFormat: 'pascal-v1' });
+    expect(state.floorPlanObjects).toEqual([]);
   });
 
   it('rejects a venue-library preset that does not exist without creating a draft', async () => {
@@ -604,7 +607,7 @@ describe('FloorPlanWorkflowService', () => {
         flowNotes: 'Keep registration near entrance.',
         guestCount: 180,
         constraints: ['VIP tables near stage'],
-        objects: [{ id: 'vip-zone', kind: 'zone' }],
+        scene: convertLegacyPlan({ name: 'Client Preference', widthM: 10, heightM: 8, objects: [] }, '1.1.6'),
       },
       { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' },
     );
@@ -1108,7 +1111,7 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.events[0]).toMatchObject({ floorPlanStatus: 'approved', readiness: 'Floorplan approved' });
   });
 
-  it('returns submitted and approved snapshots without mutating stored canvas state', async () => {
+  it('returns submitted and approved snapshots without mutating stored scene state', async () => {
     const { service, state } = createService();
     state.floorPlanDrafts.push({
       id: 'fpd_sample',
@@ -1121,11 +1124,11 @@ describe('FloorPlanWorkflowService', () => {
       createdByRole: 'pmcm-admin',
       submittedSnapshot: {
         id: 'plan_sample', name: 'Official Layout', venue: 'Hall', width: 1200, height: 800, gridSize: 20, pax: 180,
-        objects: [{ id: 'stage', x: 10 }],
+        scene: sceneWithRoot('site_10'), sceneFormat: 'pascal-v1',
       },
       approvedSnapshot: {
         id: 'plan_sample', name: 'Official Layout', venue: 'Hall', width: 1200, height: 800, gridSize: 20, pax: 180,
-        objects: [{ id: 'stage', x: 20 }],
+        scene: sceneWithRoot('site_20'), sceneFormat: 'pascal-v1',
       },
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -1134,30 +1137,26 @@ describe('FloorPlanWorkflowService', () => {
     const submitted = await service.getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'submitted');
     const approved = await service.getFloorPlanSnapshot('evt_sample', 'fpd_sample', 'approved');
 
-    expect(submitted.objects?.[0]).toMatchObject({ x: 10 });
-    expect(approved.objects?.[0]).toMatchObject({ x: 20 });
-    expect(state.floorPlanDrafts[0].approvedSnapshot.objects[0].x).toBe(20);
+    expect(submitted.scene).toMatchObject({ rootNodeIds: ['site_10'] });
+    expect(approved.scene).toMatchObject({ rootNodeIds: ['site_20'] });
+    expect(state.floorPlanDrafts[0].approvedSnapshot.scene.rootNodeIds).toEqual(['site_20']);
   });
 
-  it('publishes the current canvas snapshot under the Lifecycle event lock and rejects archived events', async () => {
+  it('publishes the current scene snapshot under the Lifecycle event lock and rejects archived events', async () => {
     const { service, state, lifecycleEventReferences } = createService();
     const draft = await service.createFloorPlanDraft(
       'evt_sample',
-      { name: 'Official Layout', sourceType: 'blank', objects: [{ id: 'stage', kind: 'stage', x: 10, y: 10 }] },
+      { name: 'Official Layout', sourceType: 'blank' },
       { actorId: 'user_pmcm_1', name: 'PMCM', role: 'pmcm-admin' },
     );
     const plan = state.floorPlans[0];
-    plan.objects = [{ id: 'stage', x: 27 }];
+    plan.scene = sceneWithRoot('site_27');
     const submitted = await service.submitFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
     expect(lifecycleEventReferences.findFloorplanEvent).toHaveBeenCalledWith(
       'evt_sample',
       expect.objectContaining({ correlationId: `floorplan-submit:${draft.id}` }),
     );
-    const submittedSnapshot = submitted.submittedSnapshot;
-    if (!submittedSnapshot || typeof submittedSnapshot !== 'object' || !('objects' in submittedSnapshot) || !Array.isArray(submittedSnapshot.objects)) {
-      throw new Error('The submitted floorplan snapshot was not persisted');
-    }
-    expect(submittedSnapshot.objects[0]).toMatchObject({ x: 27 });
+    expect(submitted.submittedSnapshot).toMatchObject({ scene: { rootNodeIds: ['site_27'] } });
 
     state.events[0].archived = true;
     await expect(service.approveFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' })).rejects.toThrow('Archived events cannot be changed');
@@ -1165,11 +1164,12 @@ describe('FloorPlanWorkflowService', () => {
 
   it('retains submitted and approved snapshots for each resubmission round', async () => {
     const { service, state } = createService();
-    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank', objects: [{ id: 'stage', kind: 'stage', x: 10, y: 10 }] }, { actorId: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' });
+    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank' }, { actorId: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' });
+    state.floorPlans[0].scene = sceneWithRoot('site_10');
     await service.submitFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
     await service.approveFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
     state.floorPlanDrafts[0].status = 'revision_requested';
-    state.floorPlans[0].objects = [{ id: 'stage', kind: 'stage', x: 25, y: 20 }];
+    state.floorPlans[0].scene = sceneWithRoot('site_25');
     await service.submitFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
     await service.approveFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
 
@@ -1177,11 +1177,35 @@ describe('FloorPlanWorkflowService', () => {
     expect(history.map(({ round, snapshotType }) => [round, snapshotType])).toEqual([
       [1, 'submitted'], [1, 'approved'], [2, 'submitted'], [2, 'approved'],
     ]);
-    expect(history[1].snapshot.objects?.[0]).toMatchObject({ x: 10 });
-    expect(history[3].snapshot.objects?.[0]).toMatchObject({ x: 25 });
+    expect(history[1].snapshot.scene).toMatchObject({ rootNodeIds: ['site_10'] });
+    expect(history[3].snapshot.scene).toMatchObject({ rootNodeIds: ['site_25'] });
   });
 
-  it('recovers legacy official drafts that predate persisted snapshots', async () => {
+  it('carries the plan scene into the submitted and approved snapshots, and a new draft starts as a blank room', async () => {
+    const { service, state } = createService();
+    const draft = await service.createFloorPlanDraft('evt_sample', { name: 'Official Layout', sourceType: 'blank' }, { actorId: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' });
+    expect(state.floorPlans[0].scene).toMatchObject({ format: 'pascal-v1', rootNodeIds: [expect.any(String)] });
+    const scene = {
+      format: 'pascal-v1',
+      pascalVersion: '1.1.6',
+      nodes: { site_1: { id: 'site_1', type: 'site', parentId: null, visible: true, children: [] } },
+      rootNodeIds: ['site_1'],
+    };
+    state.floorPlans[0].scene = scene;
+    state.floorPlans[0].sceneFormat = 'pascal-v1';
+
+    const submitted = await service.submitFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
+    const approved = await service.approveFloorPlanDraft('evt_sample', draft.id, { name: 'PMCM', role: 'pmcm-admin' });
+
+    expect(submitted.submittedSnapshot).toMatchObject({ scene, sceneFormat: 'pascal-v1' });
+    expect(approved.approvedSnapshot).toMatchObject({ scene, sceneFormat: 'pascal-v1' });
+
+    const blank = await service.createFloorPlanDraft('evt_sample', { name: 'Blank Layout', sourceType: 'blank' }, { actorId: 'pmcm_1', name: 'PMCM', role: 'pmcm-admin' });
+    const blankSubmitted = await service.submitFloorPlanDraft('evt_sample', blank.id, { name: 'PMCM', role: 'pmcm-admin' });
+    expect(blankSubmitted.submittedSnapshot).toMatchObject({ scene: { format: 'pascal-v1' } });
+  });
+
+  it('recovers official drafts that predate persisted snapshots', async () => {
     const { service, state } = createService();
     state.floorPlans.push({
       id: 'plan_legacy',
@@ -1191,11 +1215,8 @@ describe('FloorPlanWorkflowService', () => {
       height: 800,
       gridSize: 20,
       pax: 180,
-      objects: [{ id: 'stage', kind: 'stage', x: 10 }],
-      guests: [],
-      suppliers: [],
-      seats: [],
-      seatCategories: [],
+      scene: sceneWithRoot('site_legacy'),
+      sceneFormat: 'pascal-v1',
       updatedAt: new Date(),
     });
     state.floorPlanDrafts.push({
@@ -1216,7 +1237,7 @@ describe('FloorPlanWorkflowService', () => {
     await expect(service.getFloorPlanSnapshot('evt_sample', 'fpd_legacy', 'approved')).resolves.toMatchObject({
       id: 'plan_legacy',
       venue: 'Legacy Venue',
-      objects: [{ id: 'stage', kind: 'stage', x: 10 }],
+      scene: { rootNodeIds: ['site_legacy'] },
     });
   });
 

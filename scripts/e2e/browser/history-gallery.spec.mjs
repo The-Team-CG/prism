@@ -12,7 +12,7 @@ import { origins, persona } from './helpers.mjs';
 const enabled = process.env.BROWSER_SEED_HISTORY === '1' && process.env.BROWSER_SCREENSHOTS === '1';
 
 const ROUTES = {
-  client: ['/dashboard', '/dashboard/events', '/dashboard/events/completed', '/dashboard/events/upcoming', '/dashboard/calendar', '/dashboard/billing', '/dashboard/billing/receipts', '/dashboard/approvals', '/dashboard/events/evt_hist_241/overview', '/dashboard/events/evt_hist_005/summary', '/dashboard/notifications'],
+  client: ['/dashboard', '/dashboard/events', '/dashboard/events/completed', '/dashboard/events/upcoming', '/dashboard/calendar', '/dashboard/billing', '/dashboard/files', '/dashboard/events/evt_hist_241/overview', '/dashboard/events/evt_hist_005/summary', '/dashboard/notifications'],
   supplier: ['/dashboard', '/dashboard/requests', '/dashboard/bookings', '/dashboard/calendar', '/dashboard/payments', '/dashboard/notifications'],
   pmcm: [
     '/dashboard', '/dashboard/events', '/dashboard/inquiries', '/dashboard/calendar', '/dashboard/finance', '/dashboard/clients', '/dashboard/suppliers', '/dashboard/team',
@@ -43,23 +43,22 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
         // The history coordinator's opening date has only an event date, so it also uses the month overview.
         const openingView = 'Month';
         await expect(page.getByRole('button', { name: `Calendar view: ${openingView}`, exact: true })).toBeVisible();
-        const highlights = page.getByRole('region', { name: 'Schedule highlights' });
-        if (info.project.name === 'mobile') {
-          await expect(highlights).toBeHidden();
-          await page.getByRole('button', { name: 'Show highlights', exact: true }).click();
-        }
+        // Titled "Overdue and up next" or "Up next"; phones start it closed unless something is overdue.
+        const highlights = page.getByRole('region', { name: /up next$/i });
+        const showHighlights = page.getByRole('button', { name: /^Show .*up next$/ });
+        if (!(await highlights.isVisible())) await showHighlights.click();
         await expect(highlights).toBeVisible();
         const highlightCards = highlights.getByRole('button');
         expect(await highlightCards.count()).toBeLessThanOrEqual(3);
-        const title = await highlightCards.first().locator('span').first().textContent();
+        const title = await highlightCards.first().locator('span.text-sm').first().textContent();
         await highlightCards.first().click();
         await expect(page.getByRole('dialog').getByRole('heading', { name: title, exact: true })).toBeVisible();
         await expect(page.getByRole('dialog').locator('[data-slot="sheet-footer"]').getByRole('link').or(page.getByRole('dialog').locator('[data-slot="sheet-footer"]').getByRole('button')).first()).toBeVisible();
         await page.keyboard.press('Escape');
         await capture('calendar-highlights.png');
-        await page.getByRole('button', { name: 'Hide highlights', exact: true }).click();
+        await page.getByRole('button', { name: /^Hide .*up next$/ }).click();
         await expect(highlights).toBeHidden();
-        if (info.project.name === 'desktop') await page.getByRole('button', { name: 'Show highlights', exact: true }).click();
+        if (info.project.name === 'desktop') await showHighlights.click();
         const search = page.getByRole('searchbox', { name: 'Search schedule' });
         await search.fill('no-matching-calendar-entry-9c03');
         await expect(page.getByRole('status')).toContainText('No matching entries');
@@ -77,19 +76,7 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
         }
         if (info.project.name === 'mobile') expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
         await capture('calendar-filters.png');
-        if (role === 'client') {
-          const tabs = page.getByRole('tablist', { name: 'Calendar views' });
-          const eventDates = tabs.getByRole('tab', { name: /Event dates/ });
-          await eventDates.click();
-          await expect(page).toHaveURL(/calendar\/event-dates/);
-          await expect(page.getByRole('button', { name: 'Filter schedule', exact: true })).toHaveText('Filters1');
-          await page.getByRole('button', { name: 'Filter schedule', exact: true }).click();
-          await page.getByRole('button', { name: 'Timed entries', exact: true }).click();
-          await page.getByRole('link', { name: 'Clear filters', exact: true }).click();
-          await expect(page).toHaveURL(/\/dashboard\/calendar$/);
-          await expect(page.getByRole('button', { name: 'Filter schedule', exact: true })).toHaveText('Filters');
-          await expect(page.getByRole('button', { name: 'Calendar view: Month', exact: true })).toBeVisible();
-        } else await page.keyboard.press('Escape');
+        await page.keyboard.press('Escape');
         await page.getByRole('button', { name: 'Manila time', exact: true }).click();
         await expect(page.getByText('Asia/Manila · UTC+08:00')).toBeVisible();
         await capture('calendar-timezone.png');

@@ -398,8 +398,39 @@ export interface PrismPmcmEventWorkspace {
   ocularVisit?: PrismPmcmOcularVisit | null;
 }
 
+/**
+ * Who moves a client action next. `needs_client`: the client must act. `with_pmcm`: the client already acted and PMCM
+ * has it. `to_review`: nothing to do, but there is news to read. `done`: settled; kept briefly as recent history.
+ */
+export type PrismClientActionStage = "needs_client" | "with_pmcm" | "to_review" | "done";
+
+/** The person who can approve or send back an event's proposal: the primary contact on its inquiry. */
+export interface PrismProposalDecider {
+  name: string;
+  isYou: boolean;
+}
+
+/** The facts a client needs to make a decision, by what is being decided. */
+export type PrismClientDecisionFacts =
+  | {
+      kind: "proposal";
+      versionNumber: number;
+      /** PMCM's note on what changed in this version; empty for the first version. */
+      changeNote: string;
+      revisionsLeft: number;
+      decider: PrismProposalDecider;
+    }
+  | {
+      kind: "addendum";
+      addendumId: string;
+      versionNumber: number;
+      /** Change to the contract amount in pesos once the addendum takes effect; negative lowers it. */
+      financialDelta: number;
+    };
+
 export interface PrismClientActionItem {
   id: string;
+  stage: PrismClientActionStage;
   kind: Extract<
     PrismCommandInboxKind,
     "briefing"
@@ -420,6 +451,9 @@ export interface PrismClientActionItem {
   eventName: string;
   dueAt?: string | null;
   href?: string;
+  /** When a `done` item was settled. */
+  decidedAt?: string | null;
+  decision?: PrismClientDecisionFacts;
 }
 
 export interface PrismClientActionCenter {

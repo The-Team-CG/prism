@@ -8,6 +8,11 @@ import { chooseSelectOption, openSelect } from "../../../../../test-utils/radix-
 
 afterEach(cleanup);
 
+// The role brief card loads its own briefs; keep it off the network so a late failure cannot land after teardown.
+vi.mock("@/features/coordinators/role-briefs/data/role-briefs-repository", () => ({
+  roleBriefsRepository: { list: vi.fn(async () => []), save: vi.fn() },
+}));
+
 const me = { id: "asg_me", eventId: "evt_1", coordinatorId: "coord_me", coordinatorName: "Marco Santos", role: "Floor Director", status: "acknowledged", attendanceStatus: "pending" };
 const sam = { id: "asg_sam", eventId: "evt_1", coordinatorId: "coord_sam", coordinatorName: "Sam Cruz", role: "Stage Director", status: "acknowledged", attendanceStatus: "present" };
 const riley = { id: "asg_riley", eventId: "evt_1", coordinatorId: "coord_riley", coordinatorName: "Riley Tan", role: "Usher", status: "replaced", attendanceStatus: "replaced" };
