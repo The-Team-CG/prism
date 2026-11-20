@@ -566,9 +566,15 @@ export function EventWorkspaceClosureTab() {
       </div>
     );
   }
-  const closureStep = (step: ClosureStep) => (
+  // A gate on the board opens its own step in place; that copy draws without the board.
+  const gateStep = (tabId: ClosureTabId) => (tabId === "deliverables"
+    ? <PostEventDeliverablesPanel eventId={event.id} documents={vm.postEventDocuments} archived={event.archived} actualEndedAt={event.actualEndedAt ?? null} />
+    : closureStep(tabId, true));
+  const closureStep = (step: ClosureStep, nested = false) => (
     <Phase4Workspace
       step={step}
+      hideBoard={nested}
+      renderGateStep={nested ? undefined : gateStep}
       onOpenDestination={(destination: CloseGateDestination) => {
         if (destination.kind === "closure-tab") setClosurePart(destination.tabId);
         else vm.navigateEventTab(destination.tab);

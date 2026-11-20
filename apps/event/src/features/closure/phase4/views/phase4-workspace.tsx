@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import type {
   PrismBillingSource,
@@ -19,6 +19,7 @@ import { ComplianceReviewPanel } from "@/features/compliance/review";
 import {
   compliancePhaseForStage,
   type CloseGateDestination,
+  type ClosureTabId,
   type CompliancePhase,
 } from "../model/phase4-workspace-rules";
 import {
@@ -62,7 +63,13 @@ export function Phase4Workspace({
   onGenerateInsights,
   onAddReview,
   onOpenDestination,
+  hideBoard = false,
+  renderGateStep,
 }: {
+  /** Drawn inside a gate of another step's board: the board itself is not repeated. */
+  hideBoard?: boolean;
+  /** Draws another closure step inside its gate on the board. */
+  renderGateStep?: (tabId: ClosureTabId) => ReactNode;
   step: ClosureStep;
   event: PrismEvent;
   rules: PrismComplianceRule[];
@@ -120,7 +127,7 @@ export function Phase4Workspace({
 
   return (
     <div className="space-y-5">
-      <Phase4SectionBoundary title="Closure summary"><Phase4ClosureBoard event={event} closeGates={closeGates} onOpenDestination={onOpenDestination} /></Phase4SectionBoundary>
+      {hideBoard ? null : <Phase4SectionBoundary title="Closure summary"><Phase4ClosureBoard event={event} closeGates={closeGates} currentStep={step} renderStep={renderGateStep} onOpenDestination={onOpenDestination} /></Phase4SectionBoundary>}
       {step === "wrap-up" ? (
         <>
           <Phase4SectionBoundary title="Event end"><ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} /></Phase4SectionBoundary>

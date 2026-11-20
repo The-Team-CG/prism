@@ -5,7 +5,7 @@ import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { Input } from "@prism/ui/components/input";
 import { formatPortalDateTime } from "@prism/ui/format-date";
 import { AlertTriangle, Archive, BadgeCheck, CheckCircle2, Lightbulb, ShieldCheck, XCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import type {
 
@@ -25,6 +25,7 @@ import {
   phase4StatusLabel,
   phase4StatusTone,
   type CloseGateDestination,
+  type ClosureTabId,
   type CompliancePhase,
 } from "../model/phase4-workspace-rules";
 import { Card } from "@prism/ui/components/card";
@@ -54,13 +55,21 @@ function Phase4Status({ value, label: text }: { value: string; label: string }) 
 export function Phase4ClosureBoard({
   event,
   closeGates,
+  currentStep,
+  renderStep,
   onOpenDestination,
 }: {
   event: PrismEvent;
   closeGates: PrismCloseGates | null;
+  /** The closure tab on screen: a gate that points at it scrolls to it rather than repeating it inline. */
+  currentStep?: ClosureTabId;
+  /** Draws another closure step inside its gate, so a gate opens in place instead of switching tabs. */
+  renderStep?: (tabId: ClosureTabId) => ReactNode;
   onOpenDestination: (destination: CloseGateDestination) => void;
 }) {
   const archive = phase4ArchiveStatus(event.archived, closeGates?.ready);
+  // Which inline gates are open; the first open gate starts open. A step mounts only while its gate is open.
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const gates = closeGates?.gates ?? [];
   const passed = gates.filter((gate) => gate.passed).length;
   const firstOpen = gates.find((gate) => !gate.passed && closeGateDestination(gate.key));
@@ -80,6 +89,30 @@ export function Phase4ClosureBoard({
           {gates.map((gate, index) => {
             const destination = gate.passed ? null : closeGateDestination(gate.key);
             const lead = gate === firstOpen;
+            const inline = destination?.kind === "closure-tab" && destination.tabId !== currentStep && renderStep ? destination.tabId : null;
+            if (inline) {
+              // The gate's own step opens under it; the first open gate starts open.
+              return (
+                <li key={gate.key} className={cx(lead && "-mx-5 bg-primary/5 px-5")}>
+                  <details open={toggled[gate.key] ?? lead} onToggle={(e) => { const open = e.currentTarget.open; setToggled((current) => (current[gate.key] === open ? current : { ...current, [gate.key]: open })); }} className="group">
+                    <summary className="flex cursor-pointer list-none flex-wrap items-start justify-between gap-3 py-3">
+                      <span className="flex min-w-0 flex-1 basis-64 items-start gap-3">
+                        <span aria-hidden className={cx("grid size-6 shrink-0 place-items-center rounded-full border text-xs font-semibold", lead ? "border-primary text-primary" : "border-border text-muted-foreground")}>{index + 1}</span>
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-foreground">{gate.label}<span className="sr-only">, open</span></span>
+                          <span className="block text-sm text-muted-foreground">{gate.detail}</span>
+                        </span>
+                      </span>
+                      <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-border bg-card px-3 text-sm font-semibold text-foreground">
+                        <span className="group-open:hidden">{destination!.label}</span>
+                        <span className="hidden group-open:inline">Hide</span>
+                      </span>
+                    </summary>
+                    {toggled[gate.key] ?? lead ? <div className="mb-4 rounded-lg border border-border bg-card p-4">{renderStep!(inline)}</div> : null}
+                  </details>
+                </li>
+              );
+            }
             return (
               <li key={gate.key} className={cx("flex flex-wrap items-start justify-between gap-3 py-3", lead && "-mx-5 bg-primary/5 px-5")}>
                 <div className="flex min-w-0 flex-1 basis-64 items-start gap-3">
