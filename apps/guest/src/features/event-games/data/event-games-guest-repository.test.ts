@@ -98,8 +98,18 @@ describe("event games guest repository", () => {
       eventId: "event-a",
       currentSessionId: "session-a1",
       participantCredential: "A".repeat(43),
+      joinedWithPin: "123456",
     });
     expect(persisted.get(PRISM_SESSION_STORAGE_KEYS.guest)).toBe(JSON.stringify({ id: "check-in-session" }));
+  });
+
+  it("rejoins as the same player when the same PIN is typed again on /games/join, and never offers it to another PIN", async () => {
+    await eventGamesGuestRepository.joinActiveGameByPin("123456");
+    await eventGamesGuestRepository.joinActiveGameByPin("123456");
+    expect(api.joinActiveMultiplayerGameSession).toHaveBeenLastCalledWith({ pin: "123456", idempotencyKey: expect.any(String) }, "A".repeat(43));
+
+    await eventGamesGuestRepository.joinActiveGameByPin("654321");
+    expect(api.joinActiveMultiplayerGameSession).toHaveBeenLastCalledWith({ pin: "654321", idempotencyKey: expect.any(String) }, undefined);
   });
 
   it("uses a saved credential for another PIN game only when the supplied event lobby matches", async () => {
