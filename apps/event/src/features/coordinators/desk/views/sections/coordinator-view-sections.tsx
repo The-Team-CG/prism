@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CalendarClock } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { LoadingState } from "@prism/ui/components/loading-state";
-import { PrismEmptyLine } from "@prism/ui/page-blocks";
+import { CoordinatorEmpty } from "./coordinator-blocks";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk } from "@/features/live-ops/schedule";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
@@ -41,17 +41,21 @@ export function CoordinatorAssignmentActions({ status, busy, onAcknowledge, onDe
 
 function RunSheetNotPublished({ onCheckAgain }: { onCheckAgain?: () => void }) {
   return (
-    <PrismEmptyLine icon={CalendarClock} action={onCheckAgain ? <Button variant="outline" className="min-h-11" onClick={onCheckAgain}>Check again</Button> : undefined}>
-      <p className="font-semibold text-foreground">PMCM hasn&apos;t published the run sheet for this event yet.</p>
-      <p>It appears here as soon as they do.</p>
-    </PrismEmptyLine>
+    <CoordinatorEmpty
+      icon={CalendarClock}
+      title="PMCM hasn't published the run sheet for this event yet."
+      action={onCheckAgain ? <Button variant="outline" size="sm" className="min-h-10" onClick={onCheckAgain}>Check again</Button> : undefined}
+      className="border-0 px-0 py-0 sm:px-0"
+    >
+      It appears here as soon as they do.
+    </CoordinatorEmpty>
   );
 }
 
 const RUN_SHEET_VIEWS = [
-  { id: "run-sheet", label: "Live run sheet", description: "The programme as it runs, with the current segment and its timer." },
-  { id: "brief", label: "Handoff brief", description: "What the last shift left for you, and what to pass on." },
-  { id: "reports", label: "Schedule and reports", description: "The full schedule and the shift reports you file for PMCM." },
+  { id: "run-sheet", label: "Live run sheet", short: "Live", description: "The programme as it runs, with the current segment and its timer." },
+  { id: "brief", label: "Handoff brief", short: "Handoff", description: "What the last shift left for you, and what to pass on." },
+  { id: "reports", label: "Schedule and reports", short: "Reports", description: "The full schedule and the shift reports you file for PMCM." },
 ] as const;
 type RunSheetView = (typeof RUN_SHEET_VIEWS)[number]["id"];
 
@@ -64,27 +68,28 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false, onCheckAga
   const [view, setView] = useState<RunSheetView>("run-sheet");
   const current = RUN_SHEET_VIEWS.find((item) => item.id === view) ?? RUN_SHEET_VIEWS[0];
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div role="group" aria-label="Run sheet views" className="inline-flex flex-wrap rounded-lg bg-muted p-1">
+    <div className="grid max-w-3xl gap-3">
+      <div className="grid gap-2">
+        <div role="group" aria-label="Run sheet views" className="grid grid-cols-3 rounded-lg bg-muted p-1 sm:inline-grid sm:w-fit">
           {RUN_SHEET_VIEWS.map((item) => (
             <button
               key={item.id}
               type="button"
               aria-pressed={view === item.id}
+              aria-label={item.label}
               onClick={() => setView(item.id)}
               className={cn(
                 "min-h-10 rounded-md px-3 text-sm font-medium transition focus-visible:ring-2 focus-visible:ring-ring",
                 view === item.id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {item.label}
+              <span className="sm:hidden">{item.short}</span><span className="hidden sm:inline">{item.label}</span>
             </button>
           ))}
         </div>
-        <p className="text-sm text-muted-foreground">{current.description}</p>
+        <p className="hidden px-1 text-sm text-muted-foreground sm:block">{current.description}</p>
       </div>
-      <div id="coordinator-timeline" className="scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-xs sm:p-5">
+      <div id="coordinator-timeline" className="scroll-mt-24 rounded-xl border border-border bg-card p-4 sm:p-5">
           <fieldset disabled={readOnly} hidden={view !== "run-sheet"} className="min-w-0">
             {roleView?.schedule?.authored ? (
               <LiveOpsControlSurface eventId={roleView.event.id} schedule={roleView.schedule} timer={roleView.timer} />

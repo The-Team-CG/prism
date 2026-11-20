@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronRight, CircleCheck, MessageSquare, Navigation, Phone, Radio } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleCheck, ClipboardList, FileText, MessageSquare, Navigation, Phone, Radio } from "lucide-react";
 import type { PrismCoordinatorAssignment, PrismCoordinatorRoleView, PrismEvent } from "@prism/types";
 import { prismCalendarDateKey } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
@@ -10,12 +10,13 @@ import { PrismEmptyLine, PrismSection, PrismStatRow } from "@prism/ui/page-block
 import { cn } from "@/app/components/ui/utils";
 import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
 import { CoordinatorRoleBriefCard } from "@/features/coordinators/role-briefs/views/coordinator-role-brief-card";
-import { eventCountdown, eventPhase, formatCountdown, groupTasks, isOpenTask, issueTone, openIssues, quickAttendanceMode, runSheetNowAndNext, type EventPhase } from "../../model/coordinator-shift";
+import { eventCountdown, eventPhase, formatCountdown, groupTasks, isOpenTask, issueTone, openIssues, quickAttendanceMode, runSheetNowAndNext, tasksSummary, type EventPhase } from "../../model/coordinator-shift";
 import { coordinatorAttendanceRecordLine } from "../../model/coordinator-view-copy";
 import { canCoordinatorUpdateTask, recordedAttendanceLabel } from "../../model/coordinators-desk-rules";
 import { canCheckSuppliers, CoordinatorSupplierChecks, CoordinatorTaskItem, type CoordinatorOperatorActionsModel, type CoordinatorTaskActionsModel } from "./coordinator-operator-sections";
 import { CoordinatorAttendanceControl, CoordinatorBriefing, CoordinatorRoleError, CoordinatorRoleLoading, type CoordinatorAttendanceFormModel } from "./coordinator-role-sections";
 import { CoordinatorAssignmentActions } from "./coordinator-view-sections";
+import { NavRow, RowGroup } from "./coordinator-blocks";
 
 export type CoordinatorNowView = "tasks" | "issues" | "messages" | "run-sheet";
 
@@ -34,36 +35,62 @@ function useCountdown(secondsRemaining: number | undefined): number | undefined 
 
 const INK_CARD = "rounded-2xl bg-ink px-4 py-4 text-ink-foreground sm:px-5";
 
+type Segment = NonNullable<ReturnType<typeof runSheetNowAndNext>["next"]>;
+
+function segmentLine(segment: Segment, lead: string): string {
+  return `${lead} ${formatPortalTime(segment.plannedStartAt, "")} · ${segment.title}${segment.location ? ` · ${segment.location}` : ""}`;
+}
+
+/**
+ * What the live card says. The top bar already names the event, so the card leads with the programme: what is on,
+ * else what comes next, else why there is nothing to show yet.
+ */
+function liveCopy(event: PrismEvent, authored: boolean, now?: Segment, next?: Segment) {
+  const today = `Today${event.venue ? ` · ${event.venue}` : ""}`;
+  if (now) return { label: `On now${now.location ? ` · ${now.location}` : ""}`, title: now.title, footer: next ? segmentLine(next, "Next at") : "Last item on today's run sheet." };
+  if (!authored) return { label: today, title: "Run sheet not published yet", footer: "PMCM's programme for the day shows here once it is out." };
+  if (next) return { label: today, title: `Up next: ${next.title}`, footer: segmentLine(next, "Starts at") };
+  return { label: today, title: "Programme finished", footer: "Everything on the run sheet is done." };
+}
+
 /** On the day: what is on now, for how long, and what follows. */
 function LiveNow({ event, roleView, onNavigate }: { event: PrismEvent; roleView: PrismCoordinatorRoleView | null; onNavigate: (view: CoordinatorNowView) => void }) {
   const { now, next, secondsRemaining } = runSheetNowAndNext(roleView?.schedule, roleView?.timer);
   const left = useCountdown(now ? secondsRemaining : undefined);
-  const finished = roleView?.timer?.status === "complete";
+  const authored = Boolean(roleView?.schedule?.authored);
+  const copy = liveCopy(event, authored, now, next);
   return (
     <section aria-label="On now" className={INK_CARD}>
-      <p className="text-xs text-ink-foreground/65">{now ? `On now${now.location ? ` · ${now.location}` : ""}` : finished ? "Programme finished" : "Today"}</p>
+      <p className="text-xs text-ink-foreground/65">{copy.label}</p>
       <div className="mt-1 flex items-end justify-between gap-3">
-        <h2 className="min-w-0 text-lg font-semibold leading-tight sm:text-xl">{now?.title ?? event.eventName}</h2>
+        <h2 className="min-w-0 text-lg font-semibold leading-tight sm:text-xl">{copy.title}</h2>
         {left !== undefined ? <p className="shrink-0 text-3xl font-bold leading-none tabular-nums" aria-label={`${formatCountdown(left)} left`}>{formatCountdown(left)}</p> : null}
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-ink-foreground/15 pt-2.5 text-sm text-ink-foreground/80">
-        <p className="min-w-0">{next ? `Next at ${formatPortalTime(next.plannedStartAt, "")} · ${next.title}${next.location ? ` · ${next.location}` : ""}` : roleView?.schedule?.authored ? "Nothing else on the run sheet today." : "PMCM hasn't published the run sheet yet."}</p>
-        {roleView?.schedule?.authored ? <button type="button" onClick={() => onNavigate("run-sheet")} className="flex min-h-9 items-center gap-0.5 font-medium text-ink-foreground">Full run sheet<ChevronRight className="size-4" aria-hidden /></button> : null}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-ink-foreground/15 pt-2.5 text-sm text-ink-foreground/75">
+        <p className="min-w-0">{copy.footer}</p>
+        {authored ? <button type="button" onClick={() => onNavigate("run-sheet")} className="-my-1 flex min-h-9 items-center gap-0.5 font-medium text-ink-foreground">Full run sheet<ChevronRight className="size-4" aria-hidden /></button> : null}
       </div>
     </section>
   );
 }
 
-/** Before the day: the event and how long until it. After: when it was. */
+/** "10 days to go", "Tomorrow", or that the event is over. */
+function leadHeadline(event: PrismEvent, phase: Exclude<EventPhase, "day">): string {
+  if (phase === "after") return "Finished";
+  const countdown = eventCountdown(event.eventDate, prismCalendarDateKey());
+  if (!countdown) return "Coming up";
+  return countdown.value === "1" ? "Tomorrow" : `${countdown.value} ${countdown.label}`;
+}
+
+/**
+ * Before the day: how long until it. After: that it is over. The top bar already names the event, so the card leads
+ * with the time and keeps the date, venue and client under it.
+ */
 function EventCardLead({ event, phase }: { event: PrismEvent; phase: Exclude<EventPhase, "day"> }) {
-  const countdown = phase === "before" ? eventCountdown(event.eventDate, prismCalendarDateKey()) : undefined;
   return (
     <section aria-label="Your event" className={INK_CARD}>
       <p className="text-xs text-ink-foreground/65">{phase === "before" ? "Your next event" : "Your event"}</p>
-      <div className="mt-1 flex items-end justify-between gap-3">
-        <h2 className="min-w-0 text-lg font-semibold leading-tight sm:text-xl">{event.eventName}</h2>
-        {countdown ? <p className="shrink-0 text-right"><span className="block text-3xl font-bold leading-none tabular-nums">{countdown.value}</span><span className="text-xs text-ink-foreground/65">{countdown.label}</span></p> : null}
-      </div>
+      <h2 className="mt-1 text-2xl font-semibold leading-tight tabular-nums">{leadHeadline(event, phase)}</h2>
       <p className="mt-3 border-t border-ink-foreground/15 pt-2.5 text-sm text-ink-foreground/80">
         {[phase === "after" ? `Held ${formatPortalDate(event.eventDate)}` : formatPortalDate(event.eventDate), event.venue, `Client: ${event.clientName}`].filter(Boolean).join(" · ")}
       </p>
@@ -106,55 +133,25 @@ function QuickAttendance({ form }: { form: CoordinatorAttendanceFormModel }) {
   );
 }
 
-/** The one task to do next: in progress first, then the soonest due. */
-function NextTask({ roleView, taskActions, onNavigate }: { roleView: PrismCoordinatorRoleView; taskActions: CoordinatorTaskActionsModel; onNavigate: (view: CoordinatorNowView) => void }) {
+/** The one task to do next, with its action: in progress first, then the soonest due. Nothing shows when none is open. */
+function NextTaskCard({ roleView, taskActions }: { roleView: PrismCoordinatorRoleView; taskActions: CoordinatorTaskActionsModel }) {
   const groups = groupTasks(roleView.tasks);
   const task = groups.in_progress[0] ?? groups.open[0] ?? groups.blocked[0];
-  const open = roleView.tasks.filter(isOpenTask).length;
+  if (!task) return null;
   return (
-    <PrismSection
-      id="coordinator-next-task"
-      title={task ? "Your next task" : "Tasks"}
-      count={open || undefined}
-      action={open > 1 ? <Button type="button" variant="ghost" size="sm" className="min-h-10" onClick={() => onNavigate("tasks")}>All tasks<ChevronRight className="size-4" aria-hidden /></Button> : undefined}
-    >
-      {task ? <CoordinatorTaskItem task={task} taskActions={taskActions} canUpdate={canCoordinatorUpdateTask(task, roleView)} /> : <p className="text-sm text-muted-foreground">Nothing assigned to you right now.</p>}
-    </PrismSection>
+    <section aria-label="Your next task" className="grid max-w-3xl gap-2 rounded-xl border border-border bg-card px-4 py-3.5 sm:px-5">
+      <p className="text-xs font-medium text-muted-foreground">Your next task</p>
+      <CoordinatorTaskItem task={task} taskActions={taskActions} canUpdate={canCoordinatorUpdateTask(task, roleView)} />
+    </section>
   );
 }
 
-/** One line for issues on the event, opening Issues. Red when one is overdue or critical. */
-function IssuesLine({ roleView, onNavigate }: { roleView: PrismCoordinatorRoleView; onNavigate: (view: CoordinatorNowView) => void }) {
-  const issues = openIssues(roleView.urgentIssues);
-  const urgent = issues.some((issue) => issueTone(issue) === "urgent");
-  return (
-    <button type="button" onClick={() => onNavigate("issues")} className="flex min-h-14 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left">
-      <Radio className={cn("size-5 shrink-0", urgent ? "text-danger" : issues.length ? "text-attention" : "text-muted-foreground")} aria-hidden />
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-foreground">{issues.length ? `${issues.length} open ${issues.length === 1 ? "issue" : "issues"}` : "No open issues"}</span>
-        {issues[0] ? <span className="block truncate text-xs text-muted-foreground">{issues[0].title}</span> : null}
-      </span>
-      {urgent ? <span className="rounded-md bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger">Urgent</span> : null}
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-    </button>
-  );
-}
+const CHEVRON = <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />;
 
-/** Call PMCM when the deployment has a number, and message them either way. */
-function PmcmContact({ onNavigate }: { onNavigate: (view: CoordinatorNowView) => void }) {
-  const { phone } = pmcmSupportContactFromEnvironment();
-  return (
-    <div className={cn("grid gap-2", phone && "grid-cols-2")}>
-      {phone ? <Button asChild variant="outline" className="min-h-12"><a href={`tel:${phone.replace(/\s+/g, "")}`}><Phone className="size-4" aria-hidden />Call PMCM</a></Button> : null}
-      <Button type="button" variant="outline" className="min-h-12" onClick={() => onNavigate("messages")}><MessageSquare className="size-4" aria-hidden />Message PMCM</Button>
-    </div>
-  );
-}
-
-/** Call time, attire, script and the venue with directions; folded on the day, open while preparing. */
-function YourBrief({ roleView, event, open }: { roleView: PrismCoordinatorRoleView; event: PrismEvent; open: boolean }) {
+/** Call time, attire, script and the venue with directions. */
+function BriefBody({ roleView, event }: { roleView: PrismCoordinatorRoleView; event: PrismEvent }) {
   const venue = roleView.briefing?.venue || event.venue;
-  const body = (
+  return (
     <div className="grid gap-4">
       <CoordinatorRoleBriefCard eventId={event.id} />
       {venue ? (
@@ -165,14 +162,45 @@ function YourBrief({ roleView, event, open }: { roleView: PrismCoordinatorRoleVi
       <CoordinatorBriefing roleView={roleView} />
     </div>
   );
-  if (open) return <PrismSection id="coordinator-brief" title="Your brief">{body}</PrismSection>;
+}
+
+/**
+ * The day at a glance, as one list: tasks and issues each open their page, and the brief unfolds in place. One surface
+ * instead of a card, a row and a fold each drawn differently.
+ */
+function YourDay({ roleView, event, showBrief, onNavigate }: { roleView: PrismCoordinatorRoleView; event: PrismEvent; showBrief: boolean; onNavigate: (view: CoordinatorNowView) => void }) {
+  const [briefOpen, setBriefOpen] = useState(false);
+  const issues = openIssues(roleView.urgentIssues);
+  const urgent = issues.some((issue) => issueTone(issue) === "urgent");
   return (
-    <details className="group rounded-xl border border-border bg-card">
-      <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden sm:px-5">
-        <ChevronRight className="size-4 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />Your brief, script and venue
-      </summary>
-      <div className="px-4 pb-4 sm:px-5">{body}</div>
-    </details>
+    <RowGroup label="Your day">
+      <NavRow icon={ClipboardList} title="Tasks" detail={tasksSummary(roleView.tasks)} trailing={CHEVRON} onClick={() => onNavigate("tasks")} />
+      <NavRow
+        icon={Radio}
+        title="Issues"
+        tone={urgent ? "urgent" : issues.length ? "attention" : "neutral"}
+        detail={issues.length ? `${issues.length} open ${issues.length === 1 ? "issue" : "issues"} · ${issues[0].title}` : "No open issues"}
+        trailing={CHEVRON}
+        onClick={() => onNavigate("issues")}
+      />
+      {showBrief ? (
+        <>
+          <NavRow icon={FileText} title="Your brief" detail="Call time, script and venue" trailing={<ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", briefOpen && "rotate-180")} aria-hidden />} onClick={() => setBriefOpen((open) => !open)} />
+          {briefOpen ? <div className="px-4 py-4 sm:px-5"><BriefBody roleView={roleView} event={event} /></div> : null}
+        </>
+      ) : null}
+    </RowGroup>
+  );
+}
+
+/** Call PMCM when the deployment has a number, and message them either way. */
+function PmcmContact({ onNavigate }: { onNavigate: (view: CoordinatorNowView) => void }) {
+  const { phone } = pmcmSupportContactFromEnvironment();
+  return (
+    <div className={cn("grid max-w-3xl gap-2", phone && "grid-cols-2")}>
+      {phone ? <Button asChild variant="outline" className="min-h-11"><a href={`tel:${phone.replace(/\s+/g, "")}`}><Phone className="size-4" aria-hidden />Call PMCM</a></Button> : null}
+      <Button type="button" variant="outline" className="min-h-11" onClick={() => onNavigate("messages")}><MessageSquare className="size-4" aria-hidden />Message PMCM</Button>
+    </div>
   );
 }
 
@@ -210,14 +238,13 @@ type NowPageProps = {
 };
 
 function NowWork({ phase, event, roleView, props }: { phase: EventPhase; event: PrismEvent; roleView: PrismCoordinatorRoleView; props: NowPageProps }) {
-  if (phase === "before") return <YourBrief roleView={roleView} event={event} open />;
+  if (phase === "before") return <PrismSection id="coordinator-brief" title="Your brief" className="max-w-3xl"><BriefBody roleView={roleView} event={event} /></PrismSection>;
   return (
     <>
       {phase === "after" ? <DaySummary roleView={roleView} attendance={props.attendanceForm.status} /> : null}
-      <NextTask roleView={roleView} taskActions={props.taskActions} onNavigate={props.onNavigate} />
-      <IssuesLine roleView={roleView} onNavigate={props.onNavigate} />
+      <NextTaskCard roleView={roleView} taskActions={props.taskActions} />
+      <YourDay roleView={roleView} event={event} showBrief={phase === "day"} onNavigate={props.onNavigate} />
       {phase === "day" && canCheckSuppliers(roleView) ? <CoordinatorSupplierChecks roleView={roleView} actions={props.operatorActions} /> : null}
-      {phase === "day" ? <YourBrief roleView={roleView} event={event} open={false} /> : null}
     </>
   );
 }

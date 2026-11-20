@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Clock, MessageSquare, Radio, UserRound, UsersRound } from "lucide-react";
+import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Clock, MessageSquare, Plus, Radio, UserRound, UsersRound } from "lucide-react";
 import { EventMessagesWorkspace } from '@/features/event-dashboard/messages/views/event-messages-workspace';
 import { EventAccountView } from '@/features/account';
 import { useEventUnreadMessages } from '@/features/event-dashboard/messages/view-models/use-event-unread-messages';
@@ -35,7 +35,8 @@ import { CoordinatorEventSwitcher, eventCards } from "./coordinator-event-switch
 import { CoordinatorTimelineCard } from "./sections/coordinator-view-sections";
 import { CoordinatorRoleData, CoordinatorTaskSheet } from "./sections/coordinator-role-sections";
 import { CoordinatorNowPage } from "./sections/coordinator-now-page";
-import { coordinatorMobileTabs, CoordinatorPhoneActions, CoordinatorPhoneTitle, FreshnessLine, ReportIssueSheet, reportTabAction } from "./coordinator-on-site";
+import { coordinatorMobileTabs, CoordinatorPhoneActions, CoordinatorPhoneTitle, PageStatusLine, ReportIssueSheet, reportTabAction } from "./coordinator-on-site";
+import { issuesSummary, tasksSummary } from "../model/coordinator-shift";
 import { useCompactScreen } from "../view-models/use-compact-screen";
 import { CoordinatorAssignmentsPage } from "./sections/coordinator-assignments-page";
 import { AccountNotificationsView } from "@/features/account-notifications/views/account-notifications-view";
@@ -50,7 +51,7 @@ function viewHref(view: CoordinatorViewId, eventId?: string | null): string {
 
 type Panels = { onReportIssue: () => void; onLogTask: () => void };
 
-function CoordinatorRoleSection({ vm, section, panels }: { vm: CoordinatorVm; section: "tasks" | "issues"; panels: Panels }) {
+function CoordinatorRoleSection({ vm, section }: { vm: CoordinatorVm; section: "tasks" | "issues" }) {
   return (
     <CoordinatorRoleData
       section={section}
@@ -62,8 +63,6 @@ function CoordinatorRoleSection({ vm, section, panels }: { vm: CoordinatorVm; se
       reassignment={vm.reassignment}
       taskActions={vm.taskActions}
       operatorActions={vm.operatorActions}
-      onReportIssue={panels.onReportIssue}
-      onLogTask={panels.onLogTask}
     />
   );
 }
@@ -130,18 +129,17 @@ function coordinatorDescription(view: CoordinatorViewId, event: CoordinatorVm['e
 }
 
 /** Pages for the open event. Without one, the coordinator is asked to choose. */
-function EventViewContent({ vm, view, events, onNavigate, onOpenItem, panels }: {
+function EventViewContent({ vm, view, events, onNavigate, onOpenItem }: {
   vm: CoordinatorVm;
   view: CoordinatorViewId;
   events: PrismCoordinatorWorkspace["events"];
   onNavigate: NavigateTo;
   onOpenItem: (view: CoordinatorViewId, eventId: string) => void;
-  panels: Panels;
 }) {
   if (!vm.event) return <p role="status" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">{vm.selectedEventId ? "That event is not available to this account. Choose an assigned event." : "Choose an assigned event to see your work."}</p>;
   switch (view) {
-    case "tasks": return <CoordinatorRoleSection vm={vm} section="tasks" panels={panels} />;
-    case "issues": return <CoordinatorRoleSection vm={vm} section="issues" panels={panels} />;
+    case "tasks": return <CoordinatorRoleSection vm={vm} section="tasks" />;
+    case "issues": return <CoordinatorRoleSection vm={vm} section="issues" />;
     case "run-sheet": return <CoordinatorTimelineCard roleView={vm.roleView} readOnly={vm.readOnly} onCheckAgain={() => void vm.refreshRoleView()} />;
     case "assignments": return (
       <CoordinatorAssignmentsPage
@@ -168,7 +166,6 @@ function CoordinatorViewContent({ vm, view, session, onOpenItem, ...rest }: {
   events: PrismCoordinatorWorkspace["events"];
   onNavigate: NavigateTo;
   onOpenItem: (view: CoordinatorViewId, eventId: string) => void;
-  panels: Panels;
 }) {
   const accountView = ACCOUNT_VIEWS[view];
   if (accountView) return accountView(vm, onOpenItem, session);
@@ -250,10 +247,22 @@ function useCoordinatorPanels(vm: CoordinatorVm, navigateTo: NavigateTo) {
   };
 }
 
-function PageNotices({ vm, outsideNotice, onDismiss, live }: { vm: CoordinatorVm; outsideNotice: boolean; onDismiss: () => void; live: boolean }) {
+/** Each live page's status: Tasks and Issues count their work and carry their action; Now and Run sheet only say when. */
+function pageStatus(view: CoordinatorViewId, vm: CoordinatorVm, panels: Panels) {
+  if (!vm.roleView) return {};
+  if (view === "tasks") {
+    return { summary: tasksSummary(vm.roleView.tasks), action: <Button type="button" size="sm" variant="outline" className="min-h-10" onClick={panels.onLogTask}><Plus className="size-4" aria-hidden />Log a task</Button> };
+  }
+  if (view === "issues") {
+    return { summary: issuesSummary(vm.roleView.urgentIssues, vm.roleView.guestAttendanceCount), action: <Button type="button" size="sm" variant="outline" className="hidden min-h-10 md:inline-flex" onClick={panels.onReportIssue}><Radio className="size-4" aria-hidden />Report an issue</Button> };
+  }
+  return {};
+}
+
+function PageNotices({ vm, view, panels, outsideNotice, onDismiss, live }: { vm: CoordinatorVm; view: CoordinatorViewId; panels: Panels; outsideNotice: boolean; onDismiss: () => void; live: boolean }) {
   return (
     <>
-      {live ? <FreshnessLine roleView={vm.roleView} loading={vm.roleViewLoading} onRefresh={() => void vm.refreshRoleView()} /> : null}
+      {live ? <PageStatusLine roleView={vm.roleView} loading={vm.roleViewLoading} onRefresh={() => void vm.refreshRoleView()} {...pageStatus(view, vm, panels)} /> : null}
       {outsideNotice ? (
         <div role="status" className="flex items-center justify-between gap-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
           <span>{"That page isn't part of the coordinator portal."}</span>
@@ -338,7 +347,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       sidebarContext={eventSwitcher}
     >
       <div className="space-y-4">
-        <PageNotices vm={vm} outsideNotice={location.outsideNotice} onDismiss={dismissOutsideNotice} live={Boolean(vm.event && !vm.readOnly && LIVE_VIEWS.includes(activeView))} />
+        <PageNotices vm={vm} view={activeView} panels={panelState.panels} outsideNotice={location.outsideNotice} onDismiss={dismissOutsideNotice} live={Boolean(vm.event && !vm.readOnly && LIVE_VIEWS.includes(activeView))} />
         <fieldset disabled={vm.readOnly && !READ_ONLY_SAFE_VIEWS.includes(activeView)} className="min-w-0">
           <CoordinatorViewContent
             vm={vm}
@@ -347,7 +356,6 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
             events={state.events}
             onNavigate={navigateTo}
             onOpenItem={openEventView}
-            panels={panelState.panels}
           />
         </fieldset>
         <CoordinatorPanels vm={vm} panelState={panelState} compact={compact} />

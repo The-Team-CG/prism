@@ -41,14 +41,14 @@ function roleView(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderRoleData(view: Record<string, unknown>, actions: { operator?: Record<string, unknown>; onReportIssue?: () => void; taskTitle?: string } = {}, section: "tasks" | "issues" = "tasks") {
+function renderRoleData(view: Record<string, unknown>, actions: { operator?: Record<string, unknown>; taskTitle?: string } = {}, section: "tasks" | "issues" = "tasks") {
   const models = {
     taskForm: { title: actions.taskTitle ?? "", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], routesAway: false, busy: false, error: null, submit: vi.fn(async () => true) },
     reassignment: { busy: false, error: null, request: vi.fn() },
     taskActions: { busy: false, error: null, updateStatus: vi.fn(), blockTask: vi.fn(), unblockTask: vi.fn() },
     operatorActions: { busy: false, error: null, supplierBusy: false, supplierError: null, updateAttendance: vi.fn(), verifySupplier: vi.fn(), reportSupplierStatus: vi.fn(), ...actions.operator },
   };
-  const props = { section, roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, onReportIssue: actions.onReportIssue, ...models };
+  const props = { section, roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, ...models };
   render(<CoordinatorRoleData {...(props as unknown as ComponentProps<typeof CoordinatorRoleData>)} />);
   return models;
 }
@@ -274,8 +274,7 @@ describe("coordinator self-attendance window", () => {
 const issue = (overrides: Record<string, unknown>) => ({ id: "iss", eventId: "evt_1", title: "Issue", description: "", severity: "high", status: "open", affectedArea: "", ownerRole: "", ownerName: "", resolution: "", openedBy: "", createdAt: "", updatedAt: "", ...overrides });
 
 describe("coordinator queues", () => {
-  it("lists open issues most serious first, keeps resolved ones apart, and offers the report form", () => {
-    const onReportIssue = vi.fn();
+  it("lists open issues most serious first and keeps resolved ones apart", () => {
     renderRoleData(roleView({
       guestAttendanceCount: 3,
       urgentIssues: [
@@ -283,7 +282,7 @@ describe("coordinator queues", () => {
         issue({ id: "fixed", title: "Mic feedback", status: "resolved", resolution: "Swapped the receiver" }),
         issue({ id: "crit", title: "Generator down", severity: "critical", affectedArea: "Main Hall" }),
       ],
-    }), { onReportIssue }, "issues");
+    }), {}, "issues");
 
     const open = within(screen.getByRole("region", { name: /Open issues/ }));
     const titles = open.getAllByRole("listitem").map((item) => item.textContent ?? "");
@@ -292,9 +291,6 @@ describe("coordinator queues", () => {
     expect(open.queryByText("Mic feedback")).toBeNull();
     expect(within(screen.getByRole("region", { name: /Resolved/ })).getByText("Swapped the receiver")).toBeTruthy();
     expect(screen.getByText("Guest names are hidden for your role.")).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: "Report an issue" }));
-    expect(onReportIssue).toHaveBeenCalledTimes(1);
   });
 
   it("groups tasks by where they stand, blocked first", () => {
@@ -312,13 +308,10 @@ describe("coordinator queues", () => {
     expect(screen.getByRole("button", { name: "Unblock" })).toBeTruthy();
   });
 
-  it("offers Log a task beside the tasks and says when nothing is assigned", () => {
-    const onLogTask = vi.fn();
-    render(<CoordinatorRoleData {...({ section: "tasks", roleViewLoading: false, roleViewError: null, roleView: roleView({ tasks: [] }), registrationRole: false, onLogTask, reassignment: {}, taskActions: { busy: false, error: null }, operatorActions: {} } as unknown as ComponentProps<typeof CoordinatorRoleData>)} />);
+  it("says when nothing is assigned", () => {
+    renderRoleData(roleView({ tasks: [] }));
 
     expect(screen.getByText(/No tasks assigned to you yet/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Log a task" }));
-    expect(onLogTask).toHaveBeenCalledTimes(1);
   });
 
   it("closes the Log a task panel once the task is saved", async () => {

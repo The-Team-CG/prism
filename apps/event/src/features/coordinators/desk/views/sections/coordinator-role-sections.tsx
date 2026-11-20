@@ -2,12 +2,13 @@
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 
-import { AlertTriangle, CheckCircle2, CircleCheck, Plus, Radio, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, CircleCheck, Radio, ShieldCheck } from "lucide-react";
 import { useId, useRef } from "react";
 import { Button } from "@prism/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import { PrismListRow } from "@prism/ui/action-list";
-import { PrismEmptyLine, PrismSection, PrismStatRow } from "@prism/ui/page-blocks";
+import { PrismEmptyLine, PrismSection } from "@prism/ui/page-blocks";
+import { CoordinatorEmpty } from "./coordinator-blocks";
 import { label } from "@/features/pmcm-kit";
 import {
   coordinatorAttendanceControlCopy,
@@ -279,17 +280,13 @@ type CoordinatorRoleDataProps = {
   reassignment: CoordinatorReassignmentModel;
   taskActions: CoordinatorTaskActionsModel;
   operatorActions: CoordinatorOperatorActionsModel;
-  /** Opens the issue form; the Issues page offers it beside the open issues. */
-  onReportIssue?: () => void;
-  /** Opens the Log a task panel beside the task list. */
-  onLogTask?: () => void;
 };
 
 export function CoordinatorRoleData({ section = "tasks", roleViewLoading, roleViewError, roleView, ...rest }: CoordinatorRoleDataProps) {
   if (roleViewLoading && !roleView) return <CoordinatorRoleLoading />;
   if (roleViewError) return <CoordinatorRoleError message={roleViewError} />;
   if (!roleView) return null;
-  return section === "tasks" ? <CoordinatorTasksPage roleView={roleView} {...rest} /> : <CoordinatorIssuesPage roleView={roleView} registrationRole={rest.registrationRole} onReportIssue={rest.onReportIssue} />;
+  return section === "tasks" ? <CoordinatorTasksPage roleView={roleView} {...rest} /> : <CoordinatorIssuesPage roleView={roleView} registrationRole={rest.registrationRole} />;
 }
 
 export function CoordinatorRoleLoading() {
@@ -324,23 +321,13 @@ export function CoordinatorTaskSheet({ taskForm, open, onOpenChange, side = "rig
   );
 }
 
-/** Tasks: just the work, grouped by where it stands. The operator's team controls follow. */
-function CoordinatorTasksPage({ roleView, reassignment, taskActions, operatorActions, onLogTask }: Omit<CoordinatorRoleDataProps, "section" | "roleViewLoading" | "roleViewError" | "roleView"> & { roleView: PrismCoordinatorRoleView }) {
-  const open = roleView.tasks.filter(isOpenTask).length;
+/** Tasks: the work grouped by where it stands, then the operator's controls. Its status line and Log a task sit above. */
+function CoordinatorTasksPage({ roleView, reassignment, taskActions, operatorActions }: Omit<CoordinatorRoleDataProps, "section" | "roleViewLoading" | "roleViewError" | "roleView"> & { roleView: PrismCoordinatorRoleView }) {
   return (
-    <div className="grid gap-6">
-      <PrismSection
-        id="coordinator-tasks"
-        title="Your tasks"
-        count={open}
-        description={<span className="hidden sm:inline">Blocked first, then what you have started, then what is next.</span>}
-        action={onLogTask ? <Button type="button" size="sm" className="min-h-10" onClick={onLogTask}><Plus className="size-4" aria-hidden />Log a task</Button> : undefined}
-        flush
-      >
-        <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
-      </PrismSection>
+    <div className="grid gap-4">
+      <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
       {roleView.isDesignatedOperator ? (
-        <PrismSection bare id="coordinator-team-checks" title="Team controls" description="As the event day operator: reassign tasks and update colleagues' attendance.">
+        <PrismSection bare id="coordinator-team-checks" title="Team controls" description="As the event day operator: reassign tasks and update colleagues' attendance." className="mt-2 max-w-3xl">
           <div className="grid gap-4"><CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} /></div>
         </PrismSection>
       ) : null}
@@ -399,41 +386,26 @@ function IssueRow({ issue }: { issue: Issue }) {
   );
 }
 
-function CoordinatorIssuesPage({ roleView, registrationRole, onReportIssue }: { roleView: PrismCoordinatorRoleView; registrationRole: boolean; onReportIssue?: () => void }) {
+function IssueList({ label, issues }: { label: string; issues: Issue[] }) {
+  return (
+    <section aria-label={label} className="grid max-w-3xl gap-1.5">
+      <h2 className="px-1 text-xs font-semibold text-muted-foreground">{label} · {issues.length}</h2>
+      <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">{issues.map((issue) => <IssueRow key={issue.id} issue={issue} />)}</ul>
+    </section>
+  );
+}
+
+/** Issues: open issues most serious first, then resolved ones. Its status line and Report sit above. */
+function CoordinatorIssuesPage({ roleView, registrationRole }: { roleView: PrismCoordinatorRoleView; registrationRole: boolean }) {
   const open = openIssues(roleView.urgentIssues);
   const resolved = roleView.urgentIssues.filter((issue) => !isOpenIssue(issue));
-  const overdue = open.filter((issue) => issue.slaStatus === "overdue").length;
-  const checkIns = roleView.guestAttendanceCount;
   return (
-    <div className="grid gap-6">
-      <PrismStatRow
-        label="Issues on this event"
-        stats={[
-          { label: "Open issues", value: open.length, tone: open.length ? "attention" : "neutral" },
-          { label: "Overdue", value: overdue, tone: "urgent", empty: overdue === 0 },
-          { label: "Resolved", value: resolved.length, empty: resolved.length === 0 },
-          { label: "Guests checked in", value: checkIns, detail: checkIns === 0 ? "No check-ins recorded." : registrationRole ? "Includes walk-ins flagged for PMCM review." : "Guest names are hidden for your role." },
-        ]}
-      />
-      <PrismSection
-        id="coordinator-open-issues"
-        title="Open issues"
-        count={open.length}
-        description="Most serious first. PMCM sees every issue reported here."
-        action={onReportIssue ? <Button type="button" size="sm" variant="outline" onClick={onReportIssue}><Radio className="size-4" aria-hidden />Report an issue</Button> : undefined}
-        flush
-      >
-        {open.length ? (
-          <ul className="divide-y divide-border">{open.map((issue) => <IssueRow key={issue.id} issue={issue} />)}</ul>
-        ) : (
-          <PrismEmptyLine icon={CheckCircle2} className="px-5 py-4">No open issues. Report one whenever something goes wrong on the day.</PrismEmptyLine>
-        )}
-      </PrismSection>
-      {resolved.length ? (
-        <PrismSection id="coordinator-resolved-issues" title="Resolved" count={resolved.length} flush>
-          <ul className="divide-y divide-border">{resolved.map((issue) => <IssueRow key={issue.id} issue={issue} />)}</ul>
-        </PrismSection>
-      ) : null}
+    <div className="grid gap-4">
+      {open.length ? <IssueList label="Open issues" issues={open} /> : (
+        <CoordinatorEmpty icon={CheckCircle2} title="No open issues">Report one whenever something goes wrong on the day. PMCM sees it straight away.</CoordinatorEmpty>
+      )}
+      {resolved.length ? <IssueList label="Resolved" issues={resolved} /> : null}
+      <p className="max-w-3xl px-1 text-xs text-muted-foreground">{registrationRole ? "Check-ins include walk-ins flagged for PMCM review." : "Guest names are hidden for your role."}</p>
     </div>
   );
 }

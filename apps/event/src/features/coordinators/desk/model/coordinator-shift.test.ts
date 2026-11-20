@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismCoordinatorRoleView } from "@prism/types";
-import { eventCountdown, eventPhase, formatCountdown, groupTasks, issueAreaOptions, quickIssueTitle, runSheetNowAndNext, shiftNextUp } from "./coordinator-shift";
+import { eventCountdown, eventPhase, formatCountdown, groupTasks, issueAreaOptions, issuesSummary, quickIssueTitle, runSheetNowAndNext, shiftNextUp, tasksSummary } from "./coordinator-shift";
 
 type Task = PrismCoordinatorRoleView["tasks"][number];
 type Issue = PrismCoordinatorRoleView["urgentIssues"][number];
@@ -105,5 +105,17 @@ describe("on site", () => {
     }, "Garden Pavilion");
 
     expect(options).toEqual(["Main Hall", "Stage", "Kitchen", "Garden Pavilion"]);
+  });
+});
+
+describe("page status lines", () => {
+  it("counts open and blocked tasks, or says nothing is assigned", () => {
+    expect(tasksSummary([task({ status: "open" }), task({ status: "blocked" }), task({ status: "done" })])).toBe("2 open · 1 blocked");
+    expect(tasksSummary([task({ status: "done" })])).toBe("Nothing assigned to you right now");
+  });
+
+  it("counts open and overdue issues with the check-ins", () => {
+    expect(issuesSummary([issue({ slaStatus: "overdue" }), issue({ status: "resolved" })], 1)).toBe("1 open · 1 overdue · 1 guest checked in");
+    expect(issuesSummary([], 3)).toBe("No open issues · 3 guests checked in");
   });
 });

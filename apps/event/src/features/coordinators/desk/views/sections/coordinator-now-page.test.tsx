@@ -117,7 +117,8 @@ describe("Now, before the event", () => {
     renderNow({ assignment: { status: "assigned" }, form: attendance({ windowOpen: false, canMark: false }) });
 
     expect(screen.getByText("Your next event")).toBeTruthy();
-    expect(screen.getByText("11")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "11 days to go" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Ayala Wedding" })).toBeNull();
     expect(screen.getByRole("button", { name: "Confirm assignment" })).toBeTruthy();
     expect(screen.getByText("Role brief")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Directions to Garden Pavilion/ })).toBeTruthy();

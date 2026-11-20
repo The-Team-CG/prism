@@ -182,3 +182,18 @@ export function quickAttendanceMode(form: { hasAssignment: boolean; windowOpen: 
   if (recorded) return "recorded";
   return form.windowOpen && form.canMark && !form.replaced ? "one-tap" : "choices";
 }
+
+/** The Tasks page's status: "3 open · 1 blocked", or that nothing is assigned. */
+export function tasksSummary(tasks: Task[]): string {
+  const open = tasks.filter(isOpenTask);
+  if (!open.length) return "Nothing assigned to you right now";
+  const blocked = open.filter((task) => task.status === "blocked").length;
+  return [`${open.length} open`, blocked ? `${blocked} blocked` : null].filter(Boolean).join(" · ");
+}
+
+/** The Issues page's status: "1 open · 1 overdue · 3 guests checked in". */
+export function issuesSummary(issues: Issue[], checkIns: number): string {
+  const open = openIssues(issues);
+  const overdue = open.filter((issue) => issue.slaStatus === "overdue").length;
+  return [open.length ? `${open.length} open` : "No open issues", overdue ? `${overdue} overdue` : null, `${checkIns} ${checkIns === 1 ? "guest" : "guests"} checked in`].filter(Boolean).join(" · ");
+}

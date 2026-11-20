@@ -1,9 +1,9 @@
 "use client";
 
 import { Bell, CalendarDays, ChevronDown, ChevronLeft, Clock, ClipboardCheck, ClipboardList, ListOrdered, LogOut, MessageSquare, Radio, RefreshCw, UserRound, UsersRound } from "lucide-react";
+import type { ReactNode } from "react";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 import type { PrismShellNavItem as PrismNavItem } from "@prism/ui";
-import { Button } from "@prism/ui/components/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@prism/ui/components/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import { formatPortalDate } from "@prism/ui/format-date";
@@ -108,10 +108,10 @@ export function CoordinatorPhoneActions({ initials, unreadNotices, onNavigate, o
 }) {
   return (
     <>
-      <Button type="button" variant="ghost" size="icon" className="relative size-11" aria-label={unreadNotices ? `Notifications, ${unreadNotices} unread` : "Notifications"} onClick={() => onNavigate("notifications")}>
+      <button type="button" className="relative grid size-11 place-items-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" aria-label={unreadNotices ? `Notifications, ${unreadNotices} unread` : "Notifications"} onClick={() => onNavigate("notifications")}>
         <Bell className="size-5" aria-hidden />
-        {unreadNotices ? <span aria-hidden className="absolute right-1.5 top-1.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-semibold leading-4 text-white">{unreadNotices}</span> : null}
-      </Button>
+        {unreadNotices ? <span aria-hidden className="absolute right-1 top-1.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-semibold leading-4 text-white">{unreadNotices}</span> : null}
+      </button>
       <DropdownMenu>
         <DropdownMenuTrigger aria-label="Your account" className="grid size-11 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <span className="grid size-8 place-items-center rounded-full bg-ink text-[11px] font-semibold text-ink-foreground">{initials}</span>
@@ -132,19 +132,39 @@ export function CoordinatorPhoneActions({ initials, unreadNotices, onNavigate, o
   );
 }
 
-/** "Updated 20 s ago" with a Refresh button, so a coordinator on patchy signal knows whether what they see is current. */
-export function FreshnessLine({ roleView, loading, onRefresh }: { roleView: PrismCoordinatorRoleView | null; loading: boolean; onRefresh: () => void }) {
+function UpdatedAgo({ roleView, loading, onRefresh }: { roleView: PrismCoordinatorRoleView; loading: boolean; onRefresh: () => void }) {
   const { label } = useUpdatedAgo(roleView);
+  return (
+    <span className="flex items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
+      <span aria-hidden className="size-1.5 rounded-full bg-success" />
+      <span role="status" aria-live="polite">{loading ? "Refreshing…" : label}</span>
+      <button type="button" aria-label="Refresh" disabled={loading} onClick={onRefresh} className="-my-2 grid size-8 place-items-center rounded-full text-primary hover:bg-muted disabled:opacity-50">
+        <RefreshCw className="size-3.5" aria-hidden />
+      </button>
+    </span>
+  );
+}
+
+/**
+ * The block under a page's title: what the page holds ("3 open · 1 blocked"), with when it was last updated and a
+ * refresh under it, and the page's own action on the right. A coordinator on patchy signal sees at a glance whether
+ * what they are looking at is current.
+ */
+export function PageStatusLine({ roleView, loading, onRefresh, summary, action }: {
+  roleView: PrismCoordinatorRoleView | null;
+  loading: boolean;
+  onRefresh: () => void;
+  summary?: string;
+  action?: ReactNode;
+}) {
   if (!roleView) return null;
   return (
-    <div className="flex max-w-3xl items-center justify-between gap-3 text-xs text-muted-foreground">
-      <p role="status" aria-live="polite" className="flex items-center gap-1.5">
-        <span aria-hidden className="size-2 rounded-full bg-success" />
-        {loading ? "Refreshing…" : label}
-      </p>
-      <Button type="button" variant="ghost" size="sm" className="min-h-9 text-xs" disabled={loading} onClick={onRefresh}>
-        <RefreshCw className="size-3.5" aria-hidden />Refresh
-      </Button>
+    <div className="flex max-w-3xl items-center justify-between gap-3">
+      <div className="grid min-w-0 gap-0.5">
+        {summary ? <p className="text-sm text-foreground">{summary}</p> : null}
+        <UpdatedAgo roleView={roleView} loading={loading} onRefresh={onRefresh} />
+      </div>
+      {action ? <div className="shrink-0">{action}</div> : null}
     </div>
   );
 }

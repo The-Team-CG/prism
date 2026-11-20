@@ -12,7 +12,8 @@ import type {
 import { canonicalCoordinatorRole } from "@prism/types";
 
 import { Button } from "@prism/ui/components/button";
-import { PrismEmptyLine, PrismSection, PrismSectionGroupLabel } from "@prism/ui/page-blocks";
+import { PrismEmptyLine, PrismSection } from "@prism/ui/page-blocks";
+import { CoordinatorEmpty } from "./coordinator-blocks";
 import { label } from "@/features/pmcm-kit";
 import { TASK_BLOCK_REASONS, TASK_GROUPS, groupTasks, taskDue, taskTone } from "../../model/coordinator-shift";
 import {
@@ -81,21 +82,21 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
   const groups = groupTasks(roleView.tasks);
   const shown = TASK_GROUPS.filter((group) => groups[group.id].length > 0);
   return (
-    <div id="coordinator-role-queue" className="scroll-mt-24">
+    <div id="coordinator-role-queue" className="grid max-w-3xl scroll-mt-24 gap-4">
       {shown.length === 0 ? (
-        <PrismEmptyLine icon={ClipboardList} className="px-5 py-4">No tasks assigned to you yet. Tasks PMCM gives your role show up here.</PrismEmptyLine>
+        <CoordinatorEmpty icon={ClipboardList} title="No tasks assigned to you yet">Tasks PMCM gives your role show up here.</CoordinatorEmpty>
       ) : null}
       {shown.map((group) => (
-        <section key={group.id} aria-label={group.title}>
-          <PrismSectionGroupLabel>{group.title} · {groups[group.id].length}</PrismSectionGroupLabel>
-          <ul className="divide-y divide-border">
+        <section key={group.id} aria-label={group.title} className="grid gap-1.5">
+          <h2 className="px-1 text-xs font-semibold text-muted-foreground">{group.title} · {groups[group.id].length}</h2>
+          <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
             {groups[group.id].map((task) => (
               <CoordinatorTaskQueueRow key={task.id} task={task} taskActions={taskActions} canUpdate={canCoordinatorUpdateTask(task, roleView)} />
             ))}
           </ul>
         </section>
       ))}
-      {taskActions.error ? <p role="alert" className={`m-4 ${FORM_ALERT}`}>{taskActions.error}</p> : null}
+      {taskActions.error ? <p role="alert" className={FORM_ALERT}>{taskActions.error}</p> : null}
     </div>
   );
 }

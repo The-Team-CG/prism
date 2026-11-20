@@ -194,13 +194,16 @@ function MobileTabBar({ items, action, activeId, onSelect }: { items: PrismNavIt
 }
 
 /**
- * Class changes when a portal opts into phone tabs: the menu button, search and page heading give way to the tabs and
- * the phone top bar, the content clears the tab bar, and desktop's top bar actions give way to the phone's own.
+ * Class changes when a portal opts into phone tabs: the menu button and search give way to the tabs and the phone top
+ * bar, the page heading tightens, the content clears the tab bar, and desktop's top bar actions give way to the phone's.
  */
 function phoneLayout(tabs: boolean) {
   return {
     trigger: tabs ? "hidden md:inline-flex" : undefined,
-    title: tabs ? "hidden md:grid" : undefined,
+    // The top bar names the event, so the page keeps its own name, a size smaller; the event line under it is desktop's.
+    title: tabs ? "mb-3 md:mb-5" : undefined,
+    heading: tabs ? "text-xl md:text-2xl" : "text-2xl",
+    description: tabs ? "hidden md:block" : undefined,
     content: tabs ? "pt-4 pb-28 md:pt-6 md:pb-6" : undefined,
     search: tabs ? "hidden md:flex" : "flex",
     headerActions: (alwaysShow: boolean) => (alwaysShow && !tabs ? "flex" : "hidden md:flex"),
@@ -590,8 +593,8 @@ export function PrismPortalShell({
           <div className={cn("mx-auto min-w-0 w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 lg:px-8", phone.content, contentClassName)}>
             {/* With phone tabs the top bar already names the page, so the heading shows from a tablet up. */}
             <div className={cn("mb-5 grid gap-1", phone.title, titleClassName)}>
-              <h1 className="min-w-0 font-heading text-2xl font-semibold leading-tight text-foreground"><TruncatedText>{title}</TruncatedText></h1>
-              {description ? <p className="max-w-3xl text-sm text-muted-foreground">{description}</p> : null}
+              <h1 className={cn("min-w-0 font-heading font-semibold leading-tight text-foreground", phone.heading)}><TruncatedText>{title}</TruncatedText></h1>
+              {description ? <p className={cn("max-w-3xl text-sm text-muted-foreground", phone.description)}>{description}</p> : null}
             </div>
             {children}
           </div>
