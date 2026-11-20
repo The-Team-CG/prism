@@ -310,9 +310,22 @@ describe('GuestWorkflowService', () => {
       id: 'evt_sample',
       eventName: 'Ayala Tech Summit',
     });
-    expect(eventProjections.listGuestAccessCandidates).toHaveBeenCalledWith(false);
     expect(eventProjections.findGuestEvent).toHaveBeenCalledWith('evt_sample');
     await expect(service.countCheckInsForEvent('evt_sample')).resolves.toBe(1);
+  });
+
+  it('keeps an archived event open to its guests while the feedback window is open, and closes it after', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    (state.events[0] as any).archived = true;
+
+    // Archived the day after it ended (2026-09-07T12:00Z): guests can still open it to leave feedback.
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+    await expect(service.getEventByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({ id: 'evt_sample' });
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({ feedbackAvailability: 'open' });
+
+    vi.setSystemTime(new Date('2026-09-15T12:00:00.000Z'));
+    await expect(service.getEventByAccessCode('AYALA-TECH-MPLE')).rejects.toThrow('was not found');
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).rejects.toThrow('was not found');
   });
 
   it('keeps public guest pass and watermark free of attendance signals', async () => {

@@ -110,15 +110,22 @@ export class GuestWorkflowService implements GuestCommands {
     return { objectId: stored.id, kind };
   }
 
+  /**
+   * The guest's event dashboard. An archived event stays readable while its seven-day feedback window is open, so a
+   * guest can still find it and leave feedback; check-in and every other write stay refused on it.
+   */
   async getEventByAccessCode(accessCode: string) {
-    return this.resolveGuestEventByAccessCode(accessCode);
+    const event = await this.resolveGuestEventByAccessCode(accessCode, true);
+    if (event.archived && guestFeedbackAvailability(event.actualEndedAt) !== 'open') throw new NotFoundException('Guest event code was not found');
+    return event;
   }
 
   async getEventWatermarkByAccessCode(accessCode: string): Promise<PrismGuestEventWatermark> {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
-    const events = await this.eventProjections.listGuestAccessCandidates(false);
+    const events = await this.eventProjections.listGuestAccessCandidates(true);
     const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
-    if (!event) throw new NotFoundException('Guest event code was not found');
+    // The same events the dashboard serves: archived ones only while their feedback window is open.
+    if (!event || (event.archived && guestFeedbackAvailability(event.actualEndedAt) !== 'open')) throw new NotFoundException('Guest event code was not found');
 
     return { watermark: this.guestEventWatermark(event.updatedAt), feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt) };
   }
