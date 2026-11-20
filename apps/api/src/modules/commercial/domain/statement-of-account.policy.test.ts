@@ -34,6 +34,12 @@ describe('statement of account', () => {
     expect(result.milestones.map((milestone) => [milestone.label, milestone.remaining])).toEqual([['Deposit', 0], ['Balance', 50000]]);
   });
 
+  it('bills every statement in force, so a cancellation fee beside the main statement is in both billed and balance', () => {
+    const fee = { id: 'm3', label: 'Cancellation fee', dueDate: d('2026-12-05'), amount: 20000, amountPaid: 0, creditApplied: 0, remainingBalance: 20000, status: 'pending' };
+    const result = buildStatementOfAccount(inputs({ statement: { number: 'BS-2', totalAmount: 20000, sentAt: d('2026-11-01'), generatedAt: d('2026-11-01') }, milestones: [...inputs().milestones, fee] }));
+    expect(result).toMatchObject({ billed: 170000, received: 100000, balance: 70000 });
+  });
+
   it('shows a client nothing until PMCM has sent the statement, but shows PMCM the current one', () => {
     const unsent = { number: 'BS-1', totalAmount: 150000, sentAt: null, generatedAt: d('2026-09-30') };
 

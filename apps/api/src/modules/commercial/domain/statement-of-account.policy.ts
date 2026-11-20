@@ -163,7 +163,8 @@ export function buildStatementOfAccount(input: StatementInputs): Omit<PrismState
   return {
     available: true,
     statementNumber: input.statement.number,
-    billed: input.statement.totalAmount,
+    // Every statement in force (a cancellation fee is billed beside the main statement), so billed and balance agree.
+    billed: input.milestones.length > 0 ? sum(input.milestones.map((milestone) => milestone.amount)) : input.statement.totalAmount,
     received: sum(lines.filter((line) => line.kind !== 'refund' && !line.reversed).map((line) => line.amount)),
     refunded: sum(lines.filter((line) => line.kind === 'refund').map((line) => line.amount)),
     creditHeld: sum((input.receipts ?? []).filter((receipt) => receipt.status === 'verified').map((receipt) => Math.max(0, receipt.unapplied))),
