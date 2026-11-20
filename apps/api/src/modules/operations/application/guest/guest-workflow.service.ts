@@ -539,12 +539,14 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   /**
-   * The event a guest checks in to, open for check-in: found, not archived, and not cancelled or waiting for a new date.
+   * The event a guest checks in to, open for check-in: found, not archived, not cancelled or waiting for a new date, and
+   * not ended. A late arrival after PMCM records the end is the registration desk's to record, not the guest's own.
    */
   private async requireOpenCheckInEvent(eventId: string, context: PrismTransactionContext) {
     const currentEvent = await this.eventReferences.findOperationsEvent(eventId, context);
     if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
     if (GUEST_CHECK_IN_CLOSED_STATUSES.has(currentEvent.status)) throw new BadRequestException('Check-in is not open for this event');
+    if (currentEvent.actualEndedAt && currentEvent.actualEndedAt.getTime() <= Date.now()) throw new BadRequestException('This event has ended, so check-in is closed');
     const checkInEvent = await this.eventReferences.findGuestCheckInEventReference(eventId, context);
     if (!checkInEvent) throw new NotFoundException('Guest event was not found or archived');
     return { currentEvent, checkInEvent };

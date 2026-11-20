@@ -295,6 +295,14 @@ afterEach(() => {
 });
 
 describe('GuestWorkflowService', () => {
+  // By default the clock sits during the fixture event, before its recorded end (2026-09-07T12:00Z), so guests can
+  // check in. Feedback tests pin their own later instant.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-07T10:00:00.000Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+
   it('resolves a guest event and returns attendance counts by access code', async () => {
     const { service, eventProjections } = createGuestWorkflowFixture();
 
@@ -684,7 +692,8 @@ describe('GuestWorkflowService', () => {
 
   it('records guest check-ins and moderated feedback through command methods', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+    // The guest checks in during the event, and leaves feedback the day after it ended.
+    vi.setSystemTime(new Date('2026-09-07T10:00:00.000Z'));
     const { service, auditWriter } = createGuestWorkflowFixture();
 
     const checkIn = await service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
@@ -693,6 +702,7 @@ describe('GuestWorkflowService', () => {
       checkInMode: 'name_search',
       privacyConsentAccepted: true,
     }));
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', {
       privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       guestName: 'Sofia Lim',
@@ -747,6 +757,17 @@ describe('GuestWorkflowService', () => {
       privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       checkInMode: 'name_search', guestName: 'open walk in', privacyConsentAccepted: true,
     }))).resolves.toEqual({ accepted: true });
+    expect(state.guestCheckIns).toHaveLength(before);
+  });
+
+  it('closes guest self check-in once PMCM records the actual end', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    const before = state.guestCheckIns.length;
+    vi.setSystemTime(new Date('2026-09-07T12:30:00.000Z'));
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      checkInMode: 'name_search', guestName: 'Late Guest', privacyConsentAccepted: true,
+    }))).rejects.toThrow('This event has ended');
     expect(state.guestCheckIns).toHaveLength(before);
   });
 
