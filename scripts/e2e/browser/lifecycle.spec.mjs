@@ -190,7 +190,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
     await test.step('PMCM requests a supplier quote; the applicant supplier replies; PMCM selects the quote', async () => {
       await pmcm.page.goto(path('suppliers'));
-      await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
+      await pmcm.page.getByRole('tab', { name: /^Services/ }).click();
       await pmcm.page.getByRole('combobox', { name: 'Supplier category', exact: true }).click();
       await pmcm.page.getByRole('option', { name: 'Digital Registration', exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Request quotes', exact: true }).click();
@@ -214,7 +214,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await supplier.getByRole('button', { name: 'Send quote to PMCM', exact: true }).click();
       await expect(supplier.getByRole('status')).toContainText('Your quote has been sent');
       await pmcm.page.reload();
-      await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
+      await pmcm.page.getByRole('tab', { name: /^Services/ }).click();
       await pmcm.page.getByRole('button', { name: 'Select supplier', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Selected', exact: true })).toBeVisible();
     });

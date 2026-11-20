@@ -38,6 +38,7 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@prism/ui/
 import { FieldDescription } from "@prism/ui/components/field";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@prism/ui/components/item";
 import { OperatorDesignationCard } from "./coordinator-operator-card";
+import { CoordinatorRoleCoverage, roleCoverageRows } from "./coordinator-role-coverage";
 import { LoadingState } from "@prism/ui/components/loading-state";
 
 type SuggestionLoadStatus = "idle" | "loading" | "loaded" | "empty" | "error";
@@ -127,6 +128,17 @@ export function CoordinatorAssignmentDesk({
     [coordinators, roleFilter],
   );
 
+  const coverageRows = useMemo(() => roleCoverageRows(COORDINATOR_ROLES, eventAssignments, roleRequirements), [eventAssignments, roleRequirements]);
+  const filledRoles = new Set(coverageRows.filter((row) => row.holders.length >= (row.needed ?? 1)).map((row) => row.role));
+
+  function findForRole(role: CoordinatorRole) {
+    setRoleFilter(role);
+    setSelectedSkills([]);
+    setSkillSuggestions([]);
+    setSkillSuggestionStatus("idle");
+    window.setTimeout(() => document.getElementById("coordinator-finder")?.scrollIntoView({ block: "start", behavior: "smooth" }), 0);
+  }
+
   const assignmentCounts = useMemo(() => {
     const counts = new Map<string, number>();
     eventAssignments.filter(isCoordinatorAssignmentActive).forEach((a) => {
@@ -202,14 +214,19 @@ export function CoordinatorAssignmentDesk({
 
       <PoolAvailabilityNote pool={pool} />
 
-      <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} eventEnded={hasEventDatePassed(event.eventDate, prismCalendarDateKey())} onEdit={setEditingTarget} />
+      {/* Who holds each role leads the page; the finder below is how a gap gets filled. */}
+      <CoordinatorRoleCoverage rows={coverageRows} onFind={findForRole} />
+
+      {roleRequirements.length > 0 ? (
+        <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} eventEnded={hasEventDatePassed(event.eventDate, prismCalendarDateKey())} onEdit={setEditingTarget} />
+      ) : null}
 
       {/* Coordinator assignment */}
-      <Card>
+      <Card id="coordinator-finder" className="scroll-mt-24">
         <CardHeader>
           <div className="flex items-center gap-2">
             <UserCheck className="size-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Coordinator assignment</h2>
+            <h2 className="text-sm font-semibold text-foreground">Find and assign coordinators</h2>
           </div>
         </CardHeader>
         <CardContent>
@@ -279,7 +296,7 @@ export function CoordinatorAssignmentDesk({
                 groupedRoles.map((role) => {
                   const roleCoords = filteredCoordinators.filter((c) => coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === role));
                   if (roleCoords.length === 0) return null;
-                  return (
+                  const card = (
                     <Card key={role}>
                       <CardHeader>
                         <CardTitle className="text-sm font-semibold text-foreground">{role}</CardTitle>
@@ -303,6 +320,17 @@ export function CoordinatorAssignmentDesk({
                         </ItemGroup>
                       </CardContent>
                     </Card>
+                  );
+                  // A filled role folds to one line while browsing every role, so open roles stay in view.
+                  if (roleFilter !== "all" || !filledRoles.has(role)) return card;
+                  return (
+                    <details key={role} className="group rounded-lg border border-border bg-card">
+                      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-sm">
+                        <span className="font-semibold text-foreground">{role} <span className="font-normal text-success">· filled</span></span>
+                        <span className="text-xs text-muted-foreground">{roleCoords.length} {roleCoords.length === 1 ? "match" : "matches"}<ChevronDown aria-hidden className="ml-1 inline size-3.5 transition-transform group-open:rotate-180" /></span>
+                      </summary>
+                      <div className="border-t border-border p-2">{card}</div>
+                    </details>
                   );
                 })
               )}
