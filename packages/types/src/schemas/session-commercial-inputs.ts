@@ -11,7 +11,8 @@ export const addSupplierQuoteSchema = z.object({
   inclusions: z.array(nonEmptyStringSchema).optional(),
   paymentTerms: optionalTrimmedStringSchema,
   notes: optionalTrimmedStringSchema,
-  status: optionalTrimmedStringSchema,
+  /** A quote PMCM enters is requested, received or revised; selecting it is its own command with its own checks. */
+  status: z.enum(["requested", "received", "revised"]).optional(),
 });
 export type AddSupplierQuoteInput = z.infer<typeof addSupplierQuoteSchema>;
 

@@ -192,6 +192,11 @@ describe('CommercialWorkflowService', () => {
 
     await service.addSupplierQuote('evt_1', { supplierId: 'sup_1', amount: 1200 }, actor);
 
+    // A quote request id from another event is refused before anything is written.
+    (prisma as Record<string, unknown>).opsSupplierQuoteRequest = { findFirst: vi.fn(async () => null) };
+    await expect(service.addSupplierQuote('evt_1', { supplierId: 'sup_1', amount: 1200, requestId: 'qr_other_event' }, actor)).rejects.toThrow('Quote request not found for this event');
+    expect(prisma.opsSupplierQuote.create).toHaveBeenCalledTimes(1);
+
     expect(auditWriter.write).toHaveBeenCalledWith(expect.objectContaining({
       eventId: 'evt_1',
       actor: actor.name,
@@ -201,7 +206,10 @@ describe('CommercialWorkflowService', () => {
     }), undefined);
   });
 
-  it('selects one quote, closes competing requests, and queues PMCM side effects', async () => {
+  it.each([
+    ['with its category id', 'cat_tech'],
+    ['without a category id, matched by category name', null],
+  ])('selects one quote %s, closes only open requests in that category, and queues PMCM side effects', async (_name, selectedCategoryId) => {
     const quotes = [
       {
         id: 'quote_selected',
@@ -210,7 +218,7 @@ describe('CommercialWorkflowService', () => {
         supplierId: null,
         supplierName: 'Sonic Line Events',
         category: 'Technicals',
-        categoryId: 'cat_tech',
+        categoryId: selectedCategoryId,
         amount: 180000,
         inclusions: ['LED wall', 'Sound system'],
         paymentTerms: '50% downpayment, 50% seven days before the event',
@@ -232,8 +240,11 @@ describe('CommercialWorkflowService', () => {
       },
     ];
     const quoteRequests = [
-      { id: 'qr_selected', eventId: 'evt_sample', categoryId: 'cat_tech', status: 'submitted' },
-      { id: 'qr_other', eventId: 'evt_sample', categoryId: 'cat_tech', status: 'submitted' },
+      { id: 'qr_selected', eventId: 'evt_sample', categoryId: 'cat_tech', category: 'Technicals', status: 'submitted' },
+      { id: 'qr_other', eventId: 'evt_sample', categoryId: 'cat_tech', category: 'Technicals', status: 'submitted' },
+      // Another category's booking, and this category's request that already expired, stay as they are.
+      { id: 'qr_florals', eventId: 'evt_sample', categoryId: 'cat_florals', category: 'Florals', status: 'selected' },
+      { id: 'qr_late', eventId: 'evt_sample', categoryId: 'cat_tech', category: 'Technicals', status: 'expired' },
     ];
     const prisma = {
       opsEvent: { findUnique: vi.fn(async () => ({ id: 'evt_sample', eventName: 'Summit', eventDate: new Date('2026-10-01T00:00:00.000Z') })) },
@@ -271,7 +282,8 @@ describe('CommercialWorkflowService', () => {
         }),
         updateMany: vi.fn(async ({ where, data }) => {
           for (const request of quoteRequests) {
-            if (request.eventId === where.eventId && request.categoryId === where.categoryId && request.id !== where.id.not) {
+            const inCategory = where.categoryId !== undefined ? request.categoryId === where.categoryId : request.category === where.category;
+            if (request.eventId === where.eventId && inCategory && request.id !== where.id.not && !where.status?.notIn?.includes(request.status)) {
               Object.assign(request, data);
             }
           }
@@ -300,6 +312,8 @@ describe('CommercialWorkflowService', () => {
     expect(quotes.find((quote) => quote.id === 'quote_other')?.status).toBe('not_selected');
     expect(quoteRequests.find((request) => request.id === 'qr_selected')?.status).toBe('selected');
     expect(quoteRequests.find((request) => request.id === 'qr_other')?.status).toBe('closed');
+    expect(quoteRequests.find((request) => request.id === 'qr_florals')?.status).toBe('selected');
+    expect(quoteRequests.find((request) => request.id === 'qr_late')?.status).toBe('expired');
     expect(auditWriter.write).toHaveBeenCalledWith(
       expect.objectContaining({
         eventId: 'evt_sample',

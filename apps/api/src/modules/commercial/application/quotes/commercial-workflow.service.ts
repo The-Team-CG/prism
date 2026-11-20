@@ -326,6 +326,9 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
       validateState: async () => {
         const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
         if (!event) throw new NotFoundException('Event not found');
+        if (input.requestId && !(await this.prisma.opsSupplierQuoteRequest.findFirst({ where: { id: input.requestId, eventId }, select: { id: true } }))) {
+          throw new NotFoundException('Quote request not found for this event');
+        }
 
         directorySupplier = await this.quoteSupplierResolver.resolveQuoteSupplier(input);
 
@@ -484,11 +487,13 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             });
           }
 
+          // Only this category's other open requests close; a quote without a category id is matched by its category name.
           await tx.opsSupplierQuoteRequest.updateMany({
             where: {
               eventId,
-              ...(quote!.categoryId ? { categoryId: quote!.categoryId } : {}),
+              ...(quote!.categoryId ? { categoryId: quote!.categoryId } : { category: quote!.category }),
               ...(quote!.requestId ? { id: { not: quote!.requestId } } : {}),
+              status: { notIn: [SupplierQuoteRequestStatus.Selected, SupplierQuoteRequestStatus.Closed, SupplierQuoteRequestStatus.Expired] },
             },
             data: { status: SupplierQuoteRequestStatus.Closed },
           });
