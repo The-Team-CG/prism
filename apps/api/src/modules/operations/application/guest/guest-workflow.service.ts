@@ -626,6 +626,10 @@ export class GuestWorkflowService implements GuestCommands {
       if (roster.checkedInAt && input.status !== roster.verificationStatus) {
         throw new BadRequestException('Guest verification cannot change after check-in');
       }
+      // A flagged walk-in waits for PMCM: the desk that flagged it cannot clear it and check the guest in itself.
+      if (roster.verificationFlaggedAt && input.status === 'verified' && actor.role === OpsUserRole.Coordinator) {
+        throw new ForbiddenException('PMCM verifies a flagged walk-in before check-in');
+      }
       const cleared = input.status === 'verified' ? { verificationFlaggedAt: null, verificationFlaggedBy: null } : {};
       const updated = await tx.opsGuestRosterEntry.update({ where: { id: rosterEntryId }, data: { verificationStatus: input.status, ...cleared } });
       await writeAudit(this.auditWriter, eventId, actor.name, `Guest verification changed: ${roster.guestName}`, { actorRole: actor.role, category: AuditCategory.Events, actionType: AuditActionType.Update, affectedType: 'guest_roster_verification', affectedId: rosterEntryId, affectedLabel: roster.guestName, metadata: { previousStatus: roster.verificationStatus, status: input.status, actorId: actor.id } }, { prisma: tx, correlationId: `roster_verify_${rosterEntryId}`, actorId: actor.id });

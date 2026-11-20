@@ -941,6 +941,8 @@ describe('GuestWorkflowService', () => {
       expect.objectContaining({ id: walkIn.id, verificationFlaggedBy: 'Registration Staff' }),
     ]);
     await expect(service.countRosterVerificationForEvent('evt_sample')).resolves.toEqual({ verified: 0, pending: 1, flagged: 1 });
+    // The desk that flagged the walk-in cannot clear the flag itself.
+    await expect(service.updateVerification('evt_sample', walkIn.id, { status: 'verified' }, coordinator)).rejects.toThrow('PMCM verifies a flagged walk-in');
 
     await service.updateVerification('evt_sample', walkIn.id, { status: 'verified' }, pmcm);
     expect(state.guestRoster[0]).toMatchObject({ verificationStatus: 'verified', verificationFlaggedAt: null, verificationFlaggedBy: null });

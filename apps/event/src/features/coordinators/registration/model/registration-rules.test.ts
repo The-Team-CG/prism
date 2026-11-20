@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canCheckInRegistrationEntry } from "./registration-rules";
+import { canCheckInRegistrationEntry, canVerifyRegistrationEntry } from "./registration-rules";
 
 const entry = {
   id: "gre_1",
@@ -19,5 +19,10 @@ describe("coordinator registration rules", () => {
     expect(canCheckInRegistrationEntry({ ...entry, eligibility: "ineligible" })).toBe(false);
     expect(canCheckInRegistrationEntry({ ...entry, walkIn: true })).toBe(false);
     expect(canCheckInRegistrationEntry({ ...entry, walkIn: true, verificationStatus: "verified" })).toBe(true);
+  });
+
+  it("leaves a walk-in the desk flagged for PMCM to verify", () => {
+    expect(canVerifyRegistrationEntry({ ...entry, walkIn: true })).toBe(true);
+    expect(canVerifyRegistrationEntry({ ...entry, walkIn: true, verificationFlaggedAt: "2026-10-02T09:00:00.000Z" } as never)).toBe(false);
   });
 });
