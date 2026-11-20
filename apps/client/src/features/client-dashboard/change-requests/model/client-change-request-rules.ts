@@ -7,9 +7,9 @@ export function clientChangeRequestStatusLabel(status: PrismClientChangeRequest[
   return "Under review";
 }
 
-/** Only a scope change still under review can be withdrawn; PMCM decides whether it is still open. */
-export function canWithdrawClientChangeRequest(request: Pick<PrismClientChangeRequest, "source" | "status">): boolean {
-  return request.source === "scope_change" && request.status === "under_review";
+/** Only a scope change PMCM has not yet picked up can be withdrawn; the API says which ones those are. */
+export function canWithdrawClientChangeRequest(request: Pick<PrismClientChangeRequest, "source" | "status" | "withdrawable">): boolean {
+  return request.source === "scope_change" && request.status === "under_review" && request.withdrawable;
 }
 
 export const scopeChangeCategoryOptions: ReadonlyArray<{ value: ScopeChangeCategory; label: string }> = [

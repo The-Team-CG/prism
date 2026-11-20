@@ -22,7 +22,7 @@ function matches(row: Row, where: Record<string, any> = {}) {
 
 /** In-memory stand-in for the Prisma calls the scope change service makes, so the status and consumption rules are exercised. */
 function fakeStore(options: { event?: Partial<Row>; exceptions?: Row[]; addenda?: Row[]; rows?: Row[] } = {}) {
-  const event = { id: 'evt_1', eventName: 'Launch Gala', archived: false, freezeStatus: 'open', clientName: 'Client Contact', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.com' }, ...options.event };
+  const event = { id: 'evt_1', eventName: 'Launch Gala', status: 'planning', archived: false, freezeStatus: 'open', clientName: 'Client Contact', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.com' }, ...options.event };
   const rows = new Map<string, Row>((options.rows ?? []).map((row) => [row.id, row]));
   const exceptions = new Map<string, Row>((options.exceptions ?? []).map((row) => [row.id, { consumedAt: null, ...row }]));
   const addenda = options.addenda ?? [];
@@ -251,6 +251,17 @@ describe('ScopeChangeRequestService PMCM review', () => {
 });
 
 describe('ScopeChangeRequestService client projection', () => {
+  it('marks a request withdrawable only until PMCM starts reviewing it, the same rule withdraw() enforces', async () => {
+    const { service } = fakeStore();
+    const submitted = await service.submit('evt_1', submission, primaryClient);
+    expect((await service.listClientRequests('evt_1', primaryClient))[0]).toMatchObject({ status: 'under_review', withdrawable: true });
+
+    await service.review('evt_1', submitted.id, { decision: 'start_review' }, pmcm);
+
+    expect((await service.listClientRequests('evt_1', primaryClient))[0]).toMatchObject({ status: 'under_review', withdrawable: false });
+    await expect(service.withdraw('evt_1', submitted.id, primaryClient)).rejects.toThrow('Only a submitted scope change request can be withdrawn');
+  });
+
   it('shows the client only the title, category, neutral status, and PMCM client response', async () => {
     const { service } = fakeStore();
     const submitted = await service.submit('evt_1', submission, primaryClient);
@@ -266,6 +277,7 @@ describe('ScopeChangeRequestService client projection', () => {
       status: 'not_approved',
       clientResponse: 'We cannot add the slot this season.',
       updatedAt: expect.any(String),
+      withdrawable: false,
     });
     const serialized = JSON.stringify(visible);
     expect(serialized).not.toContain('Insurance does not cover');

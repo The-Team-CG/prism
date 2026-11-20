@@ -72,6 +72,8 @@ export function toClientScopeChangeRequest(value: OpsScopeChangeRequest): PrismC
     status: CLIENT_SCOPE_CHANGE_STATUS[value.status as PrismScopeChangeStatus] ?? 'under_review',
     clientResponse: value.clientResponse,
     updatedAt: value.updatedAt.toISOString(),
+    // Matches withdraw(): only a request PMCM has not picked up can be withdrawn.
+    withdrawable: value.status === 'submitted',
   };
 }
 
