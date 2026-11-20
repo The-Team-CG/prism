@@ -181,7 +181,7 @@ function SupplierCard({ supplier, next, selected, onSelect }: { supplier: Suppli
       <p className="text-sm text-foreground">
         {supplier.bookedEvents > 0 ? <>Booked on <span className="font-semibold">{supplier.bookedEvents} {supplier.bookedEvents === 1 ? "event" : "events"}</span></> : <span className="text-muted-foreground">Not booked yet</span>}
       </p>
-      {next ? <p className="truncate text-sm text-muted-foreground">Next: <span className="text-foreground">{next.eventName}</span> · {formatPortalDate(next.eventDate)}</p> : null}
+      {next ? <p className="truncate text-sm text-muted-foreground">Next: <span className="text-foreground">{formatPortalDate(next.eventDate)}</span> · {next.eventName}</p> : null}
       <p className="flex items-center gap-1.5 text-sm">
         {supplier.rating.average === null ? (
           <span className="text-muted-foreground">No reviews yet</span>

@@ -205,7 +205,7 @@ function ClientHistoryCount({ client, reviewCount }: { client: EventClientRecord
   return (
     <div className="min-w-0 pl-12 text-sm sm:pl-0">
       <p className="truncate text-foreground">{events ? `${events} ${events === 1 ? "event" : "events"}${open ? ` · ${open} in progress` : ""}` : "No events yet"}</p>
-      {reviewCount > 0 ? <p className="text-xs font-medium text-attention">{reviewCount} inquiry{reviewCount === 1 ? "" : "s"} to review</p> : <p className="text-xs text-muted-foreground">{client.inquiries.length} {client.inquiries.length === 1 ? "inquiry" : "inquiries"}</p>}
+      {reviewCount > 0 ? <p className="text-xs font-medium text-attention">{reviewCount} {reviewCount === 1 ? "inquiry" : "inquiries"} to review</p> : <p className="text-xs text-muted-foreground">{client.inquiries.length} {client.inquiries.length === 1 ? "inquiry" : "inquiries"}</p>}
     </div>
   );
 }

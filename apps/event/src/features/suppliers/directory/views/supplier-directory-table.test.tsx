@@ -43,7 +43,7 @@ describe("SupplierDirectoryCards", () => {
   it("names the supplier's next confirmed booking when there is one", () => {
     render(cards({ nextBookings: new Map([["supplier-1", { supplierId: "supplier-1", eventId: "evt-1", eventName: "Founders gala", eventDate: "2026-12-05" }]]) }));
 
-    expect(screen.getByTestId("supplier-card").textContent).toContain("Next: Founders gala · Dec 5, 2026");
+    expect(screen.getByTestId("supplier-card").textContent).toContain("Next: Dec 5, 2026 · Founders gala");
   });
 
   it("opens a supplier from its name and changes pages", () => {
