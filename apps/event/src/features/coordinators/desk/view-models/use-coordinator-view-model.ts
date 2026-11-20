@@ -262,8 +262,8 @@ export function useCoordinatorViewModel({
     }
   }
 
-  async function logTask() {
-    if (!isWritableCoordinatorEvent(event) || !roleView) return;
+  async function logTask(): Promise<boolean> {
+    if (!isWritableCoordinatorEvent(event) || !roleView) return false;
     setTaskBusy(true);
     setTaskError(null);
     try {
@@ -289,17 +289,19 @@ export function useCoordinatorViewModel({
       setTaskTitle("");
       setTaskNotes("");
       setTaskDueAt("");
+      return true;
     } catch (err) {
       // PA-294: do NOT setRoleView(null) here. A failed submission must not
       // blank the coordinator screen mid-event.
       setTaskError(err instanceof Error ? err.message : "Unable to log the task.");
+      return false;
     } finally {
       setTaskBusy(false);
     }
   }
 
-  async function logUrgentIssue() {
-    if (!isWritableCoordinatorEvent(event) || !roleView) return;
+  async function logUrgentIssue(): Promise<boolean> {
+    if (!isWritableCoordinatorEvent(event) || !roleView) return false;
     setIssueBusy(true);
     setIssueError(null);
     try {
@@ -326,9 +328,11 @@ export function useCoordinatorViewModel({
       setIssueAffectedArea("");
       setIssueDescription("");
       setIssueSlaDueAt("");
+      return true;
     } catch (err) {
       // PA-294: same constraint as logTask.
       setIssueError(err instanceof Error ? err.message : "Unable to log the urgent issue.");
+      return false;
     } finally {
       setIssueBusy(false);
     }

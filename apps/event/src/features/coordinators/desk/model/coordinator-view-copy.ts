@@ -1,59 +1,7 @@
-import { formatPortalDate, formatPortalTime } from "@prism/ui/format-date";
+import { formatPortalTime } from "@prism/ui/format-date";
 
 export function optionalNavBadge(count?: number) {
   return count || undefined;
-}
-
-export function coordinatorTaskActionCopy(loading: boolean, error: string | null, count: number) {
-  if (loading) return { description: "Loading tasks assigned to you.", status: "loading" };
-  if (error) return { description: "Task data is unavailable.", status: "unavailable" };
-  return {
-    description: count ? `${count} ${count === 1 ? "task" : "tasks"} assigned to you. Open it to see owners, deadlines and next steps.` : "No tasks assigned to you yet.",
-    status: count > 0 ? "open" : "clear",
-  };
-}
-
-export function coordinatorIssueActionCopy(loading: boolean, error: string | null, count: number) {
-  if (loading) return { description: "Loading open issues.", status: "loading" };
-  if (error) return { description: "Issue data is unavailable.", status: "unavailable" };
-  return {
-    description: count ? `${count} open ${count === 1 ? "issue" : "issues"}. PMCM receives escalations.` : "No open issues. You can still report a new problem.",
-    status: count > 0 ? "open" : "clear",
-  };
-}
-
-export function coordinatorAcknowledgeCopy(status?: string) {
-  if (status === "acknowledged") {
-    return {
-      label: "Assignment confirmed",
-      description: "Your acknowledgment has been recorded for PMCM.",
-      active: true,
-    };
-  }
-  return {
-    label: "Confirm assignment",
-    description: "Confirm this assignment before event day.",
-    active: false,
-  };
-}
-
-export function coordinatorShellDescription(event: { clientName: string; eventDate: string } | undefined, roleName: string) {
-  if (!event) return "No assignment matched to this coordinator account.";
-  return `${event.clientName} — ${event.eventDate}. Role: ${roleName}`;
-}
-
-export function coordinatorGreetingCopy(event: { eventName: string; clientName: string; eventDate: string } | undefined) {
-  if (!event) {
-    return {
-      title: "No assigned event",
-      description:
-        "No assignment is matched to this coordinator account. Contact PMCM to confirm your event assignment.",
-    };
-  }
-  return {
-    title: event.eventName,
-    description: `Client: ${event.clientName} · ${formatPortalDate(event.eventDate)}. Your view is limited to your tasks, issues, and attendance.`,
-  };
 }
 
 /** Attendance as the coordinator reads it: "Not yet marked" until a mark is recorded, then the chosen status. */

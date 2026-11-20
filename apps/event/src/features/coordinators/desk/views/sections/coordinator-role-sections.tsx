@@ -1,36 +1,23 @@
 "use client";
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
-import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
+import { formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 
-import {
-  AlertTriangle,
-  ChevronRight,
-  BadgeCheck,
-  CalendarClock,
-  CheckCircle2,
-  ClipboardList,
-  LayoutGrid,
-  Radio,
-  ShieldCheck,
-  UsersRound,
-  type LucideIcon,
-} from "lucide-react";
-import { useId, useRef, type ReactNode } from "react";
-import { Badge } from "@prism/ui/components/badge";
+import { AlertTriangle, CheckCircle2, CircleCheck, Plus, Radio, ShieldCheck } from "lucide-react";
+import { useId, useRef, useState } from "react";
 import { Button } from "@prism/ui/components/button";
-import { StatusBadge } from "@prism/ui/components/status-badge";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
+import { PrismListRow } from "@prism/ui/action-list";
+import { PrismEmptyLine, PrismSection, PrismStatRow } from "@prism/ui/page-blocks";
 import { label } from "@/features/pmcm-kit";
 import {
   coordinatorAttendanceControlCopy,
   coordinatorAttendanceRecordLine,
-  coordinatorAttendanceSummary,
   coordinatorIssueFormCopy,
   coordinatorTaskFormCopy,
 } from "../../model/coordinator-view-copy";
-import { recordedAttendanceLabel, type CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
-import { liveOpsPillClass } from "@/features/live-ops/workspace/model/live-ops-workspace-rules";
-import type { CoordinatorRole, PrismCoordinatorAssignment, PrismCoordinatorRoleView } from "@prism/types";
-import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
+import { isIngressOrEgressRole, recordedAttendanceLabel, type CoordinatorAttendanceChoice } from "../../model/coordinators-desk-rules";
+import { isOpenIssue, isOpenTask, issueTone, openIssues } from "../../model/coordinator-shift";
+import type { CoordinatorRole, PrismCoordinatorRoleView } from "@prism/types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { FIELD_AREA, FIELD_INPUT, FIELD_LABEL, FORM_ALERT, FORM_SUBMIT } from "./coordinator-view-primitives";
 import { CoordinatorRoleBriefCard } from "@/features/coordinators/role-briefs/views/coordinator-role-brief-card";
@@ -42,110 +29,6 @@ import {
   type CoordinatorReassignmentModel,
   type CoordinatorTaskActionsModel,
 } from "./coordinator-operator-sections";
-
-type CompactRecordItem = {
-  id: string;
-  title: string;
-  description?: string;
-  meta?: string;
-  status?: string;
-  icon?: LucideIcon;
-  onSelect?: () => void;
-};
-
-function CompactRecordList({ items, emptyText = "No records available." }: { items: CompactRecordItem[]; emptyText?: string }) {
-  if (!items.length) {
-    return (
-      <p className="rounded-md border border-dashed border-border bg-secondary/40 px-4 py-6 text-center text-sm text-muted-foreground">
-        {emptyText}
-      </p>
-    );
-  }
-  return (
-    <div className="flex flex-col divide-y divide-border">
-      {items.map((item) => (
-        <CompactRecordRow key={item.id} item={item} />
-      ))}
-    </div>
-  );
-}
-function CompactRecordRow({ item }: { item: CompactRecordItem }) {
-  const Icon = item.icon;
-  const content = (
-    <span className="flex w-full items-start gap-3 text-left">
-      {Icon ? (
-        <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
-          <Icon className="size-4" />
-        </span>
-      ) : null}
-      <span className="min-w-0 flex-1">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="truncate text-sm font-semibold text-foreground">{item.title}</span>
-          {/* PA-291: the shared StatusBadge STATUS_MAP has no entry for in_progress,
-              done, or blocked. Keep its shared markup and add the live-ops color
-              classes for those statuses. */}
-          {item.status ? (
-            <StatusBadge status={item.status} className={liveOpsPillClass(item.status)} />
-          ) : null}
-        </span>
-        {item.description ? <span className="mt-0.5 block line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</span> : null}
-        {item.meta ? <span className="mt-0.5 block text-xs font-medium text-muted-foreground">{item.meta}</span> : null}
-      </span>
-    </span>
-  );
-  const cls = "border-l-2 border-l-transparent px-3 py-3 transition hover:bg-muted/50";
-  if (item.onSelect) {
-    return (
-      <button type="button" onClick={item.onSelect} className={cls}>
-        {content}
-      </button>
-    );
-  }
-  return <div className={cls}>{content}</div>;
-}
-
-
-export function CoordinatorRoleBadgeCard({
-  assignment,
-  busy,
-  roleName,
-  attendanceStatus,
-  onAcknowledge,
-  attendanceForm,
-}: {
-  assignment?: { status: string } | null;
-  busy: boolean;
-  roleName: string;
-  attendanceStatus: string;
-  onAcknowledge: () => void;
-  attendanceForm: CoordinatorAttendanceFormModel;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <BadgeCheck className="size-4 text-primary" />
-          <h3 className="text-base font-semibold text-foreground">Your assignment and attendance</h3>
-        </div>
-      </CardHeader>
-      <CardContent id="coordinator-attendance" className="scroll-mt-24">
-        {assignment ? (
-          <CoordinatorAssignedBadge
-            assignmentStatus={assignment.status}
-            busy={busy}
-            roleName={roleName}
-            attendanceStatus={attendanceStatus}
-            onAcknowledge={onAcknowledge}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">No coordinator assignment is available yet.</p>
-        )}
-        {/* EP-11-S03 AC1: the coordinator marks their own attendance here. */}
-        <CoordinatorAttendanceControl attendanceForm={attendanceForm} />
-      </CardContent>
-    </Card>
-  );
-}
 
 export type CoordinatorAttendanceFormModel = {
   status: string;
@@ -166,13 +49,10 @@ export type CoordinatorAttendanceFormModel = {
 };
 
 const ATTENDANCE_CHOICE_BUTTON =
-  "h-11 rounded-md border border-border bg-background text-sm font-semibold transition hover:border-primary/40 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-55 data-[active=true]:border-primary/45 data-[active=true]:bg-secondary";
+  "h-11 rounded-md border border-border bg-background text-sm font-semibold transition hover:border-primary/40 hover:bg-secondary/40 disabled:cursor-not-allowed disabled:opacity-55 data-[active=true]:border-primary data-[active=true]:bg-primary-soft data-[active=true]:text-primary";
 
-function CoordinatorAttendanceControl({
-  attendanceForm,
-}: {
-  attendanceForm: CoordinatorAttendanceFormModel;
-}) {
+/** The coordinator marks their own attendance: three choices while the window is open, the record once it closes. */
+export function CoordinatorAttendanceControl({ attendanceForm }: { attendanceForm: CoordinatorAttendanceFormModel }) {
   const choiceGroupRef = useRef<HTMLDivElement>(null);
   const recordedLabel = recordedAttendanceLabel(attendanceForm.status);
   const copy = coordinatorAttendanceControlCopy({
@@ -184,13 +64,12 @@ function CoordinatorAttendanceControl({
   });
 
   return (
-    <div className="mt-5 border-t border-border pt-4">
-      <p className="text-sm font-semibold text-foreground">{copy.heading}</p>
+    <div id="coordinator-attendance" className="scroll-mt-24">
       {copy.blockedReason || copy.closedReason ? (
-        <p role="status" className="mt-2 text-sm text-muted-foreground">{copy.blockedReason ?? copy.closedReason}</p>
+        <p role="status" className="text-sm text-muted-foreground">{copy.blockedReason ?? copy.closedReason}</p>
       ) : (
         <>
-          <div ref={choiceGroupRef} role="group" aria-label="Your attendance" className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div ref={choiceGroupRef} role="group" aria-label="Your attendance" className="grid gap-2 sm:grid-cols-3">
             {attendanceForm.choices.map((choice) => (
               <button
                 key={choice.value}
@@ -213,7 +92,7 @@ function CoordinatorAttendanceControl({
                 type="button"
                 disabled={attendanceForm.busy}
                 onClick={() => choiceGroupRef.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus()}
-                className="font-semibold text-primary underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-primary"
+                className="font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Change
               </button>
@@ -225,60 +104,16 @@ function CoordinatorAttendanceControl({
         <div className="mt-3 rounded-md border border-danger/25 bg-danger/8 px-3 py-3">
           <p className="text-xs font-semibold text-danger">{copy.confirmPrompt}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={attendanceForm.busy}
-              onClick={attendanceForm.confirm}
-              className={FORM_SUBMIT}
-            >
+            <button type="button" disabled={attendanceForm.busy} onClick={attendanceForm.confirm} className={FORM_SUBMIT}>
               {copy.confirmLabel}
             </button>
-            <button
-              type="button"
-              onClick={attendanceForm.cancel}
-              className="h-11 rounded-md border border-border px-3 text-sm font-semibold"
-            >
+            <button type="button" onClick={attendanceForm.cancel} className="h-11 rounded-md border border-border px-3 text-sm font-semibold">
               {copy.cancelLabel}
             </button>
           </div>
         </div>
       ) : null}
-      {attendanceForm.error ? (
-        <p role="alert" className={`mt-3 ${FORM_ALERT}`}>
-          {attendanceForm.error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-function CoordinatorAssignedBadge({
-  assignmentStatus,
-  busy,
-  roleName,
-  attendanceStatus,
-  onAcknowledge,
-}: {
-  assignmentStatus: string;
-  busy: boolean;
-  roleName: string;
-  attendanceStatus: string;
-  onAcknowledge: () => void;
-}) {
-  const acknowledged = assignmentStatus === "acknowledged";
-  return (
-    <div>
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <p className="text-lg font-semibold text-foreground">{roleName}</p>
-        <p className="text-sm text-muted-foreground">{coordinatorAttendanceSummary(attendanceStatus, recordedAttendanceLabel(attendanceStatus) ?? label(attendanceStatus))}</p>
-      </div>
-      {acknowledged ? (
-        <p className="mt-2 text-sm text-success">Assignment confirmed with PMCM.</p>
-      ) : (
-        <Button disabled={busy} onClick={() => onAcknowledge()} className="mt-3 min-h-11 font-semibold">
-          <CheckCircle2 className="size-4" /> Confirm assignment
-        </Button>
-      )}
+      {attendanceForm.error ? <p role="alert" className={`mt-3 ${FORM_ALERT}`}>{attendanceForm.error}</p> : null}
     </div>
   );
 }
@@ -301,7 +136,8 @@ export type CoordinatorTaskFormModel = {
   routesAway: boolean;
   busy: boolean;
   error: string | null;
-  submit: () => void;
+  /** Resolves true once the task is logged. */
+  submit: () => Promise<boolean>;
 };
 
 export type CoordinatorIssueFormModel = {
@@ -319,196 +155,118 @@ export type CoordinatorIssueFormModel = {
   setAssignToMe: (value: boolean) => void;
   busy: boolean;
   error: string | null;
-  submit: () => void;
+  /** Resolves true once the issue is reported. */
+  submit: () => Promise<boolean>;
 };
 
-function CoordinatorTaskForm({ taskForm }: { taskForm: CoordinatorTaskFormModel }) {
+function CoordinatorTaskFormFields({ taskForm, onDone }: { taskForm: CoordinatorTaskFormModel; onDone: () => void }) {
   const copy = coordinatorTaskFormCopy(taskForm.busy, taskForm.routesAway);
   const fieldId = useId();
+  async function submit() {
+    if (await taskForm.submit()) onDone();
+  }
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <ClipboardList className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Log an event-day task</h3>
+    <div className="space-y-3">
+      <label className="grid gap-1.5">
+        <span className={FIELD_LABEL}>Task title (required)</span>
+        <input value={taskForm.title} onChange={(e) => taskForm.setTitle(e.target.value)} required placeholder="Stage cue check, ingress sweep" className={FIELD_INPUT} />
+      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-1.5">
+          <label htmlFor={`${fieldId}-role`} className={FIELD_LABEL}>Assigned role (required)</label>
+          <Select value={taskForm.role} onValueChange={taskForm.setRole} required>
+            <SelectTrigger id={`${fieldId}-role`} className="w-full min-w-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {taskForm.roleOptions.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <label className="grid gap-1.5">
-          <span className={FIELD_LABEL}>Task title (required)</span>
-          <input
-            value={taskForm.title}
-            onChange={(e) => taskForm.setTitle(e.target.value)}
-            required
-            placeholder="Stage cue check, ingress sweep"
-            className={FIELD_INPUT}
-          />
-        </label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <label htmlFor={`${fieldId}-role`} className={FIELD_LABEL}>Assigned role (required)</label>
-            <Select value={taskForm.role} onValueChange={taskForm.setRole} required>
-              <SelectTrigger id={`${fieldId}-role`} className="w-full min-w-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {taskForm.roleOptions.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-1.5">
-            <label htmlFor={`${fieldId}-priority`} className={FIELD_LABEL}>Priority</label>
-            <Select value={taskForm.priority} onValueChange={taskForm.setPriority}>
-              <SelectTrigger id={`${fieldId}-priority`} className="w-full min-w-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="grid gap-1.5">
+          <label htmlFor={`${fieldId}-priority`} className={FIELD_LABEL}>Priority</label>
+          <Select value={taskForm.priority} onValueChange={taskForm.setPriority}>
+            <SelectTrigger id={`${fieldId}-priority`} className="w-full min-w-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <label className="grid gap-1.5">
-          <span className={FIELD_LABEL}>Notes</span>
-          <textarea
-            value={taskForm.notes}
-            onChange={(e) => taskForm.setNotes(e.target.value)}
-            rows={2}
-            className={FIELD_AREA}
-          />
-        </label>
-        <label className="grid gap-1.5">
-          <span className={FIELD_LABEL}>Due time</span>
-          <DateTimePicker value={taskForm.dueAt} onValueChange={(next) => taskForm.setDueAt(next)} />
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={taskForm.assignToMe}
-            disabled={taskForm.assignToMeRequired}
-            onChange={(e) => taskForm.setAssignToMe(e.target.checked)}
-            className="size-4"
-          />
-          <span className={FIELD_LABEL}>{taskForm.assignToMeRequired ? "Assign to my queue" : "Assign to me"}</span>
-        </label>
-        {taskForm.assignToMeRequired ? (
-          <p className="text-xs text-muted-foreground">
-            Your saved role is outside the current role catalog, so new tasks use General Coordinator and stay in your named queue until PMCM updates the assignment.
-          </p>
-        ) : null}
-        {copy.routesAwayNotice ? (
-          <p className="rounded-md bg-attention/10 px-3 py-2 text-xs text-attention">
-            {copy.routesAwayNotice}
-          </p>
-        ) : null}
-        {taskForm.error ? (
-          <p role="alert" className={FORM_ALERT}>
-            {taskForm.error}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          disabled={taskForm.busy || !taskForm.title.trim()}
-          onClick={taskForm.submit}
-          className={FORM_SUBMIT}
-        >
-          {copy.submitLabel}
-        </button>
-      </CardContent>
-    </Card>
+      </div>
+      <label className="grid gap-1.5">
+        <span className={FIELD_LABEL}>Notes</span>
+        <textarea value={taskForm.notes} onChange={(e) => taskForm.setNotes(e.target.value)} rows={3} className={FIELD_AREA} />
+      </label>
+      <label className="grid gap-1.5">
+        <span className={FIELD_LABEL}>Due time</span>
+        <DateTimePicker value={taskForm.dueAt} onValueChange={(next) => taskForm.setDueAt(next)} />
+      </label>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={taskForm.assignToMe} disabled={taskForm.assignToMeRequired} onChange={(e) => taskForm.setAssignToMe(e.target.checked)} className="size-4" />
+        <span className={FIELD_LABEL}>{taskForm.assignToMeRequired ? "Assign to my queue" : "Assign to me"}</span>
+      </label>
+      {taskForm.assignToMeRequired ? (
+        <p className="text-xs text-muted-foreground">
+          Your saved role is outside the current role catalog, so new tasks use General Coordinator and stay in your named queue until PMCM updates the assignment.
+        </p>
+      ) : null}
+      {copy.routesAwayNotice ? <p className="rounded-md bg-attention/10 px-3 py-2 text-xs text-attention">{copy.routesAwayNotice}</p> : null}
+      {taskForm.error ? <p role="alert" className={FORM_ALERT}>{taskForm.error}</p> : null}
+      <button type="button" disabled={taskForm.busy || !taskForm.title.trim()} onClick={() => void submit()} className={FORM_SUBMIT}>
+        {copy.submitLabel}
+      </button>
+    </div>
   );
 }
 
-function CoordinatorIssueForm({ issueForm }: { issueForm: CoordinatorIssueFormModel }) {
+/** The issue form, in the side panel the top bar's "Report an issue" opens from any view. */
+export function CoordinatorIssueFormFields({ issueForm, onDone }: { issueForm: CoordinatorIssueFormModel; onDone: () => void }) {
   const copy = coordinatorIssueFormCopy(issueForm.busy);
   const fieldId = useId();
+  async function submit() {
+    if (await issueForm.submit()) onDone();
+  }
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Radio className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Report an issue</h3>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <label className="grid gap-1.5">
-          <span className={FIELD_LABEL}>Issue title (required)</span>
-          <input
-            value={issueForm.title}
-            onChange={(e) => issueForm.setTitle(e.target.value)}
-            required
-            placeholder="Supplier late, walk-in queue overflow"
-            className={FIELD_INPUT}
-          />
-        </label>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="grid gap-1.5">
-            <label htmlFor={`${fieldId}-severity`} className={FIELD_LABEL}>Severity</label>
-            <Select value={issueForm.severity} onValueChange={issueForm.setSeverity}>
-              <SelectTrigger id={`${fieldId}-severity`} className="w-full min-w-0">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="low">Low</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <label className="grid gap-1.5">
-            <span className={FIELD_LABEL}>Affected area</span>
-            <input
-              value={issueForm.affectedArea}
-              onChange={(e) => issueForm.setAffectedArea(e.target.value)}
-              placeholder="e.g. Main Hall, Registration Desk"
-              className={FIELD_INPUT}
-            />
-          </label>
+    <div className="space-y-3">
+      <label className="grid gap-1.5">
+        <span className={FIELD_LABEL}>Issue title (required)</span>
+        <input value={issueForm.title} onChange={(e) => issueForm.setTitle(e.target.value)} required placeholder="Supplier late, walk-in queue overflow" className={FIELD_INPUT} />
+      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-1.5">
+          <label htmlFor={`${fieldId}-severity`} className={FIELD_LABEL}>Severity</label>
+          <Select value={issueForm.severity} onValueChange={issueForm.setSeverity}>
+            <SelectTrigger id={`${fieldId}-severity`} className="w-full min-w-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <label className="grid gap-1.5">
-          <span className={FIELD_LABEL}>Description</span>
-          <textarea
-            value={issueForm.description}
-            onChange={(e) => issueForm.setDescription(e.target.value)}
-            rows={2}
-            className={FIELD_AREA}
-          />
+          <span className={FIELD_LABEL}>Affected area</span>
+          <input value={issueForm.affectedArea} onChange={(e) => issueForm.setAffectedArea(e.target.value)} placeholder="e.g. Main Hall, Registration Desk" className={FIELD_INPUT} />
         </label>
-        <label className="grid gap-1.5">
-          <span className={FIELD_LABEL}>SLA due time</span>
-          <DateTimePicker value={issueForm.slaDueAt} onValueChange={(next) => issueForm.setSlaDueAt(next)} />
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={issueForm.assignToMe}
-            onChange={(e) => issueForm.setAssignToMe(e.target.checked)}
-            className="size-4"
-          />
-          <span className={FIELD_LABEL}>Assign to me</span>
-        </label>
-        {issueForm.error ? (
-          <p role="alert" className={FORM_ALERT}>
-            {issueForm.error}
-          </p>
-        ) : null}
-        <button
-          type="button"
-          disabled={issueForm.busy || !issueForm.title.trim()}
-          onClick={issueForm.submit}
-          className={FORM_SUBMIT}
-        >
-          {copy.submitLabel}
-        </button>
-      </CardContent>
-    </Card>
+      </div>
+      <label className="grid gap-1.5">
+        <span className={FIELD_LABEL}>What happened</span>
+        <textarea value={issueForm.description} onChange={(e) => issueForm.setDescription(e.target.value)} rows={3} className={FIELD_AREA} />
+      </label>
+      <label className="grid gap-1.5">
+        <span className={FIELD_LABEL}>Needs fixing by</span>
+        <DateTimePicker value={issueForm.slaDueAt} onValueChange={(next) => issueForm.setSlaDueAt(next)} />
+      </label>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={issueForm.assignToMe} onChange={(e) => issueForm.setAssignToMe(e.target.checked)} className="size-4" />
+        <span className={FIELD_LABEL}>I&apos;ll handle it</span>
+      </label>
+      {issueForm.error ? <p role="alert" className={FORM_ALERT}>{issueForm.error}</p> : null}
+      <button type="button" disabled={issueForm.busy || !issueForm.title.trim()} onClick={() => void submit()} className={FORM_SUBMIT}>
+        {copy.submitLabel}
+      </button>
+    </div>
   );
 }
 
@@ -519,239 +277,165 @@ type CoordinatorRoleDataProps = {
   roleView: PrismCoordinatorRoleView | null;
   registrationRole: boolean;
   taskForm: CoordinatorTaskFormModel;
-  issueForm: CoordinatorIssueFormModel;
   reassignment: CoordinatorReassignmentModel;
   taskActions: CoordinatorTaskActionsModel;
   operatorActions: CoordinatorOperatorActionsModel;
+  /** Opens the issue form; the Issues page offers it beside the open issues. */
+  onReportIssue?: () => void;
 };
-export function CoordinatorRoleData({
-  section = "tasks",
-  roleViewLoading,
-  roleViewError,
-  roleView,
-  registrationRole,
-  taskForm,
-  issueForm,
-  reassignment,
-  taskActions,
-  operatorActions,
-}: CoordinatorRoleDataProps) {
-  if (roleViewLoading) return <CoordinatorRoleLoadingCard />;
-  if (roleViewError) return <CoordinatorRoleErrorCard message={roleViewError} />;
+
+export function CoordinatorRoleData({ section = "tasks", roleViewLoading, roleViewError, roleView, ...rest }: CoordinatorRoleDataProps) {
+  if (roleViewLoading && !roleView) return <CoordinatorRoleLoading />;
+  if (roleViewError) return <CoordinatorRoleError message={roleViewError} />;
   if (!roleView) return null;
+  return section === "tasks" ? <CoordinatorTasksPage roleView={roleView} {...rest} /> : <CoordinatorIssuesPage roleView={roleView} registrationRole={rest.registrationRole} onReportIssue={rest.onReportIssue} />;
+}
+
+export function CoordinatorRoleLoading() {
   return (
-    <CoordinatorRoleQueueAndLive
-      section={section}
-      roleView={roleView}
-      registrationRole={registrationRole}
-      taskForm={taskForm}
-      issueForm={issueForm}
-      reassignment={reassignment}
-      taskActions={taskActions}
-      operatorActions={operatorActions}
-    />
+    <PrismEmptyLine icon={ShieldCheck} className="rounded-xl border border-border bg-card px-5 py-4">
+      <LoadingState label="Loading your tasks, issues and check-ins" />
+    </PrismEmptyLine>
   );
 }
 
-function CoordinatorRoleLoadingCard() {
+export function CoordinatorRoleError({ message }: { message: string }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3">
-        <ShieldCheck className="size-5 shrink-0 text-primary" />
-        <div>
-          <LoadingState label="Loading role-safe data" />
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Assignment-safe tasks, supplier signals, attendance counts, and urgent issues are loading.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <PrismEmptyLine icon={AlertTriangle} className="rounded-xl border border-border bg-card px-5 py-4">
+      <p className="font-semibold text-foreground">Your event data could not be loaded</p>
+      <p>{message}. Refresh the page, or ask PMCM to confirm this assignment.</p>
+    </PrismEmptyLine>
   );
 }
 
-function CoordinatorRoleErrorCard({ message }: { message: string }) {
+function CoordinatorTasksPage({ roleView, taskForm, reassignment, taskActions, operatorActions }: Omit<CoordinatorRoleDataProps, "section" | "roleViewLoading" | "roleViewError" | "roleView"> & { roleView: PrismCoordinatorRoleView }) {
+  const [logging, setLogging] = useState(false);
+  const open = roleView.tasks.filter(isOpenTask).length;
+  const hasChecks = Boolean(roleView.isDesignatedOperator) || isIngressOrEgressRole(roleView.role);
   return (
-    <Card>
-      <CardContent className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 size-5 shrink-0 text-attention" />
-        <div>
-          <p className="text-sm font-semibold text-foreground">Role-safe data unavailable</p>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {message}. Refresh the coordinator portal or ask PMCM to confirm this assignment.
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function CoordinatorRoleQueueAndLive({
-  section,
-  roleView,
-  registrationRole,
-  taskForm,
-  issueForm,
-  reassignment,
-  taskActions,
-  operatorActions,
-}: {
-  section: "tasks" | "issues";
-  roleView: PrismCoordinatorRoleView;
-  registrationRole: boolean;
-  taskForm: CoordinatorTaskFormModel;
-  issueForm: CoordinatorIssueFormModel;
-  reassignment: CoordinatorReassignmentModel;
-  taskActions: CoordinatorTaskActionsModel;
-  operatorActions: CoordinatorOperatorActionsModel;
-}) {
-  return (
-    <div className="space-y-4">
-      {section === "tasks" ? (
-        <>
-          <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
-          {/* With nothing assigned yet, the way forward is logging a task, so that form opens. */}
-          <CoordinatorDisclosure title="Log a task" open={roleView.tasks.length === 0}>
-            <CoordinatorTaskForm taskForm={taskForm} />
-          </CoordinatorDisclosure>
-          <CoordinatorDisclosure title="Your role brief" description="Call time, attire, script and instructions PMCM set for your role." open>
-            <CoordinatorRoleBriefCard eventId={roleView.assignment.eventId} />
-          </CoordinatorDisclosure>
-          <CoordinatorDisclosure title="Event briefing" description="The venue, guest count and notes PMCM shared for this event.">
-            <CoordinatorBriefingCard roleView={roleView} />
-          </CoordinatorDisclosure>
-          <CoordinatorDisclosure title="Team and supplier checks" description="Reassign tasks, update colleagues' attendance and verify suppliers.">
-            <CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} />
-          </CoordinatorDisclosure>
-        </>
-      ) : (
-        <>
-          <CoordinatorIssueForm issueForm={issueForm} />
-          <CoordinatorOpenIssues roleView={roleView} />
-          <CoordinatorCheckIns roleView={roleView} registrationRole={registrationRole} />
-        </>
-      )}
+    <div className="grid gap-6">
+      <PrismSection
+        id="coordinator-tasks"
+        title="Your tasks"
+        count={open}
+        description="Blocked work first, then what you have started and what is next, soonest due first."
+        action={<Button type="button" size="sm" onClick={() => setLogging(true)}><Plus className="size-4" aria-hidden />Log a task</Button>}
+        flush
+      >
+        <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
+      </PrismSection>
+      <Sheet open={logging} onOpenChange={setLogging}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Log a task</SheetTitle>
+            <SheetDescription>Something that needs doing on the day. It goes to the queue of the role you choose.</SheetDescription>
+          </SheetHeader>
+          <div className="px-4 pb-6"><CoordinatorTaskFormFields taskForm={taskForm} onDone={() => setLogging(false)} /></div>
+        </SheetContent>
+      </Sheet>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PrismSection id="coordinator-role-brief" title="Your role brief" description="Call time, attire, script and instructions PMCM set for your role.">
+          <CoordinatorRoleBriefCard eventId={roleView.assignment.eventId} />
+        </PrismSection>
+        <PrismSection id="coordinator-event-briefing" title="Event briefing" description="What PMCM shared about the venue and the guests.">
+          <CoordinatorBriefing roleView={roleView} />
+        </PrismSection>
+      </div>
+      {hasChecks ? (
+        <PrismSection bare id="coordinator-team-checks" title="Team and supplier checks" description="Reassign tasks, update colleagues' attendance and check supplier setup.">
+          <div className="grid gap-4"><CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} /></div>
+        </PrismSection>
+      ) : null}
     </div>
   );
 }
 
-function CoordinatorDisclosure({ title, description, open, children }: {
-  title: string;
-  description?: string;
-  open?: boolean;
-  children: ReactNode;
-}) {
+/** Venue, guests, services and notes. The budget stays with PMCM: coordinators do not see cost data. */
+function CoordinatorBriefing({ roleView }: { roleView: PrismCoordinatorRoleView }) {
+  const briefing = roleView.briefing;
+  if (!briefing) return <p className="text-sm text-muted-foreground">PMCM has not shared the event briefing yet.</p>;
+  const facts = [
+    { label: "Venue", value: briefing.venue || "Not confirmed yet" },
+    { label: "Guests", value: briefing.guestCount ? `${briefing.guestCount} expected` : "Not confirmed yet" },
+    { label: "Services", value: briefing.serviceRequirements.length ? briefing.serviceRequirements.join(", ") : "None listed" },
+  ];
   return (
-    <details open={open} className="group rounded-lg border border-border bg-card">
-      <summary className="flex min-h-11 cursor-pointer list-none items-start gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
-        <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden="true" />
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-foreground">{title}</span>
-          {description ? <span className="mt-0.5 block text-xs leading-5 text-muted-foreground">{description}</span> : null}
-        </span>
-      </summary>
-      {children}
-    </details>
+    <div className="space-y-3 text-sm">
+      <dl className="grid gap-2">
+        {facts.map((fact) => (
+          <div key={fact.label} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3">
+            <dt className="text-muted-foreground">{fact.label}</dt>
+            <dd className="font-medium text-foreground">{fact.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {briefing.notes ? <p className="whitespace-pre-wrap leading-6 text-muted-foreground">{briefing.notes}</p> : null}
+    </div>
   );
 }
 
-function CoordinatorBriefingCard({ roleView }: { roleView: PrismCoordinatorRoleView }) {
+type Issue = PrismCoordinatorRoleView["urgentIssues"][number];
+
+function issueStatus(issue: Issue) {
+  if (!isOpenIssue(issue)) return { status: issue.resolvedAt ? `Resolved ${formatPortalTime(issue.resolvedAt, "")}`.trim() : "Resolved" };
+  if (!issue.slaDueAt) return { status: "No deadline" };
+  if (issue.slaStatus === "overdue") return { status: "Overdue", detail: `was due ${formatPortalDateTime(issue.slaDueAt)}` };
+  return { status: `Due ${formatPortalTime(issue.slaDueAt, "")}`.trim(), detail: formatPortalDateTime(issue.slaDueAt) };
+}
+
+function IssueRow({ issue }: { issue: Issue }) {
+  const tone = issueTone(issue);
+  const status = issueStatus(issue);
+  const meta = [`${label(issue.severity)} severity`, issue.affectedArea, issue.ownerName || issue.ownerRole || "Unassigned"].filter(Boolean).join(" · ");
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <LayoutGrid className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Floor and stage briefing</h3>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {roleView.briefing ? (
-          <>
-            <p className="text-sm font-semibold text-foreground">{roleView.briefing.venue || "Venue briefing pending"}</p>
-            <p className="text-sm text-muted-foreground">
-              {roleView.briefing.guestCount} guests · {roleView.briefing.budgetRange || "Budget range pending"}
-            </p>
-            <p className="text-sm leading-6 text-muted-foreground">{roleView.briefing.notes || "No briefing notes supplied."}</p>
-            {roleView.briefing.serviceRequirements.length ? (
-              <p className="text-xs font-semibold text-muted-foreground">
-                Services: {roleView.briefing.serviceRequirements.join(", ")}
-              </p>
-            ) : null}
-          </>
+    <PrismListRow
+      icon={tone === "done" ? CircleCheck : Radio}
+      tone={tone}
+      title={issue.title}
+      meta={meta}
+      metaTitle={meta}
+      detail={isOpenIssue(issue) ? issue.description || undefined : issue.resolution || undefined}
+      status={status.status}
+      statusDetail={status.detail}
+    />
+  );
+}
+
+function CoordinatorIssuesPage({ roleView, registrationRole, onReportIssue }: { roleView: PrismCoordinatorRoleView; registrationRole: boolean; onReportIssue?: () => void }) {
+  const open = openIssues(roleView.urgentIssues);
+  const resolved = roleView.urgentIssues.filter((issue) => !isOpenIssue(issue));
+  const overdue = open.filter((issue) => issue.slaStatus === "overdue").length;
+  const checkIns = roleView.guestAttendanceCount;
+  return (
+    <div className="grid gap-6">
+      <PrismStatRow
+        label="Issues on this event"
+        stats={[
+          { label: "Open issues", value: open.length, tone: open.length ? "attention" : "neutral" },
+          { label: "Overdue", value: overdue, tone: "urgent", empty: overdue === 0 },
+          { label: "Resolved", value: resolved.length, empty: resolved.length === 0 },
+          { label: "Guests checked in", value: checkIns, detail: checkIns === 0 ? "No check-ins recorded." : registrationRole ? "Includes walk-ins flagged for PMCM review." : "Guest names are hidden for your role." },
+        ]}
+      />
+      <PrismSection
+        id="coordinator-open-issues"
+        title="Open issues"
+        count={open.length}
+        description="Most serious first. PMCM sees every issue reported here."
+        action={onReportIssue ? <Button type="button" size="sm" variant="outline" onClick={onReportIssue}><Radio className="size-4" aria-hidden />Report an issue</Button> : undefined}
+        flush
+      >
+        {open.length ? (
+          <ul className="divide-y divide-border">{open.map((issue) => <IssueRow key={issue.id} issue={issue} />)}</ul>
         ) : (
-          <p className="text-sm text-muted-foreground">PMCM has not submitted the event briefing yet.</p>
+          <PrismEmptyLine icon={CheckCircle2} className="px-5 py-4">No open issues. Report one whenever something goes wrong on the day.</PrismEmptyLine>
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function CoordinatorOpenIssues({ roleView }: { roleView: PrismCoordinatorRoleView }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Radio className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Open issues</h3>
-        </div>
-      </CardHeader>
-      <CardContent id="coordinator-live-data" className="scroll-mt-24">
-        <CompactRecordList
-          emptyText="No open issues."
-          items={roleView.urgentIssues.map((issue) => ({
-            id: issue.id,
-            title: issue.title,
-            description: `${label(issue.status)} — ${issue.ownerRole || "Unassigned"}`,
-            meta: issue.slaDueAt ? `Due ${formatPortalDateTime(issue.slaDueAt)}` : undefined,
-            status: issue.slaStatus ?? issue.status,
-            icon: Radio,
-          }))}
-        />
-      </CardContent>
-    </Card>
-  );
-}
-
-/** Secondary to the issue list: the registration count is context for the issues, not the page's main work. */
-function CoordinatorCheckIns({ roleView, registrationRole }: { roleView: PrismCoordinatorRoleView; registrationRole: boolean }) {
-  const count = roleView.guestAttendanceCount;
-  const detail = count === 0
-    ? "No check-ins recorded."
-    : registrationRole
-      ? `${count} checked in, including walk-ins flagged for PMCM review.`
-      : `${count} checked in. Guest-level records are hidden for this role.`;
-  return (
-    <section aria-label="Check-ins" className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-5 py-4">
-      <UsersRound className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-      <div>
-        <p className="text-sm font-semibold text-foreground">Check-ins</p>
-        <p className="mt-0.5 text-sm text-muted-foreground">{detail}</p>
-      </div>
-    </section>
-  );
-}
-
-export function CoordinatorAssignmentHistory({ assignments }: { assignments: PrismCoordinatorAssignment[] }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <CalendarClock className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Assignment history</h3>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <CompactRecordList
-          emptyText="No coordinator assignments found."
-          items={assignments.map((item) => ({
-            id: item.id,
-            title: item.eventDate ? `${formatPortalDate(item.eventDate)} · ${item.role}` : item.role,
-            description: item.coordinatorName,
-            meta: item.withdrawalReason || item.replacementReason || undefined,
-            status: item.status,
-            icon: CalendarClock,
-          }))}
-        />
-      </CardContent>
-    </Card>
+      </PrismSection>
+      {resolved.length ? (
+        <PrismSection id="coordinator-resolved-issues" title="Resolved" count={resolved.length} flush>
+          <ul className="divide-y divide-border">{resolved.map((issue) => <IssueRow key={issue.id} issue={issue} />)}</ul>
+        </PrismSection>
+      ) : null}
+    </div>
   );
 }

@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CoordinatorRoleBadgeCard, CoordinatorRoleData, type CoordinatorAttendanceFormModel } from "./coordinator-role-sections";
+import { CoordinatorAttendanceControl, CoordinatorRoleData, type CoordinatorAttendanceFormModel } from "./coordinator-role-sections";
 import { COORDINATOR_ATTENDANCE_CHOICES } from "../../model/coordinators-desk-rules";
 import { chooseSelectOption, openSelect } from "../../../../../test-utils/radix-select";
 
@@ -40,17 +40,15 @@ function roleView(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function renderRoleData(view: Record<string, unknown>, actions: { operator?: Record<string, unknown> } = {}, section: "tasks" | "issues" = "tasks") {
+function renderRoleData(view: Record<string, unknown>, actions: { operator?: Record<string, unknown>; onReportIssue?: () => void; taskTitle?: string } = {}, section: "tasks" | "issues" = "tasks") {
   const models = {
-    taskForm: { title: "", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], routesAway: false, busy: false, error: null, submit: vi.fn() },
-    issueForm: { title: "", setTitle: vi.fn(), severity: "high", setSeverity: vi.fn(), affectedArea: "", setAffectedArea: vi.fn(), description: "", setDescription: vi.fn(), slaDueAt: "", setSlaDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), busy: false, error: null, submit: vi.fn() },
+    taskForm: { title: actions.taskTitle ?? "", setTitle: vi.fn(), role: "Floor Director", setRole: vi.fn(), priority: "normal", setPriority: vi.fn(), notes: "", setNotes: vi.fn(), dueAt: "", setDueAt: vi.fn(), assignToMe: false, setAssignToMe: vi.fn(), roleOptions: ["Floor Director"], routesAway: false, busy: false, error: null, submit: vi.fn(async () => true) },
     reassignment: { busy: false, error: null, request: vi.fn() },
     taskActions: { busy: false, error: null, updateStatus: vi.fn(), blockTask: vi.fn(), unblockTask: vi.fn() },
     operatorActions: { busy: false, error: null, supplierBusy: false, supplierError: null, updateAttendance: vi.fn(), verifySupplier: vi.fn(), reportSupplierStatus: vi.fn(), ...actions.operator },
   };
-  const props = { section, roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, ...models };
+  const props = { section, roleViewLoading: false, roleViewError: null, roleView: view, registrationRole: false, onReportIssue: actions.onReportIssue, ...models };
   render(<CoordinatorRoleData {...(props as unknown as ComponentProps<typeof CoordinatorRoleData>)} />);
-  if (section === "tasks") fireEvent.click(screen.getByText("Team and supplier checks"));
   return models;
 }
 
@@ -209,23 +207,6 @@ describe("supplier setup checks", () => {
   });
 });
 
-describe("CoordinatorRoleBadgeCard", () => {
-  it("confirms a pending assignment without passing the click event as the decision", () => {
-    const onAcknowledge = vi.fn();
-    const attendanceForm = {
-      status: "pending", choices: [], canMark: false, windowOpen: true, markedAt: null, hasAssignment: true, replaced: false, isDisabled: () => true,
-      pendingChoice: null, pendingChoiceLabel: null, busy: false, error: null, mark: vi.fn(), confirm: vi.fn(), cancel: vi.fn(),
-    };
-    render(<CoordinatorRoleBadgeCard assignment={{ status: "assigned" }} busy={false} roleName="General Coordinator" attendanceStatus="pending" onAcknowledge={onAcknowledge} attendanceForm={attendanceForm} />);
-
-    fireEvent.click(screen.getByRole("button", { name: "Confirm assignment" }));
-
-    // The view-model defaults its decision to "acknowledged"; a click event in its place failed contract validation.
-    expect(onAcknowledge).toHaveBeenCalledTimes(1);
-    expect(onAcknowledge).toHaveBeenCalledWith();
-  });
-});
-
 function attendanceModel(overrides: Partial<CoordinatorAttendanceFormModel> = {}): CoordinatorAttendanceFormModel {
   const status = overrides.status ?? "pending";
   const canMark = overrides.canMark ?? true;
@@ -250,7 +231,7 @@ function attendanceModel(overrides: Partial<CoordinatorAttendanceFormModel> = {}
 }
 
 function renderAttendance(attendanceForm: CoordinatorAttendanceFormModel) {
-  render(<CoordinatorRoleBadgeCard assignment={{ status: "acknowledged" }} busy={false} roleName="Floor Director" attendanceStatus={attendanceForm.status} onAcknowledge={vi.fn()} attendanceForm={attendanceForm} />);
+  render(<CoordinatorAttendanceControl attendanceForm={attendanceForm} />);
 }
 
 describe("coordinator self-attendance window", () => {
@@ -282,25 +263,57 @@ describe("coordinator self-attendance window", () => {
   });
 });
 
-describe("coordinator queues", () => {
-  it("opens the issue form on Issues ahead of the open issues and the secondary check-in count", () => {
-    renderRoleData(roleView({ guestAttendanceCount: 0, urgentIssues: [] }), {}, "issues");
+const issue = (overrides: Record<string, unknown>) => ({ id: "iss", eventId: "evt_1", title: "Issue", description: "", severity: "high", status: "open", affectedArea: "", ownerRole: "", ownerName: "", resolution: "", openedBy: "", createdAt: "", updatedAt: "", ...overrides });
 
-    // The form is open without an extra step: the submit control is in the document, not behind a disclosure.
-    expect(screen.getByRole("button", { name: "Report issue" })).toBeTruthy();
-    const formHeading = screen.getByText("Report an issue");
-    const issuesHeading = screen.getByText("Open issues");
-    const checkIns = screen.getByText("No check-ins recorded.");
-    expect(formHeading.compareDocumentPosition(issuesHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(issuesHeading.compareDocumentPosition(checkIns) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("No open issues.")).toBeTruthy();
+describe("coordinator queues", () => {
+  it("lists open issues most serious first, keeps resolved ones apart, and offers the report form", () => {
+    const onReportIssue = vi.fn();
+    renderRoleData(roleView({
+      guestAttendanceCount: 3,
+      urgentIssues: [
+        issue({ id: "low", title: "Spare chairs", severity: "low" }),
+        issue({ id: "fixed", title: "Mic feedback", status: "resolved", resolution: "Swapped the receiver" }),
+        issue({ id: "crit", title: "Generator down", severity: "critical", affectedArea: "Main Hall" }),
+      ],
+    }), { onReportIssue }, "issues");
+
+    const open = within(screen.getByRole("region", { name: /Open issues/ }));
+    const titles = open.getAllByRole("listitem").map((item) => item.textContent ?? "");
+    expect(titles[0]).toContain("Generator down");
+    expect(titles[1]).toContain("Spare chairs");
+    expect(open.queryByText("Mic feedback")).toBeNull();
+    expect(within(screen.getByRole("region", { name: /Resolved/ })).getByText("Swapped the receiver")).toBeTruthy();
+    expect(screen.getByText("Guest names are hidden for your role.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Report an issue" }));
+    expect(onReportIssue).toHaveBeenCalledTimes(1);
   });
 
-  it("opens Log a task when nothing is assigned yet, so the way forward is one step away", () => {
-    renderRoleData(roleView({ tasks: [] }));
+  it("groups tasks by where they stand, blocked first", () => {
+    renderRoleData(roleView({
+      tasks: [
+        task({ id: "todo", title: "Aisle sweep" }),
+        task({ id: "stuck", title: "Stage power", status: "blocked", blockedReason: "Waiting on the venue" }),
+        task({ id: "going", title: "Doors", status: "in_progress" }),
+      ],
+    }));
 
-    expect(screen.getByText("Assigned to you")).toBeTruthy();
-    expect(screen.getByText("No tasks assigned to you yet.")).toBeTruthy();
-    expect(screen.getByText("Log a task").closest("details")?.open).toBe(true);
+    const groups = screen.getAllByRole("region").map((region) => region.getAttribute("aria-label")).filter(Boolean);
+    expect(groups.slice(0, 3)).toEqual(["Blocked", "In progress", "To do"]);
+    expect(screen.getByText("Waiting on the venue")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Unblock" })).toBeTruthy();
+  });
+
+  it("logs a task from a side panel and closes it once the task is saved", async () => {
+    const models = renderRoleData(roleView({ tasks: [] }), { taskTitle: "Stage cue check" });
+
+    expect(screen.getByText(/No tasks assigned to you yet/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Log a task" }));
+    const panel = await screen.findByRole("dialog");
+    fireEvent.click(within(panel).getByRole("button", { name: "Log task" }));
+
+    expect(models.taskForm.submit).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });
+

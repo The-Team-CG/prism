@@ -19,7 +19,10 @@ const ROUTES = {
     '/dashboard/events/evt_hist_241/overview', '/dashboard/events/evt_hist_241/live-ops', '/dashboard/events/evt_hist_195/billing', '/dashboard/events/evt_hist_195/suppliers',
     '/dashboard/events/evt_hist_188/closure', '/dashboard/events/evt_hist_005/overview', '/dashboard/settings',
   ],
-  coordinator: ['/dashboard', '/dashboard?view=tasks', '/dashboard?view=calendar', '/dashboard?view=assignments', '/dashboard?view=notifications'],
+  coordinator: [
+    '/dashboard', '/dashboard?view=tasks', '/dashboard?view=issues', '/dashboard?view=run-sheet', '/dashboard?view=calendar', '/dashboard?view=assignments',
+    '/dashboard?view=registration', '/dashboard?view=notifications', '/dashboard?view=messages', '/dashboard?view=account',
+  ],
 };
 const ORIGIN = { client: 'client', supplier: 'supplier', pmcm: 'event', coordinator: 'event' };
 

@@ -266,13 +266,15 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await booking.getByRole('button', { name: /^Arrived/ }).click();
       await booking.getByRole('button', { name: /^Set up and ready/ }).click();
       await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
-      const logTask = coordinator.page.locator('details', { has: coordinator.page.locator('summary', { hasText: 'Log a task' }) });
-      if ((await logTask.getAttribute('open')) === null) await logTask.locator('summary').click();
-      await coordinator.page.getByLabel('Task title (required)', { exact: true }).fill('Browser lifecycle venue sweep');
-      await coordinator.page.getByLabel('Assigned role (required)', { exact: true }).click();
+      // Log a task opens its form in a side panel, which closes once the task is saved.
+      await coordinator.page.getByRole('button', { name: 'Log a task', exact: true }).click();
+      const logTask = coordinator.page.getByRole('dialog', { name: 'Log a task' });
+      await logTask.getByLabel('Task title (required)', { exact: true }).fill('Browser lifecycle venue sweep');
+      await logTask.getByLabel('Assigned role (required)', { exact: true }).click();
       await coordinator.page.getByRole('option', { name: 'General Coordinator', exact: true }).click();
-      await coordinator.page.getByRole('checkbox', { name: /Assign to me|Assign to my queue/ }).check();
-      await coordinator.page.getByRole('button', { name: 'Log task', exact: true }).click();
+      await logTask.getByRole('checkbox', { name: /Assign to me|Assign to my queue/ }).check();
+      await logTask.getByRole('button', { name: 'Log task', exact: true }).click();
+      await expect(logTask).toBeHidden();
       await expect(coordinator.page.getByText('Browser lifecycle venue sweep', { exact: true }).first()).toBeVisible();
       const guestName = `Lifecycle Guest ${info.project.name}`;
       await api('POST', `/guest/events/${eventId}/roster/import`, { source: 'csv', rows: [{ sourceKey: 'browser-lifecycle-guest', guestName }] });

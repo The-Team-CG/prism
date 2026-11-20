@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
+import { formatPortalDate } from "@prism/ui/format-date";
 import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Home, MessageSquare, Radio, UserRound, UsersRound } from "lucide-react";
 import { EventMessagesWorkspace } from '@/features/event-dashboard/messages/views/event-messages-workspace';
 import { EventAccountView } from '@/features/account';
@@ -13,7 +13,7 @@ import { useEventUnreadNotices } from "@/features/account-notifications/view-mod
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell } from "@prism/ui";
 import { Button } from "@prism/ui/components/button";
-import { PrismHero } from "@prism/ui/page-blocks";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import { useDocumentTitle } from "@/app/components/document-title";
 import { roleLabel } from "@/features/pmcm-kit";
 import { CoordinatorRegistrationDesk } from "@/features/coordinators/registration";
@@ -33,14 +33,10 @@ import {
 import { useCoordinatorViewModel } from "../view-models/use-coordinator-view-model";
 import { CoordinatorCalendar } from "./coordinator-calendar";
 import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
-import {
-  CoordinatorBoundaryNotice,
-  CoordinatorEventDayActions,
-  CoordinatorGreetingBanner,
-  CoordinatorStatusSummary,
-  CoordinatorTimelineCard,
-} from "./sections/coordinator-view-sections";
-import { CoordinatorAssignmentHistory, CoordinatorRoleBadgeCard, CoordinatorRoleData } from "./sections/coordinator-role-sections";
+import { CoordinatorTimelineCard } from "./sections/coordinator-view-sections";
+import { CoordinatorIssueFormFields, CoordinatorRoleData } from "./sections/coordinator-role-sections";
+import { CoordinatorShiftPage } from "./sections/coordinator-shift-page";
+import { CoordinatorAssignmentsPage } from "./sections/coordinator-assignments-page";
 import { AccountNotificationsView } from "@/features/account-notifications/views/account-notifications-view";
 
 type CoordinatorVm = ReturnType<typeof useCoordinatorViewModel>;
@@ -51,7 +47,7 @@ function viewHref(view: CoordinatorViewId, eventId?: string | null): string {
   return `${COORDINATOR_HOME_PATH}${coordinatorViewSearch(view, eventId)}`;
 }
 
-function CoordinatorRoleSection({ vm, section }: { vm: CoordinatorVm; section: "tasks" | "issues" }) {
+function CoordinatorRoleSection({ vm, section, onReportIssue }: { vm: CoordinatorVm; section: "tasks" | "issues"; onReportIssue: () => void }) {
   return (
     <CoordinatorRoleData
       section={section}
@@ -60,10 +56,10 @@ function CoordinatorRoleSection({ vm, section }: { vm: CoordinatorVm; section: "
       roleView={vm.roleView}
       registrationRole={vm.registrationRole && !vm.readOnly}
       taskForm={vm.taskForm}
-      issueForm={vm.issueForm}
       reassignment={vm.reassignment}
       taskActions={vm.taskActions}
       operatorActions={vm.operatorActions}
+      onReportIssue={onReportIssue}
     />
   );
 }
@@ -77,51 +73,36 @@ function ReportIssueButton({ onReport }: { onReport: () => void }) {
   );
 }
 
-function CoordinatorShift({ vm, roleName, onNavigate }: {
-  vm: CoordinatorVm;
-  roleName: string;
-  onNavigate: NavigateTo;
-}) {
-  const nextTask = [...(vm.roleView?.tasks ?? [])]
-    .filter((task) => !["done", "cancelled", "closed"].includes(task.status))
-    .sort((left, right) => (left.dueAt ?? "9999").localeCompare(right.dueAt ?? "9999"))[0];
+function CoordinatorShiftSection({ vm, event, roleName, onNavigate }: { vm: CoordinatorVm; event: NonNullable<CoordinatorVm["event"]>; roleName: string; onNavigate: NavigateTo }) {
   return (
-    <div className="space-y-5">
-      {nextTask && !vm.roleViewError ? (
-        <PrismHero
-          label="Next task for your role"
-          title={nextTask.title}
-          meta={`Owner: ${nextTask.ownerName || nextTask.assignedRole} · ${nextTask.dueAt ? `Due ${formatPortalDateTime(nextTask.dueAt)}` : "No deadline set"}`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-            <p className="min-w-0 flex-1 basis-64 text-sm text-ink-foreground/70">{nextTask.notes || "Open the task queue to see what is waiting on you."}</p>
-            <Button type="button" onClick={() => onNavigate("tasks")}>Open task queue</Button>
-          </div>
-        </PrismHero>
-      ) : null}
-      <CoordinatorEventDayActions
-        roleViewLoading={vm.roleViewLoading}
-        roleViewError={vm.roleViewError}
-        roleView={vm.roleView}
-        onNavigate={onNavigate}
-      />
-      <CoordinatorRoleBadgeCard
-        assignment={vm.assignment}
-        busy={vm.busy}
-        roleName={roleName}
-        attendanceStatus={vm.attendanceStatus}
-        onAcknowledge={vm.acknowledge}
-        attendanceForm={vm.attendanceForm}
-      />
-      <CoordinatorStatusSummary
-        activeDraft={vm.activeDraft}
-        roleViewLoading={vm.roleViewLoading}
-        roleView={vm.roleView}
-        roleDataStatus={vm.roleDataStatus}
-        registrationRole={vm.registrationRole && !vm.readOnly}
-        onNavigate={onNavigate}
-      />
-    </div>
+    <CoordinatorShiftPage
+      event={event}
+      assignment={vm.assignment}
+      roleName={roleName}
+      busy={vm.busy}
+      roleView={vm.roleView}
+      roleViewLoading={vm.roleViewLoading}
+      roleViewError={vm.roleViewError}
+      registrationRole={vm.registrationRole && !vm.readOnly}
+      attendanceForm={vm.attendanceForm}
+      onAcknowledge={vm.acknowledge}
+      onNavigate={onNavigate}
+    />
+  );
+}
+
+/** The issue form in a side panel, so an issue is reported from whatever view the coordinator is on. */
+function ReportIssueSheet({ vm, open, onOpenChange, onReported }: { vm: CoordinatorVm; open: boolean; onOpenChange: (open: boolean) => void; onReported: () => void }) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>Report an issue</SheetTitle>
+          <SheetDescription>{vm.event ? `${vm.event.eventName}. PMCM sees it as soon as you send it.` : "PMCM sees it as soon as you send it."}</SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-6"><CoordinatorIssueFormFields issueForm={vm.issueForm} onDone={onReported} /></div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -151,29 +132,36 @@ function coordinatorDescription(view: CoordinatorViewId, event: CoordinatorVm['e
   return event ? `${event.eventName} · ${formatPortalDate(event.eventDate)} · ${roleName}` : 'Choose an assigned event to get started.';
 }
 
-function CoordinatorViewContent({ vm, view, session, sessionName, roleName, onNavigate, onOpenItem }: {
+function CoordinatorViewContent({ vm, view, session, events, roleName, onNavigate, onOpenItem, onReportIssue }: {
   vm: CoordinatorVm;
   view: CoordinatorViewId;
   session: PrismAuthenticatedSession;
-  sessionName: string;
+  events: PrismCoordinatorWorkspace["events"];
   roleName: string;
   onNavigate: NavigateTo;
   onOpenItem: (view: CoordinatorViewId, eventId: string) => void;
+  onReportIssue: () => void;
 }) {
   const accountView = ACCOUNT_VIEWS[view];
   if (accountView) return accountView(vm, onOpenItem, session);
   if (!vm.event) return <p role="status" className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">{vm.selectedEventId ? "That event is not available to this account. Choose an assigned event." : "Choose an assigned event to see your work."}</p>;
   switch (view) {
-    case "shift": return <CoordinatorShift vm={vm} roleName={roleName} onNavigate={onNavigate} />;
-    case "tasks": return <CoordinatorRoleSection vm={vm} section="tasks" />;
-    case "issues": return <CoordinatorRoleSection vm={vm} section="issues" />;
+    case "shift": return <CoordinatorShiftSection vm={vm} event={vm.event} roleName={roleName} onNavigate={onNavigate} />;
+    case "tasks": return <CoordinatorRoleSection vm={vm} section="tasks" onReportIssue={onReportIssue} />;
+    case "issues": return <CoordinatorRoleSection vm={vm} section="issues" onReportIssue={onReportIssue} />;
     case "run-sheet": return <CoordinatorTimelineCard roleView={vm.roleView} readOnly={vm.readOnly} onCheckAgain={() => void vm.refreshRoleView()} />;
     case "assignments": return (
-      <div className="space-y-5">
-        <CoordinatorGreetingBanner event={vm.event} assignment={vm.assignment} busy={vm.busy} roleName={roleName} attendanceStatus={vm.attendanceStatus} sessionName={sessionName} onAcknowledge={vm.acknowledge} onDecline={vm.decline} onWithdraw={vm.withdraw} />
-        <CoordinatorAssignmentHistory assignments={vm.assignments} />
-        <CoordinatorBoundaryNotice />
-      </div>
+      <CoordinatorAssignmentsPage
+        event={vm.event}
+        assignment={vm.assignment}
+        assignments={vm.assignments}
+        events={events}
+        busy={vm.busy}
+        onAcknowledge={vm.acknowledge}
+        onDecline={vm.decline}
+        onWithdraw={vm.withdraw}
+        onOpenEvent={(eventId) => onOpenItem("shift", eventId)}
+      />
     );
     case "registration": return <CoordinatorRegistrationSection vm={vm} />;
   }
@@ -193,6 +181,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
   const [requestedView, setActiveView] = useState<CoordinatorViewId>("shift");
   const activeView = requestedView === "registration" && (!vm.registrationRole || vm.readOnly) ? "shift" : requestedView;
   const [outsideNotice, setOutsideNotice] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const selectEventRef = useRef(vm.selectEvent);
   useEffect(() => { selectEventRef.current = vm.selectEvent; });
   useEffect(() => {
@@ -240,6 +229,15 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
     vm.selectEvent(eventId);
     navigateTo(view, eventId);
   }
+  function reportIssue() {
+    // Without a writable event and its data there is nothing to report against; Issues explains why.
+    if (!vm.event || vm.readOnly || !vm.roleView) navigateTo("issues");
+    else setReporting(true);
+  }
+  function issueReported() {
+    setReporting(false);
+    navigateTo("issues");
+  }
   useDocumentTitle(`${COORDINATOR_VIEW_LABELS[activeView]} · P.R.I.S.M`);
 
   function dismissOutsideNotice() {
@@ -257,7 +255,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       activeItemId={activeView}
       navItems={navItems}
       onNavSelect={(id) => navigateTo(coordinatorViewFromParam(id))}
-      headerActions={<ReportIssueButton onReport={() => navigateTo("issues")} />}
+      headerActions={<ReportIssueButton onReport={reportIssue} />}
       alwaysShowHeaderActions
       user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       accountMenuItems={[{ id: "account", label: "Account", icon: UserRound, onSelect: () => navigateTo("account") }]}
@@ -282,8 +280,9 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
         ) : null}
         {vm.readOnly ? <p role="status" className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">Archived event: operational records are read-only.</p> : null}
         <fieldset disabled={vm.readOnly && activeView !== "run-sheet" && activeView !== 'messages'} className="min-w-0">
-          <CoordinatorViewContent vm={vm} view={activeView} session={session} sessionName={session.name} roleName={roleName} onNavigate={navigateTo} onOpenItem={openCalendarItem} />
+          <CoordinatorViewContent vm={vm} view={activeView} session={session} events={state.events} roleName={roleName} onNavigate={navigateTo} onOpenItem={openCalendarItem} onReportIssue={reportIssue} />
         </fieldset>
+        <ReportIssueSheet vm={vm} open={reporting} onOpenChange={setReporting} onReported={issueReported} />
       </div>
     </PrismDashboardShell>
   );
