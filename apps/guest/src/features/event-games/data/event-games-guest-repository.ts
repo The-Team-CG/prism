@@ -57,14 +57,23 @@ function isOptionalGamePin(value: unknown): boolean {
   return value === undefined || (typeof value === "string" && isValidGamePin(value));
 }
 
+/** A stored alias is optional; when present it is the server's short game name. */
+function isOptionalAlias(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && value.length <= 80);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
 function isGuestGameParticipantSession(value: unknown): value is GuestGameParticipantSession {
   if (!isRecord(value)) return false;
-  return typeof value.eventId === "string" && value.eventId.length > 0
-    && (value.currentSessionId === null || (typeof value.currentSessionId === "string" && value.currentSessionId.length > 0))
+  return isNonEmptyString(value.eventId)
+    && (value.currentSessionId === null || isNonEmptyString(value.currentSessionId))
     && typeof value.participantCredential === "string"
     && PARTICIPANT_CREDENTIAL_PATTERN.test(value.participantCredential)
     && isOptionalGamePin(value.joinedWithPin)
-    && (value.participantAlias === undefined || (typeof value.participantAlias === "string" && value.participantAlias.length <= 80));
+    && isOptionalAlias(value.participantAlias);
 }
 
 function readSession(): GuestGameParticipantSession | null {
@@ -553,6 +562,19 @@ function mapPublicParticipantState(state: Record<string, unknown>, expectedSessi
   };
 }
 
+/**
+ * Keeps what the server says about the guest's game: the name they play under (so the lobby and PIN screens say the
+ * same name), and that a finished game is no longer the current one.
+ */
+function rememberGameState(session: GuestGameParticipantSession, state: PrismGamePublicState) {
+  const remembered = { ...session, participantAlias: state.participant.participantAlias };
+  if (state.status === "completed" || state.status === "cancelled") {
+    savePrismSession(SESSION_KEY, { ...remembered, currentSessionId: null });
+  } else if (session.participantAlias !== remembered.participantAlias) {
+    savePrismSession(SESSION_KEY, remembered);
+  }
+}
+
 function storeSession(
   eventId: string,
   sessionId: string,
@@ -646,13 +668,7 @@ export const eventGamesGuestRepository = {
         await eventGames.getParticipantState(sessionId, session.participantCredential),
         sessionId,
       );
-      // The server's name for the guest in this game is kept, so the lobby and PIN screens say the same name.
-      const remembered = { ...session, participantAlias: state.participant.participantAlias };
-      if (state.status === "completed" || state.status === "cancelled") {
-        savePrismSession(SESSION_KEY, { ...remembered, currentSessionId: null });
-      } else if (session.participantAlias !== remembered.participantAlias) {
-        savePrismSession(SESSION_KEY, remembered);
-      }
+      rememberGameState(session, state);
       return state;
     } catch (error) {
       const { status } = apiErrorDetails(error);
