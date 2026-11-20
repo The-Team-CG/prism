@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import { ForbiddenException } from '@nestjs/common';
@@ -8,6 +8,10 @@ import { PrismaService } from '@prism/kernel/database';
 import { AuthSessionService, EventSessionGuard } from '@prism/kernel/event-session';
 import type { AuthAuditPort } from '../modules/identity-access/contracts/auth-audit.port';
 import { EmailChangeService } from '../modules/identity-access/application/auth/email-change.service';
+import { AuthOperationsService } from '../modules/identity-access/application/auth/auth-operations.service';
+import { AuthSecurityService } from '../modules/identity-access/application/auth/auth-security.service';
+import { PasswordResetService } from '../modules/identity-access/application/auth/password-reset.service';
+import { IdentityPrivacyRedactorService } from '../modules/identity-access/application/participants/identity-privacy-redactor.service';
 import { LifecycleAccountEmailRelinkerService } from '../modules/event-lifecycle/application/onboarding/lifecycle-account-email-relinker.service';
 import { CommercialAccountEmailRelinkerService } from '../modules/commercial/application/suppliers/commercial-account-email-relinker.service';
 import { OperationsAccountEmailRelinkerService } from '../modules/operations/application/staffing/operations-account-email-relinker.service';
@@ -23,6 +27,7 @@ describe.skipIf(!enabled)('account email change across contexts (PostgreSQL)', (
   const client = { id: `${prefix}_client`, email: `${prefix}_ana@example.test` };
   const supplier = { id: `${prefix}_supplier`, email: `${prefix}_ops@example.test` };
   const other = { id: `${prefix}_other`, email: `${prefix}_other@example.test` };
+  const secured = { id: `${prefix}_secured`, email: `${prefix}_secured@example.test` };
   const sent: Array<{ recipient: string; confirmUrl?: string; newEmail?: string }> = [];
   let prisma: PrismaService;
   let sessions: AuthSessionService;
@@ -75,6 +80,7 @@ describe.skipIf(!enabled)('account email change across contexts (PostgreSQL)', (
       approvalStatus: 'approved', privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION, sessionVersion: 0,
     });
     await prisma.opsUser.createMany({ data: [account(client, 'client'), account(supplier, 'supplier'), account(other, 'client')] });
+    await prisma.opsUser.create({ data: { ...account(secured, 'client'), password: await AuthSecurityService.hashPassword('right-password') } });
     await prisma.opsInquiry.create({ data: {
       id: `${prefix}_inquiry`, clientName: 'Ana', email: client.email.toUpperCase(), normalizedEmail: client.email,
       eventName: 'P0 Gala', eventDate: new Date('2027-02-14T00:00:00.000Z'), clientType: 'corporate',
@@ -99,7 +105,8 @@ describe.skipIf(!enabled)('account email change across contexts (PostgreSQL)', (
     await prisma.opsNotificationDelivery.deleteMany({ where: { id: `${prefix}_delivery` } });
     await prisma.opsNotificationLog.deleteMany({ where: { id: `${prefix}_notice` } });
     await prisma.opsInquiry.deleteMany({ where: { id: `${prefix}_inquiry` } });
-    await prisma.opsUser.deleteMany({ where: { id: { in: [client.id, supplier.id, other.id] } } });
+    await prisma.opsPasswordResetToken.deleteMany({ where: { userId: secured.id } });
+    await prisma.opsUser.deleteMany({ where: { id: { in: [client.id, supplier.id, other.id, secured.id] } } });
     await prisma.$disconnect();
   }, 30_000);
 
@@ -155,5 +162,37 @@ describe.skipIf(!enabled)('account email change across contexts (PostgreSQL)', (
     expect(lastOf(sent, 2)?.confirmUrl).toMatch(/^http:\/\/supplier\.test\/confirm-email\?token=/);
     await confirmation.confirm(latestToken());
     await expect(prisma.opsSupplier.findUniqueOrThrow({ where: { id: `${prefix}_supplier_record` } })).resolves.toMatchObject({ email: newEmail });
+  });
+
+  it('voids an open email change when the person changes or resets their password, and when the account is erased', async () => {
+    const operations = new AuthOperationsService(prisma, quietAudit, {} as never, sessions, {} as never);
+    const resets = new PasswordResetService(prisma, { deliver: async () => undefined }, { client: 'http://client.test', supplier: 'http://supplier.test', event: 'http://event.test' });
+    const current = async () => prisma.opsUser.findUniqueOrThrow({ where: { id: secured.id } });
+    const actor = async () => ({ ...actorFor(secured, 'client'), sessionVersion: (await current()).sessionVersion });
+
+    await emailChange.request(await actor(), { newEmail: `${prefix}_hijack1@example.test`, password: 'right-password' });
+    const beforePasswordChange = latestToken();
+    await operations.changeOwnPassword(await actor(), { currentPassword: 'right-password', newPassword: 'right-password' });
+    await expect(confirmation.confirm(beforePasswordChange)).rejects.toThrow(/expired or was already used/);
+
+    await emailChange.request(await actor(), { newEmail: `${prefix}_hijack2@example.test`, password: 'right-password' });
+    const beforeReset = latestToken();
+    const resetToken = randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
+    const otherResetToken = randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
+    const hash = (value: string) => createHash('sha256').update(value).digest('hex');
+    await prisma.opsPasswordResetToken.createMany({ data: [
+      { id: `${prefix}_reset_1`, userId: secured.id, tokenHash: hash(resetToken), expiresAt: new Date(Date.now() + 60_000) },
+      { id: `${prefix}_reset_2`, userId: secured.id, tokenHash: hash(otherResetToken), expiresAt: new Date(Date.now() + 60_000) },
+    ] });
+    await resets.consume(resetToken, 'right-password');
+    await expect(confirmation.confirm(beforeReset)).rejects.toThrow(/expired or was already used/);
+    // One used reset link voids the others mailed to the same account.
+    await expect(resets.consume(otherResetToken, 'attacker-password')).rejects.toThrow(/invalid or expired/i);
+
+    await emailChange.request(await actor(), { newEmail: `${prefix}_hijack3@example.test`, password: 'right-password' });
+    const beforeErasure = latestToken();
+    await prisma.$transaction((tx) => new IdentityPrivacyRedactorService().eraseAccount({ accountId: secured.id, email: secured.email, redactedEmail: `${prefix}_erased@privacy.local` }, tx));
+    await expect(confirmation.confirm(beforeErasure)).rejects.toThrow(/expired or was already used/);
+    await expect(current()).resolves.toMatchObject({ email: `${prefix}_erased@privacy.local`, permanentLockout: true });
   });
 });

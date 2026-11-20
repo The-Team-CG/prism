@@ -164,10 +164,19 @@ function createTwoFactorService(options: { purpose?: 'setup' | 'challenge'; vali
       return { count: 1 };
     }),
   };
+  /** One open sign-in email change, so tests can see which account changes withdraw it. */
+  const emailChange = { userId: user.id, consumedAt: null as Date | null, cancelledAt: null as Date | null };
+  const opsEmailChangeRequest = {
+    updateMany: vi.fn(async ({ where, data }: { where: { userId: string; consumedAt: null; cancelledAt: null }; data: { cancelledAt: Date } }) => {
+      if (where.userId !== emailChange.userId || emailChange.consumedAt || emailChange.cancelledAt) return { count: 0 };
+      emailChange.cancelledAt = data.cancelledAt;
+      return { count: 1 };
+    }),
+  };
   const prisma = {
     opsUserSession: sessionTable(),
     opsUser,
-    $transaction: vi.fn(async (callback: (tx: { opsUser: typeof opsUser }) => Promise<unknown>) => callback({ opsUser })),
+    $transaction: vi.fn(async (callback: (tx: { opsUser: typeof opsUser; opsEmailChangeRequest: typeof opsEmailChangeRequest }) => Promise<unknown>) => callback({ opsUser, opsEmailChangeRequest })),
   };
   const authAudit = {
     write: vi.fn(async () => undefined),
@@ -202,7 +211,7 @@ function createTwoFactorService(options: { purpose?: 'setup' | 'challenge'; vali
     authSessionService as never,
     totpService as never,
   );
-  return { service, prisma, authAudit, authSessionService, totpService, token, user };
+  return { service, prisma, authAudit, authSessionService, totpService, token, user, emailChange };
 }
 
 describe('AuthOperationsService', () => {
@@ -858,12 +867,13 @@ describe('AuthOperationsService account recovery and sessions', () => {
     }), expect.anything());
   });
 
-  it('clears two-factor enrolment and revokes open sessions on reset, and audits the reset', async () => {
-    const { service, user, authAudit } = createTwoFactorService();
+  it('clears two-factor enrolment, revokes open sessions and withdraws an open email change on reset, and audits the reset', async () => {
+    const { service, user, authAudit, emailChange } = createTwoFactorService();
 
     const summary = await service.resetUserTwoFactor('usr_pmcm', adminActor);
 
     expect(user).toMatchObject({ twoFactorSecret: null, sessionVersion: 1, twoFactorChallengeHash: null, twoFactorChallengeAttempts: 0 });
+    expect(emailChange.cancelledAt).toBeInstanceOf(Date);
     expect(summary).toMatchObject({ twoFactorEnabled: false, sessionVersion: 1 });
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({
       action: 'Reset two-factor enrolment and revoked open sessions for mys@pmcm.test',
@@ -1025,18 +1035,20 @@ describe('own account changes', () => {
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Changed their own name', metadata: { changedFields: ['name'] } }), expect.anything());
   });
 
-  it('changes the password only with the right current one, and ends every session', async () => {
-    const { service, user, authAudit } = createTwoFactorService();
+  it('changes the password only with the right current one, ends every session and withdraws an open email change', async () => {
+    const { service, user, authAudit, emailChange } = createTwoFactorService();
     const verify = vi.spyOn(AuthSecurityService, 'verifyPassword').mockImplementation(async (_hash, password) => password === 'old-password-123');
     const hash = vi.spyOn(AuthSecurityService, 'hashPassword').mockResolvedValue('new-hash');
 
     await expect(service.changeOwnPassword(actorOf(user), { currentPassword: 'guess', newPassword: 'brand-new-password-1' })).rejects.toBeInstanceOf(ForbiddenException);
     expect(user.password).toBe('hashed-password');
     expect(user.failedLoginCount).toBe(1);
+    expect(emailChange.cancelledAt).toBeNull();
 
     await service.changeOwnPassword(actorOf(user), { currentPassword: 'old-password-123', newPassword: 'brand-new-password-1' });
     expect(user.password).toBe('new-hash');
     expect(user.sessionVersion).toBe(1);
+    expect(emailChange.cancelledAt).toBeInstanceOf(Date);
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Changed their own password and signed out every session' }), expect.anything());
     expect(JSON.stringify(authAudit.write.mock.calls)).not.toContain('brand-new-password-1');
     verify.mockRestore();

@@ -34,6 +34,7 @@ import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
 import { LOGIN_LOCKOUT_THRESHOLD, loginFailureUpdate, nextLoginFailureState } from './login-lockout.policy';
 import { canonicalAccountEmail } from './account-email';
+import { cancelOpenEmailChanges } from './open-email-change';
 import { INQUIRY_COMMANDS, type InquiryCommands } from '@prism/contexts/event-lifecycle';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
 
@@ -559,6 +560,7 @@ export class AuthOperationsService {
         data: { password: hash, sessionVersion: { increment: 1 } },
       });
       if (saved.count !== 1) throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
+      await cancelOpenEmailChanges(tx, actor.id);
       await writeAudit(this.authAudit, undefined, actor.name, 'Changed their own password and signed out every session', {
         actorRole: actor.role,
         actorEmail: actor.email,
@@ -649,6 +651,7 @@ export class AuthOperationsService {
           sessionVersion: { increment: 1 },
         },
       });
+      await cancelOpenEmailChanges(tx, user.id);
       await this.writeIdentityAdminAudit(tx, admin, saved, 'Reset two-factor enrolment and revoked open sessions', { previousSessionVersion: user.sessionVersion });
       return this.mapAccountSummary(saved);
     });

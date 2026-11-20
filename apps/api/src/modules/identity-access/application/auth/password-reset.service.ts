@@ -8,6 +8,7 @@ import { AuthSecurityService } from './auth-security.service';
 import { PASSWORD_RESET_DELIVERY, PASSWORD_RESET_TTL_MS, type PasswordResetDeliveryPort } from '../../contracts/password-reset-delivery.port';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
 import { canonicalAccountEmail } from './account-email';
+import { cancelOpenEmailChanges } from './open-email-change';
 
 const GENERIC_MESSAGE = 'If an account exists for that email, password reset instructions will be sent.';
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
@@ -102,6 +103,10 @@ export class PasswordResetService {
           data: { consumedAt: now },
         });
         if (consumed.count !== 1) throw new BadRequestException('Invalid or expired password reset token');
+        // One reset settles the account: the other links mailed to it stop working, and so does any email change
+        // asked for before it.
+        await tx.opsPasswordResetToken.updateMany({ where: { userId: candidate.userId, consumedAt: null }, data: { consumedAt: now } });
+        await cancelOpenEmailChanges(tx, candidate.userId, now);
 
         await tx.opsUser.update({
           where: { id: candidate.userId },
