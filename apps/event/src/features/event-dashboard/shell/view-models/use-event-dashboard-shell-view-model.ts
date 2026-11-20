@@ -281,6 +281,8 @@ export function useEventDashboardShellViewModel({
       sourceType: "template",
       venueTemplateId: template.id,
       venue: template.venue || selectedEvent.eventName,
+      // This event's guest count decides seating, not the count of the event the template was saved from.
+      pax: briefing?.guestCount,
     });
     await openEditor(selectedEvent, draft);
   }

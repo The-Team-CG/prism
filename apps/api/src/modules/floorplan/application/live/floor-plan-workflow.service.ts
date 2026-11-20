@@ -22,7 +22,7 @@ import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReference, type Fl
 import type { FloorplanCommands, FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
 import type { FloorplanReader, FloorPlanDraftProjection } from '../../contracts/floorplan-reader.port';
 import { acceptedScene, sceneColumns, storedScene } from '../stored-scene';
-import { convertLegacyPlan, PASCAL_VERSION, withoutSeatedGuests } from '@prism/floorplan-scene';
+import { convertLegacyPlan, PASCAL_VERSION, withoutEventAssignments } from '@prism/floorplan-scene';
 import type { FloorplanSceneDocument } from '@prism/types';
 
 export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
@@ -61,10 +61,11 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     });
     if (!template?.floorPlan) throw new NotFoundException('Venue preset not found');
     const plan = template.floorPlan;
-    // A draft from a venue copies the layout only: the event's roster seats its guests, not the venue's.
+    // A draft from a venue copies the layout only: this event's roster seats its guests and its bookings fill the
+    // supplier zones, not whichever event the template was saved from.
     const scene = storedScene(plan);
     return {
-      scene: withoutSeatedGuests(scene),
+      scene: withoutEventAssignments(scene),
       width: plan.width,
       height: plan.height,
       gridSize: plan.gridSize,
@@ -102,7 +103,8 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
               width,
               height,
               gridSize: preset?.gridSize ?? input.gridSize ?? DEFAULT_ROOM.gridSize,
-              pax: preset?.pax ?? input.pax ?? 0,
+              // The event's own guest count decides seating; the template's is only a fallback.
+              pax: input.pax ?? preset?.pax ?? 0,
               ...sceneColumns(scene),
               updatedAt: now,
             },

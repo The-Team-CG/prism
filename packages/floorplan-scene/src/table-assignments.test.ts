@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tableAssignmentsOf, withoutSeatedGuests } from "./table-assignments.js";
+import { tableAssignmentsOf, withoutEventAssignments, withoutSeatedGuests } from "./table-assignments.js";
 import { sceneWith, table } from "./__fixtures__/scenes.js";
 
 describe("tableAssignmentsOf", () => {
@@ -19,6 +19,17 @@ describe("tableAssignmentsOf", () => {
   it("ignores nodes that are not tables", () => {
     const stage = { id: "prism-stage_a", type: "prism-stage", parentId: "level_1", variant: "stage", position: [0, 0, 0], rotation: 0, width: 6, depth: 3 };
     expect(tableAssignmentsOf(sceneWith([stage]))).toEqual([]);
+  });
+});
+
+describe("withoutEventAssignments", () => {
+  it("empties tables' guests and supplier zones' suppliers, keeping the rest of the layout", () => {
+    const zone = { id: "prism-zone_a", type: "prism-zone", parentId: "level_1", variant: "supplier", position: [0, 0, 0], rotation: 0, width: 4, depth: 4, supplierIds: ["sup_1"] };
+    const scene = sceneWith([table("prism-table_a", { guestIds: ["g1"] }), zone]);
+    const copied = withoutEventAssignments(scene);
+    expect(tableAssignmentsOf(copied).map((entry) => entry.guestIds)).toEqual([[]]);
+    expect(copied.nodes["prism-zone_a"]).toMatchObject({ supplierIds: [], width: 4 });
+    expect(Object.keys(copied.nodes)).toEqual(Object.keys(scene.nodes));
   });
 });
 

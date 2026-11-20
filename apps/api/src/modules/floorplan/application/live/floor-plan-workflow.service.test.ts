@@ -411,6 +411,22 @@ describe('FloorPlanWorkflowService', () => {
     expect(state.floorPlanObjects).toEqual([]);
   });
 
+  it('starts a draft from a venue template with this event\'s guest count and none of another event\'s suppliers', async () => {
+    const { service, state } = createService();
+    const scene = convertLegacyPlan({ name: 'Gala', widthM: 40, heightM: 25, objects: [] }, '1.1.6');
+    const levelId = Object.values(scene.nodes).find((node) => node.type === 'level')!.id;
+    scene.nodes['prism-zone_av'] = { id: 'prism-zone_av', type: 'prism-zone', parentId: levelId, variant: 'supplier', position: [2, 0, 2], rotation: 0, width: 4, depth: 3, supplierIds: ['sup_other_event'] } as never;
+    state.venueTemplates.push({
+      id: 'tpl_gala', pax: 250, includeSuppliers: false, guests: [], suppliers: [],
+      floorPlan: { width: 40, height: 25, gridSize: 2, objects: [], scene, objectRows: [] },
+    });
+
+    await service.createFloorPlanDraft('evt_sample', { name: 'Gala Layout', sourceType: 'template', venueTemplateId: 'tpl_gala', pax: 100 }, { actorId: 'user_pmcm_1', name: 'PMCM Admin', role: 'pmcm-admin' });
+
+    expect(state.floorPlans[0]).toMatchObject({ pax: 100 });
+    expect((state.floorPlans[0].scene as { nodes: Record<string, { supplierIds?: string[] }> }).nodes['prism-zone_av']?.supplierIds).toEqual([]);
+  });
+
   it('rejects a venue-library preset that does not exist without creating a draft', async () => {
     const { service, state } = createService();
 

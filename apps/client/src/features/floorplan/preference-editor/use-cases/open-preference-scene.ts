@@ -1,4 +1,4 @@
-import { convertLegacyPlan, withoutSeatedGuests } from "@prism/floorplan-scene";
+import { convertLegacyPlan, withoutEventAssignments } from "@prism/floorplan-scene";
 import type { FloorplanSceneDocument } from "@prism/types";
 import type { PreferencePlan } from "../data/preference-plan-repository";
 
@@ -17,7 +17,7 @@ export function hasPreferenceLayout(scene: FloorplanSceneDocument | null | undef
  */
 export function openingScene(plan: PreferencePlan, officialScene: FloorplanSceneDocument | null, pascalVersion: string): FloorplanSceneDocument {
   if (hasPreferenceLayout(plan.scene)) return plan.scene;
-  if (officialScene) return withoutSeatedGuests(officialScene);
+  if (officialScene) return withoutEventAssignments(officialScene);
   if (plan.scene) return plan.scene;
   return convertLegacyPlan({ name: plan.name, widthM: plan.widthM, heightM: plan.heightM, objects: [] }, pascalVersion);
 }

@@ -18,6 +18,21 @@ export function tableAssignmentsOf(scene: FloorplanSceneDocument): SceneTableAss
     });
 }
 
+/**
+ * The layout without anything that belongs to one event: tables lose their seated guests (the event's roster) and
+ * supplier zones lose their suppliers (the event's bookings). A venue template, a draft made from one and a client's
+ * copy of the official layout all start from this, so none of them names guests or suppliers of another event.
+ */
+export function withoutEventAssignments(scene: FloorplanSceneDocument): FloorplanSceneDocument {
+  const nodes = Object.fromEntries(
+    Object.entries(scene.nodes).map(([id, node]) => [
+      id,
+      node.type === "prism-table" ? { ...node, guestIds: [] } : node.type === "prism-zone" ? { ...node, supplierIds: [] } : node,
+    ]),
+  );
+  return { ...scene, nodes } as FloorplanSceneDocument;
+}
+
 /** The scene with every table's seated guests removed: seats belong to one event's roster, so a copied layout starts empty. */
 export function withoutSeatedGuests(scene: FloorplanSceneDocument): FloorplanSceneDocument {
   const nodes = Object.fromEntries(
