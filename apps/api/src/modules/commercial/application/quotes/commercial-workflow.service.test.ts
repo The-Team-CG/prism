@@ -495,7 +495,7 @@ function createRevisionCapScenario(revisionNumber: number | null) {
     eventId: 'evt_sample',
     accessToken: 'token-sample',
     status: revisionNumber === null ? 'open' : 'revised',
-    dueDate: null,
+    dueDate: null as Date | null,
     categoryId: null,
     supplierId: null,
     supplierName: 'Sonic Line Events',
@@ -528,11 +528,18 @@ function createRevisionCapScenario(revisionNumber: number | null) {
   const created: Record<string, unknown>[] = [];
   const prisma = {
     opsSupplierQuoteRequest: {
-      findUnique: vi.fn(async () => request),
+      // Each read is a snapshot, as Prisma returns: a later write to the row does not change what a caller already read.
+      findUnique: vi.fn(async () => ({ ...request })),
       update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => Object.assign(request, data)),
+      // Like Postgres under a row lock: the status predicate is checked against the committed row at write time.
+      updateMany: vi.fn(async ({ where, data }: { where: { status?: string }; data: Record<string, unknown> }) => {
+        if (where.status !== undefined && where.status !== request.status) return { count: 0 };
+        Object.assign(request, data);
+        return { count: 1 };
+      }),
     },
     opsSupplierQuote: {
-      findFirst: vi.fn(async () => quote),
+      findFirst: vi.fn(async () => quote ?? (created[0] as unknown as RevisionCapQuote | undefined) ?? null),
       // Mirrors Prisma updateMany: the `where` predicate is re-evaluated at write
       // time, so a caller holding a stale read matches zero rows once the cap is
       // reached. This is what makes the concurrency assertion below meaningful.
@@ -556,9 +563,10 @@ function createRevisionCapScenario(revisionNumber: number | null) {
       ),
       findUniqueOrThrow: vi.fn(async () => quote),
       create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
-        created.push(data);
         const timestamp = new Date('2026-06-20T08:00:00.000Z');
-        return { ...data, createdAt: timestamp, updatedAt: timestamp };
+        const row = { ...data, createdAt: timestamp, updatedAt: timestamp };
+        created.push(row);
+        return row;
       }),
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => unknown) => callback(prisma)),
@@ -589,7 +597,7 @@ describe('CommercialWorkflowService revision cap (PA-268, EP-07-S02 AC4)', () =>
   });
 
   it('allows a first submission when no quote row exists yet', async () => {
-    const { service, prisma, created } = createRevisionCapScenario(null);
+    const { service, prisma, created, request } = createRevisionCapScenario(null);
 
     const result = await service.submitSupplierQuoteByToken('token-sample', { amount: 50000 });
 
@@ -597,7 +605,7 @@ describe('CommercialWorkflowService revision cap (PA-268, EP-07-S02 AC4)', () =>
     expect(created).toHaveLength(1);
     expect(created[0].revisionNumber).toBe(1);
     expect(result.revisionNumber).toBe(1);
-    expect(lastRequestStatus(prisma)).toBe('submitted');
+    expect(request.status).toBe('submitted');
   });
 
   it('blocks a second revision via the revise-mode entry point once revisionNumber is already 2', async () => {
@@ -691,9 +699,36 @@ describe('CommercialWorkflowService revision cap (PA-268, EP-07-S02 AC4)', () =>
     );
     expect(quote?.revisionNumber).toBe(1);
   });
+
+  it('refuses a real revision once the deadline has passed, while a retried identical send still replays', async () => {
+    const { service, quote, request } = createRevisionCapScenario(1);
+    request.dueDate = new Date(Date.now() - 2 * 24 * 60 * 60_000);
+
+    await expect(service.reviseSupplierQuoteByToken('token-sample', { amount: 60000 })).rejects.toThrow('The quote deadline has passed');
+    expect(quote?.revisionNumber).toBe(1);
+    await expect(service.reviseSupplierQuoteByToken('token-sample', { amount: 50000 })).resolves.toMatchObject({ revisionNumber: 1 });
+  });
+
+  it('creates one quote when the same first submission arrives twice at once, and refuses a different second one', async () => {
+    const same = createRevisionCapScenario(null);
+    const body = { amount: 50000, inclusions: ['6 kiosks'], paymentTerms: '', notes: '' };
+    const [first, second] = await Promise.all([
+      same.service.submitSupplierQuoteByToken('token-sample', body),
+      same.service.submitSupplierQuoteByToken('token-sample', body),
+    ]);
+    expect(same.created).toHaveLength(1);
+    expect(second.id).toBe(first.id);
+    // Both passed the no-quote-yet check; the claim on the request, not that read, kept the second from creating one.
+    expect(same.prisma.opsSupplierQuoteRequest.updateMany).toHaveBeenCalledTimes(2);
+
+    const different = createRevisionCapScenario(null);
+    const outcomes = await Promise.allSettled([
+      different.service.submitSupplierQuoteByToken('token-sample', { amount: 50000 }),
+      different.service.submitSupplierQuoteByToken('token-sample', { amount: 45000 }),
+    ]);
+    expect(different.created).toHaveLength(1);
+    expect(outcomes.map((outcome) => outcome.status).sort()).toEqual(['fulfilled', 'rejected']);
+    expect((outcomes.find((outcome) => outcome.status === 'rejected') as PromiseRejectedResult).reason.message).toMatch(/already sent for this request/);
+  });
 });
 
-function lastRequestStatus(prisma: { opsSupplierQuoteRequest: { update: ReturnType<typeof vi.fn> } }) {
-  const calls = prisma.opsSupplierQuoteRequest.update.mock.calls;
-  return (calls[calls.length - 1]?.[0] as { data: { status: string } } | undefined)?.data.status;
-}

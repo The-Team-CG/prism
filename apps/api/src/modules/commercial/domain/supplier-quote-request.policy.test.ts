@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { SupplierQuoteRequestStatus, SupplierQuoteStatus } from '@prism/kernel/event-core';
 import {
+  isQuoteDeadlinePassed,
+  quoteAccessTokenExpiresAt,
   isSupplierQuoteLocked,
   isSupplierQuoteRequestClosed,
   manilaCalendarDate,
@@ -18,6 +20,24 @@ describe('quote deadlines', () => {
   it('read back as the Philippine calendar date, including deadlines stored at Manila midnight', () => {
     expect(manilaCalendarDate(new Date('2026-11-12T15:59:59.999Z'))).toBe('2026-11-12');
     expect(manilaCalendarDate(new Date('2026-11-11T16:00:00.000Z'))).toBe('2026-11-12');
+  });
+
+  it('refuse a revision only once the deadline has passed', () => {
+    const deadline = quoteDeadlineInstant(new Date('2026-11-12'));
+    expect(isQuoteDeadlinePassed(deadline, new Date('2026-11-12T23:59:00+08:00'))).toBe(false);
+    expect(isQuoteDeadlinePassed(deadline, new Date('2026-11-13T00:00:00+08:00'))).toBe(true);
+    expect(isQuoteDeadlinePassed(null, new Date('2030-01-01'))).toBe(false);
+    // A due date stored as the calendar day (midnight UTC) still runs to the end of that day in Manila.
+    expect(isQuoteDeadlinePassed(new Date('2026-11-12'), new Date('2026-11-12T12:00:00+08:00'))).toBe(false);
+    expect(isQuoteDeadlinePassed(new Date('2026-11-12'), new Date('2026-11-13T00:00:01+08:00'))).toBe(true);
+  });
+
+  it('keep a quote link working past a deadline more than 90 days away', () => {
+    const issued = new Date('2026-11-01T00:00:00.000Z');
+    expect(quoteAccessTokenExpiresAt(issued, null).toISOString()).toBe('2027-01-30T00:00:00.000Z');
+    expect(quoteAccessTokenExpiresAt(issued, new Date('2026-11-10T00:00:00.000Z')).toISOString()).toBe('2027-02-08T00:00:00.000Z');
+    const farDeadline = quoteDeadlineInstant(new Date('2027-05-01'));
+    expect(quoteAccessTokenExpiresAt(issued, farDeadline).getTime()).toBeGreaterThan(farDeadline.getTime());
   });
 });
 
