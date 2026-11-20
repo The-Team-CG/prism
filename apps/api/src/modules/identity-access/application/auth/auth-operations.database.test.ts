@@ -216,7 +216,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
     };
     const totp = {
       decryptSecret: (encrypted: string) => encrypted,
-      verifyCode: vi.fn(() => true),
+      acceptedStep: vi.fn(() => 1 as number | null),
       generateSecret: () => 'p0-generated-secret',
       encryptSecret: (secret: string) => secret,
       otpauthUri: () => 'otpauth://totp/p0',
@@ -253,7 +253,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
 
     const secondLogin = await challengeOperations.login(challengeEmail, 'P0-two-factor-password-long-enough');
     if (!('kind' in secondLogin) || secondLogin.kind !== 'two_factor_required') throw new Error('Expected a second two-factor challenge');
-    totp.verifyCode.mockReturnValue(false);
+    totp.acceptedStep.mockReturnValue(null);
     for (let attempt = 0; attempt < 4; attempt += 1) {
       await expect(challengeOperations.verifyTwoFactor(secondLogin.token, '000000')).rejects.toThrow('Invalid two-factor code');
     }
@@ -350,7 +350,7 @@ describe.skipIf(!enabled)('account approval PostgreSQL integrity', () => {
       generateSecret: () => 'APPSECRET',
       encryptSecret: (secret: string) => `enc:${secret}`,
       decryptSecret: (stored: string) => stored.replace(/^enc:/, ''),
-      verifyCode: (secret: string, code: string) => secret === 'APPSECRET' && code === '246810',
+      acceptedStep: (secret: string, code: string) => (secret === 'APPSECRET' && code === '246810' ? 1 : null),
       otpauthUri: (secret: string, email: string) => `otpauth://totp/PRISM:${email}?secret=${secret}`,
     };
     const signIn = new AuthOperationsService(prisma, quietAudit, {} as never, sessions, totp as never);

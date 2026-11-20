@@ -66,8 +66,10 @@ model OpsUser {
   permanentLockout             Boolean   @default(false) @map("permanent_lockout")
   lastLoginAt                  DateTime? @map("last_login_at")
   twoFactorSecret              String?   @map("two_factor_secret")
-  /// An authenticator being added from the account page; moves to twoFactorSecret once a code from it is confirmed.
+  /// An authenticator being added (from the account page, or at a PMCM admin's first sign-in); moves to twoFactorSecret once a code from it is confirmed.
   twoFactorPendingSecret       String?   @map("two_factor_pending_secret")
+  /// The time step of the last authenticator code accepted, so the same code cannot be used twice.
+  twoFactorLastStep            Int?      @map("two_factor_last_step")
   sessionVersion               Int       @default(0) @map("session_version")
   twoFactorChallengeHash       String?   @unique(map: "users_two_factor_challenge_hash_key") @map("two_factor_challenge_hash")
   twoFactorChallengeExpiresAt  DateTime? @map("two_factor_challenge_expires_at")

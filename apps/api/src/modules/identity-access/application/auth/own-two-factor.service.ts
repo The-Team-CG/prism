@@ -24,18 +24,23 @@ export class OwnTwoFactorService {
     private readonly totp: TotpService,
   ) {}
 
-  /** A new secret for the authenticator app. Two-step sign-in stays off until a code from it is confirmed. */
+  /**
+   * The secret for the authenticator app. Two-step sign-in stays off until a code from it is confirmed. Starting again
+   * (a second tab, a reload) shows the secret already waiting, so a QR scanned in the first tab keeps working.
+   */
   async start(actor: PrismVerifiedEventActor, password: string): Promise<PrismOwnTwoFactorSetup> {
     await this.passwords.confirmPassword(actor.id, password);
-    const user = await this.prisma.opsUser.findUnique({ where: { id: actor.id }, select: { twoFactorSecret: true, email: true } });
+    const user = await this.prisma.opsUser.findUnique({ where: { id: actor.id }, select: { twoFactorSecret: true, twoFactorPendingSecret: true, email: true } });
     if (!user) throw new UnauthorizedException(SESSION_REVOKED);
     if (user.twoFactorSecret) throw new ConflictException('Two-step sign-in is already on.');
+    const waiting = user.twoFactorPendingSecret ? this.readable(user.twoFactorPendingSecret) : null;
+    if (waiting) return { secret: waiting, otpauthUri: this.totp.otpauthUri(waiting, user.email) };
     const secret = this.totp.generateSecret();
     const saved = await this.prisma.opsUser.updateMany({
-      where: { id: actor.id, sessionVersion: actor.sessionVersion, twoFactorSecret: null },
+      where: { id: actor.id, sessionVersion: actor.sessionVersion, twoFactorSecret: null, twoFactorPendingSecret: user.twoFactorPendingSecret },
       data: { twoFactorPendingSecret: this.totp.encryptSecret(secret) },
     });
-    if (saved.count !== 1) throw new UnauthorizedException(SESSION_REVOKED);
+    if (saved.count !== 1) throw new ConflictException('Two-step sign-in changed meanwhile. Start again.');
     return { secret, otpauthUri: this.totp.otpauthUri(secret, user.email) };
   }
 
@@ -45,14 +50,16 @@ export class OwnTwoFactorService {
     if (!user) throw new UnauthorizedException(SESSION_REVOKED);
     if (user.twoFactorSecret) throw new ConflictException('Two-step sign-in is already on.');
     if (!user.twoFactorPendingSecret) throw new BadRequestException('Start again: add the account to your app first.');
-    if (!this.totp.verifyCode(this.totp.decryptSecret(user.twoFactorPendingSecret), code)) {
+    const step = this.totp.acceptedStep(this.totp.decryptSecret(user.twoFactorPendingSecret), code);
+    if (step === null) {
       // 403, not 401: a 401 would sign the person out over a mistyped code.
       throw new ForbiddenException('That code is not right. Enter the newest code your app shows.');
     }
     await this.prisma.$transaction(async (tx) => {
       const saved = await tx.opsUser.updateMany({
         where: { id: actor.id, sessionVersion: actor.sessionVersion, twoFactorSecret: null, twoFactorPendingSecret: user.twoFactorPendingSecret },
-        data: { twoFactorSecret: user.twoFactorPendingSecret, twoFactorPendingSecret: null },
+        // The confirming code's step is recorded, so the same code cannot then complete a sign-in.
+        data: { twoFactorSecret: user.twoFactorPendingSecret, twoFactorPendingSecret: null, twoFactorLastStep: step },
       });
       if (saved.count !== 1) throw new ConflictException('Two-step sign-in changed meanwhile. Start again.');
       await this.audit(tx, actor, 'Turned on two-step sign-in');
@@ -71,6 +78,14 @@ export class OwnTwoFactorService {
       if (saved.count !== 1) throw new UnauthorizedException(SESSION_REVOKED);
       await this.audit(tx, actor, 'Turned off two-step sign-in');
     });
+  }
+
+  private readable(encrypted: string): string | null {
+    try {
+      return this.totp.decryptSecret(encrypted);
+    } catch {
+      return null;
+    }
   }
 
   private audit(tx: Prisma.TransactionClient, actor: PrismVerifiedEventActor, action: string) {

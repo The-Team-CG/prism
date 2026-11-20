@@ -199,7 +199,7 @@ function createTwoFactorService(options: { purpose?: 'setup' | 'challenge'; vali
   };
   const totpService = {
     decryptSecret: vi.fn(() => 'totp-secret'),
-    verifyCode: vi.fn(() => options.validCode ?? true),
+    acceptedStep: vi.fn(() => ((options.validCode ?? true) ? 1 : null)),
     generateSecret: vi.fn(() => 'new-totp-secret'),
     encryptSecret: vi.fn(() => 'encrypted-new-secret'),
     otpauthUri: vi.fn(() => 'otpauth://totp/test'),
@@ -509,7 +509,7 @@ describe('AuthOperationsService', () => {
     changeUser(user);
 
     await expect(service.verifyTwoFactor('two-factor-token', '123456')).rejects.toThrow(/invalid|eligible/i);
-    expect(totpService.verifyCode).not.toHaveBeenCalled();
+    expect(totpService.acceptedStep).not.toHaveBeenCalled();
   });
 
   it('rejects expired persisted challenges even while the signed token is otherwise valid', async () => {
@@ -517,7 +517,7 @@ describe('AuthOperationsService', () => {
     user.twoFactorChallengeExpiresAt = new Date(Date.now() - 1);
 
     await expect(service.verifyTwoFactor('two-factor-token', '123456')).rejects.toThrow(/expired|invalid/i);
-    expect(totpService.verifyCode).not.toHaveBeenCalled();
+    expect(totpService.acceptedStep).not.toHaveBeenCalled();
   });
 
   it('consumes a successful challenge once and rejects replay', async () => {
@@ -551,14 +551,19 @@ describe('AuthOperationsService', () => {
     }
   });
 
-  it('does not let a setup token replace a secret after setup has started', async () => {
+  it('keeps a first-time setup pending until a code verifies, and shows the same secret when setup is opened again', async () => {
     const { service, user, totpService } = createTwoFactorService({ purpose: 'setup' });
+    totpService.decryptSecret.mockImplementation(() => 'new-totp-secret');
 
     await expect(service.setupTwoFactor('setup-token')).resolves.toMatchObject({ kind: 'two_factor_setup', secret: 'new-totp-secret' });
-    const savedSecret = user.twoFactorSecret;
-    await expect(service.setupTwoFactor('setup-token')).rejects.toThrow(/already started/i);
-    expect(user.twoFactorSecret).toBe(savedSecret);
+    // Abandoning setup here must not lock the admin out: nothing is enrolled yet.
+    expect(user).toMatchObject({ twoFactorSecret: null, twoFactorPendingSecret: 'encrypted-new-secret' });
+    // A reload or second tab gets the secret already waiting, so a QR scanned in the first one still works.
+    await expect(service.setupTwoFactor('setup-token')).resolves.toMatchObject({ secret: 'new-totp-secret' });
     expect(totpService.generateSecret).toHaveBeenCalledTimes(1);
+
+    await service.verifyTwoFactor('setup-token', '123456');
+    expect(user).toMatchObject({ twoFactorSecret: 'encrypted-new-secret', twoFactorPendingSecret: null, twoFactorLastStep: 1 });
   });
 
   it('rejects setup-purpose misuse of a challenge token', async () => {
