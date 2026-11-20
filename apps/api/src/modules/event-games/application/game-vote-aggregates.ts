@@ -11,10 +11,18 @@ type AggregateInput = {
   configSnapshot: Readonly<Record<string, unknown>>;
   roundKey: string | null;
   status: string;
+  /** The current round's results window is open (Presenter Deck only). */
+  resultsOpen?: boolean | undefined;
 };
+
+/** Presenter Deck results show while the host pauses or during each slide's timed results window. */
+export function presenterDeckResultsVisible(status: string, resultsOpen: boolean | undefined): boolean {
+  return status === 'paused' || (status === 'live' && resultsOpen === true);
+}
 
 function isAggregateVisible(input: AggregateInput): boolean {
   if (input.kind === 'would-you-rather') return Boolean(configuredVoteOptions(input));
+  if (input.kind === 'presenter-deck') return presenterDeckResultsVisible(input.status, input.resultsOpen);
   return input.kind === 'this-or-that'
     || input.kind === 'this-or-that-solo'
     || ((input.kind === 'split-the-room' || input.kind === 'live-poll') && input.status === 'paused');
@@ -34,6 +42,13 @@ function configuredVoteOptions(input: AggregateInput): readonly string[] | null 
     case 'would-you-rather': {
       const round = parsed.data.rounds.find(({ key }) => key === input.roundKey);
       return round?.aggregateResults ? round.options : null;
+    }
+    case 'presenter-deck': {
+      // Word-cloud prompts have no vote buckets; their approved answers come from moderation.
+      const round = parsed.data.rounds.find(({ key }) => key === input.roundKey);
+      if (round?.type === 'choice') return round.options;
+      if (round?.type === 'scale') return Array.from({ length: round.scaleMax }, (_, index) => String(index + 1));
+      return null;
     }
     default:
       return null;

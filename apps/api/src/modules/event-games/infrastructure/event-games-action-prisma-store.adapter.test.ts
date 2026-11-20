@@ -67,6 +67,36 @@ describe('EventGamesActionPrismaStoreAdapter participant state and action persis
     expect(queryRaw.mock.calls[0]).toContain(teamLabel);
   });
 
+  it('records a system approval with an auto-visible submission in the same statement', async () => {
+    const { transaction, queryRaw } = transactionWithQueryResults(
+      [{ submission_id: 'submission-cloud' }],
+      [{ score: 0 }],
+    );
+
+    await expect(new EventGamesActionPrismaStoreAdapter().recordParticipantAction({
+      ...input, actionKind: 'answer', payload: { response: 'Bold' }, result: undefined, autoVisible: true,
+    }, transaction)).resolves.toEqual({ points: 0 });
+
+    const sql = Array.from(queryRaw.mock.calls[0]?.[0] ?? []).join(' ');
+    expect(sql).toContain('INSERT INTO "event_games"."moderation_actions"');
+    expect(sql).toContain("'approve_submission'");
+    expect(sql).toContain('FROM inserted i');
+    expect(queryRaw.mock.calls[0]).toContain('system:presenter-deck-auto');
+    expect(queryRaw.mock.calls[0]).toContain(true);
+  });
+
+  it('gates the system approval off for submissions that keep host moderation', async () => {
+    const { transaction, queryRaw } = transactionWithQueryResults(
+      [{ submission_id: 'submission-1' }],
+      [{ score: 0 }],
+    );
+
+    await new EventGamesActionPrismaStoreAdapter().recordParticipantAction(input, transaction);
+
+    expect(queryRaw.mock.calls[0]).toContain(false);
+    expect(queryRaw.mock.calls[0]).not.toContain(true);
+  });
+
   it('returns the persisted private solo choice in the scoped participant state read', async () => {
     const { transaction, queryRaw } = transactionWithQueryResults([{
       score: 0, has_submitted: true, has_voted: false, result,

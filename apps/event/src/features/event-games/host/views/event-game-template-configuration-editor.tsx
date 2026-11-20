@@ -10,6 +10,9 @@ import { Button } from "@prism/ui/components/button";
 import { Field, FieldLabel } from "@prism/ui/components/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { AudienceGameFields, audienceDraftFrom, buildAudienceConfiguration, emptyAudienceDraft, isAudienceDraft, type AudienceDraft } from "./audience-game-configuration";
+import {
+  PresenterDeckFields, buildPresenterDeckConfiguration, emptyPresenterDeckDraft, presenterDeckDraftFrom, type PresenterDeckDraft,
+} from "./presenter-deck-configuration";
 
 type TriviaRoundDraft = {
   key: string;
@@ -49,7 +52,8 @@ type ConfigurationDraft =
   | { kind: "word-scramble"; rounds: WordScrambleRoundDraft[] }
   | { kind: "guess-picture-solo"; rounds: PictureSoloRoundDraft[] }
   | { kind: "spot-the-difference"; rounds: DifferenceRoundDraft[] }
-  | AudienceDraft;
+  | AudienceDraft
+  | PresenterDeckDraft;
 
 type Props = {
   game: PrismEventGameDefinition;
@@ -61,7 +65,7 @@ type Props = {
 const CONFIGURABLE_TEMPLATES = new Set([
   "live-trivia", "bingo", "guess-picture", "spin-wheel", "this-or-that", "family-feud", "split-the-room",
   "word-scramble", "would-you-rather", "guess-picture-solo", "this-or-that-solo", "spot-the-difference",
-  "live-poll", "word-cloud", "open-qa",
+  "live-poll", "word-cloud", "open-qa", "presenter-deck",
 ]);
 
 const INITIAL_TEAM_IDS = [
@@ -141,6 +145,7 @@ function configurationDraft(config: PrismEventGameTemplateConfiguration): Config
     maxResponseLength: String(round.maxResponseLength),
     durationSeconds: String(round.durationSeconds),
   })) };
+  if (config.kind === "presenter-deck") return presenterDeckDraftFrom(config);
   return null;
 }
 
@@ -198,6 +203,7 @@ function emptyDraft(kind: PrismEventGameDefinition["kind"]): ConfigurationDraft 
   if (kind === "split-the-room") return { kind, rounds: [
     { key: "round-1", prompt: "", leftLabel: "Left", rightLabel: "Right", maxResponseLength: "160", durationSeconds: "60" },
   ] };
+  if (kind === "presenter-deck") return emptyPresenterDeckDraft();
   return null;
 }
 
@@ -225,6 +231,7 @@ function buildDraftConfiguration(draft: ConfigurationDraft): unknown {
 }
 
 function buildConfiguration(draft: ConfigurationDraft): unknown {
+  if (draft.kind === "presenter-deck") return buildPresenterDeckConfiguration(draft);
   const socialSingleplayer = buildSocialSingleplayerConfiguration(draft);
   if (socialSingleplayer) return socialSingleplayer;
   const puzzleSingleplayer = buildPuzzleSingleplayerConfiguration(draft);
@@ -504,12 +511,12 @@ type WordScrambleDraft = Extract<ConfigurationDraft, { kind: "word-scramble" }>;
 type PictureSoloDraft = Extract<ConfigurationDraft, { kind: "guess-picture-solo" }>;
 type DifferenceDraft = Extract<ConfigurationDraft, { kind: "spot-the-difference" }>;
 type ExtendedTemplateDraft = Extract<ConfigurationDraft, {
-  kind: "this-or-that" | "would-you-rather" | "this-or-that-solo" | "family-feud" | "split-the-room" | "word-scramble" | "guess-picture-solo" | "spot-the-difference" | AudienceDraft["kind"];
+  kind: "this-or-that" | "would-you-rather" | "this-or-that-solo" | "family-feud" | "split-the-room" | "word-scramble" | "guess-picture-solo" | "spot-the-difference" | "presenter-deck" | AudienceDraft["kind"];
 }>;
 
 const EXTENDED_TEMPLATE_KINDS = new Set([
   "this-or-that", "would-you-rather", "this-or-that-solo", "family-feud", "split-the-room", "word-scramble", "guess-picture-solo", "spot-the-difference",
-  "live-poll", "word-cloud", "open-qa",
+  "live-poll", "word-cloud", "open-qa", "presenter-deck",
 ]);
 
 function isExtendedTemplateDraft(draft: ConfigurationDraft): draft is ExtendedTemplateDraft {
@@ -531,6 +538,7 @@ function ExtendedTemplateFields({ draft, onChange, onUploadMedia, mediaBusy }: {
     {draft.kind === "word-scramble" ? <WordScrambleFields draft={draft} onChange={(next) => onChange(next)} /> : null}
     {draft.kind === "guess-picture-solo" ? <PictureSoloFields draft={draft} onChange={onChange} onUploadMedia={onUploadMedia} mediaBusy={mediaBusy} /> : null}
     {draft.kind === "spot-the-difference" ? <SpotTheDifferenceFields draft={draft} onChange={onChange} onUploadMedia={onUploadMedia} mediaBusy={mediaBusy} /> : null}
+    {draft.kind === "presenter-deck" ? <PresenterDeckFields draft={draft} onChange={(next) => onChange(next)} /> : null}
     {isAudienceDraft(draft) ? <AudienceGameFields draft={draft} onChange={(next) => onChange(next)} /> : null}
   </>;
 }

@@ -34,9 +34,20 @@ const COMPETITIVE_GAME_KINDS = new Set([
 ]);
 
 /** Kinds whose text answers go through PMCM moderation and show to the room once approved. */
-const MODERATED_RESPONSE_KINDS = new Set(['split-the-room', 'word-cloud', 'open-qa']);
+const MODERATED_RESPONSE_KINDS = new Set(['split-the-room', 'word-cloud', 'open-qa', 'presenter-deck']);
 
 type HostRound = NonNullable<ReturnType<typeof currentRoundFor>>;
+
+/** Approved moderated text shows while paused; Presenter Deck word-cloud answers are auto-approved and also show live. */
+function approvedResponsesVisible(kind: string, status: string, round: HostRound | null): boolean {
+  if (!round || !MODERATED_RESPONSE_KINDS.has(kind)) return false;
+  return kind === 'presenter-deck' ? status === 'live' || status === 'paused' : status === 'paused';
+}
+
+/** Only rounds that report a results window (Presenter Deck) carry the flag to the client. */
+function resultsOpenField(round: HostRound): { resultsOpen?: boolean } {
+  return round.resultsOpen === undefined ? {} : { resultsOpen: round.resultsOpen };
+}
 
 interface ParticipantReadData {
   participant: GameParticipantStateSummary;
@@ -68,9 +79,10 @@ async function readParticipantData(
     configSnapshot: session.configSnapshot,
     roundKey: round?.key ?? null,
     status,
+    resultsOpen: round?.resultsOpen,
   });
   let approvedResponses: readonly string[] = [];
-  if (status === 'paused' && MODERATED_RESPONSE_KINDS.has(session.kind) && round) {
+  if (round && approvedResponsesVisible(session.kind, status, round)) {
     approvedResponses = await actionStore.getApprovedRoundResponses({
       eventId: session.eventId,
       sessionId: session.sessionId,
@@ -101,6 +113,7 @@ function publicParticipantState(
       number: round.number,
       total: round.total,
       deadlineAt: round.deadlineAt?.toISOString() ?? null,
+      ...resultsOpenField(round),
     } : null,
     currentPrompt: round?.prompt ?? null,
     participant: {
@@ -148,6 +161,7 @@ function hostRoundView(
     total: round.total,
     prompt: round.prompt,
     deadlineAt: round.deadlineAt?.toISOString() ?? null,
+    ...resultsOpenField(round),
     ...hostRoundReveal(context, status, round),
     ...(MODERATED_RESPONSE_KINDS.has(context.kind) ? { pendingSubmissions } : {}),
   };
@@ -162,6 +176,19 @@ function pendingSplitResponses(
     return Promise.resolve([]);
   }
   return store.getRoundModerationQueue({
+    eventId: input.eventId, sessionId: input.sessionId, roundKey: input.round.key,
+  }, transaction);
+}
+
+function approvedHostResponses(
+  store: GameActionStorePort,
+  transaction: PrismTransactionContext,
+  input: { eventId: string; sessionId: string; context: GameHostReadContext; round: HostRound | null; status: PrismGameHostState['status'] },
+): Promise<readonly string[]> {
+  if (!input.round || !approvedResponsesVisible(input.context.kind, input.status, input.round)) {
+    return Promise.resolve([]);
+  }
+  return store.getApprovedRoundResponses({
     eventId: input.eventId, sessionId: input.sessionId, roundKey: input.round.key,
   }, transaction);
 }
@@ -352,7 +379,7 @@ export class GameReadModelService {
     const startedAt = effectiveStartedAt(context.startedAt, context.totalPausedMs, context.roundOffsetMs ?? 0);
     const round = currentRoundFor(this.rules, context.kind, status, context.configSnapshot, startedAt, currentTime);
     const moderationContext = { eventId, sessionId, context, round, status };
-    const [aggregateResults, pendingSubmissions, pendingAnswers] = await Promise.all([
+    const [aggregateResults, pendingSubmissions, pendingAnswers, approvedResponses] = await Promise.all([
       readConfiguredVoteAggregate({
         actionStore: this.actionStore,
         transaction,
@@ -362,11 +389,14 @@ export class GameReadModelService {
         configSnapshot: context.configSnapshot,
         roundKey: round?.key ?? null,
         status,
+        resultsOpen: round?.resultsOpen,
       }),
       pendingSplitResponses(this.actionStore, transaction, moderationContext),
       pendingFamilyFeudAnswers(this.actionStore, transaction, moderationContext),
+      approvedHostResponses(this.actionStore, transaction, moderationContext),
     ]);
-    const currentRound = hostRoundView(context, status, round, pendingSubmissions);
+    const roundView = hostRoundView(context, status, round, pendingSubmissions);
+    const currentRound = roundView && approvedResponses.length ? { ...roundView, approvedResponses } : roundView;
     return {
       ...state,
       serverTime: currentTime.toISOString(),

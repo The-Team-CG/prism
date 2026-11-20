@@ -149,6 +149,7 @@ function sanitizeCurrentRound(value: unknown): PrismGamePublicState["currentRoun
     number: value.number,
     total: value.total,
     ...(value.deadlineAt !== undefined ? { deadlineAt: value.deadlineAt as string | null } : {}),
+    ...(typeof value.resultsOpen === "boolean" ? { resultsOpen: value.resultsOpen } : {}),
   };
 }
 
@@ -198,7 +199,33 @@ function sanitizeParticipantGameData(value: unknown): PrismGamePublicState["part
   if (thisOrThat) return thisOrThat;
   const familyFeud = sanitizeFamilyFeudGameData(value);
   if (familyFeud) return familyFeud;
+  const presenterDeck = sanitizePresenterDeckGameData(value);
+  if (presenterDeck) return presenterDeck;
   return sanitizeSplitOrAudienceGameData(value);
+}
+
+/** Presenter Deck round data: choice options, a 5- or 10-point scale, or a word-cloud length limit. */
+function sanitizePresenterDeckGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
+  if (value.kind !== "presenter-deck") return undefined;
+  if (value.roundType === "choice") {
+    const options = sanitizeChoiceOptions(value.options);
+    return options ? { kind: "presenter-deck", roundType: "choice", options } : undefined;
+  }
+  if (value.roundType === "scale") {
+    return value.scaleMax === 5 || value.scaleMax === 10
+      ? { kind: "presenter-deck", roundType: "scale", scaleMax: value.scaleMax }
+      : undefined;
+  }
+  const limit = boundedResponseLimit(value.maxResponseLength);
+  return value.roundType === "word-cloud" && limit && limit <= 60
+    ? { kind: "presenter-deck", roundType: "word-cloud", maxResponseLength: limit }
+    : undefined;
+}
+
+function sanitizeChoiceOptions(options: unknown): string[] | undefined {
+  if (!Array.isArray(options) || options.length < 2 || options.length > 6) return undefined;
+  const valid = options.every((option) => typeof option === "string" && option.trim().length > 0 && option.length <= 120);
+  return valid ? options as string[] : undefined;
 }
 
 function sanitizeSplitOrAudienceGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
@@ -214,9 +241,8 @@ function sanitizeAudienceGameData(value: Record<string, unknown>): PrismGamePubl
 }
 
 function sanitizeLivePollGameData(options: unknown): PrismGamePublicState["participant"]["gameData"] | undefined {
-  if (!Array.isArray(options) || options.length < 2 || options.length > 6) return undefined;
-  const valid = options.every((option) => typeof option === "string" && option.trim().length > 0 && option.length <= 120);
-  return valid ? { kind: "live-poll", options: options as string[] } : undefined;
+  const valid = sanitizeChoiceOptions(options);
+  return valid ? { kind: "live-poll", options: valid } : undefined;
 }
 
 function boundedResponseLimit(value: unknown): number | null {
