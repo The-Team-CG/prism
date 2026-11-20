@@ -21,7 +21,7 @@ const ROUTES = {
   ],
   coordinator: [
     '/dashboard', '/dashboard?view=tasks', '/dashboard?view=issues', '/dashboard?view=run-sheet', '/dashboard?view=calendar', '/dashboard?view=assignments',
-    '/dashboard?view=registration', '/dashboard?view=notifications', '/dashboard?view=messages', '/dashboard?view=account', '/dashboard?view=more',
+    '/dashboard?view=registration', '/dashboard?view=notifications', '/dashboard?view=messages', '/dashboard?view=account',
   ],
 };
 const ORIGIN = { client: 'client', supplier: 'supplier', pmcm: 'event', coordinator: 'event' };
@@ -124,6 +124,7 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
     if (role === 'coordinator' && process.env.BROWSER_GALLERY_CALENDAR_ONLY !== '1') {
       // The quick report, opened from the floating button on a phone and the top bar on a desktop.
       await page.goto(`${origins.event}/dashboard`, { waitUntil: 'domcontentloaded' });
+      await page.getByText('Loading your tasks, issues and check-ins').waitFor({ state: 'detached', timeout: 20_000 }).catch(() => {});
       await page.getByRole('button', { name: 'Report an issue' }).filter({ visible: true }).first().click();
       const report = page.getByRole('dialog', { name: 'Report an issue' });
       await report.getByRole('button', { name: 'Supplier' }).click();

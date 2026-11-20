@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Clock, MessageSquare, Radio, UserRound, UsersRound } from "lucide-react";
@@ -31,12 +31,11 @@ import {
 } from "../model/coordinator-portal-routes";
 import { useCoordinatorViewModel } from "../view-models/use-coordinator-view-model";
 import { CoordinatorCalendar } from "./coordinator-calendar";
-import { CoordinatorEventSwitcher } from "./coordinator-event-switcher";
+import { CoordinatorEventSwitcher, eventCards } from "./coordinator-event-switcher";
 import { CoordinatorTimelineCard } from "./sections/coordinator-view-sections";
 import { CoordinatorRoleData, CoordinatorTaskSheet } from "./sections/coordinator-role-sections";
 import { CoordinatorNowPage } from "./sections/coordinator-now-page";
-import { CoordinatorMorePage } from "./sections/coordinator-more-page";
-import { coordinatorMobileTabs, FreshnessLine, ReportFab, ReportIssueSheet } from "./coordinator-on-site";
+import { coordinatorMobileTabs, CoordinatorPhoneActions, CoordinatorPhoneTitle, FreshnessLine, ReportIssueSheet, reportTabAction } from "./coordinator-on-site";
 import { useCompactScreen } from "../view-models/use-compact-screen";
 import { CoordinatorAssignmentsPage } from "./sections/coordinator-assignments-page";
 import { AccountNotificationsView } from "@/features/account-notifications/views/account-notifications-view";
@@ -114,7 +113,7 @@ function CoordinatorCalendarSection({ vm, onOpen }: { vm: CoordinatorVm; onOpen:
 /** Views showing the open event's live data, which carry the "Updated … ago" line. */
 const LIVE_VIEWS: CoordinatorViewId[] = ["shift", "tasks", "issues", "run-sheet"];
 
-const READ_ONLY_SAFE_VIEWS: CoordinatorViewId[] = ["run-sheet", "messages", "more", "calendar", "notifications", "account", "assignments"];
+const READ_ONLY_SAFE_VIEWS: CoordinatorViewId[] = ["run-sheet", "messages", "calendar", "notifications", "account", "assignments"];
 
 /** Views that belong to the account, not to one event. */
 const ACCOUNT_VIEWS: Partial<Record<CoordinatorViewId, (vm: CoordinatorVm, onOpen: (view: CoordinatorViewId, eventId: string) => void, session: PrismAuthenticatedSession) => ReactElement>> = {
@@ -125,7 +124,6 @@ const ACCOUNT_VIEWS: Partial<Record<CoordinatorViewId, (vm: CoordinatorVm, onOpe
 };
 
 function coordinatorDescription(view: CoordinatorViewId, event: CoordinatorVm['event'], roleName: string) {
-  if (view === 'more') return 'PMCM, your events and everything else.';
   if (view === 'messages') return 'Conversations PMCM has invited you to across your assigned events.';
   if (view === 'account') return 'Who you are, how you sign in, and how PMCM reaches you.';
   return event ? `${event.eventName} · ${formatPortalDate(event.eventDate)} · ${roleName}` : 'Choose an assigned event to get started.';
@@ -163,17 +161,15 @@ function EventViewContent({ vm, view, events, onNavigate, onOpenItem, panels }: 
   }
 }
 
-function CoordinatorViewContent({ vm, view, session, more, onOpenItem, ...rest }: {
+function CoordinatorViewContent({ vm, view, session, onOpenItem, ...rest }: {
   vm: CoordinatorVm;
   view: CoordinatorViewId;
   session: PrismAuthenticatedSession;
   events: PrismCoordinatorWorkspace["events"];
-  more: ReactNode;
   onNavigate: NavigateTo;
   onOpenItem: (view: CoordinatorViewId, eventId: string) => void;
   panels: Panels;
 }) {
-  if (view === "more") return <>{more}</>;
   const accountView = ACCOUNT_VIEWS[view];
   if (accountView) return accountView(vm, onOpenItem, session);
   return <EventViewContent vm={vm} view={view} onOpenItem={onOpenItem} {...rest} />;
@@ -234,7 +230,9 @@ function coordinatorSidebarItems(vm: CoordinatorVm, unreadMessages: number | und
 function useCoordinatorPanels(vm: CoordinatorVm, navigateTo: NavigateTo) {
   const [reporting, setReporting] = useState(false);
   const [logging, setLogging] = useState(false);
-  const writable = Boolean(vm.event && !vm.readOnly && vm.roleView);
+  // Reporting must open at once, even while the event's data is still arriving on a slow connection.
+  const canReport = Boolean(vm.event && !vm.readOnly);
+  const writable = canReport && Boolean(vm.roleView);
   return {
     writable,
     reporting,
@@ -242,7 +240,7 @@ function useCoordinatorPanels(vm: CoordinatorVm, navigateTo: NavigateTo) {
     logging,
     setLogging,
     panels: {
-      onReportIssue: () => (writable ? setReporting(true) : navigateTo("issues")),
+      onReportIssue: () => (canReport ? setReporting(true) : navigateTo("issues")),
       onLogTask: () => (writable ? setLogging(true) : navigateTo("tasks")),
     } satisfies Panels,
     issueReported: () => {
@@ -323,8 +321,10 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       onNavSelect={(id) => navigateTo(coordinatorViewFromParam(id))}
       headerActions={<ReportIssueButton onReport={panelState.panels.onReportIssue} />}
       alwaysShowHeaderActions
-      mobileTabs={coordinatorMobileTabs({ roleView: vm.roleView, href: (view) => viewHref(view, vm.event?.id), unreadMessages })}
-      mobileAction={<ReportFab onReport={panelState.panels.onReportIssue} />}
+      mobileTabs={coordinatorMobileTabs({ roleView: vm.roleView, href: (view) => viewHref(view, vm.event?.id), registrationRole: registrationOpen, unreadMessages })}
+      mobileAction={reportTabAction(panelState.panels.onReportIssue)}
+      mobileTitle={<CoordinatorPhoneTitle view={activeView} cards={eventCards(state.events, vm.assignments)} selectedEventId={vm.event?.id} onSelectEvent={(eventId) => openEventView(activeView, eventId)} onNavigate={navigateTo} />}
+      mobileHeaderActions={<CoordinatorPhoneActions initials={session.name.slice(0, 2).toUpperCase()} unreadNotices={unreadNotices} onNavigate={navigateTo} onSignOut={onSignOut} />}
       user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       accountMenuItems={[{ id: "account", label: "Account", icon: UserRound, onSelect: () => navigateTo("account") }]}
       onSignOut={onSignOut}
@@ -345,18 +345,6 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
             view={activeView}
             session={session}
             events={state.events}
-            more={(
-              <CoordinatorMorePage
-                eventSwitcher={eventSwitcher}
-                canLogTask={panelState.writable}
-                registrationRole={registrationOpen}
-                unreadMessages={unreadMessages}
-                unreadNotices={unreadNotices}
-                onNavigate={navigateTo}
-                onLogTask={panelState.panels.onLogTask}
-                onSignOut={onSignOut}
-              />
-            )}
             onNavigate={navigateTo}
             onOpenItem={openEventView}
             panels={panelState.panels}

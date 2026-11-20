@@ -64,6 +64,15 @@ export interface PrismMobileAction {
   disabled?: boolean;
 }
 
+/** The tab bar's raised centre action: the one thing a phone user must always reach in one tap. */
+export interface PrismMobileTabAction {
+  label: string;
+  /** Spoken name when the visible label is short, such as "Report an issue" for "Report". */
+  ariaLabel?: string;
+  icon: LucideIcon;
+  onSelect: () => void;
+}
+
 export interface PrismSidebarRenderProps {
   collapsed: boolean;
   mobile: boolean;
@@ -124,8 +133,12 @@ export interface PrismAppShellProps {
    * instead of the menu button, and the page title shows once, in the top bar. Desktop is unchanged.
    */
   mobileTabs?: PrismNavItem[];
-  /** One floating action above the phone tab bar, such as "Report". Only shown with `mobileTabs`. */
-  mobileAction?: React.ReactNode;
+  /** The raised action in the middle of the phone tab bar, such as Report. Only shown with `mobileTabs`. */
+  mobileAction?: PrismMobileTabAction;
+  /** Stands in for the page name in the phone top bar, such as a switch for the open event. Only with `mobileTabs`. */
+  mobileTitle?: React.ReactNode;
+  /** Icons on the right of the phone top bar, such as messages, notifications and the account menu. Desktop keeps `headerActions`. */
+  mobileHeaderActions?: React.ReactNode;
   sidebarMode?: "auto" | "single";
   sidebarContent?: React.ReactNode | ((props: PrismSidebarRenderProps) => React.ReactNode);
   onSignOut?: () => void;

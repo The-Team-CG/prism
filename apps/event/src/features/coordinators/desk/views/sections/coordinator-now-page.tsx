@@ -17,7 +17,7 @@ import { canCheckSuppliers, CoordinatorSupplierChecks, CoordinatorTaskItem, type
 import { CoordinatorAttendanceControl, CoordinatorBriefing, CoordinatorRoleError, CoordinatorRoleLoading, type CoordinatorAttendanceFormModel } from "./coordinator-role-sections";
 import { CoordinatorAssignmentActions } from "./coordinator-view-sections";
 
-export type CoordinatorNowView = "tasks" | "issues" | "messages";
+export type CoordinatorNowView = "tasks" | "issues" | "messages" | "run-sheet";
 
 /** Seconds left on the running segment, counting down between refreshes. */
 function useCountdown(secondsRemaining: number | undefined): number | undefined {
@@ -35,7 +35,7 @@ function useCountdown(secondsRemaining: number | undefined): number | undefined 
 const INK_CARD = "rounded-2xl bg-ink px-4 py-4 text-ink-foreground sm:px-5";
 
 /** On the day: what is on now, for how long, and what follows. */
-function LiveNow({ event, roleView }: { event: PrismEvent; roleView: PrismCoordinatorRoleView | null }) {
+function LiveNow({ event, roleView, onNavigate }: { event: PrismEvent; roleView: PrismCoordinatorRoleView | null; onNavigate: (view: CoordinatorNowView) => void }) {
   const { now, next, secondsRemaining } = runSheetNowAndNext(roleView?.schedule, roleView?.timer);
   const left = useCountdown(now ? secondsRemaining : undefined);
   const finished = roleView?.timer?.status === "complete";
@@ -46,9 +46,10 @@ function LiveNow({ event, roleView }: { event: PrismEvent; roleView: PrismCoordi
         <h2 className="min-w-0 text-lg font-semibold leading-tight sm:text-xl">{now?.title ?? event.eventName}</h2>
         {left !== undefined ? <p className="shrink-0 text-3xl font-bold leading-none tabular-nums" aria-label={`${formatCountdown(left)} left`}>{formatCountdown(left)}</p> : null}
       </div>
-      <p className="mt-3 border-t border-ink-foreground/15 pt-2.5 text-sm text-ink-foreground/80">
-        {next ? `Next at ${formatPortalTime(next.plannedStartAt, "")} · ${next.title}${next.location ? ` · ${next.location}` : ""}` : roleView?.schedule?.authored ? "Nothing else on the run sheet today." : "PMCM hasn't published the run sheet yet."}
-      </p>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-ink-foreground/15 pt-2.5 text-sm text-ink-foreground/80">
+        <p className="min-w-0">{next ? `Next at ${formatPortalTime(next.plannedStartAt, "")} · ${next.title}${next.location ? ` · ${next.location}` : ""}` : roleView?.schedule?.authored ? "Nothing else on the run sheet today." : "PMCM hasn't published the run sheet yet."}</p>
+        {roleView?.schedule?.authored ? <button type="button" onClick={() => onNavigate("run-sheet")} className="flex min-h-9 items-center gap-0.5 font-medium text-ink-foreground">Full run sheet<ChevronRight className="size-4" aria-hidden /></button> : null}
+      </div>
     </section>
   );
 }
@@ -231,7 +232,7 @@ export function CoordinatorNowPage(props: NowPageProps) {
   const phase = eventPhase(event.eventDate, prismCalendarDateKey());
   return (
     <div className="grid w-full max-w-3xl gap-4">
-      {phase === "day" ? <LiveNow event={event} roleView={props.roleView} /> : <EventCardLead event={event} phase={phase} />}
+      {phase === "day" ? <LiveNow event={event} roleView={props.roleView} onNavigate={props.onNavigate} /> : <EventCardLead event={event} phase={phase} />}
       <AnswerPrompt props={props} />
       <QuickAttendance form={props.attendanceForm} />
       <NowData phase={phase} props={props} />

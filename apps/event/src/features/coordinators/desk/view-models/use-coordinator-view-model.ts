@@ -302,7 +302,11 @@ export function useCoordinatorViewModel({
 
   /** Reports the issue in the form, or the one passed in by the quick report, which fills its own fields in one go. */
   async function logUrgentIssue(quick?: CoordinatorQuickIssue): Promise<boolean> {
-    if (!isWritableCoordinatorEvent(event) || !roleView) return false;
+    if (!isWritableCoordinatorEvent(event)) return false;
+    if (!roleView) {
+      setIssueError("Your event is still loading. Try again in a moment; what you entered is kept.");
+      return false;
+    }
     setIssueBusy(true);
     setIssueError(null);
     try {

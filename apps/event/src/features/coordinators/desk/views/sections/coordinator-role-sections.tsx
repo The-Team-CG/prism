@@ -281,7 +281,7 @@ type CoordinatorRoleDataProps = {
   operatorActions: CoordinatorOperatorActionsModel;
   /** Opens the issue form; the Issues page offers it beside the open issues. */
   onReportIssue?: () => void;
-  /** Opens the Log a task panel; Tasks offers it from a tablet up, More on a phone. */
+  /** Opens the Log a task panel beside the task list. */
   onLogTask?: () => void;
 };
 
@@ -334,7 +334,7 @@ function CoordinatorTasksPage({ roleView, reassignment, taskActions, operatorAct
         title="Your tasks"
         count={open}
         description={<span className="hidden sm:inline">Blocked first, then what you have started, then what is next.</span>}
-        action={onLogTask ? <Button type="button" size="sm" className="hidden md:inline-flex" onClick={onLogTask}><Plus className="size-4" aria-hidden />Log a task</Button> : undefined}
+        action={onLogTask ? <Button type="button" size="sm" className="min-h-10" onClick={onLogTask}><Plus className="size-4" aria-hidden />Log a task</Button> : undefined}
         flush
       >
         <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />

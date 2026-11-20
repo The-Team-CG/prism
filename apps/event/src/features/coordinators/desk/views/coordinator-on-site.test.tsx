@@ -7,19 +7,22 @@ const roleView = {
   urgentIssues: [{ status: "open", severity: "high" }, { status: "resolved", severity: "low" }],
 } as unknown as PrismCoordinatorRoleView;
 
-describe("coordinator phone tabs", () => {
-  it("offers Now, Tasks, Issues, Run sheet and More, with what is still open on Tasks and Issues", () => {
-    const tabs = coordinatorMobileTabs({ roleView, href: (view) => `/dashboard?view=${view}`, unreadMessages: 2 });
+const href = (view: string) => `/dashboard?view=${view}`;
 
-    expect(tabs.map((tab) => tab.label)).toEqual(["Now", "Tasks", "Issues", "Run sheet", "More"]);
-    expect(tabs.map((tab) => tab.badge)).toEqual([undefined, 2, 1, undefined, 2]);
-    expect(tabs[0].href).toBe("/dashboard?view=shift");
+describe("coordinator phone tabs", () => {
+  it("keeps Now, Tasks, Run sheet and Messages on the bar, with open issues counted on Now", () => {
+    const tabs = coordinatorMobileTabs({ roleView, href, registrationRole: false, unreadMessages: 4 });
+
+    expect(tabs.map((tab) => tab.label)).toEqual(["Now", "Tasks", "Run sheet", "Messages"]);
+    expect(tabs.map((tab) => tab.badge)).toEqual([1, 2, undefined, 4]);
+    expect(tabs[0].subItems?.map((item) => item.id)).toEqual(["issues"]);
   });
 
-  it("lights More on every page it holds", () => {
-    const more = coordinatorMobileTabs({ roleView: null, href: (view) => view }).at(-1);
+  it("gives the registration coordinator Check-in in place of Tasks, reached from Now", () => {
+    const tabs = coordinatorMobileTabs({ roleView, href, registrationRole: true });
 
-    expect(more?.subItems?.map((item) => item.id)).toEqual(expect.arrayContaining(["calendar", "messages", "notifications", "assignments", "account"]));
-    expect(more?.badge).toBeUndefined();
+    expect(tabs.map((tab) => tab.label)).toEqual(["Now", "Check-in", "Run sheet", "Messages"]);
+    expect(tabs[1].href).toBe("/dashboard?view=registration");
+    expect(tabs[0].subItems?.map((item) => item.id)).toEqual(["issues", "tasks"]);
   });
 });

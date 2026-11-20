@@ -177,10 +177,21 @@ it("sends an old section link to Now with the outside-portal notice and keeps th
   expect(window.location.search).toBe("?view=shift&event=evt_current&notice=outside-portal");
 });
 
-it("opens the issue form from the top bar in one step", () => {
+it("opens the issue form from the top bar in one step, before the event's data has arrived", async () => {
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
 
   fireEvent.click(screen.getAllByRole("button", { name: "Report an issue" })[0]);
 
+  expect(await screen.findByRole("dialog", { name: "Report an issue" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Supplier" })).toBeTruthy();
+});
+
+it("sends a coordinator on an archived event to Issues instead of opening the form", () => {
+  window.history.replaceState(null, "", "/dashboard?event=evt_past");
+  render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
+
+  fireEvent.click(screen.getAllByRole("button", { name: "Report an issue" })[0]);
+
+  expect(screen.queryByRole("dialog", { name: "Report an issue" })).toBeNull();
   expect(new URLSearchParams(window.location.search).get("view")).toBe("issues");
 });

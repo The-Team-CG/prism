@@ -266,10 +266,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await booking.getByRole('button', { name: /^Arrived/ }).click();
       await booking.getByRole('button', { name: /^Set up and ready/ }).click();
       await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
-      // Log a task opens its form in a side panel, which closes once the task is saved. On a phone it lives in More.
-      const logTaskButton = coordinator.page.getByRole('button', { name: 'Log a task', exact: true });
-      if (!(await logTaskButton.isVisible())) await coordinator.page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /More/ }).click();
-      await logTaskButton.click();
+      // Log a task opens its form in a panel, which closes once the task is saved.
+      await coordinator.page.getByRole('button', { name: 'Log a task', exact: true }).click();
       const logTask = coordinator.page.getByRole('dialog', { name: 'Log a task' });
       await logTask.getByLabel('Task title (required)', { exact: true }).fill('Browser lifecycle venue sweep');
       await logTask.getByLabel('Assigned role (required)', { exact: true }).click();
@@ -277,7 +275,6 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await logTask.getByRole('checkbox', { name: /Assign to me|Assign to my queue/ }).check();
       await logTask.getByRole('button', { name: 'Log task', exact: true }).click();
       await expect(logTask).toBeHidden();
-      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
       await expect(coordinator.page.getByText('Browser lifecycle venue sweep', { exact: true }).first()).toBeVisible();
       const guestName = `Lifecycle Guest ${info.project.name}`;
       await api('POST', `/guest/events/${eventId}/roster/import`, { source: 'csv', rows: [{ sourceKey: 'browser-lifecycle-guest', guestName }] });

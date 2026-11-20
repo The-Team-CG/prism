@@ -4,12 +4,13 @@ import { formatPortalDate } from "@prism/ui/format-date";
 import { isCoordinatorAssignmentActive } from "../model/coordinators-desk-rules";
 import { Card } from "@prism/ui/components/card";
 
-type CoordinatorEventCard = {
+export type CoordinatorEventCard = {
   event: PrismEvent;
   assignment: PrismCoordinatorAssignment;
 };
 
-function eventCards(events: PrismEvent[], assignments: PrismCoordinatorAssignment[]): CoordinatorEventCard[] {
+/** The events a coordinator can open: each event with their active assignment on it. */
+export function eventCards(events: PrismEvent[], assignments: PrismCoordinatorAssignment[]): CoordinatorEventCard[] {
   return events.flatMap((event) => {
     const eventAssignments = assignments.filter((assignment) => assignment.eventId === event.id);
     if (!eventAssignments.length) return [];
