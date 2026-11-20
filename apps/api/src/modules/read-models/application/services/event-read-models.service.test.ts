@@ -1322,6 +1322,7 @@ describe('EventReadModelsService', () => {
             remainingBalance: 500,
           },
         ],
+        confirmedSupplierCount: 3,
       },
       {
         id: 'evt_pending',
@@ -1333,6 +1334,7 @@ describe('EventReadModelsService', () => {
         inquiry: { conformeSignedAt: null },
         floorPlanDrafts: [],
         paymentMilestones: [],
+        confirmedSupplierCount: 0,
       },
       {
         id: 'evt_completed',
@@ -1350,6 +1352,7 @@ describe('EventReadModelsService', () => {
             remainingBalance: 0,
           },
         ],
+        confirmedSupplierCount: 0,
       },
       {
         id: 'evt_hidden',
@@ -1450,6 +1453,7 @@ describe('EventReadModelsService', () => {
           { key: 'balance_payment_due', date: '2026-02-20', status: 'current' },
           { key: 'event_date', date: '2026-03-01', status: 'pending' },
         ],
+        confirmedSupplierCount: 3,
       },
       {
         eventId: 'evt_pending',
@@ -1460,6 +1464,7 @@ describe('EventReadModelsService', () => {
           { key: 'balance_payment_due', date: null, status: 'pending' },
           { key: 'event_date', date: '2026-06-01', status: 'pending' },
         ],
+        confirmedSupplierCount: 0,
       },
       {
         eventId: 'evt_completed',
@@ -1470,6 +1475,7 @@ describe('EventReadModelsService', () => {
           { key: 'balance_payment_due', date: '2026-03-20', status: 'completed' },
           { key: 'event_date', date: '2026-04-01', status: 'completed' },
         ],
+        confirmedSupplierCount: 0,
       },
     ]);
     expect(workspace.clientEventTimelines).not.toContainEqual(

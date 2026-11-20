@@ -29,7 +29,8 @@ export function deriveMilestones(event: PrismEvent, workspace: PrismClientWorksp
   const timed = (key: PrismClientTimelineMilestoneKey) => ({ done: fact(key)?.status === "completed", date: fact(key)?.date ?? null, dated: true });
 
   const briefing = workspace.briefings.find((item) => item.eventId === event.id);
-  const suppliers = workspace.supplierQuotes.filter((quote) => quote.eventId === event.id).length;
+  // Clients never receive supplier quotes; the timeline carries only how many suppliers PMCM has booked.
+  const suppliers = timeline?.confirmedSupplierCount ?? 0;
 
   const drafts: Draft[] = [
     { kind: "conforme", title: "Conforme signed", ...timed("conforme_signed") },
