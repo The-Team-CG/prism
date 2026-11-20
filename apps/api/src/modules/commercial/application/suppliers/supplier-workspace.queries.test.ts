@@ -26,6 +26,7 @@ describe('SupplierWorkspaceQueries', () => {
       verified: 2,
       unknown: 0,
       attention: 'expired',
+      bookedEvents: 31,
     }];
     const queryRaw = vi.fn<(...args: unknown[]) => Promise<typeof rawRows>>(async () => rawRows);
     const prisma = { $queryRaw: queryRaw } as unknown as PrismaService;
@@ -42,11 +43,15 @@ describe('SupplierWorkspaceQueries', () => {
     expect(page.rows[0]).toMatchObject({
       id: 'sup_701', rating: { average: 4.3, count: 127 },
       certifications: { expired: 1, attention: 'expired' },
+      bookedEvents: 31,
     });
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
     const sql = queryRaw.mock.calls[0]?.[0] as unknown as Prisma.Sql;
     expect(sql.sql).toContain('supplier_reviews');
     expect(sql.sql).toContain('supplier_certifications');
+    // Bookings count confirmed assignments from the supplier's own quote requests, inside the commercial schema.
+    expect(sql.sql).toContain("assignment_status = 'confirmed'");
+    expect(sql.sql).not.toContain('event_lifecycle');
     expect(sql.sql.toLowerCase()).toContain('count(*)');
     expect(sql.sql).toContain('ORDER BY');
     expect(sql.sql).not.toContain('northstar');

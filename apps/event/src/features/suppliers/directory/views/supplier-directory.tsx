@@ -8,11 +8,12 @@ import { Button } from "@prism/ui/components/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import type { CreateSupplierInput, PrismSupplierCategory } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
-import { SupplierApplicationsInboxView } from "@/features/suppliers/applications";
+import { useResource } from "@prism/portal-query";
+import { SupplierApplicationsInboxView, supplierApplicationsInbox } from "@/features/suppliers/applications";
 import { useSupplierDirectoryViewModel } from "../view-models/use-supplier-directory-view-model";
 import type { SupplierActionResult } from "../use-cases/save-supplier-action";
 import { SupplierDetailDrawer } from "./supplier-detail-drawer";
-import { SupplierDirectoryTable } from "./supplier-directory-table";
+import { SupplierDirectoryCards } from "./supplier-directory-table";
 import styles from "./supplier-workspace.module.css";
 
 export function SupplierDirectory({
@@ -62,11 +63,9 @@ export function SupplierDirectory({
   return (
     <div className={styles.workspace}>
       <SupplierDirectoryToolbar
-        tier={directory.query.tier}
         applicationsOpen={applicationsOpen}
         createOpen={createOpen}
         createDisabled={Boolean(directory.actionResult?.saved && directory.actionResult.refreshFailed)}
-        onTierChange={(tier) => directory.updateQuery({ tier, page: 0 })}
         onToggleApplications={() => setApplicationsOpen((open) => !open)}
         onToggleCreate={() => setCreateOpen((open) => !open)}
       />
@@ -75,7 +74,7 @@ export function SupplierDirectory({
       {applicationsOpen ? <SupplierApplicationsPanel /> : null}
       {directory.categoriesError ? <SupplierCategoryNotice message={directory.categoriesError} loaded={directory.categoriesLoaded} /> : null}
 
-      <SupplierDirectoryTable
+      <SupplierDirectoryCards
         directory={directory.directory}
         categories={directory.categories}
         query={directory.query}
@@ -131,22 +130,33 @@ export function SupplierDirectory({
   );
 }
 
-function SupplierDirectoryToolbar({ tier, applicationsOpen, createOpen, createDisabled, onTierChange, onToggleApplications, onToggleCreate }: {
-  tier: CreateSupplierInput["tier"] | undefined;
+/** The page's one filled button (New supplier), and a banner when supplier applications wait for review. */
+function SupplierDirectoryToolbar({ applicationsOpen, createOpen, createDisabled, onToggleApplications, onToggleCreate }: {
   applicationsOpen: boolean;
   createOpen: boolean;
   createDisabled: boolean;
-  onTierChange: (tier: CreateSupplierInput["tier"] | undefined) => void;
   onToggleApplications: () => void;
   onToggleCreate: () => void;
 }) {
+  const applications = useResource(supplierApplicationsInbox, "signed-in");
+  const waiting = applications.data?.length ?? 0;
   return (
-    <div id="supplier-directory-heading" tabIndex={-1} className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3 focus:outline-none">
-      <h2 className="text-base font-semibold">Supplier directory</h2>
-      <div className="flex items-center gap-2">
-        <Button type="button" variant="ghost" size="sm" aria-expanded={applicationsOpen} aria-controls="supplier-applications-panel" onClick={onToggleApplications}><Users className="size-3.5" />Applications<ChevronDown className={`size-3.5 ${applicationsOpen ? "rotate-180" : ""}`} /></Button>
+    <div className="grid gap-3">
+      <div id="supplier-directory-heading" tabIndex={-1} className="flex flex-wrap items-center justify-between gap-3 focus:outline-none">
+        <h2 className="text-base font-semibold text-foreground">Supplier directory</h2>
         <Button type="button" size="sm" variant={createOpen ? "outline" : "default"} disabled={createDisabled} onClick={onToggleCreate}>{createOpen ? "Cancel" : <><Plus className="size-3.5" />New supplier</>}</Button>
       </div>
+      {waiting > 0 || applicationsOpen ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-primary/5 px-4 py-3 text-sm">
+          <span className="flex items-center gap-2 text-foreground">
+            <Users aria-hidden className="size-4 text-primary" />
+            {waiting > 0 ? <><span className="font-semibold">{waiting} supplier {waiting === 1 ? "application" : "applications"}</span> waiting for review</> : "Supplier applications"}
+          </span>
+          <Button type="button" variant="ghost" size="sm" aria-expanded={applicationsOpen} aria-controls="supplier-applications-panel" onClick={onToggleApplications}>
+            {applicationsOpen ? "Hide" : "Review"}<ChevronDown className={`size-3.5 ${applicationsOpen ? "rotate-180" : ""}`} />
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

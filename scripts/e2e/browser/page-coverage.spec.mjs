@@ -127,9 +127,9 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
     if (app === 'event') {
       try {
         await page.goto(`${origins.event}/dashboard/suppliers?q=${encodeURIComponent(supplierPrefix)}`);
-        const rows = page.locator('tbody tr');
+        const rows = page.getByTestId('supplier-card');
         await expect(rows).toHaveCount(25);
-        const names = () => rows.locator('td:first-child').allTextContents().then(values => values.map(value => value.trim()));
+        const names = () => rows.evaluateAll(cards => cards.map(card => card.querySelector('button')?.textContent?.trim() ?? ''));
         const firstPage = await names();
         await page.getByRole('button', { name: 'Next', exact: true }).click();
         await expect(rows).toHaveCount(1);

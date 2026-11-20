@@ -314,7 +314,7 @@ export type EventDashboardShellCopy = {
 };
 
 const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
-  suppliers: "Master supplier directory with category tagging, tiering, and performance reviews.",
+  suppliers: "Who PMCM books, how often, how they are rated, and what PMCM is missing for each.",
   audit: "Complete audit trail of all actions, approvals, and system events.",
   privacy: "Privacy requests with 30-day deadlines, owners, execution, legal holds, and retention policies.",
   clients: "Every client contact, with their events and inquiries.",
