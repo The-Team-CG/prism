@@ -32,6 +32,10 @@ export class ClientOnboardingWorkflowService {
         throw new BadRequestException('Briefings can only be submitted to an unlocked event before event day');
       }
       await this.authorizeBriefing(event, actor);
+      // After the scope freeze the client changes venue, guest count or budget through a scope change request.
+      if (event.freezeStatus === 'frozen' && actor?.role === OpsUserRole.Client) {
+        throw new BadRequestException('Scope is frozen. Send a change request to update the briefing');
+      }
       const saved = await tx.opsBriefing.create({ data: {
         id: `brief_${randomUUID()}`, eventId, venue: input.venue,
         guestCount: input.guestCount, budgetRange: input.budgetRange,
