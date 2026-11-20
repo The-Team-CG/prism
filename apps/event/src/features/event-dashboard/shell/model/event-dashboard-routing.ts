@@ -326,7 +326,7 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   finance: "What needs you across events: money overdue, to verify and to apply, disputes, and what PMCM owes suppliers.",
   account: "Who you are, how you sign in, and how PMCM reaches you.",
   settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
-  inquiries: "One intake queue, from first contact to the client's portal account. Accepted inquiries continue in Onboarding and Conforme follow-up.",
+  inquiries: "From first contact to a signed conforme. Each step opens its list.",
   "events-list": "Every confirmed event. Open one to work inside it.",
   dashboard: "What needs PMCM, across every event. Every item opens the work it belongs to.",
 };

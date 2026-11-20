@@ -3,6 +3,7 @@
 import { InquiryViews } from "./inquiry-views";
 import { ClientOnboardingTracker } from "@/features/clients/onboarding";
 import { InquiryIntakeLog } from "@/features/inquiries/intake";
+import { inquiryFunnel } from "@/features/inquiries/intake/model/inquiry-intake-rules";
 import { ConformeDraftReviewView } from "@/features/inquiries/conforme-drafts";
 import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-context";
 
@@ -20,6 +21,7 @@ export function EventDashboardInquiriesSectionView() {
   } = useEventDashboardLoadedRouteViewModel();
   return (
     <InquiryViews
+      funnel={inquiryFunnel(reference.inquiries)}
       intake={
         <InquiryIntakeLog
           inquiries={reference.inquiries}

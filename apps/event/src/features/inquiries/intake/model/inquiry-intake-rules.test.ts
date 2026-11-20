@@ -7,9 +7,11 @@ import {
   inquiryExtraDetailFields,
   inquiryHistoryCues,
   inquiryMatchesIntakeFilters,
+  inquiryFunnel,
   inquiryMergeCandidates,
   inquiryNextStep,
   inquiryLogMissingFields,
+  inquiryWaitingAge,
   isInquiryLogFormReady,
   toLogInquiryInput,
   initialLogForm,
@@ -198,5 +200,26 @@ describe("inquiryNextStep", () => {
     [{ ...base, conformeSignedAt: "2026-10-03", portalActivatedAt: "2026-10-05" }, "Planning in Events"],
   ])("names the next step for %o", (inquiry, label) => {
     expect(inquiryNextStep(inquiry).label).toBe(label);
+  });
+});
+
+describe("inquiry funnel", () => {
+  const now = new Date("2026-11-21T04:00:00.000Z");
+
+  it("says how long a new inquiry has waited, amber from two days and red from five", () => {
+    expect(inquiryWaitingAge({ status: "new", createdAt: "2026-11-21T01:00:00.000Z" }, now)).toEqual({ label: "Today", tone: "fresh" });
+    expect(inquiryWaitingAge({ status: "new", createdAt: "2026-11-18T01:00:00.000Z" }, now)).toEqual({ label: "3 days", tone: "stale" });
+    expect(inquiryWaitingAge({ status: "new", createdAt: "2026-11-14T01:00:00.000Z" }, now)).toEqual({ label: "7 days", tone: "late" });
+    expect(inquiryWaitingAge({ status: "accepted", createdAt: "2026-11-14T01:00:00.000Z" }, now)).toBeNull();
+  });
+
+  it("counts what is new, what waits for a signed conforme and what was signed this month", () => {
+    expect(inquiryFunnel([
+      { status: "new" },
+      { status: "accepted", acceptedAt: "2026-11-02" },
+      { status: "accepted", acceptedAt: "2026-11-01", conformeSignedAt: "2026-11-05T02:00:00.000Z" },
+      { status: "accepted", acceptedAt: "2026-09-01", conformeSignedAt: "2026-09-05T02:00:00.000Z" },
+      { status: "declined" },
+    ], now)).toEqual({ toReview: 1, waitingForConforme: 1, signedThisMonth: 1 });
   });
 });

@@ -44,6 +44,7 @@ import {
   logFormReferralSources,
   type InquiryLogForm,
   inquiryNextStep,
+  inquiryWaitingAge,
 } from "../model/inquiry-intake-rules";
 
 function DetailField({ label: fieldLabel, value }: { label: string; value?: string | null }) {
@@ -255,6 +256,12 @@ export function InquiryIntakeList({
   );
 }
 
+const WAITING_TONE = {
+  late: "font-semibold text-danger",
+  stale: "font-medium text-attention",
+  fresh: "text-muted-foreground",
+} as const;
+
 const NEXT_STEP_TONE = {
   action: "font-medium text-foreground",
   waiting: "text-attention",
@@ -269,6 +276,7 @@ function InquiryIntakeRow({
   onOpen: (inquiry: PrismInquiry) => void;
 }) {
   const next = inquiryNextStep(inquiry);
+  const waiting = inquiryWaitingAge(inquiry);
   return (
     <TableRow className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 px-4 py-3 hover:bg-surface-raised sm:px-6 lg:table-row lg:p-0">
       <TableCell className="p-0 whitespace-normal col-span-2 min-w-0 align-top lg:px-6 lg:py-2.5">
@@ -286,6 +294,11 @@ function InquiryIntakeRow({
       </TableCell>
       <TableCell className="p-0 whitespace-normal col-start-1 row-start-3 min-w-0 align-top lg:px-3 lg:py-2.5">
         <StatusBadge status={inquiry.status} label={label(inquiry.status)} />
+        {waiting ? (
+          <p className={`mt-1 text-xs leading-5 ${WAITING_TONE[waiting.tone]}`} title={`Received ${formatPortalDateTime(inquiry.createdAt)}`}>
+            Waiting {waiting.label === "Today" ? "since today" : waiting.label}
+          </p>
+        ) : null}
         {inquiry.status === "accepted" ? (
           <p className={`mt-1 text-xs leading-5 ${NEXT_STEP_TONE[next.tone]}`}>{next.label}</p>
         ) : null}
