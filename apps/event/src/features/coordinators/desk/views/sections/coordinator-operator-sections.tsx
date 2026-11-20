@@ -292,7 +292,8 @@ function ReassignmentRequestForm({ roleView, reassignment }: { roleView: PrismCo
             <SelectValue placeholder="Select role" />
           </SelectTrigger>
           <SelectContent>
-            {taskAssignedRoleOptions(roleView).map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+            {/* Only the designated operator sees this form, and may route a task to any role. */}
+            {taskAssignedRoleOptions(roleView, { canAssignAnyRole: true }).map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
           </SelectContent>
         </Select>
       </label>

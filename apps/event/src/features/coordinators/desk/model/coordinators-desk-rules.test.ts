@@ -25,6 +25,7 @@ import {
   attendanceChoiceLabel,
   recordedAttendanceLabel,
   taskAssignedRoleOptions,
+  resolveCoordinatorTaskRole,
   isRegistrationCoordinatorRole,
   isCoordinatorAssignmentActive,
   coordinatorSkillFilterOptions,
@@ -215,9 +216,13 @@ describe("isTaskOutsideOwnQueue", () => {
 });
 
 describe("taskAssignedRoleOptions", () => {
-  it("returns the canonical role catalog", () => {
-    const options = taskAssignedRoleOptions(roleView);
-    expect(options).toEqual([
+  // The API refuses a task for any other role from a coordinator who is not the designated operator.
+  it("offers a non-designated Floor Director only their own role", () => {
+    expect(taskAssignedRoleOptions(roleView, { canAssignAnyRole: false })).toEqual(["Floor Director"]);
+  });
+
+  it("offers the designated operator the whole role catalog", () => {
+    expect(taskAssignedRoleOptions(roleView, { canAssignAnyRole: true })).toEqual([
       "General Coordinator",
       "Event Day System Operator",
       "Registration Staff",
@@ -228,10 +233,22 @@ describe("taskAssignedRoleOptions", () => {
     ]);
   });
 
-  it("does not offer unknown historical role text for new assignments", () => {
-    const options = taskAssignedRoleOptions({ ...roleView, role: "Drone Marshal" });
+  it("offers General Coordinator, never the unknown text, to a coordinator with a legacy role", () => {
+    const options = taskAssignedRoleOptions({ ...roleView, role: "Drone Marshal" }, { canAssignAnyRole: false });
     expect(options).not.toContain("Drone Marshal");
     expect(options).toEqual(["General Coordinator"]);
+  });
+});
+
+describe("resolveCoordinatorTaskRole", () => {
+  it("defaults to the coordinator's own role and keeps a choice that is still allowed", () => {
+    expect(resolveCoordinatorTaskRole("", "Floor Director", ["Floor Director"])).toBe("Floor Director");
+    expect(resolveCoordinatorTaskRole("Usher", "Floor Director", taskAssignedRoleOptions(roleView, { canAssignAnyRole: true }))).toBe("Usher");
+  });
+
+  it("drops a role the coordinator may no longer use, so the form never sends one the API refuses", () => {
+    expect(resolveCoordinatorTaskRole("Usher", "Floor Director", ["Floor Director"])).toBe("Floor Director");
+    expect(resolveCoordinatorTaskRole("Usher", "Drone Marshal", ["General Coordinator"])).toBe("General Coordinator");
   });
 });
 

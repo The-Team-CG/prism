@@ -73,6 +73,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- A coordinator who is not the designated Event Day System Operator is offered only their own role when logging a task, as the API requires; picking another role used to fail with a 403. The designated operator still sees every role.
 - A coordinator's event briefing no longer shows the client's budget range; coordinators do not see cost data. My shift drops the floor plan figure, which read Pending even on the day of the event and pointed to a plan coordinators cannot open.
 - On the client's floor plan pages, pieces have a thin outline again. The 2D plan is drawn in metres and the outline had no width, so each table carried a 1 m purple border that hid it and its number.
 - The nightly Lifecycle E2E passes again (476 checks). It builds floor plans as Pascal scenes, turns on a PMCM payment method before issuing statements, and counts a capability as reachable from a portal when the portal calls the `@prism/api-client` method that wraps its route (`scripts/e2e/lifecycle/portal-wiring.mjs`), instead of looking for the route spelled in portal code.

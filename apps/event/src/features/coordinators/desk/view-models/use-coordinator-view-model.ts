@@ -203,6 +203,9 @@ export function useCoordinatorViewModel({
   });
 
   const taskOwnerAssignmentRequired = Boolean(roleView && !canonicalCoordinatorRole(roleView.role));
+  // The API lets only the designated operator give a task another role; everyone else logs for their own role.
+  const taskRoleOptions = roleView ? taskAssignedRoleOptions(roleView, { canAssignAnyRole: Boolean(roleView.isDesignatedOperator) }) : [];
+  const taskRoleChoice = resolveCoordinatorTaskRole(taskRole, roleView?.role, taskRoleOptions);
 
   // HIDE half: once the assignment can no longer be marked — replaced by PMCM,
   // or gone from the workspace entirely — drop any open confirm prompt so it
@@ -271,7 +274,7 @@ export function useCoordinatorViewModel({
         createEventDayTaskSchema,
         buildCoordinatorTaskInput({
           title: taskTitle,
-          assignedRole: resolveCoordinatorTaskRole(taskRole, roleView.role),
+          assignedRole: taskRoleChoice,
           priority: taskPriority,
           notes: taskNotes,
           dueAt: taskDueAt,
@@ -540,7 +543,7 @@ export function useCoordinatorViewModel({
     taskForm: {
       title: taskTitle,
       setTitle: setTaskTitle,
-      role: resolveCoordinatorTaskRole(taskRole, roleView?.role),
+      role: taskRoleChoice,
       setRole: (value: string) => setTaskRole(canonicalCoordinatorRole(value) ?? ""),
       priority: taskPriority,
       setPriority: setTaskPriority,
@@ -553,10 +556,10 @@ export function useCoordinatorViewModel({
       setAssignToMe: (value: boolean) => {
         if (!taskOwnerAssignmentRequired) setTaskAssignToMe(value);
       },
-      roleOptions: roleView ? taskAssignedRoleOptions(roleView) : [],
+      roleOptions: taskRoleOptions,
       routesAway: roleView
         ? isTaskOutsideOwnQueue({
-            assignedRole: resolveCoordinatorTaskRole(taskRole, roleView.role),
+            assignedRole: taskRoleChoice,
             ownRole: roleView.role,
             assignToMe: taskAssignToMe || taskOwnerAssignmentRequired,
           })
