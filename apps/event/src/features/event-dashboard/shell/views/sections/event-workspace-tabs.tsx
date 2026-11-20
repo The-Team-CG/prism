@@ -70,6 +70,7 @@ export function EventWorkspaceOverviewTab() {
   const coverUrl = useEventCoverUrl(vm.selectedEvent?.id ?? "", vm.selectedEvent?.coverObjectId);
   if (!vm.selectedEvent) return null;
   const visit = selectedOcularVisit(vm);
+  const workspace = vm.selectedEventWorkspace?.event.id === vm.selectedEvent.id ? vm.selectedEventWorkspace : null;
   // The official floorplan waits on the ocular visit, so it stays on the overview until it is completed or waived.
   const visitOpen = !isOcularVisitCleared(visit?.status);
   return (
@@ -89,6 +90,8 @@ export function EventWorkspaceOverviewTab() {
       glance={glance}
       coverUrl={coverUrl}
       visitRequested={visit?.status === "requested"}
+      briefing={workspace?.briefings.at(-1) ?? null}
+      milestones={workspace?.paymentMilestones}
       ocularVisit={visitOpen ? (
         <EventOcularVisitTask
           eventName={vm.selectedEvent.eventName}
