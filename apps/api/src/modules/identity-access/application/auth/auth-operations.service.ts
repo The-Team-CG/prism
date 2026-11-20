@@ -288,17 +288,8 @@ export class AuthOperationsService {
   async verifyTwoFactor(token: string, code: string, device?: string) {
     const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
     const user = await this.findTwoFactorUser(verifiedToken);
-    // A first-time setup checks the code against the pending secret and enrols it only when the code is right.
-    const enrolling = !user.twoFactorSecret && verifiedToken.purpose === 'setup';
-    const storedSecret = enrolling ? user.twoFactorPendingSecret : user.twoFactorSecret;
-    if (!storedSecret) throw new ForbiddenException('Two-factor setup is required before sign-in');
-    let secret: string;
-    try {
-      secret = this.totpService.decryptSecret(storedSecret);
-    } catch {
-      throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
-    }
-    const step = this.totpService.acceptedStep(secret, code, user.twoFactorLastStep);
+    const { enrolling, storedSecret } = this.twoFactorSecretFor(user, verifiedToken);
+    const step = this.totpService.acceptedStep(this.readTwoFactorSecret(storedSecret), code, user.twoFactorLastStep);
     if (step === null) {
       await this.recordFailedLoginAttempt(user.id, 'Invalid two-factor code', verifiedToken);
       throw new UnauthorizedException('Invalid two-factor code');
@@ -314,10 +305,7 @@ export class AuthOperationsService {
             verifiedToken,
             now,
           );
-          const secretUnchanged = enrolling
-            ? current.twoFactorSecret === null && current.twoFactorPendingSecret === storedSecret
-            : current.twoFactorSecret === storedSecret;
-          if (!secretUnchanged) throw new UnauthorizedException('Two-factor challenge is no longer valid');
+          if (!this.twoFactorSecretUnchanged(current, enrolling, storedSecret)) throw new UnauthorizedException('Two-factor challenge is no longer valid');
           const consumed = await tx.opsUser.updateMany({
             where: {
               ...this.twoFactorChallengeWhere(verifiedToken, now),
@@ -361,6 +349,29 @@ export class AuthOperationsService {
       }),
     ]);
     return this.issueUserSession(updated, browser);
+  }
+
+  /** A first-time setup checks the code against the pending secret and enrols it only when the code is right. */
+  private twoFactorSecretFor(user: OpsUser, verifiedToken: { purpose: string }) {
+    const enrolling = !user.twoFactorSecret && verifiedToken.purpose === 'setup';
+    const storedSecret = enrolling ? user.twoFactorPendingSecret : user.twoFactorSecret;
+    if (!storedSecret) throw new ForbiddenException('Two-factor setup is required before sign-in');
+    return { enrolling, storedSecret };
+  }
+
+  private readTwoFactorSecret(storedSecret: string): string {
+    try {
+      return this.totpService.decryptSecret(storedSecret);
+    } catch {
+      throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
+    }
+  }
+
+  /** The secret the code was checked against is still the one on the account, enrolled or pending as it was read. */
+  private twoFactorSecretUnchanged(current: OpsUser, enrolling: boolean, storedSecret: string): boolean {
+    return enrolling
+      ? current.twoFactorSecret === null && current.twoFactorPendingSecret === storedSecret
+      : current.twoFactorSecret === storedSecret;
   }
 
   /** The pending secret in clear, or null when it can no longer be read (then setup starts over with a new one). */

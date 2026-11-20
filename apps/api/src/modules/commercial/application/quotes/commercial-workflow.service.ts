@@ -310,6 +310,15 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
     return requests.map(mapSupplierQuoteRequest);
   }
 
+  /** The event a PMCM-entered quote belongs to, and the quote request it answers when it names one, on that event. */
+  private async requireQuoteTarget(eventId: string, requestId: string | undefined) {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (requestId && !(await this.prisma.opsSupplierQuoteRequest.findFirst({ where: { id: requestId, eventId }, select: { id: true } }))) {
+      throw new NotFoundException('Quote request not found for this event');
+    }
+  }
+
   async addSupplierQuote(eventId: string, input: AddSupplierQuoteInput, actor: ResolvedEventOpsActor) {
     const verifiedActor = requireVerifiedCommercialActor(actor);
     let supplierName: string | undefined;
@@ -324,11 +333,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
       name: 'add_supplier_quote',
       eventId,
       validateState: async () => {
-        const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
-        if (!event) throw new NotFoundException('Event not found');
-        if (input.requestId && !(await this.prisma.opsSupplierQuoteRequest.findFirst({ where: { id: input.requestId, eventId }, select: { id: true } }))) {
-          throw new NotFoundException('Quote request not found for this event');
-        }
+        await this.requireQuoteTarget(eventId, input.requestId);
 
         directorySupplier = await this.quoteSupplierResolver.resolveQuoteSupplier(input);
 

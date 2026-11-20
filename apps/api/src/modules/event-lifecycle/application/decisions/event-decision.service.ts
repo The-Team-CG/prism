@@ -181,10 +181,14 @@ export class EventDecisionService {
     if (!isBeforePrismEventDay(derivePrismLifecycleStage(event))) throw new BadRequestException('Decisions cannot be recorded once event day has started');
     const nextDate = input.decision === 'postponed' && input.newEventDate ? new Date(input.newEventDate) : eventDate;
     if (Number.isNaN(nextDate.getTime())) throw new BadRequestException('New event date is invalid');
-    const nextStatus = input.decision === 'cancelled' ? 'cancelled'
-      : input.decision === 'date_to_be_confirmed' ? DATE_TO_BE_CONFIRMED
-        : PAUSED_STATUSES.has(status) ? await this.statusBeforePause(tx, event.id) : status;
-    return { status, eventDate: eventDate.toISOString(), nextDate, nextStatus };
+    return { status, eventDate: eventDate.toISOString(), nextDate, nextStatus: await this.nextStatus(tx, event, input) };
+  }
+
+  /** The status the decision leaves: cancelled, paused for a date, or the status a postponement carries on from. */
+  private async nextStatus(tx: Prisma.TransactionClient, event: { id: string; status: string }, input: EventDecisionInput): Promise<string> {
+    if (input.decision === 'cancelled') return 'cancelled';
+    if (input.decision === 'date_to_be_confirmed') return DATE_TO_BE_CONFIRMED;
+    return PAUSED_STATUSES.has(event.status) ? this.statusBeforePause(tx, event.id) : event.status;
   }
 
   /**

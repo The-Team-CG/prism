@@ -50,13 +50,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+/** A stored PIN is optional; when present it is a valid game PIN. */
+function isOptionalGamePin(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && isValidGamePin(value));
+}
+
 function isGuestGameParticipantSession(value: unknown): value is GuestGameParticipantSession {
   if (!isRecord(value)) return false;
   return typeof value.eventId === "string" && value.eventId.length > 0
     && (value.currentSessionId === null || (typeof value.currentSessionId === "string" && value.currentSessionId.length > 0))
     && typeof value.participantCredential === "string"
     && PARTICIPANT_CREDENTIAL_PATTERN.test(value.participantCredential)
-    && (value.joinedWithPin === undefined || (typeof value.joinedWithPin === "string" && isValidGamePin(value.joinedWithPin)));
+    && isOptionalGamePin(value.joinedWithPin);
 }
 
 function readSession(): GuestGameParticipantSession | null {

@@ -1,6 +1,7 @@
 import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
@@ -378,12 +379,7 @@ export class GuestWorkflowService implements GuestCommands {
       },
       validateStateInTransaction: async (context) => {
         if (!event) throw new NotFoundException('Guest event code was not found');
-        const currentEvent = await this.eventReferences.findOperationsEvent(event.id, context);
-        if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
-        // A guest checks in to an event that is on: not one cancelled or waiting for a new date.
-        if (GUEST_CHECK_IN_CLOSED_STATUSES.has(currentEvent.status)) throw new BadRequestException('Check-in is not open for this event');
-        const checkInEvent = await this.eventReferences.findGuestCheckInEventReference(event.id, context);
-        if (!checkInEvent) throw new NotFoundException('Guest event was not found or archived');
+        const { currentEvent, checkInEvent } = await this.requireOpenCheckInEvent(event.id, context);
 
         if (input.checkInMode === 'name_search') {
           const rosterDelegate = context.prisma.opsGuestRosterEntry;
@@ -422,18 +418,7 @@ export class GuestWorkflowService implements GuestCommands {
 
         if (requiresStaffReview) return { accepted: true };
 
-        if (matchedRoster) {
-          const existingRosterCheckIn = await db.opsGuestCheckIn.findFirst({
-            where: { eventId: event.id, rosterEntryId: matchedRoster.id, status: 'checked_in' },
-          });
-          if (existingRosterCheckIn) return { accepted: true };
-        } else if (walkIn && resolvedGuestName) {
-          // A walk-in who checks in again by the same name (a reload, a second tap) is the same arrival, not another.
-          const existingWalkIn = await db.opsGuestCheckIn.findFirst({
-            where: { eventId: event.id, rosterEntryId: null, walkIn: true, status: 'checked_in', guestName: { equals: resolvedGuestName, mode: 'insensitive' } },
-          });
-          if (existingWalkIn) return { accepted: true };
-        }
+        if (await this.alreadyArrived(db, event.id, matchedRoster?.id ?? null, walkIn ? resolvedGuestName : null)) return { accepted: true };
 
         if (ambiguousNameMatch || requiresNewCl1Review) {
           return queueReview(db, event.id);
@@ -551,6 +536,32 @@ export class GuestWorkflowService implements GuestCommands {
       },
     });
     return this.mapGuestFeedbackReceipt(feedback);
+  }
+
+  /**
+   * The event a guest checks in to, open for check-in: found, not archived, and not cancelled or waiting for a new date.
+   */
+  private async requireOpenCheckInEvent(eventId: string, context: PrismTransactionContext) {
+    const currentEvent = await this.eventReferences.findOperationsEvent(eventId, context);
+    if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
+    if (GUEST_CHECK_IN_CLOSED_STATUSES.has(currentEvent.status)) throw new BadRequestException('Check-in is not open for this event');
+    const checkInEvent = await this.eventReferences.findGuestCheckInEventReference(eventId, context);
+    if (!checkInEvent) throw new NotFoundException('Guest event was not found or archived');
+    return { currentEvent, checkInEvent };
+  }
+
+  /**
+   * Whether this arrival is already recorded: the roster guest's check-in, or a walk-in who checks in again by the same
+   * name (a reload, a second tap), which is the same arrival, not another.
+   */
+  private async alreadyArrived(db: Prisma.TransactionClient | PrismaService, eventId: string, rosterEntryId: string | null, walkInName: string | null) {
+    if (rosterEntryId) {
+      return Boolean(await db.opsGuestCheckIn.findFirst({ where: { eventId, rosterEntryId, status: 'checked_in' } }));
+    }
+    if (!walkInName) return false;
+    return Boolean(await db.opsGuestCheckIn.findFirst({
+      where: { eventId, rosterEntryId: null, walkIn: true, status: 'checked_in', guestName: { equals: walkInName, mode: 'insensitive' } },
+    }));
   }
 
   async importRoster(eventId: string, input: ImportGuestRosterInput, actor: { id?: string; name: string; role: string }) {
