@@ -87,6 +87,18 @@ describe('ScopeChangeRequestService submission and withdrawal', () => {
     expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_1', action: 'Submitted scope change request' }), expect.anything());
   });
 
+  it('refuses new requests and decisions once the event is cancelled', async () => {
+    const open = fakeStore({ event: { status: 'cancelled' }, rows: [] });
+    await expect(open.service.submit('evt_1', submission, primaryClient)).rejects.toThrow('Cancelled events cannot accept scope change requests');
+    expect(open.scopeChangeRequest.create).not.toHaveBeenCalled();
+
+    const pending = fakeStore();
+    const request = await pending.service.submit('evt_1', submission, primaryClient);
+    (await pending.prisma.opsEvent.findUnique()).status = 'cancelled';
+    await expect(pending.service.review('evt_1', request.id, { decision: 'start_review' }, pmcm)).rejects.toThrow('Cancelled events cannot accept scope change decisions');
+    expect(pending.rows.get(request.id)).toMatchObject({ status: 'submitted' });
+  });
+
   it('refuses submission from other events, non-primary clients, unverified sessions, and non-PMCM roles', async () => {
     const cases: Array<[string, ResolvedEventOpsActor, string?]> = [
       ['another client', { ...primaryClient, id: 'other', email: 'other@example.com' }],

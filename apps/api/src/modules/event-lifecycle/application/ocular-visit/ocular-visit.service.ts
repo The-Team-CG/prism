@@ -14,6 +14,7 @@ import {
   writeAudit,
 } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
+import { planningWriteRefusal } from '../../domain/planning-write.policy';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import {
   NOTIFICATION_OUTBOX_WRITER,
@@ -94,6 +95,8 @@ export class OcularVisitService {
           event,
           'client ocular visit request',
         );
+        const refusal = planningWriteRefusal(event, 'request an ocular visit');
+        if (refusal) throw new BadRequestException(refusal);
         if (!event.inquiry.conformeSignedAt) {
           throw new BadRequestException('A signed conforme is required before requesting an ocular visit');
         }
@@ -179,6 +182,8 @@ export class OcularVisitService {
     await this.requireAdmin(actor, eventId);
     return this.prisma.$transaction(async (tx) => {
       const event = await this.requireEvent(tx, eventId);
+      const refusal = planningWriteRefusal(event, 'schedule an ocular visit');
+      if (refusal) throw new BadRequestException(refusal);
       const existing = await tx.opsOcularVisitRequest.findUnique({ where: { eventId } });
       if (existing && existing.status !== 'requested' && existing.status !== 'scheduled') {
         throw new BadRequestException('Only a requested or scheduled ocular visit can be scheduled');

@@ -14,6 +14,7 @@ import type {
   SubmitScopeChangeRequestInput,
 } from '@prism/types';
 import { consumeApprovedFreezeException } from './freeze-exception-consumption';
+import { planningWriteRefusal } from '../../domain/planning-write.policy';
 
 // A scope change is open until PMCM approves or rejects it; only an open request can be reviewed.
 type ScopeEvent = Prisma.OpsEventGetPayload<{ include: { inquiry: { select: { email: true } } } }>;
@@ -111,7 +112,8 @@ export class ScopeChangeRequestService {
     } else {
       await this.requireOperator(actor, eventId, 'scope change request');
     }
-    if (event.archived) throw new BadRequestException('Archived events cannot accept scope change requests');
+    const refusal = planningWriteRefusal(event, 'accept scope change requests');
+    if (refusal) throw new BadRequestException(refusal);
     const requestedByRole = actor.role === OpsUserRole.Client ? 'client' : 'pmcm';
     return this.prisma.$transaction(async (tx) => {
       const value = await tx.opsScopeChangeRequest.create({
@@ -189,7 +191,8 @@ export class ScopeChangeRequestService {
   private reviewInTransaction(eventId: string, requestId: string, input: ReviewScopeChangeRequestInput, actor: ResolvedEventOpsActor) {
     return this.prisma.$transaction(async (tx) => {
       const event = await this.requireEvent(eventId, tx);
-      if (event.archived) throw new BadRequestException('Archived events cannot accept scope change decisions');
+      const refusal = planningWriteRefusal(event, 'accept scope change decisions');
+      if (refusal) throw new BadRequestException(refusal);
       const existing = await tx.opsScopeChangeRequest.findFirst({ where: { id: requestId, eventId } });
       if (!existing) throw new NotFoundException('Scope change request not found');
       if (!OPEN_STATUSES.includes(existing.status as PrismScopeChangeStatus)) throw new BadRequestException(`Scope change request is already ${existing.status}`);
