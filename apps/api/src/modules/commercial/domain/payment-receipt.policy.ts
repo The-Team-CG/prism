@@ -121,6 +121,28 @@ export function checkReverseAllocation(
   return alreadyReversed ? conflict('This payment was already reversed') : ok;
 }
 
+/**
+ * A corrected statement carries what was paid on the statement it replaces as credit, filling its milestones from the
+ * earliest due. When one of those payments is undone, the same amount is taken back from the latest credited milestone
+ * first, which leaves exactly the credit the smaller payment would have carried. Returns each changed milestone's new
+ * credit, or null when the corrected statement does not hold that much credit.
+ */
+export function withdrawCarriedCredit<T extends { id: string; creditApplied: number }>(
+  milestonesByDueDate: readonly T[],
+  amount: number,
+): Array<{ milestone: T; creditApplied: number }> | null {
+  let remaining = amount;
+  const changes: Array<{ milestone: T; creditApplied: number }> = [];
+  for (const milestone of [...milestonesByDueDate].reverse()) {
+    if (remaining <= 0) break;
+    const taken = Math.min(milestone.creditApplied, remaining);
+    if (taken <= 0) continue;
+    remaining -= taken;
+    changes.push({ milestone, creditApplied: milestone.creditApplied - taken });
+  }
+  return remaining > 0 ? null : changes;
+}
+
 export interface DuplicateProbe {
   amount: number;
   method: string;

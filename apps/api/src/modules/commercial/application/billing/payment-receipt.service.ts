@@ -45,6 +45,7 @@ import {
   milestoneRemaining,
   refreshPaymentMilestone,
   referenceInUse,
+  withdrawCreditCarriedFrom,
 } from './payment-ledger.store';
 import { mapPaymentReceipt, receiptStatus, type ReceiptWithLedger } from './payment-receipt.mappers';
 
@@ -409,6 +410,7 @@ export class PaymentReceiptService {
       },
     });
     await refreshPaymentMilestone(tx, milestone);
+    await withdrawCreditCarriedFrom(tx, milestone, original.amountReceived);
     await writeAudit(this.auditWriter, original.eventId, actor.name, `Reversed PHP ${original.amountReceived.toLocaleString('en-PH')} applied to ${milestone.label}`, {
       actorRole: actor.role,
       actorEmail: actor.email,
