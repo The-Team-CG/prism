@@ -2,7 +2,9 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismEventGameDefinition } from "@prism/types";
+import { eventGameTemplateConfigurationSchema } from "@prism/types";
 import { EventGameTemplateConfigurationEditor, hasPublishableTemplateConfiguration } from "./event-game-template-configuration-editor";
+import { buildPresenterDeckConfiguration, type PresenterDeckDraft } from "./presenter-deck-configuration";
 
 function game(kind: PrismEventGameDefinition["kind"], configuration: Record<string, unknown>): PrismEventGameDefinition {
   return {
@@ -158,6 +160,48 @@ describe("EventGameTemplateConfigurationEditor social templates", () => {
     expect(markup).toContain("Private This or That (Solo)");
     expect(markup).toContain("Guests choose whether to share each answer in the event poll.");
     expect(markup).toContain("Tea");
+    expect(hasPublishableTemplateConfiguration(definition)).toBe(true);
+  });
+
+  it("builds a presenter deck with choice, scale and word-cloud prompts in the exact schema shape", () => {
+    const draft: PresenterDeckDraft = { kind: "presenter-deck", rounds: [
+      { key: "choice-1", type: "choice", prompt: "Pick one", options: "Tea\nCoffee", scaleMax: "5", maxResponseLength: "30", durationSeconds: "30" },
+      { key: "scale-1", type: "scale", prompt: "Rate it", options: "", scaleMax: "5", maxResponseLength: "30", durationSeconds: "20" },
+      { key: "cloud-1", type: "word-cloud", prompt: "One word", options: "", scaleMax: "5", maxResponseLength: "30", durationSeconds: "60" },
+    ] };
+
+    const configuration = buildPresenterDeckConfiguration(draft);
+
+    expect(configuration).toEqual({
+      kind: "presenter-deck",
+      rounds: [
+        { key: "choice-1", type: "choice", prompt: "Pick one", options: ["Tea", "Coffee"], durationSeconds: 30 },
+        { key: "scale-1", type: "scale", prompt: "Rate it", scaleMax: 5, durationSeconds: 20 },
+        { key: "cloud-1", type: "word-cloud", prompt: "One word", maxResponseLength: 30, durationSeconds: 60 },
+      ],
+    });
+    expect(eventGameTemplateConfigurationSchema.safeParse(configuration).success).toBe(true);
+  });
+
+  it("edits presenter deck prompts with a per-type field set", () => {
+    const definition = game("presenter-deck", {
+      kind: "presenter-deck",
+      rounds: [
+        { key: "choice-1", type: "choice", prompt: "Pick one", options: ["Tea", "Coffee"], durationSeconds: 30 },
+        { key: "scale-1", type: "scale", prompt: "Rate it", scaleMax: 10, durationSeconds: 20 },
+        { key: "cloud-1", type: "word-cloud", prompt: "One word", maxResponseLength: 30, durationSeconds: 60 },
+      ],
+    });
+
+    const markup = renderToStaticMarkup(createElement(EventGameTemplateConfigurationEditor, {
+      game: definition, busy: false, onSave: vi.fn(), onUploadMedia: vi.fn().mockResolvedValue({ objectId: "obj_00000000-0000-4000-8000-000000000108" }),
+    }));
+
+    expect(markup).toContain("Options (two to six, one per line)");
+    expect(markup).toContain("Tea\nCoffee");
+    expect(markup).toContain("Rating scale maximum");
+    expect(markup).toContain("Maximum answer length");
+    expect(markup).toContain("Add prompt");
     expect(hasPublishableTemplateConfiguration(definition)).toBe(true);
   });
 });

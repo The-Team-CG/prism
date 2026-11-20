@@ -20,6 +20,7 @@ export const EVENT_GAME_OPTIONS: ReadonlyArray<{
   { kind: "live-poll", label: "Live Poll", entryMode: "active" },
   { kind: "word-cloud", label: "Word Cloud", entryMode: "active" },
   { kind: "open-qa", label: "Open Q and A", entryMode: "active" },
+  { kind: "presenter-deck", label: "Presenter Deck (Mentimeter-like)", entryMode: "active" },
 ];
 
 export function eventGameOption(kind: PrismEventGameKind) {

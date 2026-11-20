@@ -360,7 +360,7 @@ function GameSessionSection({
             <p role="status" className="mt-1">{hostState.sessionResult.label} · {hostState.sessionResult.points} points</p>
           </section>
         ) : null}
-        {["split-the-room", "word-cloud", "open-qa"].includes(hostState.game.kind) && hostState.currentRound?.pendingSubmissions ? (
+        {["split-the-room", "word-cloud", "open-qa", "presenter-deck"].includes(hostState.game.kind) && hostState.currentRound?.pendingSubmissions ? (
           <SplitResponseModerationQueue
             sessionId={hostState.sessionId}
             submissions={hostState.currentRound.pendingSubmissions}
@@ -582,8 +582,17 @@ function GameHostCommandButtons({
       <SpinWheelButton hostState={hostState} busy={busy} onCommand={onCommand} />
       <AdvanceRoundButton hostState={hostState} busy={busy} onCommand={onCommand} />
       <SessionPinButton hostState={hostState} activeSession={activeSession} busy={busy} pinDismissed={pinDismissed} onCommand={onCommand} />
+      <PresenterViewButton hostState={hostState} />
     </div>
   );
+}
+
+/** Opens the large-screen presenter view for this session in a new tab. */
+function PresenterViewButton({ hostState }: { hostState: PrismGameHostState }) {
+  const href = `/dashboard/events/${encodeURIComponent(hostState.eventId)}/presenter/${encodeURIComponent(hostState.sessionId)}`;
+  return <Button type="button" variant="outline" onClick={() => window.open(href, "_blank", "noopener")}>
+    Open presenter view
+  </Button>;
 }
 
 function SpinWheelButton({ hostState, busy, onCommand }: {
@@ -647,6 +656,7 @@ function hostPauseLabel(kind: PrismGameHostState["game"]["kind"]): string {
   if (kind === "this-or-that") return "Pause voting";
   if (kind === "split-the-room" || kind === "live-poll") return "Reveal totals and pause";
   if (kind === "word-cloud" || kind === "open-qa") return "Show approved answers and pause";
+  if (kind === "presenter-deck") return "Reveal results and pause";
   return kind === "bingo" ? "Pause number calls" : "Pause";
 }
 
@@ -654,7 +664,7 @@ function hostResumeLabel(kind: PrismGameHostState["game"]["kind"]): string {
   if (kind === "live-trivia") return "Resume timed questions";
   if (kind === "family-feud") return "Resume questions";
   if (kind === "this-or-that") return "Resume voting";
-  if (["split-the-room", "live-poll", "word-cloud", "open-qa"].includes(kind)) return "Resume timed prompts";
+  if (["split-the-room", "live-poll", "word-cloud", "open-qa", "presenter-deck"].includes(kind)) return "Resume timed prompts";
   return kind === "bingo" ? "Resume number calls" : "Resume";
 }
 

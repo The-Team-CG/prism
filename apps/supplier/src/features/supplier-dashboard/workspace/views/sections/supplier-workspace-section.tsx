@@ -114,11 +114,11 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
   messages: (p) => <MessagesPage session={p.session} selectedRequests={p.selectedRequests} readinessBoard={p.readinessBoard} />,
   payments: (p) => <PaymentsPage workspace={p.workspace} workflowWorkspace={p.workflowWorkspace} selectedQuotes={p.selectedQuotes} readinessBoard={p.readinessBoard} freshPayouts={p.freshPayouts} />,
   files: (p) => <FilesPage workspace={p.workspace} session={p.session} workflowWorkspace={p.workflowWorkspace} readinessBoard={p.readinessBoard} onDownloadObject={p.onDownloadObject} />,
-  profile: (p) => <ProfilePage supplier={p.workspace.supplier} session={p.session} />,
+  profile: (p) => <ProfilePage supplier={p.workspace.supplier} session={p.session} quotes={p.workspace.supplierQuotes} bookings={p.selectedRequests} readinessBoard={p.readinessBoard} />,
   privacy: () => <SupplierPrivacyRequestsView />,
   account: () => <SupplierAccountView />,
   notifications: (p) => <SupplierNotificationsView session={p.session} />,
-  support: () => <SupportPage />,
+  support: (p) => <SupportPage hasBookings={p.selectedRequests.length > 0} />,
 };
 
 export function SupplierWorkspaceSection(props: SupplierWorkspaceSectionProps) {

@@ -149,6 +149,7 @@ function sanitizeCurrentRound(value: unknown): PrismGamePublicState["currentRoun
     number: value.number,
     total: value.total,
     ...(value.deadlineAt !== undefined ? { deadlineAt: value.deadlineAt as string | null } : {}),
+    ...(typeof value.resultsOpen === "boolean" ? { resultsOpen: value.resultsOpen } : {}),
   };
 }
 
@@ -180,25 +181,53 @@ function sanitizeParticipant(value: unknown): PrismGamePublicState["participant"
   };
 }
 
+type GameDataSanitizer = (value: Record<string, unknown>) => PrismGamePublicState["participant"]["gameData"] | undefined;
+
+/** Per-kind sanitizers, tried in order; the first one that accepts the data wins. */
+const GAME_DATA_SANITIZERS: readonly GameDataSanitizer[] = [
+  sanitizeTriviaGameData,
+  sanitizeBingoGameData,
+  sanitizePictureGameData,
+  sanitizeWordScrambleGameData,
+  sanitizePictureSoloGameData,
+  sanitizeSpotTheDifferenceGameData,
+  sanitizeThisOrThatGameData,
+  sanitizeFamilyFeudGameData,
+  sanitizePresenterDeckGameData,
+  sanitizeSplitOrAudienceGameData,
+];
+
 function sanitizeParticipantGameData(value: unknown): PrismGamePublicState["participant"]["gameData"] | undefined {
   if (!isRecord(value)) return undefined;
-  const trivia = sanitizeTriviaGameData(value);
-  if (trivia) return trivia;
-  const bingo = sanitizeBingoGameData(value);
-  if (bingo) return bingo;
-  const picture = sanitizePictureGameData(value);
-  if (picture) return picture;
-  const wordScramble = sanitizeWordScrambleGameData(value);
-  if (wordScramble) return wordScramble;
-  const pictureSolo = sanitizePictureSoloGameData(value);
-  if (pictureSolo) return pictureSolo;
-  const spotTheDifference = sanitizeSpotTheDifferenceGameData(value);
-  if (spotTheDifference) return spotTheDifference;
-  const thisOrThat = sanitizeThisOrThatGameData(value);
-  if (thisOrThat) return thisOrThat;
-  const familyFeud = sanitizeFamilyFeudGameData(value);
-  if (familyFeud) return familyFeud;
-  return sanitizeSplitOrAudienceGameData(value);
+  for (const sanitize of GAME_DATA_SANITIZERS) {
+    const gameData = sanitize(value);
+    if (gameData) return gameData;
+  }
+  return undefined;
+}
+
+/** Presenter Deck round data: choice options, a 5- or 10-point scale, or a word-cloud length limit. */
+function sanitizePresenterDeckGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
+  if (value.kind !== "presenter-deck") return undefined;
+  if (value.roundType === "choice") {
+    const options = sanitizeChoiceOptions(value.options);
+    return options ? { kind: "presenter-deck", roundType: "choice", options } : undefined;
+  }
+  if (value.roundType === "scale") {
+    return value.scaleMax === 5 || value.scaleMax === 10
+      ? { kind: "presenter-deck", roundType: "scale", scaleMax: value.scaleMax }
+      : undefined;
+  }
+  const limit = boundedResponseLimit(value.maxResponseLength);
+  return value.roundType === "word-cloud" && limit && limit <= 60
+    ? { kind: "presenter-deck", roundType: "word-cloud", maxResponseLength: limit }
+    : undefined;
+}
+
+function sanitizeChoiceOptions(options: unknown): string[] | undefined {
+  if (!Array.isArray(options) || options.length < 2 || options.length > 6) return undefined;
+  const valid = options.every((option) => typeof option === "string" && option.trim().length > 0 && option.length <= 120);
+  return valid ? options as string[] : undefined;
 }
 
 function sanitizeSplitOrAudienceGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
@@ -214,9 +243,8 @@ function sanitizeAudienceGameData(value: Record<string, unknown>): PrismGamePubl
 }
 
 function sanitizeLivePollGameData(options: unknown): PrismGamePublicState["participant"]["gameData"] | undefined {
-  if (!Array.isArray(options) || options.length < 2 || options.length > 6) return undefined;
-  const valid = options.every((option) => typeof option === "string" && option.trim().length > 0 && option.length <= 120);
-  return valid ? { kind: "live-poll", options: options as string[] } : undefined;
+  const valid = sanitizeChoiceOptions(options);
+  return valid ? { kind: "live-poll", options: valid } : undefined;
 }
 
 function boundedResponseLimit(value: unknown): number | null {

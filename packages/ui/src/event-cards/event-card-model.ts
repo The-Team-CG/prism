@@ -21,6 +21,8 @@ export function stagePosition(stage: PrismLifecycleStage): number {
 
 /** Month, day and weekday of an event date in Philippine time, for the date tile. */
 export function dateTileParts(eventDate: string): { month: string; day: string; weekday: string } | null {
+  // No date yet (or an unreadable one) draws the blank tile instead of throwing while resolving Manila time.
+  if (!Number.isFinite(Date.parse(eventDate))) return null;
   const key = manilaCalendarKey(eventDate);
   const date = new Date(`${key}T00:00:00Z`);
   if (!Number.isFinite(date.getTime())) return null;

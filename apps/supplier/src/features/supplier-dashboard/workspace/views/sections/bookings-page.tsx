@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { BadgeCheck, CheckCircle2, Circle, Clock3, FileText, LockKeyhole, PackageCheck, Truck, Wallet } from "lucide-react";
 import type { PrismAuthenticatedSession, PrismSupplierReadinessItem, PrismSupplierWorkflowWorkspace } from "@prism/types";
 import { formatPortalDate, formatPortalDateTime, manilaDateKey } from "@prism/ui/format-date";
@@ -9,6 +9,7 @@ import { CountdownPill, EventCard, EventCardFooter, EventCardGrid, EventCardHead
 import { PrismHero } from "@prism/ui/page-blocks";
 import { formatPeso } from "@prism/ui/payment-track";
 import { useEventCoverUrl } from "../../view-models/use-event-cover-url";
+import { supplierWorkTargetHash, useSupplierWorkTarget } from "../../view-models/use-supplier-work-target";
 import { bookingCardFacts, orderBookingCards, type BookingCardFacts } from "../../model/booking-cards";
 import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
@@ -244,31 +245,6 @@ function BookingDetail({ req, workflowWorkspace, readinessNote, statusNote, busy
   );
 }
 
-const WORK_TARGET = "#supplier-work-";
-
-/** The booking a work link names (`#supplier-work-<id>`), opened in its panel when the page loads or the link changes. */
-function useBookingTarget(ids: string[]) {
-  const [openId, setOpenId] = useState<string | null>(null);
-  const key = ids.join("|");
-  useEffect(() => {
-    function reveal() {
-      const hash = window.location.hash;
-      if (!hash.startsWith(WORK_TARGET)) return;
-      const id = decodeURIComponent(hash.slice(WORK_TARGET.length));
-      if (key.split("|").includes(id)) setOpenId(id);
-    }
-    reveal();
-    window.addEventListener("hashchange", reveal);
-    return () => window.removeEventListener("hashchange", reveal);
-  }, [key]);
-  function open(id: string | null) {
-    setOpenId(id);
-    const url = `${window.location.pathname}${window.location.search}${id ? `${WORK_TARGET}${encodeURIComponent(id)}` : ""}`;
-    window.history.replaceState(null, "", url);
-  }
-  return { openId, open };
-}
-
 /** "7 / days to go", "Today / Event day"; nothing once the event has passed. */
 function daysToGoFigure(eventDate: string | null, todayKey: string) {
   const countdown = eventDate ? eventCountdown(eventDate, todayKey) : null;
@@ -288,7 +264,7 @@ function BookingLead({ card, todayKey, onQuick }: { card: BookingCardFacts; toda
   return (
     <div className="grid gap-3 px-4 pb-4 pt-12 sm:px-5 sm:pb-5">
       <PrismHero
-        label={`${card.request.category} · for PMCM`}
+        label={`${card.request.category} booking`}
         title={card.eventName}
         meta={
           <>
@@ -351,19 +327,31 @@ function BookingFacts({ card }: { card: BookingCardFacts }) {
   );
 }
 
+/**
+ * The card's cover with the countdown pinned to its corner, so the title row keeps the card's full width and an
+ * event name reads on one or two lines instead of three.
+ */
+function CoverWithCountdown({ card, coverUrl, todayKey }: { card: BookingCardFacts; coverUrl: string | null | undefined; todayKey: string }) {
+  return (
+    <div className="relative">
+      <EventCover eventType={card.eventType} imageUrl={coverUrl} small={card.done} />
+      {card.eventDate && !card.done ? <span className="absolute right-3 top-3"><CountdownPill date={card.eventDate} todayKey={todayKey} /></span> : null}
+    </div>
+  );
+}
+
 function BookingCard({ card, todayKey, onOpen, onQuick }: { card: BookingCardFacts; todayKey: string; onOpen: () => void; onQuick: (card: BookingCardFacts) => void }) {
   const { request, next, steps, money } = card;
   const coverUrl = useEventCoverUrl(request.eventId, card.coverObjectId);
   return (
-    <EventCard urgent={card.urgent} compact={card.done} cover={<EventCover eventType={card.eventType} imageUrl={coverUrl} small={card.done} />}>
+    <EventCard urgent={card.urgent} compact={card.done} cover={<CoverWithCountdown card={card} coverUrl={coverUrl} todayKey={todayKey} />}>
       <EventCardHeader
         onCover
         date={card.eventDate ?? ""}
         title={card.eventName}
-        href={`${WORK_TARGET}${encodeURIComponent(request.id)}`}
+        href={supplierWorkTargetHash(request.id)}
         onNavigate={onOpen}
-        details={`${request.category} · for PMCM`}
-        aside={card.eventDate && !card.done ? <CountdownPill date={card.eventDate} todayKey={todayKey} /> : null}
+        details={request.category}
         muted={card.done}
       />
       {card.done ? null : (
@@ -405,7 +393,7 @@ export function BookingsPage({ selectedRequests, readinessBoard, readinessNotes,
   statusNotes: Record<string, string>;
   busy: string | null;
 } & BookingHandlers) {
-  const target = useBookingTarget(selectedRequests.map((req) => req.id));
+  const target = useSupplierWorkTarget(selectedRequests.map((req) => req.id));
   if (!selectedRequests.length) {
     return (
       <Card><CardBody>
