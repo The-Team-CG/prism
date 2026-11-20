@@ -89,7 +89,9 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
       const badResponses = [];
       const onError = error => errors.push(error.message);
       const onResponse = response => {
-        if (response.status() >= 500 || (item.path.startsWith('/dashboard') && response.status() >= 400 && response.url().includes('/api/'))) badResponses.push({ status: response.status(), path: new URL(response.url()).pathname });
+        // An unavailable-session case deliberately opens an unknown session, so its API 404 is the expected answer.
+        const expectedMissingSession = item.state === 'unavailable-session' && response.status() === 404;
+        if (response.status() >= 500 || (item.path.startsWith('/dashboard') && response.status() >= 400 && !expectedMissingSession && response.url().includes('/api/'))) badResponses.push({ status: response.status(), path: new URL(response.url()).pathname });
       };
       page.on('pageerror', onError);
       page.on('response', onResponse);
