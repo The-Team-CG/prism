@@ -55,7 +55,7 @@ flows below on a fixture account; each one is audited and each confirmation take
 
 | Row | What to expect |
 | --- | --- |
-| Name, Password | A password change ends every session, so sign in again with the new one. A wrong current password is a 403, counts toward the sign-in lockout and does not sign the person out. |
+| Name, Password | A password change ends every session, so sign in again with the new one. A wrong current password is a 403, counts toward the sign-in lockout and does not sign the person out. The 10-minute lockout after repeated wrong passwords blocks new sign-ins only; devices already signed in keep working. |
 | Two-step sign-in | Off by default for clients, suppliers and coordinators; on and not removable for PMCM admins. Enabling shows a QR and key for an authenticator app and turns on only after a correct code. Sign-in then asks for the six-digit code after the password. PMCM's account list shows who has it on and **Reset two-factor** works for any account. |
 | Devices | Each sign-in records its browser. Any other device can be signed out on its own, or all of them at once; the menu's Sign out ends only this device. A session from before device sessions existed ends every session when it signs out. |
 | Sign-ins | The last 10 sign-ins with browser and whether each worked. A banner shows only when sign-ins failed since the last visit. |
