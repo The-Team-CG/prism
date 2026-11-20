@@ -14,6 +14,8 @@ COPY apps/guest/package.json apps/guest/package.json
 COPY apps/supplier/package.json apps/supplier/package.json
 COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/floorplan-canvas/package.json packages/floorplan-canvas/package.json
+COPY packages/floorplan-scene/package.json packages/floorplan-scene/package.json
+COPY packages/portal-query/package.json packages/portal-query/package.json
 COPY packages/tokens/package.json packages/tokens/package.json
 COPY packages/types/package.json packages/types/package.json
 COPY packages/ui/package.json packages/ui/package.json
@@ -22,7 +24,8 @@ RUN npm ci --ignore-scripts && npm cache clean --force
 
 FROM deps AS source
 COPY . .
-RUN npm --workspace @prism/types run build
+# The root postinstall that `npm ci --ignore-scripts` skipped: the Pascal patches, then the built shared packages.
+RUN npx patch-package && npm --workspace @prism/types run build && npm --workspace @prism/floorplan-scene run build
 
 FROM source AS dev
 ENV NODE_ENV=development
@@ -34,7 +37,7 @@ RUN npm --workspace prism-api run db:generate
 RUN npx turbo run build --filter=prism-api...
 FROM deps AS api-prod-deps
 # Install only API runtime workspaces; keep this layer cached across source edits.
-RUN npm ci --omit=dev --ignore-scripts --workspace=prism-api --workspace=@prism/types --include-workspace-root=false
+RUN npm ci --omit=dev --ignore-scripts --workspace=prism-api --workspace=@prism/types --workspace=@prism/floorplan-scene --include-workspace-root=false
 RUN mkdir -p apps/api/node_modules
 FROM base AS api
 ENV NODE_ENV=production PORT=4000
@@ -45,6 +48,8 @@ COPY --from=api-prod-deps --chown=node:node /app/apps/api/node_modules ./apps/ap
 COPY --from=api-builder --chown=node:node /app/apps/api/package.json ./apps/api/package.json
 COPY --from=api-builder --chown=node:node /app/apps/api/prisma/migrations ./apps/api/prisma/migrations
 COPY --from=api-builder --chown=node:node /app/packages/types ./packages/types
+COPY --from=api-builder --chown=node:node /app/packages/floorplan-scene/package.json ./packages/floorplan-scene/package.json
+COPY --from=api-builder --chown=node:node /app/packages/floorplan-scene/dist ./packages/floorplan-scene/dist
 USER node
 WORKDIR /app/apps/api
 EXPOSE 4000
