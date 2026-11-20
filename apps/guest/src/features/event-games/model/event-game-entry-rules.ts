@@ -11,6 +11,7 @@ const ACTIVE_MULTIPLAYER_GAME_KINDS = new Set<PrismEventGameKind>([
   "live-poll",
   "word-cloud",
   "open-qa",
+  "presenter-deck",
 ]);
 
 export function normalizeGamePin(raw: string): string {

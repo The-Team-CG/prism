@@ -41,7 +41,8 @@ function roundAdvanceDetails(
   if (!round || round.key !== requestedRoundKey || round.number >= round.total || !round.deadlineAt) {
     throw new ConflictException('Game round is not available to advance');
   }
-  const advanceByMs = round.deadlineAt.getTime() - roundTime.getTime();
+  // Jump to the start of the next round, past any results window that follows the question.
+  const advanceByMs = (round.endsAt ?? round.deadlineAt).getTime() - roundTime.getTime();
   if (!Number.isSafeInteger(advanceByMs) || advanceByMs <= 0) {
     throw new ConflictException('Game round is not available to advance');
   }

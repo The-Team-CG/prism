@@ -9,7 +9,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
+import { PrismTransactionRunner, type PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from '@prism/types';
 import {
   GAME_ACTION_CLOCK,
@@ -18,7 +18,7 @@ import {
   type GameParticipantActionContext,
 } from '../contracts/game-action-store.port';
 import { GAME_EVENT_ACCESS, type GameEventAccessPort } from '../contracts/game-event-access.port';
-import { GAME_RULES, type GameRuleRegistryPort } from '../contracts/game-rule.port';
+import { GAME_RULES, type GameRuleCurrentRound, type GameRuleRegistryPort } from '../contracts/game-rule.port';
 import { GAME_RATE_LIMITER, type GameRateLimiterPort } from '../contracts/game-rate-limiter.port';
 import { GameScoringService } from './game-scoring.service';
 import { readConfiguredVoteAggregate } from './game-vote-aggregates';
@@ -26,6 +26,15 @@ import { createAnonymousGameParticipantAlias } from '../domain/anonymous-game-pa
 
 const PARTICIPANT_CREDENTIAL_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const ACTION_UNAVAILABLE = 'Game action is not available';
+
+/** Presenter Deck word-cloud answers show to the room as they arrive, without the host moderation queue. */
+function isAutoVisibleRound(participantData: GameRuleCurrentRound['participantData']): boolean {
+  return participantData?.kind === 'presenter-deck' && participantData.roundType === 'word-cloud';
+}
+
+function autoVisibleFields(currentRound: GameRuleCurrentRound): { autoVisible?: true } {
+  return isAutoVisibleRound(currentRound.participantData) ? { autoVisible: true } : {};
+}
 
 function assertSessionAcceptsAction(session: GameParticipantActionContext, now: Date) {
   if (session.status !== 'live' || !session.startedAt) {
@@ -156,20 +165,12 @@ export class GameActionService {
         isCorrect: score.isCorrect,
         ...(score.result?.kind === 'singleplayer-choice' ? { result: score.result } : {}),
         ...(currentRound.teamAssignment ? { teamAssignment: currentRound.teamAssignment } : {}),
+        ...autoVisibleFields(currentRound),
         deadlineAt: currentRound.deadlineAt,
         createdAt: now,
       }, transaction);
       if (!participant) throw new ConflictException(ACTION_UNAVAILABLE);
-      const aggregateResults = await readConfiguredVoteAggregate({
-        actionStore: this.store,
-        transaction,
-        eventId: session.eventId,
-        sessionId: session.sessionId,
-        kind: session.kind,
-        configSnapshot: session.configSnapshot,
-        roundKey: currentRound.key,
-        status: session.status,
-      });
+      const aggregateResults = await this.readRoundAggregate(session, currentRound, transaction);
 
       return {
         sessionId: session.sessionId,
@@ -189,5 +190,22 @@ export class GameActionService {
         aggregateResults,
       };
     }, { actorId: 'anonymous-game-participant' });
+  }
+
+  private readRoundAggregate(
+    session: GameParticipantActionContext,
+    currentRound: GameRuleCurrentRound,
+    transaction: PrismTransactionContext,
+  ) {
+    return readConfiguredVoteAggregate({
+      actionStore: this.store,
+      transaction,
+      eventId: session.eventId,
+      sessionId: session.sessionId,
+      kind: session.kind,
+      configSnapshot: session.configSnapshot,
+      roundKey: currentRound.key,
+      status: session.status,
+    });
   }
 }

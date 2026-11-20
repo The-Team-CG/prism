@@ -585,6 +585,47 @@ describe("event games guest repository", () => {
     expect(await eventGamesGuestRepository.getParticipantState("session-a1")).not.toHaveProperty("approvedResponses");
   });
 
+  it("passes presenter deck choice, scale and word-cloud round data through and drops a scale outside 5 or 10", async () => {
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
+      eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
+    });
+    const withDeckData = (gameData: Record<string, unknown>) => ({
+      ...participantState, game: { title: "Presenter Deck", kind: "presenter-deck" },
+      participant: { ...participantState.participant, gameData },
+    });
+    api.getParticipantState
+      .mockResolvedValueOnce(withDeckData({ kind: "presenter-deck", roundType: "choice", options: ["Tea", "Coffee"] }))
+      .mockResolvedValueOnce(withDeckData({ kind: "presenter-deck", roundType: "scale", scaleMax: 10 }))
+      .mockResolvedValueOnce(withDeckData({ kind: "presenter-deck", roundType: "scale", scaleMax: 7 }))
+      .mockResolvedValueOnce(withDeckData({ kind: "presenter-deck", roundType: "word-cloud", maxResponseLength: 30 }));
+
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant.gameData)
+      .toEqual({ kind: "presenter-deck", roundType: "choice", options: ["Tea", "Coffee"] });
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant.gameData)
+      .toEqual({ kind: "presenter-deck", roundType: "scale", scaleMax: 10 });
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant).not.toHaveProperty("gameData");
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant.gameData)
+      .toEqual({ kind: "presenter-deck", roundType: "word-cloud", maxResponseLength: 30 });
+  });
+
+  it("keeps the presenter deck results-window flag only when it is a boolean", async () => {
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
+      eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
+    });
+    const withRound = (resultsOpen: unknown) => ({
+      ...participantState, game: { title: "Presenter Deck", kind: "presenter-deck" },
+      currentRound: { key: "d1", number: 1, total: 3, resultsOpen },
+    });
+    api.getParticipantState
+      .mockResolvedValueOnce(withRound(true))
+      .mockResolvedValueOnce(withRound("yes"));
+
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).currentRound)
+      .toEqual({ key: "d1", number: 1, total: 3, resultsOpen: true });
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).currentRound)
+      .toEqual({ key: "d1", number: 1, total: 3 });
+  });
+
   it("clears a rejected participant credential without touching the guest check-in session", async () => {
     savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
       eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),

@@ -155,6 +155,45 @@ describe('GameActionService', () => {
     expect(store.recordParticipantAction).toHaveBeenCalledOnce();
   });
 
+  it('records Presenter Deck word-cloud answers as visible without host moderation', async () => {
+    const answer: PrismSubmitEventGameActionInput = {
+      templateId: 'presenter-deck', roundKey: 'round-1', actionKind: 'answer', payload: { response: 'Bold' },
+    };
+    const { service, store, transaction } = setup({
+      currentRound: {
+        key: 'round-1', number: 1, total: 3, prompt: 'One word?', deadlineAt: new Date(now.getTime() + 1_000),
+        participantData: { kind: 'presenter-deck', roundType: 'word-cloud', maxResponseLength: 40 },
+      },
+    });
+
+    await service.submitAction(sessionId, credential, answer);
+
+    expect(store.recordParticipantAction).toHaveBeenCalledWith(
+      expect.objectContaining({ actionKind: 'answer', autoVisible: true }),
+      transaction,
+    );
+  });
+
+  it.each([
+    ['Presenter Deck choice', { kind: 'presenter-deck', roundType: 'choice', options: ['Tea', 'Coffee'] }],
+    ['Presenter Deck scale', { kind: 'presenter-deck', roundType: 'scale', scaleMax: 5 }],
+    ['another game', undefined],
+  ])('leaves %s submissions to their usual moderation', async (_label, participantData) => {
+    const vote: PrismSubmitEventGameActionInput = {
+      templateId: 'presenter-deck', roundKey: 'round-1', actionKind: 'vote', payload: { option: 'Tea' },
+    };
+    const { service, store } = setup({
+      currentRound: {
+        key: 'round-1', number: 1, total: 3, prompt: 'Pick one', deadlineAt: new Date(now.getTime() + 1_000),
+        ...(participantData ? { participantData } : {}),
+      },
+    });
+
+    await service.submitAction(sessionId, credential, vote);
+
+    expect(store.recordParticipantAction.mock.calls[0]?.[0]).not.toHaveProperty('autoVisible');
+  });
+
   it('rejects an action when the persistent limiter denies its participant bucket', async () => {
     const { service, rateLimiter, store } = setup({ rateLimitAllowed: false });
 

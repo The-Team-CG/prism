@@ -64,6 +64,9 @@ interface GameResponseRow {
 interface SessionExistsRow { exists: boolean }
 interface RedactedCountRow { redacted_count: number }
 
+/** Actor recorded on the approval written with a submission that needs no host moderation. */
+const AUTO_VISIBLE_ACTOR_ID = 'system:presenter-deck-auto';
+
 const PROFILE_RESPONSE_KEYS = new Set([
   "avatar", "avatarurl", "bio", "displayname", "email", "firstname", "fullname",
   "handle", "image", "imageurl", "lastname", "name", "participantname", "photo",
@@ -173,7 +176,8 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
   ): Promise<{ points: number; result?: Parameters<GameActionStorePort['recordParticipantAction']>[0]['result'] } | null> {
     const teamId = input.teamAssignment?.teamId ?? null;
     const teamLabel = input.teamAssignment?.teamLabel ?? null;
-    // QUERY_AUDIT_RAW_SQL: Locks session, grant and credential rows (FOR UPDATE OF s, g, c); submission and score ledger inserts are ON CONFLICT DO NOTHING, so a repeated action is recorded once.
+    const autoVisible = input.autoVisible === true;
+    // QUERY_AUDIT_RAW_SQL: Locks session, grant and credential rows (FOR UPDATE OF s, g, c); submission and score ledger inserts are ON CONFLICT DO NOTHING, so a repeated action is recorded once. When autoVisible is set, the same statement records one system approve_submission moderation row for the newly inserted submission only.
     const inserted = await transaction.prisma.$queryRaw<InsertedSubmissionRow[]>`
       WITH eligible AS MATERIALIZED (
         SELECT s."event_id", s."id" AS "session_id", g."id" AS "participation_grant_id"
@@ -236,6 +240,15 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
         FROM inserted i
         ON CONFLICT ("event_id", "session_id", "source_event_id") DO NOTHING
         RETURNING "source_event_id"
+      ), visibility AS (
+        INSERT INTO "event_games"."moderation_actions"
+          ("id", "event_id", "session_id", "submission_id", "participation_grant_id", "action", "reason",
+           "resolved_answer", "actor_id", "created_at")
+        SELECT ${randomUUID()}, i."event_id", i."session_id", i."id", NULL, 'approve_submission', NULL,
+          NULL, ${AUTO_VISIBLE_ACTOR_ID}, ${input.createdAt}
+        FROM inserted i
+        WHERE ${autoVisible}::boolean
+        RETURNING "id"
       )
       SELECT i."id" AS "submission_id"
       FROM inserted i

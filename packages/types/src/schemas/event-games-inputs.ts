@@ -16,6 +16,7 @@ export const prismEventGameKindSchema = z.enum([
   "live-poll",
   "word-cloud",
   "open-qa",
+  "presenter-deck",
 ]);
 export type PrismEventGameKind = z.infer<typeof prismEventGameKindSchema>;
 
@@ -228,6 +229,18 @@ export const activeMultiplayerGameActionSchema = z.discriminatedUnion("templateI
     actionKind: z.literal("answer"),
     payload: z.object({ response: z.string().trim().min(1).max(300) }).strict(),
   }).strict(),
+  z.object({
+    templateId: z.literal("presenter-deck"),
+    roundKey: activeMultiplayerRoundKeySchema,
+    actionKind: z.enum(["answer", "vote"]),
+    payload: z.union([
+      z.object({ response: z.string().trim().min(1).max(60) }).strict(),
+      z.object({ option: z.string().trim().min(1).max(120) }).strict(),
+    ]),
+  }).strict().refine((action) =>
+    (action.actionKind === "answer" && "response" in action.payload)
+    || (action.actionKind === "vote" && "option" in action.payload),
+  "Presenter Deck action kind must match its payload"),
 ]);
 
 const independentSingleplayerGameActionSchema = z.discriminatedUnion("templateId", [
@@ -595,6 +608,37 @@ const openQaConfigurationSchema = z.object({
   }).strict()).min(1).max(10).refine(uniqueRoundKeys, "Round keys must be unique"),
 }).strict();
 
+const presenterDeckRoundShape = {
+  key: audienceRoundKeySchema,
+  prompt: z.string().trim().min(1).max(500),
+  durationSeconds: z.number().int().min(5).max(600),
+};
+
+/** Presenter Deck: a timed deck mixing choice, rating-scale and word-cloud prompts; results show when the host pauses. */
+const presenterDeckRoundSchema = z.discriminatedUnion("type", [
+  z.object({
+    ...presenterDeckRoundShape,
+    type: z.literal("choice"),
+    options: z.array(z.string().trim().min(1).max(120)).min(2).max(6)
+      .refine((options) => new Set(options.map((option) => option.toLocaleLowerCase())).size === options.length, "Choice options must be different"),
+  }).strict(),
+  z.object({
+    ...presenterDeckRoundShape,
+    type: z.literal("scale"),
+    scaleMax: z.union([z.literal(5), z.literal(10)]),
+  }).strict(),
+  z.object({
+    ...presenterDeckRoundShape,
+    type: z.literal("word-cloud"),
+    maxResponseLength: z.number().int().min(10).max(60),
+  }).strict(),
+]);
+
+const presenterDeckConfigurationSchema = z.object({
+  kind: z.literal("presenter-deck"),
+  rounds: z.array(presenterDeckRoundSchema).min(1).max(30).refine(uniqueRoundKeys, "Round keys must be unique"),
+}).strict();
+
 export const eventGameTemplateConfigurationSchema = z.discriminatedUnion("kind", [
   liveTriviaConfigurationSchema,
   bingoConfigurationSchema,
@@ -611,6 +655,7 @@ export const eventGameTemplateConfigurationSchema = z.discriminatedUnion("kind",
   livePollConfigurationSchema,
   wordCloudConfigurationSchema,
   openQaConfigurationSchema,
+  presenterDeckConfigurationSchema,
 ]);
 export type PrismEventGameTemplateConfiguration = z.infer<typeof eventGameTemplateConfigurationSchema>;
 

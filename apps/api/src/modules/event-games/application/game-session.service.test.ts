@@ -3,6 +3,7 @@ import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PrismCreateGameSessionInput, PrismGameHostCommandInput, PrismGameHostState, PrismVerifiedEventActor } from '@prism/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameSessionService } from './game-session.service';
+import { presenterDeckRule, RESULTS_DISPLAY_SECONDS } from './rules/presenter-deck.rules';
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -224,6 +225,34 @@ describe('GameSessionService', () => {
         expectedRoundKey: 'round-1', expectedRoundOffsetMs: 0, advanceByMs: 20_000,
       }),
     }));
+  });
+
+  it('advances a Presenter Deck slide past its results window to the next question', async () => {
+    const startedAt = new Date('2026-10-17T10:00:00.000Z');
+    const readContext = {
+      kind: 'presenter-deck', status: 'live', startedAt, endedAt: null, pausedAt: null, totalPausedMs: 0, roundOffsetMs: 0,
+      configSnapshot: { configuration: { kind: 'presenter-deck', rounds: [
+        { key: 'd1', type: 'choice', prompt: 'Tea or coffee?', options: ['Tea', 'Coffee'], durationSeconds: 30 },
+        { key: 'd2', type: 'scale', prompt: 'Rate the venue', scaleMax: 5, durationSeconds: 30 },
+      ] } },
+    };
+    const nextQuestionMs = (30 + RESULTS_DISPLAY_SECONDS) * 1000;
+    // During the question, and during the results window after it, advancing lands on the next question.
+    for (const elapsedMs of [10_000, 35_000]) {
+      const store = { getHostReadContext: vi.fn().mockResolvedValue(readContext) };
+      const rules = { get: vi.fn().mockReturnValue(presenterDeckRule) };
+      const { service, hostCommands } = createService({
+        store, rules, clock: () => new Date(startedAt.getTime() + elapsedMs),
+      });
+
+      await service.executeHostCommand(eventId, sessionId, actor(), {
+        command: 'advance-round', roundKey: 'd1', idempotencyKey: '00000000-0000-4000-8000-000000000004',
+      } as unknown as PrismGameHostCommandInput);
+
+      expect(hostCommands.executeHostCommand).toHaveBeenCalledWith(expect.objectContaining({
+        command: expect.objectContaining({ expectedRoundKey: 'd1', advanceByMs: nextQuestionMs - elapsedMs }),
+      }));
+    }
   });
 
   it('routes enable-joins to the one-time PIN issuer instead of the generic host command', async () => {

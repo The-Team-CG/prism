@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useEffect, useState, type Dispatch, type FormEvent, type ReactNode, type SetStateAction } from "react";
 import {
   eventGameTemplateConfigurationSchema,
   type PrismEventGameDefinition,
@@ -10,6 +10,9 @@ import { Button } from "@prism/ui/components/button";
 import { Field, FieldLabel } from "@prism/ui/components/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { AudienceGameFields, audienceDraftFrom, buildAudienceConfiguration, emptyAudienceDraft, isAudienceDraft, type AudienceDraft } from "./audience-game-configuration";
+import {
+  PresenterDeckFields, buildPresenterDeckConfiguration, emptyPresenterDeckDraft, presenterDeckDraftFrom, type PresenterDeckDraft,
+} from "./presenter-deck-configuration";
 
 type TriviaRoundDraft = {
   key: string;
@@ -49,7 +52,8 @@ type ConfigurationDraft =
   | { kind: "word-scramble"; rounds: WordScrambleRoundDraft[] }
   | { kind: "guess-picture-solo"; rounds: PictureSoloRoundDraft[] }
   | { kind: "spot-the-difference"; rounds: DifferenceRoundDraft[] }
-  | AudienceDraft;
+  | AudienceDraft
+  | PresenterDeckDraft;
 
 type Props = {
   game: PrismEventGameDefinition;
@@ -61,7 +65,7 @@ type Props = {
 const CONFIGURABLE_TEMPLATES = new Set([
   "live-trivia", "bingo", "guess-picture", "spin-wheel", "this-or-that", "family-feud", "split-the-room",
   "word-scramble", "would-you-rather", "guess-picture-solo", "this-or-that-solo", "spot-the-difference",
-  "live-poll", "word-cloud", "open-qa",
+  "live-poll", "word-cloud", "open-qa", "presenter-deck",
 ]);
 
 const INITIAL_TEAM_IDS = [
@@ -141,6 +145,7 @@ function configurationDraft(config: PrismEventGameTemplateConfiguration): Config
     maxResponseLength: String(round.maxResponseLength),
     durationSeconds: String(round.durationSeconds),
   })) };
+  if (config.kind === "presenter-deck") return presenterDeckDraftFrom(config);
   return null;
 }
 
@@ -198,6 +203,7 @@ function emptyDraft(kind: PrismEventGameDefinition["kind"]): ConfigurationDraft 
   if (kind === "split-the-room") return { kind, rounds: [
     { key: "round-1", prompt: "", leftLabel: "Left", rightLabel: "Right", maxResponseLength: "160", durationSeconds: "60" },
   ] };
+  if (kind === "presenter-deck") return emptyPresenterDeckDraft();
   return null;
 }
 
@@ -224,12 +230,10 @@ function buildDraftConfiguration(draft: ConfigurationDraft): unknown {
   return isAudienceDraft(draft) ? buildAudienceConfiguration(draft) : buildConfiguration(draft);
 }
 
-function buildConfiguration(draft: ConfigurationDraft): unknown {
-  const socialSingleplayer = buildSocialSingleplayerConfiguration(draft);
-  if (socialSingleplayer) return socialSingleplayer;
-  const puzzleSingleplayer = buildPuzzleSingleplayerConfiguration(draft);
-  if (puzzleSingleplayer) return puzzleSingleplayer;
-  if (draft.kind === "live-trivia") return {
+type DraftOfKind<K extends ConfigurationDraft["kind"]> = Extract<ConfigurationDraft, { kind: K }>;
+
+function buildLiveTriviaConfiguration(draft: DraftOfKind<"live-trivia">): unknown {
+  return {
     kind: draft.kind,
     rounds: draft.rounds.map((round) => ({
       key: round.key,
@@ -241,14 +245,20 @@ function buildConfiguration(draft: ConfigurationDraft): unknown {
       ...(round.speedBonusPoints.trim() ? { speedBonusPoints: numberOrNaN(round.speedBonusPoints) } : {}),
     })),
   };
-  if (draft.kind === "bingo") return {
+}
+
+function buildBingoConfiguration(draft: DraftOfKind<"bingo">): unknown {
+  return {
     kind: draft.kind,
     callSequence: splitCommaSeparated(draft.callSequence).map(Number),
     callIntervalSeconds: numberOrNaN(draft.callIntervalSeconds),
     winPattern: draft.winPattern,
     points: numberOrNaN(draft.points),
   };
-  if (draft.kind === "guess-picture") return {
+}
+
+function buildGuessPictureConfiguration(draft: DraftOfKind<"guess-picture">): unknown {
+  return {
     kind: draft.kind,
     mediaObjectId: draft.mediaObjectId.trim(),
     acceptedAnswers: splitCommaSeparated(draft.acceptedAnswers),
@@ -258,7 +268,10 @@ function buildConfiguration(draft: ConfigurationDraft): unknown {
       points: numberOrNaN(stage.points),
     })),
   };
-  if (draft.kind === "spin-wheel") return {
+}
+
+function buildSpinWheelConfiguration(draft: DraftOfKind<"spin-wheel">): unknown {
+  return {
     kind: draft.kind,
     outcomes: draft.outcomes.map((outcome) => ({
       ...outcome,
@@ -266,7 +279,10 @@ function buildConfiguration(draft: ConfigurationDraft): unknown {
       points: numberOrNaN(outcome.points),
     })),
   };
-  if (draft.kind === "this-or-that") return {
+}
+
+function buildThisOrThatConfiguration(draft: DraftOfKind<"this-or-that">): unknown {
+  return {
     kind: draft.kind,
     rounds: draft.rounds.map((round) => ({
       key: round.key,
@@ -275,7 +291,10 @@ function buildConfiguration(draft: ConfigurationDraft): unknown {
       durationSeconds: numberOrNaN(round.durationSeconds),
     })),
   };
-  if (draft.kind === "family-feud") return {
+}
+
+function buildFamilyFeudConfiguration(draft: DraftOfKind<"family-feud">): unknown {
+  return {
     kind: draft.kind,
     teams: draft.teams,
     rounds: draft.rounds.map((round) => ({
@@ -288,7 +307,10 @@ function buildConfiguration(draft: ConfigurationDraft): unknown {
       }),
     })),
   };
-  if (draft.kind === "split-the-room") return {
+}
+
+function buildSplitTheRoomConfiguration(draft: DraftOfKind<"split-the-room">): unknown {
+  return {
     kind: draft.kind,
     rounds: draft.rounds.map((round) => ({
       key: round.key,
@@ -299,7 +321,30 @@ function buildConfiguration(draft: ConfigurationDraft): unknown {
       durationSeconds: numberOrNaN(round.durationSeconds),
     })),
   };
-  return null;
+}
+
+type DraftConfigurationBuilder<D> = (draft: D) => unknown;
+
+/** Room-wide game kinds built from their own draft shape; singleplayer and presenter kinds are handled first. */
+const ROOM_CONFIGURATION_BUILDERS: Partial<{ [K in ConfigurationDraft["kind"]]: DraftConfigurationBuilder<DraftOfKind<K>> }> = {
+  "live-trivia": buildLiveTriviaConfiguration,
+  bingo: buildBingoConfiguration,
+  "guess-picture": buildGuessPictureConfiguration,
+  "spin-wheel": buildSpinWheelConfiguration,
+  "this-or-that": buildThisOrThatConfiguration,
+  "family-feud": buildFamilyFeudConfiguration,
+  "split-the-room": buildSplitTheRoomConfiguration,
+};
+
+function buildConfiguration(draft: ConfigurationDraft): unknown {
+  if (draft.kind === "presenter-deck") return buildPresenterDeckConfiguration(draft);
+  const socialSingleplayer = buildSocialSingleplayerConfiguration(draft);
+  if (socialSingleplayer) return socialSingleplayer;
+  const puzzleSingleplayer = buildPuzzleSingleplayerConfiguration(draft);
+  if (puzzleSingleplayer) return puzzleSingleplayer;
+  // The lookup is keyed by kind, so each builder always receives its own draft shape.
+  const build = ROOM_CONFIGURATION_BUILDERS[draft.kind] as DraftConfigurationBuilder<ConfigurationDraft> | undefined;
+  return build ? build(draft) : null;
 }
 
 function buildPuzzleSingleplayerConfiguration(draft: ConfigurationDraft): unknown | null {
@@ -504,35 +549,54 @@ type WordScrambleDraft = Extract<ConfigurationDraft, { kind: "word-scramble" }>;
 type PictureSoloDraft = Extract<ConfigurationDraft, { kind: "guess-picture-solo" }>;
 type DifferenceDraft = Extract<ConfigurationDraft, { kind: "spot-the-difference" }>;
 type ExtendedTemplateDraft = Extract<ConfigurationDraft, {
-  kind: "this-or-that" | "would-you-rather" | "this-or-that-solo" | "family-feud" | "split-the-room" | "word-scramble" | "guess-picture-solo" | "spot-the-difference" | AudienceDraft["kind"];
+  kind: "this-or-that" | "would-you-rather" | "this-or-that-solo" | "family-feud" | "split-the-room" | "word-scramble" | "guess-picture-solo" | "spot-the-difference" | "presenter-deck" | AudienceDraft["kind"];
 }>;
 
 const EXTENDED_TEMPLATE_KINDS = new Set([
   "this-or-that", "would-you-rather", "this-or-that-solo", "family-feud", "split-the-room", "word-scramble", "guess-picture-solo", "spot-the-difference",
-  "live-poll", "word-cloud", "open-qa",
+  "live-poll", "word-cloud", "open-qa", "presenter-deck",
 ]);
 
 function isExtendedTemplateDraft(draft: ConfigurationDraft): draft is ExtendedTemplateDraft {
   return EXTENDED_TEMPLATE_KINDS.has(draft.kind);
 }
 
-function ExtendedTemplateFields({ draft, onChange, onUploadMedia, mediaBusy }: {
-  draft: ExtendedTemplateDraft;
+type ExtendedFieldsProps<D> = {
+  draft: D;
   onChange: ConfigurationDraftSetter;
   onUploadMedia: UploadMedia;
   mediaBusy: boolean;
-}) {
-  return <>
-    {draft.kind === "this-or-that" ? <ThisOrThatFields draft={draft} onChange={(next) => onChange(next)} /> : null}
-    {draft.kind === "would-you-rather" ? <WouldYouRatherFields draft={draft} onChange={(next) => onChange(next)} /> : null}
-    {draft.kind === "this-or-that-solo" ? <ThisOrThatSoloFields draft={draft} onChange={(next) => onChange(next)} /> : null}
-    {draft.kind === "family-feud" ? <FamilyFeudFields draft={draft} onChange={(next) => onChange(next)} /> : null}
-    {draft.kind === "split-the-room" ? <SplitTheRoomFields draft={draft} onChange={(next) => onChange(next)} /> : null}
-    {draft.kind === "word-scramble" ? <WordScrambleFields draft={draft} onChange={(next) => onChange(next)} /> : null}
-    {draft.kind === "guess-picture-solo" ? <PictureSoloFields draft={draft} onChange={onChange} onUploadMedia={onUploadMedia} mediaBusy={mediaBusy} /> : null}
-    {draft.kind === "spot-the-difference" ? <SpotTheDifferenceFields draft={draft} onChange={onChange} onUploadMedia={onUploadMedia} mediaBusy={mediaBusy} /> : null}
-    {isAudienceDraft(draft) ? <AudienceGameFields draft={draft} onChange={(next) => onChange(next)} /> : null}
-  </>;
+};
+type ExtendedFieldsRenderer<D> = (props: ExtendedFieldsProps<D>) => ReactNode;
+/** The draft shape whose kind union includes K (audience drafts share one shape across three kinds). */
+type ExtendedDraftOfKind<D, K> = D extends { kind: infer DK } ? (K extends DK ? D : never) : never;
+
+const renderAudienceFields: ExtendedFieldsRenderer<AudienceDraft> = ({ draft, onChange }) =>
+  <AudienceGameFields draft={draft} onChange={(next) => onChange(next)} />;
+
+const EXTENDED_TEMPLATE_FIELDS: {
+  [K in ExtendedTemplateDraft["kind"]]: ExtendedFieldsRenderer<ExtendedDraftOfKind<ExtendedTemplateDraft, K>>;
+} = {
+  "this-or-that": ({ draft, onChange }) => <ThisOrThatFields draft={draft} onChange={(next) => onChange(next)} />,
+  "would-you-rather": ({ draft, onChange }) => <WouldYouRatherFields draft={draft} onChange={(next) => onChange(next)} />,
+  "this-or-that-solo": ({ draft, onChange }) => <ThisOrThatSoloFields draft={draft} onChange={(next) => onChange(next)} />,
+  "family-feud": ({ draft, onChange }) => <FamilyFeudFields draft={draft} onChange={(next) => onChange(next)} />,
+  "split-the-room": ({ draft, onChange }) => <SplitTheRoomFields draft={draft} onChange={(next) => onChange(next)} />,
+  "word-scramble": ({ draft, onChange }) => <WordScrambleFields draft={draft} onChange={(next) => onChange(next)} />,
+  "guess-picture-solo": ({ draft, onChange, onUploadMedia, mediaBusy }) =>
+    <PictureSoloFields draft={draft} onChange={onChange} onUploadMedia={onUploadMedia} mediaBusy={mediaBusy} />,
+  "spot-the-difference": ({ draft, onChange, onUploadMedia, mediaBusy }) =>
+    <SpotTheDifferenceFields draft={draft} onChange={onChange} onUploadMedia={onUploadMedia} mediaBusy={mediaBusy} />,
+  "presenter-deck": ({ draft, onChange }) => <PresenterDeckFields draft={draft} onChange={(next) => onChange(next)} />,
+  "live-poll": renderAudienceFields,
+  "word-cloud": renderAudienceFields,
+  "open-qa": renderAudienceFields,
+};
+
+function ExtendedTemplateFields(props: ExtendedFieldsProps<ExtendedTemplateDraft>) {
+  // The lookup is keyed by kind, so each renderer always receives its own draft shape.
+  const renderFields = EXTENDED_TEMPLATE_FIELDS[props.draft.kind] as ExtendedFieldsRenderer<ExtendedTemplateDraft>;
+  return <>{renderFields(props)}</>;
 }
 
 function GameMediaUploadField({ label, attached, busy, onFile }: {
