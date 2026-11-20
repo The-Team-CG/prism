@@ -55,9 +55,12 @@ describe("signInSupplier", () => {
     vi.spyOn(supplierAuthRepository, "login").mockResolvedValue({ kind: "two_factor_setup_required", token: "setup-token" });
     vi.spyOn(supplierAuthRepository, "verifyTwoStep").mockResolvedValue({ ...supplierSession, role: "pmcm-admin", privacyNoticeRequired: false });
     const saveSession = vi.spyOn(supplierAuthRepository, "saveSession");
+    const endRejectedSession = vi.spyOn(supplierAuthRepository, "endRejectedSession").mockResolvedValue();
 
     await expect(signInSupplier({ draft: { email: "pmcm@example.test", password: "pmcm-password" } })).rejects.toThrow("event command portal");
     await expect(verifySupplierSignInCode({ token: "two-step-token", code: "246810" })).rejects.toThrow("event command portal");
     expect(saveSession).not.toHaveBeenCalled();
+    // The session the API opened for the turned-away account is ended, so it does not stay live on the server.
+    expect(endRejectedSession).toHaveBeenCalledWith("verified-supplier-token");
   });
 });

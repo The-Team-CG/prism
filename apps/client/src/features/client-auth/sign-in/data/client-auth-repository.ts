@@ -1,4 +1,4 @@
-import { PrismApiError } from "@prism/api-client";
+import { PrismApiError, createEventOpsClient } from "@prism/api-client";
 import {
   PRISM_PRIVACY_NOTICE_VERSION,
   PRISM_SESSION_STORAGE_KEYS,
@@ -18,6 +18,10 @@ export type ClientAuthSession = PrismAuthenticatedSession;
 export type ClientAccountActivationOutcome = { status: "activated" } | { status: "invalid_token" };
 
 export const clientAuthRepository = {
+  /** Ends a session the API opened for an account this portal turns away, so it does not stay live on the server. */
+  endRejectedSession(accessToken: string): Promise<void> {
+    return createEventOpsClient({ getAuthToken: () => accessToken }).auth.logout().catch(() => undefined);
+  },
   /** A session, or a two-step challenge when the account has two-step sign-in on. */
   login(input: { email: string; password: string }): Promise<PrismAuthResponse> {
     return clientApi.auth.login(input);
