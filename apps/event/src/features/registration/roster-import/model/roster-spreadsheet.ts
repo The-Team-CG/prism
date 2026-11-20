@@ -9,7 +9,7 @@ type RosterRow = ImportGuestRosterInput["rows"][number];
 const rowSchema = importGuestRosterSchema.shape.rows.element;
 
 /** Template column order; the first four are the ones operators normally fill. */
-export const ROSTER_TEMPLATE_COLUMNS = ["guestName", "category", "table", "sourceKey", "email", "phone", "eligibility"] as const;
+export const ROSTER_TEMPLATE_COLUMNS = ["guestName", "category", "table", "sourceKey", "email", "phone", "eligibility", "rsvp", "dietary"] as const;
 export type RosterColumn = (typeof ROSTER_TEMPLATE_COLUMNS)[number];
 
 export const ROSTER_COLUMN_LABELS: Record<RosterColumn, string> = {
@@ -20,6 +20,8 @@ export const ROSTER_COLUMN_LABELS: Record<RosterColumn, string> = {
   email: "Email",
   phone: "Phone",
   eligibility: "Eligibility",
+  rsvp: "RSVP",
+  dietary: "Dietary needs",
 };
 
 const REQUIRED_COLUMNS: RosterColumn[] = ["guestName", "sourceKey"];
@@ -33,13 +35,15 @@ const HEADER_ALIASES: Record<RosterColumn, string[]> = {
   email: ["email", "emailaddress"],
   phone: ["phone", "mobile", "phonenumber", "contactnumber"],
   eligibility: ["eligibility", "eligible"],
+  rsvp: ["rsvp", "rsvpstatus", "attending", "response"],
+  dietary: ["dietary", "dietaryneeds", "dietaryrequirements", "diet", "allergies", "foodrestrictions"],
 };
 
 export function buildRosterTemplateCsv(): string {
   return [
     ROSTER_TEMPLATE_COLUMNS.map((column) => ROSTER_COLUMN_LABELS[column]).join(","),
-    "Ada Lovelace,VIP,T1,A-001,ada@example.com,,eligible",
-    "Grace Hopper,Speaker,T2,A-002,,,eligible",
+    "Ada Lovelace,VIP,T1,A-001,ada@example.com,,eligible,confirmed,Vegetarian",
+    "Grace Hopper,Speaker,T2,A-002,,,eligible,pending,",
   ].join("\r\n") + "\r\n";
 }
 
@@ -168,6 +172,7 @@ function issueMessage(path: PropertyKey[], message: string): string {
   const label = typeof field === "string" && field in ROSTER_COLUMN_LABELS ? ROSTER_COLUMN_LABELS[field as RosterColumn] : null;
   if (label && /required|at least 1|expected string/i.test(message)) return `${label} is required`;
   if (field === "eligibility") return "Eligibility must be eligible or ineligible";
+  if (field === "rsvp") return "RSVP must be confirmed, pending or declined";
   return label ? `${label}: ${message}` : message;
 }
 
@@ -175,6 +180,7 @@ function issueMessage(path: PropertyKey[], message: string): string {
 function rowCandidate(values: Partial<Record<RosterColumn, string>>): Partial<Record<RosterColumn, string>> {
   const candidate = Object.fromEntries(Object.entries(values).filter(([, value]) => value)) as Partial<Record<RosterColumn, string>>;
   if (candidate.eligibility) candidate.eligibility = candidate.eligibility.toLowerCase();
+  if (candidate.rsvp) candidate.rsvp = candidate.rsvp.toLowerCase();
   return candidate;
 }
 
