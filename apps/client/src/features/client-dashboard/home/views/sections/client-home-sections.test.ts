@@ -9,7 +9,7 @@ describe('ClientHomeActionCenter', () => {
   const loaded: PrismClientActionCenter = {
     generatedAt: '2026-10-19T00:00:00.000Z',
     counts: { critical: 0, warning: 0, attention: 1, info: 0 },
-    items: [{ id: 'briefing:evt_other', kind: 'briefing', priority: 'attention', label: 'Complete event briefing', description: '', status: 'missing', eventId: 'evt_other', eventName: 'Other' }],
+    items: [{ id: 'briefing:evt_other', stage: 'needs_client', kind: 'briefing', priority: 'attention', label: 'Complete event briefing', description: '', status: 'missing', eventId: 'evt_other', eventName: 'Other' }],
   };
 
   it('shows actions from each event with their event names and destinations', () => {
@@ -31,7 +31,7 @@ describe('ClientHomeActionCenter', () => {
     ]);
   });
 
-  it('lists actions most urgent first, grouped by event, and leaves out the step the hero shows', () => {
+  it('lists what is urgent first with its event, folds the rest under Later, and leaves out the step the hero shows', () => {
     const base = loaded.items[0];
     const center: PrismClientActionCenter = {
       ...loaded,
@@ -43,16 +43,15 @@ describe('ClientHomeActionCenter', () => {
     };
     const props = { actionCenter: center, clientActions: selectClientAccountActions(center), runClientAction: vi.fn(), todayKey: '2026-10-19' };
     const markup = renderToStaticMarkup(createElement(ClientHomeActionCenter, props));
-    const groupLabels = (html: string) => [...html.matchAll(/<h3[^>]*>([^<]*)</g)].map((match) => match[1]);
-    // The blocker's event comes first; each event's items sit under its label.
-    expect(groupLabels(markup)).toEqual(['First event', 'Second event']);
-    expect(markup.indexOf('Pay the deposit')).toBeLessThan(markup.indexOf('Upload signed venue permit'));
+    // The blocker leads and names its event; undated, non-blocking work waits under Later.
     expect(markup).toContain('>Needs you<');
+    expect(markup).toContain('>First event<');
+    expect(markup.indexOf('Pay the deposit')).toBeLessThan(markup.indexOf('Later · 2'));
+    expect(markup.indexOf('Later · 2')).toBeLessThan(markup.indexOf('Upload signed venue permit'));
 
     const withoutLead = renderToStaticMarkup(createElement(ClientHomeActionCenter, { ...props, leadActionId: 'billing:evt_one' }));
     expect(withoutLead).not.toContain('Pay the deposit');
     expect(withoutLead).toContain('>Also needs you<');
-    expect(groupLabels(withoutLead)).toEqual(['Second event', 'First event']);
   });
 
   it('renders the empty state when the loaded action center has nothing for the selected event', () => {

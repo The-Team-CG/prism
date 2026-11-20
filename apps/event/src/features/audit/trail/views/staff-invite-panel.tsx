@@ -15,14 +15,16 @@ type AccountAdminVm = ReturnType<typeof useAccountAdminViewModel>;
 export function StaffInvitePanel({ vm }: { vm: AccountAdminVm }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="grid gap-3">
-      <div className="flex justify-end">
-        <Button type="button" size="sm" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-          <UserPlus className="size-4" /> Invite staff
-        </Button>
-      </div>
-      {open ? <StaffInviteForm vm={vm} onCancel={() => setOpen(false)} /> : null}
-    </div>
+    <>
+      <Button type="button" size="sm" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+        <UserPlus className="size-4" /> Invite staff
+      </Button>
+      {open ? (
+        <div className="w-full basis-full">
+          <StaffInviteForm vm={vm} onCancel={() => setOpen(false)} />
+        </div>
+      ) : null}
+    </>
   );
 }
 

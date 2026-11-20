@@ -18,6 +18,8 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     clearMocks: true,
     restoreMocks: true,
+    // The portal's .env.local sets this; the API client refuses to guess an origin.
+    env: { NEXT_PUBLIC_API_URL: 'http://localhost:4000' },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

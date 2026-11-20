@@ -41,9 +41,9 @@ export function sinceLastVisitItems({ unreadMessages, newFiles, unreadNotices }:
   return items;
 }
 
-/** A venue visit as a Coming up line: once scheduled it is dated; while requested it waits on PMCM. */
-export function ocularVisitLine(visit: PrismClientOcularVisit | null): { label: string; at: string | null } | null {
-  if (visit?.status === "scheduled") return { label: "Venue visit", at: visit.scheduledAt };
+/** A venue visit as a Coming up line: once scheduled it is dated, with PMCM's note; while requested it waits on PMCM. */
+export function ocularVisitLine(visit: PrismClientOcularVisit | null): { label: string; at: string | null; note?: string } | null {
+  if (visit?.status === "scheduled") return { label: "Venue visit", at: visit.scheduledAt, ...(visit.scheduleNote?.trim() ? { note: visit.scheduleNote.trim() } : {}) };
   if (visit?.status === "requested") return { label: "Venue visit requested · PMCM will set the date", at: null };
   return null;
 }
@@ -71,7 +71,7 @@ export type LayoutStep = { id: "ideas" | "official" | "approved"; label: string;
 export function layoutSteps({ preferenceDraftCount, officialStatus }: { preferenceDraftCount: number; officialStatus?: string }): LayoutStep[] {
   return [
     { id: "ideas", label: "Your ideas", done: preferenceDraftCount > 0 || Boolean(officialStatus) },
-    { id: "official", label: "PMCM layout", done: Boolean(officialStatus) },
+    { id: "official", label: "Official", done: Boolean(officialStatus) },
     { id: "approved", label: "Approved", done: officialStatus === "approved" },
   ];
 }

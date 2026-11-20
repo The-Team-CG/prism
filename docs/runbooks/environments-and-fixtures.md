@@ -4,11 +4,11 @@ title: "Prism environments and fixture commands"
 description: "Explicit database selection, repeatable portal scenarios, and migration history inspection."
 tags: [runbook, environments, fixtures, uat]
 status: canonical
-updated: "2026-11-11"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, QA, agents]
 scope: "database selection, synthetic accounts, and portal UAT scenarios"
-last_verified: "2026-11-11; seed CLI flags, target guards, account catalog, history profile (applied, verified and re-run on a disposable local database) and db-doctor history mode reviewed; hosted identity unverified"
+last_verified: "2026-11-18 seeded notification tables re-checked against portal-uat.json; 2026-11-11; seed CLI flags, target guards, account catalog, history profile (applied, verified and re-run on a disposable local database) and db-doctor history mode reviewed; hosted identity unverified"
 sources:
   - id: seed-cli
     resource: "apps/api/scripts/seed.mjs"
@@ -168,8 +168,9 @@ npm --workspace prism-api run db:seed:verify -- --profile history --scenario-dat
 It can share a database with `portal-uat`; their records do not overlap.
 
 Scenarios cover conforme/briefing, supplier workflows, guest/coordinator operations,
-live schedules, games, and privacy review. No notification outbox writes or delivery
-services run. Synthetic conforme records are marked as fixtures, not legal signatures.
+live schedules, games, and privacy review. Seeded notices are written straight into
+the notification log and per-recipient inbox deliveries; no outbox row is queued, no
+delivery worker or provider runs, and nothing is sent. Synthetic conforme records are marked as fixtures, not legal signatures.
 Verify checks presence/ownership; check sign-in, 2FA, event access, and forbidden-role
 behavior separately through the selected API/portals.
 

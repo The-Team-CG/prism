@@ -501,7 +501,8 @@ export function parseMigrationName(name, policy) {
 
 function ownerOwnsTable(ownershipManifest, policy, owner, schema, table) {
   if (ownershipManifest?.ownership) {
-    return ownershipManifest.ownership.some((entry) =>
+    // A retired table is no longer in the persistence model, but the migration that drops it still belongs to its owner.
+    return [...ownershipManifest.ownership, ...(ownershipManifest.retiredTables ?? [])].some((entry) =>
       entry.domain === owner &&
       entry.table === table &&
       (entry.currentSchema === schema || entry.targetSchema === schema));

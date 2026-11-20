@@ -998,6 +998,32 @@ describe('GuestWorkflowService', () => {
     expect(state.guestRoster).toHaveLength(0);
   });
 
+  it('records RSVP and dietary needs on import, and a re-import without them keeps what was recorded', async () => {
+    const upsert = vi.fn(async ({ create }: any) => ({ ...guestRosterFixture(), ...create, rsvp: create.rsvp ?? 'pending', dietary: create.dietary ?? '', createdAt: new Date(), updatedAt: new Date(), verificationFlaggedAt: null, verificationFlaggedBy: null }));
+    const tx = {
+      opsGuestRosterImport: { create: vi.fn(async () => ({})) },
+      opsGuestRosterEntry: { upsert, updateMany: vi.fn(async () => ({ count: 0 })) },
+    };
+    const service = new GuestWorkflowService(
+      { $transaction: vi.fn(async (work: (value: typeof tx) => unknown) => work(tx)) } as any,
+      { write: vi.fn() } as any,
+      new WorkflowCommandService(),
+      { findAssignmentForEventActor: vi.fn() } as any,
+      { findOperationsEvent: vi.fn(async () => ({ id: 'evt_1' })) } as any,
+      createTestGuestEventProjections() as any,
+      { write: vi.fn(async () => undefined) } as any, {} as any);
+    const actor = { id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin' };
+
+    const imported = await service.importRoster('evt_1', { source: 'csv', rows: [{ sourceKey: 'a', guestName: 'Ana Reyes', rsvp: 'declined', dietary: 'Vegetarian' }] }, actor);
+    expect(upsert.mock.calls[0][0]).toMatchObject({ create: { rsvp: 'declined', dietary: 'Vegetarian' }, update: { rsvp: 'declined', dietary: 'Vegetarian' } });
+    expect(imported[0]).toMatchObject({ rsvp: 'declined', dietary: 'Vegetarian' });
+
+    await service.importRoster('evt_1', { source: 'csv', rows: [{ sourceKey: 'a', guestName: 'Ana Reyes' }] }, actor);
+    expect(upsert.mock.calls[1][0].create).toMatchObject({ rsvp: 'pending', dietary: '' });
+    expect(upsert.mock.calls[1][0].update).not.toHaveProperty('rsvp');
+    expect(upsert.mock.calls[1][0].update).not.toHaveProperty('dietary');
+  });
+
   it('reserves the coordinator walk-in source from roster imports', async () => {
     const transaction = vi.fn();
     const service = new GuestWorkflowService(

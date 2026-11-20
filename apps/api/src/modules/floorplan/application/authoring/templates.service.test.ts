@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { convertLegacyPlan } from '@prism/floorplan-scene';
 import { TemplatesService } from './templates.service';
 
 const createdAt = new Date('2026-05-06T00:00:00.000Z');
@@ -14,7 +15,6 @@ function templateRow(overrides: Record<string, unknown> = {}) {
     permanentFeatures: [],
     floorPlanId: 'plan_tpl_sample',
     pax: 0,
-    includeGuests: false,
     includeSuppliers: false,
     guests: [],
     suppliers: [],
@@ -27,7 +27,7 @@ function templateRow(overrides: Record<string, unknown> = {}) {
       width: 30,
       height: 20,
       gridSize: 1,
-      objects: [{ id: 'stage', kind: 'rect', x: 1, y: 2, w: 3, h: 4 }],
+      scene: convertLegacyPlan({ name: 'Ballroom template', widthM: 30, heightM: 20, objects: [] }, '1.1.6'),
       objectRows: [],
     },
     ...overrides,
@@ -54,14 +54,14 @@ function createService() {
 }
 
 describe('TemplatesService', () => {
-  it('lists templates with their persisted base layout objects', async () => {
+  it('lists templates with their persisted base layout scene', async () => {
     const { service } = createService();
 
     await expect(service.listTemplates()).resolves.toMatchObject([
       {
         id: 'tpl_sample',
         floorPlanId: 'plan_tpl_sample',
-        objects: [{ id: 'stage' }],
+        scene: { format: 'pascal-v1' },
         width: 30,
         height: 20,
         gridSize: 1,
@@ -83,13 +83,13 @@ describe('TemplatesService', () => {
     const { service, prisma } = createService();
 
     await expect((service as any).deleteTemplate('tpl_sample')).resolves.toMatchObject({ id: 'tpl_sample' });
-    expect(prisma.venueTemplate.delete).toHaveBeenCalledWith({ where: { id: 'tpl_sample' } });
+    expect(prisma.venueTemplate.delete).toHaveBeenCalledWith({ where: { id: 'tpl_sample' }, include: { floorPlan: true } });
   });
 
   it('records the verified author on newly created template records', async () => {
     const { service, prisma } = createService();
 
-    await service.createTemplate({ name: 'New template' }, 'user_pmcm_1');
+    await service.createTemplate({ name: 'New template', scene: convertLegacyPlan({ name: 'New template', widthM: 10, heightM: 8, objects: [] }, '1.1.6') }, 'user_pmcm_1');
 
     expect(prisma.floorPlan.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ ownerId: 'user_pmcm_1' }) }),

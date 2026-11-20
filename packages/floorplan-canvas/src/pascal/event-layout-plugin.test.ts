@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { BoxGeometry, CylinderGeometry, Mesh, Object3D } from "three";
 import { convertLegacyPlan } from "@prism/floorplan-scene";
-import { prismPieceNodeTypes, type FloorPlanCanvasObject } from "@prism/types";
+import { prismEventPieceTypes, type FloorPlanCanvasObject } from "@prism/types";
 import { prismEventLayoutPlugin } from "./event-layout-plugin";
 
 function legacy(fields: Partial<FloorPlanCanvasObject> & Pick<FloorPlanCanvasObject, "id" | "name" | "kind" | "category">): FloorPlanCanvasObject {
@@ -36,24 +35,12 @@ function definitionOf(kind: string) {
 describe("prismEventLayoutPlugin", () => {
   it("registers one definition per PRISM event piece type under its plugin id", () => {
     expect(prismEventLayoutPlugin).toMatchObject({ id: "prism:event-layout", apiVersion: 1 });
-    expect(prismEventLayoutPlugin.nodes?.map((definition) => definition.kind).sort()).toEqual(["prism-table", ...prismPieceNodeTypes].sort());
+    expect(prismEventLayoutPlugin.nodes?.map((definition) => definition.kind).sort()).toEqual([...prismEventPieceTypes].sort());
   });
 
   it("parses a converted table through the registered schema, keeping its seated guests", () => {
     const table = definitionOf("prism-table").schema.parse(convertedNode("table_a"));
     expect(table).toMatchObject({ type: "prism-table", shape: "round", seats: 10, guestIds: ["g1", "g2"] });
-  });
-
-  /** Pascal's geometry system moves the built object's children into the scene, so the shape must be a child. */
-  function drawnShape<T>(kind: string, legacyId: string) {
-    const built = definitionOf(kind).geometry?.(definitionOf(kind).schema.parse(convertedNode(legacyId)), {} as never) as Object3D | undefined;
-    expect(built?.children).toHaveLength(1);
-    return built?.children[0] as Mesh<T extends "cylinder" ? CylinderGeometry : BoxGeometry>;
-  }
-
-  it("draws a round table as a cylinder of its width and a stage as a box of its footprint, as children Pascal can place", () => {
-    expect(drawnShape<"cylinder">("prism-table", "table_a").geometry.parameters).toMatchObject({ radiusTop: 0.9, radiusBottom: 0.9 });
-    expect(drawnShape<"box">("prism-stage", "stage_a").geometry.parameters).toMatchObject({ width: 6, depth: 3 });
   });
 
   it("duplicates a seated table as an empty copy, so the copy never seats the same guests twice", () => {

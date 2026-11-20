@@ -4,11 +4,11 @@ title: "P.R.I.S.M portal accounts"
 description: "Local fixture accounts, access paths, and role-boundary notes for Prism portal verification."
 tags: [runbook, accounts, demo, roles]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, QA, agents]
 scope: "local seeded accounts and role-bound portal sign-in"
-last_verified: "2026-10-29; fixture seeder accounts/passwords, guest code derivation, seed guards, and portal sign-in routes reviewed against code; hosted credentials unverified"
+last_verified: "2026-11-18; fixture seeder accounts/passwords, guest code derivation, seed guards, portal sign-in routes and the Account page flows reviewed against code; hosted credentials unverified"
 sources:
   - id: fixture-seed
     resource: "apps/api/src/fixtures/local-fixture-seeder.ts"
@@ -47,6 +47,22 @@ Accounts exist after the explicit fixture seed runs against an empty local dispo
 
 These are the primary checkout's ports; a linked worktree prints its own with
 `npm run ports` (see [parallel worktrees](parallel-worktrees.md)).
+
+## Account page and sign-in security
+
+Every portal's account menu opens **Account** (`/dashboard/account`; the coordinator portal's `?view=account`). Use it to check the
+flows below on a fixture account; each one is audited and each confirmation takes the account's current password.
+
+| Row | What to expect |
+| --- | --- |
+| Name, Password | A password change ends every session, so sign in again with the new one. A wrong current password is a 403, counts toward the sign-in lockout and does not sign the person out. |
+| Two-step sign-in | Off by default for clients, suppliers and coordinators; on and not removable for PMCM admins. Enabling shows a QR and key for an authenticator app and turns on only after a correct code. Sign-in then asks for the six-digit code after the password. PMCM's account list shows who has it on and **Reset two-factor** works for any account. |
+| Devices | Each sign-in records its browser. Any other device can be signed out on its own, or all of them at once; the menu's Sign out ends only this device. A session from before device sessions existed ends every session when it signs out. |
+| Sign-ins | The last 10 sign-ins with browser and whether each worked. A banner shows only when sign-ins failed since the last visit. |
+| Email | Enter the new address and the password. A link goes to the new address and a notice to the current one; the row shows the change as waiting until the link is opened (it can be sent again or withdrawn). The link opens `/confirm-email` on any portal and switches the account everywhere, ending all sessions. With `PRISM_MAIL_TRANSPORT=log` the link is written to the API log; with `mailpit` it arrives in the capture inbox. Confirming does nothing if another account took the address meanwhile. |
+
+Clients and suppliers also see their PMCM contact and a Privacy summary on the page. Changing an email for a fixture account moves its
+events and records with it, so use a disposable database for that check.
 
 ## Development authenticator rescan
 

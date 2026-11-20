@@ -4,7 +4,7 @@ title: "Privacy legal-hold scope and authority"
 description: "Define who can place or release a privacy hold, what it protects, and how it coordinates with owner-controlled redaction."
 tags: [architecture, decision, privacy, retention, ddd, postgres]
 status: canonical
-updated: "2026-10-28"
+updated: "2026-11-18"
 authority: normative
 audience: [agents, engineers, reviewers, operators]
 scope: "Platform privacy legal holds and owner-driven privacy redaction"
@@ -55,6 +55,10 @@ A hold matches one subject identity:
   blocks deletion for that event. A subject-wide hold blocks deletion across
   events. A subject-wide deletion is also blocked by any active event-scoped
   hold because the requested deletion is broader than that hold.
+
+When a client or supplier changes their account email, Platform's account-email
+relinker moves their holds to the new address in the confirmation transaction, so
+a hold keeps matching the same person.
 
 Guest names can collide. PMCM operators should use event scope when the
 identity is only a guest name; a subject-wide guest hold can match same-name

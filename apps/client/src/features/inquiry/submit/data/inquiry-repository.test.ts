@@ -8,6 +8,7 @@ afterEach(() => {
 
 describe("inquiry repository", () => {
   it("addresses an edit link by its encoded token under the API prefix", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:4000");
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetchMock);
 

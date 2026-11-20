@@ -13,7 +13,7 @@ function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
 }
 
-const verifiedPmcmActor = { id: 'user_pmcm', actorId: 'user_pmcm', role: OpsUserRole.PmcmAdmin, actorRole: OpsUserRole.PmcmAdmin, email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' };
+const verifiedPmcmActor = { sessionId: 'session_test', id: 'user_pmcm', actorId: 'user_pmcm', role: OpsUserRole.PmcmAdmin, actorRole: OpsUserRole.PmcmAdmin, email: 'mys@pmcm.test', actorEmail: 'mys@pmcm.test', name: 'Maxine', actorName: 'Maxine', expiresAt: '2026-07-03T12:00:00.000Z' };
 
 function createController(options: { clientPortalStatus?: string } = {}) {
   const floorPlanWorkflowService = {
@@ -146,7 +146,7 @@ describe('OpsEventFloorplansController', () => {
 
   it('serves client preferences and snapshots through floorplan ownership', async () => {
     const { controller, floorPlanWorkflowService, eventAccessPolicyService } = createController();
-    const actor = {
+    const actor = { sessionId: 'session_test',
       id: 'client_ana',
       actorId: 'client_ana',
       role: OpsUserRole.Client,

@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { VENUE_WALLS } from "@prism/floorplan-canvas";
+import { VENUE_WALLS } from "@prism/floorplan-scene";
 import { useVenueSurvey, type VenueSurveyForm } from "../view-models/use-venue-survey";
 import { Card, CardContent } from "@prism/ui/components/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";

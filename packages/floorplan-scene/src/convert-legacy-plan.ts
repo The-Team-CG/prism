@@ -1,4 +1,4 @@
-import { BuildingNode, ColumnNode, LevelNode, SiteNode, WallNode } from "@pascal-app/core";
+import { BuildingNode, ColumnNode, LevelNode, SiteNode, SlabNode, WallNode } from "@pascal-app/core";
 import {
   FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID,
   FLOORPLAN_SCENE_FORMAT,
@@ -20,6 +20,8 @@ type PieceMapping = { type: PrismPieceNodeType; variant: string; locked?: true }
 type Mapping = { type: "wall" } | { type: "column" } | { type: "prism-table"; shape: TableShape } | PieceMapping;
 
 const PERIMETER_WALL_THICKNESS = 0.2;
+/** An event hall's floor: polished concrete from Pascal's material library. */
+const VENUE_FLOOR = "library:concrete-polished";
 /** The site extends this far past the room on every side, so nothing near a wall falls outside it. */
 const SITE_MARGIN_M = 5;
 /** Scene pieces need a positive size; a legacy object can be saved with a zero side. */
@@ -168,7 +170,7 @@ function nodeFrom(object: FloorPlanCanvasObject, parentId: string): SceneNode {
   return prismPieceNodeSchema.parse({ ...fields, variant: mapping.variant, locked: mapping.locked ?? object.locked });
 }
 
-function perimeterWalls(plan: LegacyPlan, parentId: string): SceneNode[] {
+function perimeterWalls(plan: RoomPlan, parentId: string): SceneNode[] {
   const corners: [number, number][] = [[0, 0], [plan.widthM, 0], [plan.widthM, plan.heightM], [0, plan.heightM]];
   return corners.map((start, index) =>
     WallNode.parse({ parentId, start, end: corners[(index + 1) % corners.length], thickness: PERIMETER_WALL_THICKNESS, metadata: { perimeter: true } }),
@@ -176,21 +178,59 @@ function perimeterWalls(plan: LegacyPlan, parentId: string): SceneNode[] {
 }
 
 /**
- * Turns a legacy canvas plan into a Pascal scene: a site, building and level holding four walls around the room, and
- * one node per legacy object. The editor derives the floor, ceiling and zone from the walls when it loads the scene.
+ * The room's floor plate, as Pascal's room card builds it when its Floor is switched on: the room grown by half a wall,
+ * following the walls. Without it the room has no floor and the site's ground shows through.
  */
-export function convertLegacyPlan(plan: LegacyPlan, pascalVersion: string): FloorplanSceneDocument {
+function floorPlate(plan: RoomPlan, parentId: string): SceneNode {
+  const t = PERIMETER_WALL_THICKNESS / 2;
+  const [w, h] = [plan.widthM, plan.heightM];
+  return SlabNode.parse({
+    parentId,
+    name: "Floor plate",
+    polygon: [[-t, -t], [w + t, -t], [w + t, h + t], [-t, h + t]],
+    elevation: 0.05,
+    thickness: 0.05,
+    plateRole: "base",
+    boundary: "auto",
+    autoFromWalls: true,
+    materialPreset: VENUE_FLOOR,
+  });
+}
+
+/** The Pascal version the scenes this package builds are written for. */
+export const PASCAL_VERSION = "1.1.6";
+
+/** A room with a name and its size in metres. */
+export type RoomPlan = { name: string; widthM: number; heightM: number };
+
+/** Adds nodes under a level, in order, and records them as the level's children. */
+export function withLevelNodes(scene: FloorplanSceneDocument, levelId: string, nodes: SceneNode[]): FloorplanSceneDocument {
+  const level = scene.nodes[levelId] as SceneNode & { children: string[] };
+  const next: FloorplanSceneDocument["nodes"] = { ...scene.nodes, [levelId]: { ...level, children: [...level.children, ...nodes.map((node) => node.id)] } as SceneNode };
+  for (const node of nodes) next[node.id] = node;
+  return { ...scene, nodes: next };
+}
+
+/** A site, building and level around a room, with its four perimeter walls and its floor. */
+export function roomScene(plan: RoomPlan, pascalVersion: string): { scene: FloorplanSceneDocument; levelId: string } {
   const [w, h, m] = [plan.widthM, plan.heightM, SITE_MARGIN_M];
   const site = SiteNode.parse({ polygon: { type: "polygon", points: [[-m, -m], [w + m, -m], [w + m, h + m], [-m, h + m]] } });
   const building = BuildingNode.parse({ parentId: site.id, name: plan.name });
   const level = LevelNode.parse({ parentId: building.id, name: plan.name });
-  const contents = [...perimeterWalls(plan, level.id), ...plan.objects.map((object) => nodeFrom(object, level.id))];
-
   const nodes: FloorplanSceneDocument["nodes"] = {
     [site.id]: { ...site, children: [building.id] },
     [building.id]: { ...building, children: [level.id] },
-    [level.id]: { ...level, children: contents.map((node) => node.id) },
+    [level.id]: { ...level, children: [] },
   };
-  for (const node of contents) nodes[node.id] = node;
-  return { format: FLOORPLAN_SCENE_FORMAT, pascalVersion, nodes, rootNodeIds: [site.id], installedPlugins: [FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID] };
+  const scene: FloorplanSceneDocument = { format: FLOORPLAN_SCENE_FORMAT, pascalVersion, nodes, rootNodeIds: [site.id], installedPlugins: [FLOORPLAN_EVENT_LAYOUT_PLUGIN_ID] };
+  return { scene: withLevelNodes(scene, level.id, [...perimeterWalls(plan, level.id), floorPlate(plan, level.id)]), levelId: level.id };
+}
+
+/**
+ * Turns a legacy canvas plan into a Pascal scene: a site, building and level holding four walls around the room, and
+ * one node per legacy object. The editor derives the floor, ceiling and zone from the walls when it loads the scene.
+ */
+export function convertLegacyPlan(plan: LegacyPlan, pascalVersion: string): FloorplanSceneDocument {
+  const { scene, levelId } = roomScene(plan, pascalVersion);
+  return withLevelNodes(scene, levelId, plan.objects.map((object) => nodeFrom(object, levelId)));
 }

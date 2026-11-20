@@ -19,7 +19,7 @@ const KIND: Record<ClientCalendarItemKind, { label: string; chip: string; dot: s
   event: { label: "Event day", chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary", route: "overview", action: "Open event" },
   payment: { label: "Payment", chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention", route: "billing", action: "Open billing" },
   visit: { label: "Site visit", chip: "bg-info-soft text-info hover:bg-info/15", dot: "bg-info", route: "overview", action: "Open event" },
-  approval: { label: "Layout approved", chip: "bg-success-soft text-success hover:bg-success/15", dot: "bg-success", route: "floorplan", action: "Open layout" },
+  change_cutoff: { label: "Changes close", chip: "bg-muted text-foreground hover:bg-muted/80", dot: "bg-muted-foreground", route: "changes", action: "Request a change" },
 };
 
 type CoverEvent = Pick<PrismEvent, "id" | "eventType" | "coverObjectId">;
@@ -39,7 +39,7 @@ function paymentFacts(item: ClientCalendarItem): PortalCalendarFact[] {
 /** What the details panel lists under the event: a payment's amounts, an event day's status and venue, a visit's status. */
 function itemFacts(item: ClientCalendarItem, venue: string | undefined): PortalCalendarFact[] {
   if (item.kind === "payment") return paymentFacts(item);
-  if (item.kind === "approval") return [];
+  if (item.kind === "change_cutoff") return [{ label: "After this day", value: "A change needs PMCM to approve an exception" }];
   return [{ label: "Status", value: formatStatusLabel(item.status) }, ...(item.kind === "event" && venue ? [{ label: "Venue", value: venue }] : [])];
 }
 
@@ -59,7 +59,7 @@ export function ClientCalendarView() {
   const byId = useMemo(() => new Map(events.map((event) => [event.id, event])), [events]);
   if (!state) return null;
   if (items.length === 0) {
-    return <ClientListEmpty icon={CalendarDays} title="Nothing scheduled yet" description="Event dates, payment due dates, site visits and layout approvals appear here once they're set." />;
+    return <ClientListEmpty icon={CalendarDays} title="Nothing scheduled yet" description="Event dates, payment due dates, change deadlines and site visits appear here once they're set." />;
   }
 
   const { kind, openOnly } = clientCalendarFilter(portalView);

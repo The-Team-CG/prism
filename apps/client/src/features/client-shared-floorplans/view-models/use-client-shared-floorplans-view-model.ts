@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PrismClientSharedFloorplanEntry } from "@prism/types";
-import type { Project } from "@/features/floorplan/editor";
+import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import { clientSharedFloorplansRepository } from "../data/client-shared-floorplans-repository";
 import {
   listClientSharedFloorplans,
@@ -80,7 +80,7 @@ export function useClientSharedFloorplanSnapshotViewModel(
   const [session, setSession] = useState<ReturnType<typeof clientSharedFloorplansRepository.readSession>>(null);
   const [sessionReady, setSessionReady] = useState(false);
   const [entry, setEntry] = useState<PrismClientSharedFloorplanEntry | null>(null);
-  const [project, setProject] = useState<Project | null>(null);
+  const [layout, setLayout] = useState<ClientPlanLayout | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const requestKey = JSON.stringify([eventId, draftId, snapshotTypeValue]);
@@ -102,7 +102,7 @@ export function useClientSharedFloorplanSnapshotViewModel(
     if (!sessionReady || !session) return;
     let cancelled = false;
     setEntry(null);
-    setProject(null);
+    setLayout(null);
     setLoadedKey(null);
     setError(null);
     setErrorKey(null);
@@ -126,12 +126,12 @@ export function useClientSharedFloorplanSnapshotViewModel(
       .then((result) => {
         if (cancelled) return;
         setEntry(result.entry);
-        setProject(result.project);
+        setLayout(result.layout);
         setLoadedKey(requestKey);
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
-          setProject(null);
+          setLayout(null);
           setError(messageForSnapshotError(cause));
           setErrorKey(requestKey);
         }
@@ -147,7 +147,7 @@ export function useClientSharedFloorplanSnapshotViewModel(
   return {
     session,
     entry: loadedKey === requestKey ? entry : null,
-    project: loadedKey === requestKey ? project : null,
+    layout: loadedKey === requestKey ? layout : null,
     loading: loadingKey !== requestKey || loading,
     error: errorKey === requestKey ? error : null,
   };

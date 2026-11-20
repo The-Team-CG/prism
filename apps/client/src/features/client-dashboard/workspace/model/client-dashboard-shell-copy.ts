@@ -10,7 +10,6 @@ const PORTAL_TITLES: Partial<Record<ClientDashboardRoute, string>> = {
   "shared-floorplans": "Shared floorplans",
   events: "My events",
   calendar: "Calendar",
-  approvals: "Approvals",
   messages: "Messages",
   files: "Files",
   billing: "Billing & Payments",
@@ -19,18 +18,11 @@ const PORTAL_TITLES: Partial<Record<ClientDashboardRoute, string>> = {
   notifications: "Notifications",
 };
 
-const PORTAL_EYEBROWS: Partial<Record<ClientDashboardRoute, string>> = {
-  home: "Client home",
-  request: "Signed-in request",
-  events: "Event portfolio",
-};
-
 const PORTAL_DESCRIPTIONS: Partial<Record<ClientDashboardRoute, string>> = {
   request: "Start another event request using your client account details.",
   events: "Your confirmed PMCM events.",
   "shared-floorplans": "Official layouts PMCM has shared with you, read-only.",
-  calendar: "Event dates, payment due dates, site visits and layout approvals.",
-  approvals: "Client approvals grouped by status and document type.",
+  calendar: "Event dates, payment due dates, change deadlines and site visits.",
   messages: "PMCM updates, event conversations, announcements, and archived notes.",
   files: "Contracts, quotations, receipts, layouts, and shared event files.",
   billing: "Quotations, invoices, payment schedule, receipts, and current balance.",
@@ -52,22 +44,18 @@ const LOADING_DESCRIPTIONS: Partial<Record<ClientDashboardRoute, string>> = {
 /** The section an event workspace route shows, so each event tab's H1 names the section rather than the event. */
 const EVENT_SECTION_LABELS: Partial<Record<ClientDashboardRoute, string>> = {
   overview: "Overview",
-  actions: "Actions",
-  details: "Details",
+  actions: "Planning",
   progress: "Planning",
-  schedule: "Schedule",
   guests: "Guest access",
-  preferences: "Preferences",
   briefing: "Briefing",
   proposal: "Proposal",
   floorplan: "Floor plan",
-  approvals: "Approvals",
   documents: "Files",
   files: "Files",
   billing: "Billing",
   payments: "Billing",
   messages: "Messages",
-  changes: "Changes",
+  changes: "Planning",
   summary: "Closeout & feedback",
 };
 
@@ -78,7 +66,6 @@ const PORTAL_TRAIL_PARENT: Partial<Record<ClientDashboardRoute, string>> = {
   request: "New event request",
   events: "Events",
   calendar: "Calendar",
-  approvals: "Approvals",
   messages: "Messages",
   files: "Files",
   billing: "Billing & Payments",
@@ -119,10 +106,6 @@ export function clientShellLayout(input: { isEventScopedView: boolean; route: Cl
   };
 }
 
-export function clientShellEyebrow(input: { isEventScopedView: boolean; route: ClientDashboardRoute }) {
-  if (input.isEventScopedView) return "Event workspace";
-  return PORTAL_EYEBROWS[input.route] ?? "Client portal";
-}
 
 /**
  * Breadcrumb after the role label. Event workspaces trail "My events" and the section; the event name
@@ -165,7 +148,6 @@ export function clientLoadingShellCopy(input: {
   const portalMeta = input.portalView ? CLIENT_PORTAL_VIEW_META[input.portalView] : undefined;
   return {
     title: portalMeta?.title ?? LOADING_TITLES[input.route] ?? "Client portal",
-    eyebrow: PORTAL_EYEBROWS[input.route] ?? "Event workspace",
     description: portalMeta?.description ?? LOADING_DESCRIPTIONS[input.route] ?? "Loading event workspace…",
   };
 }

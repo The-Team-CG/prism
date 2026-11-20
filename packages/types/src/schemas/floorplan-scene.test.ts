@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { floorplanSceneDocumentSchema, prismTableNodeSchema } from "./floorplan-scene.js";
+import { floorplanSceneDocumentSchema, placeableEventPieceSchemaFor, prismEventPieceSchemaFor, prismEventPieceTypes, prismTableNodeSchema } from "./floorplan-scene.js";
 import { updatePlanSchema } from "./session-spatial-inputs.js";
 import { prismFloorPlanSnapshotSchema } from "./floorplan-inputs.js";
 
@@ -49,5 +49,30 @@ describe("plan saves and snapshots carry scenes", () => {
     const parsed = prismFloorPlanSnapshotSchema.parse({ id: "fp1", name: "Plan", venue: "", width: 40, height: 26, gridSize: 1, pax: 0, scene: minimalScene, sceneFormat: "pascal-v1" });
     expect(parsed.sceneFormat).toBe("pascal-v1");
     expect(parsed.scene?.rootNodeIds).toEqual(["site_a"]);
+  });
+});
+
+describe("event pieces added for the Library", () => {
+  const placement = { parentId: "level_1", position: [1, 0, 2], rotation: 0, width: 4, depth: 3 };
+
+  it.each([
+    ["prism-seating-block", { style: "theater", rows: 5, columns: 4, aisle: 1.2 }, { rows: 0 }],
+    ["prism-dance-floor", {}, { width: 0 }],
+    ["prism-bar", { shape: "l" }, { shape: "round" }],
+    ["prism-zone", { label: "Catering BOH", supplierIds: ["sup_1"] }, { label: "" }],
+  ] as const)("parses a valid %s and rejects a broken one", (type, fields, broken) => {
+    const schema = prismEventPieceSchemaFor(type);
+    const node = { id: `${type}_a`, type, ...placement, ...fields };
+    expect(schema.parse(node)).toMatchObject({ type });
+    expect(schema.safeParse({ ...node, ...broken }).success).toBe(false);
+  });
+
+  it("covers every event piece type", () => {
+    for (const type of prismEventPieceTypes) expect(prismEventPieceSchemaFor(type).shape.type).toBeDefined();
+  });
+
+  it("gives a piece placed without an id one named after its type, as Pascal's tools parse new nodes without ids", () => {
+    const placed = placeableEventPieceSchemaFor("prism-table").parse({ type: "prism-table", shape: "round", seats: 8, ...placement });
+    expect(placed.id).toMatch(/^prism-table_[0-9a-f-]{36}$/);
   });
 });

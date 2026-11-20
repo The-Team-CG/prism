@@ -71,6 +71,11 @@ type GuestWorkflowActor = { id?: string; coordinatorId?: string; email?: string;
 const MAX_GUEST_CHECK_INS = 500;
 const MAX_GUEST_FEEDBACK = 500;
 const MAX_GUEST_ROSTER_SEARCH = 500;
+
+/** A re-imported row changes RSVP and dietary needs only when the file gives them, so a file without those columns keeps what PMCM recorded. */
+function rosterReplyUpdate(row: { rsvp?: string; dietary?: string }) {
+  return { ...(row.rsvp === undefined ? {} : { rsvp: row.rsvp }), ...(row.dietary === undefined ? {} : { dietary: row.dietary }) };
+}
 const GUEST_FEEDBACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 function guestFeedbackAvailability(actualEndedAt: Date | null): PrismGuestFeedbackAvailability {
@@ -557,8 +562,8 @@ export class GuestWorkflowService implements GuestCommands {
           // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each chunk is sliced to at most 100 input rows.
           (row) => tx.opsGuestRosterEntry.upsert({
             where: { eventId_sourceKey: { eventId, sourceKey: row.sourceKey } },
-            create: { id: `gre_${randomUUID()}`, eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', verificationStatus: 'pending', source: input.source, importBatchId: batchId, withdrawnAt: null },
-            update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', source: input.source, importBatchId: batchId, withdrawnAt: null },
+            create: { id: `gre_${randomUUID()}`, eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', rsvp: row.rsvp ?? 'pending', dietary: row.dietary ?? '', verificationStatus: 'pending', source: input.source, importBatchId: batchId, withdrawnAt: null },
+            update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', ...rosterReplyUpdate(row), source: input.source, importBatchId: batchId, withdrawnAt: null },
           }))));
       }
       await tx.opsGuestRosterEntry.updateMany({ where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null }, data: { withdrawnAt: new Date() } });
@@ -910,7 +915,7 @@ export class GuestWorkflowService implements GuestCommands {
 
   private mapGuestRosterEntry(entry: {
     id: string; eventId: string; sourceKey: string; guestName: string; email: string; phone: string;
-    category: string; table: string; eligibility: string; verificationStatus: string; source: string;
+    category: string; table: string; eligibility: string; rsvp: string; dietary: string; verificationStatus: string; source: string;
     importBatchId: string | null; checkedInAt: Date | null; withdrawnAt: Date | null; createdAt: Date; updatedAt: Date;
     verificationFlaggedAt: Date | null; verificationFlaggedBy: string | null;
   }): PrismGuestRosterEntry {
@@ -924,6 +929,8 @@ export class GuestWorkflowService implements GuestCommands {
       category: entry.category,
       table: entry.table,
       eligibility: entry.eligibility,
+      rsvp: entry.rsvp as PrismGuestRosterEntry['rsvp'],
+      dietary: entry.dietary,
       verificationStatus: entry.verificationStatus as PrismGuestRosterEntry['verificationStatus'],
       source: entry.source,
       importBatchId: entry.importBatchId,

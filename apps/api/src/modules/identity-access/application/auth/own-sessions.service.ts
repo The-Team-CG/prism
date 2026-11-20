@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import type { PrismOwnSession, PrismOwnSessionsSignedOut, PrismVerifiedEventActor } from '@prism/types';
 import { PrismaService } from '@prism/kernel/database';
@@ -49,9 +49,8 @@ export class OwnSessionsService {
     });
   }
 
-  /** Signs out every browser but this one. A session from before devices were tracked cannot keep itself in. */
+  /** Signs out every browser but this one. */
   async signOutOthers(actor: PrismVerifiedEventActor): Promise<PrismOwnSessionsSignedOut> {
-    if (!actor.sessionId) throw new UnauthorizedException('Sign in again to manage your devices.');
     return this.prisma.$transaction(async (tx) => {
       const revoked = await tx.opsUserSession.updateMany({
         where: { ...this.liveWhere(actor, new Date()), id: { not: actor.sessionId } },

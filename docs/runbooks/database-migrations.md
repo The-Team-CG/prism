@@ -4,11 +4,11 @@ title: "Prism database migrations"
 description: "Create, review, deploy, and recover Prism's Prisma migrations without changing the applied history by hand."
 tags: [runbook, database, migrations, prisma, drift, recovery]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, reviewers, QA, operators, agents]
 scope: "apps/api Prisma migration creation, static review, deployment, drift recovery, and retired-ledger databases"
-last_verified: "2026-10-29; scripts, migration folders, owner policy, and db-integrity/schema-cutover-preflight workflows reviewed against this text; no database contacted"
+last_verified: "2026-11-18 deploy workflow (no migration step) and script names re-checked; 2026-10-29; scripts, migration folders, owner policy, and db-integrity/schema-cutover-preflight workflows reviewed against this text; no database contacted"
 sources:
   - id: migration-config
     resource: "apps/api/prisma.config.ts"
@@ -52,7 +52,7 @@ Keep published migration files immutable; investigate exact mismatches before re
 ## Local development target
 
 The launchers start local Supabase, apply checked-in migrations, and require the
-API ledger to match the checked-in head. `DATABASE_URL` is canonical;
+API ledger to contain every checked-in migration (see [startup check](#startup-check)). `DATABASE_URL` is canonical;
 `DIRECT_URL` is an optional migration override. Hosted connections retain
 verified TLS. To run database commands against the local target from another
 terminal, set `PRISM_ENV_FILE` as described in the
@@ -185,6 +185,11 @@ history:
 npm --workspace prism-api run db:migrate:deploy
 ```
 
+The `Deploy` workflow never runs migrations. Apply a release's pending migrations to
+the target before the API build that needs them goes out; the changelog names each
+migration an API change depends on, and an API that reads a missing table or column
+fails those requests.
+
 For the local bootstrap path, `npm --workspace prism-api run db:setup` runs the
 doctor and deploy together. Migration connections should use the configured
 direct URL rather than a transaction pooler when the environment requires it.
@@ -199,6 +204,20 @@ npm --workspace prism-api run db:diff:live
 means Prisma found a non-empty diff that needs review; exit `1` means the
 comparison failed. A non-empty diff is evidence to investigate, not permission
 to apply the generated SQL automatically.
+
+### Floorplan scene conversion (before `20261127090000`)
+
+The drop migration `20261127090000_floorplan_drop_legacy_plan_columns` needs every floor plan to carry a Pascal scene.
+Run, in order, against the target database:
+
+```powershell
+npm --workspace prism-api run db:convert:floorplans -- --dry-run   # report only
+npm --workspace prism-api run db:convert:floorplans                # idempotent; a re-run writes nothing new
+npm --workspace prism-api run db:migrate:deploy
+```
+
+The migration's first statement fails while any plan has no scene, and the migration runs in one transaction, so nothing
+is dropped on that failure. Re-run the conversion, then the deploy.
 
 ### Password hash rewrite (before the auth-hardening API)
 
@@ -230,10 +249,12 @@ PostgreSQL 16 database (never a shared or hosted one) and run:
 
 ## Held schema releases
 
-For a release that needs the exact migration ledger at API startup, follow the
-cutover controls in [deployment secrets](deployment-secrets.md#schema-cutover-controls):
-set the hold, run the read-only `Schema cutover preflight (read-only)` workflow,
-then migrate and deploy under the maintenance procedure. The preflight checks
+The API's [startup check](#startup-check) always runs, so no compatibility mode
+needs setting. For a release that must hold automated deployments while the
+schema changes, follow the cutover controls in
+[deployment secrets](deployment-secrets.md#schema-cutover-controls): set the
+hold, run the read-only `Schema cutover preflight (read-only)` workflow, then
+migrate and deploy under the maintenance procedure. The preflight checks
 that the target ledger is a checksum-valid prefix of the checked-in history and
 prints the pending SQL diff; it never applies migrations.
 
@@ -260,6 +281,25 @@ path. Before such a conversion, the read-only
 `npm --workspace prism-api run db:preflight:quote-request-fk` reports orphan
 `commercial.quotes.request_id` values that the baseline's `ON DELETE RESTRICT`
 foreign key would reject; it never deletes or rewrites rows.
+
+## Startup check
+
+The API verifies its migration ledger on every start, before it serves requests.
+It reads the checked-in `apps/api/prisma/migrations` folder and
+`public._prisma_migrations` through the runtime database identity, then refuses
+to start unless every migration in that folder is:
+
+- present in the database,
+- finished (not unfinished and not rolled back), and
+- checksum-identical to the checked-in SQL (LF/CRLF line-ending variants and the
+  pinned historical UAT seeds are accepted).
+
+Migrations the database has that the API folder does not are allowed, because a
+newer API's migrations may already be applied while an older API rolls out. The
+error names the missing, mismatched, or unfinished migrations and says to run
+`npm run db:migrate` before starting the API. There is no setting that turns the
+check off. A deployment that ships a new migration must apply it before the API
+that contains it starts.
 
 ## Data invariants
 

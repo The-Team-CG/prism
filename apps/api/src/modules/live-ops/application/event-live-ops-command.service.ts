@@ -334,19 +334,16 @@ export class EventLiveOpsCommandService {
     const requestedRole = canonicalCoordinatorRole(role);
     const ownRole = canonicalCoordinatorRole(assignment.role);
     const ownerMatches = Boolean(owner) && this.eventAccessPolicyService.sameText(owner, assignment.coordinatorName);
-    const isLegacyOwnQueueFallback =
-      !ownRole && requestedRole === 'General Coordinator' && ownerMatches;
-    this.requireTaskRole(role, requestedRole, ownRole, isLegacyOwnQueueFallback);
-    this.requireTaskOwner(ownRole, isLegacyOwnQueueFallback, owner, ownerMatches);
+    this.requireTaskRole(role, requestedRole, ownRole);
+    this.requireTaskOwner(ownRole, owner, ownerMatches);
   }
 
   private requireTaskOwner(
     ownRole: ReturnType<typeof canonicalCoordinatorRole>,
-    isLegacyOwnQueueFallback: boolean,
     owner: string | undefined,
     ownerMatches: boolean,
   ) {
-    if (!ownRole && !isLegacyOwnQueueFallback) {
+    if (!ownRole) {
       throw new ForbiddenException('Coordinator may only create tasks for their own queue');
     }
     if (owner && !ownerMatches) {
@@ -358,10 +355,9 @@ export class EventLiveOpsCommandService {
     role: string | undefined,
     requestedRole: ReturnType<typeof canonicalCoordinatorRole>,
     ownRole: ReturnType<typeof canonicalCoordinatorRole>,
-    isLegacyOwnQueueFallback: boolean,
   ) {
     if (!role) return;
-    if (!requestedRole || (requestedRole !== ownRole && !isLegacyOwnQueueFallback)) {
+    if (!requestedRole || requestedRole !== ownRole) {
       throw new ForbiddenException('Coordinator may only create tasks for their role');
     }
   }
@@ -448,11 +444,7 @@ export class EventLiveOpsCommandService {
       ? taskRole === assignmentRole
       : this.eventAccessPolicyService.sameText(task.assignedRole, assignment?.role);
     const ownerMatches = !task.ownerName || this.eventAccessPolicyService.sameText(task.ownerName, assignment?.coordinatorName);
-    const ownerIsActor = Boolean(task.ownerName) &&
-      this.eventAccessPolicyService.sameText(task.ownerName, assignment?.coordinatorName);
-    const isLegacyOwnQueueFallback =
-      !assignmentRole && taskRole === 'General Coordinator' && ownerIsActor;
-    return Boolean((roleMatches || isLegacyOwnQueueFallback) && ownerMatches);
+    return Boolean(roleMatches && ownerMatches);
   }
 
 }

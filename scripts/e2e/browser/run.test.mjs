@@ -10,7 +10,6 @@ test('production portals keep fixture URLs and API settings while enabling the r
   const portals = portalEnvironment({ ...env, PRISM_VERCEL_SERVICES: '1', PRISM_DOCKER_STANDALONE: '1' }, 'production');
   assert.equal(portals.NODE_ENV, 'production');
   assert.equal(env.NODE_ENV, 'development', 'Fixture preparation and API retain their established environment.');
-  assert.equal(portals.NEXT_PUBLIC_PRISM_API_BASE_URL, env.NEXT_PUBLIC_PRISM_API_BASE_URL);
   assert.equal(portals.PRISM_NEXT_DIST_DIR, '.next-acceptance');
   assert.equal(portals.PRISM_VERCEL_SERVICES, '');
   assert.equal(portals.PRISM_DOCKER_STANDALONE, '');

@@ -31,7 +31,7 @@ describe('OpsEventBriefingController', () => {
       submitBriefing: vi.fn(async () => briefing),
     };
     const actor = { role: 'client' as const, name: 'Ana', email: 'ana@example.test' };
-    const verifiedActor = { id: 'u1', role: 'client' as const, email: 'ana@example.test', name: 'Ana', actorId: 'u1', actorRole: 'client' as const, actorEmail: 'ana@example.test', actorName: 'Ana', expiresAt: '2030-01-01T00:00:00.000Z' };
+    const verifiedActor = { sessionId: 'session_test', id: 'u1', role: 'client' as const, email: 'ana@example.test', name: 'Ana', actorId: 'u1', actorRole: 'client' as const, actorEmail: 'ana@example.test', actorName: 'Ana', expiresAt: '2030-01-01T00:00:00.000Z' };
     const eventAccessPolicyService = { resolveActor: vi.fn(() => actor) };
     const controller = new OpsEventBriefingController(
       clientOnboardingWorkflowService as unknown as ClientOnboardingWorkflowService,

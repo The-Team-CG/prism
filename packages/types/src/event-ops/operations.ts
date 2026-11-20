@@ -249,6 +249,9 @@ export interface PrismGuestRosterEntry {
   category?: string | null;
   table?: string | null;
   eligibility: string;
+  rsvp: "confirmed" | "pending" | "declined";
+  /** Free text, empty when none were given. */
+  dietary: string;
   verificationStatus: "pending" | "verified" | "rejected";
   source: string;
   verificationFlaggedAt?: string | null;

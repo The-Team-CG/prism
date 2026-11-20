@@ -17,8 +17,9 @@ export function useClientBillingDisputeViewModel(input: {
   const [error, setError] = useState("");
   const [created, setCreated] = useState<PrismClientBillingDispute[]>([]);
 
-  async function submit() {
-    if (!input.eventId || !input.billing) return;
+  /** Resolves true once PMCM has the question, so the caller can close the form. */
+  async function submit(): Promise<boolean> {
+    if (!input.eventId || !input.billing) return false;
     setSubmitting(true);
     setError("");
     try {
@@ -34,8 +35,10 @@ export function useClientBillingDisputeViewModel(input: {
       setReason("");
       setMilestoneId("");
       setSeverity("amount_discrepancy");
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not submit the billing dispute.");
+      return false;
     } finally {
       setSubmitting(false);
     }

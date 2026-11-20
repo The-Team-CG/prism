@@ -14,9 +14,13 @@ describe('domain persistence catalog', () => {
     const current = domainPersistenceCatalog(manifest);
     const target = domainPersistenceCatalog(manifest, { final: true });
 
-    assert.equal(current.tables.length, 95);
+    // The Pascal migration retired floor_plan_objects, event_instances and published_snapshots.
+    assert.equal(current.tables.length, 92);
     assert.equal(current.schemas.length, 10);
-    assert.equal(target.tables.length, 162);
+    assert.equal(target.tables.length, 159);
+    for (const retired of ['floor_plan_objects', 'event_instances', 'published_snapshots']) {
+      assert.equal(target.tables.some(({ table }) => table === retired), false);
+    }
     assert.equal(target.tables.find(({ table }) => table === 'notification_deliveries').schema, 'platform_ops');
     assert.equal(target.tables.find(({ table }) => table === 'account_invitations').schema, 'identity_access');
     assert.equal(target.tables.find(({ table }) => table === 'inquiry_merges').schema, 'event_lifecycle');

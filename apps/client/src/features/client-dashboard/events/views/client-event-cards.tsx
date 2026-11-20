@@ -41,9 +41,9 @@ function ComingUp({ items }: { items: PrismClientActionItem[] }) {
   );
 }
 
-/** The client's own most urgent step on an event; informational items are not steps. */
+/** The client's own most urgent step on an event; what is with PMCM or only news is not a step. */
 export function nextClientAction(event: PrismEvent, actions: PrismClientActionItem[]): PrismClientActionItem | undefined {
-  return actions.find((item) => item.eventId === event.id && item.priority !== "info");
+  return actions.find((item) => item.eventId === event.id && item.stage === "needs_client");
 }
 
 function NextStep({ event, action }: { event: PrismEvent; action?: PrismClientActionItem }) {

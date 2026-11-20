@@ -1,306 +1,211 @@
 "use client";
-import { formatPortalDate } from "@prism/ui/format-date";
-import { ProposalCommentsThread } from "./proposal-comments-thread";
 
-import {
-  MessageSquareText,
-  Presentation,
-  ThumbsUp,
-} from "lucide-react";
-import type { PrismBillingStatement, PrismBriefing, PrismEvent, PrismFloorPlanDraft, PrismIssuedProposalSummary, PrismPaymentMilestone } from "@prism/types";
+import { formatPortalDate } from "@prism/ui/format-date";
+import { ThumbsUp } from "lucide-react";
+import type { PrismIssuedProposalSummary } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Checkbox } from "@prism/ui/components/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
+import { Label } from "@prism/ui/components/label";
 import { StatusBadge } from "@prism/ui/components/status-badge";
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  DataRow,
-  SectionLabel,
-  formatLabel,
-  money,
-} from "../../shared/tab-ui";
+import { Textarea } from "@prism/ui/components/textarea";
+import { PrismSection } from "@prism/ui/page-blocks";
+import { DataRow, money } from "../../shared/tab-ui";
 import type { DetailTab } from "../../workspace/shared";
-import { proposalClientStatus } from "../model/proposal-review-rules";
-import { useClientProposalTabViewModel } from "../view-models/use-client-proposal-tab-view-model";
+import { CLIENT_PROPOSAL_REVISION_CAP, PROPOSAL_REVISION_AREA_OPTIONS, proposalClientStatus } from "../model/proposal-review-rules";
+import { useClientProposalTabViewModel, type ClientProposalTabViewModel } from "../view-models/use-client-proposal-tab-view-model";
+import { ProposalCommentsThread } from "./proposal-comments-thread";
 import { ClientVenueStylingReview } from "./client-venue-styling-review";
 import { ClientVenueScouting } from "./client-venue-scouting";
 import { ClientPresentationMeeting } from "./client-presentation-meeting";
 
 function proposalBadge(status: string, packageReady: boolean) {
-  if (!packageReady) return { status: "pending", label: "In preparation" };
   if (status === "approved") return { status: "approved", label: "Approved" };
-  if (status === "revision_requested") return { status: "attention", label: "Revision requested" };
-  return { status: "ready", label: "Ready for review" };
+  if (status === "revision_requested") return { status: "pending", label: "Changes requested" };
+  if (!packageReady) return { status: "pending", label: "In preparation" };
+  return { status: "ready", label: "Ready to review" };
 }
 
-function ProposalStatusHero({
-  headline,
-  packageReady,
-  clientStatus,
-  remainingRevisions,
-  revisionNote,
-  setRevisionNote,
-  reviewing,
-  canApprove,
-  canRequestRevision,
-  onApprove,
-  onRequestRevision,
-}: {
-  headline: string;
-  packageReady: boolean;
-  clientStatus: string;
-  remainingRevisions: number;
-  revisionNote: string;
-  setRevisionNote: (value: string) => void;
-  reviewing: boolean;
-  canApprove: boolean;
-  canRequestRevision: boolean;
-  onApprove: () => void;
-  onRequestRevision: () => void;
-}) {
-  const badge = proposalBadge(clientStatus, packageReady);
+const changeRequestsLeft = (count: number) => (count === 1 ? "1 change request left" : `${count} change requests left`);
+
+type ProposalEvent = NonNullable<ClientProposalTabViewModel["selectedEvent"]>;
+
+/** Approve and Ask for changes, with how many change requests are left. */
+function DecisionButtons({ vm, event }: { vm: ClientProposalTabViewModel; event: ProposalEvent }) {
   return (
-    <Card>
-      <CardBody>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <SectionLabel>Proposal status</SectionLabel>
-            <h2 className="mt-1 text-xl font-semibold text-foreground">{headline}</h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
-              Only the primary client contact on the inquiry can approve or request a revision. Internal cost estimation stays with PMCM. Up to three revisions.
-            </p>
-            {canApprove ? (
-              <div className="mt-4 space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <Button className="rounded-lg font-semibold" disabled={reviewing} onClick={onApprove}>
-                    <ThumbsUp className="size-4" /> Approve proposal
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="rounded-lg font-semibold"
-                    disabled={reviewing || !canRequestRevision}
-                    onClick={onRequestRevision}
-                  >
-                    Request revision
-                  </Button>
-                </div>
-                {canRequestRevision ? (
-                  <label className="block max-w-xl text-sm">
-                    <span className="mb-1 block font-semibold text-foreground">
-                      Revision note ({remainingRevisions} remaining)
-                    </span>
-                    <textarea
-                      className="min-h-20 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                      value={revisionNote}
-                      onChange={(event) => setRevisionNote(event.target.value)}
-                      placeholder="Describe the change you need."
-                    />
-                  </label>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Revision cap reached. Approve the current package or wait for PMCM.</p>
-                )}
-              </div>
-            ) : null}
-          </div>
-          <StatusBadge status={badge.status} label={badge.label} />
-        </div>
-      </CardBody>
-    </Card>
-  );
-}
-
-function ProposalPackageCard({
-  selectedEvent,
-  briefing,
-  billing,
-  officialDraft,
-  nextPayment,
-  proposalReady,
-  proposal,
-}: {
-  proposal: PrismIssuedProposalSummary | null;
-  selectedEvent: PrismEvent;
-  briefing?: PrismBriefing;
-  billing?: PrismBillingStatement;
-  officialDraft?: PrismFloorPlanDraft;
-  nextPayment?: PrismPaymentMilestone;
-  proposalReady: boolean;
-}) {
-  const clientStatus = proposalClientStatus(selectedEvent);
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Presentation className="size-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Proposal package</h3>
-          </div>
-          <StatusBadge
-            status={proposalReady ? "ready" : "pending"}
-            label={proposalReady ? "Ready" : "In preparation"}
-          />
-        </div>
-      </CardHeader>
-      <CardBody className="py-2">
-        <DataRow label="Event" value={selectedEvent.eventName} />
-        {proposal ? (
-          <>
-            <DataRow label="Proposal" value={`${proposal.title} (version ${proposal.versionNumber})`} />
-            <DataRow label={proposal.alternativeTotalAmount ? "Option A total" : "Proposal total"} value={money.format(proposal.totalAmount)} />
-            {proposal.alternativeTotalAmount ? <DataRow label="Option B total" value={money.format(proposal.alternativeTotalAmount)} /> : null}
-          </>
-        ) : null}
-        <DataRow label="Client review" value={formatLabel(clientStatus)} />
-        <DataRow label="Stage" value={proposalReady ? "Client review" : "PMCM preparation"} />
-        <ProposalPlanningFacts briefing={briefing} billing={billing} officialDraft={officialDraft} nextPayment={nextPayment} />
-        {proposal?.summary ? <p className="whitespace-pre-wrap pt-3 text-sm leading-6 text-foreground">{proposal.summary}</p> : null}
-        {proposal?.revisionNote ? (
-          <p className="pt-2 text-sm leading-6 text-muted-foreground">Changed in version {proposal.versionNumber}: {proposal.revisionNote}</p>
-        ) : null}
-      </CardBody>
-    </Card>
-  );
-}
-
-function ProposalPlanningFacts({ briefing, billing, officialDraft, nextPayment }: Pick<Parameters<typeof ProposalPackageCard>[0], "briefing" | "billing" | "officialDraft" | "nextPayment">) {
-  return <>
-        <DataRow
-          label="Briefing basis"
-          value={briefing ? `${briefing.guestCount} guests at ${briefing.venue}` : "Waiting for briefing"}
-        />
-        <DataRow
-          label="Billing statement"
-          value={billing ? `${billing.number} — ${formatLabel(billing.status)}` : "PMCM has not sent it yet"}
-        />
-        <DataRow
-          label="Official layout"
-          value={officialDraft ? formatLabel(officialDraft.status) : "Not published"}
-        />
-        <DataRow
-          label="Next payment"
-          value={nextPayment ? `${nextPayment.label} on ${formatPortalDate(nextPayment.dueDate)}` : "No open milestone"}
-        />
-  </>;
-}
-
-function proposalChecklistItems(input: {
-  briefing?: PrismBriefing;
-  billing?: PrismBillingStatement;
-  officialDraft?: PrismFloorPlanDraft;
-  proposalReady: boolean;
-  setTab: (tab: DetailTab) => void;
-}) {
-  return [
-    {
-      label: "Briefing details",
-      value: input.briefing ? "Ready" : "Waiting",
-      status: input.briefing ? "approved" : "pending",
-      action: () => input.setTab("briefing"),
-    },
-    {
-      label: "Planning package",
-      value: input.proposalReady ? "Ready for review" : "In preparation",
-      status: input.proposalReady ? "ready" : "pending",
-      action: () => input.setTab("proposal"),
-    },
-    {
-      label: "Official layout",
-      value: input.officialDraft ? formatLabel(input.officialDraft.status) : "Not published",
-      status: input.officialDraft?.status ?? "pending",
-      action: () => input.setTab("floorplan"),
-    },
-    {
-      label: "Billing milestones",
-      value: input.billing ? formatLabel(input.billing.status) : "Not sent yet",
-      status: input.billing?.status ?? "pending",
-      action: () => input.setTab("billing"),
-    },
-  ];
-}
-
-function ProposalReviewChecklist({
-  briefing,
-  billing,
-  officialDraft,
-  proposalReady,
-  setTab,
-}: {
-  briefing?: PrismBriefing;
-  billing?: PrismBillingStatement;
-  officialDraft?: PrismFloorPlanDraft;
-  proposalReady: boolean;
-  setTab: (tab: DetailTab) => void;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <MessageSquareText className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Review checklist</h3>
-        </div>
-      </CardHeader>
-      <div className="divide-y divide-border">
-        {proposalChecklistItems({ briefing, billing, officialDraft, proposalReady, setTab }).map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            onClick={item.action}
-            className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left transition hover:bg-muted/40"
-          >
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">{item.label}</span>
-              <span className="mt-0.5 block text-xs text-muted-foreground">{item.value}</span>
-            </span>
-            <StatusBadge status={item.status} />
-          </button>
-        ))}
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">Read the package below. Approving moves {event.eventName} into planning.</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" disabled={!vm.canApprove || vm.reviewing} onClick={() => vm.setDialog("approve")}>
+          <ThumbsUp className="size-4" /> Approve proposal
+        </Button>
+        <Button type="button" variant="outline" disabled={!vm.canRequestRevision || vm.reviewing} onClick={() => vm.setDialog("revise")}>
+          Ask for changes
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {vm.canRequestRevision
+            ? `${vm.remainingRevisions} of ${CLIENT_PROPOSAL_REVISION_CAP} change requests left`
+            : `You've used all ${CLIENT_PROPOSAL_REVISION_CAP} change requests. Approve this version or message PMCM.`}
+        </span>
       </div>
-    </Card>
+    </div>
+  );
+}
+
+/** While PMCM prepares the package: the briefing it is waiting on, or a promise to say when it is ready. */
+function PreparingBody({ needsBriefing, onOpenBriefing }: { needsBriefing: boolean; onOpenBriefing: () => void }) {
+  if (!needsBriefing) return <p className="text-sm text-muted-foreground">We&apos;ll let you know as soon as it&apos;s ready to review.</p>;
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <p className="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">PMCM prices your package from the event briefing. Finish it so they can prepare your proposal.</p>
+      <Button type="button" onClick={onOpenBriefing}>Complete briefing</Button>
+    </div>
+  );
+}
+
+/** The sentence under the heading, for where the proposal stands and whose turn it is. */
+function ProposalStatusBody({ vm, event, status, onOpenBriefing }: {
+  vm: ClientProposalTabViewModel;
+  event: ProposalEvent;
+  status: ReturnType<typeof proposalClientStatus>;
+  onOpenBriefing: () => void;
+}) {
+  if (status === "approved") {
+    const when = event.proposalReviewedAt ? ` on ${formatPortalDate(event.proposalReviewedAt)}` : "";
+    return <p className="text-sm text-muted-foreground">Approved by {event.clientName}{when}. PMCM is planning your event with this version. Later changes go through a change request.</p>;
+  }
+  if (status === "revision_requested") {
+    return <p className="text-sm text-muted-foreground">PMCM will send a new version for you to review. {changeRequestsLeft(vm.remainingRevisions)} after that.</p>;
+  }
+  if (!vm.packageReady) return <PreparingBody needsBriefing={vm.needsBriefing} onOpenBriefing={onOpenBriefing} />;
+  if (!vm.isDecider) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        {vm.decider?.name ?? "The primary contact"} is the primary contact on this event and decides on the proposal. You can read it and leave comments below.
+      </p>
+    );
+  }
+  return <DecisionButtons vm={vm} event={event} />;
+}
+
+/** One sentence on where the proposal stands and, when it is the reader's turn, the two ways to answer. */
+function ProposalStatusHero({ vm, onOpenBriefing }: { vm: ClientProposalTabViewModel; onOpenBriefing: () => void }) {
+  const event = vm.selectedEvent;
+  if (!event) return null;
+  const status = proposalClientStatus(event);
+  const badge = proposalBadge(status, vm.packageReady);
+  const ready = vm.proposal && vm.packageReady && status === "pending";
+  // The page's lead, not a card: one heading, one sentence and, when it is the reader's turn, the two answers.
+  return (
+    <section aria-labelledby="proposal-status-heading" className="space-y-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h2 id="proposal-status-heading" className="text-lg font-semibold text-foreground">{ready ? `Version ${vm.proposal?.versionNumber} is ready to review` : vm.headline}</h2>
+        <StatusBadge status={badge.status} label={badge.label} />
+      </div>
+      <ProposalStatusBody vm={vm} event={event} status={status} onOpenBriefing={onOpenBriefing} />
+    </section>
+  );
+}
+
+function ProposalDetails({ proposal }: { proposal: PrismIssuedProposalSummary }) {
+  return (
+    <PrismSection id="proposal-details" title={`Proposal version ${proposal.versionNumber}`} headerOutside>
+        <DataRow label="Package" value={proposal.title} />
+        <DataRow label={proposal.alternativeTotalAmount ? "Option A total" : "Total"} value={money.format(proposal.totalAmount)} />
+        {proposal.alternativeTotalAmount ? <DataRow label="Option B total" value={money.format(proposal.alternativeTotalAmount)} /> : null}
+        <DataRow label="Sent" value={formatPortalDate(proposal.issuedAt)} />
+        {proposal.revisionNote.trim() ? (
+          <p className="whitespace-pre-wrap pt-3 text-sm text-foreground"><span className="font-semibold">What changed:</span> {proposal.revisionNote}</p>
+        ) : null}
+        {proposal.summary ? <p className="whitespace-pre-wrap pt-3 text-sm leading-6 text-muted-foreground">{proposal.summary}</p> : null}
+    </PrismSection>
+  );
+}
+
+function ApproveProposalDialog({ vm }: { vm: ClientProposalTabViewModel }) {
+  if (!vm.proposal || !vm.selectedEvent) return null;
+  return (
+    <Dialog open={vm.dialog === "approve"} onOpenChange={(open) => vm.setDialog(open ? "approve" : null)}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Approve proposal version {vm.proposal.versionNumber}?</DialogTitle>
+          <DialogDescription>
+            This moves {vm.selectedEvent.eventName} into planning with this package. After you approve, changes go through a change request.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => vm.setDialog(null)} disabled={vm.reviewing}>Not yet</Button>
+          <Button type="button" onClick={() => void vm.approve()} disabled={vm.reviewing}>{vm.reviewing ? "Approving…" : "Approve proposal"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RequestChangesDialog({ vm }: { vm: ClientProposalTabViewModel }) {
+  const after = Math.max(0, vm.remainingRevisions - 1);
+  return (
+    <Dialog open={vm.dialog === "revise"} onOpenChange={(open) => vm.setDialog(open ? "revise" : null)}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Ask PMCM for changes</DialogTitle>
+          <DialogDescription>
+            This uses one of your {vm.remainingRevisions} remaining change requests.{after === 0 ? " After it, you can only approve the next version or message PMCM." : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          className="space-y-4"
+          onSubmit={(formEvent) => { formEvent.preventDefault(); void vm.requestRevision(); }}
+        >
+          <fieldset>
+            <legend className="text-sm font-semibold text-foreground">What should change?</legend>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {PROPOSAL_REVISION_AREA_OPTIONS.map((option) => {
+                const id = `revision-area-${option.value}`;
+                return (
+                  <div key={option.value} className="flex items-center gap-2">
+                    <Checkbox id={id} checked={vm.revisionAreas.includes(option.value)} onCheckedChange={(checked) => vm.toggleRevisionArea(option.value, checked === true)} />
+                    <Label htmlFor={id} className="text-sm font-normal">{option.label}</Label>
+                  </div>
+                );
+              })}
+            </div>
+          </fieldset>
+          <div className="space-y-1.5">
+            <Label htmlFor="revision-note">Tell PMCM what to change</Label>
+            <Textarea
+              id="revision-note"
+              required
+              rows={4}
+              value={vm.revisionNote}
+              onChange={(changeEvent) => vm.setRevisionNote(changeEvent.target.value)}
+              placeholder="For example: fewer tables near the stage, and a lower styling budget."
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => vm.setDialog(null)} disabled={vm.reviewing}>Cancel</Button>
+            <Button type="submit" disabled={vm.reviewing || !vm.revisionNote.trim()}>{vm.reviewing ? "Sending…" : "Send change request"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 export function ClientProposalTab({ setTab }: { setTab: (tab: DetailTab) => void }) {
   const vm = useClientProposalTabViewModel();
   if (!vm.selectedEvent) return null;
-  const nextPayment = vm.payments.find((payment) => payment.status !== "paid");
 
   return (
     <div className="space-y-5">
-      <ProposalStatusHero
-        headline={vm.headline}
-        packageReady={vm.packageReady}
-        clientStatus={proposalClientStatus(vm.selectedEvent)}
-        remainingRevisions={vm.remainingRevisions}
-        revisionNote={vm.revisionNote}
-        setRevisionNote={vm.setRevisionNote}
-        reviewing={vm.reviewing}
-        canApprove={vm.canApprove}
-        canRequestRevision={vm.canRequestRevision}
-        onApprove={() => void vm.approve()}
-        onRequestRevision={() => void vm.requestRevision()}
-      />
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <ProposalPackageCard
-          selectedEvent={vm.selectedEvent}
-          briefing={vm.briefing}
-          billing={vm.billing}
-          officialDraft={vm.officialDraft}
-          nextPayment={nextPayment}
-          proposalReady={vm.packageReady}
-          proposal={vm.proposal}
-        />
-        <ProposalReviewChecklist
-          briefing={vm.briefing}
-          billing={vm.billing}
-          officialDraft={vm.officialDraft}
-          proposalReady={vm.packageReady}
-          setTab={setTab}
-        />
-      </div>
+      <ProposalStatusHero vm={vm} onOpenBriefing={() => setTab("briefing")} />
+      {vm.proposal ? <ProposalDetails proposal={vm.proposal} /> : null}
       <ProposalCommentsThread eventId={vm.selectedEvent.id} enabled={Boolean(vm.proposal)} />
       <ClientPresentationMeeting eventId={vm.selectedEvent.id} />
       <ClientVenueScouting eventId={vm.selectedEvent.id} />
       <ClientVenueStylingReview eventId={vm.selectedEvent.id} />
+      <ApproveProposalDialog vm={vm} />
+      <RequestChangesDialog vm={vm} />
     </div>
   );
 }

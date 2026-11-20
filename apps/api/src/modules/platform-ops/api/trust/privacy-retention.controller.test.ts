@@ -5,7 +5,7 @@ import { OpsPrivacyRetentionController } from './privacy-retention.controller';
 
 type Role = 'pmcm-admin' | 'coordinator' | 'system' | 'client' | 'supplier' | 'guest';
 
-const verified = (role: Role = 'pmcm-admin') => ({
+const verified = (role: Role = 'pmcm-admin') => ({ sessionId: 'session_test',
   id: `${role}-1`,
   actorId: `${role}-1`,
   role,

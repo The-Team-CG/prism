@@ -294,6 +294,6 @@ export interface PrismVerifiedEventActor extends PrismEventOpsActorContext {
   name: string;
   actorName: string;
   expiresAt: string;
-  /** The signed-in browser's session row. Absent on sessions issued before sessions were tracked per browser. */
-  sessionId?: string;
+  /** The signed-in browser's session row, which can be signed out on its own. */
+  sessionId: string;
 }

@@ -10,6 +10,7 @@ import { StorageObjectService } from '@prism/contexts/platform-ops';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { renderProposalPdf } from './proposal-pdf';
+import { isPrimaryClientContact } from '../../domain/proposal-client-review.policy';
 
 export const PROPOSAL_LIFECYCLE_POLICY = {
   issuedVersionsImmutable: true,
@@ -102,7 +103,8 @@ export class ProposalLifecycleService {
     if (actor.role === OpsUserRole.Client && event.clientPortalStatus !== 'unlocked') return { proposal: null };
     const version = await this.prisma.opsProposalVersion.findFirst({ where: { eventId, status: 'issued' }, orderBy: { versionNumber: 'desc' } });
     if (!version?.issuedAt) return { proposal: null };
-    return { proposal: { id: version.id, eventId, versionNumber: version.versionNumber, title: version.title, summary: version.summary, totalAmount: version.totalAmount, alternativeTotalAmount: version.alternativeTotalAmount ?? null, revisionNote: version.revisionNote, issuedAt: version.issuedAt.toISOString(), clientStatus: parseClientProposalStatus(event.proposalClientStatus) } };
+    const decider = { name: event.clientName, isYou: isPrimaryClientContact(actor.email, event.inquiry.email) };
+    return { proposal: { id: version.id, eventId, versionNumber: version.versionNumber, title: version.title, summary: version.summary, totalAmount: version.totalAmount, alternativeTotalAmount: version.alternativeTotalAmount ?? null, revisionNote: version.revisionNote, issuedAt: version.issuedAt.toISOString(), clientStatus: parseClientProposalStatus(event.proposalClientStatus), decider } };
   }
 
   async issueProposalVersion(eventId: string, input: IssueProposalVersionInput, actor: ResolvedEventOpsActor, verified: PrismVerifiedEventActor): Promise<PrismProposalVersion> {

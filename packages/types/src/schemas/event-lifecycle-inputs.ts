@@ -82,17 +82,10 @@ export type RecordEventDecisionInput = z.infer<typeof recordEventDecisionSchema>
 export const INQUIRY_CLIENT_CATEGORIES = ["Corporate", "Government", "Individual", "Non-profit"] as const;
 export type InquiryClientCategory = (typeof INQUIRY_CLIENT_CATEGORIES)[number];
 
-/** Legacy values rewritten to a current category on write. School/Other have no mapping and remain historical values. */
-const LEGACY_INQUIRY_CLIENT_TYPE_MAPPINGS: ReadonlyMap<string, InquiryClientCategory> = new Map([["Private", "Individual"]]);
-
-export function normalizeInquiryClientType(value: string): string {
-  const trimmed = value.trim();
-  return LEGACY_INQUIRY_CLIENT_TYPE_MAPPINGS.get(trimmed) ?? trimmed;
-}
-
+/** Only current categories are accepted on write. School/Other are historical values and are rejected. Legacy "Private" rows were rewritten to "Individual" by migration. */
 export const inquiryClientCategorySchema = z
   .string()
-  .transform(normalizeInquiryClientType)
+  .trim()
   .pipe(z.enum(INQUIRY_CLIENT_CATEGORIES));
 
 /** Lightweight spatial preference offered on the public inquiry. Choices are preferences for PMCM to plan from, not a floor plan. */

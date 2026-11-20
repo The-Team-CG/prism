@@ -1,3 +1,452 @@
+diff --git a/node_modules/@pascal-app/editor/src/components/editor/editor-layout-v2.tsx b/node_modules/@pascal-app/editor/src/components/editor/editor-layout-v2.tsx
+index dc0eea8..023f215 100644
+--- a/node_modules/@pascal-app/editor/src/components/editor/editor-layout-v2.tsx
++++ b/node_modules/@pascal-app/editor/src/components/editor/editor-layout-v2.tsx
+@@ -22,7 +22,7 @@ import { EditorLayoutMobile } from './editor-layout-mobile'
+ import { useSceneSpan } from './views/scene-region'
+ import { ViewBarRow } from './views/view-bar'
+ 
+-const CHAT_MIN_WIDTH = 320
++const CHAT_MIN_WIDTH = 260
+ const CHAT_MAX_WIDTH = 600
+ // The tool column is narrower at most than the chat can be: the stage stays the widest surface.
+ const TOOL_MAX_WIDTH = 520
+@@ -477,6 +477,10 @@ export interface EditorLayoutV2Props {
+   stageOverlay?: ReactNode
+   /** Show each pane's view bar. Off for hosts that present one fixed view. */
+   viewBar?: boolean
++  /** The inspector docked in a fixed column right of the stage (desktop). */
++  inspectorColumn?: ReactNode
++  /** The labelled side menu (default true). Off when the column tab is the whole left panel. */
++  sideMenu?: boolean
+ }
+ 
+ export function EditorLayoutV2({
+@@ -492,6 +496,8 @@ export function EditorLayoutV2({
+   overlays,
+   stageOverlay,
+   viewBar = true,
++  inspectorColumn,
++  sideMenu = true,
+ }: EditorLayoutV2Props) {
+   const isCaptureMode = useEditor((s) => s.isCaptureMode)
+   const isMobile = useIsMobile()
+@@ -542,7 +548,7 @@ export function EditorLayoutV2({
+ 
+       {/* Main content: side menu, the chat or the open tool, work area */}
+       <div className="flex min-h-0 flex-1">
+-        {showSideColumns && (
++        {showSideColumns && sideMenu && (
+           <MenuColumn
+             columnTabId={columnTab?.id}
+             toolClosed={toolClosed}
+@@ -572,6 +578,11 @@ export function EditorLayoutV2({
+         >
+           {viewerContent}
+         </RightColumn>
++        {inspectorColumn && !isCaptureMode && (
++          <aside className="flex w-[288px] shrink-0 flex-col border-border/50 border-l bg-background" data-docked-inspector>
++            {inspectorColumn}
++          </aside>
++        )}
+       </div>
+     </div>
+   )
+diff --git a/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx b/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx
+index 429ec62..490a916 100644
+--- a/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx
++++ b/node_modules/@pascal-app/editor/src/components/editor/floorplan-panel.tsx
+@@ -1,5 +1,6 @@
+ 'use client'
+ 
++import { floorplanZoom } from '../../lib/floorplan-zoom'
+ import { Icon } from '@iconify/react'
+ import {
+   type AnyNode,
+@@ -7752,6 +7753,29 @@ export function FloorplanPanel({
+     ],
+   )
+ 
++  // The host's zoom control (`floorplanZoom`): zoom about the plan's middle, fit, and the zoom as a percentage.
++  useEffect(() => {
++    floorplanZoom.attach({
++      zoomBy: (factor) => {
++        const rect = svgRef.current?.getBoundingClientRect()
++        if (!rect) return
++        zoomViewportAtClientPoint(rect.left + rect.width / 2, rect.top + rect.height / 2, 1 / factor)
++      },
++      fit: () => {
++        stopFloorplanViewAnimation()
++        hasUserAdjustedViewportRef.current = false
++        latestViewportRef.current = null
++        setViewport(null)
++      },
++    })
++    return () => floorplanZoom.attach(null)
++  }, [zoomViewportAtClientPoint, stopFloorplanViewAnimation])
++
++  useEffect(() => {
++    if (!fittedViewport) return
++    floorplanZoom.setPercent(Math.round((fittedViewport.width / (viewport?.width ?? fittedViewport.width)) * 100))
++  }, [viewport, fittedViewport])
++
+   useEffect(
+     () => () => {
+       if (floorplanZoomCommitTimerRef.current !== null) {
+@@ -11585,6 +11609,8 @@ export function FloorplanPanel({
+         <FloorplanDrawingTypeSwitch className={planOnRight ? 'right-24 left-auto' : undefined} />
+ 
+         {!isStudioWorkspace &&
++          // PRISM host patch: an event room has no use for north, so PRISM hides the compass (ADR-0010).
++          (globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ !== true &&
+           sceneLeft !== null &&
+           (levelNode?.type === 'level' || hasAmbientBuildingLevel) &&
+           (compassHost ? (
+diff --git a/node_modules/@pascal-app/editor/src/components/editor/index.tsx b/node_modules/@pascal-app/editor/src/components/editor/index.tsx
+index d1b77a1..42383dc 100644
+--- a/node_modules/@pascal-app/editor/src/components/editor/index.tsx
++++ b/node_modules/@pascal-app/editor/src/components/editor/index.tsx
+@@ -115,7 +115,7 @@ import { HelperManager } from '../ui/helpers/helper-manager'
+ import { PanelManager } from '../ui/panels/panel-manager'
+ import { ErrorBoundary } from '../ui/primitives/error-boundary'
+ import { useSidebarStore } from '../ui/primitives/sidebar'
+-import { RightStack } from '../ui/right-stack'
++import { DockedInspector, RightStack } from '../ui/right-stack'
+ import { AppSidebar } from '../ui/sidebar/app-sidebar'
+ import type { ExtraPanel } from '../ui/sidebar/icon-rail'
+ import { SettingsPanel, type SettingsPanelProps } from '../ui/sidebar/panels/settings-panel'
+@@ -159,6 +159,9 @@ import { WallMoveSideHandles } from './wall-move-side-handles'
+ import { WallOpeningHighlights } from './wall-opening-highlights'
+ import { WallRegionHandles } from './wall-region-handles'
+ 
++/** PRISM host patch: PRISM sets this flag when it hosts the editor and hides building-editor chrome (ADR-0010). */
++const isPrismHost = () => (globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ === true
++
+ const CAMERA_CONTROLS_HINT_DISMISSED_STORAGE_KEY = 'editor-camera-controls-hint-dismissed:v1'
+ const PREVIEW_STAGE_SWITCHER_POSITION =
+   'top-28 right-4 left-auto translate-x-0 md:top-4 md:right-auto md:left-1/2 md:-translate-x-1/2'
+@@ -268,6 +271,14 @@ export interface EditorProps {
+   sceneOverlay?: ReactNode
+   /** Show each pane's view bar (v2, default true). Off for a host that presents one fixed view. */
+   viewBar?: boolean
++  /** Dock the node inspector in a fixed right column instead of floating it over the stage (v2 desktop). */
++  dockInspector?: boolean
++  /** Shown in the docked inspector column; the host hides it while something is selected. */
++  inspectorEmpty?: ReactNode
++  /** Pascal's floating tool dock (v2, default true). Off for a host that draws its own tools. */
++  toolDock?: boolean
++  /** The labelled side menu (v2, default true). Off when the column tab is the whole left panel. */
++  sideMenu?: boolean
+   /**
+    * Docked below the node inspector (v2). Hosts mount the "save as preset"
+    * affordance here so it reads as part of the inspector surface and shows
+@@ -964,6 +975,9 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
+   // boundary flags) so the framed shot stays clean.
+   const isCaptureMode = useEditor((s) => s.isCaptureMode)
+   const noEditing = isVersionPreviewMode || isFirstPersonMode || isStudioMode || isCaptureMode
++  // PRISM host patch: a read-only PRISM scene shows no action bars, since every action on them would be refused.
++  const sceneReadOnly = useScene((s) => s.readOnly)
++  const noActionMenus = noEditing || isXRMode || (isPrismHost() && sceneReadOnly)
+   return (
+     <>
+       <SceneEnvironment />
+@@ -979,9 +993,9 @@ const ViewerSceneContent = memo(function ViewerSceneContent({
+       {!noEditing && <WallMoveSideHandles />}
+       {!noEditing && <WallRegionHandles />}
+       {!noEditing && <FenceTangentLines3D />}
+-      {!(noEditing || isXRMode) && <FloatingActionMenu />}
+-      {!(noEditing || isXRMode) && <GroupFloatingActionMenu />}
+-      {!(noEditing || isXRMode) && <FloatingBuildingActionMenu />}
++      {!noActionMenus && <FloatingActionMenu />}
++      {!noActionMenus && <GroupFloatingActionMenu />}
++      {!noActionMenus && <FloatingBuildingActionMenu />}
+       {!(noEditing || isXRMode) && <RoomLabels3D />}
+       {!(isFirstPersonMode || isXRMode) && <WallMeasurementLabel />}
+       <ExportManager />
+@@ -1433,6 +1447,7 @@ const ViewerCanvas = memo(function ViewerCanvas({
+               {!showLoader &&
+               textures &&
+               !isMobile &&
++              !isPrismHost() &&
+               !(
+                 isFirstPersonMode ||
+                 isStudioMode ||
+@@ -1564,6 +1579,10 @@ function EditorContent({
+   stageOverlay,
+   sceneOverlay,
+   viewBar = true,
++  dockInspector = false,
++  inspectorEmpty,
++  toolDock = true,
++  sideMenu = true,
+   inspectorFooter,
+   multiSelectionFooter,
+   viewerSceneSlot,
+@@ -2064,8 +2083,8 @@ function EditorContent({
+               overlays={
+                 <>
+                   <SceneRegion>
+-                    {!(isCaptureMode || stageOverlay) && <FloatingLevelSelector />}
+-                    {!(isVersionPreviewMode || isCaptureMode || isStudioMode) &&
++                    {!(isCaptureMode || stageOverlay || isPrismHost()) && <FloatingLevelSelector />}
++                    {!(isVersionPreviewMode || isCaptureMode || isStudioMode || !toolDock) &&
+                       (dockMenuOnTop ? (
+                         // Own row under the toolbar, below the level selector's opening list (z-20).
+                         // No transform: the menu's fixed pill must anchor to the scene region.
+@@ -2082,10 +2101,10 @@ function EditorContent({
+                     {sceneOverlay}
+                   </SceneRegion>
+                   {/* The inspector and the shortcuts card share one right column. */}
+-                  <RightStack
++                  {!dockInspector && <RightStack
+                     belowTopMenu={topMenuShown}
+                     reserveBottomMenu={!dockMenuOnTop}
+-                    helper={isCaptureMode ? null : <HelperManager />}
++                    helper={isCaptureMode || isPrismHost() ? null : <HelperManager />}
+                     inspector={
+                       isVersionPreviewMode || isCaptureMode || isStudioMode ? null : (
+                         <PanelManager
+@@ -2094,7 +2113,7 @@ function EditorContent({
+                         />
+                       )
+                     }
+-                  />
++                  />}
+                   {/* Capture mode drives walk / drone from its own overlay, which
+                       owns the framing chrome — the walkthrough HUD would both
+                       clutter the frame and offer a second, conflicting exit. */}
+@@ -2114,6 +2133,15 @@ function EditorContent({
+               sidebarTabs={tabBarTabs}
+               stageOverlay={stageOverlay}
+               viewBar={viewBar}
++              sideMenu={sideMenu}
++              inspectorColumn={
++                dockInspector && !(isVersionPreviewMode || isStudioMode) ? (
++                  <DockedInspector>
++                    {inspectorEmpty}
++                    <PanelManager inspectorFooter={inspectorFooter} multiSelectionFooter={multiSelectionFooter} />
++                  </DockedInspector>
++                ) : undefined
++              }
+               viewerContent={viewerCanvas}
+               viewerToolbarLeft={viewerToolbarLeft}
+               viewerToolbarRight={viewerToolbarRight}
+diff --git a/node_modules/@pascal-app/editor/src/components/ui/action-menu/view-toggles.tsx b/node_modules/@pascal-app/editor/src/components/ui/action-menu/view-toggles.tsx
+index 7cea638..2025dc7 100644
+--- a/node_modules/@pascal-app/editor/src/components/ui/action-menu/view-toggles.tsx
++++ b/node_modules/@pascal-app/editor/src/components/ui/action-menu/view-toggles.tsx
+@@ -1153,6 +1153,8 @@ function RiserControl() {
+ // ── Exports ─────────────────────────────────────────────────────────────────
+ 
+ export function SecondaryToggles() {
++  // PRISM host patch: venue plans are traced from PRISM's Room panel, so the dock's scans control is hidden (ADR-0010).
++  if ((globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ === true) return null
+   return (
+     <div className="flex items-center gap-1">
+       <ReferencesControl />
+diff --git a/node_modules/@pascal-app/editor/src/components/ui/panels/panel-wrapper.tsx b/node_modules/@pascal-app/editor/src/components/ui/panels/panel-wrapper.tsx
+index 5b86641..6ab2a4b 100644
+--- a/node_modules/@pascal-app/editor/src/components/ui/panels/panel-wrapper.tsx
++++ b/node_modules/@pascal-app/editor/src/components/ui/panels/panel-wrapper.tsx
+@@ -27,7 +27,7 @@ import { useInspectorExpanded } from '../../../lib/inspector-expanded'
+ import { ActionButton, ActionGroup } from '../controls/action-button'
+ import { PanelSection } from '../controls/panel-section'
+ import { ErrorBoundary } from '../primitives/error-boundary'
+-import { useInRightStack } from '../right-stack'
++import { useDockedInspector, useInRightStack } from '../right-stack'
+ import { CollectionsPopover } from './collections/collections-popover'
+ import { renderExtensionIcon, useInspectorExtensions } from './inspector-extensions'
+ 
+@@ -120,6 +120,7 @@ export function PanelWrapper({
+   const i18n = usePascalI18n()
+   const isMobile = useIsMobile()
+   const inStack = useInRightStack()
++  const docked = useDockedInspector() && !isMobile
+   const contextFooter = useContext(InspectorFooterContext)
+   const inspectedIds = useContext(InspectedNodesContext)
+   const resolvedFooter = footer ?? contextFooter
+@@ -145,7 +146,7 @@ export function PanelWrapper({
+   // The panel is collapsed to just its header until the user expands it. The
+   // choice is one editor preference for every inspector (room, wall, item…),
+   // persisted, so every panel opens the way the user last left one.
+-  const collapsed = !useInspectorExpanded((state) => state.expanded)
++  const collapsed = !useInspectorExpanded((state) => state.expanded) && !docked
+   const setCollapsed = useCallback((next: boolean) => {
+     useInspectorExpanded.getState().setExpanded(!next)
+   }, [])
+@@ -248,7 +249,7 @@ export function PanelWrapper({
+ 
+   // Keep repositioned panels inside the available space as the card or viewer resizes.
+   useLayoutEffect(() => {
+-    if (isMobile) return
++    if (isMobile || docked) return
+     const el = panelRef.current
+     if (!el) return
+     const fit = () => {
+@@ -276,7 +277,7 @@ export function PanelWrapper({
+       resize.disconnect()
+       window.removeEventListener('resize', fit)
+     }
+-  }, [collapsed, isMobile, inStack])
++  }, [collapsed, isMobile, inStack, docked])
+ 
+   return (
+     <div
+@@ -284,6 +285,8 @@ export function PanelWrapper({
+       className={cn(
+         isMobile
+           ? 'flex h-full w-full flex-col overflow-hidden bg-transparent dark:text-foreground'
++          : docked
++            ? 'flex h-full min-h-0 w-full flex-col overflow-hidden bg-background dark:text-foreground'
+           : inStack
+             ? // In the shared right column: it grows down and scrolls on itself,
+               // leaving the shortcuts card below it its room (`right-stack.tsx`).
+@@ -301,7 +304,7 @@ export function PanelWrapper({
+       data-panel-wrapper
+       ref={panelRef}
+       style={
+-        isMobile
++        isMobile || docked
+           ? undefined
+           : {
+               width,
+@@ -316,12 +319,12 @@ export function PanelWrapper({
+           className={cn(
+             'relative flex shrink-0 select-none items-center justify-between px-3 py-3',
+             !collapsed && 'border-border/50 border-b',
+-            isDragging ? 'cursor-grabbing' : 'cursor-grab',
++            docked ? '' : isDragging ? 'cursor-grabbing' : 'cursor-grab',
+           )}
+           data-panel-header
+-          onPointerDown={handleHeaderPointerDown}
+-          onPointerMove={handleHeaderPointerMove}
+-          onPointerUp={handleHeaderPointerUp}
++          onPointerDown={docked ? undefined : handleHeaderPointerDown}
++          onPointerMove={docked ? undefined : handleHeaderPointerMove}
++          onPointerUp={docked ? undefined : handleHeaderPointerUp}
+         >
+           <div className={cn('flex min-w-0 items-center gap-2', titleContent && 'flex-1 pr-2')}>
+             {onBack && (
+@@ -367,7 +370,7 @@ export function PanelWrapper({
+           </div>
+ 
+           {/* Centered grip — purely a visual drag affordance (a title edited in place takes its room). */}
+-          {!titleContent && (
++          {!(titleContent || docked) && (
+             <GripHorizontal className="-translate-x-1/2 pointer-events-none absolute left-1/2 h-4 w-4 text-muted-foreground/40" />
+           )}
+ 
+@@ -382,7 +385,7 @@ export function PanelWrapper({
+                 <RotateCcw className="h-4 w-4" />
+               </button>
+             )}
+-            <button
++            {!docked && <button
+               aria-expanded={!collapsed}
+               aria-label={collapsed ? i18n._({ id: 'editor.panels.panelWrapper.expandPanel', message: 'Expand panel' }) : i18n._({ id: 'editor.panels.panelWrapper.collapsePanel', message: 'Collapse panel' })}
+               className="flex h-7 w-7 items-center justify-center rounded-md bg-black/4 dark:bg-[#2C2C2E] text-muted-foreground transition-colors hover:bg-black/8 dark:hover:bg-[#3e3e3e] hover:text-foreground"
+@@ -392,7 +395,7 @@ export function PanelWrapper({
+               <ChevronDown
+                 className={cn('h-4 w-4 transition-transform', collapsed ? '' : 'rotate-180')}
+               />
+-            </button>
++            </button>}
+             {onClose && (
+               <button
+                 aria-label={i18n._({ id: 'editor.panels.panelWrapper.close', message: 'Close' })}
+diff --git a/node_modules/@pascal-app/editor/src/components/ui/primitives/sidebar.tsx b/node_modules/@pascal-app/editor/src/components/ui/primitives/sidebar.tsx
+index b325080..644d145 100644
+--- a/node_modules/@pascal-app/editor/src/components/ui/primitives/sidebar.tsx
++++ b/node_modules/@pascal-app/editor/src/components/ui/primitives/sidebar.tsx
+@@ -66,7 +66,7 @@ export const useSidebarStore = create<SidebarStore>()(
+       setIsCollapsed: (collapsed) => set({ isCollapsed: collapsed }),
+       isDragging: false,
+       setIsDragging: (isDragging) => set({ isDragging }),
+-      chatWidth: 360,
++      chatWidth: 288,
+       setChatWidth: (chatWidth) => set({ chatWidth }),
+       isMenuHidden: false,
+       setIsMenuHidden: (isMenuHidden) => set({ isMenuHidden }),
+diff --git a/node_modules/@pascal-app/editor/src/components/ui/right-stack.tsx b/node_modules/@pascal-app/editor/src/components/ui/right-stack.tsx
+index 5c2f161..d4d7295 100644
+--- a/node_modules/@pascal-app/editor/src/components/ui/right-stack.tsx
++++ b/node_modules/@pascal-app/editor/src/components/ui/right-stack.tsx
+@@ -7,6 +7,18 @@ import { TOP_MENU_CLEARANCE } from './action-menu/placement'
+ 
+ const RightStackContext = createContext(false)
+ 
++const DockedInspectorContext = createContext(false)
++
++/** Whether the inspector renders in the host's docked right column (layout v2 `dockInspector`). */
++export function useDockedInspector() {
++  return useContext(DockedInspectorContext)
++}
++
++/** The docked right column: the inspector fills it, full height, with no drag or collapse. */
++export function DockedInspector({ children }: { children: ReactNode }) {
++  return <DockedInspectorContext.Provider value={true}>{children}</DockedInspectorContext.Provider>
++}
++
+ /** Whether a panel renders inside the shared right column (in flow) rather than on its own. */
+ export function useInRightStack() {
+   return useContext(RightStackContext)
+diff --git a/node_modules/@pascal-app/editor/src/index.tsx b/node_modules/@pascal-app/editor/src/index.tsx
+index 1a0f0a6..8e6018a 100644
+--- a/node_modules/@pascal-app/editor/src/index.tsx
++++ b/node_modules/@pascal-app/editor/src/index.tsx
+@@ -481,6 +481,7 @@ export {
+   shortcutDisplayValue,
+ } from './components/ui/primitives/shortcut-token'
+ export { useSidebarStore } from './components/ui/primitives/sidebar'
++export { floorplanZoom } from './lib/floorplan-zoom'
+ export { Slider } from './components/ui/primitives/slider'
+ export type { ExtraPanel } from './components/ui/sidebar/icon-rail'
+ export { ItemsPanel } from './components/ui/sidebar/panels/items-panel'
+diff --git a/node_modules/@pascal-app/editor/src/lib/floorplan-zoom.ts b/node_modules/@pascal-app/editor/src/lib/floorplan-zoom.ts
+new file mode 100644
+index 0000000..8085441
+--- /dev/null
++++ b/node_modules/@pascal-app/editor/src/lib/floorplan-zoom.ts
+@@ -0,0 +1,39 @@
++/**
++ * The floor plan's zoom, for a host that draws its own zoom control. The plan pane attaches its zoom while it is on
++ * screen and publishes how far it is zoomed against the fitted view (100% = the whole plan in view).
++ */
++type FloorplanZoomControls = { zoomBy(factor: number): void; fit(): void }
++
++let controls: FloorplanZoomControls | null = null
++let percent = 100
++const listeners = new Set<() => void>()
++
++function publish() {
++  for (const listener of [...listeners]) listener()
++}
++
++export const floorplanZoom = {
++  attach(next: FloorplanZoomControls | null) {
++    controls = next
++    publish()
++  },
++  setPercent(next: number) {
++    if (next === percent) return
++    percent = next
++    publish()
++  },
++  /** Zooms about the middle of the plan: above 1 zooms in. Does nothing while no plan pane is on screen. */
++  zoomBy(factor: number) {
++    controls?.zoomBy(factor)
++  },
++  /** Back to the whole plan in view. */
++  fit() {
++    controls?.fit()
++  },
++  percent: () => percent,
++  attached: () => controls !== null,
++  subscribe(listener: () => void): () => void {
++    listeners.add(listener)
++    return () => listeners.delete(listener)
++  },
++}
 diff --git a/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts b/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts
 index 8adafe9..dad3f88 100644
 --- a/node_modules/@pascal-app/editor/src/lib/follow-pascal-targets.ts
@@ -11,3 +460,16 @@ index 8adafe9..dad3f88 100644
    for (let guard = 0; node && guard < 32; guard += 1) {
      if (node.type === 'building') return node.id
      node = node.parentId ? nodes[node.parentId] : undefined
+diff --git a/node_modules/@pascal-app/editor/src/lib/plugin-panels.ts b/node_modules/@pascal-app/editor/src/lib/plugin-panels.ts
+index 3d7cce2..1d5cdee 100644
+--- a/node_modules/@pascal-app/editor/src/lib/plugin-panels.ts
++++ b/node_modules/@pascal-app/editor/src/lib/plugin-panels.ts
+@@ -233,6 +233,8 @@ export function showsPluginManager({
+   readOnly: boolean
+   workspaceMode: string
+ }): boolean {
++  // PRISM host patch: PRISM's event pieces are always installed, so it hides the plugin manager (ADR-0010).
++  if ((globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ === true) return false
+   if (workspaceMode !== 'edit') return false
+   return managedPluginCount > 0 || !readOnly
+ }

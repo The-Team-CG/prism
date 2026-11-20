@@ -463,7 +463,7 @@ describe('EventReadModelQueries collection limits', () => {
     expect(milestoneFilters.filter((where) => JSON.stringify(where).includes('"sentAt":{"not":null}'))).toHaveLength(3);
     expect(milestoneFilters).toHaveLength(4);
   });
-  it('reads only client-pending addenda for event action cards', async () => {
+  it('reads open and recently settled addenda with client-safe columns only', async () => {
     const opsAddendum = model();
     const prisma = new Proxy(
       { opsAddendum },
@@ -475,23 +475,28 @@ describe('EventReadModelQueries collection limits', () => {
       },
     );
     const queries = new EventReadModelQueries(prisma as unknown as PrismaService);
+    const since = new Date('2026-11-01T00:00:00Z');
 
-    await queries.clientActionCenterForEvents(['evt_client']);
+    await queries.clientActionCenterForEvents(['evt_client'], since);
 
     expect(opsAddendum.findMany).toHaveBeenCalledWith(expect.objectContaining({
       where: {
         eventId: { in: ['evt_client'] },
-        conformeExecution: { is: { status: 'awaiting_client' } },
+        OR: [
+          { conformeExecution: { is: { status: { in: ['awaiting_client', 'awaiting_pmcm'] } } } },
+          { conformeExecution: { is: { status: 'completed', completedAt: { gte: since } } } },
+        ],
       },
+      // PMCM's planned impacts and withdrawal details are never read for the client.
       select: {
         id: true,
         eventId: true,
         versionNumber: true,
         title: true,
+        financialDelta: true,
         issuedAt: true,
-        conformeExecution: { select: { status: true } },
+        conformeExecution: { select: { status: true, completedAt: true } },
       },
-      orderBy: { id: 'asc' },
       take: MAX_CLIENT_ACTION_CENTER_ROWS,
     }));
   });

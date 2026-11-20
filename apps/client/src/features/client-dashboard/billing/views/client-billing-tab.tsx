@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { ReceiptText, Send, X } from "lucide-react";
+import { ReceiptText, X } from "lucide-react";
 import { useResource } from "@prism/portal-query";
 import type { PrismBillingStatement, PrismClientBillingDispute, PrismPaymentMilestone, PrismStatementOfAccount } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
+import { PrismSection } from "@prism/ui/page-blocks";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
-import { formatPeso, PaymentProgressBar, PaymentTimeline, type PaymentStep } from "@prism/ui/payment-track";
+import { formatPeso, PaymentProgressBar, PaymentTimeline } from "@prism/ui/payment-track";
 import { formatDayLabel } from "../../shared/tab-ui";
 import { dashboardHref } from "../../workspace/shared";
 import { ClientListEmpty } from "../../shared/client-list-ui";
@@ -28,11 +29,10 @@ import { StatementHistory } from "./statement-history";
 
 type PaymentRecord = PrismPaymentMilestone["history"][number];
 
-/** Under each payment: the money received toward it, each with a receipt, and a way to say it was paid. */
-function StepDetail({ step, history, eventId, documents, onReport }: { step: PaymentStep; history: PaymentRecord[]; eventId: string; documents: BillingDocumentDownload; onReport: (milestoneId: string) => void }) {
+/** Under each payment: the money received toward it, each with a receipt. Reporting a payment lives once, in the hero. */
+function StepDetail({ history, eventId, documents }: { history: PaymentRecord[]; eventId: string; documents: BillingDocumentDownload }) {
   const lines = clientPaymentLines(history);
-  const open = step.state !== "paid" && step.state !== "checking";
-  if (lines.length === 0 && !open) return null;
+  if (lines.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
       {lines.map(({ record, reversed }) => (
@@ -50,11 +50,6 @@ function StepDetail({ step, history, eventId, documents, onReport }: { step: Pay
           )}
         </span>
       ))}
-      {open ? (
-        <button type="button" onClick={() => onReport(step.id)} className="inline-flex items-center gap-1 font-medium text-primary hover:text-primary/80">
-          <Send className="size-3" aria-hidden /> I paid this
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -73,19 +68,17 @@ function Notice({ text, onDismiss }: { text: string; onDismiss: () => void }) {
   );
 }
 
-function ScheduleCard({ statement, payments, documents, onReport }: { statement: PrismStatementOfAccount; payments: PrismPaymentMilestone[]; documents: BillingDocumentDownload; onReport: (milestoneId: string) => void }) {
+function ScheduleCard({ statement, payments, documents }: { statement: PrismStatementOfAccount; payments: PrismPaymentMilestone[]; documents: BillingDocumentDownload }) {
   const todayKey = manilaDateKey();
   const steps = statement.milestones.map((milestone) => milestoneStep(milestone, todayKey));
   const historyFor = (milestoneId: string) => payments.find((payment) => payment.id === milestoneId)?.history ?? [];
   return (
-    <Card role="region" aria-labelledby="client-payment-schedule" className="gap-4 p-4 sm:p-5">
-      <header className="flex items-baseline justify-between gap-2">
-        <h2 id="client-payment-schedule" className="text-sm font-semibold text-foreground">Payment schedule</h2>
-        <span className="text-xs text-muted-foreground">{steps.length} payments</span>
-      </header>
-      <PaymentProgressBar steps={steps} />
-      <PaymentTimeline steps={steps} detail={(step) => <StepDetail step={step} history={historyFor(step.id)} eventId={statement.eventId} documents={documents} onReport={onReport} />} />
-    </Card>
+    <PrismSection id="client-payment-schedule" title="Payment schedule" count={steps.length} headerOutside>
+      <div className="space-y-4">
+        <PaymentProgressBar steps={steps} />
+        <PaymentTimeline steps={steps} detail={(step) => <StepDetail history={historyFor(step.id)} eventId={statement.eventId} documents={documents} />} />
+      </div>
+    </PrismSection>
   );
 }
 
@@ -149,7 +142,7 @@ export function ClientBillingTab({
 
   const storageObjectId = billing?.storageObjectId;
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {report.notice ? <Notice text={report.notice} onDismiss={report.dismissNotice} /> : null}
       <MoneyHero
         statement={statement}
@@ -160,7 +153,7 @@ export function ClientBillingTab({
       />
       <DownloadError messages={[statementDownload.error, documents.error]} />
       <PaidInFull statement={statement} settled={headline.tone === "success"} documents={documents} />
-      <ScheduleCard statement={statement} payments={payments} documents={documents} onReport={report.start} />
+      <ScheduleCard statement={statement} payments={payments} documents={documents} />
       <PaymentsYouSent submissions={statement.submissions} proofBusyId={report.proofBusyId} onAddProof={(id, file) => void report.addProof(id, file)} onSendAgain={() => report.start()} />
       <StatementHistory statement={statement} documents={documents} />
       {billing && eventId ? <BillingDisputes billing={billing} milestones={statement.milestones} disputeForm={disputeForm} /> : null}

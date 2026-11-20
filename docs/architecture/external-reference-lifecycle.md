@@ -4,11 +4,11 @@ title: "P.R.I.S.M external-reference lifecycle"
 description: "Owner rules for scalar cross-domain identifiers and historical FK behavior, including eligibility, retention, failure, and recovery."
 tags: [architecture, persistence, references, ddd, retention]
 status: canonical
-updated: "2026-10-29"
+updated: "2026-11-18"
 authority: normative
 audience: [agents, backend-engineers, reviewers]
 scope: "apps/api/prisma/domain-reference-policy.json and cross-context commands"
-last_verified: "2026-10-29; db:check:references (45 legacy FKs, 42 scalar references) and db:check:domain-persistence --final (132 models, 0 cross-domain relations) passed offline"
+last_verified: "2026-11-18 account-email seam added from the source tree; 2026-10-29; db:check:references (45 legacy FKs, 42 scalar references) and db:check:domain-persistence --final (132 models, 0 cross-domain relations) passed offline"
 sources:
   - id: reference-policy
     resource: "apps/api/prisma/domain-reference-policy.json"
@@ -66,6 +66,10 @@ constraints until the backed-up rebuild in the
 | commercial-addendum-history | Lifecycle stores an immutable impact snapshot and type-qualified Commercial target ID; Commercial applies billing-source and quote mutations. | Preserve the addendum decision and impact snapshot as history. | A missing or stale target fails the owner capability; do not rewrite historical attribution. |
 
 The machine policy records source field, target, owners, behavior profile, current status, and meaning for all 42 non-FK references. The ownership manifest records each retired cross-domain foreign-key constraint and its historical ON DELETE and ON UPDATE actions. Read both before a schema change; do not create a partial second source of truth.
+
+## Account email as a scalar key
+
+Several owners recognise a person by account email rather than by a user ID: client inquiries and drafts, the supplier record and its thread memberships, the coordinator profile, notification settings and inbox deliveries, and privacy requests, holds and review items. These are scalar references, not foreign keys, so a change of sign-in email must move each owner's copies or the person loses their events, records and notices. The change runs through the composition root `src/composition/account-email-change` in one transaction: Identity switches the address and ends the account's sessions, then each owner moves only its own rows through the shared-kernel `AccountEmailRelinker` port (see [context contracts](context-contracts.md)). Records of what happened, such as signatures, audit entries, login history and the notification log, keep the address they were made with. A new owner that keys records by account email must add a relinker before it ships.
 
 ## Legacy foreign-key delete effects
 

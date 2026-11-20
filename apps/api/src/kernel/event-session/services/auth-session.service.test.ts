@@ -7,6 +7,7 @@ const SESSION_CONFIG: Record<string, string | undefined> = {
   PRISM_SESSION_SECRET: SESSION_SECRET,
   PRISM_SESSION_TTL_SECONDS: '28800',
 };
+const DEVICE_SESSION_ID = 'device_session_pmcm';
 
 function createService(config: Record<string, string | undefined> = SESSION_CONFIG) {
   return new AuthSessionService({
@@ -24,9 +25,9 @@ const pmcmSession = {
 } as const;
 
 describe('AuthSessionService', () => {
-  it('issues and verifies signed session tokens', () => {
+  it('issues and verifies signed session tokens, naming the device session they belong to', () => {
     const service = createService();
-    const session = service.issueSession({ ...pmcmSession });
+    const session = service.issueSession({ ...pmcmSession }, new Date(), DEVICE_SESSION_ID);
 
     expect(session).toMatchObject({
       id: 'user_pmcm',
@@ -40,14 +41,25 @@ describe('AuthSessionService', () => {
       actorRole: 'pmcm-admin',
       actorEmail: 'mys@pmcm.test',
       actorName: 'Ms. Mys',
+      sessionId: DEVICE_SESSION_ID,
     });
   });
 
   it('rejects tampered session tokens', () => {
     const service = createService();
-    const session = service.issueSession({ ...pmcmSession });
+    const session = service.issueSession({ ...pmcmSession }, new Date(), DEVICE_SESSION_ID);
 
     expect(() => service.verifyAccessToken(`${session.accessToken}x`)).toThrow(UnauthorizedException);
+  });
+
+  it('rejects a validly signed token that names no device session, with the signed-out device message', () => {
+    const service = createService();
+    // A token from before devices were tracked: the same signing, issued without a session id.
+    const legacy = service.issueSession({ ...pmcmSession }, new Date(), undefined as unknown as string);
+
+    expect(() => service.verifyAccessToken(legacy.accessToken)).toThrow(
+      new UnauthorizedException('This device has been signed out'),
+    );
   });
 
   it('issues scoped, short-lived PMCM Admin two-factor tokens', () => {
@@ -71,8 +83,8 @@ describe('AuthSessionService', () => {
     const issuedAt = new Date('2026-10-25T00:00:00.000Z');
     const service = createService({ ...SESSION_CONFIG, PRISM_SESSION_TTL_SECONDS_CLIENT: '600' });
 
-    const client = service.issueSession({ ...pmcmSession, role: 'client' }, issuedAt);
-    const admin = service.issueSession({ ...pmcmSession }, issuedAt);
+    const client = service.issueSession({ ...pmcmSession, role: 'client' }, issuedAt, DEVICE_SESSION_ID);
+    const admin = service.issueSession({ ...pmcmSession }, issuedAt, DEVICE_SESSION_ID);
 
     expect(Date.parse(client.expiresAt) - issuedAt.getTime()).toBe(600_000);
     expect(Date.parse(admin.expiresAt) - issuedAt.getTime()).toBe(28_800_000);
@@ -86,6 +98,6 @@ describe('AuthSessionService', () => {
   ])('refuses to issue a session with %s instead of substituting a default', (_label, config, message) => {
     const service = createService(config);
 
-    expect(() => service.issueSession({ ...pmcmSession })).toThrow(message);
+    expect(() => service.issueSession({ ...pmcmSession }, new Date(), DEVICE_SESSION_ID)).toThrow(message);
   });
 });

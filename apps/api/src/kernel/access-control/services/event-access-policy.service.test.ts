@@ -81,14 +81,14 @@ describe('EventAccessPolicyService', () => {
 
   it('uses verified client email rather than a duplicate display name for ownership', () => {
     const { policy } = createPolicy();
-    const actor = policy.resolveVerifiedActor({ id: 'u1', actorId: 'u1', role: 'client', actorRole: 'client', email: 'one@test', actorEmail: 'one@test', name: 'Same Name', actorName: 'Same Name', expiresAt: '2099-01-01' });
+    const actor = policy.resolveVerifiedActor({ sessionId: 'session_test', id: 'u1', actorId: 'u1', role: 'client', actorRole: 'client', email: 'one@test', actorEmail: 'one@test', name: 'Same Name', actorName: 'Same Name', expiresAt: '2099-01-01' });
     expect(policy.canReadEvent(actor, { id: 'evt_1', clientName: 'Same Name', clientPortalStatus: 'unlocked', inquiry: { email: 'one@test' } })).toBe(true);
     expect(policy.canReadEvent(actor, { id: 'evt_2', clientName: 'Same Name', clientPortalStatus: 'unlocked', inquiry: { email: 'two@test' } })).toBe(false);
   });
 
   it('fails closed for a verified client without an email identity', () => {
     const { policy } = createPolicy();
-    const actor = policy.resolveVerifiedActor({ id: 'u1', actorId: 'u1', role: 'client', actorRole: 'client', email: '', actorEmail: '', name: 'Same Name', actorName: 'Same Name', expiresAt: '2099-01-01' });
+    const actor = policy.resolveVerifiedActor({ sessionId: 'session_test', id: 'u1', actorId: 'u1', role: 'client', actorRole: 'client', email: '', actorEmail: '', name: 'Same Name', actorName: 'Same Name', expiresAt: '2099-01-01' });
     expect(policy.canReadEvent(actor, { id: 'evt_1', clientName: 'Same Name', clientPortalStatus: 'unlocked', inquiry: { email: 'one@test' } })).toBe(false);
   });
 
@@ -206,7 +206,7 @@ describe('EventAccessPolicyService', () => {
     const { policy } = createPolicy();
     const actor = policy.resolveActor(
       { actorRole: 'pmcm-admin', actorName: 'Spoofed Admin' },
-      {
+      { sessionId: 'session_test',
         id: 'user_coord',
         actorId: 'user_coord',
         role: 'coordinator',

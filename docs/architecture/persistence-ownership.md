@@ -4,11 +4,11 @@ title: "P.R.I.S.M persistence ownership and intentional joins"
 description: "At-a-glance ownership of Prisma models, physical database schemas, allowed cross-context reads, and documented transitional writes."
 tags: [architecture, persistence, prisma, ddd, modular-monolith, data-ownership]
 status: canonical
-updated: "2026-11-12"
+updated: "2026-11-18"
 authority: normative
 audience: [agents, engineers, reviewers]
 scope: "apps/api/prisma/schema.prisma and apps/api/src/modules"
-last_verified: "2026-11-12; offline domain-persistence guard passed for 157 models and 133 relations with no cross-domain relations or private writes; ownership map checked against domain-ownership.json; no live database inspected"
+last_verified: "2026-11-18; offline domain-persistence guard passed for 162 models and 136 relations with no cross-domain relations or private writes; ownership map checked against domain-ownership.json; no live database inspected"
 sources:
   - id: prisma-schema
     resource: "apps/api/prisma/schema.prisma"
@@ -67,11 +67,11 @@ not create microservices or a database authorization boundary.
 | Write domain | Schema | Owns |
 | --- | --- | --- |
 | event-lifecycle | event_lifecycle | Inquiry, events, documents, briefing, planning templates and task plans, compliance, risk, ocular visits, decisions, change requests, freeze/addenda, closure, client floorplan grants, conforme signing, client closeout |
-| commercial | commercial | Suppliers, quotes, communications, estimates, proposals, billing, receipts, supplier evidence and payables, client option reviews |
+| commercial | commercial | Suppliers, quotes, communications and their attachments, estimates, proposals, billing, receipts, PMCM payment details, supplier evidence, payables and payout confirmations, client option reviews |
 | operations | operations | Coordinator pool, availability, coverage, assignments, acknowledgment/reliability, guest operations, registration platforms |
 | live-ops | live_ops | Event-day tasks, schedule, operators, handoffs, end-of-day, urgent issues/logs |
-| floorplan | floorplan | Plans, objects, templates, layout instances, published copies, official drafts, projection clock, snapshot versions, versioned client reviews |
-| identity-access | identity_access | Accounts, invitations, approvals, password reset and authentication state |
+| floorplan | floorplan | Plans (Pascal scenes), templates, official drafts, projection clock, snapshot versions, versioned client reviews |
+| identity-access | identity_access | Accounts, invitations, approvals, password reset, per-device sessions, email-change requests and authentication state |
 | platform-ops | platform_ops | Privacy requests and legal holds, retention, security, login history, audit, notifications, PARE dispatch, AI, storage, command receipts and integration settings |
 | event-games | event_games | Game catalog, lobbies, config versions, sessions, PINs, participant credentials and grants, submissions, scores, awards, moderation, rate limits |
 
@@ -164,7 +164,7 @@ The migration policy maps each owner to exactly one physical schema, matching AD
 | `operations` | `operations` | Coordinator pool, assignments, reliability, and guest operations. |
 | `live-ops` | `live_ops` | Event-day tasks, schedule, handoffs, issues, and logs. |
 | `floorplan` | `floorplan` | Official plans, drafts, templates, and snapshots. |
-| `identity-access` | `identity_access` | Authentication, invitation, approval, and password-recovery records. |
+| `identity-access` | `identity_access` | Authentication, invitation, approval, password-recovery, device-session and email-change records. |
 | `platform-ops` | `platform_ops` | Privacy, audit, notification, security, storage, receipts, and AI governance. |
 | `event-games` | `event_games` | Game definitions, sessions, participation, scoring, and moderation. |
 
@@ -187,7 +187,7 @@ database repair or deployment.
 
 | Models | Physical schema | Write owner and boundary |
 | --- | --- | --- |
-| `FloorPlan`, `FloorPlanObject`, `VenueTemplate`, `PublishedSnapshot`, `OpsFloorPlanDraft` | `floorplan` | `floorplan`; official layout authoring, draft, publish, and snapshot workflows. |
+| `FloorPlan`, `VenueTemplate`, `OpsFloorPlanDraft` | `floorplan` | `floorplan`; official layout authoring, draft, and snapshot workflows. |
 | `OpsFloorPlanClientDecision`, `OpsFloorPlanClientAnnotation` | `floorplan` | `floorplan`; primary-client decisions and annotations bound to an official snapshot hash, separate from PMCM authoring/approval. |
 
 Floorplan owns authoritative official-plan and review state. Event-scoped
@@ -202,9 +202,9 @@ set of events through the `floorplan/event-drafts` subpath.
 
 `floor_plans.scene` (JSONB) and `scene_format` hold the Pascal editor's scene
 graph, written only by the Pascal engine and validated by
-`@prism/floorplan-scene` on every save. The legacy `objects`, `guests`,
-`suppliers` and `seats` columns stay readable and are not written by a scene
-save. Submitted and approved snapshots carry the scene when the plan has one.
+`@prism/floorplan-scene` on every save. Every plan has a scene (the legacy
+canvas columns and `floor_plan_objects` were converted and dropped by migration
+`20261127090000`). Submitted and approved snapshots carry the scene.
 
 An event has at most one active draft. Approval deactivates the previous active
 draft inside the event-locked transaction, and a partial unique index on
@@ -241,12 +241,13 @@ lockout), not by deleting it.
 | `OpsComplianceRule`, `OpsComplianceCheck`, `OpsPostEventDocument`, `OpsEventInsight` | `event_lifecycle` | `event-lifecycle`; compliance, closure gates, post-event records, and lifecycle insights. |
 | `OpsConformeExecution`, `OpsConformeSignature`, `OpsClientCloseoutResponse` | `event_lifecycle` | `event-lifecycle`; immutable signing evidence, activation, client feedback and testimonial consent. |
 
-Lifecycle rows carry stable row-local CHECK constraints: non-negative event
-counters (walk-in threshold, proposal revisions, projection version), follow-up
-intervals, briefing guest counts and budgets, document sizes and compliance rule
-counts; compliance runs complete no earlier than they start, wrap-up deadlines
-are not before activation, freeze exception decisions are not before the
-request, and addendum versions start at 1. Financial deltas stay signed.
+Lifecycle CHECK constraints in the current history cover the event guest-privacy
+classification, conforme and addendum version numbers, addendum status, SHA-256
+format and signer role, client closeout rating and consent, planning template
+versions, and plan item status with its completion time. Counters, guest counts,
+budgets and deadlines are validated by the shared contracts and services, not by
+database checks; the broader row-level checks of the retired pre-baseline history
+were not carried into the owner baselines.
 
 OpsDocument metadata has one owner: event-lifecycle. Commercial retains
 business decisions and statuses, but validates and registers document IDs
@@ -261,6 +262,8 @@ business owner and lifecycle metadata contract.
 | `OpsSupplierCategory`, `OpsSupplierReviewDimension`, `OpsSupplierReviewDimensionRating` | `commercial` | `commercial`; reference and review-dimension configuration. Some rows are currently fixture-seeded and have no separate administration workflow. |
 | `OpsSupplierQuoteRequest`, `OpsSupplierQuote` | `commercial` | `commercial`; request, submission, revision, selection, and withdrawal lifecycle. Deleting a request referenced by submitted quote evidence is restricted; requestId remains nullable for manually entered quotes. |
 | `OpsBillingSource`, `OpsBillingStatement`, `OpsPaymentMilestone`, `OpsPaymentRecord` | `commercial` | `commercial`; proposal-to-billing conversion, statements, milestones, and payment history. Scalar document IDs are validated through Lifecycle's public capability. |
+| `OpsPaymentReceipt`, `OpsPmcmPaymentDetails`, `OpsPmcmPaymentQrImage` | `commercial` | `commercial`; receipts with client-reported or PMCM-recorded payments, and PMCM's single payment-details row (ordered methods in JSON validated by `paymentMethodSchema`, a revision for optimistic saves, and the last 50 changes without account numbers). QR images are stored once per SHA-256 as bytes in this schema, not as platform stored objects. A statement keeps the methods it was issued with (`billing_statements.payment_methods`) and that details revision (`payment_details_revision`); clients are shown the live details. |
+| `OpsCommunicationThread`, `OpsCommunicationParticipant`, `OpsCommunicationMessage`, `OpsCommunicationMessageAttachment` | `commercial` | `commercial`; conversations, membership and messages. An attachment row points at a platform stored object (scalar, unique) that is a copy owned by the conversation, never a link to another owner's file; Platform authorizes its download through Commercial's attachment gate. |
 | `OpsSupplierContractVersion`, `OpsSupplierCreativeTask`, `OpsSupplierCreativeSubmission`, `OpsSupplierPayableMilestone`, `OpsSupplierPayoutRecord`, `OpsClientReviewItem`, `OpsClientReviewDecision` | `commercial` | `commercial`; versioned supplier handoff, payable releases/reversals and client venue/styling decisions. |
 
 Commercial child rows agree with their parent's event through composite
@@ -271,13 +274,13 @@ milestones). Payment history, proposal versions, corrections and disputes use
 `RESTRICT`, so deleting a parent cannot remove evidence; a supplier schedule is
 derived data and still goes with its request.
 
-Commercial rows also carry stable row-local CHECK constraints that match the
-shared contracts: review ratings 1 to 5, positive payment receipts, milestone
-percentage 0 to 100, non-negative milestone, quote, estimate, proposal, billing
-source and additional billing amounts, supplier schedule end not before start,
-quote acceptable minimum not above maximum, and non-negative supplier capacity.
-Milestone balances and adjustments are deliberately unconstrained so signed
-refunds and adjustments stay legal.
+Commercial CHECK constraints in the current history cover supplier contract and
+creative submission versions, positive supplier payable and payout amounts with a
+known payout kind, client review item kinds and decision actions, positive payment
+receipt and refund amounts with a known receipt status and a live reference key,
+and the sign of payment records. Ratings, milestone percentages, quote, estimate and
+billing amounts, schedules and capacity are validated by the shared contracts and
+services; milestone balances and adjustments stay signed so refunds remain legal.
 
 Quote-request links carry a bearer token with an expiry and a revocation time
 (`quote_requests.access_token_expires_at`, `access_token_revoked_at`). New
@@ -311,11 +314,9 @@ one address can still check guests in. The counters are per API instance, so a
 multi-instance deployment multiplies the effective ceiling; a shared store is the
 next step if abuse is observed.
 
-Operations rows also carry stable row-local CHECK constraints that match the
-shared contracts: coordinator availability ends after it starts, coverage
-requirements and feedback media sizes and import row counts are non-negative,
-feedback ratings are 1 to 5, and registration platform headcounts are
-non-negative with the maximum not below the minimum.
+Operations tables have no CHECK constraints in the current history; availability
+windows, coverage, feedback ratings, media sizes and registration headcounts are
+validated by the shared contracts and Operations services.
 
 LiveOps event-day records agree with their parent on the event through
 composite same-schema foreign keys on `(id, event_id)`: a task reassignment
@@ -324,11 +325,8 @@ use `RESTRICT` because they are event-day evidence and nothing in the applicatio
 deletes them. Assignment IDs on handoffs stay external references with no foreign
 key; Operations validates them through its capability.
 
-LiveOps rows also carry stable row-local CHECK constraints: a schedule segment
-ends no earlier than it starts (planned and, when recorded, actual) and has a
-non-negative sequence, an operator revocation is not before its designation, and
-a task reassignment request is auto-approved and decided no earlier than it was
-requested.
+LiveOps tables have no CHECK constraints in the current history; schedule segment
+order, operator designation and reassignment timing are enforced by LiveOps services.
 
 ### Platform trust, notifications, and AI governance
 
@@ -339,6 +337,8 @@ requested.
 | `OpsPrivacyLegalHold` | `platform_ops` | `platform-ops`; PMCM-admin placement/release, subject and optional event scope, with release provenance. `event_id` is a scalar reference and has no cross-domain FK. |
 | `OpsRetentionPolicy`, `OpsRetentionReviewItem` | `platform_ops` | `platform-ops`; retention policy and review queue. |
 | `OpsAiAuditLog`, `OpsAiApprovalRecord`, `OpsAiDailyTokenUsage`, `OpsPareDispatch`, `OpsConformeCommsDraft` | `platform_ops` | `platform-ops`; AI sanitisation, usage budgets, human approval, PARE dispatch outbox, and drafted conforme communications. |
+| `OpsNotificationDelivery`, `OpsNotificationProviderOutcome`, `OpsNotificationChannelPreference` | `platform_ops` | `platform-ops`; one delivery per recipient per notice (read and acknowledgment times, escalation marks), provider outcomes (pruned after 30 days) and per-account email/Viber preferences. Deliveries and preferences key the person by account email, so the email-change composition root relinks them. |
+| `OpsCanvaConnection`, `OpsCanvaOauthState` | `platform_ops` | `platform-ops`; the organization's sealed Canva tokens and single-use PKCE states. |
 | `OpsStoredObject` | `platform_ops` | `platform-ops`; verified object bytes, provider identity and lifecycle. Domain owners bind authorized object references. |
 
 AI governance records keep their provenance through same-schema foreign keys
@@ -356,16 +356,14 @@ lobby scope come from the `read-models/event-scope` seam, and game media are
 
 ## Structured JSON columns
 
-Forty-one NOT NULL JSON columns that default to an empty array or object (in
-Lifecycle, Commercial, LiveOps, Floorplan and Platform) reject any other
-top-level shape through `NOT VALID` CHECK constraints, one migration per owner.
-They apply to every new or updated row; historical rows, unparseable legacy
-payloads and issued, sanitized or review snapshots are left untouched for
-explicit compatibility handling. Payload versions and field-level shapes stay
-with the shared Zod contracts. For floorplans, normalized `floor_plan_objects`
-rows are the authority for live authoring; the aggregate `objects` column is
-kept until publisher, template and live readers reach parity, and the latest
-`PublishedSnapshot` is a current copy, not revision history.
+JSON columns that default to an empty array or object have no database shape
+check in the current migration history; the `NOT VALID` top-level shape checks of
+the retired pre-baseline history were not carried into the owner baselines. The
+one exception is `event_games` `wheel_result`, which must be null or an object.
+Payload versions and shapes are enforced by the shared Zod contracts at write time,
+so a writer outside those contracts can store any JSON. Issued, sanitized and
+review snapshots are stored as written and read with explicit compatibility handling. For floorplans, the Pascal scene is the only layout
+authority; the snapshot versions are the revision history.
 
 ## Intentional cross-context joins and writes
 
@@ -393,6 +391,7 @@ contract is introduced.
 | `operations` | `OpsSupplier`, `OpsSupplierCategory`, selected quote requests | Validate registration supplier eligibility through Commercial | Commercial owns supplier/category/selection reads and row locks. Existing links remain editable when a category becomes inactive; active category is required for a new or changed supplier link. |
 | `identity-access` | platform trust records | Login-history and lockout telemetry via `AUTH_AUDIT` | Keeps the platform implementation out of identity application code; platform-ops owns the login-history and security-alert tables. |
 | `kernel/access-control` | platform audit | Emit forbidden-access evidence via kernel `AUDIT_WRITER` | Kernel stays business-context-free; the composition root binds the platform adapter. |
+| `composition/account-email-change` | every owner's rows keyed by account email | Each owner's `*_ACCOUNT_EMAIL_RELINKER` moves its own rows inside the one confirmation transaction | Identity switches the account address and ends its sessions; Lifecycle, Commercial, Operations and Platform relink their own rows. History (signatures, audit, login history, notification log) keeps the old address. |
 | Local fixture seed tooling | selected development-reference models | Inserts only through the explicit seed CLIs (`db:seed`, `db:seed:fixtures`); the API has no fixture routes or reset workflow. | Fixture setup is not a product write path and does not own ongoing business writes. |
 
 ## Join rules for new work

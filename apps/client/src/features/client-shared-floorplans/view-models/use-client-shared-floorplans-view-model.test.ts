@@ -48,7 +48,7 @@ describe("client shared floorplans view models", () => {
     vi.mocked(listClientSharedFloorplans).mockResolvedValue([ENTRY]);
     vi.mocked(loadClientSharedFloorplanSnapshot).mockResolvedValue({
       entry: ENTRY,
-      project: { id: "snapshot_1" } as never,
+      layout: { id: "snapshot_1" } as never,
     });
   });
 
@@ -74,7 +74,7 @@ describe("client shared floorplans view models", () => {
     const { result } = renderHook(() =>
       useClientSharedFloorplanSnapshotViewModel("evt_1", "draft_1", "submitted"),
     );
-    await waitFor(() => expect(result.current.project).toEqual({ id: "snapshot_1" }));
+    await waitFor(() => expect(result.current.layout).toEqual({ id: "snapshot_1" }));
     expect(loadClientSharedFloorplanSnapshot).toHaveBeenCalledWith("evt_1", "draft_1", "submitted");
   });
 
@@ -87,7 +87,7 @@ describe("client shared floorplans view models", () => {
       useClientSharedFloorplanSnapshotViewModel("evt_1", "draft_1", "approved"),
     );
     await waitFor(() => expect(result.current.error).toMatch(/no longer shared/i));
-    expect(result.current.project).toBeNull();
+    expect(result.current.layout).toBeNull();
   });
 
   it("does not request unsupported snapshot types", async () => {
@@ -96,6 +96,6 @@ describe("client shared floorplans view models", () => {
     );
     await waitFor(() => expect(result.current.error).toBeTruthy());
     expect(loadClientSharedFloorplanSnapshot).not.toHaveBeenCalled();
-    expect(result.current.project).toBeNull();
+    expect(result.current.layout).toBeNull();
   });
 });

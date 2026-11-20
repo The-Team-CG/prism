@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tableAssignmentsOf } from "./table-assignments.js";
+import { tableAssignmentsOf, withoutSeatedGuests } from "./table-assignments.js";
 import { sceneWith, table } from "./__fixtures__/scenes.js";
 
 describe("tableAssignmentsOf", () => {
@@ -19,5 +19,15 @@ describe("tableAssignmentsOf", () => {
   it("ignores nodes that are not tables", () => {
     const stage = { id: "prism-stage_a", type: "prism-stage", parentId: "level_1", variant: "stage", position: [0, 0, 0], rotation: 0, width: 6, depth: 3 };
     expect(tableAssignmentsOf(sceneWith([stage]))).toEqual([]);
+  });
+});
+
+describe("withoutSeatedGuests", () => {
+  it("empties every table's guests and keeps the rest of the layout", () => {
+    const scene = sceneWith([table("prism-table_a", { guestIds: ["g1"] }), table("prism-table_b", { guestIds: ["g2", "g3"] })]);
+    const copied = withoutSeatedGuests(scene);
+    expect(tableAssignmentsOf(copied).map((table) => table.guestIds)).toEqual([[], []]);
+    expect(Object.keys(copied.nodes)).toEqual(Object.keys(scene.nodes));
+    expect(copied.rootNodeIds).toEqual(scene.rootNodeIds);
   });
 });

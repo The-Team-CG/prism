@@ -1,6 +1,6 @@
 /**
  * The coordinator portal lives at one route, `/dashboard`, and names its view in `?view=`. PMCM and unknown
- * paths are not part of this portal and redirect home. Legacy `?section=coord-*` links are rewritten.
+ * paths are not part of this portal and redirect home.
  */
 export const COORDINATOR_HOME_PATH = "/dashboard";
 
@@ -18,16 +18,6 @@ export const COORDINATOR_VIEW_LABELS: Record<CoordinatorViewId, string> = {
   notifications: "Notifications",
   messages: "Messages",
   account: "Account",
-};
-
-/** The section ids that older links and bookmarks carry. */
-const LEGACY_SECTION_VIEWS: Record<string, CoordinatorViewId> = {
-  "coord-home": "shift",
-  "coord-queue": "tasks",
-  "coord-issues": "issues",
-  "coord-timeline": "run-sheet",
-  "coord-assignments": "assignments",
-  "coord-registration": "registration",
 };
 
 export const OUTSIDE_PORTAL_NOTICE = "outside-portal";
@@ -63,8 +53,6 @@ export function coordinatorLocationRedirect({ pathname, search }: { pathname: st
   if (!isCoordinatorHomePath(pathname)) {
     return { search: coordinatorViewSearch("shift", eventId, OUTSIDE_PORTAL_NOTICE) };
   }
-  const section = params.get("section");
-  if (section === null) return null;
-  const view = LEGACY_SECTION_VIEWS[section];
-  return { search: coordinatorViewSearch(view ?? "shift", eventId, view ? undefined : OUTSIDE_PORTAL_NOTICE) };
+  if (params.get("section") === null) return null;
+  return { search: coordinatorViewSearch("shift", eventId, OUTSIDE_PORTAL_NOTICE) };
 }

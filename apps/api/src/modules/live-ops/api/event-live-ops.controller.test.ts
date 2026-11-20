@@ -12,7 +12,7 @@ function controllerPath(controller: Function): string {
 }
 
 function verifiedActor(): PrismVerifiedEventActor {
-  return {
+  return { sessionId: 'session_test',
     id: 'admin_session',
     actorId: 'admin_session',
     role: 'pmcm-admin',

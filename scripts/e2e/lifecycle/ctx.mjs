@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { cfg, http, login, latestMailTo, tokenFromMail, msg, expect, expectStatus } from "./lib.mjs";
+import { oneTableScene } from "../floorplan-fixture.mjs";
 
 const ACCOUNTS = {
   admin: { email: "mys@pmcm.test", password: () => cfg.password.admin },
@@ -108,8 +109,7 @@ export function createContext() {
     const base = `/events/${eventId}`;
     expectStatus(await http("POST", `${base}/ocular-visit/waive`, { token: admin, body: { reason: "Synthetic lifecycle verification" } }), 200, 201);
     const template = expectStatus(await http("POST", "/templates", { token: admin, body: {
-      name: `Lifecycle venue ${eventId}`, venue: "Verification venue", width: 1200, height: 800, gridSize: 20, pax: 120,
-      objects: [{ id: "table-1", kind: "ellipse", name: "Table", category: "furniture", x: 100, y: 100, w: 80, h: 80, rotation: 0, fill: "#FFFFFF", stroke: "#000000", strokeWidth: 1, locked: false, hidden: false }],
+      name: `Lifecycle venue ${eventId}`, venue: "Verification venue", pax: 120, scene: oneTableScene(`Lifecycle venue ${eventId}`),
     } }), 201);
     const draft = expectStatus(await http("POST", `${base}/floorplans`, { token: admin, body: { name: "Official lifecycle layout", sourceType: "template", venueTemplateId: template.id } }), 201);
     expectStatus(await http("POST", `${base}/floorplans/${draft.id}/submit`, { token: admin }), 200);
@@ -120,5 +120,19 @@ export function createContext() {
     expectStatus(await http("PATCH", `${base}/proposal/review`, { token: clientToken, body: { action: "approve" } }), 200);
   }
 
-  return { as, newEvent, issueMinimalProposal, prepareEventDay, reserveDate, ensureCoordinator, accounts: ACCOUNTS };
+  /**
+   * Statements cannot be issued until PMCM has a payment method turned on, and the accounts seed adds none. A fresh
+   * database gets one bank account; a database that already has an enabled method is left as it is.
+   */
+  async function ensurePaymentDetails() {
+    const admin = await as("admin");
+    const details = expectStatus(await http("GET", "/payment-details", { token: admin }), 200);
+    if ((details.methods ?? []).some((method) => method.enabled)) return "payment details already set";
+    expectStatus(await http("PUT", "/payment-details", { token: admin, body: { expectedRevision: details.revision ?? 0, methods: [
+      { kind: "bank", id: randomUUID(), label: "Lifecycle bank account", accountName: "PMCM Events", accountNumber: "0000-1111-2222", instructions: "", qrImageId: null, enabled: true },
+    ] } }), 200);
+    return "one bank account turned on";
+  }
+
+  return { as, newEvent, issueMinimalProposal, prepareEventDay, reserveDate, ensureCoordinator, ensurePaymentDetails, accounts: ACCOUNTS };
 }

@@ -25,13 +25,12 @@ export function browserEnvironment(databaseUrl, directory) {
   if (!/^\/prism_browser_[a-f0-9]{12}$/.test(url.pathname)) throw new Error('Browser acceptance requires its own newly created prism_browser database.');
   const env = {
     DATABASE_URL: url.href, DIRECT_URL: '', SUPABASE_DB_URL: '', PRISMA_DATABASE_URL: '', SHADOW_DATABASE_URL: '', DB_SSL: 'false', DB_SSL_CA_FILE: '',
-    PRISM_LOCAL_DEV: '', PRISMA_MIGRATIONS_PATH: '', PRISM_SCHEMA_COMPATIBILITY_MODE: 'exact',
-    PRISM_SCHEMA_REQUIRED_HEAD: readdirSync(join(root, 'apps/api/prisma/migrations')).filter(n => /^\d+_/.test(n)).sort().at(-1),
+    PRISM_LOCAL_DEV: '', PRISMA_MIGRATIONS_PATH: '',
     NODE_ENV: 'development', PORT: String(browserPorts.api), PRISM_SESSION_SECRET: randomBytes(32).toString('hex'), PRISM_SESSION_TTL_SECONDS: '28800',
     PRISM_TRUST_PROXY: 'true', PRISM_SEED_ENV: 'local', PRISM_MAIL_TRANSPORT: 'mailpit', PRISM_MAILPIT_URL: `http://127.0.0.1:${browserPorts.mailpit}`, RESEND_API_KEY: '',
     PRISM_STORAGE_PROVIDER: 'local', PRISM_STORAGE_LOCAL_DIRECTORY: join(directory, 'storage'), PRISM_DISABLE_CONFORME_REMINDER_JOB: 'true',
     PARE_MODE: 'mock', NEXT_TELEMETRY_DISABLED: '1',
-    NEXT_PUBLIC_API_URL: `http://127.0.0.1:${browserPorts.api}`, NEXT_PUBLIC_PRISM_API_BASE_URL: `http://127.0.0.1:${browserPorts.api}/api`,
+    NEXT_PUBLIC_API_URL: `http://127.0.0.1:${browserPorts.api}`,
     NEXT_PUBLIC_CLIENT_ORIGIN: `http://127.0.0.1:${browserPorts.client}`, PRISM_NEXT_DIST_DIR: '.next-acceptance',
     CORS_ORIGIN: ['client', 'supplier', 'guest', 'event'].map(app => `http://127.0.0.1:${browserPorts[app]}`).join(','),
     E2E_API_URL: `http://127.0.0.1:${browserPorts.api}/api`, E2E_SECRETS_FILE: join(directory, 'mfa.json'), BROWSER_RUN_DIRECTORY: directory,
@@ -135,7 +134,9 @@ export async function main(args = process.argv.slice(2)) {
     const profiles = ['accounts', 'portal-uat', ...(process.env.BROWSER_SEED_HISTORY === '1' ? ['history'] : [])];
     for (const profile of profiles) await run(join(apiDir, 'scripts/seed.mjs'), ['--profile', profile, '--scenario-date', new Date().toISOString().slice(0, 10), '--env-file', envFile], apiDir, env, `seed-${profile}`);
     if (execution.buildApi) await run(createRequire(join(apiDir, 'package.json')).resolve('@nestjs/cli/bin/nest.js'), ['build', 'api', '--path', 'tsconfig.e2e.json'], apiDir, env, 'build-api');
-    for (const asset of ['kernel/database/db-connection-config.cjs', 'kernel/database/migration-ledger-compatibility.cjs', 'modules/identity-access/application/auth/password-hash.cjs']) {
+    // tsc does not emit CommonJS sources, so every .cjs under src is copied, as nest-cli.json does for the real build.
+    const cjsAssets = readdirSync(join(apiDir, 'src'), { recursive: true }).map(String).filter(name => name.endsWith('.cjs'));
+    for (const asset of cjsAssets) {
       const destination = join(apiDir, '.e2e-dist/apps/api/src', asset);
       mkdirSync(dirname(destination), { recursive: true });
       copyFileSync(join(apiDir, 'src', asset), destination);

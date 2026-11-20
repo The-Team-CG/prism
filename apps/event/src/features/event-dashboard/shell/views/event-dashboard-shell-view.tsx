@@ -31,9 +31,7 @@ export function EventDashboardShellView({ viewModel, children }: EventDashboardS
       <EventDashboardEditorScreen
         session={session}
         screen={screen}
-        saveEditorPlan={viewModel.saveEditorPlan}
-        submitEditorPlan={viewModel.submitEditorPlan}
-        saveEditorScene={viewModel.saveEditorScene}
+        reloadEditor={viewModel.reloadEditor}
         submitEditorScene={viewModel.submitEditorScene}
         closeEditor={viewModel.closeEditor}
       />

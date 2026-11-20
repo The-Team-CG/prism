@@ -2,17 +2,16 @@ import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Inject
 import { EventAccessPolicyService, scopeActorToEvent } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import { zodBody } from '@prism/kernel/shared';
+import { zodBody, zodQuery } from '@prism/kernel/shared';
 import {
   createFloorPlanDraftSchema,
   createFloorPlanPreferenceSchema,
+  floorPlanSnapshotQuerySchema,
   type CreateFloorPlanDraftInput,
   type CreateFloorPlanPreferenceInput,
+  type FloorPlanSnapshotQuery,
   type PrismVerifiedEventActor,
 } from '@prism/types';
-import {
-  FloorPlanSnapshotQueryDto,
-} from './floorplan.dto';
 import { FloorPlanWorkflowService } from '../../application/live/floor-plan-workflow.service';
 import {
   EVENT_CLIENT_FLOORPLAN_ACCESS_READER,
@@ -130,7 +129,7 @@ export class OpsEventFloorplansController {
   async getFloorPlanSnapshot(
     @Param('eventId') eventId: string,
     @Param('draftId') draftId: string,
-    @Query() query: FloorPlanSnapshotQueryDto,
+    @Query(zodQuery(floorPlanSnapshotQuerySchema)) query: FloorPlanSnapshotQuery,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     const { type = 'approved' } = query;

@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import { OpsOnboardingController } from './onboarding.controller';
-const verifiedActor: Parameters<OpsOnboardingController['list']>[0] = { id: 'u1', actorId: 'u1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01' };
+const verifiedActor: Parameters<OpsOnboardingController['list']>[0] = { sessionId: 'session_test', id: 'u1', actorId: 'u1', role: 'pmcm-admin', actorRole: 'pmcm-admin', email: 'pmcm@test', actorEmail: 'pmcm@test', name: 'PMCM', actorName: 'PMCM', expiresAt: '2099-01-01' };
 
 function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);

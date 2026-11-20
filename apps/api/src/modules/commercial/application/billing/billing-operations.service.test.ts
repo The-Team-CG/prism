@@ -10,7 +10,7 @@ import type { StorageObjectService } from '@prism/contexts/platform-ops';
 import type { PrismVerifiedEventActor } from '@prism/types';
 
 const billingActor: BillingActor = { id: 'user_finance_1', name: 'Finance Operator', role: 'pmcm-admin', email: 'admin@pmcm.test', correlationId: 'corr_finance_1' };
-const verifiedBillingActor: PrismVerifiedEventActor = {
+const verifiedBillingActor: PrismVerifiedEventActor = { sessionId: 'session_test',
   id: 'user_finance_1', actorId: 'user_finance_1', role: 'pmcm-admin', actorRole: 'pmcm-admin',
   email: 'admin@pmcm.test', actorEmail: 'admin@pmcm.test', name: 'Finance Operator', actorName: 'Finance Operator',
   expiresAt: '2026-10-04T12:00:00.000Z',

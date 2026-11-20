@@ -96,3 +96,17 @@ handoffs_archive/
 
 # Isolated browser acceptance compilation
 .next-acceptance/
+
+# Pascal editor assets, copied from packages/floorplan-canvas/assets/pascal by scripts/sync-pascal-assets.mjs
+apps/event/public/icons/
+apps/event/public/cursor.svg
+apps/event/public/hdri/
+apps/event/public/audios/
+apps/event/public/material/
+apps/event/public/basis/
+apps/client/public/icons/
+apps/client/public/cursor.svg
+apps/client/public/hdri/
+apps/client/public/audios/
+apps/client/public/material/
+apps/client/public/basis/

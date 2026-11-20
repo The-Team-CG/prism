@@ -4,11 +4,11 @@ title: "Developer checks and CI"
 description: "Run Prism's native typechecks, architecture lint, push checks, and isolated CI jobs."
 tags: [runbook, ci, tooling, testing]
 status: canonical
-updated: "2026-11-02"
+updated: "2026-11-18"
 authority: operational
 audience: [developers, agents]
 scope: "Local developer feedback and GitHub-hosted validation across all workspaces"
-last_verified: "2026-11-02; compiler diagnostics, task selection, required-check decisions, source lint and focused Nest/SDK behavior checked locally; hosted timing requires a workflow run"
+last_verified: "2026-11-18 scripts, hook, oxlint rules, CI gate list and complexity limit re-checked; 2026-11-02; compiler diagnostics, task selection, required-check decisions, source lint and focused Nest/SDK behavior checked locally; hosted timing requires a workflow run"
 sources:
   - id: task-plan
     resource: "scripts/ci/task-plan.mjs"
@@ -40,11 +40,26 @@ sources:
 npm run typecheck              # TypeScript 7 CLI, all workspaces
 npm run lint                   # Oxlint and the five Prism architecture rules
 npm run test:ci                # workspace suites and existing coverage thresholds
-npm run test:ci:guards         # Git selection, required results, hooks, compiler diagnostics
+npm run test:ci:guards         # Git selection, required results, hooks, compiler diagnostics, UAT form bank
 npm run check:boundaries       # independent repository-wide boundary scanner
 npm run hooks:install          # install the tracked pre-push hook
 npm run check:push             # check the committed HEAD against staging
 ```
+
+Repository gates run in full in CI on every change, whatever the affected workspaces. Run the ones your change touches before pushing:
+
+```bash
+npm run check:migrations              # declared migration risk vs inferred DDL risk
+npm run check:migration-immutability  # applied migration files never change
+npm run check:domain-persistence      # table owners, cross-domain relations, private writes
+npm run check:invariants              # database invariant checks (dry run)
+npm run check:test-clocks             # deadline tests pin the clock or are allowlisted
+npm run check:complexity              # production functions stay at cyclomatic complexity 10 or less
+npm run check:query-audit             # raw query budget and audit
+```
+
+A new table also needs its owner in `apps/api/prisma/domain-ownership.json` and the
+[persistence ownership register](../architecture/persistence-ownership.md).
 
 `npm install` also installs the pre-push hook through `prepare`. Existing custom
 `core.hooksPath` settings are preserved; integrate `.githooks/pre-push` there or

@@ -1,36 +1,53 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ComponentProps } from "react";
-import { ChevronLeft, Send } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { acquireSceneReadOnlyLease, loadPlugin } from "@pascal-app/core";
-import { Editor, getSavedSceneDocument } from "@pascal-app/editor";
+import { Editor, getSavedSceneDocument, useCameraHintFocus, useSidebarStore, type SaveStatus } from "@pascal-app/editor";
 import { builtinPlugin } from "@pascal-app/nodes";
 import type { FloorplanSceneDocument } from "@prism/types";
+import { PrismFloorplanProvider, type PrismFloorplanContextValue } from "./editor-context";
 import { prismEventLayoutPlugin } from "./event-layout-plugin";
+import "./pascal-runtime";
 import { PASCAL_VERSION, fromSceneDocument, toSceneDocument, type PascalSaveScene } from "./scene-document";
+import { EditorFooter } from "./shell/editor-footer";
+import { EditorHeader } from "./shell/editor-header";
+import { LoadingRoom } from "./shell/loading-room";
+import { LensOverlay } from "./shell/lens-overlay";
+import { LensSwitch } from "./shell/lens-switch";
+import { PlanMeasures } from "./shell/plan-measures";
+import { PlanPanel } from "./shell/plan-panel";
+import { SIDE_PANEL_TAB } from "./shell/side-panel";
+import { ZoomControl } from "./shell/zoom-control";
+import { prismLens } from "./lens";
+import { PiecePlacement } from "./tools/piece-placement";
+import { hostState } from "./inspector/host-state";
+import { SeatedGuestsFooter } from "./inspector/seated-guests-footer";
 
-export type PrismFloorplanEditorProps = {
+export type PrismFloorplanEditorProps = Omit<PrismFloorplanContextValue, "readOnly"> & {
   scene: FloorplanSceneDocument;
   readOnly: boolean;
   onSave(document: FloorplanSceneDocument): Promise<unknown>;
   onSubmit?(document: FloorplanSceneDocument): Promise<unknown>;
+  /** Labels the review hand-off; defaults to "Submit for review". */
+  submitLabel?: string;
+  /** Saves the scene as a venue template; the host owns the library. */
+  onSaveTemplate?(document: FloorplanSceneDocument, name: string): Promise<unknown>;
   onBack(): void;
   eventName?: string;
   draftName?: string;
   draftStatus?: string;
 };
 
-type SidebarTabs = NonNullable<ComponentProps<typeof Editor>["sidebarTabs"]>;
+// Read by the Pascal chrome patch (patches/@pascal-app+editor+1.1.6.patch): PRISM hosts the editor, so Pascal hides
+// its plugin manager, level chip, sky control, compass, shortcuts card, scans control and read-only action bars.
+(globalThis as { __PRISM_HOST__?: boolean }).__PRISM_HOST__ = true;
 
-/** Pascal's own Scene tab; milestone 2 adds Room, Library, Guests and Checks beside it. */
-const SIDEBAR_TABS: SidebarTabs = [
-  {
-    id: "site",
-    label: "Scene",
-    component: () => null,
-    icon: <img alt="" src="/icons/scene.webp" width={32} height={32} />,
-  },
-];
+const SIDE_PANEL_TABS = [SIDE_PANEL_TAB];
+
+/** Pascal's earlier default width for the left column, which browsers that opened the editor before still keep. */
+const PASCAL_OLD_COLUMN_WIDTH = 360;
+/** The left panel's width in the docked frame. */
+const PANEL_WIDTH = 288;
 
 let pluginsLoaded: Promise<void> | null = null;
 
@@ -44,66 +61,24 @@ function loadPlugins(): Promise<void> {
 }
 
 /** The scene as a save writes it now, including edits the debounced autosave has not written yet. */
-function currentScene(): PascalSaveScene {
+function currentDocument(): FloorplanSceneDocument {
   const { nodes, rootNodeIds, collections, materials, installedPlugins } = getSavedSceneDocument();
-  return { nodes, rootNodeIds, collections, materials, installedPlugins };
+  return toSceneDocument({ nodes, rootNodeIds, collections, materials, installedPlugins }, PASCAL_VERSION);
 }
 
-function EditorHeader({ readOnly, onBack, onSubmit, eventName, draftName, draftStatus }: Omit<PrismFloorplanEditorProps, "scene" | "onSave">) {
-  const [submitting, setSubmitting] = useState(false);
-  const submit = useCallback(async () => {
-    if (!onSubmit) return;
-    setSubmitting(true);
-    try {
-      await onSubmit(toSceneDocument(currentScene(), PASCAL_VERSION));
-    } finally {
-      setSubmitting(false);
-    }
-  }, [onSubmit]);
+/** Layouts are drawn at a desk; below this width the plan opens view-only. */
+const SMALL_SCREEN = "(max-width: 767px)";
 
-  return (
-    <div className="flex min-w-0 items-center gap-3">
-      <button type="button" onClick={onBack} className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-foreground hover:bg-muted">
-        <ChevronLeft className="size-4" aria-hidden />
-        Back
-      </button>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-foreground">{draftName ?? "Floor plan"}</p>
-        <p className="truncate text-xs text-muted-foreground">{[eventName, draftStatus, readOnly ? "View only" : null].filter(Boolean).join(" · ")}</p>
-      </div>
-      {onSubmit && !readOnly ? (
-        <button
-          type="button"
-          onClick={() => void submit()}
-          disabled={submitting}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-60"
-        >
-          <Send className="size-4" aria-hidden />
-          {submitting ? "Submitting…" : "Submit for review"}
-        </button>
-      ) : null}
-    </div>
-  );
+function subscribeSmallScreen(onChange: () => void) {
+  const query = window.matchMedia(SMALL_SCREEN);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
 }
 
-/**
- * The Pascal editor hosted for a PRISM floor plan. The scene always loads from and saves through the host, so
- * Pascal never keeps its own copy in the browser. A read-only session holds Pascal's read-only lease, which refuses
- * every scene change, and never calls `onSave`.
- */
-export function PrismFloorplanEditor({ scene, readOnly, onSave, ...header }: PrismFloorplanEditorProps) {
+const useSmallScreen = () => useSyncExternalStore(subscribeSmallScreen, () => window.matchMedia(SMALL_SCREEN).matches, () => false);
+
+function usePluginsReady() {
   const [ready, setReady] = useState(false);
-  // The editor reloads whenever `onLoad` changes, so it reads the scene it was opened with; reopen to reload.
-  const [initialScene] = useState(scene);
-  const onLoad = useCallback(async () => fromSceneDocument(initialScene), [initialScene]);
-  const save = useCallback(
-    async (saved: PascalSaveScene) => {
-      if (readOnly) return;
-      await onSave(toSceneDocument(saved, PASCAL_VERSION));
-    },
-    [onSave, readOnly],
-  );
-
   useEffect(() => {
     let active = true;
     void loadPlugins().then(() => {
@@ -113,20 +88,113 @@ export function PrismFloorplanEditor({ scene, readOnly, onSave, ...header }: Pri
       active = false;
     };
   }, []);
+  return ready;
+}
+
+/**
+ * The Pascal editor hosted for a PRISM floor plan. The scene always loads from and saves through the host, so
+ * Pascal never keeps its own copy in the browser. A read-only session holds Pascal's read-only lease, which refuses
+ * every scene change, and never calls `onSave`.
+ */
+export function PrismFloorplanEditor(props: PrismFloorplanEditorProps) {
+  const { scene, onSave, onSubmit, onSaveTemplate, submitLabel, onBack, eventName, draftName, draftStatus } = props;
+  const { guests, suppliers, seating, guestCount, saveState, saveMessage = null, onRetrySave, onReload, presentation = false } = props;
+  const ready = usePluginsReady();
+  const smallScreen = useSmallScreen();
+  const readOnly = props.readOnly || smallScreen;
+  const [pascalStatus, setPascalStatus] = useState<SaveStatus>("idle");
+  // The editor reloads whenever `onLoad` changes, so it reads the scene it was opened with; reopen to reload.
+  const [initialScene] = useState(scene);
+  const onLoad = useCallback(async () => fromSceneDocument(initialScene), [initialScene]);
+  const save = useCallback(
+    // A plan made view-only by a narrow window still saves the edits made before it narrowed.
+    async (saved: PascalSaveScene) => {
+      if (props.readOnly) return;
+      await onSave(toSceneDocument(saved, PASCAL_VERSION));
+    },
+    [onSave, props.readOnly],
+  );
+  const context = useMemo<PrismFloorplanContextValue>(
+    () => ({ readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, presentation }),
+    [readOnly, guests, suppliers, seating, guestCount, saveState, saveMessage, onRetrySave, onReload, presentation],
+  );
 
   useEffect(() => (readOnly ? acquireSceneReadOnlyLease() : undefined), [readOnly]);
+  // Pascal's camera tips card stays away; the controls are the usual pan, rotate and zoom.
+  useEffect(() => useCameraHintFocus.getState().focus([]), []);
+  // Every plan opens as laid out; Seating is gone when the event cannot seat guests.
+  useEffect(() => prismLens.set("layout"), []);
+  // Moves a browser still on Pascal's old default to the docked frame's width; a width the planner chose is kept.
+  useEffect(() => {
+    if (useSidebarStore.getState().chatWidth === PASCAL_OLD_COLUMN_WIDTH) useSidebarStore.getState().setChatWidth(PANEL_WIDTH);
+  }, []);
+  useEffect(() => {
+    if (!seating.allowed && prismLens.get() === "seating") prismLens.set("layout");
+    hostState.setFacts({ seatingAllowed: seating.allowed, readOnly });
+  }, [seating.allowed, readOnly]);
 
-  if (!ready) return <div className="p-6 text-sm text-muted-foreground">Loading the floor plan editor…</div>;
+  const header = (
+    <EditorHeader
+      onBack={onBack}
+      currentDocument={currentDocument}
+      onSubmit={onSubmit}
+      onSaveTemplate={onSaveTemplate}
+      submitLabel={submitLabel}
+      pascalStatus={pascalStatus}
+      eventName={eventName}
+      draftName={draftName}
+      draftStatus={draftStatus}
+    />
+  );
   return (
-    <div className="prism-pascal-editor h-dvh w-full">
-      <Editor
-        layoutVersion="v2"
-        projectId={null}
-        sidebarTabs={SIDEBAR_TABS}
-        navbarSlot={<EditorHeader readOnly={readOnly} {...header} />}
-        onLoad={onLoad}
-        onSave={save}
-      />
-    </div>
+    <PrismFloorplanProvider value={context}>
+      <div className="prism-pascal-editor flex h-dvh w-full flex-col">
+        {smallScreen && !props.readOnly ? (
+          <p role="note" className="shrink-0 bg-muted px-4 py-2 text-center text-sm text-foreground">
+            Edit on a laptop
+          </p>
+        ) : null}
+        <div className="min-h-0 flex-1">
+          {ready ? (
+            <Editor
+              layoutVersion="v2"
+              projectId={null}
+              sidebarTabs={SIDE_PANEL_TABS}
+              columnTabId={SIDE_PANEL_TAB.id}
+              sideMenu={false}
+              dockInspector
+              inspectorEmpty={<PlanPanel />}
+              toolDock={false}
+              viewBar={false}
+              navbarSlot={header}
+              sceneOverlay={
+                <>
+                  <LensSwitch />
+                  <ZoomControl />
+                </>
+              }
+              floorplanSceneSlot={
+                <>
+                  <LensOverlay />
+                  <PlanMeasures />
+                </>
+              }
+              inspectorFooter={<SeatedGuestsFooter />}
+              loadingSlot={<LoadingRoom />}
+              onLoad={onLoad}
+              onSave={save}
+              onSaveStatusChange={setPascalStatus}
+            />
+          ) : (
+            <div className="flex h-full flex-col">
+              {header}
+              <LoadingRoom />
+            </div>
+          )}
+        </div>
+        {ready ? <EditorFooter /> : null}
+        {ready ? <PiecePlacement /> : null}
+      </div>
+    </PrismFloorplanProvider>
   );
 }

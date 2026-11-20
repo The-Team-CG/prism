@@ -12,20 +12,19 @@ type ReviewAnnotation = NonNullable<ReviewViewModel["review"]>["annotations"][nu
 export function ClientFloorplanReviewPanel({ eventId, draftId, onDecided }: { eventId: string; draftId: string; onDecided?: () => Promise<void> }) {
   const vm = useClientFloorplanReview(eventId, draftId, onDecided);
   return <Card className="gap-4 p-5">
-    <div><p className="text-xs font-semibold text-muted-foreground">Official PMCM floorplan</p><h2 className="mt-1 text-lg font-semibold">Review this submitted version</h2><p className="mt-1 text-sm text-muted-foreground">The canvas is read-only. Approval and versioned annotations apply only to this exact submitted version.</p></div>
+    <div><h2 className="text-lg font-semibold">Review this version</h2><p className="mt-1 text-sm text-muted-foreground">Approve it, or pin notes on the plan and ask PMCM for changes. Your answer applies to this version only.</p></div>
     {vm.error && <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-3"><p role="alert" className="text-sm text-danger">{vm.error}</p><button type="button" onClick={() => void vm.load()} disabled={vm.loading} className="rounded-md border border-border px-3 py-2 text-sm font-semibold disabled:opacity-50">Retry loading floorplan</button></div>}
     {vm.loading ? <LoadingState label="Loading current floorplan…" /> : vm.review ? <>
-      <p className="text-xs text-muted-foreground">Version fingerprint: {vm.review.snapshotHash.slice(0, 12)}… · {vm.objects.length} layout object{vm.objects.length === 1 ? "" : "s"}</p>
-      <div><h3 className="text-sm font-semibold">Layout</h3>{vm.objects.length ? <div className="mt-2"><FloorplanReviewCanvas room={vm.room} annotations={vm.review.annotations} pending={vm.anchor} canPlace={!vm.decision} onPlace={vm.setAnchor} /></div> : <p className="mt-1 text-sm text-muted-foreground">The submitted layout contains no placed objects.</p>}</div>
+      <div>{vm.room ? <div><FloorplanReviewCanvas room={vm.room} annotations={vm.review.annotations} pending={vm.anchor} canPlace={!vm.decision} onPlace={vm.setAnchor} /></div> : <p className="mt-1 text-sm text-muted-foreground">The submitted layout contains no placed objects.</p>}</div>
       <AnnotationList annotations={vm.review.annotations} room={vm.room} />
       {!vm.decision && <ReviewActions vm={vm} />}
     </> : null}
   </Card>;
 }
 
-function AnnotationList({ annotations, room }: { annotations: ReviewAnnotation[]; room: ReviewRoom }) {
+function AnnotationList({ annotations, room }: { annotations: ReviewAnnotation[]; room: ReviewRoom | null }) {
   if (annotations.length === 0) return null;
-  const objectLabel = (objectId: string) => room.objects.find((object) => object.id === objectId)?.name || `Object ${objectId}`;
+  const objectLabel = (objectId: string) => room?.pieces.find((piece) => piece.id === objectId)?.name || `Object ${objectId}`;
   return <div className="space-y-2"><h3 className="text-sm font-semibold">Annotations for this version</h3>{annotations.map((item, index) => <p key={item.id} className="rounded-md border border-border p-3 text-sm">{item.anchorX !== undefined ? `${index + 1}. ` : ""}{item.nonBinding ? "Non-binding note · " : ""}{item.objectId ? `${objectLabel(item.objectId)}: ` : ""}{item.comment}</p>)}</div>;
 }
 

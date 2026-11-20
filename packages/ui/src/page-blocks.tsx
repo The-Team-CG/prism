@@ -127,6 +127,7 @@ export function PrismSection({
   action,
   flush = false,
   bare = false,
+  headerOutside = false,
   children,
   className,
 }: {
@@ -137,17 +138,19 @@ export function PrismSection({
   action?: React.ReactNode;
   flush?: boolean;
   bare?: boolean;
+  /** The heading sits above the card instead of inside it, so a section is one heading and one surface. */
+  headerOutside?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
   const header = (
-    <header className={cn("flex flex-wrap items-start justify-between gap-x-4 gap-y-2", bare ? "pb-3" : "px-5 pb-4 pt-5")}>
+    <header className={cn("flex flex-wrap items-start justify-between gap-x-4 gap-y-2", bare ? "pb-3" : headerOutside ? "pb-2" : "px-5 pb-4 pt-5")}>
       <div className="min-w-0">
         <h2 id={id} className="flex items-baseline gap-2 text-base font-semibold text-foreground">
           {title}
           {count !== undefined ? <span className="text-sm font-normal tabular-nums text-muted-foreground">{count}</span> : null}
         </h2>
-        {description ? <p className="mt-0.5 max-w-prose text-sm text-muted-foreground">{description}</p> : null}
+        {description ? <div className="mt-0.5 max-w-prose text-sm text-muted-foreground">{description}</div> : null}
       </div>
       {action ? <div className="shrink-0">{action}</div> : null}
     </header>
@@ -157,6 +160,14 @@ export function PrismSection({
       <section aria-labelledby={id} className={className}>
         {header}
         {children}
+      </section>
+    );
+  }
+  if (headerOutside) {
+    return (
+      <section aria-labelledby={id} className={className}>
+        {header}
+        <Card className={cn("gap-0 overflow-hidden py-0", !flush && "p-5")}>{children}</Card>
       </section>
     );
   }

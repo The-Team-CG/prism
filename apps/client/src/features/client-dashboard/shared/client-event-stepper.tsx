@@ -1,6 +1,6 @@
 "use client";
 
-import { Progress } from "@prism/ui/components/progress";
+import type { CSSProperties } from "react";
 import { cn } from "@/app/components/ui/utils";
 
 export type ClientStepperState = "done" | "current" | "upcoming";
@@ -14,10 +14,10 @@ const TEXT: Record<ClientStepperState, string> = {
   upcoming: "text-muted-foreground",
 };
 
-const DOT: Record<ClientStepperState, string> = {
+const MARK: Record<ClientStepperState, string> = {
   done: "bg-success",
   current: "bg-primary",
-  upcoming: "bg-muted-foreground/30",
+  upcoming: "bg-muted-foreground/25",
 };
 
 const SR_STATE: Record<ClientStepperState, string> = {
@@ -27,33 +27,31 @@ const SR_STATE: Record<ClientStepperState, string> = {
 };
 
 /**
- * The event's stage stepper, shared by the overview and planning pages. A progress bar gives the overall
- * position; each stage is a labelled row beneath it, so long stage names wrap or truncate instead of
- * squeezing into boxes.
+ * The event's stage stepper, shared by the overview and planning pages. From `sm` up each stage is one segment of
+ * the bar with its name directly beneath it, so a label always sits under its own part of the bar; on a phone the
+ * stages read as a list with a dot each.
  */
 export function ClientEventStepper({ steps, label }: { steps: ClientStepperStep[]; label: string }) {
   const currentIndex = steps.findIndex((step) => step.state === "current");
-  const completed = steps.filter((step) => step.state === "done").length;
-  const position = currentIndex === -1 ? completed : currentIndex + 0.5;
-  const percent = steps.length ? Math.round((position / steps.length) * 100) : 0;
   const stageNumber = currentIndex === -1 ? steps.length : currentIndex + 1;
 
   return (
-    <div className="space-y-3">
-      <Progress value={percent} aria-label={`${label}: stage ${stageNumber} of ${steps.length}`} />
-      <ol aria-label={label} className="grid gap-x-4 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
-        {steps.map((step) => (
-          <li
-            key={step.key}
-            aria-current={step.state === "current" ? "step" : undefined}
-            className={cn("flex min-w-0 items-center gap-2 text-sm", TEXT[step.state])}
-          >
-            <span aria-hidden className={cn("size-2 shrink-0 rounded-full", DOT[step.state])} />
-            <span className="min-w-0 truncate" title={step.label}>{step.label}</span>
-            <span className="sr-only">: {SR_STATE[step.state]}</span>
-          </li>
-        ))}
-      </ol>
-    </div>
+    <ol
+      aria-label={`${label}: stage ${stageNumber} of ${steps.length}`}
+      style={{ "--steps": steps.length } as CSSProperties}
+      className="grid gap-y-2 sm:grid-cols-[repeat(var(--steps),minmax(0,1fr))] sm:gap-x-1.5"
+    >
+      {steps.map((step) => (
+        <li
+          key={step.key}
+          aria-current={step.state === "current" ? "step" : undefined}
+          className={cn("flex min-w-0 items-center gap-2 text-sm sm:flex-col sm:items-stretch sm:gap-2", TEXT[step.state])}
+        >
+          <span aria-hidden className={cn("size-2 shrink-0 rounded-full sm:h-1.5 sm:w-full", MARK[step.state])} />
+          <span className="min-w-0 truncate sm:text-xs" title={step.label}>{step.label}</span>
+          <span className="sr-only">: {SR_STATE[step.state]}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

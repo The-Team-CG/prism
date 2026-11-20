@@ -18,12 +18,12 @@ describe.skipIf(!live)('verified client ownership against PostgreSQL', () => {
     const ids = [`inq_owner_${suffix}`, `inq_other_${suffix}`];
     try {
       for (const [index, id] of ids.entries()) {
-        await prisma.opsInquiry.create({ data: { id, clientName: 'Same Name', email: `client${index}@${suffix}.test`, eventName: `Event ${index}`, eventDate: new Date('2026-09-01'), clientType: 'Private', status: 'accepted', normalizedEmail: `client${index}@${suffix}.test`, events: { create: { id: `evt_${id}`, clientName: 'Same Name', eventName: `Event ${index}`, eventDate: new Date('2026-09-01'), clientPortalStatus: 'unlocked' } } } });
+        await prisma.opsInquiry.create({ data: { id, clientName: 'Same Name', email: `client${index}@${suffix}.test`, eventName: `Event ${index}`, eventDate: new Date('2026-09-01'), clientType: 'Individual', status: 'accepted', normalizedEmail: `client${index}@${suffix}.test`, events: { create: { id: `evt_${id}`, clientName: 'Same Name', eventName: `Event ${index}`, eventDate: new Date('2026-09-01'), clientPortalStatus: 'unlocked' } } } });
       }
       const eventIds = ids.map((id) => `evt_${id}`);
       const rows = await prisma.opsEvent.findMany({ where: { id: { in: eventIds } }, include: { inquiry: { select: { email: true } } } });
       const policy = new EventAccessPolicyService({ write: async () => ({}) });
-      const actor = policy.resolveVerifiedActor({ id: 'u', actorId: 'u', role: 'client', actorRole: 'client', email: `client0@${suffix}.test`, actorEmail: `client0@${suffix}.test`, name: 'Same Name', actorName: 'Same Name', expiresAt: '2099-01-01' });
+      const actor = policy.resolveVerifiedActor({ sessionId: 'session_test', id: 'u', actorId: 'u', role: 'client', actorRole: 'client', email: `client0@${suffix}.test`, actorEmail: `client0@${suffix}.test`, name: 'Same Name', actorName: 'Same Name', expiresAt: '2099-01-01' });
       const own = rows.find((row) => row.inquiry.email === actor.email);
       const foreign = rows.find((row) => row.inquiry.email !== actor.email);
       expect(own && policy.canReadEvent(actor, own)).toBe(true);

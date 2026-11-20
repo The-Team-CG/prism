@@ -82,4 +82,4 @@ Without the opt-in, local mail still uses the API log. The local stop wrapper st
 
 ## CI
 
-`Browser acceptance` runs on affected pull requests, on demand, and daily at 03:00 Asia/Manila against staging. Desktop and mobile run in separate GitHub-hosted jobs, each provisioning its own disposable PostgreSQL/Mailpit and pinned Playwright Chromium build. Each harness invocation retains one worker: MFA/session files, fixture accounts, and mutable game state are shared within that invocation and are not safe for unrestricted worker concurrency. No hosted credentials are needed.
+`Browser acceptance` runs on affected pull requests, on demand, and daily at 03:00 Asia/Manila on the default `staging` branch code. Desktop and mobile run in separate GitHub-hosted jobs, each provisioning its own disposable PostgreSQL/Mailpit and pinned Playwright Chromium build. Each harness invocation retains one worker: MFA/session files, fixture accounts, and mutable game state are shared within that invocation and are not safe for unrestricted worker concurrency. No hosted credentials are needed.

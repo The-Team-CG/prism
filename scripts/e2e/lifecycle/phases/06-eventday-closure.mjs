@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
 import { cfg, http, msg, step, startPhase, blocked, gap, review, expect, expectStatus, login } from "../lib.mjs";
+import { portalCallers } from "../portal-wiring.mjs";
 
 export const name = "Event day and closure";
 
@@ -21,11 +22,11 @@ const sourceFiles = (dir, out = []) => {
   return out;
 };
 /** Which portals (and the shared api-client) mention an endpoint. Source scan only: it proves a caller exists, not that it works. */
+/** Per portal, the files that reach the route directly or through the @prism/api-client method that wraps it. */
 function wiring(re) {
   const hits = {};
-  for (const [label, dir] of [["event", "apps/event/src"], ["client", "apps/client/src"], ["guest", "apps/guest/src"], ["supplier", "apps/supplier/src"], ["api-client", "packages/api-client/src"]]) {
-    try { hits[label] = sourceFiles(join(repoRoot, dir)).filter((f) => re.test(readFileSync(f, "utf8"))).length; } catch { hits[label] = 0; }
-  }
+  for (const app of ["event", "client", "guest", "supplier"]) hits[app] = portalCallers(app, re).length;
+  hits["api-client"] = sourceFiles(join(repoRoot, "packages/api-client/src")).filter((f) => re.test(readFileSync(f, "utf8"))).length;
   return hits;
 }
 

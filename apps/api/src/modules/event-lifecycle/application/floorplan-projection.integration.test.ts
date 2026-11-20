@@ -1,8 +1,9 @@
 import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { roomScene } from '@prism/floorplan-scene';
 import { ConflictException } from '@nestjs/common';
-import { PrismaService } from '@prism/kernel/database';
+import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { EventAccessPolicyService, type AuditWriter } from '@prism/kernel/access-control';
 import { WorkflowCommandService, OpsUserRole } from '@prism/kernel/event-core';
 import { FloorplanProjectionService } from './floorplan-projection.service';
@@ -170,7 +171,7 @@ databaseSuite('Floorplan lifecycle projection PostgreSQL invariants', () => {
     const fixture = await createFixture(prisma);
     const createDraft = async (suffix: string, isActive: boolean) => {
       const floorPlanId = `${fixture.eventId}_plan_${suffix}`;
-      await prisma.floorPlan.create({ data: { id: floorPlanId, name: suffix, ownerId: actor.actorId, eventId: fixture.eventId } });
+      await prisma.floorPlan.create({ data: { id: floorPlanId, name: suffix, ownerId: actor.actorId, eventId: fixture.eventId, scene: toPrismaJson(roomScene({ name: suffix, widthM: 10, heightM: 8 }, '1.1.6').scene), sceneFormat: 'pascal-v1' } });
       return prisma.opsFloorPlanDraft.create({ data: {
         id: `${fixture.eventId}_draft_${suffix}`,
         eventId: fixture.eventId,

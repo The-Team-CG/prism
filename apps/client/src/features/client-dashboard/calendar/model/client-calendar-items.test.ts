@@ -3,8 +3,9 @@ import type { PrismClientEventTimeline } from "@prism/types";
 import { buildClientCalendarItems, clientCalendarFilter } from "./client-calendar-items";
 
 const events = [
-  { id: "evt_1", eventName: "Ayala Tech Summit", eventDate: "2026-12-10", status: "planning" },
-  { id: "evt_2", eventName: "Year-end party", eventDate: "2026-12-18", status: "planning" },
+  { id: "evt_1", eventName: "Ayala Tech Summit", eventDate: "2026-12-10", status: "planning", freezeDeadlineAt: "2026-11-20T00:00:00.000Z", freezeStatus: "open" },
+  // Already frozen: its passed cutoff is not shown as a date to act on.
+  { id: "evt_2", eventName: "Year-end party", eventDate: "2026-12-18", status: "planning", freezeDeadlineAt: "2026-11-01T00:00:00.000Z", freezeStatus: "frozen" },
 ];
 
 function timeline(eventId: string, layoutDate: string | null, status: "completed" | "pending"): PrismClientEventTimeline {
@@ -33,11 +34,11 @@ const state = {
 } as unknown as Parameters<typeof buildClientCalendarItems>[0];
 
 describe("buildClientCalendarItems", () => {
-  it("shows only recorded dates, never deadlines inferred from the event date", () => {
+  it("shows only recorded dates, including when change requests close, never deadlines inferred from the event date", () => {
     const items = buildClientCalendarItems(state, events);
     expect(items.map((item) => `${item.date} ${item.title}`)).toEqual([
-      "2026-10-05 Layout approved",
       "2026-10-20 Site visit",
+      "2026-11-20 Change requests close",
       "2026-11-30 Balance",
       "2026-12-10 Ayala Tech Summit",
       "2026-12-18 Year-end party",
@@ -46,8 +47,8 @@ describe("buildClientCalendarItems", () => {
 
   it("names the event on every entry but the event day itself", () => {
     expect(buildClientCalendarItems(state, events).map((item) => [item.title, item.eventName])).toEqual([
-      ["Layout approved", "Ayala Tech Summit"],
       ["Site visit", "Ayala Tech Summit"],
+      ["Change requests close", "Ayala Tech Summit"],
       ["Balance", "Ayala Tech Summit"],
       ["Ayala Tech Summit", undefined],
       ["Year-end party", undefined],
@@ -58,17 +59,16 @@ describe("buildClientCalendarItems", () => {
     expect(clientCalendarFilter("calendar-meetings")).toEqual({ kind: "visit", openOnly: false });
     expect(clientCalendarFilter("calendar-deadlines")).toEqual({ kind: "payment", openOnly: true });
     expect(clientCalendarFilter("calendar-payment-due-dates")).toEqual({ kind: "payment", openOnly: false });
-    expect(clientCalendarFilter("calendar-approval-deadlines")).toEqual({ kind: "approval", openOnly: false });
     expect(clientCalendarFilter("calendar")).toEqual({ openOnly: false });
     expect(clientCalendarFilter(undefined)).toEqual({ openOnly: false });
   });
 
-  it("marks paid payments and approved layouts done, and leaves open work and event days not done", () => {
+  it("marks paid payments done, and leaves open work and event days not done", () => {
     const withPaid = {
       ...state,
       paymentMilestones: [...state.paymentMilestones, { id: "pay_deposit", eventId: "evt_1", label: "Deposit", dueDate: "2026-10-01", status: "paid", amount: 100000, remainingBalance: 0 }],
     } as typeof state;
-    expect(buildClientCalendarItems(withPaid, events, "2026-11-15").filter((item) => item.done).map((item) => item.title)).toEqual(["Deposit", "Layout approved"]);
+    expect(buildClientCalendarItems(withPaid, events, "2026-11-15").filter((item) => item.done).map((item) => item.title)).toEqual(["Deposit"]);
   });
 
   it("labels each payment paid, late or due, and marks a late one overdue with what is still owed", () => {

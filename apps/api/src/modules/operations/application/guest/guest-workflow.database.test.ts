@@ -71,7 +71,7 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
       id: id(), clientName: 'W23 transaction client', eventName: 'W23 transaction event',
       eventDate: new Date('2026-09-07T00:00:00Z'), actualEndedAt: new Date('2026-09-07T12:00:00Z'),
       status: 'archived', archived: true, clientPortalStatus: 'unlocked',
-      inquiry: { create: { id: inquiryId, clientName: 'W23 transaction client', email: `${inquiryId}@w23.test`, eventName: 'W23 transaction event', clientType: 'Private', eventDate: new Date('2026-09-07T00:00:00Z') } },
+      inquiry: { create: { id: inquiryId, clientName: 'W23 transaction client', email: `${inquiryId}@w23.test`, eventName: 'W23 transaction event', clientType: 'Individual', eventDate: new Date('2026-09-07T00:00:00Z') } },
     } });
     const anonymousCheckIn = await prisma.opsGuestCheckIn.create({
       data: { id: id(), eventId: event.id, guestName: null, checkInMode: 'headcount', walkIn: true },
