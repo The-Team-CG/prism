@@ -392,7 +392,7 @@ export function sectionMeta(
     requests: {
       eyebrow: "Requests",
       title: "Requests & quotes",
-      description: "Submit, revise, and track your quotes before the deadline.",
+      description: "Price new requests before their deadline and follow the quotes PMCM is reviewing.",
     },
     bookings: {
       eyebrow: "Bookings",
@@ -407,7 +407,7 @@ export function sectionMeta(
     quotations: {
       eyebrow: "Quotations",
       title: "Requests & quotes",
-      description: "All submitted quotations with revision history and status.",
+      description: "Every quote you have sent and what PMCM decided.",
     },
     messages: {
       eyebrow: "Messages",
@@ -422,12 +422,12 @@ export function sectionMeta(
     payments: {
       eyebrow: "Payments",
       title: "Payments",
-      description: "Payment milestones for your selected and locked quotes.",
+      description: "What PMCM pays you for each booking, and when.",
     },
     profile: {
       eyebrow: "Profile",
       title: "Services & profile",
-      description: "Your supplier profile, tier, category, and service inclusions.",
+      description: "Your record with PMCM: how they reach you and what you offer.",
     },
     account: {
       eyebrow: "Account",
@@ -447,7 +447,7 @@ export function sectionMeta(
     support: {
       eyebrow: "Support",
       title: "Support",
-      description: "Guidance on portal actions and how to reach PMCM.",
+      description: "How to reach PMCM, and how work moves from quote to payment.",
     },
   };
   return map[section];

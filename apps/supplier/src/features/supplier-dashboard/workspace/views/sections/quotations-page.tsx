@@ -1,16 +1,50 @@
 "use client";
 
 import { useState } from "react";
-import { FileText } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, BadgeCheck, CircleSlash, FileText, Send, type LucideIcon } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { Card, CardContent } from "@prism/ui/components/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
-import { StatusBadge } from "@prism/ui/components/status-badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@prism/ui/components/table";
-import { formatDate, formatMoney } from "../../model/supplier-workspace-rules";
-import type { PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
+import { PrismListRow, type PrismListTone } from "@prism/ui/action-list";
+import { PrismSection, PrismStatRow } from "@prism/ui/page-blocks";
+import { formatMoney } from "../../model/supplier-workspace-rules";
+import { formatPortalDate } from "@prism/ui/format-date";
+import { quoteOutcome, quoteHistory, type QuoteOutcome, type QuoteHistoryRow } from "../../model/quote-history";
+import { supplierBookingHref } from "../../model/supplier-next-step";
+import { supplierWorkTargetHref, type PrismSupplierReadinessBoard, type SupplierWorkspace } from "../../model/supplier-workspace-types";
+import { QuoteReadOnly } from "./request-quote-card";
 
+const OUTCOME_LOOK: Record<QuoteOutcome, { icon: LucideIcon; tone: PrismListTone; label: string }> = {
+  pending: { icon: Send, tone: "neutral", label: "With PMCM" },
+  selected: { icon: BadgeCheck, tone: "done", label: "Selected" },
+  "not-selected": { icon: CircleSlash, tone: "neutral", label: "Not selected" },
+  closed: { icon: CircleSlash, tone: "neutral", label: "Closed" },
+};
+
+function QuoteRow({ row, onOpen }: { row: QuoteHistoryRow; onOpen: () => void }) {
+  const look = OUTCOME_LOOK[row.outcome];
+  const revised = (row.quote.revisionNumber ?? 1) > 1;
+  return (
+    <PrismListRow
+      icon={look.icon}
+      tone={look.tone}
+      title={row.eventName}
+      tag={look.label}
+      meta={[row.quote.category, revised && row.quote.revisedAt ? `Revised ${formatPortalDate(row.quote.revisedAt)}` : `Sent ${formatPortalDate(row.quote.createdAt)}`].join(" · ")}
+      status={formatMoney(row.quote.amount)}
+      statusTone="neutral"
+      action={row.outcome === "selected" ? "Open booking" : "View quote"}
+      {...(row.outcome === "selected" && row.quote.requestId ? { href: supplierBookingHref(row.quote.requestId), link: Link } : { onOpen })}
+    />
+  );
+}
+
+/**
+ * Every quote the supplier has sent: how many, how many PMCM selected and what they are worth, then each quote with
+ * its amount and outcome. A selected quote opens its booking; any other opens the quote as sent.
+ */
 export function QuotationsPage({ workspace, readinessBoard }: { workspace: SupplierWorkspace; readinessBoard: PrismSupplierReadinessBoard | null }) {
   const [openQuoteId, setOpenQuoteId] = useState<string | null>(null);
 
@@ -21,8 +55,8 @@ export function QuotationsPage({ workspace, readinessBoard }: { workspace: Suppl
           <Empty className="border-0 p-6 md:p-8">
             <EmptyHeader>
               <EmptyMedia variant="icon"><FileText /></EmptyMedia>
-              <EmptyTitle>No quotations on file.</EmptyTitle>
-              <EmptyDescription>Submitted quotes will appear here with their full history.</EmptyDescription>
+              <EmptyTitle>No quotes sent yet.</EmptyTitle>
+              <EmptyDescription>Quotes you send from Requests appear here with PMCM&apos;s decision.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         </CardContent>
@@ -30,86 +64,52 @@ export function QuotationsPage({ workspace, readinessBoard }: { workspace: Suppl
     );
   }
 
-  const rows = workspace.supplierQuotes.map((quote) => {
-    const request = workspace.quoteRequests.find((item) => item.id === quote.requestId);
-    const eventName = readinessBoard?.items.find((item) => item.requestId === quote.requestId)?.eventName ?? request?.category ?? "Quote request";
-    return { quote, request, eventName };
-  });
-  const openRow = rows.find((row) => row.quote.id === openQuoteId) ?? null;
+  const history = quoteHistory(workspace.supplierQuotes, workspace.quoteRequests, readinessBoard?.items ?? []);
+  const openRow = history.rows.find((row) => row.quote.id === openQuoteId) ?? null;
 
   return (
-    <>
-      <Card>
-        <p className="px-4 text-xs text-muted-foreground sm:hidden">Scroll across to see quote status and details.</p>
-        <Table className="min-w-[680px]">
-          <TableHeader>
-            <TableRow>
-              <TableHead className="px-4">Event</TableHead>
-              <TableHead className="px-4">Amount</TableHead>
-              <TableHead className="px-4">Terms</TableHead>
-              <TableHead className="px-4">Status</TableHead>
-              <TableHead className="px-4">Last revised</TableHead>
-              <TableHead className="px-4"><span className="sr-only">Details</span></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map(({ quote, eventName }) => (
-              <TableRow key={quote.id}>
-                <TableCell className="max-w-[16rem] px-4 whitespace-normal">
-                  <span className="block break-words font-semibold text-foreground">{eventName}</span>
-                  <span className="block text-xs text-muted-foreground">{quote.category} · Revision #{quote.revisionNumber ?? 1}</span>
-                </TableCell>
-                <TableCell className="px-4 font-semibold tabular-nums">{formatMoney(quote.amount)}</TableCell>
-                <TableCell className="max-w-[14rem] px-4 whitespace-normal break-words text-muted-foreground">{quote.paymentTerms || "—"}</TableCell>
-                <TableCell className="px-4"><StatusBadge status={quote.status} /></TableCell>
-                <TableCell className="px-4 text-muted-foreground">{quote.revisedAt ? formatDate(quote.revisedAt) : "—"}</TableCell>
-                <TableCell className="px-4 text-right">
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setOpenQuoteId(quote.id)} aria-label={`View quote details for ${eventName}`}>
-                    Details
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+    <div className="grid gap-6">
+      <PrismStatRow
+        label="Your quotes"
+        stats={[
+          { label: "Quotes sent", value: history.rows.length },
+          { label: "Selected by PMCM", value: history.selected.count, detail: history.selected.count ? `${formatMoney(history.selected.amount)} in bookings` : undefined },
+          { label: "With PMCM", value: history.pending, detail: "Waiting for a decision", empty: history.pending === 0 },
+          { label: "Not selected", value: history.notSelected, empty: history.notSelected === 0 },
+        ]}
+      />
+      <PrismSection id="quotes-list" title="Your quotes" description="Newest first. Selected quotes open their booking." flush>
+        <ul className="divide-y divide-border">
+          {history.rows.map((row) => <QuoteRow key={row.quote.id} row={row} onOpen={() => setOpenQuoteId(row.quote.id)} />)}
+        </ul>
+      </PrismSection>
 
       <Sheet open={openRow !== null} onOpenChange={(open) => { if (!open) setOpenQuoteId(null); }}>
-        <SheetContent className="overflow-y-auto">
+        <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
           {openRow ? (
             <>
               <SheetHeader>
                 <SheetTitle className="break-words">{openRow.eventName}</SheetTitle>
-                <SheetDescription>{openRow.quote.category} · {openRow.request?.message ?? "Quote request"}</SheetDescription>
+                <SheetDescription>{openRow.quote.category} · {OUTCOME_LOOK[quoteOutcome(openRow.quote, openRow.request)].label} · sent {formatPortalDate(openRow.quote.createdAt)}</SheetDescription>
               </SheetHeader>
-              <dl className="grid gap-4 px-4 pb-6 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">Submitted</dt>
-                  <dd className="font-medium text-foreground">{formatDate(openRow.quote.createdAt)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Payment terms</dt>
-                  <dd className="break-words text-foreground">{openRow.quote.paymentTerms || "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Inclusions</dt>
-                  <dd className="text-foreground">
-                    {openRow.quote.inclusions.length ? (
-                      <ul className="mt-1 space-y-1">
-                        {openRow.quote.inclusions.map((inclusion, index) => <li key={index} className="break-words">{inclusion}</li>)}
-                      </ul>
-                    ) : "—"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Notes</dt>
-                  <dd className="break-words text-foreground">{openRow.quote.notes || "—"}</dd>
-                </div>
-              </dl>
+              <div className="grid gap-5 px-4 pb-6">
+                {openRow.request?.message ? (
+                  <section aria-label="What PMCM asked for" className="rounded-lg bg-muted/50 px-3 py-2.5 text-sm">
+                    <p className="text-xs text-muted-foreground">What PMCM asked for</p>
+                    <p className="mt-0.5 whitespace-pre-wrap text-foreground">{openRow.request.message}</p>
+                  </section>
+                ) : null}
+                <QuoteReadOnly quote={openRow.quote} />
+                {openRow.outcome === "pending" && openRow.quote.requestId ? (
+                  <Button asChild variant="outline" className="w-fit">
+                    <Link href={supplierWorkTargetHref("requests", openRow.quote.requestId)}>Open the request<ArrowRight className="size-4" /></Link>
+                  </Button>
+                ) : null}
+              </div>
             </>
           ) : null}
         </SheetContent>
       </Sheet>
-    </>
+    </div>
   );
 }

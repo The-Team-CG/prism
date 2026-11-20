@@ -66,14 +66,24 @@ export function supplierBookings(input: {
   });
 }
 
-/** Totals across every booking: paid so far, still to come, what is late, and the next payment due. */
-export function supplierPaymentTotals(payables: PrismSupplierPayableMilestone[], todayKey: string) {
+/** Bookings PMCM has not scheduled payments for yet, and the agreed amount they add up to. */
+export function unscheduledBookings(bookings: SupplierBooking[]) {
+  const waiting = bookings.filter((booking) => booking.payables.length === 0);
+  return { bookings: waiting, agreed: waiting.reduce((sum, booking) => sum + (booking.contract ?? 0), 0) };
+}
+
+/**
+ * Totals across every booking: paid so far, still to come, what is late, and the next payment due. Still to come
+ * includes what was agreed on bookings without a schedule yet (`unscheduled`), so it never reads ₱0 while money is owed.
+ */
+export function supplierPaymentTotals(payables: PrismSupplierPayableMilestone[], todayKey: string, unscheduled = 0) {
   const open = payables.filter((payable) => payable.remainingBalance > 0);
   const late = open.filter((payable) => payable.dueDate && (daysUntil(payable.dueDate.slice(0, 10), todayKey) ?? 0) < 0);
   const next = open.filter((payable) => !late.includes(payable) && payable.dueDate).sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))[0] ?? null;
   return {
     paid: payables.reduce((sum, payable) => sum + payable.amountReleased, 0),
-    toCome: open.reduce((sum, payable) => sum + payable.remainingBalance, 0),
+    toCome: open.reduce((sum, payable) => sum + payable.remainingBalance, 0) + unscheduled,
+    unscheduled,
     late: late.reduce((sum, payable) => sum + payable.remainingBalance, 0),
     next,
   };
