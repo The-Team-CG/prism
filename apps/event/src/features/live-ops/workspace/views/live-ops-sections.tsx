@@ -35,7 +35,6 @@ import { useEventDayTaskTarget } from "../view-models/use-event-day-task-target"
 import type { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
 import Link from "next/link";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk, eventRunSheetHref } from "@/features/live-ops/schedule";
-import { Card } from "@prism/ui/components/card";
 
 type LiveOpsVm = ReturnType<typeof useLiveOperationsWorkspaceViewModel>;
 
@@ -222,6 +221,7 @@ export function LiveOpsDesk({
   coordinators,
   busy,
   readOnly,
+  beforeDay = false,
   vm,
   onUpdateTask,
   onEscalateTask,
@@ -240,6 +240,8 @@ export function LiveOpsDesk({
   busy: boolean;
   /** The event date has passed: entry tools are hidden and the desk keeps its history. */
   readOnly: boolean;
+  /** The event day has not come: issues and tasks fold away until something is logged. */
+  beforeDay?: boolean;
   vm: LiveOpsVm;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
   onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
@@ -255,8 +257,19 @@ export function LiveOpsDesk({
     <>
       <LiveOpsScheduleBlock eventId={eventId} liveOps={liveOps} readOnly={readOnly} />
 
-      <LiveOpsIssuesPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateIssue={onUpdateIssue} onEscalateIssue={onEscalateIssue} />
-      <LiveOpsTasksPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateTask={onUpdateTask} onEscalateTask={onEscalateTask} />
+      {beforeDay && liveOps.urgentIssues.length + liveOps.tasks.length === 0 ? (
+        <Disclosure title="Issues and tasks" summary="Nothing logged yet">
+          <div className="space-y-4">
+            <LiveOpsIssuesPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateIssue={onUpdateIssue} onEscalateIssue={onEscalateIssue} />
+            <LiveOpsTasksPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateTask={onUpdateTask} onEscalateTask={onEscalateTask} />
+          </div>
+        </Disclosure>
+      ) : (
+        <>
+          <LiveOpsIssuesPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateIssue={onUpdateIssue} onEscalateIssue={onEscalateIssue} />
+          <LiveOpsTasksPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateTask={onUpdateTask} onEscalateTask={onEscalateTask} />
+        </>
+      )}
 
       {readOnly ? null : <ReassignmentReviewPanel liveOps={liveOps} busy={busy} onDecide={onDecideTaskReassignment} />}
 
@@ -304,15 +317,19 @@ export function LiveOpsDesk({
 function LiveOpsScheduleBlock({ eventId, liveOps, readOnly }: { eventId: string; liveOps: PrismLiveOps; readOnly: boolean }) {
   const schedule = liveOps.schedule;
   if (!schedule) return null;
+  // Without an authored run sheet there is nothing to run: one line says where to author it, and nothing after the day.
+  if (!schedule.authored) {
+    return readOnly ? null : (
+      <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">No run sheet yet. Author it under Schedule and reports below.</p>
+    );
+  }
   return (
-    <Card className="gap-0 block space-y-3 rounded-lg border border-border bg-card p-4 sm:p-5">
+    <div className="space-y-3">
       {readOnly ? null : <LiveOpsControlSurface eventId={eventId} schedule={schedule} timer={liveOps.timer} />}
-      {schedule.authored ? (
-        <Link href={eventRunSheetHref(eventId)} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm font-semibold no-underline">
-          Open printable run sheet
-        </Link>
-      ) : null}
-    </Card>
+      <Link href={eventRunSheetHref(eventId)} className="inline-flex min-h-11 items-center rounded-md border border-border bg-card px-3 text-sm font-semibold no-underline">
+        Open printable run sheet
+      </Link>
+    </div>
   );
 }
 

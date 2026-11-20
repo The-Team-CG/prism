@@ -31,7 +31,10 @@ export function SupplierQuotePlanner({
   busy,
   onCompareRound,
   onSetAvailability,
+  focusCategoryId,
 }: {
+  /** The service chosen above the planner: the planner switches to its category when it changes. */
+  focusCategoryId?: string;
   categories: PrismSupplierCategory[];
   suppliers: PrismSupplier[];
   requests: SupplierQuoteRequestRow[];
@@ -65,6 +68,14 @@ export function SupplierQuotePlanner({
   }, [categoryId, categories, preferredCategoryId]);
 
   useEffect(() => () => { comparisonRequest.current += 1; }, []);
+
+  useEffect(() => {
+    if (!focusCategoryId || !categories.some((item) => item.id === focusCategoryId)) return;
+    setCategoryId(focusCategoryId);
+    comparisonRequest.current += 1;
+    setComparison(null);
+    setComparisonBusy(false);
+  }, [focusCategoryId, categories]);
 
   const category = categories.find((item) => item.id === categoryId);
   const categorySuppliers = suppliers.filter((supplier) => supplier.categoryId === categoryId);
@@ -152,18 +163,25 @@ export function SupplierQuotePlanner({
           onCategory={(id) => { setCategoryId(id); comparisonRequest.current += 1; setComparison(null); setComparisonBusy(false); }}
         onRequest={openRequestModal}
       />
-      <SupplierAvailabilityForm suppliers={categorySuppliers} busy={busy} onSetAvailability={onSetAvailability} />
       <QuoteRoundButtons roundIds={roundIds} roundNumbers={roundNumbers} comparisonBusy={comparisonBusy} comparison={comparison} comparisonError={comparisonError} onCompare={compareRound} />
-      <QuoteComparisonSection
-        categoryName={category?.name ?? "Selected category"}
-        rangeCopy={rangeCopy}
-        quotes={comparisonQuotes ?? categoryQuotes}
-        expandedQuoteId={expandedQuoteId}
-        busy={busy}
-        onToggleExpanded={(id) => setExpandedQuoteId((current) => (current === id ? null : id))}
-        onSelectQuote={onSelectQuote}
-      />
-      <SupplierTierColumns tierOne={tierOne} tierTwo={tierTwo} pending={pending} />
+      {/* The comparison appears once quotes are in; until then the suppliers who could quote are the useful list. */}
+      {categoryQuotes.length || comparison ? (
+        <QuoteComparisonSection
+          categoryName={category?.name ?? "Selected category"}
+          rangeCopy={rangeCopy}
+          quotes={comparisonQuotes ?? categoryQuotes}
+          expandedQuoteId={expandedQuoteId}
+          busy={busy}
+          onToggleExpanded={(id) => setExpandedQuoteId((current) => (current === id ? null : id))}
+          onSelectQuote={onSelectQuote}
+        />
+      ) : (
+        <SupplierTierColumns tierOne={tierOne} tierTwo={tierTwo} pending={pending} />
+      )}
+      <details className="rounded-lg border border-border bg-card px-4 py-3">
+        <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">Supplier availability <span className="font-normal text-muted-foreground">· record a supplier as free or blocked on a date</span></summary>
+        <div className="pt-3"><SupplierAvailabilityForm suppliers={categorySuppliers} busy={busy} onSetAvailability={onSetAvailability} /></div>
+      </details>
       {modalOpen && (
         <QuoteRequestModal
           categoryName={category?.name}
@@ -200,7 +218,7 @@ function SupplierAvailabilityForm({ suppliers, busy, onSetAvailability }: {
   const [availabilityBlocked, setAvailabilityBlocked] = useState(false);
   const [availabilityNotice, setAvailabilityNotice] = useState<string | null>(null);
   return (
-        <section className="grid grid-cols-[minmax(0,1fr)] gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
+        <section className="grid grid-cols-[minmax(0,1fr)] gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
           <div className="grid gap-1 text-xs font-semibold">
             <span>Supplier availability</span>
             <Select value={availabilitySupplierId || NONE} onValueChange={(next) => setAvailabilitySupplierId(next === NONE ? "" : next)}>

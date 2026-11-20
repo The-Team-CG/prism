@@ -28,6 +28,8 @@ import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { DecisionLogPanel } from "@/features/decision-log";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
+import { EventServicesList } from "@/features/suppliers/directory/views/event-services-list";
+import { eventServices } from "@/features/suppliers/directory/model/event-services";
 import { PmcmSupplierReadinessBoard, assignedSupplierRequests, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
 import { SupplierFileReadiness } from "@/features/files/matrix";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
@@ -344,6 +346,7 @@ export const SUPPLIER_PART_ALIASES: Record<string, string> = { quotes: "services
 export function EventWorkspaceSuppliersTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   const [part, setPart] = useListFilter("part", "services");
+  const [service, setService] = useListFilter("service", "");
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const assigned = assignedSupplierRequests(vm.quoteRequests);
@@ -356,7 +359,16 @@ export function EventWorkspaceSuppliersTab() {
       attention: awaitingQuotes > 0,
       render: () => (
         <div className="space-y-8">
+        <EventServicesList
+          services={eventServices({ services: vm.briefing?.serviceRequirements ?? [], categories: vm.supplierCategories, requests: vm.quoteRequests, quotes: vm.quotes })}
+          activeCategoryId={service || undefined}
+          onOpen={(categoryId) => {
+            setService(categoryId);
+            window.setTimeout(() => document.getElementById("quote-planner")?.scrollIntoView({ block: "start", behavior: "smooth" }), 0);
+          }}
+        />
         <SupplierQuotePlanner
+          focusCategoryId={service || undefined}
           key={event.id}
           categories={vm.supplierCategories}
           suppliers={vm.suppliers}

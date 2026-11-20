@@ -86,6 +86,7 @@ export function LiveOperationsWorkspace({
           coordinators={coordinators}
           busy={busy}
           readOnly={ended}
+          beforeDay={before}
           vm={vm}
           onUpdateTask={onUpdateTask}
           onEscalateTask={onEscalateTask}
