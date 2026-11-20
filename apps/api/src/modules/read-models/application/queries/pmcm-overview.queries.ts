@@ -29,6 +29,60 @@ export class PmcmOverviewQueries {
     });
   }
 
+  /** Billed and paid per event across its current payment milestones (not superseded or cancelled). */
+  milestoneTotals() {
+    return this.prisma.opsPaymentMilestone.groupBy({
+      by: ['eventId'],
+      where: { supersededAt: null, status: { not: 'cancelled' } },
+      _sum: { amount: true, amountPaid: true },
+      orderBy: { eventId: 'asc' },
+      take: MAX_ROWS,
+    });
+  }
+
+  /** Each event's client closeout rating, once the client sent one. */
+  closeoutRatings() {
+    return this.prisma.opsClientCloseoutResponse.findMany({ select: { eventId: true, rating: true }, orderBy: [{ eventId: 'asc' }], take: MAX_ROWS });
+  }
+
+  /** Every event with its inquiry email, newest first, for matching clients to their portal accounts. */
+  eventClients() {
+    return this.prisma.opsEvent.findMany({
+      select: { id: true, inquiry: { select: { email: true } } },
+      orderBy: [{ eventDate: 'desc' }, { id: 'asc' }],
+      take: MAX_ROWS,
+    });
+  }
+
+  /** Client portal accounts' last sign-in, by email. */
+  clientLogins() {
+    return this.prisma.opsUser.findMany({
+      where: { role: 'client', lastLoginAt: { not: null } },
+      select: { email: true, lastLoginAt: true },
+      take: MAX_ROWS,
+    });
+  }
+
+  /** Confirmed supplier assignments, for each supplier's next booking. */
+  confirmedSupplierAssignments() {
+    return this.prisma.opsSupplierQuoteRequest.findMany({
+      where: { assignmentStatus: 'confirmed', supplierId: { not: null } },
+      select: { supplierId: true, eventId: true },
+      take: MAX_ROWS,
+    });
+  }
+
+  /** Events on or after a Manila calendar date, among the given ids. */
+  upcomingEventsAmong(eventIds: string[], fromDateKey: string) {
+    if (eventIds.length === 0) return Promise.resolve([]);
+    return this.prisma.opsEvent.findMany({
+      where: { id: { in: eventIds }, eventDate: { gte: startOfUtcDay(fromDateKey) }, archived: false },
+      select: { id: true, eventName: true, eventDate: true },
+      orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
+      take: MAX_ROWS,
+    });
+  }
+
   /** The event's client: their inquiry email and, when they have a portal account, its last sign-in. */
   async clientOfEvent(eventId: string) {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, select: { id: true, inquiry: { select: { email: true } } } });

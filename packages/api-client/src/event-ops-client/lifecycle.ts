@@ -108,6 +108,7 @@ export function createLifecycleClient(options: EventOpsClientOptions): Pick<Even
         prismRequest<PrismClientCloseoutResponse>(actorPath(event(eventId, "/client-closeout/moderation"), actor), withBase(options, { method: "PATCH", body: input })),
     },
     compliance: {
+      listRules: (actor = {}) => prismRequest<PrismComplianceRule[]>(actorPath("/compliance/rules", actor), withBase(options)),
       createRule: (input, actor = {}) =>
         prismRequest<PrismComplianceRule>(actorPath("/compliance/rules", actor), withBase(options, { method: "POST", body: input })),
       resolve: (eventId, checkId, input, actor = {}) =>

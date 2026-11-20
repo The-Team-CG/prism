@@ -139,3 +139,25 @@ export function buildPmcmCalendarItems(facts: CalendarFacts): PrismPmcmCalendarI
     .filter((item) => item.date >= facts.from && item.date <= facts.to)
     .sort((a, b) => a.date.localeCompare(b.date) || (a.startTime ?? '').localeCompare(b.startTime ?? '') || a.id.localeCompare(b.id));
 }
+
+/**
+ * Each supplier's soonest confirmed booking among upcoming events. Events arrive soonest first, so the first event a
+ * supplier is confirmed on is their next booking.
+ */
+export function nextBookingPerSupplier(
+  assignments: Array<{ supplierId: string | null; eventId: string }>,
+  upcomingEvents: Array<{ id: string; eventName: string; eventDate: Date }>,
+): Array<{ supplierId: string; eventId: string; eventName: string; eventDate: string }> {
+  const suppliersByEvent = new Map<string, string[]>();
+  for (const assignment of assignments) {
+    if (!assignment.supplierId) continue;
+    suppliersByEvent.set(assignment.eventId, [...(suppliersByEvent.get(assignment.eventId) ?? []), assignment.supplierId]);
+  }
+  const next = new Map<string, { supplierId: string; eventId: string; eventName: string; eventDate: string }>();
+  for (const event of [...upcomingEvents].sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime() || a.id.localeCompare(b.id))) {
+    for (const supplierId of suppliersByEvent.get(event.id) ?? []) {
+      if (!next.has(supplierId)) next.set(supplierId, { supplierId, eventId: event.id, eventName: event.eventName, eventDate: event.eventDate.toISOString().slice(0, 10) });
+    }
+  }
+  return [...next.values()];
+}

@@ -1,7 +1,10 @@
 import { z } from "zod";
 export const PRISM_PMCM_COMMAND_INBOX_MAX_PAGE = 100;
+/** The most items one inbox source returns per page: the Inbox asks for this many so it rarely pages at all. */
+export const PRISM_PMCM_COMMAND_INBOX_MAX_PAGE_SIZE = 50;
 export const pmcmCommandInboxQuerySchema = z.object({
   page: z.coerce.number().int().min(0).max(PRISM_PMCM_COMMAND_INBOX_MAX_PAGE).default(0),
+  pageSize: z.coerce.number().int().min(1).max(PRISM_PMCM_COMMAND_INBOX_MAX_PAGE_SIZE).optional(),
 });
 export type PrismPmcmCommandInboxQueryInput = z.infer<typeof pmcmCommandInboxQuerySchema>;
 

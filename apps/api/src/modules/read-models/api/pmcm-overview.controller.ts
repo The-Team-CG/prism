@@ -19,6 +19,20 @@ export class OpsPmcmOverviewController {
     return this.overview.eventSummaries(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
 
+  @Get('client-facts')
+  @Header('Cache-Control', 'private, no-store')
+  @UseGuards(EventSessionGuard)
+  clientFacts(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.overview.clientFacts(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
+  @Get('supplier-next-bookings')
+  @Header('Cache-Control', 'private, no-store')
+  @UseGuards(EventSessionGuard)
+  supplierNextBookings(@VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    return this.overview.supplierNextBookings(this.eventAccessPolicyService.resolveActor({}, verifiedActor));
+  }
+
   @Get('events/:eventId/client-activity')
   @Header('Cache-Control', 'private, no-store')
   @UseGuards(EventSessionGuard)

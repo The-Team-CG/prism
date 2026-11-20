@@ -13,7 +13,9 @@ import type {
   PrismPmcmClientActivity,
   PrismPmcmCalendar,
   PrismPmcmCommandInboxQueryInput,
+  PrismPmcmClientFacts,
   PrismPmcmEventSummaries,
+  PrismPmcmSupplierNextBookings,
   PrismPmcmFileSummaries,
   PmcmCalendarQuery,
   PrismPmcmEventWorkspace,
@@ -50,6 +52,10 @@ export interface EventOpsWorkspacesContract {
     clientActivity(eventId: string): Promise<PrismPmcmClientActivity>;
     /** What each event owes and how many messages the signed-in PMCM admin has not read. */
     eventSummaries(): Promise<PrismPmcmEventSummaries>;
+    /** Per-event billed, paid, closeout rating and client sign-in, rolled up per client in the portal. */
+    clientFacts(): Promise<PrismPmcmClientFacts>;
+    /** Each supplier's next confirmed booking on or after today. */
+    supplierNextBookings(): Promise<PrismPmcmSupplierNextBookings>;
     /** Open and overdue file requirements for the events still in play (a bounded set). */
     fileSummaries(): Promise<PrismPmcmFileSummaries>;
     /** Dated work across events (event days, quote deadlines, payments, ocular visits, supplier schedules) in a window. */
