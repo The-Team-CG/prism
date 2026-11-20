@@ -68,4 +68,18 @@ describe("coordinator session load on a PMCM URL", () => {
 
     expect(router.replace).not.toHaveBeenCalled();
   });
+
+  it("keeps a coordinator home when the portal is served under its /event prefix", () => {
+    vi.stubEnv("NEXT_PUBLIC_PORTAL_BASE_PATH", "/event");
+    try {
+      window.history.replaceState(null, "", "/event/dashboard?view=messages");
+      const { router, value } = setters();
+
+      startDashboardSessionLoad(value);
+
+      expect(router.replace).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
