@@ -16,9 +16,9 @@ import {
 type LiveOperationsWorkspaceViewModelProps = {
   liveOps: PrismLiveOps | null;
   busy: boolean;
-  onCreateTask: (input: CreateEventDayTaskInput) => Promise<void>;
-  onCreateIssue: (input: CreateUrgentIssueInput) => Promise<void>;
-  onBlockTask: (taskId: string, input: BlockEventDayTaskInput) => Promise<void>;
+  onCreateTask: (input: CreateEventDayTaskInput) => Promise<boolean | void>;
+  onCreateIssue: (input: CreateUrgentIssueInput) => Promise<boolean | void>;
+  onBlockTask: (taskId: string, input: BlockEventDayTaskInput) => Promise<boolean | void>;
   onUnblockTask: (taskId: string) => Promise<void>;
 };
 
@@ -60,7 +60,8 @@ export function useLiveOperationsWorkspaceViewModel({
   async function confirmBlockTask() {
     if (!blockingTaskId) return;
     const input = parseContract(blockEventDayTaskSchema, { reason: blockReason }, "Event-day task blocker");
-    await onBlockTask(blockingTaskId, input);
+    // A failed save (reported as false) keeps the dialog and its reason open to try again.
+    if ((await onBlockTask(blockingTaskId, input)) === false) return;
     cancelBlockTask();
   }
 
@@ -69,19 +70,20 @@ export function useLiveOperationsWorkspaceViewModel({
   }
 
   async function createTask() {
-    await onCreateTask({
+    const saved = await onCreateTask({
       title: taskTitle,
       assignedRole: taskRole,
       priority: taskPriority,
       slaDueAt: asIsoDateTime(taskSlaDueAt),
     });
+    if (saved === false) return;
     setTaskTitle("");
     setTaskSlaDueAt("");
     setTaskFormOpen(false);
   }
 
   async function createIssue() {
-    await onCreateIssue({
+    const saved = await onCreateIssue({
       title: issueTitle,
       description: issueDescription.trim() || undefined,
       severity: issueSeverity,
@@ -89,6 +91,8 @@ export function useLiveOperationsWorkspaceViewModel({
       ownerRole: issueOwnerRole,
       slaDueAt: asIsoDateTime(issueSlaDueAt),
     });
+    // When the save fails the banner says why, and the form keeps what was typed.
+    if (saved === false) return;
     setIssueTitle("");
     setIssueDescription("");
     setIssueAffectedArea("");
