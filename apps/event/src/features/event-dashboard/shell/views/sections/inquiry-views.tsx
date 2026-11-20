@@ -16,7 +16,7 @@ export function InquiryViews({ funnel, intake, onboarding, followUp }: { funnel:
   const steps: Array<{ id: InquiryView; label: string; value?: number; detail: string }> = [
     { id: "intake", label: "To review", value: funnel.toReview, detail: "New inquiries waiting for a decision" },
     { id: "onboarding", label: "Waiting for conforme", value: funnel.waitingForConforme, detail: "Accepted, not signed yet" },
-    { id: "follow-up", label: "Conforme follow-up", detail: `${funnel.signedThisMonth} signed this month` },
+    { id: "follow-up", label: "Signed this month", value: funnel.signedThisMonth, detail: "Conformes and their follow-up drafts" },
   ];
   return (
     <div className="grid gap-4">
@@ -31,7 +31,7 @@ export function InquiryViews({ funnel, intake, onboarding, followUp }: { funnel:
               aria-selected={on}
               aria-controls={`inquiry-panel-${step.id}`}
               onClick={() => setView(step.id)}
-              className={cx("rounded-lg border px-4 py-3 text-left transition-colors", on ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-surface-raised")}
+              className={cx("grid min-h-20 content-start rounded-lg border px-4 py-3 text-left transition-colors", on ? "border-primary bg-primary/5" : "border-border bg-card hover:bg-surface-raised")}
             >
               <span className="flex items-baseline justify-between gap-2">
                 <span className="text-sm font-medium text-foreground">{step.label}</span>

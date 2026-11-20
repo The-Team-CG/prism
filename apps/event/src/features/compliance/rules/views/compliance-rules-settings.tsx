@@ -10,6 +10,7 @@ import { Input } from "@prism/ui/components/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { Textarea } from "@prism/ui/components/textarea";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@prism/ui/components/item";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import {
   COMPLIANCE_RULE_PHASES,
   COMPLIANCE_RULE_SEVERITIES,
@@ -31,6 +32,7 @@ export function ComplianceRulesSettings({
   onCreateRule: (input: ReturnType<typeof toCreateComplianceRuleInput>) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<ComplianceRuleDraft>(EMPTY_COMPLIANCE_RULE_DRAFT);
+  const [adding, setAdding] = useState(false);
   const active = activeWorkspaceRules(rules);
   const ready = draft.title.trim().length > 0 && draft.conditionKey.trim().length > 0;
   const set = (patch: Partial<ComplianceRuleDraft>) => setDraft((current) => ({ ...current, ...patch }));
@@ -39,6 +41,7 @@ export function ComplianceRulesSettings({
     if (!ready) return;
     await onCreateRule(toCreateComplianceRuleInput(draft));
     setDraft(EMPTY_COMPLIANCE_RULE_DRAFT);
+    setAdding(false);
   }
 
   return (
@@ -51,8 +54,9 @@ export function ComplianceRulesSettings({
             <CardDescription>Rules apply to every event. Each event's Closure → Compliance step runs them and records the results.</CardDescription>
           </div>
         </div>
-        <CardAction>
+        <CardAction className="flex items-center gap-3">
           <span className="text-sm tabular-nums text-muted-foreground">{active.length} active</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => setAdding(true)}><Plus aria-hidden /> Add rule</Button>
         </CardAction>
       </CardHeader>
       <CardContent className="grid gap-6 p-5">
@@ -79,15 +83,21 @@ export function ComplianceRulesSettings({
           )}
         </section>
 
+      </CardContent>
+      <Sheet open={adding} onOpenChange={setAdding}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Add a rule</SheetTitle>
+            <SheetDescription>It runs for every event at its phase, beside the built-in checks.</SheetDescription>
+          </SheetHeader>
         <form
           aria-label="Add a rule"
-          className="grid content-start gap-4"
+          className="grid content-start gap-4 px-4 pb-6"
           onSubmit={(event) => {
             event.preventDefault();
             void submit();
           }}
         >
-          <h3 className="text-sm font-semibold text-foreground">Add a rule</h3>
           <FieldGroup className="gap-4 sm:grid sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="compliance-rule-title">Rule title</FieldLabel>
@@ -129,13 +139,14 @@ export function ComplianceRulesSettings({
           <Field>
             <div>
               <Button type="submit" disabled={busy || !ready}>
-                <Plus aria-hidden /> Add rule
+                Save rule
               </Button>
             </div>
             {ready ? null : <FieldDescription>Add a rule title and a check identifier to save the rule.</FieldDescription>}
           </Field>
         </form>
-      </CardContent>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }

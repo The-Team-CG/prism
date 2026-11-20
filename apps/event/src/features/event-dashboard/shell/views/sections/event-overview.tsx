@@ -367,7 +367,7 @@ export function EventWorkspaceOverview({
       {nextStep ? <OverviewNextStepBar step={nextStep} eventId={event.id} busy={busy} onStartEventDay={onStartEventDay} onOpenTab={onOpenTab} /> : null}
 
       {/* Needs you and Readiness side by side at one height; the venue visit sits under them while it is open. */}
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <div className="min-w-0">
           <OverviewNeedsYou lines={lines} loading={glance !== undefined && glance.attention === undefined} />
         </div>

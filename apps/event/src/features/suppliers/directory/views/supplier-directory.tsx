@@ -143,7 +143,8 @@ function SupplierDirectoryToolbar({ applicationsOpen, createOpen, createDisabled
   return (
     <div className="grid gap-3">
       <div id="supplier-directory-heading" tabIndex={-1} className="flex flex-wrap items-center justify-between gap-3 focus:outline-none">
-        <h2 className="text-base font-semibold text-foreground">Supplier directory</h2>
+        <h2 className="sr-only">Supplier directory</h2>
+        <span aria-hidden />
         <Button type="button" size="sm" variant={createOpen ? "outline" : "default"} disabled={createDisabled} onClick={onToggleCreate}>{createOpen ? "Cancel" : <><Plus className="size-3.5" />New supplier</>}</Button>
       </div>
       {waiting > 0 || applicationsOpen ? (

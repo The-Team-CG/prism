@@ -57,7 +57,7 @@ import { ClientOwnedSuppliersPanel, UnresponsiveSuppliersPanel } from "@/feature
 import { ThemeSuggestionsPanel } from "@/features/ai-advisory/views/ai-advisory-panels";
 import { EventDayCopilotPanel, OperationsAssistantPanel } from "@/features/ai-advisory/views/live-assist-panels";
 import { PresentationMeetingsPanel } from "@/features/commercial/presentation-meetings/views/presentation-meetings-panel";
-import { isEventModuleEnabled } from "@prism/types";
+import { isEventModuleEnabled, prismCalendarDateKey } from "@prism/types";
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
 import { PmcmSupplierGapWarning } from "@/features/suppliers/supplier-gaps/views/pmcm-supplier-gap-warning";
 import { PmcmExternalCreativePanel } from "@/features/suppliers/external-creative/views/pmcm-external-creative-panel";
@@ -134,7 +134,7 @@ export function EventWorkspaceFloorplansTab() {
       accessPanel={
         canManageClientFloorplanAccess(String(vm.session.role)) ? (
           <details className="rounded-lg border border-border bg-card">
-            <summary className="flex min-h-11 cursor-pointer items-center px-5 text-sm font-semibold">Client floorplan access</summary>
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 px-5 text-sm font-semibold">Client floor plan access <span className="font-normal text-muted-foreground">· who on the client side can open the official plan</span></summary>
             <EventClientFloorplanAccessPanel eventId={selectedEvent.id} />
           </details>
         ) : null
@@ -554,6 +554,18 @@ export function EventWorkspaceClosureTab() {
   const [closurePart, setClosurePart] = useListFilter("part", "wrap-up");
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
+  // Before the event there is nothing to close: one line says when closure opens, with any deliverables already due.
+  if (!event.archived && !event.actualEndedAt && event.status !== "event_day" && event.eventDate.slice(0, 10) > prismCalendarDateKey()) {
+    return (
+      <div className="space-y-5">
+        <section aria-labelledby="closure-not-yet" className="rounded-xl border border-border bg-card px-5 py-4">
+          <h2 id="closure-not-yet" className="text-base font-semibold text-foreground">Closure opens after {formatPortalDate(event.eventDate)}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">The close gates, wrap-up, feedback and archive start once the event has ended.</p>
+        </section>
+        {vm.postEventDocuments.length ? <PostEventDeliverablesPanel eventId={event.id} documents={vm.postEventDocuments} archived={event.archived} actualEndedAt={event.actualEndedAt ?? null} /> : null}
+      </div>
+    );
+  }
   const closureStep = (step: ClosureStep) => (
     <Phase4Workspace
       step={step}

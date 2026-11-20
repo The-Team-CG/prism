@@ -88,7 +88,7 @@ export function EventFloorplansTab({
                 className="min-h-11 rounded-md border border-dashed border-primary/40 bg-background p-3 text-left hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-background"
               >
                 <span className="block text-sm font-semibold text-foreground">Blank layout</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">Empty room using the briefing's venue and guest count</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{ocularVisit.cleared ? "Empty room using the briefing's venue and guest count" : "After the ocular visit"}</span>
               </button>
             ) : null}
             {floorPlanTemplates.slice(0, onCreateBlankDraft ? 3 : 4).map((template) => (
@@ -100,7 +100,7 @@ export function EventFloorplansTab({
                 className="min-h-11 rounded-md border border-border bg-background p-3 text-left hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-background"
               >
                 <span className="block break-words text-sm font-semibold text-foreground">{template.name}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">{template.description || template.venue || "Saved PMCM template"}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{ocularVisit.cleared ? template.description || template.venue || "Saved PMCM template" : "After the ocular visit"}</span>
               </button>
             ))}
           </div>

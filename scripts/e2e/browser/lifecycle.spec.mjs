@@ -309,6 +309,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('listbox', { name: 'Time', exact: true }).getByRole('option', { name: time, exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Record actual end', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Correct actual end', exact: true })).toBeVisible();
+      // The wrap-up report folds under its own line on Wrap up.
+      await pmcm.page.getByText('Wrap-up report', { exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Start quick wrap-up', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Save wrap-up evidence', exact: true })).toBeVisible();
 
