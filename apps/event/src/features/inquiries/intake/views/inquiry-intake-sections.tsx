@@ -45,6 +45,7 @@ import {
   type InquiryLogForm,
   inquiryNextStep,
   inquiryWaitingAge,
+  clientInquiryHistory,
 } from "../model/inquiry-intake-rules";
 
 function DetailField({ label: fieldLabel, value }: { label: string; value?: string | null }) {
@@ -340,6 +341,7 @@ export function InquiryDetailDrawer({
         <InquiryDetailHeader inquiry={inquiry} onClose={onClose} />
         <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
           <InquiryDetailFlags inquiry={inquiry} />
+          <ReturningClientLine inquiry={inquiry} allInquiries={allInquiries} />
           <InquiryDetailFields inquiry={inquiry} />
           <InquiryHistorySection inquiry={inquiry} allInquiries={allInquiries} busy={busy} onMerge={onMerge} />
           <section className="rounded-lg border border-border bg-background px-4 py-3">
@@ -384,6 +386,18 @@ function InquiryDetailHeader({ inquiry, onClose }: { inquiry: PrismInquiry; onCl
         </Button>
       </div>
     </div>
+  );
+}
+
+/** Whether the client has come to PMCM before, from their other inquiries: a returning client is a different decision. */
+function ReturningClientLine({ inquiry, allInquiries }: { inquiry: PrismInquiry; allInquiries: PrismInquiry[] }) {
+  const history = clientInquiryHistory(inquiry, allInquiries);
+  if (!history) return null;
+  return (
+    <p className="text-sm text-foreground">
+      <span className="font-semibold">Returning client</span>
+      <span className="text-muted-foreground"> · {history.accepted} of {history.earlier} earlier {history.earlier === 1 ? "inquiry" : "inquiries"} accepted{history.lastEventName ? ` · last: ${history.lastEventName}` : ""}</span>
+    </p>
   );
 }
 

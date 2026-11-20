@@ -4,7 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BellRing, ChevronRight, Plus, RefreshCw, UserPlus, X } from "lucide-react";
 import { PrismHero } from "@prism/ui/page-blocks";
 import { useState, type ReactNode } from "react";
-import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
+import { formatPortalDate, formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
+import { liveNowNext } from "../model/live-now-next";
 import { COORDINATOR_ROLES, decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
 
 import type {
@@ -165,15 +166,22 @@ export function LiveOpsOverview({
       </PrismHero>
     );
   }
+  const expected = liveOps?.briefing?.guestCount ?? 0;
+  const run = liveNowNext(liveOps?.schedule, liveOps?.timer, new Date().toISOString());
   const stats: Array<{ label: string; value: string; danger?: boolean }> = [
-    { label: "Guests checked in", value: String(liveOps?.guestAttendanceCount ?? 0) },
+    { label: "Guests checked in", value: expected ? `${liveOps?.guestAttendanceCount ?? 0} of ${expected}` : String(liveOps?.guestAttendanceCount ?? 0) },
     { label: "Suppliers verified", value: suppliers ? `${metrics.verifiedSuppliers} of ${suppliers}` : String(metrics.verifiedSuppliers) },
     { label: "Coordinators on site", value: coordinators ? `${metrics.presentCoordinators} of ${coordinators}` : String(metrics.presentCoordinators) },
     { label: "Tasks done", value: String(metrics.completedTasks) },
     { label: "Open issues", value: String(metrics.openIssues), danger: metrics.openIssues > 0 },
   ];
   return (
-    <PrismHero label={`Live now · ${event.clientName}`} title={event.eventName} meta={formatPortalDate(event.eventDate)}>
+    <PrismHero
+      label={run.now ? `Now · until ${formatPortalTime(run.now.endAt)}` : `Live now · ${event.clientName}`}
+      title={run.now?.title ?? event.eventName}
+      meta={run.next ? `Next: ${run.next.title} at ${formatPortalTime(run.next.startAt)}${run.next.location ? ` · ${run.next.location}` : ""}` : run.now ? event.eventName : formatPortalDate(event.eventDate)}
+      figure={run.minutesToNext !== null && run.minutesToNext <= 180 ? { value: `${run.minutesToNext} min`, label: `to ${run.next?.title ?? "next"}` } : undefined}
+    >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <dl aria-label="Live counts" className="grid flex-1 grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-5">
           {stats.map((stat) => (

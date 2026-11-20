@@ -7,6 +7,7 @@ import {
   inquiryExtraDetailFields,
   inquiryHistoryCues,
   inquiryMatchesIntakeFilters,
+  clientInquiryHistory,
   inquiryFunnel,
   inquiryMergeCandidates,
   inquiryNextStep,
@@ -221,5 +222,20 @@ describe("inquiry funnel", () => {
       { status: "accepted", acceptedAt: "2026-09-01", conformeSignedAt: "2026-09-05T02:00:00.000Z" },
       { status: "declined" },
     ], now)).toEqual({ toReview: 1, waitingForConforme: 1, signedThisMonth: 1 });
+  });
+});
+
+describe("returning client", () => {
+  it("counts the client's other inquiries by email or company and names their last accepted event", () => {
+    const current = { id: "inq_new", email: "Ana@Ayala.test", companyName: "Ayala Corp" };
+    const history = clientInquiryHistory(current, [
+      { id: "inq_new", email: "ana@ayala.test", companyName: "Ayala Corp", status: "new", eventName: "Awards", eventDate: "2027-10-08" },
+      { id: "a", email: "ana@ayala.test", companyName: "", status: "accepted", eventName: "Gala 2025", eventDate: "2025-12-01" },
+      { id: "b", email: "ops@ayala.test", companyName: "Ayala Corp", status: "accepted", eventName: "Gala 2026", eventDate: "2026-12-07" },
+      { id: "c", email: "ana@ayala.test", companyName: "", status: "declined", eventName: "Party", eventDate: "2024-01-01" },
+      { id: "d", email: "x@other.test", companyName: "Other", status: "accepted", eventName: "Other", eventDate: "2026-01-01" },
+    ]);
+    expect(history).toEqual({ earlier: 3, accepted: 2, lastEventName: "Gala 2026" });
+    expect(clientInquiryHistory(current, [])).toBeNull();
   });
 });

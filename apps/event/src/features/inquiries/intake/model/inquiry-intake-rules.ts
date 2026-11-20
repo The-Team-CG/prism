@@ -104,6 +104,21 @@ export function inquiryWaitingAge(inquiry: Pick<PrismInquiry, "status" | "create
   return { label, tone: days >= 5 ? "late" : days >= 2 ? "stale" : "fresh" };
 }
 
+/** The client's other inquiries (same email, or same company), for "returning client" on review. Null for a first inquiry. */
+export function clientInquiryHistory(
+  inquiry: Pick<PrismInquiry, "id" | "email" | "companyName">,
+  allInquiries: Array<Pick<PrismInquiry, "id" | "email" | "companyName" | "status" | "acceptedAt" | "eventName" | "eventDate">>,
+): { earlier: number; accepted: number; lastEventName?: string } | null {
+  const email = inquiry.email?.trim().toLowerCase();
+  const company = inquiry.companyName?.trim().toLowerCase();
+  const others = allInquiries.filter((other) => other.id !== inquiry.id
+    && ((email && other.email?.trim().toLowerCase() === email) || (company && other.companyName?.trim().toLowerCase() === company)));
+  if (others.length === 0) return null;
+  const accepted = others.filter((other) => other.status === "accepted" || Boolean(other.acceptedAt));
+  const last = [...accepted].sort((a, b) => (b.eventDate ?? "").localeCompare(a.eventDate ?? ""))[0];
+  return { earlier: others.length, accepted: accepted.length, lastEventName: last?.eventName };
+}
+
 export type InquiryFunnel = { toReview: number; waitingForConforme: number; signedThisMonth: number };
 
 /** The inquiry funnel's counts: new to decide, accepted but not yet signed, and conformes signed this month. */
