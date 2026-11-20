@@ -2,6 +2,7 @@ import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { Empty, EmptyDescription, EmptyHeader } from "@prism/ui/components/empty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { BellRing, ChevronRight, Plus, RefreshCw, UserPlus, X } from "lucide-react";
+import { PrismHero } from "@prism/ui/page-blocks";
 import { useState, type ReactNode } from "react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import { COORDINATOR_ROLES, decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
@@ -105,59 +106,87 @@ function LiveOpsEmpty({ label: emptyLabel }: { label: string }) {
   );
 }
 
-/** Compact desk header: noun title, refresh, and live counts as one readable row. */
+export type LiveDeskStage = "before" | "day" | "after";
+
+function daysBetween(from: string, to: string) {
+  return Math.round((Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * The desk's lead, by stage. Before the day it says when the desk opens and what to check first; on the day, the
+ * live counts against what is expected (suppliers verified of those booked, coordinators on site of those assigned),
+ * open issues coloured; after it, how the day went and the way to closure, instead of a row of zeros.
+ */
 export function LiveOpsOverview({
   event,
   liveOps,
   metrics,
   busy,
-  ended,
+  stage,
+  today,
   onReload,
 }: {
   event: PrismEvent;
   liveOps: PrismLiveOps | null;
   metrics: LiveOpsVm["metrics"];
   busy: boolean;
-  ended: boolean;
+  stage: LiveDeskStage;
+  today: string;
   onReload: () => Promise<void>;
 }) {
-  const stats: Array<[string, number]> = [
-    ["Open issues", metrics.openIssues],
-    ["Tasks done", metrics.completedTasks],
-    ["Guests checked in", liveOps?.guestAttendanceCount ?? 0],
-    ["Suppliers verified", metrics.verifiedSuppliers],
-    ["Coordinators present", metrics.presentCoordinators],
+  const suppliers = liveOps?.supplierStatuses.length ?? 0;
+  const coordinators = liveOps?.coordinatorAssignments.length ?? 0;
+  const refresh = (
+    <button type="button" disabled={busy} onClick={onReload} className="inline-flex h-10 items-center gap-2 rounded-md border border-ink-foreground/20 px-3 text-sm font-semibold text-ink-foreground disabled:opacity-60">
+      <RefreshCw className="size-4" aria-hidden /> Refresh
+    </button>
+  );
+  if (stage === "before") {
+    const days = Math.max(1, daysBetween(today, event.eventDate));
+    return (
+      <PrismHero
+        label="Live desk"
+        title={`Opens on ${formatPortalDate(event.eventDate)}`}
+        meta={`${event.clientName} · check coordinators, supplier arrivals and the run sheet before the day.`}
+        figure={{ value: String(days), label: days === 1 ? "day to go" : "days to go" }}
+      />
+    );
+  }
+  if (stage === "after") {
+    return (
+      <PrismHero
+        label={`Ended ${formatPortalDate(event.eventDate)}`}
+        title="How the day went"
+        meta={[`${liveOps?.guestAttendanceCount ?? 0} guests checked in`, `${metrics.completedTasks} tasks done`, metrics.openIssues ? `${metrics.openIssues} issues still open` : "no open issues"].join(" · ")}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p role="status" className="text-sm text-ink-foreground/70">Live entry is closed; the record below is kept for closure.</p>
+          <Link href={`/dashboard/events/${encodeURIComponent(event.id)}/closure`} className="rounded-md bg-ink-foreground px-3 py-2 text-sm font-semibold text-ink hover:opacity-90">Go to closure</Link>
+        </div>
+      </PrismHero>
+    );
+  }
+  const stats: Array<{ label: string; value: string; danger?: boolean }> = [
+    { label: "Guests checked in", value: String(liveOps?.guestAttendanceCount ?? 0) },
+    { label: "Suppliers verified", value: suppliers ? `${metrics.verifiedSuppliers} of ${suppliers}` : String(metrics.verifiedSuppliers) },
+    { label: "Coordinators on site", value: coordinators ? `${metrics.presentCoordinators} of ${coordinators}` : String(metrics.presentCoordinators) },
+    { label: "Tasks done", value: String(metrics.completedTasks) },
+    { label: "Open issues", value: String(metrics.openIssues), danger: metrics.openIssues > 0 },
   ];
   return (
-    <section className="rounded-lg border border-border bg-card p-4 sm:p-5" aria-labelledby="live-desk-title">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 id="live-desk-title" className="text-xl font-semibold text-foreground">Live desk</h2>
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">{event.clientName} · {formatPortalDate(event.eventDate)}</p>
-          {ended ? <EndedNotice eventDate={event.eventDate} /> : null}
-        </div>
-        <button type="button" disabled={busy} onClick={onReload} className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-semibold text-foreground disabled:opacity-60">
-          <RefreshCw className="size-4" aria-hidden /> Refresh
-        </button>
+    <PrismHero label={`Live now · ${event.clientName}`} title={event.eventName} meta={formatPortalDate(event.eventDate)}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <dl aria-label="Live counts" className="grid flex-1 grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-5">
+          {stats.map((stat) => (
+            <div key={stat.label}>
+              <dt className="text-xs text-ink-foreground/70">{stat.label}</dt>
+              <dd className={cx("text-xl font-semibold tabular-nums", stat.danger ? "text-danger" : "text-ink-foreground")}>{stat.value}</dd>
+            </div>
+          ))}
+        </dl>
+        {refresh}
       </div>
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 sm:grid-cols-5">
-        {stats.map(([statLabel, value]) => (
-          <div key={statLabel} className="flex items-baseline justify-between gap-2 border-t border-border py-1.5 sm:block">
-            <dt className="text-xs text-muted-foreground">{statLabel}</dt>
-            <dd className={cx("text-base font-semibold tabular-nums sm:text-lg", statLabel === "Open issues" && value > 0 ? "text-danger" : "text-foreground")}>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
-/** After the event date, live entry is closed; the desk keeps its history for the closure record. */
-function EndedNotice({ eventDate }: { eventDate: string }) {
-  return (
-    <p role="status" className="mt-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground">
-      Event ended on {formatPortalDate(eventDate)}. Live entry is closed; the record below is kept for closure.
-    </p>
+    </PrismHero>
   );
 }
 
