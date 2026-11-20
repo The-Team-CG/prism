@@ -1060,9 +1060,11 @@ describe('GuestWorkflowService', () => {
       createTestGuestEventProjections() as any,
       { write: vi.fn(async () => undefined) } as any, {} as any);
 
-    await expect(service.importRoster('evt_1', { source: ' Coordinator-Walk-In ', rows: [] } as any, {
-      id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin',
-    })).rejects.toThrow('reserved roster source');
+    for (const source of [' Coordinator-Walk-In ', 'guest-review', 'GUEST-REVIEW-HEADCOUNT']) {
+      await expect(service.importRoster('evt_1', { source, rows: [] } as any, {
+        id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin',
+      })).rejects.toThrow('reserved roster source');
+    }
     expect(transaction).not.toHaveBeenCalled();
   });
 

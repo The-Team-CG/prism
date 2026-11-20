@@ -554,8 +554,9 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   async importRoster(eventId: string, input: ImportGuestRosterInput, actor: { id?: string; name: string; role: string }) {
-    if (input.source.trim().toLowerCase() === GUEST_WALK_IN_ROSTER_SOURCE) {
-      throw new BadRequestException('Coordinator walk-in is a reserved roster source');
+    // Sources the system stamps on its own rows are reserved: an import under one would replace (withdraw) those rows.
+    if (GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(input.source.trim().toLowerCase())) {
+      throw new BadRequestException(`${input.source.trim()} is a reserved roster source`);
     }
     const batchId = `roster_${randomUUID()}`;
       return this.prisma.$transaction(async (tx) => {
