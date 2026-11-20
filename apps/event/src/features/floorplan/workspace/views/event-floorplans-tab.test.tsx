@@ -37,7 +37,9 @@ describe("EventFloorplansTab", () => {
 
     const headings = screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
     expect(headings[0]).toBe("Official floorplan");
-    expect(headings.indexOf("Client preferences1")).toBeGreaterThan(0);
+    expect(headings.indexOf("Client layout ideas1")).toBeGreaterThan(0);
+    // With no PMCM drafts in progress, there is no empty "Drafts in progress" card.
+    expect(headings.some((heading) => heading?.startsWith("Drafts in progress"))).toBe(false);
     expect(headings.indexOf("Start a PMCM draft")).toBe(headings.length - 1);
 
     const official = screen.getByRole("region", { name: "Official floorplan" });
@@ -45,7 +47,7 @@ describe("EventFloorplansTab", () => {
     expect(official.textContent).toContain("PMCM administrator");
     expect(official.textContent).not.toContain("pmcm-admin");
 
-    const preferences = screen.getByRole("region", { name: /Client preferences/ });
+    const preferences = screen.getByRole("region", { name: /Client layout ideas/ });
     expect(preferences.textContent).toContain("Cabaret");
     expect(preferences.textContent).not.toContain("Open / Edit");
 
@@ -97,13 +99,13 @@ describe("EventFloorplansTab", () => {
     const gala = screen.getByRole("button", { name: /Gala room/ }) as HTMLButtonElement;
     expect(blank.disabled).toBe(true);
     expect(gala.disabled).toBe(true);
-    expect(screen.getByText("A PMCM draft can start once the ocular visit is completed or waived.")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Open Overview" }));
+    expect(screen.getByRole("region", { name: "Official floorplan" }).textContent).toContain("A PMCM draft can start once the ocular visit is completed or waived.");
+    fireEvent.click(screen.getByRole("button", { name: "Go to the ocular visit" }));
     expect(onOpenOverview).toHaveBeenCalledTimes(1);
 
     rerender(renderTab(true));
     expect((screen.getByRole("button", { name: /Blank layout/ }) as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.queryByText("A PMCM draft can start once the ocular visit is completed or waived.")).toBeNull();
+    expect(screen.getByRole("region", { name: "Official floorplan" }).textContent).not.toContain("ocular visit");
     fireEvent.click(screen.getByRole("button", { name: /Blank layout/ }));
     expect(onCreateBlankDraft).toHaveBeenCalledTimes(1);
     expect(onCreateTemplateDraft).not.toHaveBeenCalled();

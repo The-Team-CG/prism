@@ -23,9 +23,9 @@ type DraftHandlers = {
 };
 
 /**
- * PMCM floorplan workspace. Leads with the authoritative approved official plan, then
- * drafts in progress, client preferences (never official), older versions, and finally
- * the controls for starting a new draft. Canvas internals stay in the editor package.
+ * PMCM floorplan workspace. Leads with the official plan and, while there is none, the one thing that unblocks it;
+ * then drafts and the client's layout ideas (never official) only when there are any, older versions, and the ways
+ * to start a draft. Canvas internals stay in the editor package.
  */
 export function EventFloorplansTab({
   floorPlanTemplates,
@@ -48,24 +48,24 @@ export function EventFloorplansTab({
 
   return (
     <div className="space-y-4">
-      <OfficialPlanSection draft={groups.official} pendingCount={groups.inProgress.length} handlers={handlers} />
+      <OfficialPlanSection draft={groups.official} pendingCount={groups.inProgress.length} ocularVisit={ocularVisit} handlers={handlers} />
 
-      <WorkspaceSection id="floorplan-in-progress" title="Drafts in progress" count={groups.inProgress.length}>
-        {groups.inProgress.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No PMCM drafts are waiting for submission or approval.</p>
-        ) : (
+      {groups.inProgress.length > 0 ? (
+        <WorkspaceSection id="floorplan-in-progress" title="Drafts in progress" count={groups.inProgress.length}>
           <ul>{groups.inProgress.map((draft) => <DraftRow key={draft.id} draft={draft} handlers={handlers} />)}</ul>
-        )}
-      </WorkspaceSection>
+        </WorkspaceSection>
+      ) : null}
 
-      <WorkspaceSection id="floorplan-client-preferences" title="Client preferences" count={groups.clientPreferences.length}>
-        <p className="text-xs text-muted-foreground">Layout requests from the client. They inform the official plan but are never official themselves.</p>
-        {groups.clientPreferences.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">The client has not submitted a layout preference.</p>
-        ) : (
+      {groups.clientPreferences.length > 0 ? (
+        <WorkspaceSection id="floorplan-client-preferences" title="Client layout ideas" count={groups.clientPreferences.length}>
+          <p className="text-xs text-muted-foreground">Layout requests from the client. They inform the official plan but are never official themselves.</p>
           <ul className="mt-1">{groups.clientPreferences.map((draft) => <DraftRow key={draft.id} draft={draft} handlers={handlers} />)}</ul>
-        )}
-      </WorkspaceSection>
+        </WorkspaceSection>
+      ) : null}
+
+      {groups.inProgress.length === 0 && groups.clientPreferences.length === 0 ? (
+        <p className="px-1 text-sm text-muted-foreground">No PMCM drafts or client layout ideas yet.</p>
+      ) : null}
 
       {groups.history.length > 0 ? (
         <details className="group rounded-lg border border-border bg-card px-4 py-3 sm:px-5">
@@ -78,13 +78,7 @@ export function EventFloorplansTab({
         </details>
       ) : null}
 
-      <WorkspaceSection id="floorplan-start-draft" title="Start a PMCM draft">
-        {ocularVisit.cleared ? null : (
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-attention-soft p-3 text-sm">
-            <p className="min-w-0 text-foreground">A PMCM draft can start once the ocular visit is completed or waived.</p>
-            <Button variant="outline" size="sm" className="min-h-11" onClick={ocularVisit.onOpenOverview}>Open Overview</Button>
-          </div>
-        )}
+      <WorkspaceSection id="floorplan-start-draft" title="Start a PMCM draft" note={ocularVisit.cleared ? undefined : "Available once the ocular visit is done or waived"}>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {onCreateBlankDraft ? (
               <button
@@ -120,19 +114,25 @@ export function EventFloorplansTab({
   );
 }
 
-function WorkspaceSection({ id, title, count, children }: { id: string; title: string; count?: number; children: ReactNode }) {
+function WorkspaceSection({ id, title, count, note, children }: { id: string; title: string; count?: number; note?: string; children: ReactNode }) {
   return (
     <section aria-labelledby={id} className="rounded-lg border border-border bg-card px-4 py-3 sm:px-5 sm:py-4">
-      <h2 id={id} className="flex items-baseline gap-2 pb-2 text-base font-semibold text-foreground">
+      <h2 id={id} className="flex flex-wrap items-baseline gap-2 pb-2 text-base font-semibold text-foreground">
         {title}
         {typeof count === "number" ? <span className="text-sm font-normal tabular-nums text-muted-foreground">{count}</span> : null}
+        {note ? <span className="text-sm font-normal text-muted-foreground">{note}</span> : null}
       </h2>
       {children}
     </section>
   );
 }
 
-function OfficialPlanSection({ draft, pendingCount, handlers }: { draft: PrismFloorPlanDraft | undefined; pendingCount: number; handlers: DraftHandlers }) {
+function OfficialPlanSection({ draft, pendingCount, ocularVisit, handlers }: {
+  draft: PrismFloorPlanDraft | undefined;
+  pendingCount: number;
+  ocularVisit: { cleared: boolean; onOpenOverview: () => void };
+  handlers: DraftHandlers;
+}) {
   return (
     <section aria-labelledby="floorplan-official" className="rounded-lg border border-border bg-card p-4 sm:p-5">
       <h2 id="floorplan-official" className="text-xl font-semibold text-foreground">Official floorplan</h2>
@@ -154,10 +154,19 @@ function OfficialPlanSection({ draft, pendingCount, handlers }: { draft: PrismFl
           <FloorplanSnapshotHistory eventId={handlers.event.id} draftId={draft.id} />
         </>
       ) : (
-        <p className="mt-2 text-sm text-muted-foreground">
-          No official floorplan has been approved yet.
-          {pendingCount > 0 ? ` ${pendingCount} PMCM draft${pendingCount === 1 ? " is" : "s are"} in progress below.` : " Start a PMCM draft from a saved template below."}
-        </p>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <p className="min-w-0 flex-1 basis-64 text-sm text-muted-foreground">
+            No official floorplan has been approved yet.
+            {pendingCount > 0
+              ? ` ${pendingCount} PMCM draft${pendingCount === 1 ? " is" : "s are"} in progress below.`
+              : ocularVisit.cleared
+                ? " Start a PMCM draft from a blank room or a saved template below."
+                : " A PMCM draft can start once the ocular visit is completed or waived."}
+          </p>
+          {pendingCount === 0 && !ocularVisit.cleared ? (
+            <Button className="min-h-11" onClick={ocularVisit.onOpenOverview}>Go to the ocular visit</Button>
+          ) : null}
+        </div>
       )}
     </section>
   );
