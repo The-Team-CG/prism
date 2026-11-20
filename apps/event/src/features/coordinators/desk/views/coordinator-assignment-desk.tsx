@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRightLeft, ChevronDown, UserCheck } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import type {
   CoordinatorRole,
@@ -16,29 +16,25 @@ import type {
   PrismEventOperatorDesignation,
 } from "@prism/types";
 import { COORDINATOR_ROLES, canonicalCoordinatorRole, hasEventDatePassed, prismCalendarDateKey } from "@prism/types";
-import { Avatar, AvatarFallback } from "@prism/ui/components/avatar";
 import { Button } from "@prism/ui/components/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@prism/ui/components/dialog";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { dateKey } from "@/features/pmcm-kit";
 import {
-  activeAssignmentForRole,
   coordinatorSkillFilterOptions,
   coordinatorHasAllSkills,
   isCoordinatorAssignmentActive,
   isOperatorEligibleAssignment,
-  otherActiveRoleAssignment,
 } from "../model/coordinators-desk-rules";
 import { PendingAcknowledgmentsPanel } from "./coordinator-acknowledgment-panel";
 import { CoordinatorAvailabilityCard } from "./coordinator-availability-card";
 import { CoordinatorReliabilityHistory } from "./coordinator-reliability-history";
 import { CoverageTargetCard, EmergencyWithdrawalsNotice, PoolAvailabilityNote, StaffingSummary, type CoverageRequirement } from "./coordinator-coverage-cards";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@prism/ui/components/card";
 import { FieldDescription } from "@prism/ui/components/field";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@prism/ui/components/item";
 import { OperatorDesignationCard } from "./coordinator-operator-card";
-import { CoordinatorRoleCoverage, roleCoverageRows } from "./coordinator-role-coverage";
+import { roleCoverageRows, roleCoverageSummary } from "./coordinator-role-coverage";
+import { CoordinatorFieldingList, RoleNeedChips } from "./coordinator-fielding";
+import { formatPortalDate } from "@prism/ui/format-date";
 import { LoadingState } from "@prism/ui/components/loading-state";
 
 type SuggestionLoadStatus = "idle" | "loading" | "loaded" | "empty" | "error";
@@ -93,6 +89,7 @@ export function CoordinatorAssignmentDesk({
 }) {
   const [roleFilter, setRoleFilter] = useState<CoordinatorRole | "all">("all");
   const [onlyAvailable, setOnlyAvailable] = useState(true);
+  const [query, setQuery] = useState("");
   const [pendingConflict, setPendingConflict] = useState<{
     coordinator: CoordinatorIdentity;
     role: CoordinatorRole;
@@ -129,9 +126,8 @@ export function CoordinatorAssignmentDesk({
   );
 
   const coverageRows = useMemo(() => roleCoverageRows(COORDINATOR_ROLES, eventAssignments, roleRequirements), [eventAssignments, roleRequirements]);
-  const filledRoles = new Set(coverageRows.filter((row) => row.holders.length >= (row.needed ?? 1)).map((row) => row.role));
 
-  function findForRole(role: CoordinatorRole) {
+  function findForRole(role: CoordinatorRole | "all") {
     setRoleFilter(role);
     setSelectedSkills([]);
     setSkillSuggestions([]);
@@ -165,7 +161,8 @@ export function CoordinatorAssignmentDesk({
     return true;
   });
 
-  const groupedRoles = roleFilter === "all" ? roleOptions : [roleFilter];
+  const needle = query.trim().toLowerCase();
+  const visibleCoordinators = filteredCoordinators.filter((c) => !needle || [c.name, c.email, ...coordinatorRoleTags(c), ...c.skillsTags].join(" ").toLowerCase().includes(needle));
 
   async function assign(coordinator: CoordinatorIdentity, role: CoordinatorRole) {
     const conflict = conflictFor(coordinator.id);
@@ -214,130 +211,78 @@ export function CoordinatorAssignmentDesk({
 
       <PoolAvailabilityNote pool={pool} />
 
-      {/* Who holds each role leads the page; the finder below is how a gap gets filled. */}
-      <CoordinatorRoleCoverage rows={coverageRows} onFind={findForRole} />
-
       {roleRequirements.length > 0 ? (
         <StaffingSummary roleRequirements={roleRequirements} assignmentCounts={assignmentCounts} eventEnded={hasEventDatePassed(event.eventDate, prismCalendarDateKey())} onEdit={setEditingTarget} />
       ) : null}
 
-      {/* Coordinator assignment */}
-      <Card id="coordinator-finder" className="scroll-mt-24">
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <UserCheck className="size-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Find and assign coordinators</h2>
+      {/* Fielding: who is on the event, in which role, and one action per person to field or move them. */}
+      <section id="coordinator-finder" aria-labelledby="coordinator-fielding-title" className="scroll-mt-24 overflow-hidden rounded-xl border border-border bg-card">
+        <header className="grid gap-3 px-5 pb-3 pt-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id="coordinator-fielding-title" className="text-base font-semibold text-foreground">Fielding</h2>
+            {coverageRows.length ? <p className="text-sm text-muted-foreground">{roleCoverageSummary(coverageRows)}</p> : null}
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-5 xl:grid-cols-[220px_minmax(0,1fr)]">
-            {/* Filters */}
-            <div className="space-y-4 rounded-lg border border-border bg-muted/30 p-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">Role</p>
-                <Select
-                  value={roleFilter}
-                  disabled={skillSuggestionStatus === "loading"}
-                  onValueChange={(value) => {
-                    const nextRole = value === "all" ? "all" : canonicalCoordinatorRole(value) ?? "all";
-                    setRoleFilter(nextRole);
-                    setSelectedSkills([]);
-                    setSkillSuggestions([]);
-                    setSkillSuggestionStatus("idle");
-                  }}
-                >
-                  <SelectTrigger aria-label="Coordinator role filter" className="mt-2 w-full min-w-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All roles</SelectItem>
-                    {roleOptions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <label className="flex items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-2.5 text-sm font-semibold text-foreground">
-                <input
-                  type="checkbox"
-                  checked={onlyAvailable}
-                  onChange={(e) => setOnlyAvailable(e.target.checked)}
-                  className="size-6 shrink-0 rounded"
-                />
-                Available only
-              </label>
-              <CoordinatorSkillFilters roleFilter={roleFilter} status={skillSuggestionStatus} options={skillOptions} selected={selectedSkills} onChange={updateSelectedSkill} />
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={roleFilter === "all" || skillSuggestionStatus === "loading"}
-                  onClick={() => void findSkillSuggestions()}
-                  className="w-full"
-                >
+          <RoleNeedChips rows={coverageRows} active={roleFilter} onPick={findForRole} />
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="relative min-w-0 flex-1 basis-48">
+              <span className="sr-only">Search coordinators</span>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search name, role or skill"
+                className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+              />
+            </label>
+            <Select
+              value={roleFilter}
+              disabled={skillSuggestionStatus === "loading"}
+              onValueChange={(value) => findForRole(value === "all" ? "all" : canonicalCoordinatorRole(value) ?? "all")}
+            >
+              <SelectTrigger aria-label="Coordinator role filter" className="h-9 w-48 min-w-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                {roleOptions.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <label className="flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm text-foreground">
+              <input type="checkbox" checked={onlyAvailable} onChange={(e) => setOnlyAvailable(e.target.checked)} className="size-4 rounded" />
+              Available only
+            </label>
+            <details className="relative">
+              <summary className="inline-flex h-9 cursor-pointer list-none items-center gap-1 rounded-md border border-border bg-background px-3 text-sm text-foreground">
+                Skills{selectedSkills.length ? ` · ${selectedSkills.length}` : ""}<ChevronDown aria-hidden className="size-4" />
+              </summary>
+              <div className="absolute right-0 z-20 mt-1 grid w-72 gap-3 rounded-lg border border-border bg-popover p-3 shadow-lg">
+                <CoordinatorSkillFilters roleFilter={roleFilter} status={skillSuggestionStatus} options={skillOptions} selected={selectedSkills} onChange={updateSelectedSkill} />
+                <Button type="button" size="sm" disabled={roleFilter === "all" || skillSuggestionStatus === "loading"} onClick={() => void findSkillSuggestions()}>
                   Find skill matches
                 </Button>
-                {roleFilter === "all" ? (
-                  <FieldDescription>Choose a role above to search by skill.</FieldDescription>
-                ) : null}
+                {roleFilter === "all" ? <FieldDescription>Choose a role to search by skill.</FieldDescription> : null}
               </div>
-            </div>
-
-            {/* Coordinator list */}
-            <div className="space-y-5">
-              <CoordinatorSkillResults status={skillSuggestionStatus} suggestions={skillSuggestions} busy={busy} onAssign={assign} />
-              {filteredCoordinators.length === 0 ? (
-                <Empty className="border-0 p-6">
-                  <EmptyHeader>
-                    <EmptyMedia variant="icon"><UserCheck aria-hidden /></EmptyMedia>
-                    <EmptyTitle>No coordinators match</EmptyTitle>
-                    <EmptyDescription>Adjust role or availability filters to see more coordinators.</EmptyDescription>
-                  </EmptyHeader>
-                </Empty>
-              ) : (
-                groupedRoles.map((role) => {
-                  const roleCoords = filteredCoordinators.filter((c) => coordinatorRoleTags(c).some((tag) => canonicalCoordinatorRole(tag) === role));
-                  if (roleCoords.length === 0) return null;
-                  const card = (
-                    <Card key={role}>
-                      <CardHeader>
-                        <CardTitle className="text-sm font-semibold text-foreground">{role}</CardTitle>
-                        <CardAction className="text-xs text-muted-foreground">{roleCoords.length} match{roleCoords.length === 1 ? "" : "es"}</CardAction>
-                      </CardHeader>
-                      <CardContent>
-                        <ItemGroup className="gap-2">
-                          {roleCoords.map((coord) => (
-                            <CoordinatorCandidateItem
-                              key={`${role}-${coord.id}`}
-                              coordinator={coord}
-                              role={role}
-                              conflict={conflictFor(coord.id)}
-                              eventAssignments={eventAssignments}
-                              eventDate={eventDate}
-                              busy={busy}
-                              onAssign={assign}
-                              onMove={onChangeRole}
-                            />
-                          ))}
-                        </ItemGroup>
-                      </CardContent>
-                    </Card>
-                  );
-                  // A filled role folds to one line while browsing every role, so open roles stay in view.
-                  if (roleFilter !== "all" || !filledRoles.has(role)) return card;
-                  return (
-                    <details key={role} className="group rounded-lg border border-border bg-card">
-                      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 text-sm">
-                        <span className="font-semibold text-foreground">{role} <span className="font-normal text-success">· filled</span></span>
-                        <span className="text-xs text-muted-foreground">{roleCoords.length} {roleCoords.length === 1 ? "match" : "matches"}<ChevronDown aria-hidden className="ml-1 inline size-3.5 transition-transform group-open:rotate-180" /></span>
-                      </summary>
-                      <div className="border-t border-border p-2">{card}</div>
-                    </details>
-                  );
-                })
-              )}
-            </div>
+            </details>
           </div>
-        </CardContent>
-      </Card>
+          <CoordinatorSkillResults status={skillSuggestionStatus} suggestions={skillSuggestions} busy={busy} onAssign={assign} />
+        </header>
+        {visibleCoordinators.length === 0 ? (
+          <p className="border-t border-border px-5 py-4 text-sm text-muted-foreground">No coordinators match. Clear the search, choose All roles or untick Available only.</p>
+        ) : (
+          <div className="border-t border-border">
+            <CoordinatorFieldingList
+              coordinators={visibleCoordinators}
+              eventAssignments={eventAssignments}
+              conflictFor={conflictFor}
+              roleFilter={roleFilter}
+              coverage={coverageRows}
+              eventDateLabel={formatPortalDate(event.eventDate)}
+              busy={busy}
+              onField={(coordinator, role) => void assign(coordinator, role)}
+              onMove={onChangeRole}
+            />
+          </div>
+        )}
+      </section>
 
       {/* Planning tools are used occasionally; assigning people is the main job of this tab. */}
       <details open={editingTarget ? true : undefined} className="group rounded-lg border border-border bg-card">
@@ -526,112 +471,4 @@ function CoordinatorSkillResults({ status, suggestions, busy, onAssign }: {
                 </section>
               )}
   </>;
-}
-
-type CandidateAssignmentState = {
-  assignedHere: boolean;
-  otherRole: PrismCoordinatorAssignment | undefined;
-  acknowledgement: { label: string; tone: string } | null;
-};
-
-function candidateAssignmentState(
-  eventAssignments: PrismCoordinatorAssignment[],
-  coordinatorId: string,
-  role: CoordinatorRole,
-): CandidateAssignmentState {
-  const holding = activeAssignmentForRole(eventAssignments, coordinatorId, role);
-  if (!holding) {
-    return { assignedHere: false, otherRole: otherActiveRoleAssignment(eventAssignments, coordinatorId, role) ?? undefined, acknowledgement: null };
-  }
-  if (holding.status === "pending_acknowledgement") {
-    return { assignedHere: true, otherRole: undefined, acknowledgement: { label: "Awaiting acknowledgement", tone: "text-attention" } };
-  }
-  if (holding.status === "acknowledged") {
-    return { assignedHere: true, otherRole: undefined, acknowledgement: { label: "Acknowledged", tone: "text-success" } };
-  }
-  return { assignedHere: true, otherRole: undefined, acknowledgement: null };
-}
-
-/** Already holding another role here, assigning adds this one alongside it; Move here swaps it instead. */
-function candidateActionLabel(assignedHere: boolean, hasConflict: boolean, hasOtherRole = false) {
-  if (assignedHere) return "Assigned";
-  if (hasConflict) return "Review conflict";
-  return hasOtherRole ? "Add this role" : "Quick assign";
-}
-
-function CoordinatorCandidateItem({
-  coordinator,
-  role,
-  conflict,
-  eventAssignments,
-  eventDate,
-  busy,
-  onAssign,
-  onMove,
-}: {
-  coordinator: PrismCoordinator;
-  role: CoordinatorRole;
-  conflict: PrismCoordinatorAssignment | undefined;
-  eventAssignments: PrismCoordinatorAssignment[];
-  eventDate: string;
-  busy: boolean;
-  onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole) => void;
-  onMove?: (assignmentId: string, role: CoordinatorRole) => Promise<void>;
-}) {
-  const { assignedHere, otherRole, acknowledgement } = candidateAssignmentState(eventAssignments, coordinator.id, role);
-  const actionLabel = candidateActionLabel(assignedHere, Boolean(conflict), Boolean(otherRole));
-  return (
-    <Item role="group" aria-label={`${role}: ${coordinator.name}`} variant="outline" className="min-w-0 flex-wrap items-start">
-      <ItemMedia>
-        <Avatar className="size-10 border border-border">
-          <AvatarFallback className="bg-card text-xs font-semibold text-foreground">
-            {coordinator.name.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      </ItemMedia>
-      <ItemContent className="min-w-0 basis-[calc(100%-4rem)] sm:basis-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <ItemTitle className="min-w-0 truncate">{coordinator.name}</ItemTitle>
-          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${conflict ? "text-attention" : "text-success"}`}>
-            <span aria-hidden className="size-1.5 rounded-full bg-current" />
-            {conflict ? "Has conflict" : "Available"}
-          </span>
-        </div>
-        <ItemDescription className="truncate">{coordinator.email}</ItemDescription>
-        <p className="text-xs text-foreground">{coordinatorRoleTags(coordinator).join(" · ")}</p>
-        {coordinator.skillsTags.length > 0 && (
-          <p className="text-xs text-muted-foreground">Skills: {coordinator.skillsTags.join(", ")}</p>
-        )}
-        {conflict && (
-          <p className="text-xs font-semibold text-attention">
-            Assigned to {conflict.conflictEventName ?? "another event"} on {eventDate}.
-          </p>
-        )}
-        {otherRole ? <p className="text-xs text-muted-foreground">Assigned as {canonicalCoordinatorRole(otherRole.role) ?? otherRole.role}</p> : null}
-        {acknowledgement ? (
-          <p className={`inline-flex items-center gap-1.5 text-xs font-semibold ${acknowledgement.tone}`}>
-            <span aria-hidden className="size-1.5 rounded-full bg-current" />
-            {acknowledgement.label}
-          </p>
-        ) : null}
-      </ItemContent>
-      <ItemActions className="w-full justify-end sm:w-auto">
-        {otherRole && onMove ? (
-          <Button
-            size="sm"
-            disabled={busy}
-            onClick={() => void onMove(otherRole.id, role)}
-            aria-label={`Move ${coordinator.name} from ${canonicalCoordinatorRole(otherRole.role) ?? otherRole.role} to ${role}`}
-          >
-            <ArrowRightLeft className="size-3.5" aria-hidden />
-            Move here
-          </Button>
-        ) : null}
-        <Button size="sm" disabled={busy || assignedHere} onClick={() => onAssign(coordinator, role)} variant="outline">
-          <UserCheck className="size-3.5" />
-          {actionLabel}
-        </Button>
-      </ItemActions>
-    </Item>
-  );
 }

@@ -229,14 +229,13 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(booking.getByRole('button', { name: 'Confirm readiness', exact: true })).toHaveCount(0);
       await pmcm.page.goto(path('coordinators'));
       await pmcm.page.getByRole('checkbox', { name: 'Available only', exact: true }).uncheck();
-      const coordinatorCard = pmcm.page.getByRole('group', { name: 'General Coordinator: Marco Santos', exact: true });
-      await expect(coordinatorCard).toBeVisible();
-      if (await coordinatorCard.getByRole('button', { name: 'Review conflict', exact: true }).count()) {
-        await coordinatorCard.getByRole('button', { name: 'Review conflict', exact: true }).click();
-        await pmcm.page.getByRole('button', { name: 'Override and assign anyway', exact: true }).click();
-      } else {
-        await coordinatorCard.getByRole('button', { name: 'Quick assign', exact: true }).click();
-      }
+      // Fielding lists each coordinator once; Marco's menu fields him as General Coordinator.
+      const coordinatorRow = pmcm.page.getByRole('group', { name: 'Marco Santos', exact: true });
+      await expect(coordinatorRow).toBeVisible();
+      const doubleBooked = await coordinatorRow.getByText(/^On /).count();
+      await coordinatorRow.getByLabel('Field Marco Santos', { exact: true }).click();
+      await coordinatorRow.getByRole('button', { name: /^General Coordinator/ }).click();
+      if (doubleBooked) await pmcm.page.getByRole('button', { name: 'Override and assign anyway', exact: true }).click();
       coordinator = await persona(browser, 'coordinator', device); contexts.push(coordinator.context);
       await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}`);
       await coordinator.page.getByRole('button', { name: /Acknowledge role|Confirm assignment/ }).first().click();

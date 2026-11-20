@@ -1,3 +1,4 @@
+import { formatPortalDate } from "@prism/ui/format-date";
 import { useState, type FormEvent } from "react";
 import { UsersRound } from "lucide-react";
 
@@ -33,7 +34,7 @@ export function PoolAvailabilityNote({ pool }: { pool: PrismCoordinatorPoolAvail
   const blocked = pool.markedUnavailable > 0 ? ` · ${pool.markedUnavailable} marked unavailable` : "";
   return (
     <p role="status" className="text-xs text-muted-foreground">
-      {pool.available} of {pool.activeCoordinators} active coordinators are free on {pool.eventDate}{elsewhere}{blocked}.
+      {pool.available} of {pool.activeCoordinators} active coordinators are free on {formatPortalDate(pool.eventDate)}{elsewhere}{blocked}.
     </p>
   );
 }
