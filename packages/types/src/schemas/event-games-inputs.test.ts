@@ -256,6 +256,49 @@ describe("event game shared contracts", () => {
     expect(submitEventGameActionSchema.safeParse(actions[1]).success).toBe(true);
   });
 
+  it("accepts a bounded Presenter Deck of choice, scale and word-cloud prompts", () => {
+    const choice = { key: "deck-1", type: "choice", prompt: "Best session?", options: ["Keynote", "Panel"], durationSeconds: 30 };
+    const scale = { key: "deck-2", type: "scale", prompt: "Rate the venue", scaleMax: 5, durationSeconds: 20 };
+    const cloud = { key: "deck-3", type: "word-cloud", prompt: "One word for today", maxResponseLength: 30, durationSeconds: 45 };
+    const deck = { kind: "presenter-deck", rounds: [choice, scale, cloud] };
+
+    expect(prismEventGameKindSchema.safeParse("presenter-deck").success).toBe(true);
+    expect(eventGameTemplateConfigurationSchema.safeParse(deck).success).toBe(true);
+    expect(eventGameTemplateConfigurationSchema.safeParse({ ...deck, rounds: [{ ...scale, scaleMax: 10 }] }).success).toBe(true);
+    expect(createEventGameSchema.safeParse({ kind: "presenter-deck", title: "Opening deck", configuration: deck }).success).toBe(true);
+
+    for (const rounds of [
+      [{ ...scale, scaleMax: 7 }],
+      [{ ...choice, options: ["Keynote"] }],
+      [{ ...choice, options: ["A", "B", "C", "D", "E", "F", "G"] }],
+      [{ ...choice, options: ["Panel", " panel "] }],
+      [{ ...cloud, maxResponseLength: 9 }],
+      [{ ...cloud, maxResponseLength: 61 }],
+      [{ ...choice, durationSeconds: 4 }],
+      [{ ...scale, options: ["1", "2"] }],
+      [choice, { ...cloud, key: choice.key }],
+      [],
+      Array.from({ length: 31 }, (_, index) => ({ ...scale, key: `deck-${index}` })),
+    ]) {
+      expect(eventGameTemplateConfigurationSchema.safeParse({ ...deck, rounds }).success).toBe(false);
+    }
+  });
+
+  it("accepts Presenter Deck votes and answers only when the action kind matches the payload", () => {
+    const vote = { templateId: "presenter-deck", roundKey: "deck-2", actionKind: "vote", payload: { option: "3" } };
+    const answer = { templateId: "presenter-deck", roundKey: "deck-3", actionKind: "answer", payload: { response: "Inspiring" } };
+
+    expect(activeMultiplayerGameActionSchema.safeParse(vote).success).toBe(true);
+    expect(activeMultiplayerGameActionSchema.safeParse(answer).success).toBe(true);
+    expect(submitEventGameActionSchema.safeParse(vote).success).toBe(true);
+    // The schema cannot know a round's scaleMax; the API rule rejects out-of-range scale votes.
+    expect(activeMultiplayerGameActionSchema.safeParse({ ...vote, payload: { option: "0" } }).success).toBe(true);
+    expect(submitEventGameActionSchema.safeParse({ ...answer, payload: { option: "3" } }).success).toBe(false);
+    expect(submitEventGameActionSchema.safeParse({ ...vote, payload: { response: "Inspiring" } }).success).toBe(false);
+    expect(submitEventGameActionSchema.safeParse({ ...vote, payload: { option: "3", points: 10 } }).success).toBe(false);
+    expect(submitEventGameActionSchema.safeParse({ ...answer, payload: { response: "x".repeat(61) } }).success).toBe(false);
+  });
+
   it("allows a host to request one session-level Spin the Wheel result", () => {
     expect(gameHostCommandSchema.safeParse({
       command: "spin-wheel", idempotencyKey: TEST_FIXTURES.primaryId,

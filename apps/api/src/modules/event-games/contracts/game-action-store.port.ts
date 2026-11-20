@@ -68,6 +68,8 @@ export interface GameActionStorePort {
       isCorrect: boolean;
       result?: PrismGameParticipantResult;
       teamAssignment?: { teamId: string; teamLabel: string };
+      /** Records a system approval with the submission so it shows to the room without host moderation. */
+      autoVisible?: boolean;
       deadlineAt: Date | null;
       createdAt: Date;
     },

@@ -140,8 +140,8 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
       SET "round_offset_ms" = "round_offset_ms" + ${command.advanceByMs}, "updated_at" = NOW()
       WHERE "event_id" = ${input.eventId} AND "id" = ${input.resourceId}
         AND "status" = ${command.expectedStatus}
-        AND "started_at" = ${command.expectedStartedAt}
-        AND "paused_at" IS NOT DISTINCT FROM ${command.expectedPausedAt}
+        AND date_trunc('milliseconds', "started_at") = ${command.expectedStartedAt}::timestamptz
+        AND date_trunc('milliseconds', "paused_at") IS NOT DISTINCT FROM ${command.expectedPausedAt}::timestamptz
         AND "total_paused_ms" = ${command.expectedTotalPausedMs}::bigint
         AND "round_offset_ms" = ${command.expectedRoundOffsetMs}
       RETURNING "event_id", "id" AS "session_id", "status"

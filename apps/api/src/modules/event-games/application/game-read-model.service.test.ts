@@ -324,6 +324,128 @@ describe('GameReadModelService', () => {
     }, tx);
   });
 
+  it('reveals Presenter Deck rating totals and approved words only after a host pause', async () => {
+    const configuration = { kind: 'presenter-deck', rounds: [
+      { key: 'rate-1', type: 'scale', prompt: 'Rate the venue', scaleMax: 5, durationSeconds: 30 },
+      { key: 'words-1', type: 'word-cloud', prompt: 'One word for today', maxResponseLength: 30, durationSeconds: 30 },
+    ] };
+    const context = {
+      eventId: 'event-1', sessionId: 'session-1', gameId: 'game-1', title: 'Presenter Deck', kind: 'presenter-deck',
+      status: 'paused', configSnapshot: { configuration }, startedAt: new Date('2026-10-16T11:00:00Z'),
+      endedAt: null, pausedAt: now, totalPausedMs: 0, teamId: null, teamLabel: null, participationGrantId: 'grant-1',
+    };
+    const scaleRound = { key: 'rate-1', number: 1, total: 2, prompt: 'Rate the venue', deadlineAt: null };
+    const wordsRound = { key: 'words-1', number: 2, total: 2, prompt: 'One word for today', deadlineAt: null };
+
+    const paused = setup({ context, currentRound: scaleRound });
+    paused.actionStore.getRoundVoteCounts.mockResolvedValue([{ label: '4', count: 3 }, { label: '9', count: 7 }]);
+    await expect(paused.service.getParticipantState('session-1', credential)).resolves.toMatchObject({
+      aggregateResults: [
+        { label: '1', count: 0 }, { label: '2', count: 0 }, { label: '3', count: 0 },
+        { label: '4', count: 3 }, { label: '5', count: 0 },
+      ],
+    });
+
+    const live = setup({ context: { ...context, status: 'live', pausedAt: null }, currentRound: scaleRound });
+    await expect(live.service.getParticipantState('session-1', credential)).resolves.toMatchObject({ aggregateResults: [] });
+    expect(live.actionStore.getRoundVoteCounts).not.toHaveBeenCalled();
+
+    const words = setup({ context, currentRound: wordsRound });
+    words.actionStore.getApprovedRoundResponses.mockResolvedValue(['Inspiring']);
+    const state = await words.service.getParticipantState('session-1', credential);
+    expect(state.aggregateResults).toEqual([]);
+    expect(state.approvedResponses).toEqual(['Inspiring']);
+    expect(words.actionStore.getRoundVoteCounts).not.toHaveBeenCalled();
+  });
+
+  it('shows Presenter Deck results to guests and the host in each slide\'s results window while live', async () => {
+    const configuration = { kind: 'presenter-deck', rounds: [
+      { key: 'rate-1', type: 'scale', prompt: 'Rate the venue', scaleMax: 5, durationSeconds: 30 },
+      { key: 'words-1', type: 'word-cloud', prompt: 'One word for today', maxResponseLength: 30, durationSeconds: 30 },
+    ] };
+    const context = {
+      eventId: 'event-1', sessionId: 'session-1', gameId: 'game-1', title: 'Presenter Deck', kind: 'presenter-deck',
+      status: 'live', configSnapshot: { configuration }, startedAt: new Date('2026-10-16T11:00:00Z'),
+      endedAt: null, pausedAt: null, totalPausedMs: 0, teamId: null, teamLabel: null, participationGrantId: 'grant-1',
+    };
+    const hostContext = { ...context, roundOffsetMs: 0 };
+    const scaleRound = (resultsOpen: boolean) => ({
+      key: 'rate-1', number: 1, total: 2, prompt: 'Rate the venue', deadlineAt: null, resultsOpen,
+    });
+    const wordsRound = { key: 'words-1', number: 2, total: 2, prompt: 'One word for today', deadlineAt: null, resultsOpen: true };
+
+    // Question window: nothing is revealed, and the round says answers are open.
+    const question = setup({ context, currentRound: scaleRound(false) });
+    question.sessions.getHostReadContext.mockResolvedValue(hostContext);
+    const questionState = await question.service.getParticipantState('session-1', credential);
+    expect(questionState).toMatchObject({ aggregateResults: [], currentRound: { key: 'rate-1', resultsOpen: false } });
+    const questionHost = await question.service.getHostState('event-1', 'session-1', actor);
+    expect(questionHost).not.toHaveProperty('aggregateResults');
+    expect(questionHost.currentRound).toMatchObject({ resultsOpen: false });
+    expect(question.actionStore.getRoundVoteCounts).not.toHaveBeenCalled();
+
+    // Results window: the same vote totals reach guests and the host without a pause.
+    const results = setup({ context, currentRound: scaleRound(true) });
+    results.sessions.getHostReadContext.mockResolvedValue(hostContext);
+    results.actionStore.getRoundVoteCounts.mockResolvedValue([{ label: '4', count: 3 }]);
+    const totals = [
+      { label: '1', count: 0 }, { label: '2', count: 0 }, { label: '3', count: 0 },
+      { label: '4', count: 3 }, { label: '5', count: 0 },
+    ];
+    await expect(results.service.getParticipantState('session-1', credential)).resolves.toMatchObject({
+      aggregateResults: totals, currentRound: { key: 'rate-1', resultsOpen: true },
+    });
+    const resultsHost = await results.service.getHostState('event-1', 'session-1', actor);
+    expect(resultsHost.aggregateResults).toEqual(totals);
+    expect(resultsHost.currentRound).toMatchObject({ resultsOpen: true });
+
+    // Word-cloud slides show approved words in their results window.
+    const words = setup({ context, currentRound: wordsRound });
+    words.sessions.getHostReadContext.mockResolvedValue(hostContext);
+    words.actionStore.getApprovedRoundResponses.mockResolvedValue(['Inspiring']);
+    expect((await words.service.getParticipantState('session-1', credential)).approvedResponses).toEqual(['Inspiring']);
+    expect((await words.service.getHostState('event-1', 'session-1', actor)).currentRound?.approvedResponses).toEqual(['Inspiring']);
+  });
+
+  it('shows auto-approved Presenter Deck words to guests and the host while the question is still open', async () => {
+    const configuration = { kind: 'presenter-deck', rounds: [
+      { key: 'words-1', type: 'word-cloud', prompt: 'One word for today', maxResponseLength: 30, durationSeconds: 30 },
+    ] };
+    const context = {
+      eventId: 'event-1', sessionId: 'session-1', gameId: 'game-1', title: 'Presenter Deck', kind: 'presenter-deck',
+      status: 'live', configSnapshot: { configuration }, startedAt: new Date('2026-10-16T11:00:00Z'),
+      endedAt: null, pausedAt: null, totalPausedMs: 0, teamId: null, teamLabel: null, participationGrantId: 'grant-1',
+    };
+    const wordsRound = { key: 'words-1', number: 1, total: 1, prompt: 'One word for today', deadlineAt: null, resultsOpen: false };
+    const words = setup({ context, currentRound: wordsRound });
+    words.sessions.getHostReadContext.mockResolvedValue({ ...context, roundOffsetMs: 0 });
+    words.actionStore.getApprovedRoundResponses.mockResolvedValue(['Bold', 'Calm']);
+
+    const state = await words.service.getParticipantState('session-1', credential);
+    const host = await words.service.getHostState('event-1', 'session-1', actor);
+
+    expect(state).toMatchObject({ approvedResponses: ['Bold', 'Calm'], currentRound: { resultsOpen: false } });
+    expect(host.currentRound?.approvedResponses).toEqual(['Bold', 'Calm']);
+    expect(words.actionStore.getApprovedRoundResponses).toHaveBeenCalledWith({
+      eventId: 'event-1', sessionId: 'session-1', roundKey: 'words-1',
+    }, tx);
+  });
+
+  it.each(['word-cloud', 'open-qa'])('keeps approved %s text hidden from live participants until a pause', async (kind) => {
+    const context = {
+      eventId: 'event-1', sessionId: 'session-1', gameId: 'game-1', title: 'Moderated', kind,
+      status: 'live', configSnapshot: { configuration: {} }, startedAt: new Date('2026-10-16T11:00:00Z'),
+      endedAt: null, pausedAt: null, totalPausedMs: 0, teamId: null, teamLabel: null, participationGrantId: 'grant-1',
+    };
+    const live = setup({ context, currentRound: { key: 'round-1', number: 1, total: 1, prompt: 'Say it', deadlineAt: null } });
+    live.actionStore.getApprovedRoundResponses.mockResolvedValue(['Approved']);
+
+    const state = await live.service.getParticipantState('session-1', credential);
+
+    expect(state).not.toHaveProperty('approvedResponses');
+    expect(live.actionStore.getApprovedRoundResponses).not.toHaveBeenCalled();
+  });
+
   it('returns pending Split the Room text only in the authorized host read model', async () => {
     const { service, sessions, actionStore, rule } = setup();
     rule.getCurrentRound.mockReturnValue({ key: 'round-1', number: 1, total: 1, prompt: 'Pick a side', deadlineAt: null });
@@ -348,6 +470,36 @@ describe('GameReadModelService', () => {
     expect(actionStore.getRoundModerationQueue).toHaveBeenCalledWith({
       eventId: 'event-1', sessionId: 'session-1', roundKey: 'round-1',
     }, tx);
+  });
+
+  it('gives the host the same approved moderated text participants see, only while paused', async () => {
+    const hostContext = {
+      kind: 'word-cloud', status: 'paused', configSnapshot: { configuration: {
+        kind: 'word-cloud', rounds: [{ key: 'round-1', prompt: 'One word', maxResponseLength: 30, durationSeconds: 30 }],
+      } },
+      startedAt: new Date('2026-10-16T11:00:00Z'), endedAt: null, pausedAt: now, totalPausedMs: 0,
+    };
+    const paused = setup({ currentRound: { key: 'round-1', number: 1, total: 1, prompt: 'One word', deadlineAt: null } });
+    paused.sessions.getHostReadContext.mockResolvedValue(hostContext);
+    paused.actionStore.getApprovedRoundResponses.mockResolvedValue(['Bright', 'Bright', 'Calm']);
+
+    const state = await paused.service.getHostState('event-1', 'session-1', actor);
+
+    expect(state.currentRound?.approvedResponses).toEqual(['Bright', 'Bright', 'Calm']);
+    expect(paused.actionStore.getApprovedRoundResponses).toHaveBeenCalledWith({
+      eventId: 'event-1', sessionId: 'session-1', roundKey: 'round-1',
+    }, tx);
+
+    const live = setup({ currentRound: { key: 'round-1', number: 1, total: 1, prompt: 'One word', deadlineAt: null } });
+    live.sessions.getHostReadContext.mockResolvedValue({ ...hostContext, status: 'live', pausedAt: null });
+    const liveState = await live.service.getHostState('event-1', 'session-1', actor);
+    expect(liveState.currentRound).not.toHaveProperty('approvedResponses');
+    expect(live.actionStore.getApprovedRoundResponses).not.toHaveBeenCalled();
+
+    const trivia = setup();
+    trivia.sessions.getHostReadContext.mockResolvedValue({ ...hostContext, kind: 'live-trivia', configSnapshot: {} });
+    await trivia.service.getHostState('event-1', 'session-1', actor);
+    expect(trivia.actionStore.getApprovedRoundResponses).not.toHaveBeenCalled();
   });
 
   it('hides participant state when the credential is absent, invalid, or not granted', async () => {

@@ -193,12 +193,23 @@ export interface PrismGameHostState {
     total: number;
     prompt: string;
     deadlineAt?: string | null;
+    /**
+     * Presenter Deck: true while the slide's question is closed and its results show for a
+     * fixed window before the next slide. Absent for games without a results window.
+     */
+    resultsOpen?: boolean;
     revealedAnswer?: string;
     answerBoard?: readonly { answer: string; alternatives: readonly string[]; points: number }[];
     /** Live Split the Room text awaiting host approval or hiding; never sent to participants. */
     pendingSubmissions?: readonly { id: string; roundNumber: number; response: string }[];
     /** Live Family Feud answers awaiting host scoring; never sent to participants. */
     pendingAnswers?: readonly { id: string; roundNumber: number; answer: string }[];
+    /**
+     * Host-approved text for moderated kinds (Split the Room, Word Cloud, Open Q&A,
+     * Presenter Deck); present only while paused (and, for Presenter Deck, while its results
+     * window is open), matching what participants see.
+     */
+    approvedResponses?: readonly string[];
   } | null;
   /** One immutable host-selected result for Spin the Wheel. */
   sessionResult?: PrismGameSessionResult | null;
@@ -246,7 +257,8 @@ export interface PrismGamePublicState {
   startedAt: string | null;
   /** Server game-time snapshot used only to display round countdowns. */
   serverTime?: string;
-  currentRound: { key: string; number: number; total: number; deadlineAt?: string | null } | null;
+  /** `resultsOpen` is set only for Presenter Deck: true while the slide shows its results and answers are closed. */
+  currentRound: { key: string; number: number; total: number; deadlineAt?: string | null; resultsOpen?: boolean } | null;
   currentPrompt: string | null;
   participant: {
     /** Anonymous, stable label shared with this session's public leaderboard. */
@@ -285,7 +297,10 @@ export type PrismGameParticipantData =
   | { kind: "split-the-room"; options: readonly string[]; maxResponseLength: number }
   | { kind: "live-poll"; options: readonly string[] }
   | { kind: "word-cloud"; maxResponseLength: number }
-  | { kind: "open-qa"; maxResponseLength: number };
+  | { kind: "open-qa"; maxResponseLength: number }
+  | { kind: "presenter-deck"; roundType: "choice"; options: readonly string[] }
+  | { kind: "presenter-deck"; roundType: "scale"; scaleMax: number }
+  | { kind: "presenter-deck"; roundType: "word-cloud"; maxResponseLength: number };
 
 export type PrismGameParticipantResult =
   | { kind: "singleplayer-choice"; option: string };

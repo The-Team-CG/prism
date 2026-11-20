@@ -11,6 +11,7 @@ import { spotTheDifferenceRule } from './rules/spot-the-difference.rules';
 import { wouldYouRatherRule } from './rules/would-you-rather.rules';
 import { thisOrThatSoloRule } from './rules/this-or-that-solo.rules';
 import { livePollRule, openQaRule, wordCloudRule } from './rules/audience-response.rules';
+import { presenterDeckRule } from './rules/presenter-deck.rules';
 import { GameRuleRegistry } from './game-rule-registry';
 
 export function createDefaultGameRuleRegistry(): GameRuleRegistry {
@@ -31,6 +32,7 @@ export function createDefaultGameRuleRegistry(): GameRuleRegistry {
     livePollRule,
     wordCloudRule,
     openQaRule,
+    presenterDeckRule,
   ]) {
     registry.register(rule);
   }
