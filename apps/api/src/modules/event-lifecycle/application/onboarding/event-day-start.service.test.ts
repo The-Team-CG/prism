@@ -37,6 +37,8 @@ describe('EventDayStartService', () => {
     const f = await fixture();
     await expect(f.service.start('evt_1', actor)).resolves.toEqual({ eventId: 'evt_1', status: 'event_day' });
     expect(f.event.status).toBe('event_day');
+    // When event day started is kept: the actual end recorded later is checked against it.
+    expect((f.event as { actualStartedAt?: Date }).actualStartedAt).toBeInstanceOf(Date);
     await f.service.start('evt_1', actor);
     expect(f.tx.opsEvent.update).toHaveBeenCalledTimes(1);
     expect(f.audit.write).toHaveBeenCalledTimes(1);

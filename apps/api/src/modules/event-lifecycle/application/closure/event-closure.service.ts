@@ -5,7 +5,7 @@ import { toPrismaJson } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, EventLifecycleService, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
-import { WRAP_UP_WINDOW_HOURS } from '@prism/types';
+import { WRAP_UP_WINDOW_HOURS, prismEventDayStart } from '@prism/types';
 import type { ArchiveComparisonQuery, ArchiveSearchFilters, PrismCoordinatorInsightFacts, RecordActualEventEndInput, RecordLogisticsCompletionInput, StartEventWrapUpInput, UpdateEventWrapUpInput } from '@prism/types';
 import { EventAccessPolicyService, type EventOpsActorInput, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { FileRequirementsMatrixService } from '../files/file-requirements-matrix.service';
@@ -30,6 +30,20 @@ const defaultWrapUpSections = () => ({
   billingDraft: { status: 'pending', evidence: '', completedAt: null, items: [] as unknown[] },
 });
 const defaultRequiredItems = () => ({ post_event_documents: false, billing: false, logistics: false, issues: false, feedback: false });
+
+/** PMCM may press Start event day this long after the event really began; an end inside it is still plausible. */
+const EVENT_DAY_START_LAG_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Whether an actual end is earlier than the event could have run: before both the start of its event day's date and
+ * (allowing for a late Start click) the time PMCM started event day. Event day may start ahead of the date, and events
+ * started before the start was recorded have nothing to check against.
+ */
+function endsBeforeEventCouldHaveRun(event: { eventDate: Date; actualStartedAt: Date | null }, actualEndedAt: Date): boolean {
+  if (!event.actualStartedAt) return false;
+  const earliest = Math.min(prismEventDayStart(event.eventDate).getTime(), event.actualStartedAt.getTime() - EVENT_DAY_START_LAG_MS);
+  return actualEndedAt.getTime() < earliest;
+}
 
 @Injectable()
 export class EventClosureService {
@@ -59,6 +73,9 @@ export class EventClosureService {
       const current = await this.requireEvent(eventId, tx);
       if (!['event_day', 'closure_archive', 'archived'].includes(current.status)) {
         throw new BadRequestException('Actual event end can only be recorded during event day or closure');
+      }
+      if (!input.correctionReason?.trim() && endsBeforeEventCouldHaveRun(current, actualEndedAt)) {
+        throw new BadRequestException('Actual event end cannot be before event day started; correct it with a reason if the record is right');
       }
       const isChanged = !current.actualEndedAt || current.actualEndedAt.getTime() !== actualEndedAt.getTime();
       if (current.actualEndedAt && current.actualEndedAt.getTime() !== actualEndedAt.getTime() && !input.correctionReason?.trim()) {

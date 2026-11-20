@@ -18,6 +18,9 @@ const PIN_GLOBAL_BUDGET = 'event-game:pin-join-attempts';
 const PIN_PATTERN = /^\d{6}$/;
 const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/** Guests join a game in its lobby, while it is live, or while the host has paused it (they wait for it to resume). */
+const JOINABLE_STATUSES: ReadonlySet<string> = new Set(['lobby', 'live', 'paused']);
+
 @Injectable()
 export class EventGamesSessionJoinService {
   constructor(
@@ -255,10 +258,10 @@ export class EventGamesSessionJoinService {
     if (!result.allowed) throw new HttpException(JOIN_RATE_LIMITED, 429);
   }
 
-  private isJoinable(session: JoinableGameSessionRecord | null, now: Date): session is JoinableGameSessionRecord & { status: 'lobby' | 'live' } {
+  private isJoinable(session: JoinableGameSessionRecord | null, now: Date): session is JoinableGameSessionRecord & { status: 'lobby' | 'live' | 'paused' } {
     return Boolean(
       session && session.entryMode === 'active' &&
-      (session.status === 'lobby' || session.status === 'live') &&
+      JOINABLE_STATUSES.has(session.status) &&
       session.expiresAt.getTime() > now.getTime(),
     );
   }

@@ -110,15 +110,22 @@ export class GuestWorkflowService implements GuestCommands {
     return { objectId: stored.id, kind };
   }
 
+  /**
+   * The guest's event dashboard. An archived event stays readable while its seven-day feedback window is open, so a
+   * guest can still find it and leave feedback; check-in and every other write stay refused on it.
+   */
   async getEventByAccessCode(accessCode: string) {
-    return this.resolveGuestEventByAccessCode(accessCode);
+    const event = await this.resolveGuestEventByAccessCode(accessCode, true);
+    if (event.archived && guestFeedbackAvailability(event.actualEndedAt) !== 'open') throw new NotFoundException('Guest event code was not found');
+    return event;
   }
 
   async getEventWatermarkByAccessCode(accessCode: string): Promise<PrismGuestEventWatermark> {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
-    const events = await this.eventProjections.listGuestAccessCandidates(false);
+    const events = await this.eventProjections.listGuestAccessCandidates(true);
     const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
-    if (!event) throw new NotFoundException('Guest event code was not found');
+    // The same events the dashboard serves: archived ones only while their feedback window is open.
+    if (!event || (event.archived && guestFeedbackAvailability(event.actualEndedAt) !== 'open')) throw new NotFoundException('Guest event code was not found');
 
     return { watermark: this.guestEventWatermark(event.updatedAt), feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt) };
   }
@@ -539,12 +546,14 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   /**
-   * The event a guest checks in to, open for check-in: found, not archived, and not cancelled or waiting for a new date.
+   * The event a guest checks in to, open for check-in: found, not archived, not cancelled or waiting for a new date, and
+   * not ended. A late arrival after PMCM records the end is the registration desk's to record, not the guest's own.
    */
   private async requireOpenCheckInEvent(eventId: string, context: PrismTransactionContext) {
     const currentEvent = await this.eventReferences.findOperationsEvent(eventId, context);
     if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
     if (GUEST_CHECK_IN_CLOSED_STATUSES.has(currentEvent.status)) throw new BadRequestException('Check-in is not open for this event');
+    if (currentEvent.actualEndedAt && currentEvent.actualEndedAt.getTime() <= Date.now()) throw new BadRequestException('This event has ended, so check-in is closed');
     const checkInEvent = await this.eventReferences.findGuestCheckInEventReference(eventId, context);
     if (!checkInEvent) throw new NotFoundException('Guest event was not found or archived');
     return { currentEvent, checkInEvent };

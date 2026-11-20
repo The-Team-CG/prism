@@ -59,7 +59,7 @@ function sessionStatus(value: string): JoinableGameSessionRecord['status'] {
 }
 
 function joinStatus(value: string): GameSessionJoinResult['status'] {
-  if (value === 'lobby' || value === 'live') return value;
+  if (value === 'lobby' || value === 'live' || value === 'paused') return value;
   throw new Error(`Invalid persisted joinable game session status: ${value}`);
 }
 
@@ -152,7 +152,8 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
       FOR UPDATE
     `;
     const session = sessions[0];
-    return Boolean(session && session.entry_mode === 'active' && ['scheduled', 'lobby', 'live'].includes(session.status));
+    // A paused game keeps taking joiners, so the host can also rotate its PIN.
+    return Boolean(session && session.entry_mode === 'active' && ['scheduled', 'lobby', 'live', 'paused'].includes(session.status));
   }
 
   private async findPriorIssue(
@@ -322,7 +323,7 @@ export class EventGamesPinPrismaStoreAdapter implements GamePinStorePort {
       WHERE r."pin_digest" = ${input.pinDigest}
         AND r."expires_at" > ${input.now}
         AND s."entry_mode" = 'active'
-        AND s."status" IN ('lobby', 'live')
+        AND s."status" IN ('lobby', 'live', 'paused')
         AND d."status" = 'published'
         AND d."archived_at" IS NULL
       FOR UPDATE OF r, s
