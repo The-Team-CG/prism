@@ -10,6 +10,7 @@ import type { AccountContact, AccountIdentity, AccountLink, AccountPrivacySummar
 import { supplierOwnPrivacyRequestsResource } from "../../privacy/data/supplier-privacy-repository";
 import { supplierSectionHref } from "../../workspace/model/supplier-workspace-types";
 import { supplierAccountRepository, supplierCurrentUserResource, supplierOwnSessionsResource, supplierOwnSignInsResource } from "../data/supplier-account-repository";
+import { portalHref } from "@prism/ui/portal-path";
 
 const OPEN = new Set(["submitted", "approved"]);
 
@@ -29,7 +30,7 @@ export function useSupplierAccountViewModel() {
   const actions: AccountActions = {
     saveName: accountChange(supplierAccountRepository.updateName, () => invalidate(supplierCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
-    changePassword: accountChange(supplierAccountRepository.changePassword, async () => { await signOutSupplier(); window.location.assign("/sign-in"); }),
+    changePassword: accountChange(supplierAccountRepository.changePassword, async () => { await signOutSupplier(); window.location.assign(portalHref("/sign-in")); }),
     changeEmail: {
       request: accountChange(supplierAccountRepository.requestEmailChange, () => invalidate(supplierCurrentUserResource)),
       cancel: accountChange(supplierAccountRepository.cancelEmailChange, () => invalidate(supplierCurrentUserResource)),

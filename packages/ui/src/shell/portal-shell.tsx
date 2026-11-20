@@ -243,7 +243,7 @@ function AccountMenu({ user, items, onSignOut }: Pick<PrismAppShellProps, "user"
             {items?.map((entry) => (
               <DropdownMenuItem key={entry.id} asChild={Boolean(entry.href)} onSelect={entry.onSelect} variant={entry.tone === "danger" ? "destructive" : "default"}>
                 {entry.href ? (
-                  <a href={entry.href}>
+                  <a href={portalHref(entry.href)}>
                     <entry.icon aria-hidden="true" />
                     {entry.label}
                   </a>
@@ -256,7 +256,7 @@ function AccountMenu({ user, items, onSignOut }: Pick<PrismAppShellProps, "user"
               </DropdownMenuItem>
             ))}
             <DropdownMenuItem asChild>
-              <a href="/privacy">
+              <a href={portalHref("/privacy")}>
                 <ShieldCheck aria-hidden="true" />
                 Privacy notice
               </a>
