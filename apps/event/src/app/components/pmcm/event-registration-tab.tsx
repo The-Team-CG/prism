@@ -17,7 +17,7 @@ import type {
   UpdateGuestPrivacyClassificationInput,
   UpdateGuestVerificationInput,
 } from "@prism/types";
-import { GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES, createRegistrationPlatformSchema, importHeadcountSchema } from "@prism/types";
+import { GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES, createRegistrationPlatformSchema, importHeadcountSchema, prismCalendarDateKey } from "@prism/types";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { Panel } from "@/features/pmcm-kit/primitives";
 import { cx, label } from "@/features/pmcm-kit";
@@ -918,8 +918,66 @@ function GuestAdmissionSection({
   );
 }
 
+type SetupStep = { id: string; title: string; detail: string; done: boolean; optional?: boolean };
+
+/** Guest entry in the order PMCM sets it up: who may come in, who is expected, their passes, and the platform. */
+export function registrationSetupSteps({ classification, walkInPolicy, walkInThreshold, platform }: {
+  classification: GuestPrivacyClassification;
+  walkInPolicy: "closed" | "open" | "threshold";
+  walkInThreshold: number;
+  platform: PrismRegistrationPlatform | null;
+}): SetupStep[] {
+  const walkIns = walkInPolicy === "open" ? "walk-ins open" : walkInPolicy === "threshold" ? `walk-ins up to ${walkInThreshold}` : "walk-ins closed";
+  return [
+    {
+      id: "registration-admission",
+      title: "Admission rules",
+      detail: classification === "unclassified" ? `Event privacy not set yet · ${walkIns}` : `${classification === "private" ? "Private event" : "Public event"} · ${walkIns}`,
+      done: classification !== "unclassified",
+    },
+    { id: "registration-roster", title: "Guest roster", detail: "Import the guest list; coordinators can add walk-ins on the day.", done: false },
+    { id: "registration-passes", title: "QR passes", detail: "For guests with an email. Name search and headcount check-in work for everyone else.", done: false, optional: true },
+    {
+      id: "registration-platform",
+      title: "Registration platform",
+      detail: platform ? "Set up" : "None yet. Link the digital registration supplier once booked.",
+      done: Boolean(platform),
+      optional: true,
+    },
+  ];
+}
+
+function RegistrationSetupChecklist({ steps }: { steps: SetupStep[] }) {
+  const required = steps.filter((step) => !step.optional);
+  const done = required.filter((step) => step.done).length;
+  return (
+    <section aria-labelledby="registration-setup-title" className="rounded-xl border border-border bg-card px-5 py-4">
+      <header className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="registration-setup-title" className="text-base font-semibold text-foreground">Get guest entry ready</h2>
+        <p className="text-sm text-muted-foreground">{done} of {required.length} required steps done</p>
+      </header>
+      <ol className="mt-2 divide-y divide-border">
+        {steps.map((step, index) => (
+          <li key={step.id}>
+            <a href={`#${step.id}`} className="flex items-start gap-3 py-3 hover:text-primary">
+              <span aria-hidden className={step.done ? "grid size-6 shrink-0 place-items-center rounded-full bg-success text-xs font-semibold text-success-foreground" : "grid size-6 shrink-0 place-items-center rounded-full border border-border text-xs font-semibold text-muted-foreground"}>
+                {step.done ? "✓" : index + 1}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-foreground">{step.title}{step.optional ? <span className="font-normal text-muted-foreground"> · optional</span> : null}</span>
+                <span className="block text-sm text-muted-foreground">{step.detail}</span>
+              </span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
 export function EventRegistrationTab({
   eventId,
+  eventDate,
   platform,
   suppliers,
   busy,
@@ -956,35 +1014,46 @@ export function EventRegistrationTab({
   onUpdateWalkInPolicy: (input: UpdateWalkInPolicyInput) => void;
   guestPrivacyClassification: GuestPrivacyClassification;
   onUpdateGuestPrivacyClassification: (input: UpdateGuestPrivacyClassificationInput) => Promise<boolean>;
+  /** The event date: scanning passes at the door only makes sense from the event day. Absent shows it. */
+  eventDate?: string;
 }) {
   const digitalRegSuppliers = suppliers.filter((s) => s.categorySlug === "digital-registration");
+  const steps = registrationSetupSteps({ classification: guestPrivacyClassification, walkInPolicy, walkInThreshold, platform });
+  const doorOpen = !eventDate || eventDate.slice(0, 10) <= prismCalendarDateKey();
   return (
     <div className="flex flex-col gap-4">
-      {loadError ? (
-        <Panel title="Registration Platform" icon={QrCode}>
-          <p className="text-sm text-muted-foreground">{loadError}</p>
-        </Panel>
-      ) : null}
-      <RegistrationPlatformSection
-        platform={platform}
-        suppliers={digitalRegSuppliers}
-        busy={busy}
-        onUpsert={onUpsert}
-        onUpdate={onUpdate}
-        onUpdateSetup={onUpdateSetup}
-      />
-      <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} onVerify={onVerifyRoster} />
-      <QrScanCheckIn key={`scan-${eventId}`} eventId={eventId} />
-      <QrPassSheet eventId={eventId} />
-      <GuestAdmissionSection
-        classification={guestPrivacyClassification}
-        policy={walkInPolicy}
-        threshold={walkInThreshold}
-        busy={busy}
-        onUpdateClassification={onUpdateGuestPrivacyClassification}
-        onUpdatePolicy={onUpdateWalkInPolicy}
-      />
-      {platform ? <HeadcountSection platform={platform} busy={busy} onImportHeadcount={onImportHeadcount} /> : null}
+      <RegistrationSetupChecklist steps={steps} />
+      {doorOpen ? <QrScanCheckIn key={`scan-${eventId}`} eventId={eventId} /> : null}
+      <div id="registration-admission" className="scroll-mt-24">
+        <GuestAdmissionSection
+          classification={guestPrivacyClassification}
+          policy={walkInPolicy}
+          threshold={walkInThreshold}
+          busy={busy}
+          onUpdateClassification={onUpdateGuestPrivacyClassification}
+          onUpdatePolicy={onUpdateWalkInPolicy}
+        />
+      </div>
+      <div id="registration-roster" className="scroll-mt-24">
+        <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} onVerify={onVerifyRoster} />
+      </div>
+      <div id="registration-passes" className="scroll-mt-24"><QrPassSheet eventId={eventId} /></div>
+      <div id="registration-platform" className="flex scroll-mt-24 flex-col gap-4">
+        {loadError ? (
+          <Panel title="Registration Platform" icon={QrCode}>
+            <p className="text-sm text-muted-foreground">{loadError}</p>
+          </Panel>
+        ) : null}
+        <RegistrationPlatformSection
+          platform={platform}
+          suppliers={digitalRegSuppliers}
+          busy={busy}
+          onUpsert={onUpsert}
+          onUpdate={onUpdate}
+          onUpdateSetup={onUpdateSetup}
+        />
+        {platform ? <HeadcountSection platform={platform} busy={busy} onImportHeadcount={onImportHeadcount} /> : null}
+      </div>
     </div>
   );
 }

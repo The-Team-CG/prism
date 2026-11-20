@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import type { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PrismGuestRosterEntry } from "@prism/types";
-import { EventRegistrationTab } from "./event-registration-tab";
+import { EventRegistrationTab, registrationSetupSteps } from "./event-registration-tab";
 import { chooseSelectOption } from "../../../test-utils/radix-select";
 
 afterEach(cleanup);
@@ -119,5 +119,15 @@ describe("EventRegistrationTab", () => {
     // A successful import closes the panel and shows the imported guests in the roster.
     expect(await screen.findByText("Ada Lovelace")).toBeTruthy();
     expect(screen.queryByRole("region", { name: "Import guests" })).toBeNull();
+  });
+});
+
+describe("registration setup steps", () => {
+  it("marks admission done once the event's privacy is set, and the platform as optional", () => {
+    const open = registrationSetupSteps({ classification: "unclassified", walkInPolicy: "closed", walkInThreshold: 0, platform: null });
+    expect(open[0]).toMatchObject({ title: "Admission rules", done: false, detail: "Event privacy not set yet · walk-ins closed" });
+    expect(open.at(-1)).toMatchObject({ title: "Registration platform", optional: true, done: false });
+    const set = registrationSetupSteps({ classification: "private", walkInPolicy: "threshold", walkInThreshold: 20, platform: null });
+    expect(set[0]).toMatchObject({ done: true, detail: "Private event · walk-ins up to 20" });
   });
 });

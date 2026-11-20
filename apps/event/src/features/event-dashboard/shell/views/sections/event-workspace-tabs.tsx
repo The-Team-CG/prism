@@ -624,6 +624,7 @@ function RegistrationAndGames({ initial }: { initial: "registration" | "games" }
       label: "Registration",
       render: () => (
         <EventRegistrationTab
+          eventDate={event.eventDate}
           platform={vm.registrationPlatform}
           suppliers={vm.suppliers}
           busy={Boolean(vm.busy)}
