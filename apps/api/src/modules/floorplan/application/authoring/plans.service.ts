@@ -74,8 +74,11 @@ function isPrismaSerializationFailure(error: unknown): boolean {
 }
 
 type EventPrivacy = 'private' | 'public';
-/** A plan as PMCM and client readers see it: the owning event's privacy decides whether seating is open. */
-type PlanView = FloorPlan & { eventPrivacy: EventPrivacy };
+/**
+ * A plan as PMCM and client readers see it: the owning event's privacy decides whether seating is open, and its draft's
+ * status (null for a template plan) says whether it can still be edited.
+ */
+type PlanView = FloorPlan & { eventPrivacy: EventPrivacy; draftStatus: string | null };
 
 @Injectable()
 export class PlansService {
@@ -103,6 +106,7 @@ export class PlansService {
       scene: storedScene(row),
       sceneFormat: row.sceneFormat ?? storedScene(row).format,
       updatedAt: row.updatedAt.toISOString(),
+      draftStatus: row.opsDraft?.status ?? null,
     };
   }
 

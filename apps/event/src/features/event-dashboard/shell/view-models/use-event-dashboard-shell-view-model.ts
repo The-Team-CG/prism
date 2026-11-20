@@ -5,7 +5,7 @@ import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, P
 import { derivePrismLifecycleStage } from "@prism/types";
 import { type FloorPlanTemplate } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
-import { isLockedFloorplanDraft } from "@/features/floorplan/editor/model/editor-access";
+import { opensReadOnly } from "@/features/floorplan/editor/model/editor-access";
 import { createSceneSaver, type SceneSaver } from "@/features/floorplan/editor/use-cases/scene-saver";
 import { loadSeatingGuests } from "@/features/floorplan/editor/data/seating-data";
 import { bookedSuppliers } from "@/features/floorplan/editor/model/seating";
@@ -44,6 +44,7 @@ import { countersignConformeExecution, downloadConformePdf, prepareConformeExecu
 import { assignedSupplierRequests } from "@/features/suppliers/readiness";
 import { useResource } from "@prism/portal-query";
 import { financeDesk } from "@/features/finance/desk";
+import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 
 export type { EventDashboardClientProps };
 
@@ -289,8 +290,8 @@ export function useEventDashboardShellViewModel({
 
   async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, requestedReadOnly = false) {
     if (!session || !isPmcmAdmin(session.role)) return;
-    const readOnly = requestedReadOnly || isLockedFloorplanDraft(draft.status);
     const [opened, seatingGuests] = await Promise.all([commands.loadPlanScene(draft.floorPlanId), loadSeatingGuests(event.id)]);
+    const readOnly = opensReadOnly({ requested: requestedReadOnly, storedStatus: opened.draftStatus, screenStatus: draft.status, archived: event.archived, frozen: isScopeFrozen(event.freezeStatus) });
     const saver = createSceneSaver({ planId: draft.floorPlanId, updatedAt: opened.updatedAt, save: commands.savePlanScene });
     editorOpens.current += 1;
     setScreen({ name: "editor", event, draft, scene: opened.scene, pax: opened.pax, eventPrivacy: opened.eventPrivacy, saver, seatingGuests, suppliers: bookedSuppliers(quoteRequests, event.id), openId: editorOpens.current, readOnly });
