@@ -17,7 +17,7 @@ import {
 import { tableAssignmentsOf, zoneSupplierIds } from '@prism/floorplan-scene';
 import { FLOORPLAN_SEATING_FACTS, type FloorplanSeatingFactsReader, type FloorplanSeatingGuest } from '@prism/contexts/read-models/floorplan-seating';
 import type { FloorplanSceneDocument, TableEligibilityObject, UpdatePlanInput } from '@prism/types';
-import { acceptedScene, storedScene } from '../stored-scene';
+import { acceptedScene, storedScene, assertClientSceneLeavesSeatingToPmcm } from '../stored-scene';
 import { floorPlanScalarPatch } from './plan-patch';
 import { assertSeatingAllowedForNewAssignments, assertTableAssignmentsEligible, sceneTableEligibilityObjects } from './table-assignment-guard';
 import type { FloorPlan } from '@prism/kernel/shared';
@@ -25,14 +25,6 @@ import type { FloorPlan } from '@prism/kernel/shared';
 type UpdatePlanChanges = Omit<UpdatePlanInput, 'expectedUpdatedAt'>;
 
 const ZONE_SUPPLIER_MESSAGE = 'Zones can only name suppliers booked on this event.';
-const CLIENT_SEATING_MESSAGE = 'Your event team seats guests on the official layout.';
-const CLIENT_ZONE_SUPPLIER_MESSAGE = 'Only your event team can assign suppliers to zones.';
-
-/** A client draws layout only: seating guests and assigning zone suppliers belong to PMCM on the official layout. */
-function assertClientSceneLeavesSeatingToPmcm(scene: FloorplanSceneDocument) {
-  if (tableAssignmentsOf(scene).some((table) => table.guestIds.length > 0)) throw new BadRequestException(CLIENT_SEATING_MESSAGE);
-  if (zoneSupplierIds(scene).length > 0) throw new BadRequestException(CLIENT_ZONE_SUPPLIER_MESSAGE);
-}
 
 /** A scene save is validated; any other save passes through unchanged. */
 function acceptedPlanChanges(changes: UpdatePlanChanges): UpdatePlanChanges {

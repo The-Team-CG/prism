@@ -415,7 +415,7 @@ describe('FloorPlanWorkflowService', () => {
     const { service, state } = createService();
     const scene = convertLegacyPlan({ name: 'Gala', widthM: 40, heightM: 25, objects: [] }, '1.1.6');
     const levelId = Object.values(scene.nodes).find((node) => node.type === 'level')!.id;
-    scene.nodes['prism-zone_av'] = { id: 'prism-zone_av', type: 'prism-zone', parentId: levelId, variant: 'supplier', position: [2, 0, 2], rotation: 0, width: 4, depth: 3, supplierIds: ['sup_other_event'] } as never;
+    scene.nodes['prism-zone_av'] = { id: 'prism-zone_av', type: 'prism-zone', parentId: levelId, visible: true, label: 'AV booth', position: [2, 0, 2], rotation: 0, width: 4, depth: 3, supplierIds: ['sup_other_event'] } as never;
     state.venueTemplates.push({
       id: 'tpl_gala', pax: 250, includeSuppliers: false, guests: [], suppliers: [],
       floorPlan: { width: 40, height: 25, gridSize: 2, objects: [], scene, objectRows: [] },
@@ -608,6 +608,24 @@ describe('FloorPlanWorkflowService', () => {
       expect.objectContaining({ prisma: expect.anything(), correlationId: 'floorplan-create:evt_sample' }),
     );
     expect(prisma.opsEvent.findUnique).toHaveBeenCalledWith({ where: { id: 'evt_sample' } });
+  });
+
+  it('refuses a preference sent with seated guests or zone suppliers, as a plan save does', async () => {
+    const { service, state } = createService();
+    state.events[0].clientPortalStatus = 'unlocked';
+    const scene = convertLegacyPlan({ name: 'Client Preference', widthM: 10, heightM: 8, objects: [] }, '1.1.6');
+    const levelId = Object.values(scene.nodes).find((node) => node.type === 'level')!.id;
+    const input = { name: 'Client Preference', seatingStyle: 'banquet', stagePreference: 'center', flowNotes: '', guestCount: 80, constraints: [] };
+    const client = { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' } as const;
+
+    const seated = structuredClone(scene);
+    seated.nodes['prism-table_a'] = { id: 'prism-table_a', type: 'prism-table', parentId: levelId, shape: 'round', position: [3, 0, 3], rotation: 0, width: 1.8, depth: 1.8, seats: 8, guestIds: ['guest_ana'] } as never;
+    await expect(service.createFloorPlanPreference('evt_sample', { ...input, scene: seated }, client)).rejects.toThrow('seats guests on the official layout');
+
+    const supplied = structuredClone(scene);
+    supplied.nodes['prism-zone_a'] = { id: 'prism-zone_a', type: 'prism-zone', parentId: levelId, visible: true, label: 'AV booth', position: [2, 0, 2], rotation: 0, width: 4, depth: 3, supplierIds: ['sup_1'] } as never;
+    await expect(service.createFloorPlanPreference('evt_sample', { ...input, scene: supplied }, client)).rejects.toThrow('assign suppliers to zones');
+    expect(state.floorPlanDrafts).toHaveLength(0);
   });
 
   it('creates client layout preferences without making them official approved layouts', async () => {

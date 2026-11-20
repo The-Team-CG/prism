@@ -21,7 +21,7 @@ import { FLOORPLAN_PROJECTION_WRITER, type FloorplanEventProjection, type Floorp
 import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReference, type FloorplanEventReferenceReader } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import type { FloorplanCommands, FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
 import type { FloorplanReader, FloorPlanDraftProjection } from '../../contracts/floorplan-reader.port';
-import { acceptedScene, sceneColumns, storedScene } from '../stored-scene';
+import { acceptedScene, sceneColumns, storedScene, assertClientSceneLeavesSeatingToPmcm } from '../stored-scene';
 import { convertLegacyPlan, PASCAL_VERSION, withoutEventAssignments } from '@prism/floorplan-scene';
 import type { FloorplanSceneDocument } from '@prism/types';
 
@@ -143,6 +143,8 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
     const scene = input.scene ? acceptedScene(input.scene) : undefined;
+    // A preference is the client's layout idea, never seating or supplier assignments, however it is sent.
+    if (scene) assertClientSceneLeavesSeatingToPmcm(scene);
     const preference = {
       seatingStyle: input.seatingStyle,
       stagePreference: input.stagePreference,
