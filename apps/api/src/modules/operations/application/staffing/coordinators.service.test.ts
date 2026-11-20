@@ -974,6 +974,93 @@ describe('Coordinator staffing workflows', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  describe('changeCoordinatorRole', () => {
+    const tagsBefore = [...coordinator.roleTags];
+    beforeEach(() => { coordinator.roleTags = ['Floor Director', 'Stage Director']; });
+    afterEach(() => { coordinator.roleTags = [...tagsBefore]; });
+
+    async function assigned(fake: ReturnType<typeof createPrisma>, role: 'Floor Director' | 'Stage Director' = 'Floor Director') {
+      const service = createService(fake.prisma as any);
+      const assignment = await service.assignCoordinator(event.id, { coordinatorId: coordinator.id, role, overrideConflict: true }, pmcmAdminActor);
+      return { service, assignment };
+    }
+
+    it('moves an assignment to another role it is tagged for, keeping its acknowledgement, and tells the coordinator', async () => {
+      const fake = createPrisma();
+      const { service, assignment } = await assigned(fake);
+      await service.acknowledgeCoordinator(event.id, assignment.id, coordinatorActor);
+
+      const changed = await service.changeCoordinatorRole(event.id, assignment.id, { role: 'Stage Director', reason: 'Needs a stage lead' }, pmcmAdminActor);
+
+      expect(changed).toMatchObject({ id: assignment.id, role: 'Stage Director', status: 'acknowledged' });
+      expect(fake.audits).toContainEqual(expect.objectContaining({
+        action: 'Changed the role of Marco Santos from Floor Director to Stage Director',
+        metadata: expect.objectContaining({ fromRole: 'Floor Director', toRole: 'Stage Director', reason: 'Needs a stage lead' }),
+      }));
+      expect(fake.notifications).toContainEqual(expect.objectContaining({
+        recipient: 'marco@pmcm.test',
+        message: 'Your role for this event is now Stage Director: Needs a stage lead Your tasks and role brief follow the new role.',
+      }));
+    });
+
+    it('gives an assignment with a role from before the catalog a catalog role', async () => {
+      const fake = createPrisma();
+      const { service, assignment } = await assigned(fake);
+      await fake.prisma.opsCoordinatorAssignment.update({ where: { id: assignment.id }, data: { role: 'Volunteer Lead' } });
+
+      const changed = await service.changeCoordinatorRole(event.id, assignment.id, { role: 'Floor Director' }, pmcmAdminActor);
+
+      expect(changed.role).toBe('Floor Director');
+    });
+
+    it('refuses a role the coordinator is not tagged for', async () => {
+      const fake = createPrisma();
+      const { service, assignment } = await assigned(fake);
+
+      await expect(service.changeCoordinatorRole(event.id, assignment.id, { role: 'Usher' }, pmcmAdminActor))
+        .rejects.toThrow('Marco Santos is not tagged for Usher');
+    });
+
+    it('refuses the role the assignment already has, and one the coordinator already holds on the event', async () => {
+      const fake = createPrisma();
+      const { service, assignment } = await assigned(fake);
+      // Seeded directly: the assign command itself refuses a second role for the same coordinator on one event.
+      await fake.prisma.opsCoordinatorAssignment.create({ data: { ...assignment, id: 'coord_asg_stage', role: 'Stage Director', eventDate: event.eventDate, createdAt: new Date() } });
+
+      await expect(service.changeCoordinatorRole(event.id, assignment.id, { role: 'Floor Director' }, pmcmAdminActor))
+        .rejects.toThrow('Marco Santos already has the Floor Director role');
+      await expect(service.changeCoordinatorRole(event.id, assignment.id, { role: 'Stage Director' }, pmcmAdminActor))
+        .rejects.toThrow('Marco Santos already holds the Stage Director role on this event');
+    });
+
+    it('refuses a withdrawn assignment', async () => {
+      const fake = createPrisma();
+      const { service, assignment } = await assigned(fake);
+      await service.withdrawCoordinator(event.id, assignment.id, { reason: 'No longer available' }, pmcmAdminActor);
+
+      await expect(service.changeCoordinatorRole(event.id, assignment.id, { role: 'Stage Director' }, pmcmAdminActor))
+        .rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('lets only PMCM change a role', async () => {
+      const fake = createPrisma();
+      const { service, assignment } = await assigned(fake);
+
+      await expect(service.changeCoordinatorRole(event.id, assignment.id, { role: 'Stage Director' }, coordinatorActor))
+        .rejects.toBeInstanceOf(ForbiddenException);
+      expect(fake.audits.some((entry: any) => entry.action?.startsWith('Changed the role'))).toBe(false);
+    });
+
+    it('refuses on an archived event', async () => {
+      const fake = createPrisma();
+      const { service, assignment } = await assigned(fake);
+      fake.prisma.opsEvent.findUnique = async () => ({ ...event, status: 'planning', archived: true });
+
+      await expect(service.changeCoordinatorRole(event.id, assignment.id, { role: 'Stage Director' }, pmcmAdminActor))
+        .rejects.toThrow('Archived coordinator events are read-only');
+    });
+  });
+
   describe('withdrawCoordinator', () => {
     it('withdraws a pending assignment', async () => {
       const fake = createPrisma();

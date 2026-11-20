@@ -24,6 +24,11 @@ export function createStaffingClient(options: EventOpsClientOptions): Pick<Event
           actorPath(event(eventId, `/coordinators/${assignmentId}/replace`), actor),
           withBase(options, { method: "POST", body: input }),
         ),
+      changeRole: (eventId, assignmentId, input, actor = {}) =>
+        prismRequest<PrismCoordinatorAssignment>(
+          actorPath(event(eventId, `/coordinators/${assignmentId}/role`), actor),
+          withBase(options, { method: "PATCH", body: input }),
+        ),
       suggestions: (eventId, input, actor = {}) => {
         const query = new URLSearchParams({ role: input.role });
         input.skills.forEach((skill) => query.append("skills", skill));

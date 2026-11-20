@@ -1,10 +1,12 @@
 import { eventApi as eventOpsClient } from "@/lib/prism-api";
-import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismCoordinatorPoolAvailability, PrismCoordinatorReliabilityHistoryEntry, PrismCoordinatorSuggestion, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, BlockEventDayTaskInput, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput, CoordinatorSuggestionsQueryInput } from "@prism/types";
+import type { PrismCoordinatorAssignment, PrismCoordinatorAvailability, PrismCoordinatorPoolAvailability, PrismCoordinatorReliabilityHistoryEntry, PrismCoordinatorSuggestion, PrismEventDayTask, PrismSupplierQuoteRequest, PrismUrgentIssue, BlockEventDayTaskInput, CreateEventDayTaskInput, DecideEventTaskReassignmentInput, PrismEventTaskReassignmentRequest, EscalateLiveOpsInput, EscalateEventDayTaskInput, UpdateCoordinatorAttendanceInput, UpdateEventDayTaskInput, UpdateUrgentIssueInput, CreateUrgentIssueInput, VerifySupplierStatusInput, CreateCoordinatorAvailabilityInput, CreateCoordinatorCoverageRequirementInput, CreateEventOperatorDesignationInput, PrismAcknowledgementReminderResult, PrismEventOperatorDesignation, ReplaceCoordinatorAssignmentInput, CreateCoordinatorAssignmentInput, ChangeCoordinatorAssignmentRoleInput, CoordinatorSuggestionsQueryInput } from "@prism/types";
 
 export const operationsCommands = {
 revokeEventDayOperator: (eventId: string) => eventOpsClient.liveOps.revokeOperator(eventId),
 loadCoordinatorReliabilityHistory: (coordinatorId: string) => eventOpsClient.staffing.reliabilityHistory(coordinatorId),
 assignCoordinator: (eventId: string, input: CreateCoordinatorAssignmentInput) => eventOpsClient.staffing.assign(eventId, input),
+changeCoordinatorRole: (eventId: string, assignmentId: string, input: ChangeCoordinatorAssignmentRoleInput) =>
+  eventOpsClient.staffing.changeRole(eventId, assignmentId, input),
 createCoordinatorAvailability: (eventId: string, coordinatorId: string, input: CreateCoordinatorAvailabilityInput) =>
   eventOpsClient.staffing.createAvailability(eventId, coordinatorId, input),
 loadCoordinatorSuggestions: (eventId: string, input: CoordinatorSuggestionsQueryInput) => eventOpsClient.staffing.suggestions(eventId, input),

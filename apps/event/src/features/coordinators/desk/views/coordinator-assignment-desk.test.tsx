@@ -362,3 +362,25 @@ describe("CoordinatorAssignmentDesk coverage targets", () => {
     expect(props.onSaveCoverage).not.toHaveBeenCalled();
   });
 });
+
+describe("CoordinatorAssignmentDesk role changes", () => {
+  const twoRoles = coordinators.map((coordinator) => coordinator.id === "coord_1" ? { ...coordinator, roleTags: ["Floor Director", "Stage Director"] } : coordinator);
+
+  it("moves a coordinator's existing assignment to another role they are tagged for", () => {
+    const props = renderDesk({ coordinators: twoRoles, onChangeRole: vi.fn(async () => {}) });
+
+    expect(within(screen.getByRole("group", { name: "Floor Director: Jordan Lee" })).queryByRole("button", { name: /^Move/ })).toBeNull();
+    fireEvent.click(within(screen.getByRole("group", { name: "Stage Director: Jordan Lee" })).getByRole("button", { name: "Move Jordan Lee from Floor Director to Stage Director" }));
+
+    expect(props.onChangeRole).toHaveBeenCalledWith("assignment_1", "Stage Director");
+  });
+
+  it("offers a catalog role to an assignment saved with a role from before the catalog", () => {
+    const legacy = assignments.map((assignment) => assignment.id === "assignment_1" ? { ...assignment, role: "Volunteer Lead" } : assignment);
+    const props = renderDesk({ assignments: legacy, onChangeRole: vi.fn(async () => {}) });
+
+    fireEvent.click(screen.getByRole("button", { name: "Move Jordan Lee from Volunteer Lead to Floor Director" }));
+
+    expect(props.onChangeRole).toHaveBeenCalledWith("assignment_1", "Floor Director");
+  });
+});

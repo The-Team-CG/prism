@@ -10,6 +10,7 @@ import {
   prismCalendarDateKey,
 } from '@prism/types';
 import type {
+  ChangeCoordinatorAssignmentRoleInput,
   CreateCoordinatorAssignmentInput,
   CoordinatorAssignmentAcknowledgementInput,
   EventDecisionInput,
@@ -679,6 +680,108 @@ export class CoordinatorAssignmentCommandService implements StaffingCommands {
       },
       project: (assignment) => mapCoordinatorAssignment(assignment),
     });
+  }
+
+  /**
+   * PMCM moves an assignment to another catalog role. Its acknowledgement and attendance stay as they are; the
+   * coordinator is told, and their tasks and role brief follow the new role. The coordinator must be tagged for the role
+   * and not already hold it on this event. This is also how an assignment saved with a role from before the catalog
+   * gets one that the live-ops task rules accept.
+   */
+  async changeCoordinatorRole(
+    eventId: string,
+    assignmentId: string,
+    input: ChangeCoordinatorAssignmentRoleInput,
+    actor: ResolvedEventOpsActor,
+  ) {
+    await this.eventAccessPolicyService.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'coordinator role change', eventId);
+    const reason = input.reason?.trim() ?? '';
+    // Each change is its own command: an assignment can move between the same two roles more than once.
+    const commandContext: PrismCommandContext = {
+      actorId: actor.id ?? actor.name,
+      actorRole: actor.role,
+      eventId,
+      correlationId: `coord_role_${eventId}_${assignmentId}_${randomUUID()}`,
+    };
+    let previousRole = '';
+
+    return this.workflowCommandService.execute<OpsCoordinatorAssignment, ReturnType<typeof mapCoordinatorAssignment>>({
+      name: 'change_coordinator_assignment_role',
+      eventId,
+      context: commandContext,
+      sideEffectMode: 'same_tx',
+      validateState: async () => {
+        await this.requireRoleChange(eventId, assignmentId, input.role, actor);
+      },
+      validateStateInTransaction: async ({ prisma }) => {
+        previousRole = (await this.requireRoleChange(eventId, assignmentId, input.role, actor, prisma)).role;
+      },
+      write: (transactionContext) => (transactionContext?.prisma ?? this.prisma).opsCoordinatorAssignment.update({
+        where: { id: assignmentId },
+        data: { role: input.role },
+      }),
+      sideEffects: async (assignment, transactionContext) => {
+        await Promise.all([
+          this.auditWriter.write({
+            eventId,
+            actor: actor.name,
+            action: `Changed the role of ${assignment.coordinatorName} from ${previousRole} to ${assignment.role}`,
+            actionType: AuditActionType.Update,
+            category: AuditCategory.Events,
+            affectedType: 'coordinator_assignment',
+            affectedId: assignment.id,
+            affectedLabel: assignment.coordinatorName,
+            metadata: { fromRole: previousRole, toRole: assignment.role, reason },
+          }, transactionContext),
+          this.notificationOutboxWriter.write({
+            eventId,
+            recipient: (await this.coordinatorEmail(assignment.coordinatorId)) ?? assignment.coordinatorName,
+            message: `Your role for this event is now ${assignment.role}${reason ? `: ${reason}` : '.'} Your tasks and role brief follow the new role.`,
+            correlationId: commandContext.correlationId,
+            idempotencyKey: `${commandContext.correlationId}:notify`,
+          }, transactionContext),
+        ]);
+      },
+      project: (assignment) => mapCoordinatorAssignment(assignment),
+    });
+  }
+
+  /** The assignment a role change applies to, once the change is allowed. */
+  private async requireRoleChange(
+    eventId: string,
+    assignmentId: string,
+    role: ChangeCoordinatorAssignmentRoleInput['role'],
+    actor: ResolvedEventOpsActor,
+    prisma: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    await this.requireAssignmentEventWritable(eventId, actor, prisma);
+    const assignment = await prisma.opsCoordinatorAssignment.findFirst({ where: { id: assignmentId, eventId } });
+    if (!assignment) throw new NotFoundException('Coordinator assignment not found');
+    if ((INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES as readonly string[]).includes(assignment.status)) {
+      throw new BadRequestException('Only an active coordinator assignment can change role');
+    }
+    if (assignment.role === role) throw new BadRequestException(`${assignment.coordinatorName} already has the ${role} role`);
+    await this.requireRoleTaggedAndFree(prisma, assignment, role);
+    return assignment;
+  }
+
+  /** The coordinator must be tagged for the new role and not already hold it on this event. */
+  private async requireRoleTaggedAndFree(
+    prisma: Prisma.TransactionClient | PrismaService,
+    assignment: OpsCoordinatorAssignment,
+    role: ChangeCoordinatorAssignmentRoleInput['role'],
+  ) {
+    const coordinator = assignment.coordinatorId
+      ? await prisma.opsCoordinator.findUnique({ where: { id: assignment.coordinatorId } })
+      : null;
+    if (!coordinator) throw new BadRequestException('This assignment has no coordinator account to check the role against');
+    if (!coordinator.roleTags.some((tag) => canonicalCoordinatorRole(tag) === role)) {
+      throw new BadRequestException(`${coordinator.name} is not tagged for ${role}`);
+    }
+    const holding = await prisma.opsCoordinatorAssignment.findFirst({
+      where: { eventId: assignment.eventId, coordinatorId: coordinator.id, role, id: { not: assignment.id }, status: { notIn: [...INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES] } },
+    });
+    if (holding) throw new BadRequestException(`${coordinator.name} already holds the ${role} role on this event`);
   }
 
   /** FR-AI-04: one PARE coordinator package per withdrawn assignment, waiting for PMCM approval. */

@@ -21,6 +21,7 @@ export function EventDashboardTeamSectionView() {
     coordinatorRoleRequirements,
     busy,
     assignCoordinator,
+    changeCoordinatorRole,
     loadCoordinatorSuggestions,
     loadCoordinatorPoolAvailability,
     saveCoordinatorCoverage,
@@ -53,6 +54,7 @@ export function EventDashboardTeamSectionView() {
           roleRequirements={coordinatorRoleRequirements}
           busy={Boolean(busy)}
           onAssign={assignCoordinator}
+          onChangeRole={changeCoordinatorRole}
           onLoadSuggestions={loadCoordinatorSuggestions}
           onLoadPoolAvailability={loadCoordinatorPoolAvailability}
           onSaveCoverage={saveCoordinatorCoverage}

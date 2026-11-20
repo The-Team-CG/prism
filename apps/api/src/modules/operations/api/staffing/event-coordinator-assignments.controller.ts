@@ -3,10 +3,12 @@ import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
 import { zodBody } from '@prism/kernel/shared';
 import {
+  changeCoordinatorAssignmentRoleSchema,
   coordinatorAssignmentAcknowledgementSchema,
   createCoordinatorAssignmentSchema,
   replaceCoordinatorAssignmentSchema,
   withdrawCoordinatorAssignmentSchema,
+  type ChangeCoordinatorAssignmentRoleInput,
   type CoordinatorAssignmentAcknowledgementInput,
   type CreateCoordinatorAssignmentInput,
   type WithdrawCoordinatorAssignmentInput,
@@ -58,6 +60,19 @@ export class OpsEventCoordinatorAssignmentsController {
   ) {
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
     return this.assignmentCommands.withdrawCoordinator(eventId, assignmentId, dto, actor);
+  }
+
+  /** PMCM moves an assignment to another catalog role the coordinator is tagged for. */
+  @Patch(':eventId/coordinators/:assignmentId/role')
+  @UseGuards(EventSessionGuard)
+  changeCoordinatorRole(
+    @Param('eventId') eventId: string,
+    @Param('assignmentId') assignmentId: string,
+    @Body(zodBody(changeCoordinatorAssignmentRoleSchema)) dto: ChangeCoordinatorAssignmentRoleInput,
+    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
+  ) {
+    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
+    return this.assignmentCommands.changeCoordinatorRole(eventId, assignmentId, dto, actor);
   }
 
   @Patch(':eventId/coordinators/:assignmentId/replace')
