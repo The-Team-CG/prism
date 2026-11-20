@@ -87,6 +87,7 @@ function createService(overrides: {
     $transaction: vi.fn(async (callback: (tx: Record<string, unknown>) => Promise<unknown>) => callback(prisma as unknown as Record<string, unknown>)),
   };
   const documentVault = overrides.documentVault ?? {};
+  const eventReferences = { findOperationsEvent: vi.fn(async (eventId: string) => ({ id: eventId, archived: false, status: 'event_day', actualEndedAt: null as Date | null })) };
   const service = new SupplierNetworkWorkflowService(
     prisma as any,
     suppliers as any,
@@ -97,7 +98,7 @@ function createService(overrides: {
     {} as any,
     { queue: vi.fn(async () => ({})) } as any,
     documentVault as any,
-    { findOperationsEvent: vi.fn(async (eventId: string) => ({ id: eventId, archived: false })) } as any,
+    eventReferences as any,
     { write: notify } as any,
     {
       findConfirmedSupplierUpload: vi.fn(async ({ objectId, logicalTargetPrefix }: { objectId: string; logicalTargetPrefix: string }) =>
@@ -106,7 +107,7 @@ function createService(overrides: {
           : null),
     } as any,
   );
-  return { service, prisma, audit, notify, request, suppliers, documentVault, reliabilityNotes, getSchedule: () => schedule };
+  return { service, prisma, audit, notify, request, suppliers, documentVault, reliabilityNotes, eventReferences, getSchedule: () => schedule };
 }
 
 function createCommandReceiptStore() {
@@ -176,6 +177,19 @@ describe('SupplierNetworkWorkflowService', () => {
     const arrived = await service.updateSupplierEventStatus('qr_sonic', { status: 'arrived', storedObjectId: 'obj_dock' }, supplier);
     expect(arrived.statusPhotoFileName).toBe('dock.jpg');
     expect(audit.mock.calls.some(([entry]) => entry.metadata?.photoStoredObjectId === 'obj_dock' && entry.metadata?.photoFileName === 'dock.jpg')).toBe(true);
+  });
+
+  it('takes event-day status only for an event that is on, and only leaving once it has ended', async () => {
+    const { service, request, eventReferences } = createService();
+    Object.assign(request, { status: 'selected', assignmentStatus: 'confirmed', readinessStatus: 'confirmed', supplierId: 'sup_sonicline' });
+    const supplier = { name: 'Sonic Line Events', role: OpsUserRole.Supplier, supplierId: 'sup_sonicline', email: 'supplier@example.com', explicit: true, verified: true };
+
+    eventReferences.findOperationsEvent.mockResolvedValueOnce({ id: 'evt_sample', archived: false, status: 'cancelled', actualEndedAt: null });
+    await expect(service.updateSupplierEventStatus('qr_sonic', { status: 'arrived' }, supplier)).rejects.toThrow('This event is closed');
+
+    eventReferences.findOperationsEvent.mockResolvedValue({ id: 'evt_sample', archived: false, status: 'event_day', actualEndedAt: new Date('2026-10-02T22:00:00.000Z') });
+    await expect(service.updateSupplierEventStatus('qr_sonic', { status: 'arrived' }, supplier)).rejects.toThrow('only leaving can be reported');
+    expect(request.eventDayStatus).toBe('not_started');
   });
 
   it('accepts supplier event-day status only in order, replays the current status, and rejects skips and backward steps', async () => {
