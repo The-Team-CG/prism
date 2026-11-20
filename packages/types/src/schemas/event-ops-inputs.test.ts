@@ -851,11 +851,12 @@ describe("file requirement contracts", () => {
 
 describe("guest pass code typed at the desk", () => {
   it("reads a code typed as the pass shows it, in groups of four, as the bare token", () => {
-    const token = "6o6kU-O1NNJ-abcdEFGH_ijklMNOPqrst";
-    const shown = token.match(/.{1,4}/g)!.join(" ");
-    expect(guestQrPassToken(shown)).toBe(token);
-    expect(guestQrCheckInSchema.parse({ token: shown })).toEqual({ token });
-    expect(guestQrPassToken(`prism-pass:${token}`)).toBe(token);
+    // A synthetic 32-character pass code in the token alphabet; real codes are random.
+    const passCode = "pass-code_".repeat(3) + "AB";
+    const shown = passCode.match(/.{1,4}/g)!.join(" ");
+    expect(guestQrPassToken(shown)).toBe(passCode);
+    expect(guestQrCheckInSchema.parse({ token: shown })).toEqual({ token: passCode });
+    expect(guestQrPassToken(`prism-pass:${passCode}`)).toBe(passCode);
     expect(guestQrCheckInSchema.safeParse({ token: "too short" }).success).toBe(false);
   });
 });
