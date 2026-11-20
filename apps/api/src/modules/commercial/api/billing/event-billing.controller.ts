@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, NotFoundException, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
@@ -217,6 +217,10 @@ export class OpsEventBillingController {
       'billing dispute',
       eventId,
     );
+    // A role check alone lets any client dispute any event's statement: the event must be one this actor can read.
+    const event = await this.billingAdjustmentService.readEventAccess(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    await this.eventAccessPolicyService.requireCanReadEvent(actor, event, 'billing dispute');
     if (!actor.id?.trim()) {
       throw new ForbiddenException('Verified billing actor ID is required');
     }
