@@ -171,9 +171,9 @@ describe.skipIf(!enabled)('account email change across contexts (PostgreSQL)', (
     const actor = async () => ({ ...actorFor(secured, 'client'), sessionVersion: (await current()).sessionVersion });
 
     await emailChange.request(await actor(), { newEmail: `${prefix}_hijack1@example.test`, password: 'right-password' });
-    const beforePasswordChange = latestToken();
+    const linkAskedBeforeTheChange = latestToken();
     await operations.changeOwnPassword(await actor(), { currentPassword: 'right-password', newPassword: 'right-password' });
-    await expect(confirmation.confirm(beforePasswordChange)).rejects.toThrow(/expired or was already used/);
+    await expect(confirmation.confirm(linkAskedBeforeTheChange)).rejects.toThrow(/expired or was already used/);
 
     await emailChange.request(await actor(), { newEmail: `${prefix}_hijack2@example.test`, password: 'right-password' });
     const beforeReset = latestToken();
