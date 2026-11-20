@@ -321,7 +321,8 @@ export function ClientDossier({
   const summary = summarizeClientDossier(client, manilaDateKey());
   const email = client.inquiries.find((inquiry) => inquiry.email)?.email;
   const contact = client.contact && client.contact !== client.name ? client.contact : undefined;
-  const type = client.inquiries.find((inquiry) => inquiry.clientType)?.clientType;
+  const rawType = client.inquiries.find((inquiry) => inquiry.clientType)?.clientType;
+  const type = rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1) : undefined;
   return (
     <div className="grid min-w-0 gap-6">
       <button type="button" onClick={onBack} className="inline-flex w-fit items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">

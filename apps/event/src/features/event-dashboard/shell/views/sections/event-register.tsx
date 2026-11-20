@@ -26,6 +26,8 @@ export const EVENT_REGISTER_VIEWS = [
 
 /** The finished events shown before "Show all": the rest are one click away. */
 const DONE_PREVIEW = 6;
+/** Later rows shown before "Show all": the overdue close-outs and the next few events. */
+const LATER_PREVIEW = 10;
 
 export type EventMoney = { billed: number; paid: number; checking: number };
 
@@ -204,6 +206,7 @@ export function EventRegister({ events, data = {}, onOpenEvent }: { events: Pris
   const [query, setQuery] = useListFilter("q");
   const [stage, setStage] = useState<PrismLifecycleStage | null>(null);
   const [showAllDone, setShowAllDone] = useState(false);
+  const [showAllLater, setShowAllLater] = useState(false);
   const todayKey = manilaDateKey();
   const plan = planEventRegister(events.filter((event) => matches(event, query)), todayKey);
   const inStage = (event: PrismEvent) => !stage || derivePrismLifecycleStage(event) === stage;
@@ -223,8 +226,13 @@ export function EventRegister({ events, data = {}, onOpenEvent }: { events: Pris
       </CardSection>
       <CardSection id="events-later" title={near.length ? "Later" : "Events"} count={later.length} description={later.some((event) => event.eventDate.slice(0, 10) < todayKey) ? "Events whose date has passed come first: each is owed its close-out." : undefined}>
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-          {later.map((event) => <EventRow key={event.id} event={event} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} />)}
+          {(showAllLater || query ? later : later.slice(0, LATER_PREVIEW)).map((event) => <EventRow key={event.id} event={event} data={data} todayKey={todayKey} onOpenEvent={onOpenEvent} />)}
         </ul>
+        {!showAllLater && !query && later.length > LATER_PREVIEW ? (
+          <button type="button" onClick={() => setShowAllLater(true)} className="justify-self-start rounded-md border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground hover:bg-surface-raised">
+            Show all {later.length} later events
+          </button>
+        ) : null}
       </CardSection>
       {stage ? null : (
         <CardSection id="events-done" title="Done" count={plan.done.length}>

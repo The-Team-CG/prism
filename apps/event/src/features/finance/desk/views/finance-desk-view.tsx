@@ -86,7 +86,7 @@ function ClientBalances({ events, todayKey, onExport }: { events: PrismFinanceDe
         <div className="px-5 py-4"><PrismEmptyLine icon={WalletCards}>No billing statements yet. Approve a billing source on an event to issue one.</PrismEmptyLine></div>
       ) : (
         <>
-          <div aria-hidden className={cn("hidden border-b border-border text-xs text-muted-foreground md:grid", BALANCE_GRID, "py-2")}>
+          <div aria-hidden className={cn(BALANCE_GRID, "hidden border-b border-border py-2 text-xs text-muted-foreground md:grid")}>
             <span>Event</span><span className="text-right">Billed</span><span>Paid</span><span className="text-right">Outstanding</span><span>Next</span>
           </div>
           <ul className="divide-y divide-border">{shown.map((event) => <BalanceRow key={event.eventId} event={event} todayKey={todayKey} />)}</ul>

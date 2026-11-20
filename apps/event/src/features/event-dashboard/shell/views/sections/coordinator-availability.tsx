@@ -35,12 +35,12 @@ export function CoordinatorAvailability({
   const grid = coordinatorAvailabilityGrid(coordinators.filter((coordinator) => coordinator.active), assignments, events, today);
   const last = grid.days.at(-1) ?? today;
   return (
-    <section aria-labelledby="coordinator-availability-title" className="grid gap-3">
+    <section aria-labelledby="coordinator-availability-title" className="grid min-w-0 gap-3">
       <div>
         <h2 id="coordinator-availability-title" className="text-base font-semibold text-foreground">Next {AVAILABILITY_DAYS} days</h2>
         <p className="text-sm text-muted-foreground">{formatPortalDate(today)} to {formatPortalDate(last)}. A filled day is an event the coordinator is assigned to; select it to open that event's team.</p>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
+      <div className="w-full max-w-full overflow-x-auto rounded-xl border border-border bg-card">
         <table className="w-full min-w-[720px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-border text-xs text-muted-foreground">
