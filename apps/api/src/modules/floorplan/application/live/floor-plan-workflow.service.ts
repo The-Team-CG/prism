@@ -36,8 +36,8 @@ function blankRoomScene(name: string, width: number, height: number): FloorplanS
   return convertLegacyPlan({ name, widthM: width, heightM: height, objects: [] }, PASCAL_VERSION);
 }
 
-/** The room a client preference starts in when the client has not saved a layout yet. */
-const PREFERENCE_ROOM = { width: 1400, height: 900 } as const;
+/** Rooms are sized in metres. A new draft or a client preference with no size given starts as a 30 m by 20 m hall. */
+const DEFAULT_ROOM = { width: 30, height: 20, gridSize: 1 } as const;
 
 @Injectable()
 export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanReader {
@@ -89,8 +89,8 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           }
           // A venue draft copies the venue's scene; any other draft starts as a blank room of the requested size.
           const preset = input.venueTemplateId ? await this.loadVenuePreset(tx, input.venueTemplateId) : null;
-          const width = preset?.width ?? input.width ?? 1200;
-          const height = preset?.height ?? input.height ?? 800;
+          const width = preset?.width ?? input.width ?? DEFAULT_ROOM.width;
+          const height = preset?.height ?? input.height ?? DEFAULT_ROOM.height;
           const scene = preset?.scene ?? blankRoomScene(input.name, width, height);
           await tx.floorPlan.create({
             data: {
@@ -101,7 +101,7 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
               eventId,
               width,
               height,
-              gridSize: preset?.gridSize ?? input.gridSize ?? 20,
+              gridSize: preset?.gridSize ?? input.gridSize ?? DEFAULT_ROOM.gridSize,
               pax: preset?.pax ?? input.pax ?? 0,
               ...sceneColumns(scene),
               updatedAt: now,
@@ -272,10 +272,10 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
         venue: input.venue ?? eventName,
         ownerId: actor.actorId,
         eventId,
-        width: PREFERENCE_ROOM.width,
-        height: PREFERENCE_ROOM.height,
+        width: DEFAULT_ROOM.width,
+        height: DEFAULT_ROOM.height,
         pax: input.guestCount,
-        ...sceneColumns(scene ?? blankRoomScene(input.name, PREFERENCE_ROOM.width, PREFERENCE_ROOM.height)),
+        ...sceneColumns(scene ?? blankRoomScene(input.name, DEFAULT_ROOM.width, DEFAULT_ROOM.height)),
         updatedAt: now,
       },
     });

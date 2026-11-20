@@ -627,6 +627,23 @@ describe('FloorPlanWorkflowService', () => {
     );
   });
 
+  it('starts a preference sent without a drawing in a 30 m by 20 m room, measured in metres', async () => {
+    const { service, state } = createService();
+    state.events[0].clientPortalStatus = 'unlocked';
+
+    await service.createFloorPlanPreference('evt_sample', {
+      name: 'Client Preference', seatingStyle: 'banquet', stagePreference: 'center', flowNotes: '', guestCount: 120, constraints: [],
+    }, { actorId: 'user_client_1', name: 'Ana Reyes', role: 'client' });
+
+    expect(state.floorPlans[0]).toMatchObject({ width: 30, height: 20 });
+    const walls = Object.values(state.floorPlans[0].scene.nodes as Record<string, { type: string; start?: [number, number]; end?: [number, number] }>)
+      .filter((node) => node.type === 'wall');
+    const longest = Math.max(...walls.map((wall) => Math.hypot(wall.end![0] - wall.start![0], wall.end![1] - wall.start![1])));
+    expect(walls.length).toBeGreaterThan(0);
+    // The old pixel-era default drew a 1400 m wall here.
+    expect(longest).toBeLessThanOrEqual(31);
+  });
+
   it('rejects a second client preference for the same event without creating another draft', async () => {
     const { service, state } = createService();
     state.events[0].clientPortalStatus = 'unlocked';

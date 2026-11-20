@@ -1149,14 +1149,14 @@ export class LocalFixtureSeeder {
           hidden: false,
         },
       ];
-      const fixtureFloorPlanScene = convertLegacyPlan({ name: 'Ayala Tech Summit ballroom layout', widthM: 1200, heightM: 800, objects: fixtureFloorPlanObjects }, PASCAL_VERSION);
+      const fixtureFloorPlanScene = convertLegacyPlan({ name: 'Ayala Tech Summit ballroom layout', widthM: 30, heightM: 20, objects: fixtureFloorPlanObjects }, PASCAL_VERSION);
       const fixtureFloorPlanSnapshot = {
         id: 'plan_sample_ayala_main',
         name: 'Ayala Tech Summit ballroom layout',
         venue: '',
-        width: 1200,
-        height: 800,
-        gridSize: 20,
+        width: 30,
+        height: 20,
+        gridSize: 1,
         pax: 0,
         scene: fixtureFloorPlanScene,
         sceneFormat: fixtureFloorPlanScene.format,
@@ -1169,9 +1169,9 @@ export class LocalFixtureSeeder {
           name: 'Ayala Tech Summit ballroom layout',
           ownerId: LOCAL_FIXTURE_OWNER_ID,
           eventId: 'evt_sample_ayala',
-          width: 1200,
-          height: 800,
-          gridSize: 20,
+          width: 30,
+          height: 20,
+          gridSize: 1,
           scene: toPrismaJson(fixtureFloorPlanScene),
           sceneFormat: fixtureFloorPlanScene.format,
           updatedAt: createdAt,

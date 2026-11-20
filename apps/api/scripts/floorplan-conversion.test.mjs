@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { canonicalHash } from '../src/modules/floorplan/application/live/canonical-hash.cjs';
-import { planFloorplanConversion } from './floorplan-conversion.mjs';
+import { LEGACY_DEFAULT_ROOM_M, legacyRoomMetres, planFloorplanConversion } from './floorplan-conversion.mjs';
 
 const table = (id, label, assignedGuestIds) => ({
   id, kind: 'ellipse', category: 'furniture', name: 'Round Table', x: 1, y: 1, w: 2, h: 2, rotation: 0, seats: 8, label, assignedGuestIds,
@@ -97,6 +97,13 @@ test('an annotation on an object the conversion did not keep points at no scene 
   const annotationWrite = statements.find((statement) => statement.text.includes('client_annotations'));
   assert.equal(annotationWrite.values[1], null);
   assert.equal(report.annotationObjectsUnmatched, 1);
+});
+
+test('a legacy room keeps its size in metres, and the old pixel-era default reads as a 30 m by 20 m hall', () => {
+  assert.deepEqual(legacyRoomMetres(40, 26), { widthM: 40, heightM: 26 });
+  for (const [width, height] of [[1200, 800], [1400, 900], [0, 20], [Number.NaN, 20]]) {
+    assert.deepEqual(legacyRoomMetres(width, height), { widthM: LEGACY_DEFAULT_ROOM_M.width, heightM: LEGACY_DEFAULT_ROOM_M.height });
+  }
 });
 
 test('a second run after the first writes nothing', () => {

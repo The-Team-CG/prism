@@ -6,6 +6,7 @@ import { PRISM_PRIVACY_NOTICE_VERSION, type CreatePrismInquiryInput, type Floorp
 import { PrismDashboardShell } from "@prism/ui";
 import { loadPreferencePlan, savePreferenceScene, type PreferencePlan } from "@/features/floorplan/preference-editor/data/preference-plan-repository";
 import { createSceneSaver, type SceneSaver } from "@/features/floorplan/preference-editor/use-cases/scene-saver";
+import { hasPreferenceLayout } from "@/features/floorplan/preference-editor/use-cases/open-preference-scene";
 import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import { ClientEventSwitcher } from "./sections/client-event-switcher";
 import { ClientWrongPortalView } from "./sections/client-wrong-portal-view";
@@ -304,7 +305,7 @@ export function ClientDashboardWorkspaceView({
 
   /** A new preference starts from the official layout, when PMCM has one; a preference already saved opens as saved. */
   async function officialSceneForNewPreference(plan: PreferencePlan, eventId: string): Promise<FloorplanSceneDocument | null> {
-    if (plan.scene || !officialDraft) return null;
+    if (hasPreferenceLayout(plan.scene) || !officialDraft) return null;
     const layout = await loadOfficialFloorPlan(eventId, officialDraft.id, officialDraft.status === "approved" ? "approved" : "submitted");
     return layout.scene;
   }

@@ -59,9 +59,21 @@ export function seatOnRoster(objects, guests, roster) {
  * Converts one legacy room into a scene. `roster` is the event's roster for an event draft; null clears every seat.
  * Returns the scene and how many seats the roster rule dropped.
  */
+/**
+ * The room size a legacy plan was drawn at, in metres. The legacy editor saved the room in whole metres; a draft
+ * created without opening it kept the API's old pixel-era default (1200 by 800, or 1400 by 900 for a client
+ * preference), which no event hall measures. Such a size reads as the 30 m by 20 m hall a new draft starts as.
+ */
+export const LEGACY_DEFAULT_ROOM_M = { width: 30, height: 20 };
+const LARGEST_PLAUSIBLE_ROOM_M = 500;
+export function legacyRoomMetres(width, height) {
+  const plausible = (value) => Number.isFinite(value) && value > 0 && value <= LARGEST_PLAUSIBLE_ROOM_M;
+  return plausible(width) && plausible(height) ? { widthM: width, heightM: height } : { widthM: LEGACY_DEFAULT_ROOM_M.width, heightM: LEGACY_DEFAULT_ROOM_M.height };
+}
+
 export function convertPlanScene({ name, width, height, objects, guests, roster }) {
   const seating = roster ? seatOnRoster(objects, guests, roster) : { objects: objects.map(clearSeats), dropped: 0 };
-  const scene = convertLegacyPlan({ name, widthM: width, heightM: height, objects: seating.objects }, PASCAL_VERSION);
+  const scene = convertLegacyPlan({ name, ...legacyRoomMetres(width, height), objects: seating.objects }, PASCAL_VERSION);
   return { scene, dropped: seating.dropped };
 }
 
