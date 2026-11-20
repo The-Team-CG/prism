@@ -4,6 +4,7 @@ import { TooltipProvider } from "@prism/ui/components/tooltip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PrismEvent, PrismInquiry } from "@prism/types";
 import type { ReactElement } from "react";
+import { clientLifetime } from "../../model/client-dossier";
 import { ClientDirectory, ClientDossier } from "./client-directory";
 
 vi.mock("next/navigation", () => ({
@@ -42,10 +43,26 @@ describe("client profile", () => {
     expect(screen.getByText("balance due")).toBeTruthy();
     const figures = screen.getByLabelText("Client figures").textContent ?? "";
     expect(figures).toContain("Events with PMCM3");
-    expect(figures).toContain("Completed2");
+    expect(figures).toContain("1 upcoming · 2 completed");
+    expect(figures).toContain("Lifetime billed—");
     const tabs = screen.getByRole("tablist", { name: "Client views" });
     expect(within(tabs).getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Overview", "History", "Contacts"]);
     expect(within(tabs).getByRole("tab", { name: "History" }).getAttribute("href")).toBe("/dashboard/clients/acme/history");
+  });
+
+  it("shows lifetime billed, the average closeout rating and when the client was last active", () => {
+    const lifetime = clientLifetime(["evt-gala", "evt-2024", "evt-2025"], [
+      { eventId: "evt-2024", billed: 1_200_000, paid: 1_200_000, closeoutRating: 5, clientLastActiveAt: "2024-03-10T02:00:00.000Z" },
+      { eventId: "evt-2025", billed: 1_500_000, paid: 1_500_000, closeoutRating: 4, clientLastActiveAt: null },
+      { eventId: "evt-gala", billed: 2_000_000, paid: 500_000, closeoutRating: null, clientLastActiveAt: "2026-11-19T02:00:00.000Z" },
+      { eventId: "evt-other", billed: 9_000_000, paid: 0, closeoutRating: 1, clientLastActiveAt: "2026-11-20T02:00:00.000Z" },
+    ]);
+    renderDossier(<ClientDossier client={client} balance="₱0" lifetime={lifetime} view="overview" onBack={vi.fn()} onOpenEvent={vi.fn()} />);
+
+    const figures = screen.getByLabelText("Client figures").textContent ?? "";
+    expect(figures).toContain("Lifetime billed₱4,700,000");
+    expect(figures).toContain("Average rating4.5 / 5From 2 closeout surveys");
+    expect(screen.getByText(/Last active Nov 19, 2026/)).toBeTruthy();
   });
 
   it("shows only what is active and the inquiries waiting on a decision on Overview", () => {

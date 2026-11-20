@@ -16,7 +16,9 @@ import {
   COMPLIANCE_RULE_SEVERITIES,
   EMPTY_COMPLIANCE_RULE_DRAFT,
   activeWorkspaceRules,
+  builtInComplianceChecks,
   complianceOptionLabel,
+  compliancePhasesLabel,
   toCreateComplianceRuleInput,
   type ComplianceRuleDraft,
 } from "../model/compliance-rule-rules";
@@ -24,16 +26,20 @@ import {
 /** Settings → Compliance rules: rules here apply to every event's compliance checks. */
 export function ComplianceRulesSettings({
   rules,
+  catalog,
   busy,
   onCreateRule,
 }: {
   rules: PrismComplianceRule[];
+  /** Every rule the checks run, built-in ones included, once loaded. */
+  catalog?: PrismComplianceRule[];
   busy: boolean;
   onCreateRule: (input: ReturnType<typeof toCreateComplianceRuleInput>) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<ComplianceRuleDraft>(EMPTY_COMPLIANCE_RULE_DRAFT);
   const [adding, setAdding] = useState(false);
   const active = activeWorkspaceRules(rules);
+  const builtIns = catalog ? builtInComplianceChecks(catalog) : [];
   const ready = draft.title.trim().length > 0 && draft.conditionKey.trim().length > 0;
   const set = (patch: Partial<ComplianceRuleDraft>) => setDraft((current) => ({ ...current, ...patch }));
 
@@ -82,7 +88,22 @@ export function ComplianceRulesSettings({
             </ul>
           )}
         </section>
-
+        {builtIns.length ? (
+          <details className="group rounded-lg border border-border">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+              <span>Built-in checks <span className="font-normal tabular-nums text-muted-foreground">{builtIns.length}</span></span>
+              <span className="text-xs font-normal text-muted-foreground group-open:hidden">Run for every event</span>
+            </summary>
+            <ul aria-label="Built-in checks" className="divide-y divide-border border-t border-border">
+              {builtIns.map((rule) => (
+                <li key={rule.id} className="grid gap-0.5 px-4 py-2.5 text-sm">
+                  <span className="text-foreground">{rule.title}</span>
+                  <span className="text-xs text-muted-foreground">{compliancePhasesLabel(rule.phase)} · {complianceOptionLabel(COMPLIANCE_RULE_SEVERITIES, rule.severity)}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </CardContent>
       <Sheet open={adding} onOpenChange={setAdding}>
         <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">

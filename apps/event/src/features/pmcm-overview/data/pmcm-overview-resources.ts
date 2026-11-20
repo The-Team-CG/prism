@@ -3,7 +3,7 @@ import type { PmcmCalendarQuery } from "@prism/types";
 import { getEventCoverImage } from "@prism/api-client";
 import { eventApi, storedEventAccessToken } from "@/lib/prism-api";
 
-/** Money and unread messages per event, for the Finance, Files and Messages event lists. */
+
 /** A short-lived address for an event's cover image, keyed `eventId:coverObjectId` so a new cover reads afresh. */
 export const pmcmEventCover = defineResource({
   name: "pmcm.event-cover",
@@ -47,4 +47,18 @@ export const pmcmClientActivity = defineResource({
   name: "pmcm.client-activity",
   staleMs: 60_000,
   fetch: (eventId: string) => eventApi.pmcm.clientActivity(eventId),
+});
+
+/** Billed, paid, closeout rating and the client's last sign-in per event, for the client directory's lifetime figures. */
+export const pmcmClientFacts = defineResource({
+  name: "pmcm.client-facts",
+  staleMs: 60_000,
+  fetch: (_actor: "signed-in") => eventApi.pmcm.clientFacts(),
+});
+
+/** Each supplier's soonest upcoming confirmed booking, for the supplier directory cards. */
+export const pmcmSupplierNextBookings = defineResource({
+  name: "pmcm.supplier-next-bookings",
+  staleMs: 60_000,
+  fetch: (_actor: "signed-in") => eventApi.pmcm.supplierNextBookings(),
 });

@@ -4,7 +4,8 @@ import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@prism/ui/components/empty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@prism/ui/components/tooltip";
-import type { PmcmSupplierDirectoryQuery, PrismPmcmSupplierDirectoryPage, PrismSupplierCategory } from "@prism/types";
+import type { PmcmSupplierDirectoryQuery, PrismPmcmSupplierDirectoryPage, PrismPmcmSupplierNextBooking, PrismSupplierCategory } from "@prism/types";
+import { formatPortalDate } from "@prism/ui/format-date";
 import { cx } from "@/features/pmcm-kit";
 import { BNI_TITLE, supplierTierLabel } from "./supplier-visuals";
 
@@ -21,6 +22,8 @@ type SupplierDirectoryTableProps = {
   error: string | null;
   view: string;
   selectedSupplierId?: string | null;
+  /** Each supplier's soonest upcoming confirmed booking, once loaded. */
+  nextBookings?: ReadonlyMap<string, PrismPmcmSupplierNextBooking>;
   onSearch: (value: string) => void;
   onQueryChange: QueryChange;
   onSelectSupplier: (supplierId: string, trigger: HTMLButtonElement) => void;
@@ -69,7 +72,7 @@ export function SupplierDirectoryCards(props: SupplierDirectoryTableProps) {
         {items.length ? (
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {items.map((supplier) => (
-              <SupplierCard key={supplier.id} supplier={supplier} selected={props.selectedSupplierId === supplier.id} onSelect={props.onSelectSupplier} />
+              <SupplierCard key={supplier.id} supplier={supplier} next={props.nextBookings?.get(supplier.id)} selected={props.selectedSupplierId === supplier.id} onSelect={props.onSelectSupplier} />
             ))}
           </ul>
         ) : (
@@ -162,7 +165,7 @@ function DirectoryError({ message, onRetry }: { message: string; onRetry: () => 
   );
 }
 
-function SupplierCard({ supplier, selected, onSelect }: { supplier: SupplierRow; selected: boolean; onSelect: SupplierDirectoryTableProps["onSelectSupplier"] }) {
+function SupplierCard({ supplier, next, selected, onSelect }: { supplier: SupplierRow; next?: PrismPmcmSupplierNextBooking; selected: boolean; onSelect: SupplierDirectoryTableProps["onSelectSupplier"] }) {
   const gaps = supplierGaps(supplier);
   return (
     <li data-testid="supplier-card" className={cx("relative grid content-start gap-2 rounded-xl border bg-card p-4 transition-colors hover:bg-surface-raised has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring", selected ? "border-primary" : "border-border")}>
@@ -178,6 +181,7 @@ function SupplierCard({ supplier, selected, onSelect }: { supplier: SupplierRow;
       <p className="text-sm text-foreground">
         {supplier.bookedEvents > 0 ? <>Booked on <span className="font-semibold">{supplier.bookedEvents} {supplier.bookedEvents === 1 ? "event" : "events"}</span></> : <span className="text-muted-foreground">Not booked yet</span>}
       </p>
+      {next ? <p className="truncate text-sm text-muted-foreground">Next: <span className="text-foreground">{next.eventName}</span> · {formatPortalDate(next.eventDate)}</p> : null}
       <p className="flex items-center gap-1.5 text-sm">
         {supplier.rating.average === null ? (
           <span className="text-muted-foreground">No reviews yet</span>

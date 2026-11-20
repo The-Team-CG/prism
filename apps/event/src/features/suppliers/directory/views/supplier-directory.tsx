@@ -10,6 +10,7 @@ import type { CreateSupplierInput, PrismSupplierCategory } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { useResource } from "@prism/portal-query";
 import { SupplierApplicationsInboxView, supplierApplicationsInbox } from "@/features/suppliers/applications";
+import { pmcmSupplierNextBookings } from "@/features/pmcm-overview";
 import { useSupplierDirectoryViewModel } from "../view-models/use-supplier-directory-view-model";
 import type { SupplierActionResult } from "../use-cases/save-supplier-action";
 import { SupplierDetailDrawer } from "./supplier-detail-drawer";
@@ -26,6 +27,8 @@ export function SupplierDirectory({
   onOpenEvent: (eventId: string) => void;
 }) {
   const directory = useSupplierDirectoryViewModel({ view, session });
+  const upcoming = useResource(pmcmSupplierNextBookings, "signed-in").data?.items;
+  const nextBookings = upcoming ? new Map(upcoming.map((booking) => [booking.supplierId, booking] as const)) : undefined;
   const [applicationsOpen, setApplicationsOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateSupplierInput>({ categoryId: "", name: "", tier: "pending_first_event" });
@@ -83,6 +86,7 @@ export function SupplierDirectory({
         error={directory.directoryError}
         view={directory.view}
         selectedSupplierId={directory.selectedSupplierId}
+        nextBookings={nextBookings}
         onSearch={directory.setSearchDraft}
         onQueryChange={directory.updateQuery}
         onSelectSupplier={(supplierId, trigger) => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismPmcmCalendarItem } from "@prism/types";
-import { selectInboxToday } from "./inbox-today";
+import { inboxLiveCounts, selectInboxToday } from "./inbox-today";
 
 const event = (eventId: string, date: string, extra: Partial<PrismPmcmCalendarItem> = {}): PrismPmcmCalendarItem => ({
   id: `${eventId}:${date}`, kind: "event", eventId, eventName: `Event ${eventId}`, date, detail: "BGC", ...extra,
@@ -27,5 +27,17 @@ describe("selectInboxToday", () => {
 
   it("has no lead when no event is coming up", () => {
     expect(selectInboxToday([], "2026-11-21")).toEqual({ lead: null, week: [] });
+  });
+});
+
+describe("inboxLiveCounts", () => {
+  it("counts guests in against the briefing's expected count and only the issues still open", () => {
+    const counts = inboxLiveCounts({
+      guestAttendanceCount: 112,
+      briefing: { guestCount: 180 } as never,
+      urgentIssues: [{ status: "open" }, { status: "resolved" }, { status: "acknowledged" }, { status: "cancelled" }] as never,
+    });
+    expect(counts).toEqual({ guestsIn: 112, guestsExpected: 180, openIssues: 2 });
+    expect(inboxLiveCounts({ guestAttendanceCount: 0, briefing: null, urgentIssues: [] }).guestsExpected).toBeNull();
   });
 });

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { EventSettingsWorkspace } from "./event-settings-workspace";
 import { EventModulesControl } from "@/features/event-settings/modules/views/event-modules-control";
-import { ComplianceRulesSettings } from "@/features/compliance/rules";
+import { useResource } from "@prism/portal-query";
+import { ComplianceRulesSettings, complianceRuleCatalog } from "@/features/compliance/rules";
 import { PlanningTemplatesSettings } from "@/features/planning/templates";
 import { CanvaConnectionCard } from "@/features/event-settings/canva/views/canva-connection-card";
 import { AccountAdminPanel } from "@/features/audit/trail/views/account-admin-panel";
@@ -48,6 +49,7 @@ export function EventDashboardSettingsSectionView() {
   ];
   const [requested, setTab] = useListFilter("tab", tabs[0]?.id ?? "event");
   const tab = tabs.some((entry) => entry.id === requested) ? (requested as SettingsTab) : tabs[0]?.id;
+  const catalog = useResource(complianceRuleCatalog, tab === "rules" ? "signed-in" : null).data;
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -71,7 +73,7 @@ export function EventDashboardSettingsSectionView() {
       <section id={`settings-panel-${tab}`} role="tabpanel" className="space-y-5">
         {tab === "rules" ? (
           <>
-            <ComplianceRulesSettings rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} />
+            <ComplianceRulesSettings rules={complianceRules} catalog={catalog} busy={Boolean(busy)} onCreateRule={createComplianceRule} />
           </>
         ) : null}
         {tab === "templates" ? <PlanningTemplatesSettings /> : null}

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PrismHero } from "@prism/ui/page-blocks";
 import { daysUntil, formatPortalDate } from "@prism/ui/format-date";
-import type { InboxToday } from "../model/inbox-today";
+import type { InboxLiveCounts, InboxToday } from "../model/inbox-today";
 
 const eventHref = (eventId: string, view: "overview" | "live-ops") => `/dashboard/events/${encodeURIComponent(eventId)}/${view}`;
 
@@ -13,7 +13,7 @@ function shortDay(date: string) {
  * The Inbox's lead: the event on today (with the live desk one click away), or the next event and how long until it,
  * then the few events after it this week. Nothing renders while there is no event in the lookahead.
  */
-export function InboxTodayHero({ today, todayKey }: { today: InboxToday; todayKey: string }) {
+export function InboxTodayHero({ today, todayKey, live }: { today: InboxToday; todayKey: string; live?: InboxLiveCounts }) {
   const { lead, week } = today;
   if (!lead) return null;
   const days = daysUntil(lead.date, todayKey) ?? 0;
@@ -23,11 +23,15 @@ export function InboxTodayHero({ today, todayKey }: { today: InboxToday; todayKe
         label={lead.live ? `Today · ${shortDay(todayKey)}` : "Your next event"}
         title={<Link href={eventHref(lead.eventId, "overview")} className="hover:underline">{lead.live ? `${lead.eventName} is on today` : lead.eventName}</Link>}
         meta={[lead.live ? undefined : formatPortalDate(lead.date), lead.detail, lead.startTime ? `starts ${lead.startTime}` : undefined].filter(Boolean).join(" · ")}
-        figure={lead.live ? undefined : { value: String(days), label: days === 1 ? "day to go" : "days to go" }}
+        figure={lead.live
+          ? live ? { value: String(live.guestsIn), label: live.guestsExpected ? `of ${live.guestsExpected} guests in` : live.guestsIn === 1 ? "guest in" : "guests in" } : undefined
+          : { value: String(days), label: days === 1 ? "day to go" : "days to go" }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-ink-foreground/70">
-            {lead.live ? "Check-ins, issues and the run sheet are on the live desk." : "Its overview says what is still waiting before the day."}
+            {lead.live
+              ? live ? (live.openIssues ? `${live.openIssues} ${live.openIssues === 1 ? "issue" : "issues"} still open on the live desk.` : "No open issues. The run sheet is on the live desk.") : "Check-ins, issues and the run sheet are on the live desk."
+              : "Its overview says what is still waiting before the day."}
           </p>
           <Link
             href={eventHref(lead.eventId, lead.live ? "live-ops" : "overview")}

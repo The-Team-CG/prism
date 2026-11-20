@@ -1,4 +1,4 @@
-import type { PrismPmcmCalendarItem } from "@prism/types";
+import type { PrismLiveOps, PrismPmcmCalendarItem } from "@prism/types";
 import { addDays } from "@prism/ui/calendar-views";
 
 /** How far ahead the Inbox looks for the next event day. */
@@ -28,4 +28,16 @@ export function selectInboxToday(items: PrismPmcmCalendarItem[], todayKey: strin
   if (!lead) return { lead: null, week: [] };
   const weekEnd = addDays(todayKey, 7);
   return { lead: { ...lead, live: lead.date === todayKey }, week: rest.filter((item) => item.date <= weekEnd).slice(0, WEEK_LIMIT) };
+}
+
+export type InboxLiveCounts = { guestsIn: number; guestsExpected: number | null; openIssues: number };
+
+/** The two numbers PMCM checks first on an event day: guests through the door and issues still open. */
+export function inboxLiveCounts(liveOps: Pick<PrismLiveOps, "guestAttendanceCount" | "urgentIssues" | "briefing">): InboxLiveCounts {
+  const expected = liveOps.briefing?.guestCount;
+  return {
+    guestsIn: liveOps.guestAttendanceCount,
+    guestsExpected: typeof expected === "number" && expected > 0 ? expected : null,
+    openIssues: liveOps.urgentIssues.filter((issue) => !["resolved", "cancelled"].includes(issue.status)).length,
+  };
 }

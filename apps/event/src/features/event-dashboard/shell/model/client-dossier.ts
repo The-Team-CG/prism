@@ -1,4 +1,4 @@
-import type { PrismEvent, PrismInquiry } from "@prism/types";
+import type { PrismEvent, PrismInquiry, PrismPmcmClientEventFacts } from "@prism/types";
 import type { EventClientRecord } from "./event-dashboard-selectors";
 
 const CLOSED_EVENT_STATUSES = ["completed", "cancelled", "closed"];
@@ -64,5 +64,30 @@ export function summarizeClientDossier(client: Pick<EventClientRecord, "events" 
       inquiries: client.inquiries.length,
     },
     since: dates[0] ?? null,
+  };
+}
+
+export type ClientLifetime = {
+  /** Current payment milestones across every event the client has had with PMCM, in pesos. */
+  billed: number;
+  /** The mean of the closeout ratings the client sent, to one decimal, or null before any. */
+  averageRating: number | null;
+  ratings: number;
+  /** The client's latest portal sign-in across their events. */
+  lastActiveAt: string | null;
+};
+
+/** What the client has been worth to PMCM and how recently they were around, from the per-event facts. */
+export function clientLifetime(eventIds: readonly string[], facts: ReadonlyArray<PrismPmcmClientEventFacts> | undefined): ClientLifetime | undefined {
+  if (!facts) return undefined;
+  const ids = new Set(eventIds);
+  const mine = facts.filter((fact) => ids.has(fact.eventId));
+  const ratings = mine.map((fact) => fact.closeoutRating).filter((rating): rating is number => typeof rating === "number");
+  const lastActiveAt = mine.map((fact) => fact.clientLastActiveAt).filter((at): at is string => Boolean(at)).sort().at(-1) ?? null;
+  return {
+    billed: mine.reduce((sum, fact) => sum + fact.billed, 0),
+    averageRating: ratings.length ? Math.round((ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length) * 10) / 10 : null,
+    ratings: ratings.length,
+    lastActiveAt,
   };
 }

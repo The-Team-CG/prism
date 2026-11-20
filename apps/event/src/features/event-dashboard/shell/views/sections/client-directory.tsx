@@ -9,7 +9,7 @@ import { PrismEmptyLine, PrismHero, PrismSection, PrismStatRow } from "@prism/ui
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { RouteLink, cx, label, useListFilter } from "@/features/pmcm-kit";
-import { isOpenClientEvent, summarizeClientDossier, type ClientDossierSummary } from "../../model/client-dossier";
+import { isOpenClientEvent, summarizeClientDossier, type ClientDossierSummary, type ClientLifetime } from "../../model/client-dossier";
 import type { EventClientRecord } from "../../model/event-dashboard-selectors";
 import { CLIENT_DOSSIER_VIEWS, clientDossierHref, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
@@ -61,7 +61,7 @@ function directoryOrder(left: EventClientRecord, right: EventClientRecord) {
   return dates || left.name.localeCompare(right.name);
 }
 
-const ROW_GRID = "sm:grid sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_minmax(0,1fr)_8rem_1rem] sm:items-center sm:gap-4";
+const ROW_GRID = "sm:grid sm:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_minmax(0,1fr)_7rem_8rem_1rem] sm:items-center sm:gap-4";
 
 const SEGMENTS = [
   { id: "active", label: "Active" },
@@ -74,10 +74,13 @@ const SEGMENTS = [
 export function ClientDirectory({
   clients,
   balances,
+  lastActive,
   onOpenClient,
 }: {
   clients: EventClientRecord[];
   balances: ReadonlyMap<string, number>;
+  /** Each client's latest portal sign-in, once the client facts load. */
+  lastActive?: ReadonlyMap<string, string | null>;
   onOpenClient: (id: string) => void;
 }) {
   const [query, setQuery] = useListFilter("q");
@@ -135,12 +138,13 @@ export function ClientDirectory({
               <span>Client</span>
               <span>Next event</span>
               <span>With PMCM</span>
+              <span>Last active</span>
               <span className="text-right">Balance due</span>
               <span />
             </div>
             <ul className="divide-y divide-border">
               {rows.map((client) => (
-                <ClientDirectoryRow key={client.id} client={client} balance={balances.get(client.id) ?? 0} onOpenClient={onOpenClient} />
+                <ClientDirectoryRow key={client.id} client={client} balance={balances.get(client.id) ?? 0} lastActiveAt={lastActive?.get(client.id)} onOpenClient={onOpenClient} />
               ))}
             </ul>
           </>
@@ -150,7 +154,7 @@ export function ClientDirectory({
   );
 }
 
-function ClientDirectoryRow({ client, balance, onOpenClient }: { client: EventClientRecord; balance: number; onOpenClient: (id: string) => void }) {
+function ClientDirectoryRow({ client, balance, lastActiveAt, onOpenClient }: { client: EventClientRecord; balance: number; lastActiveAt: string | null | undefined; onOpenClient: (id: string) => void }) {
   const email = client.inquiries.find((inquiry) => inquiry.email)?.email;
   const contact = client.contact !== client.name ? client.contact : undefined;
   const next = nextEvent(client);
@@ -174,6 +178,10 @@ function ClientDirectoryRow({ client, balance, onOpenClient }: { client: EventCl
       </div>
       <ClientNextEvent next={next} />
       <ClientHistoryCount client={client} reviewCount={reviewCount} />
+      <p className="min-w-0 pl-12 text-sm text-muted-foreground sm:pl-0">
+        <span className="sm:hidden">Last active </span>
+        {lastActiveAt === undefined ? "—" : lastActiveAt ? formatPortalDate(lastActiveAt) : client.events.length ? "Not signed in" : "—"}
+      </p>
       <ClientBalance balance={balance} />
       <ChevronRight aria-hidden="true" className="hidden size-4 text-muted-foreground sm:block" />
     </li>
@@ -308,12 +316,15 @@ function DossierHistory({ summary, onOpenEvent }: { summary: ClientDossierSummar
 export function ClientDossier({
   client,
   balance,
+  lifetime,
   view = "overview",
   onBack,
   onOpenEvent,
 }: {
   client: EventClientRecord;
   balance: string;
+  /** Lifetime billed, average rating and last sign-in, once the client facts load. */
+  lifetime?: ClientLifetime;
   view?: string;
   onBack: () => void;
   onOpenEvent: (id: string, tab?: DetailTab) => void;
@@ -332,7 +343,7 @@ export function ClientDossier({
       <PrismHero
         label={[type, contact, email].filter(Boolean).join(" · ") || "Client"}
         title={client.name}
-        meta={summary.since ? `With PMCM since ${formatPortalDate(summary.since)}` : undefined}
+        meta={[summary.since ? `With PMCM since ${formatPortalDate(summary.since)}` : null, lifetime?.lastActiveAt ? `Last active ${formatPortalDate(lifetime.lastActiveAt)}` : null].filter(Boolean).join(" · ") || undefined}
         figure={{ value: balance, label: "balance due" }}
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -345,9 +356,9 @@ export function ClientDossier({
       <PrismStatRow
         label="Client figures"
         stats={[
-          { label: "Events with PMCM", value: summary.figures.events },
-          { label: "Upcoming", value: summary.figures.upcoming },
-          { label: "Completed", value: summary.figures.completed },
+          { label: "Events with PMCM", value: summary.figures.events, detail: `${summary.figures.upcoming} upcoming · ${summary.figures.completed} completed` },
+          { label: "Lifetime billed", value: lifetime ? php.format(lifetime.billed) : "—" },
+          { label: "Average rating", value: lifetime?.averageRating ? `${lifetime.averageRating.toFixed(1)} / 5` : "—", detail: lifetime ? (lifetime.ratings ? `From ${lifetime.ratings} closeout ${lifetime.ratings === 1 ? "survey" : "surveys"}` : "No closeout survey yet") : undefined },
           { label: "Inquiries", value: summary.figures.inquiries },
         ]}
       />
