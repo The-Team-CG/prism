@@ -70,7 +70,6 @@ export function SupplierDirectoryTable(props: SupplierDirectoryTableProps) {
     <TooltipProvider>
       <section aria-label="Supplier directory" className={`${styles.table} min-w-0 overflow-hidden`}>
         <SupplierDirectoryFilters {...props} />
-        {props.view === "contracts" || props.view === "payments" ? <PortalScopeNotice view={props.view} /> : null}
         {props.error ? <DirectoryError message={props.error} onRetry={props.onRetry} /> : null}
         <p className="px-4 py-2 text-xs text-muted-foreground lg:hidden">Scroll sideways to see contact, reviews and certifications.</p>
         <ScrollArea className="w-full">
@@ -182,19 +181,6 @@ function SupplierDirectoryFilters({ categories, query, searchDraft, loading, onS
         <RefreshCw className={loading ? "animate-spin" : ""} /> Refresh
       </Button>
     </div>
-  );
-}
-
-function PortalScopeNotice({ view }: { view: string }) {
-  return (
-    <Alert className="rounded-none border-x-0 border-t-0">
-      <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
-        <span>Supplier {view} are managed inside an event workspace.</span>
-        <Button asChild variant="link" size="sm" className="h-auto p-0">
-          <a href="/dashboard/events">Open an event workspace</a>
-        </Button>
-      </AlertDescription>
-    </Alert>
   );
 }
 

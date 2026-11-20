@@ -85,6 +85,9 @@ function InboxRow({ item, todayKey }: { item: PrismCommandInboxItem; todayKey: s
   );
 }
 
+/** Needs action shows this many rows before "Show more"; blockers always show in full. */
+const NEEDS_ACTION_LIMIT = 5;
+
 /** Three or more items of the same kind and title collapse into one expandable row. */
 const CLUSTER_MIN = 3;
 
@@ -129,6 +132,7 @@ function InboxGroup({
   items,
   todayKey,
   collapsible,
+  limit,
 }: {
   id: string;
   title: ReactNode;
@@ -137,7 +141,13 @@ function InboxGroup({
   items: PrismCommandInboxItem[];
   todayKey: string;
   collapsible?: boolean;
+  /** Show this many rows (a group row counts as one) and fold the rest behind "Show more". */
+  limit?: number;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const clusters = clusterInboxItems(items);
+  const shown = limit && !expanded ? clusters.slice(0, limit) : clusters;
+  const hidden = clusters.length - shown.length;
   const heading = (
     <span className="flex min-w-0 items-baseline gap-2">
       <span id={id} className="truncate text-sm font-semibold text-foreground">{title}</span>
@@ -146,13 +156,24 @@ function InboxGroup({
     </span>
   );
   const rows = (
-    <ul aria-labelledby={id} className="divide-y divide-border">
-      {clusterInboxItems(items).map((cluster) =>
-        cluster.length === 1
-          ? <InboxRow key={cluster[0].id} item={cluster[0]} todayKey={todayKey} />
-          : <InboxCluster key={cluster[0].id} items={cluster} todayKey={todayKey} />,
-      )}
-    </ul>
+    <>
+      <ul aria-labelledby={id} className="divide-y divide-border">
+        {shown.map((cluster) =>
+          cluster.length === 1
+            ? <InboxRow key={cluster[0].id} item={cluster[0]} todayKey={todayKey} />
+            : <InboxCluster key={cluster[0].id} items={cluster} todayKey={todayKey} />,
+        )}
+      </ul>
+      {hidden > 0 ? (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="flex min-h-11 w-full items-center gap-1 border-t border-border px-4 text-sm font-medium text-primary hover:bg-surface-raised"
+        >
+          Show {hidden} more <ChevronRight className="size-4 rotate-90" aria-hidden />
+        </button>
+      ) : null}
+    </>
   );
   if (collapsible) {
     return (
@@ -209,43 +230,15 @@ function InboxList({ triage, groupBy, todayKey }: { triage: InboxTriage; groupBy
   return (
     <Card className="gap-0 block overflow-hidden rounded-lg border border-border bg-card">
       {triage.urgent.length > 0 ? (
-        <InboxGroup id="command-inbox-urgent" title="Urgent blockers" count={triage.urgent.length} items={triage.urgent} todayKey={todayKey} />
+        <InboxGroup id="command-inbox-urgent" title="Blockers" count={triage.urgent.length} items={triage.urgent} todayKey={todayKey} />
       ) : null}
       {triage.needsAction.length > 0 ? (
-        <InboxGroup id="command-inbox-needs-action" title="Needs action" count={triage.needsAction.length} items={triage.needsAction} todayKey={todayKey} />
+        <InboxGroup id="command-inbox-needs-action" title="Needs action" count={triage.needsAction.length} items={triage.needsAction} todayKey={todayKey} limit={NEEDS_ACTION_LIMIT} />
       ) : null}
       {triage.reference.length > 0 ? (
         <InboxGroup id="command-inbox-reference" title="Updates and reference" count={triage.reference.length} items={triage.reference} todayKey={todayKey} collapsible />
       ) : null}
     </Card>
-  );
-}
-
-function SummaryStrip({ inbox, triage }: { inbox: PrismPmcmCommandInbox; triage: InboxTriage }) {
-  const paged = inbox.page.hasMore || inbox.page.index > 0;
-  const stats: Array<{ label: string; value: number; href?: string; tone?: string }> = [
-    { label: paged ? "Urgent on this page" : "Urgent", value: triage.counts.urgent, tone: triage.counts.urgent > 0 ? "text-danger" : undefined },
-    { label: paged ? "Need action on this page" : "Need action", value: triage.counts.needsAction, tone: triage.counts.needsAction > 0 ? "text-attention" : undefined },
-    { label: "Inquiries to review", value: inbox.summary.pendingInquiries, href: "/dashboard/inquiries" },
-    { label: "Approvals waiting", value: inbox.summary.pendingApprovals, href: "/dashboard/messages/approvals" },
-    { label: "Active events", value: inbox.summary.activeEvents, href: "/dashboard/events" },
-  ];
-  return (
-    <dl data-testid="command-inbox-counts" className="grid grid-cols-2 overflow-hidden rounded-lg border border-border bg-card sm:grid-cols-5 sm:divide-x sm:divide-border">
-      {stats.map((stat) => {
-        const body = (
-          <>
-            <dt className="text-xs text-muted-foreground">{stat.label}</dt>
-            <dd className={cx("mt-0.5 text-xl font-semibold tabular-nums", stat.value === 0 ? "text-muted-foreground/60" : "text-foreground", stat.tone)}>{stat.value}</dd>
-          </>
-        );
-        return stat.href ? (
-          <Link key={stat.label} href={stat.href} className="block px-4 py-3 transition-colors hover:bg-surface-raised">{body}</Link>
-        ) : (
-          <div key={stat.label} className="px-4 py-3">{body}</div>
-        );
-      })}
-    </dl>
   );
 }
 
@@ -368,7 +361,6 @@ export function EventCommandInbox({
 
   return (
     <div className="space-y-4">
-      {inbox ? <SummaryStrip inbox={inbox} triage={triage} /> : null}
       <InboxToolbar inbox={inbox} loadFailed={loadFailed} groupBy={groupBy} onGroupBy={setGroupBy} onRefresh={onRefresh} />
 
       {loadFailed && inbox ? (

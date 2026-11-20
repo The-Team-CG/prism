@@ -9,7 +9,6 @@ export type DashboardSection =
   | "events-list"
   | "clients"
   | "calendar"
-  | "tasks"
   | "team"
   | "suppliers"
   | "files"
@@ -124,15 +123,11 @@ export const EVENT_WORKSPACE_ROUTE_ITEMS: Record<string, string> = {
   closure: "event-report",
 };
 
-/** Sub-views that filter their section. Calendar, Tasks, Messages, Files, Finance and Settings have none and redirect to their parent. */
+/** Sub-views that filter their section. Calendar, Messages, Files, Finance and Settings have none and redirect to their parent. */
 export const SECTION_ROUTE_ITEMS: Record<string, Record<string, string>> = {
   team: {
     all: "team-all",
-    roles: "team-roles",
     availability: "team-availability",
-    assignments: "team-assignments",
-    workload: "team-workload",
-    departments: "team-departments",
     archived: "team-archived",
   },
   suppliers: {
@@ -144,8 +139,6 @@ export const SECTION_ROUTE_ITEMS: Record<string, Record<string, string>> = {
     "lights-sounds": "suppliers-lights",
     decorations: "suppliers-decor",
     transportation: "suppliers-transport",
-    contracts: "suppliers-contracts",
-    payments: "suppliers-payments",
   },
   finance: { receipts: "finance-receipts", "payment-details": "finance-payment-details" },
 };
@@ -156,7 +149,6 @@ export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
   clients: "/dashboard/clients",
   "events-list": "/dashboard/events",
   calendar: "/dashboard/calendar",
-  tasks: "/dashboard/tasks",
   messages: "/dashboard/messages",
   notifications: "/dashboard/notifications",
   files: "/dashboard/files",
@@ -176,11 +168,7 @@ export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
   "events-by-client": "/dashboard/events/by-client",
   "events-by-type": "/dashboard/events/by-event-type",
   "team-all": "/dashboard/team",
-  "team-roles": "/dashboard/team/roles",
   "team-availability": "/dashboard/team/availability",
-  "team-assignments": "/dashboard/team/assignments",
-  "team-workload": "/dashboard/team/workload",
-  "team-departments": "/dashboard/team/departments",
   "team-archived": "/dashboard/team/archived",
   "suppliers-all": "/dashboard/suppliers",
   "suppliers-preferred": "/dashboard/suppliers/preferred",
@@ -190,8 +178,6 @@ export const SIDEBAR_STATIC_ROUTES: Record<string, string> = {
   "suppliers-lights": "/dashboard/suppliers/lights-sounds",
   "suppliers-decor": "/dashboard/suppliers/decorations",
   "suppliers-transport": "/dashboard/suppliers/transportation",
-  "suppliers-contracts": "/dashboard/suppliers/contracts",
-  "suppliers-payments": "/dashboard/suppliers/payments",
   "finance-receipts": "/dashboard/finance/receipts",
   "finance-payment-details": "/dashboard/finance/payment-details",
 };
@@ -229,7 +215,6 @@ const SIDEBAR_ITEM_TO_STATE: Record<string, RouteState> = {
   clients: { section: "clients", tab: "overview", view: "all" },
   "events-list": { section: "events-list", tab: "overview", view: "all" },
   calendar: { section: "calendar", tab: "overview", view: "all" },
-  tasks: { section: "tasks", tab: "overview", view: "mine" },
   team: { section: "team", tab: "coordinators", view: "all" },
   suppliers: { section: "suppliers", tab: "overview", view: "all" },
   files: { section: "files", tab: "floorplans", view: "all" },
@@ -283,7 +268,6 @@ const ROUTE_LOADING_COPY: Partial<Record<DashboardSection, { title: string }>> =
   privacy: { title: "Privacy" },
   clients: { title: "Clients" },
   calendar: { title: "Calendar" },
-  tasks: { title: "Tasks" },
   team: { title: "Team" },
   files: { title: "Event File Hub" },
   messages: { title: "Event Messages" },
@@ -335,7 +319,6 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   privacy: "Privacy requests with 30-day deadlines, owners, execution, legal holds, and retention policies.",
   clients: "Every client contact, with their events and inquiries.",
   calendar: "Event days, quote deadlines, payments, ocular visits and supplier schedules across events. Click an item to open its event.",
-  tasks: "PMCM actions across inquiries, approvals, planning, finance, live operations, and closure.",
   team: "PMCM coordinators, their roles and availability. Assign them inside each event.",
   files: "Operational documents, official floorplans, billing statements, contracts, and closeout records.",
   messages: "Client, supplier, coordinator, and internal PMCM communication threads.",
@@ -345,7 +328,7 @@ const ROUTE_DESCRIPTIONS: Partial<Record<DashboardSection, string>> = {
   settings: "Workspace preferences, account context, notification defaults, and role-safe system controls.",
   inquiries: "One intake queue, from first contact to the client's portal account. Accepted inquiries continue in Onboarding and Conforme follow-up.",
   "events-list": "Every confirmed event. Open one to work inside it.",
-  dashboard: "Decisions and blockers across your events. Every item opens the work it belongs to.",
+  dashboard: "What needs PMCM, across every event. Every item opens the work it belongs to.",
 };
 
 /** Copy for a view that has its own page inside a section, keyed `section:view`. */
@@ -376,7 +359,6 @@ const ROUTE_TITLES: Partial<Record<DashboardSection, string>> = {
   messages: "Messages",
   notifications: "Notifications",
   finance: "Finance",
-  tasks: "Tasks",
   team: "Team",
   inquiries: "Inquiries",
 };

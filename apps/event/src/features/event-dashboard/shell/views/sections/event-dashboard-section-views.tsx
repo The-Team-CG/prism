@@ -1,5 +1,4 @@
 export { EventDashboardCalendarSectionView } from "./calendar-section-view";
-export { EventDashboardTasksSectionView } from "./tasks-section-view";
 export { EventDashboardCommandInboxSectionView } from "./command-inbox-section-view";
 export { EventDashboardSettingsSectionView } from "./settings-section-view";
 export { EventDashboardClientsSectionView } from "./clients-section-view";

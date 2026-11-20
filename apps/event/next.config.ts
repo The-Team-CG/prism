@@ -20,9 +20,11 @@ const DEAD_VIEW_REDIRECTS = [
   { source: `${DASHBOARD}/calendar/:view`, destination: `${DASHBOARD}/calendar` },
   { source: `${DASHBOARD}/tasks`, destination: DASHBOARD },
   { source: `${DASHBOARD}/tasks/:view`, destination: DASHBOARD },
-  { source: `${DASHBOARD}/team/:view(roles|availability|assignments|workload|departments)`, destination: `${DASHBOARD}/team` },
+  { source: `${DASHBOARD}/team/:view(roles|assignments|workload|departments)`, destination: `${DASHBOARD}/team` },
   { source: `${DASHBOARD}/clients/:clientId/:view(files|messages|contracts|invoices|notes|activity-log)`, destination: `${DASHBOARD}/clients/:clientId` },
-  { source: `${DASHBOARD}/suppliers/:view(contracts|payments)`, destination: `${DASHBOARD}/events` },
+  // Supplier contracts live on each event's Suppliers page; what PMCM owes suppliers is on the finance desk.
+  { source: `${DASHBOARD}/suppliers/contracts`, destination: `${DASHBOARD}/events` },
+  { source: `${DASHBOARD}/suppliers/payments`, destination: `${DASHBOARD}/finance` },
   { source: `${DASHBOARD}/messages/:view`, destination: `${DASHBOARD}/messages` },
   { source: `${DASHBOARD}/files/:view`, destination: `${DASHBOARD}/files` },
   // Receipts and payment details are real pages; every other finance path still falls back to the finance desk.
