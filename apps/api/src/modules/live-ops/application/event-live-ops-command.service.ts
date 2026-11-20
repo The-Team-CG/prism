@@ -94,6 +94,11 @@ export class EventLiveOpsCommandService {
   ) {
     const { assignment, designatedOperator } = await this.requireEventDayWriteActor(eventId, actor, 'event-day task escalation');
     await this.requireTaskScope(eventId, taskId, actor, assignment, designatedOperator);
+    // Escalating raises a task; moving it to another role or person is a reassignment PMCM decides.
+    if (actor.role === OpsUserRole.Coordinator && !designatedOperator && (input.ownerRole !== undefined || input.ownerName !== undefined)) {
+      await this.eventAccessPolicyService.recordForbiddenAccess(actor, 'coordinator task ownership update', eventId);
+      throw new ForbiddenException('Coordinators cannot move a task to another owner by escalating it; request a reassignment instead');
+    }
     const task = await this.taskIssueCommandService.escalateEventDayTask(eventId, taskId, input, actor);
     return mapEventDayTask(task);
   }

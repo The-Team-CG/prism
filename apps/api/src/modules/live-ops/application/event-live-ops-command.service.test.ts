@@ -120,6 +120,7 @@ function createService(assignment: unknown) {
       updatedAt: new Date('2026-09-02T00:00:00.000Z'),
     })),
     blockEventDayTask: vi.fn(async (_eventId: string, taskId: string) => ({ id: taskId, eventId: 'evt_sample_ayala', title: 'Open registration', assignedRole: 'Registration Staff', ownerName: 'Marco Santos', priority: 'normal', status: 'blocked', notes: '', blockedReason: 'Scanner offline', blockedAt: new Date('2026-09-02T00:00:00.000Z'), blockedBy: 'Marco Santos', dueAt: null, slaDueAt: null, createdAt: new Date('2026-09-02T00:00:00.000Z'), updatedAt: new Date('2026-09-02T00:00:00.000Z') })),
+    escalateEventDayTask: vi.fn(async (_eventId: string, taskId: string) => ({ id: taskId, eventId: 'evt_sample_ayala', title: 'Open registration', assignedRole: 'Registration Staff', ownerName: 'Marco Santos', priority: 'high', status: 'open', notes: 'Need backup at the door', dueAt: null, slaDueAt: null, createdAt: new Date('2026-09-02T00:00:00.000Z'), updatedAt: new Date('2026-09-02T00:00:00.000Z') })),
     unblockEventDayTask: vi.fn(async (_eventId: string, taskId: string) => ({ id: taskId, eventId: 'evt_sample_ayala', title: 'Open registration', assignedRole: 'Registration Staff', ownerName: 'Marco Santos', priority: 'normal', status: 'open', notes: '', blockedReason: null, blockedAt: null, blockedBy: null, dueAt: null, slaDueAt: null, createdAt: new Date('2026-09-02T00:00:00.000Z'), updatedAt: new Date('2026-09-02T00:00:00.000Z') })),
   };
   const coordinatorCommandService = {
@@ -281,6 +282,22 @@ describe('EventLiveOpsCommandService event scoping', () => {
       'coordinator task ownership update',
       'evt_sample_ayala',
     );
+  });
+
+  it('does not let a coordinator move a task to another queue by escalating it, while escalating it in place still works', async () => {
+    const { service, liveOperationsService, prisma } = createService(coordinatorAssignmentRow());
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_sample_ayala' } as never);
+    prisma.opsEventDayTask.findFirst.mockResolvedValue({
+      id: 'task_registration', eventId: 'evt_sample_ayala', title: 'Open registration', assignedRole: 'Registration Staff', ownerName: 'Marco Santos', status: 'open',
+    } as never);
+
+    await expect(
+      service.escalateEventDayTask('evt_sample_ayala', 'task_registration', { ownerRole: 'Usher', ownerName: 'X' }, coordinatorActor()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(liveOperationsService.escalateEventDayTask).not.toHaveBeenCalled();
+
+    await service.escalateEventDayTask('evt_sample_ayala', 'task_registration', { notes: 'Need backup at the door' }, coordinatorActor());
+    expect(liveOperationsService.escalateEventDayTask).toHaveBeenCalledTimes(1);
   });
 
   it('refuses a role-less coordinator assignment from updating a General Coordinator task in its queue', async () => {
