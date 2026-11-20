@@ -1,4 +1,8 @@
-import { eventGameTemplateConfigurationSchema, type PrismEventGameKind } from '@prism/types';
+import {
+  eventGameTemplateConfigurationSchema,
+  type PrismEventGameKind,
+  type PrismEventGameTemplateConfiguration,
+} from '@prism/types';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { GameActionStorePort } from '../contracts/game-action-store.port';
 
@@ -28,31 +32,53 @@ function isAggregateVisible(input: AggregateInput): boolean {
     || ((input.kind === 'split-the-room' || input.kind === 'live-poll') && input.status === 'paused');
 }
 
+type TemplateConfigurationOf<K extends PrismEventGameTemplateConfiguration['kind']> =
+  Extract<PrismEventGameTemplateConfiguration, { kind: K }>;
+type VoteOptionReader<C> = (configuration: C, roundKey: string) => readonly string[] | null;
+
+function thisOrThatOptions(
+  configuration: TemplateConfigurationOf<'this-or-that' | 'this-or-that-solo'>,
+  roundKey: string,
+): readonly string[] | null {
+  const rounds: ReadonlyArray<{ key: string; options: readonly string[] }> = configuration.rounds;
+  return rounds.find(({ key }) => key === roundKey)?.options ?? null;
+}
+
+function splitTheRoomOptions(configuration: TemplateConfigurationOf<'split-the-room'>, roundKey: string): readonly string[] | null {
+  const round = configuration.rounds.find(({ key }) => key === roundKey);
+  return round ? [round.leftLabel, round.rightLabel] : null;
+}
+
+function wouldYouRatherOptions(configuration: TemplateConfigurationOf<'would-you-rather'>, roundKey: string): readonly string[] | null {
+  const round = configuration.rounds.find(({ key }) => key === roundKey);
+  return round?.aggregateResults ? round.options : null;
+}
+
+function presenterDeckOptions(configuration: TemplateConfigurationOf<'presenter-deck'>, roundKey: string): readonly string[] | null {
+  // Word-cloud prompts have no vote buckets; their approved answers come from moderation.
+  const round = configuration.rounds.find(({ key }) => key === roundKey);
+  if (round?.type === 'choice') return round.options;
+  if (round?.type === 'scale') return Array.from({ length: round.scaleMax }, (_, index) => String(index + 1));
+  return null;
+}
+
+/** Kinds whose rounds carry configured vote buckets; every other kind has none. */
+const VOTE_OPTION_READERS: Partial<{
+  [K in PrismEventGameTemplateConfiguration['kind']]: VoteOptionReader<TemplateConfigurationOf<K>>;
+}> = {
+  'this-or-that': thisOrThatOptions,
+  'this-or-that-solo': thisOrThatOptions,
+  'split-the-room': splitTheRoomOptions,
+  'would-you-rather': wouldYouRatherOptions,
+  'presenter-deck': presenterDeckOptions,
+};
+
 function configuredVoteOptions(input: AggregateInput): readonly string[] | null {
   const parsed = eventGameTemplateConfigurationSchema.safeParse(input.configSnapshot.configuration);
   if (!parsed.success || !input.roundKey || parsed.data.kind !== input.kind) return null;
-  switch (parsed.data.kind) {
-    case 'this-or-that':
-    case 'this-or-that-solo':
-      return parsed.data.rounds.find(({ key }) => key === input.roundKey)?.options ?? null;
-    case 'split-the-room': {
-      const round = parsed.data.rounds.find(({ key }) => key === input.roundKey);
-      return round ? [round.leftLabel, round.rightLabel] : null;
-    }
-    case 'would-you-rather': {
-      const round = parsed.data.rounds.find(({ key }) => key === input.roundKey);
-      return round?.aggregateResults ? round.options : null;
-    }
-    case 'presenter-deck': {
-      // Word-cloud prompts have no vote buckets; their approved answers come from moderation.
-      const round = parsed.data.rounds.find(({ key }) => key === input.roundKey);
-      if (round?.type === 'choice') return round.options;
-      if (round?.type === 'scale') return Array.from({ length: round.scaleMax }, (_, index) => String(index + 1));
-      return null;
-    }
-    default:
-      return null;
-  }
+  // The lookup is keyed by kind, so each reader always receives its own configuration shape.
+  const read = VOTE_OPTION_READERS[parsed.data.kind] as VoteOptionReader<PrismEventGameTemplateConfiguration> | undefined;
+  return read ? read(parsed.data, input.roundKey) : null;
 }
 
 function livePollOptions(input: AggregateInput): readonly string[] | null {

@@ -47,20 +47,42 @@ function roundFor(configuration: Readonly<Record<string, unknown>>, currentRound
   return templateConfiguration(configuration, 'presenter-deck')?.rounds.find(({ key }) => key === currentRound.key) ?? null;
 }
 
+type DeckRoundOf<T extends PresenterDeckRound['type']> = Extract<PresenterDeckRound, { type: T }>;
+type DeckActionValidator<R extends PresenterDeckRound> = (round: R, action: PrismSubmitEventGameActionInput) => string[];
+
+function payloadOf(action: PrismSubmitEventGameActionInput): Record<string, unknown> {
+  return action.payload as Record<string, unknown>;
+}
+
+function validateChoiceAction(round: DeckRoundOf<'choice'>, action: PrismSubmitEventGameActionInput): string[] {
+  const payload = payloadOf(action);
+  return action.actionKind === 'vote' && typeof payload.option === 'string' && round.options.includes(payload.option)
+    ? [] : ['Vote is not one of the prompt options'];
+}
+
+function validateScaleAction(round: DeckRoundOf<'scale'>, action: PrismSubmitEventGameActionInput): string[] {
+  const payload = payloadOf(action);
+  return action.actionKind === 'vote' && typeof payload.option === 'string' && WHOLE_NUMBER.test(payload.option)
+    && Number(payload.option) <= round.scaleMax
+    ? [] : [`Rating must be a whole number from 1 to ${round.scaleMax}`];
+}
+
+function validateWordCloudAction(round: DeckRoundOf<'word-cloud'>, action: PrismSubmitEventGameActionInput): string[] {
+  const payload = payloadOf(action);
+  return action.actionKind === 'answer' && typeof payload.response === 'string' && payload.response.length <= round.maxResponseLength
+    ? [] : ['Response is longer than this prompt allows'];
+}
+
+const DECK_ACTION_VALIDATORS: { [T in PresenterDeckRound['type']]: DeckActionValidator<DeckRoundOf<T>> } = {
+  choice: validateChoiceAction,
+  scale: validateScaleAction,
+  'word-cloud': validateWordCloudAction,
+};
+
 function validateDeckAction(round: PresenterDeckRound, action: PrismSubmitEventGameActionInput): string[] {
-  const payload = action.payload as Record<string, unknown>;
-  switch (round.type) {
-    case 'choice':
-      return action.actionKind === 'vote' && typeof payload.option === 'string' && round.options.includes(payload.option)
-        ? [] : ['Vote is not one of the prompt options'];
-    case 'scale':
-      return action.actionKind === 'vote' && typeof payload.option === 'string' && WHOLE_NUMBER.test(payload.option)
-        && Number(payload.option) <= round.scaleMax
-        ? [] : [`Rating must be a whole number from 1 to ${round.scaleMax}`];
-    case 'word-cloud':
-      return action.actionKind === 'answer' && typeof payload.response === 'string' && payload.response.length <= round.maxResponseLength
-        ? [] : ['Response is longer than this prompt allows'];
-  }
+  // The lookup is keyed by round.type, so the validator always receives its own round shape.
+  const validate = DECK_ACTION_VALIDATORS[round.type] as DeckActionValidator<PresenterDeckRound>;
+  return validate(round, action);
 }
 
 export const presenterDeckRule: GameRuleDefinition = {

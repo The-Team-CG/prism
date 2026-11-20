@@ -9,7 +9,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { PrismTransactionRunner } from '@prism/kernel/shared-kernel';
+import { PrismTransactionRunner, type PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from '@prism/types';
 import {
   GAME_ACTION_CLOCK,
@@ -30,6 +30,10 @@ const ACTION_UNAVAILABLE = 'Game action is not available';
 /** Presenter Deck word-cloud answers show to the room as they arrive, without the host moderation queue. */
 function isAutoVisibleRound(participantData: GameRuleCurrentRound['participantData']): boolean {
   return participantData?.kind === 'presenter-deck' && participantData.roundType === 'word-cloud';
+}
+
+function autoVisibleFields(currentRound: GameRuleCurrentRound): { autoVisible?: true } {
+  return isAutoVisibleRound(currentRound.participantData) ? { autoVisible: true } : {};
 }
 
 function assertSessionAcceptsAction(session: GameParticipantActionContext, now: Date) {
@@ -161,21 +165,12 @@ export class GameActionService {
         isCorrect: score.isCorrect,
         ...(score.result?.kind === 'singleplayer-choice' ? { result: score.result } : {}),
         ...(currentRound.teamAssignment ? { teamAssignment: currentRound.teamAssignment } : {}),
-        ...(isAutoVisibleRound(currentRound.participantData) ? { autoVisible: true } : {}),
+        ...autoVisibleFields(currentRound),
         deadlineAt: currentRound.deadlineAt,
         createdAt: now,
       }, transaction);
       if (!participant) throw new ConflictException(ACTION_UNAVAILABLE);
-      const aggregateResults = await readConfiguredVoteAggregate({
-        actionStore: this.store,
-        transaction,
-        eventId: session.eventId,
-        sessionId: session.sessionId,
-        kind: session.kind,
-        configSnapshot: session.configSnapshot,
-        roundKey: currentRound.key,
-        status: session.status,
-      });
+      const aggregateResults = await this.readRoundAggregate(session, currentRound, transaction);
 
       return {
         sessionId: session.sessionId,
@@ -195,5 +190,22 @@ export class GameActionService {
         aggregateResults,
       };
     }, { actorId: 'anonymous-game-participant' });
+  }
+
+  private readRoundAggregate(
+    session: GameParticipantActionContext,
+    currentRound: GameRuleCurrentRound,
+    transaction: PrismTransactionContext,
+  ) {
+    return readConfiguredVoteAggregate({
+      actionStore: this.store,
+      transaction,
+      eventId: session.eventId,
+      sessionId: session.sessionId,
+      kind: session.kind,
+      configSnapshot: session.configSnapshot,
+      roundKey: currentRound.key,
+      status: session.status,
+    });
   }
 }

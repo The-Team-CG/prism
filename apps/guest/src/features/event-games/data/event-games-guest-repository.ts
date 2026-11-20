@@ -181,27 +181,29 @@ function sanitizeParticipant(value: unknown): PrismGamePublicState["participant"
   };
 }
 
+type GameDataSanitizer = (value: Record<string, unknown>) => PrismGamePublicState["participant"]["gameData"] | undefined;
+
+/** Per-kind sanitizers, tried in order; the first one that accepts the data wins. */
+const GAME_DATA_SANITIZERS: readonly GameDataSanitizer[] = [
+  sanitizeTriviaGameData,
+  sanitizeBingoGameData,
+  sanitizePictureGameData,
+  sanitizeWordScrambleGameData,
+  sanitizePictureSoloGameData,
+  sanitizeSpotTheDifferenceGameData,
+  sanitizeThisOrThatGameData,
+  sanitizeFamilyFeudGameData,
+  sanitizePresenterDeckGameData,
+  sanitizeSplitOrAudienceGameData,
+];
+
 function sanitizeParticipantGameData(value: unknown): PrismGamePublicState["participant"]["gameData"] | undefined {
   if (!isRecord(value)) return undefined;
-  const trivia = sanitizeTriviaGameData(value);
-  if (trivia) return trivia;
-  const bingo = sanitizeBingoGameData(value);
-  if (bingo) return bingo;
-  const picture = sanitizePictureGameData(value);
-  if (picture) return picture;
-  const wordScramble = sanitizeWordScrambleGameData(value);
-  if (wordScramble) return wordScramble;
-  const pictureSolo = sanitizePictureSoloGameData(value);
-  if (pictureSolo) return pictureSolo;
-  const spotTheDifference = sanitizeSpotTheDifferenceGameData(value);
-  if (spotTheDifference) return spotTheDifference;
-  const thisOrThat = sanitizeThisOrThatGameData(value);
-  if (thisOrThat) return thisOrThat;
-  const familyFeud = sanitizeFamilyFeudGameData(value);
-  if (familyFeud) return familyFeud;
-  const presenterDeck = sanitizePresenterDeckGameData(value);
-  if (presenterDeck) return presenterDeck;
-  return sanitizeSplitOrAudienceGameData(value);
+  for (const sanitize of GAME_DATA_SANITIZERS) {
+    const gameData = sanitize(value);
+    if (gameData) return gameData;
+  }
+  return undefined;
 }
 
 /** Presenter Deck round data: choice options, a 5- or 10-point scale, or a word-cloud length limit. */

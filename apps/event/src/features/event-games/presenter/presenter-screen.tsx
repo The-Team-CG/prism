@@ -96,6 +96,62 @@ function PinControl({ pin, issuingPin, pinError, onIssuePin }: Pick<PresenterScr
   );
 }
 
+type PresenterRound = NonNullable<PrismGameHostState["currentRound"]>;
+
+/** Title, round counter, session status, player count and, while guests can still join, the PIN control. */
+function PresenterHeader({ state, pin, issuingPin, pinError, onIssuePin }: Pick<PresenterScreenProps, "state" | "pin" | "issuingPin" | "pinError" | "onIssuePin">) {
+  const round = state.currentRound;
+  return (
+    <header className="flex flex-wrap items-center justify-between gap-4">
+      <h1 className="text-3xl font-bold md:text-5xl">{state.game.title}</h1>
+      <div className="flex flex-wrap items-center gap-4 text-xl md:text-2xl">
+        {round ? <span className="tabular-nums text-white/80">Round {round.number} of {round.total}</span> : null}
+        <span className={`rounded-full px-4 py-1 font-semibold ${STATUS_STYLES[state.status]}`}>{STATUS_LABELS[state.status]}</span>
+        <span className="tabular-nums text-white/80">
+          {state.participantCount} {state.participantCount === 1 ? "player" : "players"}
+        </span>
+        {JOINABLE_STATUSES.has(state.status) ? (
+          <PinControl pin={pin} issuingPin={issuingPin} pinError={pinError} onIssuePin={onIssuePin} />
+        ) : null}
+      </div>
+    </header>
+  );
+}
+
+function EndedMessage({ status }: { status: PrismGameSessionStatus }) {
+  return (
+    <p role="status" className="rounded-3xl bg-white/10 px-8 py-6 text-center text-4xl font-bold md:text-6xl">
+      {status === "completed" ? "This game has finished. Thanks for playing!" : "This game was cancelled."}
+    </p>
+  );
+}
+
+function RoundPrompt({ round, remaining }: { round: PresenterRound; remaining: number | null }) {
+  return (
+    <div className="space-y-4">
+      <p className="text-4xl font-bold leading-tight md:text-6xl">{round.prompt}</p>
+      {remaining !== null ? (
+        <p aria-label="Time left" className="text-5xl font-bold tabular-nums text-amber-300 md:text-7xl">
+          {formatCountdown(remaining)}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function WaitingMessage({ status }: { status: PrismGameSessionStatus }) {
+  return (
+    <p className="text-4xl font-semibold text-white/80 md:text-5xl">
+      {status === "scheduled" ? "The game will start soon." : "Get ready, the game is about to begin."}
+    </p>
+  );
+}
+
+/** The active round's prompt and countdown, or a waiting message before the first round. */
+function RoundStage({ round, remaining, status }: { round: PrismGameHostState["currentRound"]; remaining: number | null; status: PrismGameSessionStatus }) {
+  return round ? <RoundPrompt round={round} remaining={remaining} /> : <WaitingMessage status={status} />;
+}
+
 export function PresenterScreen(props: PresenterScreenProps) {
   const { state, receivedAt, error } = props;
   const round = state.currentRound;
@@ -108,45 +164,15 @@ export function PresenterScreen(props: PresenterScreenProps) {
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto bg-slate-950 text-white">
       <main className="mx-auto flex min-h-full max-w-[1800px] flex-col gap-8 p-6 md:p-10">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold md:text-5xl">{state.game.title}</h1>
-          <div className="flex flex-wrap items-center gap-4 text-xl md:text-2xl">
-            {round ? <span className="tabular-nums text-white/80">Round {round.number} of {round.total}</span> : null}
-            <span className={`rounded-full px-4 py-1 font-semibold ${STATUS_STYLES[state.status]}`}>{STATUS_LABELS[state.status]}</span>
-            <span className="tabular-nums text-white/80">
-              {state.participantCount} {state.participantCount === 1 ? "player" : "players"}
-            </span>
-            {JOINABLE_STATUSES.has(state.status) ? (
-              <PinControl pin={props.pin} issuingPin={props.issuingPin} pinError={props.pinError} onIssuePin={props.onIssuePin} />
-            ) : null}
-          </div>
-        </header>
+        <PresenterHeader state={state} pin={props.pin} issuingPin={props.issuingPin} pinError={props.pinError} onIssuePin={props.onIssuePin} />
 
         {error ? <p role="status" className="rounded-2xl bg-rose-500/20 px-5 py-3 text-lg text-rose-100">{error}</p> : null}
 
-        {ended ? (
-          <p role="status" className="rounded-3xl bg-white/10 px-8 py-6 text-center text-4xl font-bold md:text-6xl">
-            {state.status === "completed" ? "This game has finished. Thanks for playing!" : "This game was cancelled."}
-          </p>
-        ) : null}
+        {ended ? <EndedMessage status={state.status} /> : null}
 
         <div className="flex flex-1 flex-col gap-8">
           <div className="flex-1 space-y-10">
-            {round && !ended ? (
-              <div className="space-y-4">
-                <p className="text-4xl font-bold leading-tight md:text-6xl">{round.prompt}</p>
-                {remaining !== null ? (
-                  <p aria-label="Time left" className="text-5xl font-bold tabular-nums text-amber-300 md:text-7xl">
-                    {formatCountdown(remaining)}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-            {!round && !ended ? (
-              <p className="text-4xl font-semibold text-white/80 md:text-5xl">
-                {state.status === "scheduled" ? "The game will start soon." : "Get ready, the game is about to begin."}
-              </p>
-            ) : null}
+            {ended ? null : <RoundStage round={round} remaining={remaining} status={state.status} />}
             {state.status === "cancelled" ? null : <Renderer state={state} />}
           </div>
         </div>
