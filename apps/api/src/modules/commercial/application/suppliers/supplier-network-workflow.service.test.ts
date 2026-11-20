@@ -87,7 +87,7 @@ function createService(overrides: {
     $transaction: vi.fn(async (callback: (tx: Record<string, unknown>) => Promise<unknown>) => callback(prisma as unknown as Record<string, unknown>)),
   };
   const documentVault = overrides.documentVault ?? {};
-  const eventReferences = { findOperationsEvent: vi.fn(async (eventId: string) => ({ id: eventId, archived: false, status: 'event_day', actualEndedAt: null as Date | null })) };
+  const eventReferences = { findOperationsEvent: vi.fn(async (eventId: string): Promise<Record<string, unknown>> => ({ id: eventId, archived: false, status: 'event_day' })) };
   const service = new SupplierNetworkWorkflowService(
     prisma as any,
     suppliers as any,
@@ -187,7 +187,7 @@ describe('SupplierNetworkWorkflowService', () => {
     eventReferences.findOperationsEvent.mockResolvedValueOnce({ id: 'evt_sample', archived: false, status: 'cancelled', actualEndedAt: null });
     await expect(service.updateSupplierEventStatus('qr_sonic', { status: 'arrived' }, supplier)).rejects.toThrow('This event is closed');
 
-    eventReferences.findOperationsEvent.mockResolvedValue({ id: 'evt_sample', archived: false, status: 'event_day', actualEndedAt: new Date('2026-10-02T22:00:00.000Z') });
+    eventReferences.findOperationsEvent.mockResolvedValue({ id: 'evt_sample', archived: false, status: 'event_day', actualEndedAt: new Date(Date.UTC(2026, 9, 2, 22)) });
     await expect(service.updateSupplierEventStatus('qr_sonic', { status: 'arrived' }, supplier)).rejects.toThrow('only leaving can be reported');
     expect(request.eventDayStatus).toBe('not_started');
   });
