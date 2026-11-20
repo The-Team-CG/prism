@@ -307,6 +307,7 @@ export function EventWorkspaceCoordinatorsTab() {
             roleRequirements={vm.coordinatorRoleRequirements}
             busy={Boolean(vm.busy)}
             onAssign={vm.assignCoordinator}
+            onChangeRole={vm.changeCoordinatorRole}
             onLoadSuggestions={vm.loadCoordinatorSuggestions}
             onLoadPoolAvailability={vm.loadCoordinatorPoolAvailability}
             onSaveCoverage={vm.saveCoordinatorCoverage}

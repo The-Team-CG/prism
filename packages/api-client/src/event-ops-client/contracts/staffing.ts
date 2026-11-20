@@ -1,4 +1,5 @@
 import type {
+  ChangeCoordinatorAssignmentRoleInput,
   DecideCoordinatorReplacementInput,
   PrismCoordinatorReplacementRecommendation,
   CoordinatorSuggestionsQueryInput,
@@ -26,6 +27,8 @@ export interface EventOpsStaffingContract {
       input: ReplaceCoordinatorAssignmentInput,
       actor?: EventOpsActorQuery,
     ): Promise<{ replacedAssignment: PrismCoordinatorAssignment; replacementAssignment: PrismCoordinatorAssignment }>;
+    /** PMCM moves an assignment to another catalog role the coordinator is tagged for. */
+    changeRole(eventId: string, assignmentId: string, input: ChangeCoordinatorAssignmentRoleInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAssignment>;
     suggestions(eventId: string, input: CoordinatorSuggestionsQueryInput, actor?: EventOpsActorQuery): Promise<PrismCoordinatorSuggestion[]>;
     poolAvailability(eventId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorPoolAvailability>;
     listAvailability(eventId: string, coordinatorId: string, actor?: EventOpsActorQuery): Promise<PrismCoordinatorAvailability[]>;

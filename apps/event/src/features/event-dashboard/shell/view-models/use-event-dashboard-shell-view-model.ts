@@ -545,6 +545,7 @@ export function useEventDashboardShellViewModel({
     loadEventInsights: () => selectedEvent ? commands.eventInsights(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
     assignCoordinator: (coordinator: { id: string }, role: CoordinatorRole, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
+    changeCoordinatorRole: (assignmentId: string, role: CoordinatorRole) => selectedEvent ? run("coordinator role change", () => commands.changeCoordinatorRole(selectedEvent.id, assignmentId, { role })) : Promise.resolve(),
     loadCoordinatorSuggestions: (role: CoordinatorRole, skills: string[]) => selectedEvent ? commands.loadCoordinatorSuggestions(selectedEvent.id, { role, skills }) : Promise.resolve([]),
     loadCoordinatorPoolAvailability: () => selectedEvent ? commands.loadCoordinatorPoolAvailability(selectedEvent.id) : Promise.resolve(null),
     loadCoordinatorReliabilityHistory: (coordinatorId: string) => session ? commands.loadCoordinatorReliabilityHistory(coordinatorId) : Promise.resolve([]),

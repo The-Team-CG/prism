@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, UserCheck } from "lucide-react";
+import { ArrowRightLeft, ChevronDown, UserCheck } from "lucide-react";
 
 import type {
   CoordinatorRole,
@@ -57,6 +57,7 @@ export function CoordinatorAssignmentDesk({
   roleRequirements,
   busy,
   onAssign,
+  onChangeRole,
   onLoadSuggestions,
   onLoadPoolAvailability,
   onSaveCoverage,
@@ -75,6 +76,8 @@ export function CoordinatorAssignmentDesk({
   roleRequirements: CoverageRequirement[];
   busy: boolean;
   onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole, overrideConflict?: boolean) => Promise<void>;
+  /** Moves a coordinator's existing assignment on this event to another role, keeping its acknowledgement. */
+  onChangeRole?: (assignmentId: string, role: CoordinatorRole) => Promise<void>;
   onLoadSuggestions: (role: CoordinatorRole, skills: string[]) => Promise<PrismCoordinatorSuggestion[]>;
   onLoadPoolAvailability?: () => Promise<PrismCoordinatorPoolAvailability | null>;
   onSaveCoverage: (input: CreateCoordinatorCoverageRequirementInput) => Promise<boolean>;
@@ -294,6 +297,7 @@ export function CoordinatorAssignmentDesk({
                               eventDate={eventDate}
                               busy={busy}
                               onAssign={assign}
+                              onMove={onChangeRole}
                             />
                           ))}
                         </ItemGroup>
@@ -520,9 +524,11 @@ function candidateAssignmentState(
   return { assignedHere: true, otherRole: undefined, acknowledgement: null };
 }
 
-function candidateActionLabel(assignedHere: boolean, hasConflict: boolean) {
+/** Already holding another role here, assigning adds this one alongside it; Move here swaps it instead. */
+function candidateActionLabel(assignedHere: boolean, hasConflict: boolean, hasOtherRole = false) {
   if (assignedHere) return "Assigned";
-  return hasConflict ? "Review conflict" : "Quick assign";
+  if (hasConflict) return "Review conflict";
+  return hasOtherRole ? "Add this role" : "Quick assign";
 }
 
 function CoordinatorCandidateItem({
@@ -533,6 +539,7 @@ function CoordinatorCandidateItem({
   eventDate,
   busy,
   onAssign,
+  onMove,
 }: {
   coordinator: PrismCoordinator;
   role: CoordinatorRole;
@@ -541,9 +548,10 @@ function CoordinatorCandidateItem({
   eventDate: string;
   busy: boolean;
   onAssign: (coordinator: CoordinatorIdentity, role: CoordinatorRole) => void;
+  onMove?: (assignmentId: string, role: CoordinatorRole) => Promise<void>;
 }) {
   const { assignedHere, otherRole, acknowledgement } = candidateAssignmentState(eventAssignments, coordinator.id, role);
-  const actionLabel = candidateActionLabel(assignedHere, Boolean(conflict));
+  const actionLabel = candidateActionLabel(assignedHere, Boolean(conflict), Boolean(otherRole));
   return (
     <Item role="group" aria-label={`${role}: ${coordinator.name}`} variant="outline" className="min-w-0 flex-wrap items-start">
       <ItemMedia>
@@ -580,6 +588,17 @@ function CoordinatorCandidateItem({
         ) : null}
       </ItemContent>
       <ItemActions className="w-full justify-end sm:w-auto">
+        {otherRole && onMove ? (
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => void onMove(otherRole.id, role)}
+            aria-label={`Move ${coordinator.name} from ${canonicalCoordinatorRole(otherRole.role) ?? otherRole.role} to ${role}`}
+          >
+            <ArrowRightLeft className="size-3.5" aria-hidden />
+            Move here
+          </Button>
+        ) : null}
         <Button size="sm" disabled={busy || assignedHere} onClick={() => onAssign(coordinator, role)} variant="outline">
           <UserCheck className="size-3.5" />
           {actionLabel}

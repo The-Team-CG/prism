@@ -29,6 +29,16 @@ export const withdrawCoordinatorAssignmentSchema = z.object({
 });
 export type WithdrawCoordinatorAssignmentInput = z.infer<typeof withdrawCoordinatorAssignmentSchema>;
 
+/**
+ * PMCM moves an assignment to another catalog role. The coordinator must be tagged for it; this is also how an
+ * assignment saved with a role from before the catalog gets one the live-ops task rules accept.
+ */
+export const changeCoordinatorAssignmentRoleSchema = z.object({
+  role: coordinatorRoleSchema,
+  reason: optionalTrimmedStringSchema,
+});
+export type ChangeCoordinatorAssignmentRoleInput = z.infer<typeof changeCoordinatorAssignmentRoleSchema>;
+
 export const createCoordinatorAvailabilitySchema = z.object({
   startsAt: z.string().datetime({ offset: true }),
   endsAt: z.string().datetime({ offset: true }),
