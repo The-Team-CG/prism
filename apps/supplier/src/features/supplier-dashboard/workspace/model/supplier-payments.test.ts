@@ -69,6 +69,37 @@ describe("supplier payments", () => {
     expect(supplierPaymentTotals(bookings.flatMap((booking) => booking.payables), TODAY, waiting.agreed)).toMatchObject({ toCome: 765000, unscheduled: 665000 });
   });
 
+  it("counts the part of a contract its schedule does not cover yet as still to come", () => {
+    const bookings = supplierBookings({
+      payables: [payable({ requestId: "req_1", amount: 100000, remainingBalance: 100000 })],
+      selectedQuotes: [{ id: "q1", requestId: "req_1", amount: 485000 }] as never,
+      quoteRequests: [] as never,
+      readinessBoard: null,
+    });
+    const waiting = unscheduledBookings(bookings);
+    expect(waiting.bookings.map((booking) => [booking.requestId, booking.unscheduled])).toEqual([["req_1", 385000]]);
+    expect(supplierPaymentTotals(bookings.flatMap((booking) => booking.payables), TODAY, waiting.agreed)).toMatchObject({ toCome: 485000, unscheduled: 385000 });
+  });
+
+  it("leaves out a booking PMCM withdrew the supplier from, keeping only payouts already scheduled for it", () => {
+    const unpaid = supplierBookings({
+      payables: [],
+      selectedQuotes: [{ id: "q1", requestId: "req_1", amount: 100000 }] as never,
+      quoteRequests: [{ id: "req_1", category: "Florals", assignmentStatus: "withdrawn" }] as never,
+      readinessBoard: null,
+    });
+    expect(unpaid).toEqual([]);
+
+    const partlyPaid = supplierBookings({
+      payables: [payable({ requestId: "req_1", amount: 30000, amountReleased: 30000, remainingBalance: 0 })],
+      selectedQuotes: [{ id: "q1", requestId: "req_1", amount: 100000 }] as never,
+      quoteRequests: [{ id: "req_1", category: "Florals", assignmentStatus: "withdrawn" }] as never,
+      readinessBoard: null,
+    });
+    expect(unscheduledBookings(partlyPaid).agreed).toBe(0);
+    expect(partlyPaid[0]?.payables).toHaveLength(1);
+  });
+
   it("marks payouts sent since the last visit as new, and without a visit only those from the last two weeks", () => {
     const sent = (id: string, recordedAt: string) => ({ ...release(recordedAt, 1000), id, recordedAt });
     const payables = [payable({ history: [sent("old", "2026-10-01T00:00:00.000Z"), sent("recent", "2026-11-12T00:00:00.000Z"), { ...sent("undo", "2026-11-13T00:00:00.000Z"), kind: "reversal" as const }] })];
