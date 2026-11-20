@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from "@prism/types";
-import { useBackgroundRefresh } from "@prism/portal-query";
+import { useBackgroundRefresh } from "@prism/portal-query";
+
+/** How often a guest in a live game checks for the host's moves: often enough to see a new question while it is open. */
+const LIVE_GAME_REFRESH_MS = 5_000;
 import {
   getEventGameParticipantState,
   getEventGameParticipantMediaAuthorization,
@@ -42,7 +45,8 @@ export function useEventGamePlayViewModel(sessionId: string) {
   }, [sessionId]);
 
   const shouldPoll = isActiveMultiplayerSession(state);
-  const refreshNow = useBackgroundRefresh({ enabled: shouldPoll, refresh });
+  // The host moves the game on (starts it, opens the next question, pauses); guests follow within a few seconds.
+  const refreshNow = useBackgroundRefresh({ enabled: shouldPoll, refresh, intervalMs: LIVE_GAME_REFRESH_MS });
 
   useEffect(() => {
     void refreshNow();

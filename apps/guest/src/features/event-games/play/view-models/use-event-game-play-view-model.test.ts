@@ -79,8 +79,9 @@ describe("useEventGamePlayViewModel session refresh", () => {
       });
     });
     expect(participant.getState).toHaveBeenCalledTimes(2);
+    // A live game follows the host within seconds: the next poll comes 5 seconds later, not 30.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(30_000);
+      await vi.advanceTimersByTimeAsync(5_000);
       await Promise.resolve();
     });
     expect(participant.getState).toHaveBeenCalledTimes(3);
