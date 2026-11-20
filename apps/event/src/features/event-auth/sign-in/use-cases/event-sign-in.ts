@@ -30,6 +30,7 @@ export async function signInToEventPortal(input: {
   const session: EventSession = response;
   const nextPath = resolveEventPostSignInPath(input.nextPath);
   if (!isEventPortalRole(session.role)) {
+    void eventAuthRepository.endRejectedSession(session.accessToken);
     return { error: eventRoleRejectionMessage(session.role) };
   }
   eventAuthRepository.persistSession(session);
@@ -46,7 +47,10 @@ export async function getDevelopmentEventTwoFactorQr(token: string) {
 
 export async function verifyEventTwoFactor(input: { token: string; code: string; nextPath?: string | null }) {
   const session = await eventAuthRepository.verifyTwoFactor(input.token, input.code);
-  if (!isEventPortalRole(session.role)) return { error: eventRoleRejectionMessage(session.role) } as const;
+  if (!isEventPortalRole(session.role)) {
+    void eventAuthRepository.endRejectedSession(session.accessToken);
+    return { error: eventRoleRejectionMessage(session.role) } as const;
+  }
   eventAuthRepository.persistSession(session);
   const nextPath = resolveEventPostSignInPath(input.nextPath);
   return { kind: "redirect", redirectTo: session.privacyNoticeRequired ? privacyNoticePath(nextPath) : nextPath } as const;

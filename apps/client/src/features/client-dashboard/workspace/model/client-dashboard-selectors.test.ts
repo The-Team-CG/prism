@@ -6,6 +6,7 @@ import {
   selectClientFloorPlanDraft,
   selectEventDrafts,
   selectEventWorkspaceResources,
+  selectOfficialDraft,
   selectPreferenceDrafts,
   selectSelectedClientEvent,
 } from "./client-dashboard-selectors";
@@ -160,6 +161,19 @@ describe("client-dashboard selectors", () => {
     ];
 
     expect(selectPreferenceDrafts(drafts).map((draft) => draft.id)).toEqual(["fpd_client_preference"]);
+  });
+
+  it("offers the client the newest official layout waiting for their review while an older approved one is active", () => {
+    const official = (id: string, status: string, isActive: boolean, updatedAt: string): PrismFloorPlanDraft => ({
+      id, eventId: "evt_1", floorPlanId: `plan_${id}`, name: id, status, isActive, sourceType: "pmcm_draft", createdByRole: "pmcm-admin", createdAt: updatedAt, updatedAt,
+    } as PrismFloorPlanDraft);
+    const approved = official("fpd_v1", "approved", true, "2026-10-01T00:00:00.000Z");
+    const review = official("fpd_v2", "in_review", false, "2026-10-05T00:00:00.000Z");
+    const newerReview = official("fpd_v3", "in_review", false, "2026-10-06T00:00:00.000Z");
+
+    expect(selectOfficialDraft([approved])?.id).toBe("fpd_v1");
+    expect(selectOfficialDraft([approved, review])?.id).toBe("fpd_v2");
+    expect(selectOfficialDraft([approved, review, newerReview])?.id).toBe("fpd_v3");
   });
 
   it("selects the most recently updated client preference before older history", () => {

@@ -25,10 +25,14 @@ export interface GuestGameParticipantSession {
   eventId: string;
   currentSessionId: string | null;
   participantCredential: string;
+  /** The PIN this credential joined with, so typing the same PIN again rejoins as the same player. */
+  joinedWithPin?: string;
+  /** The name the guest plays under in their current game, as the server shows it on the game and the leaderboard. */
+  participantAlias?: string;
 }
 
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.gameParticipant;
-const SESSION_FIELDS = new Set(["eventId", "currentSessionId", "participantCredential"]);
+const SESSION_FIELDS = new Set(["eventId", "currentSessionId", "participantCredential", "joinedWithPin", "participantAlias"]);
 const PARTICIPANT_CREDENTIAL_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const PIN_ERROR = "Enter the 6-digit game PIN.";
 const JOIN_ERROR = "This game is unavailable. Check the PIN and try again.";
@@ -48,12 +52,28 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+/** A stored PIN is optional; when present it is a valid game PIN. */
+function isOptionalGamePin(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && isValidGamePin(value));
+}
+
+/** A stored alias is optional; when present it is the server's short game name. */
+function isOptionalAlias(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && value.length <= 80);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.length > 0;
+}
+
 function isGuestGameParticipantSession(value: unknown): value is GuestGameParticipantSession {
   if (!isRecord(value)) return false;
-  return typeof value.eventId === "string" && value.eventId.length > 0
-    && (value.currentSessionId === null || (typeof value.currentSessionId === "string" && value.currentSessionId.length > 0))
+  return isNonEmptyString(value.eventId)
+    && (value.currentSessionId === null || isNonEmptyString(value.currentSessionId))
     && typeof value.participantCredential === "string"
-    && PARTICIPANT_CREDENTIAL_PATTERN.test(value.participantCredential);
+    && PARTICIPANT_CREDENTIAL_PATTERN.test(value.participantCredential)
+    && isOptionalGamePin(value.joinedWithPin)
+    && isOptionalAlias(value.participantAlias);
 }
 
 function readSession(): GuestGameParticipantSession | null {
@@ -63,10 +83,12 @@ function readSession(): GuestGameParticipantSession | null {
     clearPrismSession(SESSION_KEY);
     return null;
   }
-  const session = {
+  const session: GuestGameParticipantSession = {
     eventId: stored.eventId,
     currentSessionId: stored.currentSessionId,
     participantCredential: stored.participantCredential,
+    ...(stored.joinedWithPin ? { joinedWithPin: stored.joinedWithPin } : {}),
+    ...(stored.participantAlias ? { participantAlias: stored.participantAlias } : {}),
   };
   if (Object.keys(stored).some((field) => !SESSION_FIELDS.has(field))) {
     savePrismSession(SESSION_KEY, session);
@@ -568,15 +590,30 @@ function mapPublicParticipantState(state: Record<string, unknown>, expectedSessi
   };
 }
 
+/**
+ * Keeps what the server says about the guest's game: the name they play under (so the lobby and PIN screens say the
+ * same name), and that a finished game is no longer the current one.
+ */
+function rememberGameState(session: GuestGameParticipantSession, state: PrismGamePublicState) {
+  const remembered = { ...session, participantAlias: state.participant.participantAlias };
+  if (state.status === "completed" || state.status === "cancelled") {
+    savePrismSession(SESSION_KEY, { ...remembered, currentSessionId: null });
+  } else if (session.participantAlias !== remembered.participantAlias) {
+    savePrismSession(SESSION_KEY, remembered);
+  }
+}
+
 function storeSession(
   eventId: string,
   sessionId: string,
   participantCredential: string,
+  joinedWithPin?: string,
 ): GuestGameParticipantSession {
   const session: GuestGameParticipantSession = {
     eventId,
     currentSessionId: sessionId,
     participantCredential,
+    ...(joinedWithPin ? { joinedWithPin } : {}),
   };
   savePrismSession(SESSION_KEY, session);
   return session;
@@ -606,9 +643,11 @@ export const eventGamesGuestRepository = {
     const expectedEventId = await resolveExpectedEventId(expectedEventSlug);
 
     const previous = readSession();
-    const retainedCredential = expectedEventId && previous && previous.eventId === expectedEventId
-      ? previous.participantCredential
-      : undefined;
+    // A saved credential goes only where it already belongs: the event the page names, or, with no event named
+    // (`/games/join`), the game whose PIN it joined with. Typing that PIN again rejoins as the same player, and a
+    // credential is never offered to another event's game.
+    const belongsHere = expectedEventId ? previous?.eventId === expectedEventId : previous?.joinedWithPin === pin;
+    const retainedCredential = previous && belongsHere ? previous.participantCredential : undefined;
     try {
       const joined = await eventGames.joinActiveMultiplayerGameSession(
         {
@@ -619,7 +658,7 @@ export const eventGamesGuestRepository = {
         retainedCredential,
       );
       if (!isValidActiveJoinResult(joined, expectedEventId)) throw new Error(JOIN_ERROR);
-      storeSession(joined.eventId, joined.sessionId, joined.participantCredential);
+      storeSession(joined.eventId, joined.sessionId, joined.participantCredential, pin);
       return joined;
     } catch (error) {
       clearRejectedCredential(retainedCredential, error);
@@ -657,9 +696,7 @@ export const eventGamesGuestRepository = {
         await eventGames.getParticipantState(sessionId, session.participantCredential),
         sessionId,
       );
-      if (state.status === "completed" || state.status === "cancelled") {
-        savePrismSession(SESSION_KEY, { ...session, currentSessionId: null });
-      }
+      rememberGameState(session, state);
       return state;
     } catch (error) {
       const { status } = apiErrorDetails(error);

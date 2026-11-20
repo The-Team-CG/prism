@@ -59,7 +59,7 @@ export class IdentityPrivacyRedactorService implements IdentityPrivacyRedactor {
 
   /**
    * Erases a native account in place so audit actor references stay valid. The password becomes an unguessable
-   * value, 2FA and reset state are cleared, the account is locked, and existing sessions are revoked and their
+   * value, 2FA, reset and email-change state are cleared, the account is locked, and existing sessions are revoked and their
    * device rows (browser names and times) deleted.
    */
   async eraseAccount(input: { accountId: string; email: string; redactedEmail: string }, transaction: Prisma.TransactionClient) {
@@ -83,6 +83,8 @@ export class IdentityPrivacyRedactorService implements IdentityPrivacyRedactor {
     });
     if (erased.count === 1) {
       await transaction.opsPasswordResetToken.deleteMany({ where: { userId: input.accountId } });
+      // An open email-change link would otherwise move the erased account onto a live address.
+      await transaction.opsEmailChangeRequest.deleteMany({ where: { userId: input.accountId } });
       await transaction.opsUserSession.deleteMany({ where: { userId: input.accountId } });
     }
     return erased;

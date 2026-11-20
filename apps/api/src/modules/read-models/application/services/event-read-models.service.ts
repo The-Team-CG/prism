@@ -93,6 +93,7 @@ type ClientEventTimelineSource = Pick<
   inquiry: Pick<OpsInquiry, 'conformeSignedAt'> | null;
   floorPlanDrafts: Array<Pick<OpsFloorPlanDraft, 'approvedAt'>>;
   paymentMilestones: Array<Pick<OpsPaymentMilestone, 'dueDate' | 'status' | 'remainingBalance'>>;
+  confirmedSupplierCount: number;
 };
 
 const CLIENT_TIMELINE_KEYS = [
@@ -145,7 +146,7 @@ function mapClientEventTimeline(source: ClientEventTimelineSource): PrismClientE
     };
   }) as PrismClientEventTimeline['milestones'];
 
-  return { eventId: source.id, milestones };
+  return { eventId: source.id, milestones, confirmedSupplierCount: source.confirmedSupplierCount };
 }
 
 type ClientOcularVisitRecord = Pick<
@@ -464,6 +465,7 @@ export class EventReadModelsService {
           inquiry: null,
           floorPlanDrafts: [],
           paymentMilestones: [],
+          confirmedSupplierCount: 0,
         },
       ),
     );

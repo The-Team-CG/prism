@@ -18,6 +18,7 @@ function timeline(eventId: string, layoutDate: string | null, status: "completed
       { key: "balance_payment_due", date: null, status: "pending" },
       { key: "event_date", date: "2026-12-10", status: "pending" },
     ],
+    confirmedSupplierCount: 0,
   };
 }
 

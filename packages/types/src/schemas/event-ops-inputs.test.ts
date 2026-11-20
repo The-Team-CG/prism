@@ -6,6 +6,7 @@ import { decisionLogQuerySchema, pmcmCommandInboxQuerySchema } from "./event-ops
 
 const scene = { format: "pascal-v1", pascalVersion: "1.1.6", nodes: { site_a: { id: "site_a", type: "site", parentId: null, polygon: { type: "polygon", points: [] } } }, rootNodeIds: ["site_a"] };
 import { blockEventDayTaskSchema } from "./live-ops-inputs.js";
+import { guestQrCheckInSchema, guestQrPassToken } from "./operations-guest-inputs.js";
 import { inquiryPendingFullDetails, logInquiryOnBehalfSchema } from "./event-lifecycle-inputs.js";
 import {
   createPrismInquirySchema,
@@ -845,5 +846,17 @@ describe("file requirement contracts", () => {
     expect(inquiryPendingFullDetails(basic)).toBe(true);
     expect(inquiryPendingFullDetails({ ...basic, clientType: "Corporate", source: "BNI Referral", message: "Need a venue" })).toBe(false);
     expect(inquiryPendingFullDetails({ ...basic, clientType: "Corporate", source: "BNI Referral", message: "   " })).toBe(true);
+  });
+});
+
+describe("guest pass code typed at the desk", () => {
+  it("reads a code typed as the pass shows it, in groups of four, as the bare token", () => {
+    // A synthetic 32-character pass code in the token alphabet; real codes are random.
+    const passCode = "pass-code_".repeat(3) + "AB";
+    const shown = passCode.match(/.{1,4}/g)!.join(" ");
+    expect(guestQrPassToken(shown)).toBe(passCode);
+    expect(guestQrCheckInSchema.parse({ token: shown })).toEqual({ token: passCode });
+    expect(guestQrPassToken(`prism-pass:${passCode}`)).toBe(passCode);
+    expect(guestQrCheckInSchema.safeParse({ token: "too short" }).success).toBe(false);
   });
 });

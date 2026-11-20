@@ -17,6 +17,8 @@ function fixture(role: string = OpsUserRole.Client, found = true) {
   const user = { id: 'user_1', name: 'Ana', email: 'ana@example.test', role, password: 'stored-hash' as string | null };
   const token = { id: 'prt_1', userId: user.id, tokenHash: '', expiresAt: new Date(Date.now() + 60_000), consumedAt: null };
   const userUpdate = vi.fn().mockResolvedValue(user);
+  const tokenUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
+  const emailChangeUpdateMany = vi.fn().mockResolvedValue({ count: 1 });
   const prisma = {
     opsUser: { findUnique: vi.fn().mockResolvedValue(found ? user : null) },
     opsPasswordResetRateLimit: {
@@ -29,14 +31,15 @@ function fixture(role: string = OpsUserRole.Client, found = true) {
         deleteMany: prisma.opsPasswordResetToken.deleteMany,
         create: prisma.opsPasswordResetToken.create,
         findUnique: vi.fn().mockResolvedValue(token),
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        updateMany: tokenUpdateMany,
       },
       opsUser: { update: userUpdate },
+      opsEmailChangeRequest: { updateMany: emailChangeUpdateMany },
     })),
   };
   const authAudit = { write: vi.fn().mockResolvedValue(undefined) };
   const delivery = { deliver: vi.fn<PasswordResetDeliveryPort['deliver']>().mockResolvedValue(undefined) };
-  return { prisma, user, token, userUpdate, authAudit, delivery };
+  return { prisma, user, token, userUpdate, tokenUpdateMany, emailChangeUpdateMany, authAudit, delivery };
 }
 
 /** Delivery runs after the response is decided, so tests wait for it through its observable effect. */
@@ -126,8 +129,8 @@ describe('PasswordResetService', () => {
     warn.mockRestore();
   });
 
-  it('consumes a valid token atomically and delegates a single session epoch increment', async () => {
-    const { prisma, userUpdate, authAudit, delivery } = fixture();
+  it('consumes a valid token atomically, voids the other reset links and email changes, and delegates a single session epoch increment', async () => {
+    const { prisma, userUpdate, tokenUpdateMany, emailChangeUpdateMany, authAudit, delivery } = fixture();
     const service = new PasswordResetService(prisma as never, delivery, portalUrls, authAudit);
     await expect(service.consume('a'.repeat(43), 'a sufficiently long password')).resolves.toEqual({ message: 'Password reset completed. Please sign in again.' });
     expect(userUpdate).toHaveBeenCalledWith(expect.objectContaining({
@@ -143,6 +146,8 @@ describe('PasswordResetService', () => {
         twoFactorChallengeConsumedAt: null,
       }),
     }));
+    expect(tokenUpdateMany).toHaveBeenCalledWith({ where: { userId: 'user_1', consumedAt: null }, data: { consumedAt: expect.any(Date) } });
+    expect(emailChangeUpdateMany).toHaveBeenCalledWith({ where: { userId: 'user_1', consumedAt: null, cancelledAt: null }, data: { cancelledAt: expect.any(Date) } });
     const storedPassword = userUpdate.mock.calls[0][0].data.password;
     expect(await AuthSecurityService.verifyPassword(storedPassword, 'a sufficiently long password')).toBe(true);
     expect(authAudit.write).toHaveBeenCalledWith(expect.objectContaining({ action: 'Password reset consumed' }));

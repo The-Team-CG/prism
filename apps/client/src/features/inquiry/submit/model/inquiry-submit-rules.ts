@@ -2,6 +2,7 @@ import {
   createPrismInquirySchema,
   inquiryPrefillFromSearchParams,
   parseContract,
+  prismCalendarDateKey,
   type CreatePrismInquiryInput,
 } from "@prism/types";
 import type { InquiryForm } from "./inquiry-submit-types";
@@ -163,8 +164,9 @@ export function mapInquirySubmitError(error: unknown, fallback = "Unable to subm
   return fallback;
 }
 
+/** Today on the Philippine calendar, so the picker never offers yesterday in the early-morning hours. */
 export function inquiryMinDate(now: Date = new Date()): string {
-  return now.toISOString().slice(0, 10);
+  return prismCalendarDateKey(now);
 }
 
 export function buildInquiryReference(now: Date = new Date(), random = Math.random()): string {

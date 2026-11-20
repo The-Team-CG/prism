@@ -535,12 +535,13 @@ export class EventGamesPrismaStoreAdapter implements GameDefinitionStorePort, Ga
       ), combined AS (
         SELECT "group_key", "team_id", MIN("team_label") AS "team_label", SUM("score")::integer AS "score"
         FROM all_scores GROUP BY "group_key", "team_id"
+      -- Equal scores share a rank (two teams on 40 are both 1st); the list order among them stays stable.
       ), ranked AS (
-        SELECT *, ROW_NUMBER() OVER (ORDER BY "score" DESC, "group_key")::integer AS "rank"
+        SELECT *, RANK() OVER (ORDER BY "score" DESC)::integer AS "rank"
         FROM combined
       )
       SELECT "group_key", "team_id", "team_label", "score", "rank"
-      FROM ranked ORDER BY "rank" LIMIT 10
+      FROM ranked ORDER BY "rank", "group_key" LIMIT 10
     `;
     const status = row.status === 'live' || row.status === 'scheduled' || row.status === 'lobby' ||
       row.status === 'paused' || row.status === 'completed' || row.status === 'cancelled'

@@ -1,5 +1,17 @@
 import compression from 'compression';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
+
+/**
+ * JSON request bodies up to 4 MB. Express defaults to 100 kB, which refused floor plan saves long before the
+ * scene validator's 2 MB cap; this leaves room for that scene, its envelope and multi-byte names.
+ */
+export const JSON_BODY_LIMIT = '4mb';
+
+/** Call before the app initialises so Nest keeps this parser, with `rawBody`, instead of its 100 kB default. */
+export function configureRequestBodies(app: NestExpressApplication) {
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT });
+}
 
 /**
  * Compress JSON responses. Read models such as the PMCM workspace are 100+ KB of JSON and compress about

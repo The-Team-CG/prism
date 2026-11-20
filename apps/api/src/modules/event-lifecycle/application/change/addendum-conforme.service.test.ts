@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
@@ -40,7 +40,7 @@ type HarnessOptions = {
 };
 
 function harness({ billingSourceId = 'billing_source_1', addendumStatus = 'pending', plannedImpacts = storedPlan, applyError }: HarnessOptions = {}) {
-  const event = { id: 'evt_1', clientName: 'Client Person', eventName: 'Launch', archived: false, clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' } };
+  const event = { id: 'evt_1', clientName: 'Client Person', eventName: 'Launch', archived: false, status: 'planning', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' } };
   const addendum = {
     id: 'addendum_1', eventId: 'evt_1', versionNumber: 2, title: 'Add stage lighting', summary: 'Extra rig', financialDelta: 15000,
     comparison: { contract: [], quotes: [{ key: 'quote_1', before: { id: 'quote_1', amount: 20 }, after: { id: 'quote_1', amount: 35 } }] },
@@ -107,7 +107,7 @@ function harness({ billingSourceId = 'billing_source_1', addendumStatus = 'pendi
     prisma as unknown as PrismaService, new EventAccessPolicyService(audit), audit, notifications, commercial,
   );
   const signInput = () => ({ executionId: executions[0]!.id as string, versionNumber: 2, documentSha256: executions[0]!.documentSha256 as string, consentAccepted: true as const });
-  return { service, commercial, executions, signatures, tx, signInput, addendumState };
+  return { service, commercial, executions, signatures, tx, signInput, addendumState, event };
 }
 
 describe('AddendumConformeService request', () => {
@@ -262,6 +262,20 @@ describe('AddendumConformeService signing', () => {
     await expect(service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata)).rejects.toBeInstanceOf(ConflictException);
     await expect(service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), pmcm, metadata)).rejects.toBeInstanceOf(ConflictException);
     expect(signatures).toHaveLength(0);
+    expect(commercial.apply).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['cancelled', { status: 'cancelled' }],
+    ['archived', { archived: true, status: 'archived' }],
+  ])('refuses acknowledgment and countersignature once the event is %s, so no billing impact is applied', async (_label, closed) => {
+    const { service, signInput, signatures, commercial, event } = harness();
+    await service.requestExecution('evt_1', 'addendum_1', pmcm);
+    await service.acknowledgeAsClient('evt_1', 'addendum_1', signInput(), primaryClient, metadata);
+    Object.assign(event, closed);
+
+    await expect(service.countersignAsPmcm('evt_1', 'addendum_1', signInput(), pmcm, metadata)).rejects.toBeInstanceOf(BadRequestException);
+    expect(signatures.map((signature) => signature.actorRole)).toEqual(['client']);
     expect(commercial.apply).not.toHaveBeenCalled();
   });
 

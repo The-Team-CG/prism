@@ -124,6 +124,8 @@ export interface PrismClientEventTimeline {
     PrismClientTimelineMilestone<"balance_payment_due">,
     PrismClientTimelineMilestone<"event_date">,
   ];
+  /** How many suppliers PMCM has booked for the event. Names, quotes and amounts stay internal. */
+  confirmedSupplierCount: number;
 }
 
 export type PrismOcularVisitStatus = "requested" | "scheduled" | "completed" | "waived";

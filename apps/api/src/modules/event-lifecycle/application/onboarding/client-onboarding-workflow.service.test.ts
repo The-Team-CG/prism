@@ -4,7 +4,7 @@ import { ClientOnboardingWorkflowService } from './client-onboarding-workflow.se
 import { OcularVisitService } from '../ocular-visit/ocular-visit.service';
 
 function createService() {
-  const event = { id: 'evt_onboarding', status: 'briefing', readiness: 'Client briefing open', archived: false, clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' } };
+  const event = { id: 'evt_onboarding', status: 'briefing', readiness: 'Client briefing open', archived: false, freezeStatus: 'open', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' } };
   const briefings: any[] = [];
   const ocularRequests: any[] = [];
   const prisma = {
@@ -111,6 +111,13 @@ describe('ClientOnboardingWorkflowService', () => {
     expect(briefings[1].stylingBudgetConfirmedAt).toBeInstanceOf(Date);
     await service.submitBriefing('evt_onboarding', { ...input }, primaryClient);
     expect(briefings[2].stylingBudgetConfirmedAt).toBeNull();
+  });
+  it('refuses a client briefing once scope is frozen, leaving the change to a scope change request', async () => {
+    const { service, event, briefings } = createService();
+    event.freezeStatus = 'frozen';
+    event.status = 'planning';
+    await expect(service.submitBriefing('evt_onboarding', { ...input, guestCount: 400 }, primaryClient)).rejects.toThrow(/Scope is frozen/);
+    expect(briefings).toHaveLength(0);
   });
   it('rejects a locked portal even when its event status is planning', async () => {
     const { service, event } = createService();

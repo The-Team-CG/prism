@@ -175,7 +175,8 @@ export type UpdateGuestVerificationInput = z.infer<typeof updateGuestVerificatio
 
 /** FR-39 / FR-95 QR check-in: the pass carries a random token only; staff scan it at the registration desk. */
 export const guestQrCheckInSchema = z.object({
-  token: z.string().trim().regex(/^[A-Za-z0-9_-]{32,64}$/, "This is not a P.R.I.S.M guest pass"),
+  // The pass shows its code in groups of four; staff type it as shown, so spaces inside it are not part of the code.
+  token: z.string().transform((value) => value.replace(/\s+/g, "")).pipe(z.string().regex(/^[A-Za-z0-9_-]{32,64}$/, "This is not a P.R.I.S.M guest pass")),
 }).strict();
 export type GuestQrCheckInInput = z.infer<typeof guestQrCheckInSchema>;
 
@@ -194,5 +195,6 @@ export function guestQrPassToken(scanned: string): string {
   const value = scanned.trim();
   if (value.startsWith(GUEST_QR_PASS_PREFIX)) return value.slice(GUEST_QR_PASS_PREFIX.length);
   const fromLink = /\/pass\/([A-Za-z0-9_-]{32,64})(?:[/?#]|$)/.exec(value);
-  return fromLink?.[1] ?? value;
+  // A code typed from the pass keeps the spaces it is grouped with; they are not part of it.
+  return fromLink?.[1] ?? value.replace(/\s+/g, "");
 }

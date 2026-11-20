@@ -69,6 +69,7 @@ describe('OpsClientController', () => {
             { key: 'balance_payment_due', date: null, status: 'pending' },
             { key: 'event_date', date: '2026-07-10', status: 'pending' },
           ],
+          confirmedSupplierCount: 0,
         }],
         documents: [
           mappers.mapDocument({

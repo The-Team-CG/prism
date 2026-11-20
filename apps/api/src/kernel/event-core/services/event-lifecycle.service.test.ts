@@ -22,6 +22,13 @@ describe('EventLifecycleService', () => {
     ).toThrow(BadRequestException);
   });
 
+  it('lets PMCM archive a cancelled event from any stage, still behind the close gates', () => {
+    const cancelled = { status: 'cancelled', archived: false, clientPortalStatus: 'unlocked', proposalClientStatus: 'pending', actualEndedAt: null };
+    expect(() => service.assertCanArchive(cancelled, { ready: true, missingKeys: [] })).not.toThrow();
+    expect(() => service.assertCanArchive(cancelled, { ready: false, missingKeys: ['billing'] })).toThrow(BadRequestException);
+    expect(() => service.assertCanArchive({ ...cancelled, archived: true }, { ready: true, missingKeys: [] })).toThrow('already archived');
+  });
+
   it('places events in planning only after the client approves the proposal', () => {
     const signed = { status: 'planning', archived: false, clientPortalStatus: 'unlocked', actualEndedAt: null };
     expect(service.stageForEvent({ ...signed, proposalClientStatus: 'pending' })).toBe(EventLifecycleStage.BriefingProposal);

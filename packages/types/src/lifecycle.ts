@@ -52,6 +52,14 @@ export function derivePrismLifecycleStage(event: PrismLifecycleStageFacts): Pris
   return "briefing_proposal";
 }
 
+/**
+ * A "date to be confirmed" decision keeps the previous date on the event until a postponement sets the new one, so
+ * portals must not show that date as when the event happens or count down to it.
+ */
+export function isPrismEventDateConfirmed(event: Pick<PrismLifecycleStageFacts, "status">): boolean {
+  return event.status !== "date_to_be_confirmed";
+}
+
 export function isBeforePrismEventDay(stage: PrismLifecycleStage): boolean {
   return PRISM_LIFECYCLE_STAGES.indexOf(stage) < PRISM_LIFECYCLE_STAGES.indexOf("event_day");
 }

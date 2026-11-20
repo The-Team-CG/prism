@@ -343,6 +343,18 @@ describe('Coordinator staffing workflows', () => {
     vi.unstubAllEnvs();
   });
 
+  it('finds the assignment a coordinator works now: never a declined one, and the newest after a role change', async () => {
+    const fake = createPrisma();
+    const service = createReaderService(fake.prisma);
+    const base = { eventId: 'evt_main', coordinatorId: coordinator.id, coordinatorName: coordinator.name, doubleBookingWarning: false, eventDate: event.eventDate, conflictEventId: null, conflictEventName: null, acknowledgmentHistory: [] };
+    fake.assignments.push({ ...base, id: 'asg_usher', role: 'Usher', status: 'declined', createdAt: new Date('2026-09-01T00:00:00.000Z') });
+
+    await expect(service.findAssignmentForEventActor('evt_main', { id: coordinator.userId, email: coordinator.email })).resolves.toBeNull();
+
+    fake.assignments.push({ ...base, id: 'asg_registration', role: 'Registration Staff', status: 'pending_acknowledgement', createdAt: new Date('2026-09-05T00:00:00.000Z') });
+    await expect(service.findAssignmentForEventActor('evt_main', { id: coordinator.userId, email: coordinator.email })).resolves.toMatchObject({ id: 'asg_registration', role: 'Registration Staff' });
+  });
+
   it('rechecks linked Identity eligibility under the assignment transaction', async () => {
     const fake = createPrisma();
     const coordinatorAccountEligibility = {

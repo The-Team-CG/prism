@@ -8,7 +8,8 @@ import {
   Presentation,
   ReceiptText,
 } from "lucide-react";
-import type { PrismClientActionItem, PrismClientActionStage, PrismClientDecisionFacts, PrismClientWorkspace, PrismEvent, PrismFloorPlanDraft } from "@prism/types";
+import { isPrismEventDateConfirmed, type PrismClientActionItem, type PrismClientActionStage, type PrismClientDecisionFacts, type PrismClientWorkspace, type PrismEvent, type PrismFloorPlanDraft } from "@prism/types";
+import { formatPortalDate } from "@prism/ui/format-date";
 import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
 import type { DetailTab } from "./client-dashboard-types";
 
@@ -23,6 +24,11 @@ export function formatStatusLabel(status?: string) {
   if (!status) return "Pending";
   const words = status.replaceAll(/[_-]+/g, " ").trim().toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** The event date as the client should read it: an unconfirmed date is not shown as when the event happens. */
+export function clientEventDateLabel(event: { eventDate?: string | null; status: string }) {
+  return isPrismEventDateConfirmed(event) ? formatPortalDate(event.eventDate) : "Date to be confirmed";
 }
 
 export function clientFloorplanDashboardActionLabel(status?: PrismEvent["floorPlanStatus"]) {

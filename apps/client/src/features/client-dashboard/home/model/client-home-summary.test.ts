@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PrismEvent } from "@prism/types";
-import type { ClientDashboardAction } from "../../workspace/model/client-dashboard-view-rules";
-import { clientHomeLead, clientHomeSummaryLine, orderClientActionsByUrgency, timeOfDayGreeting } from "./client-home-summary";
+import { clientEventDateLabel, type ClientDashboardAction } from "../../workspace/model/client-dashboard-view-rules";
+import { clientHomeLead, clientHomeSummaryLine, eventCountdown, orderClientActionsByUrgency, timeOfDayGreeting } from "./client-home-summary";
 
 function action(id: string, patch: Partial<ClientDashboardAction> = {}): ClientDashboardAction {
   return {
@@ -29,6 +29,14 @@ describe("client home attention summary", () => {
     // With nothing ahead on the calendar, the earliest event still open leads; with no open event there is no lead.
     expect(clientHomeLead([event("overdue", "2026-10-26")], [], "2026-11-11")).toMatchObject({ event: { id: "overdue" }, action: undefined });
     expect(clientHomeLead([event("done", "2026-10-01", "completed")], [], "2026-11-11")).toBeNull();
+
+    // A date to be confirmed still carries the old date; it is neither counted down nor treated as next on the calendar.
+    const paused = event("paused", "2026-11-15", "date_to_be_confirmed");
+    expect(clientHomeLead([paused, event("ahead", "2026-11-23")], [], "2026-11-11")).toMatchObject({ event: { id: "ahead" }, daysToGo: 12 });
+    expect(clientHomeLead([paused], [], "2026-11-11")).toMatchObject({ event: { id: "paused" }, daysToGo: null });
+    expect(eventCountdown(paused, "2026-11-11")).toBeNull();
+    expect(clientEventDateLabel(paused)).toBe("Date to be confirmed");
+    expect(eventCountdown(event("ahead", "2026-11-23"), "2026-11-11")).toBe("In 12 days");
   });
 
   it("greets by time of day", () => {

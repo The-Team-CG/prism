@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { INQUIRY_BID_STATUSES, parseContract, setInquiryIntakePathSchema, type PrismInquiry } from "@prism/types";
 import { biddingPathRepository } from "../data/bidding-path-repository";
+import { portalHref } from "@prism/ui/portal-path";
 
 type BidStatus = (typeof INQUIRY_BID_STATUSES)[number];
 const field = "mt-1 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm";
@@ -27,7 +28,7 @@ export function BiddingPathEditor({ inquiry }: { inquiry: PrismInquiry }) {
     setMessage(null);
     try {
       const { eventId } = await biddingPathRepository.workspace(inquiry.id);
-      window.location.assign(`/dashboard/events/${encodeURIComponent(eventId)}/overview`);
+      window.location.assign(portalHref(`/dashboard/events/${encodeURIComponent(eventId)}/overview`));
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "Could not open the bid workspace.");
       setBusy(false);

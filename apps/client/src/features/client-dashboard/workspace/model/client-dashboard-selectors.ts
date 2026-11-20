@@ -86,8 +86,16 @@ export function selectEventWorkspaceResources(
   };
 }
 
+/**
+ * The official layout the client deals with: a version waiting for their review comes first, the newest one when there
+ * are several, so a new layout is never approved without the client seeing it while an older approved one is active.
+ * Otherwise the active official layout, then any official one.
+ */
 export function selectOfficialDraft(eventDrafts: PrismFloorPlanDraft[]) {
-  return eventDrafts.find((draft) => draft.isActive && draftIsOfficial(draft)) ?? eventDrafts.find(draftIsOfficial);
+  const awaitingReview = eventDrafts
+    .filter((draft) => draftIsOfficial(draft) && draft.status === "in_review")
+    .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt) || right.id.localeCompare(left.id))[0];
+  return awaitingReview ?? eventDrafts.find((draft) => draft.isActive && draftIsOfficial(draft)) ?? eventDrafts.find(draftIsOfficial);
 }
 
 export function selectPreferenceDrafts(eventDrafts: PrismFloorPlanDraft[]) {

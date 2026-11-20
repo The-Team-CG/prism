@@ -12,6 +12,7 @@ import {
   findPossibleDuplicate,
   normalizeReference,
   receiptBalance,
+  withdrawCarriedCredit,
 } from './payment-receipt.policy';
 
 const fails = (result: { ok: boolean }) => result.ok === false;
@@ -109,6 +110,21 @@ describe('payment receipt ledger rules', () => {
       message: 'This payment was already reversed',
     });
     expect(fails(checkReverseAllocation({ amountReceived: -5000, reversesRecordId: 'a' }, false))).toBe(true);
+  });
+
+  it('takes an undone payment back from the credit a corrected statement carried, latest milestone first', () => {
+    const replacement = [
+      { id: 'deposit', creditApplied: 47500 },
+      { id: 'balance', creditApplied: 12500 },
+      { id: 'final', creditApplied: 0 },
+    ];
+    expect(withdrawCarriedCredit(replacement, 20000)).toEqual([
+      { milestone: replacement[1], creditApplied: 0 },
+      { milestone: replacement[0], creditApplied: 40000 },
+    ]);
+    expect(withdrawCarriedCredit(replacement, 60000)?.map((change) => change.creditApplied)).toEqual([0, 0]);
+    // Credit the corrected statement never received cannot be taken back from it.
+    expect(withdrawCarriedCredit(replacement, 60001)).toBeNull();
   });
 
   it('flags a possible duplicate only on the same amount, method, day and a named payer', () => {

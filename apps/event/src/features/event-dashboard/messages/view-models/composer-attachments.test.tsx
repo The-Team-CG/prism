@@ -48,4 +48,30 @@ describe('attaching a file to a message', () => {
     await waitFor(() => expect(send.disabled).toBe(false));
     expect(screen.queryByText('Uploading…')).toBeNull();
   });
+
+  it('uploads no more than the ten files a message can carry when more are picked at once', async () => {
+    let next = 0;
+    const uploadAttachment = vi.fn(async () => `obj-${(next += 1)}`);
+    const source = {
+      list: vi.fn(async () => ({ items: [openThread('t1')], nextCursor: null, hasMore: false })),
+      markRead: vi.fn(async () => undefined),
+      send: vi.fn(),
+      older: vi.fn(),
+      uploadAttachment,
+      copyAttachment: vi.fn(),
+      storedFiles: vi.fn(async () => []),
+    } as unknown as ChatSource;
+    const files = (from: number, count: number) => Array.from({ length: count }, (_, index) => new File(['%PDF-1.7'], `file-${from + index}.pdf`, { type: 'application/pdf' }));
+
+    const { container } = render(<ConversationHarness source={source} />);
+    await screen.findByRole('button', { name: 'Send message' });
+    const fileInput = () => container.querySelector('input[type="file"]') as HTMLInputElement;
+    fireEvent.change(fileInput(), { target: { files: files(1, 8) } });
+    await waitFor(() => expect(uploadAttachment).toHaveBeenCalledTimes(8));
+    fireEvent.change(fileInput(), { target: { files: files(9, 5) } });
+
+    await waitFor(() => expect(screen.getByText('file-10.pdf')).toBeTruthy());
+    expect(uploadAttachment).toHaveBeenCalledTimes(10);
+    expect(screen.queryByText('file-11.pdf')).toBeNull();
+  });
 });

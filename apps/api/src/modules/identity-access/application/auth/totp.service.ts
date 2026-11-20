@@ -56,10 +56,20 @@ export class TotpService {
     return base32Encode(randomBytes(20));
   }
 
-  verifyCode(secret: string, candidate: string, nowMs = Date.now()) {
-    if (!/^\d{6}$/.test(candidate)) return false;
+  /**
+   * The time step a code belongs to, or null when it is wrong. A code accepted once must not work again, so a step
+   * at or before `lastAcceptedStep` (the account's last accepted one) is refused; the caller stores the step it
+   * accepts in the same write that completes the sign-in.
+   */
+  acceptedStep(secret: string, candidate: string, lastAcceptedStep: number | null = null, nowMs = Date.now()): number | null {
+    if (!/^\d{6}$/.test(candidate)) return null;
     const currentCounter = Math.floor(nowMs / 1000 / TOTP_PERIOD_SECONDS);
-    return [-1, 0, 1].some((offset) => safeCodeEqual(this.codeAt(secret, currentCounter + offset), candidate));
+    for (const offset of [-1, 0, 1]) {
+      const step = currentCounter + offset;
+      if (lastAcceptedStep !== null && step <= lastAcceptedStep) continue;
+      if (safeCodeEqual(this.codeAt(secret, step), candidate)) return step;
+    }
+    return null;
   }
 
   encryptSecret(secret: string) {

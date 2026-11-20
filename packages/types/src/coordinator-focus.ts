@@ -17,6 +17,14 @@ export function prismEventDayStart(eventDate: string | Date): Date {
   return new Date(new Date(eventDate).getTime() - PRISM_BUSINESS_UTC_OFFSET_HOURS * 60 * 60 * 1000);
 }
 
+/** Catalog rule: event scope freezes automatically this many days before the event day. */
+export const PRISM_AUTO_FREEZE_DAYS_BEFORE_EVENT = 5;
+
+/** The moment an open event's scope freezes on its own, and change requests close: five days before its event day begins. */
+export function prismAutomaticFreezeAt(eventDate: string | Date): Date {
+  return new Date(prismEventDayStart(eventDate).getTime() - PRISM_AUTO_FREEZE_DAYS_BEFORE_EVENT * 24 * 60 * 60 * 1000);
+}
+
 /** An assignment the coordinator still works: not cancelled, replaced or declined. */
 export function isActiveCoordinatorAssignmentStatus(status: string | undefined | null): boolean {
   return status !== "cancelled" && status !== "replaced" && status !== "declined";

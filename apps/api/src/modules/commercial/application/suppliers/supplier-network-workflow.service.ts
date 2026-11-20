@@ -481,10 +481,15 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
           if (!photo) throw new BadRequestException('The status photo is not a confirmed upload for this assignment');
         }
       },
-      validateState: () => {
+      validateState: async () => {
         const allowed = ['arrived', 'set_up_ready', 'done_leaving'];
         if (!allowed.includes(input.status)) throw new BadRequestException('Unsupported supplier event-day status');
         if (!request) throw new NotFoundException('Supplier quote request not found');
+        // The day's status belongs to an event that is on: not archived or cancelled, and no arrival or setup once it
+        // has ended (packing up and leaving after the end is expected).
+        const event = await this.eventReferences.findOperationsEvent(request.eventId);
+        if (!event || event.archived || event.status === 'cancelled') throw new BadRequestException('This event is closed, so its event-day status cannot change');
+        if (event.actualEndedAt && input.status !== 'done_leaving') throw new BadRequestException('This event has ended; only leaving can be reported now');
         previousStatus = request.eventDayStatus;
         replay = previousStatus === input.status;
         if (!replay) assertSupplierEventStatusStep(request.eventDayStatus, input.status);

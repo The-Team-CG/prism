@@ -640,7 +640,7 @@ export class EventReadModelQueries {
     });
     if (events.length === 0) return [];
     const visibleIds = events.map((event) => event.id);
-    const [drafts, milestones] = await Promise.all([
+    const [drafts, milestones, bookedSuppliers] = await Promise.all([
       this.prisma.opsFloorPlanDraft.findMany({
         where: { eventId: { in: visibleIds }, status: 'approved', sourceType: { not: 'client_preference' } },
         select: { eventId: true, isActive: true, approvedAt: true },
@@ -660,13 +660,21 @@ export class EventReadModelQueries {
         orderBy: [{ eventId: 'asc' }, { dueDate: 'asc' }, { id: 'asc' }],
         take: MAX_VISIBLE_EVENTS,
       }),
+      // A count only: which suppliers and what they quoted stay internal to PMCM.
+      this.prisma.opsSupplierQuoteRequest.groupBy({
+        by: ['eventId'],
+        where: { eventId: { in: visibleIds }, status: 'selected', assignmentStatus: { not: 'withdrawn' } },
+        _count: { _all: true },
+      }),
     ]);
     const draftByEvent = new Map(drafts.map(({ eventId, ...draft }) => [eventId, draft]));
     const milestoneByEvent = new Map(milestones.map(({ eventId, ...milestone }) => [eventId, milestone]));
+    const supplierCountByEvent = new Map(bookedSuppliers.map((row) => [row.eventId, row._count._all]));
     return events.map((event) => ({
       ...event,
       floorPlanDrafts: draftByEvent.has(event.id) ? [draftByEvent.get(event.id)!] : [],
       paymentMilestones: milestoneByEvent.has(event.id) ? [milestoneByEvent.get(event.id)!] : [],
+      confirmedSupplierCount: supplierCountByEvent.get(event.id) ?? 0,
     }));
   }
 

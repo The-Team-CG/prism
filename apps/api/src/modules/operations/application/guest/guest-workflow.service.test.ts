@@ -167,7 +167,9 @@ function createGuestWorkflowFixture() {
         ).length,
       ),
       findFirst: vi.fn(async ({ where }: any) => state.guestCheckIns.find((item) =>
-        item.eventId === where.eventId && item.rosterEntryId === where.rosterEntryId && item.status === where.status,
+        item.eventId === where.eventId && (item.rosterEntryId ?? null) === where.rosterEntryId && item.status === where.status
+        && (where.walkIn === undefined || item.walkIn === where.walkIn)
+        && (where.guestName === undefined || String(item.guestName ?? '').toLowerCase() === String(where.guestName.equals).toLowerCase()),
       ) ?? null),
       findMany: vi.fn(async ({ where }: any = {}) => {
         const eventIds = where?.eventId?.in as string[] | undefined;
@@ -293,6 +295,14 @@ afterEach(() => {
 });
 
 describe('GuestWorkflowService', () => {
+  // By default the clock sits during the fixture event, before its recorded end (2026-09-07T12:00Z), so guests can
+  // check in. Feedback tests pin their own later instant.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-07T10:00:00.000Z'));
+  });
+  afterEach(() => vi.useRealTimers());
+
   it('resolves a guest event and returns attendance counts by access code', async () => {
     const { service, eventProjections } = createGuestWorkflowFixture();
 
@@ -300,9 +310,22 @@ describe('GuestWorkflowService', () => {
       id: 'evt_sample',
       eventName: 'Ayala Tech Summit',
     });
-    expect(eventProjections.listGuestAccessCandidates).toHaveBeenCalledWith(false);
     expect(eventProjections.findGuestEvent).toHaveBeenCalledWith('evt_sample');
     await expect(service.countCheckInsForEvent('evt_sample')).resolves.toBe(1);
+  });
+
+  it('keeps an archived event open to its guests while the feedback window is open, and closes it after', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    (state.events[0] as any).archived = true;
+
+    // Archived the day after it ended (2026-09-07T12:00Z): guests can still open it to leave feedback.
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+    await expect(service.getEventByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({ id: 'evt_sample' });
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).resolves.toMatchObject({ feedbackAvailability: 'open' });
+
+    vi.setSystemTime(new Date('2026-09-15T12:00:00.000Z'));
+    await expect(service.getEventByAccessCode('AYALA-TECH-MPLE')).rejects.toThrow('was not found');
+    await expect(service.getEventWatermarkByAccessCode('AYALA-TECH-MPLE')).rejects.toThrow('was not found');
   });
 
   it('keeps public guest pass and watermark free of attendance signals', async () => {
@@ -682,7 +705,8 @@ describe('GuestWorkflowService', () => {
 
   it('records guest check-ins and moderated feedback through command methods', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
+    // The guest checks in during the event, and leaves feedback the day after it ended.
+    vi.setSystemTime(new Date('2026-09-07T10:00:00.000Z'));
     const { service, auditWriter } = createGuestWorkflowFixture();
 
     const checkIn = await service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
@@ -691,6 +715,7 @@ describe('GuestWorkflowService', () => {
       checkInMode: 'name_search',
       privacyConsentAccepted: true,
     }));
+    vi.setSystemTime(new Date('2026-09-08T12:00:00.000Z'));
     const feedback = await service.submitFeedbackByAccessCode('AYALA-TECH-MPLE', {
       privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
       guestName: 'Sofia Lim',
@@ -738,6 +763,38 @@ describe('GuestWorkflowService', () => {
       checkInMode: 'name_search', guestName: 'Threshold Walk In', privacyConsentAccepted: true,
     }))).resolves.toEqual({ accepted: true });
     expect(state.guestCheckIns.slice(-2).map((checkIn) => checkIn.guestName)).toEqual(['Open Walk In', 'Threshold Walk In']);
+
+    // The same walk-in checking in again (a reload, another key) is one arrival, not two.
+    const before = state.guestCheckIns.length;
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      checkInMode: 'name_search', guestName: 'open walk in', privacyConsentAccepted: true,
+    }))).resolves.toEqual({ accepted: true });
+    expect(state.guestCheckIns).toHaveLength(before);
+  });
+
+  it('closes guest self check-in once PMCM records the actual end', async () => {
+    const { service, state } = createGuestWorkflowFixture();
+    const before = state.guestCheckIns.length;
+    vi.setSystemTime(new Date('2026-09-07T12:30:00.000Z'));
+    await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+      privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+      checkInMode: 'name_search', guestName: 'Late Guest', privacyConsentAccepted: true,
+    }))).rejects.toThrow('This event has ended');
+    expect(state.guestCheckIns).toHaveLength(before);
+  });
+
+  it('takes no guest check-ins for a cancelled event or one whose date is to be confirmed', async () => {
+    for (const status of ['cancelled', 'date_to_be_confirmed']) {
+      const { service, state } = createGuestWorkflowFixture();
+      (state.events[0] as any).status = status;
+      const before = state.guestCheckIns.length;
+      await expect(service.checkInByAccessCode('AYALA-TECH-MPLE', withGuestCheckInKey({
+        privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION,
+        checkInMode: 'name_search', guestName: 'Late Guest', privacyConsentAccepted: true,
+      }))).rejects.toThrow('Check-in is not open for this event');
+      expect(state.guestCheckIns).toHaveLength(before);
+    }
   });
 
   it('deduplicates roster check-in by roster identity when names repeat', async () => {
@@ -941,6 +998,8 @@ describe('GuestWorkflowService', () => {
       expect.objectContaining({ id: walkIn.id, verificationFlaggedBy: 'Registration Staff' }),
     ]);
     await expect(service.countRosterVerificationForEvent('evt_sample')).resolves.toEqual({ verified: 0, pending: 1, flagged: 1 });
+    // The desk that flagged the walk-in cannot clear the flag itself.
+    await expect(service.updateVerification('evt_sample', walkIn.id, { status: 'verified' }, coordinator)).rejects.toThrow('PMCM verifies a flagged walk-in');
 
     await service.updateVerification('evt_sample', walkIn.id, { status: 'verified' }, pmcm);
     expect(state.guestRoster[0]).toMatchObject({ verificationStatus: 'verified', verificationFlaggedAt: null, verificationFlaggedBy: null });
@@ -1035,9 +1094,11 @@ describe('GuestWorkflowService', () => {
       createTestGuestEventProjections() as any,
       { write: vi.fn(async () => undefined) } as any, {} as any);
 
-    await expect(service.importRoster('evt_1', { source: ' Coordinator-Walk-In ', rows: [] } as any, {
-      id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin',
-    })).rejects.toThrow('reserved roster source');
+    for (const source of [' Coordinator-Walk-In ', 'guest-review', 'GUEST-REVIEW-HEADCOUNT']) {
+      await expect(service.importRoster('evt_1', { source, rows: [] } as any, {
+        id: 'usr_pmcm', name: 'PMCM Admin', role: 'pmcm-admin',
+      })).rejects.toThrow('reserved roster source');
+    }
     expect(transaction).not.toHaveBeenCalled();
   });
 

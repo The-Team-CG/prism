@@ -1,4 +1,4 @@
-import type { PrismEvent } from '@prism/types';
+import { isPrismEventDateConfirmed, prismAutomaticFreezeAt, type PrismEvent } from '@prism/types';
 import type { OpsEvent, OpsFloorPlanDraft } from '@prisma/client';
 import { mapOnboardingFloorPlanDraft } from '@prism/contexts/event-lifecycle';
 import { guestAccessCode } from '@prism/contexts/operations';
@@ -11,6 +11,16 @@ function isoDate(value: Date) {
 
 function timestamp(value: Date) {
   return value.toISOString();
+}
+
+/**
+ * When the client's change requests close. A freeze records its own deadline; an open event closes at its automatic
+ * freeze, five days before event day. A cancelled event or one whose date is still to be confirmed has no cutoff.
+ */
+function changeCutoff(event: Pick<OpsEvent, 'freezeStatus' | 'freezeDeadlineAt' | 'eventDate' | 'status'>): Date | null {
+  if (event.freezeStatus === 'frozen') return event.freezeDeadlineAt;
+  if (event.status === 'cancelled' || !isPrismEventDateConfirmed(event)) return null;
+  return prismAutomaticFreezeAt(event.eventDate);
 }
 
 export function mapBillingEvent(event: EventWithDrafts) {
@@ -39,7 +49,7 @@ export function mapBillingEvent(event: EventWithDrafts) {
     proposalRevisionCount: event.proposalRevisionCount,
     proposalReviewedAt: event.proposalReviewedAt?.toISOString() ?? null,
     freezeStatus: event.freezeStatus,
-    freezeDeadlineAt: event.freezeDeadlineAt?.toISOString() ?? null,
+    freezeDeadlineAt: changeCutoff(event)?.toISOString() ?? null,
     readiness: event.readiness,
     archived: event.archived,
     floorPlanStatus: event.floorPlanStatus,

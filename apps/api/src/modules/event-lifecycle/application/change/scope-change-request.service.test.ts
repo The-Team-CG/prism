@@ -22,7 +22,7 @@ function matches(row: Row, where: Record<string, any> = {}) {
 
 /** In-memory stand-in for the Prisma calls the scope change service makes, so the status and consumption rules are exercised. */
 function fakeStore(options: { event?: Partial<Row>; exceptions?: Row[]; addenda?: Row[]; rows?: Row[] } = {}) {
-  const event = { id: 'evt_1', eventName: 'Launch Gala', archived: false, freezeStatus: 'open', clientName: 'Client Contact', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.com' }, ...options.event };
+  const event = { id: 'evt_1', eventName: 'Launch Gala', status: 'planning', archived: false, freezeStatus: 'open', clientName: 'Client Contact', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.com' }, ...options.event };
   const rows = new Map<string, Row>((options.rows ?? []).map((row) => [row.id, row]));
   const exceptions = new Map<string, Row>((options.exceptions ?? []).map((row) => [row.id, { consumedAt: null, ...row }]));
   const addenda = options.addenda ?? [];
@@ -85,6 +85,18 @@ describe('ScopeChangeRequestService submission and withdrawal', () => {
     expect(request).toMatchObject({ eventId: 'evt_1', requestedByRole: 'client', status: 'submitted', category: 'schedule', title: 'Add a sunset slot' });
     expect(notifications.write).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_1', recipient: 'PMCM Admin', idempotencyKey: `scope-change-submitted:${request.id}`, action: { kind: 'event_section', eventId: 'evt_1', section: 'changes' } }), expect.anything());
     expect(audit.write).toHaveBeenCalledWith(expect.objectContaining({ eventId: 'evt_1', action: 'Submitted scope change request' }), expect.anything());
+  });
+
+  it('refuses new requests and decisions once the event is cancelled', async () => {
+    const open = fakeStore({ event: { status: 'cancelled' }, rows: [] });
+    await expect(open.service.submit('evt_1', submission, primaryClient)).rejects.toThrow('Cancelled events cannot accept scope change requests');
+    expect(open.scopeChangeRequest.create).not.toHaveBeenCalled();
+
+    const pending = fakeStore();
+    const request = await pending.service.submit('evt_1', submission, primaryClient);
+    (await pending.prisma.opsEvent.findUnique()).status = 'cancelled';
+    await expect(pending.service.review('evt_1', request.id, { decision: 'start_review' }, pmcm)).rejects.toThrow('Cancelled events cannot accept scope change decisions');
+    expect(pending.rows.get(request.id)).toMatchObject({ status: 'submitted' });
   });
 
   it('refuses submission from other events, non-primary clients, unverified sessions, and non-PMCM roles', async () => {
@@ -239,6 +251,17 @@ describe('ScopeChangeRequestService PMCM review', () => {
 });
 
 describe('ScopeChangeRequestService client projection', () => {
+  it('marks a request withdrawable only until PMCM starts reviewing it, the same rule withdraw() enforces', async () => {
+    const { service } = fakeStore();
+    const submitted = await service.submit('evt_1', submission, primaryClient);
+    expect((await service.listClientRequests('evt_1', primaryClient))[0]).toMatchObject({ status: 'under_review', withdrawable: true });
+
+    await service.review('evt_1', submitted.id, { decision: 'start_review' }, pmcm);
+
+    expect((await service.listClientRequests('evt_1', primaryClient))[0]).toMatchObject({ status: 'under_review', withdrawable: false });
+    await expect(service.withdraw('evt_1', submitted.id, primaryClient)).rejects.toThrow('Only a submitted scope change request can be withdrawn');
+  });
+
   it('shows the client only the title, category, neutral status, and PMCM client response', async () => {
     const { service } = fakeStore();
     const submitted = await service.submit('evt_1', submission, primaryClient);
@@ -254,6 +277,7 @@ describe('ScopeChangeRequestService client projection', () => {
       status: 'not_approved',
       clientResponse: 'We cannot add the slot this season.',
       updatedAt: expect.any(String),
+      withdrawable: false,
     });
     const serialized = JSON.stringify(visible);
     expect(serialized).not.toContain('Insurance does not cover');

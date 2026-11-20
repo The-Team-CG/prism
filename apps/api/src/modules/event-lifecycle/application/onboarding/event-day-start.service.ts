@@ -52,7 +52,8 @@ export class EventDayStartService {
       if (event.status === 'event_day') return result;
       await this.assertReadyForEventDay(event, tx);
       this.lifecycle.assertCanTransition(this.lifecycle.stageForEvent(event), EventLifecycleStage.EventDay);
-      await tx.opsEvent.update({ where: { id: eventId }, data: { status: 'event_day', readiness: 'Event day in progress' } });
+      // The start is kept, so the actual end recorded later can be checked against it (event day may start early).
+      await tx.opsEvent.update({ where: { id: eventId }, data: { status: 'event_day', readiness: 'Event day in progress', actualStartedAt: event.actualStartedAt ?? new Date() } });
       await writeAudit(this.audit, eventId, actor.name, 'Started event day', {
         actorRole: actor.role, actorEmail: actor.email, actionType: AuditActionType.Update, category: AuditCategory.Events,
         affectedType: 'event', affectedId: eventId, metadata: { previousStatus: event.status, status: 'event_day', floorPlanStatus: event.floorPlanStatus },

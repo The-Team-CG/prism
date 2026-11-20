@@ -65,7 +65,7 @@ export function Composer({ draft, onDraftChange, onSend, busy, error, placeholde
       {error ? <p role="alert" className="mb-2 text-xs text-danger">{error}</p> : null}
       {attachments.length ? <AttachmentChips attachments={attachments} onRemove={onRemoveAttachment} /> : null}
       <div className="flex items-end gap-2">
-        {attachable(files, attachments.length) ? <AttachButton onAttachFile={onAttachFile!} onAttachStoredFile={onAttachStoredFile!} onListStoredFiles={onListStoredFiles!} /> : null}
+        {attachable(files, attachments.length) ? <AttachButton onAttachFile={onAttachFile!} onAttachStoredFile={onAttachStoredFile!} onListStoredFiles={onListStoredFiles!} remaining={COMMUNICATION_MESSAGE_ATTACHMENT_LIMIT - attachments.length} /> : null}
         <Textarea
           ref={inputRef}
           rows={1}

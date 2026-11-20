@@ -15,6 +15,7 @@ import {
   type AddendumConformeSnapshot,
 } from './addendum-conforme-document';
 import { mapAddendumConformeExecution } from './addendum-conforme.mappers';
+import { planningWriteRefusal } from '../../domain/planning-write.policy';
 
 type SignerRole = 'client' | 'pmcm';
 type RequestMetadata = { ip?: string; userAgent?: string };
@@ -44,7 +45,8 @@ export class AddendumConformeService {
       if (!addendum) throw new NotFoundException('Addendum not found');
       if (addendum.status === 'withdrawn') throw new ConflictException('A withdrawn addendum cannot be sent for conforme signature');
       if (addendum.conformeExecution) return mapAddendumConformeExecution(addendum.conformeExecution);
-      if (addendum.event.archived) throw new BadRequestException('Archived events cannot receive addendum conformes');
+      const refusal = planningWriteRefusal(addendum.event, 'receive addendum conformes');
+      if (refusal) throw new BadRequestException(refusal);
 
       const snapshot = this.snapshotOf(addendum, addendum.event.eventName);
       const document = buildAddendumConformeDocument(snapshot);
@@ -92,6 +94,8 @@ export class AddendumConformeService {
       await this.assertSignerScope(role, execution, actor);
       this.assertDisplayedVersion(execution, input);
       if (this.findPriorSignature(execution, role, actor)) return mapAddendumConformeExecution(execution);
+      const refusal = planningWriteRefusal(execution.event, 'sign addendum conformes');
+      if (refusal) throw new BadRequestException(refusal);
       this.assertSigningTurn(execution, role);
 
       await tx.opsAddendumConformeSignature.create({

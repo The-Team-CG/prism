@@ -24,7 +24,10 @@ export type SupplierSignInResult =
   | { twoStepToken: string };
 
 function finishSignIn(session: PrismSignInSession, nextPath: string | null | undefined) {
-  if (!isSupplierRole(session.role)) throw new Error(mapWrongPortalMessage(session.role));
+  if (!isSupplierRole(session.role)) {
+    void supplierAuthRepository.endRejectedSession(session.accessToken);
+    throw new Error(mapWrongPortalMessage(session.role));
+  }
   supplierAuthRepository.saveSession(session);
   const next = resolvePostSignInPath(nextPath);
   return { session, redirectTo: session.privacyNoticeRequired ? privacyNoticePath(next) : next };

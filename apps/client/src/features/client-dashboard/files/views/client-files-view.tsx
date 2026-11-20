@@ -29,6 +29,7 @@ import { useClientFileEvents, useClientFileLibraryViewModel, type ClientFileLibr
 import { ClientFileEventCards } from "./client-file-event-cards";
 import { ClientFilePreviewSheet } from "./client-file-preview-sheet";
 import { ClientFileReuseDialog } from "./client-file-reuse-dialog";
+import { clientEventDateLabel } from "../../workspace/model/client-dashboard-view-rules";
 
 const ACCEPTED_FILES = ".pdf,.docx,.xlsx,.jpg,.jpeg,.png";
 
@@ -39,7 +40,7 @@ const FILTERS: ReadonlyArray<{ id: ClientFileFilter; label: string }> = [
 ];
 
 function eventMeta(event: PrismEvent) {
-  return [formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed", formatStatusLabel(event.status)].join(" · ");
+  return [clientEventDateLabel(event), event.venue || "Venue to be confirmed", formatStatusLabel(event.status)].join(" · ");
 }
 
 function NeededRowActions({ row, vm }: { row: ClientDocumentChecklistRow; vm: ClientFileLibraryViewModel }) {

@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { ForbiddenException } from '@nestjs/common';
 import { describe, expect, it, vi } from 'vitest';
+import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { OpsEventBillingController } from './event-billing.controller';
 
@@ -8,7 +9,13 @@ function controllerPath(controller: Function): string {
   return Reflect.getMetadata('path', controller);
 }
 
+const events: Record<string, { id: string; clientName: string; clientPortalStatus: string; clientEmail: string }> = {
+  evt_sample: { id: 'evt_sample', clientName: 'Event Client', clientPortalStatus: 'unlocked', clientEmail: 'client@example.test' },
+  evt_other: { id: 'evt_other', clientName: 'Another Client', clientPortalStatus: 'unlocked', clientEmail: 'another@example.test' },
+};
+
 function createController() {
+  const realPolicy = new EventAccessPolicyService({ write: async () => undefined } as never);
   const billingOperationsService = {
     createBillingSource: vi.fn(async () => ({ id: 'bsrc_new' })),
     approveBillingSource: vi.fn(async () => ({ id: 'bsrc_new', status: 'approved' })),
@@ -22,6 +29,7 @@ function createController() {
   const billingAdjustmentService = {
     requestBillingCorrection: vi.fn(async () => ({ id: 'corr_new' })),
     resolveBillingCorrection: vi.fn(async () => ({ id: 'corr_new', status: 'approved' })),
+    readEventAccess: vi.fn(async (eventId: string) => events[eventId] ?? null),
     createBillingDispute: vi.fn(async () => ({ id: 'dispute_new' })),
     resolveBillingDispute: vi.fn(async () => ({ id: 'dispute_new', status: 'resolved' })),
     createAdditionalBilling: vi.fn(async () => ({ id: 'addbill_new' })),
@@ -36,9 +44,9 @@ function createController() {
       email: verified?.actorEmail ?? input.actorEmail,
       eventId: verified?.eventId,
     })),
-    requireActorRole: vi.fn(async (actor: { role: string; eventId?: string }, roles: readonly string[], _resource: string, eventId: string) => {
-      if (!roles.includes(actor.role) || (actor.eventId && actor.eventId !== eventId)) throw new ForbiddenException('Actor is not authorized for this event');
-    }),
+    // The real policy: a role check says nothing about which event the actor may touch; event ownership is its own check.
+    requireActorRole: vi.fn((...args: Parameters<EventAccessPolicyService['requireActorRole']>) => realPolicy.requireActorRole(...args)),
+    requireCanReadEvent: vi.fn((...args: Parameters<EventAccessPolicyService['requireCanReadEvent']>) => realPolicy.requireCanReadEvent(...args)),
   };
   const controller = new OpsEventBillingController(
     billingOperationsService as any,
@@ -210,17 +218,17 @@ describe('OpsEventBillingController', () => {
     expect(billingAdjustmentService.resolveBillingDispute).not.toHaveBeenCalled();
   });
 
-  it('does not forward a client dispute when event access policy rejects the requested event', async () => {
-    const { controller, billingAdjustmentService, eventAccessPolicyService } = createController();
-    const clientActor = {
-      id: 'client_1', actorId: 'client_1', actorRole: OpsUserRole.Client,
-      actorName: 'Event Client', actorEmail: 'client@example.test', expiresAt: '2026-10-04T12:00:00.000Z', eventId: 'evt_sample',
-    };
-    await expect(controller.createBillingDispute(
-      'evt_other',
-      { statementId: 'bill_1', amount: 500, reason: 'Incorrect charge', severity: 'amount_discrepancy', idempotencyKey: 'dispute-client-other-event' },
-      clientActor as never,
-    )).rejects.toThrow(ForbiddenException);
+  it('does not forward a client dispute on an event the client does not own', async () => {
+    const { controller, billingAdjustmentService } = createController();
+    const dispute = { statementId: 'bill_1', amount: 500, reason: 'Incorrect charge', severity: 'amount_discrepancy' as const, idempotencyKey: 'dispute-client-other-event' };
+    for (const eventId of [undefined, 'evt_sample']) {
+      const clientActor = {
+        id: 'client_1', actorId: 'client_1', actorRole: OpsUserRole.Client,
+        actorName: 'Event Client', actorEmail: 'client@example.test', expiresAt: '2026-10-04T12:00:00.000Z', eventId,
+      };
+      await expect(controller.createBillingDispute('evt_other', dispute, clientActor as never)).rejects.toThrow(ForbiddenException);
+      await expect(controller.createBillingDispute('evt_missing', dispute, clientActor as never)).rejects.toThrow('Event not found');
+    }
     expect(billingAdjustmentService.createBillingDispute).not.toHaveBeenCalled();
   });
 });

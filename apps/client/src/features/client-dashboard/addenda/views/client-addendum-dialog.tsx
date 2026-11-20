@@ -10,6 +10,7 @@ import { LoadingState } from "@prism/ui/components/loading-state";
 import { cn } from "@/app/components/ui/utils";
 import { addendumAmountLabel, addendumAwaitsClient, addendumConformeStatusLabel, addendumStatusLabel } from "../model/client-addenda-rules";
 import { useClientAddendaViewModel } from "../view-models/use-client-addenda-view-model";
+import { useClientWorkspace } from "../../workspace/shared";
 
 type AddendaVm = ReturnType<typeof useClientAddendaViewModel>;
 
@@ -68,7 +69,8 @@ function AddendumBody({ addendum, vm, onClose }: { addendum: PrismAddendum; vm: 
  * While it waits for the client, the dialog is where they read the full text and sign it.
  */
 export function ClientAddendumDialog({ eventId, addendumId, onClose }: { eventId: string; addendumId: string; onClose: () => void }) {
-  const vm = useClientAddendaViewModel(eventId);
+  const { refresh } = useClientWorkspace();
+  const vm = useClientAddendaViewModel(eventId, refresh);
   const addendum = vm.addenda.find((item) => item.id === addendumId);
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>

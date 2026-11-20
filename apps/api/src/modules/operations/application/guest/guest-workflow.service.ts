@@ -1,6 +1,7 @@
 import { Inject, Injectable, BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import type { OpsGuestCheckIn, OpsGuestFeedback, OpsGuestRosterEntry, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
+import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuditActionType, AuditCategory, CoordinatorAssignmentStatus, INACTIVE_COORDINATOR_ASSIGNMENT_STATUSES, OpsUserRole, WorkflowCommandService } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
@@ -83,6 +84,9 @@ function guestFeedbackAvailability(actualEndedAt: Date | null): PrismGuestFeedba
   return Date.now() > actualEndedAt.getTime() + GUEST_FEEDBACK_WINDOW_MS ? 'closed' : 'open';
 }
 
+/** Statuses in which an event takes no guest check-ins: cancelled, or paused until a new date is set. */
+const GUEST_CHECK_IN_CLOSED_STATUSES: ReadonlySet<string> = new Set(['cancelled', 'date_to_be_confirmed', 'postponed']);
+
 @Injectable()
 export class GuestWorkflowService implements GuestCommands {
   constructor(
@@ -106,15 +110,22 @@ export class GuestWorkflowService implements GuestCommands {
     return { objectId: stored.id, kind };
   }
 
+  /**
+   * The guest's event dashboard. An archived event stays readable while its seven-day feedback window is open, so a
+   * guest can still find it and leave feedback; check-in and every other write stay refused on it.
+   */
   async getEventByAccessCode(accessCode: string) {
-    return this.resolveGuestEventByAccessCode(accessCode);
+    const event = await this.resolveGuestEventByAccessCode(accessCode, true);
+    if (event.archived && guestFeedbackAvailability(event.actualEndedAt) !== 'open') throw new NotFoundException('Guest event code was not found');
+    return event;
   }
 
   async getEventWatermarkByAccessCode(accessCode: string): Promise<PrismGuestEventWatermark> {
     const normalizedCode = this.normalizeGuestAccessCode(accessCode);
-    const events = await this.eventProjections.listGuestAccessCandidates(false);
+    const events = await this.eventProjections.listGuestAccessCandidates(true);
     const event = events.find((item) => this.guestAccessCode(item) === normalizedCode);
-    if (!event) throw new NotFoundException('Guest event code was not found');
+    // The same events the dashboard serves: archived ones only while their feedback window is open.
+    if (!event || (event.archived && guestFeedbackAvailability(event.actualEndedAt) !== 'open')) throw new NotFoundException('Guest event code was not found');
 
     return { watermark: this.guestEventWatermark(event.updatedAt), feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt) };
   }
@@ -375,10 +386,7 @@ export class GuestWorkflowService implements GuestCommands {
       },
       validateStateInTransaction: async (context) => {
         if (!event) throw new NotFoundException('Guest event code was not found');
-        const currentEvent = await this.eventReferences.findOperationsEvent(event.id, context);
-        if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
-        const checkInEvent = await this.eventReferences.findGuestCheckInEventReference(event.id, context);
-        if (!checkInEvent) throw new NotFoundException('Guest event was not found or archived');
+        const { currentEvent, checkInEvent } = await this.requireOpenCheckInEvent(event.id, context);
 
         if (input.checkInMode === 'name_search') {
           const rosterDelegate = context.prisma.opsGuestRosterEntry;
@@ -417,12 +425,7 @@ export class GuestWorkflowService implements GuestCommands {
 
         if (requiresStaffReview) return { accepted: true };
 
-        if (matchedRoster) {
-          const existingRosterCheckIn = await db.opsGuestCheckIn.findFirst({
-            where: { eventId: event.id, rosterEntryId: matchedRoster.id, status: 'checked_in' },
-          });
-          if (existingRosterCheckIn) return { accepted: true };
-        }
+        if (await this.alreadyArrived(db, event.id, matchedRoster?.id ?? null, walkIn ? resolvedGuestName : null)) return { accepted: true };
 
         if (ambiguousNameMatch || requiresNewCl1Review) {
           return queueReview(db, event.id);
@@ -542,9 +545,38 @@ export class GuestWorkflowService implements GuestCommands {
     return this.mapGuestFeedbackReceipt(feedback);
   }
 
+  /**
+   * The event a guest checks in to, open for check-in: found, not archived, not cancelled or waiting for a new date, and
+   * not ended. A late arrival after PMCM records the end is the registration desk's to record, not the guest's own.
+   */
+  private async requireOpenCheckInEvent(eventId: string, context: PrismTransactionContext) {
+    const currentEvent = await this.eventReferences.findOperationsEvent(eventId, context);
+    if (!currentEvent || currentEvent.archived) throw new NotFoundException('Guest event was not found or archived');
+    if (GUEST_CHECK_IN_CLOSED_STATUSES.has(currentEvent.status)) throw new BadRequestException('Check-in is not open for this event');
+    if (currentEvent.actualEndedAt && currentEvent.actualEndedAt.getTime() <= Date.now()) throw new BadRequestException('This event has ended, so check-in is closed');
+    const checkInEvent = await this.eventReferences.findGuestCheckInEventReference(eventId, context);
+    if (!checkInEvent) throw new NotFoundException('Guest event was not found or archived');
+    return { currentEvent, checkInEvent };
+  }
+
+  /**
+   * Whether this arrival is already recorded: the roster guest's check-in, or a walk-in who checks in again by the same
+   * name (a reload, a second tap), which is the same arrival, not another.
+   */
+  private async alreadyArrived(db: Prisma.TransactionClient | PrismaService, eventId: string, rosterEntryId: string | null, walkInName: string | null) {
+    if (rosterEntryId) {
+      return Boolean(await db.opsGuestCheckIn.findFirst({ where: { eventId, rosterEntryId, status: 'checked_in' } }));
+    }
+    if (!walkInName) return false;
+    return Boolean(await db.opsGuestCheckIn.findFirst({
+      where: { eventId, rosterEntryId: null, walkIn: true, status: 'checked_in', guestName: { equals: walkInName, mode: 'insensitive' } },
+    }));
+  }
+
   async importRoster(eventId: string, input: ImportGuestRosterInput, actor: { id?: string; name: string; role: string }) {
-    if (input.source.trim().toLowerCase() === GUEST_WALK_IN_ROSTER_SOURCE) {
-      throw new BadRequestException('Coordinator walk-in is a reserved roster source');
+    // Sources the system stamps on its own rows are reserved: an import under one would replace (withdraw) those rows.
+    if (GUEST_VERIFICATION_REQUIRED_ROSTER_SOURCES.includes(input.source.trim().toLowerCase())) {
+      throw new BadRequestException(`${input.source.trim()} is a reserved roster source`);
     }
     const batchId = `roster_${randomUUID()}`;
       return this.prisma.$transaction(async (tx) => {
@@ -625,6 +657,10 @@ export class GuestWorkflowService implements GuestCommands {
       if (!roster) throw new NotFoundException('Roster entry not found');
       if (roster.checkedInAt && input.status !== roster.verificationStatus) {
         throw new BadRequestException('Guest verification cannot change after check-in');
+      }
+      // A flagged walk-in waits for PMCM: the desk that flagged it cannot clear it and check the guest in itself.
+      if (roster.verificationFlaggedAt && input.status === 'verified' && actor.role === OpsUserRole.Coordinator) {
+        throw new ForbiddenException('PMCM verifies a flagged walk-in before check-in');
       }
       const cleared = input.status === 'verified' ? { verificationFlaggedAt: null, verificationFlaggedBy: null } : {};
       const updated = await tx.opsGuestRosterEntry.update({ where: { id: rosterEntryId }, data: { verificationStatus: input.status, ...cleared } });

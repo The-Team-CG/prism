@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { OpsSupplier, OpsSupplierCategory, OpsSupplierQuote, OpsSupplierQuoteRequest, Prisma } from '@prisma/client';
 import { PrismaService } from '@prism/kernel/database';
 import { PRISM_PORTAL_URLS, type PrismPortalUrls } from '@prism/kernel/shared';
@@ -10,11 +10,12 @@ import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, writeNotific
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import type { ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import {
-  QUOTE_ACCESS_TOKEN_TTL_DAYS,
   isQuoteAccessTokenUsable,
+  isQuoteDeadlinePassed,
   isSupplierQuoteLocked,
   isSupplierQuoteRequestClosed,
   manilaCalendarDate,
+  quoteAccessTokenExpiresAt,
   quoteDeadlineInstant,
   resolveExpiredQuoteRequestStatus,
 } from '../../domain/supplier-quote-request.policy';
@@ -245,10 +246,11 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
               category: category!.name,
               dueDate,
               accessToken: token,
-              accessTokenExpiresAt: new Date(Date.now() + QUOTE_ACCESS_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000),
+              accessTokenExpiresAt: quoteAccessTokenExpiresAt(new Date(), dueDate),
               confidentialBid: Boolean(input.confidentialBid),
               message: input.confidentialBid
-                ? `${event!.eventName} quote request with client details hidden until selection.`
+                // Event names often carry the client's name, so a confidential bid names only the category.
+                ? `${category!.name} quote request with event and client details hidden until selection.`
                 : `${event!.clientName} / ${event!.eventName} quote request.`,
               status: SupplierQuoteRequestStatus.Open,
               roundId: round.id,
@@ -308,6 +310,15 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
     return requests.map(mapSupplierQuoteRequest);
   }
 
+  /** The event a PMCM-entered quote belongs to, and the quote request it answers when it names one, on that event. */
+  private async requireQuoteTarget(eventId: string, requestId: string | undefined) {
+    const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
+    if (!event) throw new NotFoundException('Event not found');
+    if (requestId && !(await this.prisma.opsSupplierQuoteRequest.findFirst({ where: { id: requestId, eventId }, select: { id: true } }))) {
+      throw new NotFoundException('Quote request not found for this event');
+    }
+  }
+
   async addSupplierQuote(eventId: string, input: AddSupplierQuoteInput, actor: ResolvedEventOpsActor) {
     const verifiedActor = requireVerifiedCommercialActor(actor);
     let supplierName: string | undefined;
@@ -322,8 +333,7 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
       name: 'add_supplier_quote',
       eventId,
       validateState: async () => {
-        const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId } });
-        if (!event) throw new NotFoundException('Event not found');
+        await this.requireQuoteTarget(eventId, input.requestId);
 
         directorySupplier = await this.quoteSupplierResolver.resolveQuoteSupplier(input);
 
@@ -482,11 +492,13 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             });
           }
 
+          // Only this category's other open requests close; a quote without a category id is matched by its category name.
           await tx.opsSupplierQuoteRequest.updateMany({
             where: {
               eventId,
-              ...(quote!.categoryId ? { categoryId: quote!.categoryId } : {}),
+              ...(quote!.categoryId ? { categoryId: quote!.categoryId } : { category: quote!.category }),
               ...(quote!.requestId ? { id: { not: quote!.requestId } } : {}),
+              status: { notIn: [SupplierQuoteRequestStatus.Selected, SupplierQuoteRequestStatus.Closed, SupplierQuoteRequestStatus.Expired] },
             },
             data: { status: SupplierQuoteRequestStatus.Closed },
           });
@@ -621,6 +633,9 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
 
         quote = await this.prisma.opsSupplierQuote.findFirst({ where: { requestId: request.id } });
         effectiveMode = assertQuoteSaveAllowed(requestedMode, quote, input);
+        if (effectiveMode === 'revise' && isQuoteDeadlinePassed(request.dueDate)) {
+          throw new BadRequestException('The quote deadline has passed, so this quote can no longer be revised.');
+        }
         category = request.categoryId
           ? await this.prisma.opsSupplierCategory.findUnique({ where: { id: request.categoryId } })
           : null;
@@ -669,6 +684,20 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
             return saved;
           }
 
+          // Two first submissions can both pass validateState before either quote exists. Claiming the request here
+          // lets only one create the quote: the other replays it when it sent the same quote, and is refused otherwise.
+          const claimed = await tx.opsSupplierQuoteRequest.updateMany({
+            where: { id: activeRequest.id, status: activeRequest.status },
+            data: { status: SupplierQuoteRequestStatus.Submitted },
+          });
+          if (claimed.count === 0) {
+            const winner = await tx.opsSupplierQuote.findFirst({ where: { requestId: activeRequest.id } });
+            if (winner && isIdenticalQuoteResend('submit', winner, input)) {
+              effectiveMode = 'replay';
+              return winner;
+            }
+            throw new ConflictException('A quote was already sent for this request. Refresh to see it, then revise it if needed.');
+          }
           const saved = await tx.opsSupplierQuote.create({
             data: {
               id: `quote_${randomUUID()}`,
@@ -688,10 +717,6 @@ export class CommercialWorkflowService implements CommercialWorkflowCommands {
               status: SupplierQuoteStatus.Received,
               revisionNumber: 1,
             },
-          });
-          await tx.opsSupplierQuoteRequest.update({
-            where: { id: activeRequest.id },
-            data: { status: SupplierQuoteRequestStatus.Submitted },
           });
           return saved;
         });

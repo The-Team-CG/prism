@@ -5,12 +5,15 @@ import { useCallback, useEffect, useRef } from "react";
 export const BACKGROUND_REFRESH_INTERVAL_MS = 30_000;
 const MAX_RETRY_DELAY_MS = 120_000;
 
+/** `intervalMs` is how often to refresh while enabled; a live screen that must follow someone else's actions sets it shorter. */
 export function useBackgroundRefresh({
   enabled,
   refresh,
+  intervalMs = BACKGROUND_REFRESH_INTERVAL_MS,
 }: {
   enabled: boolean;
   refresh: () => Promise<boolean | void>;
+  intervalMs?: number;
 }) {
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
@@ -50,7 +53,7 @@ export function useBackgroundRefresh({
     const schedule = () => {
       if (disposed || isDocumentHidden()) return;
       clearTimer();
-      const delay = Math.min(BACKGROUND_REFRESH_INTERVAL_MS * 2 ** failures, MAX_RETRY_DELAY_MS);
+      const delay = Math.min(intervalMs * 2 ** failures, MAX_RETRY_DELAY_MS);
       timer = window.setTimeout(() => { void poll(); }, delay);
     };
     const poll = async (): Promise<boolean> => {
@@ -84,7 +87,7 @@ export function useBackgroundRefresh({
     };
 
     triggerRef.current = poll;
-    timer = window.setTimeout(() => { void poll(); }, BACKGROUND_REFRESH_INTERVAL_MS);
+    timer = window.setTimeout(() => { void poll(); }, intervalMs);
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("focus", onVisibilityChange);
     return () => {
@@ -94,7 +97,7 @@ export function useBackgroundRefresh({
       window.removeEventListener("focus", onVisibilityChange);
       triggerRef.current = runRefresh;
     };
-  }, [enabled, runRefresh]);
+  }, [enabled, intervalMs, runRefresh]);
 
   return useCallback(() => triggerRef.current(), []);
 }

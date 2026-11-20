@@ -5,15 +5,18 @@ export type ClientArchiveEntry = { objectId: string; name: string; folder: strin
 
 /** Names inside a ZIP must be unique; a repeated name in the same folder gets " (2)", " (3)" before its extension. */
 export function uniqueArchivePaths(entries: ClientArchiveEntry[]): string[] {
-  const used = new Map<string, number>();
+  // Every path handed out is remembered, so a renamed copy never lands on a file that already has that name.
+  const taken = new Set<string>();
   return entries.map(({ name, folder }) => {
     const safe = name.replace(/[\\/:*?"<>|]/g, "-");
-    const base = `${folder}/${safe}`.toLowerCase();
-    const count = (used.get(base) ?? 0) + 1;
-    used.set(base, count);
-    if (count === 1) return `${folder}/${safe}`;
     const dot = safe.lastIndexOf(".");
-    return dot > 0 ? `${folder}/${safe.slice(0, dot)} (${count})${safe.slice(dot)}` : `${folder}/${safe} (${count})`;
+    const candidate = (count: number) => count === 1 ? `${folder}/${safe}`
+      : dot > 0 ? `${folder}/${safe.slice(0, dot)} (${count})${safe.slice(dot)}` : `${folder}/${safe} (${count})`;
+    let count = 1;
+    while (taken.has(candidate(count).toLowerCase())) count += 1;
+    const path = candidate(count);
+    taken.add(path.toLowerCase());
+    return path;
   });
 }
 

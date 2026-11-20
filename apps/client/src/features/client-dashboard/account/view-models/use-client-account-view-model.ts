@@ -11,6 +11,7 @@ import { useClientWorkspace } from "../../workspace/shared";
 import { clientOwnPrivacyRequestsResource } from "../../privacy/data/client-privacy-repository";
 import { clientAccountRepository, clientCurrentUserResource, clientOwnSessionsResource, clientOwnSignInsResource } from "../data/client-account-repository";
 import { clientPmcmContact } from "../model/client-pmcm-contact";
+import { portalHref } from "@prism/ui/portal-path";
 
 const OPEN = new Set(["submitted", "approved"]);
 
@@ -23,7 +24,7 @@ export function useClientAccountViewModel() {
   const actions: AccountActions = {
     saveName: accountChange(clientAccountRepository.updateName, () => invalidate(clientCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
-    changePassword: accountChange(clientAccountRepository.changePassword, async () => { await signOutClientSession(); window.location.assign("/sign-in"); }),
+    changePassword: accountChange(clientAccountRepository.changePassword, async () => { await signOutClientSession(); window.location.assign(portalHref("/sign-in")); }),
     changeEmail: {
       request: accountChange(clientAccountRepository.requestEmailChange, () => invalidate(clientCurrentUserResource)),
       cancel: accountChange(clientAccountRepository.cancelEmailChange, () => invalidate(clientCurrentUserResource)),

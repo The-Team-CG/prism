@@ -8,7 +8,7 @@ import { useClientChangeRequestsViewModel } from "./use-client-change-requests-v
 
 // Each test gets its own portal cache, as each signed-in session does.
 const wrapper = ({ children }: { children: ReactNode }) => createElement(PortalQueryProvider, { actorKey: "client@example.test", children });
-const render = () => renderHook(() => useClientChangeRequestsViewModel("evt_1"), { wrapper });
+const render = (onChanged?: () => unknown) => renderHook(() => useClientChangeRequestsViewModel("evt_1", onChanged), { wrapper });
 
 const { list, submitScopeChange, withdrawScopeChange } = vi.hoisted(() => ({
   list: vi.fn(),
@@ -31,7 +31,7 @@ afterEach(() => {
 describe("useClientChangeRequestsViewModel", () => {
   it("loads the client-safe change requests for the event", async () => {
     const requests: PrismClientChangeRequest[] = [
-      { id: "freeze_ex_1", source: "freeze_exception", requestedChange: "Add stage lighting", category: null, status: "approved", clientResponse: null, updatedAt: "2026-10-12T00:00:00.000Z" },
+      { id: "freeze_ex_1", source: "freeze_exception", requestedChange: "Add stage lighting", category: null, status: "approved", clientResponse: null, updatedAt: "2026-10-12T00:00:00.000Z", withdrawable: false },
     ];
     list.mockResolvedValue(requests);
 
@@ -55,7 +55,8 @@ describe("useClientChangeRequestsViewModel", () => {
   it("refuses an incomplete scope change before calling the API, and submits a complete one then refreshes", async () => {
     list.mockResolvedValue([]);
     submitScopeChange.mockResolvedValue({ id: "scope_change_1" });
-    const { result } = render();
+    const onChanged = vi.fn();
+    const { result } = render(onChanged);
     await waitFor(() => expect(result.current.status).toBe("ready"));
 
     let saved = true;
@@ -63,10 +64,13 @@ describe("useClientChangeRequestsViewModel", () => {
     expect(saved).toBe(false);
     expect(result.current.error).toBeTruthy();
     expect(submitScopeChange).not.toHaveBeenCalled();
+    expect(onChanged).not.toHaveBeenCalled();
 
     await act(async () => { saved = await result.current.submitScopeChange({ title: "Add a sunset slot", description: "Move the cocktail hour", category: "schedule" }); });
     expect(saved).toBe(true);
     expect(submitScopeChange).toHaveBeenCalledWith("evt_1", { title: "Add a sunset slot", description: "Move the cocktail hour", category: "schedule" });
     expect(list).toHaveBeenCalledTimes(2);
+    // The client's action list elsewhere on the page is refreshed too, so the new request shows there at once.
+    expect(onChanged).toHaveBeenCalledTimes(1);
   });
 });

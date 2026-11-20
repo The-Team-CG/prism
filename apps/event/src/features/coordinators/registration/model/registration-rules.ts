@@ -1,7 +1,8 @@
 import type { PrismCoordinatorRegistrationEntry } from "@prism/types";
 
+/** The desk verifies a guest it has not checked in; a walk-in it flagged waits for PMCM instead. */
 export function canVerifyRegistrationEntry(entry: PrismCoordinatorRegistrationEntry): boolean {
-  return !entry.checkedInAt && entry.verificationStatus !== "verified";
+  return !entry.checkedInAt && entry.verificationStatus !== "verified" && !entry.verificationFlaggedAt;
 }
 
 export function canRejectRegistrationEntry(entry: PrismCoordinatorRegistrationEntry): boolean {

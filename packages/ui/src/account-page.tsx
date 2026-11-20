@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { portalHref } from "./portal-path";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 import type { PrismOwnSession, PrismOwnSignIn, PrismPendingEmailChange } from "@prism/types";
 import { Button } from "./components/ui/button";
@@ -96,7 +97,8 @@ function Row({ label, value, onOpen, href, action }: { label: string; value: str
   );
   const rowClass = "flex min-h-12 w-full items-center gap-3 px-4 py-2.5 text-left";
   if (onOpen) return <li><button type="button" onClick={onOpen} aria-haspopup="dialog" aria-label={name} className={cn(rowClass, "hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring")}>{body}</button></li>;
-  if (href) return <li><a href={href} aria-label={name} className={cn(rowClass, "hover:bg-muted/40")}>{body}</a></li>;
+  // Plain anchors skip Next's basePath, so the portal's hosting prefix (/event, /supplier) is added here.
+  if (href) return <li><a href={portalHref(href)} aria-label={name} className={cn(rowClass, "hover:bg-muted/40")}>{body}</a></li>;
   return <li className={rowClass}>{body}</li>;
 }
 
@@ -170,7 +172,7 @@ function HelpGroup({ contact, privacy, links }: { contact: AccountContact | null
     <Group title="Help and privacy">
       {contact ? (
         <Row label="Your PMCM contact" value={`${contact.name} · ${contact.detail}`}
-          action={<a href={contact.href} className="shrink-0 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted">Message</a>} />
+          action={<a href={portalHref(contact.href)} className="shrink-0 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-semibold text-foreground hover:bg-muted">Message</a>} />
       ) : null}
       {privacy ? <Row label="Privacy" value={privacyValue(privacy)} href={privacy.href} /> : null}
       {links.map((link) => <Row key={link.href} label={link.title} value={link.description} href={link.href} />)}

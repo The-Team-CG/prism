@@ -67,6 +67,17 @@ async function writeBillingImpact(prisma: CommercialPrisma, billing: BillingSour
   };
 }
 
+/**
+ * An addendum may lower a supplier's agreed amount only down to what PMCM has already scheduled to pay them: the
+ * schedule is what PMCM releases, so it must not promise more than the quote now agrees.
+ */
+async function assertQuoteCoversScheduledPayouts(prisma: CommercialPrisma, quoteId: string, targetAmount: number) {
+  const scheduled = (await prisma.opsSupplierPayableMilestone.aggregate({ where: { quoteId, status: { not: 'cancelled' } }, _sum: { amount: true } }))._sum.amount ?? 0;
+  if (targetAmount < scheduled) {
+    throw new BadRequestException(`The supplier already has ₱${scheduled.toLocaleString('en-PH')} in scheduled payouts for this quote. Cancel or reduce those payouts before lowering it to ₱${targetAmount.toLocaleString('en-PH')}.`);
+  }
+}
+
 async function writeQuoteImpact(prisma: CommercialPrisma, quote: SupplierQuoteRow, targetAmount: number): Promise<CommercialAddendumImpact> {
   const updated = await prisma.opsSupplierQuote.update({ where: { id: quote.id }, data: { amount: targetAmount } });
   return {
@@ -100,6 +111,7 @@ export class CommercialAddendumImpactService implements CommercialAddendumImpact
         where: { id: change.quoteId, eventId: input.eventId, status: 'selected' },
       });
       if (!quote || quote.amount === change.amount) continue;
+      await assertQuoteCoversScheduledPayouts(prisma, quote.id, change.amount);
       quotes.push({ quoteId: quote.id, baselineAmount: quote.amount, targetAmount: change.amount });
     }
 
@@ -111,6 +123,9 @@ export class CommercialAddendumImpactService implements CommercialAddendumImpact
     // Verify every baseline before the first write, so a stale plan changes nothing even outside a rolled-back transaction.
     const billing = await verifiedBillingSource(prisma, input.eventId, input.plan.billing);
     const quotes = await verifiedSelectedQuotes(prisma, input.eventId, input.plan.quotes);
+    // Payouts scheduled since the preview are caught here, still before anything is written.
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: bounded by one addendum's quote changes.
+    for (const { quote, targetAmount } of quotes) await assertQuoteCoversScheduledPayouts(prisma, quote.id, targetAmount);
 
     const impacts: CommercialAddendumImpact[] = [];
     if (billing) impacts.push(await writeBillingImpact(prisma, billing, input));

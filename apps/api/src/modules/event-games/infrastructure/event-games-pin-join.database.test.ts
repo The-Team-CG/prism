@@ -128,4 +128,19 @@ databaseSuite('event game PIN join PostgreSQL invariants', () => {
     expect(credentialRows[0]?.count).toBe(1n);
     expect(grantRows[0]?.count).toBe(1n);
   });
+
+  it('lets a guest join with the PIN while the host has paused the game', async () => {
+    await prisma.$executeRaw`UPDATE "event_games"."game_sessions" SET "status" = 'paused', "paused_at" = NOW() WHERE "id" = ${sessionId}`;
+    const service = new EventGamesSessionJoinService(
+      { getPublicEventScope: async (id: string) => ({ eventId: id, eventName: 'P0 test', archived: false, closed: false }), isEventOpen: async (id: string) => id === eventId } as never,
+      new EventGamesPinPrismaStoreAdapter(),
+      new PrismTransactionRunner(prisma),
+      { consume: async () => ({ allowed: true }) },
+      { get: (key: string) => key === 'PRISM_SESSION_SECRET' ? sessionSecret : 'test' } as never,
+      () => new Date(),
+    );
+
+    await expect(service.joinActiveMultiplayerSession({ idempotencyKey: randomUUID(), pin }, undefined, '127.0.0.1'))
+      .resolves.toMatchObject({ sessionId, status: 'paused' });
+  });
 });

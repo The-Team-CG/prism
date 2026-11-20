@@ -11,9 +11,11 @@ describe("clientChangeRequestStatusLabel", () => {
 });
 
 describe("canWithdrawClientChangeRequest", () => {
-  it("offers withdrawal only for an open scope change, never for a freeze exception", () => {
-    expect(canWithdrawClientChangeRequest({ source: "scope_change", status: "under_review" })).toBe(true);
-    expect(canWithdrawClientChangeRequest({ source: "scope_change", status: "approved" })).toBe(false);
-    expect(canWithdrawClientChangeRequest({ source: "freeze_exception", status: "under_review" })).toBe(false);
+  it("offers withdrawal only for a scope change PMCM has not picked up, never for a freeze exception", () => {
+    expect(canWithdrawClientChangeRequest({ source: "scope_change", status: "under_review", withdrawable: true })).toBe(true);
+    // PMCM has started reviewing it: still "under review" to the client, but the API no longer accepts a withdrawal.
+    expect(canWithdrawClientChangeRequest({ source: "scope_change", status: "under_review", withdrawable: false })).toBe(false);
+    expect(canWithdrawClientChangeRequest({ source: "scope_change", status: "approved", withdrawable: false })).toBe(false);
+    expect(canWithdrawClientChangeRequest({ source: "freeze_exception", status: "under_review", withdrawable: false })).toBe(false);
   });
 });

@@ -96,7 +96,7 @@ function UnscheduledBookings({ bookings, agreed }: { bookings: SupplierBooking[]
       id="payments-unscheduled"
       title="Waiting for a payment schedule"
       count={bookings.length}
-      description="PMCM has not set due dates for these bookings yet. Each gets its own card with its payments once it does."
+      description="PMCM has not scheduled these agreed amounts yet. Each gets its payments on its booking card once it does."
       action={<p className="text-right text-xs text-muted-foreground"><span className="block text-base font-semibold tabular-nums text-foreground">{formatPeso(agreed)}</span>agreed in total</p>}
       flush
     >
@@ -107,7 +107,9 @@ function UnscheduledBookings({ bookings, agreed }: { bookings: SupplierBooking[]
               <p className="truncate text-sm font-semibold text-foreground">{booking.eventName}</p>
               <p className="text-xs text-muted-foreground">{[booking.category, booking.terms ? `Your terms: ${booking.terms}` : null].filter(Boolean).join(" · ")}</p>
             </div>
-            <p className="text-sm font-semibold tabular-nums text-foreground">{booking.contract !== null ? formatPeso(booking.contract) : "Amount to be confirmed"}</p>
+            <p className="text-sm font-semibold tabular-nums text-foreground">
+              {booking.contract === null ? "Amount to be confirmed" : booking.payables.length === 0 ? formatPeso(booking.contract) : `${formatPeso(booking.unscheduled)} of ${formatPeso(booking.contract)} not scheduled`}
+            </p>
           </li>
         ))}
       </ul>
