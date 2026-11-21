@@ -196,19 +196,20 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
 }
 
 /** Inside an event the shell names it twice: the sidebar switch on wider screens, the top-bar switch on a phone. */
-function clientEventChrome({ inEventWorkspace, selectedEvent, events, onSwitch, onAllEvents }: {
+function clientEventChrome({ inEventWorkspace, selectedEvent, events, onSwitch, onAllEvents, onHome }: {
   inEventWorkspace: boolean;
   selectedEvent?: PrismEvent;
   events: PrismEvent[];
   onSwitch: (eventId: string) => void;
   onAllEvents: () => void;
+  onHome: () => void;
 }) {
   if (!inEventWorkspace) return { mobileBar: CLIENT_PORTAL_MOBILE_BAR };
   if (!selectedEvent) return { mobileBar: CLIENT_EVENT_MOBILE_BAR };
   const switcher = { events: events.filter((event) => !event.archived), selected: selectedEvent, onSwitch, onAllEvents };
   return {
     mobileBar: CLIENT_EVENT_MOBILE_BAR,
-    mobileTitle: <ClientPhoneEventSwitcher {...switcher} />,
+    mobileTitle: <ClientPhoneEventSwitcher {...switcher} onHome={onHome} />,
     sidebarContext: <ClientEventSwitcher {...switcher} />,
   };
 }
@@ -642,6 +643,7 @@ export function ClientDashboardWorkspaceView({
           events,
           onSwitch: (eventId) => navigateToEventRoute(route, eventId),
           onAllEvents: () => router.push("/dashboard/events"),
+          onHome: () => router.push("/dashboard"),
         })}
         accountMenuItems={CLIENT_ACCOUNT_MENU_ITEMS}
         onSignOut={signOut}

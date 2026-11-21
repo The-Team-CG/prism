@@ -93,8 +93,9 @@ function NavLinkRow({ item, activeId, onSelect }: NavRowProps) {
 }
 
 /**
- * Class changes when a portal opts into the phone bar: the menu button and search give way to the tabs and the phone
- * top bar, the page heading tightens, the content clears the tab bar, and desktop's top bar actions give way to the phone's.
+ * Class changes when a portal opts into the phone bar: the menu button gives way to the tabs and the phone top bar, search
+ * becomes a top-bar icon, the page heading tightens, the content clears the tab bar, and desktop's top bar actions give
+ * way to the phone's.
  */
 function phoneLayout(tabs: boolean) {
   return {
@@ -104,7 +105,8 @@ function phoneLayout(tabs: boolean) {
     heading: tabs ? "text-xl md:text-2xl" : "text-2xl",
     description: tabs ? "hidden md:block" : undefined,
     content: tabs ? "pt-4 pb-28 md:pt-6 md:pb-6" : undefined,
-    search: tabs ? "hidden md:flex" : "flex",
+    // On a phone the search stays, as one more round icon before the top bar's own icons.
+    searchButton: tabs ? "max-sm:size-11 max-sm:rounded-full max-sm:border-0 max-sm:bg-transparent max-sm:text-foreground max-sm:hover:bg-muted max-sm:[&>svg]:size-5" : undefined,
     headerActions: (alwaysShow: boolean) => (alwaysShow && !tabs ? "flex" : "hidden md:flex"),
   };
 }
@@ -122,7 +124,7 @@ function PhoneTopBar({ bar, title, fallback, actions, activeId, onSelect, user, 
   return (
     <>
       <div className="min-w-0 flex-1 md:hidden">{title ?? <p className="truncate text-sm font-semibold text-foreground">{fallback}</p>}</div>
-      <div className="-mr-2 flex shrink-0 items-center md:hidden">
+      <div className="-mr-2 order-last flex shrink-0 items-center md:hidden">
         {actions}
         <PhoneHeaderIcons items={bar.header} activeId={activeId} onSelect={onSelect} />
         {user ? <PhoneAccountMenu user={user} items={accountMenuItems} onSignOut={onSignOut} /> : null}
@@ -258,6 +260,7 @@ function PageSearch({
   placeholder,
   onOpen,
   onSelect,
+  buttonClassName,
 }: {
   navItems: PrismNavItem[];
   actions: NonNullable<PrismAppShellProps["commandActions"]>;
@@ -268,6 +271,7 @@ function PageSearch({
   placeholder: string;
   onOpen?: () => void;
   onSelect: (id: string) => void;
+  buttonClassName?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -304,7 +308,7 @@ function PageSearch({
         type="button"
         onClick={() => setOpen(true)}
         aria-label={placeholder}
-        className="flex size-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background text-sm text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground sm:h-9 sm:w-full sm:max-w-72 sm:justify-start sm:px-3"
+        className={cn("flex size-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background text-sm text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground sm:h-9 sm:w-full sm:max-w-72 sm:justify-start sm:px-3", buttonClassName)}
       >
         <Search aria-hidden="true" className="size-4" />
         <span className="hidden flex-1 truncate text-left sm:block">{placeholder}</span>
@@ -459,7 +463,7 @@ export function PrismPortalShell({
             <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2">
               <SpotifyMusicControl />
               {showTopBarSearch ? (
-                <div className={phone.search}><PageSearch
+                <div className="flex"><PageSearch
                   navItems={navItems}
                   actions={commandActions}
                   actionsLabel={commandSectionLabel}
@@ -469,6 +473,7 @@ export function PrismPortalShell({
                   placeholder={searchPlaceholder}
                   onOpen={onCommandPaletteOpen}
                   onSelect={select}
+                  buttonClassName={phone.searchButton}
                 /></div>
               ) : null}
               {headerActions ? <div className={cn("shrink-0 items-center gap-2", phone.headerActions(alwaysShowHeaderActions))}>{headerActions}</div> : null}

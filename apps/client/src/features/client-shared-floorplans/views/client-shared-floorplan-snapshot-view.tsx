@@ -131,7 +131,8 @@ function SnapshotFrame({
   onNavigate: (href: string) => void;
   children: ReactNode;
 }) {
-  const navItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({ ...item, href: clientSidebarLinkHref(item.id) }));
+  // Only pages this frame can open: an event-owned page has no link outside its event, and a dead row helps no one.
+  const navItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({ ...item, href: clientSidebarLinkHref(item.id) })).filter((item) => item.href);
   return (
     <PrismDashboardShell
       portal="client"

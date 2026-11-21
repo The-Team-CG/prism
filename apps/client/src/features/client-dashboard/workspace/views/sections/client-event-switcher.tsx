@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronsUpDown, Home } from "lucide-react";
 import type { PrismEvent } from "@prism/types";
 import {
   DropdownMenu,
@@ -72,17 +72,19 @@ export function ClientEventSwitcher({
   );
 }
 
-/** The open event in the phone top bar: tapping it switches events or goes back to all of them. */
+/** The open event in the phone top bar: tapping it switches events, or goes back to all of them or to Home. */
 export function ClientPhoneEventSwitcher({
   events,
   selected,
   onSwitch,
   onAllEvents,
+  onHome,
 }: {
   events: SwitcherEvent[];
   selected: SwitcherEvent;
   onSwitch: (eventId: string) => void;
   onAllEvents: () => void;
+  onHome: () => void;
 }) {
   const ordered = [...events].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
   return (
@@ -106,6 +108,10 @@ export function ClientPhoneEventSwitcher({
         <DropdownMenuItem className="min-h-11" onSelect={onAllEvents}>
           <ArrowLeft aria-hidden="true" className="size-4" />
           All events
+        </DropdownMenuItem>
+        <DropdownMenuItem className="min-h-11" onSelect={onHome}>
+          <Home aria-hidden="true" className="size-4" />
+          Home
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

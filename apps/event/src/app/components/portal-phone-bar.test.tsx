@@ -62,12 +62,14 @@ describe("phone tab bar from the shared shell", () => {
     expect(screen.queryByRole("dialog", { name: "More" })).toBeNull();
   });
 
-  it("shows top-bar icons with their counts in the name, and the account menu behind the avatar", () => {
-    renderShell({ tabs: ["today"], header: ["messages", "notifications"] });
+  it("names tabs and top-bar icons with their counts, and keeps search and the account menu in the top bar", () => {
+    const { bar } = renderShell({ tabs: ["today", "payments"], header: ["messages", "notifications"] });
 
+    expect(within(bar).getByRole("link", { name: "Payments, 1 new payment" }).getAttribute("href")).toBe("/dashboard/payments");
     const topBar = within(document.querySelector("header")!);
     expect(topBar.getByRole("link", { name: "Messages, 3 unread messages" }).getAttribute("href")).toBe("/dashboard/messages");
     expect(topBar.getByRole("link", { name: "Notifications" })).toBeTruthy();
+    expect(topBar.getByRole("button", { name: /search/i })).toBeTruthy();
     expect(topBar.getByRole("button", { name: "Your account" })).toBeTruthy();
   });
 

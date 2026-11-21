@@ -42,14 +42,17 @@ function Destination({ item, current, onSelect, className, children, ...rest }: 
 function MobileTab({ item, activeId, onSelect }: { item: PrismNavItem; activeId: string; onSelect: Select }) {
   // A tab can stand for several pages; it lights up on any of them, listed as its subItems.
   const current = isItemActive(item, activeId);
+  const label = item.shortLabel ?? item.label;
+  // The count is part of the tab's name, so a screen reader says "Requests, 2 quotes to submit", not just "Requests".
+  const count = hasBadge(item.badge) ? item.badgeLabel ?? String(item.badge) : undefined;
   return (
     <li className="min-w-0">
-      <Destination item={item} current={current} onSelect={onSelect} data-nav-covers={item.subItems?.map((sub) => sub.id).join(" ")} className={cn(TAB_CLASS, current ? "text-primary" : "text-muted-foreground")}>
+      <Destination item={item} current={current} onSelect={onSelect} aria-label={count ? `${label}, ${count}` : undefined} data-nav-covers={item.subItems?.map((sub) => sub.id).join(" ")} className={cn(TAB_CLASS, current ? "text-primary" : "text-muted-foreground")}>
         <span className="relative">
           <item.icon aria-hidden="true" className="size-5" />
-          {hasBadge(item.badge) ? <span aria-label={item.badgeLabel} className={COUNT_CLASS}>{item.badge}</span> : null}
+          {count ? <span aria-hidden="true" className={COUNT_CLASS}>{item.badge}</span> : null}
         </span>
-        <span className="truncate">{item.shortLabel ?? item.label}</span>
+        <span className="truncate">{label}</span>
       </Destination>
     </li>
   );
