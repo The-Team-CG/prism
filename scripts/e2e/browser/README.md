@@ -55,7 +55,9 @@ Each group discovers its portal's `page.tsx` routes and expands dynamic views fr
 
 Each sweep signs in real fixture actors and prepares the data needed by its portal: a new event/client, approved official layout, supplier invitation, or guest game session. It checks rendered main content, dashboard authentication, uncaught browser errors and failed API loads. Missing-link and unavailable-session states are separate cases; the lifecycle journeys exercise valid activation and conforme links. Passing route coverage establishes that pages render and load their initial data, not that every action or workflow state works.
 
-On the mobile project, each signed-in dashboard route also checks that every current sidebar destination appears in the bottom tabs, phone header or More sheet. It records horizontal overflow (`document.documentElement.scrollWidth > window.innerWidth`) by page in the coverage report and console summary for follow-up; overflow does not fail the route sweep.
+On the mobile project, each signed-in dashboard route also checks that every current sidebar destination appears in the bottom tabs, phone header or More sheet. The mobile and tablet projects record horizontal overflow (`document.documentElement.scrollWidth > document.documentElement.clientWidth`; mobile emulation zooms out to fit wide pages, so `window.innerWidth` grows with them and cannot show overflow) by page in the coverage report and console summary for follow-up; overflow does not fail the route sweep, except on the client calendar and PMCM client dossiers, which must fit a phone.
+
+The `tablet` project (iPad Mini, 768px, Chromium) runs only the route sweep. 768px is the narrowest width that keeps the sidebar, so it leaves pages the least room. It is not part of the CI matrix; run it on demand: `npm run test:browser -- --project=tablet --grep "all registered pages"`.
 
 The coordinator's one `/dashboard` route is checked separately across its supported `?view=` pages using the seeded Marco actor, since the shared PMCM route sweep signs in as PMCM. The mobile coordinator test uses the same navigation reachability and overflow reporting.
 

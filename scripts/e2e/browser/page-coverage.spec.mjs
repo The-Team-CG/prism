@@ -1,11 +1,13 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test, expect, devices } from '@playwright/test';
-import { api, origins, password, persona, freshEvent, privacyIfNeeded, fillStable } from './helpers.mjs';
+import { api, origins, password, persona, freshEvent, privacyIfNeeded, fillStable, fitsViewport, pageWidths } from './helpers.mjs';
 import { pageCoverageCases } from './page-coverage-cases.mjs';
 import { assertPageCoverageComplete, pageCoverageApps } from './page-coverage-report.mjs';
-import { phoneNavigationGaps, phoneOverflowReport } from './phone-coverage.mjs';
+import { phoneNavigationGaps, phoneOverflowReport, phoneViewport } from './phone-coverage.mjs';
 import { selectClientRecords } from '../../../apps/event/src/features/event-dashboard/shell/model/event-dashboard-selectors.ts';
+
+const PROJECT_DEVICES = { desktop: 'Desktop Chrome', mobile: 'Pixel 7', tablet: 'iPad Mini' };
 
 /** BROWSER_SCREENSHOTS=1 keeps a full-page screenshot of every route in the private run directory. */
 async function screenshot(page, project, app, path, failed, order) {
@@ -48,6 +50,7 @@ async function assertPhoneNavigation(page, app, path) {
     await expect(sheet).toBeVisible();
     moreIds = await sheet.locator('[data-nav-id]').evaluateAll(elements => elements.map(element => element.getAttribute('data-nav-id')));
     if (process.env.BROWSER_SCREENSHOTS === '1' && path === '/dashboard') {
+      await sheet.evaluate(element => Promise.all(element.getAnimations().map(animation => animation.finished)));
       const directory = join(process.env.BROWSER_RUN_DIRECTORY, 'screenshots', 'mobile', app);
       mkdirSync(directory, { recursive: true });
       await page.screenshot({ path: join(directory, 'phone-more-sheet.png') });
@@ -85,7 +88,7 @@ async function pageFixture(app) {
 
 for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, async ({ browser }, info) => {
   test.setTimeout(15 * 60_000);
-  const device = info.project.name === 'mobile' ? devices['Pixel 7'] : devices['Desktop Chrome'];
+  const device = devices[PROJECT_DEVICES[info.project.name]];
   const records = [];
   const failures = [];
   const phoneChecks = [];
@@ -105,11 +108,8 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
   const actor = app === 'supplier' || app === 'event' ? await persona(browser, app === 'event' ? 'pmcm' : app, device) : { context: await browser.newContext(device) };
   const page = actor.page ?? await actor.context.newPage();
   try {
-    if (info.project.name === 'mobile' && process.env.BROWSER_PHONE_WIDTH) {
-      const width = Number(process.env.BROWSER_PHONE_WIDTH);
-      if (!Number.isInteger(width) || width < 320 || width >= 768) throw new Error('BROWSER_PHONE_WIDTH must be an integer from 320 to 767.');
-      await page.setViewportSize({ width, height: 844 });
-    }
+    const phoneWidth = info.project.name === 'mobile' ? phoneViewport(process.env.BROWSER_PHONE_WIDTH) : null;
+    if (phoneWidth) await page.setViewportSize(phoneWidth);
     if (app === 'client') {
       await page.goto(`${origins.client}/sign-in`);
       await fillStable(page.getByLabel('Email address'), fixture.email);
@@ -155,10 +155,18 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
         if (item.path.startsWith('/dashboard') && /could not load your|unable to load (the|your)|failed to load (the|your)|sign in again to continue/i.test(text)) throw new Error('Page displayed a data-loading failure');
         if (item.path.startsWith('/dashboard') && !new URL(page.url()).pathname.startsWith('/dashboard')) throw new Error('Signed-in page unexpectedly redirected out of its portal');
         if (errors.length || badResponses.length) throw new Error(JSON.stringify({ errors, badResponses }));
-        if (info.project.name === 'mobile' && app !== 'guest' && item.path.startsWith('/dashboard')) {
-          const dimensions = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, viewportWidth: window.innerWidth }));
-          const overflow = phoneOverflowReport(item.path, dimensions.scrollWidth, dimensions.viewportWidth);
+        if (info.project.name === 'mobile' && ((app === 'client' && item.path.startsWith('/dashboard/calendar')) || (app === 'event' && item.path.startsWith('/dashboard/clients/')))) {
+          expect(await fitsViewport(page), 'Calendar and client dossiers must fit the phone without zooming out or sideways page scrolling').toBe(true);
+        }
+        const signedIn = app !== 'guest' && item.path.startsWith('/dashboard');
+        let overflow = null;
+        if (info.project.name !== 'desktop' && signedIn) {
+          // Phones and the narrowest sidebar width record sideways scrolling for follow-up rather than failing on it.
+          const dimensions = await pageWidths(page);
+          overflow = phoneOverflowReport(redact(item.path), dimensions.scrollWidth, dimensions.viewportWidth, dimensions.culprits);
           if (overflow) overflowPages.push(overflow);
+        }
+        if (info.project.name === 'mobile' && signedIn) {
           const navigation = await assertPhoneNavigation(page, app, item.path);
           phoneChecks.push({ path: redact(item.path), navigation: !navigation.applicable ? 'not-applicable' : navigation.missingDestinations.length ? 'failed' : 'passed', missingDestinations: navigation.missingDestinations, overflow: overflow ? { scrollWidth: overflow.scrollWidth, viewportWidth: overflow.viewportWidth, pixels: overflow.overflow } : null });
           if (navigation.missingDestinations.length) throw new Error(`Phone navigation cannot reach sidebar destinations: ${navigation.missingDestinations.join(', ')}`);
@@ -226,10 +234,10 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
   }
   saveReport();
   await info.attach('page coverage', { path: report, contentType: 'application/json' });
-  if (info.project.name === 'mobile' && app !== 'guest') {
+  if (info.project.name !== 'desktop' && app !== 'guest') {
     console.log(overflowPages.length
-      ? `Phone horizontal overflow (${overflowPages.length} pages): ${overflowPages.map(item => `${item.path} (${item.scrollWidth}px > ${item.viewportWidth}px)`).join('; ')}`
-      : 'Phone horizontal overflow: none');
+      ? `${info.project.name} horizontal overflow (${overflowPages.length} pages): ${overflowPages.map(item => `${item.path} (${item.scrollWidth}px > ${item.viewportWidth}px${item.culprits[0] ? `, widest: ${item.culprits[0]}` : ""})`).join('; ')}`
+      : `${info.project.name} horizontal overflow: none`);
   }
   expect(failures, 'Every registered route must render; inspect the attached coverage report').toEqual([]);
 });
@@ -243,28 +251,25 @@ test('coordinator phone route coverage', async ({ browser }, info) => {
   const overflowPages = [];
   const page = actor.page;
   try {
-    if (process.env.BROWSER_PHONE_WIDTH) {
-      const width = Number(process.env.BROWSER_PHONE_WIDTH);
-      if (!Number.isInteger(width) || width < 320 || width >= 768) throw new Error('BROWSER_PHONE_WIDTH must be an integer from 320 to 767.');
-      await page.setViewportSize({ width, height: 844 });
-    }
+    const phoneWidth = phoneViewport(process.env.BROWSER_PHONE_WIDTH);
+    if (phoneWidth) await page.setViewportSize(phoneWidth);
     for (const view of views) {
       const path = `/dashboard?view=${view}&event=evt_uat_live_261024`;
       await page.goto(`${origins.event}${path}`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('main')).toBeVisible();
       await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
       expect(new URL(page.url()).pathname).toBe('/dashboard');
-      const dimensions = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, viewportWidth: window.innerWidth }));
-      const overflow = phoneOverflowReport(path, dimensions.scrollWidth, dimensions.viewportWidth);
+      const dimensions = await pageWidths(page);
+      const overflow = phoneOverflowReport(path, dimensions.scrollWidth, dimensions.viewportWidth, dimensions.culprits);
       if (overflow) overflowPages.push(overflow);
       const navigation = await assertPhoneNavigation(page, 'coordinator', view === 'shift' ? '/dashboard' : path);
       checks.push({ view, navigation: !navigation.applicable ? 'not-applicable' : navigation.missingDestinations.length ? 'failed' : 'passed', missingDestinations: navigation.missingDestinations, overflow: overflow ? { scrollWidth: overflow.scrollWidth, viewportWidth: overflow.viewportWidth, pixels: overflow.overflow } : null });
       expect(navigation.missingDestinations, `Coordinator ${view} sidebar destinations must be reachable on a phone`).toEqual([]);
     }
     console.log(overflowPages.length
-      ? `Coordinator phone horizontal overflow (${overflowPages.length} pages): ${overflowPages.map(item => `${item.path} (${item.scrollWidth}px > ${item.viewportWidth}px)`).join('; ')}`
+      ? `Coordinator phone horizontal overflow (${overflowPages.length} pages): ${overflowPages.map(item => `${item.path} (${item.scrollWidth}px > ${item.viewportWidth}px${item.culprits[0] ? `, widest: ${item.culprits[0]}` : ""})`).join('; ')}`
       : 'Coordinator phone horizontal overflow: none');
-    await info.attach('coordinator phone coverage', { body: JSON.stringify({ width: Number(process.env.BROWSER_PHONE_WIDTH ?? devices['Pixel 7'].viewport.width), checks, overflowPages }, null, 2), contentType: 'application/json' });
+    await info.attach('coordinator phone coverage', { body: JSON.stringify({ width: (phoneWidth ?? devices['Pixel 7'].viewport).width, checks, overflowPages }, null, 2), contentType: 'application/json' });
   } finally {
     await actor.context.close();
   }

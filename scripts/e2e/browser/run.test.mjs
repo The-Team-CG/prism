@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assertBrowserDatabase, browserEnvironment, restoredNextFile } from './run.mjs';
 import { assertPageCoverageComplete, validatedPageCoverageCases } from './page-coverage-report.mjs';
-import { phoneNavigationGaps, phoneOverflowReport } from './phone-coverage.mjs';
+import { phoneNavigationGaps, phoneOverflowReport, phoneViewport } from './phone-coverage.mjs';
 import { browserTimings } from './timings.mjs';
 import { browserExecution, browserJobMatrix, browserTimingScope, portalEnvironment } from './execution.mjs';
 
@@ -89,8 +89,11 @@ test('phone route checks require every sidebar destination and capture sideways 
   assert.deepEqual(phoneNavigationGaps(['home', 'calendar', 'files', 'files'], ['home', 'calendar']), ['files']);
   assert.equal(phoneOverflowReport('/dashboard', 390, 390), null);
   assert.deepEqual(phoneOverflowReport('/dashboard/events', 412, 390), {
-    path: '/dashboard/events', scrollWidth: 412, viewportWidth: 390, overflow: 22,
+    path: '/dashboard/events', scrollWidth: 412, viewportWidth: 390, overflow: 22, culprits: [],
   });
+  assert.equal(phoneViewport(undefined), null);
+  assert.deepEqual(phoneViewport('390'), { width: 390, height: 844 });
+  for (const width of ['319', '768', '390.5', 'wide']) assert.throws(() => phoneViewport(width), /from 320 to 767/);
 });
 
 test('phase timing records success and failure while preserving results and keeping exception details private', async () => {

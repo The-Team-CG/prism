@@ -127,3 +127,31 @@ export async function persona(browser, role, device = {}) {
   }
   return { context, page };
 }
+
+/**
+ * The page's width against the phone or tablet it is shown on. Mobile emulation zooms out to fit wide content, which
+ * stretches window.innerWidth along with it, so the device width is the root element's clientWidth.
+ */
+export async function pageWidths(page) {
+  return page.evaluate(() => {
+    const scrollWidth = document.documentElement.scrollWidth;
+    const viewportWidth = document.documentElement.clientWidth;
+    if (scrollWidth <= viewportWidth + 1) return { scrollWidth, viewportWidth, culprits: [] };
+    // What pushes the page wide: elements that end past both the screen and their parent's right edge.
+    const culprits = [];
+    for (const element of document.body.querySelectorAll('*')) {
+      const right = element.getBoundingClientRect().right;
+      const parent = element.parentElement?.getBoundingClientRect().right ?? viewportWidth;
+      if (right <= viewportWidth + 1 || right <= parent + 1 || getComputedStyle(element).position === 'fixed') continue;
+      const classes = typeof element.className === 'string' ? element.className.trim().split(/\s+/).slice(0, 6).join('.') : '';
+      culprits.push(`${element.tagName.toLowerCase()}${classes ? `.${classes}` : ''} → ${Math.round(right)}px "${(element.textContent ?? '').trim().slice(0, 40)}"`);
+      if (culprits.length === 5) break;
+    }
+    return { scrollWidth, viewportWidth, culprits };
+  });
+}
+
+export async function fitsViewport(page) {
+  const { scrollWidth, viewportWidth, culprits } = await pageWidths(page);
+  return scrollWidth <= viewportWidth + 1 ? true : culprits;
+}

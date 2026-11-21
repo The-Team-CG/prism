@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
-import { api, origins, persona } from './helpers.mjs';
+import { api, origins, persona, fitsViewport } from './helpers.mjs';
 import { CLIENT_DOSSIER_VIEWS, EVENT_WORKSPACE_ROUTE_TABS, SECTION_ROUTE_ITEMS } from '../../../apps/event/src/features/event-dashboard/shell/model/event-dashboard-routing.ts';
 import { selectClientRecords } from '../../../apps/event/src/features/event-dashboard/shell/model/event-dashboard-selectors.ts';
 
@@ -95,7 +95,7 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
           await expect(categories.nth(1)).toHaveAttribute('aria-pressed', 'true');
           await categories.first().click();
         }
-        if (info.project.name === 'mobile') expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+        if (info.project.name === 'mobile') expect(await fitsViewport(page)).toBe(true);
         await capture('calendar-filters.png');
         await page.keyboard.press('Escape');
         await page.getByRole('button', { name: 'Manila time', exact: true }).click();
@@ -130,13 +130,13 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
           await expect(agenda).toBeHidden();
           await expect(page.locator(`[role="gridcell"][data-date="${selectedDate}"]`)).toBeVisible();
           await capture('calendar-day-time-grid.png');
-          if (info.project.name === 'mobile') expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+          if (info.project.name === 'mobile') expect(await fitsViewport(page)).toBe(true);
           await page.getByRole('button', { name: 'Agenda', exact: true }).click();
           await expect(agenda).toBeVisible();
         }
         await page.getByRole('button', { name: 'Calendar view: Day', exact: true }).click();
         await page.getByRole('menuitem', { name: new RegExp(`^${openingView}`) }).click();
-        if (info.project.name === 'mobile') expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+        if (info.project.name === 'mobile') expect(await fitsViewport(page)).toBe(true);
       }
       const name = path.replace(/^\//, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '') || 'home';
       await capture(`${String(index + 1).padStart(2, '0')}-${name}.png`);

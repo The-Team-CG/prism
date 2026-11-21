@@ -7,5 +7,10 @@ export default defineConfig({
   outputDir: join(process.env.BROWSER_RUN_DIRECTORY, 'results'),
   reporter: [['list'], ['html', { outputFolder: join(process.env.BROWSER_RUN_DIRECTORY, 'report'), open: 'never' }]],
   use: { trace: 'retain-on-failure', screenshot: 'only-on-failure', actionTimeout: 15_000 },
-  projects: [{ name: 'desktop', use: { ...devices['Desktop Chrome'] } }, { name: 'mobile', use: { ...devices['Pixel 7'] } }],
+  projects: [
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    // 768px is the narrowest width that keeps the sidebar, so it leaves pages the least room. Route coverage only, on demand.
+    { name: 'tablet', testMatch: 'page-coverage.spec.mjs', use: { ...devices['iPad Mini'], defaultBrowserType: 'chromium' } },
+  ],
 });
