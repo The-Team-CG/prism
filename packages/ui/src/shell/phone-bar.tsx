@@ -23,16 +23,17 @@ function Destination({ item, current, onSelect, className, children, ...rest }: 
   className: string;
   children: React.ReactNode;
   "aria-label"?: string;
+  "data-nav-covers"?: string;
 }) {
   if (item.href && !item.disabled) {
     return (
-      <a href={portalHref(item.href)} aria-current={current ? "page" : undefined} className={className} onClick={(event) => navLinkClick(event, () => onSelect(item.id))} {...rest}>
+      <a data-nav-id={item.id} href={portalHref(item.href)} aria-current={current ? "page" : undefined} className={className} onClick={(event) => navLinkClick(event, () => onSelect(item.id))} {...rest}>
         {children}
       </a>
     );
   }
   return (
-    <button type="button" disabled={item.disabled} aria-current={current ? "page" : undefined} className={className} onClick={() => onSelect(item.id)} {...rest}>
+    <button data-nav-id={item.id} type="button" disabled={item.disabled} aria-current={current ? "page" : undefined} className={className} onClick={() => onSelect(item.id)} {...rest}>
       {children}
     </button>
   );
@@ -43,7 +44,7 @@ function MobileTab({ item, activeId, onSelect }: { item: PrismNavItem; activeId:
   const current = isItemActive(item, activeId);
   return (
     <li className="min-w-0">
-      <Destination item={item} current={current} onSelect={onSelect} className={cn(TAB_CLASS, current ? "text-primary" : "text-muted-foreground")}>
+      <Destination item={item} current={current} onSelect={onSelect} data-nav-covers={item.subItems?.map((sub) => sub.id).join(" ")} className={cn(TAB_CLASS, current ? "text-primary" : "text-muted-foreground")}>
         <span className="relative">
           <item.icon aria-hidden="true" className="size-5" />
           {hasBadge(item.badge) ? <span aria-label={item.badgeLabel} className={COUNT_CLASS}>{item.badge}</span> : null}

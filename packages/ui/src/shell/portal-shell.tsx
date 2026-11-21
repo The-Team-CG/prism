@@ -84,7 +84,7 @@ function NavLinkRow({ item, activeId, onSelect }: NavRowProps) {
   const current = item.id === activeId;
   return (
     <SidebarMenuButton asChild className={NAV_ROW_ACTIVE_CLASS} isActive={current} tooltip={item.label}>
-      <a href={portalHref(item.href ?? "")} aria-current={current ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(item.id))}>
+      <a data-nav-id={item.id} href={portalHref(item.href ?? "")} aria-current={current ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(item.id))}>
         <item.icon aria-hidden="true" />
         <span>{item.label}</span>
       </a>
@@ -136,6 +136,7 @@ function NavButtonRow({ item, activeId, onSelect, open, setOpen }: NavRowProps &
   const hasSub = Boolean(item.subItems?.length);
   return (
     <SidebarMenuButton
+      data-nav-id={item.id}
       className={NAV_ROW_ACTIVE_CLASS}
       isActive={item.id === activeId || (isItemActive(item, activeId) && !open)}
       tooltip={item.label}
@@ -186,12 +187,12 @@ function NavSubItems({ items, activeId, onSelect }: { items: NonNullable<PrismNa
         <SidebarMenuSubItem key={sub.id}>
           <SidebarMenuSubButton asChild isActive={sub.id === activeId}>
             {sub.href && !sub.disabled ? (
-              <a href={portalHref(sub.href)} aria-current={sub.id === activeId ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(sub.id))} className="w-full">
+              <a data-nav-id={sub.id} href={portalHref(sub.href)} aria-current={sub.id === activeId ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(sub.id))} className="w-full">
                 <span>{sub.label}</span>
                 {hasBadge(sub.badge) ? <span className="ml-auto tabular-nums text-muted-foreground">{sub.badge}</span> : null}
               </a>
             ) : (
-              <button type="button" disabled={sub.disabled} onClick={() => onSelect(sub.id)} className="w-full">
+              <button data-nav-id={sub.id} type="button" disabled={sub.disabled} onClick={() => onSelect(sub.id)} className="w-full">
                 <span>{sub.label}</span>
                 {hasBadge(sub.badge) ? <span className="ml-auto tabular-nums text-muted-foreground">{sub.badge}</span> : null}
               </button>

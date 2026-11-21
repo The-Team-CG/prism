@@ -55,6 +55,12 @@ Each group discovers its portal's `page.tsx` routes and expands dynamic views fr
 
 Each sweep signs in real fixture actors and prepares the data needed by its portal: a new event/client, approved official layout, supplier invitation, or guest game session. It checks rendered main content, dashboard authentication, uncaught browser errors and failed API loads. Missing-link and unavailable-session states are separate cases; the lifecycle journeys exercise valid activation and conforme links. Passing route coverage establishes that pages render and load their initial data, not that every action or workflow state works.
 
+On the mobile project, each signed-in dashboard route also checks that every current sidebar destination appears in the bottom tabs, phone header or More sheet. It records horizontal overflow (`document.documentElement.scrollWidth > window.innerWidth`) by page in the coverage report and console summary for follow-up; overflow does not fail the route sweep.
+
+The coordinator's one `/dashboard` route is checked separately across its supported `?view=` pages using the seeded Marco actor, since the shared PMCM route sweep signs in as PMCM. The mobile coordinator test uses the same navigation reachability and overflow reporting.
+
+To inspect route screenshots at a narrower phone width, set `BROWSER_PHONE_WIDTH` to an integer from 320 to 767. For example, PowerShell: `$env:BROWSER_PHONE_WIDTH='390'; $env:BROWSER_SCREENSHOTS='1'; npm run test:browser -- --project=mobile --grep "all registered pages"`.
+
 The supplier directory check creates 26 synthetic suppliers and verifies the 25-row boundary, distinct next-page records, return to the previous page, search resetting the page, and the 50-row option. This validates that directory's controls; it does not establish that other lists are paginated.
 
 Each group writes `page-coverage-<viewport>-<portal>.json` into the private run directory after each route. Reports contain page paths and results with supplier invitation tokens redacted. Completed reports are attached to the Playwright test; partial reports remain available after a setup or route failure.

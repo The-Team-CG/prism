@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assertBrowserDatabase, browserEnvironment, restoredNextFile } from './run.mjs';
 import { assertPageCoverageComplete, validatedPageCoverageCases } from './page-coverage-report.mjs';
+import { phoneNavigationGaps, phoneOverflowReport } from './phone-coverage.mjs';
 import { browserTimings } from './timings.mjs';
 import { browserExecution, browserJobMatrix, browserTimingScope, portalEnvironment } from './execution.mjs';
 
@@ -81,6 +82,15 @@ test('completed page coverage requires a passing record for each expected route'
   assert.doesNotThrow(() => assertPageCoverageComplete(cases, records));
   assert.throws(() => assertPageCoverageComplete(cases, records.slice(0, 2)), /did not pass 1 expected routes/);
   assert.throws(() => assertPageCoverageComplete(cases, [records[0], { ...records[1], result: 'failed' }, records[2]]), /did not pass 1 expected routes/);
+});
+
+test('phone route checks require every sidebar destination and capture sideways overflow for reporting', () => {
+  assert.deepEqual(phoneNavigationGaps(['home', 'calendar', 'files'], ['home', 'calendar', 'messages', 'files']), []);
+  assert.deepEqual(phoneNavigationGaps(['home', 'calendar', 'files', 'files'], ['home', 'calendar']), ['files']);
+  assert.equal(phoneOverflowReport('/dashboard', 390, 390), null);
+  assert.deepEqual(phoneOverflowReport('/dashboard/events', 412, 390), {
+    path: '/dashboard/events', scrollWidth: 412, viewportWidth: 390, overflow: 22,
+  });
 });
 
 test('phase timing records success and failure while preserving results and keeping exception details private', async () => {
