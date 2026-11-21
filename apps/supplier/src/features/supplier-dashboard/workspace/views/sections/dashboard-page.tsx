@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Archive, ArrowRight, CalendarCheck, CalendarClock, ClipboardCheck, FileSignature, Radio, ReceiptText, Send, Truck, type LucideIcon } from "lucide-react";
+import { Archive, ArrowRight, CalendarCheck, RefreshCcw, CalendarClock, ClipboardCheck, FileSignature, Radio, ReceiptText, Send, Truck, type LucideIcon } from "lucide-react";
 import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
 import type { PrismSupplierQuote, PrismSupplierReadinessItem, PrismSupplierReadinessBoard } from "@prism/types";
 import { quoteDeadlineUrgency, readinessConcernLabel } from "../../model/supplier-workspace-rules";
@@ -99,12 +99,32 @@ function TodayLead({ item, hasQuote, count = 1 }: { item: PrismSupplierReadiness
   );
 }
 
-export function DashboardPage({ readinessBoard, quoteByRequest }: {
+/**
+ * Refresh on the page, as PMCM's Inbox and the coordinator's Now have it. A phone's top bar keeps to search, messages
+ * and notifications; from a tablet up the top bar has its own Refresh, so this one is the phone's.
+ */
+function TodayRefresh({ refreshing, onRefresh, className }: { refreshing: boolean; onRefresh: () => void; className?: string }) {
+  return (
+    <Button type="button" variant="ghost" size="sm" disabled={refreshing} onClick={onRefresh} className={className}>
+      <RefreshCcw aria-hidden="true" className={refreshing ? "animate-spin" : undefined} />
+      {refreshing ? "Refreshing…" : "Refresh"}
+    </Button>
+  );
+}
+
+export function DashboardPage({ readinessBoard, quoteByRequest, refreshing, onRefresh }: {
   readinessBoard: PrismSupplierReadinessBoard | null;
   quoteByRequest: Map<string, PrismSupplierQuote>;
+  refreshing: boolean;
+  onRefresh: () => void;
 }) {
   if (!readinessBoard) {
-    return <p role="status" className="text-sm text-muted-foreground">We could not load your work. Use Refresh above to try again.</p>;
+    return (
+      <div role="status" className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+        <p>We could not load your work.</p>
+        <TodayRefresh refreshing={refreshing} onRefresh={onRefresh} />
+      </div>
+    );
   }
   const hasQuote = (item: PrismSupplierReadinessItem) => quoteByRequest.has(item.requestId);
   const steps = splitSupplierNextSteps(readinessBoard.items, hasQuote);
@@ -115,7 +135,10 @@ export function DashboardPage({ readinessBoard, quoteByRequest }: {
     <PrismPageColumn>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-base text-muted-foreground">{supplierTodaySummary(steps.yourTurn.length, steps.waiting.length)}</p>
-        <p className="text-xs text-muted-foreground">Updated {formatPortalDateTime(readinessBoard.generatedAt)}</p>
+        <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          Updated {formatPortalDateTime(readinessBoard.generatedAt)}
+          <TodayRefresh refreshing={refreshing} onRefresh={onRefresh} className="-my-1 md:hidden" />
+        </p>
       </div>
       {lead ? <TodayLead item={lead} hasQuote={hasQuote(lead)} count={leadGroup.items.length} /> : null}
       {leadGroup && leadGroup.items.length > 1 ? (

@@ -52,6 +52,7 @@ export type SupplierWorkspaceSectionProps = {
   readinessNotes: Record<string, string>;
   statusNotes: Record<string, string>;
   onNavigate: (section: SupplierDashboardSection) => void;
+  onRefresh: () => void;
   onUpdateForm: (id: string, patch: Partial<QuoteFormState>) => void;
   onSubmitQuote: (ev: FormEvent<HTMLFormElement>, req: PrismSupplierQuoteRequest) => void;
   onReadinessNoteChange: (id: string, v: string) => void;
@@ -74,6 +75,8 @@ const SECTION_RENDERERS: Record<SupplierDashboardSection, SectionRenderer> = {
     <DashboardPage
       readinessBoard={p.readinessBoard}
       quoteByRequest={p.quoteByRequest}
+      refreshing={p.busy === "refresh"}
+      onRefresh={p.onRefresh}
     />
   ),
   requests: (p) => (

@@ -7,11 +7,8 @@ import {
   QrCode,
   Landmark,
   Database,
-  CalendarClock,
-  CalendarDays,
   CircleUserRound,
   Contact,
-  FileCheck2,
   FileSignature,
   Gamepad2,
   FileText,
@@ -20,14 +17,13 @@ import {
   MapPinned,
   MessageSquareText,
   Radio,
-  ReceiptText,
   Settings,
   ShieldCheck,
-  Tags,
   Truck,
   UsersRound,
 } from "lucide-react";
-import { type PrismMobileBar, type PrismNavItem } from "@prism/ui";
+import type { PrismMobileBar, PrismNavItem } from "@prism/ui";
+import { PRISM_NAV_ICONS } from "@prism/ui/nav-icons";
 import { isBeforePrismEventDay, type PrismLifecycleStage } from "@prism/types";
 import { optionalNavBadge } from "../model/event-dashboard-nav-copy";
 
@@ -75,11 +71,11 @@ function eventWorkspaceNavItems(
   const preEvent = !stage || isBeforePrismEventDay(stage);
   return [
     { id: "event-overview", icon: LayoutGrid, label: "Overview", section: PREPARE },
-    { id: "event-planning", icon: FileCheck2, label: "Planning & decisions", shortLabel: "Planning", section: PREPARE },
+    { id: "event-planning", icon: PRISM_NAV_ICONS.Planning, label: "Planning & decisions", shortLabel: "Planning", section: PREPARE },
     { id: "event-floorplans", icon: MapPinned, label: "Floorplans", section: PREPARE, badge: optionalNavBadge(counts.draftCount) },
     { id: "event-suppliers", icon: Truck, label: "Suppliers", section: PREPARE, badge: optionalNavBadge(counts.quoteCount) },
     { id: "event-staff", icon: UsersRound, label: "Team & roles", section: PREPARE, badge: optionalNavBadge(counts.assignmentCount) },
-    { id: "event-budget", icon: ReceiptText, label: "Billing", section: PREPARE, badge: optionalNavBadge(counts.paymentCount) },
+    { id: "event-budget", icon: PRISM_NAV_ICONS.Billing, label: "Billing", section: PREPARE, badge: optionalNavBadge(counts.paymentCount) },
     { id: "event-files", icon: FileText, label: "Files", section: PREPARE },
     { id: "event-messages", icon: MessageSquareText, label: "Messages", section: PREPARE, ...unreadNavBadge(counts.unreadMessages) },
     { id: "event-games", icon: Gamepad2, label: "Registration & games", section: EVENT_DAY },
@@ -130,7 +126,7 @@ export function eventPortalNavItems({
     return [
       ...eventWorkspaceNavItems(eventStage, { assignmentCount, quoteCount, draftCount, paymentCount, closeoutCount, unreadMessages })
         .filter((item) => item.id !== "event-floorplans" || !disabledModules.includes("floorplans")),
-      { id: "events-list", icon: CalendarDays, label: "All events", section: "Back to" },
+      { id: "events-list", icon: PRISM_NAV_ICONS["All events"], label: "All events", section: "Back to" },
       { ...inbox, section: "Back to" },
     ];
   }
@@ -138,10 +134,10 @@ export function eventPortalNavItems({
     inbox,
     { id: "inquiries", icon: FileSignature, label: "Inquiries", section: "PMCM", badge: optionalNavBadge(inquiryCount) },
     { id: "clients", icon: CircleUserRound, label: "Clients", section: "PMCM" },
-    { id: "events-list", icon: CalendarDays, label: "Events", section: "PMCM" },
-    { id: "calendar", icon: CalendarClock, label: "Calendar", section: "PMCM" },
+    { id: "events-list", icon: PRISM_NAV_ICONS.Events, label: "Events", section: "PMCM" },
+    { id: "calendar", icon: PRISM_NAV_ICONS.Calendar, label: "Calendar", section: "PMCM" },
     { id: "notifications", icon: Bell, label: "Notifications", section: "PMCM", ...unreadNoticeBadge(unreadNotices) },
-    { id: "suppliers", icon: Tags, label: "Suppliers", section: "Network" },
+    { id: "suppliers", icon: PRISM_NAV_ICONS.Suppliers, label: "Suppliers", section: "Network" },
     { id: "team", icon: Contact, label: "Team", section: "Network" },
     { id: "finance", icon: Landmark, label: "Finance", section: "Finance", badge: optionalNavBadge(financeCount) },
     { id: "finance-receipts", icon: Banknote, label: "Receipts", section: "Finance" },

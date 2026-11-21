@@ -1,9 +1,10 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, Clock, ClipboardCheck, ClipboardList, Radio, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronLeft, Clock, ClipboardCheck, Radio, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 import type { PrismMobileBar, PrismShellNavItem as PrismNavItem } from "@prism/ui";
+import { PRISM_NAV_ICONS } from "@prism/ui/nav-icons";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@prism/ui/components/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import { formatPortalDate } from "@prism/ui/format-date";
@@ -32,7 +33,7 @@ export function coordinatorMobileBar({ roleView, href, registrationRole, onRepor
   const tasks = roleView?.tasks.filter(isOpenTask).length ?? 0;
   const second: PrismNavItem = registrationRole
     ? { id: "registration", label: "Check-in", icon: ClipboardCheck, href: href("registration") }
-    : { id: "tasks", label: COORDINATOR_VIEW_LABELS.tasks, icon: ClipboardList, href: href("tasks"), badge: tasks || undefined, badgeLabel: `${tasks} open tasks` };
+    : { id: "tasks", label: COORDINATOR_VIEW_LABELS.tasks, icon: PRISM_NAV_ICONS.Tasks, href: href("tasks"), badge: tasks || undefined, badgeLabel: `${tasks} open tasks` };
   const nowCovers = registrationRole ? ["issues", "tasks"] : ["issues"];
   const now: PrismNavItem = { id: "shift", label: COORDINATOR_VIEW_LABELS.shift, icon: Clock, href: href("shift"), badge: issues || undefined, badgeLabel: `${issues} open issues`, subItems: nowCovers.map((id) => ({ id, label: id })) };
   return {

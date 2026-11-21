@@ -19,6 +19,7 @@ import {
 
 import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
 import type { PrismAccountMenuItem, PrismMobileBar } from "@prism/ui";
+import { PRISM_NAV_ICONS } from "@prism/ui/nav-icons";
 import type { PrismEvent } from "@prism/types";
 import { isPastClientEvent, orderClientEvents } from "../../home/model/client-home-summary";
 
@@ -35,7 +36,7 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
   {
     id: "my-events",
     label: "Events",
-    icon: CalendarDays,
+    icon: PRISM_NAV_ICONS.Events,
     section: "Client Portal",
     route: "events",
   },
@@ -122,7 +123,7 @@ export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
 const EVENT_NAV_ICONS: Record<string, LucideIcon> = {
   "event-overview": LayoutGrid,
   "event-progress": ClipboardList,
-  "event-briefing": FileText,
+  "event-briefing": PRISM_NAV_ICONS.Briefing,
   "event-guests": TicketCheck,
   "event-floorplan": MapPinned,
   "event-proposal": FileSignature,

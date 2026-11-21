@@ -110,6 +110,7 @@ function MoreSheet({ items, activeId, open, onOpenChange, onSelect }: { items: P
     onOpenChange(false);
     onSelect(id);
   };
+  const groups = groupNav(items);
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[85dvh] gap-0 overflow-y-auto rounded-t-2xl pb-[env(safe-area-inset-bottom)] md:hidden">
@@ -118,9 +119,10 @@ function MoreSheet({ items, activeId, open, onOpenChange, onSelect }: { items: P
           <SheetDescription className="sr-only">Every other page in this portal.</SheetDescription>
         </SheetHeader>
         <div className="grid gap-4 px-2 pb-4">
-          {groupNav(items).map((group) => (
+          {groups.map((group) => (
             <section key={group.label} aria-label={group.label} className="grid gap-1">
-              <h3 className="px-3 text-xs font-medium text-muted-foreground">{group.label}</h3>
+              {/* One group needs no heading: "More" already says what the list is. */}
+              {groups.length > 1 ? <h3 className="px-3 text-xs font-medium text-muted-foreground">{group.label}</h3> : null}
               <ul className="grid gap-0.5">
                 {group.items.map((item) => (
                   <React.Fragment key={item.id}>
