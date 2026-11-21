@@ -5,3 +5,4 @@ export * from "./dashboard-shell";
 export * from "./public-blocks";
 export * from "./public-shell";
 export * from "./utils";
+export { useIsMobile } from "./hooks/use-mobile";

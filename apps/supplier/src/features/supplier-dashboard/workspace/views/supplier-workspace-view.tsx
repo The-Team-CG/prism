@@ -7,7 +7,7 @@ import { useSupplierWorkspaceViewModel } from "../view-models/use-supplier-works
 import { useSupplierUnreadMessages } from "../view-models/use-supplier-unread-messages";
 import { useSupplierUnreadNotices } from "../../notifications/view-models/use-supplier-unread-notices";
 import { useNewPayouts } from "../view-models/use-new-payouts";
-import { supplierAccountMenuItems, supplierActiveNavId, supplierCommandActions, supplierMobileActions, supplierNavItems } from "../model/supplier-workspace-nav";
+import { SUPPLIER_MOBILE_BAR, supplierAccountMenuItems, supplierActiveNavId, supplierCommandActions, supplierNavItems } from "../model/supplier-workspace-nav";
 import type { SupplierDashboardSection } from "../model/supplier-workspace-types";
 import { SupplierWorkspaceBanners, SupplierWorkspaceLoading, SupplierWorkspaceSkeleton, SupplierWrongPortalView } from "./sections/supplier-workspace-states";
 import { SupplierWorkspaceSection } from "./sections/supplier-workspace-section";
@@ -71,8 +71,13 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
           </Button>
         </>
       }
-      mobileActions={supplierMobileActions(section, setSection, () => void vm.signOut())}
-      >
+      mobileBar={SUPPLIER_MOBILE_BAR}
+      mobileHeaderActions={
+        <button type="button" disabled={busy === "refresh"} onClick={() => void vm.refresh()} aria-label="Refresh" className="grid size-11 place-items-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
+          <RefreshCcw className="size-4" aria-hidden />
+        </button>
+      }
+    >
       {loading ? (
         <SupplierWorkspaceSkeleton />
       ) : (

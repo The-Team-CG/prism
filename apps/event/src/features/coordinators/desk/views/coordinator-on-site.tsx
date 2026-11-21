@@ -1,9 +1,9 @@
 "use client";
 
-import { Bell, CalendarDays, ChevronDown, ChevronLeft, Clock, ClipboardCheck, ClipboardList, ListOrdered, LogOut, MessageSquare, Radio, RefreshCw, UserRound, UsersRound } from "lucide-react";
+import { ChevronDown, ChevronLeft, Clock, ClipboardCheck, ClipboardList, Radio, RefreshCw } from "lucide-react";
 import type { ReactNode } from "react";
 import type { PrismCoordinatorRoleView } from "@prism/types";
-import type { PrismShellNavItem as PrismNavItem } from "@prism/ui";
+import type { PrismMobileBar, PrismShellNavItem as PrismNavItem } from "@prism/ui";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@prism/ui/components/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import { formatPortalDate } from "@prism/ui/format-date";
@@ -18,32 +18,28 @@ import { CoordinatorQuickReport } from "./sections/coordinator-quick-report";
 const EVENT_VIEWS: CoordinatorViewId[] = ["shift", "tasks", "issues", "run-sheet", "registration", "messages"];
 
 /**
- * The phone tab bar: Now, Tasks (Check-in for the registration coordinator), Run sheet and Messages, with Report
- * raised between them. Issues open from Now, which carries the open-issue count and lights up on the Issues page.
+ * The phone bar: Now, Tasks (Check-in for the registration coordinator) and Run sheet, with Report raised between
+ * them, and messages and notifications in the top bar. Issues open from Now, which carries the open-issue count and
+ * lights up on the Issues page. Calendar and assignments sit under More.
  */
-export function coordinatorMobileTabs({ roleView, href, registrationRole, unreadMessages }: {
+export function coordinatorMobileBar({ roleView, href, registrationRole, onReport }: {
   roleView: PrismCoordinatorRoleView | null;
   href: (view: CoordinatorViewId) => string;
   registrationRole: boolean;
-  unreadMessages?: number;
-}): PrismNavItem[] {
+  onReport: () => void;
+}): PrismMobileBar {
   const issues = roleView ? openIssues(roleView.urgentIssues).length : 0;
   const tasks = roleView?.tasks.filter(isOpenTask).length ?? 0;
   const second: PrismNavItem = registrationRole
     ? { id: "registration", label: "Check-in", icon: ClipboardCheck, href: href("registration") }
     : { id: "tasks", label: COORDINATOR_VIEW_LABELS.tasks, icon: ClipboardList, href: href("tasks"), badge: tasks || undefined, badgeLabel: `${tasks} open tasks` };
   const nowCovers = registrationRole ? ["issues", "tasks"] : ["issues"];
-  return [
-    { id: "shift", label: COORDINATOR_VIEW_LABELS.shift, icon: Clock, href: href("shift"), badge: issues || undefined, badgeLabel: `${issues} open issues`, subItems: nowCovers.map((id) => ({ id, label: id })) },
-    second,
-    { id: "run-sheet", label: COORDINATOR_VIEW_LABELS["run-sheet"], icon: ListOrdered, href: href("run-sheet") },
-    { id: "messages", label: COORDINATOR_VIEW_LABELS.messages, icon: MessageSquare, href: href("messages"), badge: unreadMessages || undefined, badgeLabel: `${unreadMessages ?? 0} unread messages` },
-  ];
-}
-
-/** Report, raised in the middle of the phone tab bar. */
-export function reportTabAction(onReport: () => void) {
-  return { label: "Report", ariaLabel: "Report an issue", icon: Radio, onSelect: onReport };
+  const now: PrismNavItem = { id: "shift", label: COORDINATOR_VIEW_LABELS.shift, icon: Clock, href: href("shift"), badge: issues || undefined, badgeLabel: `${issues} open issues`, subItems: nowCovers.map((id) => ({ id, label: id })) };
+  return {
+    tabs: [now, second, "run-sheet"],
+    action: { label: "Report", ariaLabel: "Report an issue", icon: Radio, onSelect: onReport },
+    header: ["messages", "notifications"],
+  };
 }
 
 /** The open event in the phone top bar; tapping it switches to another assigned event. */
@@ -79,7 +75,7 @@ function CoordinatorEventMenu({ cards, selectedEventId, onSelect, onAllAssignmen
 }
 
 /**
- * The phone top bar's title: the event switch on event pages; on a page opened from the account menu, a way back to
+ * The phone top bar's title: the event switch on event pages; on a page opened from More, a way back to
  * Now and that page's name.
  */
 export function CoordinatorPhoneTitle({ view, cards, selectedEventId, onSelectEvent, onNavigate }: {
@@ -96,39 +92,6 @@ export function CoordinatorPhoneTitle({ view, cards, selectedEventId, onSelectEv
     <button type="button" onClick={() => onNavigate("shift")} className="-ml-2 flex min-h-11 items-center gap-1 rounded-md px-1 text-sm font-semibold text-foreground">
       <ChevronLeft className="size-5" aria-hidden /><span className="sr-only">Back to Now, </span>{COORDINATOR_VIEW_LABELS[view]}
     </button>
-  );
-}
-
-/** The phone top bar's right side: notifications and the account menu (calendar, assignments, account, sign out). */
-export function CoordinatorPhoneActions({ initials, unreadNotices, onNavigate, onSignOut }: {
-  initials: string;
-  unreadNotices?: number;
-  onNavigate: (view: CoordinatorViewId) => void;
-  onSignOut?: () => void;
-}) {
-  return (
-    <>
-      <button type="button" className="relative grid size-11 place-items-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring" aria-label={unreadNotices ? `Notifications, ${unreadNotices} unread` : "Notifications"} onClick={() => onNavigate("notifications")}>
-        <Bell className="size-5" aria-hidden />
-        {unreadNotices ? <span aria-hidden className="absolute right-1 top-1.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-semibold leading-4 text-white">{unreadNotices}</span> : null}
-      </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger aria-label="Your account" className="grid size-11 place-items-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="grid size-8 place-items-center rounded-full bg-ink text-[11px] font-semibold text-ink-foreground">{initials}</span>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem className="min-h-11" onSelect={() => onNavigate("calendar")}><CalendarDays className="size-4" aria-hidden />My calendar</DropdownMenuItem>
-          <DropdownMenuItem className="min-h-11" onSelect={() => onNavigate("assignments")}><UsersRound className="size-4" aria-hidden />My assignments</DropdownMenuItem>
-          <DropdownMenuItem className="min-h-11" onSelect={() => onNavigate("account")}><UserRound className="size-4" aria-hidden />Account</DropdownMenuItem>
-          {onSignOut ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="min-h-11" onSelect={onSignOut}><LogOut className="size-4" aria-hidden />Sign out</DropdownMenuItem>
-            </>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
   );
 }
 

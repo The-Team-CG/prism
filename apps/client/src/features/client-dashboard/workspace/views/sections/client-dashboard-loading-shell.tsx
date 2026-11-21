@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { PrismDashboardShell } from "@prism/ui";
 import { DashboardSkeleton } from "../dashboard-tabs";
 import {
+  CLIENT_PORTAL_MOBILE_BAR,
   CLIENT_SIDEBAR_ITEMS,
   dashboardHref,
   dashboardLoadingVariant,
@@ -65,7 +66,7 @@ export function ClientDashboardLoadingShell({
         initials: session.name.slice(0, 2).toUpperCase(),
       }}
       searchPlaceholder="Search proposal, billing, documents..."
-      mobileActions={[]}
+      mobileBar={CLIENT_PORTAL_MOBILE_BAR}
       onSignOut={onSignOut}
     >
       {error ? (

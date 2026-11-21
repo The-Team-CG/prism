@@ -13,7 +13,7 @@ import { Card } from "@prism/ui/components/card";
 import { LoadingState } from "@prism/ui/components/loading-state";
 import { PrismEmptyLine } from "@prism/ui/page-blocks";
 import { cn } from "@/app/components/ui/utils";
-import { CLIENT_ACCOUNT_MENU_ITEMS, CLIENT_SIDEBAR_ITEMS, clientSidebarLinkHref } from "@/features/client-dashboard/workspace/model/client-dashboard-navigation";
+import { CLIENT_ACCOUNT_MENU_ITEMS, CLIENT_PORTAL_MOBILE_BAR, CLIENT_SIDEBAR_ITEMS, clientSidebarLinkHref } from "@/features/client-dashboard/workspace/model/client-dashboard-navigation";
 import { drawingOfScene } from "@/features/floorplan/drawing-of-scene";
 import { OfficialLayoutDrawing } from "@/features/floorplan/official-layout-drawing";
 import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
@@ -147,6 +147,7 @@ function SnapshotFrame({
       }}
       user={session ? { name: session.name, detail: session.organization, initials: session.name.slice(0, 2).toUpperCase() } : undefined}
       accountMenuItems={CLIENT_ACCOUNT_MENU_ITEMS}
+      mobileBar={CLIENT_PORTAL_MOBILE_BAR}
     >
       <div className="min-w-0">{children}</div>
     </PrismDashboardShell>

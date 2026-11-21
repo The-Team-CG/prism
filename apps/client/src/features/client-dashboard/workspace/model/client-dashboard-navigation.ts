@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 import type { ClientDashboardRoute, ClientPortalView, ClientSidebarLink, ClientSidebarNavItem, ClientSidebarSubItem, DetailTab } from "./client-dashboard-types";
-import type { PrismAccountMenuItem } from "@prism/ui";
+import type { PrismAccountMenuItem, PrismMobileBar } from "@prism/ui";
 import type { PrismEvent } from "@prism/types";
 import { isPastClientEvent, orderClientEvents } from "../../home/model/client-home-summary";
 
@@ -70,6 +70,7 @@ export const CLIENT_SIDEBAR_ITEMS: ClientSidebarNavItem[] = [
   {
     id: "billing-payments",
     label: "Billing & Payments",
+    shortLabel: "Billing",
     icon: WalletCards,
     section: "Client Portal",
     route: "billing",
@@ -86,6 +87,24 @@ const EVENT_OWNED_SIDEBAR_IDS = new Set(["messages", "files", "billing-payments"
 export function clientPortalSidebarItems(eventCount: number): ClientSidebarNavItem[] {
   return eventCount > 1 ? CLIENT_SIDEBAR_ITEMS : CLIENT_SIDEBAR_ITEMS.filter((item) => !EVENT_OWNED_SIDEBAR_IDS.has(item.id));
 }
+
+/**
+ * The phone bar outside an event: Home, Events, Calendar and Billing, with messages and notifications in the top bar
+ * and files and the upcoming events under More. With one event, the pages that event carries drop out on their own.
+ */
+export const CLIENT_PORTAL_MOBILE_BAR: PrismMobileBar = {
+  tabs: ["client-dashboard", "my-events", "calendar", "billing-payments"],
+  header: ["messages", "notifications"],
+};
+
+/**
+ * The phone bar inside one event: what the client checks most, with the event's messages in the top bar and the rest
+ * of the workspace under More. The event switch in the top bar is the way back to all events.
+ */
+export const CLIENT_EVENT_MOBILE_BAR: PrismMobileBar = {
+  tabs: ["event-overview", "event-progress", "event-proposal", "event-billing"],
+  header: ["event-messages"],
+};
 
 export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
   { id: "event-overview", label: "Overview", route: "overview", requiresEvent: true, eventScoped: true },

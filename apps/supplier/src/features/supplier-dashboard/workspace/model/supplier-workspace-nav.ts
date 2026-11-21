@@ -1,6 +1,7 @@
 import { unreadNavBadge } from "@prism/ui/chat";
 import { unreadNoticeBadge } from "@prism/ui/notifications";
 import { countNavBadge } from "@prism/ui/nav-badge";
+import type { PrismMobileBar } from "@prism/ui";
 import {
   BadgeCheck,
   Bell,
@@ -9,7 +10,6 @@ import {
   FileCheck2,
   FileText,
   HelpCircle,
-  LogOut,
   MessageSquare,
   PackageCheck,
   User,
@@ -32,7 +32,7 @@ export function supplierNavItems(input: {
 }) {
   const items = [
     { id: "dashboard", label: "Today", icon: Warehouse, badge: input.needsActionCount || undefined },
-    { id: "requests", label: "Requests & quotes", icon: ClipboardList, badge: input.quoteNeedingSubmission || undefined },
+    { id: "requests", label: "Requests & quotes", shortLabel: "Requests", icon: ClipboardList, badge: input.quoteNeedingSubmission || undefined },
     { id: "bookings", label: "Bookings", icon: BadgeCheck, badge: input.handoffPending || undefined },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
     { id: "messages", label: "Messages", icon: MessageSquare, ...unreadNavBadge(input.messagesUnread) },
@@ -40,7 +40,7 @@ export function supplierNavItems(input: {
     { id: "files", label: "Files", icon: FileCheck2 },
     { id: "payments", label: "Payments", icon: Wallet, ...countNavBadge(input.newPayouts, "new payment") },
     { id: "profile", label: "Services & profile", icon: User },
-  ] as Array<{ id: SupplierDashboardSection; label: string; icon: LucideIcon; badge?: string | number; badgeLabel?: string }>;
+  ] as Array<{ id: SupplierDashboardSection; label: string; shortLabel?: string; icon: LucideIcon; badge?: string | number; badgeLabel?: string }>;
   return items.map((item) => ({ ...item, href: supplierSectionHref(item.id) }));
 }
 
@@ -95,14 +95,11 @@ export function supplierCommandActions(input: {
   ];
 }
 
-export function supplierMobileActions(
-  section: SupplierDashboardSection,
-  onNavigate: (section: SupplierDashboardSection) => void,
-  onSignOut: () => void,
-) {
-  return [
-    { id: "requests", label: "Requests", icon: ClipboardList, active: section === "requests", onSelect: () => onNavigate("requests") },
-    { id: "bookings", label: "Bookings", icon: BadgeCheck, active: section === "bookings", onSelect: () => onNavigate("bookings") },
-    { id: "logout", label: "Sign out", icon: LogOut, onSelect: onSignOut },
-  ];
-}
+/**
+ * The phone bar: the day's work and the calendar within thumb reach, messages and notifications in the top bar, and
+ * payments, files and the profile under More.
+ */
+export const SUPPLIER_MOBILE_BAR: PrismMobileBar = {
+  tabs: ["dashboard", "requests", "bookings", "calendar"],
+  header: ["messages", "notifications"],
+};

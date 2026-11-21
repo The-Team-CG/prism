@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Check, ChevronsUpDown } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import type { PrismEvent } from "@prism/types";
 import {
   DropdownMenu,
@@ -69,5 +69,45 @@ export function ClientEventSwitcher({
       </DropdownMenuContent>
     </DropdownMenu>
     </div>
+  );
+}
+
+/** The open event in the phone top bar: tapping it switches events or goes back to all of them. */
+export function ClientPhoneEventSwitcher({
+  events,
+  selected,
+  onSwitch,
+  onAllEvents,
+}: {
+  events: SwitcherEvent[];
+  selected: SwitcherEvent;
+  onSwitch: (eventId: string) => void;
+  onAllEvents: () => void;
+}) {
+  const ordered = [...events].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger aria-label={`${selected.eventName}, switch event`} className="flex min-h-11 max-w-full items-center gap-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-foreground">{selected.eventName}</span>
+          <span className="block truncate text-xs text-muted-foreground">{clientEventDateLabel(selected)}</span>
+        </span>
+        <ChevronDown aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[min(20rem,calc(100vw-2rem))]">
+        <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Your events</DropdownMenuLabel>
+        {ordered.map((event) => (
+          <DropdownMenuItem key={event.id} onSelect={() => onSwitch(event.id)} className="min-h-11 justify-between gap-3" aria-current={event.id === selected.id ? "true" : undefined}>
+            <span className={event.id === selected.id ? "truncate font-semibold text-primary" : "truncate"}>{event.eventName}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{clientEventDateLabel(event)}</span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="min-h-11" onSelect={onAllEvents}>
+          <ArrowLeft aria-hidden="true" className="size-4" />
+          All events
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
