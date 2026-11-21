@@ -255,8 +255,9 @@ function DossierInquiryRow({ inquiry }: { inquiry: PrismInquiry }) {
 /** What is going on with the client now: events still being worked, then inquiries waiting on a decision. */
 function DossierOverview({ summary, clientId, onOpenEvent }: { summary: ClientDossierSummary; clientId: string; onOpenEvent: (id: string, tab?: DetailTab) => void }) {
   const earlier = summary.history.reduce((sum, year) => sum + year.events.length + year.inquiries.length, 0);
+  // A pinned column: a truncated event name must shorten, not widen the column past the screen.
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <PrismSection id="client-active-events" title="Active and upcoming" count={summary.active.length} headerOutside flush>
         {summary.active.length === 0 ? (
           <p className="px-5 py-4 text-sm text-muted-foreground">Nothing in progress. An accepted inquiry with a signed conforme becomes an event.</p>

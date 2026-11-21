@@ -195,6 +195,24 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
   };
 }
 
+/** Inside an event the shell names it twice: the sidebar switch on wider screens, the top-bar switch on a phone. */
+function clientEventChrome({ inEventWorkspace, selectedEvent, events, onSwitch, onAllEvents }: {
+  inEventWorkspace: boolean;
+  selectedEvent?: PrismEvent;
+  events: PrismEvent[];
+  onSwitch: (eventId: string) => void;
+  onAllEvents: () => void;
+}) {
+  if (!inEventWorkspace) return { mobileBar: CLIENT_PORTAL_MOBILE_BAR };
+  if (!selectedEvent) return { mobileBar: CLIENT_EVENT_MOBILE_BAR };
+  const switcher = { events: events.filter((event) => !event.archived), selected: selectedEvent, onSwitch, onAllEvents };
+  return {
+    mobileBar: CLIENT_EVENT_MOBILE_BAR,
+    mobileTitle: <ClientPhoneEventSwitcher {...switcher} />,
+    sidebarContext: <ClientEventSwitcher {...switcher} />,
+  };
+}
+
 export function ClientDashboardWorkspaceView({
   route = "home",
   eventId,
@@ -618,27 +636,13 @@ export function ClientDashboardWorkspaceView({
           initials: session.name.slice(0, 2).toUpperCase(),
         }}
         searchPlaceholder="Search events, documents, billing..."
-        mobileBar={inEventWorkspace ? CLIENT_EVENT_MOBILE_BAR : CLIENT_PORTAL_MOBILE_BAR}
-        mobileTitle={
-          inEventWorkspace && selectedEvent ? (
-            <ClientPhoneEventSwitcher
-              events={events.filter((event) => !event.archived)}
-              selected={selectedEvent}
-              onSwitch={(eventId) => navigateToEventRoute(route, eventId)}
-              onAllEvents={() => router.push("/dashboard/events")}
-            />
-          ) : undefined
-        }
-        sidebarContext={
-          inEventWorkspace && selectedEvent ? (
-            <ClientEventSwitcher
-              events={events.filter((event) => !event.archived)}
-              selected={selectedEvent}
-              onSwitch={(eventId) => navigateToEventRoute(route, eventId)}
-              onAllEvents={() => router.push("/dashboard/events")}
-            />
-          ) : null
-        }
+        {...clientEventChrome({
+          inEventWorkspace,
+          selectedEvent,
+          events,
+          onSwitch: (eventId) => navigateToEventRoute(route, eventId),
+          onAllEvents: () => router.push("/dashboard/events"),
+        })}
         accountMenuItems={CLIENT_ACCOUNT_MENU_ITEMS}
         onSignOut={signOut}
       >

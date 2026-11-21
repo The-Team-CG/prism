@@ -74,7 +74,7 @@ export function SupplierWorkspaceView({ section: routeSection }: { section: Supp
       mobileBar={SUPPLIER_MOBILE_BAR}
       mobileHeaderActions={
         <button type="button" disabled={busy === "refresh"} onClick={() => void vm.refresh()} aria-label="Refresh" className="grid size-11 place-items-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50">
-          <RefreshCcw className="size-4" aria-hidden />
+          <RefreshCcw className="size-5" aria-hidden />
         </button>
       }
     >

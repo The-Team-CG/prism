@@ -444,10 +444,11 @@ export function PrismPortalShell({
             />
             <Breadcrumb className="hidden min-w-0 flex-1 overflow-hidden md:block">
               <BreadcrumbList className="flex-nowrap">
-                <BreadcrumbItem className="text-muted-foreground">{roleLabel}</BreadcrumbItem>
+                {/* On a tablet the sidebar already names the portal, so the page name gets the room. */}
+                <BreadcrumbItem className={cn("shrink-0 whitespace-nowrap text-muted-foreground", trail.length ? "hidden lg:inline-flex" : "inline-flex")}>{roleLabel}</BreadcrumbItem>
                 {trail.map((label, index) => (
                   <React.Fragment key={label}>
-                    <BreadcrumbSeparator />
+                    <BreadcrumbSeparator className={index === 0 ? "hidden lg:block" : undefined} />
                     <BreadcrumbItem className="min-w-0">
                       {index === trail.length - 1 ? <BreadcrumbPage className="truncate">{label}</BreadcrumbPage> : <TruncatedText className="min-w-0 max-w-64">{label}</TruncatedText>}
                     </BreadcrumbItem>
