@@ -70,21 +70,21 @@ test('supplier follows the emailed quote request and submits a persisted quote',
   expect(detail.quote.amount).toBe(50000);
 });
 
-test('guest previews an event and submits a named check-in with consent', async ({ page }) => {
+test('guest opens the pass with the event code and submits a named check-in with consent', async ({ page }) => {
   const eventId = 'evt_uat_live_261024';
   const name = `Browser Guest ${randomUUID()}`;
   await api('POST', `/guest/events/${eventId}/roster/import`, { source: 'csv', rows: [{ sourceKey: randomUUID(), guestName: name }] });
   const detail = await api('GET', `/events/${eventId}`);
   await page.goto(`${origins.guest}/open`);
   await page.getByLabel('Event code', { exact: true }).fill(detail.guestAccessCode);
-  await page.getByRole('button', { name: 'Preview event' }).click();
-  await expect(page.getByText(detail.eventName, { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  await page.getByRole('button', { name: 'Open my pass', exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page.getByRole('heading', { level: 1, name: detail.eventName })).toBeVisible();
   await expect(page.getByLabel('Guest name', { exact: true })).toBeVisible();
   await page.getByLabel('Guest name', { exact: true }).fill(name);
   await page.getByRole('checkbox', { name: /I consent to PMCM recording/ }).check();
-  await page.getByRole('button', { name: /check.in/i }).click();
-  await expect(page.getByRole('heading', { name: 'Check-in request received' })).toBeVisible();
+  await page.getByRole('button', { name: 'Check me in', exact: true }).click();
+  await expect(page.getByRole('heading', { name: /^Check-in sent/ })).toBeVisible();
 });
 
 test('signed-out visitors are redirected before private dashboards render', async ({ page }) => {

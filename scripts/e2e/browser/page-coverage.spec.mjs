@@ -186,9 +186,8 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
       fixture.guestLobbySlug = lobby.eventSlug;
       await page.goto(`${origins.guest}/open`);
       await fillStable(page.getByLabel('Event code', { exact: true }), live.guestAccessCode);
-      await page.getByRole('button', { name: 'Preview event' }).click();
-      await page.getByRole('button', { name: 'Continue', exact: true }).click();
-      // Continue opens the guest dashboard; going on before it arrives cancels one navigation with the other.
+      await page.getByRole('button', { name: 'Open my pass', exact: true }).click();
+      // The code opens the pass in one step; going on before it arrives cancels one navigation with the other.
       await page.waitForURL(/\/dashboard/);
       await page.goto(`${origins.guest}/games/events/${lobby.eventSlug}`);
       await page.getByRole('button', { name: /^Play / }).first().click();
@@ -242,6 +241,11 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
           phoneChecks.push({ path: redact(item.path), navigation: !navigation.applicable ? 'not-applicable' : navigation.missingDestinations.length ? 'failed' : 'passed', compared: navigation.compared ?? 0, missingDestinations: navigation.missingDestinations, overflow: overflow ? { scrollWidth: overflow.scrollWidth, viewportWidth: overflow.viewportWidth, pixels: overflow.overflow } : null });
           if (navigation.missingDestinations.length) throw new Error(`Phone navigation cannot reach sidebar destinations: ${navigation.missingDestinations.join(', ')}`);
           if (navigation.applicable && !tappedBars.has(navigation.signature)) tapSignature = navigation.signature;
+        }
+        // A guest has no sidebar to compare with, but once a pass is open the same phone bar must still work by thumb.
+        if (info.project.name === 'mobile' && app === 'guest' && !tappedBars.has('guest') && await page.locator('nav[aria-label="Main"]').count()) {
+          tapSignature = 'guest';
+          phoneChecks.push({ path: redact(item.path), navigation: 'not-applicable', compared: 0, missingDestinations: [], overflow: null });
         }
         await screenshot(page, info.project.name, app, redact(item.path), false, order + 1);
         if (tapSignature !== null) {
@@ -320,6 +324,7 @@ for (const app of pageCoverageApps) test(`all registered pages render: ${app}`, 
       : `${info.project.name} clipped text: none`);
     if (info.project.name === 'mobile') console.log(`Phone bars tapped through: ${tappedBars.size}`);
   }
+  if (info.project.name === 'mobile' && app === 'guest') expect(tappedBars.has('guest'), 'A guest with a pass open must get the phone bar, and it must work by tap').toBe(true);
   expect(failures, 'Every registered route must render; inspect the attached coverage report').toEqual([]);
 });
 

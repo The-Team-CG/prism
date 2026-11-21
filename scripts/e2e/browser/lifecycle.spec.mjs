@@ -284,16 +284,16 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const guest = await guestContext.newPage();
       await guest.goto(`${origins.guest}/open`);
       await guest.getByLabel('Event code', { exact: true }).fill(detail.guestAccessCode);
-      await guest.getByRole('button', { name: 'Preview event' }).click();
-      await guest.getByRole('button', { name: 'Continue', exact: true }).click();
-      await expect(guest.getByRole('status')).toContainText('Check-in opens on');
+      await guest.getByRole('button', { name: 'Open my pass', exact: true }).click();
+      await expect(guest).toHaveURL(/\/dashboard/);
+      await expect(guest.getByText(/^Check-in opens on/)).toBeVisible();
       await expect(guest.getByLabel('Guest name', { exact: true })).toHaveCount(0);
       await guest.clock.setFixedTime(new Date(`${inquiry.eventDate.slice(0, 10)}T12:00:00+08:00`));
       await guest.reload();
       await guest.getByLabel('Guest name', { exact: true }).fill(guestName);
       await guest.getByRole('checkbox', { name: /I consent to PMCM recording/ }).check();
-      await guest.getByRole('button', { name: /check.in/i }).click();
-      await expect(guest.getByRole('heading', { name: 'Check-in request received' })).toBeVisible();
+      await guest.getByRole('button', { name: 'Check me in', exact: true }).click();
+      await expect(guest.getByRole('heading', { name: /^Check-in sent/ })).toBeVisible();
       await booking.getByRole('button', { name: /^Done and leaving/ }).click();
     });
 

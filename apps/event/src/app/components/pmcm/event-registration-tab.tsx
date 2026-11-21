@@ -26,6 +26,7 @@ import { RadioGroup, RadioGroupItem } from "@prism/ui/components/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { RosterImportPanel } from "@/features/registration/roster-import";
 import { QrPassSheet } from "@/features/registration/qr-passes/views/qr-pass-sheet";
+import { GuestEntryQr } from "@/features/registration/qr-passes/views/guest-entry-qr";
 import { QrScanCheckIn } from "@/features/registration/qr-passes/views/qr-scan-check-in";
 
 const PLATFORM_LABELS: Record<string, string> = {
@@ -978,6 +979,7 @@ function RegistrationSetupChecklist({ steps }: { steps: SetupStep[] }) {
 export function EventRegistrationTab({
   eventId,
   eventDate,
+  guestAccessCode,
   platform,
   suppliers,
   busy,
@@ -997,6 +999,8 @@ export function EventRegistrationTab({
   onUpdateGuestPrivacyClassification,
 }: {
   eventId: string;
+  /** The event code guests type; the entry QR carries it. */
+  guestAccessCode?: string | null;
   platform: PrismRegistrationPlatform | null;
   suppliers: PrismSupplier[];
   busy: boolean;
@@ -1037,7 +1041,10 @@ export function EventRegistrationTab({
       <div id="registration-roster" className="scroll-mt-24">
         <GuestRosterSection eventId={eventId} busy={busy} onSearch={onSearchRoster} onImport={onImportRoster} onCheckIn={onCheckInRoster} onVerify={onVerifyRoster} />
       </div>
-      <div id="registration-passes" className="scroll-mt-24"><QrPassSheet eventId={eventId} /></div>
+      <div id="registration-passes" className="flex scroll-mt-24 flex-col gap-4">
+        <GuestEntryQr accessCode={guestAccessCode} />
+        <QrPassSheet eventId={eventId} />
+      </div>
       <div id="registration-platform" className="flex scroll-mt-24 flex-col gap-4">
         {loadError ? (
           <Panel title="Registration Platform" icon={QrCode}>

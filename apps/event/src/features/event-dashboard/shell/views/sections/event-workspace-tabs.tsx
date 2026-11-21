@@ -664,6 +664,7 @@ function RegistrationAndGames({ initial }: { initial: "registration" | "games" }
           onUpdateSetup={vm.updateRegistrationPlatformSetup}
           onImportHeadcount={vm.importHeadcount}
           eventId={event.id}
+          guestAccessCode={event.guestAccessCode}
           onSearchRoster={vm.searchGuestRoster}
           onImportRoster={vm.importGuestRoster}
           onCheckInRoster={vm.checkInGuestRoster}

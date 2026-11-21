@@ -1,4 +1,4 @@
-import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import { daysUntil, formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
 import type { CheckInMode, CheckInPayload, FeedbackPayload } from "./guest-dashboard-types";
 import { PRISM_PRIVACY_NOTICE_VERSION, type PrismGuestSession } from "@prism/types";
 import { GuestApiError } from "@/features/guest-shared/guest-http";
@@ -40,15 +40,6 @@ export function buildCheckInPayload(input: {
     guestName,
     ...consent,
   };
-}
-
-export function checkInSuccessNotice(): string {
-  return "Check-in request received. The registration team can confirm your attendance.";
-}
-
-export function checkInButtonLabel(checkedIn: boolean): string {
-  if (checkedIn) return "Check-in submitted";
-  return "Submit check-in";
 }
 
 export function isFileWithinSizeLimit(sizeBytes: number): boolean {
@@ -106,20 +97,68 @@ export function formatArrivalTime(value?: string): string | undefined {
   return `${hours % 12 || 12}:${match[2]} ${hours < 12 ? "AM" : "PM"}`;
 }
 
-export function guestPassDetails(session: PrismGuestSession): Array<[string, string]> {
-  const startTime = formatArrivalTime(session.startTime);
-  return [
-    ["Event", session.eventName],
-    ["Date", startTime ? `${formatPortalDate(session.eventDate)} · starts ${startTime}` : formatPortalDate(session.eventDate)],
-    ...(session.venue ? ([["Venue", session.venue]] as Array<[string, string]>) : []),
-    ["Host", session.clientName],
-    ["Access code", session.guestAccessCode],
-  ];
-}
-
 /** Check-in opens on the event's Philippine calendar day; before that the pass leads with event details. */
 export function isGuestCheckInOpen(eventDate: string, now = new Date()): boolean {
   const day = eventDate.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return true;
   return manilaDateKey(now) >= day;
+}
+
+/** Where the guest is in the event, which decides what the pass leads with. */
+export type GuestPassMoment = "before" | "today" | "after";
+
+export function guestPassMoment(session: Pick<PrismGuestSession, "eventDate" | "feedbackAvailability">, now = new Date()): GuestPassMoment {
+  if (session.feedbackAvailability !== "not_open") return "after";
+  return isGuestCheckInOpen(session.eventDate, now) ? "today" : "before";
+}
+
+/** "Tomorrow", "10 days to go"; nothing on or after the day. */
+export function guestCountdownLabel(eventDate: string, now = new Date()): string | null {
+  const days = daysUntil(eventDate.slice(0, 10), manilaDateKey(now));
+  if (days === null || days <= 0) return null;
+  return days === 1 ? "Tomorrow" : `${days} days to go`;
+}
+
+/** "Sat, 1 Dec" for the pass: the weekday matters to a guest planning to come. */
+export function formatPassDate(eventDate: string): string {
+  const day = eventDate.slice(0, 10);
+  const date = new Date(`${day}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(date.getTime())) return formatPortalDate(eventDate);
+  return new Intl.DateTimeFormat("en-PH", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(date);
+}
+
+/** A map search for the venue, opened only when the guest taps Directions. */
+export function venueDirectionsUrl(venue: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue)}`;
+}
+
+function icsText(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+}
+
+/**
+ * A calendar file for the event. A confirmed start time becomes a timed entry in Philippine time; without one the
+ * entry is all-day, rather than a guessed hour. No end is given because none is recorded.
+ */
+export function guestCalendarFile(session: Pick<PrismGuestSession, "id" | "eventName" | "eventDate" | "venue" | "startTime">, now = new Date()): string {
+  const day = session.eventDate.slice(0, 10).replace(/-/g, "");
+  const time = session.startTime?.match(/^(\d{1,2}):(\d{2})/);
+  const start = time && Number(time[1]) < 24
+    ? `DTSTART;TZID=Asia/Manila:${day}T${time[1].padStart(2, "0")}${time[2]}00`
+    : `DTSTART;VALUE=DATE:${day}`;
+  const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//PRISM//Guest pass//EN",
+    "BEGIN:VEVENT",
+    `UID:${session.id}@prism-guest-pass`,
+    `DTSTAMP:${stamp}`,
+    start,
+    `SUMMARY:${icsText(session.eventName)}`,
+    ...(session.venue ? [`LOCATION:${icsText(session.venue)}`] : []),
+    "END:VEVENT",
+    "END:VCALENDAR",
+    "",
+  ].join("\r\n");
 }

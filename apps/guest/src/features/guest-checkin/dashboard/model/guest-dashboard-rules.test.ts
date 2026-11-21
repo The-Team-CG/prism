@@ -4,9 +4,11 @@ import { GuestApiError } from "@/features/guest-shared/guest-http";
 import {
   buildCheckInPayload,
   buildFeedbackPayload,
-  checkInButtonLabel,
-  checkInSuccessNotice,
-  guestPassDetails,
+  formatArrivalTime,
+  formatPassDate,
+  guestCalendarFile,
+  guestCountdownLabel,
+  guestPassMoment,
   isFileWithinSizeLimit,
   isGuestAccessEndedError,
   isGuestCheckInOpen,
@@ -26,15 +28,36 @@ const session = {
 } as PrismGuestSession;
 
 describe("guest-dashboard-rules", () => {
-  it("shows where and when to arrive on the pass only when PMCM has recorded it", () => {
-    const withArrival = Object.fromEntries(guestPassDetails({ ...session, venue: "Grand Ballroom, Makati", startTime: "18:30" }));
-    expect(withArrival.Venue).toBe("Grand Ballroom, Makati");
-    expect(withArrival.Date).toBe("Aug 1, 2026 · starts 6:30 PM");
+  it("shows the start time and the weekday a guest plans around", () => {
+    expect(formatArrivalTime("18:30")).toBe("6:30 PM");
+    expect(formatArrivalTime("00:05")).toBe("12:05 AM");
+    expect(formatPassDate("2026-08-01")).toBe("Sat, Aug 1");
+  });
 
-    const bare = Object.fromEntries(guestPassDetails(session));
-    expect(bare).not.toHaveProperty("Venue");
-    expect(bare.Date).toBe("Aug 1, 2026");
-    expect(Object.fromEntries(guestPassDetails({ ...session, startTime: "00:05" })).Date).toContain("12:05 AM");
+  it("leads with the invitation before the day, check-in on the day, and feedback once it opens", () => {
+    const pass = { ...session, feedbackAvailability: "not_open" as const };
+    expect(guestPassMoment(pass, new Date("2026-07-31T15:00:00Z"))).toBe("before");
+    expect(guestPassMoment(pass, new Date("2026-07-31T16:30:00Z"))).toBe("today");
+    expect(guestPassMoment({ ...pass, feedbackAvailability: "open" }, new Date("2026-08-02T00:00:00Z"))).toBe("after");
+  });
+
+  it("counts down to the day in Philippine time and stops on the day", () => {
+    expect(guestCountdownLabel("2026-08-01", new Date("2026-07-22T03:00:00Z"))).toBe("10 days to go");
+    expect(guestCountdownLabel("2026-08-01", new Date("2026-07-31T03:00:00Z"))).toBe("Tomorrow");
+    expect(guestCountdownLabel("2026-08-01", new Date("2026-07-31T17:00:00Z"))).toBeNull();
+  });
+
+  it("writes a calendar entry in Philippine time, all-day when no start time is confirmed", () => {
+    const now = new Date("2026-07-01T00:00:00Z");
+    const timed = guestCalendarFile({ ...session, id: "evt_1", eventName: "Yala, Night; One", venue: "Grand Ballroom, Makati", startTime: "18:30" }, now);
+    expect(timed).toContain("DTSTART;TZID=Asia/Manila:20260801T183000");
+    expect(timed).toContain("SUMMARY:Yala\\, Night\\; One");
+    expect(timed).toContain("LOCATION:Grand Ballroom\\, Makati");
+    expect(timed.split("\r\n")).toContain("UID:evt_1@prism-guest-pass");
+
+    const allDay = guestCalendarFile({ ...session, id: "evt_1" }, now);
+    expect(allDay).toContain("DTSTART;VALUE=DATE:20260801");
+    expect(allDay).not.toContain("LOCATION");
   });
 
   it("builds only the fields allowed for the selected check-in mode", () => {
@@ -71,11 +94,6 @@ describe("guest-dashboard-rules", () => {
       checkInMode: "headcount",
       consentAccepted: false,
     })).toThrow("Privacy consent is required to check in.");
-  });
-
-  it("uses generic check-in receipts and never exposes server review state", () => {
-    expect(checkInSuccessNotice()).toBe("Check-in request received. The registration team can confirm your attendance.");
-    expect(checkInButtonLabel(false)).toBe("Submit check-in");
   });
 
   it("enforces media size and video duration limits", () => {

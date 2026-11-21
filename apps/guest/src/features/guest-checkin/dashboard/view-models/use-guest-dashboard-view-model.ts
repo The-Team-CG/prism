@@ -3,7 +3,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  checkInButtonLabel,
   isGuestAccessEndedError,
   mapGuestDashboardError,
   POLL_INTERVAL_MS,
@@ -24,7 +23,6 @@ export function useGuestDashboardViewModel() {
   const router = useRouter();
   const [session, setSession] = useState<PrismGuestSession | null>(null);
   const [status, setStatus] = useState<GuestDashboardStatus>("loading");
-  const [checkedIn, setCheckedIn] = useState(false);
   const [accessEnded, setAccessEnded] = useState(false);
   const [checkInGuestName, setCheckInGuestName] = useState("");
   const [checkInConsentAccepted, setCheckInConsentAccepted] = useState(false);
@@ -88,16 +86,13 @@ export function useGuestDashboardViewModel() {
     setError(null);
     setNotice(null);
     try {
-      const result = await submitGuestCheckIn({
+      setSession(await submitGuestCheckIn({
         session,
         checkInMode,
         guestName: checkInMode === "name_search" ? checkInGuestName : undefined,
         consentAccepted: checkInConsentAccepted,
-      });
-      setSession(result.session);
-      setCheckedIn(true);
+      }));
       setCheckInGuestName("");
-      setNotice(result.notice);
       setStatus("ready");
     } catch (err) {
       setStatus("error");
@@ -157,6 +152,8 @@ export function useGuestDashboardViewModel() {
     router.replace("/open");
   }
 
+  const checkedIn = Boolean(session?.checkInSentAt);
+
   return {
     session,
     status,
@@ -204,7 +201,6 @@ export function useGuestDashboardViewModel() {
       && !busy
       && feedbackConsentAccepted
       && feedbackGuestName.trim().length > 0,
-    checkInButtonLabel: checkInButtonLabel(checkedIn),
     checkIn,
     submitFeedback,
     leave,

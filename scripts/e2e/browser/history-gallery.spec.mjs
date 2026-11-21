@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test, expect } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
 import { api, origins, persona, fitsViewport } from './helpers.mjs';
 import { CLIENT_DOSSIER_VIEWS, EVENT_WORKSPACE_ROUTE_TABS, SECTION_ROUTE_ITEMS } from '../../../apps/event/src/features/event-dashboard/shell/model/event-dashboard-routing.ts';
 import { selectClientRecords } from '../../../apps/event/src/features/event-dashboard/shell/model/event-dashboard-selectors.ts';
@@ -153,5 +154,97 @@ for (const role of Object.keys(ROUTES)) test(`history gallery: ${role}`, async (
     }
   } finally {
     await context.close();
+  }
+});
+
+/**
+ * The guest portal, as a guest of today's seeded live event sees it: the landing page, the open page, scanning the
+ * event's entry QR straight to the pass, checking in, the games, a personal QR pass, privacy and sign-in. Then the pass
+ * of a planning event (before the day) and of one closing out (after it), and the entry QR as PMCM prints it.
+ */
+test('history gallery: guest', async ({ browser }, info) => {
+  test.skip(!enabled, 'Set BROWSER_SEED_HISTORY=1 and BROWSER_SCREENSHOTS=1 for the history gallery');
+  test.setTimeout(10 * 60_000);
+  const live = await api('GET', '/events/evt_uat_live_261024');
+  const guestName = `Gallery Guest ${randomUUID().slice(0, 8)}`;
+  await api('POST', `/guest/events/${live.id}/roster/import`, { source: 'csv', rows: [{ sourceKey: randomUUID(), guestName, email: `gallery-${randomUUID().slice(0, 8)}@example.test` }] });
+  const passes = await api('POST', `/guest/events/${live.id}/qr-passes`);
+  const pass = passes.find((item) => item.guestName === guestName) ?? passes[0];
+  const lobby = await api('POST', `/events/${live.id}/game-lobby`);
+
+  const directory = join(process.env.BROWSER_RUN_DIRECTORY, 'screenshots', info.project.name, 'history-guest');
+  mkdirSync(directory, { recursive: true });
+  const shoot = async (page, filename) => {
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+    await page.screenshot({ path: join(directory, filename), fullPage: true, animations: 'disabled', style: 'nextjs-portal { visibility: hidden; }' });
+  };
+  const context = await browser.newContext(info.project.use);
+  const page = await context.newPage();
+  const capture = (filename) => shoot(page, filename);
+  try {
+    await page.goto(`${origins.guest}/`);
+    await capture('01-landing.png');
+    await page.goto(`${origins.guest}/open`);
+    await capture('02-open.png');
+    // The entry QR carries the code: the pass opens with nothing typed.
+    await page.goto(`${origins.guest}/open?code=${encodeURIComponent(live.guestAccessCode)}`);
+    await expect(page).toHaveURL(/\/dashboard$/);
+    await expect(page.getByLabel('Guest name', { exact: true })).toBeVisible();
+    await capture('04-pass-before-check-in.png');
+    await page.getByLabel('Guest name', { exact: true }).fill(guestName);
+    await page.getByRole('checkbox', { name: /I consent to PMCM recording/ }).check();
+    await page.getByRole('button', { name: 'Check me in' }).click();
+    await expect(page.getByRole('heading', { name: /^Check-in sent/ })).toBeVisible();
+    await capture('05-pass-after-check-in.png');
+    await page.goto(`${origins.guest}/games/join`);
+    await capture('06-games-join.png');
+    await page.goto(`${origins.guest}/games/events/${lobby.eventSlug}`);
+    await expect(page.getByRole('button', { name: /^Play / }).first()).toBeVisible();
+    await capture('07-games-lobby.png');
+    await page.getByRole('button', { name: /^Play / }).first().click();
+    await expect(page).toHaveURL(/\/games\/session\/[^/]+$/);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await capture('08-game-session.png');
+    if (pass?.token) {
+      await page.goto(`${origins.guest}/pass/${pass.token}`);
+      await capture('09-qr-pass.png');
+    }
+    await page.goto(`${origins.guest}/privacy`);
+    await capture('10-privacy.png');
+    await page.goto(`${origins.guest}/sign-in`);
+    await capture('11-sign-in.png');
+  } finally {
+    await context.close();
+  }
+
+  // A planning event's pass is the invitation; a closing-out event's pass leads with feedback.
+  for (const [eventId, filename] of [['evt_hist_195', '03-pass-before-the-day.png'], ['evt_hist_188', '12-pass-after-the-event.png']]) {
+    const event = await api('GET', `/events/${eventId}`).catch(() => null);
+    if (!event?.guestAccessCode) continue;
+    const other = await browser.newContext(info.project.use);
+    const otherPage = await other.newPage();
+    try {
+      await otherPage.goto(`${origins.guest}/open?code=${encodeURIComponent(event.guestAccessCode)}`);
+      const opened = await otherPage.waitForURL(/\/dashboard$/, { timeout: 20_000 }).then(() => true, () => false);
+      if (opened) {
+        await expect(otherPage.getByRole('heading', { level: 1 })).toBeVisible();
+        await shoot(otherPage, filename);
+      }
+    } finally {
+      await other.close();
+    }
+  }
+
+  // The entry QR as PMCM sees it on the live event's registration tab.
+  const pmcm = await persona(browser, 'pmcm', info.project.use);
+  try {
+    await pmcm.page.goto(`${origins.event}/dashboard/events/${live.id}/registration`, { waitUntil: 'domcontentloaded' });
+    const entry = pmcm.page.getByRole('heading', { name: 'Guest entry QR' });
+    await expect(entry).toBeVisible({ timeout: 30_000 });
+    await entry.scrollIntoViewIfNeeded();
+    await pmcm.page.locator('section', { has: entry }).screenshot({ path: join(directory, '13-pmcm-entry-qr.png'), animations: 'disabled' });
+  } finally {
+    await pmcm.context.close();
   }
 });

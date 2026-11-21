@@ -13,7 +13,16 @@ import type { PrismAppShellProps, PrismMobileTabAction, PrismNavItem, PrismNavSu
 type Select = (id: string) => void;
 
 const COUNT_CLASS = "absolute -right-2.5 -top-1.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-semibold leading-4 text-white";
-const TAB_CLASS = "flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium outline-none focus-visible:bg-muted";
+const TAB_CLASS = "group flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium outline-none";
+
+/** The current tab is a soft pill around its icon, never an underline; focus rings the same pill. */
+function TabIcon({ current, children }: { current: boolean; children: React.ReactNode }) {
+  return (
+    <span className={cn("grid h-8 w-14 place-items-center rounded-full transition-colors group-focus-visible:ring-2 group-focus-visible:ring-ring", current && "bg-primary/10")}>
+      <span className="relative">{children}</span>
+    </span>
+  );
+}
 
 /** A link when the destination has a route, so it can open in a new tab; otherwise a button the portal resolves. */
 function Destination({ item, current, onSelect, className, children, ...rest }: {
@@ -48,11 +57,11 @@ function MobileTab({ item, activeId, onSelect }: { item: PrismNavItem; activeId:
   return (
     <li className="min-w-0">
       <Destination item={item} current={current} onSelect={onSelect} aria-label={count ? `${label}, ${count}` : undefined} data-nav-covers={item.subItems?.map((sub) => sub.id).join(" ")} className={cn(TAB_CLASS, current ? "text-primary" : "text-muted-foreground")}>
-        <span className="relative">
+        <TabIcon current={current}>
           <item.icon aria-hidden="true" className="size-5" />
           {count ? <span aria-hidden="true" className={COUNT_CLASS}>{item.badge}</span> : null}
-        </span>
-        <span className="truncate">{label}</span>
+        </TabIcon>
+        <span className={cn("truncate", current && "font-semibold")}>{label}</span>
       </Destination>
     </li>
   );
@@ -62,7 +71,7 @@ function MobileTab({ item, activeId, onSelect }: { item: PrismNavItem; activeId:
 function MobileCenterAction({ action }: { action: PrismMobileTabAction }) {
   return (
     <li className="min-w-0">
-      <button type="button" aria-label={action.ariaLabel ?? action.label} onClick={action.onSelect} className="flex min-h-14 w-full flex-col items-center justify-end gap-1 pb-1.5 text-[11px] font-semibold text-primary outline-none">
+      <button type="button" aria-label={action.ariaLabel ?? action.label} onClick={action.onSelect} className="flex min-h-16 w-full flex-col items-center justify-end gap-1 pb-1.5 text-[11px] font-semibold text-primary outline-none">
         <span className="-mt-6 grid size-13 place-items-center rounded-full border-4 border-card bg-primary text-primary-foreground shadow-lg shadow-primary/30">
           <action.icon aria-hidden="true" className="size-5" />
         </span>
@@ -142,11 +151,11 @@ function MoreTab({ items, activeId, onSelect }: { items: PrismNavItem[]; activeI
         className={cn(TAB_CLASS, active || open ? "text-primary" : "text-muted-foreground")}
         onClick={() => setOpen(true)}
       >
-        <span className="relative">
+        <TabIcon current={active || open}>
           <Ellipsis aria-hidden="true" className="size-5" />
           {hasNews ? <span aria-hidden="true" className="absolute -right-1 -top-0.5 size-2 rounded-full bg-danger ring-2 ring-card" /> : null}
-        </span>
-        <span className="truncate">More</span>
+        </TabIcon>
+        <span className={cn("truncate", (active || open) && "font-semibold")}>More</span>
       </button>
       <MoreSheet items={items} activeId={activeId} open={open} onOpenChange={setOpen} onSelect={onSelect} />
     </li>
