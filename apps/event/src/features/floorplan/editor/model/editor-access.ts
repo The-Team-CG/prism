@@ -6,6 +6,15 @@ export function isLockedFloorplanDraft(status: string): boolean {
   return status === "in_review" || status === "approved";
 }
 
+/**
+ * Whether a draft opens read-only for PMCM. The stored status decides over the one the screen last saw: a draft
+ * submitted elsewhere, or an event archived or frozen since, opens read-only instead of autosaving into the API's
+ * refusal again after a reload.
+ */
+export function opensReadOnly(input: { requested: boolean; storedStatus: string | null; screenStatus: string; archived: boolean; frozen: boolean }): boolean {
+  return input.requested || isLockedFloorplanDraft(input.storedStatus ?? input.screenStatus) || input.archived || input.frozen;
+}
+
 /** The editor opens read-only for anyone but PMCM, and for PMCM on a draft that is submitted or approved. */
 export function isFloorplanEditorReadOnly(screenReadOnly: boolean, role: PrismUserRole): boolean {
   return screenReadOnly || !isPmcmAdmin(role);

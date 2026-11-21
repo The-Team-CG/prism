@@ -94,6 +94,51 @@ export function inquiryMatchesIntakeFilters(
   return dateRangeMatches(inquiry.eventDate, filters.dateRange, now);
 }
 
+/** How long a new inquiry has waited for PMCM's decision, coloured once it is worth chasing (2 days) or late (5). */
+export function inquiryWaitingAge(inquiry: Pick<PrismInquiry, "status" | "createdAt">, now = new Date()): { label: string; tone: "late" | "stale" | "fresh" } | null {
+  if (inquiry.status !== "new") return null;
+  const received = new Date(inquiry.createdAt).getTime();
+  if (!Number.isFinite(received)) return null;
+  const days = Math.max(0, Math.floor((now.getTime() - received) / 86_400_000));
+  const label = days === 0 ? "Today" : days === 1 ? "1 day" : `${days} days`;
+  return { label, tone: days >= 5 ? "late" : days >= 2 ? "stale" : "fresh" };
+}
+
+/** The client's other inquiries (same email, or same company), for "returning client" on review. Null for a first inquiry. */
+export function clientInquiryHistory(
+  inquiry: Pick<PrismInquiry, "id" | "email" | "companyName">,
+  allInquiries: Array<Pick<PrismInquiry, "id" | "email" | "companyName" | "status" | "acceptedAt" | "eventName" | "eventDate">>,
+): { earlier: number; accepted: number; lastEventName?: string } | null {
+  const email = inquiry.email?.trim().toLowerCase();
+  const company = inquiry.companyName?.trim().toLowerCase();
+  const others = allInquiries.filter((other) => other.id !== inquiry.id
+    && ((email && other.email?.trim().toLowerCase() === email) || (company && other.companyName?.trim().toLowerCase() === company)));
+  if (others.length === 0) return null;
+  const accepted = others.filter((other) => other.status === "accepted" || Boolean(other.acceptedAt));
+  const last = [...accepted].sort((a, b) => (b.eventDate ?? "").localeCompare(a.eventDate ?? ""))[0];
+  return { earlier: others.length, accepted: accepted.length, lastEventName: last?.eventName };
+}
+
+export type InquiryFunnel = { toReview: number; waitingForConforme: number; signedThisMonth: number };
+
+/** The inquiry funnel's counts: new to decide, accepted but not yet signed, and conformes signed this month. */
+export function inquiryFunnel(
+  inquiries: Array<Pick<PrismInquiry, "status" | "acceptedAt" | "conformeSignedAt">>,
+  now = new Date(),
+): InquiryFunnel {
+  const month = now.toISOString().slice(0, 7);
+  let toReview = 0;
+  let waitingForConforme = 0;
+  let signedThisMonth = 0;
+  for (const inquiry of inquiries) {
+    if (inquiry.status === "new") toReview += 1;
+    const accepted = inquiry.status === "accepted" || Boolean(inquiry.acceptedAt);
+    if (accepted && !inquiry.conformeSignedAt) waitingForConforme += 1;
+    if (inquiry.conformeSignedAt?.slice(0, 7) === month) signedThisMonth += 1;
+  }
+  return { toReview, waitingForConforme, signedThisMonth };
+}
+
 /**
  * Labels of the basic fields still empty, in form order. Empty means Save is enabled. The rest may be left blank:
  * the inquiry is then saved as Pending Full Details until it is completed.

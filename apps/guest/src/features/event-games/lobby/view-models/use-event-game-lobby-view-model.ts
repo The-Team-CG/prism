@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PrismEventGameLobby } from "@prism/types";
-import { createAnonymousParticipantAlias } from "../../model/event-game-entry-rules";
 import {
   getPublicEventGameLobby,
   leaveEventGamesFromLobby,
@@ -26,9 +25,7 @@ export function useEventGameLobbyViewModel(eventSlug: string) {
       const nextLobby = await getPublicEventGameLobby(eventSlug);
       setLobby(nextLobby);
       const stored = readEventGameParticipantSession();
-      setParticipantAlias(stored?.eventId === nextLobby.eventId
-        ? createAnonymousParticipantAlias(stored.participantCredential)
-        : null);
+      setParticipantAlias(stored?.eventId === nextLobby.eventId ? stored.participantAlias ?? null : null);
       setStatus("ready");
     } catch (cause) {
       setStatus("error");
@@ -47,7 +44,7 @@ export function useEventGameLobbyViewModel(eventSlug: string) {
     try {
       const started = await startIndependentSingleplayerGame(eventSlug, gameId);
       const stored = readEventGameParticipantSession();
-      setParticipantAlias(stored ? createAnonymousParticipantAlias(stored.participantCredential) : null);
+      setParticipantAlias(stored?.participantAlias ?? null);
       router.push(`/games/session/${encodeURIComponent(started.sessionId)}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "This event game is not available right now. Return to the event lobby and try again.");

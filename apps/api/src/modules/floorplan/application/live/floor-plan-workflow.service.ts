@@ -21,8 +21,8 @@ import { FLOORPLAN_PROJECTION_WRITER, type FloorplanEventProjection, type Floorp
 import { FLOORPLAN_EVENT_REFERENCE_READER, type FloorplanEventReference, type FloorplanEventReferenceReader } from '@prism/contexts/event-lifecycle/floorplan-reference';
 import type { FloorplanCommands, FloorPlanActor, FloorPlanCreator } from '../../contracts/floorplan-commands.port';
 import type { FloorplanReader, FloorPlanDraftProjection } from '../../contracts/floorplan-reader.port';
-import { acceptedScene, sceneColumns, storedScene } from '../stored-scene';
-import { convertLegacyPlan, PASCAL_VERSION, withoutSeatedGuests } from '@prism/floorplan-scene';
+import { acceptedScene, sceneColumns, storedScene, assertClientSceneLeavesSeatingToPmcm } from '../stored-scene';
+import { convertLegacyPlan, PASCAL_VERSION, withoutEventAssignments } from '@prism/floorplan-scene';
 import type { FloorplanSceneDocument } from '@prism/types';
 
 export type { CreateFloorPlanDraftInput, CreateFloorPlanPreferenceInput } from '@prism/types';
@@ -36,8 +36,8 @@ function blankRoomScene(name: string, width: number, height: number): FloorplanS
   return convertLegacyPlan({ name, widthM: width, heightM: height, objects: [] }, PASCAL_VERSION);
 }
 
-/** The room a client preference starts in when the client has not saved a layout yet. */
-const PREFERENCE_ROOM = { width: 1400, height: 900 } as const;
+/** Rooms are sized in metres. A new draft or a client preference with no size given starts as a 30 m by 20 m hall. */
+const DEFAULT_ROOM = { width: 30, height: 20, gridSize: 1 } as const;
 
 @Injectable()
 export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanReader {
@@ -61,10 +61,11 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     });
     if (!template?.floorPlan) throw new NotFoundException('Venue preset not found');
     const plan = template.floorPlan;
-    // A draft from a venue copies the layout only: the event's roster seats its guests, not the venue's.
+    // A draft from a venue copies the layout only: this event's roster seats its guests and its bookings fill the
+    // supplier zones, not whichever event the template was saved from.
     const scene = storedScene(plan);
     return {
-      scene: withoutSeatedGuests(scene),
+      scene: withoutEventAssignments(scene),
       width: plan.width,
       height: plan.height,
       gridSize: plan.gridSize,
@@ -89,8 +90,8 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
           }
           // A venue draft copies the venue's scene; any other draft starts as a blank room of the requested size.
           const preset = input.venueTemplateId ? await this.loadVenuePreset(tx, input.venueTemplateId) : null;
-          const width = preset?.width ?? input.width ?? 1200;
-          const height = preset?.height ?? input.height ?? 800;
+          const width = preset?.width ?? input.width ?? DEFAULT_ROOM.width;
+          const height = preset?.height ?? input.height ?? DEFAULT_ROOM.height;
           const scene = preset?.scene ?? blankRoomScene(input.name, width, height);
           await tx.floorPlan.create({
             data: {
@@ -101,8 +102,9 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
               eventId,
               width,
               height,
-              gridSize: preset?.gridSize ?? input.gridSize ?? 20,
-              pax: preset?.pax ?? input.pax ?? 0,
+              gridSize: preset?.gridSize ?? input.gridSize ?? DEFAULT_ROOM.gridSize,
+              // The event's own guest count decides seating; the template's is only a fallback.
+              pax: input.pax ?? preset?.pax ?? 0,
               ...sceneColumns(scene),
               updatedAt: now,
             },
@@ -141,6 +143,8 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
     const now = new Date();
     const floorPlanId = `plan_${randomUUID()}`;
     const scene = input.scene ? acceptedScene(input.scene) : undefined;
+    // A preference is the client's layout idea, never seating or supplier assignments, however it is sent.
+    if (scene) assertClientSceneLeavesSeatingToPmcm(scene);
     const preference = {
       seatingStyle: input.seatingStyle,
       stagePreference: input.stagePreference,
@@ -272,10 +276,10 @@ export class FloorPlanWorkflowService implements FloorplanCommands, FloorplanRea
         venue: input.venue ?? eventName,
         ownerId: actor.actorId,
         eventId,
-        width: PREFERENCE_ROOM.width,
-        height: PREFERENCE_ROOM.height,
+        width: DEFAULT_ROOM.width,
+        height: DEFAULT_ROOM.height,
         pax: input.guestCount,
-        ...sceneColumns(scene ?? blankRoomScene(input.name, PREFERENCE_ROOM.width, PREFERENCE_ROOM.height)),
+        ...sceneColumns(scene ?? blankRoomScene(input.name, DEFAULT_ROOM.width, DEFAULT_ROOM.height)),
         updatedAt: now,
       },
     });

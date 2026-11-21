@@ -13,6 +13,19 @@ import { OpsUserRole } from '@prism/kernel/event-core';
 
 export type { SubmitBriefingInput } from '@prism/types';
 
+/**
+ * A briefing goes to an unlocked event before event day. After the scope freeze the client changes venue, guest count
+ * or budget through a scope change request instead.
+ */
+function assertBriefingOpen(event: { archived: boolean; clientPortalStatus: string; status: string; freezeStatus: string }, actor?: ResolvedEventOpsActor) {
+  if (event.archived || event.clientPortalStatus === 'locked' || !['briefing', 'briefing_proposal', 'planning'].includes(event.status)) {
+    throw new BadRequestException('Briefings can only be submitted to an unlocked event before event day');
+  }
+  if (event.freezeStatus === 'frozen' && actor?.role === OpsUserRole.Client) {
+    throw new BadRequestException('Scope is frozen. Send a change request to update the briefing');
+  }
+}
+
 @Injectable()
 export class ClientOnboardingWorkflowService {
   constructor(
@@ -28,9 +41,7 @@ export class ClientOnboardingWorkflowService {
     return this.prisma.$transaction(async (tx) => {
       const event = await tx.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: true } });
       if (!event) throw new NotFoundException('Event not found');
-      if (event.archived || event.clientPortalStatus === 'locked' || !['briefing', 'briefing_proposal', 'planning'].includes(event.status)) {
-        throw new BadRequestException('Briefings can only be submitted to an unlocked event before event day');
-      }
+      assertBriefingOpen(event, actor);
       await this.authorizeBriefing(event, actor);
       const saved = await tx.opsBriefing.create({ data: {
         id: `brief_${randomUUID()}`, eventId, venue: input.venue,

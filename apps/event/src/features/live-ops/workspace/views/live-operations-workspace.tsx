@@ -1,4 +1,3 @@
-import { EventPlanningStatusStrip } from "./event-planning-status-strip";
 import type {
   BlockEventDayTaskInput,
   CoordinatorRole,
@@ -49,12 +48,12 @@ export function LiveOperationsWorkspace({
   coordinators: PrismCoordinator[];
   busy: boolean;
   onReload: () => Promise<void>;
-  onCreateTask: (input: CreateEventDayTaskInput) => Promise<void>;
+  onCreateTask: (input: CreateEventDayTaskInput) => Promise<boolean | void>;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
-  onBlockTask: (taskId: string, input: BlockEventDayTaskInput) => Promise<void>;
+  onBlockTask: (taskId: string, input: BlockEventDayTaskInput) => Promise<boolean | void>;
   onUnblockTask: (taskId: string) => Promise<void>;
   onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
-  onCreateIssue: (input: CreateUrgentIssueInput) => Promise<void>;
+  onCreateIssue: (input: CreateUrgentIssueInput) => Promise<boolean | void>;
   onUpdateIssue: (issueId: string, input: UpdateUrgentIssueInput) => Promise<void>;
   onEscalateIssue: (issueId: string, input: EscalateLiveOpsInput) => Promise<void>;
   onUpdateCoordinatorAttendance: (assignmentId: string, input: UpdateCoordinatorAttendanceInput) => Promise<void>;
@@ -64,17 +63,19 @@ export function LiveOperationsWorkspace({
   onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
   const vm = useLiveOperationsWorkspaceViewModel({ liveOps, busy, onCreateTask, onCreateIssue, onBlockTask, onUnblockTask });
-  const ended = hasEventDatePassed(event.eventDate, prismCalendarDateKey());
+  const today = prismCalendarDateKey();
+  const ended = hasEventDatePassed(event.eventDate, today);
+  const before = !ended && event.eventDate.slice(0, 10) > today;
 
   return (
     <div className="space-y-4">
-      <EventPlanningStatusStrip event={event} />
       <LiveOpsOverview
         event={event}
         liveOps={liveOps}
         metrics={vm.metrics}
         busy={busy}
-        ended={ended}
+        stage={ended ? "after" : before ? "before" : "day"}
+        today={today}
         onReload={onReload}
       />
       {liveOps ? (
@@ -85,6 +86,7 @@ export function LiveOperationsWorkspace({
           coordinators={coordinators}
           busy={busy}
           readOnly={ended}
+          beforeDay={before}
           vm={vm}
           onUpdateTask={onUpdateTask}
           onEscalateTask={onEscalateTask}

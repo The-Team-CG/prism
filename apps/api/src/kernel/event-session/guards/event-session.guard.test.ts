@@ -126,7 +126,6 @@ describe('EventSessionGuard', () => {
   it.each([
     ['declined account', { approvalStatus: 'declined' }],
     ['pending account', { approvalStatus: 'pending' }],
-    ['temporary lockout', { lockedUntil: new Date(Date.now() + 60_000) }],
     ['permanent lockout', { permanentLockout: true }],
     ['changed role', { role: 'client' }],
     ['changed email', { email: 'changed@example.test' }],
@@ -139,6 +138,15 @@ describe('EventSessionGuard', () => {
     await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer old-token' } }))).rejects.toThrow(
       /revoked|eligible/i,
     );
+  });
+
+  it('keeps a signed session working while wrong passwords have the account temporarily locked', async () => {
+    const authSessionService = {
+      verifyAccessToken: vi.fn(() => verifiedPmcmActor),
+    } as unknown as AuthSessionService;
+    const guard = new EventSessionGuard(authSessionService, prismaFor(0, { lockedUntil: new Date(Date.now() + 60_000) }) as never, new Reflector());
+
+    await expect(guard.canActivate(createContext({ headers: { authorization: 'Bearer session-token' } }))).resolves.toBe(true);
   });
 
   it('blocks a signed session until its privacy notice is acknowledged, except on an allowed route', async () => {

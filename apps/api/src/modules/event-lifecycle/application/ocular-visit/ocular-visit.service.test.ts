@@ -24,13 +24,14 @@ const admin = {
   verified: true,
 };
 
-function createService(options: { signedAt?: Date | null; locked?: boolean; email?: string; record?: Record<string, unknown> | null } = {}) {
+function createService(options: { signedAt?: Date | null; locked?: boolean; email?: string; record?: Record<string, unknown> | null; status?: string; archived?: boolean } = {}) {
   const event = {
     id: eventId,
     clientName: 'Client One',
     eventName: 'Launch event',
     eventDate: new Date('2026-10-20T00:00:00.000Z'),
-    archived: false,
+    archived: options.archived ?? false,
+    status: options.status ?? 'planning',
     clientPortalStatus: options.locked ? 'locked' : 'unlocked',
     inquiry: {
       email: options.email ?? 'client@example.test',
@@ -77,6 +78,18 @@ describe('OcularVisitService', () => {
 
     await expect(service.submitClientRequest(eventId, {}, client as never)).rejects.toBeInstanceOf(ForbiddenException);
     expect(prisma.opsOcularVisitRequest.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { name: 'cancelled', options: { status: 'cancelled' } },
+    { name: 'archived', options: { archived: true, status: 'archived' } },
+  ])('refuses to request or schedule a visit on a $name event', async ({ options }) => {
+    const { service, prisma } = createService({ ...options, record: { id: 'ovr_1', eventId, status: 'requested', clientNote: null, requestedAt } });
+
+    await expect(service.submitClientRequest(eventId, {}, client as never)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.scheduleOcularVisit(eventId, { scheduledAt: '2026-10-05T09:00:00+08:00' }, admin as never)).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.opsOcularVisitRequest.create).not.toHaveBeenCalled();
+    expect(prisma.opsOcularVisitRequest.update).not.toHaveBeenCalled();
   });
 
   it('rejects a duplicate client request', async () => {

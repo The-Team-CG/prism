@@ -14,6 +14,7 @@ import {
   writeAudit,
 } from '@prism/kernel/access-control';
 import { PrismaService } from '@prism/kernel/database';
+import { planningWriteRefusal } from '../../domain/planning-write.policy';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import {
   NOTIFICATION_OUTBOX_WRITER,
@@ -94,6 +95,8 @@ export class OcularVisitService {
           event,
           'client ocular visit request',
         );
+        const refusal = planningWriteRefusal(event, 'request an ocular visit');
+        if (refusal) throw new BadRequestException(refusal);
         if (!event.inquiry.conformeSignedAt) {
           throw new BadRequestException('A signed conforme is required before requesting an ocular visit');
         }
@@ -171,6 +174,18 @@ export class OcularVisitService {
     );
   }
 
+  /** The visit PMCM may schedule: none yet, or one requested or already scheduled, on an event still in planning. */
+  private async schedulableVisit(tx: Prisma.TransactionClient, eventId: string) {
+    const event = await this.requireEvent(tx, eventId);
+    const refusal = planningWriteRefusal(event, 'schedule an ocular visit');
+    if (refusal) throw new BadRequestException(refusal);
+    const existing = await tx.opsOcularVisitRequest.findUnique({ where: { eventId } });
+    if (existing && existing.status !== 'requested' && existing.status !== 'scheduled') {
+      throw new BadRequestException('Only a requested or scheduled ocular visit can be scheduled');
+    }
+    return { event, existing };
+  }
+
   async scheduleOcularVisit(
     eventId: string,
     input: ScheduleOcularVisitInput,
@@ -178,11 +193,7 @@ export class OcularVisitService {
   ): Promise<PrismPmcmOcularVisit> {
     await this.requireAdmin(actor, eventId);
     return this.prisma.$transaction(async (tx) => {
-      const event = await this.requireEvent(tx, eventId);
-      const existing = await tx.opsOcularVisitRequest.findUnique({ where: { eventId } });
-      if (existing && existing.status !== 'requested' && existing.status !== 'scheduled') {
-        throw new BadRequestException('Only a requested or scheduled ocular visit can be scheduled');
-      }
+      const { event, existing } = await this.schedulableVisit(tx, eventId);
       const kind = ocularScheduleKind(existing);
 
       // PMCM may book a visit without a client request; that record has no requestedAt and is audited as PMCM-initiated.

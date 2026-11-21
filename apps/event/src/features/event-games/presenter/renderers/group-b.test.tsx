@@ -103,9 +103,10 @@ function hostState(
 describe.each(cases)("$name presenter renderer", (game) => {
   const { Renderer } = game;
 
-  it("shows room size and phone instruction while live", () => {
+  it("shows the prompt, room size and phone instruction while live", () => {
     render(<Renderer state={hostState(game, "live")} />);
 
+    expect(screen.getByText(game.prompt)).toBeTruthy();
     expect(screen.getByText("14")).toBeTruthy();
     expect(screen.getByText(/answering on their phones|asking on their phones/)).toBeTruthy();
   });
@@ -122,6 +123,7 @@ describe.each(cases)("$name presenter renderer", (game) => {
   it("shows paused totals and approved answers, never pending text", () => {
     render(<Renderer state={hostState(game, "paused")} />);
 
+    expect(screen.getByText(game.prompt)).toBeTruthy();
     for (const text of game.pausedText) {
       expect(screen.getByText(text)).toBeTruthy();
     }

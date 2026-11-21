@@ -7,6 +7,9 @@ const actor = { id: 'pmcm-1', role: 'pmcm-admin', name: 'PMCM Admin', email: 'pm
 const event = {
   id: 'evt-1',
   status: 'planning',
+  archived: false,
+  actualEndedAt: null as Date | null,
+  proposalClientStatus: 'approved',
   freezeStatus: 'open',
   eventDate: new Date('2026-11-10T00:00:00.000Z'),
   eventName: 'Launch',
@@ -33,7 +36,7 @@ const postpone = (supplierImpact: 'release_obligations' | 'preserve_obligations'
   impactReviewAcknowledged: true,
 }) as const;
 
-function setup(options: { eventOverrides?: Partial<typeof event> & { inquiry?: { email: string; conformeSignedAt?: Date } }; staffingImpact?: unknown; approvedExceptionIds?: string[]; contractAmount?: number } = {}) {
+function setup(options: { eventOverrides?: Partial<typeof event> & { inquiry?: { email: string; conformeSignedAt?: Date } }; staffingImpact?: unknown; approvedExceptionIds?: string[]; contractAmount?: number; earlierDecisions?: Array<{ priorState: unknown }> } = {}) {
   // Freeze exception store. Approvals are single-use: the conditional update matches only while the row is unconsumed.
   const exceptions = new Map((options.approvedExceptionIds ?? []).map((id) => [id, {
     id, eventId: 'evt-1', status: 'approved', consumedAt: null as Date | null, consumedByDecisionId: null as string | null,
@@ -56,7 +59,7 @@ function setup(options: { eventOverrides?: Partial<typeof event> & { inquiry?: {
     opsEventDecision: {
       create: vi.fn().mockResolvedValue({ id: 'decision-1', eventId: 'evt-1' }),
       update: vi.fn().mockResolvedValue({}),
-      findMany: vi.fn().mockResolvedValue([]),
+      findMany: vi.fn().mockResolvedValue(options.earlierDecisions ?? []),
       findUnique: vi.fn().mockResolvedValue(null),
     },
     opsSupplierQuoteRequest: {
@@ -127,7 +130,7 @@ describe('EventDecisionService', () => {
     expect(result).toEqual({ id: 'decision-1', eventId: 'evt-1' });
     expect(tx.opsEvent.update).toHaveBeenCalledWith(expect.objectContaining({
       where: { id: 'evt-1' },
-      data: expect.objectContaining({ status: 'postponed', eventDate: NEXT_DATE }),
+      data: expect.objectContaining({ status: 'planning', eventDate: NEXT_DATE }),
     }));
     expect(staffingCommands.applyEventDecisionAssignments).toHaveBeenCalledWith(
       'evt-1',
@@ -190,6 +193,43 @@ describe('EventDecisionService', () => {
     expect(tx.opsEvent.update).not.toHaveBeenCalled();
     expect(notification).not.toHaveBeenCalled();
     expect(audit).not.toHaveBeenCalled();
+  });
+
+  it('keeps a postponed event in planning on its new date, and pauses a date-to-be-confirmed event until a later postponement restores it', async () => {
+    const postponed = setup();
+    await postponed.service.decide('evt-1', postpone('preserve_obligations'), actor);
+    expect(postponed.tx.opsEvent.update).toHaveBeenCalledWith({ where: { id: 'evt-1' }, data: { status: 'planning', eventDate: NEXT_DATE } });
+
+    const paused = setup({ eventOverrides: { status: 'briefing', proposalClientStatus: 'pending' } });
+    await paused.service.decide('evt-1', { ...postpone('preserve_obligations'), decision: 'date_to_be_confirmed', newEventDate: undefined }, actor);
+    expect(paused.tx.opsEvent.update).toHaveBeenCalledWith({ where: { id: 'evt-1' }, data: { status: 'date_to_be_confirmed', eventDate: event.eventDate } });
+    expect(paused.tx.opsEventDecision.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ priorState: { status: 'briefing', eventDate: event.eventDate.toISOString() } }) }));
+
+    // A second pause records "date_to_be_confirmed" as its prior status; resuming skips it to the status before the first pause.
+    const resumed = setup({
+      eventOverrides: { status: 'date_to_be_confirmed', proposalClientStatus: 'pending' },
+      earlierDecisions: [{ priorState: { status: 'date_to_be_confirmed' } }, { priorState: { status: 'briefing' } }],
+    });
+    await resumed.service.decide('evt-1', postpone('preserve_obligations'), actor);
+    expect(resumed.tx.opsEvent.update).toHaveBeenCalledWith({ where: { id: 'evt-1' }, data: { status: 'briefing', eventDate: NEXT_DATE } });
+
+    // Events left at "postponed" by the older rule resume the same way.
+    const legacy = setup({ eventOverrides: { status: 'postponed' }, earlierDecisions: [{ priorState: { status: 'planning' } }] });
+    await legacy.service.decide('evt-1', postpone('preserve_obligations'), actor);
+    expect(legacy.tx.opsEvent.update).toHaveBeenCalledWith({ where: { id: 'evt-1' }, data: { status: 'planning', eventDate: NEXT_DATE } });
+  });
+
+  it.each([
+    ['at event day', { status: 'event_day' }],
+    ['after the actual end is recorded', { actualEndedAt: new Date('2026-11-10T20:00:00.000Z') }],
+    ['once archived', { archived: true, status: 'archived' }],
+  ])('refuses any decision %s', async (_label, eventOverrides) => {
+    for (const input of [cancel, postpone('preserve_obligations')]) {
+      const { service, tx, staffingCommands } = setup({ eventOverrides });
+      await expect(service.decide('evt-1', input, actor)).rejects.toBeInstanceOf(BadRequestException);
+      expect(staffingCommands.applyEventDecisionAssignments).not.toHaveBeenCalled();
+      expect(tx.opsEvent.update).not.toHaveBeenCalled();
+    }
   });
 
   it('fails closed when the event is already cancelled without calling the staffing owner', async () => {

@@ -93,6 +93,7 @@ type ClientEventTimelineSource = Pick<
   inquiry: Pick<OpsInquiry, 'conformeSignedAt'> | null;
   floorPlanDrafts: Array<Pick<OpsFloorPlanDraft, 'approvedAt'>>;
   paymentMilestones: Array<Pick<OpsPaymentMilestone, 'dueDate' | 'status' | 'remainingBalance'>>;
+  confirmedSupplierCount: number;
 };
 
 const CLIENT_TIMELINE_KEYS = [
@@ -145,7 +146,7 @@ function mapClientEventTimeline(source: ClientEventTimelineSource): PrismClientE
     };
   }) as PrismClientEventTimeline['milestones'];
 
-  return { eventId: source.id, milestones };
+  return { eventId: source.id, milestones, confirmedSupplierCount: source.confirmedSupplierCount };
 }
 
 type ClientOcularVisitRecord = Pick<
@@ -464,6 +465,7 @@ export class EventReadModelsService {
           inquiry: null,
           floorPlanDrafts: [],
           paymentMilestones: [],
+          confirmedSupplierCount: 0,
         },
       ),
     );
@@ -669,13 +671,13 @@ export class EventReadModelsService {
     return createSupplierReadinessClock();
   }
 
-  async pmcmCommandInbox(actor: ResolvedEventOpsActor, page = 0) {
+  async pmcmCommandInbox(actor: ResolvedEventOpsActor, page = 0, pageSize = MAX_PMCM_COMMAND_INBOX_PAGE_SIZE) {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM command inbox');
-    const { items, summary, hasMore } = await this.commandInboxItems(page, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE);
+    const { items, summary, hasMore } = await this.commandInboxItems(page, pageSize);
     return {
       generatedAt: new Date().toISOString(),
       summary,
-      page: { index: page, size: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, hasMore },
+      page: { index: page, size: pageSize, hasMore },
       counts: countBySeverity(items),
       items,
     };

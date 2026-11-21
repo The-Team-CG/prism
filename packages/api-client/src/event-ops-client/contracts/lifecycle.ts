@@ -94,6 +94,8 @@ export interface EventOpsLifecycleContract {
     moderateClientCloseout(eventId: string, input: ClientTestimonialModerationInput, actor?: EventOpsActorQuery): Promise<PrismClientCloseoutResponse>;
   };
   compliance: {
+    /** PMCM's own rules and the built-in checks (the built-ins carry createdAt 1970-01-01). */
+    listRules(actor?: EventOpsActorQuery): Promise<PrismComplianceRule[]>;
     createRule(input: CreateComplianceRuleInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRule>;
     resolve(eventId: string, checkId: string, input: ResolveComplianceInput, actor?: EventOpsActorQuery): Promise<PrismComplianceCheck>;
     run(eventId: string, input: RunComplianceInput, actor?: EventOpsActorQuery): Promise<PrismComplianceCheck[]>;

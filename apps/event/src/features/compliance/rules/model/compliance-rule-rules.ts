@@ -45,3 +45,16 @@ export function activeWorkspaceRules(rules: PrismComplianceRule[]) {
 export function complianceOptionLabel(options: ReadonlyArray<readonly [string, string]>, value: string) {
   return options.find(([key]) => key === value)?.[1] ?? value.replaceAll("_", " ");
 }
+
+/** The checks PMCM ships with: the API lists them beside saved rules, dated at the epoch since nobody created them. */
+export function builtInComplianceChecks(rules: PrismComplianceRule[]) {
+  const phaseOrder = new Map<string, number>(COMPLIANCE_RULE_PHASES.map(([value], index) => [value, index]));
+  return rules
+    .filter((rule) => rule.active && !rule.eventId && rule.createdAt.startsWith("1970-01-01"))
+    .sort((a, b) => (phaseOrder.get(a.phase.split(",")[0]) ?? 9) - (phaseOrder.get(b.phase.split(",")[0]) ?? 9) || a.title.localeCompare(b.title));
+}
+
+/** A rule's phases in words; built-in checks can run at several. */
+export function compliancePhasesLabel(phase: string) {
+  return phase.split(",").filter(Boolean).map((value) => complianceOptionLabel(COMPLIANCE_RULE_PHASES, value.trim())).join(", ");
+}

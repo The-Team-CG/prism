@@ -735,7 +735,8 @@ export const joinedMultiplayerGameSessionSchema = z.object({
     title: z.string().trim().min(1).max(120),
     kind: prismEventGameKindSchema,
   }).strict(),
-  status: z.enum(["lobby", "live"]),
+  /** A guest may join while the host has paused the game; they wait on the paused screen until it resumes. */
+  status: z.enum(["lobby", "live", "paused"]),
   participantCredential: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
 }).strict();
 

@@ -49,6 +49,8 @@ export interface PrismPmcmSupplierDirectoryRow {
   rating: { average: number | null; count: number };
   lastReviewedAt: string | null;
   certifications: PrismPmcmSupplierCertificationSummary;
+  /** Events where PMCM confirmed this supplier's assignment, across all history. */
+  bookedEvents: number;
 }
 
 export interface PrismPmcmSupplierDirectoryPage extends PrismPmcmSupplierPage<PrismPmcmSupplierDirectoryRow> {

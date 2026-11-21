@@ -12,7 +12,8 @@ import { RiskRegisterPanel } from "@/features/change-management/risk-register/vi
 import { RecordDecisionForm } from "./record-decision-form";
 import { LoadingState } from "@prism/ui/components/loading-state";
 
-export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; frozen: boolean }) {
+/** `decisionClosedReason` says why the event can no longer be cancelled or postponed; null keeps the decision form. */
+export function ChangeRegisterPanel({ eventId, frozen, decisionClosedReason = null }: { eventId: string; frozen: boolean; decisionClosedReason?: string | null }) {
   const vm = useChangeRegisterViewModel(eventId, { frozen });
 
   return (
@@ -53,7 +54,9 @@ export function ChangeRegisterPanel({ eventId, frozen }: { eventId: string; froz
             <ScopeChangeReviewPanel eventId={eventId} frozen={frozen} />
           </RegisterGroup>
           <RegisterGroup title="Cancel or postpone">
-            <RecordDecisionForm eventId={eventId} frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />
+            {decisionClosedReason
+              ? <p className="text-sm text-muted-foreground">{decisionClosedReason}</p>
+              : <RecordDecisionForm eventId={eventId} frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />}
           </RegisterGroup>
           <RegisterGroup title="Addenda">
             <PmcmAddendaStatus

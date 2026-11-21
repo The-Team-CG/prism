@@ -30,8 +30,8 @@ const sourceGuards = [
     markers: ["Billing", "Supplier", "Live operations", "Closure"],
   },
   {
-    file: "apps/event/src/features/coordinators/desk/views/sections/coordinator-view-sections.tsx",
-    markers: ["Role-safe", "Event-day actions", "Coordinator information boundary"],
+    file: "apps/event/src/features/coordinators/desk/views/sections/coordinator-assignments-page.tsx",
+    markers: ["Coming up", "Past events", "Billing, costs, audit records"],
   },
 ];
 

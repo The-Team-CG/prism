@@ -15,7 +15,7 @@ describe("client dashboard shell copy", () => {
   });
 
   it("titles each event tab with its section and keeps the event name in the description", () => {
-    const selectedEvent = { eventName: "Gala Night", eventDate: "2026-12-12" };
+    const selectedEvent = { eventName: "Gala Night", eventDate: "2026-12-12", status: "planning" };
     expect(clientShellTitle({ isEventScopedView: true, route: "billing" })).toBe("Billing");
     expect(clientShellTitle({ isEventScopedView: true, route: "changes" })).toBe("Planning");
     expect(clientShellTitle({ isEventScopedView: true, route: "actions" })).toBe("Planning");

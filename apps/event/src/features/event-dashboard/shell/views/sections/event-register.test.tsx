@@ -46,34 +46,44 @@ describe("PMCM events as cards", () => {
     expect(onOpenEvent).toHaveBeenCalledWith("evt_a");
   });
 
-  it("puts an event the Inbox has work on first, listing that work as links, and says a clear event has nothing waiting", () => {
-    const attention = new Map([["evt_a", ayala]]);
-    const money = new Map([["evt_a", { billed: 865_000, paid: 100_000, checking: 100_000 }]]);
-    const shortcuts = new Map([["evt_b", { billing: 0, files: 3, messages: 2 }]]);
+  it("draws a card for what is on in the next two weeks and one row for each later event", () => {
+    const attention = new Map([["evt_a", ayala], ["evt_b", { ...ayala, eventId: "evt_b" }]]);
+    const money = new Map([["evt_a", { billed: 865_000, paid: 100_000, checking: 100_000 }], ["evt_b", { billed: 400_000, paid: 200_000, checking: 0 }]]);
+    const shortcuts = new Map([["evt_a", { billing: 0, files: 3, messages: 2 }]]);
     render(<EventRegister events={events} data={{ attention, money, shortcuts, viewCounts: { "/dashboard/events": 3 } }} onOpenEvent={() => undefined} />);
     expect(screen.getByRole("tab", { name: /^All events\s*3$/ })).toBeTruthy();
 
-    const needsYou = section(/Needs you/);
-    expect(within(needsYou).getByRole("link", { name: "Ayala Summit" })).toBeTruthy();
-    expect(within(needsYou).getByRole("link", { name: "Client payment overdue" }).getAttribute("href")).toBe("/dashboard/events/evt_a/billing#i1");
-    expect(within(needsYou).getByText("+1 more")).toBeTruthy();
-    expect(within(needsYou).getByText("in 7 days")).toBeTruthy();
-    expect(within(needsYou).getByText("₱100,000 of ₱865,000 paid")).toBeTruthy();
+    // Ayala is in seven days: a full card with the Inbox's work as links.
+    const near = section(/Next 14 days/);
+    expect(within(near).getByRole("link", { name: "Ayala Summit" })).toBeTruthy();
+    expect(within(near).getByRole("link", { name: "Client payment overdue" }).getAttribute("href")).toBe("/dashboard/events/evt_a/billing#i1");
+    expect(within(near).getByText("in 7 days")).toBeTruthy();
+    expect(within(near).getByText("₱100,000 of ₱865,000 paid")).toBeTruthy();
+    expect(within(near).getByRole("link", { name: "Messages, 2 unread" }).getAttribute("href")).toBe("/dashboard/events/evt_a/messages");
 
-    const comingUp = section(/Coming up/);
-    expect(within(comingUp).getByRole("link", { name: "Bonifacio Gala" })).toBeTruthy();
-    expect(within(comingUp).getByText("Nothing waiting on you")).toBeTruthy();
-    expect(within(comingUp).getByRole("link", { name: "Messages, 2 unread" }).getAttribute("href")).toBe("/dashboard/events/evt_b/messages");
-    expect(within(comingUp).getByRole("link", { name: "Files, 3 open" }).getAttribute("href")).toBe("/dashboard/events/evt_b/files");
-    expect(within(comingUp).getByRole("link", { name: "Billing" }).getAttribute("href")).toBe("/dashboard/events/evt_b/billing");
+    // Bonifacio is a month away: one row with its stage, the first thing waiting and how many more.
+    const later = section(/Later/);
+    expect(within(later).getByRole("link", { name: "Bonifacio Gala" }).getAttribute("href")).toBe("/dashboard/events/evt_b/overview");
+    expect(within(later).getByText("Client payment overdue")).toBeTruthy();
+    expect(within(later).getByText("+3")).toBeTruthy();
+    expect(within(later).getByText("₱200,000 of ₱400,000 paid")).toBeTruthy();
 
     expect(within(section(/Done/)).getByRole("link", { name: "Cruz Reunion" })).toBeTruthy();
   });
 
+  it("narrows the cards and rows to one stage", () => {
+    const briefing = { ...events[1], id: "evt_d", eventName: "Dela Cruz Debut", clientPortalStatus: "unlocked" } as PrismEvent;
+    const planning = { ...events[1], clientPortalStatus: "unlocked", proposalClientStatus: "approved" } as PrismEvent;
+    render(<EventRegister events={[planning, briefing]} onOpenEvent={() => undefined} />);
+    fireEvent.click(screen.getByRole("button", { name: /Planning\s*1/ }));
+    expect(screen.getByRole("link", { name: "Bonifacio Gala" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Dela Cruz Debut" })).toBeNull();
+  });
+
   it("claims nothing about what is waiting until the Inbox read arrives", () => {
     render(<EventRegister events={events} onOpenEvent={() => undefined} />);
-    expect(screen.queryByRole("heading", { name: /Needs you/ })).toBeNull();
     expect(screen.queryByText("Nothing waiting on you")).toBeNull();
-    expect(within(section(/^Events/)).getByRole("link", { name: "Ayala Summit" })).toBeTruthy();
+    expect(screen.queryByText("Nothing waiting")).toBeNull();
+    expect(within(section(/Next 14 days/)).getByRole("link", { name: "Ayala Summit" })).toBeTruthy();
   });
 });

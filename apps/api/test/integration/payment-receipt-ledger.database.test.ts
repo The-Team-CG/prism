@@ -69,6 +69,8 @@ describe.skipIf(!live)('payment receipt ledger against PostgreSQL', () => {
     await prisma.opsPaymentRefund.deleteMany({ where: { recordedBy: actor.name } });
     await prisma.opsPaymentReceipt.deleteMany({ where: { recordedBy: actor.name } });
     await prisma.opsPaymentMilestone.deleteMany({ where: { eventId: { in: eventIds } } });
+    await prisma.opsBillingStatement.deleteMany({ where: { eventId: { in: eventIds }, supersedesStatementId: { not: null } } });
+    await prisma.opsBillingStatement.deleteMany({ where: { eventId: { in: eventIds } } });
     await prisma.opsEvent.deleteMany({ where: { id: { in: eventIds } } });
     await prisma.opsInquiry.deleteMany({ where: { id: { in: [ids.inquiryA, ids.inquiryB] } } });
     await prisma.$disconnect();
@@ -214,6 +216,46 @@ describe.skipIf(!live)('payment receipt ledger against PostgreSQL', () => {
     expect(await milestone(balance)).toMatchObject({ amountPaid: 0, remainingBalance: 50000, status: 'pending' });
     expect((await receipts.listReceipts({ unapplied: true })).map((entry) => entry.id)).not.toContain(receipt.id);
     await expect(receipts.allocate(receipt.id, { milestoneId: balance, amount: 1 }, actor)).rejects.toThrow(/reversed receipt cannot be applied/);
+  });
+
+  it('takes back the credit a corrected statement carried when the payment behind it is undone, so it is never counted twice', async () => {
+    // A correction supersedes the invoice and its milestones and carries what was paid on them to the replacement as
+    // credit, earliest due first (BillingAdjustmentService.issueCorrectedStatement). This builds that end state.
+    const original = `ledger_stmt_original_${suffix}`;
+    const replacement = `ledger_stmt_replacement_${suffix}`;
+    await prisma.opsBillingStatement.create({ data: { id: original, eventId: ids.eventA, number: `LT-ORIG-${suffix}`, totalAmount: 100000, status: 'sent' } });
+    const superseded = await newMilestone(ids.eventA, 'Deposit', 50000);
+    await prisma.opsPaymentMilestone.update({ where: { id: superseded }, data: { statementId: original } });
+    const cheque = await record(30000);
+    await receipts.allocate(cheque.id, { milestoneId: superseded, amount: 30000 }, actor);
+    await prisma.opsBillingStatement.update({ where: { id: original }, data: { status: 'superseded' } });
+    await prisma.opsPaymentMilestone.update({ where: { id: superseded }, data: { status: 'superseded', supersededAt: new Date() } });
+    await prisma.opsBillingStatement.create({ data: { id: replacement, eventId: ids.eventA, number: `LT-REPL-${suffix}`, totalAmount: 90000, supersedesStatementId: original } });
+    const deposit = await newMilestone(ids.eventA, 'Deposit', 25000);
+    const balance = await newMilestone(ids.eventA, 'Balance', 65000);
+    await prisma.opsPaymentMilestone.update({ where: { id: deposit }, data: { statementId: replacement, dueDate: new Date('2031-02-01T00:00:00.000Z'), creditApplied: 25000, amountPaid: 25000, remainingBalance: 0, status: 'paid' } });
+    await prisma.opsPaymentMilestone.update({ where: { id: balance }, data: { statementId: replacement, creditApplied: 5000, amountPaid: 5000, remainingBalance: 60000, status: 'partially_paid' } });
+
+    // PMCM moves the payment: undone on the superseded milestone, then applied to the replacement.
+    const applied = await receipts.getReceipt(cheque.id);
+    await receipts.reverseAllocation(cheque.id, applied.allocations[0].id, { reason: 'Apply it to the corrected statement' }, actor);
+    expect(await milestone(superseded)).toMatchObject({ status: 'superseded' });
+    expect(await milestone(deposit)).toMatchObject({ creditApplied: 0, amountPaid: 0, remainingBalance: 25000, status: 'pending' });
+    expect(await milestone(balance)).toMatchObject({ creditApplied: 0, amountPaid: 0, remainingBalance: 65000, status: 'pending' });
+    await receipts.allocate(cheque.id, { milestoneId: deposit, amount: 25000 }, actor);
+    await receipts.allocate(cheque.id, { milestoneId: balance, amount: 5000 }, actor);
+    expect((await milestone(deposit)).amountPaid + (await milestone(balance)).amountPaid).toBe(30000);
+
+    // A second cheque carried the same way bounces: the client keeps no credit for it.
+    const bounced = await record(20000);
+    const extra = await newMilestone(ids.eventA, 'Deposit top-up', 20000);
+    await prisma.opsPaymentMilestone.update({ where: { id: extra }, data: { statementId: original } });
+    await receipts.allocate(bounced.id, { milestoneId: extra, amount: 20000 }, actor);
+    await prisma.opsPaymentMilestone.update({ where: { id: extra }, data: { status: 'superseded', supersededAt: new Date() } });
+    await prisma.opsPaymentMilestone.update({ where: { id: balance }, data: { creditApplied: 20000, amountPaid: 25000, remainingBalance: 40000 } });
+    await receipts.reverseReceipt(bounced.id, { reason: 'Cheque bounced' }, actor);
+    expect(await milestone(extra)).toMatchObject({ status: 'superseded' });
+    expect(await milestone(balance)).toMatchObject({ creditApplied: 0, amountPaid: 5000, remainingBalance: 60000, status: 'partially_paid' });
   });
 
   it('verifies once and rejects only an unverified, unapplied receipt', async () => {

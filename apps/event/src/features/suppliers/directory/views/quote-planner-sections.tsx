@@ -35,11 +35,11 @@ export function QuotePlannerToolbar({
   onRequest: () => void;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-muted p-4">
+    <div id="quote-planner" className="scroll-mt-24">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground">Supplier quotes</p>
-          <p className="mt-1 text-sm text-muted-foreground">{rangeCopy.summary}</p>
+          <h2 className="text-base font-semibold text-foreground">Quotes for {categories.find((category) => category.id === categoryId)?.name ?? "this service"}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{rangeCopy.summary}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Select value={categoryId} onValueChange={onCategory}>
@@ -52,7 +52,7 @@ export function QuotePlannerToolbar({
               ))}
             </SelectContent>
           </Select>
-          <Button type="button" disabled={busy || !canRequest} onClick={onRequest} className="h-10 gap-2 rounded-md px-3 text-sm font-semibold">
+          <Button type="button" variant="outline" disabled={busy || !canRequest} onClick={onRequest} className="h-10 gap-2 rounded-md px-3 text-sm font-semibold">
             <Send className="size-4" /> Request quotes
           </Button>
         </div>
@@ -98,7 +98,7 @@ export function QuoteComparisonSection({
           </p>
         </div>
       ) : (
-        <div className="mt-4 grid gap-3 xl:grid-cols-3">
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 xl:grid-cols-3">
           {quotes.map((quote) => (
             <QuoteComparisonCard
               key={quote.id}
@@ -130,7 +130,7 @@ function QuoteComparisonCard({
 }) {
   const closed = isQuoteClosed(quote.status);
   return (
-    <article className={cx("rounded-lg border bg-background p-4", quoteCardAccentClass(quote))}>
+    <article className={cx("min-w-0 rounded-lg border bg-background p-4", quoteCardAccentClass(quote))}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -193,9 +193,13 @@ export function SupplierTierColumns({
   tierTwo: PrismSupplier[];
   pending: PrismSupplier[];
 }) {
+  // Only the tiers that hold someone are shown; with nobody in the category, one line says so.
+  if (tierOne.length + tierTwo.length + pending.length === 0) {
+    return <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">No suppliers in this category yet. Add one from the Suppliers directory.</p>;
+  }
   return (
-    <div className="grid gap-4 xl:grid-cols-3">
-      <section className="rounded-lg border border-border bg-card p-4">
+    <div className="grid gap-4 xl:grid-flow-col xl:auto-cols-fr">
+      {tierOne.length ? <section className="rounded-lg border border-border bg-card p-4">
         <p className="text-xs font-medium text-success">Auto-suggested Tier 1</p>
         <div className="mt-3 space-y-2">
           {tierOne.map((supplier) => (
@@ -204,10 +208,9 @@ export function SupplierTierColumns({
               <span className="mt-1 flex items-center gap-2 text-xs text-success"><RatingStars rating={supplier.aggregateRating} /></span>
             </div>
           ))}
-          {tierOne.length === 0 && <p className="text-sm text-muted-foreground">No Tier 1 supplier for this category yet.</p>}
         </div>
-      </section>
-      <section className="rounded-lg border border-border bg-card p-4">
+      </section> : null}
+      {tierTwo.length ? <section className="rounded-lg border border-border bg-card p-4">
         <p className="text-xs font-medium text-brand-blue">Backup suppliers</p>
         <div className="mt-3 space-y-2">
           {tierTwo.map((supplier) => (
@@ -216,10 +219,9 @@ export function SupplierTierColumns({
               <span className="mt-1 text-xs text-muted-foreground">{supplier.bniMember ? "BNI member · auto-trust" : "Manual backup"}</span>
             </div>
           ))}
-          {tierTwo.length === 0 && <p className="text-sm text-muted-foreground">No Tier 2 backup in this category.</p>}
         </div>
-      </section>
-      <section className="rounded-lg border border-border bg-card p-4">
+      </section> : null}
+      {pending.length ? <section className="rounded-lg border border-border bg-card p-4">
         <p className="text-sm text-muted-foreground">First event, manual select</p>
         <div className="mt-3 space-y-2">
           {pending.map((supplier) => (
@@ -228,9 +230,8 @@ export function SupplierTierColumns({
               <span className="mt-1 text-xs text-muted-foreground">Excluded from auto-suggestions</span>
             </div>
           ))}
-          {pending.length === 0 && <p className="text-sm text-muted-foreground">No pending-first-event suppliers here.</p>}
         </div>
-      </section>
+      </section> : null}
     </div>
   );
 }

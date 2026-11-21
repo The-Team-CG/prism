@@ -54,6 +54,18 @@ describe('logistics close gate', () => {
     expect(JSON.stringify(recorded)).not.toMatch(/privateNotes|completionSummary/);
     logisticsRecord = null;
   });
+
+  it('waives the after-event-day gates for a cancelled event but still requires billing and resolved issues', async () => {
+    const prisma = createPrisma();
+    prisma.opsEvent.findUnique.mockResolvedValue({ id: 'evt_file', floorPlanStatus: 'approved', status: 'cancelled' } as never);
+    prisma.opsPostEventDocument.findMany.mockResolvedValue([]);
+    prisma.opsDocument.findMany.mockResolvedValue([]);
+    prisma.opsPaymentMilestone.findMany.mockResolvedValue([{ id: 'fee', eventId: 'evt_file', status: 'pending', remainingBalance: 25000 }]);
+
+    const gates = await new FileRequirementsMatrixService(prisma as never).closeGates('evt_file');
+
+    expect(gates.missingKeys).toEqual(['billing']);
+  });
 });
 
 describe('FileRequirementsMatrixService', () => {

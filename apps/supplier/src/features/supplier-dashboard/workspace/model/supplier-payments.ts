@@ -39,6 +39,8 @@ export type SupplierBooking = {
   contract: number | null;
   terms: string;
   payables: PrismSupplierPayableMilestone[];
+  /** What was agreed but is not in a scheduled payout yet: the whole contract until PMCM sets a schedule. */
+  unscheduled: number;
 };
 
 /**
@@ -52,28 +54,48 @@ export function supplierBookings(input: {
   readinessBoard: PrismSupplierReadinessBoard | null;
 }): SupplierBooking[] {
   const requestIds = [...new Set([...input.selectedQuotes.flatMap((quote) => (quote.requestId ? [quote.requestId] : [])), ...input.payables.map((payable) => payable.requestId)])];
-  return requestIds.map((requestId) => {
+  return requestIds.flatMap((requestId) => {
     const request = input.quoteRequests.find((item) => item.id === requestId);
     const quote = input.selectedQuotes.find((item) => item.requestId === requestId);
-    return {
+    const payables = input.payables.filter((payable) => payable.requestId === requestId).sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999"));
+    // A withdrawn booking keeps only what PMCM already scheduled for it; the rest of its contract is no longer owed.
+    const withdrawn = request?.assignmentStatus === "withdrawn";
+    if (withdrawn && payables.length === 0) return [];
+    const contract = quote?.amount ?? null;
+    const scheduled = payables.reduce((sum, payable) => sum + payable.amount, 0);
+    return [{
       requestId,
       eventName: input.readinessBoard?.items.find((item) => item.requestId === requestId)?.eventName ?? request?.category ?? "Booking",
       category: request?.category ?? null,
-      contract: quote?.amount ?? null,
+      contract,
       terms: quote?.paymentTerms ?? "",
-      payables: input.payables.filter((payable) => payable.requestId === requestId).sort((a, b) => (a.dueDate ?? "9999").localeCompare(b.dueDate ?? "9999")),
-    };
+      payables,
+      unscheduled: withdrawn || contract === null ? 0 : Math.max(0, contract - scheduled),
+    }];
   });
 }
 
-/** Totals across every booking: paid so far, still to come, what is late, and the next payment due. */
-export function supplierPaymentTotals(payables: PrismSupplierPayableMilestone[], todayKey: string) {
+/**
+ * Bookings with agreed money PMCM has not put in a payout yet (a booking with no schedule, or the part of a contract its
+ * schedule does not cover), and what that adds up to.
+ */
+export function unscheduledBookings(bookings: SupplierBooking[]) {
+  const waiting = bookings.filter((booking) => booking.payables.length === 0 || booking.unscheduled > 0);
+  return { bookings: waiting, agreed: bookings.reduce((sum, booking) => sum + booking.unscheduled, 0) };
+}
+
+/**
+ * Totals across every booking: paid so far, still to come, what is late, and the next payment due. Still to come
+ * includes what was agreed on bookings without a schedule yet (`unscheduled`), so it never reads ₱0 while money is owed.
+ */
+export function supplierPaymentTotals(payables: PrismSupplierPayableMilestone[], todayKey: string, unscheduled = 0) {
   const open = payables.filter((payable) => payable.remainingBalance > 0);
   const late = open.filter((payable) => payable.dueDate && (daysUntil(payable.dueDate.slice(0, 10), todayKey) ?? 0) < 0);
   const next = open.filter((payable) => !late.includes(payable) && payable.dueDate).sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))[0] ?? null;
   return {
     paid: payables.reduce((sum, payable) => sum + payable.amountReleased, 0),
-    toCome: open.reduce((sum, payable) => sum + payable.remainingBalance, 0),
+    toCome: open.reduce((sum, payable) => sum + payable.remainingBalance, 0) + unscheduled,
+    unscheduled,
     late: late.reduce((sum, payable) => sum + payable.remainingBalance, 0),
     next,
   };

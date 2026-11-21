@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, ArrowDownToLine, Download, Hourglass, Scale, Truck, WalletCards, type LucideIcon } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, ChevronDown, Download, Hourglass, Scale, Truck, WalletCards, type LucideIcon } from "lucide-react";
 import { useResource } from "@prism/portal-query";
 import type { PrismFinanceDesk, PrismFinanceDeskEvent, PrismFinanceDeskPayout } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
@@ -37,31 +38,66 @@ const quiet = "bg-muted text-muted-foreground";
 function Tiles({ totals }: { totals: PrismFinanceDesk["totals"] }) {
   const owedToSuppliers = totals.supplierOverdue + totals.supplierDueSoon;
   const reviews = totals.openDisputes + totals.pendingCorrections;
+  // Money received but not yet on a payment is checked the same way as a reported payment, so it shares the tile.
+  const toCheck = totals.toVerify + totals.unapplied;
+  const toCheckDetail = [totals.toVerifyCount === 1 ? "1 payment" : `${totals.toVerifyCount} payments`, totals.unapplied ? `${formatPeso(totals.unapplied)} not yet applied` : null].filter(Boolean).join(" · ");
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Tile icon={AlertTriangle} label="Clients overdue" value={formatPeso(totals.clientOverdue)} detail={`${formatPeso(totals.clientDueSoon)} more due in two weeks`} tone={totals.clientOverdue ? "bg-danger-soft text-danger" : quiet} />
-      <Tile icon={Hourglass} label="To verify" value={formatPeso(totals.toVerify)} detail={totals.toVerifyCount === 1 ? "1 payment" : `${totals.toVerifyCount} payments`} tone={totals.toVerifyCount ? "bg-info-soft text-info" : quiet} />
-      <Tile icon={ArrowDownToLine} label="Not yet applied" value={formatPeso(totals.unapplied)} detail="Received, not on a payment" tone={totals.unapplied ? "bg-info-soft text-info" : quiet} />
+      <Tile icon={Hourglass} label="To verify" value={formatPeso(toCheck)} detail={toCheckDetail} tone={toCheck ? "bg-info-soft text-info" : quiet} />
       <Tile icon={Truck} label="Owed to suppliers" value={formatPeso(owedToSuppliers)} detail={totals.supplierOverdue ? `${formatPeso(totals.supplierOverdue)} late` : "Due within a week"} tone={totals.supplierOverdue ? "bg-danger-soft text-danger" : owedToSuppliers ? "bg-attention-soft text-attention" : quiet} />
       <Tile icon={Scale} label="Disputes and corrections" value={String(reviews)} detail={`${totals.openDisputes} disputes · ${totals.pendingCorrections} corrections`} tone={reviews ? "bg-attention-soft text-attention" : quiet} />
     </div>
   );
 }
 
-function EventCard({ event, todayKey }: { event: PrismFinanceDeskEvent; todayKey: string }) {
+const BALANCE_GRID = "grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 px-5 py-3 md:grid-cols-[minmax(0,1.6fr)_7.5rem_minmax(0,1fr)_7.5rem_minmax(0,1.1fr)] md:items-center";
+
+/** One event's client money as a row: billed, how far paid, what is still owed, and what happens next. */
+function BalanceRow({ event, todayKey }: { event: PrismFinanceDeskEvent; todayKey: string }) {
   const headline = financeHeadline(event, todayKey);
+  const outstanding = Math.max(0, event.billed - event.paid);
   return (
-    <Link href={`/dashboard/events/${event.eventId}/billing`} className="group block rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{event.eventName}</p>
-          <p className="truncate text-xs text-muted-foreground">{[event.clientName, event.eventDate ? formatPortalDate(event.eventDate) : null, event.statementNumber].filter(Boolean).join(" · ")}</p>
-        </div>
-        <p className="shrink-0 text-right text-xs tabular-nums text-muted-foreground"><span className="block text-sm font-semibold text-foreground">{formatPeso(event.paid)}</span>of {formatPeso(event.billed)}</p>
-      </div>
-      <p className={cn("mt-2 text-sm font-medium tabular-nums", TONE_TEXT[headline.tone])}>{headline.title}</p>
-      <PaymentProgressBar steps={event.milestones.map((milestone) => financeStep(milestone, todayKey))} className="mt-2" />
-    </Link>
+    <li className={cn("relative transition-colors hover:bg-surface-raised has-[a:focus-visible]:bg-surface-raised", BALANCE_GRID)}>
+      <span className="min-w-0">
+        <Link href={`/dashboard/events/${event.eventId}/billing`} className="block truncate text-sm font-semibold text-foreground outline-none after:absolute after:inset-0">{event.eventName}</Link>
+        <span className="block truncate text-xs text-muted-foreground">{[event.clientName, event.eventDate ? formatPortalDate(event.eventDate) : null, event.statementNumber].filter(Boolean).join(" · ")}</span>
+      </span>
+      <span className="text-right text-sm tabular-nums text-muted-foreground md:order-none"><span className="md:hidden">Billed </span>{formatPeso(event.billed)}</span>
+      <PaymentProgressBar steps={event.milestones.map((milestone) => financeStep(milestone, todayKey))} className="col-span-2 md:col-span-1" />
+      <span className="text-sm font-semibold tabular-nums text-foreground md:text-right"><span className="font-normal text-muted-foreground md:hidden">Outstanding </span>{formatPeso(outstanding)}</span>
+      <span className={cn("text-right text-sm font-medium tabular-nums md:text-left", TONE_TEXT[headline.tone])}>{headline.title}</span>
+    </li>
+  );
+}
+
+/** Rows shown before "Show all": the most overdue, which is what the page is for. */
+const BALANCES_SHOWN = 8;
+
+function ClientBalances({ events, todayKey, onExport }: { events: PrismFinanceDeskEvent[]; todayKey: string; onExport: () => void }) {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? events : events.slice(0, BALANCES_SHOWN);
+  return (
+    <PrismSection
+      id="finance-events" title="Client balances" count={events.length} description="Each event's client payments, most overdue first." flush
+      action={events.length ? <Button type="button" variant="outline" size="sm" onClick={onExport}><Download aria-hidden className="size-4" />Download spreadsheet</Button> : null}
+    >
+      {events.length === 0 ? (
+        <div className="px-5 py-4"><PrismEmptyLine icon={WalletCards}>No billing statements yet. Approve a billing source on an event to issue one.</PrismEmptyLine></div>
+      ) : (
+        <>
+          <div aria-hidden className={cn(BALANCE_GRID, "hidden border-b border-border py-2 text-xs text-muted-foreground md:grid")}>
+            <span>Event</span><span className="text-right">Billed</span><span>Paid</span><span className="text-right">Outstanding</span><span>Next</span>
+          </div>
+          <ul className="divide-y divide-border">{shown.map((event) => <BalanceRow key={event.eventId} event={event} todayKey={todayKey} />)}</ul>
+          {events.length > shown.length ? (
+            <button type="button" onClick={() => setShowAll(true)} className="flex min-h-11 w-full items-center gap-1 border-t border-border px-5 text-sm font-medium text-primary hover:bg-surface-raised">
+              Show all {events.length}<ChevronDown aria-hidden className="size-4" />
+            </button>
+          ) : null}
+        </>
+      )}
+    </PrismSection>
   );
 }
 
@@ -115,16 +151,7 @@ function FinanceDesk({ desk, todayKey }: { desk: PrismFinanceDesk; todayKey: str
         <AgingChart buckets={agingBuckets(events, todayKey)} />
         <CashOutlookChart weeks={cashOutlook(events, payouts, todayKey)} />
       </div>
-      <PrismSection
-        id="finance-events" title="Events" count={events.length} description="Each event's client payments, most overdue first." bare
-        action={events.length ? <Button type="button" variant="outline" size="sm" onClick={vm.exportCsv}><Download aria-hidden className="size-4" />Download spreadsheet</Button> : null}
-      >
-        {events.length === 0 ? (
-          <PrismEmptyLine icon={WalletCards}>No billing statements yet. Approve a billing source on an event to issue one.</PrismEmptyLine>
-        ) : (
-          <div className="grid gap-3 md:grid-cols-2">{events.map((event) => <EventCard key={event.eventId} event={event} todayKey={todayKey} />)}</div>
-        )}
-      </PrismSection>
+      <ClientBalances events={events} todayKey={todayKey} onExport={vm.exportCsv} />
       <Payouts payouts={payouts} todayKey={todayKey} />
     </div>
   );

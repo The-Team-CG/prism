@@ -4,8 +4,8 @@ import { PresenterVoteBars, PresenterWordCloud } from "../presenter-blocks";
 /**
  * Presenter Deck slides. Word-cloud rounds show approved words whenever the server sends them,
  * live or paused. Choice and scale rounds show vote totals in the slide's results window or after
- * a host pause. While the question is open: how many people are in the room. The prompt itself is
- * shown by the stage. The server decides visibility; pending moderation text is never read here.
+ * a host pause. While the question is open: the prompt and how many people are in the room.
+ * The server decides visibility; pending moderation text is never read here.
  */
 const PresenterDeckRenderer: PresenterRenderer = ({ state }) => {
   const approvedResponses = state.currentRound?.approvedResponses ?? [];
@@ -25,6 +25,7 @@ const PresenterDeckRenderer: PresenterRenderer = ({ state }) => {
   if (state.status === "live" && !round.resultsOpen) {
     return (
       <section aria-label="Current slide" className="flex flex-col items-center gap-8 py-8 text-center">
+        <p className="max-w-5xl text-5xl font-bold leading-tight md:text-7xl">{round.prompt}</p>
         <p className="text-3xl text-white/80 md:text-4xl">
           <span className="font-bold tabular-nums text-amber-300">{state.participantCount}</span>{" "}
           {state.participantCount === 1 ? "person" : "people"} answering on their phones

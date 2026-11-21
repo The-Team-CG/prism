@@ -51,7 +51,8 @@ describe('own privacy request service', () => {
 
     const data = (prisma.opsPrivacyRequest.create.mock.calls[0] as unknown as [{ data: Record<string, unknown> }])[0].data;
     expect(data).toMatchObject({
-      subjectType: 'client',
+      // Filed under the requester's own account, the subject PMCM can execute a deletion or correction against.
+      subjectType: 'account',
       subjectEmail: 'ana@example.test',
       subjectName: 'Ana Reyes',
       requestType: 'access',

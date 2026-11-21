@@ -3,7 +3,7 @@ import type { FloorPlan as PrismaFloorPlan, Prisma, VenueTemplate as PrismaVenue
 import { PrismaService } from '@prism/kernel/database';
 import { randomUUID } from 'node:crypto';
 import type { VenueTemplate } from '@prism/kernel/shared';
-import { roomSize } from '@prism/floorplan-scene';
+import { roomSize, withoutEventAssignments } from '@prism/floorplan-scene';
 import type { CreateTemplateInput, FloorplanSceneDocument, UpdateTemplateInput } from '@prism/types';
 import { floorPlanScalarPatch, setIfDefined } from './plan-patch';
 import { acceptedScene, sceneColumns, storedScene } from '../stored-scene';
@@ -80,7 +80,8 @@ export class TemplatesService {
   async createTemplate(input: CreateTemplateInput, actorId: string): Promise<VenueTemplate> {
     const planId = randomUUID();
     const templateId = randomUUID();
-    const scene = acceptedScene(input.scene);
+    // A template is the venue's layout: the guests and suppliers of the event it was saved from stay with that event.
+    const scene = withoutEventAssignments(acceptedScene(input.scene));
     const { width, height } = sceneDimensions(scene);
 
     const template = await this.prisma.$transaction(async (tx) => {
@@ -130,7 +131,7 @@ export class TemplatesService {
       });
 
     if (input.scene !== undefined) {
-      const scene = acceptedScene(input.scene);
+      const scene = withoutEventAssignments(acceptedScene(input.scene));
       const { width, height } = sceneDimensions(scene);
       await this.prisma.floorPlan.update({
         where: { id: row.floorPlanId },

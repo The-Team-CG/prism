@@ -1,9 +1,9 @@
-import { formatPortalDate } from "@prism/ui/format-date";
 import {
   CLIENT_PORTAL_VIEW_META,
   PORTAL_ROUTE_TO_NAV_ITEM,
 } from "./client-dashboard-navigation";
 import type { ClientDashboardRoute, ClientPortalView } from "./client-dashboard-types";
+import { clientEventDateLabel } from "./client-dashboard-view-rules";
 
 const PORTAL_TITLES: Partial<Record<ClientDashboardRoute, string>> = {
   request: "New event request",
@@ -126,11 +126,11 @@ export function clientShellDescription(input: {
   isEventScopedView: boolean;
   portalView?: ClientPortalView;
   route: ClientDashboardRoute;
-  selectedEvent?: { eventName: string; eventDate: string | null };
+  selectedEvent?: { eventName: string; eventDate: string | null; status: string };
 }) {
   if (input.isEventScopedView) {
     return input.selectedEvent
-      ? `${input.selectedEvent.eventName} · ${formatPortalDate(input.selectedEvent.eventDate)}`
+      ? `${input.selectedEvent.eventName} · ${clientEventDateLabel(input.selectedEvent)}`
       : "Loading event workspace…";
   }
   // Home opens with its own greeting and summary line, so the shell adds no second description.

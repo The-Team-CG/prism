@@ -34,6 +34,7 @@ import { AuthSecurityService } from './auth-security.service';
 import { TotpService } from './totp.service';
 import { LOGIN_LOCKOUT_THRESHOLD, loginFailureUpdate, nextLoginFailureState } from './login-lockout.policy';
 import { canonicalAccountEmail } from './account-email';
+import { cancelOpenEmailChanges } from './open-email-change';
 import { INQUIRY_COMMANDS, type InquiryCommands } from '@prism/contexts/event-lifecycle';
 import { AUTH_AUDIT, type AuthAuditPort } from '../../contracts/auth-audit.port';
 
@@ -245,16 +246,22 @@ export class AuthOperationsService {
       throw new ForbiddenException('Two-factor setup is not available for this token');
     }
     const user = await this.findTwoFactorUser(verifiedToken);
-    if (user.twoFactorSecret) throw new ForbiddenException('Two-factor setup has already started for this challenge');
-    const secret = this.totpService.generateSecret();
-    const saved = await this.prisma.opsUser.updateMany({
-      where: {
-        ...this.twoFactorChallengeWhere(verifiedToken, new Date()),
-        twoFactorSecret: null,
-      },
-      data: { twoFactorSecret: this.totpService.encryptSecret(secret) },
-    });
-    if (saved.count !== 1) throw new UnauthorizedException('Two-factor setup challenge is no longer active');
+    if (user.twoFactorSecret) throw new ForbiddenException('Two-factor setup has already been completed for this account');
+    // The secret waits as pending until a code from it verifies, so an abandoned setup never locks the admin out.
+    // A setup opened again (a reload, a second tab) shows the same secret, so the first QR keeps working.
+    const pending = user.twoFactorPendingSecret ? this.readableSecret(user.twoFactorPendingSecret) : null;
+    const secret = pending ?? this.totpService.generateSecret();
+    if (!pending) {
+      const saved = await this.prisma.opsUser.updateMany({
+        where: {
+          ...this.twoFactorChallengeWhere(verifiedToken, new Date()),
+          twoFactorSecret: null,
+          twoFactorPendingSecret: user.twoFactorPendingSecret,
+        },
+        data: { twoFactorPendingSecret: this.totpService.encryptSecret(secret) },
+      });
+      if (saved.count !== 1) throw new UnauthorizedException('Two-factor setup challenge is no longer active');
+    }
     return {
       kind: 'two_factor_setup' as const,
       token,
@@ -281,14 +288,9 @@ export class AuthOperationsService {
   async verifyTwoFactor(token: string, code: string, device?: string) {
     const verifiedToken = this.authSessionService.verifyTwoFactorToken(token);
     const user = await this.findTwoFactorUser(verifiedToken);
-    if (!user.twoFactorSecret) throw new ForbiddenException('Two-factor setup is required before sign-in');
-    let secret: string;
-    try {
-      secret = this.totpService.decryptSecret(user.twoFactorSecret);
-    } catch {
-      throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
-    }
-    if (!this.totpService.verifyCode(secret, code)) {
+    const { enrolling, storedSecret } = this.twoFactorSecretFor(user, verifiedToken);
+    const step = this.totpService.acceptedStep(this.readTwoFactorSecret(storedSecret), code, user.twoFactorLastStep);
+    if (step === null) {
       await this.recordFailedLoginAttempt(user.id, 'Invalid two-factor code', verifiedToken);
       throw new UnauthorizedException('Invalid two-factor code');
     }
@@ -303,15 +305,17 @@ export class AuthOperationsService {
             verifiedToken,
             now,
           );
-          if (!current.twoFactorSecret || current.twoFactorSecret !== user.twoFactorSecret) {
-            throw new UnauthorizedException('Two-factor challenge is no longer valid');
-          }
+          if (!this.twoFactorSecretUnchanged(current, enrolling, storedSecret)) throw new UnauthorizedException('Two-factor challenge is no longer valid');
           const consumed = await tx.opsUser.updateMany({
             where: {
               ...this.twoFactorChallengeWhere(verifiedToken, now),
-              twoFactorSecret: current.twoFactorSecret,
+              ...(enrolling ? { twoFactorSecret: null, twoFactorPendingSecret: storedSecret } : { twoFactorSecret: storedSecret }),
+              // The code's step must still be newer than the last one accepted, so one code never signs in twice.
+              AND: [{ OR: [{ twoFactorLastStep: null }, { twoFactorLastStep: { lt: step } }] }],
             },
             data: {
+              ...(enrolling ? { twoFactorSecret: storedSecret, twoFactorPendingSecret: null } : {}),
+              twoFactorLastStep: step,
               twoFactorChallengeConsumedAt: now,
               failedLoginCount: 0,
               lockoutCount: 0,
@@ -345,6 +349,38 @@ export class AuthOperationsService {
       }),
     ]);
     return this.issueUserSession(updated, browser);
+  }
+
+  /** A first-time setup checks the code against the pending secret and enrols it only when the code is right. */
+  private twoFactorSecretFor(user: OpsUser, verifiedToken: { purpose: string }) {
+    const enrolling = !user.twoFactorSecret && verifiedToken.purpose === 'setup';
+    const storedSecret = enrolling ? user.twoFactorPendingSecret : user.twoFactorSecret;
+    if (!storedSecret) throw new ForbiddenException('Two-factor setup is required before sign-in');
+    return { enrolling, storedSecret };
+  }
+
+  private readTwoFactorSecret(storedSecret: string): string {
+    try {
+      return this.totpService.decryptSecret(storedSecret);
+    } catch {
+      throw new UnauthorizedException('Two-factor authentication is unavailable for this account');
+    }
+  }
+
+  /** The secret the code was checked against is still the one on the account, enrolled or pending as it was read. */
+  private twoFactorSecretUnchanged(current: OpsUser, enrolling: boolean, storedSecret: string): boolean {
+    return enrolling
+      ? current.twoFactorSecret === null && current.twoFactorPendingSecret === storedSecret
+      : current.twoFactorSecret === storedSecret;
+  }
+
+  /** The pending secret in clear, or null when it can no longer be read (then setup starts over with a new one). */
+  private readableSecret(encrypted: string): string | null {
+    try {
+      return this.totpService.decryptSecret(encrypted);
+    } catch {
+      return null;
+    }
   }
 
   private async findTwoFactorUser(verifiedToken: VerifiedTwoFactorToken) {
@@ -559,6 +595,7 @@ export class AuthOperationsService {
         data: { password: hash, sessionVersion: { increment: 1 } },
       });
       if (saved.count !== 1) throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');
+      await cancelOpenEmailChanges(tx, actor.id);
       await writeAudit(this.authAudit, undefined, actor.name, 'Changed their own password and signed out every session', {
         actorRole: actor.role,
         actorEmail: actor.email,
@@ -649,6 +686,7 @@ export class AuthOperationsService {
           sessionVersion: { increment: 1 },
         },
       });
+      await cancelOpenEmailChanges(tx, user.id);
       await this.writeIdentityAdminAudit(tx, admin, saved, 'Reset two-factor enrolment and revoked open sessions', { previousSessionVersion: user.sessionVersion });
       return this.mapAccountSummary(saved);
     });

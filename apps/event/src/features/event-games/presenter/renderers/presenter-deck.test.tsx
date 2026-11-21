@@ -32,9 +32,10 @@ function hostState(overrides: Partial<PrismGameHostState> = {}, round: Partial<N
 }
 
 describe("PresenterDeckRenderer", () => {
-  it("shows the room size without the moderation queue", () => {
+  it("shows the live prompt and room size without the moderation queue", () => {
     render(<PresenterDeckRenderer state={hostState()} />);
 
+    expect(screen.getByText("One word for today")).toBeTruthy();
     expect(screen.getByText("12")).toBeTruthy();
     expect(screen.queryByText(/Unreviewed secret/)).toBeNull();
     expect(screen.queryByText(/Unscored secret/)).toBeNull();
@@ -84,9 +85,9 @@ describe("PresenterDeckRenderer", () => {
     expect(screen.getByText("No responses to show for this slide yet.")).toBeTruthy();
   });
 
-  it("shows no word cloud while live without approved words", () => {
-    render(<PresenterDeckRenderer state={hostState()} />);
+  it("shows no word cloud while live without approved words, and keeps the prompt on screen", () => {
+    render(<PresenterDeckRenderer state={hostState({}, { prompt: "One word for today" })} />);
     expect(screen.queryByText("What the room said")).toBeNull();
-    expect(screen.getByText("12")).toBeTruthy();
+    expect(screen.getByText("One word for today")).toBeTruthy();
   });
 });

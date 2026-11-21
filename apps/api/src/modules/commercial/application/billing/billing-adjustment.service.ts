@@ -6,6 +6,7 @@ import { AuditActionType, AuditCategory, OpsUserRole, WorkflowCommandService } f
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { POST_EVENT_LIFECYCLE_STATE_READER, type PostEventLifecycleStateReader } from '@prism/contexts/event-lifecycle/post-event-reference';
 import { URGENT_ISSUE_REFERENCE_READER, type UrgentIssueReferenceReader } from '@prism/contexts/live-ops/urgent-issue-reference';
+import { readEventAccessScope } from '@prism/contexts/read-models/event-scope';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import type { PrismVerifiedEventActor } from '@prism/types';
 import { createBillingSourceSchema } from '@prism/types';
@@ -170,6 +171,11 @@ export class BillingAdjustmentService {
     });
     if (!inputResult.success) throw new BadRequestException('The original payment schedule cannot be reused for a corrected statement');
     return inputResult.data;
+  }
+
+  /** Who may read the event: the facts a caller checks before letting a client act on its billing. */
+  readEventAccess(eventId: string) {
+    return readEventAccessScope(this.prisma, eventId);
   }
 
   async createBillingDispute(eventId: string, input: CreateBillingDisputeInput, actor: BillingActor) {

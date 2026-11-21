@@ -98,8 +98,18 @@ describe("event games guest repository", () => {
       eventId: "event-a",
       currentSessionId: "session-a1",
       participantCredential: "A".repeat(43),
+      joinedWithPin: "123456",
     });
     expect(persisted.get(PRISM_SESSION_STORAGE_KEYS.guest)).toBe(JSON.stringify({ id: "check-in-session" }));
+  });
+
+  it("rejoins as the same player when the same PIN is typed again on /games/join, and never offers it to another PIN", async () => {
+    await eventGamesGuestRepository.joinActiveGameByPin("123456");
+    await eventGamesGuestRepository.joinActiveGameByPin("123456");
+    expect(api.joinActiveMultiplayerGameSession).toHaveBeenLastCalledWith({ pin: "123456", idempotencyKey: expect.any(String) }, "A".repeat(43));
+
+    await eventGamesGuestRepository.joinActiveGameByPin("654321");
+    expect(api.joinActiveMultiplayerGameSession).toHaveBeenLastCalledWith({ pin: "654321", idempotencyKey: expect.any(String) }, undefined);
   });
 
   it("uses a saved credential for another PIN game only when the supplied event lobby matches", async () => {
@@ -162,10 +172,12 @@ describe("event games guest repository", () => {
       photoUrl: "https://example.test/photo.png",
     }));
 
+    // The server's non-identifying game alias is kept so the lobby can say who the guest plays as; profile fields go.
     expect(eventGamesGuestRepository.readParticipantSession()).toEqual({
       eventId: "event-a",
       currentSessionId: "session-a1",
       participantCredential: "A".repeat(43),
+      participantAlias: "Legacy alias",
     });
     expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("displayName");
     expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("photoUrl");
@@ -413,11 +425,12 @@ describe("event games guest repository", () => {
 
     expect(api.getParticipantState).toHaveBeenCalledWith("session-a1", "A".repeat(43));
 
+    // The alias the server showed in that game replaces whatever was stored, so the lobby names the guest the same way.
     expect(eventGamesGuestRepository.readParticipantSession()).toEqual({
       eventId: "event-a", currentSessionId: null, participantCredential: "A".repeat(43),
+      participantAlias: participantState.participant.participantAlias,
     });
     expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("name");
-    expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("participantAlias");
   });
 
   it("returns only the public participant state fields", async () => {
@@ -438,6 +451,8 @@ describe("event games guest repository", () => {
     expect(JSON.stringify(result)).not.toContain("staff-only");
     expect(JSON.stringify(result)).not.toContain("Private name");
     expect(JSON.stringify(result)).not.toContain("correctAnswer");
+    // The lobby and PIN screens show this same server name for the guest.
+    expect(eventGamesGuestRepository.readParticipantSession()?.participantAlias).toBe("Guest A1B2C3D4E5");
   });
 
   it("keeps Family Feud read data to the participant's team label only", async () => {

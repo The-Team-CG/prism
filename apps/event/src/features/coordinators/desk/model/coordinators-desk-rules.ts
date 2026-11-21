@@ -102,12 +102,15 @@ function trimmed(value?: string): string {
 }
 
 /**
- * New tasks use only the shared role catalog. Historical unknown role values
- * remain readable in existing task and assignment read models.
+ * The roles a coordinator may give a new task, matching the API's task scope check: the designated Event Day System
+ * Operator (and PMCM) may use any catalog role; every other coordinator only their own. A coordinator whose role is
+ * outside the catalog (text saved before the catalog was enforced) gets none: the API refuses their new tasks
+ * outright, so there is no role the desk could offer. Their existing tasks stay readable and updatable.
  */
-export function taskAssignedRoleOptions(roleView: CoordinatorRoleViewLike): CoordinatorRole[] {
-  if (!canonicalCoordinatorRole(roleView.role)) return [GENERAL_COORDINATOR];
-  return [...COORDINATOR_ROLES];
+export function taskAssignedRoleOptions(roleView: CoordinatorRoleViewLike, { canAssignAnyRole }: { canAssignAnyRole: boolean }): CoordinatorRole[] {
+  if (canAssignAnyRole) return [...COORDINATOR_ROLES];
+  const ownRole = canonicalCoordinatorRole(roleView.role);
+  return ownRole ? [ownRole] : [];
 }
 
 /**
@@ -152,7 +155,6 @@ export function buildCoordinatorTaskInput({
   roleView: CoordinatorRoleViewLike;
 }): CreateEventDayTaskInput {
   const isoDueAt = asIsoDateTime(trimmed(dueAt));
-  const unmappedOwnRole = !canonicalCoordinatorRole(roleView.role);
   return {
     title: trimmed(title),
     assignedRole,
@@ -161,7 +163,7 @@ export function buildCoordinatorTaskInput({
     ...(isoDueAt ? { dueAt: isoDueAt } : {}),
     // Finding 8: the backend compares ownerName against the assignment name,
     // so this must be assignment.coordinatorName and never session.name.
-    ...(assignToMe || unmappedOwnRole ? { ownerName: roleView.assignment.coordinatorName } : {}),
+    ...(assignToMe ? { ownerName: roleView.assignment.coordinatorName } : {}),
   };
 }
 
@@ -449,9 +451,14 @@ export function describeReminderResult(result: PrismAcknowledgementReminderResul
   return failed ? `${summary} ${failed} could not be sent; check the PMCM status message.` : summary;
 }
 
-/** Resolve the role used by both task preview and submission. */
-export function resolveCoordinatorTaskRole(selected: string, ownRole?: string): CoordinatorRole {
-  return canonicalCoordinatorRole(selected) || canonicalCoordinatorRole(ownRole) || "General Coordinator";
+/**
+ * Resolve the role used by both task preview and submission: the chosen role, else the coordinator's own, else
+ * General Coordinator. When `allowed` is given, a role outside it (say, one picked before an operator designation was
+ * revoked) gives way to the first allowed role, so the form never sends a role the API refuses.
+ */
+export function resolveCoordinatorTaskRole(selected: string, ownRole?: string, allowed?: readonly CoordinatorRole[]): CoordinatorRole {
+  const role = canonicalCoordinatorRole(selected) || canonicalCoordinatorRole(ownRole) || GENERAL_COORDINATOR;
+  return !allowed?.length || allowed.includes(role) ? role : allowed[0];
 }
 
 export function coordinatorRoleDataStatus(status: string, hasRoleView: boolean) {

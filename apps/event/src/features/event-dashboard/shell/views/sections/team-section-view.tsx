@@ -1,6 +1,7 @@
 "use client";
 
 import { CoordinatorRoster } from "./coordinator-roster";
+import { CoordinatorAvailability } from "./coordinator-availability";
 import { WorkspaceRouteTabs } from "./workspace-sub-tabs";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { StaffInvitePanel } from "@/features/audit/trail/views/staff-invite-panel";
@@ -9,7 +10,8 @@ import { useEventDashboardLoadedRouteViewModel } from "../event-dashboard-route-
 
 /** Each team view has its own URL; the tab strip links between them. */
 const TEAM_VIEW_TABS = [
-  { id: "all", label: "All", href: "/dashboard/team" },
+  { id: "all", label: "Roster", href: "/dashboard/team" },
+  { id: "availability", label: "Availability", href: "/dashboard/team/availability" },
   { id: "archived", label: "Archived", href: "/dashboard/team/archived" },
 ];
 
@@ -21,6 +23,7 @@ export function EventDashboardTeamSectionView() {
     coordinatorRoleRequirements,
     busy,
     assignCoordinator,
+    changeCoordinatorRole,
     loadCoordinatorSuggestions,
     loadCoordinatorPoolAvailability,
     saveCoordinatorCoverage,
@@ -37,15 +40,22 @@ export function EventDashboardTeamSectionView() {
     routeState,
   } = useEventDashboardLoadedRouteViewModel();
   const invitations = useAccountAdminViewModel({ onAccountsChanged: () => refresh() });
-  const teamView = routeState.view ?? "all";
+  const teamView = TEAM_VIEW_TABS.some((tab) => tab.id === routeState.view) ? (routeState.view as string) : "all";
   const roster = teamView === "archived" ? coordinators.filter((coordinator) => !coordinator.active) : coordinators;
   return (
     <div className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <WorkspaceRouteTabs label="Team views" tabs={TEAM_VIEW_TABS} activeId={teamView === "archived" ? "archived" : "all"} />
+        <WorkspaceRouteTabs label="Team views" tabs={TEAM_VIEW_TABS} activeId={teamView} />
         <StaffInvitePanel vm={invitations} />
       </div>
-      {selectedEvent && teamView !== "archived" ? (
+      {teamView === "availability" ? (
+        <CoordinatorAvailability
+          coordinators={coordinators}
+          assignments={reference.coordinatorAssignments}
+          events={reference.events}
+          onOpenEvent={(eventId) => navigateEvent(eventId, "coordinators")}
+        />
+      ) : selectedEvent && teamView !== "archived" ? (
         <CoordinatorAssignmentDesk
           event={selectedEvent}
           coordinators={coordinators}
@@ -53,6 +63,7 @@ export function EventDashboardTeamSectionView() {
           roleRequirements={coordinatorRoleRequirements}
           busy={Boolean(busy)}
           onAssign={assignCoordinator}
+          onChangeRole={changeCoordinatorRole}
           onLoadSuggestions={loadCoordinatorSuggestions}
           onLoadPoolAvailability={loadCoordinatorPoolAvailability}
           onSaveCoverage={saveCoordinatorCoverage}

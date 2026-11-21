@@ -31,6 +31,7 @@ interface DirectoryRow {
   verified: number | null;
   unknown: number | null;
   attention: PrismPmcmSupplierCertificationSummary['attention'] | null;
+  bookedEvents: number | null;
 }
 
 interface ProfileMetricsRow {
@@ -153,6 +154,12 @@ export class SupplierWorkspaceQueries {
         FROM commercial.supplier_reviews
         GROUP BY supplier_id
       ),
+      booking_summary AS (
+        SELECT supplier_id, count(DISTINCT event_id)::int AS booked_events
+        FROM commercial.quote_requests
+        WHERE assignment_status = 'confirmed'
+        GROUP BY supplier_id
+      ),
       filtered AS (
         SELECT supplier.id, supplier.name, supplier.category_id AS "categoryId",
           category.name AS "categoryName", category.slug AS "categorySlug", supplier.tier,
@@ -166,10 +173,12 @@ export class SupplierWorkspaceQueries {
           COALESCE(cert.verified, 0)::int AS verified,
           COALESCE(cert.unknown, 0)::int AS unknown,
           COALESCE(cert.attention_rank, 6) AS attention_rank,
-          ${certificationAttentionSql} AS attention
+          ${certificationAttentionSql} AS attention,
+          COALESCE(booking.booked_events, 0)::int AS booked_events
         FROM commercial.suppliers supplier
         JOIN commercial.supplier_categories category ON category.id = supplier.category_id
         LEFT JOIN review_summary review ON review.supplier_id = supplier.id
+        LEFT JOIN booking_summary booking ON booking.supplier_id = supplier.id
         LEFT JOIN certification_summary cert ON cert.supplier_id = supplier.id
         WHERE (${queryText} = '' OR concat_ws(' ', supplier.name, supplier.contact_name, supplier.email, category.name) ILIKE '%' || ${queryText} || '%')
           AND (${query.categoryId ?? null}::text IS NULL OR supplier.category_id = ${query.categoryId ?? null})
@@ -184,7 +193,8 @@ export class SupplierWorkspaceQueries {
         page."categoryName", page."categorySlug", page.tier, page."bniMember",
         page."contactName", page.email, page.phone, page.average_rating AS "averageRating",
         page.review_count AS "reviewCount", page.last_reviewed_at AS "lastReviewedAt",
-        page.rejected, page.expired, page.submitted, page.verified, page.unknown, page.attention
+        page.rejected, page.expired, page.submitted, page.verified, page.unknown, page.attention,
+        page.booked_events AS "bookedEvents"
       FROM totals
       LEFT JOIN LATERAL (
         SELECT filtered.*, row_number() OVER (ORDER BY ${orderBy}) AS row_number
@@ -211,6 +221,7 @@ export class SupplierWorkspaceQueries {
         rating: { average: row.averageRating === null ? null : Number(row.averageRating), count: Number(row.reviewCount ?? 0) },
         lastReviewedAt: row.lastReviewedAt?.toISOString() ?? null,
         certifications: certificationSummary(row),
+        bookedEvents: Number(row.bookedEvents ?? 0),
       })),
     };
   }

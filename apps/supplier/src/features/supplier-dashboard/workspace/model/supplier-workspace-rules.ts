@@ -110,18 +110,26 @@ export function filterOpenRequests(
   return requests.filter((r) => !["closed", "expired", "selected"].includes(r.status));
 }
 
+/** PMCM withdrew the supplier from this booking: it no longer counts as won work, an action or money to come. */
+export function isWithdrawnBooking(request: Pick<PrismSupplierQuoteRequest, "assignmentStatus"> | undefined): boolean {
+  return request?.assignmentStatus === "withdrawn";
+}
+
 export function filterSelectedRequests(
   requests: PrismSupplierQuoteRequest[],
   quoteByRequest: Map<string, PrismSupplierQuote>,
 ): PrismSupplierQuoteRequest[] {
   return requests.filter((r) => {
+    if (isWithdrawnBooking(r)) return false;
     const q = quoteByRequest.get(r.id);
     return r.status === "selected" || ["selected", "locked"].includes(q?.status ?? "");
   });
 }
 
-export function filterSelectedQuotes(quotes: PrismSupplierQuote[]): PrismSupplierQuote[] {
-  return quotes.filter((q) => ["selected", "locked"].includes(q.status));
+/** Won quotes, leaving out any whose booking PMCM withdrew the supplier from. */
+export function filterSelectedQuotes(quotes: PrismSupplierQuote[], requests: PrismSupplierQuoteRequest[] = []): PrismSupplierQuote[] {
+  const withdrawn = new Set(requests.filter(isWithdrawnBooking).map((request) => request.id));
+  return quotes.filter((q) => ["selected", "locked"].includes(q.status) && !(q.requestId && withdrawn.has(q.requestId)));
 }
 
 export function countQuotesNeedingSubmission(
@@ -232,7 +240,7 @@ export function deriveWorkspace(
   const quoteByRequest = buildQuoteByRequest(quotes);
   const openRequests = filterOpenRequests(requests);
   const selectedRequests = filterSelectedRequests(requests, quoteByRequest);
-  const selectedQuotes = filterSelectedQuotes(quotes);
+  const selectedQuotes = filterSelectedQuotes(quotes, requests);
   const quoteNeedingSubmission = countQuotesNeedingSubmission(openRequests, quoteByRequest);
   const handoffPending = countHandoffPending(selectedRequests);
 
@@ -390,7 +398,7 @@ export function sectionMeta(
     },
     requests: {
       title: "Requests & quotes",
-      description: "Submit, revise, and track your quotes before the deadline.",
+      description: "Price new requests before their deadline and follow the quotes PMCM is reviewing.",
     },
     bookings: {
       title: "Bookings & events",
@@ -402,7 +410,7 @@ export function sectionMeta(
     },
     quotations: {
       title: "Requests & quotes",
-      description: "All submitted quotations with revision history and status.",
+      description: "Every quote you have sent and what PMCM decided.",
     },
     messages: {
       title: "Messages",
@@ -414,11 +422,11 @@ export function sectionMeta(
     },
     payments: {
       title: "Payments",
-      description: "Payment milestones for your selected and locked quotes.",
+      description: "What PMCM pays you for each booking, and when.",
     },
     profile: {
       title: "Services & profile",
-      description: "Your supplier profile, tier, category, and service inclusions.",
+      description: "Your record with PMCM: how they reach you and what you offer.",
     },
     account: {
       title: "Account",
@@ -434,7 +442,7 @@ export function sectionMeta(
     },
     support: {
       title: "Support",
-      description: "Guidance on portal actions and how to reach PMCM.",
+      description: "How to reach PMCM, and how work moves from quote to payment.",
     },
   };
   return map[section];

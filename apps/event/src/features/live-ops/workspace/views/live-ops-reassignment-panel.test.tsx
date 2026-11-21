@@ -199,7 +199,9 @@ describe("LiveOperationsWorkspace after the event date", () => {
     vi.setSystemTime(new Date("2026-11-02T04:00:00Z"));
     renderWorkspace();
 
-    expect(screen.getByText(/Event ended on Jun 18, 2026/)).toBeTruthy();
+    expect(screen.getByText("Ended Jun 18, 2026")).toBeTruthy();
+    expect(screen.getByText(/Live entry is closed/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Go to closure" }).getAttribute("href")).toContain("/closure");
     expect(screen.getByText("Stage cue check")).toBeTruthy();
     expect(screen.getByText("Generator fault")).toBeTruthy();
     expect(screen.getByText("Doors opened")).toBeTruthy();
@@ -216,7 +218,8 @@ describe("LiveOperationsWorkspace after the event date", () => {
     vi.setSystemTime(new Date("2026-06-18T02:00:00Z"));
     renderWorkspace();
 
-    expect(screen.queryByText(/Event ended on/)).toBeNull();
+    expect(screen.queryByText(/Live entry is closed/)).toBeNull();
+    expect(screen.getByLabelText("Live counts")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Log issue" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Mark resolved" })).toBeTruthy();
     expect(screen.getByRole("region", { name: "Run window" })).toBeTruthy();

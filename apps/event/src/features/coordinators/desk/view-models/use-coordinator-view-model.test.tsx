@@ -116,28 +116,42 @@ describe("EP-11-S03: pending Absent confirm must not survive a replacement", () 
 });
 
 describe("legacy coordinator task creation", () => {
-  it("keeps tasks in the coordinator's named queue when the saved role is unmapped", async () => {
+  // The API refuses new tasks from an assignment whose role predates the catalog, so the desk says why instead of
+  // sending a request that fails with a 403.
+  it("does not offer task logging to a coordinator whose saved role is outside the catalog, and says why", async () => {
     vi.mocked(loadCoordinatorRoleView).mockResolvedValue({
       role: "Volunteer Lead",
       assignment: { coordinatorName: "Marco Santos" },
     } as never);
 
     const { result } = renderVm({ ...LIVE, role: "Volunteer Lead" });
-    await waitFor(() => expect(result.current.taskForm.assignToMeRequired).toBe(true));
+    await waitFor(() => expect(result.current.taskForm.blockedReason).not.toBeNull());
 
-    expect(result.current.taskForm.role).toBe("General Coordinator");
-    expect(result.current.taskForm.roleOptions).toEqual(["General Coordinator"]);
-    expect(result.current.taskForm.assignToMe).toBe(true);
+    expect(result.current.taskForm.roleOptions).toEqual([]);
+    expect(result.current.taskForm.blockedReason).toContain('"Volunteer Lead"');
+    expect(result.current.taskForm.blockedReason).toContain("Ask PMCM to update your assignment");
 
     act(() => result.current.taskForm.setTitle("Check arrival desk"));
-    await act(async () => result.current.taskForm.submit());
+    let sent = true;
+    await act(async () => { sent = await result.current.taskForm.submit(); });
 
-    expect(createTaskAndRefreshRoleView).toHaveBeenCalledWith(expect.objectContaining({
-      input: expect.objectContaining({
-        assignedRole: "General Coordinator",
-        ownerName: "Marco Santos",
-      }),
-    }));
+    expect(sent).toBe(false);
+    expect(createTaskAndRefreshRoleView).not.toHaveBeenCalled();
+    expect(result.current.taskForm.error).toBe(result.current.taskForm.blockedReason);
+  });
+
+  it("lets a catalog-role coordinator log only for their own role", async () => {
+    vi.mocked(loadCoordinatorRoleView).mockResolvedValue({
+      role: "Floor Director",
+      assignment: { coordinatorName: "Marco Santos" },
+    } as never);
+
+    const { result } = renderVm({ ...LIVE, role: "Floor Director" });
+    await waitFor(() => expect(result.current.taskForm.roleOptions).toEqual(["Floor Director"]));
+
+    expect(result.current.taskForm.blockedReason).toBeNull();
+    act(() => result.current.taskForm.setRole("Usher"));
+    expect(result.current.taskForm.role).toBe("Floor Director");
   });
 });
 

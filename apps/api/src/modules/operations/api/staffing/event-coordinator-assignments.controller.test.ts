@@ -14,6 +14,7 @@ function createControllerDeps() {
     assignCoordinator: vi.fn(async () => ({ id: 'coord_asg_new', status: 'pending_acknowledgement' })),
     acknowledgeCoordinator: vi.fn(async () => ({ id: 'coord_asg_new', status: 'acknowledged' })),
     withdrawCoordinator: vi.fn(async () => ({ id: 'coord_asg_new', status: 'cancelled' })),
+    changeCoordinatorRole: vi.fn(async () => ({ id: 'coord_asg_new', role: 'Stage Director' })),
     replaceCoordinator: vi.fn(async () => ({
       outgoing: { id: 'coord_asg_new', status: 'replaced' },
       incoming: { id: 'coord_asg_replacement', status: 'pending_acknowledgement' },
@@ -70,6 +71,16 @@ describe('OpsEventCoordinatorAssignmentsController', () => {
       { reason: 'No longer available' },
       resolvedActor,
     );
+  });
+
+  it('delegates changeCoordinatorRole with the resolved actor', async () => {
+    const { controller, coordinatorsService } = createControllerDeps();
+
+    await expect(
+      controller.changeCoordinatorRole('evt_sample', 'coord_asg_new', { role: 'Stage Director' }, verifiedActor as any),
+    ).resolves.toEqual({ id: 'coord_asg_new', role: 'Stage Director' });
+
+    expect(coordinatorsService.changeCoordinatorRole).toHaveBeenCalledWith('evt_sample', 'coord_asg_new', { role: 'Stage Director' }, resolvedActor);
   });
 
   it('delegates replaceCoordinator with the resolved actor', async () => {

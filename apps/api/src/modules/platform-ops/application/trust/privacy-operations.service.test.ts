@@ -267,6 +267,7 @@ describe('PrivacyOperationsService', () => {
         updateMany: vi.fn(async (_args: { where: unknown; data: Record<string, unknown> }) => ({ count: 1 })),
       },
       opsPasswordResetToken: { deleteMany: vi.fn(async () => ({ count: 0 })) },
+      opsEmailChangeRequest: { deleteMany: vi.fn(async () => ({ count: 0 })) },
       opsUserSession: { deleteMany: vi.fn(async () => ({ count: 0 })) },
       opsBillingStatement: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
       opsSupplier: { findMany: vi.fn(async (): Promise<Array<Record<string, unknown>>> => []), updateMany: updateMany() },
@@ -649,6 +650,7 @@ describe('PrivacyOperationsService', () => {
     });
     expect(String(tx.opsUser.updateMany.mock.calls[0][0].data.password)).toMatch(/^erased:/);
     expect(tx.opsPasswordResetToken.deleteMany).toHaveBeenCalledWith({ where: { userId: 'usr_ana' } });
+    expect(tx.opsEmailChangeRequest.deleteMany).toHaveBeenCalledWith({ where: { userId: 'usr_ana' } });
     expect(tx.opsUserSession.deleteMany).toHaveBeenCalledWith({ where: { userId: 'usr_ana' } });
     expect(auditService.audit).toHaveBeenCalledWith(
       'evt_sample',

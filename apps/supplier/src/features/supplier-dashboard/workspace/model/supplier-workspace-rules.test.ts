@@ -154,6 +154,15 @@ describe("supplier-workspace-rules", () => {
     ]);
   });
 
+  it("stops counting a booking PMCM withdrew the supplier from as won work or a pending handoff", () => {
+    const withdrawn = makeRequest({ id: "r6", status: "selected", assignmentStatus: "withdrawn" });
+    const quote = makeQuote({ id: "q6", requestId: "r6", status: "selected" });
+    const map = buildQuoteByRequest([quote]);
+    expect(filterSelectedRequests([withdrawn], map)).toEqual([]);
+    expect(filterSelectedQuotes([quote], [withdrawn])).toEqual([]);
+    expect(countHandoffPending(filterSelectedRequests([withdrawn], map))).toBe(0);
+  });
+
   it("counts submission and handoff work", () => {
     const r1 = makeRequest({ id: "r1" });
     const r2 = makeRequest({ id: "r2" });

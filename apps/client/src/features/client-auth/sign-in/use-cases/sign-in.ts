@@ -18,7 +18,10 @@ export type SignInResult =
   | { kind: "error"; error: string; restart?: boolean };
 
 function finishSignIn(session: PrismSignInSession, nextPath: string | null | undefined): SignInResult {
-  if (!isClientRole(session.role)) return { kind: "error", error: portalMessage(session.role), restart: true };
+  if (!isClientRole(session.role)) {
+    void clientAuthRepository.endRejectedSession(session.accessToken);
+    return { kind: "error", error: portalMessage(session.role), restart: true };
+  }
   clientAuthRepository.saveClientSession(session);
   const next = resolvePostSignInPath(nextPath);
   return { kind: "signed_in", session, redirectTo: session.privacyNoticeRequired ? privacyNoticePath(next) : next };

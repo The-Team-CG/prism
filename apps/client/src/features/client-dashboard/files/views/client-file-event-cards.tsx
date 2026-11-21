@@ -4,11 +4,12 @@ import { derivePrismLifecycleStage, type PrismEvent } from "@prism/types";
 import { useResource } from "@prism/portal-query";
 import { EventCardGrid, EventCover } from "@prism/ui/event-cards";
 import { FileEventCard, fileEventHref } from "@prism/ui/file-library";
-import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import { manilaDateKey } from "@prism/ui/format-date";
 import { useEventCoverUrl } from "../../events/view-models/use-event-cover-url";
 import { isPastClientEvent } from "../../home/model/client-home-summary";
 import { clientEventFileRequirements } from "../data/client-file-library-resources";
 import { clientFileTally } from "../model/client-document-checklist";
+import { clientEventDateLabel } from "../../workspace/model/client-dashboard-view-rules";
 
 function ClientFileEventCard({ event, todayKey, onOpen }: { event: PrismEvent; todayKey: string; onOpen: (eventId: string) => void }) {
   const coverUrl = useEventCoverUrl(event.id, event.coverObjectId);
@@ -21,7 +22,7 @@ function ClientFileEventCard({ event, todayKey, onOpen }: { event: PrismEvent; t
       titleLabel={`Open files: ${event.eventName}`}
       href={fileEventHref(event.id)}
       onNavigate={() => onOpen(event.id)}
-      details={[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed"].join(" · ")}
+      details={[clientEventDateLabel(event), event.venue || "Venue to be confirmed"].join(" · ")}
       todayKey={todayKey}
       finished={isPastClientEvent(event)}
       stage={derivePrismLifecycleStage(event)}

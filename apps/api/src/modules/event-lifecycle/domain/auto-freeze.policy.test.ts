@@ -3,7 +3,7 @@ import { automaticFreezeAt, isDueForAutomaticFreeze } from './auto-freeze.policy
 
 describe('automatic scope freeze', () => {
   const eventDate = new Date('2026-10-10T00:00:00.000Z');
-  const base = { eventDate, freezeStatus: 'open', archived: false, actualEndedAt: null as Date | null };
+  const base = { eventDate, freezeStatus: 'open', archived: false, actualEndedAt: null as Date | null, status: 'planning' };
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -31,5 +31,8 @@ describe('automatic scope freeze', () => {
     expect(isDueForAutomaticFreeze({ ...base, archived: true }, now)).toBe(false);
     expect(isDueForAutomaticFreeze({ ...base, actualEndedAt: new Date('2026-10-07T00:00:00.000Z') }, now)).toBe(false);
     expect(isDueForAutomaticFreeze(base, new Date('2026-10-11T00:00:00.000Z'))).toBe(false);
+    // The stored date of a cancelled or date-to-be-confirmed event is not an event day to freeze toward.
+    expect(isDueForAutomaticFreeze({ ...base, status: 'cancelled' }, now)).toBe(false);
+    expect(isDueForAutomaticFreeze({ ...base, status: 'date_to_be_confirmed' }, now)).toBe(false);
   });
 });

@@ -14,7 +14,6 @@ export type EventSessionRequest = Request & {
 const SESSION_USER_SELECT = {
   sessionVersion: true,
   approvalStatus: true,
-  lockedUntil: true,
   permanentLockout: true,
   role: true,
   email: true,
@@ -36,10 +35,6 @@ function assertBrowserSessionLive(session: BrowserSession | null, actor: PrismVe
   }
 }
 
-function isLockedOut(user: SessionUser) {
-  return user.permanentLockout || Boolean(user.lockedUntil && user.lockedUntil > new Date());
-}
-
 function identityMatches(user: SessionUser, actor: PrismVerifiedEventActor) {
   return user.role === actor.actorRole && user.email.trim().toLowerCase() === actor.actorEmail.trim().toLowerCase();
 }
@@ -49,7 +44,9 @@ function assertSessionCurrent(user: SessionUser | null, actor: PrismVerifiedEven
     !user ||
     user.sessionVersion !== (actor.sessionVersion ?? 0) ||
     user.approvalStatus !== 'approved' ||
-    isLockedOut(user) ||
+    // A temporary lock from wrong passwords only blocks new sign-ins: anyone who knows the email can cause one,
+    // so it must not end the person's sessions. A permanent lock needs PMCM and ends them.
+    user.permanentLockout ||
     !identityMatches(user, actor)
   ) {
     throw new UnauthorizedException('Session has been revoked or account access is no longer eligible');

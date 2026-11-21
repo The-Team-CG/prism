@@ -56,6 +56,10 @@ async function runSupplierAuthRequest<T>(operation: () => Promise<T>, fallback: 
 }
 
 export const supplierAuthRepository = {
+  /** Ends a session the API opened for an account this portal turns away, so it does not stay live on the server. */
+  endRejectedSession(accessToken: string): Promise<void> {
+    return createEventOpsClient({ getAuthToken: () => accessToken }).auth.logout().catch(() => undefined);
+  },
   readSession(): PrismAuthenticatedSession | null {
     return readPrismSession<PrismAuthenticatedSession>(SESSION_KEY);
   },

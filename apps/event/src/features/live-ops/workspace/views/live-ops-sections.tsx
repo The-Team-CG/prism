@@ -2,8 +2,10 @@ import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 import { Empty, EmptyDescription, EmptyHeader } from "@prism/ui/components/empty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { BellRing, ChevronRight, Plus, RefreshCw, UserPlus, X } from "lucide-react";
+import { PrismHero } from "@prism/ui/page-blocks";
 import { useState, type ReactNode } from "react";
-import { formatPortalDate, formatPortalDateTime } from "@prism/ui/format-date";
+import { formatPortalDate, formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
+import { liveNowNext } from "../model/live-now-next";
 import { COORDINATOR_ROLES, decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
 
 import type {
@@ -34,7 +36,6 @@ import { useEventDayTaskTarget } from "../view-models/use-event-day-task-target"
 import type { useLiveOperationsWorkspaceViewModel } from "../view-models/use-live-operations-workspace-view-model";
 import Link from "next/link";
 import { LiveOpsControlSurface, LiveOpsScheduleDesk, eventRunSheetHref } from "@/features/live-ops/schedule";
-import { Card } from "@prism/ui/components/card";
 
 type LiveOpsVm = ReturnType<typeof useLiveOperationsWorkspaceViewModel>;
 
@@ -105,59 +106,106 @@ function LiveOpsEmpty({ label: emptyLabel }: { label: string }) {
   );
 }
 
-/** Compact desk header: noun title, refresh, and live counts as one readable row. */
+export type LiveDeskStage = "before" | "day" | "after";
+
+function daysBetween(from: string, to: string) {
+  return Math.round((Date.parse(`${to.slice(0, 10)}T00:00:00Z`) - Date.parse(`${from.slice(0, 10)}T00:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * The desk's lead, by stage. Before the day it says when the desk opens and what to check first; on the day, the
+ * live counts against what is expected (suppliers verified of those booked, coordinators on site of those assigned),
+ * open issues coloured; after it, how the day went and the way to closure, instead of a row of zeros.
+ */
 export function LiveOpsOverview({
   event,
   liveOps,
   metrics,
   busy,
-  ended,
+  stage,
+  today,
   onReload,
 }: {
   event: PrismEvent;
   liveOps: PrismLiveOps | null;
   metrics: LiveOpsVm["metrics"];
   busy: boolean;
-  ended: boolean;
+  stage: LiveDeskStage;
+  today: string;
   onReload: () => Promise<void>;
 }) {
-  const stats: Array<[string, number]> = [
-    ["Open issues", metrics.openIssues],
-    ["Tasks done", metrics.completedTasks],
-    ["Guests checked in", liveOps?.guestAttendanceCount ?? 0],
-    ["Suppliers verified", metrics.verifiedSuppliers],
-    ["Coordinators present", metrics.presentCoordinators],
-  ];
+  if (stage === "before") return <LiveDeskBefore event={event} today={today} />;
+  if (stage === "after") return <LiveDeskAfter event={event} liveOps={liveOps} metrics={metrics} />;
+  return <LiveDeskDay event={event} liveOps={liveOps} metrics={metrics} busy={busy} onReload={onReload} />;
+}
+
+function LiveDeskBefore({ event, today }: { event: PrismEvent; today: string }) {
+  const days = Math.max(1, daysBetween(today, event.eventDate));
   return (
-    <section className="rounded-lg border border-border bg-card p-4 sm:p-5" aria-labelledby="live-desk-title">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 id="live-desk-title" className="text-xl font-semibold text-foreground">Live desk</h2>
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">{event.clientName} · {formatPortalDate(event.eventDate)}</p>
-          {ended ? <EndedNotice eventDate={event.eventDate} /> : null}
-        </div>
-        <button type="button" disabled={busy} onClick={onReload} className="inline-flex h-11 items-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-semibold text-foreground disabled:opacity-60">
-          <RefreshCw className="size-4" aria-hidden /> Refresh
-        </button>
-      </div>
-      <dl className="mt-3 grid grid-cols-2 gap-x-4 sm:grid-cols-5">
-        {stats.map(([statLabel, value]) => (
-          <div key={statLabel} className="flex items-baseline justify-between gap-2 border-t border-border py-1.5 sm:block">
-            <dt className="text-xs text-muted-foreground">{statLabel}</dt>
-            <dd className={cx("text-base font-semibold tabular-nums sm:text-lg", statLabel === "Open issues" && value > 0 ? "text-danger" : "text-foreground")}>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
+    <PrismHero
+      label="Live desk"
+      title={`Opens on ${formatPortalDate(event.eventDate)}`}
+      meta={`${event.clientName} · check coordinators, supplier arrivals and the run sheet before the day.`}
+      figure={{ value: String(days), label: days === 1 ? "day to go" : "days to go" }}
+    />
   );
 }
 
-/** After the event date, live entry is closed; the desk keeps its history for the closure record. */
-function EndedNotice({ eventDate }: { eventDate: string }) {
+function LiveDeskAfter({ event, liveOps, metrics }: { event: PrismEvent; liveOps: PrismLiveOps | null; metrics: LiveOpsVm["metrics"] }) {
+  const meta = [`${liveOps?.guestAttendanceCount ?? 0} guests checked in`, `${metrics.completedTasks} tasks done`, metrics.openIssues ? `${metrics.openIssues} issues still open` : "no open issues"].join(" · ");
   return (
-    <p role="status" className="mt-2 rounded-md bg-muted px-3 py-2 text-sm text-foreground">
-      Event ended on {formatPortalDate(eventDate)}. Live entry is closed; the record below is kept for closure.
-    </p>
+    <PrismHero label={`Ended ${formatPortalDate(event.eventDate)}`} title="How the day went" meta={meta}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p role="status" className="text-sm text-ink-foreground/70">Live entry is closed; the record below is kept for closure.</p>
+        <Link href={`/dashboard/events/${encodeURIComponent(event.id)}/closure`} className="rounded-md bg-ink-foreground px-3 py-2 text-sm font-semibold text-ink hover:opacity-90">Go to closure</Link>
+      </div>
+    </PrismHero>
+  );
+}
+
+/** "3 of 5" when there is an expected count to measure against, else just the count. */
+const ofExpected = (count: number, expected: number) => (expected ? `${count} of ${expected}` : String(count));
+
+function liveCounts(liveOps: PrismLiveOps | null, metrics: LiveOpsVm["metrics"]): Array<{ label: string; value: string; danger?: boolean }> {
+  return [
+    { label: "Guests checked in", value: ofExpected(liveOps?.guestAttendanceCount ?? 0, liveOps?.briefing?.guestCount ?? 0) },
+    { label: "Suppliers verified", value: ofExpected(metrics.verifiedSuppliers, liveOps?.supplierStatuses.length ?? 0) },
+    { label: "Coordinators on site", value: ofExpected(metrics.presentCoordinators, liveOps?.coordinatorAssignments.length ?? 0) },
+    { label: "Tasks done", value: String(metrics.completedTasks) },
+    { label: "Open issues", value: String(metrics.openIssues), danger: metrics.openIssues > 0 },
+  ];
+}
+
+/** What is on now and what is next on the run sheet, for the hero's label, meta and countdown. */
+function runHeroCopy(event: PrismEvent, run: ReturnType<typeof liveNowNext>) {
+  const { now, next, minutesToNext } = run;
+  const nextLine = next ? `Next: ${next.title} at ${formatPortalTime(next.startAt)}${next.location ? ` · ${next.location}` : ""}` : null;
+  return {
+    label: now ? `Now · until ${formatPortalTime(now.endAt)}` : `Live now · ${event.clientName}`,
+    title: now?.title ?? event.eventName,
+    meta: nextLine ?? (now ? event.eventName : formatPortalDate(event.eventDate)),
+    figure: minutesToNext !== null && minutesToNext <= 180 ? { value: `${minutesToNext} min`, label: `to ${next?.title ?? "next"}` } : undefined,
+  };
+}
+
+function LiveDeskDay({ event, liveOps, metrics, busy, onReload }: { event: PrismEvent; liveOps: PrismLiveOps | null; metrics: LiveOpsVm["metrics"]; busy: boolean; onReload: () => Promise<void> }) {
+  const copy = runHeroCopy(event, liveNowNext(liveOps?.schedule, liveOps?.timer, new Date().toISOString()));
+  return (
+    <PrismHero label={copy.label} title={copy.title} meta={copy.meta} figure={copy.figure}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <dl aria-label="Live counts" className="grid flex-1 grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-5">
+          {liveCounts(liveOps, metrics).map((stat) => (
+            <div key={stat.label}>
+              <dt className="text-xs text-ink-foreground/70">{stat.label}</dt>
+              <dd className={cx("text-xl font-semibold tabular-nums", stat.danger ? "text-danger" : "text-ink-foreground")}>{stat.value}</dd>
+            </div>
+          ))}
+        </dl>
+        <button type="button" disabled={busy} onClick={onReload} className="inline-flex h-10 items-center gap-2 rounded-md border border-ink-foreground/20 px-3 text-sm font-semibold text-ink-foreground disabled:opacity-60">
+          <RefreshCw className="size-4" aria-hidden /> Refresh
+        </button>
+      </div>
+    </PrismHero>
   );
 }
 
@@ -193,6 +241,7 @@ export function LiveOpsDesk({
   coordinators,
   busy,
   readOnly,
+  beforeDay = false,
   vm,
   onUpdateTask,
   onEscalateTask,
@@ -211,6 +260,8 @@ export function LiveOpsDesk({
   busy: boolean;
   /** The event date has passed: entry tools are hidden and the desk keeps its history. */
   readOnly: boolean;
+  /** The event day has not come: issues and tasks fold away until something is logged. */
+  beforeDay?: boolean;
   vm: LiveOpsVm;
   onUpdateTask: (taskId: string, input: UpdateEventDayTaskInput) => Promise<void>;
   onEscalateTask: (taskId: string, input: EscalateEventDayTaskInput) => Promise<void>;
@@ -226,8 +277,19 @@ export function LiveOpsDesk({
     <>
       <LiveOpsScheduleBlock eventId={eventId} liveOps={liveOps} readOnly={readOnly} />
 
-      <LiveOpsIssuesPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateIssue={onUpdateIssue} onEscalateIssue={onEscalateIssue} />
-      <LiveOpsTasksPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateTask={onUpdateTask} onEscalateTask={onEscalateTask} />
+      {beforeDay && liveOps.urgentIssues.length + liveOps.tasks.length === 0 ? (
+        <Disclosure title="Issues and tasks" summary="Nothing logged yet">
+          <div className="space-y-4">
+            <LiveOpsIssuesPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateIssue={onUpdateIssue} onEscalateIssue={onEscalateIssue} />
+            <LiveOpsTasksPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateTask={onUpdateTask} onEscalateTask={onEscalateTask} />
+          </div>
+        </Disclosure>
+      ) : (
+        <>
+          <LiveOpsIssuesPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateIssue={onUpdateIssue} onEscalateIssue={onEscalateIssue} />
+          <LiveOpsTasksPanel liveOps={liveOps} busy={busy} readOnly={readOnly} vm={vm} onUpdateTask={onUpdateTask} onEscalateTask={onEscalateTask} />
+        </>
+      )}
 
       {readOnly ? null : <ReassignmentReviewPanel liveOps={liveOps} busy={busy} onDecide={onDecideTaskReassignment} />}
 
@@ -275,15 +337,19 @@ export function LiveOpsDesk({
 function LiveOpsScheduleBlock({ eventId, liveOps, readOnly }: { eventId: string; liveOps: PrismLiveOps; readOnly: boolean }) {
   const schedule = liveOps.schedule;
   if (!schedule) return null;
+  // Without an authored run sheet there is nothing to run: one line says where to author it, and nothing after the day.
+  if (!schedule.authored) {
+    return readOnly ? null : (
+      <p className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">No run sheet yet. Author it under Schedule and reports below.</p>
+    );
+  }
   return (
-    <Card className="gap-0 block space-y-3 rounded-lg border border-border bg-card p-4 sm:p-5">
+    <div className="space-y-3">
       {readOnly ? null : <LiveOpsControlSurface eventId={eventId} schedule={schedule} timer={liveOps.timer} />}
-      {schedule.authored ? (
-        <Link href={eventRunSheetHref(eventId)} className="inline-flex min-h-11 items-center rounded-md border border-border px-3 text-sm font-semibold no-underline">
-          Open printable run sheet
-        </Link>
-      ) : null}
-    </Card>
+      <Link href={eventRunSheetHref(eventId)} className="inline-flex min-h-11 items-center rounded-md border border-border bg-card px-3 text-sm font-semibold no-underline">
+        Open printable run sheet
+      </Link>
+    </div>
   );
 }
 

@@ -21,11 +21,14 @@ function createStore() {
   const statements: Array<{ id: string; sentAt: Date | null }> = [];
   const bookings = [{ id: 'req_1', eventId: 'evt_1', supplierId: 'sup_1', status: 'selected', assignmentStatus: 'confirmed' }];
   const now = () => new Date('2026-09-08T00:00:00.000Z');
-  // The Prisma filters the service uses: equality (including null), `in`, `not` and `lt`.
-  const matches = (object: Record<string, any>, where: Record<string, any>) => Object.entries(where).every(([key, condition]) => {
-    if (condition === null || typeof condition !== 'object' || condition instanceof Date) return (object[key] ?? null) === condition;
+  // The Prisma filters the service uses: equality (including null and dates), `in`, `not`, `lt`, `gt` and `OR`.
+  const same = (left: unknown, right: unknown) => left instanceof Date && right instanceof Date ? left.getTime() === right.getTime() : (left ?? null) === right;
+  const matches = (object: Record<string, any>, where: Record<string, any>): boolean => Object.entries(where).every(([key, condition]) => {
+    if (key === 'OR') return (condition as Array<Record<string, any>>).some((branch) => matches(object, branch));
+    if (condition === null || typeof condition !== 'object' || condition instanceof Date) return same(object[key], condition);
     if ('in' in condition) return condition.in.includes(object[key]);
     if ('lt' in condition) return object[key] instanceof Date && object[key].getTime() < condition.lt.getTime();
+    if ('gt' in condition) return object[key] instanceof Date ? object[key].getTime() > condition.gt.getTime() : object[key] > condition.gt;
     if ('not' in condition) return (object[key] ?? null) !== condition.not;
     return true;
   });
@@ -64,7 +67,20 @@ function createStore() {
         if (!object) throw new Error('object missing');
         return object;
       }),
-      findMany: vi.fn(async ({ where }: { where: Record<string, any> }) => objects.filter((object) => matches(object, where))),
+      // Honours orderBy and take as Prisma does, so paging past rows the caller filters out is exercised.
+      findMany: vi.fn(async ({ where, orderBy, take }: { where: Record<string, any>; orderBy?: Record<string, 'asc' | 'desc'> | Array<Record<string, 'asc' | 'desc'>>; take?: number }) => {
+        const keys = (Array.isArray(orderBy) ? orderBy : orderBy ? [orderBy] : []).flatMap((entry) => Object.entries(entry));
+        const value = (object: Record<string, any>, key: string) => object[key] instanceof Date ? object[key].getTime() : object[key];
+        const sorted = objects.filter((object) => matches(object, where)).sort((a, b) => {
+          for (const [key, direction] of keys) {
+            const left = value(a, key); const right = value(b, key);
+            if (left === right) continue;
+            return (left < right ? -1 : 1) * (direction === 'desc' ? -1 : 1);
+          }
+          return 0;
+        });
+        return take === undefined ? sorted : sorted.slice(0, take);
+      }),
     },
     opsEvent: {
       findUnique: vi.fn(async () => ({ id: 'evt_1', archived: false, clientName: 'Client', clientPortalStatus: 'unlocked', inquiry: { email: 'client@example.test' }, supplierQuoteRequests: [] as Array<{ supplierId: string; supplier: { email: string } }> })),
@@ -1024,6 +1040,38 @@ describe('file access: lists and downloads follow one policy', () => {
       // The client tries the same upload again later: it starts over instead of being refused.
       const retried = await service.requestUpload({ eventId: 'evt_1', ownerRecordType: 'event', ownerRecordId: 'evt_1', logicalTarget: abandonedTarget, usage: 'client_document', fileName: 'never-sent.pdf', contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, actor: clientAccount });
       expect(retried).toMatchObject({ status: 'ready', object: { id: abandoned.object.id, lifecycleState: 'requested' } });
+    });
+
+    it('keeps removing unsent conversation files once more than a batch of sent ones is old', async () => {
+      const attachedIds = new Set(Array.from({ length: 205 }, (_, index) => `obj_sent_${String(index).padStart(3, '0')}`));
+      const attachmentGate = { unattachedObjectIds: vi.fn(async (ids: string[]) => new Set(ids.filter((id) => !attachedIds.has(id)))) };
+      const { service, store } = await localService(attachmentGate);
+      const attachment = (id: string, storedAt: Date) => ({
+        id, eventId: 'evt_1', ownerRecordType: 'communication_thread', ownerRecordId: 'thread_1', usage: 'communication_attachment', logicalTarget: `communication-attachment:thread_1:${id}`,
+        originalFileName: `${id}.pdf`, contentType: 'application/pdf', declaredByteSize: bytes.byteLength, checksumSha256, uploaderActorId: 'user_client', uploaderActorRole: 'client',
+        lifecycleState: 'stored', providerName: 'local', providerObjectKey: null, deletedAt: null, storedAt,
+      });
+      // 205 sent files, all older than the one file that was uploaded but never sent.
+      for (const id of attachedIds) store.objects.push(attachment(id, new Date('2026-08-01T00:00:00.000Z')));
+      store.objects.push(attachment('obj_unsent', new Date('2026-09-10T00:00:00.000Z')));
+
+      await expect(service.cleanUpAbandonedUploads(new Date('2026-09-12T00:00:00.000Z'))).resolves.toBe(1);
+      expect(store.objects.find((object) => object.id === 'obj_unsent')?.lifecycleState).toBe('deleted');
+      expect(store.objects.filter((object) => attachedIds.has(object.id) && object.lifecycleState === 'stored')).toHaveLength(205);
+    });
+
+    it('lists the files a client may see even behind more than 500 newer files they may not', async () => {
+      const { service, store } = await localService();
+      const contract = await storeClientFile(service, 'evt_1', 'contract.pdf');
+      store.objects.find((object) => object.id === contract.id)!.createdAt = new Date('2026-01-01T00:00:00.000Z');
+      store.statements.push({ id: 'bill_unsent', sentAt: null });
+      const hidden = store.objects.find((object) => object.id === contract.id)!;
+      for (let index = 0; index < 520; index += 1) {
+        store.objects.push({ ...hidden, id: `obj_hidden_${index}`, ownerRecordType: 'billing_statement', ownerRecordId: 'bill_unsent', usage: 'event_deliverable', logicalTarget: `billing-statement:hidden-${index}`, createdAt: new Date(Date.UTC(2026, 5, 1, 0, index)) });
+      }
+
+      const listed = await service.listEventObjects('evt_1', clientAccount);
+      expect(listed.map((object) => object.id)).toEqual([contract.id]);
     });
 
     it("refuses a copy into someone else's event, under another event's target, or of a file the client cannot download", async () => {

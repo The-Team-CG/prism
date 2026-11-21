@@ -25,6 +25,12 @@ export class GuestAccessLimiter {
     return { allowed: true };
   }
 
+  /** Whether the key has a window still open: it has been seen within its current window. */
+  isTracking(key: string, now: number = Date.now()): boolean {
+    const current = this.windows.get(key);
+    return Boolean(current && current.resetAt > now);
+  }
+
   private remember(key: string, window: Window, now: number) {
     if (this.windows.size >= MAX_TRACKED_KEYS) {
       for (const [existing, value] of this.windows) {

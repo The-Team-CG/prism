@@ -7,9 +7,12 @@ import {
   inquiryExtraDetailFields,
   inquiryHistoryCues,
   inquiryMatchesIntakeFilters,
+  clientInquiryHistory,
+  inquiryFunnel,
   inquiryMergeCandidates,
   inquiryNextStep,
   inquiryLogMissingFields,
+  inquiryWaitingAge,
   isInquiryLogFormReady,
   toLogInquiryInput,
   initialLogForm,
@@ -198,5 +201,41 @@ describe("inquiryNextStep", () => {
     [{ ...base, conformeSignedAt: "2026-10-03", portalActivatedAt: "2026-10-05" }, "Planning in Events"],
   ])("names the next step for %o", (inquiry, label) => {
     expect(inquiryNextStep(inquiry).label).toBe(label);
+  });
+});
+
+describe("inquiry funnel", () => {
+  const now = new Date("2026-11-21T04:00:00.000Z");
+
+  it("says how long a new inquiry has waited, amber from two days and red from five", () => {
+    expect(inquiryWaitingAge({ status: "new", createdAt: "2026-11-21T01:00:00.000Z" }, now)).toEqual({ label: "Today", tone: "fresh" });
+    expect(inquiryWaitingAge({ status: "new", createdAt: "2026-11-18T01:00:00.000Z" }, now)).toEqual({ label: "3 days", tone: "stale" });
+    expect(inquiryWaitingAge({ status: "new", createdAt: "2026-11-14T01:00:00.000Z" }, now)).toEqual({ label: "7 days", tone: "late" });
+    expect(inquiryWaitingAge({ status: "accepted", createdAt: "2026-11-14T01:00:00.000Z" }, now)).toBeNull();
+  });
+
+  it("counts what is new, what waits for a signed conforme and what was signed this month", () => {
+    expect(inquiryFunnel([
+      { status: "new" },
+      { status: "accepted", acceptedAt: "2026-11-02" },
+      { status: "accepted", acceptedAt: "2026-11-01", conformeSignedAt: "2026-11-05T02:00:00.000Z" },
+      { status: "accepted", acceptedAt: "2026-09-01", conformeSignedAt: "2026-09-05T02:00:00.000Z" },
+      { status: "declined" },
+    ], now)).toEqual({ toReview: 1, waitingForConforme: 1, signedThisMonth: 1 });
+  });
+});
+
+describe("returning client", () => {
+  it("counts the client's other inquiries by email or company and names their last accepted event", () => {
+    const current = { id: "inq_new", email: "Ana@Ayala.test", companyName: "Ayala Corp" };
+    const history = clientInquiryHistory(current, [
+      { id: "inq_new", email: "ana@ayala.test", companyName: "Ayala Corp", status: "new", eventName: "Awards", eventDate: "2027-10-08" },
+      { id: "a", email: "ana@ayala.test", companyName: "", status: "accepted", eventName: "Gala 2025", eventDate: "2025-12-01" },
+      { id: "b", email: "ops@ayala.test", companyName: "Ayala Corp", status: "accepted", eventName: "Gala 2026", eventDate: "2026-12-07" },
+      { id: "c", email: "ana@ayala.test", companyName: "", status: "declined", eventName: "Party", eventDate: "2024-01-01" },
+      { id: "d", email: "x@other.test", companyName: "Other", status: "accepted", eventName: "Other", eventDate: "2026-01-01" },
+    ]);
+    expect(history).toEqual({ earlier: 3, accepted: 2, lastEventName: "Gala 2026" });
+    expect(clientInquiryHistory(current, [])).toBeNull();
   });
 });

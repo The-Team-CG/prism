@@ -3,6 +3,7 @@ import type {
   PrismPmcmCommandInbox,
   PrismApprovalRequest,
 } from "@prism/types";
+import { portalAppPath } from "@prism/ui/portal-path";
 import type { EventSession } from "@/app/lib/session";
 import { readStoredEventSession } from "@/app/lib/session";
 import { getCachedApprovalRequests, loadApprovalRequests } from "@/features/event-workspace/shell/use-cases/load-event-workspace";
@@ -131,7 +132,9 @@ function loadPmcmDashboard(isCancelled: () => boolean, setters: DashboardSession
  * session, so no PMCM read is started for a page the coordinator cannot see.
  */
 function redirectCoordinatorOffPmcmPath(router: DashboardSessionLoadSetters["router"]) {
-  const { pathname, search } = window.location;
+  // The browser path carries the hosting prefix (/event in service mode); the coordinator routes are app paths.
+  const pathname = portalAppPath(window.location.pathname);
+  const { search } = window.location;
   if (isCoordinatorHomePath(pathname)) return;
   const redirect = coordinatorLocationRedirect({ pathname, search });
   if (redirect) router.replace(`${COORDINATOR_HOME_PATH}${redirect.search}`);

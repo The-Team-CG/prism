@@ -15,6 +15,7 @@ import type { PrismClientChangeRequest, ScopeChangeCategory, SubmitScopeChangeRe
 import { ClientListRow, type ClientRowTone } from "../../shared/client-list-ui";
 import { canWithdrawClientChangeRequest, clientChangeRequestStatusLabel, scopeChangeCategoryOptions } from "../model/client-change-request-rules";
 import { useClientChangeRequestsViewModel } from "../view-models/use-client-change-requests-view-model";
+import { useClientWorkspace } from "../../workspace/shared";
 
 const STATUS_TONE: Record<PrismClientChangeRequest["status"], ClientRowTone> = {
   under_review: "neutral",
@@ -31,7 +32,8 @@ const categoryLabel = (category: PrismClientChangeRequest["category"]) =>
  * row per request. A row opens the request, where PMCM's answer is read and a request under review can be withdrawn.
  */
 export function ClientChangeRequestsPanel({ eventId, notice, canRequest = true }: { eventId: string; notice?: ReactNode; canRequest?: boolean }) {
-  const vm = useClientChangeRequestsViewModel(eventId);
+  const { refresh } = useClientWorkspace();
+  const vm = useClientChangeRequestsViewModel(eventId, refresh);
   const [formOpen, setFormOpen] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const opened = vm.requests.find((request) => request.id === openId) ?? null;

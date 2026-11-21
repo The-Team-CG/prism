@@ -1,5 +1,5 @@
 import { daysUntil, dueLabel, manilaCalendarKey } from "@prism/ui/format-date";
-import type { PrismEvent } from "@prism/types";
+import { isPrismEventDateConfirmed, type PrismEvent } from "@prism/types";
 import type { ClientDashboardAction } from "../../workspace/model/client-dashboard-view-rules";
 import type { ClientRowTone } from "../../shared/client-list-ui";
 
@@ -16,10 +16,10 @@ export function orderClientEvents<T extends Pick<PrismEvent, "status" | "archive
   return [...upcoming, ...past];
 }
 
-/** "In 12 days", "Today", "Tomorrow", "3 days ago": how far an event date is from today in Manila. */
-export function eventCountdown(eventDate: string | null | undefined, todayKey: string): string | null {
-  if (!eventDate) return null;
-  const days = daysUntil(manilaCalendarKey(eventDate), todayKey);
+/** "In 12 days", "Today", "Tomorrow", "3 days ago": how far an event is from today in Manila; none for an unconfirmed date. */
+export function eventCountdown(event: Pick<PrismEvent, "eventDate" | "status">, todayKey: string): string | null {
+  if (!event.eventDate || !isPrismEventDateConfirmed(event)) return null;
+  const days = daysUntil(manilaCalendarKey(event.eventDate), todayKey);
   if (days === null) return null;
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
@@ -58,7 +58,7 @@ export type ClientHomeLead = { event: PrismEvent; action?: ClientDashboardAction
 export function clientHomeLead(events: PrismEvent[], own: ClientDashboardAction[], todayKey: string): ClientHomeLead | null {
   const ordered = orderClientActionsByUrgency(own);
   const upcoming = orderClientEvents(events).filter((event) => !isPastClientEvent(event));
-  const daysTo = (event: PrismEvent) => (event.eventDate ? daysUntil(manilaCalendarKey(event.eventDate), todayKey) : null);
+  const daysTo = (event: PrismEvent) => (event.eventDate && isPrismEventDateConfirmed(event) ? daysUntil(manilaCalendarKey(event.eventDate), todayKey) : null);
   const blocker = ordered.find((action) => action.priority === "critical");
   const blocked = blocker ? events.find((event) => event.id === blocker.eventId) : undefined;
   const event = blocked ?? upcoming.find((candidate) => (daysTo(candidate) ?? -1) >= 0) ?? upcoming[0];

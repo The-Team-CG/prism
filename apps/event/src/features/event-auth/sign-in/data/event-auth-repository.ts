@@ -1,3 +1,4 @@
+import { createEventOpsClient } from "@prism/api-client";
 import { eventApi } from "@/lib/prism-api";
 import { readStoredEventSession, saveEventSession, type EventSession } from "@/app/lib/session";
 import { PRISM_PRIVACY_NOTICE_VERSION } from "@prism/types";
@@ -10,6 +11,10 @@ import type {
 } from "@prism/types";
 
 export const eventAuthRepository = {
+  /** Ends a session the API opened for an account this portal turns away, so it does not stay live on the server. */
+  endRejectedSession(accessToken: string): Promise<void> {
+    return createEventOpsClient({ getAuthToken: () => accessToken }).auth.logout().catch(() => undefined);
+  },
   login(input: { email: string; password: string }): Promise<PrismAuthResponse> {
     return eventApi.auth.login(input);
   },

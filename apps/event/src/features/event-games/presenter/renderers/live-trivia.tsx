@@ -13,6 +13,7 @@ const LiveTriviaRenderer: PresenterRenderer = ({ state }) => {
 
   return (
     <section aria-label="Current question" className="flex flex-col items-center gap-8 py-8 text-center">
+      <p className="max-w-5xl text-5xl font-bold leading-tight md:text-7xl">{round.prompt}</p>
       {revealedAnswer ? (
         <p className="rounded-3xl bg-emerald-400 px-8 py-6 text-4xl font-bold text-slate-950 md:text-6xl">
           {`Answer: ${revealedAnswer}`}

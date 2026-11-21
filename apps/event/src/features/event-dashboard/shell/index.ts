@@ -15,7 +15,6 @@ export {
   EventDashboardPrivacySectionView,
   EventDashboardSettingsSectionView,
   EventDashboardSuppliersSectionView,
-  EventDashboardTasksSectionView,
   EventDashboardTeamSectionView,
 } from "./views/sections/event-dashboard-section-views";
 export { EventDashboardEventWorkspaceView, EventDashboardRunSheetView } from "./views/sections/event-dashboard-event-workspace-view";

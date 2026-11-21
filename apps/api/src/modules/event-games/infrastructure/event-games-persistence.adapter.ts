@@ -140,8 +140,10 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
       SET "round_offset_ms" = "round_offset_ms" + ${command.advanceByMs}, "updated_at" = NOW()
       WHERE "event_id" = ${input.eventId} AND "id" = ${input.resourceId}
         AND "status" = ${command.expectedStatus}
-        AND date_trunc('milliseconds', "started_at") = ${command.expectedStartedAt}::timestamptz
-        AND date_trunc('milliseconds', "paused_at") IS NOT DISTINCT FROM ${command.expectedPausedAt}::timestamptz
+        -- Compared at millisecond precision: the expected values come from a JS Date, and a session started or paused
+        -- before these columns were written to the millisecond still carries microseconds.
+        AND date_trunc('milliseconds', "started_at") = date_trunc('milliseconds', ${command.expectedStartedAt}::timestamptz)
+        AND date_trunc('milliseconds', "paused_at") IS NOT DISTINCT FROM date_trunc('milliseconds', ${command.expectedPausedAt}::timestamptz)
         AND "total_paused_ms" = ${command.expectedTotalPausedMs}::bigint
         AND "round_offset_ms" = ${command.expectedRoundOffsetMs}
       RETURNING "event_id", "id" AS "session_id", "status"
@@ -321,9 +323,10 @@ export class EventGamesPersistenceAdapter implements GamePersistencePort {
       ), changed AS (
         UPDATE "event_games"."game_sessions" s
         SET "status" = ${transition.nextStatus},
-          "started_at" = CASE WHEN ${transition.nextStatus} = 'live' THEN COALESCE(s."started_at", NOW()) ELSE s."started_at" END,
+          -- Stored to the millisecond, as the API reads and compares it; NOW() alone carries microseconds.
+          "started_at" = CASE WHEN ${transition.nextStatus} = 'live' THEN COALESCE(s."started_at", date_trunc('milliseconds', NOW())) ELSE s."started_at" END,
           "paused_at" = CASE
-            WHEN ${transition.nextStatus} = 'paused' THEN NOW()
+            WHEN ${transition.nextStatus} = 'paused' THEN date_trunc('milliseconds', NOW())
             WHEN p."status" = 'paused' AND ${transition.nextStatus} IN ('live', 'completed') THEN NULL
             ELSE s."paused_at"
           END,

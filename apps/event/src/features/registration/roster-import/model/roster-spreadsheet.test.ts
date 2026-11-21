@@ -6,11 +6,21 @@ describe("roster spreadsheet import", () => {
   it("reads the downloadable template into the shared import payload", () => {
     const preview = previewRosterSpreadsheet(buildRosterTemplateCsv());
     // Operators see readable headers, never API field names.
-    expect(preview.headers).toEqual(["Guest name", "Category", "Table", "Guest ID", "Email", "Phone", "Eligibility"]);
+    expect(preview.headers).toEqual(["Guest name", "Category", "Table", "Guest ID", "Email", "Phone", "Eligibility", "RSVP", "Dietary needs"]);
     expect(preview).toMatchObject({ headerErrors: [], validCount: 2, errorCount: 0 });
     const payload = buildRosterImportPayload("spreadsheet", preview);
     expect(importGuestRosterSchema.safeParse(payload).success).toBe(true);
-    expect(payload?.rows[0]).toEqual({ guestName: "Ada Lovelace", category: "VIP", table: "T1", sourceKey: "A-001", email: "ada@example.com", eligibility: "eligible" });
+    expect(payload?.rows[0]).toEqual({ guestName: "Ada Lovelace", category: "VIP", table: "T1", sourceKey: "A-001", email: "ada@example.com", eligibility: "eligible", rsvp: "confirmed", dietary: "Vegetarian" });
+  });
+
+  it("reads RSVP and dietary needs from a pasted sheet, so a declined guest is not left pending", () => {
+    const preview = previewRosterSpreadsheet("Name,Guest ID,RSVP,Allergies\nAna Reyes,A-1,Declined,\nBen Cruz,A-2,maybe,Peanuts\n");
+    expect(preview.columns).toEqual(["guestName", "sourceKey", "rsvp", "dietary"]);
+    expect(preview.rows[0]?.errors).toEqual([]);
+    expect(preview.rows[1]?.errors).toEqual(["RSVP must be confirmed, pending or declined"]);
+
+    const valid = previewRosterSpreadsheet("Name,Guest ID,RSVP,Allergies\nAna Reyes,A-1,Declined,\n");
+    expect(buildRosterImportPayload("spreadsheet", valid)?.rows[0]).toMatchObject({ guestName: "Ana Reyes", rsvp: "declined" });
   });
 
   it("accepts tab-separated paste with spreadsheet-style headers and quoted commas", () => {

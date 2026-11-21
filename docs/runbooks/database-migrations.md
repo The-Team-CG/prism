@@ -208,7 +208,10 @@ to apply the generated SQL automatically.
 ### Floorplan scene conversion (before `20261127090000`)
 
 The drop migration `20261127090000_floorplan_drop_legacy_plan_columns` needs every floor plan to carry a Pascal scene.
-Run, in order, against the target database:
+The conversion itself reads the `scene` column (`20261124090000`) and the roster's `rsvp` (`20261125090000`), so those
+two must be applied first. Check where the target database stands with `db:status`.
+
+When `20261124090000` and `20261125090000` are already applied, run, in order:
 
 ```powershell
 npm --workspace prism-api run db:convert:floorplans -- --dry-run   # report only
@@ -216,8 +219,21 @@ npm --workspace prism-api run db:convert:floorplans                # idempotent;
 npm --workspace prism-api run db:migrate:deploy
 ```
 
-The migration's first statement fails while any plan has no scene, and the migration runs in one transaction, so nothing
-is dropped on that failure. Re-run the conversion, then the deploy.
+When the database is still before `20261124090000`, one deploy applies those two and then stops at the drop migration:
+its first statement fails while any plan has no scene, and it runs in one transaction, so nothing is dropped. Prisma
+records that migration as failed, which blocks later deploys. Confirm with `db:status` that it is the only failed entry
+and that the legacy columns are still present, record it as rolled back, then convert and deploy again:
+
+```powershell
+npm --workspace prism-api run db:migrate:deploy                    # applies 1124 and 1125; 1127 fails and rolls back
+npx --workspace prism-api prisma migrate resolve --rolled-back 20261127090000_floorplan_drop_legacy_plan_columns
+npm --workspace prism-api run db:convert:floorplans -- --dry-run
+npm --workspace prism-api run db:convert:floorplans
+npm --workspace prism-api run db:migrate:deploy
+```
+
+The conversion exits non-zero and lists any row it could not read (table, id and why) instead of stopping at the first
+one; every other row is still converted. Fix each listed row and run the conversion again before the deploy.
 
 ### Password hash rewrite (before the auth-hardening API)
 

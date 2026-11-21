@@ -33,5 +33,6 @@ export function toClientChangeRequest(value: ClientChangeRequestSource): PrismCl
     requestedChange: value.requestedChange,
     status: CLIENT_CHANGE_REQUEST_STATUS[value.status as keyof typeof CLIENT_CHANGE_REQUEST_STATUS] ?? 'under_review',
     updatedAt: (value.decidedAt ?? value.requestedAt).toISOString(),
+    withdrawable: false,
   };
 }

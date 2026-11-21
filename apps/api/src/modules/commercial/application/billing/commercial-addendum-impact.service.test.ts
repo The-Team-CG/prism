@@ -33,6 +33,10 @@ function createService() {
       ),
       update: vi.fn(async ({ data }) => Object.assign(quote, data) && { ...quote }),
     },
+    // Payouts PMCM has scheduled for the supplier against the quote; none unless a test sets them.
+    opsSupplierPayableMilestone: {
+      aggregate: vi.fn(async () => ({ _sum: { amount: null as number | null } })),
+    },
   };
   const service = new CommercialAddendumImpactService();
   const transaction = { prisma, correlationId: 'addendum_1' } as unknown as PrismTransactionContext;
@@ -50,6 +54,22 @@ const plan: AddendumPlannedImpacts = {
 };
 
 describe('CommercialAddendumImpactService preview', () => {
+  it('refuses to lower a quote below the payouts already scheduled for the supplier, at preview and at apply', async () => {
+    const { service, prisma, quote, transaction } = createService();
+    prisma.opsSupplierPayableMilestone.aggregate.mockResolvedValue({ _sum: { amount: 20_000 } });
+
+    await expect(service.preview({ eventId: 'evt_addendum', financialDelta: 0, quotePriceChanges: [{ quoteId: 'quote_1', amount: 15_000 }] }, transaction))
+      .rejects.toThrow('already has ₱20,000 in scheduled payouts');
+    expect(prisma.opsSupplierPayableMilestone.aggregate).toHaveBeenCalledWith({ where: { quoteId: 'quote_1', status: { not: 'cancelled' } }, _sum: { amount: true } });
+    // Down to exactly what is scheduled is allowed.
+    await expect(service.preview({ eventId: 'evt_addendum', financialDelta: 0, quotePriceChanges: [{ quoteId: 'quote_1', amount: 20_000 }] }, transaction)).resolves.toMatchObject({ quotes: [{ targetAmount: 20_000 }] });
+
+    // Payouts scheduled after the preview are caught when the addendum is applied.
+    await expect(service.apply({ eventId: 'evt_addendum', addendumId: 'addendum_1', versionNumber: 2, plan: { financialDelta: 0, billing: null, quotes: [{ quoteId: 'quote_1', baselineAmount: 25_000, targetAmount: 15_000 }] } }, transaction))
+      .rejects.toThrow('scheduled payouts');
+    expect(quote.amount).toBe(25_000);
+  });
+
   it('plans the approved billing source and selected quote baselines without writing anything', async () => {
     const { service, source, quote, prisma, transaction } = createService();
 

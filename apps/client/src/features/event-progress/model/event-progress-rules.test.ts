@@ -50,6 +50,7 @@ describe("event-progress-rules", () => {
         { key: "balance_payment_due", date: "2026-07-15", status: "pending" },
         { key: "event_date", date: "2026-08-01", status: "pending" },
       ],
+      confirmedSupplierCount: 0,
     };
     const other: PrismClientEventTimeline = { ...timeline, eventId: "evt_other", milestones: timeline.milestones.map((m) => ({ ...m, status: "completed" })) as PrismClientEventTimeline["milestones"] };
     const milestones = deriveMilestones(event, workspace({
@@ -67,6 +68,12 @@ describe("event-progress-rules", () => {
       ["event", "upcoming", "2026-08-01"],
     ]);
     expect(milestones.find((m) => m.kind === "suppliers")?.detail).toBe("PMCM books them during planning");
+
+    // Booked suppliers come from the client timeline count; the other event's bookings do not count.
+    const booked = deriveMilestones(event, workspace({
+      clientEventTimelines: [{ ...other, confirmedSupplierCount: 5 }, { ...timeline, confirmedSupplierCount: 2 }],
+    } as Partial<PrismClientWorkspace>), "2026-07-20").find((m) => m.kind === "suppliers");
+    expect(booked).toMatchObject({ state: "done", detail: "2 suppliers booked" });
   });
 
   it("gates the generic live status on the selected event's saved flag and event-day state", () => {

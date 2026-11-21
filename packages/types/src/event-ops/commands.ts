@@ -157,6 +157,8 @@ export interface PrismClientChangeRequest {
   status: "under_review" | "approved" | "not_approved" | "withdrawn";
   clientResponse: string | null;
   updatedAt: string;
+  /** The client may still withdraw it: a scope change PMCM has not yet started reviewing. "under_review" covers both. */
+  withdrawable: boolean;
 }
 
 type AddSupplierQuoteInput = {

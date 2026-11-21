@@ -4,7 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter, type NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { CORS_PREFLIGHT_MAX_AGE_SECONDS, responseCompression } from './common/http-transport';
+import { CORS_PREFLIGHT_MAX_AGE_SECONDS, configureRequestBodies, responseCompression } from './common/http-transport';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 import { parseTrustProxySetting, TRUST_PROXY_ENV } from './common/trust-proxy-setting';
 
@@ -33,6 +33,7 @@ async function bootstrap() {
   // rawBody keeps the exact request bytes for signed provider webhooks (Viber).
   const app = await NestFactory.create<NestExpressApplication>(AppModule, new ExpressAdapter(), { rawBody: true });
   app.set('trust proxy', trustProxy);
+  configureRequestBodies(app);
 
   // Worker `onApplicationShutdown` hooks and Prisma disconnect run on SIGTERM/SIGINT.
   app.enableShutdownHooks();

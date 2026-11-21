@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  createAnonymousParticipantAlias,
   isValidGamePin,
   normalizeGamePin,
 } from "../../model/event-game-entry-rules";
@@ -61,9 +60,7 @@ export function useEventGamePinJoinViewModel(expectedEventSlug?: string) {
     status,
     error,
     currentSession,
-    participantAlias: currentSession
-      ? createAnonymousParticipantAlias(currentSession.participantCredential)
-      : null,
+    participantAlias: currentSession?.participantAlias ?? null,
     busy: status === "loading",
     canSubmit: isValidGamePin(normalizeGamePin(pin)) && status !== "loading",
     updatePin,

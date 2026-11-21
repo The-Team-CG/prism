@@ -33,8 +33,19 @@ export function quoteDeadlineInstant(value: Date): Date {
   return new Date(`${manilaCalendarDate(value)}T23:59:59.999+08:00`);
 }
 
-/** A quote-request link stays valid for this long after it is issued. */
+/** A quote-request link stays valid for this long after it is issued, or after the quote deadline when that is later. */
 export const QUOTE_ACCESS_TOKEN_TTL_DAYS = 90;
+
+/** When a new quote-request link stops working: never before the supplier has had until the deadline and the same grace after it. */
+export function quoteAccessTokenExpiresAt(issuedAt: Date, dueDate: Date | null): Date {
+  const from = dueDate && dueDate.getTime() > issuedAt.getTime() ? dueDate : issuedAt;
+  return new Date(from.getTime() + QUOTE_ACCESS_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
+}
+
+/** Past the deadline a sent quote stands as it is: PMCM compares what arrived on time, so it can no longer be revised. */
+export function isQuoteDeadlinePassed(dueDate: Date | null, now: Date = new Date()): boolean {
+  return Boolean(dueDate && quoteDeadlineInstant(dueDate).getTime() < now.getTime());
+}
 
 /**
  * A quote-request link is usable until it expires or is revoked. A request with no expiry recorded (legacy local

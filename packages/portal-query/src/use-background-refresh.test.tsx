@@ -19,6 +19,17 @@ describe("useBackgroundRefresh", () => {
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
   });
 
+  it("polls at a shorter interval when a live screen asks for one", async () => {
+    vi.useFakeTimers();
+    const refresh = vi.fn().mockResolvedValue(true);
+    renderHook(() => useBackgroundRefresh({ enabled: true, refresh, intervalMs: 5_000 }));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000); });
+    expect(refresh).toHaveBeenCalledTimes(1);
+    await act(async () => { await vi.advanceTimersByTimeAsync(10_000); });
+    expect(refresh).toHaveBeenCalledTimes(3);
+  });
+
   it("polls every 30 seconds while visible, permits one request, refreshes on tab return, and stops on unmount", async () => {
     vi.useFakeTimers();
     const first = deferred<boolean>();

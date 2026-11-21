@@ -12,6 +12,7 @@ import { normalizeReference } from '../../domain/payment-receipt.policy';
 import { parseDate } from './billing-operations.utils';
 import { findLiveReferenceReceipt } from './payment-ledger.store';
 import { StatementOfAccountService } from './statement-of-account.service';
+import { CLIENT_VISIBLE_MILESTONE } from './client-visible-milestone';
 
 type ClientActor = { id: string; name: string; email?: string; role: string };
 
@@ -46,7 +47,7 @@ export class ClientPaymentSubmissionService {
       const statement = await tx.opsBillingStatement.findFirst({ where: { eventId, sentAt: { not: null } }, select: { id: true } });
       if (!statement) throw new ConflictException('PMCM has not sent your billing statement yet');
       if (input.milestoneId) {
-        const milestone = await tx.opsPaymentMilestone.findFirst({ where: { id: input.milestoneId, eventId, supersededAt: null, statement: { is: { sentAt: { not: null } } } }, select: { id: true } });
+        const milestone = await tx.opsPaymentMilestone.findFirst({ where: { id: input.milestoneId, eventId, ...CLIENT_VISIBLE_MILESTONE }, select: { id: true } });
         if (!milestone) throw new NotFoundException('That payment is not on your statement');
       }
       if (referenceKey && (await findLiveReferenceReceipt(tx, input.method, referenceKey))) {

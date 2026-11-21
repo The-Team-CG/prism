@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import type {
   PrismBillingSource,
@@ -18,15 +18,11 @@ import { SupplierReviewPromptList } from "@/features/suppliers/reviews";
 import { ComplianceReviewPanel } from "@/features/compliance/review";
 import {
   compliancePhaseForStage,
-  phase4BillingSourceCard,
-  phase4CloseGatesCard,
-  phase4ComplianceCard,
-  phase4StatementsCard,
   type CloseGateDestination,
+  type ClosureTabId,
   type CompliancePhase,
 } from "../model/phase4-workspace-rules";
 import {
-  money,
   Phase4CloseGatesSection,
   Phase4ClosureBoard,
   Phase4ComplianceSection,
@@ -67,7 +63,13 @@ export function Phase4Workspace({
   onGenerateInsights,
   onAddReview,
   onOpenDestination,
+  hideBoard = false,
+  renderGateStep,
 }: {
+  /** Drawn inside a gate of another step's board: the board itself is not repeated. */
+  hideBoard?: boolean;
+  /** Draws another closure step inside its gate on the board. */
+  renderGateStep?: (tabId: ClosureTabId) => ReactNode;
   step: ClosureStep;
   event: PrismEvent;
   rules: PrismComplianceRule[];
@@ -106,15 +108,8 @@ export function Phase4Workspace({
     setLocalInsights(insights);
   }, [insights]);
 
-  const approvedSource = billingSources.find((source) => source.status === "approved");
   const latestInsight = localInsights[0];
   const openChecks = checks.filter((check) => check.status === "open");
-  const closureCards = [
-    phase4CloseGatesCard(closeGates),
-    phase4ComplianceCard(openChecks.length, checks.length),
-    phase4BillingSourceCard(approvedSource, billingSources.length, (amount) => money.format(amount)),
-    phase4StatementsCard(billingStatements.length, Boolean(latestInsight)),
-  ];
 
   async function refreshCloseGates() {
     setCloseGates(await onLoadCloseGates());
@@ -132,18 +127,26 @@ export function Phase4Workspace({
 
   return (
     <div className="space-y-5">
-      <Phase4SectionBoundary title="Closure summary"><Phase4ClosureBoard event={event} closeGates={closeGates} cards={closureCards} /></Phase4SectionBoundary>
+      {hideBoard ? null : <Phase4SectionBoundary title="Closure summary"><Phase4ClosureBoard event={event} closeGates={closeGates} currentStep={step} renderStep={renderGateStep} onOpenDestination={onOpenDestination} /></Phase4SectionBoundary>}
       {step === "wrap-up" ? (
         <>
           <Phase4SectionBoundary title="Event end"><ActualEventEndSection event={event} busy={busy} onRecord={onRecordActualEventEnd} /></Phase4SectionBoundary>
           <Phase4SectionBoundary title="Logistics completion"><LogisticsCompletionPanel eventId={event.id} /></Phase4SectionBoundary>
-          {isEventModuleEnabled(event, "logistics") ? <Phase4SectionBoundary title="Logistics bookings"><LogisticsBookingsPanel eventId={event.id} eventName={event.eventName} /></Phase4SectionBoundary> : null}
-          <Phase4SectionBoundary title="Wrap-up"><EventWrapUpView eventId={event.id} /></Phase4SectionBoundary>
-          <Phase4SectionBoundary title="Guest feedback QR"><GuestFeedbackQr accessCode={event.guestAccessCode} /></Phase4SectionBoundary>
+          {isEventModuleEnabled(event, "logistics") ? (
+            <details className="rounded-lg border border-border bg-card px-5 py-3">
+              <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">Courier and logistics bookings <span className="font-normal text-muted-foreground">· returns that need a booking</span></summary>
+              <div className="pt-3"><Phase4SectionBoundary title="Logistics bookings"><LogisticsBookingsPanel eventId={event.id} eventName={event.eventName} /></Phase4SectionBoundary></div>
+            </details>
+          ) : null}
+          <details className="rounded-lg border border-border bg-card px-5 py-3">
+            <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">Wrap-up report <span className="font-normal text-muted-foreground">· the full or quick wrap-up for the record</span></summary>
+            <div className="pt-3"><Phase4SectionBoundary title="Wrap-up"><EventWrapUpView eventId={event.id} /></Phase4SectionBoundary></div>
+          </details>
         </>
       ) : null}
       {step === "feedback" ? (
         <>
+          <Phase4SectionBoundary title="Guest feedback QR"><GuestFeedbackQr accessCode={event.guestAccessCode} /></Phase4SectionBoundary>
           <Phase4SectionBoundary title="Client testimonials"><ClientTestimonialModerationPanel eventId={event.id} /></Phase4SectionBoundary>
           {canReviewSuppliers ? (
             <Phase4SectionBoundary title="Supplier reviews">

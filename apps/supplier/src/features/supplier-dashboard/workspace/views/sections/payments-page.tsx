@@ -7,8 +7,9 @@ import { Button } from "@prism/ui/components/button";
 import { Card } from "@prism/ui/components/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { formatPortalDate, manilaDateKey } from "@prism/ui/format-date";
+import { PrismSection } from "@prism/ui/page-blocks";
 import { formatPeso, MoneyTile, MoneyTiles, PaymentEventCard, PaymentTimeline, type PaymentStep } from "@prism/ui/payment-track";
-import { payoutReceiptState, payoutStep, supplierBookings, supplierPaymentTotals, type SupplierBooking } from "../../model/supplier-payments";
+import { payoutReceiptState, payoutStep, supplierBookings, supplierPaymentTotals, unscheduledBookings, type SupplierBooking } from "../../model/supplier-payments";
 import type { PrismSupplierQuote, PrismSupplierReadinessBoard, SupplierWorkspace } from "../../model/supplier-workspace-types";
 import { usePayoutReceipt, type PayoutReceiptViewModel } from "../../view-models/use-payout-receipt";
 import { PayoutReceiptDialog } from "./payout-receipt-dialog";
@@ -28,7 +29,7 @@ function Tiles({ totals }: { totals: ReturnType<typeof supplierPaymentTotals> })
         icon={totals.late > 0 ? AlertTriangle : Wallet}
         label="Still to come"
         value={formatPeso(totals.toCome)}
-        detail={totals.late > 0 ? `${formatPeso(totals.late)} is past its due date` : "Across your bookings"}
+        detail={totals.late > 0 ? `${formatPeso(totals.late)} is past its due date` : totals.unscheduled > 0 ? `${formatPeso(totals.unscheduled)} not scheduled yet` : "Across your bookings"}
         tone={totals.late > 0 ? "bg-danger-soft text-danger" : "bg-primary-soft text-primary"}
       />
     </MoneyTiles>
@@ -85,6 +86,38 @@ function BookingCard({ booking, todayKey, fresh, receipts }: { booking: Supplier
 }
 
 /**
+ * Bookings PMCM has not scheduled payments for yet, together under one note instead of a card each saying the same
+ * thing: the event, the terms the supplier proposed and the agreed amount.
+ */
+function UnscheduledBookings({ bookings, agreed }: { bookings: SupplierBooking[]; agreed: number }) {
+  if (bookings.length === 0) return null;
+  return (
+    <PrismSection
+      id="payments-unscheduled"
+      title="Waiting for a payment schedule"
+      count={bookings.length}
+      description="PMCM has not scheduled these agreed amounts yet. Each gets its payments on its booking card once it does."
+      action={<p className="text-right text-xs text-muted-foreground"><span className="block text-base font-semibold tabular-nums text-foreground">{formatPeso(agreed)}</span>agreed in total</p>}
+      flush
+    >
+      <ul className="divide-y divide-border">
+        {bookings.map((booking) => (
+          <li key={booking.requestId} className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-0.5 px-5 py-3">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">{booking.eventName}</p>
+              <p className="text-xs text-muted-foreground">{[booking.category, booking.terms ? `Your terms: ${booking.terms}` : null].filter(Boolean).join(" · ")}</p>
+            </div>
+            <p className="text-sm font-semibold tabular-nums text-foreground">
+              {booking.contract === null ? "Amount to be confirmed" : booking.payables.length === 0 ? formatPeso(booking.contract) : `${formatPeso(booking.unscheduled)} of ${formatPeso(booking.contract)} not scheduled`}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </PrismSection>
+  );
+}
+
+/**
  * What PMCM pays the supplier: totals first (paid, next, still to come), then each booking by event with its payouts on
  * a timeline. A payment that should have arrived is one message away.
  */
@@ -113,11 +146,13 @@ export function PaymentsPage({ workspace, workflowWorkspace, selectedQuotes, rea
       </Card>
     );
   }
-  const totals = supplierPaymentTotals(payables, todayKey);
+  const waiting = unscheduledBookings(bookings);
+  const totals = supplierPaymentTotals(payables, todayKey, waiting.agreed);
   return (
     <div className="space-y-4">
       <Tiles totals={totals} />
-      {bookings.map((booking) => <BookingCard key={booking.requestId} booking={booking} todayKey={todayKey} fresh={freshPayouts} receipts={receipts} />)}
+      {bookings.filter((booking) => booking.payables.length > 0).map((booking) => <BookingCard key={booking.requestId} booking={booking} todayKey={todayKey} fresh={freshPayouts} receipts={receipts} />)}
+      <UnscheduledBookings bookings={waiting.bookings} agreed={waiting.agreed} />
       <PayoutReceiptDialog vm={receipts} />
       <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         A payment should have arrived but has not?

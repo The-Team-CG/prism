@@ -8,10 +8,11 @@ import { manilaDateKey } from "@prism/ui/format-date";
 import type { AccountIdentity, AccountLink, AccountSecuritySummary } from "@prism/ui/account-page";
 import { roleLabel } from "@/features/pmcm-kit/model/display-labels";
 import { eventAccountRepository, eventCurrentUserResource, eventOwnSessionsResource, eventOwnSignInsResource } from "../data/event-account-repository";
+import { portalHref } from "@prism/ui/portal-path";
 
 /** PMCM admins keep the workspace's own settings, apart from their personal account. */
 const ADMIN_LINKS: AccountLink[] = [
-  { title: "Workspace settings", description: "Compliance rules, planning templates, integrations and notification defaults", href: "/dashboard/settings" },
+  { title: "Settings", description: "Event rules, templates, people and access, and integrations", href: "/dashboard/settings" },
 ];
 
 /**
@@ -26,7 +27,7 @@ export function useEventAccountViewModel() {
   const actions: AccountActions = {
     saveName: accountChange(eventAccountRepository.updateName, () => invalidate(eventCurrentUserResource)),
     // Every session ends with the old password, so the person signs in again with the new one.
-    changePassword: accountChange(eventAccountRepository.changePassword, () => { clearEventSession(); window.location.assign("/sign-in"); }),
+    changePassword: accountChange(eventAccountRepository.changePassword, () => { clearEventSession(); window.location.assign(portalHref("/sign-in")); }),
     changeEmail: {
       request: accountChange(eventAccountRepository.requestEmailChange, () => invalidate(eventCurrentUserResource)),
       cancel: accountChange(eventAccountRepository.cancelEmailChange, () => invalidate(eventCurrentUserResource)),

@@ -3,11 +3,12 @@ import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/ker
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { FILE_REQUIREMENT_READER, type FileRequirementReader } from '@prism/contexts/event-lifecycle';
 import { NotFoundException } from '@nestjs/common';
-import type { PmcmCalendarQuery, PrismPmcmCalendar, PrismPmcmClientActivity, PrismPmcmEventSummaries, PrismPmcmFileSummaries } from '@prism/types';
+import type { PmcmCalendarQuery, PrismPmcmCalendar, PrismPmcmClientActivity, PrismPmcmClientFacts, PrismPmcmEventSummaries, PrismPmcmFileSummaries, PrismPmcmSupplierNextBookings } from '@prism/types';
 import {
   buildEventSummaries,
   buildPmcmCalendarItems,
   manilaDateKeyOf,
+  nextBookingPerSupplier,
   summarizeEventBalances,
   summarizeFileRequirements,
   unreadMessagesByEvent,
@@ -37,6 +38,46 @@ export class PmcmOverviewService {
       generatedAt: now.toISOString(),
       items: buildEventSummaries(summarizeEventBalances(milestones, manilaDateKeyOf(now)), unread),
     };
+  }
+
+  /**
+   * Per-event facts the client list and client profiles roll up per client: billed and paid across current
+   * milestones, the client's closeout rating, and their last portal sign-in. Clients are grouped in the portal, the
+   * same way it groups them for the client list, so the API never has to agree with that grouping.
+   */
+  async clientFacts(actor: ResolvedEventOpsActor): Promise<PrismPmcmClientFacts> {
+    await this.policy.requireActorRole(actor, PMCM_ROLES, 'PMCM client facts');
+    const [totals, ratings, events, logins] = await Promise.all([
+      this.queries.milestoneTotals(),
+      this.queries.closeoutRatings(),
+      this.queries.eventClients(),
+      this.queries.clientLogins(),
+    ]);
+    const totalsByEvent = new Map(totals.map((row) => [row.eventId, row._sum]));
+    const ratingByEvent = new Map(ratings.map((row) => [row.eventId, row.rating]));
+    const loginByEmail = new Map(logins.map((row) => [row.email.trim().toLowerCase(), row.lastLoginAt?.toISOString() ?? null]));
+    return {
+      generatedAt: new Date().toISOString(),
+      items: events.map((event) => {
+        const sums = totalsByEvent.get(event.id);
+        return {
+          eventId: event.id,
+          billed: Number(sums?.amount ?? 0),
+          paid: Number(sums?.amountPaid ?? 0),
+          closeoutRating: ratingByEvent.get(event.id) ?? null,
+          clientLastActiveAt: loginByEmail.get(event.inquiry.email.trim().toLowerCase()) ?? null,
+        };
+      }),
+    };
+  }
+
+  /** Each supplier's next confirmed booking on or after today, for the supplier directory's cards. */
+  async supplierNextBookings(actor: ResolvedEventOpsActor): Promise<PrismPmcmSupplierNextBookings> {
+    await this.policy.requireActorRole(actor, PMCM_ROLES, 'PMCM supplier bookings');
+    const now = new Date();
+    const assignments = await this.queries.confirmedSupplierAssignments();
+    const events = await this.queries.upcomingEventsAmong([...new Set(assignments.map((row) => row.eventId))], manilaDateKeyOf(now));
+    return { generatedAt: now.toISOString(), items: nextBookingPerSupplier(assignments, events) };
   }
 
   /** When the event's client last signed in and how many notices about the event they have not opened, so PMCM knows when to chase. */

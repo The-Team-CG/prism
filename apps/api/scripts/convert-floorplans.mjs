@@ -61,9 +61,14 @@ export async function convertFloorplans({ dryRun, connectionString, ssl }) {
       const data = await loadRows(pool);
       const { statements, report } = planFloorplanConversion(data);
       console.log(formatReport(report, { dryRun }));
-      if (dryRun) return report;
+      if (dryRun) {
+        if (report.skipped.length > 0) process.exitCode = 1;
+        return report;
+      }
       const committed = await applyFloorplanConversion(client, statements);
       console.log(`Committed ${committed} transaction(s).`);
+      // The rest is written; a skipped row still needs fixing before the legacy columns can be dropped.
+      if (report.skipped.length > 0) process.exitCode = 1;
       return report;
     } finally {
       client.release();

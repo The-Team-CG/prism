@@ -14,11 +14,11 @@ export class OpsPmcmCommandInboxController {
 
   @Get('command-inbox')
   @UseGuards(EventSessionGuard)
-  commandInbox(@Query('page') page: string | undefined, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    const parsedQuery = pmcmCommandInboxQuerySchema.safeParse({ page });
+  commandInbox(@Query('page') page: string | undefined, @Query('pageSize') pageSize: string | undefined, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+    const parsedQuery = pmcmCommandInboxQuerySchema.safeParse({ page, pageSize });
     if (!parsedQuery.success) throw new BadRequestException('Invalid command inbox page');
     const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    return this.eventReadModelsService.pmcmCommandInbox(actor, parsedQuery.data.page);
+    return this.eventReadModelsService.pmcmCommandInbox(actor, parsedQuery.data.page, parsedQuery.data.pageSize);
   }
 
   /** The Inbox's items grouped by event, for the Events cards. */

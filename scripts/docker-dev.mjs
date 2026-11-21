@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 
@@ -22,8 +22,16 @@ function run(args, cwd = process.cwd()) {
 }
 // Each container keeps its own compiled package output; no cross-container write races.
 run([require.resolve('typescript/bin/tsc'), '--watch', '-p', 'packages/types/tsconfig.build.json']);
+run([require.resolve('typescript/bin/tsc'), '--watch', '-p', 'packages/floorplan-scene/tsconfig.build.json']);
 // Spawn the API directly: shell grandchildren otherwise survive reload on slim images.
 if (app === 'api') run([require.resolve('@nestjs/cli/bin/nest.js'), 'start', 'api', '--watch', '--no-shell'], resolve('apps/api'));
-else run([require.resolve('next/dist/bin/next'), 'dev', `apps/${app}`, '-p', ports[app], '--hostname', '0.0.0.0']);
+else {
+  // The portals' predev step, which this direct `next dev` skips.
+  if (app === 'event' || app === 'client') {
+    const sync = spawnSync(process.execPath, ['scripts/sync-pascal-assets.mjs', app], { stdio: 'inherit' });
+    if (sync.status !== 0) process.exit(sync.status ?? 1);
+  }
+  run([require.resolve('next/dist/bin/next'), 'dev', `apps/${app}`, '-p', ports[app], '--hostname', '0.0.0.0']);
+}
 process.on('SIGTERM', () => stop());
 process.on('SIGINT', () => stop());

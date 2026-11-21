@@ -55,7 +55,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
     await test.step('PMCM prepares the immutable conforme; client signs; PMCM countersigns to create the event', async () => {
       await pmcm.page.goto(`${origins.event}/dashboard/inquiries`);
-      await pmcm.page.getByRole('radio', { name: 'Onboarding', exact: true }).click();
+      await pmcm.page.getByRole('tab', { name: /^Waiting for conforme/ }).click();
       await pmcm.page.getByRole('article', { name: `Onboarding ${inquiry.eventName}`, exact: true }).getByRole('button', { name: 'Upload signed conforme', exact: true }).click();
       const modal = pmcm.page.getByRole('dialog', { name: 'Upload signed conforme', exact: true });
       await modal.getByRole('button', { name: 'Prepare in-app conforme', exact: true }).click();
@@ -163,7 +163,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       expect(applicationId).toBeTruthy();
 
       await pmcm.page.goto(`${origins.event}/dashboard/suppliers`);
-      await pmcm.page.getByRole('button', { name: 'Applications', exact: true }).click();
+      // The applications banner's Review button opens the waiting applications.
+      await pmcm.page.locator('button[aria-controls="supplier-applications-panel"]').click();
       const applicationCard = pmcm.page.getByText(supplierCompany, { exact: true }).locator('xpath=../../..');
       await expect(applicationCard.getByText(supplierEmail, { exact: false })).toBeVisible();
       await applicationCard.getByRole('button', { name: 'Approve supplier', exact: true }).click();
@@ -190,7 +191,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
 
     await test.step('PMCM requests a supplier quote; the applicant supplier replies; PMCM selects the quote', async () => {
       await pmcm.page.goto(path('suppliers'));
-      await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
+      await pmcm.page.getByRole('tab', { name: /^Services/ }).click();
       await pmcm.page.getByRole('combobox', { name: 'Supplier category', exact: true }).click();
       await pmcm.page.getByRole('option', { name: 'Digital Registration', exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Request quotes', exact: true }).click();
@@ -214,7 +215,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await supplier.getByRole('button', { name: 'Send quote to PMCM', exact: true }).click();
       await expect(supplier.getByRole('status')).toContainText('Your quote has been sent');
       await pmcm.page.reload();
-      await pmcm.page.getByRole('tab', { name: /^Requests & quotes/ }).click();
+      await pmcm.page.getByRole('tab', { name: /^Services/ }).click();
       await pmcm.page.getByRole('button', { name: 'Select supplier', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Selected', exact: true })).toBeVisible();
     });
@@ -229,14 +230,13 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(booking.getByRole('button', { name: 'Confirm readiness', exact: true })).toHaveCount(0);
       await pmcm.page.goto(path('coordinators'));
       await pmcm.page.getByRole('checkbox', { name: 'Available only', exact: true }).uncheck();
-      const coordinatorCard = pmcm.page.getByRole('group', { name: 'General Coordinator: Marco Santos', exact: true });
-      await expect(coordinatorCard).toBeVisible();
-      if (await coordinatorCard.getByRole('button', { name: 'Review conflict', exact: true }).count()) {
-        await coordinatorCard.getByRole('button', { name: 'Review conflict', exact: true }).click();
-        await pmcm.page.getByRole('button', { name: 'Override and assign anyway', exact: true }).click();
-      } else {
-        await coordinatorCard.getByRole('button', { name: 'Quick assign', exact: true }).click();
-      }
+      // Fielding lists each coordinator once; Marco's menu fields him as General Coordinator.
+      const coordinatorRow = pmcm.page.getByRole('group', { name: 'Marco Santos', exact: true });
+      await expect(coordinatorRow).toBeVisible();
+      const doubleBooked = await coordinatorRow.getByText(/^On /).count();
+      await coordinatorRow.getByLabel('Field Marco Santos', { exact: true }).click();
+      await coordinatorRow.getByRole('button', { name: /^General Coordinator/ }).click();
+      if (doubleBooked) await pmcm.page.getByRole('button', { name: 'Override and assign anyway', exact: true }).click();
       coordinator = await persona(browser, 'coordinator', device); contexts.push(coordinator.context);
       await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}`);
       await coordinator.page.getByRole('button', { name: /Acknowledge role|Confirm assignment/ }).first().click();
@@ -266,13 +266,15 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await booking.getByRole('button', { name: /^Arrived/ }).click();
       await booking.getByRole('button', { name: /^Set up and ready/ }).click();
       await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
-      const logTask = coordinator.page.locator('details', { has: coordinator.page.locator('summary', { hasText: 'Log a task' }) });
-      if ((await logTask.getAttribute('open')) === null) await logTask.locator('summary').click();
-      await coordinator.page.getByLabel('Task title (required)', { exact: true }).fill('Browser lifecycle venue sweep');
-      await coordinator.page.getByLabel('Assigned role (required)', { exact: true }).click();
+      // Log a task opens its form in a panel, which closes once the task is saved.
+      await coordinator.page.getByRole('button', { name: 'Log a task', exact: true }).click();
+      const logTask = coordinator.page.getByRole('dialog', { name: 'Log a task' });
+      await logTask.getByLabel('Task title (required)', { exact: true }).fill('Browser lifecycle venue sweep');
+      await logTask.getByLabel('Assigned role (required)', { exact: true }).click();
       await coordinator.page.getByRole('option', { name: 'General Coordinator', exact: true }).click();
-      await coordinator.page.getByRole('checkbox', { name: /Assign to me|Assign to my queue/ }).check();
-      await coordinator.page.getByRole('button', { name: 'Log task', exact: true }).click();
+      await logTask.getByRole('checkbox', { name: /Assign to me|Assign to my queue/ }).check();
+      await logTask.getByRole('button', { name: 'Log task', exact: true }).click();
+      await expect(logTask).toBeHidden();
       await expect(coordinator.page.getByText('Browser lifecycle venue sweep', { exact: true }).first()).toBeVisible();
       const guestName = `Lifecycle Guest ${info.project.name}`;
       await api('POST', `/guest/events/${eventId}/roster/import`, { source: 'csv', rows: [{ sourceKey: 'browser-lifecycle-guest', guestName }] });
@@ -308,6 +310,12 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('listbox', { name: 'Time', exact: true }).getByRole('option', { name: time, exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Record actual end', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Correct actual end', exact: true })).toBeVisible();
+      // On a phone the "Done" toast covers the bottom of the screen, where the wrap-up controls open. Hovering pauses
+      // its timer, so move the pointer off it and let it clear first.
+      await pmcm.page.mouse.move(0, 0);
+      await expect(pmcm.page.locator('[data-sonner-toast]')).toHaveCount(0);
+      // The wrap-up report folds under its own line on Wrap up.
+      await pmcm.page.locator('summary', { hasText: /^Wrap-up report/ }).click();
       await pmcm.page.getByRole('button', { name: 'Start quick wrap-up', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Save wrap-up evidence', exact: true })).toBeVisible();
 

@@ -26,7 +26,7 @@ export interface GameSessionJoinResult {
   sessionId: string;
   title: string;
   kind: PrismEventGameKind;
-  status: 'lobby' | 'live';
+  status: 'lobby' | 'live' | 'paused';
 }
 
 export interface GamePinCandidate {

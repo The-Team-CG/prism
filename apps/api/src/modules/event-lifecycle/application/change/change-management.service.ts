@@ -10,6 +10,7 @@ import { COMMERCIAL_ADDENDUM_IMPACT_WRITER, type CommercialAddendumImpactWriter 
 import { consumeApprovedFreezeException } from './freeze-exception-consumption';
 import { PRISM_BUSINESS_UTC_OFFSET_HOURS } from '@prism/types';
 import { AUTO_FREEZE_DAYS_BEFORE_EVENT, isDueForAutomaticFreeze } from '../../domain/auto-freeze.policy';
+import { planningWriteRefusal } from '../../domain/planning-write.policy';
 import { CLIENT_CHANGE_REQUEST_SELECT, toClientChangeRequest } from '../../domain/client-change-request.projection';
 
 type SnapshotEntry = Record<string, unknown>;
@@ -187,7 +188,8 @@ export class ChangeManagementService {
   private async resolveAddendumContext(tx: Prisma.TransactionClient, eventId: string, input: IssueAddendumInput) {
     const event = await tx.opsEvent.findUnique({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found');
-    if (event.archived) throw new BadRequestException('Archived events cannot receive addenda');
+    const refusal = planningWriteRefusal(event, 'receive addenda');
+    if (refusal) throw new BadRequestException(refusal);
     const document = await tx.opsDocument.findFirst({ where: { id: input.documentId, eventId } });
     if (!document) throw new BadRequestException('Addendum document metadata was not found for this event');
     const exception = event.freezeStatus === 'frozen' ? await this.consumeApprovedException(tx, eventId, input.freezeExceptionId) : null;

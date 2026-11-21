@@ -5,7 +5,7 @@ import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, P
 import { derivePrismLifecycleStage } from "@prism/types";
 import { type FloorPlanTemplate } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
-import { isLockedFloorplanDraft } from "@/features/floorplan/editor/model/editor-access";
+import { opensReadOnly } from "@/features/floorplan/editor/model/editor-access";
 import { createSceneSaver, type SceneSaver } from "@/features/floorplan/editor/use-cases/scene-saver";
 import { loadSeatingGuests } from "@/features/floorplan/editor/data/seating-data";
 import { bookedSuppliers } from "@/features/floorplan/editor/model/seating";
@@ -44,6 +44,7 @@ import { countersignConformeExecution, downloadConformePdf, prepareConformeExecu
 import { assignedSupplierRequests } from "@/features/suppliers/readiness";
 import { useResource } from "@prism/portal-query";
 import { financeDesk } from "@/features/finance/desk";
+import { isScopeFrozen } from "@/features/change-management/register/model/change-register-rules";
 
 export type { EventDashboardClientProps };
 
@@ -242,11 +243,22 @@ export function useEventDashboardShellViewModel({
     }
   }
 
-  async function runLiveOps(actionLabel: string, action: () => Promise<unknown>) {
+  async function runLiveOps(actionLabel: string, action: () => Promise<unknown>): Promise<void> {
+    await runLiveOpsForm(actionLabel, action);
+  }
+
+  /** Runs a live-ops command and says whether it went through, so a form keeps what was typed when it did not. */
+  async function runLiveOpsForm(actionLabel: string, action: () => Promise<unknown>): Promise<boolean> {
     setBusy(actionLabel);
     setError(null);
     try {
       await action();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Action failed");
+      setBusy(null);
+      return false;
+    }
+    try {
       announceSuccess(actionLabel);
       await Promise.all([refresh(), loadLiveOps(true)]);
     } catch (err) {
@@ -254,6 +266,7 @@ export function useEventDashboardShellViewModel({
     } finally {
       setBusy(null);
     }
+    return true;
   }
 
   /**
@@ -281,14 +294,16 @@ export function useEventDashboardShellViewModel({
       sourceType: "template",
       venueTemplateId: template.id,
       venue: template.venue || selectedEvent.eventName,
+      // This event's guest count decides seating, not the count of the event the template was saved from.
+      pax: briefing?.guestCount,
     });
     await openEditor(selectedEvent, draft);
   }
 
   async function openEditor(event: PrismEvent, draft: PrismFloorPlanDraft, requestedReadOnly = false) {
     if (!session || !isPmcmAdmin(session.role)) return;
-    const readOnly = requestedReadOnly || isLockedFloorplanDraft(draft.status);
     const [opened, seatingGuests] = await Promise.all([commands.loadPlanScene(draft.floorPlanId), loadSeatingGuests(event.id)]);
+    const readOnly = opensReadOnly({ requested: requestedReadOnly, storedStatus: opened.draftStatus, screenStatus: draft.status, archived: event.archived, frozen: isScopeFrozen(event.freezeStatus) });
     const saver = createSceneSaver({ planId: draft.floorPlanId, updatedAt: opened.updatedAt, save: commands.savePlanScene });
     editorOpens.current += 1;
     setScreen({ name: "editor", event, draft, scene: opened.scene, pax: opened.pax, eventPrivacy: opened.eventPrivacy, saver, seatingGuests, suppliers: bookedSuppliers(quoteRequests, event.id), openId: editorOpens.current, readOnly });
@@ -530,6 +545,7 @@ export function useEventDashboardShellViewModel({
     loadEventInsights: () => selectedEvent ? commands.eventInsights(selectedEvent.id) : Promise.reject(new Error("No event selected")),
     generateEventInsights: () => selectedEvent ? run("generate insights", () => commands.generateEventInsights(selectedEvent.id)) : Promise.resolve(),
     assignCoordinator: (coordinator: { id: string }, role: CoordinatorRole, overrideConflict = false) => selectedEvent ? run("coordinator assignment", () => commands.assignCoordinator(selectedEvent.id, { coordinatorId: coordinator.id, role, overrideConflict })) : Promise.resolve(),
+    changeCoordinatorRole: (assignmentId: string, role: CoordinatorRole) => selectedEvent ? run("coordinator role change", () => commands.changeCoordinatorRole(selectedEvent.id, assignmentId, { role })) : Promise.resolve(),
     loadCoordinatorSuggestions: (role: CoordinatorRole, skills: string[]) => selectedEvent ? commands.loadCoordinatorSuggestions(selectedEvent.id, { role, skills }) : Promise.resolve([]),
     loadCoordinatorPoolAvailability: () => selectedEvent ? commands.loadCoordinatorPoolAvailability(selectedEvent.id) : Promise.resolve(null),
     loadCoordinatorReliabilityHistory: (coordinatorId: string) => session ? commands.loadCoordinatorReliabilityHistory(coordinatorId) : Promise.resolve([]),
@@ -542,12 +558,12 @@ export function useEventDashboardShellViewModel({
     createCoordinatorAvailability: (coordinatorId: string, input: Parameters<typeof commands.createCoordinatorAvailability>[2]) => selectedEvent && session ? runAsBoolean("coordinator availability", () => commands.createCoordinatorAvailability(selectedEvent.id, coordinatorId, input)) : Promise.resolve(false),
     deleteCoordinatorAvailability: (coordinatorId: string, availabilityId: string) => selectedEvent && session ? runAsBoolean("remove coordinator availability", () => commands.deleteCoordinatorAvailability(selectedEvent.id, coordinatorId, availabilityId)) : Promise.resolve(false),
     decideEventTaskReassignment: (requestId: string, input: Parameters<typeof commands.decidePmcmEventTaskReassignment>[2]) => selectedEvent && session ? runLiveOps("task reassignment", () => commands.decidePmcmEventTaskReassignment(selectedEvent.id, requestId, input)) : Promise.resolve(),
-    createEventDayTask: (input: Parameters<typeof commands.createEventDayTask>[1]) => selectedEvent ? runLiveOps("create task", () => commands.createEventDayTask(selectedEvent.id, input)) : Promise.resolve(),
+    createEventDayTask: (input: Parameters<typeof commands.createEventDayTask>[1]) => selectedEvent ? runLiveOpsForm("create task", () => commands.createEventDayTask(selectedEvent.id, input)) : Promise.resolve(),
     updateEventDayTask: (taskId: string, input: Parameters<typeof commands.updateEventDayTask>[2]) => selectedEvent ? runLiveOps("update task", () => commands.updateEventDayTask(selectedEvent.id, taskId, input)) : Promise.resolve(),
-    blockEventDayTask: (taskId: string, input: Parameters<typeof commands.blockEventDayTask>[2]) => selectedEvent ? runLiveOps("block task", () => commands.blockEventDayTask(selectedEvent.id, taskId, input)) : Promise.resolve(),
+    blockEventDayTask: (taskId: string, input: Parameters<typeof commands.blockEventDayTask>[2]) => selectedEvent ? runLiveOpsForm("block task", () => commands.blockEventDayTask(selectedEvent.id, taskId, input)) : Promise.resolve(),
     unblockEventDayTask: (taskId: string) => selectedEvent ? runLiveOps("unblock task", () => commands.unblockEventDayTask(selectedEvent.id, taskId)) : Promise.resolve(),
     escalateEventDayTask: (taskId: string, input: Parameters<typeof commands.escalateEventDayTask>[2]) => selectedEvent ? runLiveOps("escalate task", () => commands.escalateEventDayTask(selectedEvent.id, taskId, input)) : Promise.resolve(),
-    createUrgentIssue: (input: Parameters<typeof commands.createUrgentIssue>[1]) => selectedEvent ? runLiveOps("create issue", () => commands.createUrgentIssue(selectedEvent.id, input)) : Promise.resolve(),
+    createUrgentIssue: (input: Parameters<typeof commands.createUrgentIssue>[1]) => selectedEvent ? runLiveOpsForm("create issue", () => commands.createUrgentIssue(selectedEvent.id, input)) : Promise.resolve(),
     updateUrgentIssue: (issueId: string, input: Parameters<typeof commands.updateUrgentIssue>[2]) => selectedEvent ? runLiveOps("update issue", () => commands.updateUrgentIssue(selectedEvent.id, issueId, input)) : Promise.resolve(),
     escalateUrgentIssue: (issueId: string, input: Parameters<typeof commands.escalateUrgentIssue>[2]) => selectedEvent ? runLiveOps("escalate issue", () => commands.escalateUrgentIssue(selectedEvent.id, issueId, input)) : Promise.resolve(),
     updateCoordinatorAttendance: (assignmentId: string, input: Parameters<typeof commands.updateCoordinatorAttendance>[2]) => selectedEvent ? runLiveOps("attendance", () => commands.updateCoordinatorAttendance(selectedEvent.id, assignmentId, input)) : Promise.resolve(),

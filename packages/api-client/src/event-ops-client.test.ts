@@ -536,6 +536,7 @@ describe("prismRequest", () => {
     await client.staffing.reliabilityHistory("c/1");
     await client.staffing.assign("e1", any);
     await client.staffing.replace("e1", "a1", any);
+    await client.staffing.changeRole("e1", "a1", any);
     await client.staffing.poolAvailability("e1");
     await client.staffing.listAvailability("e1", "c1");
     await client.staffing.createAvailability("e1", "c1", any);
@@ -561,6 +562,7 @@ describe("prismRequest", () => {
       "GET /pmcm/coordinators/c%2F1/reliability-history",
       "POST /events/e1/coordinators",
       "POST /events/e1/coordinators/a1/replace",
+      "PATCH /events/e1/coordinators/a1/role",
       "GET /events/e1/staffing/pool-availability",
       "GET /events/e1/coordinators/c1/availability",
       "POST /events/e1/coordinators/c1/availability",

@@ -153,19 +153,30 @@ function BookingSummary({ state, onOpenEvent }: { state: CoordinatorAvailability
   }
 }
 
+/** Every assignment, upcoming first, then past ones folded by year so a long career stays one line until opened. */
 function AssignmentHistory({ bookings, onOpenEvent }: { bookings: CoordinatorBookings; onOpenEvent: (eventId: string) => void }) {
-  const all = [...bookings.upcoming, ...bookings.past];
+  const years = new Map<string, CoordinatorBooking[]>();
+  for (const booking of bookings.past) {
+    const year = String(booking.event.eventDate).slice(0, 4);
+    years.set(year, [...(years.get(year) ?? []), booking]);
+  }
+  const total = bookings.upcoming.length + bookings.past.length;
+  const row = (booking: CoordinatorBooking) => (
+    <li key={booking.assignment.id} className="flex flex-wrap items-baseline gap-x-2 text-muted-foreground">
+      <BookingLink booking={booking} onOpenEvent={onOpenEvent} />
+      <span>{formatPortalDate(booking.event.eventDate)} · {booking.assignment.role}</span>
+    </li>
+  );
   return (
     <details className="group mt-2 text-xs">
-      <summary className="cursor-pointer select-none font-medium text-primary">All assignments ({all.length})</summary>
-      <ul className="mt-2 grid gap-1.5">
-        {all.map((booking) => (
-          <li key={booking.assignment.id} className="flex flex-wrap items-baseline gap-x-2 text-muted-foreground">
-            <BookingLink booking={booking} onOpenEvent={onOpenEvent} />
-            <span>{formatPortalDate(booking.event.eventDate)} · {booking.assignment.role} · {booking.assignment.status}</span>
-          </li>
-        ))}
-      </ul>
+      <summary className="cursor-pointer select-none font-medium text-primary">All assignments ({total})</summary>
+      {bookings.upcoming.length ? <ul className="mt-2 grid gap-1.5">{bookings.upcoming.map(row)}</ul> : null}
+      {[...years.entries()].map(([year, list]) => (
+        <details key={year} className="mt-2">
+          <summary className="cursor-pointer select-none text-muted-foreground">{year} · {list.length} {list.length === 1 ? "event" : "events"}</summary>
+          <ul className="mt-1.5 grid gap-1.5 pl-3">{list.map(row)}</ul>
+        </details>
+      ))}
     </details>
   );
 }
@@ -203,11 +214,7 @@ function CoordinatorRow({
       </div>
 
       <div className="min-w-0 pl-12 sm:pl-0">
-        <ul aria-label="Roles" className="flex flex-wrap gap-1.5">
-          {roles.map((role) => (
-            <li key={role} className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-foreground">{role}</li>
-          ))}
-        </ul>
+        <p aria-label="Roles" title={roles.join(", ")} className="truncate text-sm text-foreground">{roles.join(" · ")}</p>
         {coordinator.skillsTags.length > 0 ? (
           <p className="mt-1.5 truncate text-xs text-muted-foreground" title={coordinator.skillsTags.join(", ")}>{coordinator.skillsTags.join(" · ")}</p>
         ) : null}

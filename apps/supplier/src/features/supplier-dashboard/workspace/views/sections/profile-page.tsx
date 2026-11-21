@@ -1,130 +1,86 @@
 "use client";
 
-import { FormEvent, useMemo } from "react";
-import {
-  BadgeCheck,
-  CalendarClock,
-  CalendarDays,
-  CheckCircle2,
-  Circle,
-  ClipboardList,
-  Clock3,
-  FileCheck2,
-  FileText,
-  HelpCircle,
-  LockKeyhole,
-  LogOut,
-  MessageSquare,
-  PackageCheck,
-  RefreshCcw,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Truck,
-  User,
-  Wallet,
-  Warehouse,
-  type LucideIcon,
-} from "lucide-react";
-import { Badge } from "@prism/ui/components/badge";
-import { Button } from "@prism/ui/components/button";
-import { Input } from "@prism/ui/components/input";
-import { StatusBadge } from "@prism/ui/components/status-badge";
+import Link from "next/link";
+import { ChevronRight, ShieldCheck } from "lucide-react";
+import type { PrismAuthenticatedSession, PrismSupplier } from "@prism/types";
+import { formatPortalDate, manilaCalendarKey, manilaDateKey } from "@prism/ui/format-date";
+import { PrismEmptyLine, PrismHero, PrismPageColumn, PrismSection, PrismStatRow } from "@prism/ui/page-blocks";
+import { pmcmSupportContactFromEnvironment } from "@/lib/portal-urls";
+import { serviceInclusionList, supplierContactPerson, supplierTierLabel, supplierTrackRecord } from "../../model/supplier-profile";
+import type { PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard } from "../../model/supplier-workspace-types";
+import { PmcmContactButtons } from "./pmcm-contact";
 
-import { PrismDashboardShell } from "@prism/ui";
-import {
-  EVENT_STATUS_ACTIONS,
-  buildBookingSteps,
-  closedRequestReason,
-  firstNameFrom,
-  formatDate,
-  formatMoney,
-  fmt,
-  greetingForHour,
-  initialForm,
-  isPastDate,
-  isRequestClosed,
-  readinessTone,
-} from "../../model/supplier-workspace-rules";
-import type { PrismAuthenticatedSession } from "@prism/types";
-import type { PrismSupplier, PrismSupplierQuote, PrismSupplierQuoteRequest, PrismSupplierReadinessBoard, QuoteFormState, SupplierDashboardSection, SupplierWorkspace } from "../../model/supplier-workspace-types";
-import { useSupplierWorkspaceViewModel } from "../../view-models/use-supplier-workspace-view-model";
-
-
-import { Card, CardBody, CardHeader, SectionAccent, StatCell } from "./shell-ui";
-
-export function ProfilePage({ supplier, session }: { supplier: PrismSupplier; session: PrismAuthenticatedSession }) {
+function Field({ label, value, missing, children }: { label: string; value: string | null; missing: string; children?: React.ReactNode }) {
   return (
-    <div className="space-y-4">
-      {/* Identity */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <User className="size-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Supplier profile</h2>
-          </div>
-        </CardHeader>
-        <CardBody>
-          <div className="flex items-center gap-4">
-            <span className="grid size-16 shrink-0 place-items-center rounded-lg bg-linear-to-br from-primary to-primary-deep text-xl font-semibold text-white">
-              {supplier.name.slice(0, 2).toUpperCase()}
-            </span>
-            <div>
-              <h3 className="text-lg font-semibold text-foreground">{supplier.name}</h3>
-              <p className="text-sm text-muted-foreground">{supplier.categoryName}</p>
-              <span className="mt-1 inline-block rounded-full bg-attention/10 px-2.5 py-0.5 text-xs font-semibold capitalize text-attention">
-                {fmt(supplier.tier)}
-              </span>
-            </div>
-          </div>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            {[
-              { label: "Contact name", value: supplier.contactName || session.name },
-              { label: "Email", value: supplier.email || session.email },
-              { label: "Phone", value: supplier.phone || "—" },
-              { label: "Member since", value: formatDate(supplier.applicationDate) },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <p className="text-xs font-medium text-muted-foreground">{label}</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{value}</p>
-              </div>
-            ))}
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* Service inclusions */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Service inclusions</h2>
-          </div>
-        </CardHeader>
-        <CardBody>
-          {supplier.serviceInclusions ? (
-            <p className="text-sm leading-6 text-foreground">{supplier.serviceInclusions}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">No service inclusions saved yet. PMCM manages your supplier record.</p>
-          )}
-        </CardBody>
-      </Card>
-
-      {/* Privacy notice */}
-      <Card>
-        <CardBody>
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">Supplier privacy boundary</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                This portal shows only your assigned request records and your submitted quote. PMCM comparison, acceptable-range review, private ratings, and other supplier quotes remain private to the PMCM command app. Portal actions update your workspace for PMCM review only.
-              </p>
-            </div>
-          </div>
-        </CardBody>
-      </Card>
+    <div className="grid gap-0.5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 text-sm">
+        {value ? <span className="break-words font-medium text-foreground">{value}</span> : <span className="text-muted-foreground">{missing}</span>}
+        {children}
+      </dd>
     </div>
   );
 }
 
+/**
+ * The supplier's record as PMCM keeps it: who they are and how they stand (tier, bookings), how PMCM reaches them,
+ * and what they offer. PMCM owns the record, so every gap says so and the way to ask for a change is on the page.
+ */
+export function ProfilePage({ supplier, session, quotes, bookings, readinessBoard }: {
+  supplier: PrismSupplier;
+  session: PrismAuthenticatedSession;
+  quotes: PrismSupplierQuote[];
+  bookings: PrismSupplierQuoteRequest[];
+  readinessBoard: PrismSupplierReadinessBoard | null;
+}) {
+  const tier = supplierTierLabel(supplier.tier);
+  const record = supplierTrackRecord({ quotes, bookings, readiness: readinessBoard?.items ?? [] });
+  const inclusions = serviceInclusionList(supplier.serviceInclusions);
+  const contact = pmcmSupportContactFromEnvironment();
+  const askToUpdate = (
+    <PmcmContactButtons contact={contact} canMessage={bookings.length > 0} subject={`Supplier record update: ${supplier.name}`} size="sm" />
+  );
+  return (
+    <PrismPageColumn>
+      <PrismHero
+        label={`${supplier.categoryName} · ${tier.label}`}
+        title={supplier.name}
+        meta={<p>{tier.detail} On PMCM&apos;s roster since {formatPortalDate(supplier.applicationDate)}.</p>}
+        figure={{ value: record.bookings, label: record.bookings === 1 ? "booking with PMCM" : "bookings with PMCM" }}
+      />
+      <PrismStatRow
+        label="Your work with PMCM"
+        stats={[
+          { label: "Quotes sent", value: record.quotesSent },
+          { label: "Events completed", value: record.completed, empty: record.bookings === 0 },
+          { label: "Last event", value: record.lastEvent ? formatPortalDate(record.lastEvent) : "—", empty: !record.lastEvent },
+          { label: "Next event", value: !record.nextEvent ? "—" : manilaCalendarKey(record.nextEvent) === manilaDateKey() ? "Today" : formatPortalDate(record.nextEvent), empty: !record.nextEvent },
+        ]}
+      />
+      <PrismSection id="profile-contact" title="How PMCM reaches you" description="PMCM keeps these details. Ask PMCM to change anything that is out of date." action={askToUpdate}>
+        <dl className="divide-y divide-border">
+          <Field label="Contact person" value={supplierContactPerson(supplier)} missing="No contact person on file" />
+          <Field label="Business email" value={supplier.email || null} missing="No email on file" />
+          <Field label="Phone" value={supplier.phone || null} missing="No phone number on file" />
+          <Field label="Signs in as" value={session.email} missing="—">
+            <Link href="/dashboard/account" className="mt-0.5 flex w-fit items-center gap-0.5 text-xs font-medium text-primary hover:text-primary/80">
+              Password and sign-in in Account<ChevronRight className="size-3.5" aria-hidden />
+            </Link>
+          </Field>
+        </dl>
+      </PrismSection>
+      <PrismSection id="profile-services" title="What you offer" description={`What PMCM has on file for your ${supplier.categoryName} services.`}>
+        {inclusions.length ? (
+          <ul aria-label="Service inclusions" className="flex flex-wrap gap-2">
+            {inclusions.map((item) => <li key={item} className="rounded-lg bg-muted px-3 py-1.5 text-sm text-foreground">{item}</li>)}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground">PMCM has not recorded what your services include yet. Send them your package (setup, equipment, staffing) to add it.</p>
+        )}
+      </PrismSection>
+      <PrismEmptyLine icon={ShieldCheck}>
+        You see only the requests PMCM sends you and your own quotes. Other suppliers&apos; quotes and PMCM&apos;s internal reviews are never shown here, and your quotes are never shown to other suppliers.
+      </PrismEmptyLine>
+    </PrismPageColumn>
+  );
+}

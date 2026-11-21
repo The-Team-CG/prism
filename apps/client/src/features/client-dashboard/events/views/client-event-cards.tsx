@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { CalendarClock, CheckCircle2 } from "lucide-react";
-import { derivePrismLifecycleStage, type PrismClientActionItem, type PrismEvent } from "@prism/types";
+import { derivePrismLifecycleStage, isPrismEventDateConfirmed, type PrismClientActionItem, type PrismEvent } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { AttentionList, CountdownPill, EventCard, EventCardGrid, EventCardHeader, EventCover, StageTrack, eventCountdown } from "@prism/ui/event-cards";
 import { useEventCoverUrl } from "../view-models/use-event-cover-url";
 import { clientEventCardOpenRoute, dashboardHref } from "../../workspace/shared";
-import { formatStatusLabel } from "../../workspace/model/client-dashboard-view-rules";
+import { formatStatusLabel, clientEventDateLabel } from "../../workspace/model/client-dashboard-view-rules";
 import { isPastClientEvent } from "../../home/model/client-home-summary";
 
 type CardProps = { event: PrismEvent; action?: PrismClientActionItem; todayKey: string; onOpen: (id: string) => void };
@@ -67,7 +67,7 @@ function NextStep({ event, action }: { event: PrismEvent; action?: PrismClientAc
 
 /** The client's nearest event, large: how many days are left, where it stands, and what they need to do. */
 export function NextEventHero({ event, action, todayKey, onOpen, comingUp = [] }: CardProps & { comingUp?: PrismClientActionItem[] }) {
-  const countdown = eventCountdown(event.eventDate, todayKey);
+  const countdown = isPrismEventDateConfirmed(event) ? eventCountdown(event.eventDate, todayKey) : null;
   const days = countdown && countdown.days >= 0 ? countdown.days : null;
   const coverUrl = useEventCoverUrl(event.id, event.coverObjectId);
   return (
@@ -75,7 +75,7 @@ export function NextEventHero({ event, action, todayKey, onOpen, comingUp = [] }
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
         <div className="min-w-0">
           <EventCardHeader onCover date={event.eventDate} title={event.eventName} href={eventHref(event)} onNavigate={() => onOpen(event.id)}
-            details={<>Your next event · {[formatPortalDate(event.eventDate), event.venue || "Venue to be confirmed"].join(" · ")}</>} />
+            details={<>Your next event · {[clientEventDateLabel(event), event.venue || "Venue to be confirmed"].join(" · ")}</>} />
         </div>
         {days !== null ? (
           <p className="text-center leading-none">
@@ -99,7 +99,7 @@ export function ClientEventCard({ event, action, todayKey, onOpen }: CardProps) 
     <EventCard urgent={action?.priority === "critical"} compact={past} cover={<EventCover eventType={event.eventType} imageUrl={coverUrl} small={past} />}>
       <EventCardHeader onCover date={event.eventDate} title={event.eventName} href={eventHref(event)} onNavigate={() => onOpen(event.id)} muted={past}
         details={past ? `${formatStatusLabel(event.status)} · View summary` : event.venue || "Venue to be confirmed"}
-        aside={past ? null : <CountdownPill date={event.eventDate} todayKey={todayKey} />} />
+        aside={past ? null : <CountdownPill date={event.eventDate} todayKey={todayKey} label={isPrismEventDateConfirmed(event) ? undefined : "Date to be confirmed"} />} />
       {past ? null : <StageTrack stage={derivePrismLifecycleStage(event)} />}
       {action ? <AttentionList lines={[{ id: action.id, severity: action.priority, text: action.label, href: action.href }]} link={Link} /> : null}
       {past || action ? null : <p className="flex items-center gap-1.5 text-xs text-success"><CheckCircle2 aria-hidden className="size-3.5" />Nothing waiting on you</p>}
@@ -109,7 +109,7 @@ export function ClientEventCard({ event, action, todayKey, onOpen }: CardProps) 
 
 /** The soonest event still ahead (today counts); an open event whose date has passed is not "next". */
 export function featuredClientEvent(events: PrismEvent[], todayKey: string): PrismEvent | undefined {
-  return events.find((event) => !isPastClientEvent(event) && (eventCountdown(event.eventDate, todayKey)?.days ?? -1) >= 0);
+  return events.find((event) => !isPastClientEvent(event) && isPrismEventDateConfirmed(event) && (eventCountdown(event.eventDate, todayKey)?.days ?? -1) >= 0);
 }
 
 /** The client's events as cards: the soonest one ahead large, then the rest in a grid. */

@@ -179,7 +179,8 @@ describe('EventReadModelQueries collection limits', () => {
     opsFloorPlanDraft.findMany = vi.fn(async () => [{ eventId: 'evt_a', isActive: true, approvedAt }]);
     const opsPaymentMilestone = model<{ eventId: string; dueDate: Date; status: string; remainingBalance: number }>();
     opsPaymentMilestone.findMany = vi.fn(async () => [{ eventId: 'evt_b', dueDate, status: 'paid', remainingBalance: 0 }]);
-    const queries = new EventReadModelQueries({ opsEvent, opsFloorPlanDraft, opsPaymentMilestone } as unknown as PrismaService);
+    const opsSupplierQuoteRequest = { groupBy: vi.fn(async () => [{ eventId: 'evt_a', _count: { _all: 2 } }]) };
+    const queries = new EventReadModelQueries({ opsEvent, opsFloorPlanDraft, opsPaymentMilestone, opsSupplierQuoteRequest } as unknown as PrismaService);
 
     const timeline = await queries.clientEventTimelineForEvents(['evt_a', 'evt_b', 'evt_hidden']);
 
@@ -195,9 +196,11 @@ describe('EventReadModelQueries collection limits', () => {
       where: { eventId: { in: ['evt_a', 'evt_b'] }, label: { contains: 'balance', mode: 'insensitive' }, OR: [{ statementId: null }, { statement: { is: { sentAt: { not: null } } } }] },
       distinct: ['eventId'],
     }));
+    // Booked suppliers reach the client as a count of selected requests on its visible events, never as rows.
+    expect(opsSupplierQuoteRequest.groupBy).toHaveBeenCalledWith({ by: ['eventId'], where: { eventId: { in: ['evt_a', 'evt_b'] }, status: 'selected', assignmentStatus: { not: 'withdrawn' } }, _count: { _all: true } });
     expect(timeline).toEqual([
-      { id: 'evt_a', floorPlanDrafts: [{ isActive: true, approvedAt }], paymentMilestones: [] },
-      { id: 'evt_b', floorPlanDrafts: [], paymentMilestones: [{ dueDate, status: 'paid', remainingBalance: 0 }] },
+      { id: 'evt_a', floorPlanDrafts: [{ isActive: true, approvedAt }], paymentMilestones: [], confirmedSupplierCount: 2 },
+      { id: 'evt_b', floorPlanDrafts: [], paymentMilestones: [{ dueDate, status: 'paid', remainingBalance: 0 }], confirmedSupplierCount: 0 },
     ]);
   });
 
