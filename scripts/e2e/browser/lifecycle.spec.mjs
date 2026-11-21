@@ -310,6 +310,10 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('listbox', { name: 'Time', exact: true }).getByRole('option', { name: time, exact: true }).click();
       await pmcm.page.getByRole('button', { name: 'Record actual end', exact: true }).click();
       await expect(pmcm.page.getByRole('button', { name: 'Correct actual end', exact: true })).toBeVisible();
+      // On a phone the "Done" toast covers the bottom of the screen, where the wrap-up controls open. Hovering pauses
+      // its timer, so move the pointer off it and let it clear first.
+      await pmcm.page.mouse.move(0, 0);
+      await expect(pmcm.page.locator('[data-sonner-toast]')).toHaveCount(0);
       // The wrap-up report folds under its own line on Wrap up.
       await pmcm.page.locator('summary', { hasText: /^Wrap-up report/ }).click();
       await pmcm.page.getByRole('button', { name: 'Start quick wrap-up', exact: true }).click();

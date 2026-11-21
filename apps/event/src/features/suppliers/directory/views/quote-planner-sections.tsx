@@ -98,7 +98,7 @@ export function QuoteComparisonSection({
           </p>
         </div>
       ) : (
-        <div className="mt-4 grid gap-3 xl:grid-cols-3">
+        <div className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 xl:grid-cols-3">
           {quotes.map((quote) => (
             <QuoteComparisonCard
               key={quote.id}
@@ -130,7 +130,7 @@ function QuoteComparisonCard({
 }) {
   const closed = isQuoteClosed(quote.status);
   return (
-    <article className={cx("rounded-lg border bg-background p-4", quoteCardAccentClass(quote))}>
+    <article className={cx("min-w-0 rounded-lg border bg-background p-4", quoteCardAccentClass(quote))}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
