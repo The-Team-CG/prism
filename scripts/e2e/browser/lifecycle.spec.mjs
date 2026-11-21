@@ -366,6 +366,8 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await client.goto(`${origins.client}/dashboard/events/${eventId}/summary`);
       await expect(client.getByRole('heading', { name: 'Closeout & feedback', exact: true })).toBeVisible();
       await expect(client.getByText(inquiry.eventName, { exact: false }).first()).toBeVisible();
+      await expect(client.getByText('This event is archived. What you confirmed and wrote stays here to read.', { exact: true })).toBeVisible();
+      await expect(client.getByRole('region', { name: 'Your feedback' }).getByRole('button', { name: 'Update feedback', exact: true })).toBeDisabled();
       await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
       await expect(coordinator.page.getByText('Archived event: operational records are read-only.', { exact: true })).toBeVisible();
     });
