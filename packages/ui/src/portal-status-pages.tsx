@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { AlertTriangle, Monitor, SearchX } from "lucide-react";
+import { AlertTriangle, SearchX } from "lucide-react";
 
 import { Button } from "./components/ui/button";
 import { EmptyState } from "./components/ui/empty-state";
@@ -46,15 +46,6 @@ export function PortalNotFoundPage({ homeHref, homeLabel }: { homeHref: string; 
           </Button>
         }
       />
-    </CenteredPage>
-  );
-}
-
-/** Stands in for a tool built for a large screen, such as the floor plan editor, when it is opened on a phone. */
-export function LargerScreenNotice({ title, description, backLabel, onBack }: { title: string; description: string; backLabel: string; onBack: () => void }) {
-  return (
-    <CenteredPage>
-      <EmptyState icon={Monitor} title={title} description={description} action={<Button onClick={onBack}>{backLabel}</Button>} />
     </CenteredPage>
   );
 }
