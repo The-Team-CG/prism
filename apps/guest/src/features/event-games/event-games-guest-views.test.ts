@@ -176,7 +176,7 @@ describe("guest event-game views", () => {
     const markup = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-expired-round" }));
 
     expect(markup).toContain('aria-label="Time remaining: 00:00"');
-    expect(markup).toContain("The timer has ended. Your answers are closed until the game updates.");
+    expect(markup).toContain("The timer has ended. Answers are closed until the game moves on.");
     expect(markup).toContain('<fieldset disabled="" class="min-w-0 border-0 p-0">');
   });
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PrismGuestEventPass, PrismGuestSession } from "@prism/types";
+import type { PrismGuestSession } from "@prism/types";
 import {
   isOpenDraftValid,
   mapGuestAccessError,
@@ -11,65 +11,66 @@ import type { GuestAccessOpenDraft, GuestAccessOpenStatus } from "../model/guest
 import {
   loadExistingGuestSession,
   openGuestEventPass,
-  previewGuestEvent,
 } from "../use-cases/guest-access-open";
 
+function searchParam(name: string): string | null {
+  return typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get(name);
+}
+
+/**
+ * One step: the code opens the pass. A link or QR that carries the code (`/open?code=…`) opens it straight away, so a
+ * guest who scans the event's QR types nothing; if that fails, the code stays in the field to try again.
+ */
 export function useGuestAccessOpenViewModel() {
   const router = useRouter();
-  const [draft, setDraft] = useState<GuestAccessOpenDraft>({
-    accessCode: "",
-  });
-  const [preview, setPreview] = useState<PrismGuestEventPass | null>(null);
+  const [draft, setDraft] = useState<GuestAccessOpenDraft>({ accessCode: "" });
   const [existing, setExisting] = useState<PrismGuestSession | null>(null);
   const [status, setStatus] = useState<GuestAccessOpenStatus>("idle");
+  const [autoOpening, setAutoOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const started = useRef(false);
 
-  useEffect(() => {
-    setExisting(loadExistingGuestSession());
-    // New-EX2: the post-event feedback QR links here with the event code already in the URL.
-    const code = new URLSearchParams(window.location.search).get("code")?.trim();
-    if (code) setDraft((prev) => ({ ...prev, accessCode: code }));
-  }, []);
-
-  function updateAccessCode(accessCode: string) {
-    setDraft((prev) => ({ ...prev, accessCode }));
-    setPreview(null);
-  }
-
-  async function submit() {
-    if (status === "loading" || !isOpenDraftValid(draft)) return;
+  const open = useCallback(async (accessCode: string) => {
     setStatus("loading");
     setError(null);
     try {
-      if (!preview) {
-        const event = await previewGuestEvent(draft.accessCode);
-        setPreview(event);
-        setStatus("ready");
-        return;
-      }
-      const next =
-        typeof window !== "undefined"
-          ? new URLSearchParams(window.location.search).get("next")
-          : null;
-      const result = await openGuestEventPass({
-        accessCode: draft.accessCode,
-        preview,
-        nextPath: next,
-      });
+      const result = await openGuestEventPass({ accessCode, nextPath: searchParam("next") });
       setStatus("ready");
       router.replace(result.redirectTo);
     } catch (err) {
       setStatus("error");
+      setAutoOpening(false);
       setError(mapGuestAccessError(err));
     }
+  }, [router]);
+
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    setExisting(loadExistingGuestSession());
+    const code = searchParam("code")?.trim();
+    if (!code) return;
+    setDraft({ accessCode: code });
+    setAutoOpening(true);
+    void open(code);
+  }, [open]);
+
+  function updateAccessCode(accessCode: string) {
+    setDraft({ accessCode });
+    setError(null);
+  }
+
+  async function submit() {
+    if (status === "loading" || !isOpenDraftValid(draft)) return;
+    await open(draft.accessCode);
   }
 
   return {
     draft,
-    preview,
     existing,
     status,
     error,
+    autoOpening,
     canSubmit: isOpenDraftValid(draft) && status !== "loading",
     busy: status === "loading",
     updateAccessCode,

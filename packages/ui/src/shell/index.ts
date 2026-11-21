@@ -13,5 +13,5 @@ export type {
   PrismUserSummary,
 } from "./types";
 export { PrismPortalShell, type PrismPortal, type PrismPortalShellProps } from "./portal-shell";
-export { PrismGuestShell, type PrismGuestShellProps } from "./guest-shell";
+export { PrismGuestShell, type PrismGuestLayout, type PrismGuestShellProps, type PrismGuestTab } from "./guest-shell";
 export { resolveMobileBar, type ResolvedMobileBar } from "./nav-model";

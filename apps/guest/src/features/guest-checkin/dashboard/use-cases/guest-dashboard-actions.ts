@@ -1,7 +1,6 @@
 import {
   buildCheckInPayload,
   buildFeedbackPayload,
-  checkInSuccessNotice,
 } from "../model/guest-dashboard-rules";
 import type { CheckInMode } from "../model/guest-dashboard-types";
 import { guestDashboardRepository } from "../data/guest-dashboard-repository";
@@ -38,19 +37,18 @@ export async function submitGuestCheckIn(input: {
   checkInMode: CheckInMode;
   guestName?: string;
   consentAccepted: boolean;
-}): Promise<{ session: PrismGuestSession; notice: string }> {
+}, now = new Date()): Promise<PrismGuestSession> {
   const payload = buildCheckInPayload(input);
   await guestDashboardRepository.checkIn(input.session, payload);
-  let session = input.session;
+  // Remembered on this device, so the pass still says the request went after a reload.
+  let session: PrismGuestSession = { ...input.session, checkInSentAt: now.toISOString() };
+  guestDashboardRepository.saveSession(session);
   try {
-    session = await refreshGuestEvent(input.session);
+    session = await refreshGuestEvent(session);
   } catch {
     // stale data acceptable after successful check-in
   }
-  return {
-    session,
-    notice: checkInSuccessNotice(),
-  };
+  return session;
 }
 
 export async function submitGuestFeedback(input: {

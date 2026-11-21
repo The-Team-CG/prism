@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent, type ReactElement } from "react";
-import { LogOut, RefreshCw } from "lucide-react";
 import type { PrismGamePublicState, PrismSubmitEventGameActionInput } from "@prism/types";
 import { PRISM_AUTH_INPUT_CLASS_NAME } from "@prism/ui/auth-shell";
-import { PrismBrandLogo } from "@prism/ui";
+import { PrismGuestShell } from "@prism/ui";
+import { useGuestTabs } from "@/features/guest-shared/guest-tabs";
+import { GameIdentityHelp } from "../../lobby/views/event-game-lobby-view";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { useServerRoundCountdown } from "../model/server-round-countdown";
 import { useEventGamePlayViewModel } from "../view-models/use-event-game-play-view-model";
 import { audienceControls } from "./audience-game-controls";
-import { Card } from "@prism/ui/components/card";
 
 const STATUS_LABELS = {
   scheduled: "Scheduled",
@@ -25,6 +25,7 @@ type PlayViewModel = ReturnType<typeof useEventGamePlayViewModel>;
 
 export function EventGamePlayView({ sessionId }: { sessionId: string }) {
   const vm = useEventGamePlayViewModel(sessionId);
+  const tabs = useGuestTabs("games");
   const gameState = vm.state;
   const deadlineAt = gameState?.currentRound?.deadlineAt;
   const secondsRemaining = useServerRoundCountdown(deadlineAt, gameState?.serverTime, gameState?.status === "paused");
@@ -38,50 +39,65 @@ export function EventGamePlayView({ sessionId }: { sessionId: string }) {
     void vm.refresh();
   }, [deadlineAt, gameState, secondsRemaining, vm.refresh]);
 
+  // The game refreshes itself, so the header carries no Refresh or Leave buttons; forgetting the game is under the help.
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <PrismBrandLogo href="/" title="P.R.I.S.M." detail="Guest pass" markClassName="size-8 rounded-md bg-card ring-1 ring-border" />
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => void vm.refresh()} disabled={vm.status === "loading"}>
-              <RefreshCw className="size-4" aria-hidden="true" /> Refresh
-            </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={vm.exitGames}>
-              <LogOut className="size-4" aria-hidden="true" /> Leave games
-            </Button>
-          </div>
-        </div>
-      </header>
+    <PrismGuestShell
+      eventName={gameState?.game.title ?? "Event game"}
+      tabs={tabs}
+      layout={gameState && !vm.error ? "split" : "column"}
+      lead={gameState && !vm.error ? <GameSessionLead state={gameState} secondsRemaining={secondsRemaining} /> : <span />}
+    >
+      <SessionAvailability vm={vm} secondsRemaining={secondsRemaining} />
+    </PrismGuestShell>
+  );
+}
 
-      <div className="mx-auto w-full max-w-3xl px-4 pb-10 sm:px-6">
-        <SessionAvailability vm={vm} secondsRemaining={secondsRemaining} />
+/** The game's name, then one line with the round and the clock: everything else gives the prompt room. */
+function GameSessionLead({ state, secondsRemaining }: { state: PrismGamePublicState; secondsRemaining: number | null }) {
+  const round = state.currentRound ? `Round ${state.currentRound.number} of ${state.currentRound.total}` : null;
+  return (
+    <div className="grid gap-1 pt-1">
+      <h1 id="event-game-title" className="font-heading text-2xl font-semibold leading-tight text-foreground">{state.game.title}</h1>
+      <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
+        <p>{[STATUS_LABELS[state.status], round].filter(Boolean).join(" · ")}</p>
+        {secondsRemaining !== null ? <RoundCountdown state={state} secondsRemaining={secondsRemaining} /> : null}
       </div>
-    </main>
+      <GamePrompt state={state} />
+    </div>
+  );
+}
+
+function GamePrompt({ state }: { state: PrismGamePublicState }) {
+  const prompt = state.currentPrompt ?? (state.status === "lobby" ? "The host will start this game soon." : "The next prompt is not available yet.");
+  return (
+    <article className="mt-3 rounded-2xl bg-ink px-5 py-7 text-center text-ink-foreground lg:py-14">
+      <h2 className="sr-only">Current prompt</h2>
+      <p className={`break-words font-heading font-bold leading-tight ${state.currentPrompt && state.currentPrompt.length <= 16 ? "text-4xl tracking-[0.12em] lg:text-5xl" : "text-xl lg:text-2xl"}`}>{prompt}</p>
+    </article>
   );
 }
 
 /** A session that cannot be opened from this device: say why, and offer a way forward instead of a dead end. */
 function SessionUnavailable({ message }: { message: string | null }) {
   return (
-    <section className="mt-8 grid gap-4">
+    <section className="grid gap-3">
       {message ? (
-        <Alert variant="destructive" role="alert" className="rounded-lg">
+        <Alert variant="destructive" role="alert" className="rounded-xl">
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       ) : null}
-      <Card className="gap-0 block rounded-lg border border-border bg-card p-5">
-        <h1 className="text-xl font-bold">Game session unavailable</h1>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Join again with the host’s PIN or go back to where you were.</p>
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Button asChild className="min-h-11">
+      <div className="rounded-2xl border border-border bg-card p-4">
+        <h1 className="text-xl font-semibold">Game session unavailable</h1>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">Join again with the host’s PIN or go back to where you were.</p>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button asChild className="h-11">
             <a href="/games/join">Join with a PIN</a>
           </Button>
-          <Button type="button" variant="outline" className="min-h-11" onClick={() => window.history.back()}>
+          <Button type="button" variant="outline" className="h-11" onClick={() => window.history.back()}>
             Back
           </Button>
         </div>
-      </Card>
+      </div>
     </section>
   );
 }
@@ -89,7 +105,7 @@ function SessionUnavailable({ message }: { message: string | null }) {
 function SessionAvailability({ vm, secondsRemaining }: { vm: PlayViewModel; secondsRemaining: number | null }) {
   if (vm.error) return <SessionUnavailable message={vm.error} />;
   if (vm.status === "loading") {
-    return <p role="status" className="mt-8 rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">Opening your game…</p>;
+    return <p role="status" className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Opening your game…</p>;
   }
   if (vm.state) return <GameSessionContent vm={vm} secondsRemaining={secondsRemaining} />;
   if (vm.status === "error") return <SessionUnavailable message={null} />;
@@ -99,29 +115,10 @@ function SessionAvailability({ vm, secondsRemaining }: { vm: PlayViewModel; seco
 function GameSessionContent({ vm, secondsRemaining }: { vm: PlayViewModel; secondsRemaining: number | null }) {
   const gameState = vm.state;
   if (!gameState) return null;
+  const scored = !isNonScoredChoiceGame(gameState.game.kind);
   return (
-    <section className="pt-7" aria-labelledby="event-game-title">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 id="event-game-title" className="text-3xl font-black leading-tight">{gameState.game.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{STATUS_LABELS[gameState.status]}</p>
-          {vm.participantAlias ? <p className="mt-2 text-sm text-muted-foreground">Playing as {vm.participantAlias}</p> : null}
-        </div>
-        {gameState.currentRound ? (
-          <p className="rounded-md bg-secondary px-3 py-2 text-sm font-semibold">
-            Round {gameState.currentRound.number} of {gameState.currentRound.total}
-          </p>
-        ) : null}
-      </div>
-
-      {secondsRemaining !== null ? <RoundCountdown state={gameState} secondsRemaining={secondsRemaining} /> : null}
-
-      <article className="mt-7 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7">
-        <p className="text-sm font-semibold text-muted-foreground">Current prompt</p>
-        <h2 className="mt-3 text-xl font-bold leading-8 sm:text-2xl">
-          {gameState.currentPrompt ?? (gameState.status === "lobby" ? "The host will start this game soon." : "The next prompt is not available yet.")}
-        </h2>
-      </article>
+    <section aria-labelledby="event-game-title" className="grid gap-3">
+      {secondsRemaining === 0 ? <p role="status" className="px-1 text-sm text-muted-foreground">The timer has ended. Answers are closed until the game moves on.</p> : null}
 
       <fieldset disabled={secondsRemaining === 0} className="min-w-0 border-0 p-0">
         <legend className="sr-only">Round response controls</legend>
@@ -135,24 +132,21 @@ function GameSessionContent({ vm, secondsRemaining }: { vm: PlayViewModel; secon
         />
       </fieldset>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="your-game-status">
-          <h2 id="your-game-status" className="font-bold">Your game status</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {gameState.participant.hasSubmitted ? "Your response has been recorded." : "You have not responded to this round yet."}
+      <section aria-labelledby="your-game-status" className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+        <div className="min-w-0">
+          <h2 id="your-game-status" className="sr-only">Your game status</h2>
+          <p className="text-sm text-muted-foreground">
+            {gameState.participant.hasSubmitted ? "Your answer is in." : "You have not answered this round yet."}
           </p>
-          {isNonScoredChoiceGame(gameState.game.kind)
-            ? <p className="mt-3 text-sm text-muted-foreground">This game has no points or guest rankings.</p>
-            : <p className="mt-3 text-sm">Your score: <strong>{gameState.participant.score ?? "Not scored yet"}</strong></p>}
-        </section>
+        </div>
+        {scored
+          ? <p className="shrink-0 text-sm text-muted-foreground">Score <strong className="ml-1 text-lg text-foreground tabular-nums">{gameState.participant.score ?? "–"}</strong></p>
+          : <p className="shrink-0 text-xs text-muted-foreground">No points in this game</p>}
+      </section>
 
-        <SharedGameResults state={gameState} />
-      </div>
+      <SharedGameResults state={gameState} />
       <PublicLeaderboard state={gameState} />
-
-      <p className="mt-5 text-xs leading-5 text-muted-foreground">
-        Your alias identifies this browser session only. It does not confirm one person or one device, and a different device has a separate game identity.
-      </p>
+      <GameIdentityHelp alias={vm.participantAlias} onLeave={vm.exitGames} />
     </section>
   );
 }
@@ -161,12 +155,12 @@ function RoundCountdown({ state, secondsRemaining }: { state: PrismGamePublicSta
   const minutes = Math.floor(secondsRemaining / 60).toString().padStart(2, "0");
   const seconds = (secondsRemaining % 60).toString().padStart(2, "0");
   const display = `${minutes}:${seconds}`;
+  const urgent = secondsRemaining > 0 && secondsRemaining <= 10;
   return (
-    <Card className="gap-0 flex-row mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm" role={secondsRemaining === 0 ? "status" : undefined}>
-      <span className="font-semibold">{state.status === "paused" ? "Round paused" : "Time remaining"}</span>
-      <time aria-label={`Time remaining: ${display}`} className="font-mono font-bold tabular-nums">{display}</time>
-      {secondsRemaining === 0 ? <span className="text-muted-foreground">The timer has ended. Your answers are closed until the game updates.</span> : null}
-    </Card>
+    <p className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ${urgent ? "bg-destructive/10 text-destructive" : "bg-card text-foreground ring-1 ring-border"}`}>
+      {state.status === "paused" ? <span className="font-normal text-muted-foreground">Paused</span> : null}
+      <time aria-label={`Time remaining: ${display}`} className="font-mono tabular-nums">{display}</time>
+    </p>
   );
 }
 
@@ -174,7 +168,7 @@ function SharedGameResults({ state }: { state: PrismGamePublicState }) {
   if (isSingleplayerPuzzleKind(state.game.kind)) return null;
   if (state.game.kind === "would-you-rather" && (state.participant.gameData?.kind !== "would-you-rather"
     || !state.participant.gameData.aggregateResults)) return null;
-  return <section className="rounded-lg border border-border bg-card p-5" aria-labelledby="game-results">
+  return <section className="rounded-2xl border border-border bg-card p-4" aria-labelledby="game-results">
     <h2 id="game-results" className="font-bold">Shared results</h2>
     {state.aggregateResults.length ? (
       <ul className="mt-3 grid gap-2">
@@ -405,13 +399,13 @@ function WordScrambleControls({ roundKey, prompt, canSubmit, busy, onSubmit }: {
   onSubmit: (action: PrismSubmitEventGameActionInput) => Promise<PrismGamePublicState | null>;
 }) {
   const [answer, setAnswer] = useState("");
-  return <form className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" onSubmit={(event) => submitModeAction(event, {
+  return <form className="rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={(event) => submitModeAction(event, {
     templateId: "word-scramble", roundKey, actionKind: "answer", payload: { answer },
   }, canSubmit, busy, onSubmit)}>
     <label className="grid gap-1.5 text-sm font-semibold">Unscrambled word
-      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-11 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canSubmit || busy} />
+      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-12 rounded-lg bg-background px-3 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canSubmit || busy} />
     </label>
-    <Button type="submit" className="mt-3" disabled={!answer.trim() || !canSubmit || busy}>{busy ? "Sending…" : "Submit answer"}</Button>
+    <Button type="submit" className="mt-3 h-12 w-full text-base" disabled={!answer.trim() || !canSubmit || busy}>{busy ? "Sending…" : "Submit answer"}</Button>
     <p className="mt-3 text-xs text-muted-foreground">Your answer is scored privately for this event game.</p>
   </form>;
 }
@@ -422,15 +416,15 @@ function PictureSoloControls({ roundKey, stage, totalStages, mediaUrl, mediaErro
 }) {
   const [answer, setAnswer] = useState("");
   const visibleWidth = Math.min(100, Math.max(1, Math.round((stage / totalStages) * 100)));
-  return <form className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" onSubmit={(event) => submitModeAction(event, {
+  return <form className="rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={(event) => submitModeAction(event, {
     templateId: "guess-picture-solo", roundKey, actionKind: "answer", payload: { answer },
   }, canSubmit, busy, onSubmit)}>
     <h2 className="font-bold">Private picture reveal · Hint {stage} of {totalStages}</h2>
     {mediaUrl ? <div className="mt-3 overflow-hidden rounded-md bg-secondary"><img src={mediaUrl} alt="Your event picture puzzle" data-reveal-stage={stage} style={{ clipPath: `inset(0 ${100 - visibleWidth}% 0 0)` }} className="block h-auto w-full rounded-md object-contain" /></div> : <p role={mediaError ? "alert" : "status"} className="mt-3 rounded-md bg-secondary px-3 py-4 text-sm text-muted-foreground">{mediaError ?? "Loading the event picture…"}</p>}
     <label className="mt-4 grid gap-1.5 text-sm font-semibold">Your guess
-      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-11 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canSubmit || busy} />
+      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-12 rounded-lg bg-background px-3 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canSubmit || busy} />
     </label>
-    <Button type="submit" className="mt-3" disabled={!answer.trim() || !canSubmit || busy}>{busy ? "Sending…" : "Submit guess"}</Button>
+    <Button type="submit" className="mt-3 h-12 w-full text-base" disabled={!answer.trim() || !canSubmit || busy}>{busy ? "Sending…" : "Submit guess"}</Button>
   </form>;
 }
 
@@ -453,7 +447,7 @@ function SpotTheDifferenceControls({ roundKey, data, originalMediaUrl, compariso
     if (selectionDisabled) return;
     setSelections((current) => [...current, { x: keyboardX / 100, y: keyboardY / 100 }]);
   }
-  return <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" aria-label="Spot the Difference puzzle">
+  return <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-label="Spot the Difference puzzle">
     <h2 className="font-bold">Find the differences</h2>
     <p className="mt-1 text-sm text-muted-foreground">Tap each difference in the comparison image. The target locations and score stay private until your answer is checked.</p>
     {originalMediaUrl && comparisonMediaUrl ? <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -490,7 +484,7 @@ function LiveTriviaControls({
   onSubmit: (action: PrismSubmitEventGameActionInput) => Promise<PrismGamePublicState | null>;
 }) {
   const [answer, setAnswer] = useState("");
-  return <form className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" onSubmit={(event) => submitModeAction(event, {
+  return <form className="rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={(event) => submitModeAction(event, {
     templateId: "live-trivia", roundKey, actionKind: "answer", payload: { answer },
   }, canSubmit, busy, onSubmit)}>
     <fieldset disabled={!canSubmit || busy}>
@@ -517,7 +511,7 @@ function BingoControls({
   const toggle = (number: number) => setMarkedNumbers((current) => current.includes(number)
     ? current.filter((item) => item !== number)
     : [...current, number]);
-  return <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" aria-label="Your Bingo card">
+  return <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-label="Your Bingo card">
     <h2 className="font-bold">Your card</h2>
     <p className="mt-1 text-sm text-muted-foreground">Mark called numbers, then claim Bingo when a configured pattern is complete.</p>
     <div className="mt-4 grid grid-cols-5 gap-2">
@@ -549,7 +543,7 @@ function GuessPictureControls({
   const revealStage = stage;
   const revealStages = Math.max(1, totalStages);
   const visibleWidth = Math.min(100, Math.max(1, Math.round((revealStage / revealStages) * 100)));
-  return <form className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" onSubmit={(event) => submitModeAction(event, {
+  return <form className="rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={(event) => submitModeAction(event, {
     templateId: "guess-picture", roundKey, actionKind: "guess", payload: { answer },
   }, canSubmit, busy, onSubmit)}>
     <h2 className="font-bold">Revealed picture · Stage {revealStage} of {revealStages}</h2>
@@ -557,16 +551,16 @@ function GuessPictureControls({
       <img src={mediaUrl} alt="Progressively revealed event game picture" data-reveal-stage={revealStage} style={{ clipPath: `inset(0 ${100 - visibleWidth}% 0 0)` }} className="block max-h-96 w-full rounded-md object-contain" />
     </div> : <p role={mediaError ? "alert" : "status"} className="mt-3 rounded-md bg-secondary px-3 py-4 text-sm text-muted-foreground">{mediaError ?? "Loading the event picture…"}</p>}
     <label className="mt-4 grid gap-1.5 text-sm font-semibold">Your guess
-      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-11 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canSubmit || busy} />
+      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-12 rounded-lg bg-background px-3 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canSubmit || busy} />
     </label>
-    <Button type="submit" className="mt-3" disabled={!answer.trim() || !canSubmit || busy}>{busy ? "Checking…" : "Submit guess"}</Button>
+    <Button type="submit" className="mt-3 h-12 w-full text-base" disabled={!answer.trim() || !canSubmit || busy}>{busy ? "Checking…" : "Submit guess"}</Button>
   </form>;
 }
 
 function SpinWheelStatus({ result }: {
   result: Extract<NonNullable<PrismGamePublicState["sessionResult"]>, { kind: "spin-wheel" }> | null;
 }) {
-  return <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" aria-label="Spin the Wheel">
+  return <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-label="Spin the Wheel">
     {result
       ? <div role="status" className="rounded-md bg-secondary p-4"><p className="font-bold">Host result: {result.label}</p><p className="mt-1 text-sm">{result.points} points</p></div>
       : <p role="status" className="text-sm text-muted-foreground">The host will spin the wheel after the game starts.</p>}
@@ -576,7 +570,7 @@ function SpinWheelStatus({ result }: {
 function PublicLeaderboard({ state }: { state: PrismGamePublicState }) {
   if (!["live-trivia", "bingo", "guess-picture", "spin-wheel", "family-feud"].includes(state.game.kind)) return null;
   const entries = state.leaderboard ?? [];
-  return <section className="mt-4 rounded-lg border border-border bg-card p-5" aria-label="Live standings">
+  return <section className="rounded-2xl border border-border bg-card p-4" aria-label="Live standings">
     <h2 className="font-bold">Live standings</h2>
     {entries.length ? <ol className="mt-3 space-y-2">
       {entries.map((entry) => <li key={`${entry.rank}-${entry.label}`} className="flex items-center justify-between gap-4 rounded-md border border-border px-3 py-2 text-sm">
@@ -596,7 +590,7 @@ function ThisOrThatControls({ state, roundKey, options, busy, onSubmit }: {
 }) {
   const [option, setOption] = useState("");
   const canVote = state.status === "live" && !state.participant.hasSubmitted && Boolean(roundKey);
-  return <form className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" onSubmit={(event) => submitModeAction(event, {
+  return <form className="rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={(event) => submitModeAction(event, {
     templateId: "this-or-that", roundKey, actionKind: "vote", payload: { option },
   }, canVote, busy, onSubmit)}>
     <fieldset disabled={!canVote || busy}>
@@ -641,7 +635,7 @@ function WouldYouRatherForm({ state, roundKey, data, busy, onSubmit }: {
 }) {
   const [option, setOption] = useState("");
   const canChoose = state.status === "live" && !state.participant.hasSubmitted && Boolean(roundKey);
-  return <form className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" onSubmit={(event) => submitModeAction(event, {
+  return <form className="rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={(event) => submitModeAction(event, {
     templateId: "would-you-rather", roundKey, actionKind: data.aggregateResults ? "vote" : "complete", payload: { option },
   }, canChoose, busy, onSubmit)}>
     <fieldset disabled={!canChoose || busy}>
@@ -681,7 +675,7 @@ function SingleplayerChoiceResult({ label, resultOption, privacyMessage }: {
   resultOption?: string;
   privacyMessage: string;
 }) {
-  return <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" aria-label={label}>
+  return <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-label={label}>
     <p role="status" className="font-semibold">Your choice was recorded{resultOption ? `: ${resultOption}` : ""}.</p>
     <p className="mt-2 text-sm text-muted-foreground">{privacyMessage}</p>
   </section>;
@@ -697,7 +691,7 @@ function ThisOrThatSoloForm({ state, roundKey, data, busy, onSubmit }: {
   const [option, setOption] = useState("");
   const [shareWithPoll, setShareWithPoll] = useState(false);
   const canChoose = state.status === "live" && !state.participant.hasSubmitted && Boolean(roundKey);
-  return <form className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" onSubmit={(event) => submitModeAction(event, {
+  return <form className="rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={(event) => submitModeAction(event, {
     templateId: "this-or-that-solo", roundKey, actionKind: shareWithPoll ? "vote" : "complete", payload: { option },
   }, canChoose, busy, onSubmit)}>
     <fieldset disabled={!canChoose || busy}>
@@ -727,15 +721,15 @@ function FamilyFeudControls({ state, roundKey, teamLabel, busy, onSubmit }: {
 }) {
   const [answer, setAnswer] = useState("");
   const canAnswer = state.status === "live" && !state.participant.hasSubmitted && Boolean(roundKey);
-  return <form className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" onSubmit={(event) => submitModeAction(event, {
+  return <form className="rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={(event) => submitModeAction(event, {
     templateId: "family-feud", roundKey, actionKind: "answer", payload: { answer },
   }, canAnswer, busy, onSubmit)}>
     <p className="text-sm font-semibold text-muted-foreground">Your team</p>
     <h2 className="mt-1 font-bold">{teamLabel}</h2>
     <label className="mt-4 grid gap-1.5 text-sm font-semibold">Your answer
-      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-11 rounded-lg bg-background px-3 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canAnswer || busy} />
+      <input value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={120} autoComplete="off" className={`min-h-12 rounded-lg bg-background px-3 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canAnswer || busy} />
     </label>
-    <Button type="submit" className="mt-3" disabled={!answer.trim() || !canAnswer || busy}>{busy ? "Sending…" : "Submit answer"}</Button>
+    <Button type="submit" className="mt-3 h-12 w-full text-base" disabled={!answer.trim() || !canAnswer || busy}>{busy ? "Sending…" : "Submit answer"}</Button>
     {state.participant.hasSubmitted ? <p role="status" className="mt-3 text-sm text-muted-foreground">Your answer was recorded. The team score follows the host-configured answer board.</p> : null}
   </form>;
 }
@@ -757,7 +751,7 @@ function SplitTheRoomControls({ state, roundKey, data, busy, onSubmit }: {
 }
 
 function SplitTheRoomResult({ responses }: { responses?: readonly string[] }) {
-  return <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" aria-label="Split the Room result">
+  return <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-label="Split the Room result">
     <p role="status" className="font-semibold">Your response and vote are recorded.</p>
     <ApprovedSplitResponses responses={responses} />
   </section>;
@@ -771,7 +765,7 @@ function SplitTheRoomVoteControls({ state, roundKey, data, busy, onSubmit }: {
   onSubmit: (action: PrismSubmitEventGameActionInput) => Promise<PrismGamePublicState | null>;
 }) {
   const canVote = state.status === "live" && !state.participant.hasVoted && Boolean(roundKey);
-  return <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" aria-label="Vote in Split the Room">
+  return <section className="rounded-2xl border border-border bg-card p-4 sm:p-5" aria-label="Vote in Split the Room">
     <h2 className="font-bold">Choose the side you agree with</h2>
     <ApprovedSplitResponses responses={state.approvedResponses} />
     <div className="mt-3 flex flex-wrap gap-2">
@@ -792,14 +786,14 @@ function SplitTheRoomResponseForm({ state, roundKey, data, busy, onSubmit }: {
 }) {
   const [response, setResponse] = useState("");
   const canRespond = state.status === "live" && !state.participant.hasSubmitted && Boolean(roundKey);
-  return <form className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm sm:p-7" onSubmit={(event) => submitModeAction(event, {
+  return <form className="rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={(event) => submitModeAction(event, {
     templateId: "split-the-room", roundKey, actionKind: "answer", payload: { response },
   }, canRespond, busy, onSubmit)}>
     <label className="grid gap-1.5 text-sm font-semibold">Your response
       <textarea value={response} onChange={(event) => setResponse(event.target.value)} maxLength={data.maxResponseLength} rows={3} autoComplete="off" className={`rounded-lg bg-background px-3 py-2 ${PRISM_AUTH_INPUT_CLASS_NAME}`} disabled={!canRespond || busy} />
     </label>
     <p className="mt-1 text-xs text-muted-foreground">Your text stays private to hosts unless approved. Approved responses may be shown after the host pauses the round.</p>
-    <Button type="submit" className="mt-3" disabled={!response.trim() || !canRespond || busy}>{busy ? "Sending…" : "Submit response"}</Button>
+    <Button type="submit" className="mt-3 h-12 w-full text-base" disabled={!response.trim() || !canRespond || busy}>{busy ? "Sending…" : "Submit response"}</Button>
   </form>;
 }
 

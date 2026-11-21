@@ -1,17 +1,20 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { useState } from "react";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { PrismGuestShell, PrismNoticeBanner } from "@prism/ui";
-import { portalHref } from "@prism/ui/portal-path";
-import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
-import { isGuestCheckInOpen } from "../model/guest-dashboard-rules";
 import { LoadingState } from "@prism/ui/components/loading-state";
+import { guestGamesHref, guestTabs } from "@/features/guest-shared/guest-tabs";
+import { useGuestDashboardViewModel } from "../view-models/use-guest-dashboard-view-model";
+import { guestPassMoment, type GuestPassMoment } from "../model/guest-dashboard-rules";
+import type { PrismGuestSession } from "@prism/types";
 import {
-  GuestCheckInPanel,
-  GuestPassCard,
+  GuestCheckInCard,
+  GuestCheckInStatus,
   GuestFeedbackPanel,
+  GuestPassLinkRow,
+  GuestPassQuickActions,
+  GuestPassTicket,
 } from "./sections/guest-dashboard-panels";
 
 function GuestDashboardLoading() {
@@ -37,51 +40,70 @@ function GuestDashboardNotices({ vm }: { vm: GuestDashboardVm }) {
   );
 }
 
-function GuestPassNav({ checkInOpen, feedbackOpen }: { checkInOpen: boolean; feedbackOpen: boolean }) {
-  const [selected, setSelected] = useState(checkInOpen ? "#check-in" : "#event-details");
-  const sections = [
-    ...(checkInOpen ? [{ href: "#check-in", label: "Check in" }] : []),
-    { href: "#event-details", label: "Your pass" },
-    { href: portalHref("/games/join"), label: "Join a game" },
-    ...(feedbackOpen ? [{ href: "#feedback", label: "Feedback" }] : []),
-  ];
-  return (
-    <nav aria-label="Guest pass sections" className="flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-muted p-1">
-      {sections.map((section) => <a key={section.href} href={section.href} onClick={() => setSelected(section.href)} aria-current={selected === section.href ? "location" : undefined} className={`inline-flex min-h-11 items-center rounded-md px-3 text-sm font-semibold ${selected === section.href ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{section.label}</a>)}
-    </nav>
-  );
+/** What follows the ticket: the invitation's next steps before the day, check-in on the day, then the games. */
+function GuestPassMomentBody({ vm, session, moment }: { vm: GuestDashboardVm; session: PrismGuestSession; moment: GuestPassMoment }) {
+  const gamesHref = guestGamesHref(session);
+  if (moment === "before") {
+    return (
+      <>
+        <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm leading-5 text-muted-foreground">
+          Check-in opens on {formatPortalDate(session.eventDate)}. Come back to this pass then, or show it at the door.
+        </p>
+        <GuestPassLinkRow href={gamesHref} title="Play while you wait" detail="Games from your host" />
+      </>
+    );
+  }
+  if (moment === "after") {
+    // Feedback, when it is open, leads above; once it has closed the pass still says the event is over.
+    return session.feedbackAvailability === "open" ? null : (
+      <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm leading-5 text-muted-foreground">This event has ended. Thank you for coming.</p>
+    );
+  }
+  if (vm.checkedIn) return <GuestPassLinkRow href={gamesHref} title="Play a game" detail="Solo games, or join the host's game with a PIN" />;
+  return <GuestCheckInCard vm={vm} />;
 }
 
+/**
+ * The guest's pass, arranged by where they are in the event: before the day it is the invitation, on the day check-in
+ * leads, and after the event feedback does. Games are one tap away throughout.
+ */
 export function GuestDashboardView() {
   const vm = useGuestDashboardViewModel();
   const session = vm.session;
 
   if (!session) return <GuestDashboardLoading />;
-  const feedbackOpen = session.feedbackAvailability === "open" || vm.canWithdrawFeedbackConsent;
-  // Before the event day the pass is for reference; check-in leads only once it can be used.
-  const checkInOpen = vm.checkedIn || isGuestCheckInOpen(session.eventDate);
+  const moment = guestPassMoment(session);
+  const feedbackShown = session.feedbackAvailability === "open" || vm.canWithdrawFeedbackConsent;
 
   return (
     <PrismGuestShell
       eventName={session.eventName}
-      lead={<GuestPassCard session={session} checkedIn={vm.checkedIn} />}
+      tabs={guestTabs(session, "pass")}
+      layout="split"
+      lead={
+        <div className="grid gap-3">
+          {moment === "today" && vm.checkedIn ? <GuestCheckInStatus session={session} /> : null}
+          <GuestPassTicket session={session} moment={moment} />
+          {moment === "before" ? <GuestPassQuickActions session={session} /> : null}
+        </div>
+      }
       actions={
-        <button type="button" onClick={() => vm.leave()} className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-semibold text-muted-foreground transition hover:text-foreground">
-          <LogOut aria-hidden="true" className="size-4" />
-          Leave event
+        // On a phone it is an icon where the other portals keep the account menu; wider screens spell it out.
+        <button
+          type="button"
+          onClick={() => vm.leave()}
+          className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-full text-sm font-semibold text-muted-foreground transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:rounded-md md:px-2"
+        >
+          <LogOut aria-hidden="true" className="size-5 md:size-4" />
+          <span className="max-md:sr-only">Leave</span>
         </button>
       }
     >
-        <div className="flex flex-col gap-5">
-          <GuestDashboardNotices vm={vm} />
-          <GuestPassNav checkInOpen={checkInOpen} feedbackOpen={feedbackOpen} />
-          {checkInOpen ? (
-            <div id="check-in"><GuestCheckInPanel vm={vm} /></div>
-          ) : (
-            <PrismNoticeBanner role="status" tone="info">Check-in opens on {formatPortalDate(session.eventDate)}. Keep this pass to show the registration team when you arrive.</PrismNoticeBanner>
-          )}
-          {feedbackOpen ? <div id="feedback"><GuestFeedbackPanel vm={vm} /></div> : null}
-        </div>
+      <div className="flex flex-col gap-3">
+        <GuestDashboardNotices vm={vm} />
+        {feedbackShown ? <div id="feedback"><GuestFeedbackPanel vm={vm} /></div> : null}
+        <GuestPassMomentBody vm={vm} session={session} moment={moment} />
+      </div>
     </PrismGuestShell>
   );
 }

@@ -1,98 +1,114 @@
 "use client";
 
-import { portalHref } from "@prism/ui/portal-path";
-import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
 import { FormEvent } from "react";
-import { ArrowRight, TicketCheck } from "lucide-react";
+import { ArrowRight, ChevronRight, QrCode, TicketCheck } from "lucide-react";
+import { portalHref } from "@prism/ui/portal-path";
+import { PrismGuestShell } from "@prism/ui";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
-import { Field } from "@prism/ui/components/field";
 import { Input } from "@prism/ui/components/input";
 import { Label } from "@prism/ui/components/label";
 import { useGuestAccessOpenViewModel } from "../view-models/use-guest-access-open-view-model";
 
-const GUEST_POINTS = [
-  "Preview the event before you check in",
-  "Check in by name or as an anonymous headcount",
-  "Share feedback when the event has ended",
+type OpenVm = ReturnType<typeof useGuestAccessOpenViewModel>;
+
+const WAYS_IN = [
+  ["Scan the event QR", "On your invitation, table card or at the entrance. Your pass opens with nothing to type."],
+  ["Or type the event code", "It is on your invitation."],
+  ["Then check in on the day", "One name and one tap, on the phone you bring."],
 ] as const;
 
-export function GuestAccessOpenView() {
-  const vm = useGuestAccessOpenViewModel();
+/** Shown while a scanned link opens the pass, so the guest sees the event is on its way instead of an empty form. */
+function OpeningPass() {
+  return (
+    <section role="status" aria-live="polite" className="grid justify-items-center gap-3 rounded-2xl border border-border bg-card px-5 py-8 text-center">
+      <span aria-hidden="true" className="size-7 animate-spin rounded-full border-[3px] border-primary/20 border-t-primary" />
+      <p className="font-semibold text-foreground">Opening your pass…</p>
+      <p className="text-sm text-muted-foreground">No code to type.</p>
+    </section>
+  );
+}
 
+function OpenForm({ vm }: { vm: OpenVm }) {
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void vm.submit();
   }
+  return (
+    <form className="grid gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5" onSubmit={onSubmit}>
+      <div className="grid gap-1.5">
+        <Label htmlFor="event-code">Event code</Label>
+        <Input
+          id="event-code"
+          value={vm.draft.accessCode}
+          onChange={(event) => vm.updateAccessCode(event.target.value)}
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder="From your invitation"
+          className="h-12 bg-background text-base uppercase placeholder:normal-case placeholder:text-muted-foreground"
+        />
+      </div>
+      {vm.error ? (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{vm.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      <Button type="submit" disabled={!vm.canSubmit} className="h-12 w-full text-base">
+        {vm.busy ? "Opening…" : "Open my pass"} {vm.busy ? null : <ArrowRight className="size-4" aria-hidden="true" />}
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * How a guest gets to their pass. Scanning the event's QR opens it with nothing to type; the event code is the
+ * fallback, one field and one button. A pass already open on this phone is one tap away.
+ */
+export function GuestAccessOpenView() {
+  const vm = useGuestAccessOpenViewModel();
 
   return (
-    <PrismAuthShell
-      portal="guest"
-      portalName="Guest pass"
-      statement="Your event pass"
-      points={GUEST_POINTS}
-      title="Enter your event code"
-      description="Use the event code from your PMCM invitation."
-      footer={
-        <>
-          <p>
-            Code access opens only this guest event. Your event team uses check-in and feedback details to support
-            event access and review.
-          </p>
-          <p>
-            Read the{" "}
-            <a href={portalHref("/privacy")} className="font-semibold text-primary transition-colors hover:text-primary/80">
-              privacy notice
-            </a>{" "}
-            before check-in or feedback consent.
-          </p>
-        </>
+    <PrismGuestShell
+      eventName="Open your event pass"
+      layout="split"
+      lead={
+        <div className="grid gap-1.5 pt-2 lg:gap-4 lg:pt-6">
+          <h1 className="font-heading text-2xl font-semibold leading-tight text-foreground lg:text-4xl">Open your event pass</h1>
+          <p className="text-sm leading-6 text-muted-foreground lg:text-base">Scan the QR on your invitation or at the entrance with your phone camera, or type the event code.</p>
+          <ol className="hidden gap-3 lg:grid">
+            {WAYS_IN.map(([title, detail], index) => (
+              <li key={title} className="flex gap-3">
+                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">{index + 1}</span>
+                <span><span className="block font-semibold text-foreground">{title}</span><span className="block text-sm text-muted-foreground">{detail}</span></span>
+              </li>
+            ))}
+          </ol>
+        </div>
       }
     >
-      <form className="flex flex-col gap-5" onSubmit={onSubmit}>
-        <Field>
-          <Label htmlFor="event-code">Event code</Label>
-          <Input
-            id="event-code"
-            value={vm.draft.accessCode}
-            onChange={(event) => vm.updateAccessCode(event.target.value)}
-            autoCapitalize="characters"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="Enter the event code"
-            className={`h-12 rounded-lg bg-card text-base uppercase placeholder:normal-case placeholder:text-muted-foreground ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-          />
-        </Field>
-
-        {vm.preview ? (
-          <section className="border-l-2 border-primary py-1 pl-4">
-            <p className="text-sm text-muted-foreground">Event preview</p>
-            <h2 className="mt-1 font-heading text-xl font-bold text-foreground">{vm.preview.eventName}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {vm.preview.clientName} - {vm.preview.eventDate}
-            </p>
-          </section>
-        ) : null}
-
-        {vm.error ? (
-          <Alert variant="destructive" role="alert">
-            <AlertDescription>{vm.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        <Button type="submit" disabled={!vm.canSubmit} className={prismAuthSubmitClassName("guest")}>
-          {vm.busy ? "Opening" : vm.preview ? "Continue" : "Preview event"} <ArrowRight className="size-4" />
-        </Button>
-
-        {vm.existing ? (
-          <a
-            href={portalHref("/dashboard")}
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-border bg-card text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-          >
-            <TicketCheck className="size-4" /> Continue to {vm.existing.eventName}
+      <div className="grid gap-3">
+        {vm.existing && !vm.autoOpening ? (
+          <a href={portalHref("/dashboard")} className="flex min-h-16 items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-ink-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <TicketCheck className="size-5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm text-ink-foreground/70">Your open pass</span>
+              <span className="block truncate font-semibold">{vm.existing.eventName}</span>
+            </span>
+            <ChevronRight className="size-5 shrink-0 text-ink-foreground/70" aria-hidden="true" />
           </a>
         ) : null}
-      </form>
-    </PrismAuthShell>
+        {vm.autoOpening ? <OpeningPass /> : <OpenForm vm={vm} />}
+        <p className="flex items-start gap-2 px-1 text-sm leading-5 text-muted-foreground">
+          <QrCode className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <span>No QR or code? Ask the registration team at the entrance.</span>
+        </p>
+        <p className="px-1 text-xs leading-5 text-muted-foreground">
+          The code opens only this event. Read the{" "}
+          <a href={portalHref("/privacy")} className="font-semibold text-primary hover:text-primary/80">privacy notice</a>{" "}
+          before you check in or leave feedback.
+        </p>
+      </div>
+    </PrismGuestShell>
   );
 }

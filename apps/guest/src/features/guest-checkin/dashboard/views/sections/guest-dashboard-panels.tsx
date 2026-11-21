@@ -1,130 +1,175 @@
 "use client";
 
-import { CheckCircle2, ClipboardCheck, MessageCircleHeart, Star, TicketCheck, Users } from "lucide-react";
+import { CalendarPlus, Check, CheckCircle2, ChevronRight, Gamepad2, MapPin, MessageCircleHeart, Star } from "lucide-react";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
 import type { PrismGuestSession } from "@prism/types";
 import { PrismSectionPanel } from "@prism/ui";
+import { formatPortalTime } from "@prism/ui/format-date";
 import { Textarea } from "@prism/ui/components/textarea";
-import { ToggleGroup, ToggleGroupItem } from "@prism/ui/components/toggle-group";
-import { guestPassDetails } from "../../model/guest-dashboard-rules";
-import type { CheckInMode } from "../../model/guest-dashboard-types";
+import {
+  formatArrivalTime,
+  formatPassDate,
+  guestCalendarFile,
+  guestCountdownLabel,
+  type GuestPassMoment,
+  venueDirectionsUrl,
+} from "../../model/guest-dashboard-rules";
 import type { useGuestDashboardViewModel } from "../../view-models/use-guest-dashboard-view-model";
 
 type GuestDashboardVm = ReturnType<typeof useGuestDashboardViewModel>;
 
-const CHECK_IN_MODES: readonly CheckInMode[] = ["name_search", "headcount"];
-
-function GuestCheckInSubmit({ vm }: { vm: GuestDashboardVm }) {
-  const showGuidance = !vm.canCheckIn && !vm.busy;
-  const guidance = vm.checkInMode === "name_search" && !vm.checkInGuestName.trim()
-    ? "Enter the name on the event list and confirm your consent."
-    : "Confirm your consent to send your check-in request.";
+/**
+ * The pass itself, a dark ticket that carries the page title. Before the day it answers when and where, and how long
+ * to go; on the day it shrinks to one line so check-in can lead.
+ */
+export function GuestPassTicket({ session, moment }: { session: PrismGuestSession; moment: GuestPassMoment }) {
+  const startTime = formatArrivalTime(session.startTime);
+  if (moment !== "before") {
+    const line = [moment === "today" ? "Today" : formatPassDate(session.eventDate), startTime, session.venue].filter(Boolean).join(" · ");
+    return (
+      <section id="event-details" aria-label="Your event pass" className="overflow-hidden rounded-2xl bg-ink text-ink-foreground">
+        <div className="px-5 py-4 lg:py-5">
+          <p className="text-sm text-ink-foreground/70">{line}</p>
+          <h1 className="mt-0.5 font-heading text-xl font-semibold leading-tight lg:text-2xl">{session.eventName}</h1>
+        </div>
+        <p className="hidden border-t border-dashed border-ink-foreground/30 px-5 py-3.5 text-sm text-ink-foreground/80 lg:block">Hosted by {session.clientName}</p>
+      </section>
+    );
+  }
+  const countdown = guestCountdownLabel(session.eventDate);
   return (
-    <>
-      {showGuidance ? <p id="check-in-guidance" className="text-sm text-muted-foreground">{guidance}</p> : null}
-      <Button aria-describedby={showGuidance ? "check-in-guidance" : undefined} disabled={!vm.canCheckIn} onClick={() => void vm.checkIn()} className="h-12 sm:w-fit">
-        <TicketCheck className="size-4" /> {vm.checkInButtonLabel}
-      </Button>
-    </>
+    <section id="event-details" aria-label="Your event pass" className="overflow-hidden rounded-2xl bg-ink text-ink-foreground">
+      <div className="px-5 pb-5 pt-5">
+        <p className="text-sm text-ink-foreground/70">You&apos;re invited</p>
+        <h1 className="mt-1 font-heading text-2xl font-semibold leading-tight">{session.eventName}</h1>
+        <dl className="mt-4 grid grid-cols-2 gap-4">
+          <div className="min-w-0">
+            <dt className="sr-only">When</dt>
+            <dd className="text-base font-semibold">{formatPassDate(session.eventDate)}</dd>
+            <dd className="text-sm text-ink-foreground/70">{startTime ?? "Time to follow"}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="sr-only">Where</dt>
+            <dd className="break-words text-base font-semibold">{session.venue ?? "Venue to follow"}</dd>
+            {session.venue ? null : <dd className="text-sm text-ink-foreground/70">Registration can tell you</dd>}
+          </div>
+        </dl>
+      </div>
+      <div className="relative flex items-center justify-between gap-3 border-t border-dashed border-ink-foreground/30 px-5 py-3.5">
+        {/* The two notches where a ticket tears. */}
+        <span aria-hidden="true" className="absolute -left-3 -top-3 size-6 rounded-full bg-background" />
+        <span aria-hidden="true" className="absolute -right-3 -top-3 size-6 rounded-full bg-background" />
+        <p className="min-w-0 truncate text-sm text-ink-foreground/80">Hosted by {session.clientName}</p>
+        {countdown ? <p className="shrink-0 rounded-full bg-ink-foreground/15 px-2.5 py-1 text-xs font-semibold">{countdown}</p> : null}
+      </div>
+    </section>
   );
 }
 
-export function GuestCheckInPanel({ vm }: { vm: GuestDashboardVm }) {
-  if (vm.checkedIn) {
-    return (
-      <PrismSectionPanel title="Check-in request received" icon={TicketCheck} description="Your request was sent successfully.">
-        <p role="status" className="text-sm leading-6 text-muted-foreground">
-          The registration team can confirm your attendance. A name match may need review; sending this request does not guarantee admission.
-        </p>
-        <a href="#event-details" className="mt-3 inline-flex min-h-11 items-center rounded-md px-1 text-sm font-semibold text-primary focus-visible:ring-2 focus-visible:ring-primary">
-          Show event details to registration
-        </a>
-      </PrismSectionPanel>
-    );
-  }
+function downloadCalendarFile(session: PrismGuestSession) {
+  const url = URL.createObjectURL(new Blob([guestCalendarFile(session)], { type: "text/calendar" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${session.eventName.replace(/[^\w -]+/g, "").trim() || "event"}.ics`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
+/** Directions when a venue is recorded, and the event in the guest's own calendar. */
+export function GuestPassQuickActions({ session }: { session: PrismGuestSession }) {
   return (
-    <PrismSectionPanel title="Check in" icon={ClipboardCheck} description="Choose how to record your attendance. Ask the registration team if you need help.">
-      <div className="flex flex-col gap-4">
-        {/* A two-way choice is a single-select group, so the only check-in button on the page is the one that submits. */}
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          aria-label="Check-in method"
-          value={vm.checkInMode}
-          disabled={vm.checkedIn}
-          onValueChange={(value) => {
-            const mode = CHECK_IN_MODES.find((item) => item === value);
-            if (mode) vm.setCheckInMode(mode);
-          }}
-          className="w-full"
-        >
-          {/* Short labels: the two options share one row on a phone, and the panel title already says "Check in". */}
-          <ToggleGroupItem value="name_search" aria-label="Check in with my name" className="min-h-11 min-w-0 flex-1 gap-1.5 px-3 text-sm font-semibold">
-            <ClipboardCheck className="size-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">With my name</span>
-          </ToggleGroupItem>
-          <ToggleGroupItem value="headcount" aria-label="Check in without my name" className="min-h-11 min-w-0 flex-1 gap-1.5 px-3 text-sm font-semibold">
-            <Users className="size-4 shrink-0" aria-hidden="true" />
-            <span className="truncate">Without my name</span>
-          </ToggleGroupItem>
-        </ToggleGroup>
-        <p className="text-sm leading-6 text-muted-foreground">
-          {vm.checkInMode === "name_search"
-            ? "Enter the name on the event list. The registration team may need to review a match."
-            : "Counts you as one attendee without recording your name. It is not a group headcount and does not confirm admission."}
-        </p>
-        {vm.checkInMode === "name_search" ? (
-          <label htmlFor="guest-check-in-name" className="grid gap-1.5 text-sm font-semibold">
-            Guest name
-            <Input id="guest-check-in-name" className="h-11" value={vm.checkInGuestName} onChange={(event) => vm.setCheckInGuestName(event.target.value)} autoComplete="name" placeholder="Name at registration" />
-          </label>
-        ) : null}
-        <label className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
-          <input type="checkbox" checked={vm.checkInConsentAccepted} onChange={(event) => vm.setCheckInConsentAccepted(event.target.checked)} className="mt-1 size-4 accent-attention" />
-          <span>{vm.checkInMode === "headcount"
-            ? "I consent to this attendance being recorded for the event headcount."
-            : "I consent to PMCM recording my name and check-in time for event registration."}</span>
-        </label>
-        <GuestCheckInSubmit vm={vm} />
-      </div>
-    </PrismSectionPanel>
+    <div className={session.venue ? "grid grid-cols-2 gap-2" : "grid"}>
+      {session.venue ? (
+        <Button asChild variant="outline" className="h-11 bg-card">
+          <a href={venueDirectionsUrl(session.venue)} target="_blank" rel="noreferrer"><MapPin className="size-4" aria-hidden="true" /> Directions</a>
+        </Button>
+      ) : null}
+      <Button type="button" variant="outline" className="h-11 bg-card" onClick={() => downloadCalendarFile(session)}>
+        <CalendarPlus className="size-4" aria-hidden="true" /> Add to calendar
+      </Button>
+    </div>
   );
+}
+
+/** A row that leads somewhere else in the pass, such as the games. */
+export function GuestPassLinkRow({ href, title, detail, icon: Icon = Gamepad2 }: { href: string; title: string; detail: string; icon?: typeof Gamepad2 }) {
+  return (
+    <a href={href} className="flex min-h-16 items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 transition-colors hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Icon className="size-5" aria-hidden="true" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-foreground">{title}</span>
+        <span className="block text-sm text-muted-foreground">{detail}</span>
+      </span>
+      <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+    </a>
+  );
+}
+
+/** After the request went: one status, said once. The receipt cannot say more than "accepted", so neither does this. */
+export function GuestCheckInStatus({ session }: { session: PrismGuestSession }) {
+  const sentAt = session.checkInSentAt ? formatPortalTime(session.checkInSentAt, "") : "";
+  return (
+    <section role="status" aria-label="Check-in" className="flex items-start gap-3 rounded-2xl border border-success/30 bg-card px-4 py-3.5">
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-success text-white"><Check className="size-5" strokeWidth={3} aria-hidden="true" /></span>
+      <div className="min-w-0">
+        <h2 className="font-semibold text-foreground">Check-in sent{sentAt ? ` at ${sentAt}` : ""}</h2>
+        <p className="text-sm leading-5 text-muted-foreground">Registration confirms arrivals at the door. If they ask, show them this pass.</p>
+      </div>
+    </section>
+  );
+}
+
+function CheckInConsent({ vm }: { vm: GuestDashboardVm }) {
+  return (
+    <label className="flex items-start gap-3 text-sm leading-5 text-muted-foreground">
+      <input type="checkbox" checked={vm.checkInConsentAccepted} onChange={(event) => vm.setCheckInConsentAccepted(event.target.checked)} className="mt-0.5 size-5 shrink-0 accent-primary" />
+      <span>{vm.checkInMode === "headcount"
+        ? "I consent to this attendance being recorded for the event headcount."
+        : "I consent to PMCM recording my name and check-in time for event registration."}</span>
+    </label>
+  );
+}
+
+/** What is still missing, said under the button instead of leaving it disabled without a reason. */
+function checkInGuidance(vm: GuestDashboardVm): string | null {
+  if (vm.canCheckIn || vm.busy) return null;
+  if (vm.checkInMode === "name_search" && !vm.checkInGuestName.trim()) return "Enter your name, then tick the consent.";
+  return "Tick the consent to send your check-in.";
 }
 
 /**
- * The guest's pass, laid out like a ticket: the event on top, the access code on the stub below the
- * tear line. It is what the guest shows at registration, so it leads the page and carries the page title.
+ * On the day: one name field, the consent and one button. Checking in without a name is a quieter choice under it,
+ * not a second tab, because most guests give their name.
  */
-export function GuestPassCard({ session, checkedIn }: { session: PrismGuestSession; checkedIn: boolean }) {
-  const details = guestPassDetails(session).filter(([title]) => title !== "Event" && title !== "Access code");
+export function GuestCheckInCard({ vm }: { vm: GuestDashboardVm }) {
+  const named = vm.checkInMode === "name_search";
+  const guidance = checkInGuidance(vm);
   return (
-    <section id="event-details" aria-label="Your event pass" className="scroll-mt-4">
-      <div className="overflow-hidden rounded-lg bg-ink text-ink-foreground">
-        <div className="px-6 pb-6 pt-6">
-          <p className="text-sm text-ink-foreground/70">Guest pass</p>
-          <h1 className="mt-1.5 font-heading text-2xl font-semibold leading-tight sm:text-3xl">{session.eventName}</h1>
-          <dl className="mt-5 grid gap-x-6 gap-y-4 sm:grid-cols-2">
-            {details.map(([title, value]) => (
-              <div key={title} className="min-w-0">
-                <dt className="text-xs text-ink-foreground/70">{title}</dt>
-                <dd className="mt-0.5 break-words text-sm font-semibold">{value || "—"}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <div className="relative flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-t border-dashed border-ink-foreground/30 px-6 py-5">
-          {/* The two notches where a ticket tears. */}
-          <span aria-hidden="true" className="absolute -left-3 -top-3 size-6 rounded-full bg-background" />
-          <span aria-hidden="true" className="absolute -right-3 -top-3 size-6 rounded-full bg-background" />
-          <div className="min-w-0">
-            <p className="text-xs text-ink-foreground/70">Access code</p>
-            <p className="mt-0.5 break-all font-mono text-2xl font-semibold tracking-wider">{session.guestAccessCode}</p>
-          </div>
-          <p className="text-sm font-medium text-ink-foreground/80">{checkedIn ? "Check-in request sent" : "Show at registration"}</p>
-        </div>
+    <section id="check-in" aria-labelledby="check-in-title" className="grid gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5">
+      <div>
+        <h2 id="check-in-title" className="font-heading text-lg font-semibold text-foreground">Check in</h2>
+        <p className="text-sm text-muted-foreground">{named ? "Use the name on your invitation. Registration confirms it, and helps if it is not found." : "You are counted as one guest, without your name."}</p>
       </div>
-      {session.venue ? null : <p className="mt-3 text-sm text-muted-foreground">The registration team can give you venue and arrival directions.</p>}
+      {named ? (
+        <label htmlFor="guest-check-in-name" className="grid gap-1.5 text-sm font-semibold">
+          Guest name
+          <Input id="guest-check-in-name" className="h-12 text-base" value={vm.checkInGuestName} onChange={(event) => vm.setCheckInGuestName(event.target.value)} autoComplete="name" placeholder="Your name, as on the invitation" />
+        </label>
+      ) : null}
+      <CheckInConsent vm={vm} />
+      <div className="grid gap-2">
+        <Button aria-describedby={guidance ? "check-in-guidance" : undefined} disabled={!vm.canCheckIn} onClick={() => void vm.checkIn()} className="h-12 w-full text-base">
+          {vm.busy === "check-in" ? "Checking you in…" : "Check me in"}
+        </Button>
+        {guidance ? <p id="check-in-guidance" className="text-center text-sm text-muted-foreground">{guidance}</p> : null}
+      </div>
+      <p className="text-center text-sm text-muted-foreground">
+        {named ? "Rather not give your name? " : "Want your name on the list? "}
+        <button type="button" onClick={() => vm.setCheckInMode(named ? "headcount" : "name_search")} className="min-h-11 font-semibold text-primary hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          {named ? "Check in without it" : "Use my name"}
+        </button>
+      </p>
     </section>
   );
 }
