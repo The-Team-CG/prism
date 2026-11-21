@@ -8,14 +8,14 @@ import { loadPreferencePlan, savePreferenceScene, type PreferencePlan } from "@/
 import { createSceneSaver, type SceneSaver } from "@/features/floorplan/preference-editor/use-cases/scene-saver";
 import { hasPreferenceLayout } from "@/features/floorplan/preference-editor/use-cases/open-preference-scene";
 import type { ClientPlanLayout } from "@/features/floorplan/snapshot-project";
-import { ClientEventSwitcher } from "./sections/client-event-switcher";
+import { ClientEventSwitcher, ClientPhoneEventSwitcher } from "./sections/client-event-switcher";
 import { ClientWrongPortalView } from "./sections/client-wrong-portal-view";
 import { ClientDashboardLoadingShell } from "./sections/client-dashboard-loading-shell";
 import { ClientFloorplanEditorScreen } from "./sections/client-floorplan-editor-screen";
 import { ClientOfficialLayoutScreen } from "./sections/client-official-layout-screen";
 import { ClientDashboardRouteBody } from "./sections/client-dashboard-route-body";
 import { ClientAddendumDeepLink } from "../../addenda";
-import { ClientWorkspaceBanners, clientShellMobileActions } from "./sections/client-event-header";
+import { ClientWorkspaceBanners } from "./sections/client-event-header";
 import { DashboardSessionSkeleton } from "./dashboard-tabs";
 import {
   ClientWorkspaceProvider,
@@ -57,6 +57,8 @@ import {
   clientSidebarLinkHref,
   findClientEventNavItem,
   CLIENT_ACCOUNT_MENU_ITEMS,
+  CLIENT_EVENT_MOBILE_BAR,
+  CLIENT_PORTAL_MOBILE_BAR,
   findClientSidebarLink,
   portalViewFromLink,
   sidebarActiveItemId,
@@ -190,6 +192,25 @@ function clientWorkspaceShellNavigation({ route, portalView, isEventScopedView, 
     sidebarNavItems: inEventWorkspace && selectedEvent
       ? clientEventSidebarItems(selectedEvent.id, selectedEvent).map((item) => eventNavItemBadge(item, eventUnreadMessages, eventOverduePayments, eventNeedsYou))
       : [...shellNavItems, ...clientOpenEventSidebarItems(events)],
+  };
+}
+
+/** Inside an event the shell names it twice: the sidebar switch on wider screens, the top-bar switch on a phone. */
+function clientEventChrome({ inEventWorkspace, selectedEvent, events, onSwitch, onAllEvents, onHome }: {
+  inEventWorkspace: boolean;
+  selectedEvent?: PrismEvent;
+  events: PrismEvent[];
+  onSwitch: (eventId: string) => void;
+  onAllEvents: () => void;
+  onHome: () => void;
+}) {
+  if (!inEventWorkspace) return { mobileBar: CLIENT_PORTAL_MOBILE_BAR };
+  if (!selectedEvent) return { mobileBar: CLIENT_EVENT_MOBILE_BAR };
+  const switcher = { events: events.filter((event) => !event.archived), selected: selectedEvent, onSwitch, onAllEvents };
+  return {
+    mobileBar: CLIENT_EVENT_MOBILE_BAR,
+    mobileTitle: <ClientPhoneEventSwitcher {...switcher} onHome={onHome} />,
+    sidebarContext: <ClientEventSwitcher {...switcher} />,
   };
 }
 
@@ -616,17 +637,14 @@ export function ClientDashboardWorkspaceView({
           initials: session.name.slice(0, 2).toUpperCase(),
         }}
         searchPlaceholder="Search events, documents, billing..."
-        mobileActions={clientShellMobileActions(route, selectedEvent, () => router.push("/dashboard"), navigateToEventRoute)}
-        sidebarContext={
-          inEventWorkspace && selectedEvent ? (
-            <ClientEventSwitcher
-              events={events.filter((event) => !event.archived)}
-              selected={selectedEvent}
-              onSwitch={(eventId) => navigateToEventRoute(route, eventId)}
-              onAllEvents={() => router.push("/dashboard/events")}
-            />
-          ) : null
-        }
+        {...clientEventChrome({
+          inEventWorkspace,
+          selectedEvent,
+          events,
+          onSwitch: (eventId) => navigateToEventRoute(route, eventId),
+          onAllEvents: () => router.push("/dashboard/events"),
+          onHome: () => router.push("/dashboard"),
+        })}
         accountMenuItems={CLIENT_ACCOUNT_MENU_ITEMS}
         onSignOut={signOut}
       >

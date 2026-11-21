@@ -51,7 +51,8 @@ function Tiles({ totals }: { totals: PrismFinanceDesk["totals"] }) {
   );
 }
 
-const BALANCE_GRID = "grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 px-5 py-3 md:grid-cols-[minmax(0,1.6fr)_7.5rem_minmax(0,1fr)_7.5rem_minmax(0,1.1fr)] md:items-center";
+// Five columns need the room a desktop gives; a tablet beside the sidebar keeps the stacked rows phones use.
+const BALANCE_GRID = "grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1.5 px-5 py-3 lg:grid-cols-[minmax(0,1.6fr)_7.5rem_minmax(0,1fr)_7.5rem_minmax(0,1.1fr)] lg:items-center";
 
 /** One event's client money as a row: billed, how far paid, what is still owed, and what happens next. */
 function BalanceRow({ event, todayKey }: { event: PrismFinanceDeskEvent; todayKey: string }) {
@@ -63,10 +64,10 @@ function BalanceRow({ event, todayKey }: { event: PrismFinanceDeskEvent; todayKe
         <Link href={`/dashboard/events/${event.eventId}/billing`} className="block truncate text-sm font-semibold text-foreground outline-none after:absolute after:inset-0">{event.eventName}</Link>
         <span className="block truncate text-xs text-muted-foreground">{[event.clientName, event.eventDate ? formatPortalDate(event.eventDate) : null, event.statementNumber].filter(Boolean).join(" · ")}</span>
       </span>
-      <span className="text-right text-sm tabular-nums text-muted-foreground md:order-none"><span className="md:hidden">Billed </span>{formatPeso(event.billed)}</span>
-      <PaymentProgressBar steps={event.milestones.map((milestone) => financeStep(milestone, todayKey))} className="col-span-2 md:col-span-1" />
-      <span className="text-sm font-semibold tabular-nums text-foreground md:text-right"><span className="font-normal text-muted-foreground md:hidden">Outstanding </span>{formatPeso(outstanding)}</span>
-      <span className={cn("text-right text-sm font-medium tabular-nums md:text-left", TONE_TEXT[headline.tone])}>{headline.title}</span>
+      <span className="text-right text-sm tabular-nums text-muted-foreground lg:order-none"><span className="lg:hidden">Billed </span>{formatPeso(event.billed)}</span>
+      <PaymentProgressBar steps={event.milestones.map((milestone) => financeStep(milestone, todayKey))} className="col-span-2 lg:col-span-1" />
+      <span className="text-sm font-semibold tabular-nums text-foreground lg:text-right"><span className="font-normal text-muted-foreground lg:hidden">Outstanding </span>{formatPeso(outstanding)}</span>
+      <span className={cn("text-right text-sm font-medium tabular-nums lg:text-left", TONE_TEXT[headline.tone])}>{headline.title}</span>
     </li>
   );
 }
@@ -86,7 +87,7 @@ function ClientBalances({ events, todayKey, onExport }: { events: PrismFinanceDe
         <div className="px-5 py-4"><PrismEmptyLine icon={WalletCards}>No billing statements yet. Approve a billing source on an event to issue one.</PrismEmptyLine></div>
       ) : (
         <>
-          <div aria-hidden className={cn(BALANCE_GRID, "hidden border-b border-border py-2 text-xs text-muted-foreground md:grid")}>
+          <div aria-hidden className={cn(BALANCE_GRID, "hidden border-b border-border py-2 text-xs text-muted-foreground lg:grid")}>
             <span>Event</span><span className="text-right">Billed</span><span>Paid</span><span className="text-right">Outstanding</span><span>Next</span>
           </div>
           <ul className="divide-y divide-border">{shown.map((event) => <BalanceRow key={event.eventId} event={event} todayKey={todayKey} />)}</ul>

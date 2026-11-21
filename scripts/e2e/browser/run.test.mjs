@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { assertBrowserDatabase, browserEnvironment, restoredNextFile } from './run.mjs';
 import { assertPageCoverageComplete, validatedPageCoverageCases } from './page-coverage-report.mjs';
+import { phoneNavigationGaps, phoneOverflowReport, phoneViewport } from './phone-coverage.mjs';
+import { projectDevice } from './browser-devices.mjs';
 import { browserTimings } from './timings.mjs';
 import { browserExecution, browserJobMatrix, browserTimingScope, portalEnvironment } from './execution.mjs';
 
@@ -81,6 +83,21 @@ test('completed page coverage requires a passing record for each expected route'
   assert.doesNotThrow(() => assertPageCoverageComplete(cases, records));
   assert.throws(() => assertPageCoverageComplete(cases, records.slice(0, 2)), /did not pass 1 expected routes/);
   assert.throws(() => assertPageCoverageComplete(cases, [records[0], { ...records[1], result: 'failed' }, records[2]]), /did not pass 1 expected routes/);
+});
+
+test('phone route checks require every sidebar destination and capture sideways overflow for reporting', () => {
+  assert.deepEqual(phoneNavigationGaps(['home', 'calendar', 'files'], ['home', 'calendar', 'messages', 'files']), []);
+  assert.deepEqual(phoneNavigationGaps(['home', 'calendar', 'files', 'files'], ['home', 'calendar']), ['files']);
+  assert.equal(phoneOverflowReport('/dashboard', 390, 390), null);
+  assert.deepEqual(phoneOverflowReport('/dashboard/events', 412, 390), {
+    path: '/dashboard/events', scrollWidth: 412, viewportWidth: 390, overflow: 22, culprits: [],
+  });
+  assert.equal(phoneViewport(undefined), null);
+  assert.deepEqual(phoneViewport('390'), { width: 390, height: 844 });
+  for (const width of ['319', '768', '390.5', 'wide']) assert.throws(() => phoneViewport(width), /from 320 to 767/);
+  // CI installs Chromium only; WebKit phones and tablets are an explicit opt-in.
+  assert.deepEqual(['mobile', 'tablet'].map(project => projectDevice(project, false).defaultBrowserType), ['chromium', 'chromium']);
+  assert.deepEqual(['mobile', 'tablet'].map(project => projectDevice(project, true).defaultBrowserType), ['webkit', 'webkit']);
 });
 
 test('phase timing records success and failure while preserving results and keeping exception details private', async () => {

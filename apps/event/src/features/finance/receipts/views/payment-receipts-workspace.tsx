@@ -25,7 +25,7 @@ export function PaymentReceiptsWorkspace({ events }: { events: PrismEvent[] }) {
           ]}
         />
       </div>
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
         <ReceiptList vm={vm} onRecordReceipt={() => vm.openDialog({ kind: "record" })} />
         <ReceiptDetailPanel vm={vm} />
       </div>

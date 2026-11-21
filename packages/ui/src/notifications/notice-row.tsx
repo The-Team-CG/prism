@@ -30,7 +30,8 @@ function openNotice(event: MouseEvent<HTMLAnchorElement>, notice: Notice, onRead
 }
 
 function NoticeTitle({ notice, link, onRead }: { notice: Notice; link: NoticeLink | null; onRead: (notice: Notice) => Promise<void> }) {
-  const style = cn("block whitespace-pre-wrap text-left text-sm", isUnread(notice) ? "font-semibold text-foreground" : "text-foreground/80");
+  // overflow-wrap: anywhere also narrows the min-content width, so a long token wraps even in a button sized to fit.
+  const style = cn("block w-full whitespace-pre-wrap text-left text-sm [overflow-wrap:anywhere]", isUnread(notice) ? "font-semibold text-foreground" : "text-foreground/80");
   if (link) {
     return <a href={portalHref(link.href)} className={cn(style, "outline-none after:absolute after:inset-0")} onClick={(event) => openNotice(event, notice, onRead)}>{notice.message}</a>;
   }

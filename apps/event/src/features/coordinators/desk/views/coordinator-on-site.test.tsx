@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PrismCoordinatorRoleView } from "@prism/types";
-import { coordinatorMobileTabs } from "./coordinator-on-site";
+import type { PrismNavItem } from "@prism/ui";
+import { coordinatorMobileBar } from "./coordinator-on-site";
 
 const roleView = {
   tasks: [{ status: "open" }, { status: "done" }, { status: "blocked" }],
@@ -8,20 +9,26 @@ const roleView = {
 } as unknown as PrismCoordinatorRoleView;
 
 const href = (view: string) => `/dashboard?view=${view}`;
+const asItem = (tab: string | PrismNavItem) => (typeof tab === "string" ? { id: tab } as PrismNavItem : tab);
 
-describe("coordinator phone tabs", () => {
-  it("keeps Now, Tasks, Run sheet and Messages on the bar, with open issues counted on Now", () => {
-    const tabs = coordinatorMobileTabs({ roleView, href, registrationRole: false, unreadMessages: 4 });
+describe("coordinator phone bar", () => {
+  it("keeps Now, Tasks and Run sheet around Report, with messages and notifications in the top bar", () => {
+    const onReport = vi.fn();
+    const bar = coordinatorMobileBar({ roleView, href, registrationRole: false, onReport });
+    const tabs = bar.tabs.map(asItem);
 
-    expect(tabs.map((tab) => tab.label)).toEqual(["Now", "Tasks", "Run sheet", "Messages"]);
-    expect(tabs.map((tab) => tab.badge)).toEqual([1, 2, undefined, 4]);
+    expect(tabs.map((tab) => tab.id)).toEqual(["shift", "tasks", "run-sheet"]);
+    expect(tabs.map((tab) => tab.badge)).toEqual([1, 2, undefined]);
     expect(tabs[0].subItems?.map((item) => item.id)).toEqual(["issues"]);
+    expect(bar.header).toEqual(["messages", "notifications"]);
+    bar.action?.onSelect();
+    expect(onReport).toHaveBeenCalledOnce();
   });
 
   it("gives the registration coordinator Check-in in place of Tasks, reached from Now", () => {
-    const tabs = coordinatorMobileTabs({ roleView, href, registrationRole: true });
+    const tabs = coordinatorMobileBar({ roleView, href, registrationRole: true, onReport: () => {} }).tabs.map(asItem);
 
-    expect(tabs.map((tab) => tab.label)).toEqual(["Now", "Check-in", "Run sheet", "Messages"]);
+    expect(tabs.map((tab) => tab.label ?? tab.id)).toEqual(["Now", "Check-in", "run-sheet"]);
     expect(tabs[1].href).toBe("/dashboard?view=registration");
     expect(tabs[0].subItems?.map((item) => item.id)).toEqual(["issues", "tasks"]);
   });

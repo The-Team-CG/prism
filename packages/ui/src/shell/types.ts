@@ -3,6 +3,8 @@ import type * as React from "react";
 export interface PrismNavItem {
   id: string;
   label: string;
+  /** A shorter name for the phone tab bar, such as "Requests" for "Requests & quotes". */
+  shortLabel?: string;
   icon: LucideIcon;
   section?: string;
   groupId?: string;
@@ -55,15 +57,6 @@ export interface PrismCommandGroup {
   whenSearching?: boolean;
 }
 
-export interface PrismMobileAction {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  onSelect?: () => void;
-  active?: boolean;
-  disabled?: boolean;
-}
-
 /** The tab bar's raised centre action: the one thing a phone user must always reach in one tap. */
 export interface PrismMobileTabAction {
   label: string;
@@ -72,6 +65,21 @@ export interface PrismMobileTabAction {
   icon: LucideIcon;
   onSelect: () => void;
 }
+
+/** A phone tab: a sidebar item named by its id, or an item of its own when the tab differs from the sidebar row. */
+export type PrismMobileTab = string | PrismNavItem;
+
+type UpToThreeTabs = readonly [PrismMobileTab] | readonly [PrismMobileTab, PrismMobileTab] | readonly [PrismMobileTab, PrismMobileTab, PrismMobileTab];
+type UpToFourTabs = UpToThreeTabs | readonly [PrismMobileTab, PrismMobileTab, PrismMobileTab, PrismMobileTab];
+
+/**
+ * The phone tab bar. It holds five slots: up to four tabs, or three around a raised action, with More last. More
+ * collects every sidebar item that is not a tab or a top-bar icon, so no page is out of reach on a phone.
+ */
+export type PrismMobileBar = {
+  /** Sidebar ids shown as icons in the phone top bar, such as messages and notifications. They stay out of More. */
+  header?: readonly [string] | readonly [string, string];
+} & ({ tabs: UpToFourTabs; action?: never } | { tabs: UpToThreeTabs; action: PrismMobileTabAction });
 
 export interface PrismSidebarRenderProps {
   collapsed: boolean;
@@ -127,17 +135,14 @@ export interface PrismAppShellProps {
   sidebarContext?: React.ReactNode;
   accountMenuItems?: PrismAccountMenuItem[];
   rightRail?: React.ReactNode;
-  mobileActions?: PrismMobileAction[];
   /**
-   * Opt-in tab bar along the bottom of a phone screen, for portals used on the move. When set, phones get these tabs
-   * instead of the menu button, and the page title shows once, in the top bar. Desktop is unchanged.
+   * The bottom tab bar on a phone. When set, phones get these tabs instead of the menu button, the account menu moves
+   * to the top bar, and the page title shows once, in the top bar. Tablets and desktop keep the sidebar.
    */
-  mobileTabs?: PrismNavItem[];
-  /** The raised action in the middle of the phone tab bar, such as Report. Only shown with `mobileTabs`. */
-  mobileAction?: PrismMobileTabAction;
-  /** Stands in for the page name in the phone top bar, such as a switch for the open event. Only with `mobileTabs`. */
+  mobileBar?: PrismMobileBar;
+  /** Stands in for the page name in the phone top bar, such as a switch for the open event. Only with `mobileBar`. */
   mobileTitle?: React.ReactNode;
-  /** Icons on the right of the phone top bar, such as messages, notifications and the account menu. Desktop keeps `headerActions`. */
+  /** Extra controls in the phone top bar, before its icons and the account menu, such as a refresh. Only with `mobileBar`. */
   mobileHeaderActions?: React.ReactNode;
   sidebarMode?: "auto" | "single";
   sidebarContent?: React.ReactNode | ((props: PrismSidebarRenderProps) => React.ReactNode);

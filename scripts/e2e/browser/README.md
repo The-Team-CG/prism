@@ -55,6 +55,16 @@ Each group discovers its portal's `page.tsx` routes and expands dynamic views fr
 
 Each sweep signs in real fixture actors and prepares the data needed by its portal: a new event/client, approved official layout, supplier invitation, or guest game session. It checks rendered main content, dashboard authentication, uncaught browser errors and failed API loads. Missing-link and unavailable-session states are separate cases; the lifecycle journeys exercise valid activation and conforme links. Passing route coverage establishes that pages render and load their initial data, not that every action or workflow state works.
 
+On the mobile project, each signed-in dashboard route also checks that every current sidebar destination appears in the bottom tabs, phone header or More sheet; a page with a phone bar but no sidebar destinations to compare fails. The first page showing each distinct phone bar (a portal's, one inside an event) is then tapped through: every tab and top-bar icon must open its page, and More, opened by a tap without a keyboard focus ring, must open its first row and light up there.
+
+The mobile and tablet projects record horizontal overflow by page (`document.documentElement.scrollWidth > document.documentElement.clientWidth`; mobile emulation zooms out to fit wide pages, so `window.innerWidth` grows with them and cannot show overflow), naming the elements that push the page wide. They also record text that a hidden-overflow box cuts off without an ellipsis. Both appear in the coverage report and console summary; neither fails the sweep, except overflow on the client calendar and PMCM client dossiers, which must fit a phone.
+
+The `tablet` project (iPad Mini, 768px) runs only the route sweep. 768px is the narrowest width that keeps the sidebar, so it leaves pages the least room. Pull requests and the nightly run add it to the mobile job; manual timing comparisons leave it out. Phones and tablets run on Chromium. `BROWSER_WEBKIT=1` runs them on WebKit as an iPhone 14 and an iPad Mini, after `npx playwright install webkit`; no project emulates a notch, so safe-area padding is checked only on a device.
+
+The coordinator's one `/dashboard` route is checked separately across its supported `?view=` pages using the seeded Marco actor, since the shared PMCM route sweep signs in as PMCM. The desk opens the coordinator's current event on its own. The mobile coordinator test uses the same navigation, tap-through and overflow reporting.
+
+To inspect route screenshots at a narrower phone width, set `BROWSER_PHONE_WIDTH` to an integer from 320 to 767. For example, PowerShell: `$env:BROWSER_PHONE_WIDTH='390'; $env:BROWSER_SCREENSHOTS='1'; npm run test:browser -- --project=mobile --grep "all registered pages"`.
+
 The supplier directory check creates 26 synthetic suppliers and verifies the 25-row boundary, distinct next-page records, return to the previous page, search resetting the page, and the 50-row option. This validates that directory's controls; it does not establish that other lists are paginated.
 
 Each group writes `page-coverage-<viewport>-<portal>.json` into the private run directory after each route. Reports contain page paths and results with supplier invitation tokens redacted. Completed reports are attached to the Playwright test; partial reports remain available after a setup or route failure.

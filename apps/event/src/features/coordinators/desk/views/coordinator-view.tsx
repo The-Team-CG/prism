@@ -11,7 +11,7 @@ import { unreadNavBadge } from "@prism/ui/chat";
 import { unreadNoticeBadge } from "@prism/ui/notifications";
 import { useEventUnreadNotices } from "@/features/account-notifications/view-models/use-event-unread-notices";
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
-import { PrismDashboardShell } from "@prism/ui";
+import { PrismDashboardShell, useIsMobile } from "@prism/ui";
 import { Button } from "@prism/ui/components/button";
 import { useDocumentTitle } from "@/app/components/document-title";
 import { roleLabel } from "@/features/pmcm-kit";
@@ -35,9 +35,8 @@ import { CoordinatorEventSwitcher, eventCards } from "./coordinator-event-switch
 import { CoordinatorTimelineCard } from "./sections/coordinator-view-sections";
 import { CoordinatorRoleData, CoordinatorTaskSheet } from "./sections/coordinator-role-sections";
 import { CoordinatorNowPage } from "./sections/coordinator-now-page";
-import { coordinatorMobileTabs, CoordinatorPhoneActions, CoordinatorPhoneTitle, PageStatusLine, ReportIssueSheet, reportTabAction } from "./coordinator-on-site";
+import { coordinatorMobileBar, CoordinatorPhoneTitle, PageStatusLine, ReportIssueSheet } from "./coordinator-on-site";
 import { issuesSummary, tasksSummary } from "../model/coordinator-shift";
-import { useCompactScreen } from "../view-models/use-compact-screen";
 import { CoordinatorAssignmentsPage } from "./sections/coordinator-assignments-page";
 import { AccountNotificationsView } from "@/features/account-notifications/views/account-notifications-view";
 
@@ -296,7 +295,7 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
   const vm = useCoordinatorViewModel({ session, state, onRefresh });
   const unreadMessages = useEventUnreadMessages();
   const unreadNotices = useEventUnreadNotices();
-  const compact = useCompactScreen();
+  const compact = useIsMobile();
   const location = useCoordinatorLocation(vm.selectEvent);
   const registrationOpen = vm.registrationRole && !vm.readOnly;
   const activeView = location.requestedView === "registration" && !registrationOpen ? "shift" : location.requestedView;
@@ -331,10 +330,8 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
       onNavSelect={(id) => navigateTo(coordinatorViewFromParam(id))}
       headerActions={<ReportIssueButton onReport={panelState.panels.onReportIssue} />}
       alwaysShowHeaderActions
-      mobileTabs={coordinatorMobileTabs({ roleView: vm.roleView, href: (view) => viewHref(view, vm.event?.id), registrationRole: registrationOpen, unreadMessages })}
-      mobileAction={reportTabAction(panelState.panels.onReportIssue)}
+      mobileBar={coordinatorMobileBar({ roleView: vm.roleView, href: (view) => viewHref(view, vm.event?.id), registrationRole: registrationOpen, onReport: panelState.panels.onReportIssue })}
       mobileTitle={<CoordinatorPhoneTitle view={activeView} cards={eventCards(state.events, vm.assignments)} selectedEventId={vm.event?.id} onSelectEvent={(eventId) => openEventView(activeView, eventId)} onNavigate={navigateTo} />}
-      mobileHeaderActions={<CoordinatorPhoneActions initials={session.name.slice(0, 2).toUpperCase()} unreadNotices={unreadNotices} onNavigate={navigateTo} onSignOut={onSignOut} />}
       user={{ name: session.name, detail: roleLabel(session.role), initials: session.name.slice(0, 2).toUpperCase() }}
       accountMenuItems={[{ id: "account", label: "Account", icon: UserRound, onSelect: () => navigateTo("account") }]}
       onSignOut={onSignOut}

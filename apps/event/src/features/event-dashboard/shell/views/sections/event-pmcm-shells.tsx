@@ -18,6 +18,7 @@ import { useDocumentTitle } from "@/app/components/document-title";
 import type { EventSession } from "@/app/lib/session";
 import type { EventDashboardShellViewModel } from "../../view-models/use-event-dashboard-shell-view-model";
 import { isEventOverviewRoute, pageDocumentTitle } from "../../model/event-dashboard-routing";
+import { pmcmMobileBar } from "../../view-models/use-event-dashboard-nav";
 
 // Opened only when PMCM attaches a conforme, so it loads on demand rather than with every page.
 const ConformeUploadModal = dynamic(() =>
@@ -46,6 +47,7 @@ export function EventPmcmLoadingShell({ viewModel }: { viewModel: LoadedShell })
       accountMenuItems={PMCM_ACCOUNT_MENU}
       searchPlaceholder="Search events, suppliers, inquiries..."
       showTopBarSearch={false}
+      mobileBar={pmcmMobileBar(Boolean(viewModel.routeState.eventId))}
       onSignOut={() => void viewModel.signOut()}
     >
       {viewModel.error ? (
@@ -88,6 +90,7 @@ export function EventPmcmReadyShell({ viewModel, children }: { viewModel: Loaded
       commandGroupsLoading={viewModel.commandReferenceLoading}
       onCommandPaletteOpen={viewModel.loadCommandReference}
       commandEmptyLabel="Nothing matches. Try an event or client name."
+      mobileBar={pmcmMobileBar(Boolean(viewModel.routeState.eventId && viewModel.selectedEvent))}
       sidebarContext={
         viewModel.routeState.eventId && viewModel.selectedEvent ? (
           <EventWorkspaceSwitcher events={viewModel.events} selected={viewModel.selectedEvent} view={viewModel.routeState.view} />

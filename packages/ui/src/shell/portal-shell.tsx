@@ -3,8 +3,11 @@
 import * as React from "react";
 import { SpotifyMusicControl } from "../spotify-music";
 import { portalBackgroundStyle } from "./portal-background";
-import { ChevronRight, ChevronsUpDown, LogOut, Search, ShieldCheck } from "lucide-react";
-import type { PrismAppShellProps, PrismCommandGroup, PrismMobileTabAction, PrismNavItem, PrismPageAction } from "./types";
+import { ChevronRight, ChevronsUpDown, Search } from "lucide-react";
+import type { PrismAppShellProps, PrismCommandGroup, PrismNavItem, PrismPageAction } from "./types";
+import { AccountMenuEntries, initialsFor } from "./account-menu";
+import { findTrail, groupNav, hasBadge, isItemActive, navLinkClick, resolveMobileBar, type ResolvedMobileBar } from "./nav-model";
+import { PhoneAccountMenu, PhoneHeaderIcons, PhoneTabBar } from "./phone-bar";
 import { PrismBrandLogo } from "../brand";
 import { cn } from "../utils";
 import { portalHref } from "../portal-path";
@@ -29,9 +32,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
 import { Separator } from "../components/ui/separator";
@@ -59,42 +59,6 @@ import { TooltipProvider } from "../components/ui/tooltip";
 
 export type PrismPortal = "client" | "supplier" | "guest" | "event";
 
-const DEFAULT_GROUP = "Workspace";
-
-/** "MANAGEMENT" becomes "Management"; short acronyms such as "PMCM" stay as they are. */
-function sentenceCase(label: string) {
-  if (label !== label.toUpperCase() || label.length <= 4) return label;
-  return label.charAt(0) + label.slice(1).toLowerCase();
-}
-
-function groupNav(items: PrismNavItem[]) {
-  const groups = new Map<string, PrismNavItem[]>();
-  for (const item of items) {
-    const key = sentenceCase(item.section ?? DEFAULT_GROUP);
-    groups.set(key, [...(groups.get(key) ?? []), item]);
-  }
-  return Array.from(groups, ([label, groupItems]) => ({ label, items: groupItems }));
-}
-
-function isItemActive(item: PrismNavItem, activeId: string) {
-  return item.id === activeId || Boolean(item.subItems?.some((sub) => sub.id === activeId));
-}
-
-function findTrail(items: PrismNavItem[], activeId: string): string[] {
-  for (const item of items) {
-    if (item.id === activeId) return [item.label];
-    const sub = item.subItems?.find((entry) => entry.id === activeId);
-    if (sub) return [item.label, sub.label];
-  }
-  return [];
-}
-
-function initialsFor(name: string, initials?: string) {
-  if (initials) return initials.slice(0, 2).toUpperCase();
-  const parts = name.trim().split(/\s+/);
-  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
-}
-
 function SidebarBrand({ href, title, detail }: { href: string; title: string; detail: string }) {
   const { state, isMobile } = useSidebar();
   const collapsed = state === "collapsed" && !isMobile;
@@ -110,16 +74,6 @@ function SidebarBrand({ href, title, detail }: { href: string; title: string; de
   );
 }
 
-/**
- * Destinations with an href are real links. A plain click keeps the portal's own (client-side) navigation;
- * modified or middle clicks fall through to the browser so "open in new tab" and copy-link work.
- */
-function navLinkClick(event: React.MouseEvent<HTMLAnchorElement>, select: () => void) {
-  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-  event.preventDefault();
-  select();
-}
-
 const NAV_ROW_ACTIVE_CLASS =
   "relative data-[active=true]:font-semibold data-[active=true]:before:absolute data-[active=true]:before:inset-y-2 data-[active=true]:before:left-0 data-[active=true]:before:w-[3px] data-[active=true]:before:rounded-full data-[active=true]:before:bg-[var(--prism-portal-current)]";
 
@@ -130,7 +84,7 @@ function NavLinkRow({ item, activeId, onSelect }: NavRowProps) {
   const current = item.id === activeId;
   return (
     <SidebarMenuButton asChild className={NAV_ROW_ACTIVE_CLASS} isActive={current} tooltip={item.label}>
-      <a href={portalHref(item.href ?? "")} aria-current={current ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(item.id))}>
+      <a data-nav-id={item.id} href={portalHref(item.href ?? "")} aria-current={current ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(item.id))}>
         <item.icon aria-hidden="true" />
         <span>{item.label}</span>
       </a>
@@ -138,84 +92,43 @@ function NavLinkRow({ item, activeId, onSelect }: NavRowProps) {
   );
 }
 
-function MobileTab({ item, activeId, onSelect }: { item: PrismNavItem; activeId: string; onSelect: (id: string) => void }) {
-  // A tab can stand for several pages; it lights up on any of them, listed as its subItems.
-  const current = item.id === activeId || Boolean(item.subItems?.some((sub) => sub.id === activeId));
-  const body = (
-    <>
-      <span className="relative">
-        <item.icon aria-hidden="true" className="size-5" />
-        {hasBadge(item.badge) ? (
-          <span aria-label={item.badgeLabel} className="absolute -right-2.5 -top-1.5 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-semibold leading-4 text-white">{item.badge}</span>
-        ) : null}
-      </span>
-      <span className="truncate">{item.label}</span>
-    </>
-  );
-  const className = cn("flex min-h-14 w-full flex-col items-center justify-center gap-1 px-1 text-[11px] font-medium outline-none focus-visible:bg-muted", current ? "text-primary" : "text-muted-foreground");
-  return (
-    <li className="min-w-0">
-      {item.href ? (
-        <a href={portalHref(item.href)} aria-current={current ? "page" : undefined} className={className} onClick={(event) => navLinkClick(event, () => onSelect(item.id))}>{body}</a>
-      ) : (
-        <button type="button" aria-current={current ? "page" : undefined} className={className} onClick={() => onSelect(item.id)}>{body}</button>
-      )}
-    </li>
-  );
-}
-
-/** The raised centre button: the portal's one urgent action, never covering the page. */
-function MobileCenterAction({ action }: { action: PrismMobileTabAction }) {
-  return (
-    <li className="min-w-0">
-      <button type="button" aria-label={action.ariaLabel ?? action.label} onClick={action.onSelect} className="flex min-h-14 w-full flex-col items-center justify-end gap-1 pb-1.5 text-[11px] font-semibold text-primary outline-none">
-        <span className="-mt-6 grid size-13 place-items-center rounded-full border-4 border-card bg-primary text-primary-foreground shadow-lg shadow-primary/30">
-          <action.icon aria-hidden="true" className="size-5" />
-        </span>
-        <span className="truncate">{action.label}</span>
-      </button>
-    </li>
-  );
-}
-
-/** The phone tab bar: a few destinations within thumb reach, with the portal's urgent action raised in the middle. */
-function MobileTabBar({ items, action, activeId, onSelect }: { items: PrismNavItem[]; action?: PrismMobileTabAction; activeId: string; onSelect: (id: string) => void }) {
-  const middle = Math.ceil(items.length / 2);
-  const columns = items.length + (action ? 1 : 0);
-  return (
-    <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-      <ul className="grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
-        {items.slice(0, middle).map((item) => <MobileTab key={item.id} item={item} activeId={activeId} onSelect={onSelect} />)}
-        {action ? <MobileCenterAction action={action} /> : null}
-        {items.slice(middle).map((item) => <MobileTab key={item.id} item={item} activeId={activeId} onSelect={onSelect} />)}
-      </ul>
-    </nav>
-  );
-}
-
 /**
- * Class changes when a portal opts into phone tabs: the menu button and search give way to the tabs and the phone top
- * bar, the page heading tightens, the content clears the tab bar, and desktop's top bar actions give way to the phone's.
+ * Class changes when a portal opts into the phone bar: the menu button gives way to the tabs and the phone top bar, search
+ * becomes a top-bar icon, the page heading tightens, the content clears the tab bar, and desktop's top bar actions give
+ * way to the phone's.
  */
 function phoneLayout(tabs: boolean) {
   return {
     trigger: tabs ? "hidden md:inline-flex" : undefined,
-    // The top bar names the event, so the page keeps its own name, a size smaller; the event line under it is desktop's.
+    // The top bar names the page, so the page keeps its own name, a size smaller; the line under it is desktop's.
     title: tabs ? "mb-3 md:mb-5" : undefined,
     heading: tabs ? "text-xl md:text-2xl" : "text-2xl",
     description: tabs ? "hidden md:block" : undefined,
     content: tabs ? "pt-4 pb-28 md:pt-6 md:pb-6" : undefined,
-    search: tabs ? "hidden md:flex" : "flex",
+    // On a phone the search stays, as one more round icon before the top bar's own icons.
+    searchButton: tabs ? "max-sm:size-11 max-sm:rounded-full max-sm:border-0 max-sm:bg-transparent max-sm:text-foreground max-sm:hover:bg-muted max-sm:[&>svg]:size-5" : undefined,
     headerActions: (alwaysShow: boolean) => (alwaysShow && !tabs ? "flex" : "hidden md:flex"),
   };
 }
 
-function PhoneTopBar({ tabs, title, fallback, actions }: { tabs: boolean; title?: React.ReactNode; fallback: string; actions?: React.ReactNode }) {
-  if (!tabs) return <p className="min-w-0 truncate text-sm font-semibold text-foreground md:hidden">{fallback}</p>;
+/** The phone top bar: the page (or the portal's own title control), then its icons and the account menu. */
+function PhoneTopBar({ bar, title, fallback, actions, activeId, onSelect, user, accountMenuItems, onSignOut }: {
+  bar?: ResolvedMobileBar;
+  title?: React.ReactNode;
+  fallback: string;
+  actions?: React.ReactNode;
+  activeId: string;
+  onSelect: (id: string) => void;
+} & Pick<PrismAppShellProps, "user" | "accountMenuItems" | "onSignOut">) {
+  if (!bar) return <p className="min-w-0 truncate text-sm font-semibold text-foreground md:hidden">{fallback}</p>;
   return (
     <>
       <div className="min-w-0 flex-1 md:hidden">{title ?? <p className="truncate text-sm font-semibold text-foreground">{fallback}</p>}</div>
-      {actions ? <div className="flex shrink-0 items-center gap-1 md:hidden">{actions}</div> : null}
+      <div className="-mr-2 order-last flex shrink-0 items-center md:hidden">
+        {actions}
+        <PhoneHeaderIcons items={bar.header} activeId={activeId} onSelect={onSelect} />
+        {user ? <PhoneAccountMenu user={user} items={accountMenuItems} onSignOut={onSignOut} /> : null}
+      </div>
     </>
   );
 }
@@ -225,6 +138,7 @@ function NavButtonRow({ item, activeId, onSelect, open, setOpen }: NavRowProps &
   const hasSub = Boolean(item.subItems?.length);
   return (
     <SidebarMenuButton
+      data-nav-id={item.id}
       className={NAV_ROW_ACTIVE_CLASS}
       isActive={item.id === activeId || (isItemActive(item, activeId) && !open)}
       tooltip={item.label}
@@ -268,10 +182,6 @@ function NavItemRow({ item, activeId, onSelect }: NavRowProps) {
   );
 }
 
-function hasBadge(badge: PrismNavItem["badge"]) {
-  return badge !== undefined && badge !== "";
-}
-
 function NavSubItems({ items, activeId, onSelect }: { items: NonNullable<PrismNavItem["subItems"]>; activeId: string; onSelect: (id: string) => void }) {
   return (
     <SidebarMenuSub>
@@ -279,12 +189,12 @@ function NavSubItems({ items, activeId, onSelect }: { items: NonNullable<PrismNa
         <SidebarMenuSubItem key={sub.id}>
           <SidebarMenuSubButton asChild isActive={sub.id === activeId}>
             {sub.href && !sub.disabled ? (
-              <a href={portalHref(sub.href)} aria-current={sub.id === activeId ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(sub.id))} className="w-full">
+              <a data-nav-id={sub.id} href={portalHref(sub.href)} aria-current={sub.id === activeId ? "page" : undefined} onClick={(event) => navLinkClick(event, () => onSelect(sub.id))} className="w-full">
                 <span>{sub.label}</span>
                 {hasBadge(sub.badge) ? <span className="ml-auto tabular-nums text-muted-foreground">{sub.badge}</span> : null}
               </a>
             ) : (
-              <button type="button" disabled={sub.disabled} onClick={() => onSelect(sub.id)} className="w-full">
+              <button data-nav-id={sub.id} type="button" disabled={sub.disabled} onClick={() => onSelect(sub.id)} className="w-full">
                 <span>{sub.label}</span>
                 {hasBadge(sub.badge) ? <span className="ml-auto tabular-nums text-muted-foreground">{sub.badge}</span> : null}
               </button>
@@ -317,41 +227,7 @@ function AccountMenu({ user, items, onSignOut }: Pick<PrismAppShellProps, "user"
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent side={isMobile ? "top" : "right"} align="end" sideOffset={8} className="w-60">
-            <DropdownMenuLabel className="grid font-normal">
-              <span className="truncate font-semibold text-foreground">{user.name}</span>
-              {user.detail ? <span className="truncate text-xs text-muted-foreground">{user.detail}</span> : null}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {items?.map((entry) => (
-              <DropdownMenuItem key={entry.id} asChild={Boolean(entry.href)} onSelect={entry.onSelect} variant={entry.tone === "danger" ? "destructive" : "default"}>
-                {entry.href ? (
-                  <a href={portalHref(entry.href)}>
-                    <entry.icon aria-hidden="true" />
-                    {entry.label}
-                  </a>
-                ) : (
-                  <>
-                    <entry.icon aria-hidden="true" />
-                    {entry.label}
-                  </>
-                )}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuItem asChild>
-              <a href={portalHref("/privacy")}>
-                <ShieldCheck aria-hidden="true" />
-                Privacy notice
-              </a>
-            </DropdownMenuItem>
-            {onSignOut ? (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={onSignOut}>
-                  <LogOut aria-hidden="true" />
-                  Sign out
-                </DropdownMenuItem>
-              </>
-            ) : null}
+            <AccountMenuEntries user={user} items={items} onSignOut={onSignOut} />
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
@@ -384,6 +260,7 @@ function PageSearch({
   placeholder,
   onOpen,
   onSelect,
+  buttonClassName,
 }: {
   navItems: PrismNavItem[];
   actions: NonNullable<PrismAppShellProps["commandActions"]>;
@@ -394,6 +271,7 @@ function PageSearch({
   placeholder: string;
   onOpen?: () => void;
   onSelect: (id: string) => void;
+  buttonClassName?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -430,7 +308,7 @@ function PageSearch({
         type="button"
         onClick={() => setOpen(true)}
         aria-label={placeholder}
-        className="flex size-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background text-sm text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground sm:h-9 sm:w-full sm:max-w-72 sm:justify-start sm:px-3"
+        className={cn("flex size-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background text-sm text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground sm:h-9 sm:w-full sm:max-w-72 sm:justify-start sm:px-3", buttonClassName)}
       >
         <Search aria-hidden="true" className="size-4" />
         <span className="hidden flex-1 truncate text-left sm:block">{placeholder}</span>
@@ -511,8 +389,7 @@ export function PrismPortalShell({
   onCommandPaletteOpen,
   headerActions,
   alwaysShowHeaderActions = false,
-  mobileTabs,
-  mobileAction,
+  mobileBar,
   mobileTitle,
   mobileHeaderActions,
   sidebarContext,
@@ -526,8 +403,8 @@ export function PrismPortalShell({
 }: PrismPortalShellProps) {
   const select = React.useCallback((id: string) => onNavSelect?.(id), [onNavSelect]);
   const trail = breadcrumb ?? findTrail(navItems, activeItemId);
-  const hasTabs = Boolean(mobileTabs?.length);
-  const phone = phoneLayout(hasTabs);
+  const phoneBar = mobileBar ? resolveMobileBar(mobileBar, navItems) : undefined;
+  const phone = phoneLayout(Boolean(phoneBar));
   useDocumentTitle(title ? `${title} · ${productLabel}` : undefined);
   return (
     <TooltipProvider delayDuration={300}>
@@ -558,13 +435,24 @@ export function PrismPortalShell({
           <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4 sm:px-6">
             <SidebarTrigger className={cn("-ml-1.5", phone.trigger)} />
             <Separator orientation="vertical" className="hidden !h-4 sm:block" />
-            <PhoneTopBar tabs={hasTabs} title={mobileTitle} fallback={trail[trail.length - 1] ?? roleLabel} actions={mobileHeaderActions} />
+            <PhoneTopBar
+              bar={phoneBar}
+              title={mobileTitle}
+              fallback={trail[trail.length - 1] ?? roleLabel}
+              actions={mobileHeaderActions}
+              activeId={activeItemId}
+              onSelect={select}
+              user={user}
+              accountMenuItems={accountMenuItems}
+              onSignOut={onSignOut}
+            />
             <Breadcrumb className="hidden min-w-0 flex-1 overflow-hidden md:block">
               <BreadcrumbList className="flex-nowrap">
-                <BreadcrumbItem className="text-muted-foreground">{roleLabel}</BreadcrumbItem>
+                {/* On a tablet the sidebar already names the portal, so the page name gets the room. */}
+                <BreadcrumbItem className={cn("shrink-0 whitespace-nowrap text-muted-foreground", trail.length ? "hidden lg:inline-flex" : "inline-flex")}>{roleLabel}</BreadcrumbItem>
                 {trail.map((label, index) => (
                   <React.Fragment key={label}>
-                    <BreadcrumbSeparator />
+                    <BreadcrumbSeparator className={index === 0 ? "hidden lg:block" : undefined} />
                     <BreadcrumbItem className="min-w-0">
                       {index === trail.length - 1 ? <BreadcrumbPage className="truncate">{label}</BreadcrumbPage> : <TruncatedText className="min-w-0 max-w-64">{label}</TruncatedText>}
                     </BreadcrumbItem>
@@ -575,7 +463,7 @@ export function PrismPortalShell({
             <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-2">
               <SpotifyMusicControl />
               {showTopBarSearch ? (
-                <div className={phone.search}><PageSearch
+                <div className="flex"><PageSearch
                   navItems={navItems}
                   actions={commandActions}
                   actionsLabel={commandSectionLabel}
@@ -585,6 +473,7 @@ export function PrismPortalShell({
                   placeholder={searchPlaceholder}
                   onOpen={onCommandPaletteOpen}
                   onSelect={select}
+                  buttonClassName={phone.searchButton}
                 /></div>
               ) : null}
               {headerActions ? <div className={cn("shrink-0 items-center gap-2", phone.headerActions(alwaysShowHeaderActions))}>{headerActions}</div> : null}
@@ -598,7 +487,7 @@ export function PrismPortalShell({
             </div>
             {children}
           </div>
-          {mobileTabs?.length ? <MobileTabBar items={mobileTabs} action={mobileAction} activeId={activeItemId} onSelect={select} /> : null}
+          {phoneBar ? <PhoneTabBar bar={phoneBar} activeId={activeItemId} onSelect={select} /> : null}
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

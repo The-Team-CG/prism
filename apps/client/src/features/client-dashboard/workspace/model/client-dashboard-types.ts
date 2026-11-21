@@ -67,6 +67,8 @@ export type ClientSidebarSubItem = {
 export type ClientSidebarNavItem = {
   id: string;
   label: string;
+  /** A shorter name for the phone tab bar. */
+  shortLabel?: string;
   icon: LucideIcon;
   section: string;
   route: ClientDashboardRoute;

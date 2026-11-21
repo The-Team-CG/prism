@@ -4,7 +4,11 @@ import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { PrismDashboardShell } from "@prism/ui";
 import { DashboardSkeleton } from "../dashboard-tabs";
 import {
+  CLIENT_EVENT_MOBILE_BAR,
+  CLIENT_PORTAL_MOBILE_BAR,
   CLIENT_SIDEBAR_ITEMS,
+  clientEventSidebarItems,
+  EVENT_ROUTE_TO_NAV_ITEM,
   dashboardHref,
   dashboardLoadingVariant,
   findClientSidebarLink,
@@ -31,7 +35,10 @@ export function ClientDashboardLoadingShell({
   onNavSelect: (href: string) => void;
   onSignOut: () => void;
 }) {
-  const navItems = CLIENT_SIDEBAR_ITEMS.map((item) => ({
+  const isEventScopedView = isEventScopedClientRoute(route, eventId);
+  // An event still loading already shows its own pages and phone bar, so nothing swaps once it arrives.
+  const eventItems = isEventScopedView && eventId ? clientEventSidebarItems(eventId) : null;
+  const navItems = eventItems ?? CLIENT_SIDEBAR_ITEMS.map((item) => ({
     ...item,
     disabled: item.requiresEvent,
     subItems: item.subItems?.map((subItem) => ({
@@ -39,11 +46,12 @@ export function ClientDashboardLoadingShell({
       disabled: subItem.requiresEvent,
     })),
   }));
-  const isEventScopedView = isEventScopedClientRoute(route, eventId);
-  const activeItemId = sidebarActiveItemId(route, isEventScopedView, portalView);
+  const activeItemId = eventItems ? EVENT_ROUTE_TO_NAV_ITEM[route] ?? "event-overview" : sidebarActiveItemId(route, isEventScopedView, portalView);
   const copy = clientLoadingShellCopy({ portalView, route });
 
   function handleNavSelect(id: string) {
+    const eventItem = eventItems?.find((entry) => entry.id === id);
+    if (eventItem?.href) return onNavSelect(eventItem.href);
     const item = findClientSidebarLink(id);
     if (!item || item.requiresEvent) return;
     onNavSelect(dashboardHref(item.route, undefined, portalViewFromLink(item)));
@@ -65,7 +73,7 @@ export function ClientDashboardLoadingShell({
         initials: session.name.slice(0, 2).toUpperCase(),
       }}
       searchPlaceholder="Search proposal, billing, documents..."
-      mobileActions={[]}
+      mobileBar={eventItems ? CLIENT_EVENT_MOBILE_BAR : CLIENT_PORTAL_MOBILE_BAR}
       onSignOut={onSignOut}
     >
       {error ? (

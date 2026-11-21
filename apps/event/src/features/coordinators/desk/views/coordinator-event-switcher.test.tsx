@@ -29,6 +29,7 @@ vi.mock("@prism/ui", () => ({
       {children}
     </main>
   ),
+  useIsMobile: () => false,
 }));
 const navigation = vi.hoisted(() => ({ pathname: "/dashboard" as string | null, replace: vi.fn() }));
 vi.mock("next/navigation", () => ({

@@ -2,7 +2,8 @@ export type {
   PrismAccountMenuItem,
   PrismAppShellProps,
   PrismCommandGroup,
-  PrismMobileAction,
+  PrismMobileBar,
+  PrismMobileTab,
   PrismMobileTabAction,
   PrismNavItem,
   PrismNavSubItem,
@@ -13,3 +14,4 @@ export type {
 } from "./types";
 export { PrismPortalShell, type PrismPortal, type PrismPortalShellProps } from "./portal-shell";
 export { PrismGuestShell, type PrismGuestShellProps } from "./guest-shell";
+export { resolveMobileBar, type ResolvedMobileBar } from "./nav-model";

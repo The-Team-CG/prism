@@ -27,7 +27,7 @@ import {
   Truck,
   UsersRound,
 } from "lucide-react";
-import { type PrismNavItem } from "@prism/ui";
+import { type PrismMobileBar, type PrismNavItem } from "@prism/ui";
 import { isBeforePrismEventDay, type PrismLifecycleStage } from "@prism/types";
 import { optionalNavBadge } from "../model/event-dashboard-nav-copy";
 
@@ -40,6 +40,17 @@ import { optionalNavBadge } from "../model/event-dashboard-nav-copy";
  */
 export function loadingShellNavItems(inEventWorkspace: boolean): PrismNavItem[] {
   return eventPortalNavItems({ inEventWorkspace });
+}
+
+/**
+ * PMCM's phone bar. On the desk: the inbox, events, inquiries and the calendar, with notifications in the top bar and
+ * the network, finance and administration under More. Inside an event: what PMCM checks on the move, with the event's
+ * messages in the top bar and the rest of the workspace, plus the way back, under More.
+ */
+export function pmcmMobileBar(inEventWorkspace: boolean): PrismMobileBar {
+  return inEventWorkspace
+    ? { tabs: ["event-overview", "event-planning", "event-suppliers", "event-timeline"], header: ["event-messages"] }
+    : { tabs: ["dashboard", "events-list", "inquiries", "calendar"], header: ["notifications"] };
 }
 
 const PREPARE = "Prepare";
@@ -64,7 +75,7 @@ function eventWorkspaceNavItems(
   const preEvent = !stage || isBeforePrismEventDay(stage);
   return [
     { id: "event-overview", icon: LayoutGrid, label: "Overview", section: PREPARE },
-    { id: "event-planning", icon: FileCheck2, label: "Planning & decisions", section: PREPARE },
+    { id: "event-planning", icon: FileCheck2, label: "Planning & decisions", shortLabel: "Planning", section: PREPARE },
     { id: "event-floorplans", icon: MapPinned, label: "Floorplans", section: PREPARE, badge: optionalNavBadge(counts.draftCount) },
     { id: "event-suppliers", icon: Truck, label: "Suppliers", section: PREPARE, badge: optionalNavBadge(counts.quoteCount) },
     { id: "event-staff", icon: UsersRound, label: "Team & roles", section: PREPARE, badge: optionalNavBadge(counts.assignmentCount) },
@@ -72,7 +83,7 @@ function eventWorkspaceNavItems(
     { id: "event-files", icon: FileText, label: "Files", section: PREPARE },
     { id: "event-messages", icon: MessageSquareText, label: "Messages", section: PREPARE, ...unreadNavBadge(counts.unreadMessages) },
     { id: "event-games", icon: Gamepad2, label: "Registration & games", section: EVENT_DAY },
-    { id: "event-timeline", icon: Radio, label: "Live operations", section: EVENT_DAY },
+    { id: "event-timeline", icon: Radio, label: "Live operations", shortLabel: "Live", section: EVENT_DAY },
     { id: "event-report", icon: Archive, label: "Closure", section: EVENT_DAY, badge: preEvent ? undefined : optionalNavBadge(counts.closeoutCount) },
   ];
 }
