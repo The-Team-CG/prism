@@ -1,4 +1,5 @@
-import { test, expect, devices } from '@playwright/test';
+import { test, expect } from '@playwright/test';
+import { projectDevice } from './browser-devices.mjs';
 import { api, origins, password, inbox, mailLink, persona, privacyIfNeeded, fillStable } from './helpers.mjs';
 import { submitPublicInquiry } from './inquiry-actions.mjs';
 import { oneTableScene } from '../floorplan-fixture.mjs';
@@ -21,7 +22,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
   const calendarDate = date => new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: '2-digit', day: '2-digit', year: 'numeric' }).format(date);
   const eventDate = calendarDate(new Date(Date.now() + 24 * 60 * 60_000));
   const quoteDeadline = eventDate;
-  const device = info.project.name === 'mobile' ? devices['Pixel 7'] : devices['Desktop Chrome'];
+  const device = projectDevice(info.project.name);
   const pmcm = await persona(browser, 'pmcm', device);
   const contexts = [pmcm.context];
   let inquiry, eventId;
@@ -341,7 +342,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const savePayment = pmcm.page.getByRole('button', { name: 'Save payment', exact: true });
       for (const [index] of milestones.entries()) {
         await pmcm.page.locator('button:enabled', { hasText: 'Record payment' }).first().click();
-        await pmcm.page.getByLabel('Reference number', { exact: true }).fill(`BROWSER-LIFECYCLE-${index + 1}`);
+        await pmcm.page.getByLabel('Reference number', { exact: true }).fill(`BROWSER-LIFECYCLE-${info.project.name}-${index + 1}`);
         await savePayment.click();
         await expect(savePayment).toBeHidden();
       }

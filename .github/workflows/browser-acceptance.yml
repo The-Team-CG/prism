@@ -108,7 +108,9 @@ jobs:
       - if: steps.browser.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
       - run: npm run test:browser:guards
-      - run: npm run test:browser -- --project=${{ matrix.project }} --server=${{ matrix.server }}
+      # Pull requests and the nightly run add the report-only tablet sweep to the mobile job; timing comparisons
+      # (manual runs) keep the desktop and mobile suites they compare.
+      - run: npm run test:browser -- --project=${{ matrix.project }}${{ matrix.project == 'mobile' && github.event_name != 'workflow_dispatch' && ' --project=tablet' || '' }} --server=${{ matrix.server }}
       - name: Upload browser phase timings
         if: always()
         uses: actions/upload-artifact@v7

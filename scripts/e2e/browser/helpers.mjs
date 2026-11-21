@@ -129,25 +129,58 @@ export async function persona(browser, role, device = {}) {
 }
 
 /**
- * The page's width against the phone or tablet it is shown on. Mobile emulation zooms out to fit wide content, which
- * stretches window.innerWidth along with it, so the device width is the root element's clientWidth.
+ * The page's width against the phone or tablet it is shown on, what pushes it wide, and text cut off inside it.
+ * Mobile emulation zooms out to fit wide content, which stretches window.innerWidth along with it, so the device width
+ * is the root element's clientWidth.
  */
 export async function pageWidths(page) {
   return page.evaluate(() => {
     const scrollWidth = document.documentElement.scrollWidth;
     const viewportWidth = document.documentElement.clientWidth;
-    if (scrollWidth <= viewportWidth + 1) return { scrollWidth, viewportWidth, culprits: [] };
-    // What pushes the page wide: elements that end past both the screen and their parent's right edge.
-    const culprits = [];
-    for (const element of document.body.querySelectorAll('*')) {
-      const right = element.getBoundingClientRect().right;
-      const parent = element.parentElement?.getBoundingClientRect().right ?? viewportWidth;
-      if (right <= viewportWidth + 1 || right <= parent + 1 || getComputedStyle(element).position === 'fixed') continue;
+    const describe = (element, right) => {
       const classes = typeof element.className === 'string' ? element.className.trim().split(/\s+/).slice(0, 6).join('.') : '';
-      culprits.push(`${element.tagName.toLowerCase()}${classes ? `.${classes}` : ''} → ${Math.round(right)}px "${(element.textContent ?? '').trim().slice(0, 40)}"`);
-      if (culprits.length === 5) break;
+      return `${element.tagName.toLowerCase()}${classes ? `.${classes}` : ''} → ${Math.round(right)}px "${(element.textContent ?? '').trim().slice(0, 40)}"`;
+    };
+    const clips = element => ['hidden', 'clip', 'auto', 'scroll'].includes(getComputedStyle(element).overflowX);
+    const insideClip = element => {
+      for (let node = element.parentElement; node && node !== document.body; node = node.parentElement) if (clips(node)) return node;
+      return null;
+    };
+    const elements = [...document.body.querySelectorAll('*')];
+    // What pushes the page wide: elements past both the screen and their parent, that no ancestor clips or scrolls.
+    const culprits = [];
+    if (scrollWidth > viewportWidth + 1) {
+      for (const element of elements) {
+        const right = element.getBoundingClientRect().right;
+        const parent = element.parentElement?.getBoundingClientRect().right ?? viewportWidth;
+        const position = getComputedStyle(element).position;
+        // An absolutely placed element can escape a scroller that is not its containing block, so it stays a suspect.
+        if (right <= viewportWidth + 1 || right <= parent + 1 || position === 'fixed' || (position !== 'absolute' && insideClip(element))) continue;
+        if (position !== 'absolute' && !element.checkVisibility()) continue;
+        culprits.push(describe(element, right));
+        if (culprits.length === 5) break;
+      }
     }
-    return { scrollWidth, viewportWidth, culprits };
+    // Text a hidden-overflow box cuts off without an ellipsis: the page fits, but part of what it says is not shown.
+    // An ellipsis on the way up is a deliberate shortening, and a 1px box is screen-reader text.
+    const truncated = (element, box) => {
+      for (let node = element; node && node !== box; node = node.parentElement) if (getComputedStyle(node).textOverflow === 'ellipsis') return true;
+      return getComputedStyle(box).textOverflow === 'ellipsis';
+    };
+    const clipped = [];
+    for (const element of elements) {
+      if (element.children.length || !(element.textContent ?? '').trim() || element.closest('[aria-hidden="true"]')) continue;
+      // Not drawn at all, such as a closed <details> row: nothing is cut off that anyone could see.
+      if (!element.checkVisibility({ visibilityProperty: true })) continue;
+      const box = insideClip(element);
+      if (!box || ['auto', 'scroll'].includes(getComputedStyle(box).overflowX) || box.getBoundingClientRect().width <= 1 || truncated(element, box)) continue;
+      const right = element.getBoundingClientRect().right;
+      const edge = box.getBoundingClientRect().right;
+      if (right <= edge + 1) continue;
+      clipped.push(describe(element, right));
+      if (clipped.length === 5) break;
+    }
+    return { scrollWidth, viewportWidth, culprits, clipped };
   });
 }
 
