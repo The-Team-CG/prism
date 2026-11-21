@@ -68,7 +68,7 @@ export function CoordinatorTimelineCard({ roleView, readOnly = false, onCheckAga
   const [view, setView] = useState<RunSheetView>("run-sheet");
   const current = RUN_SHEET_VIEWS.find((item) => item.id === view) ?? RUN_SHEET_VIEWS[0];
   return (
-    <div className="grid max-w-3xl gap-3">
+    <div className="grid max-w-3xl grid-cols-[minmax(0,1fr)] gap-3">
       <div className="grid gap-2">
         <div role="group" aria-label="Run sheet views" className="grid grid-cols-3 rounded-lg bg-muted p-1 sm:inline-grid sm:w-fit">
           {RUN_SHEET_VIEWS.map((item) => (

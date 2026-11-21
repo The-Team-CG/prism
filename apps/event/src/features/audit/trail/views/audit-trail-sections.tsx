@@ -276,7 +276,7 @@ function AuditLogRow({ group }: { group: AuditLogGroup }) {
         <span className="text-foreground">{log.action}</span>
         {log.affectedLabel ? <span className="text-muted-foreground"> · {log.affectedLabel}</span> : null}
         {count > 1 ? (
-          <span className="ml-2 whitespace-nowrap rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+          <span className="ml-2 inline-block rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
             {count}× since {formatPortalTime(oldestAt)}
           </span>
         ) : null}

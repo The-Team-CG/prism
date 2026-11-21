@@ -66,11 +66,11 @@ export function SupplierDirectoryCards(props: SupplierDirectoryTableProps) {
   const items = props.directory?.items ?? [];
   return (
     <TooltipProvider>
-      <section aria-label="Supplier directory" className="grid min-w-0 gap-4">
+      <section aria-label="Supplier directory" className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
         <SupplierDirectoryFilters {...props} />
         {props.error ? <DirectoryError message={props.error} onRetry={props.onRetry} /> : null}
         {items.length ? (
-          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <ul className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {items.map((supplier) => (
               <SupplierCard key={supplier.id} supplier={supplier} next={props.nextBookings?.get(supplier.id)} selected={props.selectedSupplierId === supplier.id} onSelect={props.onSelectSupplier} />
             ))}
@@ -226,7 +226,7 @@ function DirectoryPagination({ directory, query, loading, canGoPrevious, canGoNe
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
       <span>{resultCount}</span>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <span id="supplier-page-size-label">Per page</span>
         <Select value={String(query.pageSize)} onValueChange={(value) => onQueryChange({ pageSize: PAGE_SIZES.find((size) => String(size) === value) ?? query.pageSize, page: 0 })}>
           <SelectTrigger id="supplier-page-size" aria-labelledby="supplier-page-size-label" className="h-8 w-20 min-w-0 text-xs">

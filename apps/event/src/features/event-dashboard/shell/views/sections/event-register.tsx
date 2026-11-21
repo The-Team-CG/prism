@@ -162,7 +162,8 @@ function StageFilter({ stages, active, onPick }: { stages: EventRegisterPlan["st
   );
 }
 
-const ROW_GRID = "grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 px-4 py-3 sm:grid-cols-[3.5rem_minmax(0,1.4fr)_8rem_minmax(0,1.3fr)_minmax(0,1fr)] sm:items-center";
+// Five columns from a desktop up; beside a tablet's sidebar the row stacks as it does on a phone.
+const ROW_GRID = "grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-3 gap-y-1 px-4 py-3 lg:grid-cols-[3.5rem_minmax(0,1.4fr)_8rem_minmax(0,1.3fr)_minmax(0,1fr)] lg:items-center";
 
 /** One event as a row: date, name and client, stage, the first thing waiting on PMCM, and the money. */
 function EventRow({ event, data, todayKey, onOpenEvent }: { event: PrismEvent; data: EventRegisterData; todayKey: string; onOpenEvent: (id: string) => void }) {
@@ -173,7 +174,7 @@ function EventRow({ event, data, todayKey, onOpenEvent }: { event: PrismEvent; d
   const tile = dateTileParts(event.eventDate);
   return (
     <li className={cx("relative transition-colors hover:bg-surface-raised has-[a:focus-visible]:bg-surface-raised", ROW_GRID)}>
-      <span className="row-span-2 text-center sm:row-span-1">
+      <span className="row-span-2 text-center lg:row-span-1">
         <span className="block text-[11px] font-medium text-primary">{tile?.month ?? "TBC"}</span>
         <span className="block text-lg font-semibold leading-none tabular-nums text-foreground">{tile?.day ?? "–"}</span>
       </span>
@@ -183,15 +184,15 @@ function EventRow({ event, data, todayKey, onOpenEvent }: { event: PrismEvent; d
         </Link>
         <span className="block truncate text-xs text-muted-foreground">{[event.clientName, event.venue].filter(Boolean).join(" · ")}</span>
       </span>
-      <span className="col-start-2 text-xs text-muted-foreground sm:col-start-auto sm:text-sm">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</span>
-      <span className="col-start-2 min-w-0 text-xs sm:col-start-auto sm:text-sm">
+      <span className="col-start-2 text-xs text-muted-foreground lg:col-start-auto lg:text-sm">{PRISM_LIFECYCLE_STAGE_LABELS[derivePrismLifecycleStage(event)]}</span>
+      <span className="col-start-2 min-w-0 text-xs lg:col-start-auto lg:text-sm">
         {first ? (
           <span className={cx("block truncate", first.severity === "critical" ? "font-medium text-danger" : "text-attention")}>
             {first.text}{more > 0 ? <span className="font-normal text-muted-foreground"> +{more}</span> : null}
           </span>
         ) : data.attention ? <span className="text-muted-foreground">Nothing waiting</span> : null}
       </span>
-      <span className="col-start-2 min-w-0 sm:col-start-auto">{money ? <MoneyBar billed={money.billed} paid={money.paid} checking={money.checking} /> : null}</span>
+      <span className="col-start-2 min-w-0 lg:col-start-auto">{money ? <MoneyBar billed={money.billed} paid={money.paid} checking={money.checking} /> : null}</span>
     </li>
   );
 }
