@@ -5,9 +5,6 @@ import {
   isCompliancePhase,
   CLOSURE_TABS,
   phase4ArchiveStatus,
-  phase4BillingSourceCard,
-  phase4CloseGatesCard,
-  phase4ComplianceCard,
   phase4StatusLabel,
   phase4StatusTone,
 } from "./phase4-workspace-rules";
@@ -41,16 +38,6 @@ describe("phase4-workspace-rules", () => {
     expect(phase4ArchiveStatus(true, false)).toEqual({ label: "Archived", toneKey: "approved" });
     expect(phase4ArchiveStatus(false, true)).toEqual({ label: "Ready for archive", toneKey: "approved" });
     expect(phase4ArchiveStatus(false, false)).toEqual({ label: "Not ready to archive", toneKey: "open" });
-  });
-
-  it("builds closure cards", () => {
-    expect(phase4CloseGatesCard(null).value).toBe("Loading");
-    expect(phase4CloseGatesCard({ ready: true, gates: [{ passed: true }, { passed: false }] })).toMatchObject({
-      value: "1/2",
-      detail: "Ready to archive",
-    });
-    expect(phase4ComplianceCard(2, 5).tone).toBe("text-danger");
-    expect(phase4BillingSourceCard({ totalAmount: 100 }, 1, (amount) => String(amount)).value).toBe("Approved");
   });
 
   it("starts a compliance run in the phase the event is in, not always Planning", () => {

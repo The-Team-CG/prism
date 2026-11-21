@@ -12,7 +12,7 @@ import { portalHref } from "@prism/ui/portal-path";
 
 /** PMCM admins keep the workspace's own settings, apart from their personal account. */
 const ADMIN_LINKS: AccountLink[] = [
-  { title: "Workspace settings", description: "Compliance rules, planning templates, integrations and notification defaults", href: "/dashboard/settings" },
+  { title: "Settings", description: "Event rules, templates, people and access, and integrations", href: "/dashboard/settings" },
 ];
 
 /**

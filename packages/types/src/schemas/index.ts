@@ -213,6 +213,7 @@ export {
   waiveOcularVisitSchema,
   grantSecondaryClientAccessSchema,
   PRISM_PMCM_COMMAND_INBOX_MAX_PAGE,
+  PRISM_PMCM_COMMAND_INBOX_MAX_PAGE_SIZE,
   pmcmCommandInboxQuerySchema,
   pmcmEventAttentionQuerySchema,
   type CreatePrismInquiryInput,

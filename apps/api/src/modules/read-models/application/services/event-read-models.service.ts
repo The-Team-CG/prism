@@ -671,13 +671,13 @@ export class EventReadModelsService {
     return createSupplierReadinessClock();
   }
 
-  async pmcmCommandInbox(actor: ResolvedEventOpsActor, page = 0) {
+  async pmcmCommandInbox(actor: ResolvedEventOpsActor, page = 0, pageSize = MAX_PMCM_COMMAND_INBOX_PAGE_SIZE) {
     await this.policy.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'PMCM command inbox');
-    const { items, summary, hasMore } = await this.commandInboxItems(page, MAX_PMCM_COMMAND_INBOX_PAGE_SIZE);
+    const { items, summary, hasMore } = await this.commandInboxItems(page, pageSize);
     return {
       generatedAt: new Date().toISOString(),
       summary,
-      page: { index: page, size: MAX_PMCM_COMMAND_INBOX_PAGE_SIZE, hasMore },
+      page: { index: page, size: pageSize, hasMore },
       counts: countBySeverity(items),
       items,
     };

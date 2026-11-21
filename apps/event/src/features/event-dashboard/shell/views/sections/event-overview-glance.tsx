@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, ChevronRight, LayoutGrid, ListTodo, UserRound, type LucideIcon } from "lucide-react";
+import { ArrowRight, CalendarClock, CheckCircle2, ListTodo, NotebookTabs, UserRound } from "lucide-react";
 import { derivePrismLifecycleStage, type PrismEvent, type PrismPmcmCalendarItem, type PrismPmcmClientActivity } from "@prism/types";
 import { AgendaList, AttentionList, AttentionSummary, EventCover, StageTrack, eventCountdown, type AttentionLine } from "@prism/ui/event-cards";
 import { formatPortalDate } from "@prism/ui/format-date";
@@ -125,38 +125,57 @@ export function OverviewComingUp({ eventId, items, todayKey }: { eventId: string
 }
 
 export type AreaTone = "done" | "attention" | "idle";
-export type AreaTile = { tab: DetailTab; title: string; icon: LucideIcon; status: string; tone: AreaTone };
+export type GlanceFact = { tab: DetailTab; label: string; status: string; tone: AreaTone };
 
-const AREA_CHIP: Record<AreaTone, string> = {
-  done: "bg-success-soft text-success",
-  attention: "bg-attention-soft text-attention",
-  idle: "bg-muted text-muted-foreground",
+const FACT_TONE: Record<AreaTone, string> = {
+  done: "text-success",
+  attention: "text-attention",
+  idle: "text-foreground",
 };
 
-/** Every part of the event as a tile coloured by how it stands, each opening its tab. */
-export function OverviewAreas({ eventId, areas, onOpenTab }: { eventId: string; areas: AreaTile[]; onOpenTab: (tab: DetailTab) => void }) {
+/** The event's facts, each a link to the page that owns it; colour marks only what is done or needs PMCM. */
+export function OverviewAtAGlance({ eventId, facts, onOpenTab }: { eventId: string; facts: GlanceFact[]; onOpenTab: (tab: DetailTab) => void }) {
   return (
-    <PrismPanel id="overview-areas" title="Event areas" icon={LayoutGrid} bodyClassName="pt-2">
-      <ul className="grid gap-1 sm:grid-cols-2 xl:grid-cols-3">
-        {areas.map((area) => (
-          <li key={area.tab}>
+    <PrismPanel id="overview-at-a-glance" title="At a glance" icon={NotebookTabs} bodyClassName="pt-1">
+      <ul className="grid gap-x-2 sm:grid-cols-2 xl:grid-cols-3">
+        {facts.map((fact) => (
+          <li key={fact.label}>
             <RouteLink
-              href={eventWorkspaceHref(eventId, area.tab)}
-              onNavigate={() => onOpenTab(area.tab)}
-              className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-raised"
+              href={eventWorkspaceHref(eventId, fact.tab)}
+              onNavigate={() => onOpenTab(fact.tab)}
+              className="block rounded-md px-2 py-2 transition-colors hover:bg-surface-raised"
             >
-              <span aria-hidden className={cx("grid size-9 shrink-0 place-items-center rounded-lg", AREA_CHIP[area.tone])}>
-                <area.icon className="size-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-foreground">{area.title}</span>
-                <span className="block truncate text-xs text-muted-foreground">{area.status}</span>
-              </span>
-              <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              <span className="block text-xs text-muted-foreground">{fact.label}</span>
+              <span className={cx("block truncate text-sm font-semibold", FACT_TONE[fact.tone])}>{fact.status}</span>
             </RouteLink>
           </li>
         ))}
       </ul>
     </PrismPanel>
+  );
+}
+
+/** The event's one next step under the hero, carrying the page's only filled button. */
+export function OverviewNextStepBar({ step, eventId, busy, onStartEventDay, onOpenTab }: {
+  step: { title: string; detail?: string; href?: string; tab?: DetailTab; actionLabel: string; startEventDay?: boolean };
+  eventId: string;
+  busy: boolean;
+  onStartEventDay: () => void;
+  onOpenTab: (tab: DetailTab) => void;
+}) {
+  const button = "inline-flex shrink-0 items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60";
+  const { tab } = step;
+  let action: ReactNode = null;
+  if (step.startEventDay) action = <button type="button" disabled={busy} onClick={onStartEventDay} className={button}>{step.actionLabel}</button>;
+  else if (tab) action = <RouteLink href={eventWorkspaceHref(eventId, tab)} onNavigate={() => onOpenTab(tab)} className={button}>{step.actionLabel}<ArrowRight aria-hidden className="size-4" /></RouteLink>;
+  else if (step.href) action = <Link href={step.href} className={button}>{step.actionLabel}<ArrowRight aria-hidden className="size-4" /></Link>;
+  return (
+    <section aria-labelledby="overview-next-step" className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 rounded-xl border border-primary/20 bg-primary/5 px-5 py-4">
+      <div className="min-w-0 flex-1 basis-64">
+        <h2 id="overview-next-step" className="text-sm font-semibold text-foreground"><span className="text-primary">Next:</span> {step.title}</h2>
+        {step.detail ? <p className="mt-0.5 text-sm text-muted-foreground">{step.detail}</p> : null}
+      </div>
+      {action}
+    </section>
   );
 }

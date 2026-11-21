@@ -1,35 +1,29 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
 import { formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 
 import {
   AlertTriangle,
   ClipboardList,
-  Database,
   Download,
   FileCheck2,
   Filter,
-  KeyRound,
-  ListFilter,
   ReceiptText,
-  RotateCcw,
   Search,
   ShieldCheck,
   Truck,
-  UserCheck,
   UserRound,
 } from "lucide-react";
 
-import type { PrismAuditLog, PrismEvent, PrismUser, PrismLoginHistory, PrismSecurityAlert } from "@prism/types";
+import type { PrismAuditLog, PrismEvent, PrismUser, PrismSecurityAlert } from "@prism/types";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { Input } from "@prism/ui/components/input";
-import { compactTimestamp, cx, label, roleLabel, SegmentedControl, sessionDeviceLabel, severityTone } from "@/features/pmcm-kit";
+import { compactTimestamp, cx, label, roleLabel, SegmentedControl, severityTone } from "@/features/pmcm-kit";
 import { Field, FieldLabel } from "@prism/ui/components/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
-import { Metric, Panel } from "@/features/pmcm-kit";
+import { Panel } from "@/features/pmcm-kit";
 import { auditIconKind, auditIntegrityCopy, groupRepeatedAuditLogs, type AuditLogGroup } from "../model/audit-trail-rules";
 import { usePagedItems } from "../view-models/use-paged-items";
 import { ListPager } from "./list-pager";
@@ -57,24 +51,8 @@ export function AuditTrailOverview({
   users: PrismUser[];
 }) {
   return (
-    <section className="rounded-lg border border-border bg-card p-5 shadow-[0_18px_70px_rgba(23,18,22,0.07)]">
-      <AuditTrailHeader busy={vm.busy} onExport={vm.exportLog} onToggleFilters={() => vm.setAdvancedOpen((value) => !value)} />
-      <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-        <Metric label="Total events (view)" value={vm.logs.length} icon={ListFilter} />
-        <Metric label="User actions" value={vm.userActionCount} icon={UserCheck} />
-        <Metric label="System events" value={vm.systemActionCount} icon={RotateCcw} />
-        <Metric label="Alerts triggered" value={vm.openAlertCount} icon={AlertTriangle} />
-        <Metric label="Failed logins" value={vm.failedLoginCount} icon={KeyRound} />
-        <Metric label="Approval backlog" value={vm.approvalBacklog} icon={ShieldCheck} />
-        <Metric label="Privacy backlog" value={vm.privacyBacklog} icon={Database} />
-      </div>
-      <AuditIntegrityCards
-        auditIntegrity={vm.auditIntegrity}
-        privacyRecordCount={vm.privacyRecordCount}
-        privacySurfaceCount={vm.privacySurfaceCount}
-        missingConsentCount={vm.missingConsentCount}
-        retentionNote={vm.retentionNote}
-      />
+    <section className="rounded-lg border border-border bg-card p-5">
+      <AuditTrailHeader vm={vm} onExport={vm.exportLog} onToggleFilters={() => vm.setAdvancedOpen((value) => !value)} />
       <AuditLogFilters vm={vm} events={events} users={users} />
       {vm.error ? (
         <Alert variant="destructive" className="mt-4 rounded-md">
@@ -86,78 +64,41 @@ export function AuditTrailOverview({
   );
 }
 
+/**
+ * The trail's one line of status: whether the chain of entries checks out, then alerts and failed sign-ins, coloured
+ * only when they are not zero. It replaces ten figure tiles, most of which counted the page on screen.
+ */
 function AuditTrailHeader({
-  busy,
+  vm,
   onExport,
   onToggleFilters,
 }: {
-  busy: boolean;
+  vm: AuditVm;
   onExport: () => void;
   onToggleFilters: () => void;
 }) {
+  const integrity = auditIntegrityCopy(vm.auditIntegrity);
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <h2 className="text-xl font-semibold text-foreground">Audit trail</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Every user, system, access, supplier, finance and document action. Visible to PMCM only.</p>
+      <div className="min-w-0">
+        <h2 className="text-base font-semibold text-foreground">Audit trail</h2>
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <span className={cx("inline-flex items-center gap-1.5 font-medium", integrity.valid ? "text-success" : "text-danger")}>
+            <ShieldCheck aria-hidden className="size-4" />
+            {integrity.valid ? "Trail intact" : integrity.headline}
+          </span>
+          <span className="text-muted-foreground">{integrity.detail}</span>
+          <span className={vm.openAlertCount ? "font-medium text-danger" : "text-muted-foreground"}>{vm.openAlertCount === 1 ? "1 alert" : `${vm.openAlertCount} alerts`}</span>
+          <span className={vm.failedLoginCount ? "font-medium text-attention" : "text-muted-foreground"}>{vm.failedLoginCount === 1 ? "1 failed sign-in" : `${vm.failedLoginCount} failed sign-ins`}</span>
+        </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" disabled={busy} onClick={onExport} className="h-10 rounded-md font-semibold">
+        <Button type="button" variant="outline" disabled={vm.busy} onClick={onExport} className="h-10 rounded-md font-semibold">
           <Download className="size-4" /> Export log
         </Button>
         <Button type="button" variant="outline" onClick={onToggleFilters} className="h-10 rounded-md font-semibold">
           <Filter className="size-4" /> More filters
         </Button>
-      </div>
-    </div>
-  );
-}
-
-function AuditIntegrityCards({
-  auditIntegrity,
-  privacyRecordCount,
-  privacySurfaceCount,
-  missingConsentCount,
-  retentionNote,
-}: {
-  auditIntegrity: AuditVm["auditIntegrity"];
-  privacyRecordCount: number;
-  privacySurfaceCount: number;
-  missingConsentCount: number;
-  retentionNote: string;
-}) {
-  const integrity = auditIntegrityCopy(auditIntegrity);
-  return (
-    <div className="mt-3 grid gap-3 md:grid-cols-3">
-      <div className={cx(
-        "rounded-lg border p-4",
-        integrity.valid ? "border-success/25 bg-success-soft text-success" : "border-danger/25 bg-danger-soft text-danger",
-      )}>
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium">Audit integrity</p>
-          <ShieldCheck className="size-4" />
-        </div>
-        <p className="mt-2 text-2xl font-semibold">{integrity.headline}</p>
-        <p className="mt-1 text-xs">{integrity.detail}</p>
-      </div>
-      <div className="rounded-lg border border-border bg-white p-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium text-muted-foreground">Privacy records</p>
-          <Database className="size-4 text-attention" />
-        </div>
-        <p className="mt-2 text-2xl font-semibold text-foreground">{privacyRecordCount}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{privacySurfaceCount} personal-data surfaces indexed</p>
-      </div>
-      <div className={cx(
-        "rounded-lg border p-4",
-        missingConsentCount > 0 ? "border-attention/25 bg-attention-soft text-attention" : "border-border bg-white text-foreground",
-      )}>
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-medium">Consent gaps</p>
-          <AlertTriangle className="size-4" />
-        </div>
-        <p className="mt-2 text-2xl font-semibold">{missingConsentCount}</p>
-        <p className="mt-1 text-xs">{retentionNote}</p>
       </div>
     </div>
   );
@@ -349,21 +290,6 @@ function AuditLogRow({ group }: { group: AuditLogGroup }) {
   );
 }
 
-export function PrivacyConsoleLinkPanel() {
-  return (
-    <Panel title="Privacy operations" icon={Database}>
-      <div className="space-y-3 text-sm">
-        <p className="text-muted-foreground">
-          Privacy requests, deadlines, owners, legal holds, and retention policies are managed in the privacy console.
-        </p>
-        <Link href="/dashboard/privacy" className="inline-flex h-10 items-center rounded-md border border-border bg-white px-4 font-semibold text-foreground hover:bg-background">
-          Open privacy console
-        </Link>
-      </div>
-    </Panel>
-  );
-}
-
 export function SecurityAlertsPanel({ alerts }: { alerts: PrismSecurityAlert[] }) {
   return (
     <Panel title="Security event alerts" icon={AlertTriangle}>
@@ -379,29 +305,6 @@ export function SecurityAlertsPanel({ alerts }: { alerts: PrismSecurityAlert[] }
               <span className={cx("rounded-full px-2 py-1 text-2xs font-semibold capitalize", severityTone(alert.severity))}>{alert.severity}</span>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">{compactTimestamp(alert.createdAt)} - {alert.triggeredBy}</p>
-          </div>
-        ))}
-      </div>
-    </Panel>
-  );
-}
-
-export function LoginHistoryPanel({ loginHistory }: { loginHistory: PrismLoginHistory[] }) {
-  return (
-    <Panel title="My last five sessions" icon={KeyRound}>
-      <div className="space-y-3">
-        {loginHistory.length === 0 ? <p className="text-sm text-muted-foreground">No login history recorded for this profile yet.</p> : null}
-        {loginHistory.map((entry) => (
-          <div key={entry.id} className="rounded-md bg-background p-3 text-sm">
-            <div className="flex items-center justify-between gap-3">
-              <p className="font-semibold capitalize">{label(entry.status)}</p>
-              <span className={cx("rounded-full px-2 py-1 text-2xs font-semibold capitalize", entry.status === "success" ? severityTone("info") : severityTone("warning"))}>
-                {roleLabel(entry.userRole)}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">{compactTimestamp(entry.createdAt)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{[entry.ipAddress, sessionDeviceLabel(entry.device)].filter(Boolean).join(" · ")}</p>
-            {entry.failureReason ? <p className="mt-1 text-xs text-danger">{entry.failureReason}</p> : null}
           </div>
         ))}
       </div>

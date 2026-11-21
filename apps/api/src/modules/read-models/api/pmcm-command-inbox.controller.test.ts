@@ -35,12 +35,15 @@ describe('OpsPmcmCommandInboxController', () => {
       expiresAt: '2026-07-03T12:00:00.000Z',
     };
 
-    await expect(controller.commandInbox(undefined, verifiedActor as any)).resolves.toEqual({
+    await expect(controller.commandInbox(undefined, undefined, verifiedActor as any)).resolves.toEqual({
       items: [{ id: 'inquiry:inq_sample' }],
     });
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
-    expect(eventReadModelsService.pmcmCommandInbox).toHaveBeenCalledWith({ role: 'pmcm-admin', name: 'Maxine' }, 0);
+    expect(eventReadModelsService.pmcmCommandInbox).toHaveBeenCalledWith({ role: 'pmcm-admin', name: 'Maxine' }, 0, undefined);
+    // The Inbox asks for up to fifty items per source so it rarely pages.
+    await controller.commandInbox('0', '50', verifiedActor as any);
+    expect(eventReadModelsService.pmcmCommandInbox).toHaveBeenLastCalledWith({ role: 'pmcm-admin', name: 'Maxine' }, 0, 50);
   });
 
   it('rejects invalid page offsets before querying', async () => {
@@ -48,7 +51,8 @@ describe('OpsPmcmCommandInboxController', () => {
       { pmcmCommandInbox: vi.fn() } as any,
       { resolveActor: vi.fn() } as any,
     );
-    expect(() => controller.commandInbox('-1', {} as any)).toThrow(BadRequestException);
-    expect(() => controller.commandInbox('101', {} as any)).toThrow(BadRequestException);
+    expect(() => controller.commandInbox('-1', undefined, {} as any)).toThrow(BadRequestException);
+    expect(() => controller.commandInbox('101', undefined, {} as any)).toThrow(BadRequestException);
+    expect(() => controller.commandInbox('0', '51', {} as any)).toThrow(BadRequestException);
   });
 });

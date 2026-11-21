@@ -1,8 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle, ArrowDownToLine, BadgeCheck, BellRing, ChevronRight, FilePen, Hourglass, Inbox, Scale, Search, Send, Truck, type LucideIcon,
+  AlertTriangle, ArrowDownToLine, BadgeCheck, BellRing, ChevronDown, ChevronRight, FilePen, Hourglass, Inbox, Scale, Search, Send, Truck, type LucideIcon,
 } from "lucide-react";
 import type { PrismFinanceDeskItem, PrismFinanceDeskItemKind } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
@@ -141,8 +142,15 @@ function VerifyDialog({ vm }: { vm: FinanceDeskViewModel }) {
   );
 }
 
+/** Rows shown before "Show more"; filtering or searching shows every match. */
+const QUEUE_SHOWN = 5;
+
 /** The work waiting on PMCM, most urgent first, with the quick jobs done in place. */
 export function FinanceQueue({ total, vm }: { total: number; vm: FinanceDeskViewModel }) {
+  const [expanded, setExpanded] = useState(false);
+  const narrowed = vm.group !== "all" || vm.query.trim() !== "";
+  const shown = expanded || narrowed ? vm.items : vm.items.slice(0, QUEUE_SHOWN);
+  const hidden = vm.items.length - shown.length;
   return (
     <PrismSection id="finance-queue" title="Needs you" count={total} flush>
       {total === 0 ? (
@@ -153,7 +161,12 @@ export function FinanceQueue({ total, vm }: { total: number; vm: FinanceDeskView
           <SelectionBar vm={vm} />
           {vm.items.length === 0
             ? <div className="px-5 py-4"><PrismEmptyLine icon={Search}>Nothing matches. Try another word or kind of work.</PrismEmptyLine></div>
-            : <ul className="divide-y divide-border">{vm.items.map((item) => <QueueRow key={item.id} item={item} vm={vm} />)}</ul>}
+            : <ul className="divide-y divide-border">{shown.map((item) => <QueueRow key={item.id} item={item} vm={vm} />)}</ul>}
+          {hidden > 0 ? (
+            <button type="button" onClick={() => setExpanded(true)} className="flex min-h-11 w-full items-center gap-1 border-t border-border px-5 text-sm font-medium text-primary hover:bg-surface-raised">
+              Show {hidden} more<ChevronDown aria-hidden className="size-4" />
+            </button>
+          ) : null}
         </>
       )}
       <VerifyDialog vm={vm} />

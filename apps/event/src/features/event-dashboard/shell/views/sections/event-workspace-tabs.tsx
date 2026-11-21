@@ -3,7 +3,9 @@
 import { PostEventDeliverablesPanel } from "@/features/closure/deliverables/views/post-event-deliverables-panel";
 
 
-import { FileCheck2, Gavel } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { FileCheck2, Gavel, Sparkles } from "lucide-react";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@prism/ui/components/sheet";
 import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { PAREPanel } from "@/features/pare/panel";
@@ -26,6 +28,8 @@ import { LiveOperationsWorkspace } from "@/features/live-ops/workspace";
 import { HandoffBriefPanel } from "@/features/live-ops/handoff-brief";
 import { DecisionLogPanel } from "@/features/decision-log";
 import { SupplierQuotePlanner } from "@/features/suppliers/directory";
+import { EventServicesList } from "@/features/suppliers/directory/views/event-services-list";
+import { eventServices } from "@/features/suppliers/directory/model/event-services";
 import { PmcmSupplierReadinessBoard, assignedSupplierRequests, supplierReadinessRefreshKey } from "@/features/suppliers/readiness";
 import { SupplierFileReadiness } from "@/features/files/matrix";
 import { PmcmSupplierWorkflowsPanel } from "@/features/suppliers/workflows/views/pmcm-supplier-workflows-panel";
@@ -53,7 +57,7 @@ import { ClientOwnedSuppliersPanel, UnresponsiveSuppliersPanel } from "@/feature
 import { ThemeSuggestionsPanel } from "@/features/ai-advisory/views/ai-advisory-panels";
 import { EventDayCopilotPanel, OperationsAssistantPanel } from "@/features/ai-advisory/views/live-assist-panels";
 import { PresentationMeetingsPanel } from "@/features/commercial/presentation-meetings/views/presentation-meetings-panel";
-import { isEventModuleEnabled } from "@prism/types";
+import { isEventModuleEnabled, prismCalendarDateKey } from "@prism/types";
 import { PmcmClientFollowUps } from "@/features/commercial/client-follow-ups/views/pmcm-client-follow-ups";
 import { PmcmSupplierGapWarning } from "@/features/suppliers/supplier-gaps/views/pmcm-supplier-gap-warning";
 import { PmcmExternalCreativePanel } from "@/features/suppliers/external-creative/views/pmcm-external-creative-panel";
@@ -70,6 +74,7 @@ export function EventWorkspaceOverviewTab() {
   const coverUrl = useEventCoverUrl(vm.selectedEvent?.id ?? "", vm.selectedEvent?.coverObjectId);
   if (!vm.selectedEvent) return null;
   const visit = selectedOcularVisit(vm);
+  const workspace = vm.selectedEventWorkspace?.event.id === vm.selectedEvent.id ? vm.selectedEventWorkspace : null;
   // The official floorplan waits on the ocular visit, so it stays on the overview until it is completed or waived.
   const visitOpen = !isOcularVisitCleared(visit?.status);
   return (
@@ -89,6 +94,8 @@ export function EventWorkspaceOverviewTab() {
       glance={glance}
       coverUrl={coverUrl}
       visitRequested={visit?.status === "requested"}
+      briefing={workspace?.briefings.at(-1) ?? null}
+      milestones={workspace?.paymentMilestones}
       ocularVisit={visitOpen ? (
         <EventOcularVisitTask
           eventName={vm.selectedEvent.eventName}
@@ -127,7 +134,7 @@ export function EventWorkspaceFloorplansTab() {
       accessPanel={
         canManageClientFloorplanAccess(String(vm.session.role)) ? (
           <details className="rounded-lg border border-border bg-card">
-            <summary className="flex min-h-11 cursor-pointer items-center px-5 text-sm font-semibold">Client floorplan access</summary>
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 px-5 text-sm font-semibold">Client floor plan access <span className="font-normal text-muted-foreground">· who on the client side can open the official plan</span></summary>
             <EventClientFloorplanAccessPanel eventId={selectedEvent.id} />
           </details>
         ) : null
@@ -216,9 +223,45 @@ function BriefingSummary({ briefing }: { briefing?: PrismBriefing | null }) {
 /** A planning section; `adminOnly` sections are PMCM admin's, and `hidden` ones are switched off for this event. */
 type BriefingSubTab = WorkspaceSubTab & { adminOnly?: boolean; hidden?: boolean };
 
+/**
+ * Old planning tabs, each now a section of a broader one. Links the API and other pages still build (an Inbox
+ * follow-up opens `?part=follow-ups`) land on the tab that holds that section, scrolled to it.
+ */
+export const PLANNING_PART_ALIASES: Record<string, string> = {
+  reviews: "proposal",
+  "follow-ups": "proposal",
+  "date-change": "changes",
+  "pre-conforme": "briefing",
+  assistant: "briefing",
+  accreditation: "briefing",
+};
+
+/** One part of a broader planning tab, with an anchor an old link can scroll to. */
+function PlanningPart({ id, title, children }: { id: string; title?: string; children: ReactNode }) {
+  return (
+    <section id={`planning-${id}`} className="scroll-mt-24 space-y-3">
+      {title ? <h2 className="text-base font-semibold text-foreground">{title}</h2> : null}
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Planning and decisions in the order the work happens, five tabs instead of eleven: the client's briefing (with the
+ * context from before the conforme folded under it), the proposal and everything the client says about it, the
+ * changes asked for after it, PMCM's plan, and the decision log. The assistant opens beside any tab.
+ */
 export function EventWorkspaceBriefingTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
   const { briefing, selectedEvent } = vm;
+  const [part, setPart] = useListFilter("part", "briefing");
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const alias = PLANNING_PART_ALIASES[part];
+  useEffect(() => {
+    if (!alias) return;
+    // An old link names a section inside a broader tab: open that tab, then bring the section into view.
+    window.setTimeout(() => document.getElementById(`planning-${part}`)?.scrollIntoView({ block: "start" }), 0);
+  }, [alias, part]);
   if (!selectedEvent) return null;
   const admin = isPmcmAdmin(vm.session.role);
   const entries: BriefingSubTab[] = [
@@ -226,37 +269,106 @@ export function EventWorkspaceBriefingTab() {
       id: "briefing",
       label: "Briefing",
       attention: !briefing,
-      render: () => <BriefingSummary briefing={briefing} />,
+      render: () => (
+        <div className="space-y-5">
+          <BriefingSummary briefing={briefing} />
+          {admin ? (
+            <details id="planning-pre-conforme" className="group scroll-mt-24 rounded-lg border border-border bg-card px-5 py-3" open={part === "pre-conforme"}>
+              <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">Before the conforme <span className="font-normal text-muted-foreground">· inquiry and call notes</span></summary>
+              <div className="pt-3"><PreConformeContextPanel eventId={selectedEvent.id} /></div>
+            </details>
+          ) : null}
+        </div>
+      ),
     },
-    { id: "proposal", label: "Proposal", adminOnly: true, render: () => <div className="space-y-5"><PmcmProposalIssuerPanel eventId={selectedEvent.id} /><PresentationMeetingsPanel eventId={selectedEvent.id} /><PmcmProposalComments eventId={selectedEvent.id} /></div> },
-    { id: "reviews", label: "Client reviews", render: () => <div className="space-y-5">{admin && isEventModuleEnabled(selectedEvent, "venue_scouting") ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}{admin ? <ThemeSuggestionsPanel eventId={selectedEvent.id} /> : null}<PmcmClientReviewPanel eventId={selectedEvent.id} /></div> },
+    {
+      id: "proposal",
+      label: "Proposal",
+      render: () => (
+        <div className="space-y-8">
+          {admin ? (
+            <PlanningPart id="proposal">
+              <PmcmProposalIssuerPanel eventId={selectedEvent.id} />
+              <PresentationMeetingsPanel eventId={selectedEvent.id} />
+              <PmcmProposalComments eventId={selectedEvent.id} />
+            </PlanningPart>
+          ) : null}
+          <PlanningPart id="reviews">
+            {admin && isEventModuleEnabled(selectedEvent, "venue_scouting") ? <VenueScoutingPanel eventId={selectedEvent.id} /> : null}
+            {admin ? <ThemeSuggestionsPanel eventId={selectedEvent.id} /> : null}
+            <PmcmClientReviewPanel eventId={selectedEvent.id} />
+          </PlanningPart>
+          {admin ? <PlanningPart id="follow-ups"><PmcmClientFollowUps eventId={selectedEvent.id} /></PlanningPart> : null}
+        </div>
+      ),
+    },
+    {
+      id: "changes",
+      label: "Changes",
+      render: () => (
+        <div className="space-y-8">
+          <PlanningPart id="changes">
+            <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} decisionClosedReason={eventDecisionClosedReason(selectedEvent)} />
+          </PlanningPart>
+          {admin ? <PlanningPart id="date-change"><DateImpactPanel eventId={selectedEvent.id} /></PlanningPart> : null}
+        </div>
+      ),
+    },
     { id: "plan", label: "Plan", adminOnly: true, render: () => <EventPlanPanel eventId={selectedEvent.id} archived={selectedEvent.archived} /> },
-    { id: "date-change", label: "Date change", adminOnly: true, render: () => <DateImpactPanel eventId={selectedEvent.id} /> },
-    { id: "follow-ups", label: "Client follow-ups", adminOnly: true, render: () => <PmcmClientFollowUps eventId={selectedEvent.id} /> },
-    { id: "assistant", label: "Ask P.R.I.S.M", adminOnly: true, render: () => <OperationsAssistantPanel eventId={selectedEvent.id} /> },
-    { id: "changes", label: "Scope changes", render: () => <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} decisionClosedReason={eventDecisionClosedReason(selectedEvent)} /> },
     { id: "decisions", label: "Decision log", adminOnly: true, render: () => <DecisionLogPanel eventId={selectedEvent.id} /> },
-    { id: "pre-conforme", label: "Pre-conforme context", adminOnly: true, render: () => <PreConformeContextPanel eventId={selectedEvent.id} /> },
-    { id: "accreditation", label: "Accreditation", adminOnly: true, hidden: !isEventModuleEnabled(selectedEvent, "accreditation"), render: () => <AccreditationPanel eventId={selectedEvent.id} /> },
   ];
   const tabs: WorkspaceSubTab[] = entries.filter((entry) => !entry.hidden && (admin || !entry.adminOnly)).map(({ adminOnly: _adminOnly, hidden: _hidden, ...tab }) => tab);
-  return <WorkspaceSubTabs label="Planning sections" tabs={tabs} />;
+  const assistant = admin ? (
+    <Sheet open={assistantOpen} onOpenChange={setAssistantOpen}>
+      <SheetTrigger asChild>
+        <Button type="button" variant="outline" size="sm"><Sparkles aria-hidden className="size-4" />Ask P.R.I.S.M</Button>
+      </SheetTrigger>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+        <SheetHeader>
+          <SheetTitle>Ask P.R.I.S.M</SheetTitle>
+          <SheetDescription>Questions about {selectedEvent.eventName}, answered from its records.</SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-6"><OperationsAssistantPanel eventId={selectedEvent.id} /></div>
+      </SheetContent>
+    </Sheet>
+  ) : null;
+  return <WorkspaceSubTabs label="Planning sections" tabs={tabs} intro={assistant} selectedId={alias ?? part} onSelect={setPart} />;
 }
 
+/** Old supplier tabs, now sections of Services: links to them still land on it. */
+export const SUPPLIER_PART_ALIASES: Record<string, string> = { quotes: "services", bookings: "services", emergency: "services" };
+
+/**
+ * An event's suppliers in three tabs: Services, from request and quotes to bookings and contracts (with replacing a
+ * supplier folded under the bookings), Readiness (accreditation included when the event uses it), and outsourced
+ * creative work.
+ */
 export function EventWorkspaceSuppliersTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
+  const [part, setPart] = useListFilter("part", "services");
+  const [service, setService] = useListFilter("service", "");
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const assigned = assignedSupplierRequests(vm.quoteRequests);
   const awaitingQuotes = vm.quoteRequests.filter((request) => !vm.quotes.some((quote) => quote.requestId === request.id)).length;
   const tabs: WorkspaceSubTab[] = [
     {
-      id: "quotes",
-      label: "Requests & quotes",
+      id: "services",
+      label: "Services",
       count: awaitingQuotes,
       attention: awaitingQuotes > 0,
       render: () => (
+        <div className="space-y-8">
+        <EventServicesList
+          services={eventServices({ services: vm.briefing?.serviceRequirements ?? [], categories: vm.supplierCategories, requests: vm.quoteRequests, quotes: vm.quotes })}
+          activeCategoryId={service || undefined}
+          onOpen={(categoryId) => {
+            setService(categoryId);
+            window.setTimeout(() => document.getElementById("quote-planner")?.scrollIntoView({ block: "start", behavior: "smooth" }), 0);
+          }}
+        />
         <SupplierQuotePlanner
+          focusCategoryId={service || undefined}
           key={event.id}
           categories={vm.supplierCategories}
           suppliers={vm.suppliers}
@@ -268,30 +380,32 @@ export function EventWorkspaceSuppliersTab() {
           onSetAvailability={vm.setSupplierAvailability}
           busy={Boolean(vm.busy)}
         />
-      ),
-    },
-    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><UnresponsiveSuppliersPanel eventId={event.id} />{isEventModuleEnabled(event, "client_owned_suppliers") ? <ClientOwnedSuppliersPanel eventId={event.id} /> : null}<PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><SupplierFileReadiness eventId={event.id} /></div> },
-    { id: "bookings", label: "Bookings & contracts", count: assigned.length, render: () => <PmcmSupplierWorkflowsPanel eventId={event.id} requests={vm.quoteRequests} quotes={vm.quotes} /> },
-    { id: "creative", label: "Outsourced creative", render: () => <PmcmExternalCreativePanel eventId={event.id} documents={vm.documents.filter((document) => document.eventId === event.id)} /> },
-    {
-      id: "emergency",
-      label: "Replace a supplier",
-      render: () => (
-        <section className="rounded-lg border border-border bg-card p-5">
-          <h2 className="font-semibold text-foreground">Replace a supplier</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">If an assigned supplier drops out, withdraw them here and review suggested replacements.</p>
-          <div className="mt-4">
-            <PAREPanel eventId={event.id} assignedRequests={assigned} suppliers={vm.suppliers} onWithdraw={vm.withdrawSupplier} busy={Boolean(vm.busy)} />
-          </div>
+        <section id="supplier-bookings" aria-labelledby="supplier-bookings-title" className="scroll-mt-24 space-y-3">
+          <h2 id="supplier-bookings-title" className="flex items-baseline gap-2 text-base font-semibold text-foreground">
+            Bookings and contracts<span className="text-sm font-normal tabular-nums text-muted-foreground">{assigned.length}</span>
+          </h2>
+          <PmcmSupplierWorkflowsPanel eventId={event.id} eventDate={event.eventDate} requests={vm.quoteRequests} quotes={vm.quotes} />
+          {assigned.length ? (
+            <details className="rounded-lg border border-border bg-card px-5 py-3" open={part === "emergency"}>
+              <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">Replace a supplier <span className="font-normal text-muted-foreground">· if a booked supplier drops out</span></summary>
+              <div className="pt-3">
+                <PAREPanel eventId={event.id} assignedRequests={assigned} suppliers={vm.suppliers} onWithdraw={vm.withdrawSupplier} busy={Boolean(vm.busy)} />
+              </div>
+            </details>
+          ) : null}
         </section>
+        </div>
       ),
     },
+    { id: "readiness", label: "Readiness", render: () => <div className="space-y-5"><UnresponsiveSuppliersPanel eventId={event.id} />{isEventModuleEnabled(event, "client_owned_suppliers") ? <ClientOwnedSuppliersPanel eventId={event.id} /> : null}<PmcmSupplierGapWarning eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><PmcmSupplierReadinessBoard eventId={event.id} refreshKey={supplierReadinessRefreshKey(vm.quoteRequests)} /><SupplierFileReadiness eventId={event.id} />{isPmcmAdmin(vm.session.role) && isEventModuleEnabled(event, "accreditation") ? <AccreditationPanel eventId={event.id} /> : null}</div> },
+    { id: "creative", label: "Outsourced creative", render: () => <PmcmExternalCreativePanel eventId={event.id} documents={vm.documents.filter((document) => document.eventId === event.id)} /> },
   ];
-  return <WorkspaceSubTabs label="Supplier sections" tabs={tabs} />;
+  return <WorkspaceSubTabs label="Supplier sections" tabs={tabs} selectedId={SUPPLIER_PART_ALIASES[part] ?? part} onSelect={setPart} />;
 }
 
 export function EventWorkspaceCoordinatorsTab() {
   const vm = useEventDashboardLoadedRouteViewModel();
+  const [part, setPart] = useListFilter("part", "assignments");
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
   const tabs: WorkspaceSubTab[] = [
@@ -324,10 +438,25 @@ export function EventWorkspaceCoordinatorsTab() {
       ),
     },
     { id: "role-briefs", label: "Role briefs", render: () => <PmcmRoleBriefEditor eventId={event.id} /> },
-    ...(isPmcmAdmin(vm.session.role) ? [{ id: "emergency-replacements", label: "Emergency replacements", render: () => <CoordinatorReplacementPanel eventId={event.id} /> }] : []),
-    { id: "postponement", label: "If the date moves", render: () => <div className="space-y-5"><VenueConfirmationsPanel eventId={event.id} /><PostponementImpactPanel eventId={event.id} /></div> },
   ];
-  return <WorkspaceSubTabs label="Team sections" tabs={tabs} />;
+  // Replacing a coordinator and planning for a moved date are occasional jobs: they fold under the assignments.
+  const occasional = (
+    <div className="mt-5 space-y-3">
+      {isPmcmAdmin(vm.session.role) ? (
+        <details id="team-emergency-replacements" className="rounded-lg border border-border bg-card px-5 py-3" open={part === "emergency-replacements"}>
+          <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">Replace a coordinator <span className="font-normal text-muted-foreground">· if someone drops out</span></summary>
+          <div className="pt-3"><CoordinatorReplacementPanel eventId={event.id} /></div>
+        </details>
+      ) : null}
+      <details id="team-postponement" className="rounded-lg border border-border bg-card px-5 py-3" open={part === "postponement"}>
+        <summary className="cursor-pointer list-none text-sm font-semibold text-foreground">If the date moves <span className="font-normal text-muted-foreground">· venue confirmations and who is still free</span></summary>
+        <div className="space-y-5 pt-3"><VenueConfirmationsPanel eventId={event.id} /><PostponementImpactPanel eventId={event.id} /></div>
+      </details>
+    </div>
+  );
+  const withOccasional = tabs.map((tab) => (tab.id === "assignments" ? { ...tab, render: () => <>{tab.render()}{occasional}</> } : tab));
+  const selected = part === "emergency-replacements" || part === "postponement" ? "assignments" : part;
+  return <WorkspaceSubTabs label="Team sections" tabs={withOccasional} selectedId={selected} onSelect={setPart} />;
 }
 
 export function EventWorkspaceLiveOpsTab() {
@@ -425,9 +554,27 @@ export function EventWorkspaceClosureTab() {
   const [closurePart, setClosurePart] = useListFilter("part", "wrap-up");
   if (!vm.selectedEvent) return null;
   const event = vm.selectedEvent;
-  const closureStep = (step: ClosureStep) => (
+  // Before the event there is nothing to close: one line says when closure opens, with any deliverables already due.
+  if (!event.archived && !event.actualEndedAt && event.status !== "event_day" && event.eventDate.slice(0, 10) > prismCalendarDateKey()) {
+    return (
+      <div className="space-y-5">
+        <section aria-labelledby="closure-not-yet" className="rounded-xl border border-border bg-card px-5 py-4">
+          <h2 id="closure-not-yet" className="text-base font-semibold text-foreground">Closure opens after {formatPortalDate(event.eventDate)}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">The close gates, wrap-up, feedback and archive start once the event has ended.</p>
+        </section>
+        {vm.postEventDocuments.length ? <PostEventDeliverablesPanel eventId={event.id} documents={vm.postEventDocuments} archived={event.archived} actualEndedAt={event.actualEndedAt ?? null} /> : null}
+      </div>
+    );
+  }
+  // A gate on the board opens its own step in place; that copy draws without the board.
+  const gateStep = (tabId: ClosureTabId) => (tabId === "deliverables"
+    ? <PostEventDeliverablesPanel eventId={event.id} documents={vm.postEventDocuments} archived={event.archived} actualEndedAt={event.actualEndedAt ?? null} />
+    : closureStep(tabId, true));
+  const closureStep = (step: ClosureStep, nested = false) => (
     <Phase4Workspace
       step={step}
+      hideBoard={nested}
+      renderGateStep={nested ? undefined : gateStep}
       onOpenDestination={(destination: CloseGateDestination) => {
         if (destination.kind === "closure-tab") setClosurePart(destination.tabId);
         else vm.navigateEventTab(destination.tab);
@@ -507,6 +654,7 @@ function RegistrationAndGames({ initial }: { initial: "registration" | "games" }
       label: "Registration",
       render: () => (
         <EventRegistrationTab
+          eventDate={event.eventDate}
           platform={vm.registrationPlatform}
           suppliers={vm.suppliers}
           busy={Boolean(vm.busy)}

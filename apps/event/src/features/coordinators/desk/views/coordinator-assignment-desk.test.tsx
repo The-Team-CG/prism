@@ -7,6 +7,9 @@ import { chooseSelectOption, openSelect } from "../../../../test-utils/radix-sel
 
 afterEach(cleanup);
 
+// jsdom has no scrollIntoView; "Field as" scrolls the finder into view.
+HTMLElement.prototype.scrollIntoView = () => {};
+
 const coordinators = [
   { id: "coord_1", name: "Jordan Lee", email: "jordan@example.test", active: true, roleTags: ["Floor Director"], skillsTags: [] },
   { id: "coord_2", name: "Sam Cruz", email: "sam@example.test", active: true, roleTags: ["Stage Director"], skillsTags: [] },
@@ -117,7 +120,11 @@ describe("CoordinatorAssignmentDesk skill suggestions", () => {
     expect(availableOnly.checked).toBe(true);
     fireEvent.click(availableOnly);
     expect(availableOnly.checked).toBe(false);
-    fireEvent.click(screen.getByRole("button", { name: "Review conflict" }));
+    // Ana is on another event that day: fielding her opens the double-booking review.
+    const ana = within(screen.getByRole("group", { name: "Ana Reyes" }));
+    expect(ana.getByText("On another event")).toBeTruthy();
+    fireEvent.click(ana.getByLabelText("Field Ana Reyes"));
+    fireEvent.click(ana.getByRole("button", { name: /^Usher/ }));
 
     expect(await screen.findByText("1 of 1 required skills matched")).toBeTruthy();
     expect(screen.getByText("Matched: guest flow")).toBeTruthy();
@@ -366,22 +373,37 @@ describe("CoordinatorAssignmentDesk coverage targets", () => {
 describe("CoordinatorAssignmentDesk role changes", () => {
   const twoRoles = coordinators.map((coordinator) => coordinator.id === "coord_1" ? { ...coordinator, roleTags: ["Floor Director", "Stage Director"] } : coordinator);
 
-  it("moves a coordinator's existing assignment to another role they are tagged for", () => {
+  it("lists each coordinator once, with what they hold here, and moves them to another role they are tagged for", () => {
     const props = renderDesk({ coordinators: twoRoles, onChangeRole: vi.fn(async () => {}) });
 
-    expect(within(screen.getByRole("group", { name: "Floor Director: Jordan Lee" })).queryByRole("button", { name: /^Move/ })).toBeNull();
-    fireEvent.click(within(screen.getByRole("group", { name: "Stage Director: Jordan Lee" })).getByRole("button", { name: "Move Jordan Lee from Floor Director to Stage Director" }));
+    expect(screen.getAllByRole("group", { name: "Jordan Lee" })).toHaveLength(1);
+    const jordan = within(screen.getByRole("group", { name: "Jordan Lee" }));
+    expect(jordan.getByText("Floor Director")).toBeTruthy();
+    // Only roles Jordan does not already hold are offered.
+    expect(jordan.queryByRole("button", { name: /to Floor Director$/ })).toBeNull();
+    fireEvent.click(jordan.getByLabelText("Change Jordan Lee"));
+    fireEvent.click(jordan.getByRole("button", { name: "Move Jordan Lee from Floor Director to Stage Director" }));
 
     expect(props.onChangeRole).toHaveBeenCalledWith("assignment_1", "Stage Director");
   });
 
-  it("offers adding the role alongside, labelled as such, next to Move here", () => {
+  it("offers fielding someone already on the event in a second role", () => {
     const props = renderDesk({ coordinators: twoRoles, onChangeRole: vi.fn(async () => {}) });
-    const card = within(screen.getByRole("group", { name: "Stage Director: Jordan Lee" }));
 
-    fireEvent.click(card.getByRole("button", { name: "Add this role" }));
+    fireEvent.click(screen.getByRole("button", { name: "Also field Jordan Lee as Stage Director" }));
 
     expect(props.onAssign).toHaveBeenCalledWith(expect.objectContaining({ id: "coord_1" }), "Stage Director");
+  });
+
+  it("fields a coordinator who is not on the event from their one menu", () => {
+    const props = renderDesk();
+
+    // Riley's assignment was cancelled, so Riley is free and not fielded.
+    const riley = within(screen.getByRole("group", { name: "Riley Tan" }));
+    expect(riley.getByText("Not fielded")).toBeTruthy();
+    fireEvent.click(riley.getByRole("button", { name: /^Usher/ }));
+
+    expect(props.onAssign).toHaveBeenCalledWith(expect.objectContaining({ id: "coord_4" }), "Usher");
   });
 
   it("offers a catalog role to an assignment saved with a role from before the catalog", () => {

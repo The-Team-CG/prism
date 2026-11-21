@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
+import { nextBookingPerSupplier,
   buildEventSummaries,
   buildPmcmCalendarItems,
   manilaClockOf,
@@ -129,6 +129,27 @@ describe('buildPmcmCalendarItems', () => {
       ['2026-11-20', 'event', 'Gala', 'd1', 'Event day'],
       ['2026-11-25', 'event', 'Fair', null, 'Event day'],
       ['2026-11-28', 'schedule_day', 'Expo', 'd3', 'Event-day schedule'],
+    ]);
+  });
+});
+
+describe('nextBookingPerSupplier', () => {
+  it('gives each supplier their soonest upcoming confirmed booking', () => {
+    const next = nextBookingPerSupplier(
+      [
+        { supplierId: 'sup_a', eventId: 'evt_late' },
+        { supplierId: 'sup_a', eventId: 'evt_soon' },
+        { supplierId: 'sup_b', eventId: 'evt_late' },
+        { supplierId: null, eventId: 'evt_soon' },
+      ],
+      [
+        { id: 'evt_late', eventName: 'Gala', eventDate: new Date('2026-12-20T00:00:00.000Z') },
+        { id: 'evt_soon', eventName: 'Summit', eventDate: new Date('2026-11-24T00:00:00.000Z') },
+      ],
+    );
+    expect(next).toEqual([
+      { supplierId: 'sup_a', eventId: 'evt_soon', eventName: 'Summit', eventDate: '2026-11-24' },
+      { supplierId: 'sup_b', eventId: 'evt_late', eventName: 'Gala', eventDate: '2026-12-20' },
     ]);
   });
 });

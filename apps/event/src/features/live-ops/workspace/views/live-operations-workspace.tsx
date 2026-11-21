@@ -1,4 +1,3 @@
-import { EventPlanningStatusStrip } from "./event-planning-status-strip";
 import type {
   BlockEventDayTaskInput,
   CoordinatorRole,
@@ -64,17 +63,19 @@ export function LiveOperationsWorkspace({
   onDecideTaskReassignment: (requestId: string, input: DecideEventTaskReassignmentInput) => Promise<void>;
 }) {
   const vm = useLiveOperationsWorkspaceViewModel({ liveOps, busy, onCreateTask, onCreateIssue, onBlockTask, onUnblockTask });
-  const ended = hasEventDatePassed(event.eventDate, prismCalendarDateKey());
+  const today = prismCalendarDateKey();
+  const ended = hasEventDatePassed(event.eventDate, today);
+  const before = !ended && event.eventDate.slice(0, 10) > today;
 
   return (
     <div className="space-y-4">
-      <EventPlanningStatusStrip event={event} />
       <LiveOpsOverview
         event={event}
         liveOps={liveOps}
         metrics={vm.metrics}
         busy={busy}
-        ended={ended}
+        stage={ended ? "after" : before ? "before" : "day"}
+        today={today}
         onReload={onReload}
       />
       {liveOps ? (
@@ -85,6 +86,7 @@ export function LiveOperationsWorkspace({
           coordinators={coordinators}
           busy={busy}
           readOnly={ended}
+          beforeDay={before}
           vm={vm}
           onUpdateTask={onUpdateTask}
           onEscalateTask={onEscalateTask}

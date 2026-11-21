@@ -57,3 +57,44 @@ export function coordinatorAvailabilityState(coordinator: Pick<PrismCoordinator,
   if (last) return { kind: "past", last };
   return { kind: "unassigned" };
 }
+
+/** The Team › Availability window, in days from today. */
+export const AVAILABILITY_DAYS = 14;
+
+export type CoordinatorAvailabilityRow = {
+  coordinator: PrismCoordinator;
+  /** One cell per day: the live assignments on events held that day. */
+  cells: Array<{ date: string; bookings: CoordinatorBooking[] }>;
+  /** Live assignments on events in today's calendar month. */
+  thisMonth: number;
+};
+
+function addDayKeys(start: string, count: number): string[] {
+  const first = Date.parse(`${start}T00:00:00Z`);
+  return Array.from({ length: count }, (_, index) => new Date(first + index * 86_400_000).toISOString().slice(0, 10));
+}
+
+/**
+ * Who is on which event over the next two weeks, one row per coordinator: the grid PMCM checks before assigning
+ * anyone inside an event. Rows keep the order they are given in.
+ */
+export function coordinatorAvailabilityGrid(
+  coordinators: PrismCoordinator[],
+  assignments: PrismCoordinatorAssignment[],
+  events: PrismEvent[],
+  today: string,
+  days = AVAILABILITY_DAYS,
+): { days: string[]; rows: CoordinatorAvailabilityRow[] } {
+  const dayKeys = addDayKeys(today, days);
+  const bookings = coordinatorBookingsByCoordinator(assignments, events, today);
+  const month = today.slice(0, 7);
+  const rows = coordinators.map((coordinator) => {
+    const all = [...(bookings.get(coordinator.id)?.upcoming ?? []), ...(bookings.get(coordinator.id)?.past ?? [])];
+    return {
+      coordinator,
+      cells: dayKeys.map((date) => ({ date, bookings: all.filter((booking) => eventDay(booking.event) === date) })),
+      thisMonth: all.filter((booking) => eventDay(booking.event).slice(0, 7) === month).length,
+    };
+  });
+  return { days: dayKeys, rows };
+}

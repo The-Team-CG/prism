@@ -24,7 +24,6 @@ const SECTION_ROUTES: Partial<Record<DashboardSection, string>> = {
   dashboard: "/dashboard",
   clients: "/dashboard/clients",
   calendar: "/dashboard/calendar",
-  tasks: "/dashboard/tasks",
   team: "/dashboard/team",
   suppliers: "/dashboard/suppliers",
   files: "/dashboard/files",

@@ -30,13 +30,13 @@ describe("PoolAvailabilityNote", () => {
   it("says how many of the active pool are free and what took the rest", () => {
     render(<PoolAvailabilityNote pool={pool()} />);
     expect(screen.getByRole("status").textContent).toBe(
-      "10 of 12 active coordinators are free on 2026-06-18 · 1 assigned to events that day · 1 marked unavailable.",
+      "10 of 12 active coordinators are free on Jun 18, 2026 · 1 assigned to events that day · 1 marked unavailable.",
     );
   });
 
   it("leaves out reasons that do not apply and shows nothing before the count loads", () => {
     const { rerender } = render(<PoolAvailabilityNote pool={pool({ alreadyAssigned: 0, markedUnavailable: 0, available: 12 })} />);
-    expect(screen.getByRole("status").textContent).toBe("12 of 12 active coordinators are free on 2026-06-18.");
+    expect(screen.getByRole("status").textContent).toBe("12 of 12 active coordinators are free on Jun 18, 2026.");
     rerender(<PoolAvailabilityNote pool={null} />);
     expect(screen.queryByRole("status")).toBeNull();
   });

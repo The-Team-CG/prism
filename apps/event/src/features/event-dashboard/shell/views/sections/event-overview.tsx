@@ -1,24 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import {
-  CalendarCheck,
-  Check,
-  ClipboardCheck,
-  Copy,
-  FileText,
-  Gauge,
-  MapPinned,
-  MessageSquareText,
-  Radio,
-  ReceiptText,
-  Truck,
-  UsersRound,
-} from "lucide-react";
+import { Check, Copy, Gauge } from "lucide-react";
 import { derivePrismLifecycleStage, hasEventDatePassed, isBeforePrismEventDay, prismCalendarDateKey } from "@prism/types";
-import type { PrismDefenseReadiness, PrismDefenseReadinessAction, PrismEvent, PrismFloorPlanDraft, PrismPmcmEventAttention } from "@prism/types";
+import type { PrismBriefing, PrismDefenseReadiness, PrismDefenseReadinessAction, PrismEvent, PrismFloorPlanDraft, PrismPaymentMilestone, PrismPmcmEventAttention } from "@prism/types";
 import { ProgressRing, type AttentionLine, type RingTone } from "@prism/ui/event-cards";
 import { manilaDateKey } from "@prism/ui/format-date";
+import { formatPeso } from "@prism/ui/payment-track";
 import { PrismPanel } from "@prism/ui/page-blocks";
 import { Button } from "@prism/ui/components/button";
 import { StatusBadge } from "@prism/ui/components/status-badge";
@@ -26,7 +14,7 @@ import { RouteLink, cx, label } from "@/features/pmcm-kit";
 import type { EventOverviewGlance, EventShortcutCounts } from "@/features/pmcm-overview";
 import { EVENT_TAB_ROUTES, eventWorkspaceHref, type DetailTab } from "../../model/event-dashboard-routing";
 import { attentionLines } from "../../model/event-card-groups";
-import { EventOverviewHero, OverviewAreas, OverviewComingUp, OverviewNeedsYou, type AreaTile } from "./event-overview-glance";
+import { EventOverviewHero, OverviewAtAGlance, OverviewComingUp, OverviewNeedsYou, OverviewNextStepBar, type AreaTone, type GlanceFact } from "./event-overview-glance";
 
 function isDetailTab(value: string): value is DetailTab {
   return Object.hasOwn(EVENT_TAB_ROUTES, value);
@@ -39,12 +27,7 @@ function plural(count: number, one: string, many = `${one}s`) {
 }
 
 type Summary = PrismDefenseReadiness["summary"] | undefined;
-type AreaState = Pick<AreaTile, "status" | "tone">;
-
-function planningArea(summary: Summary): AreaState {
-  if (!summary) return { status: "Briefing, proposal and decisions", tone: "idle" };
-  return summary.briefingSubmitted ? { status: "Briefing submitted", tone: "done" } : { status: "Briefing not submitted yet", tone: "attention" };
-}
+type AreaState = { status: string; tone: AreaTone };
 
 function floorplanArea(activeDraft: PrismFloorPlanDraft | undefined, draftCount: number): AreaState {
   if (activeDraft) return { status: "Official layout approved", tone: "done" };
@@ -76,16 +59,6 @@ function billingArea(summary: Summary, overdue: number | undefined): AreaState {
   return { status: "All payments settled", tone: "done" };
 }
 
-function filesArea(open: number | undefined): AreaState {
-  if (open === undefined) return { status: "Requests and uploads", tone: "idle" };
-  return open ? { status: `${plural(open, "request")} open`, tone: "attention" } : { status: "No open requests", tone: "done" };
-}
-
-function messagesArea(unread: number | undefined): AreaState {
-  if (unread === undefined) return { status: "Client conversation", tone: "idle" };
-  return unread ? { status: `${unread} unread`, tone: "attention" } : { status: "All read", tone: "done" };
-}
-
 function closureArea(summary: Summary, openCheckCount: number, preEvent: boolean): AreaState {
   if (preEvent) return { status: "Opens after the event", tone: "idle" };
   if (summary?.closureReady) return { status: "Ready to close", tone: "done" };
@@ -93,7 +66,25 @@ function closureArea(summary: Summary, openCheckCount: number, preEvent: boolean
   return { status: "Closes after the event", tone: "idle" };
 }
 
-function areaCards({
+/** What the client has paid against the current milestones, or the billing state while there are none. */
+function paidFact(milestones: PrismPaymentMilestone[] | undefined, summary: Summary, overdue: number | undefined): AreaState {
+  const current = (milestones ?? []).filter((milestone) => !milestone.supersededAt);
+  const total = current.reduce((sum, milestone) => sum + milestone.amount, 0);
+  if (total <= 0) return billingArea(summary, overdue);
+  const paid = current.reduce((sum, milestone) => sum + milestone.amountPaid, 0);
+  if (paid >= total) return { status: `${formatPeso(total)} paid in full`, tone: "done" };
+  return { status: `${formatPeso(paid)} of ${formatPeso(total)}`, tone: overdue ? "attention" : "idle" };
+}
+
+/**
+ * The event's facts at a glance, each opening the page that owns it: where and how big it is, how suppliers, the
+ * team, money and the floor plan stand, and after the event how close it is to closing. It replaces a grid of every
+ * area, which repeated the sidebar.
+ */
+export function overviewGlanceFacts({
+  event,
+  briefing,
+  milestones,
   readiness,
   activeDraft,
   draftCount,
@@ -103,6 +94,9 @@ function areaCards({
   preEvent,
   counts,
 }: {
+  event: Pick<PrismEvent, "venue">;
+  briefing?: Pick<PrismBriefing, "venue" | "guestCount"> | null;
+  milestones?: PrismPaymentMilestone[];
   readiness: PrismDefenseReadiness | null;
   activeDraft?: PrismFloorPlanDraft;
   draftCount: number;
@@ -110,21 +104,61 @@ function areaCards({
   quoteRequestCount: number;
   openCheckCount: number;
   preEvent: boolean;
-  /** Overdue payments, open file requests and unread messages, once their reads arrive. */
+  /** Overdue payments, once that read arrives. */
   counts: EventShortcutCounts;
-}): AreaTile[] {
+}): GlanceFact[] {
   const summary = readiness?.summary;
-  return [
-    { tab: "briefing", title: "Planning & decisions", icon: ClipboardCheck, ...planningArea(summary) },
-    { tab: "floorplans", title: "Floorplans", icon: MapPinned, ...floorplanArea(activeDraft, draftCount) },
-    { tab: "suppliers", title: "Suppliers", icon: Truck, ...supplierArea(summary, quoteCount, quoteRequestCount) },
-    { tab: "coordinators", title: "Team & roles", icon: UsersRound, ...teamArea(summary) },
-    { tab: "billing", title: "Billing", icon: ReceiptText, ...billingArea(summary, counts.billing) },
-    { tab: "files", title: "Files", icon: FileText, ...filesArea(counts.files) },
-    { tab: "messages", title: "Messages", icon: MessageSquareText, ...messagesArea(counts.messages) },
-    { tab: "live-ops", title: "Live operations", icon: Radio, ...liveOpsArea(summary) },
-    { tab: "closure", title: "Closure", icon: CalendarCheck, ...closureArea(summary, openCheckCount, preEvent) },
+  const venue = briefing?.venue || event.venue;
+  const facts: GlanceFact[] = [
+    { tab: "briefing", label: "Venue", ...(venue ? { status: venue, tone: "idle" as const } : { status: "To be confirmed", tone: "attention" as const }) },
+    { tab: "registration", label: "Guests", status: briefing?.guestCount ? `${briefing.guestCount} expected` : "Not in the briefing yet", tone: "idle" },
+    { tab: "suppliers", label: "Suppliers", ...supplierArea(summary, quoteCount, quoteRequestCount) },
+    { tab: "coordinators", label: "Team", ...teamArea(summary) },
+    { tab: "billing", label: "Paid", ...paidFact(milestones, summary, counts.billing) },
+    { tab: "floorplans", label: "Floor plan", ...floorplanArea(activeDraft, draftCount) },
   ];
+  if (!preEvent) {
+    facts.push({ tab: "live-ops", label: "Event day", ...liveOpsArea(summary) }, { tab: "closure", label: "Closure", ...closureArea(summary, openCheckCount, preEvent) });
+  }
+  return facts;
+}
+
+export type OverviewNextStep = {
+  title: string;
+  detail?: string;
+  href?: string;
+  tab?: DetailTab;
+  actionLabel: string;
+  /** The step is starting the event day itself: a button rather than a link. */
+  startEventDay?: boolean;
+};
+
+/**
+ * The one thing to do next on this event, under the hero with the page's only filled button: start the event day
+ * when it is here, then a finished event's close-out, then anything blocking, then the venue visit the floor plan
+ * waits on, then the first item waiting on PMCM, and otherwise the first thing holding readiness back.
+ */
+export function overviewNextStep({ eventDay, lines, visitBlocksFloorplan, pending }: {
+  eventDay: boolean;
+  lines: AttentionLine[];
+  visitBlocksFloorplan: boolean;
+  pending: PrismDefenseReadinessAction[];
+}): OverviewNextStep | null {
+  if (eventDay) return { title: "Event day is here", detail: "Start live operations when the team is on site.", actionLabel: "Start event day", startEventDay: true };
+  const closeOut = lines.find((line) => line.id === "close-out");
+  if (closeOut) return { title: closeOut.text, detail: closeOut.detail, href: closeOut.href, actionLabel: "Start close-out" };
+  const blocker = lines.find((line) => line.severity === "critical");
+  if (blocker) return { title: blocker.text, detail: blocker.detail, href: blocker.href, actionLabel: "Open" };
+  const visit = lines.find((line) => line.id === "ocular-visit");
+  if (visit) return { title: visit.text, detail: "The official floor plan starts once the visit is done.", href: visit.href, actionLabel: "Schedule visit" };
+  if (visitBlocksFloorplan) {
+    return { title: "Schedule or waive the ocular visit", detail: "The official floor plan can't start until the venue visit is done or waived.", href: `#${OCULAR_VISIT_ANCHOR}`, actionLabel: "Go to the visit" };
+  }
+  const first = lines[0];
+  if (first) return { title: first.text, detail: first.detail, href: first.href, actionLabel: "Open" };
+  const action = pending.find((item) => isDetailTab(item.targetTab));
+  if (action && isDetailTab(action.targetTab)) return { title: action.label, detail: action.detail, tab: action.targetTab, actionLabel: "Open" };
+  return null;
 }
 
 const CLOSE_OUT_ACTION: PrismDefenseReadinessAction = {
@@ -221,9 +255,10 @@ function ReadinessSection({ eventId, readiness, pending, busy, onRunCompliance, 
   className?: string;
 }) {
   const score = readiness?.score ?? null;
-  const aside = <Button size="sm" variant="ghost" disabled={busy} onClick={onRunCompliance} className="h-7 px-2 text-xs">Run compliance check</Button>;
+  // The check runs from the footer, so the title keeps its full width beside the count.
+  const footer = <Button size="sm" variant="ghost" disabled={busy} onClick={onRunCompliance} className="-ml-2 h-7 px-2 text-xs">Run compliance check</Button>;
   return (
-    <PrismPanel id="overview-readiness" title="Readiness" icon={Gauge} aside={aside} className={className}>
+    <PrismPanel id="overview-readiness" title="Readiness" icon={Gauge} aside={pending.length ? `${pending.length} to clear` : undefined} footer={footer} className={className}>
       <div className="flex items-center gap-4">
         <ProgressRing value={score} label={score === null ? "Readiness not scored yet" : `Readiness ${score}%`} tone={readinessTone(readiness)}>
           <span className="text-lg font-semibold tabular-nums text-foreground">{score === null ? "—" : `${score}%`}</span>
@@ -282,6 +317,8 @@ export function EventWorkspaceOverview({
   onOpenTab,
   ocularVisit,
   visitRequested = false,
+  briefing,
+  milestones,
   glance,
   coverUrl,
 }: {
@@ -301,6 +338,10 @@ export function EventWorkspaceOverview({
   ocularVisit?: ReactNode;
   /** The client asked for a venue visit that is not scheduled yet. */
   visitRequested?: boolean;
+  /** The client's briefing, for the venue and guest count. */
+  briefing?: Pick<PrismBriefing, "venue" | "guestCount"> | null;
+  /** The current payment milestones, for what the client has paid so far. */
+  milestones?: PrismPaymentMilestone[];
   /** The reads beside the workspace: Inbox items, client activity, dated work and the area counts. */
   glance?: EventOverviewGlance;
   coverUrl?: string;
@@ -310,45 +351,34 @@ export function EventWorkspaceOverview({
   const pending = (readiness?.nextActions ?? []).filter((action) => action.status !== "done");
   const reasons = closeOut ? overviewNextActions(pending, true).slice(1) : pending;
   const stage = derivePrismLifecycleStage(event);
-  const areas = areaCards({ readiness, activeDraft, draftCount: drafts.length, quoteCount, quoteRequestCount, openCheckCount, preEvent: isBeforePrismEventDay(stage), counts: glance?.shortcuts ?? {} });
-  const showEventDayBanner = canStartEventDay && isEventDayClose(event.eventDate) && !closeOut;
+  const facts = overviewGlanceFacts({ event, briefing, milestones, readiness, activeDraft, draftCount: drafts.length, quoteCount, quoteRequestCount, openCheckCount, preEvent: isBeforePrismEventDay(stage), counts: glance?.shortcuts ?? {} });
+  const eventDay = canStartEventDay && isEventDayClose(event.eventDate) && !closeOut;
   const lines = overviewNeedsYouLines({ event, attention: glance?.attention, closeOut, visitRequested, todayKey });
-  const facts = [
+  const nextStep = overviewNextStep({ eventDay, lines, visitBlocksFloorplan: Boolean(ocularVisit) && !activeDraft, pending: reasons });
+  const heroFacts = [
     { label: "Client portal", value: label(event.clientPortalStatus) },
     { label: "Guest code", value: <GuestCode code={event.guestAccessCode} /> },
   ];
 
   return (
     <div className="space-y-4">
-      {showEventDayBanner ? (
-        <section className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-primary/25 bg-primary/5 px-5 py-4">
-          <div>
-            <h2 className="font-semibold text-foreground">Event day is here</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {lines.length ? `${plural(lines.length, "item")} still open below. ` : ""}Start live operations when the team is on site.
-            </p>
-          </div>
-          <Button disabled={busy} onClick={onStartEventDay}>Start event day</Button>
-        </section>
-      ) : null}
+      <EventOverviewHero event={event} coverUrl={coverUrl} clientActivity={glance?.clientActivity} todayKey={todayKey} facts={heroFacts} />
 
-      <EventOverviewHero event={event} coverUrl={coverUrl} clientActivity={glance?.clientActivity} todayKey={todayKey} facts={facts} />
+      {nextStep ? <OverviewNextStepBar step={nextStep} eventId={event.id} busy={busy} onStartEventDay={onStartEventDay} onOpenTab={onOpenTab} /> : null}
 
-      {/* Two rows of two-to-one columns: each row's cards stretch to one height, so nothing leaves a hole beside it. */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="min-w-0 lg:col-span-2">
+      {/* Needs you and Readiness side by side at one height; the venue visit sits under them while it is open. */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <div className="min-w-0">
           <OverviewNeedsYou lines={lines} loading={glance !== undefined && glance.attention === undefined} />
         </div>
-        <div className="flex min-w-0 flex-col gap-4">
-          <ReadinessSection eventId={event.id} readiness={readiness} pending={reasons} busy={busy} onRunCompliance={onRunCompliance} onOpenTab={onOpenTab} className="h-auto flex-1" />
-          {ocularVisit ? <div id={OCULAR_VISIT_ANCHOR} className="scroll-mt-20">{ocularVisit}</div> : null}
-        </div>
+        <ReadinessSection eventId={event.id} readiness={readiness} pending={reasons} busy={busy} onRunCompliance={onRunCompliance} onOpenTab={onOpenTab} />
       </div>
+      {ocularVisit ? <div id={OCULAR_VISIT_ANCHOR} className="scroll-mt-20">{ocularVisit}</div> : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <OverviewComingUp eventId={event.id} items={glance?.comingUp} todayKey={todayKey} />
         <div className="min-w-0 lg:col-span-2">
-          <OverviewAreas eventId={event.id} areas={areas} onOpenTab={onOpenTab} />
+          <OverviewAtAGlance eventId={event.id} facts={facts} onOpenTab={onOpenTab} />
         </div>
       </div>
     </div>

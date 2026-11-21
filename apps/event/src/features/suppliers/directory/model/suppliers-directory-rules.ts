@@ -25,8 +25,6 @@ const KNOWN_SUPPLIER_VIEWS = new Set([
   "lights-sounds",
   "decorations",
   "transportation",
-  "contracts",
-  "payments",
 ]);
 
 function parseOrDefault<T>(schema: { safeParse(value: unknown): { success: true; data: T } | { success: false } }, value: unknown, fallback: T): T {

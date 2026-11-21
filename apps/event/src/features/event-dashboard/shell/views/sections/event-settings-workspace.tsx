@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
   Settings,
 } from "lucide-react";
-import { humanizeToken } from "@/features/pmcm-kit/model/formatters";
 import type { EventSession } from "@/app/lib/session";
 import type { PrismEvent } from "@prism/types";
 import { Card, CardBody, CardHeader } from "./shell-ui";
@@ -101,25 +100,13 @@ export function EventSettingsWorkspace({
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      {[
-        { label: "Signed in as", value: session.name, detail: humanizeToken(session.role) },
-        { label: "Default workspace", value: selectedEvent?.eventName ?? "No event selected", detail: selectedEvent?.clientName ?? "Pick an event from Events." },
-      ].map((item) => (
-        <Card key={item.label}>
-          <CardBody>
-            <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
-            <p className="mt-2 text-lg font-semibold text-foreground">{item.value}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{item.detail}</p>
-          </CardBody>
-        </Card>
-      ))}
+    <div className="grid gap-4">
       {canManageClientEventDayView ? (
-      <Card className="md:col-span-2">
+      <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Settings className="size-4 text-primary" />
-            <h2 className="text-sm font-semibold text-foreground">Workspace controls</h2>
+            <h2 className="text-sm font-semibold text-foreground">Event controls</h2>
           </div>
         </CardHeader>
         <CardBody className="grid gap-3 md:grid-cols-3">

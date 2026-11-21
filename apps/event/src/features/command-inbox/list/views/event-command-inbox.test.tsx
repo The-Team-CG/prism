@@ -91,12 +91,10 @@ describe("EventCommandInbox — render states", () => {
       />,
     );
 
-    // More pages exist, so the counts must not read as inbox totals.
-    const counts = screen.getByTestId("command-inbox-counts").textContent ?? "";
-    expect(counts).toContain("Urgent on this page1");
-    expect(counts).toContain("Need action on this page2");
+    // The section headings carry the counts; there is no separate strip of figures repeating them.
+    expect(screen.queryByTestId("command-inbox-counts")).toBeNull();
     const headings = screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent);
-    expect(headings).toEqual(["Urgent blockers1", "Needs action2"]);
+    expect(headings).toEqual(["Blockers1", "Needs action2"]);
     expect(screen.getAllByText("Blocker")).toHaveLength(1);
     // Each row's title is its link, so the whole row opens the item.
     expect(screen.getByRole("link", { name: "Payment overdue" }).getAttribute("href")).toBe("/billing");
@@ -122,5 +120,23 @@ describe("EventCommandInbox — render states", () => {
     expect(screen.getByTestId("command-inbox-cluster").textContent).toContain("across 2 events");
     // Each item stays reachable inside the group.
     expect(screen.getAllByRole("link", { name: "Payment milestone overdue" })).toHaveLength(3);
+  });
+
+  it("shows five rows of Needs action and folds the rest behind Show more", () => {
+    const item = (index: number) => ({
+      id: `n${index}`, kind: "inquiry" as const, severity: "warning" as const, label: `Review inquiry ${index}`,
+      description: "", status: "pending", createdAt: "2026-01-01T00:00:00.000Z", href: `/inquiry/${index}`,
+    });
+    render(
+      <EventCommandInbox
+        inbox={{ ...EMPTY_INBOX, counts: { critical: 0, warning: 7, attention: 0, info: 0 }, items: Array.from({ length: 7 }, (_, index) => item(index)) }}
+        onRefresh={() => {}}
+        onPageChange={() => {}}
+        loadFailed={false}
+      />,
+    );
+    expect(screen.getAllByTestId("command-inbox-row")).toHaveLength(5);
+    fireEvent.click(screen.getByRole("button", { name: /Show 2 more/ }));
+    expect(screen.getAllByTestId("command-inbox-row")).toHaveLength(7);
   });
 });
