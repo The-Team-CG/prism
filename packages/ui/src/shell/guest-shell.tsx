@@ -86,24 +86,34 @@ const MAIN_WIDTH: Record<PrismGuestLayout, string> = {
   narrow: "max-w-md",
 };
 
+/**
+ * With a pass open, a phone gets the same top bar as every signed-in portal: the tab's name, then its icons. Without
+ * one, and on a wider screen, it is the brand, with the tabs as pills beside it.
+ */
+function GuestHeader({ eventName, tabs, actions }: Pick<PrismGuestShellProps, "eventName" | "tabs" | "actions">) {
+  const hasTabs = Boolean(tabs?.length);
+  const current = tabs?.find((tab) => tab.current);
+  return (
+    <header className="border-b border-border bg-card">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:px-6 md:h-16 md:gap-6">
+        <PrismBrandLogo href="/" title="P.R.I.S.M." detail="Guest pass" className={cn(hasTabs && "max-md:hidden")} markClassName="size-8 rounded-md bg-card ring-1 ring-border" />
+        {hasTabs ? <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground md:hidden">{current?.label ?? eventName}</p> : null}
+        {hasTabs ? <GuestHeaderTabs tabs={tabs!} /> : null}
+        <div className={cn("ml-auto flex shrink-0 items-center gap-2", hasTabs && "max-md:-mr-2 max-md:gap-0")}><SpotifyMusicControl />{actions}</div>
+      </div>
+    </header>
+  );
+}
+
 /** The guest portal frame: one event, a few tabs, and a layout that uses a wide screen instead of stretching a phone. */
 export function PrismGuestShell({ eventName, detail, lead, actions, tabs, layout = "column", children, className }: PrismGuestShellProps) {
   useDocumentTitle(eventName ? `${eventName} · P.R.I.S.M.` : undefined);
   const hasTabs = Boolean(tabs?.length);
   const split = layout === "split";
-  const current = tabs?.find((tab) => tab.current);
   return (
     <div className={cn("prism-shell min-h-screen bg-background text-foreground", className)} data-portal="guest" style={portalBackgroundStyle}>
-      {/* With a pass open, a phone gets the same top bar as every signed-in portal: the tab's name, then its icons. */}
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:px-6 md:h-16 md:gap-6">
-          <PrismBrandLogo href="/" title="P.R.I.S.M." detail="Guest pass" className={cn(hasTabs && "max-md:hidden")} markClassName="size-8 rounded-md bg-card ring-1 ring-border" />
-          {hasTabs ? <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground md:hidden">{current?.label ?? eventName}</p> : null}
-          {hasTabs ? <GuestHeaderTabs tabs={tabs!} /> : null}
-          <div className={cn("ml-auto flex shrink-0 items-center gap-2", hasTabs && "max-md:-mr-2 max-md:gap-0")}><SpotifyMusicControl />{actions}</div>
-        </div>
-      </header>
-      {hasTabs ? <PhoneTabBar bar={guestPhoneBar(tabs!)} activeId={current?.href ?? ""} onSelect={openGuestTab} /> : null}
+      <GuestHeader eventName={eventName} tabs={tabs} actions={actions} />
+      {hasTabs ? <PhoneTabBar bar={guestPhoneBar(tabs!)} activeId={tabs!.find((tab) => tab.current)?.href ?? ""} onSelect={openGuestTab} /> : null}
       <main
         className={cn(
           "mx-auto w-full px-4 py-5 sm:px-6 sm:py-8",
