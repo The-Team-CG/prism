@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 import type { PrismNavItem } from "@prism/ui";
+import { navIconDrift } from "@prism/ui/nav-icons";
 import { coordinatorMobileBar } from "./coordinator-on-site";
 
 const roleView = {
@@ -31,5 +32,15 @@ describe("coordinator phone bar", () => {
     expect(tabs.map((tab) => tab.label ?? tab.id)).toEqual(["Now", "Check-in", "run-sheet"]);
     expect(tabs[1].href).toBe("/dashboard?view=registration");
     expect(tabs[0].subItems?.map((item) => item.id)).toEqual(["issues", "tasks"]);
+  });
+});
+
+describe("coordinator nav icons", () => {
+  it("draws the phone tabs with the icons every portal uses", () => {
+    for (const registrationRole of [false, true]) {
+      const tabs = coordinatorMobileBar({ roleView: null, href: (view) => `/dashboard?view=${view}`, registrationRole, onReport: () => {} }).tabs;
+
+      expect(navIconDrift(tabs.filter((tab): tab is PrismNavItem => typeof tab !== "string"))).toEqual([]);
+    }
   });
 });

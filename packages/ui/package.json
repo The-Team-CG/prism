@@ -36,6 +36,7 @@
     "./chat": "./src/chat/index.ts",
     "./payment-track": "./src/payment-track.tsx",
     "./nav-badge": "./src/nav-badge.ts",
+    "./nav-icons": "./src/nav-icons.ts",
     "./components/*": "./src/components/ui/*.tsx"
   },
   "scripts": {

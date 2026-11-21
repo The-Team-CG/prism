@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Clock, MessageSquare, Plus, Radio, UserRound, UsersRound } from "lucide-react";
+import { Bell, BellRing, CalendarDays, ClipboardCheck, Clock, Plus, Radio, UserRound, UsersRound } from "lucide-react";
 import { EventMessagesWorkspace } from '@/features/event-dashboard/messages/views/event-messages-workspace';
 import { EventAccountView } from '@/features/account';
 import { useEventUnreadMessages } from '@/features/event-dashboard/messages/view-models/use-event-unread-messages';
@@ -12,6 +12,7 @@ import { unreadNoticeBadge } from "@prism/ui/notifications";
 import { useEventUnreadNotices } from "@/features/account-notifications/view-models/use-event-unread-notices";
 import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell, useIsMobile } from "@prism/ui";
+import { PRISM_NAV_ICONS } from "@prism/ui/nav-icons";
 import { Button } from "@prism/ui/components/button";
 import { useDocumentTitle } from "@/app/components/document-title";
 import { roleLabel } from "@/features/pmcm-kit";
@@ -211,11 +212,11 @@ function coordinatorSidebarItems(vm: CoordinatorVm, unreadMessages: number | und
     : [];
   return [
     { id: "shift", icon: Clock, label: COORDINATOR_VIEW_LABELS.shift, section: "Coordinator", href: viewHref("shift", eventId) },
-    { id: "tasks", icon: ClipboardList, label: COORDINATOR_VIEW_LABELS.tasks, section: "Coordinator", badge: optionalNavBadge(vm.roleView?.tasks.length), href: viewHref("tasks", eventId) },
+    { id: "tasks", icon: PRISM_NAV_ICONS.Tasks, label: COORDINATOR_VIEW_LABELS.tasks, section: "Coordinator", badge: optionalNavBadge(vm.roleView?.tasks.length), href: viewHref("tasks", eventId) },
     { id: "issues", icon: BellRing, label: COORDINATOR_VIEW_LABELS.issues, section: "Coordinator", badge: optionalNavBadge(openIssues), href: viewHref("issues", eventId) },
-    { id: "run-sheet", icon: CalendarClock, label: COORDINATOR_VIEW_LABELS["run-sheet"], section: "Coordinator", href: viewHref("run-sheet", eventId) },
+    { id: "run-sheet", icon: PRISM_NAV_ICONS["Run sheet"], label: COORDINATOR_VIEW_LABELS["run-sheet"], section: "Coordinator", href: viewHref("run-sheet", eventId) },
     { id: "calendar", icon: CalendarDays, label: COORDINATOR_VIEW_LABELS.calendar, section: "Coordinator", href: viewHref("calendar", eventId) },
-    { id: "messages", icon: MessageSquare, label: COORDINATOR_VIEW_LABELS.messages, section: "Coordinator", href: viewHref("messages"), ...unreadNavBadge(unreadMessages) },
+    { id: "messages", icon: PRISM_NAV_ICONS.Messages, label: COORDINATOR_VIEW_LABELS.messages, section: "Coordinator", href: viewHref("messages"), ...unreadNavBadge(unreadMessages) },
     { id: "notifications", icon: Bell, label: COORDINATOR_VIEW_LABELS.notifications, section: "Coordinator", href: viewHref("notifications"), ...unreadNoticeBadge(unreadNotices) },
     { id: "assignments", icon: UsersRound, label: COORDINATOR_VIEW_LABELS.assignments, section: "Coordinator", href: viewHref("assignments", eventId) },
     ...registration,

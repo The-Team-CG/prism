@@ -2,15 +2,14 @@ import { unreadNavBadge } from "@prism/ui/chat";
 import { unreadNoticeBadge } from "@prism/ui/notifications";
 import { countNavBadge } from "@prism/ui/nav-badge";
 import type { PrismMobileBar } from "@prism/ui";
+import { PRISM_NAV_ICONS } from "@prism/ui/nav-icons";
 import {
   BadgeCheck,
   Bell,
   ClipboardList,
   CalendarDays,
-  FileCheck2,
   FileText,
   HelpCircle,
-  MessageSquare,
   PackageCheck,
   User,
   UserRound,
@@ -32,12 +31,12 @@ export function supplierNavItems(input: {
 }) {
   const items = [
     { id: "dashboard", label: "Today", icon: Warehouse, badge: input.needsActionCount || undefined },
-    { id: "requests", label: "Requests & quotes", shortLabel: "Requests", icon: ClipboardList, badge: input.quoteNeedingSubmission || undefined },
+    { id: "requests", label: "Requests & quotes", shortLabel: "Requests", icon: PRISM_NAV_ICONS.Requests, badge: input.quoteNeedingSubmission || undefined },
     { id: "bookings", label: "Bookings", icon: BadgeCheck, badge: input.handoffPending || undefined },
     { id: "calendar", label: "Calendar", icon: CalendarDays },
-    { id: "messages", label: "Messages", icon: MessageSquare, ...unreadNavBadge(input.messagesUnread) },
+    { id: "messages", label: "Messages", icon: PRISM_NAV_ICONS.Messages, ...unreadNavBadge(input.messagesUnread) },
     { id: "notifications", label: "Notifications", icon: Bell, ...unreadNoticeBadge(input.noticesUnread) },
-    { id: "files", label: "Files", icon: FileCheck2 },
+    { id: "files", label: "Files", icon: PRISM_NAV_ICONS.Files },
     { id: "payments", label: "Payments", icon: Wallet, ...countNavBadge(input.newPayouts, "new payment") },
     { id: "profile", label: "Services & profile", icon: User },
   ] as Array<{ id: SupplierDashboardSection; label: string; shortLabel?: string; icon: LucideIcon; badge?: string | number; badgeLabel?: string }>;

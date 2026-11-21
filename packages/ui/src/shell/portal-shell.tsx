@@ -97,11 +97,13 @@ function NavLinkRow({ item, activeId, onSelect }: NavRowProps) {
  * becomes a top-bar icon, the page heading tightens, the content clears the tab bar, and desktop's top bar actions give
  * way to the phone's.
  */
-function phoneLayout(tabs: boolean) {
+function phoneLayout(tabs: boolean, titledInTopBar: boolean) {
   return {
     trigger: tabs ? "hidden md:inline-flex" : undefined,
-    // The top bar names the page, so the page keeps its own name, a size smaller; the line under it is desktop's.
-    title: tabs ? "mb-3 md:mb-5" : undefined,
+    // When the top bar already says the page's name, a phone keeps the heading for screen readers only, so the name
+    // never shows twice. When the top bar names something else, such as the open event, the page keeps its name, a
+    // size smaller. The line under it is desktop's.
+    title: titledInTopBar ? "max-md:sr-only md:mb-5" : tabs ? "mb-3 md:mb-5" : undefined,
     heading: tabs ? "text-xl md:text-2xl" : "text-2xl",
     description: tabs ? "hidden md:block" : undefined,
     content: tabs ? "pt-4 pb-28 md:pt-6 md:pb-6" : undefined,
@@ -404,7 +406,7 @@ export function PrismPortalShell({
   const select = React.useCallback((id: string) => onNavSelect?.(id), [onNavSelect]);
   const trail = breadcrumb ?? findTrail(navItems, activeItemId);
   const phoneBar = mobileBar ? resolveMobileBar(mobileBar, navItems) : undefined;
-  const phone = phoneLayout(Boolean(phoneBar));
+  const phone = phoneLayout(Boolean(phoneBar), Boolean(phoneBar) && !mobileTitle);
   useDocumentTitle(title ? `${title} · ${productLabel}` : undefined);
   return (
     <TooltipProvider delayDuration={300}>
