@@ -20,7 +20,7 @@
     "@prism/types": "*",
     "@prism/ui": "*",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.73.0",
+    "lucide-react": "^1.76.0",
     "next": "^16.4.6",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.1",
