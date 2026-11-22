@@ -1,8 +1,9 @@
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { PrismCoordinatorRoleView } from "@prism/types";
 import type { PrismNavItem } from "@prism/ui";
 import { navIconDrift } from "@prism/ui/nav-icons";
-import { coordinatorMobileBar } from "./coordinator-on-site";
+import { CoordinatorPhoneTitle, coordinatorMobileBar } from "./coordinator-on-site";
 
 const roleView = {
   tasks: [{ status: "open" }, { status: "done" }, { status: "blocked" }],
@@ -42,5 +43,19 @@ describe("coordinator nav icons", () => {
 
       expect(navIconDrift(tabs.filter((tab): tab is PrismNavItem => typeof tab !== "string"))).toEqual([]);
     }
+  });
+});
+
+describe("coordinator phone title", () => {
+  const title = (view: "games" | "account") => renderToStaticMarkup(
+    <CoordinatorPhoneTitle view={view} cards={[]} onSelectEvent={() => undefined} onNavigate={() => undefined} />,
+  );
+
+  it("keeps the event switch on the Games page", () => {
+    expect(title("games")).toContain("Switch event");
+  });
+
+  it("shows a way back to Now on account pages", () => {
+    expect(title("account")).toContain("Back to Now");
   });
 });

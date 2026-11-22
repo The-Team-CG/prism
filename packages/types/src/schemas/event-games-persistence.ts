@@ -24,7 +24,8 @@ export const eventGameResponseCursorSchema = z.object({
 
 export const advanceEventGameRoundCommandSchema = z.object({
   expectedRoundKey: z.string().regex(/^[A-Za-z0-9:_-]{1,120}$/),
-  advanceByMs: z.number().int().min(1).max(600_000),
+  // Longest timed round (Open Q and A, 3600s) plus a Presenter Deck results window (10s): advancing from the round's start.
+  advanceByMs: z.number().int().min(1).max(3_610_000),
   expectedRoundOffsetMs: z.number().int().min(0),
   expectedStatus: z.enum(['live', 'paused']),
   expectedStartedAt: z.string().datetime({ offset: true }),

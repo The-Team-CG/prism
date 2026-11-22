@@ -20,7 +20,7 @@ export async function readEventAccessScope(prisma: Prisma.TransactionClient, eve
         status: { notIn: ['cancelled', 'replaced'] },
         coordinator: { is: { active: true } },
       },
-      select: { coordinatorId: true, coordinator: { select: { userId: true, email: true } } },
+      select: { coordinatorId: true, status: true, coordinator: { select: { userId: true, email: true } } },
     }),
   ]);
   return {

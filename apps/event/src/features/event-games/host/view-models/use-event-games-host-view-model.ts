@@ -52,6 +52,19 @@ function isEventClosed(status: string, archived: boolean, actualEndedAt?: string
   return archived || Boolean(actualEndedAt) || ["closed", "archived"].includes(status.trim().toLowerCase());
 }
 
+type AnalyticsSession = PrismEventGameAnalytics["sessions"][number];
+
+/** The session a host most likely wants to run: one already running, else the next one scheduled. */
+export function pickRunnableSession(sessions: readonly AnalyticsSession[] | undefined): string | null {
+  if (!sessions?.length) return null;
+  const running = sessions.find((session) => ["live", "paused", "lobby"].includes(session.status));
+  const scheduled = sessions.find((session) => session.status === "scheduled");
+  return (running ?? scheduled)?.sessionId ?? null;
+}
+
+/** Where a failed action's error is shown: a game row, the create sheet, the lobby section, the live tab or response review. */
+export type EventGamesErrorTarget = `game:${string}` | "create" | "lobby" | "live" | "responses";
+
 function isCurrentHostLoad(
   generation: number,
   currentGeneration: number,
@@ -72,10 +85,13 @@ export function useEventGamesHostViewModel({
   const eventClosed = isEventClosed(eventStatus, archived, actualEndedAt);
   const canManage = hostRole && !eventClosed;
   const canReviewResponses = role === "pmcm-admin" && eventClosed;
+  // Lobby branding and the lobby logo stay with PMCM Admins; coordinators still see the lobby link.
+  const canBrandLobby = role === "pmcm-admin" && canManage;
   const canReadWorkspace = canManage || canReviewResponses;
   const activeEventId = useRef(eventId);
   const activeSelectedSessionId = useRef<string | null>(null);
   const loadGeneration = useRef(0);
+  const lobbyEnsured = useRef(false);
   activeEventId.current = eventId;
 
   const [games, setGames] = useState<PrismEventGameDefinition[]>([]);
@@ -92,28 +108,91 @@ export function useEventGamesHostViewModel({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorTarget, setErrorTarget] = useState<EventGamesErrorTarget | null>(null);
+  // Mirrors the current error target so a background refresh can read it without re-subscribing.
+  const errorTargetRef = useRef<EventGamesErrorTarget | null>(null);
+  useEffect(() => { errorTargetRef.current = errorTarget; }, [errorTarget]);
+
+  const perform = useCallback(async <T,>(
+    label: string,
+    operation: (scopedEventId: string) => Promise<T>,
+    onSuccess: (value: T) => void,
+    target: EventGamesErrorTarget | null = null,
+  ): Promise<T | null> => {
+    if (!eventId || !canManage) return null;
+    const scopedEventId = eventId;
+    setBusy(label);
+    setError(null);
+    setErrorTarget(null);
+    try {
+      const value = await operation(scopedEventId);
+      if (activeEventId.current === scopedEventId) onSuccess(value);
+      return value;
+    } catch (cause) {
+      if (activeEventId.current === scopedEventId) {
+        setError(errorMessage(cause));
+        setErrorTarget(target);
+      }
+      return null;
+    } finally {
+      if (activeEventId.current === scopedEventId) setBusy(null);
+    }
+  }, [canManage, eventId]);
+
+  const selectSession = useCallback(async (sessionId: string) => {
+    activeSelectedSessionId.current = sessionId;
+    setSelectedSessionId(sessionId);
+    // Drop the previous session's controls while this one loads, so Start or End can never act on the wrong session.
+    setHostState(null);
+    setResponses([]);
+    setResponseCursor(null);
+    return perform(
+      "load-session",
+      (scopedEventId) => eventGamesHostActions.getHostState(scopedEventId, sessionId),
+      (state) => { if (activeSelectedSessionId.current === sessionId) setHostState(state); },
+      "live",
+    );
+  }, [perform]);
 
   const load = useCallback(async () => {
     if (!eventId || !canReadWorkspace) return;
     const generation = ++loadGeneration.current;
+    const isCurrent = () => isCurrentHostLoad(generation, loadGeneration.current, activeEventId.current, eventId);
+    let autoSessionId: string | null = null;
     setLoading(true);
     try {
       const workspace = await eventGamesHostActions.loadWorkspace(eventId);
-      if (!isCurrentHostLoad(generation, loadGeneration.current, activeEventId.current, eventId)) return;
+      if (!isCurrent()) return;
       setGames(canManage ? workspace.games : []);
       setAnalytics(workspace.analytics);
       setLobbyBranding(canManage ? workspace.branding : null);
       setError(null);
+      setErrorTarget(null);
+      if (canManage && !activeSelectedSessionId.current) {
+        autoSessionId = pickRunnableSession(workspace.analytics?.sessions);
+      }
     } catch (cause) {
-      if (isCurrentHostLoad(generation, loadGeneration.current, activeEventId.current, eventId)) {
+      if (isCurrent()) {
         setError(errorMessage(cause));
+        setErrorTarget(null);
       }
     } finally {
-      if (isCurrentHostLoad(generation, loadGeneration.current, activeEventId.current, eventId)) {
+      if (isCurrent()) {
         setLoading(false);
       }
     }
-  }, [canManage, canReadWorkspace, eventId]);
+    if (!isCurrent()) return;
+    if (canManage && !lobbyEnsured.current) {
+      // Ensure the lobby once per view, not on every reload after a command. If it cannot be fetched, the
+      // lobby section keeps its "Create lobby link" button, which reports the error; a later load retries.
+      lobbyEnsured.current = true;
+      void eventGamesHostActions.ensureLobby(eventId).then(
+        (lobby) => { if (isCurrent()) setLobbySlug(lobby.eventSlug); },
+        () => { lobbyEnsured.current = false; },
+      );
+    }
+    if (autoSessionId) await selectSession(autoSessionId);
+  }, [canManage, canReadWorkspace, eventId, selectSession]);
 
   useEffect(() => {
     loadGeneration.current += 1;
@@ -127,11 +206,13 @@ export function useEventGamesHostViewModel({
     setResponsesHaveMore(false);
     setLobbySlug(null);
     setLobbyBranding(null);
+    lobbyEnsured.current = false;
     setRevealedPin(null);
     setPinDismissed(false);
     setLoading(false);
     setBusy(null);
     setError(null);
+    setErrorTarget(null);
     void load();
     return () => {
       loadGeneration.current += 1;
@@ -152,11 +233,16 @@ export function useEventGamesHostViewModel({
       setGames(workspace.games);
       setAnalytics(workspace.analytics);
       setLobbyBranding(workspace.branding);
-      setError(null);
+      // A background refresh may clear only the live session's own error, never a game, create or lobby error.
+      if (errorTargetRef.current === null || errorTargetRef.current === "live") {
+        setError(null);
+        setErrorTarget(null);
+      }
       return true;
     } catch (cause) {
       if (activeEventId.current === scopedEventId && activeSelectedSessionId.current === scopedSessionId) {
         setError(errorMessage(cause));
+        setErrorTarget("live");
       }
       return false;
     }
@@ -166,62 +252,33 @@ export function useEventGamesHostViewModel({
     refresh: refreshSelectedSession,
   });
 
-  const perform = useCallback(async <T,>(
-    label: string,
-    operation: (scopedEventId: string) => Promise<T>,
-    onSuccess: (value: T) => void,
-  ): Promise<T | null> => {
-    if (!eventId || !canManage) return null;
-    const scopedEventId = eventId;
-    setBusy(label);
-    setError(null);
-    try {
-      const value = await operation(scopedEventId);
-      if (activeEventId.current === scopedEventId) onSuccess(value);
-      return value;
-    } catch (cause) {
-      if (activeEventId.current === scopedEventId) setError(errorMessage(cause));
-      return null;
-    } finally {
-      if (activeEventId.current === scopedEventId) setBusy(null);
-    }
-  }, [canManage, eventId]);
-
   const createDraft = useCallback((input: PrismCreateEventGameInput) => perform(
     "create-game",
     (scopedEventId) => eventGamesHostActions.createDraft(scopedEventId, input),
     (game) => setGames((current) => [game, ...current.filter((item) => item.id !== game.id)]),
+    "create",
   ), [perform]);
 
   const updateDraft = useCallback((gameId: string, input: PrismUpdateEventGameInput) => perform(
     "update-game",
     (scopedEventId) => eventGamesHostActions.updateDraft(scopedEventId, gameId, input),
     (game) => setGames((current) => replaceGame(current, game)),
+    `game:${gameId}`,
   ), [perform]);
 
   const archiveGame = useCallback((gameId: string) => perform(
     "archive-game",
     (scopedEventId) => eventGamesHostActions.archiveGame(scopedEventId, gameId),
     (game) => setGames((current) => replaceGame(current, game)),
+    `game:${gameId}`,
   ), [perform]);
 
   const publishDraft = useCallback((gameId: string) => perform(
     "publish-game",
     (scopedEventId) => eventGamesHostActions.publishDraft(scopedEventId, gameId),
     (game) => setGames((current) => replaceGame(current, game)),
+    `game:${gameId}`,
   ), [perform]);
-
-  const selectSession = useCallback(async (sessionId: string) => {
-    activeSelectedSessionId.current = sessionId;
-    setSelectedSessionId(sessionId);
-    setResponses([]);
-    setResponseCursor(null);
-    return perform(
-      "load-session",
-      (scopedEventId) => eventGamesHostActions.getHostState(scopedEventId, sessionId),
-      setHostState,
-    );
-  }, [perform]);
 
   const scheduleSession = useCallback(async (gameId: string, scheduledStartAt?: string) => {
     const created = await perform(
@@ -232,12 +289,14 @@ export function useEventGamesHostViewModel({
         setSelectedSessionId(session.id);
         setHostState(null);
       },
+      `game:${gameId}`,
     );
     if (!created || !eventId || activeEventId.current !== eventId) return created;
     const state = await perform(
       "load-session",
       (scopedEventId) => eventGamesHostActions.getHostState(scopedEventId, created.id),
-      setHostState,
+      (state) => { if (activeSelectedSessionId.current === created.id) setHostState(state); },
+      "live",
     );
     if (state) await load();
     return created;
@@ -257,12 +316,14 @@ export function useEventGamesHostViewModel({
           setPinDismissed(false);
         }
       },
+      "live",
     );
     if (!result || !eventId || activeEventId.current !== eventId) return result;
     const state = await perform(
       "load-session",
       (scopedEventId) => eventGamesHostActions.getHostState(scopedEventId, sessionId),
-      setHostState,
+      (state) => { if (activeSelectedSessionId.current === sessionId) setHostState(state); },
+      "live",
     );
     if (state) await load();
     return result;
@@ -277,12 +338,14 @@ export function useEventGamesHostViewModel({
     "provision-lobby",
     (scopedEventId) => eventGamesHostActions.ensureLobby(scopedEventId),
     (lobby) => setLobbySlug(lobby.eventSlug),
+    "lobby",
   ), [perform]);
 
   const updateLobbyBranding = useCallback((settings: Omit<UpdateEventGameLobbyBrandingInput, "idempotencyKey">) => perform(
     "update-lobby-branding",
     (scopedEventId) => eventGamesHostActions.updateLobbyBranding(scopedEventId, settings),
     setLobbyBranding,
+    "lobby",
   ), [perform]);
 
   const uploadLobbyLogo = useCallback((file: File) => perform(
@@ -295,6 +358,7 @@ export function useEventGamesHostViewModel({
       logoObjectId: null,
     }),
     setLobbyBranding,
+    "lobby",
   ), [lobbyBranding, perform]);
 
   const uploadGameMedia = useCallback(async (gameId: string, file: File) => {
@@ -302,6 +366,7 @@ export function useEventGamesHostViewModel({
       "upload-game-media",
       (scopedEventId) => eventGamesHostActions.uploadGameMedia(scopedEventId, gameId, file),
       () => undefined,
+      `game:${gameId}`,
     );
     if (!uploaded) throw new Error("The game image could not be uploaded. Try again.");
     return uploaded;
@@ -312,6 +377,7 @@ export function useEventGamesHostViewModel({
     const scopedEventId = eventId;
     setBusy("load-responses");
     setError(null);
+    setErrorTarget(null);
     try {
       const page = await eventGamesHostActions.getResponseHistory(scopedEventId, sessionId, cursor);
       if (activeEventId.current !== scopedEventId) return null;
@@ -321,7 +387,10 @@ export function useEventGamesHostViewModel({
       setResponsesHaveMore(page.hasMore);
       return page;
     } catch (cause) {
-      if (activeEventId.current === scopedEventId) setError(errorMessage(cause));
+      if (activeEventId.current === scopedEventId) {
+        setError(errorMessage(cause));
+        setErrorTarget("responses");
+      }
       return null;
     } finally {
       if (activeEventId.current === scopedEventId) setBusy(null);
@@ -350,6 +419,7 @@ export function useEventGamesHostViewModel({
         reason,
       ),
       () => {},
+      "live",
     );
     if (result) {
       if (canReviewResponses) await loadResponses(sessionId);
@@ -370,6 +440,7 @@ export function useEventGamesHostViewModel({
         scopedEventId, sessionId, submissionId, boardAnswer,
       ),
       () => {},
+      "live",
     );
     if (result && eventId && activeEventId.current === eventId) await selectSession(sessionId);
     return result;
@@ -383,6 +454,7 @@ export function useEventGamesHostViewModel({
       "assign-award",
       (scopedEventId) => eventGamesHostActions.assignAward(scopedEventId, sessionId, input),
       () => {},
+      "live",
     );
     if (result && eventId && activeEventId.current === eventId) {
       await selectSession(sessionId);
@@ -405,8 +477,12 @@ export function useEventGamesHostViewModel({
     loading,
     busy,
     error,
+    errorTarget,
+    hostRole,
+    eventClosed,
     canManage,
     canReviewResponses,
+    canBrandLobby,
     load,
     createDraft,
     updateDraft,

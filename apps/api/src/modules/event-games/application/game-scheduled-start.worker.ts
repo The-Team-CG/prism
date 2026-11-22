@@ -103,7 +103,10 @@ export class GameScheduledStartWorker
     let started = 0;
     for (const candidate of due) {
       const claimed = await this.transactions.run(async (transaction) => {
-        if (!(await this.eventAccess.isEventOpen(candidate.event_id, transaction))) return false;
+        if (!(await this.eventAccess.isEventOpen(candidate.event_id, transaction))) {
+          await this.cancelInClosedEvent(candidate, now, transaction);
+          return false;
+        }
         // QUERY_AUDIT_RAW_SQL: FOR SHARE on the published game definition: a concurrent archive or unpublish waits until this scheduled start commits.
         const activeDefinition = await transaction.prisma.$queryRaw<Array<{ id: string }>>`
           SELECT d."id"
@@ -157,6 +160,54 @@ export class GameScheduledStartWorker
       if (claimed) started += 1;
     }
     return started;
+  }
+
+  /**
+   * A session due in a closed event can never start. Ending it here (instead of only skipping it) takes it out of the
+   * due set, so it cannot fill the capped batch and stall every later scheduled start.
+   */
+  private async cancelInClosedEvent(
+    candidate: DueStartRow,
+    now: Date,
+    transaction: PrismTransactionContext,
+  ): Promise<void> {
+    // QUERY_AUDIT_RAW_SQL: Conditional cancel of one due, unstarted session in a closed event; status guard and write are one statement.
+    const cancelled = await transaction.prisma.$queryRaw<Array<{ id: string }>>`
+      UPDATE "event_games"."game_sessions"
+      SET status = 'cancelled', ended_at = ${now}, scheduled_start_at = NULL, updated_at = ${now}
+      WHERE event_id = ${candidate.event_id}
+        AND id = ${candidate.session_id}
+        AND status = 'scheduled'
+        AND started_at IS NULL
+      RETURNING id
+    `;
+    if (!cancelled[0]) return;
+    // Revoke the session PIN as the host cancel does, so a PIN reserved for the scheduled session is not left live.
+    await this.pinStore.revokeSessionPin({
+      eventId: candidate.event_id,
+      sessionId: candidate.session_id,
+      actorId: SYSTEM_ACTOR_ID,
+      now,
+      reason: 'closed',
+    }, transaction);
+    await this.audit.recordHostWrite({
+      eventId: candidate.event_id,
+      actorId: SYSTEM_ACTOR_ID,
+      actorRole: 'system',
+      action: 'cancel_session',
+      resourceType: 'session',
+      resourceId: candidate.session_id,
+      outcome: 'cancelled',
+      resultId: candidate.session_id,
+      requestReceiptId: candidate.request_receipt_id,
+      transition: {
+        beforeStatus: 'scheduled',
+        afterStatus: 'cancelled',
+        beforeVersion: null,
+        afterVersion: null,
+      },
+      timestamp: now,
+    }, transaction);
   }
 
   private runScheduled(): Promise<void> {

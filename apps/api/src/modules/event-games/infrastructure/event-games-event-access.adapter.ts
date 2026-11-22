@@ -9,7 +9,7 @@ import {
   readEventGameWriteState,
 } from '@prism/contexts/read-models/event-scope';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
-import type { PrismVerifiedEventActor } from '@prism/types';
+import { isActiveCoordinatorAssignmentStatus, type PrismVerifiedEventActor } from '@prism/types';
 import type { GameEventAccessPort } from '../contracts/game-event-access.port';
 
 @Injectable()
@@ -45,7 +45,13 @@ export class EventGamesEventAccessAdapter implements GameEventAccessPort {
     if (!event) throw new NotFoundException('Event not found');
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return;
 
-    const scoped = scopeActorToEvent(actor, event);
+    // Games are a live-operations surface: a declined assignment never carries host access.
+    const scoped = scopeActorToEvent(actor, {
+      ...event,
+      coordinatorAssignments: event.coordinatorAssignments.filter((assignment) =>
+        isActiveCoordinatorAssignmentStatus(assignment.status),
+      ),
+    });
     await this.accessPolicy.requireCanReadEvent(
       scoped.actor,
       event,

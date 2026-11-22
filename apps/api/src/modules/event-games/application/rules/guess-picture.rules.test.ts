@@ -39,7 +39,22 @@ describe('Guess the Picture rule', () => {
     expect(guessPictureRule.validateSubmission({ configuration, currentRound, action })).toEqual([]);
     expect(guessPictureRule.scoreSubmission({ configuration, submission: action.payload, currentRound }))
       .toEqual({ points: 60, isCorrect: true });
-    expect(guessPictureRule.scoreSubmission({ configuration, submission: { answer: 'dog' }, currentRound }))
+  });
+
+  it('accepts a wrong guess for the current stage so it is recorded at 0 points rather than rejected', () => {
+    const currentRound = guessPictureRule.getCurrentRound({ configuration, startedAt, now: startedAt })!;
+    const wrong = {
+      templateId: 'guess-picture', roundKey: 'picture-1', actionKind: 'guess',
+      payload: { answer: 'dog' },
+    } as const;
+    expect(guessPictureRule.validateSubmission({ configuration, currentRound, action: wrong })).toEqual([]);
+    expect(guessPictureRule.scoreSubmission({ configuration, submission: wrong.payload, currentRound }))
       .toEqual({ points: 0, isCorrect: false });
+  });
+
+  it('keeps one round key across reveal stages, so a participant cannot score a second guess later in the picture', () => {
+    const early = guessPictureRule.getCurrentRound({ configuration, startedAt, now: startedAt })!;
+    const late = guessPictureRule.getCurrentRound({ configuration, startedAt, now: new Date(startedAt.getTime() + 25_000) })!;
+    expect(late.key).toBe(early.key);
   });
 });

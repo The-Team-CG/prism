@@ -4,7 +4,7 @@
  */
 export const COORDINATOR_HOME_PATH = "/dashboard";
 
-export const COORDINATOR_VIEWS = ["shift", "tasks", "issues", "run-sheet", "calendar", "assignments", "registration", "notifications", "messages", "account"] as const;
+export const COORDINATOR_VIEWS = ["shift", "tasks", "issues", "run-sheet", "calendar", "assignments", "registration", "games", "notifications", "messages", "account"] as const;
 export type CoordinatorViewId = (typeof COORDINATOR_VIEWS)[number];
 
 export const COORDINATOR_VIEW_LABELS: Record<CoordinatorViewId, string> = {
@@ -15,6 +15,7 @@ export const COORDINATOR_VIEW_LABELS: Record<CoordinatorViewId, string> = {
   calendar: "Calendar",
   assignments: "Assignments",
   registration: "Registration",
+  games: "Games",
   notifications: "Notifications",
   messages: "Messages",
   account: "Account",

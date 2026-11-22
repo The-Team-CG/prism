@@ -103,11 +103,19 @@ function SessionUnavailable({ message }: { message: string | null }) {
 }
 
 function SessionAvailability({ vm, secondsRemaining }: { vm: PlayViewModel; secondsRemaining: number | null }) {
+  // A failed refresh or action keeps the last good game on screen; only a game with no state yet is replaced by the error.
+  if (vm.state) {
+    return (
+      <>
+        {vm.error ? <p role="alert" className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{vm.error}</p> : null}
+        <GameSessionContent vm={vm} secondsRemaining={secondsRemaining} />
+      </>
+    );
+  }
   if (vm.error) return <SessionUnavailable message={vm.error} />;
   if (vm.status === "loading") {
     return <p role="status" className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">Opening your game…</p>;
   }
-  if (vm.state) return <GameSessionContent vm={vm} secondsRemaining={secondsRemaining} />;
   if (vm.status === "error") return <SessionUnavailable message={null} />;
   return null;
 }

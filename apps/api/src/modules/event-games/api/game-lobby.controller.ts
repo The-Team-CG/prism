@@ -11,7 +11,8 @@ export class EventGamesLobbyController {
 
   @Get(':eventSlug')
   getPublicLobby(@Param('eventSlug') eventSlug: string, @Req() request: Request) {
-    return this.lobbies.getPublicLobby(eventSlug, request.socket.remoteAddress ?? '');
+    // request.ip honours the app's trust-proxy setting, so behind a load balancer each guest is their own source.
+    return this.lobbies.getPublicLobby(eventSlug, request.ip || 'unknown');
   }
 
   @Post(':eventSlug/games/:gameId/sessions')
@@ -22,6 +23,6 @@ export class EventGamesLobbyController {
     @Body(zodBody(startIndependentSingleplayerGameSessionSchema)) input: PrismStartIndependentSingleplayerGameInput,
     @Req() request: Request,
   ) {
-    return this.lobbies.startIndependentGame(eventSlug, gameId, input, request.socket.remoteAddress ?? '');
+    return this.lobbies.startIndependentGame(eventSlug, gameId, input, request.ip || 'unknown');
   }
 }

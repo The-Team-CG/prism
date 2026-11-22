@@ -3,14 +3,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { EventGamesLobbyController } from './game-lobby.controller';
 
 describe('EventGamesLobbyController trusted request source', () => {
-  it('passes only the socket remote address and ignores forwarded-address headers', async () => {
+  it('keys the request source on request.ip, the trust-proxy-aware client address, not the proxy socket', async () => {
     const lobbies = {
       getPublicLobby: vi.fn(),
       startIndependentGame: vi.fn(),
     };
     const controller = new EventGamesLobbyController(lobbies as never);
+    // Behind a load balancer the socket is the proxy; Express resolves request.ip to the guest once trust proxy is set.
     const request = {
-      socket: { remoteAddress: '203.0.113.10' },
+      ip: '203.0.113.10',
+      socket: { remoteAddress: '10.0.0.5' },
       headers: { 'x-forwarded-for': '198.51.100.77' },
     } as unknown as Request;
 

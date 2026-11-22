@@ -23,7 +23,10 @@ function createWorker(claimResults: Array<typeof candidate[]>, definitionRows: A
     run: vi.fn(async (work: (context: PrismTransactionContext) => Promise<unknown>) => work(transaction)),
   };
   const audit = { recordHostWrite: vi.fn().mockResolvedValue(undefined) };
-  const pinStore = { releaseExpiredReservations: vi.fn().mockResolvedValue(0) };
+  const pinStore = {
+    releaseExpiredReservations: vi.fn().mockResolvedValue(0),
+    revokeSessionPin: vi.fn().mockResolvedValue(true),
+  };
   const eventAccess = { isEventOpen: vi.fn().mockResolvedValue(true) };
   const worker = new GameScheduledStartWorker(prisma as never, transactions as never, audit as never, pinStore as never, eventAccess as never);
 
@@ -71,13 +74,26 @@ describe('GameScheduledStartWorker', () => {
     expect(audit.recordHostWrite).toHaveBeenCalledOnce();
   });
 
-  it('does not start or audit a due session after event closure', async () => {
-    const { worker, transaction, eventAccess, audit } = createWorker([[candidate]]);
+  it('cancels a due session in a closed event instead of starting it, so it stops being re-selected', async () => {
+    const { worker, transactionQueryRaw, eventAccess, audit, pinStore } = createWorker([[candidate]]);
     eventAccess.isEventOpen.mockResolvedValue(false);
+    const now = new Date('2026-10-20T10:00:00.000Z');
 
-    expect(await worker.runDueStarts(new Date('2026-10-20T10:00:00.000Z'))).toBe(0);
-    expect(transaction.prisma.$queryRaw).not.toHaveBeenCalled();
-    expect(audit.recordHostWrite).not.toHaveBeenCalled();
+    expect(await worker.runDueStarts(now)).toBe(0);
+    expect(transactionQueryRaw).toHaveBeenCalledOnce();
+    expect(pinStore.revokeSessionPin).toHaveBeenCalledWith(expect.objectContaining({
+      eventId, sessionId, reason: 'closed', now,
+    }), expect.anything());
+    expect(transactionQueryRaw.mock.calls[0]?.[0].join('')).toContain("SET status = 'cancelled'");
+    expect(audit.recordHostWrite).toHaveBeenCalledWith(expect.objectContaining({
+      eventId,
+      action: 'cancel_session',
+      outcome: 'cancelled',
+      resourceId: sessionId,
+      transition: expect.objectContaining({ beforeStatus: 'scheduled', afterStatus: 'cancelled' }),
+      timestamp: now,
+    }), expect.anything());
+    expect(audit.recordHostWrite).not.toHaveBeenCalledWith(expect.objectContaining({ action: 'start_session' }), expect.anything());
   });
 
   it('does not start a scheduled session after its game was archived', async () => {

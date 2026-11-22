@@ -16,7 +16,7 @@ import type { CoordinatorIssueFormModel } from "./sections/coordinator-role-sect
 import { CoordinatorQuickReport } from "./sections/coordinator-quick-report";
 
 /** Pages that belong to the open event, or are used all day; the phone top bar shows the event switch on these. */
-const EVENT_VIEWS: CoordinatorViewId[] = ["shift", "tasks", "issues", "run-sheet", "registration", "messages"];
+const EVENT_VIEWS: CoordinatorViewId[] = ["shift", "tasks", "issues", "run-sheet", "registration", "games", "messages"];
 
 /**
  * The phone bar: Now, Tasks (Check-in for the registration coordinator) and Run sheet, with Report raised between

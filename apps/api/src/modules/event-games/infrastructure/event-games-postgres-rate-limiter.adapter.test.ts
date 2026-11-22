@@ -209,7 +209,8 @@ describe('EventGamesPostgresRateLimiter', () => {
     await limiter.consume({ action: 'lobby_read', eventId: 'event-1', sourceFingerprint: 'source', globalBudgetKey: 'read' });
     await limiter.consume({ action: 'lobby_start', eventId: 'event-1', sourceFingerprint: 'source', globalBudgetKey: 'start' });
 
-    expect(queryRaw.mock.calls.map((call) => call[4])).toEqual([10_000, 20_000, 5_000, 5_000]);
+    // Lobby starts: 600 per source address (shared NAT allowance), 5,000 across all clients.
+    expect(queryRaw.mock.calls.map((call) => call[4])).toEqual([10_000, 20_000, 600, 5_000]);
   });
 
   it('cleans rate-limit rows when their stored retention expiry is reached', async () => {

@@ -151,6 +151,8 @@ export class EventGamesLobbyService {
     actor: PrismVerifiedEventActor,
     input: UpdateEventGameLobbyBrandingInput,
   ): Promise<PrismEventGameHostLobbyBranding> {
+    // Branding is event-wide client-facing styling: PMCM admins only, even though coordinators may read the lobby.
+    await this.eventAccess.assertAdminAccess(eventId, actor);
     await this.ensureLobbySlug(eventId, actor);
     const current = await this.transactions.run(
       (transaction) => this.store.findLobbyBranding(eventId, transaction),
@@ -185,6 +187,7 @@ export class EventGamesLobbyService {
     actor: PrismVerifiedEventActor,
     request: RequestEventGameLobbyLogoUploadInput,
   ): Promise<PrismEventGameLobbyLogoUploadTicket> {
+    await this.eventAccess.assertAdminAccess(eventId, actor);
     await this.ensureLobbySlug(eventId, actor);
     if (!this.mediaStorage) throw new ServiceUnavailableException('Event game lobby logo storage is not configured');
     return this.mediaStorage.requestLobbyLogoUpload({ eventId, actor, request });
@@ -196,7 +199,7 @@ export class EventGamesLobbyService {
     actor: PrismVerifiedEventActor,
     confirmation: { checksumSha256: string; byteSize: number },
   ): Promise<{ objectId: string }> {
-    await this.eventAccess.assertHostAccess(eventId, actor);
+    await this.eventAccess.assertAdminAccess(eventId, actor);
     const event = await this.transactions.run(
       (transaction) => this.eventAccess.getPublicEventScope(eventId, transaction),
       { actorId: actor.actorId },
