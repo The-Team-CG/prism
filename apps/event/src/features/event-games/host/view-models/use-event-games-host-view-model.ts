@@ -27,6 +27,13 @@ export type EventGamesHostOptions = {
   actualEndedAt?: string | null;
 };
 
+type HostWorkspace = Awaited<ReturnType<typeof eventGamesHostActions.loadWorkspace>>;
+
+/** A background refresh may clear only the live session's own error (or no error), never a game, create or lobby error. */
+function canClearRefreshError(target: EventGamesErrorTarget | null): boolean {
+  return target === null || target === "live";
+}
+
 function errorMessage(error: unknown): string {
   if (
     typeof error === "object"
@@ -154,6 +161,26 @@ export function useEventGamesHostViewModel({
     );
   }, [perform]);
 
+  const applyLoadedWorkspace = useCallback((workspace: HostWorkspace) => {
+    setGames(canManage ? workspace.games : []);
+    setAnalytics(workspace.analytics);
+    setLobbyBranding(canManage ? workspace.branding : null);
+    setError(null);
+    setErrorTarget(null);
+    return canManage && !activeSelectedSessionId.current ? pickRunnableSession(workspace.analytics?.sessions) : null;
+  }, [canManage]);
+
+  // Ensure the lobby once per view, not on every reload after a command. If it cannot be fetched, the
+  // lobby section keeps its "Create lobby link" button, which reports the error; a later load retries.
+  const ensureLobbyLink = useCallback((scopedEventId: string, isCurrent: () => boolean) => {
+    if (lobbyEnsured.current) return;
+    lobbyEnsured.current = true;
+    void eventGamesHostActions.ensureLobby(scopedEventId).then(
+      (lobby) => { if (isCurrent()) setLobbySlug(lobby.eventSlug); },
+      () => { lobbyEnsured.current = false; },
+    );
+  }, []);
+
   const load = useCallback(async () => {
     if (!eventId || !canReadWorkspace) return;
     const generation = ++loadGeneration.current;
@@ -163,36 +190,19 @@ export function useEventGamesHostViewModel({
     try {
       const workspace = await eventGamesHostActions.loadWorkspace(eventId);
       if (!isCurrent()) return;
-      setGames(canManage ? workspace.games : []);
-      setAnalytics(workspace.analytics);
-      setLobbyBranding(canManage ? workspace.branding : null);
-      setError(null);
-      setErrorTarget(null);
-      if (canManage && !activeSelectedSessionId.current) {
-        autoSessionId = pickRunnableSession(workspace.analytics?.sessions);
-      }
+      autoSessionId = applyLoadedWorkspace(workspace);
     } catch (cause) {
       if (isCurrent()) {
         setError(errorMessage(cause));
         setErrorTarget(null);
       }
     } finally {
-      if (isCurrent()) {
-        setLoading(false);
-      }
+      if (isCurrent()) setLoading(false);
     }
     if (!isCurrent()) return;
-    if (canManage && !lobbyEnsured.current) {
-      // Ensure the lobby once per view, not on every reload after a command. If it cannot be fetched, the
-      // lobby section keeps its "Create lobby link" button, which reports the error; a later load retries.
-      lobbyEnsured.current = true;
-      void eventGamesHostActions.ensureLobby(eventId).then(
-        (lobby) => { if (isCurrent()) setLobbySlug(lobby.eventSlug); },
-        () => { lobbyEnsured.current = false; },
-      );
-    }
+    if (canManage) ensureLobbyLink(eventId, isCurrent);
     if (autoSessionId) await selectSession(autoSessionId);
-  }, [canManage, canReadWorkspace, eventId, selectSession]);
+  }, [applyLoadedWorkspace, canManage, canReadWorkspace, ensureLobbyLink, eventId, selectSession]);
 
   useEffect(() => {
     loadGeneration.current += 1;
@@ -219,6 +229,10 @@ export function useEventGamesHostViewModel({
     };
   }, [eventId, load]);
 
+  const isSelectionCurrent = useCallback((scopedEventId: string, scopedSessionId: string) => (
+    activeEventId.current === scopedEventId && activeSelectedSessionId.current === scopedSessionId
+  ), []);
+
   const refreshSelectedSession = useCallback(async () => {
     if (!eventId || !selectedSessionId || !canManage) return false;
     const scopedEventId = eventId;
@@ -228,25 +242,25 @@ export function useEventGamesHostViewModel({
         eventGamesHostActions.getHostState(scopedEventId, scopedSessionId),
         eventGamesHostActions.loadWorkspace(scopedEventId),
       ]);
-      if (activeEventId.current !== scopedEventId || activeSelectedSessionId.current !== scopedSessionId) return false;
+      if (!isSelectionCurrent(scopedEventId, scopedSessionId)) return false;
       setHostState(nextState);
       setGames(workspace.games);
       setAnalytics(workspace.analytics);
       setLobbyBranding(workspace.branding);
       // A background refresh may clear only the live session's own error, never a game, create or lobby error.
-      if (errorTargetRef.current === null || errorTargetRef.current === "live") {
+      if (canClearRefreshError(errorTargetRef.current)) {
         setError(null);
         setErrorTarget(null);
       }
       return true;
     } catch (cause) {
-      if (activeEventId.current === scopedEventId && activeSelectedSessionId.current === scopedSessionId) {
+      if (isSelectionCurrent(scopedEventId, scopedSessionId)) {
         setError(errorMessage(cause));
         setErrorTarget("live");
       }
       return false;
     }
-  }, [canManage, eventId, selectedSessionId]);
+  }, [canManage, eventId, isSelectionCurrent, selectedSessionId]);
   const refreshSelectedSessionNow = useBackgroundRefresh({
     enabled: isRefreshableMultiplayerSession(hostState),
     refresh: refreshSelectedSession,
