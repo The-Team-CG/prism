@@ -123,7 +123,7 @@ export function PageStatusLine({ roleView, loading, onRefresh, summary, action }
 }) {
   if (!roleView) return null;
   return (
-    <div className="flex max-w-3xl items-center justify-between gap-3">
+    <div className="flex max-w-3xl lg:max-w-none items-center justify-between gap-3">
       <div className="grid min-w-0 gap-0.5">
         {summary ? <p className="text-sm text-foreground">{summary}</p> : null}
         <UpdatedAgo roleView={roleView} loading={loading} onRefresh={onRefresh} />

@@ -139,7 +139,7 @@ function NextTaskCard({ roleView, taskActions }: { roleView: PrismCoordinatorRol
   const task = groups.in_progress[0] ?? groups.open[0] ?? groups.blocked[0];
   if (!task) return null;
   return (
-    <section aria-label="Your next task" className="grid max-w-3xl gap-2 rounded-xl border border-border bg-card px-4 py-3.5 sm:px-5">
+    <section aria-label="Your next task" className="grid max-w-3xl lg:max-w-none gap-2 rounded-xl border border-border bg-card px-4 py-3.5 sm:px-5">
       <p className="text-xs font-medium text-muted-foreground">Your next task</p>
       <CoordinatorTaskItem task={task} taskActions={taskActions} canUpdate={canCoordinatorUpdateTask(task, roleView)} />
     </section>
@@ -198,7 +198,7 @@ function YourDay({ roleView, event, showBrief, gamesEnabled, onNavigate }: { rol
 function PmcmContact({ onNavigate }: { onNavigate: (view: CoordinatorNowView) => void }) {
   const { phone } = pmcmSupportContactFromEnvironment();
   return (
-    <div className={cn("grid max-w-3xl gap-2", phone && "grid-cols-2")}>
+    <div className={cn("grid max-w-3xl lg:max-w-none gap-2", phone && "grid-cols-2")}>
       {phone ? <Button asChild variant="outline" className="min-h-11"><a href={`tel:${phone.replace(/\s+/g, "")}`}><Phone className="size-4" aria-hidden />Call PMCM</a></Button> : null}
       <Button type="button" variant="outline" className="min-h-11" onClick={() => onNavigate("messages")}><MessageSquare className="size-4" aria-hidden />Message PMCM</Button>
     </div>
@@ -241,7 +241,7 @@ type NowPageProps = {
 };
 
 function NowWork({ phase, event, roleView, props }: { phase: EventPhase; event: PrismEvent; roleView: PrismCoordinatorRoleView; props: NowPageProps }) {
-  if (phase === "before") return <PrismSection id="coordinator-brief" title="Your brief" className="max-w-3xl"><BriefBody roleView={roleView} event={event} /></PrismSection>;
+  if (phase === "before") return <PrismSection id="coordinator-brief" title="Your brief" className="max-w-3xl lg:max-w-none"><BriefBody roleView={roleView} event={event} /></PrismSection>;
   return (
     <>
       {phase === "after" ? <DaySummary roleView={roleView} attendance={props.attendanceForm.status} /> : null}
@@ -261,7 +261,7 @@ export function CoordinatorNowPage(props: NowPageProps) {
   const { event } = props;
   const phase = eventPhase(event.eventDate, prismCalendarDateKey());
   return (
-    <div className="grid w-full max-w-3xl gap-4">
+    <div className="grid w-full max-w-3xl lg:max-w-none gap-4">
       {phase === "day" ? <LiveNow event={event} roleView={props.roleView} onNavigate={props.onNavigate} /> : <EventCardLead event={event} phase={phase} />}
       <AnswerPrompt props={props} />
       <QuickAttendance form={props.attendanceForm} />

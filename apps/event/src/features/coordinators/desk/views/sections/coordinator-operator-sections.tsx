@@ -82,7 +82,7 @@ export function CoordinatorTaskQueue({ roleView, taskActions }: { roleView: Pris
   const groups = groupTasks(roleView.tasks);
   const shown = TASK_GROUPS.filter((group) => groups[group.id].length > 0);
   return (
-    <div id="coordinator-role-queue" className="grid max-w-3xl scroll-mt-24 gap-4">
+    <div id="coordinator-role-queue" className="grid max-w-3xl lg:max-w-none scroll-mt-24 gap-4">
       {shown.length === 0 ? (
         <CoordinatorEmpty icon={ClipboardList} title="No tasks assigned to you yet">Tasks PMCM gives your role show up here.</CoordinatorEmpty>
       ) : null}
