@@ -608,6 +608,39 @@ describe("event games guest repository", () => {
       .toEqual({ kind: "presenter-deck", roundType: "word-cloud", maxResponseLength: 30 });
   });
 
+  it("passes Would You Rather and This or That (Solo) options through so a solo player can answer", async () => {
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
+      eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
+    });
+    const withSoloData = (kind: string, gameData: Record<string, unknown>) => ({
+      ...participantState, game: { title: kind, kind }, participant: { ...participantState.participant, gameData },
+    });
+    api.getParticipantState
+      .mockResolvedValueOnce(withSoloData("would-you-rather", { kind: "would-you-rather", options: ["Tea", "Coffee"], aggregateResults: false, answerKey: "Tea" }))
+      .mockResolvedValueOnce(withSoloData("this-or-that-solo", { kind: "this-or-that-solo", options: ["Beach", "Mountains"] }))
+      .mockResolvedValueOnce(withSoloData("would-you-rather", { kind: "would-you-rather", options: ["Only one"], aggregateResults: true }));
+
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant.gameData)
+      .toEqual({ kind: "would-you-rather", options: ["Tea", "Coffee"], aggregateResults: false });
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant.gameData)
+      .toEqual({ kind: "this-or-that-solo", options: ["Beach", "Mountains"] });
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant).not.toHaveProperty("gameData");
+  });
+
+  it("shows Presenter Deck approved word-cloud answers while live as well as paused", async () => {
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
+      eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
+    });
+    const deck = (status: string) => ({
+      ...participantState, status, game: { title: "Presenter Deck", kind: "presenter-deck" },
+      approvedResponses: ["Inspiring"],
+    });
+    api.getParticipantState.mockResolvedValueOnce(deck("live")).mockResolvedValueOnce(deck("scheduled"));
+
+    expect((await eventGamesGuestRepository.getParticipantState("session-a1")).approvedResponses).toEqual(["Inspiring"]);
+    expect(await eventGamesGuestRepository.getParticipantState("session-a1")).not.toHaveProperty("approvedResponses");
+  });
+
   it("keeps the presenter deck results-window flag only when it is a boolean", async () => {
     savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
       eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),

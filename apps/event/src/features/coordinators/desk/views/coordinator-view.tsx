@@ -3,20 +3,21 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { formatPortalDate } from "@prism/ui/format-date";
-import { Bell, BellRing, CalendarDays, ClipboardCheck, Clock, Plus, Radio, UserRound, UsersRound } from "lucide-react";
+import { Bell, BellRing, CalendarClock, CalendarDays, ClipboardCheck, ClipboardList, Clock, Gamepad2, MessageSquare, Plus, Radio, UserRound, UsersRound } from "lucide-react";
 import { EventMessagesWorkspace } from '@/features/event-dashboard/messages/views/event-messages-workspace';
 import { EventAccountView } from '@/features/account';
 import { useEventUnreadMessages } from '@/features/event-dashboard/messages/view-models/use-event-unread-messages';
 import { unreadNavBadge } from "@prism/ui/chat";
 import { unreadNoticeBadge } from "@prism/ui/notifications";
 import { useEventUnreadNotices } from "@/features/account-notifications/view-models/use-event-unread-notices";
-import type { PrismAuthenticatedSession, PrismCoordinatorWorkspace } from "@prism/types";
+import { isEventModuleEnabled, type PrismAuthenticatedSession, type PrismCoordinatorWorkspace } from "@prism/types";
 import { PrismDashboardShell, useIsMobile } from "@prism/ui";
 import { PRISM_NAV_ICONS } from "@prism/ui/nav-icons";
 import { Button } from "@prism/ui/components/button";
 import { useDocumentTitle } from "@/app/components/document-title";
 import { roleLabel } from "@/features/pmcm-kit";
 import { CoordinatorRegistrationDesk } from "@/features/coordinators/registration";
+import { EventGamesHostView } from "@/features/event-games/host";
 import { optionalNavBadge } from "../model/coordinator-view-copy";
 import { buildCoordinatorCalendarItems } from "../model/coordinator-calendar-items";
 import { buildCoordinatorCommandActions, buildCoordinatorRecordGroups } from "../model/coordinator-command-index";
@@ -91,6 +92,7 @@ function CoordinatorNowSection({ vm, event, onNavigate }: { vm: CoordinatorVm; e
       onAcknowledge={vm.acknowledge}
       onDecline={vm.decline}
       onWithdraw={vm.withdraw}
+      gamesEnabled={isEventModuleEnabled(event, "games")}
       onNavigate={onNavigate}
     />
   );
@@ -110,7 +112,7 @@ function CoordinatorCalendarSection({ vm, onOpen }: { vm: CoordinatorVm; onOpen:
 
 /** Views that stay usable on an archived event: reading the run sheet, messages and everything account-wide. */
 /** Views showing the open event's live data, which carry the "Updated … ago" line. */
-const LIVE_VIEWS: CoordinatorViewId[] = ["shift", "tasks", "issues", "run-sheet"];
+const LIVE_VIEWS: CoordinatorViewId[] = ["shift", "tasks", "issues", "run-sheet", "games"];
 
 const READ_ONLY_SAFE_VIEWS: CoordinatorViewId[] = ["run-sheet", "messages", "calendar", "notifications", "account", "assignments"];
 
@@ -129,9 +131,10 @@ function coordinatorDescription(view: CoordinatorViewId, event: CoordinatorVm['e
 }
 
 /** Pages for the open event. Without one, the coordinator is asked to choose. */
-function EventViewContent({ vm, view, events, onNavigate, onOpenItem }: {
+function EventViewContent({ vm, view, session, events, onNavigate, onOpenItem }: {
   vm: CoordinatorVm;
   view: CoordinatorViewId;
+  session: PrismAuthenticatedSession;
   events: PrismCoordinatorWorkspace["events"];
   onNavigate: NavigateTo;
   onOpenItem: (view: CoordinatorViewId, eventId: string) => void;
@@ -155,6 +158,7 @@ function EventViewContent({ vm, view, events, onNavigate, onOpenItem }: {
       />
     );
     case "registration": return <CoordinatorRegistrationSection vm={vm} />;
+    case "games": return <EventGamesHostView key={vm.event.id} eventId={vm.event.id} role={session.role} eventStatus={vm.event.status} archived={vm.event.archived} actualEndedAt={vm.event.actualEndedAt} />;
     default: return <CoordinatorNowSection vm={vm} event={vm.event} onNavigate={onNavigate} />;
   }
 }
@@ -169,7 +173,7 @@ function CoordinatorViewContent({ vm, view, session, onOpenItem, ...rest }: {
 }) {
   const accountView = ACCOUNT_VIEWS[view];
   if (accountView) return accountView(vm, onOpenItem, session);
-  return <EventViewContent vm={vm} view={view} onOpenItem={onOpenItem} {...rest} />;
+  return <EventViewContent vm={vm} view={view} session={session} onOpenItem={onOpenItem} {...rest} />;
 }
 
 /**
@@ -210,6 +214,9 @@ function coordinatorSidebarItems(vm: CoordinatorVm, unreadMessages: number | und
   const registration = vm.registrationRole && !vm.readOnly
     ? [{ id: "registration", icon: ClipboardCheck, label: COORDINATOR_VIEW_LABELS.registration, section: "Coordinator", href: viewHref("registration", eventId) }]
     : [];
+  const games = vm.event && isEventModuleEnabled(vm.event, "games")
+    ? [{ id: "games", icon: Gamepad2, label: COORDINATOR_VIEW_LABELS.games, section: "Coordinator", href: viewHref("games", eventId) }]
+    : [];
   return [
     { id: "shift", icon: Clock, label: COORDINATOR_VIEW_LABELS.shift, section: "Coordinator", href: viewHref("shift", eventId) },
     { id: "tasks", icon: PRISM_NAV_ICONS.Tasks, label: COORDINATOR_VIEW_LABELS.tasks, section: "Coordinator", badge: optionalNavBadge(vm.roleView?.tasks.length), href: viewHref("tasks", eventId) },
@@ -220,6 +227,7 @@ function coordinatorSidebarItems(vm: CoordinatorVm, unreadMessages: number | und
     { id: "notifications", icon: Bell, label: COORDINATOR_VIEW_LABELS.notifications, section: "Coordinator", href: viewHref("notifications"), ...unreadNoticeBadge(unreadNotices) },
     { id: "assignments", icon: UsersRound, label: COORDINATOR_VIEW_LABELS.assignments, section: "Coordinator", href: viewHref("assignments", eventId) },
     ...registration,
+    ...games,
   ];
 }
 
@@ -299,7 +307,9 @@ export function CoordinatorView({ session, state, onRefresh, onSignOut }: {
   const compact = useIsMobile();
   const location = useCoordinatorLocation(vm.selectEvent);
   const registrationOpen = vm.registrationRole && !vm.readOnly;
-  const activeView = location.requestedView === "registration" && !registrationOpen ? "shift" : location.requestedView;
+  // A games link for an event with the module switched off falls back to Now, as Registration does for other roles.
+  const gamesClosed = Boolean(vm.event && !isEventModuleEnabled(vm.event, "games"));
+  const activeView = (location.requestedView === "registration" && !registrationOpen) || (location.requestedView === "games" && gamesClosed) ? "shift" : location.requestedView;
 
   function navigateTo(view: CoordinatorViewId, eventId = vm.event?.id) {
     location.setActiveView(view);

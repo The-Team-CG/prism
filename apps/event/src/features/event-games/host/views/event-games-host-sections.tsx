@@ -2,7 +2,7 @@
 import { DateTimePicker } from "@prism/ui/components/date-time-picker";
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { RefreshCw, Trophy } from "lucide-react";
+import { ChevronDown, RefreshCw, Trophy } from "lucide-react";
 import type {
   PrismCreateEventGameInput,
   PrismEventGameAnalytics,
@@ -13,9 +13,13 @@ import type {
 } from "@prism/types";
 import { portalUrlFor } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@prism/ui/components/collapsible";
 import { Empty, EmptyDescription, EmptyHeader } from "@prism/ui/components/empty";
+import { Input } from "@prism/ui/components/input";
 import { StatusBadge } from "@prism/ui/components/status-badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
+import { Textarea } from "@prism/ui/components/textarea";
 import { Card, CardBody, CardHeader } from "@/features/event-dashboard/shell/views/sections/shell-ui";
 import { EVENT_GAME_OPTIONS, eventGameModeLabel } from "../model/event-game-catalog";
 import { resolveGuestGameLobbyUrl } from "../model/guest-lobby-url";
@@ -29,6 +33,12 @@ const LOBBY_THEME_LABELS: Record<PrismEventGameBrandTheme, string> = {
   forest: "Forest",
 };
 
+/** An error shown beside the row or action that failed. */
+export function InlineError({ message }: { message: string | null | undefined }) {
+  if (!message) return null;
+  return <p role="alert" className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{message}</p>;
+}
+
 export function EventGamesHeaderCard({
   loading,
   busy,
@@ -37,6 +47,7 @@ export function EventGamesHeaderCard({
 }: {
   loading: boolean;
   busy: boolean;
+  /** Only errors that no row or action owns, such as a failed load. */
   error: string | null;
   onRefresh: () => void;
 }) {
@@ -47,7 +58,7 @@ export function EventGamesHeaderCard({
         <div>
           <h2 className="text-lg font-bold text-foreground">Event games</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create event game drafts, host ready Active (Multiplayer) sessions, and review event-level engagement.
+            Set up games, run live sessions, and review how guests took part.
           </p>
         </div>
         <Button type="button" variant="outline" disabled={loading || busy} onClick={onRefresh}>
@@ -61,7 +72,41 @@ export function EventGamesHeaderCard({
   );
 }
 
-export function EventGameDraftCard({
+/** Create game, in a side sheet opened from the game list. */
+export function EventGameCreateSheet({
+  open,
+  busy,
+  error,
+  onOpenChange,
+  onCreate,
+}: {
+  open: boolean;
+  busy: boolean;
+  error: string | null;
+  onOpenChange: (open: boolean) => void;
+  onCreate: (input: PrismCreateEventGameInput) => Promise<unknown>;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>Create a game</SheetTitle>
+          <SheetDescription>The template you pick decides whether the game is Active (Multiplayer) or Independent (Singleplayer).</SheetDescription>
+        </SheetHeader>
+        <div className="px-4 pb-6">
+          <EventGameDraftForm busy={busy} onCreate={async (input) => {
+            const created = await onCreate(input);
+            if (created) onOpenChange(false);
+            return created;
+          }} />
+          <InlineError message={error} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function EventGameDraftForm({
   busy,
   onCreate,
 }: {
@@ -105,83 +150,71 @@ export function EventGameDraftCard({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <h3 className="text-base font-bold text-foreground">Create a game draft</h3>
-        <p className="mt-1 text-sm text-muted-foreground">The selected template determines whether the game is Active (Multiplayer) or Independent (Singleplayer).</p>
-      </CardHeader>
-      <CardBody>
-        <form className="grid gap-4 md:grid-cols-2" onSubmit={submit}>
-          <label className="grid gap-1.5 text-sm font-semibold text-foreground">
-            Game template
-            <Select value={kind} onValueChange={(value) => setKind(value as PrismCreateEventGameInput["kind"])}>
-              <SelectTrigger aria-label="Game template" className="min-h-10 w-full min-w-0 bg-background">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {EVENT_GAME_OPTIONS.map((option) => <SelectItem key={option.kind} value={option.kind}>{option.label} — {eventGameModeLabel(option.entryMode)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-semibold text-foreground">
-            Game title
-            <input aria-label="Game title" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={120} className="min-h-10 rounded-lg border border-border bg-background px-3" />
-          </label>
-          <label className="grid gap-1.5 text-sm font-semibold text-foreground md:col-span-2">
-            Description
-            <textarea aria-label="Game description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} rows={2} className="rounded-lg border border-border bg-background px-3 py-2" />
-          </label>
-          <label className="grid gap-1.5 text-sm font-semibold text-foreground md:col-span-2">
-            Instructions
-            <textarea aria-label="Game instructions" value={instructions} onChange={(event) => setInstructions(event.target.value)} maxLength={2000} rows={3} className="rounded-lg border border-border bg-background px-3 py-2" />
-          </label>
-          <label className="grid gap-1.5 text-sm font-semibold text-foreground">
-            Available from
-            <DateTimePicker value={availableFrom} onValueChange={(next) => setAvailableFrom(next)} aria-label="Available from" />
-          </label>
-          <label className="grid gap-1.5 text-sm font-semibold text-foreground">
-            Available until
-            <DateTimePicker value={availableUntil} onValueChange={(next) => setAvailableUntil(next)} aria-label="Available until" />
-          </label>
-          <div className="md:col-span-2">
-            <Button type="submit" disabled={!title.trim() || busy}>Create game</Button>
-          </div>
-        </form>
-      </CardBody>
-    </Card>
+    <form className="grid gap-4" onSubmit={submit}>
+      <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+        Game template
+        <Select value={kind} onValueChange={(value) => setKind(value as PrismCreateEventGameInput["kind"])}>
+          <SelectTrigger aria-label="Game template" className="min-h-10 w-full min-w-0 bg-background">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {EVENT_GAME_OPTIONS.map((option) => <SelectItem key={option.kind} value={option.kind}>{option.label} — {eventGameModeLabel(option.entryMode)}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </label>
+      <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+        Game title
+        <Input aria-label="Game title" value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={120} />
+      </label>
+      <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+        Description
+        <Textarea aria-label="Game description" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} rows={2} />
+      </label>
+      <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+        Instructions
+        <Textarea aria-label="Game instructions" value={instructions} onChange={(event) => setInstructions(event.target.value)} maxLength={2000} rows={3} />
+      </label>
+      <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+        Available from
+        <DateTimePicker value={availableFrom} onValueChange={(next) => setAvailableFrom(next)} aria-label="Available from" />
+      </label>
+      <label className="grid gap-1.5 text-sm font-semibold text-foreground">
+        Available until
+        <DateTimePicker value={availableUntil} onValueChange={(next) => setAvailableUntil(next)} aria-label="Available until" />
+      </label>
+      <div>
+        <Button type="submit" disabled={!title.trim() || busy}>Create game</Button>
+      </div>
+    </form>
   );
 }
 
 export function EventGameCatalogCard({
   games,
   renderGame,
-  creating,
-  onToggleCreate,
+  onCreate,
 }: {
   games: PrismEventGameDefinition[];
   renderGame: (game: PrismEventGameDefinition) => ReactNode;
-  creating: boolean;
-  onToggleCreate: () => void;
+  onCreate: () => void;
 }) {
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-baseline gap-3">
-            <h3 className="text-base font-bold text-foreground">Game catalog</h3>
+            <h3 className="text-base font-bold text-foreground">Games</h3>
             <span className="text-sm text-muted-foreground">{games.length} configured</span>
           </div>
-          <Button type="button" size="sm" variant={creating ? "outline" : "default"} aria-expanded={creating} onClick={onToggleCreate}>
-            {creating ? "Close form" : "Create game"}
-          </Button>
+          <Button type="button" size="sm" onClick={onCreate}>Create game</Button>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">Drafts stay unpublished until their template rules and configuration are implemented.</p>
+        <p className="mt-1 text-sm text-muted-foreground">A new game stays a draft until its questions or settings are complete and you publish it.</p>
       </CardHeader>
       <CardBody>
-        {games.length ? <div className="space-y-3">{games.map(renderGame)}</div> : (
+        {games.length ? <ul className="divide-y divide-border rounded-lg border border-border">{games.map(renderGame)}</ul> : (
           <Empty className="border-0 p-4 md:p-4">
             <EmptyHeader>
-              <EmptyDescription>No game drafts exist for this event yet.</EmptyDescription>
+              <EmptyDescription>No games exist for this event yet.</EmptyDescription>
             </EmptyHeader>
           </Empty>
         )}
@@ -194,6 +227,8 @@ export function GuestGameLobbyCard({
   lobbySlug,
   branding,
   busy,
+  canBrand,
+  error,
   onProvision,
   onSaveBranding,
   onUploadLogo,
@@ -201,10 +236,14 @@ export function GuestGameLobbyCard({
   lobbySlug: string | null;
   branding: PrismEventGameHostLobbyBranding | null;
   busy: boolean;
+  /** Branding and the logo are PMCM Admin settings; coordinators see only the lobby link. */
+  canBrand: boolean;
+  error: string | null;
   onProvision: () => void;
   onSaveBranding: (settings: Omit<UpdateEventGameLobbyBrandingInput, "idempotencyKey">) => void;
   onUploadLogo: (file: File) => Promise<unknown> | unknown;
 }) {
+  const [open, setOpen] = useState(false);
   const [theme, setTheme] = useState<PrismEventGameBrandTheme>("prism");
   const [primaryColor, setPrimaryColor] = useState("#312E81");
   const [secondaryColor, setSecondaryColor] = useState("#0F766E");
@@ -235,67 +274,79 @@ export function GuestGameLobbyCard({
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 className="text-base font-bold text-foreground">Guest games lobby</h3>
-            <p className="mt-1 text-sm text-muted-foreground">Independent (Singleplayer) games start from this lobby without a PIN.</p>
-          </div>
-          <Button type="button" variant="outline" disabled={busy} onClick={onProvision}>{lobbySlug ? "Refresh lobby link" : "Create lobby link"}</Button>
-        </div>
-      </CardHeader>
-      <CardBody>
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label htmlFor="event-game-lobby-theme" className="mb-1 block text-sm font-semibold text-foreground">Guest lobby theme</label>
-            <Select value={theme} onValueChange={(value) => setTheme(value as PrismEventGameBrandTheme)}>
-              <SelectTrigger id="event-game-lobby-theme" aria-label="Guest lobby theme" className="w-full min-w-0 bg-background text-foreground">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(LOBBY_THEME_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <p className="mt-1 text-xs text-muted-foreground">Choose an event-wide theme, then adjust its colors.</p>
-          </div>
-          <label className="grid gap-1 text-sm font-semibold text-foreground" htmlFor="event-game-lobby-primary-color">
-            Primary brand color
-            <input id="event-game-lobby-primary-color" aria-label="Primary brand color" type="color" value={primaryColor} onChange={(event) => setPrimaryColor(event.target.value.toUpperCase())} disabled={busy} className="h-10 w-full rounded-md border border-border bg-background p-1" />
-          </label>
-          <label className="grid gap-1 text-sm font-semibold text-foreground" htmlFor="event-game-lobby-secondary-color">
-            Secondary brand color
-            <input id="event-game-lobby-secondary-color" aria-label="Secondary brand color" type="color" value={secondaryColor} onChange={(event) => setSecondaryColor(event.target.value.toUpperCase())} disabled={busy} className="h-10 w-full rounded-md border border-border bg-background p-1" />
-          </label>
-          <div className="flex flex-wrap items-end gap-2">
-            <Button type="button" variant="outline" disabled={busy} onClick={() => onSaveBranding({ theme, primaryColor, secondaryColor, logoObjectId: branding?.logoObjectId ?? null })}>Save branding</Button>
-          </div>
-        </div>
-        <div className="mt-4 border-t border-border pt-4">
-          <label htmlFor="event-game-lobby-logo" className="block text-sm font-semibold text-foreground">Guest lobby logo</label>
-          <input
-            id="event-game-lobby-logo"
-            aria-label="Guest lobby logo"
-            type="file"
-            accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
-            disabled={busy}
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-              event.currentTarget.value = "";
-              if (file) void onUploadLogo(file);
-            }}
-            className="mt-2 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground file:mr-3 file:rounded file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:font-semibold"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">PNG, JPEG, or WebP; maximum 1 MB. Brand colors must keep accessible contrast against white text.</p>
-        </div>
-        {branding ? <LobbyThemePreview branding={branding} /> : null}
-        {lobbyUrl ? <div className="mt-5 border-t border-border pt-4">
-          <p className="text-xs font-semibold text-muted-foreground">Share this guest app lobby URL</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <code className="break-all rounded bg-muted px-2 py-1 text-sm">{lobbyUrl}</code>
-            <Button type="button" variant="outline" onClick={() => void copyUrl()}>Copy lobby URL</Button>
-          </div>
-        </div> : null}
-      </CardBody>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CardHeader>
+          <CollapsibleTrigger asChild>
+            <button type="button" className="flex w-full items-center justify-between gap-3 text-left">
+              <span>
+                <span className="block text-base font-bold text-foreground">Guest games lobby</span>
+                <span className="mt-1 block text-sm font-normal text-muted-foreground">Independent (Singleplayer) games start from this lobby without a PIN.</span>
+              </span>
+              <ChevronDown className={"size-4 shrink-0 transition-transform " + (open ? "rotate-180" : "")} aria-hidden="true" />
+            </button>
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardBody>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground">Share this guest app lobby URL</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {lobbyUrl ? <>
+                  <code className="break-all rounded bg-muted px-2 py-1 text-sm">{lobbyUrl}</code>
+                  <Button type="button" variant="outline" onClick={() => void copyUrl()}>Copy lobby URL</Button>
+                </> : null}
+                <Button type="button" variant="outline" disabled={busy} onClick={onProvision}>{lobbySlug ? "Refresh lobby link" : "Create lobby link"}</Button>
+              </div>
+            </div>
+            {canBrand ? <>
+              <div className="mt-5 grid gap-4 border-t border-border pt-4 md:grid-cols-2">
+                <div>
+                  <label htmlFor="event-game-lobby-theme" className="mb-1 block text-sm font-semibold text-foreground">Guest lobby theme</label>
+                  <Select value={theme} onValueChange={(value) => setTheme(value as PrismEventGameBrandTheme)}>
+                    <SelectTrigger id="event-game-lobby-theme" aria-label="Guest lobby theme" className="w-full min-w-0 bg-background text-foreground">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(LOBBY_THEME_LABELS).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-1 text-xs text-muted-foreground">Choose an event-wide theme, then adjust its colors.</p>
+                </div>
+                <label className="grid gap-1 text-sm font-semibold text-foreground" htmlFor="event-game-lobby-primary-color">
+                  Primary brand color
+                  <Input id="event-game-lobby-primary-color" aria-label="Primary brand color" type="color" value={primaryColor} onChange={(event) => setPrimaryColor(event.target.value.toUpperCase())} disabled={busy} className="p-1" />
+                </label>
+                <label className="grid gap-1 text-sm font-semibold text-foreground" htmlFor="event-game-lobby-secondary-color">
+                  Secondary brand color
+                  <Input id="event-game-lobby-secondary-color" aria-label="Secondary brand color" type="color" value={secondaryColor} onChange={(event) => setSecondaryColor(event.target.value.toUpperCase())} disabled={busy} className="p-1" />
+                </label>
+                <div className="flex flex-wrap items-end gap-2">
+                  <Button type="button" variant="outline" disabled={busy} onClick={() => onSaveBranding({ theme, primaryColor, secondaryColor, logoObjectId: branding?.logoObjectId ?? null })}>Save branding</Button>
+                </div>
+              </div>
+              <div className="mt-4 border-t border-border pt-4">
+                <label htmlFor="event-game-lobby-logo" className="block text-sm font-semibold text-foreground">Guest lobby logo</label>
+                <Input
+                  id="event-game-lobby-logo"
+                  aria-label="Guest lobby logo"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                  disabled={busy}
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (file) void onUploadLogo(file);
+                  }}
+                  className="mt-2"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">PNG, JPEG, or WebP; maximum 1 MB. Brand colors must keep accessible contrast against white text.</p>
+              </div>
+              {branding ? <LobbyThemePreview branding={branding} /> : null}
+            </> : null}
+            <InlineError message={error} />
+          </CardBody>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   );
 }

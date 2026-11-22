@@ -96,7 +96,6 @@ function PinControl({ pin, issuingPin, pinError, onIssuePin }: Pick<PresenterScr
   );
 }
 
-type PresenterRound = NonNullable<PrismGameHostState["currentRound"]>;
 
 /** Title, round counter, session status, player count and, while guests can still join, the PIN control. */
 function PresenterHeader({ state, pin, issuingPin, pinError, onIssuePin }: Pick<PresenterScreenProps, "state" | "pin" | "issuingPin" | "pinError" | "onIssuePin">) {
@@ -126,16 +125,13 @@ function EndedMessage({ status }: { status: PrismGameSessionStatus }) {
   );
 }
 
-function RoundPrompt({ round, remaining }: { round: PresenterRound; remaining: number | null }) {
+/** The round countdown only: each game renderer draws its own prompt, so repeating it here showed it twice. */
+function RoundCountdown({ remaining }: { remaining: number | null }) {
+  if (remaining === null) return null;
   return (
-    <div className="space-y-4">
-      <p className="text-4xl font-bold leading-tight md:text-6xl">{round.prompt}</p>
-      {remaining !== null ? (
-        <p aria-label="Time left" className="text-5xl font-bold tabular-nums text-amber-300 md:text-7xl">
-          {formatCountdown(remaining)}
-        </p>
-      ) : null}
-    </div>
+    <p aria-label="Time left" className="text-5xl font-bold tabular-nums text-amber-300 md:text-7xl">
+      {formatCountdown(remaining)}
+    </p>
   );
 }
 
@@ -147,9 +143,9 @@ function WaitingMessage({ status }: { status: PrismGameSessionStatus }) {
   );
 }
 
-/** The active round's prompt and countdown, or a waiting message before the first round. */
+/** The active round's countdown, or a waiting message before the first round. */
 function RoundStage({ round, remaining, status }: { round: PrismGameHostState["currentRound"]; remaining: number | null; status: PrismGameSessionStatus }) {
-  return round ? <RoundPrompt round={round} remaining={remaining} /> : <WaitingMessage status={status} />;
+  return round ? <RoundCountdown remaining={remaining} /> : <WaitingMessage status={status} />;
 }
 
 export function PresenterScreen(props: PresenterScreenProps) {

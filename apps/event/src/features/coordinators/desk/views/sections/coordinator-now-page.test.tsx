@@ -48,7 +48,7 @@ const roleView = {
   timer: { status: "active", label: "", segmentId: "s1", secondsRemaining: 522, serverTime: "" },
 } as unknown as PrismCoordinatorRoleView;
 
-function renderNow({ form = attendance(), assignment = { status: "acknowledged" } as Partial<PrismCoordinatorAssignment>, onNavigate = vi.fn() } = {}) {
+function renderNow({ form = attendance(), assignment = { status: "acknowledged" } as Partial<PrismCoordinatorAssignment>, onNavigate = vi.fn(), gamesEnabled = false } = {}) {
   const taskActions = { busy: false, error: null, updateStatus: vi.fn(), blockTask: vi.fn(), unblockTask: vi.fn() };
   render(
     <CoordinatorNowPage
@@ -64,6 +64,7 @@ function renderNow({ form = attendance(), assignment = { status: "acknowledged" 
       onAcknowledge={vi.fn()}
       onDecline={vi.fn()}
       onWithdraw={vi.fn()}
+      gamesEnabled={gamesEnabled}
       onNavigate={onNavigate}
     />,
   );
@@ -108,6 +109,16 @@ describe("Now, on the event day", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /1 open issue/ }));
     expect(onNavigate).toHaveBeenLastCalledWith("issues");
+  });
+
+  it("links to Games only when the event's games module is on", () => {
+    renderNow();
+    expect(screen.queryByRole("button", { name: /Games/ })).toBeNull();
+    cleanup();
+
+    const { onNavigate } = renderNow({ gamesEnabled: true });
+    fireEvent.click(screen.getByRole("button", { name: /Games/ }));
+    expect(onNavigate).toHaveBeenLastCalledWith("games");
   });
 });
 

@@ -214,6 +214,7 @@ const GAME_DATA_SANITIZERS: readonly GameDataSanitizer[] = [
   sanitizePictureSoloGameData,
   sanitizeSpotTheDifferenceGameData,
   sanitizeThisOrThatGameData,
+  sanitizeSoloChoiceGameData,
   sanitizeFamilyFeudGameData,
   sanitizePresenterDeckGameData,
   sanitizeSplitOrAudienceGameData,
@@ -343,6 +344,19 @@ function sanitizeThisOrThatGameData(value: Record<string, unknown>): PrismGamePu
   return { kind: "this-or-that", options };
 }
 
+/** Independent Would You Rather and This or That (Solo) participant data: the two options, never an answer key. */
+function sanitizeSoloChoiceGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
+  if (value.kind === "would-you-rather") {
+    const options = sanitizePublicChoices(value.options);
+    return options && typeof value.aggregateResults === "boolean"
+      ? { kind: "would-you-rather", options, aggregateResults: value.aggregateResults }
+      : undefined;
+  }
+  if (value.kind !== "this-or-that-solo") return undefined;
+  const options = sanitizePublicChoices(value.options);
+  return options ? { kind: "this-or-that-solo", options } : undefined;
+}
+
 function sanitizeFamilyFeudGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
   if (value.kind !== "family-feud" || typeof value.teamLabel !== "string"
     || !value.teamLabel.trim() || value.teamLabel.length > 80) return undefined;
@@ -425,7 +439,9 @@ function sanitizeApprovedResponses(
   kind: PrismGamePublicState["game"]["kind"],
   status: PrismGamePublicState["status"],
 ): readonly string[] | undefined {
-  if (!["split-the-room", "word-cloud", "open-qa"].includes(kind) || status !== "paused" || !Array.isArray(value)) return undefined;
+  // Presenter Deck word-cloud answers are auto-approved and show while live as well as paused (matches the API read model).
+  const visible = kind === "presenter-deck" ? status === "live" || status === "paused" : status === "paused";
+  if (!["split-the-room", "word-cloud", "open-qa", "presenter-deck"].includes(kind) || !visible || !Array.isArray(value)) return undefined;
   return value.slice(0, 100).flatMap((response) =>
     typeof response === "string" && response.trim().length > 0 && response.length <= 500
       ? [response]

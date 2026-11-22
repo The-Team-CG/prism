@@ -8,6 +8,8 @@ import {
 } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Field, FieldLabel } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Textarea } from "@prism/ui/components/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { AudienceGameFields, audienceDraftFrom, buildAudienceConfiguration, emptyAudienceDraft, isAudienceDraft, type AudienceDraft } from "./audience-game-configuration";
 import {
@@ -445,22 +447,22 @@ export function EventGameTemplateConfigurationEditor({ game, busy, onSave, onUpl
             <fieldset key={round.key} className="grid gap-3 rounded-md border border-border p-3 md:grid-cols-2">
               <legend className="px-1 text-sm font-semibold">Question {index + 1}</legend>
               <label className="grid gap-1 text-xs font-semibold md:col-span-2">Prompt
-                <input value={round.prompt} maxLength={500} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+                <Input value={round.prompt} maxLength={500} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} />
               </label>
               <label className="grid gap-1 text-xs font-semibold">Answer choices (one per line)
-                <textarea rows={3} value={round.options} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, options: event.target.value } : item) })} className="rounded border border-border bg-background px-2 py-1 text-sm" />
+                <Textarea rows={3} value={round.options} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, options: event.target.value } : item) })} />
               </label>
               <label className="grid gap-1 text-xs font-semibold">Correct answer
-                <input value={round.correctAnswer} maxLength={120} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, correctAnswer: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+                <Input value={round.correctAnswer} maxLength={120} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, correctAnswer: event.target.value } : item) })} />
               </label>
               <label className="grid gap-1 text-xs font-semibold">Points
-                <input type="number" min={0} max={100000} value={round.points} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, points: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+                <Input type="number" min={0} max={100000} value={round.points} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, points: event.target.value } : item) })} />
               </label>
               <label className="grid gap-1 text-xs font-semibold">Seconds per question
-                <input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+                <Input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} />
               </label>
               <label className="grid gap-1 text-xs font-semibold">Optional maximum speed bonus
-                <input type="number" min={0} max={100000} value={round.speedBonusPoints} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, speedBonusPoints: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+                <Input type="number" min={0} max={100000} value={round.speedBonusPoints} onChange={(event) => setDraft({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, speedBonusPoints: event.target.value } : item) })} />
               </label>
               {draft.rounds.length > 1 ? <Button type="button" size="sm" variant="outline" className="md:col-span-2 md:justify-self-start" onClick={() => setDraft({ ...draft, rounds: draft.rounds.filter((_, itemIndex) => itemIndex !== index) })}>Remove question</Button> : null}
             </fieldset>
@@ -471,10 +473,10 @@ export function EventGameTemplateConfigurationEditor({ game, busy, onSave, onUpl
 
       {draft.kind === "bingo" ? <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Call sequence (24–75 unique numbers, comma-separated)
-          <input value={draft.callSequence} onChange={(event) => setDraft({ ...draft, callSequence: event.target.value })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+          <Input value={draft.callSequence} onChange={(event) => setDraft({ ...draft, callSequence: event.target.value })} />
         </label>
         <label className="grid gap-1 text-xs font-semibold">Seconds between calls
-          <input type="number" min={5} max={120} value={draft.callIntervalSeconds} onChange={(event) => setDraft({ ...draft, callIntervalSeconds: event.target.value })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+          <Input type="number" min={5} max={120} value={draft.callIntervalSeconds} onChange={(event) => setDraft({ ...draft, callIntervalSeconds: event.target.value })} />
         </label>
         <Field>
           <FieldLabel htmlFor="event-game-winning-pattern" className="text-xs">Winning pattern</FieldLabel>
@@ -489,7 +491,7 @@ export function EventGameTemplateConfigurationEditor({ game, busy, onSave, onUpl
           </Select>
         </Field>
         <label className="grid gap-1 text-xs font-semibold">Points for a verified win
-          <input type="number" min={0} max={100000} value={draft.points} onChange={(event) => setDraft({ ...draft, points: event.target.value })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+          <Input type="number" min={0} max={100000} value={draft.points} onChange={(event) => setDraft({ ...draft, points: event.target.value })} />
         </label>
       </div> : null}
 
@@ -502,13 +504,13 @@ export function EventGameTemplateConfigurationEditor({ game, busy, onSave, onUpl
             current?.kind === "guess-picture" ? { ...current, mediaObjectId } : current))}
         />
         <label className="grid gap-1 text-xs font-semibold">Accepted answers (comma-separated)
-          <input value={draft.acceptedAnswers} onChange={(event) => setDraft({ ...draft, acceptedAnswers: event.target.value })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+          <Input value={draft.acceptedAnswers} onChange={(event) => setDraft({ ...draft, acceptedAnswers: event.target.value })} />
         </label>
         {draft.stages.map((stage, index) => <fieldset key={index} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-3">
           <legend className="px-1 text-xs font-semibold">Reveal stage {index + 1}</legend>
-          <label className="grid gap-1 text-xs font-semibold">After seconds<input type="number" min={0} max={3600} value={stage.afterSeconds} onChange={(event) => setDraft({ ...draft, stages: draft.stages.map((item, itemIndex) => itemIndex === index ? { ...item, afterSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
-          <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Hint<input value={stage.hint} onChange={(event) => setDraft({ ...draft, stages: draft.stages.map((item, itemIndex) => itemIndex === index ? { ...item, hint: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
-          <label className="grid gap-1 text-xs font-semibold">Points<input type="number" min={0} max={100000} value={stage.points} onChange={(event) => setDraft({ ...draft, stages: draft.stages.map((item, itemIndex) => itemIndex === index ? { ...item, points: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
+          <label className="grid gap-1 text-xs font-semibold">After seconds<Input type="number" min={0} max={3600} value={stage.afterSeconds} onChange={(event) => setDraft({ ...draft, stages: draft.stages.map((item, itemIndex) => itemIndex === index ? { ...item, afterSeconds: event.target.value } : item) })} /></label>
+          <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Hint<Input value={stage.hint} onChange={(event) => setDraft({ ...draft, stages: draft.stages.map((item, itemIndex) => itemIndex === index ? { ...item, hint: event.target.value } : item) })} /></label>
+          <label className="grid gap-1 text-xs font-semibold">Points<Input type="number" min={0} max={100000} value={stage.points} onChange={(event) => setDraft({ ...draft, stages: draft.stages.map((item, itemIndex) => itemIndex === index ? { ...item, points: event.target.value } : item) })} /></label>
           {draft.stages.length > 1 ? <Button type="button" size="sm" variant="outline" className="sm:col-span-3 sm:justify-self-start" onClick={() => setDraft({ ...draft, stages: draft.stages.filter((_, itemIndex) => itemIndex !== index) })}>Remove stage</Button> : null}
         </fieldset>)}
         <Button type="button" size="sm" variant="outline" onClick={() => setDraft({ ...draft, stages: [...draft.stages, { afterSeconds: "30", hint: "", points: "50" }] })}>Add reveal stage</Button>
@@ -517,10 +519,10 @@ export function EventGameTemplateConfigurationEditor({ game, busy, onSave, onUpl
       {draft.kind === "spin-wheel" ? <div className="mt-3 space-y-3">
         {draft.outcomes.map((outcome, index) => <fieldset key={outcome.id} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-2">
           <legend className="px-1 text-xs font-semibold">Outcome {index + 1}</legend>
-          <label className="grid gap-1 text-xs font-semibold">Outcome ID<input value={outcome.id} onChange={(event) => setDraft({ ...draft, outcomes: draft.outcomes.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
-          <label className="grid gap-1 text-xs font-semibold">Label<input value={outcome.label} onChange={(event) => setDraft({ ...draft, outcomes: draft.outcomes.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
-          <label className="grid gap-1 text-xs font-semibold">Selection weight<input type="number" min={1} max={100000} value={outcome.weight} onChange={(event) => setDraft({ ...draft, outcomes: draft.outcomes.map((item, itemIndex) => itemIndex === index ? { ...item, weight: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
-          <label className="grid gap-1 text-xs font-semibold">Points<input type="number" min={0} max={100000} value={outcome.points} onChange={(event) => setDraft({ ...draft, outcomes: draft.outcomes.map((item, itemIndex) => itemIndex === index ? { ...item, points: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
+          <label className="grid gap-1 text-xs font-semibold">Outcome ID<Input value={outcome.id} onChange={(event) => setDraft({ ...draft, outcomes: draft.outcomes.map((item, itemIndex) => itemIndex === index ? { ...item, id: event.target.value } : item) })} /></label>
+          <label className="grid gap-1 text-xs font-semibold">Label<Input value={outcome.label} onChange={(event) => setDraft({ ...draft, outcomes: draft.outcomes.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item) })} /></label>
+          <label className="grid gap-1 text-xs font-semibold">Selection weight<Input type="number" min={1} max={100000} value={outcome.weight} onChange={(event) => setDraft({ ...draft, outcomes: draft.outcomes.map((item, itemIndex) => itemIndex === index ? { ...item, weight: event.target.value } : item) })} /></label>
+          <label className="grid gap-1 text-xs font-semibold">Points<Input type="number" min={0} max={100000} value={outcome.points} onChange={(event) => setDraft({ ...draft, outcomes: draft.outcomes.map((item, itemIndex) => itemIndex === index ? { ...item, points: event.target.value } : item) })} /></label>
           <label className="flex items-center gap-2 text-xs font-semibold sm:col-span-2"><input type="checkbox" checked={outcome.eligible} onChange={(event) => setDraft({ ...draft, outcomes: draft.outcomes.map((item, itemIndex) => itemIndex === index ? { ...item, eligible: event.target.checked } : item) })} />Eligible for selection</label>
           {draft.outcomes.length > 2 ? <Button type="button" size="sm" variant="outline" className="sm:col-span-2 sm:justify-self-start" onClick={() => setDraft({ ...draft, outcomes: draft.outcomes.filter((_, itemIndex) => itemIndex !== index) })}>Remove outcome</Button> : null}
         </fieldset>)}
@@ -628,13 +630,13 @@ function WouldYouRatherFields({ draft, onChange }: { draft: WouldYouRatherDraft;
     {draft.rounds.map((round, index) => <fieldset key={round.key} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-2">
       <legend className="px-1 text-sm font-semibold">Would you rather question {index + 1}</legend>
       <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Prompt
-        <input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Choices (exactly two, one per line)
-        <textarea rows={2} value={round.options} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, options: event.target.value } : item) })} className="rounded border border-border bg-background px-2 py-1 text-sm" />
+        <Textarea rows={2} value={round.options} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, options: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Seconds to choose
-        <input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} />
       </label>
       <label className="flex items-center gap-2 text-xs font-semibold sm:col-span-2">
         <input type="checkbox" checked={round.aggregateResults} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, aggregateResults: event.target.checked } : item) })} />
@@ -652,13 +654,13 @@ function ThisOrThatSoloFields({ draft, onChange }: { draft: ThisOrThatSoloDraft;
     {draft.rounds.map((round, index) => <fieldset key={round.key} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-2">
       <legend className="px-1 text-sm font-semibold">Question {index + 1}</legend>
       <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Prompt
-        <input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Choices (exactly two, one per line)
-        <textarea rows={2} value={round.options} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, options: event.target.value } : item) })} className="rounded border border-border bg-background px-2 py-1 text-sm" />
+        <Textarea rows={2} value={round.options} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, options: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Seconds to choose
-        <input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} />
       </label>
       {draft.rounds.length > 1 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: draft.rounds.filter((_, itemIndex) => itemIndex !== index) })}>Remove question</Button> : null}
     </fieldset>)}
@@ -671,10 +673,10 @@ function WordScrambleFields({ draft, onChange }: { draft: WordScrambleDraft; onC
     <p className="text-xs leading-5 text-muted-foreground">Guests see the scrambled word. Answers are checked and scored by the server.</p>
     {draft.rounds.map((round, index) => <fieldset key={round.key} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-2">
       <legend className="px-1 text-sm font-semibold">Puzzle {index + 1}</legend>
-      <label className="grid gap-1 text-xs font-semibold">Scrambled word<input value={round.scrambledWord} maxLength={120} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, scrambledWord: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
-      <label className="grid gap-1 text-xs font-semibold">Answer key (not shown to guests)<input value={round.answer} maxLength={120} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, answer: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
-      <label className="grid gap-1 text-xs font-semibold">Points<input type="number" min={0} max={100000} value={round.points} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, points: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
-      <label className="grid gap-1 text-xs font-semibold">Seconds to solve<input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
+      <label className="grid gap-1 text-xs font-semibold">Scrambled word<Input value={round.scrambledWord} maxLength={120} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, scrambledWord: event.target.value } : item) })} /></label>
+      <label className="grid gap-1 text-xs font-semibold">Answer key (not shown to guests)<Input value={round.answer} maxLength={120} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, answer: event.target.value } : item) })} /></label>
+      <label className="grid gap-1 text-xs font-semibold">Points<Input type="number" min={0} max={100000} value={round.points} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, points: event.target.value } : item) })} /></label>
+      <label className="grid gap-1 text-xs font-semibold">Seconds to solve<Input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} /></label>
       {draft.rounds.length > 1 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: draft.rounds.filter((_, itemIndex) => itemIndex !== index) })}>Remove puzzle</Button> : null}
     </fieldset>)}
     {draft.rounds.length < 30 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: [...draft.rounds, { key: `word-${draft.rounds.length + 1}`, scrambledWord: "", answer: "", points: "10", durationSeconds: "45" }] })}>Add puzzle</Button> : null}
@@ -703,9 +705,9 @@ function PictureSoloFields({ draft, onChange, onUploadMedia, mediaBusy }: {
             } : current))}
         />
       </div>
-      <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Accepted answers (comma-separated)<input value={round.acceptedAnswers} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, acceptedAnswers: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
-      <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Reveal hint schedule (seconds | hint | points, one per line)<textarea rows={3} value={round.stages} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, stages: event.target.value } : item) })} className="rounded border border-border bg-background px-2 py-1 text-sm" /></label>
-      <label className="grid gap-1 text-xs font-semibold">Seconds to solve<input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
+      <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Accepted answers (comma-separated)<Input value={round.acceptedAnswers} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, acceptedAnswers: event.target.value } : item) })} /></label>
+      <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Reveal hint schedule (seconds | hint | points, one per line)<Textarea rows={3} value={round.stages} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, stages: event.target.value } : item) })} /></label>
+      <label className="grid gap-1 text-xs font-semibold">Seconds to solve<Input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} /></label>
       {draft.rounds.length > 1 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: draft.rounds.filter((_, itemIndex) => itemIndex !== index) })}>Remove picture puzzle</Button> : null}
     </fieldset>)}
     {draft.rounds.length < 20 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: [...draft.rounds, { key: `picture-${draft.rounds.length + 1}`, mediaObjectId: "", acceptedAnswers: "", stages: "0 | First hint | 20", durationSeconds: "60" }] })}>Add picture puzzle</Button> : null}
@@ -742,8 +744,8 @@ function SpotTheDifferenceFields({ draft, onChange, onUploadMedia, mediaBusy }: 
             rounds: current.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, comparisonMediaObjectId } : item),
           } : current))}
       />
-      <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Target regions (x, y, width, height, points)<textarea rows={4} value={round.differences} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, differences: event.target.value } : item) })} className="rounded border border-border bg-background px-2 py-1 text-sm" /></label>
-      <label className="grid gap-1 text-xs font-semibold">Seconds to find them<input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" /></label>
+      <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Target regions (x, y, width, height, points)<Textarea rows={4} value={round.differences} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, differences: event.target.value } : item) })} /></label>
+      <label className="grid gap-1 text-xs font-semibold">Seconds to find them<Input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} /></label>
       {draft.rounds.length > 1 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: draft.rounds.filter((_, itemIndex) => itemIndex !== index) })}>Remove image pair</Button> : null}
     </fieldset>)}
     {draft.rounds.length < 20 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: [...draft.rounds, { key: `difference-${draft.rounds.length + 1}`, originalMediaObjectId: "", comparisonMediaObjectId: "", differences: "0.2, 0.2, 0.1, 0.1, 10", durationSeconds: "90" }] })}>Add image pair</Button> : null}
@@ -756,13 +758,13 @@ function ThisOrThatFields({ draft, onChange }: { draft: ThisOrThatDraft; onChang
     {draft.rounds.map((round, index) => <fieldset key={round.key} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-2">
       <legend className="px-1 text-sm font-semibold">Question {index + 1}</legend>
       <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Prompt
-        <input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Choices (exactly two, one per line)
-        <textarea rows={2} value={round.options} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, options: event.target.value } : item) })} className="rounded border border-border bg-background px-2 py-1 text-sm" />
+        <Textarea rows={2} value={round.options} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, options: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Seconds for voting
-        <input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} />
       </label>
       {draft.rounds.length > 1 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: draft.rounds.filter((_, itemIndex) => itemIndex !== index) })}>Remove question</Button> : null}
     </fieldset>)}
@@ -776,20 +778,20 @@ function FamilyFeudFields({ draft, onChange }: { draft: FamilyFeudDraft; onChang
     <fieldset className="grid gap-2 rounded-md border border-border p-3">
       <legend className="px-1 text-sm font-semibold">Teams</legend>
       {draft.teams.map((team, index) => <label key={team.id} className="grid gap-1 text-xs font-semibold">Team {index + 1}
-        <input value={team.label} maxLength={80} onChange={(event) => onChange({ ...draft, teams: draft.teams.map((item) => item.id === team.id ? { ...item, label: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input value={team.label} maxLength={80} onChange={(event) => onChange({ ...draft, teams: draft.teams.map((item) => item.id === team.id ? { ...item, label: event.target.value } : item) })} />
       </label>)}
       {draft.teams.length < 8 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, teams: [...draft.teams, { id: globalThis.crypto.randomUUID(), label: `Team ${draft.teams.length + 1}` }] })}>Add team</Button> : null}
     </fieldset>
     {draft.rounds.map((round, index) => <fieldset key={round.key} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-2">
       <legend className="px-1 text-sm font-semibold">Question {index + 1}</legend>
       <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Prompt
-        <input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Answer board: answer | accepted alternatives | points (one per line)
-        <textarea rows={5} value={round.answers} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, answers: event.target.value } : item) })} className="rounded border border-border bg-background px-2 py-1 text-sm" />
+        <Textarea rows={5} value={round.answers} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, answers: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Seconds per question
-        <input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} />
       </label>
       {draft.rounds.length > 1 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: draft.rounds.filter((_, itemIndex) => itemIndex !== index) })}>Remove question</Button> : null}
     </fieldset>)}
@@ -803,19 +805,19 @@ function SplitTheRoomFields({ draft, onChange }: { draft: SplitTheRoomDraft; onC
     {draft.rounds.map((round, index) => <fieldset key={round.key} className="grid gap-3 rounded-md border border-border p-3 sm:grid-cols-2">
       <legend className="px-1 text-sm font-semibold">Prompt {index + 1}</legend>
       <label className="grid gap-1 text-xs font-semibold sm:col-span-2">Prompt
-        <input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input value={round.prompt} maxLength={500} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, prompt: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Left choice
-        <input value={round.leftLabel} maxLength={80} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, leftLabel: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input value={round.leftLabel} maxLength={80} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, leftLabel: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Right choice
-        <input value={round.rightLabel} maxLength={80} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, rightLabel: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input value={round.rightLabel} maxLength={80} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, rightLabel: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Maximum response length
-        <input type="number" min={20} max={500} value={round.maxResponseLength} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, maxResponseLength: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input type="number" min={20} max={500} value={round.maxResponseLength} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, maxResponseLength: event.target.value } : item) })} />
       </label>
       <label className="grid gap-1 text-xs font-semibold">Seconds for this round
-        <input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} className="min-h-9 rounded border border-border bg-background px-2 text-sm" />
+        <Input type="number" min={5} max={600} value={round.durationSeconds} onChange={(event) => onChange({ ...draft, rounds: draft.rounds.map((item, itemIndex) => itemIndex === index ? { ...item, durationSeconds: event.target.value } : item) })} />
       </label>
       {draft.rounds.length > 1 ? <Button type="button" size="sm" variant="outline" onClick={() => onChange({ ...draft, rounds: draft.rounds.filter((_, itemIndex) => itemIndex !== index) })}>Remove prompt</Button> : null}
     </fieldset>)}

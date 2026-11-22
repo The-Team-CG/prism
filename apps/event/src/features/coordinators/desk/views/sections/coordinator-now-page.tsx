@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronRight, CircleCheck, ClipboardList, FileText, MessageSquare, Navigation, Phone, Radio } from "lucide-react";
+import { ChevronDown, ChevronRight, CircleCheck, ClipboardList, FileText, Gamepad2, MessageSquare, Navigation, Phone, Radio } from "lucide-react";
 import type { PrismCoordinatorAssignment, PrismCoordinatorRoleView, PrismEvent } from "@prism/types";
 import { prismCalendarDateKey } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
@@ -18,7 +18,7 @@ import { CoordinatorAttendanceControl, CoordinatorBriefing, CoordinatorRoleError
 import { CoordinatorAssignmentActions } from "./coordinator-view-sections";
 import { NavRow, RowGroup } from "./coordinator-blocks";
 
-export type CoordinatorNowView = "tasks" | "issues" | "messages" | "run-sheet";
+export type CoordinatorNowView = "tasks" | "issues" | "messages" | "run-sheet" | "games";
 
 /** Seconds left on the running segment, counting down between refreshes. */
 function useCountdown(secondsRemaining: number | undefined): number | undefined {
@@ -168,7 +168,7 @@ function BriefBody({ roleView, event }: { roleView: PrismCoordinatorRoleView; ev
  * The day at a glance, as one list: tasks and issues each open their page, and the brief unfolds in place. One surface
  * instead of a card, a row and a fold each drawn differently.
  */
-function YourDay({ roleView, event, showBrief, onNavigate }: { roleView: PrismCoordinatorRoleView; event: PrismEvent; showBrief: boolean; onNavigate: (view: CoordinatorNowView) => void }) {
+function YourDay({ roleView, event, showBrief, gamesEnabled, onNavigate }: { roleView: PrismCoordinatorRoleView; event: PrismEvent; showBrief: boolean; gamesEnabled: boolean; onNavigate: (view: CoordinatorNowView) => void }) {
   const [briefOpen, setBriefOpen] = useState(false);
   const issues = openIssues(roleView.urgentIssues);
   const urgent = issues.some((issue) => issueTone(issue) === "urgent");
@@ -183,6 +183,7 @@ function YourDay({ roleView, event, showBrief, onNavigate }: { roleView: PrismCo
         trailing={CHEVRON}
         onClick={() => onNavigate("issues")}
       />
+      {gamesEnabled ? <NavRow icon={Gamepad2} title="Games" trailing={CHEVRON} onClick={() => onNavigate("games")} /> : null}
       {showBrief ? (
         <>
           <NavRow icon={FileText} title="Your brief" detail="Call time, script and venue" trailing={<ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", briefOpen && "rotate-180")} aria-hidden />} onClick={() => setBriefOpen((open) => !open)} />
@@ -234,6 +235,8 @@ type NowPageProps = {
   onAcknowledge: () => void;
   onDecline: (reason?: string) => void;
   onWithdraw: () => void;
+  /** The event's games module is switched on, so Now links to the Games page. */
+  gamesEnabled: boolean;
   onNavigate: (view: CoordinatorNowView) => void;
 };
 
@@ -243,7 +246,7 @@ function NowWork({ phase, event, roleView, props }: { phase: EventPhase; event: 
     <>
       {phase === "after" ? <DaySummary roleView={roleView} attendance={props.attendanceForm.status} /> : null}
       <NextTaskCard roleView={roleView} taskActions={props.taskActions} />
-      <YourDay roleView={roleView} event={event} showBrief={phase === "day"} onNavigate={props.onNavigate} />
+      <YourDay roleView={roleView} event={event} showBrief={phase === "day"} gamesEnabled={props.gamesEnabled} onNavigate={props.onNavigate} />
       {phase === "day" && canCheckSuppliers(roleView) ? <CoordinatorSupplierChecks roleView={roleView} actions={props.operatorActions} /> : null}
     </>
   );

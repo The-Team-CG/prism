@@ -9,7 +9,15 @@ function roundFor(currentRound: GameRuleCurrentRound | undefined, key: string) {
 
 export const liveTriviaRule: GameRuleDefinition = {
   templateId: 'live-trivia',
-  validateConfiguration: (configuration) => configurationErrors(configuration, 'live-trivia'),
+  validateConfiguration: (configuration) => {
+    const errors = configurationErrors(configuration, 'live-trivia');
+    const parsed = templateConfiguration(configuration, 'live-trivia');
+    if (errors.length > 0 || !parsed) return errors;
+    // Scoring compares answers after normalizeAnswer, so two options that normalize alike (e.g. "Résumé" and "Resume")
+    // would both be scored as the correct answer. Reject them at publish and session start.
+    const collides = parsed.rounds.some((round) => new Set(round.options.map(normalizeAnswer)).size !== round.options.length);
+    return collides ? ['Trivia options must stay distinct when accents and capitalization are ignored'] : [];
+  },
   getCurrentRound: ({ configuration, startedAt, now }) => {
     const parsed = templateConfiguration(configuration, 'live-trivia');
     if (!parsed) return null;

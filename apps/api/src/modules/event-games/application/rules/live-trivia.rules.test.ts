@@ -57,3 +57,23 @@ describe('Live Trivia rule', () => {
       .toEqual(liveTriviaRule.scoreSubmission({ configuration, submission: { answer: 'b' }, currentRound }));
   });
 });
+
+describe('Live Trivia accent collisions', () => {
+  const collidingConfiguration = {
+    description: 'Accents',
+    configuration: {
+      kind: 'live-trivia',
+      rounds: [
+        { key: 'q1', prompt: 'Name the dish', options: ['Résumé', 'Resume'], correctAnswer: 'Résumé', points: 100, durationSeconds: 30 },
+      ],
+    },
+  };
+
+  it('rejects a round whose options normalize to the same answer, so a wrong option cannot score', () => {
+    expect(liveTriviaRule.validateConfiguration(collidingConfiguration)).not.toEqual([]);
+  });
+
+  it('accepts options that stay distinct after normalization', () => {
+    expect(liveTriviaRule.validateConfiguration(configuration)).toEqual([]);
+  });
+});

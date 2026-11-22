@@ -14,6 +14,7 @@ function setup(overrides: { event?: Record<string, unknown> | null; games?: Arra
   const access = {
     getPublicEventScope: vi.fn().mockResolvedValue(overrides.event === undefined ? { eventId, eventName: 'Launch', archived: false, closed: false } : overrides.event),
     assertHostAccess: vi.fn(),
+    assertAdminAccess: vi.fn(),
     isEventOpen: vi.fn().mockResolvedValue(true),
   };
   const game = overrides.game === undefined ? {
@@ -186,6 +187,7 @@ describe('EventGamesLobbyService', () => {
 
     expect(result).toEqual({ theme: 'forest', primaryColor: '#14532D', secondaryColor: '#166534', logoUrl: 'https://storage.example.test/lobby-logo', logoObjectId });
     expect(mediaStorage.validateLobbyLogoReference).toHaveBeenCalledWith({ eventId, objectId: logoObjectId });
+    expect(access.assertAdminAccess).toHaveBeenCalledWith(eventId, host);
     expect(access.assertHostAccess).toHaveBeenCalledWith(eventId, host);
     expect(hostCommands.executeHostCommand).toHaveBeenCalledWith(expect.objectContaining({
       eventId,
@@ -196,6 +198,32 @@ describe('EventGamesLobbyService', () => {
       command: { theme: 'forest', primaryColor: '#14532D', secondaryColor: '#166534', logoObjectId },
       requestReceiptId: `update-game-lobby-branding:${eventId}:${idempotencyKey}`,
     }));
+  });
+
+  it('refuses a coordinator lobby branding edit before any write, even though the coordinator can open the lobby', async () => {
+    const { service, access, hostCommands, store } = setup();
+    const coordinator = { actorId: 'coord-1', actorRole: 'coordinator' } as never;
+    access.assertAdminAccess.mockRejectedValue(new ForbiddenException('Only PMCM administrators can change the lobby branding'));
+
+    await expect(service.updateHostLobbyBranding(eventId, coordinator, {
+      theme: 'forest', idempotencyKey: '00000000-0000-4000-8000-000000000102',
+    })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(hostCommands.executeHostCommand).not.toHaveBeenCalled();
+    expect(store.findLobbyBranding).not.toHaveBeenCalled();
+  });
+
+  it('refuses a coordinator logo upload request and confirmation before any storage call', async () => {
+    const { service, access, mediaStorage } = setup();
+    const coordinator = { actorId: 'coord-1', actorRole: 'coordinator' } as never;
+    access.assertAdminAccess.mockRejectedValue(new ForbiddenException('Only PMCM administrators can change the lobby branding'));
+
+    await expect(service.requestLobbyLogoUpload(eventId, coordinator, {
+      fileName: 'logo.png', contentType: 'image/png', byteSize: 1024, checksumSha256: 'a'.repeat(64),
+    } as never)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.confirmLobbyLogoUpload(eventId, 'obj_00000000-0000-4000-8000-000000000107', coordinator, {
+      checksumSha256: 'a'.repeat(64), byteSize: 1024,
+    })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(mediaStorage.requestLobbyLogoUpload).not.toHaveBeenCalled();
   });
 
   it('requests and confirms a host-authorized event lobby logo upload', async () => {

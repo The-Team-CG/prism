@@ -167,11 +167,9 @@ describe("useEventGamesHostViewModel", () => {
   it("refreshes a selected active multiplayer session and its aggregates every 30 seconds", async () => {
     vi.useFakeTimers();
     const { result } = renderHook(() => useEventGamesHostViewModel(ADMIN));
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-    await act(async () => { await result.current.selectSession("session-1"); });
+    // The lobby session is selected automatically after the first load.
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(result.current.selectedSessionId).toBe("session-1");
     expect(actions.getHostState).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -181,6 +179,73 @@ describe("useEventGamesHostViewModel", () => {
 
     expect(actions.getHostState).toHaveBeenCalledTimes(2);
     expect(actions.loadWorkspace).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["a live session over a scheduled one", [["s-sched", "scheduled"], ["s-live", "live"]], "s-live"],
+    ["a paused session", [["s-done", "completed"], ["s-paused", "paused"]], "s-paused"],
+    ["a scheduled session when nothing is running", [["s-done", "completed"], ["s-sched", "scheduled"]], "s-sched"],
+  ] as const)("selects %s after load", async (_label, sessions, expected) => {
+    actions.loadWorkspace.mockResolvedValue({
+      games: [GAME],
+      analytics: {
+        ...ANALYTICS,
+        sessions: sessions.map(([sessionId, status]) => ({ ...ANALYTICS.sessions[0], sessionId, status })),
+      },
+      branding: null,
+    });
+    const { result } = renderHook(() => useEventGamesHostViewModel(ADMIN));
+
+    await waitFor(() => expect(result.current.selectedSessionId).toBe(expected));
+    expect(actions.getHostState).toHaveBeenCalledWith("event-1", expected);
+  });
+
+  it("does not select a session when none is running or scheduled", async () => {
+    actions.loadWorkspace.mockResolvedValue({
+      games: [GAME],
+      analytics: { ...ANALYTICS, sessions: [{ ...ANALYTICS.sessions[0], status: "completed" }] },
+      branding: null,
+    });
+    const { result } = renderHook(() => useEventGamesHostViewModel(ADMIN));
+
+    await waitFor(() => expect(result.current.games).toHaveLength(1));
+    expect(result.current.selectedSessionId).toBeNull();
+    expect(actions.getHostState).not.toHaveBeenCalled();
+  });
+
+  it("does not auto-select a session for a PMCM Admin after the event closes", async () => {
+    const { result } = renderHook(() => useEventGamesHostViewModel({ ...ADMIN, eventStatus: "closed" }));
+
+    await waitFor(() => expect(result.current.analytics?.eventId).toBe("event-1"));
+    expect(result.current.selectedSessionId).toBeNull();
+    expect(actions.getHostState).not.toHaveBeenCalled();
+  });
+
+  it("loads the guest lobby link when the view loads", async () => {
+    const { result } = renderHook(() => useEventGamesHostViewModel(ADMIN));
+
+    await waitFor(() => expect(result.current.lobbySlug).toBe("opaque-lobby"));
+    expect(actions.ensureLobby).toHaveBeenCalledWith("event-1");
+  });
+
+  it("keeps lobby branding for PMCM Admins only", () => {
+    const admin = renderHook(() => useEventGamesHostViewModel(ADMIN));
+    const coordinator = renderHook(() => useEventGamesHostViewModel({ ...ADMIN, role: "coordinator" }));
+
+    expect(admin.result.current.canBrandLobby).toBe(true);
+    expect(coordinator.result.current.canBrandLobby).toBe(false);
+    expect(coordinator.result.current.canManage).toBe(true);
+  });
+
+  it("ties a failed game action's error to that game", async () => {
+    actions.archiveGame.mockRejectedValue(new Error("This game cannot be archived."));
+    const { result } = renderHook(() => useEventGamesHostViewModel(ADMIN));
+    await waitFor(() => expect(result.current.games).toHaveLength(1));
+
+    await act(async () => { await result.current.archiveGame("game-1"); });
+
+    expect(result.current.error).toBe("This game cannot be archived.");
+    expect(result.current.errorTarget).toBe("game:game-1");
   });
 
   it("saves lobby colors and updates the displayed host state", async () => {

@@ -22,6 +22,8 @@ export const guessPictureRule: GameRuleDefinition = {
     const stage = parsed.stages[stageIndex];
     if (!stage) return null;
     return {
+      // One guess per participant for the whole picture: the unique submission key is per round, so a per-stage key
+      // would let a correct guess at stage 1 score again at stage 2. Later stages only lower the points.
       key: 'picture-1',
       number: stageIndex + 1,
       total: parsed.stages.length,
@@ -30,12 +32,13 @@ export const guessPictureRule: GameRuleDefinition = {
       participantData: { kind: 'guess-picture', mediaObjectId: parsed.mediaObjectId, stage: stageIndex + 1 },
     };
   },
+  // Any well-formed guess for the current stage is recorded; scoring decides whether it is correct, so wrong guesses
+  // are not an answer oracle and use up the stage's single attempt like every other answer game.
   validateSubmission: ({ configuration, currentRound, action }) => {
     const parsed = templateConfiguration(configuration, 'guess-picture');
     if (!parsed || !('templateId' in action) || action.templateId !== 'guess-picture'
-      || action.actionKind !== 'guess' || action.roundKey !== currentRound.key
-      || !parsed.acceptedAnswers.some((answer) => normalizeAnswer(answer) === normalizeAnswer(action.payload.answer))) {
-      return ['Picture guess does not match an accepted answer'];
+      || action.actionKind !== 'guess' || action.roundKey !== currentRound.key) {
+      return ['Picture guess is not for the current stage'];
     }
     return [];
   },

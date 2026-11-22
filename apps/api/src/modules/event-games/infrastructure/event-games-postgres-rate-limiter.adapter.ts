@@ -113,7 +113,8 @@ export class EventGamesPostgresRateLimiter implements GameRateLimiterPort {
     }
     if (input.action === 'lobby_start') {
       return [
-        this.sourceBucket(input.action, 'lobby-start-source', input.sourceFingerprint, this.limit('EVENT_GAME_LOBBY_STARTS_PER_SOURCE_PER_MINUTE', 5_000), this.optionalEventId(input)),
+        // Per-source cap below the global budget, so one client cannot drain it. Shared venue Wi-Fi or carrier NAT puts many guests behind one address, so this stays well above a single guest's pace.
+        this.sourceBucket(input.action, 'lobby-start-source', input.sourceFingerprint, this.limit('EVENT_GAME_LOBBY_STARTS_PER_SOURCE_PER_MINUTE', 600), this.optionalEventId(input)),
         this.globalBucket(input.action, 'lobby-start-global', input.globalBudgetKey, this.limit('EVENT_GAME_LOBBY_STARTS_GLOBAL_PER_MINUTE', 5_000)),
       ];
     }

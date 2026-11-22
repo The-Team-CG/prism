@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { chooseSelectOption } from "@/test-support/select-test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,6 +7,11 @@ const viewModel = vi.hoisted(() => ({
   useEventGamesHostViewModel: vi.fn(),
 }));
 const state = vi.hoisted(() => ({
+  hostRole: true,
+  eventClosed: false,
+  canBrandLobby: true,
+  errorTarget: null as string | null,
+  selectedSessionId: null as string | null,
   canManage: true,
   games: [],
   analytics: null,
@@ -47,6 +52,25 @@ vi.mock("../view-models/use-event-games-host-view-model", () => ({
 
 import { EventGamesHostView } from "./event-games-host-view";
 
+/** Radix tabs switch on mouse down, not click. */
+function openTab(name: "Set up" | "Run live" | "Results") {
+  fireEvent.mouseDown(screen.getByRole("tab", { name }), { button: 0 });
+}
+
+function renderAdmin() {
+  return render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+}
+
+function renderRunLive() {
+  const result = renderAdmin();
+  openTab("Run live");
+  return result;
+}
+
+function openLobby() {
+  fireEvent.click(screen.getByRole("button", { name: /guest games lobby/i }));
+}
+
 /** Opening the calendar pop-up is slow in jsdom when the whole suite runs in parallel. */
 const PICKER_TEST_TIMEOUT_MS = 20_000;
 
@@ -67,6 +91,11 @@ describe("EventGamesHostView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Object.assign(state, {
+      hostRole: true,
+      eventClosed: false,
+      canBrandLobby: true,
+      errorTarget: null,
+      selectedSessionId: null,
       canManage: true,
       games: [],
       analytics: null,
@@ -97,14 +126,144 @@ describe("EventGamesHostView", () => {
     expect(screen.queryByRole("button", { name: /create game/i })).toBeNull();
   });
 
-  it("opens the game draft form only from the Create game button, below the catalog", () => {
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+  it("opens the Create game form in a sheet from the game list", () => {
+    renderAdmin();
 
     expect(screen.queryByLabelText("Game template")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /create game/i }));
 
-    expect(screen.getByLabelText("Game template")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /close form/i }).getAttribute("aria-expanded")).toBe("true");
+    const sheet = screen.getByRole("dialog", { name: /create a game/i });
+    expect(within(sheet).getByLabelText("Game template")).toBeTruthy();
+    expect(within(sheet).getByLabelText("Game title")).toBeTruthy();
+  });
+
+  it.each(["pmcm-admin", "coordinator"] as const)("shows the Set up, Run live and Results tabs to a %s", (role) => {
+    render(<EventGamesHostView eventId="event-1" role={role} eventStatus="confirmed" archived={false} />);
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Set up", "Run live", "Results"]);
+    expect(screen.getByRole("tab", { name: "Set up" }).getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("asks for confirmation before archiving a game", () => {
+    Object.assign(state, {
+      games: [{ id: "game-1", title: "Trivia", kind: "live-trivia", entryMode: "active", version: 1, status: "draft" }],
+    });
+    renderAdmin();
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    expect(state.archiveGame).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog", { name: /archive trivia/i });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Archive game" }));
+
+    expect(state.archiveGame).toHaveBeenCalledWith("game-1");
+  });
+
+  it("does not archive when the confirmation is cancelled", () => {
+    Object.assign(state, {
+      games: [{ id: "game-1", title: "Trivia", kind: "live-trivia", entryMode: "active", version: 1, status: "draft" }],
+    });
+    renderAdmin();
+
+    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+    fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
+
+    expect(state.archiveGame).not.toHaveBeenCalled();
+  });
+
+  it("edits the title in a sheet instead of an inline form", async () => {
+    state.updateDraft.mockResolvedValue({ id: "game-1" });
+    Object.assign(state, {
+      games: [{ id: "game-1", title: "Trivia", kind: "live-trivia", entryMode: "active", version: 1, status: "draft" }],
+    });
+    renderAdmin();
+
+    expect(screen.queryByLabelText("Game title")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    const sheet = screen.getByRole("dialog", { name: /edit trivia/i });
+    fireEvent.change(within(sheet).getByLabelText("Game title"), { target: { value: "Friday trivia" } });
+    fireEvent.click(within(sheet).getByRole("button", { name: "Save title" }));
+
+    await waitFor(() => expect(state.updateDraft).toHaveBeenCalledWith("game-1", { title: "Friday trivia" }));
+  });
+
+  it("shows a failed action's error next to its game row, not in the header", () => {
+    Object.assign(state, {
+      games: [{ id: "game-1", title: "Trivia", kind: "live-trivia", entryMode: "active", version: 1, status: "draft" }],
+      error: "This game cannot be archived.",
+      errorTarget: "game:game-1",
+    });
+    renderAdmin();
+
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("This game cannot be archived.");
+    expect(alert.closest("li")).toBeTruthy();
+    expect(alert.closest("header")).toBeNull();
+  });
+
+  it("switches to Run live once a session is scheduled", async () => {
+    state.scheduleSession.mockResolvedValue({ id: "session-1" });
+    Object.assign(state, {
+      games: [{ id: "game-1", title: "Trivia", kind: "live-trivia", entryMode: "active", version: 1, status: "published", hasStartedSession: true }],
+    });
+    renderAdmin();
+
+    fireEvent.click(screen.getByRole("button", { name: "Create host session" }));
+
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Run live" }).getAttribute("aria-selected")).toBe("true"));
+    expect(state.scheduleSession).toHaveBeenCalledWith("game-1", undefined);
+  });
+
+  it("lists sessions with their status in the Run live session picker", () => {
+    Object.assign(state, {
+      analytics: {
+        eventId: "event-1",
+        totals: { gamesCreated: 1, sessionsStarted: 1, sessionsCompleted: 0, distinctEventParticipants: 0, participantJoins: 0, roundsAnswered: 0, completionRate: 0 },
+        sessions: [
+          { sessionId: "session-1", gameTitle: "Trivia", kind: "live-trivia", status: "live", participantJoins: 0, roundsAnswered: 0 },
+          { sessionId: "session-2", gameTitle: "Bingo", kind: "bingo", status: "scheduled", participantJoins: 0, roundsAnswered: 0 },
+        ],
+        participationOverTime: [],
+      },
+    });
+    renderRunLive();
+
+    chooseSelectOption(screen.getByLabelText("Session to run"), "Bingo · scheduled");
+
+    expect(state.selectSession).toHaveBeenCalledWith("session-2");
+  });
+
+  it("shows coordinators the closed copy and no analytics after the event closes", () => {
+    Object.assign(state, {
+      canManage: false,
+      canReviewResponses: false,
+      eventClosed: true,
+      canBrandLobby: false,
+      analytics: {
+        eventId: "event-1",
+        totals: { gamesCreated: 1, sessionsStarted: 1, sessionsCompleted: 1, distinctEventParticipants: 2, participantJoins: 2, roundsAnswered: 4, completionRate: 1 },
+        sessions: [],
+        participationOverTime: [],
+      },
+    });
+    render(<EventGamesHostView eventId="event-1" role="coordinator" eventStatus="closed" archived={false} />);
+
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.getByRole("tab", { name: "Results" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText("Games closed with the event. PMCM keeps the results.")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /event analytics/i })).toBeNull();
+    expect(screen.queryByRole("heading", { name: /post-event response review/i })).toBeNull();
+  });
+
+  it("shows coordinators the lobby link but not lobby branding or the logo", () => {
+    vi.stubEnv("NEXT_PUBLIC_GUEST_PORTAL_URL", "https://games.example.test");
+    Object.assign(state, { lobbySlug: "opaque-lobby", canBrandLobby: false });
+    render(<EventGamesHostView eventId="event-1" role="coordinator" eventStatus="confirmed" archived={false} />);
+    openLobby();
+
+    expect(screen.getByText("https://games.example.test/games/events/opaque-lobby")).toBeTruthy();
+    expect(screen.queryByLabelText("Guest lobby theme")).toBeNull();
+    expect(screen.queryByLabelText("Guest lobby logo")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Save branding" })).toBeNull();
   });
 
   it("shows only event-host controls to pmcm admins", () => {
@@ -116,6 +275,7 @@ describe("EventGamesHostView", () => {
 
   it("does not render host controls for unsupported roles", () => {
     state.canManage = false;
+    state.hostRole = false;
     render(<EventGamesHostView eventId="event-1" role="supplier" eventStatus="confirmed" archived={false} />);
 
     expect(screen.getByText(/host controls are available to pmcm admins and event-assigned coordinators/i)).toBeTruthy();
@@ -189,7 +349,7 @@ describe("EventGamesHostView", () => {
         }],
       },
     });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderRunLive();
 
     fireEvent.change(screen.getByLabelText("Award recipient"), {
       target: { value: "participant:00000000-0000-4000-8000-000000000110" },
@@ -236,7 +396,7 @@ describe("EventGamesHostView", () => {
         },
       });
 
-      const { unmount } = render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+      const { unmount } = renderRunLive();
 
       expect(screen.queryByRole("region", { name: "Live leaderboard" })).toBeNull();
       expect(screen.queryByRole("region", { name: "Assign an award" })).toBeNull();
@@ -247,7 +407,8 @@ describe("EventGamesHostView", () => {
   it("shows a guest lobby URL on the guest portal origin", () => {
     vi.stubEnv("NEXT_PUBLIC_GUEST_PORTAL_URL", "https://games.example.test");
     Object.assign(state, { lobbySlug: "opaque-lobby" });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderAdmin();
+    openLobby();
 
     expect(screen.getByText("https://games.example.test/games/events/opaque-lobby")).toBeTruthy();
     expect(screen.getByRole("button", { name: /copy lobby url/i })).toBeTruthy();
@@ -266,7 +427,8 @@ describe("EventGamesHostView", () => {
     state.updateLobbyBranding.mockResolvedValue({
       theme: "forest", primaryColor: "#14532D", secondaryColor: "#166534", logoUrl: null, logoObjectId: null,
     });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderAdmin();
+    openLobby();
 
     chooseSelectOption(screen.getByLabelText("Guest lobby theme"), "Forest");
     fireEvent.change(screen.getByLabelText("Primary brand color"), { target: { value: "#14532D" } });
@@ -283,7 +445,8 @@ describe("EventGamesHostView", () => {
 
   it("sends an accepted image file to the scoped lobby logo upload action", async () => {
     const file = new File(["logo"], "logo.png", { type: "image/png" });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderAdmin();
+    openLobby();
 
     fireEvent.change(screen.getByLabelText("Guest lobby logo"), { target: { files: [file] } });
 
@@ -335,7 +498,8 @@ describe("EventGamesHostView", () => {
       kind: "bingo", entryMode: "active", version: 1, status: "draft", config: {},
       availableFrom: null, availableUntil: null,
     }] });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderAdmin();
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
 
     fireEvent.change(screen.getByLabelText(/call sequence/i), {
       target: { value: Array.from({ length: 24 }, (_, index) => index + 1).join(",") },
@@ -385,7 +549,7 @@ describe("EventGamesHostView", () => {
         leaderboard: [],
       },
     });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderRunLive();
 
     expect(screen.getByText("Which is correct?")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /reveal answer and pause/i }));
@@ -402,7 +566,7 @@ describe("EventGamesHostView", () => {
         leaderboard: [], sessionResult: null,
       },
     });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderRunLive();
 
     fireEvent.click(screen.getByRole("button", { name: "Spin wheel" }));
 
@@ -420,15 +584,35 @@ describe("EventGamesHostView", () => {
         startedAt: "2026-10-16T09:00:00.000Z",
         endedAt: null,
         participantCount: 2,
-        currentRound: { key: "round-1", number: 1, total: 2, prompt: "Pick a side" },
+        currentRound: { key: "round-1", number: 1, total: 2, prompt: "Pick a side", deadlineAt: "2026-10-16T09:00:30.000Z" },
         leaderboard: [],
       },
     });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderRunLive();
 
     fireEvent.click(screen.getByRole("button", { name: "Next round" }));
 
     expect(state.runHostCommand).toHaveBeenCalledWith("session-1", "advance-round", "round-1");
+  });
+
+  it("does not offer Next round for an untimed Bingo number call, which the API cannot advance", () => {
+    Object.assign(state, {
+      hostState: {
+        eventId: "event-1",
+        sessionId: "session-1",
+        game: { id: "game-1", title: "Bingo", kind: "bingo" },
+        status: "live",
+        scheduledStartAt: null,
+        startedAt: "2026-10-16T09:00:00.000Z",
+        endedAt: null,
+        participantCount: 2,
+        currentRound: { key: "call-1", number: 1, total: 75, prompt: "Number call", deadlineAt: null },
+        leaderboard: [],
+      },
+    });
+    renderRunLive();
+
+    expect(screen.queryByRole("button", { name: "Next round" })).toBeNull();
   });
 
   it("lets a live host review and approve pending Split the Room text", () => {
@@ -449,7 +633,7 @@ describe("EventGamesHostView", () => {
         leaderboard: [],
       },
     });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderRunLive();
 
     expect(screen.getByText("A pending response")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Approve for reveal" }));
@@ -476,7 +660,7 @@ describe("EventGamesHostView", () => {
         leaderboard: [],
       },
     });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderRunLive();
 
     expect(screen.getByText("Mangga")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Award Mango · 10 points" }));
@@ -502,7 +686,7 @@ describe("EventGamesHostView", () => {
         leaderboard: [],
       },
     });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderRunLive();
 
     expect(screen.getByText("Mangga")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Award Mango · 10 points" }));
@@ -532,7 +716,7 @@ describe("EventGamesHostView", () => {
         leaderboard: [],
       },
     });
-    render(<EventGamesHostView eventId="event-1" role="pmcm-admin" eventStatus="confirmed" archived={false} />);
+    renderRunLive();
 
     expect(screen.getByText("482163")).toBeTruthy();
     expect(screen.getByRole("button", { name: /hide pin/i })).toBeTruthy();

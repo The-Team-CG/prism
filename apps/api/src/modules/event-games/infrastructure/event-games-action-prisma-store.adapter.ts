@@ -256,12 +256,19 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     `;
     if (!inserted[0]) return null;
 
-    // QUERY_AUDIT_RAW_SQL: Plain SUM of score_ledger points for one grant after the write; no lock or conditional write.
+    // QUERY_AUDIT_RAW_SQL: SUM of one grant's score_ledger points after the write, excluding submissions whose latest moderation is hide_submission (matches the leaderboard); no lock or conditional write.
     const totals = await transaction.prisma.$queryRaw<ParticipantTotalRow[]>`
-      SELECT COALESCE(SUM("points"), 0)::int AS "score"
-      FROM "event_games"."score_ledger"
-      WHERE "event_id" = ${input.eventId} AND "session_id" = ${input.sessionId}
-        AND "participation_grant_id" = ${input.participationGrantId}
+      SELECT COALESCE(SUM(l."points"), 0)::int AS "score"
+      FROM "event_games"."score_ledger" l
+      LEFT JOIN LATERAL (
+        SELECT m."action" FROM "event_games"."moderation_actions" m
+        WHERE m."event_id" = l."event_id" AND m."session_id" = l."session_id"
+          AND m."submission_id" = l."source_event_id"
+        ORDER BY m."created_at" DESC, m."id" DESC LIMIT 1
+      ) moderation ON TRUE
+      WHERE l."event_id" = ${input.eventId} AND l."session_id" = ${input.sessionId}
+        AND l."participation_grant_id" = ${input.participationGrantId}
+        AND moderation."action" IS DISTINCT FROM 'hide_submission'
     `;
     return {
       points: totals[0]?.score ?? 0,
@@ -278,8 +285,15 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
       SELECT
         (SELECT COALESCE(SUM(l."points"), 0)::integer
          FROM "event_games"."score_ledger" l
+         LEFT JOIN LATERAL (
+           SELECT m."action" FROM "event_games"."moderation_actions" m
+           WHERE m."event_id" = l."event_id" AND m."session_id" = l."session_id"
+             AND m."submission_id" = l."source_event_id"
+           ORDER BY m."created_at" DESC, m."id" DESC LIMIT 1
+         ) moderation ON TRUE
          WHERE l."event_id" = ${input.eventId} AND l."session_id" = ${input.sessionId}
-           AND l."participation_grant_id" = ${input.participationGrantId}) AS "score",
+           AND l."participation_grant_id" = ${input.participationGrantId}
+           AND moderation."action" IS DISTINCT FROM 'hide_submission') AS "score",
         (${input.roundKey}::text IS NOT NULL AND EXISTS (
           SELECT 1 FROM "event_games"."submissions" s
           WHERE s."event_id" = ${input.eventId} AND s."session_id" = ${input.sessionId}
