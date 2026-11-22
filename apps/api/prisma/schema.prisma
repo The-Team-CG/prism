@@ -3722,6 +3722,7 @@ model EventGameModerationAction {
 
   @@unique([eventId, sessionId, submissionId], where: { action: "resolve_family_feud_answer" }, map: "moderation_actions_family_feud_resolution_once")
   @@index([eventId, sessionId, createdAt], map: "moderation_actions_event_session_created_idx")
+  @@index([eventId, sessionId, submissionId, createdAt(sort: Desc), id(sort: Desc)], map: "moderation_actions_latest_per_submission_idx")
   @@map("moderation_actions")
   @@schema("event_games")
 }

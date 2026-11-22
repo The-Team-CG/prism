@@ -6,7 +6,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-**Upgrading:** apply these migrations before deploying the API: `20261116090000_commercial_supplier_payout_receipts`, `20261117090000_commercial_pmcm_payment_details`, `20261118090000_commercial_statement_payment_details_revision`, `20261119090000_event-lifecycle_event_type_and_cover`, `20261120090000_platform-ops_privacy_identity_confirmation`, `20261121090000_identity-access_user_sessions`, `20261122090000_identity-access_two_factor_pending_secret`, `20261123090000_identity-access_email_change_requests`.
+**Upgrading:** apply these migrations before deploying the API: `20261116090000_commercial_supplier_payout_receipts`, `20261117090000_commercial_pmcm_payment_details`, `20261118090000_commercial_statement_payment_details_revision`, `20261119090000_event-lifecycle_event_type_and_cover`, `20261120090000_platform-ops_privacy_identity_confirmation`, `20261121090000_identity-access_user_sessions`, `20261122090000_identity-access_two_factor_pending_secret`, `20261123090000_identity-access_email_change_requests`, `20261126090000_event-games_moderation_latest_per_submission_idx`.
 
 ### Added
 
