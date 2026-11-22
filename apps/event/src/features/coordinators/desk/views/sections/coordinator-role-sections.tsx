@@ -324,10 +324,10 @@ export function CoordinatorTaskSheet({ taskForm, open, onOpenChange, side = "rig
 function CoordinatorTasksPage({ roleView, taskForm, reassignment, taskActions, operatorActions }: Omit<CoordinatorRoleDataProps, "section" | "roleViewLoading" | "roleViewError" | "roleView"> & { roleView: PrismCoordinatorRoleView }) {
   return (
     <div className="grid gap-4">
-      {taskForm.blockedReason ? <p role="note" className="max-w-3xl rounded-lg bg-attention-soft px-3 py-2 text-sm text-attention">{taskForm.blockedReason}</p> : null}
+      {taskForm.blockedReason ? <p role="note" className="max-w-3xl lg:max-w-none rounded-lg bg-attention-soft px-3 py-2 text-sm text-attention">{taskForm.blockedReason}</p> : null}
       <CoordinatorTaskQueue roleView={roleView} taskActions={taskActions} />
       {roleView.isDesignatedOperator ? (
-        <PrismSection bare id="coordinator-team-checks" title="Team controls" description="As the event day operator: reassign tasks and update colleagues' attendance." className="mt-2 max-w-3xl">
+        <PrismSection bare id="coordinator-team-checks" title="Team controls" description="As the event day operator: reassign tasks and update colleagues' attendance." className="mt-2 max-w-3xl lg:max-w-none">
           <div className="grid gap-4"><CoordinatorRoleActions roleView={roleView} reassignment={reassignment} operatorActions={operatorActions} /></div>
         </PrismSection>
       ) : null}
@@ -388,7 +388,7 @@ function IssueRow({ issue }: { issue: Issue }) {
 
 function IssueList({ label, issues }: { label: string; issues: Issue[] }) {
   return (
-    <section aria-label={label} className="grid max-w-3xl gap-1.5">
+    <section aria-label={label} className="grid max-w-3xl lg:max-w-none gap-1.5">
       <h2 className="px-1 text-xs font-semibold text-muted-foreground">{label} · {issues.length}</h2>
       <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">{issues.map((issue) => <IssueRow key={issue.id} issue={issue} />)}</ul>
     </section>
@@ -405,7 +405,7 @@ function CoordinatorIssuesPage({ roleView, registrationRole }: { roleView: Prism
         <CoordinatorEmpty icon={CheckCircle2} title="No open issues">Report one whenever something goes wrong on the day. PMCM sees it straight away.</CoordinatorEmpty>
       )}
       {resolved.length ? <IssueList label="Resolved" issues={resolved} /> : null}
-      <p className="max-w-3xl px-1 text-xs text-muted-foreground">{registrationRole ? "Check-ins include walk-ins flagged for PMCM review." : "Guest names are hidden for your role."}</p>
+      <p className="max-w-3xl lg:max-w-none px-1 text-xs text-muted-foreground">{registrationRole ? "Check-ins include walk-ins flagged for PMCM review." : "Guest names are hidden for your role."}</p>
     </div>
   );
 }

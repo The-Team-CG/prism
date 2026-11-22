@@ -16,7 +16,7 @@ export function CoordinatorEmpty({ icon: Icon, title, children, action, classNam
   className?: string;
 }) {
   return (
-    <div className={cn("flex max-w-3xl gap-3 rounded-xl border border-border bg-card px-4 py-4 sm:px-5", className)}>
+    <div className={cn("flex max-w-3xl lg:max-w-none gap-3 rounded-xl border border-border bg-card px-4 py-4 sm:px-5", className)}>
       <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><Icon className="size-4" /></span>
       <div className="grid min-w-0 gap-1">
         <p className="text-sm font-semibold text-foreground">{title}</p>
@@ -30,7 +30,7 @@ export function CoordinatorEmpty({ icon: Icon, title, children, action, classNam
 /** A list of rows in one card, so related things on a page share one surface instead of each having its own. */
 export function RowGroup({ label, children }: { label?: string; children: ReactNode }) {
   return (
-    <section aria-label={label} className="max-w-3xl overflow-hidden rounded-xl border border-border bg-card">
+    <section aria-label={label} className="max-w-3xl lg:max-w-none overflow-hidden rounded-xl border border-border bg-card">
       <div className="divide-y divide-border">{children}</div>
     </section>
   );
