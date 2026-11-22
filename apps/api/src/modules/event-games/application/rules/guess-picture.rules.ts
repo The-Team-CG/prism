@@ -33,7 +33,8 @@ export const guessPictureRule: GameRuleDefinition = {
     };
   },
   // Any well-formed guess for the current stage is recorded; scoring decides whether it is correct, so wrong guesses
-  // are not an answer oracle and use up the stage's single attempt like every other answer game.
+  // are not an answer oracle. A wrong guess uses up the participant's one guess for the whole picture, so later
+  // stages are closed to them too.
   validateSubmission: ({ configuration, currentRound, action }) => {
     const parsed = templateConfiguration(configuration, 'guess-picture');
     if (!parsed || !('templateId' in action) || action.templateId !== 'guess-picture'
