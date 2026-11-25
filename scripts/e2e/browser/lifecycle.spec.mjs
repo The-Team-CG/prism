@@ -3,19 +3,7 @@ import { projectDevice } from './browser-devices.mjs';
 import { api, origins, password, inbox, mailLink, persona, privacyIfNeeded, fillStable } from './helpers.mjs';
 import { submitPublicInquiry } from './inquiry-actions.mjs';
 import { oneTableScene } from '../floorplan-fixture.mjs';
-
-// Each supplier booking is a card; its title opens the booking's checklist in a side panel named after the event.
-async function openBooking(page, eventName) {
-  const panel = page.getByRole('dialog', { name: eventName });
-  const title = page.getByRole('link', { name: eventName, exact: true }).first();
-  // After a reload the page reopens the booking its address names; while that panel is open the cards behind it are
-  // hidden from the accessibility tree, so wait for whichever appears and open the card only when the panel did not.
-  await expect(panel.or(title)).toBeVisible();
-  await panel.waitFor({ state: 'visible', timeout: 2_000 }).catch(() => undefined);
-  if (!(await panel.isVisible())) await title.click();
-  await expect(panel).toBeVisible();
-  return panel;
-}
+import { openBooking } from './journey-fixtures.mjs';
 
 test('client, PMCM, supplier, coordinator and guest complete an event lifecycle', async ({ browser, page: client }, info) => {
   test.setTimeout(12 * 60_000);
