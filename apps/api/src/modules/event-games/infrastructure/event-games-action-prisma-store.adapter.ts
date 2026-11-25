@@ -48,6 +48,8 @@ interface ParticipantScoreRow {
   outcome_answer: string | null;
 }
 interface ParticipantTotalRow { score: number | null }
+interface RoundParticipantCountRow { answered: number }
+interface CheckedRoundRow { round_number: number; is_correct: boolean | null }
 interface VoteCountRow { label: string; count: number }
 interface RoundModerationQueueRow { id: string; round_number: number; response: string | null }
 interface FamilyFeudModerationQueueRow { id: string; round_number: number; answer: string | null }
@@ -111,6 +113,21 @@ function sessionStatus(value: string): GameParticipantActionContext['status'] {
 function participantChoiceResult(value: unknown): GameParticipantStateSummary['result'] {
   const parsed = eventGameParticipantResultSchema.safeParse(value);
   return parsed.success && parsed.data.kind === 'singleplayer-choice' ? parsed.data : undefined;
+}
+
+/**
+ * Correct answers in a row, ending with the newest checked round. Rounds are counted by number, so a skipped round
+ * breaks the streak as a wrong answer does. Rows arrive newest first.
+ */
+export function correctStreak(rows: readonly CheckedRoundRow[]): number {
+  let streak = 0;
+  let expected = rows[0]?.round_number;
+  for (const row of rows) {
+    if (row.round_number !== expected || row.is_correct !== true) break;
+    streak += 1;
+    expected = row.round_number - 1;
+  }
+  return streak;
 }
 
 function participantRoundOutcome(score: unknown, answer: string | null): GameParticipantStateSummary['roundOutcome'] {
@@ -337,7 +354,8 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     const row = rows[0];
     if (!row) return { score: null, hasSubmitted: false };
     const result = participantChoiceResult(row.result);
-    const roundOutcome = participantRoundOutcome(row.outcome_score, row.outcome_answer);
+    const outcome = participantRoundOutcome(row.outcome_score, row.outcome_answer);
+    const roundOutcome = outcome ? { ...outcome, streak: await this.checkedRoundStreak(input, transaction) } : undefined;
     return {
       score: row.score,
       hasSubmitted: row.has_submitted,
@@ -345,6 +363,37 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
       ...(result ? { result } : {}),
       ...(roundOutcome ? { roundOutcome } : {}),
     };
+  }
+
+  private async checkedRoundStreak(
+    input: { eventId: string; sessionId: string; participationGrantId: string },
+    transaction: PrismTransactionContext,
+  ): Promise<number> {
+    // QUERY_AUDIT_RAW_SQL: Reads this participant's latest checked answers per round, newest first and bounded, to count a correct streak; plain read.
+    const rows = await transaction.prisma.$queryRaw<CheckedRoundRow[]>`
+      SELECT DISTINCT ON (s."round_number") s."round_number", (s."score_result"->>'isCorrect')::boolean AS "is_correct"
+      FROM "event_games"."submissions" s
+      WHERE s."event_id" = ${input.eventId} AND s."session_id" = ${input.sessionId}
+        AND s."participation_grant_id" = ${input.participationGrantId}
+        AND s."action_kind" <> 'vote' AND s."score_result" IS NOT NULL
+      ORDER BY s."round_number" DESC, s."created_at" DESC
+      LIMIT 50
+    `;
+    return correctStreak(rows);
+  }
+
+  async countRoundParticipants(
+    input: { eventId: string; sessionId: string; roundKey: string },
+    transaction: PrismTransactionContext,
+  ): Promise<number> {
+    // QUERY_AUDIT_RAW_SQL: Counts distinct participants with a submission for one round; a single aggregate read.
+    const rows = await transaction.prisma.$queryRaw<RoundParticipantCountRow[]>`
+      SELECT COUNT(DISTINCT s."participation_grant_id")::integer AS "answered"
+      FROM "event_games"."submissions" s
+      WHERE s."event_id" = ${input.eventId} AND s."session_id" = ${input.sessionId}
+        AND s."round_key" = ${input.roundKey}
+    `;
+    return rows[0]?.answered ?? 0;
   }
 
   async getRoundVoteCounts(

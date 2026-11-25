@@ -71,6 +71,7 @@ function setup(overrides: {
     } : overrides.context),
     getParticipantState: vi.fn().mockResolvedValue({ score: 20, hasSubmitted: true }),
     getRoundVoteCounts: vi.fn().mockResolvedValue([]),
+    countRoundParticipants: vi.fn().mockResolvedValue(0),
     getRoundModerationQueue: vi.fn().mockResolvedValue([]),
     getFamilyFeudModerationQueue: vi.fn().mockResolvedValue([]),
     getApprovedRoundResponses: vi.fn().mockResolvedValue([]),
@@ -722,8 +723,9 @@ describe('GameReadModelService', () => {
       key: 'round-1', number: 1, total: 1, prompt: 'Which?', deadlineAt: null, resultsOpen: false,
       participantData: { kind: 'live-trivia', options: ['A', 'B'] },
     });
+    trivia.actionStore.countRoundParticipants.mockResolvedValue(7);
     const triviaState = await trivia.service.getHostState('event-1', 'session-1', actor);
-    expect(triviaState.currentRound).toMatchObject({ options: ['A', 'B'], resultsOpen: false });
+    expect(triviaState.currentRound).toMatchObject({ options: ['A', 'B'], resultsOpen: false, answeredCount: 7 });
     expect(triviaState.currentRound).not.toHaveProperty('revealedAnswer');
 
     const bingo = setup();

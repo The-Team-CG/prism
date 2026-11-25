@@ -12,7 +12,8 @@ import { guestGamePhase, isScoredGame, showsStandings, waitsOnRoom, type GuestGa
 import { useServerRoundCountdown } from "../model/server-round-countdown";
 import { useEventGamePlayViewModel } from "../view-models/use-event-game-play-view-model";
 import { ActiveGameControls } from "./game-controls";
-import { FinishedPanel, PhaseStatus, RevealBanner, StandingsPanel, WaitingPanel } from "./game-phase-panels";
+import { FinishedPanel, ownStanding, PhaseStatus, RevealBanner, StandingsPanel, WaitingPanel } from "./game-phase-panels";
+import { useRankMovement } from "./use-rank-movement";
 
 type PlayViewModel = ReturnType<typeof useEventGamePlayViewModel>;
 
@@ -164,11 +165,13 @@ function showsPhaseStatus(state: PrismGamePublicState, phase: GuestGamePhase): b
 /** One screen per moment of the round: get ready, answer, wait, see how you did, then the standings. */
 function GameSessionContent({ vm, state, secondsRemaining }: { vm: PlayViewModel; state: PrismGamePublicState; secondsRemaining: number | null }) {
   const phase = guestGamePhase(state, secondsRemaining);
+  const rank = ownStanding(state)?.rank ?? null;
+  const movement = useRankMovement(state.currentRound?.key, rank);
   return (
     <section aria-labelledby="event-game-title" className="grid gap-4">
       {phase === "waiting" ? <WaitingPanel alias={vm.participantAlias} /> : null}
       {phase === "finished" ? <FinishedPanel state={state} scored={isScoredGame(state.game.kind)} /> : null}
-      {phase === "reveal" ? <RevealBanner state={state} /> : null}
+      {phase === "reveal" ? <RevealBanner state={state} standing={{ rank, movement }} /> : null}
       {showsControls(phase) ? (
         <ActiveGameControls
           state={state}

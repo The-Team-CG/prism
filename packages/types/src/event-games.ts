@@ -216,6 +216,8 @@ export interface PrismGameHostState {
      * window is open), matching what participants see.
      */
     approvedResponses?: readonly string[];
+    /** How many guests have answered this round, so the room can see answers coming in. */
+    answeredCount?: number;
   } | null;
   /** One immutable host-selected result for Spin the Wheel. */
   sessionResult?: PrismGameSessionResult | null;
@@ -304,7 +306,7 @@ export interface PrismGamePublicState {
 
 export type PrismGameParticipantData =
   | { kind: "live-trivia"; options: readonly string[] }
-  | { kind: "bingo"; card: readonly (number | "FREE")[]; calledNumbers: readonly number[] }
+  | { kind: "bingo"; card: readonly (number | "FREE")[]; calledNumbers: readonly number[]; winPattern?: "line" | "full-card" }
   | { kind: "spin-wheel"; outcomes: readonly PrismGameWheelOutcome[] }
   | { kind: "guess-picture"; mediaObjectId: string; stage: number }
   | { kind: "word-scramble" }
@@ -332,6 +334,8 @@ export interface PrismGameRoundOutcome {
   isCorrect: boolean;
   points: number;
   answer?: string;
+  /** Consecutive rounds answered correctly, ending with this one; sent only for multi-round games. */
+  streak?: number;
 }
 
 /** A Spin the Wheel segment as guests and the room see it; weights and eligibility stay with the host. */

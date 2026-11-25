@@ -1,6 +1,6 @@
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EventGamesActionPrismaStoreAdapter } from './event-games-action-prisma-store.adapter';
+import { correctStreak, EventGamesActionPrismaStoreAdapter } from './event-games-action-prisma-store.adapter';
 
 const result = { kind: 'singleplayer-choice' as const, option: 'Tea' };
 const wheelResult = { kind: 'spin-wheel' as const, outcomeId: 'large', label: 'Large prize', points: 40 };
@@ -224,5 +224,14 @@ describe('EventGamesActionPrismaStoreAdapter participant state and action persis
     expect(queryRaw.mock.calls[0]).toContain('event-1');
     expect(queryRaw.mock.calls[0]).toContain(archivedAt);
     expect(queryRaw.mock.calls[0]).toContain(now);
+  });
+});
+
+describe('correctStreak', () => {
+  it('counts correct rounds in a row back from the newest, and a wrong or skipped round ends it', () => {
+    expect(correctStreak([])).toBe(0);
+    expect(correctStreak([{ round_number: 3, is_correct: true }, { round_number: 2, is_correct: true }, { round_number: 1, is_correct: false }])).toBe(2);
+    expect(correctStreak([{ round_number: 3, is_correct: false }, { round_number: 2, is_correct: true }])).toBe(0);
+    expect(correctStreak([{ round_number: 4, is_correct: true }, { round_number: 2, is_correct: true }])).toBe(1);
   });
 });

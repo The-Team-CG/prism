@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import type { PrismGameHostState, PrismGameSessionStatus } from "@prism/types";
+import { GamePodium } from "@prism/ui/event-games";
 import { PresenterLeaderboard } from "./presenter-blocks";
 import { presenterRendererFor } from "./presenter-renderers";
 
@@ -197,6 +198,18 @@ function PresenterHeader({ state, remaining, span, join }: { state: PrismGameHos
   );
 }
 
+/** The top three rise onto the podium one at a time; everyone else is listed below. */
+function FinalStandings({ entries }: { entries: PrismGameHostState["leaderboard"] }) {
+  const podium = entries.filter((entry) => entry.rank <= 3).map(({ rank, label, score }) => ({ rank, label, score }));
+  const rest = entries.filter((entry) => entry.rank > 3);
+  return (
+    <div className="space-y-12">
+      <GamePodium entries={podium} />
+      {rest.length ? <PresenterLeaderboard entries={rest} title="Everyone else" /> : null}
+    </div>
+  );
+}
+
 function EndedScreen({ state }: { state: PrismGameHostState }) {
   const completed = state.status === "completed";
   return (
@@ -204,7 +217,7 @@ function EndedScreen({ state }: { state: PrismGameHostState }) {
       <p role="status" className="text-center text-6xl font-black md:text-8xl">
         {completed ? "That’s a wrap!" : "This game was cancelled."}
       </p>
-      {completed && state.leaderboard.length ? <PresenterLeaderboard entries={state.leaderboard} title="Final standings" /> : null}
+      {completed && state.leaderboard.length ? <FinalStandings entries={state.leaderboard} /> : null}
       {completed && !state.leaderboard.length ? <p className="text-center text-3xl text-white/70">Thanks for playing.</p> : null}
     </div>
   );

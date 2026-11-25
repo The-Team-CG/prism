@@ -428,8 +428,15 @@ describe("event games guest repository", () => {
     // The alias the server showed in that game replaces whatever was stored, so the lobby names the guest the same way.
     expect(eventGamesGuestRepository.readParticipantSession()).toEqual({
       eventId: "event-a", currentSessionId: null, participantCredential: "A".repeat(43),
-      participantAlias: participantState.participant.participantAlias,
+      participantAlias: participantState.participant.participantAlias, finishedSessionId: "session-a1",
     });
+
+    // A reload of the finished game still reads its final results, but it can no longer be answered.
+    api.getParticipantState.mockResolvedValueOnce({ ...participantState, status: "completed" });
+    await expect(eventGamesGuestRepository.getParticipantState("session-a1")).resolves.toMatchObject({ status: "completed" });
+    await expect(eventGamesGuestRepository.submitParticipantAction("session-a1", {
+      templateId: "live-trivia", roundKey: "round-1", actionKind: "answer", payload: { answer: "A" },
+    })).rejects.toThrow();
     expect(JSON.parse(persisted.get(PRISM_SESSION_STORAGE_KEYS.gameParticipant) ?? "{}")).not.toHaveProperty("name");
   });
 
@@ -462,7 +469,7 @@ describe("event games guest repository", () => {
     const revealed = {
       ...participantState,
       currentRound: { key: "round-1", number: 1, total: 3, resultsOpen: true, revealedAnswer: "Baguio" },
-      participant: { ...participantState.participant, hasSubmitted: true, roundOutcome: { isCorrect: false, points: 0, answer: "Cebu" } },
+      participant: { ...participantState.participant, hasSubmitted: true, roundOutcome: { isCorrect: false, points: 0, answer: "Cebu", streak: 0 } },
     };
     api.getParticipantState.mockResolvedValueOnce(revealed);
     await expect(eventGamesGuestRepository.getParticipantState("session-a1")).resolves.toEqual(revealed);

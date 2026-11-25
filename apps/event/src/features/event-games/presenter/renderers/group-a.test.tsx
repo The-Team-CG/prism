@@ -55,6 +55,14 @@ describe("Live Trivia presenter", () => {
     expect(screen.queryByText(/Unreviewed secret/)).toBeNull();
   });
 
+  it("shows answers coming in, then cues the host once everyone has answered", () => {
+    const { rerender } = render(<LiveTriviaPresenter state={hostState("live-trivia", {}, { prompt: "Capital of France?", answeredCount: 3 })} />);
+    expect(screen.getByRole("status").textContent).toContain("3 of 12 answered");
+
+    rerender(<LiveTriviaPresenter state={hostState("live-trivia", {}, { prompt: "Capital of France?", answeredCount: 12 })} />);
+    expect(screen.getByText("Everyone’s in!")).toBeTruthy();
+  });
+
   it("reveals the answer only once paused", () => {
     const { rerender } = render(<LiveTriviaPresenter state={hostState("live-trivia", {}, {
       prompt: "Capital of France?",

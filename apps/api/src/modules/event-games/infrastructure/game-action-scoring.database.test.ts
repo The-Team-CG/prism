@@ -174,7 +174,16 @@ databaseSuite('Event games action and team scoring PostgreSQL invariants', () =>
       eventId, sessionId, roundKey: 'round-tally',
     }, transaction));
 
-    expect(state).toMatchObject({ hasSubmitted: true, roundOutcome: { isCorrect: false, points: 0, answer: 'Cebu' } });
+    expect(state).toMatchObject({ hasSubmitted: true, roundOutcome: { isCorrect: false, points: 0, answer: 'Cebu', streak: 0 } });
+    await expect(read((transaction) => actionStore.countRoundParticipants({
+      eventId, sessionId, roundKey: 'round-tally',
+    }, transaction))).resolves.toBe(2);
+
+    // The first guest answered round 1 (in the earlier retry test) and round 2 correctly: two in a row.
+    const winner = await read((transaction) => actionStore.getParticipantState({
+      eventId, sessionId, participationGrantId: grantIds[0], roundKey: 'round-tally',
+    }, transaction));
+    expect(winner.roundOutcome).toMatchObject({ isCorrect: true, streak: 2 });
     expect(tally).toEqual([{ label: 'Baguio', count: 1 }, { label: 'Cebu', count: 1 }]);
     expect(votes).toEqual([]);
   });

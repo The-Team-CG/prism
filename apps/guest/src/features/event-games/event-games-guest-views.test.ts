@@ -111,7 +111,7 @@ describe("guest event-game views", () => {
     } });
     const revealed = renderToStaticMarkup(createElement(EventGamePlayView, { sessionId: "session-a1" }));
     expect(revealed).toContain("Correct!");
-    expect(revealed).toContain("+20 points");
+    expect(revealed).toContain('aria-label="Plus 20 points"');
     expect(revealed).toContain("3 · 100%");
     expect(revealed).not.toContain("moderation notes");
   });

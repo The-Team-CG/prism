@@ -81,6 +81,11 @@ export interface GameActionStorePort {
     input: { eventId: string; sessionId: string; participationGrantId: string; roundKey: string | null },
     transaction: PrismTransactionContext,
   ): Promise<GameParticipantStateSummary>;
+  /** Distinct guests with any recorded answer or vote for the round. */
+  countRoundParticipants(
+    input: { eventId: string; sessionId: string; roundKey: string },
+    transaction: PrismTransactionContext,
+  ): Promise<number>;
   getRoundVoteCounts(
     /** `tally: 'answers'` counts Live Trivia answers by choice instead of votes by option. */
     input: { eventId: string; sessionId: string; roundKey: string; tally?: 'votes' | 'answers' },

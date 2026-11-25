@@ -29,10 +29,12 @@ export interface GuestGameParticipantSession {
   joinedWithPin?: string;
   /** The name the guest plays under in their current game, as the server shows it on the game and the leaderboard. */
   participantAlias?: string;
+  /** The game that just ended, kept so a reload still shows its final results; it can be read, never answered. */
+  finishedSessionId?: string;
 }
 
 const SESSION_KEY = PRISM_SESSION_STORAGE_KEYS.gameParticipant;
-const SESSION_FIELDS = new Set(["eventId", "currentSessionId", "participantCredential", "joinedWithPin", "participantAlias"]);
+const SESSION_FIELDS = new Set(["eventId", "currentSessionId", "participantCredential", "joinedWithPin", "participantAlias", "finishedSessionId"]);
 const PARTICIPANT_CREDENTIAL_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const PIN_ERROR = "Enter the 6-digit game PIN.";
 const JOIN_ERROR = "This game is unavailable. Check the PIN and try again.";
@@ -73,7 +75,8 @@ function isGuestGameParticipantSession(value: unknown): value is GuestGamePartic
     && typeof value.participantCredential === "string"
     && PARTICIPANT_CREDENTIAL_PATTERN.test(value.participantCredential)
     && isOptionalGamePin(value.joinedWithPin)
-    && isOptionalAlias(value.participantAlias);
+    && isOptionalAlias(value.participantAlias)
+    && (value.finishedSessionId === undefined || isNonEmptyString(value.finishedSessionId));
 }
 
 function readSession(): GuestGameParticipantSession | null {
@@ -89,6 +92,7 @@ function readSession(): GuestGameParticipantSession | null {
     participantCredential: stored.participantCredential,
     ...(stored.joinedWithPin ? { joinedWithPin: stored.joinedWithPin } : {}),
     ...(stored.participantAlias ? { participantAlias: stored.participantAlias } : {}),
+    ...(stored.finishedSessionId ? { finishedSessionId: stored.finishedSessionId } : {}),
   };
   if (Object.keys(stored).some((field) => !SESSION_FIELDS.has(field))) {
     savePrismSession(SESSION_KEY, session);
@@ -187,6 +191,7 @@ function sanitizeRoundOutcome(value: unknown): PrismGamePublicState["participant
     isCorrect: value.isCorrect,
     points: value.points,
     ...(isBoundedText(value.answer, 500) ? { answer: value.answer } : {}),
+    ...(isNonNegativeSafeInteger(value.streak) && value.streak <= 1000 ? { streak: value.streak } : {}),
   };
 }
 
@@ -350,7 +355,8 @@ function isValidBingoCalls(value: unknown): value is number[] {
 
 function sanitizeBingoGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
   if (value.kind !== "bingo" || !isValidBingoCard(value.card) || !isValidBingoCalls(value.calledNumbers)) return undefined;
-  return { kind: "bingo", card: value.card, calledNumbers: value.calledNumbers };
+  const winPattern = value.winPattern === "line" || value.winPattern === "full-card" ? value.winPattern : undefined;
+  return { kind: "bingo", card: value.card, calledNumbers: value.calledNumbers, ...(winPattern ? { winPattern } : {}) };
 }
 
 function sanitizePictureGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
@@ -642,7 +648,7 @@ function mapPublicParticipantState(state: Record<string, unknown>, expectedSessi
 function rememberGameState(session: GuestGameParticipantSession, state: PrismGamePublicState) {
   const remembered = { ...session, participantAlias: state.participant.participantAlias };
   if (state.status === "completed" || state.status === "cancelled") {
-    savePrismSession(SESSION_KEY, { ...remembered, currentSessionId: null });
+    savePrismSession(SESSION_KEY, { ...remembered, currentSessionId: null, finishedSessionId: state.sessionId });
   } else if (session.participantAlias !== remembered.participantAlias) {
     savePrismSession(SESSION_KEY, remembered);
   }
@@ -735,7 +741,8 @@ export const eventGamesGuestRepository = {
 
   async getParticipantState(sessionId: string): Promise<PrismGamePublicState> {
     const session = readSession();
-    if (!session || session.currentSessionId !== sessionId) throw new Error(SESSION_ERROR);
+    // A finished game stays readable so its final results survive a reload; only the current game takes answers.
+    if (!session || (session.currentSessionId !== sessionId && session.finishedSessionId !== sessionId)) throw new Error(SESSION_ERROR);
     try {
       const state = sanitizePublicParticipantState(
         await eventGames.getParticipantState(sessionId, session.participantCredential),
@@ -765,7 +772,7 @@ export const eventGamesGuestRepository = {
         sessionId,
       );
       if (state.status === "completed" || state.status === "cancelled") {
-        savePrismSession(SESSION_KEY, { ...session, currentSessionId: null });
+        savePrismSession(SESSION_KEY, { ...session, currentSessionId: null, finishedSessionId: sessionId });
       }
       return state;
     } catch (error) {

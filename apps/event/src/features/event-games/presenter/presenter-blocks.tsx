@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { PrismGameHostState, PrismGameLeaderboardEntry, PrismGameSessionResult } from "@prism/types";
-import { GameStandings, gameChoiceTone } from "@prism/ui/event-games";
+import { GameStandings, gameChoiceTone, useCountUp, useEntered } from "@prism/ui/event-games";
 
 /**
  * Room-safe building blocks shared by presenter renderers. None of them accept moderation
@@ -19,10 +19,31 @@ export function PresenterSection({ title, children }: { title: string; children:
   );
 }
 
+/**
+ * Answers coming in, Kahoot-style: a bar filling towards everyone in the room, and a cue once all of them have
+ * answered so the host knows they can reveal early.
+ */
+function AnsweredMeter({ answered, participants }: { answered: number; participants: number }) {
+  const everyone = participants > 0 && answered >= participants;
+  const fill = participants > 0 ? Math.min(100, Math.round((answered / participants) * 100)) : 0;
+  return (
+    <div className="grid w-full max-w-3xl gap-3" role="status">
+      <p className={`text-3xl md:text-4xl ${everyone ? "font-bold text-[#8fe0c8]" : "text-white/75"}`}>
+        {everyone ? "Everyone’s in!" : <><span className="font-bold tabular-nums text-[#f2b134]">{answered}</span> of <span className="tabular-nums">{participants}</span> answered</>}
+      </p>
+      <div className="h-3 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
+        <div className={`h-full rounded-full transition-[width] duration-500 ${everyone ? "bg-[#8fe0c8]" : "bg-[#f2b134]"}`} style={{ width: `${fill}%` }} />
+      </div>
+    </div>
+  );
+}
+
 /** The round's question, as large as the screen allows, with how many people are playing along. */
-export function PresenterPrompt({ prompt, participantCount, action, compact = false }: {
+export function PresenterPrompt({ prompt, participantCount, answeredCount, action, compact = false }: {
   prompt: string;
   participantCount?: number;
+  /** Guests who have answered this round; with `participantCount`, shows answers coming in instead of a head count. */
+  answeredCount?: number;
   /** A short instruction under the count, such as "Answer on your phone". */
   action?: string | null;
   /** Smaller, once the answers or results need the room. */
@@ -31,7 +52,8 @@ export function PresenterPrompt({ prompt, participantCount, action, compact = fa
   return (
     <section aria-label="Current question" className={`flex flex-col items-center text-center ${compact ? "gap-4 py-2" : "gap-8 py-8"}`}>
       <p className={`max-w-6xl font-bold leading-tight ${compact ? "text-4xl md:text-6xl" : "text-5xl md:text-7xl"}`}>{prompt}</p>
-      {participantCount !== undefined ? (
+      {participantCount !== undefined && answeredCount !== undefined ? <AnsweredMeter answered={answeredCount} participants={participantCount} /> : null}
+      {participantCount !== undefined && answeredCount === undefined ? (
         <p className="text-3xl text-white/75 md:text-4xl">
           <span className="font-bold tabular-nums text-[#f2b134]">{participantCount}</span>{" "}
           {participantCount === 1 ? "person" : "people"} {action ? "playing" : "answering on their phones"}
@@ -39,6 +61,27 @@ export function PresenterPrompt({ prompt, participantCount, action, compact = fa
       ) : null}
       {action ? <p className="text-3xl font-semibold md:text-4xl">{action}</p> : null}
     </section>
+  );
+}
+
+/** Each bar grows in from nothing, one after another, when the results arrive. */
+function VoteBar({ fill, width, delayMs }: { fill: string; width: number; delayMs: number }) {
+  const entered = useEntered();
+  return (
+    <div className="h-6 overflow-hidden rounded-full bg-white/10 md:h-8">
+      <div className={`h-full rounded-full transition-[width] duration-1000 ease-out ${fill}`} style={{ width: `${entered ? width : 0}%`, transitionDelay: `${delayMs}ms` }} aria-hidden="true" />
+    </div>
+  );
+}
+
+function VoteTally({ count, share }: { count: number; share: number }) {
+  const shownCount = useCountUp(count, 1100);
+  const shownShare = useCountUp(share, 1100);
+  return (
+    <span className="tabular-nums text-white/80">
+      <span aria-hidden="true">{shownCount} · {shownShare}%</span>
+      <span className="sr-only">{count} · {share}%</span>
+    </span>
   );
 }
 
@@ -59,11 +102,9 @@ export function PresenterVoteBars({ results, title = "Results", lettered = true 
                   {lettered ? <span className={`grid size-10 place-items-center rounded-lg text-xl font-bold md:size-12 md:text-2xl ${tone.fill}`} aria-hidden="true">{tone.letter}</span> : null}
                   {label}
                 </span>
-                <span className="tabular-nums text-white/80">{count} · {share}%</span>
+                <VoteTally count={count} share={share} />
               </div>
-              <div className="h-6 overflow-hidden rounded-full bg-white/10 md:h-8">
-                <div className={`h-full rounded-full transition-[width] duration-1000 ease-out ${tone.fill}`} style={{ width: `${(count / max) * 100}%` }} aria-hidden="true" />
-              </div>
+              <VoteBar fill={tone.fill} width={(count / max) * 100} delayMs={index * 150} />
             </li>
           );
         })}

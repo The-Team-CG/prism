@@ -29,6 +29,7 @@ const LiveTriviaRenderer: PresenterRenderer = ({ state }) => {
       <PresenterPrompt
         prompt={round.prompt}
         participantCount={answering ? state.participantCount : undefined}
+        answeredCount={answering ? round.answeredCount : undefined}
         action={answering ? "Answer on your phone" : null}
         compact={options.length > 0 || closed}
       />

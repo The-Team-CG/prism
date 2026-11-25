@@ -232,6 +232,16 @@ function GameLifecycleButtons({ hostState, activeSession, busy, onCommand }: {
   </>;
 }
 
+function advanceLabel(kind: PrismGameHostState["game"]["kind"], toResults: boolean): string {
+  if (!toResults) return "Next round";
+  return kind === "live-trivia" ? "Reveal answer" : "Show results";
+}
+
+/** Everyone in the room has answered, so the host can reveal without waiting for the clock. */
+function everyoneAnswered(participants: number, answered: number | undefined): boolean {
+  return participants > 0 && (answered ?? 0) >= participants;
+}
+
 function AdvanceRoundButton({ hostState, busy, onCommand }: {
   hostState: PrismGameHostState;
   busy: boolean;
@@ -243,8 +253,13 @@ function AdvanceRoundButton({ hostState, busy, onCommand }: {
   // A question with a results window steps into it first (even on the last round), so the room always sees the answer.
   const toResults = round.resultsOpen === false;
   if (!toResults && round.number >= round.total) return null;
-  const label = toResults ? (hostState.game.kind === "live-trivia" ? "Reveal answer" : "Show results") : "Next round";
-  return <Button type="button" variant="outline" onClick={() => void onCommand(hostState.sessionId, "advance-round", round.key)} disabled={busy}>{label}</Button>;
+  const label = advanceLabel(hostState.game.kind, toResults);
+  const everyoneIn = toResults && everyoneAnswered(hostState.participantCount, round.answeredCount);
+  return (
+    <Button type="button" variant={everyoneIn ? "default" : "outline"} onClick={() => void onCommand(hostState.sessionId, "advance-round", round.key)} disabled={busy}>
+      {everyoneIn ? `Everyone answered · ${label}` : label}
+    </Button>
+  );
 }
 
 function SessionPinButton({ hostState, activeSession, busy, pinDismissed, onCommand }: {

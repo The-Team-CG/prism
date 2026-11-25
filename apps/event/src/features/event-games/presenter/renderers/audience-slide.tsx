@@ -23,7 +23,7 @@ export function AudienceSlide({ state, showResults, options, emptyNote, children
     if (state.status !== "live") return null;
     return (
       <div className="space-y-10">
-        <PresenterPrompt prompt={round.prompt} participantCount={state.participantCount} compact={Boolean(options?.length)} />
+        <PresenterPrompt prompt={round.prompt} participantCount={state.participantCount} answeredCount={round.answeredCount} compact={Boolean(options?.length)} />
         {options?.length ? <GameChoiceGrid size="stage" options={options} /> : null}
       </div>
     );

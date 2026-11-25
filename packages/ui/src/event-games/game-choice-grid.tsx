@@ -3,6 +3,7 @@
 import { Check, X } from "lucide-react";
 import { cn } from "../utils";
 import { gameChoiceTone } from "./choice-tones";
+import { useCountUp, useEntered } from "./motion";
 
 export interface GameChoiceCount {
   label: string;
@@ -59,6 +60,27 @@ function TileMark({ state, size }: { state: TileState; size: "phone" | "stage" }
   return null;
 }
 
+/** The room's share of a choice, growing in from nothing when the results arrive. */
+function ShareBar({ percent }: { percent: number }) {
+  const entered = useEntered();
+  return (
+    <span className="absolute inset-x-0 bottom-0 flex h-full items-end" aria-hidden="true">
+      <span className="h-1.5 bg-white/70 transition-[width] duration-1000 ease-out" style={{ width: `${entered ? percent : 0}%` }} />
+    </span>
+  );
+}
+
+function ShareLabel({ count, percent, stage }: { count: number; percent: number; stage: boolean }) {
+  const shownCount = useCountUp(count);
+  const shownPercent = useCountUp(percent);
+  return (
+    <p className={cn("mt-1 px-1 tabular-nums text-muted-foreground", stage ? "text-2xl text-white/70" : "text-xs")}>
+      <span aria-hidden="true">{shownCount} · {shownPercent}%</span>
+      <span className="sr-only">{count} · {percent}%</span>
+    </p>
+  );
+}
+
 /** Big, colour-coded answer tiles shared by guests' phones and the room screen. */
 export function GameChoiceGrid({ options, size = "phone", chosen, correctAnswer, counts, disabled, onChoose }: GameChoiceGridProps) {
   const stage = size === "stage";
@@ -75,11 +97,7 @@ export function GameChoiceGrid({ options, size = "phone", chosen, correctAnswer,
             </span>
             <span className="min-w-0 flex-1 text-left [overflow-wrap:break-word] [hyphens:auto]">{option}</span>
             <TileMark state={state} size={size} />
-            {share ? (
-              <span className="absolute inset-x-0 bottom-0 flex h-full items-end" aria-hidden="true">
-                <span className="h-1.5 bg-white/70 transition-[width] duration-700 ease-out" style={{ width: `${share.percent}%` }} />
-              </span>
-            ) : null}
+            {share ? <ShareBar percent={share.percent} /> : null}
           </>
         );
         const classes = cn(
@@ -97,7 +115,7 @@ export function GameChoiceGrid({ options, size = "phone", chosen, correctAnswer,
             ) : (
               <div className={classes}>{body}</div>
             )}
-            {share ? <p className={cn("mt-1 px-1 tabular-nums text-muted-foreground", stage ? "text-2xl text-white/70" : "text-xs")}>{share.count} · {share.percent}%</p> : null}
+            {share ? <ShareLabel count={share.count} percent={share.percent} stage={stage} /> : null}
           </li>
         );
       })}

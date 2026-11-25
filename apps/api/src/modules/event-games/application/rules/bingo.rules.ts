@@ -60,7 +60,7 @@ export const bingoRule: GameRuleDefinition = {
     const callCount = Math.min(parsed.callSequence.length, Math.floor(elapsedSeconds / parsed.callIntervalSeconds) + 1);
     const calledNumbers = parsed.callSequence.slice(0, callCount);
     const participantData = participantKey
-      ? { kind: 'bingo' as const, card: cardFor(parsed.callSequence, participantKey), calledNumbers }
+      ? { kind: 'bingo' as const, card: cardFor(parsed.callSequence, participantKey), calledNumbers, winPattern: parsed.winPattern }
       : undefined;
     const latestCall = calledNumbers[calledNumbers.length - 1];
     return {

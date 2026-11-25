@@ -34,7 +34,9 @@ const GuessPictureRenderer: PresenterRenderer = ({ state, pictureUrl }) => {
 
   return (
     <div className="space-y-10">
-      <PresenterPrompt prompt={round.prompt} participantCount={closed ? undefined : state.participantCount} action={state.status === "live" ? "Guess on your phone" : null} compact />
+      {closed
+        ? <PresenterPrompt prompt={round.prompt} compact />
+        : <PresenterPrompt prompt={round.prompt} participantCount={state.participantCount} answeredCount={round.answeredCount} action={state.status === "live" ? "Guess on your phone" : null} compact />}
       {picture ? <PictureStage url={pictureUrl} stage={closed ? picture.totalStages : picture.stage} totalStages={picture.totalStages} /> : null}
       {revealedAnswer ? <PresenterRevealedAnswer answer={revealedAnswer} /> : null}
       {state.status === "paused" && state.leaderboard.length ? <PresenterLeaderboard entries={state.leaderboard} title="Standings" /> : null}

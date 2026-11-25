@@ -257,6 +257,29 @@ function approvedHostResponses(
   }, transaction);
 }
 
+/** How many guests have answered the round, while it is being played. */
+function roundAnsweredCount(
+  store: GameActionStorePort,
+  transaction: PrismTransactionContext,
+  input: { eventId: string; sessionId: string; round: HostRound | null; status: PrismGameHostState['status'] },
+): Promise<number | undefined> {
+  if (!input.round || !['live', 'paused'].includes(input.status)) return Promise.resolve(undefined);
+  return store.countRoundParticipants({ eventId: input.eventId, sessionId: input.sessionId, roundKey: input.round.key }, transaction);
+}
+
+function withRoundExtras(
+  roundView: PrismGameHostState['currentRound'],
+  approvedResponses: readonly string[],
+  answeredCount: number | undefined,
+): PrismGameHostState['currentRound'] {
+  if (!roundView) return roundView;
+  return {
+    ...roundView,
+    ...(approvedResponses.length ? { approvedResponses } : {}),
+    ...(answeredCount !== undefined ? { answeredCount } : {}),
+  };
+}
+
 function pendingFamilyFeudAnswers(
   store: GameActionStorePort,
   transaction: PrismTransactionContext,
@@ -468,7 +491,7 @@ export class GameReadModelService {
     const startedAt = effectiveStartedAt(context.startedAt, context.totalPausedMs, context.roundOffsetMs ?? 0);
     const round = currentRoundFor(this.rules, context.kind, status, context.configSnapshot, startedAt, currentTime);
     const moderationContext = { eventId, sessionId, context, round, status };
-    const [aggregateResults, pendingSubmissions, pendingAnswers, approvedResponses] = await Promise.all([
+    const [aggregateResults, pendingSubmissions, pendingAnswers, approvedResponses, answeredCount] = await Promise.all([
       readConfiguredVoteAggregate({
         actionStore: this.actionStore,
         transaction,
@@ -483,9 +506,9 @@ export class GameReadModelService {
       pendingSplitResponses(this.actionStore, transaction, moderationContext),
       pendingFamilyFeudAnswers(this.actionStore, transaction, moderationContext),
       approvedHostResponses(this.actionStore, transaction, moderationContext),
+      roundAnsweredCount(this.actionStore, transaction, moderationContext),
     ]);
-    const roundView = hostRoundView(context, status, round, pendingSubmissions);
-    const currentRound = roundView && approvedResponses.length ? { ...roundView, approvedResponses } : roundView;
+    const currentRound = withRoundExtras(hostRoundView(context, status, round, pendingSubmissions), approvedResponses, answeredCount);
     return {
       ...state,
       ...hostWheelOutcomes(round),

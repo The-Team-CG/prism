@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@prism/ui/components/button";
+import { bingoProgress, type BingoProgress } from "../model/bingo-progress";
 import { GAME_PANEL, gameDataOf, type GameControlProps } from "./game-control-types";
 
 const RECENT_CALLS = 5;
@@ -47,11 +48,44 @@ function BingoCell({ cell, called, marked, enabled, onToggle }: {
   );
 }
 
+const PROGRESS_HINTS: Record<BingoProgress["kind"], string | null> = {
+  claimable: "That's a Bingo! Claim it before anyone else.",
+  "unmarked-win": "You have a winning line. Tap its glowing numbers, then claim.",
+  "one-away": "One away! Watch for the next call.",
+  playing: null,
+};
+
+function ProgressHint({ progress }: { progress: BingoProgress }) {
+  const hint = PROGRESS_HINTS[progress.kind];
+  if (!hint) return null;
+  const strong = progress.kind !== "one-away";
+  return (
+    <p role="status" className={`rounded-2xl px-4 py-2.5 text-center text-sm font-bold ${strong ? "bg-[var(--prism-success)] text-white" : "bg-[#f2b134]/25 text-foreground"}`}>
+      {hint}
+    </p>
+  );
+}
+
+function ClaimButton({ progress, busy, disabled, onClaim }: { progress: BingoProgress; busy: boolean; disabled: boolean; onClaim: () => void }) {
+  const ready = progress.kind === "claimable";
+  return (
+    <Button
+      type="button"
+      className={`h-14 rounded-2xl text-lg ${ready ? "animate-pulse bg-[var(--prism-success)] hover:bg-[var(--prism-success)]" : ""}`}
+      disabled={disabled}
+      onClick={onClaim}
+    >
+      {busy ? "Checking…" : ready ? "Claim Bingo!" : "Claim Bingo"}
+    </Button>
+  );
+}
+
 export function BingoControls({ state, roundKey, canSubmit, busy, onSubmit }: GameControlProps) {
   const data = gameDataOf(state, "bingo");
   const [marked, setMarked] = useState<number[]>([]);
   if (!data) return null;
   const called = new Set(data.calledNumbers);
+  const progress = bingoProgress(data.card, data.calledNumbers, marked, data.winPattern);
   const toggle = (number: number) => setMarked((current) => current.includes(number) ? current.filter((item) => item !== number) : [...current, number]);
   const claim = () => void onSubmit({
     templateId: "bingo", roundKey, actionKind: "mark",
@@ -62,16 +96,15 @@ export function BingoControls({ state, roundKey, canSubmit, busy, onSubmit }: Ga
       <RecentCalls calledNumbers={data.calledNumbers} />
       <div>
         <h2 className="font-heading text-lg font-bold">Your card</h2>
-        <p className="text-sm text-muted-foreground">Tap the glowing numbers as they are called, then claim Bingo when you complete a line.</p>
+        <p className="text-sm text-muted-foreground">Tap the glowing numbers as they are called, then claim Bingo when you complete {data.winPattern === "full-card" ? "the whole card" : "a line"}.</p>
       </div>
       <div className="grid grid-cols-5 gap-1.5">
         {data.card.map((cell, index) => (
           <BingoCell key={`${cell}-${index}`} cell={cell} called={typeof cell === "number" && called.has(cell)} marked={typeof cell === "number" && marked.includes(cell)} enabled={canSubmit && !busy} onToggle={toggle} />
         ))}
       </div>
-      {canSubmit ? (
-        <Button type="button" className="h-14 rounded-2xl text-lg" disabled={busy || marked.length === 0} onClick={claim}>{busy ? "Checking…" : "Claim Bingo"}</Button>
-      ) : null}
+      {canSubmit ? <ProgressHint progress={progress} /> : null}
+      {canSubmit ? <ClaimButton progress={progress} busy={busy} disabled={busy || marked.length === 0} onClaim={claim} /> : null}
     </section>
   );
 }
