@@ -44,6 +44,30 @@ export interface PresenterViewModel {
   issuingPin: boolean;
   pinError: string | null;
   issuePin: () => Promise<void>;
+  /** Signed address of the current round's picture (Guess the Picture). */
+  pictureUrl: string | null;
+}
+
+/** Signed picture reads expire, so a long round re-signs before the link runs out. */
+const PICTURE_RESIGN_MS = 4 * 60_000;
+
+function usePresenterPicture(eventId: string, sessionId: string, mediaObjectId: string | undefined): string | null {
+  const [pictureUrl, setPictureUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let disposed = false;
+    setPictureUrl(null);
+    if (!mediaObjectId) return () => { disposed = true; };
+    const load = () => {
+      eventGamesHostRepository.getHostMediaUrl(eventId, sessionId, mediaObjectId).then(
+        (url) => { if (!disposed) setPictureUrl(url); },
+        () => { /* The picture is decoration on the room screen; the game carries on without it. */ },
+      );
+    };
+    load();
+    const timer = window.setInterval(load, PICTURE_RESIGN_MS);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [eventId, sessionId, mediaObjectId]);
+  return pictureUrl;
 }
 
 export function usePresenterViewModel(eventId: string, sessionId: string): PresenterViewModel {
@@ -123,5 +147,7 @@ export function usePresenterViewModel(eventId: string, sessionId: string): Prese
     }
   }, [eventId, sessionId]);
 
-  return { state, receivedAt, error, joinUrl, joinError, pin, issuingPin, pinError, issuePin };
+  const pictureUrl = usePresenterPicture(eventId, sessionId, state?.currentRound?.picture?.mediaObjectId);
+
+  return { state, receivedAt, error, joinUrl, joinError, pin, issuingPin, pinError, issuePin, pictureUrl };
 }

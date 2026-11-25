@@ -1,23 +1,36 @@
+"use client";
+
+import { useState } from "react";
+import type { PrismGameSessionResult } from "@prism/types";
+import { PrizeWheel } from "@prism/ui/event-games";
 import type { PresenterRenderer } from "../presenter-types";
-import { PresenterSessionResult } from "../presenter-blocks";
+import { PresenterPrompt, PresenterSessionResult } from "../presenter-blocks";
+
+function WheelCaption({ prompt, result, announced }: { prompt: string | null; result: PrismGameSessionResult | null; announced: boolean }) {
+  if (result && announced) return <PresenterSessionResult result={result} />;
+  if (result) return <p className="text-center text-5xl font-bold text-white/80" role="status">Spinning…</p>;
+  return prompt ? <PresenterPrompt prompt={prompt} /> : null;
+}
 
 /**
- * Spin the Wheel slides. While live, the prompt. Once the host has selected the outcome, its label
- * and points, large. Only the server-selected session result is read; nothing else is shown.
+ * Spin the Wheel slides: the wheel, drawn from the eligible outcomes. When the host spins, it turns and lands on the
+ * outcome the server already chose, then announces it. A screen opened after the spin shows the result at once.
  */
 const SpinWheelRenderer: PresenterRenderer = ({ state }) => {
-  const liveRound = state.status === "live" ? state.currentRound : null;
   const result = state.sessionResult ?? null;
+  const [settledId, setSettledId] = useState<string | null>(result?.outcomeId ?? null);
+  const segments = state.wheelOutcomes ?? [];
+  const liveRound = state.status === "live" ? state.currentRound : null;
   if (!liveRound && !result) return null;
+  // Without segments there is nothing to spin, so the result shows straight away.
+  const announced = Boolean(result) && (settledId === result?.outcomeId || !segments.length);
 
   return (
-    <div className="space-y-10 text-center">
-      {liveRound ? (
-        <section aria-label="Current spin" className="flex flex-col items-center gap-8 py-8">
-          <p className="max-w-5xl text-5xl font-bold leading-tight md:text-7xl">{liveRound.prompt}</p>
-        </section>
+    <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {segments.length ? (
+        <PrizeWheel segments={segments} landedId={result?.outcomeId ?? null} className="max-w-2xl" onSettled={() => setSettledId(result?.outcomeId ?? null)} />
       ) : null}
-      {result ? <PresenterSessionResult result={result} /> : null}
+      <WheelCaption prompt={liveRound?.prompt ?? null} result={result} announced={announced} />
     </div>
   );
 };

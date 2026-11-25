@@ -239,8 +239,12 @@ function AdvanceRoundButton({ hostState, busy, onCommand }: {
 }) {
   const round = hostState.currentRound;
   // The API only advances timed rounds (it needs a deadline); untimed rounds such as Bingo number calls advance on their own.
-  if (!round || !round.deadlineAt || round.number >= round.total || !["live", "paused"].includes(hostState.status)) return null;
-  return <Button type="button" variant="outline" onClick={() => void onCommand(hostState.sessionId, "advance-round", round.key)} disabled={busy}>Next round</Button>;
+  if (!round || !round.deadlineAt || !["live", "paused"].includes(hostState.status)) return null;
+  // A question with a results window steps into it first (even on the last round), so the room always sees the answer.
+  const toResults = round.resultsOpen === false;
+  if (!toResults && round.number >= round.total) return null;
+  const label = toResults ? (hostState.game.kind === "live-trivia" ? "Reveal answer" : "Show results") : "Next round";
+  return <Button type="button" variant="outline" onClick={() => void onCommand(hostState.sessionId, "advance-round", round.key)} disabled={busy}>{label}</Button>;
 }
 
 function SessionPinButton({ hostState, activeSession, busy, pinDismissed, onCommand }: {

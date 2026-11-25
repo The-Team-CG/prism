@@ -1,30 +1,40 @@
-import type { PresenterRenderer } from "../presenter-types";
+import type { PrismGameHostState } from "@prism/types";
+import { GameChoiceGrid } from "@prism/ui/event-games";
+import { answersClosedForRoom, type PresenterRenderer } from "../presenter-types";
+import { PresenterLeaderboard, PresenterPrompt, PresenterRevealedAnswer } from "../presenter-blocks";
+
+function TriviaChoices({ options, revealedAnswer, results }: {
+  options: readonly string[];
+  revealedAnswer: string | undefined;
+  results: PrismGameHostState["aggregateResults"];
+}) {
+  if (!options.length) return revealedAnswer ? <PresenterRevealedAnswer answer={revealedAnswer} /> : null;
+  return <GameChoiceGrid size="stage" options={options} correctAnswer={revealedAnswer ?? null} counts={revealedAnswer ? results ?? null : null} />;
+}
 
 /**
- * Live Trivia slides. Live: the question, how many people are in the room, and a prompt to answer
- * on their phones. Paused: the revealed answer, large. The answer is never shown while the question
- * is still open.
+ * Live Trivia slides. While the question is open: the question and the same colour-coded choices guests see on
+ * their phones. Once answers close (the results window, or a host pause): the right answer stays lit, the room's
+ * answers show as bars, and a pause also brings up the standings. The answer is never shown while open.
  */
 const LiveTriviaRenderer: PresenterRenderer = ({ state }) => {
   const round = state.currentRound;
   if (!round) return null;
-
-  const revealedAnswer = state.status === "paused" ? round.revealedAnswer : undefined;
+  const closed = answersClosedForRoom(state);
+  const options = round.options ?? [];
+  const answering = state.status === "live" && !closed;
 
   return (
-    <section aria-label="Current question" className="flex flex-col items-center gap-8 py-8 text-center">
-      <p className="max-w-5xl text-5xl font-bold leading-tight md:text-7xl">{round.prompt}</p>
-      {revealedAnswer ? (
-        <p className="rounded-3xl bg-emerald-400 px-8 py-6 text-4xl font-bold text-slate-950 md:text-6xl">
-          {`Answer: ${revealedAnswer}`}
-        </p>
-      ) : null}
-      <p className="text-3xl text-white/80 md:text-4xl">
-        <span className="font-bold tabular-nums text-amber-300">{state.participantCount}</span>{" "}
-        {state.participantCount === 1 ? "person" : "people"} in the room
-      </p>
-      {state.status === "live" ? <p className="text-3xl font-semibold md:text-4xl">Answer on your phone</p> : null}
-    </section>
+    <div className="space-y-10">
+      <PresenterPrompt
+        prompt={round.prompt}
+        participantCount={answering ? state.participantCount : undefined}
+        action={answering ? "Answer on your phone" : null}
+        compact={options.length > 0 || closed}
+      />
+      <TriviaChoices options={options} revealedAnswer={closed ? round.revealedAnswer : undefined} results={state.aggregateResults} />
+      {state.status === "paused" && state.leaderboard.length ? <PresenterLeaderboard entries={state.leaderboard} title="Standings" /> : null}
+    </div>
   );
 };
 

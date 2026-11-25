@@ -7,6 +7,16 @@ import type { PrismGameHostState } from "@prism/types";
  */
 export interface PresenterRendererProps {
   state: PrismGameHostState;
+  /** Signed address of the round's picture (Guess the Picture), once loaded. */
+  pictureUrl?: string | null;
 }
 
 export type PresenterRenderer = (props: PresenterRendererProps) => ReactElement | null;
+
+/**
+ * The room may see answers and results: the host paused, or the round's results window is open.
+ * Renderers check this themselves rather than trusting that the host state left reveals out.
+ */
+export function answersClosedForRoom(state: PrismGameHostState): boolean {
+  return state.status === "paused" || (state.status === "live" && state.currentRound?.resultsOpen === true);
+}
