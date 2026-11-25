@@ -5,12 +5,7 @@ import { Plus, ShieldCheck } from "lucide-react";
 import type { PrismComplianceRule } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@prism/ui/components/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@prism/ui/components/field";
-import { Input } from "@prism/ui/components/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
-import { Textarea } from "@prism/ui/components/textarea";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@prism/ui/components/item";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import {
   COMPLIANCE_RULE_PHASES,
   COMPLIANCE_RULE_SEVERITIES,
@@ -24,6 +19,7 @@ import {
   toCreateComplianceRuleInput,
   type ComplianceRuleDraft,
 } from "../model/compliance-rule-rules";
+import { ComplianceRuleSheet } from "./compliance-rule-sheet";
 
 /** Settings → Compliance rules: rules here apply to every event's compliance checks. */
 export function ComplianceRulesSettings({
@@ -145,71 +141,17 @@ export function ComplianceRulesSettings({
           </details>
         ) : null}
       </CardContent>
-      <Sheet open={adding} onOpenChange={(open) => { if (!open) close(); }}>
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>{editing ? "Edit rule" : "Add a rule"}</SheetTitle>
-            <SheetDescription>{editing ? "Changes apply to the next compliance run on every event." : "It runs for every event at its phase, beside the built-in checks."}</SheetDescription>
-          </SheetHeader>
-        <form
-          aria-label={editing ? "Edit rule" : "Add a rule"}
-          className="grid content-start gap-4 px-4 pb-6"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submit();
-          }}
-        >
-          <FieldGroup className="gap-4 sm:grid sm:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="compliance-rule-title">Rule title</FieldLabel>
-              <Input id="compliance-rule-title" value={draft.title} onChange={(event) => set({ title: event.target.value })} placeholder="Venue power capacity confirmed" />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="compliance-rule-key">Check identifier</FieldLabel>
-              <Input id="compliance-rule-key" value={draft.conditionKey} onChange={(event) => set({ conditionKey: event.target.value })} placeholder="e.g. venue_power_capacity" readOnly={Boolean(editing)} />
-              {editing ? <FieldDescription>Results are recorded against it, so it stays as created.</FieldDescription> : null}
-            </Field>
-            <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="compliance-rule-phase">Phase</FieldLabel>
-                <Select value={draft.phase} onValueChange={(phase) => set({ phase })}>
-                  <SelectTrigger id="compliance-rule-phase" className="w-full min-w-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMPLIANCE_RULE_PHASES.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="compliance-rule-severity">Severity</FieldLabel>
-                <Select value={draft.severity} onValueChange={(severity) => set({ severity })}>
-                  <SelectTrigger id="compliance-rule-severity" className="w-full min-w-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMPLIANCE_RULE_SEVERITIES.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-            <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="compliance-rule-note">PMCM note</FieldLabel>
-              <Textarea id="compliance-rule-note" value={draft.note} onChange={(event) => set({ note: event.target.value })} className="min-h-20" />
-            </Field>
-          </FieldGroup>
-          <Field>
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={busy || !ready}>
-                Save rule
-              </Button>
-              {editing ? <Button type="button" variant="outline" disabled={busy} onClick={() => void turnOff()}>Turn off rule</Button> : null}
-            </div>
-            {ready ? null : <FieldDescription>Add a rule title and a check identifier to save the rule.</FieldDescription>}
-          </Field>
-        </form>
-        </SheetContent>
-      </Sheet>
+      <ComplianceRuleSheet
+        open={adding}
+        editing={editing !== null}
+        draft={draft}
+        ready={ready}
+        busy={busy}
+        onChange={set}
+        onSubmit={() => void submit()}
+        onTurnOff={() => void turnOff()}
+        onClose={close}
+      />
     </Card>
   );
 }
