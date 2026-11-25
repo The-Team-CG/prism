@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  PRISM_BUSINESS_UTC_OFFSET_HOURS,
   createEventEodReplySchema,
   setEventEodIncompleteTasksSchema,
   createEventEodReportSchema,
@@ -107,9 +108,9 @@ export function useLiveOpsScheduleDeskViewModel(eventId: string, { coordinatorSc
 
   const createSegment = useCallback((dayId: string, value: LocalScheduleSegmentInput) => run(async () => {
     const toIso = (localValue: string, label: string) => {
-      const parsed = new Date(localValue);
-      if (!localValue || Number.isNaN(parsed.getTime())) throw new Error(`Enter a valid ${label}.`);
-      return parsed.toISOString();
+      const wallTime = Date.parse(`${localValue}Z`);
+      if (!Number.isFinite(wallTime)) throw new Error(`Enter a valid ${label}.`);
+      return new Date(wallTime - PRISM_BUSINESS_UTC_OFFSET_HOURS * 3_600_000).toISOString();
     };
     const input = parseContract(createEventScheduleSegmentSchema, {
       ...value,

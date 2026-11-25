@@ -723,6 +723,11 @@ function RosterRow({
           ) : null}
           {row.withdrawnAt ? <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">Withdrawn</span> : null}
         </p>
+        {row.verificationFlaggedAt && !row.checkedInAt ? (
+          <p className="text-xs font-medium text-attention">
+            Flagged for verification{row.verificationFlaggedBy ? ` by ${row.verificationFlaggedBy}` : ""}
+          </p>
+        ) : null}
         <p className="truncate text-xs text-muted-foreground">{rosterDetails(row)}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">

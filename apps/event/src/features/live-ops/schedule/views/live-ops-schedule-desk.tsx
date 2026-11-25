@@ -224,11 +224,11 @@ function ScheduleSegmentForm({ day, busy, onCreate }: {
   return (
     <form onSubmit={submit} className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2 xl:grid-cols-5">
       <Field label="Segment title"><input required value={title} onChange={(event) => setTitle(event.target.value)} className={inputClass} /></Field>
-      <Field label="Starts"><DateTimePicker value={start} onValueChange={(next) => setStart(next)} required /></Field>
-      <Field label="Ends"><DateTimePicker value={end} onValueChange={(next) => setEnd(next)} required /></Field>
+      <Field label="Starts"><DateTimePicker aria-label="Starts" value={start} onValueChange={setStart} required /></Field>
+      <Field label="Ends"><DateTimePicker aria-label="Ends" value={end} onValueChange={setEnd} required /></Field>
       <Field label="Owner role">
         <Select value={ownerRole} onValueChange={(value) => setOwnerRole(value as CoordinatorRole)}>
-          <SelectTrigger className="w-full min-w-0 bg-background">
+          <SelectTrigger aria-label="Owner role" className="w-full min-w-0 bg-background">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -524,7 +524,7 @@ function ScheduleAuthoringSection({ days, vm, canManageSchedule }: {
         <div>
           <h3 id="schedule-authoring-heading" className="font-semibold text-foreground">Schedule</h3>
           <p className="text-sm text-muted-foreground">
-            {canManageSchedule ? "Add event days and segments, then track their status during the event." : "Only the designated Event Day System Operator can edit the schedule."}
+            {canManageSchedule ? "Add event days and segments in Philippine Standard Time, then track their status during the event." : "Only the designated Event Day System Operator can edit the schedule."}
           </p>
         </div>
         {canManageSchedule ? <ScheduleDayForm busy={vm.busy} onCreate={vm.createDay} /> : null}
