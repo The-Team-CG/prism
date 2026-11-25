@@ -17,8 +17,9 @@ export function eventRoleRejectionMessage(role: EventPortalRole, env: Record<str
   return "Only PMCM admin and coordinator accounts can use the event portal.";
 }
 
-export function resolveEventPostSignInPath(nextParam: string | null | undefined): string {
-  return safeNextPath(nextParam, "/dashboard");
+/** Where a signed-in account lands: the page it asked for, else its own portal (coordinators have /coordinator). */
+export function resolveEventPostSignInPath(nextParam: string | null | undefined, role?: EventPortalRole): string {
+  return safeNextPath(nextParam, role === "coordinator" ? "/coordinator" : "/dashboard");
 }
 
 export function isSignInDraftValid(email: string, password: string): boolean {

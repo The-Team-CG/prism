@@ -102,7 +102,6 @@ export function useEventDashboardShellViewModel({
   });
   const {
     session,
-    coordinatorState,
     error,
     setError,
     approvalRequests,
@@ -128,7 +127,6 @@ export function useEventDashboardShellViewModel({
     reference,
     commandReferenceLoading,
     loadCommandReference,
-    setCoordinatorState,
     setLiveOps,
     setStatusFeed,
     setDefenseReadiness,
@@ -393,7 +391,6 @@ export function useEventDashboardShellViewModel({
     routeState,
     session,
     reference,
-    coordinatorState,
     screen,
     error,
     selectedEventId,
@@ -484,7 +481,6 @@ export function useEventDashboardShellViewModel({
     setSelectedClientId,
     setError,
     setReference,
-    setCoordinatorState,
     setLiveOps,
     setStatusFeed,
     setDefenseReadiness,

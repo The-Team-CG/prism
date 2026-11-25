@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   PrismApprovalRequest,
-  PrismCoordinatorWorkspace,
   PrismDefenseReadiness,
   PrismEventDayStatusFeed,
   PrismGuestPrivacyClassification,
@@ -22,7 +21,6 @@ import { loadCommandInbox } from "@/features/command-inbox/list/use-cases/load-c
 import { eventWorkspaceRepository } from "@/features/event-workspace/shell/data/event-workspace-repository";
 import {
   isDashboardCacheFresh,
-  loadCoordinatorWorkspace,
   loadPmcmReference,
   getCachedPmcmReference,
 } from "../use-cases/load-dashboard-workspace";
@@ -57,7 +55,6 @@ export function useEventDashboardWorkspaceViewModel({
   const [status, setStatus] = useState<WorkspaceStatus>("idle");
   const [reference, setReference] = useState<PrismPmcmReference | null>(null);
   const [commandReferenceLoading, setCommandReferenceLoading] = useState(false);
-  const [coordinatorState, setCoordinatorState] = useState<PrismCoordinatorWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [approvalRequests, setApprovalRequests] = useState<PrismApprovalRequest[]>([]);
   const [liveOps, setLiveOps] = useState<PrismLiveOps | null>(null);
@@ -93,13 +90,6 @@ export function useEventDashboardWorkspaceViewModel({
     if (!current) return;
     setStatus("loading");
     try {
-      if (current.role === "coordinator") {
-        const next = await loadCoordinatorWorkspace(current, true);
-        setCoordinatorState(next);
-        setReference(null);
-        setStatus("ready");
-        return;
-      }
       if (current.role !== "pmcm-admin") {
         setStatus("ready");
         return;
@@ -112,7 +102,6 @@ export function useEventDashboardWorkspaceViewModel({
         setApprovalRequests(requests);
         setCommandInbox(inboxResult);
         setCommandInboxLoadFailed(false);
-        setCoordinatorState(null);
         setStatus("ready");
         return;
       }
@@ -125,7 +114,6 @@ export function useEventDashboardWorkspaceViewModel({
       if (shouldLoadReference) setReference(nextReference);
       setApprovalRequests(requests);
       setCommandInbox(inboxResult);
-      setCoordinatorState(null);
       setStatus("ready");
     } catch (err) {
       setStatus("error");
@@ -140,7 +128,6 @@ export function useEventDashboardWorkspaceViewModel({
       setSession,
       setError,
       setReference,
-      setCoordinatorState,
       setApprovalRequests,
       setCommandInbox,
       setCommandInboxLoadFailed,
@@ -340,7 +327,6 @@ export function useEventDashboardWorkspaceViewModel({
     status,
     session,
     reference,
-    coordinatorState,
     error,
     setError,
     approvalRequests,
@@ -367,7 +353,6 @@ export function useEventDashboardWorkspaceViewModel({
     setReference,
     commandReferenceLoading,
     loadCommandReference,
-    setCoordinatorState,
     setLiveOps,
     setStatusFeed,
     setDefenseReadiness,

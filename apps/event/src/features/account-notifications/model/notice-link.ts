@@ -1,7 +1,7 @@
 import type { NotificationAction } from "@prism/types";
 import type { NoticeLink } from "@prism/ui/notifications";
 import { conversationHash } from "@prism/ui/portal-path";
-import { coordinatorViewSearch } from "@/features/coordinators/desk/model/coordinator-portal-routes";
+import { COORDINATOR_HOME_PATH, coordinatorViewSearch } from "@/features/coordinators/desk/model/coordinator-portal-routes";
 import { eventWorkspaceHref } from "@/features/event-dashboard/shell/model/event-dashboard-routing";
 
 export type { NoticeLink };
@@ -31,10 +31,10 @@ const COORDINATOR_SECTION_VIEWS: Partial<Record<EventSection, { view: "shift" | 
 
 /** A coordinator's notice opens their conversation, shift or run sheet; payments and supplier schedules are PMCM's and carry no link. */
 function coordinatorNoticeLink(action: NotificationAction | undefined): NoticeLink | null {
-  if (action?.kind === "conversation") return { href: `/dashboard?view=messages&conversation=${encodeURIComponent(action.threadId)}`, label: "Open conversation" };
+  if (action?.kind === "conversation") return { href: `${COORDINATOR_HOME_PATH}?view=messages&conversation=${encodeURIComponent(action.threadId)}`, label: "Open conversation" };
   if (action?.kind !== "event_section") return null;
   const target = COORDINATOR_SECTION_VIEWS[action.section];
-  return target ? { href: `/dashboard${coordinatorViewSearch(target.view, action.eventId)}`, label: target.label } : null;
+  return target ? { href: `${COORDINATOR_HOME_PATH}${coordinatorViewSearch(target.view, action.eventId)}`, label: target.label } : null;
 }
 
 /** Where a PMCM notice sends the reader: the event workspace tab the notice is about. */

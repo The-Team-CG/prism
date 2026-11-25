@@ -50,7 +50,7 @@ These are the primary checkout's ports; a linked worktree prints its own with
 
 ## Account page and sign-in security
 
-Every portal's account menu opens **Account** (`/dashboard/account`; the coordinator portal's `?view=account`). Use it to check the
+Every portal's account menu opens **Account** (`/dashboard/account`; the coordinator portal's `/coordinator?view=account`). Use it to check the
 flows below on a fixture account; each one is audited and each confirmation takes the account's current password.
 
 | Row | What to expect |
@@ -100,7 +100,7 @@ password values you supply; existing accounts retain their current values.
 | --- | --- | --- | --- | --- | --- |
 | Event command | `pmcm-admin` | Ms. Mys | `mys@pmcm.test` | `prism-admin` | Full PMCM command access |
 | Event command | `pmcm-admin` | PMCM Approver | `approver@pmcm.test` | `prism-admin` | Second PMCM admin; approves billing corrections requested by Ms. Mys (separation of duties) |
-| Event command | `coordinator` | Marco Santos | `marco@pmcm.test` | `prism-coordinator` | Role-safe coordinator workspace |
+| Event command | `coordinator` | Marco Santos | `marco@pmcm.test` | `prism-coordinator` | Coordinator portal at `/coordinator` (signs in at the same event sign-in) |
 | Client | `client` | Ana Reyes | `ana@ayala.test` | `prism-client` | Ayala Tech Summit local fixture client |
 | Supplier | `supplier` | XPERTO Registration | `ops@xperto.test` | `prism-supplier` | Tier 1 digital registration (primary) |
 | Supplier | `supplier` | Bloom Florals | `flowers@bloom.test` | `prism-supplier` | Tier 2 floral fixture |

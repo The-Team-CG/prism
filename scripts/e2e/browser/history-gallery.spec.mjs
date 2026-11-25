@@ -31,8 +31,8 @@ const ROUTES = {
     '/dashboard/audit', '/dashboard/privacy', '/dashboard/account', '/dashboard/settings',
   ],
   coordinator: [
-    '/dashboard', '/dashboard?view=tasks', '/dashboard?view=issues', '/dashboard?view=run-sheet', '/dashboard?view=calendar', '/dashboard?view=assignments',
-    '/dashboard?view=registration', '/dashboard?view=notifications', '/dashboard?view=messages', '/dashboard?view=account',
+    '/coordinator', '/coordinator?view=tasks', '/coordinator?view=issues', '/coordinator?view=run-sheet', '/coordinator?view=calendar', '/coordinator?view=assignments',
+    '/coordinator?view=registration', '/coordinator?view=notifications', '/coordinator?view=messages', '/coordinator?view=account',
   ],
 };
 const ORIGIN = { client: 'client', supplier: 'supplier', pmcm: 'event', coordinator: 'event' };

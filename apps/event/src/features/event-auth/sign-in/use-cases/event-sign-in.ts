@@ -28,7 +28,7 @@ export async function signInToEventPortal(input: {
     };
   }
   const session: EventSession = response;
-  const nextPath = resolveEventPostSignInPath(input.nextPath);
+  const nextPath = resolveEventPostSignInPath(input.nextPath, session.role);
   if (!isEventPortalRole(session.role)) {
     void eventAuthRepository.endRejectedSession(session.accessToken);
     return { error: eventRoleRejectionMessage(session.role) };

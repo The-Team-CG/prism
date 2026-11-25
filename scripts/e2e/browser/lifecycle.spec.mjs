@@ -227,7 +227,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await coordinatorRow.getByRole('button', { name: /^General Coordinator/ }).click();
       if (doubleBooked) await pmcm.page.getByRole('button', { name: 'Override and assign anyway', exact: true }).click();
       coordinator = await persona(browser, 'coordinator', device); contexts.push(coordinator.context);
-      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}`);
+      await coordinator.page.goto(`${origins.event}/coordinator?event=${eventId}`);
       await coordinator.page.getByRole('button', { name: /Acknowledge role|Confirm assignment/ }).first().click();
       await expect.poll(async () => (await api('GET', `/pmcm/events/${eventId}/workspace`)).coordinatorAssignments.some(item => item.coordinatorId === 'coord_marco' && item.status === 'acknowledged')).toBe(true);
     });
@@ -254,7 +254,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const booking = await openBooking(supplierActor.page, inquiry.eventName);
       await booking.getByRole('button', { name: /^Arrived/ }).click();
       await booking.getByRole('button', { name: /^Set up and ready/ }).click();
-      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
+      await coordinator.page.goto(`${origins.event}/coordinator?event=${eventId}&view=tasks`);
       // Log a task opens its form in a panel, which closes once the task is saved.
       await coordinator.page.getByRole('button', { name: 'Log a task', exact: true }).click();
       const logTask = coordinator.page.getByRole('dialog', { name: 'Log a task' });
@@ -357,7 +357,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(client.getByText(inquiry.eventName, { exact: false }).first()).toBeVisible();
       await expect(client.getByText('This event is archived. What you confirmed and wrote stays here to read.', { exact: true })).toBeVisible();
       await expect(client.getByRole('region', { name: 'Your feedback' }).getByRole('button', { name: 'Update feedback', exact: true })).toBeDisabled();
-      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
+      await coordinator.page.goto(`${origins.event}/coordinator?event=${eventId}&view=tasks`);
       await expect(coordinator.page.getByText('Archived event: operational records are read-only.', { exact: true })).toBeVisible();
     });
   } catch (error) {

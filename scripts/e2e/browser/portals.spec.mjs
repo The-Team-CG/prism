@@ -88,8 +88,8 @@ test('guest opens the pass with the event code and submits a named check-in with
 });
 
 test('signed-out visitors are redirected before private dashboards render', async ({ page }) => {
-  for (const role of ['client', 'supplier', 'event']) {
-    await page.goto(`${origins[role]}/dashboard`);
+  for (const url of [`${origins.client}/dashboard`, `${origins.supplier}/dashboard`, `${origins.event}/dashboard`, `${origins.event}/coordinator?view=tasks`]) {
+    await page.goto(url);
     await expect(page).toHaveURL(/\/sign-in/);
     await expect(page.getByLabel('Email address')).toBeVisible();
   }

@@ -13,16 +13,16 @@ describe("pmcmNoticeLink", () => {
 
   it("keeps a coordinator in their own portal: the shift and run sheet, and no link to a PMCM-only area", () => {
     const link = (section: "overview" | "briefing" | "live_ops" | "billing" | "files") => pmcmNoticeLink({ kind: "event_section", eventId: "evt 1", section }, "evt 1", "coordinator");
-    expect(link("live_ops")).toEqual({ href: "/dashboard?view=run-sheet&event=evt+1", label: "Open run sheet" });
-    expect(link("overview")).toEqual({ href: "/dashboard?view=shift&event=evt+1", label: "Open my shift" });
-    expect(link("briefing")?.href).toBe("/dashboard?view=shift&event=evt+1");
+    expect(link("live_ops")).toEqual({ href: "/coordinator?view=run-sheet&event=evt+1", label: "Open run sheet" });
+    expect(link("overview")).toEqual({ href: "/coordinator?view=shift&event=evt+1", label: "Open my shift" });
+    expect(link("briefing")?.href).toBe("/coordinator?view=shift&event=evt+1");
     expect([link("billing"), link("files")]).toEqual([null, null]);
     expect(pmcmNoticeLink({ kind: "payment_receipt", receiptId: "prcp_1" }, "evt_1", "coordinator")).toBeNull();
     expect(pmcmNoticeLink({ kind: "supplier_schedule", requestId: "req_1", revision: 1 }, "evt_1", "coordinator")).toBeNull();
   });
 
   it("opens the conversation a message notice is about", () => {
-    expect(pmcmNoticeLink({ kind: 'conversation', eventId: 'evt_1', threadId: 'thread_1' }, 'evt_1', 'coordinator')).toEqual({ href: '/dashboard?view=messages&conversation=thread_1', label: 'Open conversation' });
+    expect(pmcmNoticeLink({ kind: 'conversation', eventId: 'evt_1', threadId: 'thread_1' }, 'evt_1', 'coordinator')).toEqual({ href: '/coordinator?view=messages&conversation=thread_1', label: 'Open conversation' });
     expect(pmcmNoticeLink({ kind: "conversation", eventId: "evt_1", threadId: "thread_1" }, "evt_1")).toEqual({ href: "/dashboard/events/evt_1/messages#conversation-thread_1", label: "Open conversation" });
   });
 
