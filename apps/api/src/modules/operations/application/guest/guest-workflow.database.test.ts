@@ -53,7 +53,6 @@ describe.skipIf(!databaseUrl)('guest feedback PostgreSQL transaction acceptance'
           orderBy: [{ eventDate: 'asc' }, { id: 'asc' }],
         }),
         findGuestEvent: (eventId: string) => new GuestEventProjectionService(prisma as never).findGuestEvent(eventId),
-        findGuestGamesLobbySlug: (eventId: string) => new GuestEventProjectionService(prisma as never).findGuestGamesLobbySlug(eventId),
         listCoordinatorWorkspaceEvents: async () => [],
       } as never,
       { write: vi.fn(async () => undefined) } as never, {} as never);

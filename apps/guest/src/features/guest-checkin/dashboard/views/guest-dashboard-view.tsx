@@ -41,7 +41,7 @@ function GuestDashboardNotices({ vm }: { vm: GuestDashboardVm }) {
 }
 
 /** What follows the ticket: the invitation's next steps before the day, check-in on the day, then the games. */
-function GuestPassMomentBody({ session, moment }: { session: PrismGuestSession; moment: GuestPassMoment }) {
+function GuestPassMomentBody({ vm, session, moment }: { vm: GuestDashboardVm; session: PrismGuestSession; moment: GuestPassMoment }) {
   const gamesHref = guestGamesHref(session);
   if (moment === "before") {
     return (
@@ -49,7 +49,7 @@ function GuestPassMomentBody({ session, moment }: { session: PrismGuestSession; 
         <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm leading-5 text-muted-foreground">
           Check-in opens on {formatPortalDate(session.eventDate)}. Come back to this pass then, or show it at the door.
         </p>
-        {session.gamesLobbySlug ? <GuestPassLinkRow href={gamesHref} title="Play while you wait" detail="See activities from your host" /> : null}
+        <GuestPassLinkRow href={gamesHref} title="Play while you wait" detail="Games from your host" />
       </>
     );
   }
@@ -59,15 +59,8 @@ function GuestPassMomentBody({ session, moment }: { session: PrismGuestSession; 
       <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm leading-5 text-muted-foreground">This event has ended. Thank you for coming.</p>
     );
   }
-  return <GuestPassLinkRow href={gamesHref} title={session.gamesLobbySlug ? "Open activities" : "Join with PIN"} detail="Join the host or return to your game" />;
-}
-
-function primaryPassAction(vm: GuestDashboardVm, moment: GuestPassMoment) {
-  if (moment === "today" && !vm.checkedIn) return <GuestCheckInCard vm={vm} />;
-  if (moment === "after" && (vm.session?.feedbackAvailability === "open" || vm.canWithdrawFeedbackConsent)) {
-    return <div id="feedback"><GuestFeedbackPanel vm={vm} /></div>;
-  }
-  return null;
+  if (vm.checkedIn) return <GuestPassLinkRow href={gamesHref} title="Play a game" detail="Solo games, or join the host's game with a PIN" />;
+  return <GuestCheckInCard vm={vm} />;
 }
 
 /**
@@ -80,8 +73,7 @@ export function GuestDashboardView() {
 
   if (!session) return <GuestDashboardLoading />;
   const moment = guestPassMoment(session);
-  const primaryAction = primaryPassAction(vm, moment);
-  const ticket = <GuestPassTicket session={session} moment={moment} />;
+  const feedbackShown = session.feedbackAvailability === "open" || vm.canWithdrawFeedbackConsent;
 
   return (
     <PrismGuestShell
@@ -90,10 +82,9 @@ export function GuestDashboardView() {
       layout="split"
       lead={
         <div className="grid gap-3">
-          <GuestDashboardNotices vm={vm} />
           {moment === "today" && vm.checkedIn ? <GuestCheckInStatus session={session} /> : null}
-          {primaryAction ?? ticket}
-          {moment !== "after" ? <GuestPassQuickActions session={session} /> : null}
+          <GuestPassTicket session={session} moment={moment} />
+          {moment === "before" ? <GuestPassQuickActions session={session} /> : null}
         </div>
       }
       actions={
@@ -109,7 +100,9 @@ export function GuestDashboardView() {
       }
     >
       <div className="flex flex-col gap-3">
-        {primaryAction ? ticket : <GuestPassMomentBody session={session} moment={moment} />}
+        <GuestDashboardNotices vm={vm} />
+        {feedbackShown ? <div id="feedback"><GuestFeedbackPanel vm={vm} /></div> : null}
+        <GuestPassMomentBody vm={vm} session={session} moment={moment} />
       </div>
     </PrismGuestShell>
   );

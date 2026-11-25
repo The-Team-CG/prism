@@ -293,8 +293,6 @@ export interface PrismGuestEventPass {
   guestAccessCode: string;
   watermark: string;
   feedbackAvailability: PrismGuestFeedbackAvailability;
-  /** Published event lobby, when the event has one open to guests. */
-  gamesLobbySlug?: string | null;
   /** Venue from the event's latest briefing; omitted when none is recorded. */
   venue?: string;
   /** Confirmed start time (HH:mm, Philippine time) from the latest briefing; omitted when not confirmed. */
@@ -304,7 +302,6 @@ export interface PrismGuestEventPass {
 export interface PrismGuestEventWatermark {
   watermark: string;
   feedbackAvailability: PrismGuestFeedbackAvailability;
-  gamesLobbySlug?: string | null;
 }
 
 export interface PrismGuestFeedback {

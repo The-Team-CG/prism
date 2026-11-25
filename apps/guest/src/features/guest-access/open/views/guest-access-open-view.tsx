@@ -12,12 +12,19 @@ import { useGuestAccessOpenViewModel } from "../view-models/use-guest-access-ope
 
 type OpenVm = ReturnType<typeof useGuestAccessOpenViewModel>;
 
+const WAYS_IN = [
+  ["Scan the event QR", "On your invitation, table card or at the entrance. Your pass opens with nothing to type."],
+  ["Or type the event code", "It is on your invitation."],
+  ["Then check in on the day", "One name and one tap, on the phone you bring."],
+] as const;
+
 /** Shown while a scanned link opens the pass, so the guest sees the event is on its way instead of an empty form. */
 function OpeningPass() {
   return (
     <section role="status" aria-live="polite" className="grid justify-items-center gap-3 rounded-2xl border border-border bg-card px-5 py-8 text-center">
       <span aria-hidden="true" className="size-7 animate-spin rounded-full border-[3px] border-primary/20 border-t-primary" />
       <p className="font-semibold text-foreground">Opening your pass…</p>
+      <p className="text-sm text-muted-foreground">No code to type.</p>
     </section>
   );
 }
@@ -64,11 +71,19 @@ export function GuestAccessOpenView() {
   return (
     <PrismGuestShell
       eventName="Open your event pass"
-      layout="narrow"
+      layout="split"
       lead={
         <div className="grid gap-1.5 pt-2 lg:gap-4 lg:pt-6">
           <h1 className="font-heading text-2xl font-semibold leading-tight text-foreground lg:text-4xl">Open your event pass</h1>
-          <p className="text-sm leading-6 text-muted-foreground lg:text-base">Open the link or scan the QR on your invitation. You can also enter the event code below.</p>
+          <p className="text-sm leading-6 text-muted-foreground lg:text-base">Scan the QR on your invitation or at the entrance with your phone camera, or type the event code.</p>
+          <ol className="hidden gap-3 lg:grid">
+            {WAYS_IN.map(([title, detail], index) => (
+              <li key={title} className="flex gap-3">
+                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">{index + 1}</span>
+                <span><span className="block font-semibold text-foreground">{title}</span><span className="block text-sm text-muted-foreground">{detail}</span></span>
+              </li>
+            ))}
+          </ol>
         </div>
       }
     >

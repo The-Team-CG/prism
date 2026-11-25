@@ -10,7 +10,6 @@ export type GuestEventProjection = Pick<OpsEvent,
   floorPlanDrafts: Array<Pick<OpsFloorPlanDraft, 'id' | 'floorPlanId' | 'isActive'>>;
   /** Attendee-safe venue and start time, present only once the client approved PMCM's proposal for that briefing. */
   confirmedArrival?: { venue: string; confirmedStartTime: string | null };
-  gamesLobbySlug?: string | null;
 };
 
 export type CoordinatorWorkspaceEventProjection = Pick<OpsEvent,
@@ -25,7 +24,6 @@ export type CoordinatorWorkspaceEventProjection = Pick<OpsEvent,
 export interface GuestEventProjectionReader {
   listGuestAccessCandidates(includeArchived: boolean): Promise<GuestAccessEventCandidate[]>;
   findGuestEvent(eventId: string): Promise<GuestEventProjection | null>;
-  findGuestGamesLobbySlug(eventId: string): Promise<string | null>;
   listCoordinatorWorkspaceEvents(eventIds: readonly string[]): Promise<CoordinatorWorkspaceEventProjection[]>;
 }
 

@@ -81,7 +81,7 @@ export function GuestPassQuickActions({ session }: { session: PrismGuestSession 
   return (
     <div className={session.venue ? "grid grid-cols-2 gap-2" : "grid"}>
       {session.venue ? (
-        <Button asChild className="h-11">
+        <Button asChild variant="outline" className="h-11 bg-card">
           <a href={venueDirectionsUrl(session.venue)} target="_blank" rel="noreferrer"><MapPin className="size-4" aria-hidden="true" /> Directions</a>
         </Button>
       ) : null}
@@ -160,7 +160,7 @@ export function GuestCheckInCard({ vm }: { vm: GuestDashboardVm }) {
       <CheckInConsent vm={vm} />
       <div className="grid gap-2">
         <Button aria-describedby={guidance ? "check-in-guidance" : undefined} disabled={!vm.canCheckIn} onClick={() => void vm.checkIn()} className="h-12 w-full text-base">
-          {vm.busy === "check-in" ? "Sending…" : "Send check-in"}
+          {vm.busy === "check-in" ? "Checking you in…" : "Check me in"}
         </Button>
         {guidance ? <p id="check-in-guidance" className="text-center text-sm text-muted-foreground">{guidance}</p> : null}
       </div>
@@ -170,17 +170,18 @@ export function GuestCheckInCard({ vm }: { vm: GuestDashboardVm }) {
           {named ? "Check in without it" : "Use my name"}
         </button>
       </p>
-      <p className="text-center text-sm text-muted-foreground">Have a personal QR pass? Open its link and show the code at registration.</p>
     </section>
   );
 }
 
 export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
   return (
-    <PrismSectionPanel title={vm.canWithdrawFeedbackConsent ? "Feedback received" : "Rate your experience"} icon={MessageCircleHeart}>
-      {vm.canWithdrawFeedbackConsent ? (
-        <p role="status" className="flex items-start gap-2 text-sm text-success"><CheckCircle2 className="mt-0.5 size-4 shrink-0" aria-hidden="true" /> Thanks for sharing your feedback.</p>
-      ) : vm.session?.feedbackAvailability === "open" ? <form onSubmit={(event) => void vm.submitFeedback(event)} className="flex flex-col gap-4">
+    <PrismSectionPanel title="Share feedback" icon={MessageCircleHeart} description="PMCM reviews your feedback before it can be shared.">
+      {vm.session?.feedbackAvailability === "open" ? <form onSubmit={(event) => void vm.submitFeedback(event)} className="flex flex-col gap-4">
+        <label className="grid gap-1.5 text-sm font-semibold">
+          Your name
+          <Input value={vm.feedbackGuestName} onChange={(event) => vm.setFeedbackGuestName(event.target.value)} autoComplete="name" placeholder="Your name" />
+        </label>
         <fieldset className="grid gap-2">
           <legend className="text-sm font-semibold">Rating</legend>
           <div className="flex gap-2">
@@ -193,26 +194,20 @@ export function GuestFeedbackPanel({ vm }: { vm: GuestDashboardVm }) {
           </div>
         </fieldset>
         <label className="grid gap-1.5 text-sm font-semibold">
-          Your name
-          <Input value={vm.feedbackGuestName} onChange={(event) => vm.setFeedbackGuestName(event.target.value)} autoComplete="name" placeholder="Your name" />
-        </label>
-        <label className="grid gap-1.5 text-sm font-semibold">
-          <span className="flex justify-between gap-3"><span>Comment (optional)</span><span className="font-normal text-muted-foreground">{vm.feedbackComment.length}/500</span></span>
+          <span className="flex justify-between gap-3"><span>Comment</span><span className="font-normal text-muted-foreground">{vm.feedbackComment.length}/500</span></span>
           <Textarea value={vm.feedbackComment} maxLength={500} onChange={(event) => vm.setFeedbackComment(event.target.value)} placeholder="Tell us about your experience" />
         </label>
-        <details className="text-sm font-semibold">
-          <summary className="cursor-pointer">Attach a photo or video (optional)</summary>
-          <label className="mt-2 grid gap-1.5">
-            <span className="sr-only">Photo or video</span>
-            <input type="file" accept="image/jpeg,image/png,video/mp4,video/quicktime" onChange={(event) => vm.setFeedbackMedia(event.target.files?.[0] ?? null)} className="text-sm font-normal text-foreground" />
-            <span className="text-xs font-normal text-muted-foreground">JPEG, PNG, MP4 or MOV, up to 100 MB.</span>
-          </label>
-        </details>
+        <label className="grid gap-1.5 text-sm font-semibold">
+          Photo or video (optional)
+          <input type="file" accept="image/jpeg,image/png,video/mp4,video/quicktime" onChange={(event) => vm.setFeedbackMedia(event.target.files?.[0] ?? null)} className="text-sm font-normal text-foreground" />
+          <span className="text-xs font-normal text-muted-foreground">JPEG, PNG, MP4 or MOV, up to 100 MB.</span>
+        </label>
         <label className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
           <input type="checkbox" checked={vm.feedbackConsentAccepted} onChange={(event) => vm.setFeedbackConsentAccepted(event.target.checked)} className="mt-1 size-4 accent-attention" />
           <span>I consent to PMCM saving my name, rating, comment and any photo or video for review. My feedback will not be published automatically.</span>
         </label>
         <Button disabled={!vm.canSubmitFeedback} className="h-12 sm:w-fit" type="submit"><MessageCircleHeart className="size-4" /> Send feedback</Button>
+        {vm.feedbackSubmitted ? <p role="status" className="flex items-start gap-2 text-sm text-success"><CheckCircle2 className="mt-0.5 size-4 shrink-0" /> Feedback sent. PMCM will review it before sharing.</p> : null}
       </form> : <p className="text-sm text-muted-foreground">The feedback submission window has closed.</p>}
       {vm.canWithdrawFeedbackConsent ? <div className="mt-4 border-t border-border pt-4"><p className="mb-2 text-sm text-muted-foreground">You can withdraw consent for the feedback submitted from this device.</p><Button type="button" variant="outline" disabled={Boolean(vm.busy)} onClick={() => void vm.withdrawFeedbackConsent()}>Withdraw feedback consent</Button></div> : null}
     </PrismSectionPanel>

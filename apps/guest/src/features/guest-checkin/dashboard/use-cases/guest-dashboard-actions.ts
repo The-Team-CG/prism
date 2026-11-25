@@ -22,10 +22,10 @@ export async function refreshGuestEvent(
 export async function refreshGuestEventIfChanged(
   session: PrismGuestSession,
 ): Promise<PrismGuestSession> {
-  const { watermark, feedbackAvailability, gamesLobbySlug = session.gamesLobbySlug } = await guestDashboardRepository.fetchWatermark(session);
-  if (session.watermark === watermark && session.feedbackAvailability === feedbackAvailability && session.gamesLobbySlug === gamesLobbySlug) return session;
+  const { watermark, feedbackAvailability } = await guestDashboardRepository.fetchWatermark(session);
+  if (session.watermark === watermark && session.feedbackAvailability === feedbackAvailability) return session;
   if (session.watermark === watermark) {
-    const next = { ...session, feedbackAvailability, gamesLobbySlug };
+    const next = { ...session, feedbackAvailability };
     guestDashboardRepository.saveSession(next);
     return next;
   }

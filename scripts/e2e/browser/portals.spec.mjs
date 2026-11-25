@@ -83,7 +83,7 @@ test('guest opens the pass with the event code and submits a named check-in with
   await expect(page.getByLabel('Guest name', { exact: true })).toBeVisible();
   await page.getByLabel('Guest name', { exact: true }).fill(name);
   await page.getByRole('checkbox', { name: /I consent to PMCM recording/ }).check();
-  await page.getByRole('button', { name: 'Send check-in', exact: true }).click();
+  await page.getByRole('button', { name: 'Check me in', exact: true }).click();
   await expect(page.getByRole('heading', { name: /^Check-in sent/ })).toBeVisible();
 });
 

@@ -292,7 +292,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await guest.reload();
       await guest.getByLabel('Guest name', { exact: true }).fill(guestName);
       await guest.getByRole('checkbox', { name: /I consent to PMCM recording/ }).check();
-      await guest.getByRole('button', { name: 'Send check-in', exact: true }).click();
+      await guest.getByRole('button', { name: 'Check me in', exact: true }).click();
       await expect(guest.getByRole('heading', { name: /^Check-in sent/ })).toBeVisible();
       await booking.getByRole('button', { name: /^Done and leaving/ }).click();
     });

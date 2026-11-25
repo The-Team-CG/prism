@@ -8,12 +8,8 @@ export function startIndependentSingleplayerGame(eventSlug: string, gameId: stri
   return eventGamesGuestRepository.startIndependentGame(eventSlug, gameId);
 }
 
-export async function getResumableEventGame(eventId: string) {
-  const stored = eventGamesGuestRepository.readParticipantSession();
-  if (stored?.eventId !== eventId || !stored.currentSessionId) return null;
-  const state = await eventGamesGuestRepository.getParticipantState(stored.currentSessionId).catch(() => null);
-  if (!state || state.status === "completed" || state.status === "cancelled") return null;
-  return { id: state.sessionId, title: state.game.title, alias: state.participant.participantAlias };
+export function readEventGameParticipantSession() {
+  return eventGamesGuestRepository.readParticipantSession();
 }
 
 export function leaveEventGamesFromLobby() {

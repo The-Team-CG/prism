@@ -68,7 +68,6 @@ const testEventReferences = {
 
 const createTestGuestEventProjections = () => ({
   listGuestAccessCandidates: vi.fn(async () => []),
-  findGuestGamesLobbySlug: vi.fn(async () => null),
   findGuestEvent: vi.fn(async () => null),
   listCoordinatorWorkspaceEvents: vi.fn(async () => []),
 });
@@ -242,7 +241,6 @@ function createGuestWorkflowFixture() {
     }),
   };
   const eventProjections = {
-    findGuestGamesLobbySlug: vi.fn(async () => null),
     listGuestAccessCandidates: vi.fn(async (includeArchived: boolean) => state.events
       .filter((event) => includeArchived || !event.archived)
       .map(({ id, eventName, eventDate, actualEndedAt, updatedAt, archived }) => ({ id, eventName, eventDate, actualEndedAt, updatedAt, archived }))),

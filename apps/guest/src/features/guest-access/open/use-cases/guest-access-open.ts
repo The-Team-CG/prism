@@ -13,11 +13,7 @@ export async function openGuestEventPass(input: {
   const previous = guestAccessRepository.readSession();
   // Opening the same event again keeps what this device already did with it: a sent check-in, feedback, the lobby.
   const kept = previous?.id === guestEvent.id
-    ? {
-      checkInSentAt: previous.checkInSentAt,
-      feedbackReceiptId: previous.feedbackReceiptId,
-      gamesLobbySlug: guestEvent.gamesLobbySlug === undefined ? previous.gamesLobbySlug : undefined,
-    }
+    ? { checkInSentAt: previous.checkInSentAt, feedbackReceiptId: previous.feedbackReceiptId, gamesLobbySlug: previous.gamesLobbySlug }
     : {};
   const session = { ...buildGuestSession(guestEvent), ...stripUndefined(kept) };
   guestAccessRepository.saveSession(session);

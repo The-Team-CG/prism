@@ -54,17 +54,11 @@ describe('GuestEventProjectionService', () => {
     const briefing = { venue: 'Grand Ballroom', confirmedStartTime: '18:30', submittedAt: new Date('2026-08-20T00:00:00.000Z') };
     const project = async (event: Record<string, unknown>) => {
       const findUnique = vi.fn(async () => ({ id: 'evt_1', proposalClientStatus: 'approved', proposalReviewedAt: reviewedAt, briefings: [briefing], ...event }));
-      return new GuestEventProjectionService({
-        opsEvent: { findUnique },
-        eventGameLobbySlug: { findUnique: vi.fn(async () => ({ lobbySlug: 'guest-lobby' })) },
-        $queryRaw: vi.fn(async () => []),
-      } as never).findGuestEvent('evt_1');
+      return new GuestEventProjectionService({ opsEvent: { findUnique }, $queryRaw: vi.fn(async () => []) } as never).findGuestEvent('evt_1');
     };
 
     const approved = await project({});
     expect(approved?.confirmedArrival).toEqual({ venue: 'Grand Ballroom', confirmedStartTime: '18:30' });
-    expect(approved?.gamesLobbySlug).toBe('guest-lobby');
-    expect((await project({ archived: true }))?.gamesLobbySlug).toBeNull();
     expect(approved).not.toHaveProperty('briefings');
     expect(approved).not.toHaveProperty('proposalClientStatus');
     expect(await project({ proposalClientStatus: 'pending', proposalReviewedAt: null })).not.toHaveProperty('confirmedArrival');
