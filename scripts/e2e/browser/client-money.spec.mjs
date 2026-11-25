@@ -29,11 +29,12 @@ test('client reports a payment with proof, PMCM verifies it on the finance desk,
     await verify.getByLabel('What you checked', { exact: true }).fill(`Matched ${reference} against the bank statement.`);
     await verify.getByRole('button', { name: 'Verify', exact: true }).click();
     await expect(verify).toBeHidden();
-    // Verifying confirms the money arrived; it counts toward a milestone only once PMCM applies it.
-    await pmcm.page.getByRole('link', { name: 'Apply ₱50,000 received' }).first().click();
-    const detail = pmcm.page.getByRole('complementary', { name: 'Receipt details' });
-    await detail.getByRole('button', { name: 'Apply to a milestone', exact: true }).click();
+    await client.page.reload();
+    await expect(sent.getByText('Verified · awaiting application', { exact: true })).toBeVisible();
+    expect((await api('GET', `/pmcm/events/${event.eventId}/workspace`)).paymentMilestones.reduce((sum, item) => sum + item.amountPaid, 0)).toBe(0);
+    await pmcm.page.getByRole('link', { name: 'Apply it to a milestone' }).click();
     const apply = pmcm.page.getByRole('dialog', { name: 'Apply to a milestone' });
+    await expect(apply).toContainText('unapplied');
     await apply.getByRole('button', { name: 'Apply money', exact: true }).click();
     await expect(apply).toBeHidden();
     await expect.poll(async () => (await api('GET', `/pmcm/events/${event.eventId}/workspace`)).paymentMilestones.reduce((sum, item) => sum + item.amountPaid, 0)).toBe(50000);

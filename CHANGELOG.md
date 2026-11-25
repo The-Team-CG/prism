@@ -88,6 +88,9 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Payment verification now leads PMCM to allocate the receipt, and clients can see when verified money is still awaiting application. PMCM can review compliance risks during planning.
+- Browser acceptance exercises desktop floorplan editing and guest pass check-in, including the camera workflow with simulated QR decoding.
+
 - PMCM can see the owner on each recorded risk and who flagged a walk-in for verification in the Registration roster. Run-sheet times are saved in Philippine Standard Time, and the start and end fields have distinct screen-reader labels.
 
 - On a phone, a long event name no longer pushes a supplier's or client's payment card past the screen and hides "I received this" under the next card (`PaymentEventCard` in `@prism/ui`). The supplier delivery journey now checks the Payments page fits a phone.

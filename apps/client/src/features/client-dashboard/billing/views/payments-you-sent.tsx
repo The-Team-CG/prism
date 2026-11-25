@@ -58,7 +58,8 @@ export function PaymentsYouSent({
             <li key={submission.id} className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-3 px-4 py-3">
               <span aria-hidden className={cn("grid size-8 place-items-center rounded-full", look.tone)}><Icon className="size-4" /></span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">{look.label}</p>
+                <p className="text-sm font-semibold text-foreground">{submission.state === "accepted" && submission.unapplied > 0 ? "Verified · awaiting application" : look.label}</p>
+                {submission.state === "accepted" && submission.unapplied > 0 ? <p className="text-xs text-muted-foreground">{formatPeso(submission.unapplied)} is waiting to be applied to a payment.</p> : null}
                 <p className="truncate text-xs text-muted-foreground">{detailLine(submission)}</p>
                 {submission.reason ? <p className="mt-1 rounded-md bg-danger-soft px-2 py-1 text-xs text-danger">PMCM: {submission.reason}</p> : null}
                 <div className="mt-1 flex flex-wrap items-center gap-3">

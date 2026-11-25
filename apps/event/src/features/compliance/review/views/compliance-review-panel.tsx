@@ -25,7 +25,7 @@ function ratingsText(risk: { likelihood?: string | null; impact?: string | null 
 }
 
 /** Run history as one summary line, plus PMCM-recorded risks for this event. */
-export function ComplianceReviewPanel({ eventId }: { eventId: string }) {
+export function ComplianceReviewPanel({ eventId, phase = "closure" }: { eventId: string; phase?: CreateComplianceRiskInput["phase"] }) {
   const vm = useComplianceReviewViewModel(eventId);
   const readiness = complianceReadinessReport(vm.runs, vm.risks);
   const [riskTitle, setRiskTitle] = useState("");
@@ -34,7 +34,7 @@ export function ComplianceReviewPanel({ eventId }: { eventId: string }) {
   const [impact, setImpact] = useState<RiskRating>("medium");
   const saveRisk = async () => {
     // Severity is left to the API, which derives it from the two ratings.
-    const input: CreateComplianceRiskInput = { phase: "closure", title: riskTitle, mitigation: riskMitigation, likelihood, impact, owner: "PMCM", status: "open" };
+    const input: CreateComplianceRiskInput = { phase, title: riskTitle, mitigation: riskMitigation, likelihood, impact, owner: "PMCM", status: "open" };
     await vm.addRisk(input);
     setRiskTitle("");
     setRiskMitigation("");

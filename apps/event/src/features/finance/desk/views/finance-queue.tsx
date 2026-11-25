@@ -119,7 +119,7 @@ function VerifyDialog({ vm }: { vm: FinanceDeskViewModel }) {
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{many ? `Verify ${verify.targets.length} payments` : "Verify this payment"}</DialogTitle>
-          <DialogDescription>Confirm {many ? "these transfers" : "the transfer"} reached PMCM&apos;s account. {many ? "Each client is" : "The client is"} told once it is verified.</DialogDescription>
+          <DialogDescription>Confirm {many ? "these transfers" : "the transfer"} reached PMCM&apos;s account. {many ? "Each client is" : "The client is"} told once it is verified. Apply the money to a milestone afterward to update the balance.</DialogDescription>
         </DialogHeader>
         <ul className="max-h-48 divide-y divide-border overflow-y-auto rounded-md border border-border text-sm">
           {verify.targets.map((item) => (
@@ -153,6 +153,7 @@ export function FinanceQueue({ total, vm }: { total: number; vm: FinanceDeskView
   const hidden = vm.items.length - shown.length;
   return (
     <PrismSection id="finance-queue" title="Needs you" count={total} flush>
+      {vm.verify.verifiedReceiptId ? <p role="status" className="px-5 py-3 text-sm">Payment verified. <Link className="font-semibold text-primary" href={`/dashboard/finance/receipts?receipt=${encodeURIComponent(vm.verify.verifiedReceiptId)}&apply=1`}>Apply it to a milestone</Link> to update the balance.</p> : null}
       {total === 0 ? (
         <div className="px-5 pb-4"><PrismEmptyLine icon={Inbox}>Nothing waiting. Payments, receipts, disputes and supplier payouts that need you appear here.</PrismEmptyLine></div>
       ) : (

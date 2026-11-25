@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { useResource } from "@prism/portal-query";
 import type { PrismEvent, PrismPaymentReceipt } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { DatePicker } from "@prism/ui/components/date-picker";
@@ -11,6 +12,7 @@ import { EVIDENCE_ACCEPT, EVIDENCE_HINT, evidenceProblem } from "../model/receip
 import type { PaymentReceiptsViewModel } from "../view-models/use-payment-receipts-view-model";
 import type { ReceiptDraft, RefundDraft } from "../use-cases/receipt-commands";
 import { EventField, Field, INPUT_CLASS, MethodField, MilestoneField } from "./receipt-form-fields";
+import { paymentAllocationTargets } from "../data/receipts-repository";
 
 function DialogFrame({
   eyebrow,
@@ -91,6 +93,13 @@ function AllocateDialog({ vm, receipt, events }: { vm: PaymentReceiptsViewModel;
   // A payment the client reported starts on the payment they named; PMCM can still choose another.
   const [milestoneId, setMilestoneId] = useState(receipt.intendedMilestoneId ?? "");
   const [amount, setAmount] = useState(String(receipt.unapplied));
+  const [amountEdited, setAmountEdited] = useState(false);
+  const targets = useResource(paymentAllocationTargets, eventId || null);
+  useEffect(() => {
+    if (amountEdited || !milestoneId) return;
+    const target = targets.data?.find((item) => item.milestoneId === milestoneId);
+    if (target) setAmount(String(Math.min(receipt.unapplied, target.remainingBalance)));
+  }, [amountEdited, milestoneId, receipt.unapplied, targets.data]);
   const choose = (id: string, remaining: number | null) => {
     setMilestoneId(id);
     if (remaining !== null) setAmount(String(Math.min(receipt.unapplied, remaining)));
@@ -100,7 +109,7 @@ function AllocateDialog({ vm, receipt, events }: { vm: PaymentReceiptsViewModel;
       <EventField label="Event" hint="Money can go to a different event than the one it was meant for." value={eventId} events={events} onChange={(next) => { setEventId(next); setMilestoneId(""); }} />
       <MilestoneField label="Milestone" eventId={eventId} value={milestoneId} onChange={choose} />
       <Field label="Amount to apply (PHP)" hint="At most what is unapplied and what the milestone still owes.">
-        <input inputMode="numeric" value={amount} onChange={(event) => setAmount(event.target.value)} className={INPUT_CLASS} />
+        <input inputMode="numeric" value={amount} onChange={(event) => { setAmountEdited(true); setAmount(event.target.value); }} className={INPUT_CLASS} />
       </Field>
     </DialogFrame>
   );

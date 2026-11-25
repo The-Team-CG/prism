@@ -28,8 +28,10 @@ Operational journeys use synthetic prerequisites prepared through the API and dr
 | `run-sheet.spec.mjs` | PMCM authors a schedule day and segment. The PMCM printable run sheet and the assigned coordinator's run sheet show the programme. |
 | `walk-in.spec.mjs` | PMCM opens walk-ins for a private event. A guest submits their arrival and an assigned registration coordinator registers and flags a second walk-in. PMCM verifies and checks both in, and the coordinator sees their arrivals. |
 | `operational-records.spec.mjs` | PMCM requests and accepts an accreditation document with its own deadline, and records, rescores and mitigates a pre-event risk. |
+| `floorplan-editor.spec.mjs` | PMCM places a registration desk in the 2D editor and reopens the saved draft. Desktop only because phones open the editor view-only. |
+| `qr-pass.spec.mjs` | A guest opens their personal pass and staff check them in using its displayed code. The camera flow is also exercised with a simulated stream and decoded QR value. |
 
-The supplier delivery and live-poll journeys prepare the supplier ingress/egress schedule and poll configuration through the API. The walk-in journey activates the seeded registration coordinator through a captured synthetic invitation. Floorplan editing gestures and guest QR scanning have no journey.
+The supplier delivery and live-poll journeys prepare the supplier ingress/egress schedule and poll configuration through the API. The walk-in journey activates the seeded registration coordinator through a captured synthetic invitation. The camera test simulates QR decoding and does not verify a physical camera or the browser's native decoder.
 
 The normal manual-test database is never reset. Owned test processes and the temporary inbox/database are removed after the run. Private logs, env files, synthetic MFA secrets and failure traces stay in the ignored `.local-dev/browser/<run-id>/` directory. Inspect a failed HTML report with `npx playwright show-report <report-directory>`. Traces may contain synthetic credentials and email tokens; CI uploads only failure reports/results for seven days, never environment, actor or API log files. A cancelled runner/job still needs its normal process/container teardown; do not kill unrelated Node processes.
 
