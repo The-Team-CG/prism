@@ -44,7 +44,39 @@ function approvedResponsesVisible(kind: string, status: string, round: HostRound
   return kind === 'presenter-deck' ? status === 'live' || status === 'paused' : status === 'paused';
 }
 
-/** Only rounds that report a results window (Presenter Deck) carry the flag to the client. */
+/** Puzzles a guest plays alone, and verified Bingo claims: their own result can show as soon as they answer. */
+const IMMEDIATE_OUTCOME_KINDS = new Set(['bingo', 'word-scramble', 'guess-picture-solo', 'spot-the-difference']);
+/** Shared rounds: a guest's result shows only once answers are closed, so it cannot leak the answer to others. */
+const REVEALED_OUTCOME_KINDS = new Set(['live-trivia', 'guess-picture', 'family-feud']);
+
+/** Answers are closed for the room: a results window is open, or the host has paused or ended the game. */
+function answersClosed(status: string, round: HostRound | null): boolean {
+  return status === 'paused' || status === 'completed' || (status === 'live' && round?.resultsOpen === true);
+}
+
+function roundOutcomeVisible(kind: string, status: string, round: HostRound | null): boolean {
+  if (IMMEDIATE_OUTCOME_KINDS.has(kind)) return true;
+  return REVEALED_OUTCOME_KINDS.has(kind) && answersClosed(status, round);
+}
+
+/** The correct answer of a shared round, once the room can no longer answer it. */
+function publicRevealedAnswer(
+  kind: string,
+  status: string,
+  configSnapshot: Readonly<Record<string, unknown>>,
+  round: HostRound | null,
+): string | undefined {
+  if (!round || !answersClosed(status, round)) return undefined;
+  const parsed = eventGameTemplateConfigurationSchema.safeParse(configSnapshot.configuration);
+  if (!parsed.success) return undefined;
+  if (kind === 'live-trivia' && parsed.data.kind === 'live-trivia') {
+    return parsed.data.rounds.find(({ key }) => key === round.key)?.correctAnswer;
+  }
+  if (kind === 'guess-picture' && parsed.data.kind === 'guess-picture') return parsed.data.acceptedAnswers[0];
+  return undefined;
+}
+
+/** Only rounds that report a results window (Live Trivia, Presenter Deck) carry the flag to the client. */
 function resultsOpenField(round: HostRound): { resultsOpen?: boolean } {
   return round.resultsOpen === undefined ? {} : { resultsOpen: round.resultsOpen };
 }
@@ -102,6 +134,8 @@ function publicParticipantState(
   round: HostRound | null,
   data: ParticipantReadData,
 ): PrismGamePublicState {
+  const { roundOutcome, ...participant } = data.participant;
+  const revealedAnswer = publicRevealedAnswer(session.kind, status, session.configSnapshot, round);
   return {
     sessionId: session.sessionId,
     game: { title: session.title, kind: session.kind },
@@ -114,10 +148,12 @@ function publicParticipantState(
       total: round.total,
       deadlineAt: round.deadlineAt?.toISOString() ?? null,
       ...resultsOpenField(round),
+      ...(revealedAnswer ? { revealedAnswer } : {}),
     } : null,
     currentPrompt: round?.prompt ?? null,
     participant: {
-      ...data.participant,
+      ...participant,
+      ...(roundOutcome && roundOutcomeVisible(session.kind, status, round) ? { roundOutcome } : {}),
       participantAlias: createAnonymousGameParticipantAlias(session.participationGrantId),
       ...(round?.participantData ? { gameData: round.participantData } : {}),
     },
@@ -133,7 +169,7 @@ function hostRoundReveal(
   status: PrismGameHostState['status'],
   round: HostRound,
 ): Pick<NonNullable<PrismGameHostState['currentRound']>, 'revealedAnswer' | 'answerBoard'> {
-  if (status !== 'paused' && context.kind !== 'family-feud') return {};
+  if (!answersClosed(status, round) && context.kind !== 'family-feud') return {};
   const parsed = eventGameTemplateConfigurationSchema.safeParse(context.configSnapshot.configuration);
   if (!parsed.success) return {};
   if (context.kind === 'live-trivia' && parsed.data.kind === 'live-trivia') {
@@ -145,7 +181,35 @@ function hostRoundReveal(
       .map(({ answer, alternatives, points }) => ({ answer, alternatives, points }));
     return answerBoard ? { answerBoard } : {};
   }
+  if (context.kind === 'guess-picture' && parsed.data.kind === 'guess-picture') {
+    const revealedAnswer = parsed.data.acceptedAnswers[0];
+    return revealedAnswer ? { revealedAnswer } : {};
+  }
   return {};
+}
+
+/** What the room screen needs to mirror the guests' phones: their choices, Bingo calls, or the picture. */
+function hostRoundMedia(
+  context: GameHostReadContext,
+  round: HostRound,
+): Pick<NonNullable<PrismGameHostState['currentRound']>, 'options' | 'calledNumbers' | 'picture'> {
+  const data = round.participantData;
+  if (data && 'options' in data && Array.isArray(data.options)) return { options: data.options };
+  if (data?.kind === 'guess-picture') {
+    return { picture: { mediaObjectId: data.mediaObjectId, stage: data.stage, totalStages: round.total } };
+  }
+  if (context.kind === 'bingo') {
+    const parsed = eventGameTemplateConfigurationSchema.safeParse(context.configSnapshot.configuration);
+    // Bingo's round number is how many numbers have been called.
+    if (parsed.success && parsed.data.kind === 'bingo') return { calledNumbers: parsed.data.callSequence.slice(0, round.number) };
+  }
+  return {};
+}
+
+/** Spin the Wheel's drawable segments, from the same rule that serves guests. */
+function hostWheelOutcomes(round: HostRound | null): Pick<PrismGameHostState, 'wheelOutcomes'> {
+  const data = round?.participantData;
+  return data?.kind === 'spin-wheel' ? { wheelOutcomes: data.outcomes } : {};
 }
 
 function hostRoundView(
@@ -162,6 +226,7 @@ function hostRoundView(
     prompt: round.prompt,
     deadlineAt: round.deadlineAt?.toISOString() ?? null,
     ...resultsOpenField(round),
+    ...hostRoundMedia(context, round),
     ...hostRoundReveal(context, status, round),
     ...(MODERATED_RESPONSE_KINDS.has(context.kind) ? { pendingSubmissions } : {}),
   };
@@ -368,6 +433,31 @@ export class GameReadModelService {
     );
   }
 
+  /** A signed read for one of this session's configured pictures, so the room screen can show Guess the Picture. */
+  async getHostMediaAuthorization(
+    eventId: string,
+    sessionId: string,
+    objectId: string,
+    actor: PrismVerifiedEventActor,
+  ): Promise<PrismEventGameMediaAuthorization> {
+    await this.eventAccess.assertHostAccess(eventId, actor);
+    const mediaStorage = this.mediaStorage;
+    if (!mediaStorage || !eventGameMediaObjectIdSchema.safeParse(objectId).success) {
+      throw new NotFoundException('Game media is not available');
+    }
+    return this.transactions.run(async (transaction) => {
+      const [state, context] = await Promise.all([
+        this.sessions.getHostState({ eventId, sessionId }, transaction),
+        this.sessions.getHostReadContext({ eventId, sessionId }, transaction),
+      ]);
+      const configuredIds = eventGameMediaObjectIdsSchema.safeParse(context?.configSnapshot.mediaObjectIds ?? []);
+      if (!state || !configuredIds.success || !configuredIds.data.includes(objectId)) {
+        throw new NotFoundException('Game media is not available');
+      }
+      return mediaStorage.issueParticipantDownloadAuthorization({ eventId, gameId: state.game.id, objectId }, transaction);
+    }, { actorId: actor.actorId });
+  }
+
   private async buildHostState(eventId: string, sessionId: string, transaction: PrismTransactionContext) {
     const [state, context] = await Promise.all([
       this.sessions.getHostState({ eventId, sessionId }, transaction),
@@ -399,6 +489,7 @@ export class GameReadModelService {
     const currentRound = roundView && approvedResponses.length ? { ...roundView, approvedResponses } : roundView;
     return {
       ...state,
+      ...hostWheelOutcomes(round),
       serverTime: currentTime.toISOString(),
       ...(aggregateResults.length ? { aggregateResults } : {}),
       currentRound: currentRound && round && context.kind === 'family-feud'

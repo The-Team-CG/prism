@@ -151,4 +151,31 @@ databaseSuite('Event games action and team scoring PostgreSQL invariants', () =>
       awardRecipient: { type: 'team', teamId },
     }]);
   });
+  it('reads back a participant answer outcome and tallies the round answers by choice', async () => {
+    if (!databaseUrl) return;
+    const answer = (grantIndex: 0 | 1, choice: string, isCorrect: boolean) => prisma.$transaction((transaction) =>
+      actionStore.recordParticipantAction({
+        eventId, sessionId, participationGrantId: grantIds[grantIndex], tokenDigest: tokenDigests[grantIndex],
+        roundKey: 'round-tally', roundNumber: 2, actionKind: 'answer', payload: { answer: choice },
+        points: isCorrect ? 25 : 0, isCorrect, deadlineAt: null, createdAt: now,
+      }, { prisma: transaction } as unknown as PrismTransactionContext));
+    await answer(0, 'Baguio', true);
+    await answer(1, 'Cebu', false);
+
+    const read = <T>(work: (transaction: PrismTransactionContext) => Promise<T>) =>
+      prisma.$transaction((transaction) => work({ prisma: transaction } as unknown as PrismTransactionContext));
+    const state = await read((transaction) => actionStore.getParticipantState({
+      eventId, sessionId, participationGrantId: grantIds[1], roundKey: 'round-tally',
+    }, transaction));
+    const tally = await read((transaction) => actionStore.getRoundVoteCounts({
+      eventId, sessionId, roundKey: 'round-tally', tally: 'answers',
+    }, transaction));
+    const votes = await read((transaction) => actionStore.getRoundVoteCounts({
+      eventId, sessionId, roundKey: 'round-tally',
+    }, transaction));
+
+    expect(state).toMatchObject({ hasSubmitted: true, roundOutcome: { isCorrect: false, points: 0, answer: 'Cebu' } });
+    expect(tally).toEqual([{ label: 'Baguio', count: 1 }, { label: 'Cebu', count: 1 }]);
+    expect(votes).toEqual([]);
+  });
 });

@@ -38,11 +38,16 @@ function roundAdvanceDetails(
     startedAt: effectiveStart,
     now: roundTime,
   });
-  if (!round || round.key !== requestedRoundKey || round.number >= round.total || !round.deadlineAt) {
+  if (!round || round.key !== requestedRoundKey || !round.deadlineAt) {
     throw new ConflictException('Game round is not available to advance');
   }
-  // Jump to the start of the next round, past any results window that follows the question.
-  const advanceByMs = (round.endsAt ?? round.deadlineAt).getTime() - roundTime.getTime();
+  // A question followed by a results window advances to that window first, so the room always sees the answer;
+  // from the results window (or a round without one) it advances to the start of the next round.
+  const toResults = round.endsAt !== undefined && round.resultsOpen === false;
+  if (!toResults && round.number >= round.total) {
+    throw new ConflictException('Game round is not available to advance');
+  }
+  const advanceByMs = (toResults ? round.deadlineAt : round.endsAt ?? round.deadlineAt).getTime() - roundTime.getTime();
   if (!Number.isSafeInteger(advanceByMs) || advanceByMs <= 0) {
     throw new ConflictException('Game round is not available to advance');
   }

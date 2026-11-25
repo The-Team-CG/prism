@@ -44,6 +44,8 @@ interface ParticipantScoreRow {
   has_submitted: boolean;
   has_voted: boolean;
   result: unknown;
+  outcome_score: unknown;
+  outcome_answer: string | null;
 }
 interface ParticipantTotalRow { score: number | null }
 interface VoteCountRow { label: string; count: number }
@@ -109,6 +111,12 @@ function sessionStatus(value: string): GameParticipantActionContext['status'] {
 function participantChoiceResult(value: unknown): GameParticipantStateSummary['result'] {
   const parsed = eventGameParticipantResultSchema.safeParse(value);
   return parsed.success && parsed.data.kind === 'singleplayer-choice' ? parsed.data : undefined;
+}
+
+function participantRoundOutcome(score: unknown, answer: string | null): GameParticipantStateSummary['roundOutcome'] {
+  const parsed = responseScoreSchema.safeParse(score);
+  if (!parsed.success) return undefined;
+  return { isCorrect: parsed.data.isCorrect, points: parsed.data.points, ...(answer ? { answer } : {}) };
 }
 
 @Injectable()
@@ -280,7 +288,7 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
     input: { eventId: string; sessionId: string; participationGrantId: string; roundKey: string | null },
     transaction: PrismTransactionContext,
   ): Promise<GameParticipantStateSummary> {
-    // QUERY_AUDIT_RAW_SQL: One read combining a score SUM subquery with an EXISTS over submissions for the round; Prisma would need separate queries.
+    // QUERY_AUDIT_RAW_SQL: One read combining a score SUM subquery, EXISTS checks and the latest checked submission for the round; Prisma would need separate queries.
     const rows = await transaction.prisma.$queryRaw<ParticipantScoreRow[]>`
       SELECT
         (SELECT COALESCE(SUM(l."points"), 0)::integer
@@ -312,38 +320,54 @@ export class EventGamesActionPrismaStoreAdapter implements GameActionStorePort {
            AND s."participation_grant_id" = ${input.participationGrantId}
            AND s."round_key" = ${input.roundKey}
            AND s."score_result"->'result'->>'kind' = 'singleplayer-choice'
-         ORDER BY s."created_at" DESC, s."id" DESC LIMIT 1) AS "result"
+         ORDER BY s."created_at" DESC, s."id" DESC LIMIT 1) AS "result",
+        outcome."score_result" AS "outcome_score",
+        outcome."answer" AS "outcome_answer"
+      FROM (SELECT 1) AS "one"
+      LEFT JOIN LATERAL (
+        SELECT s."score_result", COALESCE(s."payload"->>'answer', s."payload"->>'option') AS "answer"
+        FROM "event_games"."submissions" s
+        WHERE s."event_id" = ${input.eventId} AND s."session_id" = ${input.sessionId}
+          AND s."participation_grant_id" = ${input.participationGrantId}
+          AND s."round_key" = ${input.roundKey} AND s."action_kind" <> 'vote'
+          AND s."score_result" IS NOT NULL
+        ORDER BY s."created_at" DESC, s."id" DESC LIMIT 1
+      ) AS outcome ON TRUE
     `;
     const row = rows[0];
     if (!row) return { score: null, hasSubmitted: false };
     const result = participantChoiceResult(row.result);
+    const roundOutcome = participantRoundOutcome(row.outcome_score, row.outcome_answer);
     return {
       score: row.score,
       hasSubmitted: row.has_submitted,
       hasVoted: row.has_voted,
       ...(result ? { result } : {}),
+      ...(roundOutcome ? { roundOutcome } : {}),
     };
   }
 
   async getRoundVoteCounts(
-    input: { eventId: string; sessionId: string; roundKey: string },
+    input: { eventId: string; sessionId: string; roundKey: string; tally?: 'votes' | 'answers' },
     transaction: PrismTransactionContext,
   ): Promise<Array<{ label: string; count: number }>> {
-    // QUERY_AUDIT_RAW_SQL: Vote counts grouped by the payload option JSON field, filtered by a correlated latest-moderation subquery; Prisma groupBy cannot group on a JSON path.
+    // Votes are counted by their option; Live Trivia answers by the chosen answer.
+    const [actionKind, field] = input.tally === 'answers' ? ['answer', 'answer'] : ['vote', 'option'];
+    // QUERY_AUDIT_RAW_SQL: Vote or answer counts grouped by a payload JSON field, filtered by a correlated latest-moderation subquery; Prisma groupBy cannot group on a JSON path.
     const rows = await transaction.prisma.$queryRaw<VoteCountRow[]>`
-      SELECT s."payload"->>'option' AS "label", COUNT(*)::integer AS "count"
+      SELECT s."payload"->>${field}::text AS "label", COUNT(*)::integer AS "count"
       FROM "event_games"."submissions" s
       WHERE s."event_id" = ${input.eventId} AND s."session_id" = ${input.sessionId}
-        AND s."round_key" = ${input.roundKey} AND s."action_kind" = 'vote'
-        AND s."payload" ? 'option'
+        AND s."round_key" = ${input.roundKey} AND s."action_kind" = ${actionKind}
+        AND s."payload" ? ${field}::text
         AND COALESCE((
           SELECT m."action" FROM "event_games"."moderation_actions" m
           WHERE m."event_id" = s."event_id" AND m."session_id" = s."session_id"
             AND m."submission_id" = s."id"
           ORDER BY m."created_at" DESC, m."id" DESC LIMIT 1
         ), 'approve_submission') <> 'hide_submission'
-      GROUP BY s."payload"->>'option'
-      ORDER BY s."payload"->>'option'
+      GROUP BY 1
+      ORDER BY 1
     `;
     return rows.filter((row) => typeof row.label === 'string' && Number.isSafeInteger(row.count) && row.count >= 0);
   }

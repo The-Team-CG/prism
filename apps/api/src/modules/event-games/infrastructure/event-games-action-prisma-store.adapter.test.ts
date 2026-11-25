@@ -137,8 +137,9 @@ describe('EventGamesActionPrismaStoreAdapter participant state and action persis
       eventId: 'event-1', sessionId: 'session-1', roundKey: 'round-1',
     }, transaction)).resolves.toEqual([{ label: 'Tea', count: 2 }]);
 
-    const sql = Array.from(queryRaw.mock.calls[0]?.[0] ?? []).join(' ');
-    expect(sql).toContain("s.\"action_kind\" = 'vote'");
+    const [strings, ...values] = queryRaw.mock.calls[0] ?? [];
+    const sql = Array.from(strings ?? []).join(' ');
+    expect(values).toEqual(expect.arrayContaining(['vote', 'option']));
     expect(sql).toContain("<> 'hide_submission'");
     expect(sql).not.toContain('participation_grant_id" AS');
   });

@@ -227,7 +227,7 @@ describe('GameSessionService', () => {
     }));
   });
 
-  it('advances a Presenter Deck slide past its results window to the next question', async () => {
+  it('advances a Presenter Deck question to its results window, and its results window to the next question', async () => {
     const startedAt = new Date('2026-10-17T10:00:00.000Z');
     const readContext = {
       kind: 'presenter-deck', status: 'live', startedAt, endedAt: null, pausedAt: null, totalPausedMs: 0, roundOffsetMs: 0,
@@ -236,9 +236,9 @@ describe('GameSessionService', () => {
         { key: 'd2', type: 'scale', prompt: 'Rate the venue', scaleMax: 5, durationSeconds: 30 },
       ] } },
     };
+    const resultsMs = 30_000;
     const nextQuestionMs = (30 + RESULTS_DISPLAY_SECONDS) * 1000;
-    // During the question, and during the results window after it, advancing lands on the next question.
-    for (const elapsedMs of [10_000, 35_000]) {
+    for (const [elapsedMs, targetMs] of [[10_000, resultsMs], [35_000, nextQuestionMs]] as const) {
       const store = { getHostReadContext: vi.fn().mockResolvedValue(readContext) };
       const rules = { get: vi.fn().mockReturnValue(presenterDeckRule) };
       const { service, hostCommands } = createService({
@@ -250,9 +250,36 @@ describe('GameSessionService', () => {
       } as unknown as PrismGameHostCommandInput);
 
       expect(hostCommands.executeHostCommand).toHaveBeenCalledWith(expect.objectContaining({
-        command: expect.objectContaining({ expectedRoundKey: 'd1', advanceByMs: nextQuestionMs - elapsedMs }),
+        command: expect.objectContaining({ expectedRoundKey: 'd1', advanceByMs: targetMs - elapsedMs }),
       }));
     }
+  });
+
+  it('reveals the last question results but does not advance past the last round', async () => {
+    const startedAt = new Date('2026-10-17T10:00:00.000Z');
+    const readContext = {
+      kind: 'presenter-deck', status: 'live', startedAt, endedAt: null, pausedAt: null, totalPausedMs: 0, roundOffsetMs: 0,
+      configSnapshot: { configuration: { kind: 'presenter-deck', rounds: [
+        { key: 'd1', type: 'choice', prompt: 'Tea or coffee?', options: ['Tea', 'Coffee'], durationSeconds: 30 },
+      ] } },
+    };
+    const command = { command: 'advance-round', roundKey: 'd1', idempotencyKey: '00000000-0000-4000-8000-000000000004' } as unknown as PrismGameHostCommandInput;
+    const during = createService({
+      store: { getHostReadContext: vi.fn().mockResolvedValue(readContext) },
+      rules: { get: vi.fn().mockReturnValue(presenterDeckRule) },
+      clock: () => new Date(startedAt.getTime() + 10_000),
+    });
+    await during.service.executeHostCommand(eventId, sessionId, actor(), command);
+    expect(during.hostCommands.executeHostCommand).toHaveBeenCalledWith(expect.objectContaining({
+      command: expect.objectContaining({ advanceByMs: 20_000 }),
+    }));
+
+    const results = createService({
+      store: { getHostReadContext: vi.fn().mockResolvedValue(readContext) },
+      rules: { get: vi.fn().mockReturnValue(presenterDeckRule) },
+      clock: () => new Date(startedAt.getTime() + 35_000),
+    });
+    await expect(results.service.executeHostCommand(eventId, sessionId, actor(), command)).rejects.toThrow('not available to advance');
   });
 
   it('routes enable-joins to the one-time PIN issuer instead of the generic host command', async () => {
