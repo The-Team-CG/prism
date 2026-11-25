@@ -34,7 +34,7 @@ export function PrismPublicShell({
         <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(var(--border)_1px,transparent_1px),linear-gradient(90deg,var(--border)_1px,transparent_1px)] [background-size:38px_38px]" />
         <div className="relative mx-auto grid min-h-[calc(100vh-3rem)] max-w-[1180px] grid-cols-1 items-center gap-6 lg:grid-cols-[minmax(0,0.95fr)_420px]">
           <div className="max-w-3xl">
-            <PrismBrandLogo href={portalHref("/")} detail={productDetail} className="mb-10" markClassName="size-12 bg-transparent ring-0" />
+            <PrismBrandLogo href={portalHref("/")} detail={productDetail} className="mb-10" markClassName="size-12" />
 
             <h1 className="text-5xl font-black leading-[0.96] text-foreground sm:text-6xl lg:text-7xl">{title}</h1>
             <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">{description}</p>
@@ -149,7 +149,7 @@ function MarketingHeader({
         href={portalHref("/")}
         detail={productDetail}
         dark={dark}
-        markClassName="size-12 bg-transparent ring-0"
+        markClassName="size-12"
       />
 
       <MarketingNav items={navItems} dark={dark} />
