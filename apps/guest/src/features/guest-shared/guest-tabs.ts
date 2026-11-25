@@ -9,7 +9,7 @@ import { guestSessionStorage } from "./guest-session-storage";
 
 export type GuestTabKey = "pass" | "games";
 
-/** Where the Games tab leads: the event's own lobby once the guest has opened it, otherwise the host's PIN. */
+/** Open the event's activity lobby when available, otherwise open the host's PIN form. */
 export function guestGamesHref(session: Pick<PrismGuestSession, "gamesLobbySlug"> | null): string {
   return session?.gamesLobbySlug ? portalHref(`/games/events/${encodeURIComponent(session.gamesLobbySlug)}`) : portalHref("/games/join");
 }
@@ -18,7 +18,9 @@ export function guestTabs(session: PrismGuestSession | null, current: GuestTabKe
   if (!session) return undefined;
   return [
     { href: portalHref("/dashboard"), label: "Pass", icon: Ticket, current: current === "pass" },
-    { href: guestGamesHref(session), label: "Games", icon: Gamepad2, current: current === "games" },
+    ...(session.feedbackAvailability === "not_open"
+      ? [{ href: guestGamesHref(session), label: "Activities", icon: Gamepad2, current: current === "games" }]
+      : []),
   ];
 }
 
@@ -27,11 +29,4 @@ export function useGuestTabs(current: GuestTabKey): PrismGuestTab[] | undefined 
   const [session, setSession] = useState<PrismGuestSession | null>(null);
   useEffect(() => setSession(guestSessionStorage.read()), []);
   return guestTabs(session, current);
-}
-
-/** Remembers the lobby of the guest's own event, so the Games tab leads back to it. A lobby of another event is ignored. */
-export function rememberGuestGamesLobby(eventId: string, lobbySlug: string): void {
-  const session = guestSessionStorage.read();
-  if (!session || session.id !== eventId || session.gamesLobbySlug === lobbySlug) return;
-  guestSessionStorage.save({ ...session, gamesLobbySlug: lobbySlug });
 }

@@ -42,7 +42,7 @@ function PresenterDeckControls({ state, roundKey, data, busy, onSubmit }: Contro
 
 function VoteStatus({ voted, kind }: { voted: boolean; kind: "vote" | "rating" }) {
   const copy = voted
-    ? `Your ${kind} is in. The room’s results show when voting closes.`
+    ? `${kind === "vote" ? "Vote" : "Rating"} recorded. The room’s results show when voting closes.`
     : `Your ${kind} is anonymous and counted in the room’s totals.`;
   return <p role="status" className="px-1 text-sm text-muted-foreground">{copy}</p>;
 }
@@ -85,7 +85,7 @@ function ScaleControls({ state, roundKey, scaleMax, busy, onSubmit }: ControlsIn
 }
 
 const TEXT_COPY = {
-  "word-cloud": { title: "Share a word", label: "Your word or phrase", sent: "Your answer is in." },
+  "word-cloud": { title: "Share a word", label: "Your word or phrase", sent: "Word received." },
   "open-qa": { title: "Ask a question", label: "Your question", sent: "Your question is with the host." },
 } as const;
 

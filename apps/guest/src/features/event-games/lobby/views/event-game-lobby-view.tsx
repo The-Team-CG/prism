@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
 import { ChevronRight, Hash, Play } from "lucide-react";
 import { PrismGuestShell } from "@prism/ui";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { LoadingState } from "@prism/ui/components/loading-state";
-import { rememberGuestGamesLobby, useGuestTabs } from "@/features/guest-shared/guest-tabs";
+import { useGuestTabs } from "@/features/guest-shared/guest-tabs";
 import { useEventGameLobbyViewModel } from "../view-models/use-event-game-lobby-view-model";
 
 type LobbyViewModel = ReturnType<typeof useEventGameLobbyViewModel>;
@@ -20,13 +19,9 @@ export function EventGameLobbyView({ eventSlug }: { eventSlug: string }) {
   const tabs = useGuestTabs("games");
   const lobby = vm.lobby;
 
-  useEffect(() => {
-    if (lobby) rememberGuestGamesLobby(lobby.eventId, lobby.eventSlug);
-  }, [lobby]);
-
   return (
     <PrismGuestShell
-      eventName={lobby ? `Games · ${lobby.eventName}` : "Event games"}
+      eventName={lobby ? `Activities · ${lobby.eventName}` : "Event activities"}
       tabs={tabs}
       layout="wide"
       lead={
@@ -41,7 +36,6 @@ export function EventGameLobbyView({ eventSlug }: { eventSlug: string }) {
           ) : null}
           {/* "Games" is already the top bar's title and the current tab, so the heading names the event. */}
           <h1 id="event-game-lobby-title" className="font-heading text-2xl font-semibold leading-tight text-foreground">{lobby?.eventName ?? "Games"}</h1>
-          <p className="text-sm text-muted-foreground">Play on your own, before or during the event.</p>
         </div>
       }
     >
@@ -52,7 +46,16 @@ export function EventGameLobbyView({ eventSlug }: { eventSlug: string }) {
           </Alert>
         ) : null}
 
-        <LobbyAvailability vm={vm} lobby={lobby} />
+        {vm.currentGame ? (
+          <a href={`/games/session/${encodeURIComponent(vm.currentGame.id)}`} className="flex min-h-16 items-center gap-3 rounded-2xl bg-ink px-4 py-3 text-ink-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <Play className="size-5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">Continue playing</span>
+              <span className="block text-sm text-ink-foreground/80">{vm.currentGame.title}</span>
+            </span>
+            <ChevronRight className="size-5 shrink-0" aria-hidden="true" />
+          </a>
+        ) : null}
 
         <a
           href={`/games/join?eventSlug=${encodeURIComponent(eventSlug)}`}
@@ -60,13 +63,14 @@ export function EventGameLobbyView({ eventSlug }: { eventSlug: string }) {
         >
           <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary"><Hash className="size-5" aria-hidden="true" /></span>
           <span className="min-w-0 flex-1">
-            <span className="block font-semibold text-foreground">Join the host&apos;s game</span>
-            <span className="block text-sm text-muted-foreground">When a PIN is on the screen</span>
+            <span className="block font-semibold text-foreground">Join with PIN</span>
+            <span className="block text-sm text-muted-foreground">Enter the PIN on the room screen</span>
           </span>
           <ChevronRight className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
         </a>
 
-        <GameIdentityHelp alias={vm.participantAlias} onLeave={vm.participantAlias ? vm.exitGames : undefined} />
+        <LobbyAvailability vm={vm} lobby={lobby} />
+        <GameIdentityHelp alias={vm.currentGame?.alias ?? null} onLeave={vm.currentGame ? vm.exitGames : undefined} />
       </div>
     </PrismGuestShell>
   );

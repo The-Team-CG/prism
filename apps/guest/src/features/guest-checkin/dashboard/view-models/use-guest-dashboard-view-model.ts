@@ -32,7 +32,6 @@ export function useGuestDashboardViewModel() {
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackMedia, setFeedbackMedia] = useState<File | null>(null);
   const [feedbackConsentAccepted, setFeedbackConsentAccepted] = useState(false);
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<GuestBusyAction>(null);
@@ -92,6 +91,7 @@ export function useGuestDashboardViewModel() {
         guestName: checkInMode === "name_search" ? checkInGuestName : undefined,
         consentAccepted: checkInConsentAccepted,
       }));
+      if (checkInMode === "name_search") setFeedbackGuestName(checkInGuestName.trim());
       setCheckInGuestName("");
       setStatus("ready");
     } catch (err) {
@@ -119,8 +119,6 @@ export function useGuestDashboardViewModel() {
         ...(feedbackMedia?.type.startsWith("video/") ? { video: feedbackMedia } : { photo: feedbackMedia }),
       });
       setSession(saveGuestFeedbackReceipt(session, receipt));
-      setFeedbackSubmitted(true);
-      setNotice("Feedback sent to PMCM for review. It will not be published automatically.");
       setFeedbackGuestName("");
       setFeedbackComment("");
       setFeedbackMedia(null);
@@ -139,7 +137,6 @@ export function useGuestDashboardViewModel() {
     setError(null);
     try {
       setSession(await withdrawGuestFeedbackConsent(session));
-      setFeedbackSubmitted(false);
       setFeedbackConsentAccepted(false);
       setNotice("Feedback consent withdrawn. Your feedback will no longer be shared.");
     } catch (cause) {
@@ -168,25 +165,15 @@ export function useGuestDashboardViewModel() {
       setCheckInGuestName("");
     },
     feedbackGuestName,
-    setFeedbackGuestName: (guestName: string) => {
-      setFeedbackGuestName(guestName);
-      setFeedbackSubmitted(false);
-    },
+    setFeedbackGuestName,
     feedbackRating,
-    setFeedbackRating: (rating: string) => {
-      setFeedbackRating(rating);
-      setFeedbackSubmitted(false);
-    },
+    setFeedbackRating,
     feedbackComment,
     feedbackMedia,
     setFeedbackMedia,
-    setFeedbackComment: (comment: string) => {
-      setFeedbackComment(comment);
-      setFeedbackSubmitted(false);
-    },
+    setFeedbackComment,
     feedbackConsentAccepted,
     setFeedbackConsentAccepted,
-    feedbackSubmitted,
     canWithdrawFeedbackConsent: Boolean(session?.feedbackReceiptId),
     withdrawFeedbackConsent,
     error,

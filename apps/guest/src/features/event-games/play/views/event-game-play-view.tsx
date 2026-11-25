@@ -155,6 +155,12 @@ function showsControls(phase: GuestGamePhase): boolean {
   return phase !== "waiting" && phase !== "finished";
 }
 
+function showsPhaseStatus(state: PrismGamePublicState, phase: GuestGamePhase): boolean {
+  const kind = state.participant.gameData?.kind;
+  const audienceReceipt = kind === "live-poll" || kind === "presenter-deck" || kind === "word-cloud" || kind === "open-qa";
+  return waitsOnRoom(state.game.kind) && !(phase === "locked" && state.status === "live" && audienceReceipt);
+}
+
 /** One screen per moment of the round: get ready, answer, wait, see how you did, then the standings. */
 function GameSessionContent({ vm, state, secondsRemaining }: { vm: PlayViewModel; state: PrismGamePublicState; secondsRemaining: number | null }) {
   const phase = guestGamePhase(state, secondsRemaining);
@@ -174,7 +180,7 @@ function GameSessionContent({ vm, state, secondsRemaining }: { vm: PlayViewModel
           onSubmit={vm.submitAction}
         />
       ) : null}
-      {waitsOnRoom(state.game.kind) ? <PhaseStatus phase={phase} paused={state.status === "paused"} scored={isScoredGame(state.game.kind)} /> : null}
+      {showsPhaseStatus(state, phase) ? <PhaseStatus phase={phase} paused={state.status === "paused"} scored={isScoredGame(state.game.kind)} /> : null}
       {showsStandings(state, phase) ? <StandingsPanel state={state} title={phase === "finished" ? "Final standings" : "Standings"} /> : null}
       <GameIdentityHelp alias={vm.participantAlias} onLeave={vm.exitGames} />
     </section>

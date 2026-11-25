@@ -194,7 +194,7 @@ test('history gallery: guest', async ({ browser }, info) => {
     await capture('04-pass-before-check-in.png');
     await page.getByLabel('Guest name', { exact: true }).fill(guestName);
     await page.getByRole('checkbox', { name: /I consent to PMCM recording/ }).check();
-    await page.getByRole('button', { name: 'Check me in' }).click();
+    await page.getByRole('button', { name: 'Send check-in' }).click();
     await expect(page.getByRole('heading', { name: /^Check-in sent/ })).toBeVisible();
     await capture('05-pass-after-check-in.png');
     await page.goto(`${origins.guest}/games/join`);

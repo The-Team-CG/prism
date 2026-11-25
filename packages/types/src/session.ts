@@ -5,8 +5,6 @@ export interface PrismGuestSession extends PrismGuestEventPass {
   feedbackReceiptId?: string;
   /** When this device sent a check-in request. The API receipt says only that it was accepted, so this is all the pass can show. */
   checkInSentAt?: string;
-  /** The event's game lobby, remembered once the guest opens it, so the Games tab can lead back to it. */
-  gamesLobbySlug?: string;
 }
 
 export const PRISM_SESSION_STORAGE_KEYS = {

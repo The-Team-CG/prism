@@ -127,7 +127,10 @@ export class GuestWorkflowService implements GuestCommands {
     // The same events the dashboard serves: archived ones only while their feedback window is open.
     if (!event || (event.archived && guestFeedbackAvailability(event.actualEndedAt) !== 'open')) throw new NotFoundException('Guest event code was not found');
 
-    return { watermark: this.guestEventWatermark(event.updatedAt), feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt) };
+    const gamesLobbySlug = event.archived || event.actualEndedAt
+      ? null
+      : await this.eventProjections.findGuestGamesLobbySlug(event.id);
+    return { watermark: this.guestEventWatermark(event.updatedAt), feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt), gamesLobbySlug };
   }
 
   countCheckInsForEvent(eventId: string) {
@@ -900,6 +903,7 @@ export class GuestWorkflowService implements GuestCommands {
       guestAccessCode: this.guestAccessCode(event),
       watermark: this.guestEventWatermark(event.updatedAt),
       feedbackAvailability: guestFeedbackAvailability(event.actualEndedAt),
+      ...(event.gamesLobbySlug !== undefined ? { gamesLobbySlug: event.gamesLobbySlug } : {}),
       ...guestArrivalDetails(event.confirmedArrival),
     };
   }

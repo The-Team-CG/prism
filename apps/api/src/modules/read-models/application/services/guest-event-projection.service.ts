@@ -33,6 +33,13 @@ export class GuestEventProjectionService implements GuestEventProjectionReader {
     });
   }
 
+  async findGuestGamesLobbySlug(eventId: string) {
+    const lobby = await this.prisma.eventGameLobbySlug.findUnique({
+      where: { eventId }, select: { lobbySlug: true },
+    });
+    return lobby?.lobbySlug ?? null;
+  }
+
   async findGuestEvent(eventId: string) {
     const event = await this.prisma.opsEvent.findUnique({
       where: { id: eventId },
@@ -61,10 +68,14 @@ export class GuestEventProjectionService implements GuestEventProjectionReader {
     });
     if (!event) return null;
     const { proposalClientStatus, proposalReviewedAt, briefings, ...guestEvent } = event;
-    const drafts = await findFloorPlanDraftsByEvent(this.prisma, [eventId], { perEventLimit: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS });
+    const [drafts, gamesLobbySlug] = await Promise.all([
+      findFloorPlanDraftsByEvent(this.prisma, [eventId], { perEventLimit: MAX_GUEST_EVENT_FLOORPLAN_DRAFTS }),
+      event.archived || event.actualEndedAt ? null : this.findGuestGamesLobbySlug(eventId),
+    ]);
     const confirmedArrival = confirmedArrivalFrom(proposalClientStatus, proposalReviewedAt, briefings[0]);
     return {
       ...guestEvent,
+      gamesLobbySlug,
       ...(confirmedArrival ? { confirmedArrival } : {}),
       floorPlanDrafts: (drafts.get(eventId) ?? []).map(({ id, floorPlanId, isActive }) => ({ id, floorPlanId, isActive })),
     };

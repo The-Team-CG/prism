@@ -6,7 +6,7 @@ import type { PrismEventGameLobby } from "@prism/types";
 import {
   getPublicEventGameLobby,
   leaveEventGamesFromLobby,
-  readEventGameParticipantSession,
+  getResumableEventGame,
   startIndependentSingleplayerGame,
 } from "../use-cases/event-game-lobby";
 
@@ -16,7 +16,7 @@ export function useEventGameLobbyViewModel(eventSlug: string) {
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [startingGameId, setStartingGameId] = useState<string | null>(null);
-  const [participantAlias, setParticipantAlias] = useState<string | null>(null);
+  const [currentGame, setCurrentGame] = useState<Awaited<ReturnType<typeof getResumableEventGame>>>(null);
 
   const reload = useCallback(async () => {
     setStatus("loading");
@@ -24,8 +24,7 @@ export function useEventGameLobbyViewModel(eventSlug: string) {
     try {
       const nextLobby = await getPublicEventGameLobby(eventSlug);
       setLobby(nextLobby);
-      const stored = readEventGameParticipantSession();
-      setParticipantAlias(stored?.eventId === nextLobby.eventId ? stored.participantAlias ?? null : null);
+      setCurrentGame(await getResumableEventGame(nextLobby.eventId));
       setStatus("ready");
     } catch (cause) {
       setStatus("error");
@@ -43,8 +42,6 @@ export function useEventGameLobbyViewModel(eventSlug: string) {
     setError(null);
     try {
       const started = await startIndependentSingleplayerGame(eventSlug, gameId);
-      const stored = readEventGameParticipantSession();
-      setParticipantAlias(stored?.participantAlias ?? null);
       router.push(`/games/session/${encodeURIComponent(started.sessionId)}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "This event game is not available right now. Return to the event lobby and try again.");
@@ -55,9 +52,8 @@ export function useEventGameLobbyViewModel(eventSlug: string) {
 
   function exitGames() {
     leaveEventGamesFromLobby();
-    setParticipantAlias(null);
-    router.replace("/games/join");
+    setCurrentGame(null);
   }
 
-  return { lobby, status, error, startingGameId, participantAlias, startGame, exitGames, reload };
+  return { lobby, status, error, startingGameId, currentGame, startGame, exitGames, reload };
 }
