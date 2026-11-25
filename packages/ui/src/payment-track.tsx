@@ -254,7 +254,7 @@ export function PaymentEventCard({ title, detail, detailTone = "text-muted-foreg
   const body = (
     <>
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h2 className="truncate text-base font-semibold text-foreground">{title}</h2>
           {detail ? <p className={cn("text-sm", detailTone)}>{detail}</p> : null}
         </div>
@@ -269,7 +269,8 @@ export function PaymentEventCard({ title, detail, detailTone = "text-muted-foreg
       {children}
     </>
   );
-  const frame = "grid gap-4 rounded-xl border border-border bg-card p-4 shadow-xs sm:p-5";
+  // One column that may shrink: an auto column would grow to the longest event name and push the card off a phone.
+  const frame = "grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 rounded-xl border border-border bg-card p-4 shadow-xs sm:p-5";
   if (href && Link) return <Link href={href} className={cn(frame, "transition-colors hover:border-primary/40")}>{body}</Link>;
   return <section className={frame}>{body}</section>;
 }

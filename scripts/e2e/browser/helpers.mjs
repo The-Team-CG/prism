@@ -40,21 +40,21 @@ export function mailLink(message, pathPart, origin) {
   if (!link || new URL(link).origin !== origin) throw new Error('Test email did not contain the intended local portal link.');
   return link;
 }
-export async function createInquiry(label = 'Browser acceptance') {
+export async function createInquiry(label = 'Browser acceptance', { daysAhead = 180 } = {}) {
   const id = randomUUID();
   const email = `browser-${id}@example.test`;
-  const eventDate = new Date(Date.now() + 180 * 86_400_000).toISOString().slice(0, 10);
+  const eventDate = new Date(Date.now() + daysAhead * 86_400_000).toISOString().slice(0, 10);
   const inquiry = await api('POST', '/inquiries', { clientName: 'Browser Test Client', companyName: 'Synthetic Browser Tests', email, eventName: `${label} ${id}`, eventType: 'Conference', eventDate, clientType: 'Corporate', source: 'P.R.I.S.M Website', message: 'Phone: 0917 123 4567\nExpected guests: 120', privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }, null);
   return { ...inquiry, email, eventDate };
 }
-export async function acceptedClient() {
-  const inquiry = await createInquiry();
+export async function acceptedClient(label, options) {
+  const inquiry = await createInquiry(label, options);
   await api('PATCH', `/inquiries/${inquiry.id}/status`, { status: 'accepted' });
   const mail = await inbox(inquiry.email, '/activate');
   return { inquiry, activation: mailLink(mail, '/activate', origins.client), mail };
 }
-export async function freshEvent() {
-  const { inquiry, activation } = await acceptedClient();
+export async function freshEvent(label, options) {
+  const { inquiry, activation } = await acceptedClient(label, options);
   await api('POST', '/auth/activate', { token: new URL(activation).searchParams.get('token'), password }, null);
   const client = await api('POST', '/auth/login', { email: inquiry.email, password }, null);
   if (client.privacyNoticeRequired) await api('POST', '/auth/privacy-notice/acknowledge', { version: PRISM_PRIVACY_NOTICE_VERSION }, client.accessToken);
