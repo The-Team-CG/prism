@@ -40,11 +40,12 @@ export function PresenterWordCloud({ responses, title = "Word cloud" }: { respon
     const layout = cloud<CloudWord>()
       .size([WIDTH, HEIGHT])
       .words(words)
+      // Arial has no 600 weight, so browsers draw it bold: measuring at the drawn weight keeps words from colliding.
       .font("Arial")
-      .fontWeight("600")
+      .fontWeight("bold")
       .fontSize((word) => word.size)
       .rotate((word) => word.rotate)
-      .padding(5)
+      .padding(14)
       .random(() => {
         seed = (seed * 16807) % 2147483647;
         return seed / 2147483647;
@@ -67,7 +68,7 @@ export function PresenterWordCloud({ responses, title = "Word cloud" }: { respon
         <svg viewBox={"0 0 " + WIDTH + " " + HEIGHT} className="mx-auto block w-full max-w-6xl" role="img" aria-label={title}>
           <g transform={"translate(" + WIDTH / 2 + ", " + HEIGHT / 2 + ")"}>
             {displayed.map(({ text, count, size, colour, rotate, x, y }) => (
-              <text key={text} x={x} y={y} textAnchor="middle" fontFamily="Arial" fontWeight="600" fontSize={size} fill={colour}
+              <text key={text} x={x} y={y} textAnchor="middle" fontFamily="Arial" fontWeight="bold" fontSize={size} fill={colour}
                 transform={"rotate(" + rotate + ", " + x + ", " + y + ")"}>
                 <title>{count} {count === 1 ? "response" : "responses"}</title>
                 {text}

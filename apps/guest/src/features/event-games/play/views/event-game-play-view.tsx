@@ -65,12 +65,18 @@ function GameSessionLead({ state, secondsRemaining }: { state: PrismGamePublicSt
         {progress ? <p className="font-semibold">{progress}</p> : null}
         <span className="ml-auto flex items-center gap-2">
           {isScoredGame(state.game.kind) ? <ScoreChip score={state.participant.score} /> : null}
-          {secondsRemaining !== null && (state.status === "live" || state.status === "paused") ? <RoundCountdown state={state} secondsRemaining={secondsRemaining} /> : null}
+          {showsCountdown(state, secondsRemaining) ? <RoundCountdown state={state} secondsRemaining={secondsRemaining ?? 0} /> : null}
         </span>
       </div>
       <GamePrompt state={state} />
     </div>
   );
+}
+
+/** The clock matters while the room can answer; once the round's results window opens it would only read 00:00. */
+function showsCountdown(state: PrismGamePublicState, secondsRemaining: number | null): boolean {
+  if (secondsRemaining === null || state.currentRound?.resultsOpen) return false;
+  return state.status === "live" || state.status === "paused";
 }
 
 function ScoreChip({ score }: { score: number | null }) {
@@ -83,8 +89,15 @@ function ScoreChip({ score }: { score: number | null }) {
   );
 }
 
+/** What the prompt card says when there is no question: before the start, between rounds, or after the end. */
+function fallbackPrompt(status: PrismGamePublicState["status"]): string {
+  if (status === "lobby" || status === "scheduled") return "The host will start this game soon.";
+  if (status === "completed" || status === "cancelled") return "Thanks for playing!";
+  return "The next prompt is not available yet.";
+}
+
 function GamePrompt({ state }: { state: PrismGamePublicState }) {
-  const prompt = state.currentPrompt ?? (state.status === "lobby" ? "The host will start this game soon." : "The next prompt is not available yet.");
+  const prompt = state.currentPrompt ?? fallbackPrompt(state.status);
   const short = Boolean(state.currentPrompt && state.currentPrompt.length <= 16);
   return (
     <article className="relative mt-1 overflow-hidden rounded-3xl bg-[var(--prism-ink)] px-5 py-8 text-center text-white shadow-md lg:py-14">
