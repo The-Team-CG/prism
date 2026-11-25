@@ -96,7 +96,7 @@ function GuestHeader({ eventName, tabs, actions }: Pick<PrismGuestShellProps, "e
   return (
     <header className="border-b border-border bg-card">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4 sm:px-6 md:h-16 md:gap-6">
-        <PrismBrandLogo href="/" title="P.R.I.S.M." detail="Guest pass" className={cn(hasTabs && "max-md:hidden")} markClassName="size-8 rounded-md bg-card ring-1 ring-border" />
+        <PrismBrandLogo href="/" title="P.R.I.S.M." detail="Guest pass" className={cn(hasTabs && "max-md:hidden")} markClassName="size-8" />
         {hasTabs ? <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground md:hidden">{current?.label ?? eventName}</p> : null}
         {hasTabs ? <GuestHeaderTabs tabs={tabs!} /> : null}
         <div className={cn("ml-auto flex shrink-0 items-center gap-2", hasTabs && "max-md:-mr-2 max-md:gap-0")}><SpotifyMusicControl />{actions}</div>

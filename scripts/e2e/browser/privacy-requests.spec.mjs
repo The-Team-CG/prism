@@ -24,7 +24,7 @@ test('a client asks for a copy of their data and sees it move to in progress onc
     await expect(requests.getByRole('button', { name: /^Copy of my data .*With PMCM/ })).toBeVisible();
 
     await pmcm.page.goto(`${origins.event}/dashboard/privacy`);
-    const card = pmcm.page.getByRole('article', { name: new RegExp(`request for ${event.email.replace(/[.+]/g, '\\$&')}`) });
+    const card = pmcm.page.getByRole('article', { name: `request for ${event.email}` });
     await expect(card).toContainText('Sent by them');
     await card.getByRole('button', { name: 'Approve', exact: true }).click();
     await expect(card).toContainText(/approved/i);
