@@ -1,9 +1,10 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { chooseSelectOption } from "@/test-support/select-test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const addRisk = vi.fn(async (_input: Record<string, unknown>) => undefined);
+const updateRisk = vi.fn(async (_riskId: string, _input: Record<string, unknown>) => true);
 const viewModel = {
   runs: [{ id: "run_1", eventId: "evt_1", phase: "planning", trigger: "manual", status: "completed", startedAt: "2026-10-01T00:00:00.000Z", ruleCount: 1, createdAt: "2026-10-01T00:00:00.000Z", checks: [{ id: "c1", eventId: "evt_1", layer: "Must-Fix", title: "Supplier contracts ready", status: "open", note: "", evaluationStatus: "not_satisfied", evidence: [], definitionStatus: "DERIVED", remediation: "Attach the final quotation." }] }],
   risks: [
@@ -13,6 +14,7 @@ const viewModel = {
   busy: false,
   error: null,
   addRisk,
+  updateRisk,
 };
 
 vi.mock("../view-models/use-compliance-review-view-model", () => ({ useComplianceReviewViewModel: () => viewModel }));
@@ -22,6 +24,7 @@ import { ComplianceReviewPanel } from "./compliance-review-panel";
 afterEach(() => {
   cleanup();
   addRisk.mockClear();
+  updateRisk.mockClear();
 });
 
 describe("ComplianceReviewPanel readiness", () => {
@@ -54,5 +57,18 @@ describe("ComplianceReviewPanel risks", () => {
 
     expect(addRisk).toHaveBeenCalledWith(expect.objectContaining({ title: "Venue power cut", likelihood: "high", impact: "low" }));
     expect(addRisk.mock.calls[0]?.[0]).not.toHaveProperty("severity");
+  });
+
+  it("moves a risk to mitigated with its owner, mitigation and the reason it changed", async () => {
+    render(<ComplianceReviewPanel eventId="evt_1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Update Generator failure" }));
+    const editor = screen.getByRole("form", { name: "Update Generator failure" });
+    fireEvent.click(within(editor).getByRole("radio", { name: "Mitigated" }));
+    fireEvent.change(within(editor).getByLabelText("Owner"), { target: { value: "Site lead" } });
+    fireEvent.change(within(editor).getByLabelText("Why it changed (optional)"), { target: { value: "Backup generator on site" } });
+    fireEvent.click(within(editor).getByRole("button", { name: "Save risk" }));
+
+    await waitFor(() => expect(updateRisk).toHaveBeenCalledWith("r1", { status: "mitigated", owner: "Site lead", mitigation: "Rent a backup", reason: "Backup generator on site" }));
   });
 });

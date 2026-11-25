@@ -16,6 +16,7 @@ import type {
   PrismSupplierQuoteRoundComparison,
   RecordPaymentInput,
   RequestSupplierQuotesInput,
+  AddSupplierQuoteInput,
   SupplierAvailabilityInput,
   UpdateSupplierInput,
 } from "@prism/types";
@@ -30,6 +31,7 @@ createSupplier: (input: CreateSupplierInput) => eventOpsClient.commercial.create
 generateBillingStatement: (eventId: string, sourceId?: string) => eventOpsClient.commercial.generateBillingStatement(eventId, sourceId),
 recordPayment: (eventId: string, milestoneId: string, input: RecordPaymentInput) => eventOpsClient.commercial.recordPayment(eventId, milestoneId, input),
 markPayment: (eventId: string, milestoneId: string, input: MarkPaymentInput) => eventOpsClient.commercial.markPayment(eventId, milestoneId, input),
+addSupplierQuote: (eventId: string, input: AddSupplierQuoteInput) => eventOpsClient.commercial.addSupplierQuote(eventId, input),
 requestSupplierQuotes: (eventId: string, input: RequestSupplierQuotesInput) => eventOpsClient.commercial.requestSupplierQuotes(eventId, input),
 compareSupplierQuoteRound: (eventId: string, roundId: string) => eventOpsClient.commercial.compareQuoteRound(eventId, roundId),
 setSupplierAvailability: (supplierId: string, input: SupplierAvailabilityInput) => eventOpsClient.commercial.setSupplierAvailability(supplierId, input),

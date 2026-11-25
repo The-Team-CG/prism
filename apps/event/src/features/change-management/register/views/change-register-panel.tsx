@@ -10,6 +10,7 @@ import { ScopeChangeReviewPanel } from "../../scope-review";
 import { RiskAssessmentPanel } from "../../risk-assessment";
 import { RiskRegisterPanel } from "@/features/change-management/risk-register/views/risk-register-panel";
 import { RecordDecisionForm } from "./record-decision-form";
+import { IssueAddendumAction } from "./issue-addendum-form";
 import { LoadingState } from "@prism/ui/components/loading-state";
 
 /** `decisionClosedReason` says why the event can no longer be cancelled or postponed; null keeps the decision form. */
@@ -58,7 +59,22 @@ export function ChangeRegisterPanel({ eventId, frozen, decisionClosedReason = nu
               ? <p className="text-sm text-muted-foreground">{decisionClosedReason}</p>
               : <RecordDecisionForm eventId={eventId} frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />}
           </RegisterGroup>
-          <RegisterGroup title="Addenda">
+          <RegisterGroup
+            title="Addenda"
+            action={(
+              <IssueAddendumAction
+                eventId={eventId}
+                documents={vm.documents}
+                bookedQuotes={vm.bookedQuotes}
+                contractTotal={vm.contractTotal}
+                approvedExceptions={vm.approvedExceptions}
+                pendingAddendum={vm.pendingAddendum}
+                frozen={frozen}
+                busy={vm.busy}
+                onIssue={(draft) => vm.issueAddendum(draft)}
+              />
+            )}
+          >
             <PmcmAddendaStatus
               addenda={vm.addenda}
               busy={vm.busy}
@@ -74,10 +90,13 @@ export function ChangeRegisterPanel({ eventId, frozen, decisionClosedReason = nu
 }
 
 /** A labelled stretch of the long register, so PMCM can scan the page by what it decides. */
-function RegisterGroup({ title, children }: { title: string; children: ReactNode }) {
+function RegisterGroup({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section aria-label={title} className="space-y-4">
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {action}
+      </div>
       {children}
     </section>
   );

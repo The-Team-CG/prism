@@ -22,6 +22,8 @@ Cross-portal journeys each start from an event that `journey-fixtures.mjs` prepa
 | `event-games.spec.mjs` | A guest joins a live poll with the host PIN and votes; the host dashboard shows the vote. |
 | `post-event-feedback.spec.mjs` | After the recorded end, a guest sends feedback and the client a testimonial; PMCM approves both. |
 | `privacy-requests.spec.mjs` | Client asks for a copy of its data; PMCM approves; the client sees it in progress. |
+| `pmcm-records.spec.mjs` | PMCM issues an addendum that the client signs and PMCM countersigns; moves a compliance risk to mitigated with a reason; logs a quote given by phone and selects it; edits, turns off and turns back on a workspace rule. |
+| `client-planning.spec.mjs` | The client prefers one of PMCM's shortlisted venues; adds and confirms its own supplier and reads a risk PMCM raises; finds a sent statement in its notification inbox and marks all read. |
 
 Setup that the API prepares instead of the UI: the supplier ingress/egress schedule and the poll configuration (both need PMCM editors outside the handoff), and addenda, which PMCM cannot yet issue from any screen. Floorplan editing gestures and guest QR scanning have no journey.
 

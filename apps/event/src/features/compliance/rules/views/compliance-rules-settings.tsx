@@ -5,23 +5,21 @@ import { Plus, ShieldCheck } from "lucide-react";
 import type { PrismComplianceRule } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@prism/ui/components/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@prism/ui/components/field";
-import { Input } from "@prism/ui/components/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
-import { Textarea } from "@prism/ui/components/textarea";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@prism/ui/components/item";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
 import {
   COMPLIANCE_RULE_PHASES,
   COMPLIANCE_RULE_SEVERITIES,
   EMPTY_COMPLIANCE_RULE_DRAFT,
   activeWorkspaceRules,
   builtInComplianceChecks,
+  complianceRuleDraft,
+  inactiveWorkspaceRules,
   complianceOptionLabel,
   compliancePhasesLabel,
   toCreateComplianceRuleInput,
   type ComplianceRuleDraft,
 } from "../model/compliance-rule-rules";
+import { ComplianceRuleSheet } from "./compliance-rule-sheet";
 
 /** Settings → Compliance rules: rules here apply to every event's compliance checks. */
 export function ComplianceRulesSettings({
@@ -29,25 +27,49 @@ export function ComplianceRulesSettings({
   catalog,
   busy,
   onCreateRule,
+  onUpdateRule,
 }: {
   rules: PrismComplianceRule[];
   /** Every rule the checks run, built-in ones included, once loaded. */
   catalog?: PrismComplianceRule[];
   busy: boolean;
   onCreateRule: (input: ReturnType<typeof toCreateComplianceRuleInput>) => Promise<void>;
+  /** Saves changes to a workspace rule, including turning it off (`active: false`) or back on. */
+  onUpdateRule: (ruleId: string, input: Partial<ReturnType<typeof toCreateComplianceRuleInput>> & { active?: boolean }) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<ComplianceRuleDraft>(EMPTY_COMPLIANCE_RULE_DRAFT);
   const [adding, setAdding] = useState(false);
+  /** The rule being edited; null while adding a new one. */
+  const [editing, setEditing] = useState<PrismComplianceRule | null>(null);
   const active = activeWorkspaceRules(rules);
+  const inactive = inactiveWorkspaceRules(rules);
   const builtIns = catalog ? builtInComplianceChecks(catalog) : [];
   const ready = draft.title.trim().length > 0 && draft.conditionKey.trim().length > 0;
   const set = (patch: Partial<ComplianceRuleDraft>) => setDraft((current) => ({ ...current, ...patch }));
 
+  function close() {
+    setDraft(EMPTY_COMPLIANCE_RULE_DRAFT);
+    setEditing(null);
+    setAdding(false);
+  }
+
+  function startEdit(rule: PrismComplianceRule) {
+    setEditing(rule);
+    setDraft(complianceRuleDraft(rule));
+    setAdding(true);
+  }
+
   async function submit() {
     if (!ready) return;
-    await onCreateRule(toCreateComplianceRuleInput(draft));
-    setDraft(EMPTY_COMPLIANCE_RULE_DRAFT);
-    setAdding(false);
+    if (editing) await onUpdateRule(editing.id, toCreateComplianceRuleInput(draft));
+    else await onCreateRule(toCreateComplianceRuleInput(draft));
+    close();
+  }
+
+  async function turnOff() {
+    if (!editing) return;
+    await onUpdateRule(editing.id, { active: false });
+    close();
   }
 
   return (
@@ -82,12 +104,26 @@ export function ComplianceRulesSettings({
                         {rule.note ? ` · ${rule.note}` : ""}
                       </ItemDescription>
                     </ItemContent>
+                    <Button type="button" size="sm" variant="ghost" aria-label={`Edit ${rule.title}`} onClick={() => startEdit(rule)}>Edit</Button>
                   </Item>
                 </li>
               ))}
             </ul>
           )}
         </section>
+        {inactive.length ? (
+          <section aria-label="Turned-off rules" className="grid content-start gap-2">
+            <h3 className="text-sm font-semibold text-foreground">Turned off <span className="font-normal tabular-nums text-muted-foreground">{inactive.length}</span></h3>
+            <ul className="grid gap-2">
+              {inactive.map((rule) => (
+                <li key={rule.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border px-4 py-2.5 text-sm">
+                  <span className="min-w-0 flex-1 text-muted-foreground">{rule.title}</span>
+                  <Button type="button" size="sm" variant="outline" disabled={busy} aria-label={`Turn on ${rule.title}`} onClick={() => void onUpdateRule(rule.id, { active: true })}>Turn on</Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         {builtIns.length ? (
           <details className="group rounded-lg border border-border">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
@@ -105,69 +141,17 @@ export function ComplianceRulesSettings({
           </details>
         ) : null}
       </CardContent>
-      <Sheet open={adding} onOpenChange={setAdding}>
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
-          <SheetHeader>
-            <SheetTitle>Add a rule</SheetTitle>
-            <SheetDescription>It runs for every event at its phase, beside the built-in checks.</SheetDescription>
-          </SheetHeader>
-        <form
-          aria-label="Add a rule"
-          className="grid content-start gap-4 px-4 pb-6"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submit();
-          }}
-        >
-          <FieldGroup className="gap-4 sm:grid sm:grid-cols-2">
-            <Field>
-              <FieldLabel htmlFor="compliance-rule-title">Rule title</FieldLabel>
-              <Input id="compliance-rule-title" value={draft.title} onChange={(event) => set({ title: event.target.value })} placeholder="Venue power capacity confirmed" />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="compliance-rule-key">Check identifier</FieldLabel>
-              <Input id="compliance-rule-key" value={draft.conditionKey} onChange={(event) => set({ conditionKey: event.target.value })} placeholder="e.g. venue_power_capacity" />
-            </Field>
-            <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
-              <Field>
-                <FieldLabel htmlFor="compliance-rule-phase">Phase</FieldLabel>
-                <Select value={draft.phase} onValueChange={(phase) => set({ phase })}>
-                  <SelectTrigger id="compliance-rule-phase" className="w-full min-w-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMPLIANCE_RULE_PHASES.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="compliance-rule-severity">Severity</FieldLabel>
-                <Select value={draft.severity} onValueChange={(severity) => set({ severity })}>
-                  <SelectTrigger id="compliance-rule-severity" className="w-full min-w-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COMPLIANCE_RULE_SEVERITIES.map(([value, text]) => <SelectItem key={value} value={value}>{text}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-            <Field className="sm:col-span-2">
-              <FieldLabel htmlFor="compliance-rule-note">PMCM note</FieldLabel>
-              <Textarea id="compliance-rule-note" value={draft.note} onChange={(event) => set({ note: event.target.value })} className="min-h-20" />
-            </Field>
-          </FieldGroup>
-          <Field>
-            <div>
-              <Button type="submit" disabled={busy || !ready}>
-                Save rule
-              </Button>
-            </div>
-            {ready ? null : <FieldDescription>Add a rule title and a check identifier to save the rule.</FieldDescription>}
-          </Field>
-        </form>
-        </SheetContent>
-      </Sheet>
+      <ComplianceRuleSheet
+        open={adding}
+        editing={editing !== null}
+        draft={draft}
+        ready={ready}
+        busy={busy}
+        onChange={set}
+        onSubmit={() => void submit()}
+        onTurnOff={() => void turnOff()}
+        onClose={close}
+      />
     </Card>
   );
 }

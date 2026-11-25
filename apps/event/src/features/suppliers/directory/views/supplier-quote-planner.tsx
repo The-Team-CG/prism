@@ -3,7 +3,8 @@ import { Button } from "@prism/ui/components/button";
 import { DatePicker } from "@prism/ui/components/date-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 
-import type { PrismSupplier, PrismSupplierCategory, PrismSupplierQuoteRoundComparison, SupplierAvailabilityInput } from "@prism/types";
+import type { AddSupplierQuoteInput, PrismSupplier, PrismSupplierCategory, PrismSupplierQuoteRoundComparison, SupplierAvailabilityInput } from "@prism/types";
+import { AwaitingQuotes } from "./awaiting-quotes";
 import { money } from "@/features/pmcm-kit";
 import type { SupplierQuoteRequestRow, SupplierQuoteRow, SupplierQuoteSelectHandler, SupplierRequestHandler } from "@/features/pmcm-kit";
 import {
@@ -28,6 +29,7 @@ export function SupplierQuotePlanner({
   quotes,
   onRequestQuotes,
   onSelectQuote,
+  onLogQuote,
   busy,
   onCompareRound,
   onSetAvailability,
@@ -41,6 +43,8 @@ export function SupplierQuotePlanner({
   quotes: SupplierQuoteRow[];
   onRequestQuotes: SupplierRequestHandler;
   onSelectQuote: SupplierQuoteSelectHandler;
+  /** Records a quote a supplier sent outside its link; resolves false when it was not saved. */
+  onLogQuote: (input: AddSupplierQuoteInput) => Promise<boolean>;
   onCompareRound: (roundId: string) => Promise<PrismSupplierQuoteRoundComparison>;
   onSetAvailability: (supplierId: string, input: SupplierAvailabilityInput) => Promise<unknown>;
   busy: boolean;
@@ -163,6 +167,7 @@ export function SupplierQuotePlanner({
           onCategory={(id) => { setCategoryId(id); comparisonRequest.current += 1; setComparison(null); setComparisonBusy(false); }}
         onRequest={openRequestModal}
       />
+      <AwaitingQuotes requests={categoryRequests} quotes={quotes} busy={busy} onLogQuote={onLogQuote} />
       <QuoteRoundButtons roundIds={roundIds} roundNumbers={roundNumbers} comparisonBusy={comparisonBusy} comparison={comparison} comparisonError={comparisonError} onCompare={compareRound} />
       {/* The comparison appears once quotes are in; until then the suppliers who could quote are the useful list. */}
       {categoryQuotes.length || comparison ? (

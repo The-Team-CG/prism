@@ -375,6 +375,7 @@ export function EventWorkspaceSuppliersTab() {
           requests={vm.quoteRequests}
           quotes={vm.quotes}
           onRequestQuotes={vm.requestSupplierQuotes}
+          onLogQuote={vm.logSupplierQuote}
           onSelectQuote={vm.selectSupplierQuote}
           onCompareRound={vm.compareSupplierQuoteRound}
           onSetAvailability={vm.setSupplierAvailability}
