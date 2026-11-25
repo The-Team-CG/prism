@@ -64,12 +64,18 @@ const STATUS_COPY: Partial<Record<GuestGamePhase, { title: string; detail: strin
   closed: { title: "Answers are closed", detail: "Watch the screen. The game moves on in a moment." },
 };
 
+/** Polls and audience games have no right answer, so their waiting line talks about results instead. */
+const UNSCORED_STATUS_COPY: Partial<Record<GuestGamePhase, { title: string; detail: string }>> = {
+  locked: { title: "You’re in", detail: "Thanks! The room’s results show on the big screen." },
+  closed: { title: "Voting is closed", detail: "Watch the screen for the results." },
+};
+
 /** A short line under the controls while a guest waits on the room. */
-export function PhaseStatus({ phase, paused }: { phase: GuestGamePhase; paused: boolean }) {
+export function PhaseStatus({ phase, paused, scored }: { phase: GuestGamePhase; paused: boolean; scored: boolean }) {
   if (paused && phase !== "reveal") {
     return <PhaseBanner tone="calm" icon={<Hourglass className="size-8 text-muted-foreground" />} title="Paused by the host">The game picks up again shortly.</PhaseBanner>;
   }
-  const copy = STATUS_COPY[phase];
+  const copy = (scored ? STATUS_COPY : UNSCORED_STATUS_COPY)[phase];
   if (!copy) return null;
   return <PhaseBanner tone="calm" icon={<Hourglass className="size-8 animate-pulse text-muted-foreground" />} title={copy.title}>{copy.detail}</PhaseBanner>;
 }

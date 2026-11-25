@@ -50,11 +50,12 @@ function shareOf(option: string, counts: readonly GameChoiceCount[] | null | und
   return { count, percent: total > 0 ? Math.round((count / total) * 100) : 0 };
 }
 
+/** Marks sit in the tile's corner so a long answer keeps the tile's full width. */
 function TileMark({ state, size }: { state: TileState; size: "phone" | "stage" }) {
-  const iconSize = size === "stage" ? "size-10" : "size-6";
-  if (state === "correct") return <Check aria-label="Correct answer" className={cn(iconSize, "shrink-0")} strokeWidth={3} />;
-  if (state === "wrong-choice") return <X aria-label="Your answer" className={cn(iconSize, "shrink-0")} strokeWidth={3} />;
-  if (state === "chosen") return <span className="shrink-0 rounded-full bg-white/25 px-2.5 py-0.5 text-xs font-semibold">Locked in</span>;
+  const corner = size === "stage" ? "absolute right-4 top-4 size-10" : "absolute right-2 top-2 size-6 rounded-full bg-white/25 p-1";
+  if (state === "correct") return <Check aria-label="Correct answer" className={corner} strokeWidth={3} />;
+  if (state === "wrong-choice") return <X aria-label="Your answer" className={corner} strokeWidth={3} />;
+  if (state === "chosen") return <span className="absolute right-2 top-2 rounded-full bg-white/25 px-2 py-0.5 text-[0.7rem] font-semibold leading-tight">Locked in</span>;
   return null;
 }
 
@@ -72,7 +73,7 @@ export function GameChoiceGrid({ options, size = "phone", chosen, correctAnswer,
             <span className={cn("grid shrink-0 place-items-center rounded-xl bg-white/20 font-bold", stage ? "size-16 text-4xl" : "size-9 text-lg")} aria-hidden="true">
               {tone.letter}
             </span>
-            <span className="min-w-0 flex-1 break-words text-left">{option}</span>
+            <span className="min-w-0 flex-1 text-left [overflow-wrap:break-word] [hyphens:auto]">{option}</span>
             <TileMark state={state} size={size} />
             {share ? (
               <span className="absolute inset-x-0 bottom-0 flex h-full items-end" aria-hidden="true">

@@ -455,6 +455,37 @@ describe("event games guest repository", () => {
     expect(eventGamesGuestRepository.readParticipantSession()?.participantAlias).toBe("Guest A1B2C3D4E5");
   });
 
+  it("passes through the revealed answer, the guest's own result and wheel segments, and drops malformed ones", async () => {
+    savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
+      eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
+    });
+    const revealed = {
+      ...participantState,
+      currentRound: { key: "round-1", number: 1, total: 3, resultsOpen: true, revealedAnswer: "Baguio" },
+      participant: { ...participantState.participant, hasSubmitted: true, roundOutcome: { isCorrect: false, points: 0, answer: "Cebu" } },
+    };
+    api.getParticipantState.mockResolvedValueOnce(revealed);
+    await expect(eventGamesGuestRepository.getParticipantState("session-a1")).resolves.toEqual(revealed);
+
+    api.getParticipantState.mockResolvedValueOnce({
+      ...participantState,
+      currentRound: { key: "round-1", number: 1, total: 3, revealedAnswer: 42 },
+      participant: { ...participantState.participant, roundOutcome: { isCorrect: "yes", points: -5 } },
+    });
+    const malformed = await eventGamesGuestRepository.getParticipantState("session-a1");
+    expect(malformed.currentRound).not.toHaveProperty("revealedAnswer");
+    expect(malformed.participant).not.toHaveProperty("roundOutcome");
+
+    const outcomes = [{ id: "mug", label: "Mug", points: 5 }];
+    api.getParticipantState.mockResolvedValueOnce({
+      ...participantState,
+      game: { title: "Wheel", kind: "spin-wheel" },
+      participant: { ...participantState.participant, gameData: { kind: "spin-wheel", outcomes: outcomes.map((outcome) => ({ ...outcome, weight: 9 })) } },
+    });
+    const wheel = await eventGamesGuestRepository.getParticipantState("session-a1");
+    expect(wheel.participant.gameData).toEqual({ kind: "spin-wheel", outcomes });
+  });
+
   it("keeps Family Feud read data to the participant's team label only", async () => {
     savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
       eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),

@@ -86,7 +86,7 @@ function PinButton({ pin, issuingPin, onIssuePin }: Pick<JoinProps, "pin" | "iss
 }
 
 function JoinCode({ pin }: { pin: string | null }) {
-  if (!pin) return <p className="text-2xl font-semibold text-white/60">Ask the host for the game PIN</p>;
+  if (!pin) return <p className="text-2xl font-semibold text-white/60">The game PIN appears here</p>;
   return (
     <p className="font-mono text-7xl font-black tracking-[0.18em] tabular-nums md:text-8xl" aria-label={`Game PIN ${pin.split("").join(" ")}`}>
       {pin}
@@ -169,7 +169,7 @@ function CountdownRing({ remaining, span, paused }: { remaining: number; span: n
           style={{ transition: "stroke-dashoffset 250ms linear" }}
         />
       </svg>
-      <span className={`absolute inset-0 grid place-items-center text-4xl font-black tabular-nums md:text-5xl ${urgent ? "text-[var(--prism-orange)]" : ""}`}>
+      <span className={`absolute inset-0 grid place-items-center font-black tabular-nums ${remaining >= 60_000 ? "text-2xl md:text-3xl" : "text-4xl md:text-5xl"} ${urgent ? "text-[var(--prism-orange)]" : ""}`}>
         {paused ? "II" : formatCountdown(remaining)}
       </span>
     </div>

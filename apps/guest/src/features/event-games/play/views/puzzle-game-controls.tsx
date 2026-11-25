@@ -24,6 +24,8 @@ export function TypedAnswerForm({ label, submitLabel, canSubmit, busy, onAnswer,
     if (canSubmit && !busy && answer.trim()) onAnswer(answer.trim());
   }
   if (sentAnswer) return <p className="rounded-2xl bg-muted px-4 py-3 text-sm">You answered <strong>{sentAnswer}</strong></p>;
+  // Once answers close, an empty box that cannot be used only adds noise.
+  if (!canSubmit && !busy) return null;
   return (
     <form className="grid gap-3" onSubmit={submit}>
       <label className="grid gap-1.5 text-sm font-semibold">{label}

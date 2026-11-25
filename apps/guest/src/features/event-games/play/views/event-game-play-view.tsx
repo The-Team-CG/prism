@@ -8,7 +8,7 @@ import { useGuestTabs } from "@/features/guest-shared/guest-tabs";
 import { GameIdentityHelp } from "../../lobby/views/event-game-lobby-view";
 import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
-import { guestGamePhase, isScoredGame, showsStandings, type GuestGamePhase } from "../model/guest-game-phase";
+import { guestGamePhase, isScoredGame, showsStandings, waitsOnRoom, type GuestGamePhase } from "../model/guest-game-phase";
 import { useServerRoundCountdown } from "../model/server-round-countdown";
 import { useEventGamePlayViewModel } from "../view-models/use-event-game-play-view-model";
 import { ActiveGameControls } from "./game-controls";
@@ -64,7 +64,7 @@ function GameSessionLead({ state, secondsRemaining }: { state: PrismGamePublicSt
         {progress ? <p className="font-semibold">{progress}</p> : null}
         <span className="ml-auto flex items-center gap-2">
           {isScoredGame(state.game.kind) ? <ScoreChip score={state.participant.score} /> : null}
-          {secondsRemaining !== null ? <RoundCountdown state={state} secondsRemaining={secondsRemaining} /> : null}
+          {secondsRemaining !== null && (state.status === "live" || state.status === "paused") ? <RoundCountdown state={state} secondsRemaining={secondsRemaining} /> : null}
         </span>
       </div>
       <GamePrompt state={state} />
@@ -174,7 +174,7 @@ function GameSessionContent({ vm, state, secondsRemaining }: { vm: PlayViewModel
           onSubmit={vm.submitAction}
         />
       ) : null}
-      <PhaseStatus phase={phase} paused={state.status === "paused"} />
+      {waitsOnRoom(state.game.kind) ? <PhaseStatus phase={phase} paused={state.status === "paused"} scored={isScoredGame(state.game.kind)} /> : null}
       {showsStandings(state, phase) ? <StandingsPanel state={state} title={phase === "finished" ? "Final standings" : "Standings"} /> : null}
       <GameIdentityHelp alias={vm.participantAlias} onLeave={vm.exitGames} />
     </section>

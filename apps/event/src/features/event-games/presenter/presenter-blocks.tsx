@@ -42,7 +42,8 @@ export function PresenterPrompt({ prompt, participantCount, action, compact = fa
   );
 }
 
-export function PresenterVoteBars({ results, title = "Results" }: { results: VoteTotals; title?: string }) {
+/** `lettered` matches each bar to the A/B/C tile guests tapped; rating scales already label themselves. */
+export function PresenterVoteBars({ results, title = "Results", lettered = true }: { results: VoteTotals; title?: string; lettered?: boolean }) {
   const total = results.reduce((sum, { count }) => sum + count, 0);
   const max = Math.max(1, ...results.map(({ count }) => count));
   return (
@@ -55,7 +56,7 @@ export function PresenterVoteBars({ results, title = "Results" }: { results: Vot
             <li key={label} className="space-y-2">
               <div className="flex items-baseline justify-between gap-6 text-2xl md:text-4xl">
                 <span className="flex items-center gap-4 font-semibold">
-                  <span className={`grid size-10 place-items-center rounded-lg text-xl font-bold md:size-12 md:text-2xl ${tone.fill}`} aria-hidden="true">{tone.letter}</span>
+                  {lettered ? <span className={`grid size-10 place-items-center rounded-lg text-xl font-bold md:size-12 md:text-2xl ${tone.fill}`} aria-hidden="true">{tone.letter}</span> : null}
                   {label}
                 </span>
                 <span className="tabular-nums text-white/80">{count} · {share}%</span>

@@ -172,6 +172,21 @@ function sanitizeCurrentRound(value: unknown): PrismGamePublicState["currentRoun
     total: value.total,
     ...(value.deadlineAt !== undefined ? { deadlineAt: value.deadlineAt as string | null } : {}),
     ...(typeof value.resultsOpen === "boolean" ? { resultsOpen: value.resultsOpen } : {}),
+    ...(isBoundedText(value.revealedAnswer, 120) ? { revealedAnswer: value.revealedAnswer } : {}),
+  };
+}
+
+function isBoundedText(value: unknown, maxLength: number): value is string {
+  return typeof value === "string" && value.trim().length > 0 && value.length <= maxLength;
+}
+
+/** A guest's own checked answer: right or wrong, the points it earned, and what they sent. */
+function sanitizeRoundOutcome(value: unknown): PrismGamePublicState["participant"]["roundOutcome"] | undefined {
+  if (!isRecord(value) || typeof value.isCorrect !== "boolean" || !isNonNegativeSafeInteger(value.points)) return undefined;
+  return {
+    isCorrect: value.isCorrect,
+    points: value.points,
+    ...(isBoundedText(value.answer, 500) ? { answer: value.answer } : {}),
   };
 }
 
@@ -192,6 +207,7 @@ function sanitizeParticipantResult(value: unknown): PrismGamePublicState["partic
 function sanitizeParticipant(value: unknown): PrismGamePublicState["participant"] | null {
   if (!hasParticipantStateShape(value)) return null;
   const participantResult = sanitizeParticipantResult(value.result);
+  const roundOutcome = sanitizeRoundOutcome(value.roundOutcome);
   const gameData = sanitizeParticipantGameData(value.gameData);
   return {
     participantAlias: value.participantAlias,
@@ -199,6 +215,7 @@ function sanitizeParticipant(value: unknown): PrismGamePublicState["participant"
     ...(typeof value.hasVoted === "boolean" ? { hasVoted: value.hasVoted } : {}),
     score: value.score,
     ...(participantResult ? { result: participantResult } : {}),
+    ...(roundOutcome ? { roundOutcome } : {}),
     ...(gameData ? { gameData } : {}),
   };
 }
@@ -209,6 +226,7 @@ type GameDataSanitizer = (value: Record<string, unknown>) => PrismGamePublicStat
 const GAME_DATA_SANITIZERS: readonly GameDataSanitizer[] = [
   sanitizeTriviaGameData,
   sanitizeBingoGameData,
+  sanitizeSpinWheelGameData,
   sanitizePictureGameData,
   sanitizeWordScrambleGameData,
   sanitizePictureSoloGameData,
@@ -245,6 +263,16 @@ function sanitizePresenterDeckGameData(value: Record<string, unknown>): PrismGam
   return value.roundType === "word-cloud" && limit && limit <= 60
     ? { kind: "presenter-deck", roundType: "word-cloud", maxResponseLength: limit }
     : undefined;
+}
+
+/** Spin the Wheel segments: an id, a label and points each; weights never reach guests. */
+function sanitizeSpinWheelGameData(value: Record<string, unknown>): PrismGamePublicState["participant"]["gameData"] | undefined {
+  if (value.kind !== "spin-wheel" || !Array.isArray(value.outcomes) || value.outcomes.length < 1 || value.outcomes.length > 24) return undefined;
+  const outcomes = value.outcomes.map((outcome: unknown) => isRecord(outcome)
+    && isBoundedText(outcome.id, 64) && isBoundedText(outcome.label, 120) && isNonNegativeSafeInteger(outcome.points)
+    ? { id: outcome.id, label: outcome.label, points: outcome.points }
+    : null);
+  return outcomes.every(Boolean) ? { kind: "spin-wheel", outcomes: outcomes as Array<{ id: string; label: string; points: number }> } : undefined;
 }
 
 function sanitizeChoiceOptions(options: unknown): string[] | undefined {

@@ -101,7 +101,7 @@ export function PrizeWheel({ segments, landedId, className, onSettled }: PrizeWh
           <circle r={8} fill="var(--prism-ink)" />
         </g>
       </svg>
-      <span aria-hidden="true" className="absolute left-1/2 top-0 h-0 w-0 -translate-x-1/2 -translate-y-1 border-x-[14px] border-t-[26px] border-x-transparent border-t-[var(--prism-ink)] drop-shadow" />
+      <span aria-hidden="true" className="absolute left-1/2 top-0 h-0 w-0 -translate-x-1/2 -translate-y-1 border-x-[14px] border-t-[26px] border-x-transparent border-t-[#f2b134] drop-shadow-md" />
     </div>
   );
 }

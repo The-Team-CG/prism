@@ -15,7 +15,7 @@ const FamilyFeudRenderer: PresenterRenderer = ({ state }) => {
 
   return (
     <div className="space-y-10">
-      <PresenterPrompt prompt={round.prompt} participantCount={state.participantCount} action={state.status === "live" ? "Answer on your phone" : null} compact={board.length > 0} />
+      <PresenterPrompt prompt={round.prompt} participantCount={revealed ? undefined : state.participantCount} action={state.status === "live" ? "Answer on your phone" : null} compact={board.length > 0} />
       {board.length ? <PresenterAnswerBoard board={board} revealed={revealed} /> : null}
       {revealed && state.leaderboard.length ? <PresenterLeaderboard entries={state.leaderboard} title="Team standings" /> : null}
     </div>

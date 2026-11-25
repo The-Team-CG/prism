@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PrismGamePublicState } from "@prism/types";
-import { guestGamePhase, isScoredGame, showsStandings } from "./guest-game-phase";
+import { guestGamePhase, isScoredGame, showsStandings, waitsOnRoom } from "./guest-game-phase";
 
 type StateOverrides = Partial<Omit<PrismGamePublicState, "participant">> & { participant?: Partial<PrismGamePublicState["participant"]> };
 
@@ -30,6 +30,12 @@ describe("guest game phase", () => {
     }), null)).toBe("reveal");
   });
 
+  it("keeps a Split the Room guest answering until they have also picked a side", () => {
+    const split = { game: { title: "Split", kind: "split-the-room" as const } };
+    expect(guestGamePhase(state({ ...split, participant: { hasSubmitted: true, hasVoted: false } }), 30)).toBe("answering");
+    expect(guestGamePhase(state({ ...split, participant: { hasSubmitted: true, hasVoted: true } }), 30)).toBe("locked");
+  });
+
   it("reveals the answer to a guest who did not answer once the round closes", () => {
     expect(guestGamePhase(state({ status: "paused", currentRound: { key: "q1", number: 1, total: 3, revealedAnswer: "B" } }), null)).toBe("reveal");
   });
@@ -46,6 +52,8 @@ describe("guest game phase", () => {
     expect(isScoredGame("live-trivia")).toBe(true);
     expect(isScoredGame("live-poll")).toBe(false);
     expect(isScoredGame("this-or-that")).toBe(false);
+    expect(waitsOnRoom("live-poll")).toBe(true);
+    expect(waitsOnRoom("would-you-rather")).toBe(false);
     const ranked = state({ leaderboard: [{ rank: 1, label: "Guest 1", score: 10 }] });
     expect(showsStandings(ranked, "answering")).toBe(false);
     expect(showsStandings(ranked, "reveal")).toBe(true);

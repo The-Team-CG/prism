@@ -29,7 +29,7 @@ function DeckResults({ results }: { results: Totals }) {
   return (
     <div className="grid gap-10 lg:grid-cols-[auto_1fr] lg:items-center">
       <RatingAverage results={results} />
-      <PresenterVoteBars results={results} title="How the room voted" />
+      <PresenterVoteBars results={results} title="How the room voted" lettered={false} />
     </div>
   );
 }
