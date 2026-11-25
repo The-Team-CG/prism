@@ -1,14 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PrismAddendum, PrismEventFreezeException, RequestFreezeExceptionInput } from "@prism/types";
+import type { PrismAddendum, PrismDocument, PrismEventFreezeException, PrismSupplierQuote, RequestFreezeExceptionInput } from "@prism/types";
 import { changeRegisterRepository } from "../data/change-register-repository";
-import { unusedApprovedExceptions, type RecordDecisionDraft } from "../model/change-register-rules";
-import { countersignAddendumConformeUseCase, decideFreezeExceptionUseCase, freezeScopeUseCase, recordEventDecisionUseCase, requestAddendumConformeUseCase, requestFreezeExceptionUseCase, withdrawAddendumUseCase } from "../use-cases/change-register-use-cases";
+import { unusedApprovedExceptions, type IssueAddendumDraft, type RecordDecisionDraft } from "../model/change-register-rules";
+import { issueAddendumUseCase, countersignAddendumConformeUseCase, decideFreezeExceptionUseCase, freezeScopeUseCase, recordEventDecisionUseCase, requestAddendumConformeUseCase, requestFreezeExceptionUseCase, withdrawAddendumUseCase } from "../use-cases/change-register-use-cases";
 
 export function useChangeRegisterViewModel(eventId: string, options: { frozen: boolean }) {
   const [addenda, setAddenda] = useState<PrismAddendum[]>([]);
   const [exceptions, setExceptions] = useState<PrismEventFreezeException[]>([]);
+  const [documents, setDocuments] = useState<PrismDocument[]>([]);
+  const [bookedQuotes, setBookedQuotes] = useState<PrismSupplierQuote[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,6 +25,8 @@ export function useChangeRegisterViewModel(eventId: string, options: { frozen: b
       if (requestVersion.current !== version) return;
       setAddenda(next.addenda);
       setExceptions(next.exceptions);
+      setDocuments(next.documents);
+      setBookedQuotes(next.bookedQuotes);
       setStatus("ready");
     } catch (cause) {
       if (requestVersion.current !== version) return;
@@ -58,6 +62,9 @@ export function useChangeRegisterViewModel(eventId: string, options: { frozen: b
     busy,
     addenda,
     exceptions,
+    documents,
+    bookedQuotes,
+    pendingAddendum: addenda.find((addendum) => addendum.status === "pending") ?? null,
     reload,
     freezeScope: (reason: string, deadline?: string) => run(() => freezeScopeUseCase(eventId, { reason, deadline })),
     requestException: (draft: RequestFreezeExceptionInput) => run(() => requestFreezeExceptionUseCase(eventId, draft)),
@@ -65,6 +72,7 @@ export function useChangeRegisterViewModel(eventId: string, options: { frozen: b
     rejectException: (exceptionId: string, decisionNote: string) => run(() => decideFreezeExceptionUseCase(eventId, exceptionId, { decision: "reject", decisionNote })),
     approvedExceptions: unusedApprovedExceptions(exceptions),
     recordDecision: (draft: RecordDecisionDraft) => run(() => recordEventDecisionUseCase(eventId, draft, { frozen: options.frozen })),
+    issueAddendum: (draft: IssueAddendumDraft) => run(() => issueAddendumUseCase(eventId, draft, bookedQuotes, { frozen: options.frozen })),
     requestAddendumConforme: (addendumId: string) => run(() => requestAddendumConformeUseCase(eventId, addendumId)),
     countersignAddendumConforme: (addendum: PrismAddendum) => run(() => countersignAddendumConformeUseCase(eventId, addendum)),
     withdrawAddendum: (addendum: PrismAddendum, reason: string) => run(() => withdrawAddendumUseCase(eventId, addendum.id, { reason })),

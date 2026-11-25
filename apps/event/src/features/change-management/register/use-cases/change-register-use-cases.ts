@@ -2,6 +2,7 @@ import {
   decideFreezeExceptionSchema,
   signAddendumConformeExecutionSchema,
   withdrawAddendumSchema,
+  issueAddendumSchema,
   recordEventDecisionSchema,
   freezeEventSchema,
   requestFreezeExceptionSchema,
@@ -10,13 +11,21 @@ import {
   type PrismAddendum,
   type RequestFreezeExceptionInput,
   type WithdrawAddendumInput,
+  type PrismSupplierQuote,
 } from "@prism/types";
 import { changeRegisterRepository } from "../data/change-register-repository";
-import { wholePesos, type RecordDecisionDraft } from "../model/change-register-rules";
+import { issueAddendumBody, issueAddendumProblems, wholePesos, type IssueAddendumDraft, type RecordDecisionDraft } from "../model/change-register-rules";
 
 function parseOrThrow<T>(result: { success: true; data: T } | { success: false; error: { issues: { message: string }[] } }): T {
   if (!result.success) throw new Error(result.error.issues[0]?.message ?? "Check the highlighted fields and try again.");
   return result.data;
+}
+
+/** PMCM issues a pending addendum; it changes billing and supplier amounts only once countersigned. */
+export function issueAddendumUseCase(eventId: string, draft: IssueAddendumDraft, bookedQuotes: readonly PrismSupplierQuote[], options: { frozen: boolean }) {
+  const problem = issueAddendumProblems(draft, bookedQuotes, options.frozen)[0];
+  if (problem) throw new Error(problem);
+  return changeRegisterRepository.issueAddendum(eventId, parseOrThrow(issueAddendumSchema.safeParse(issueAddendumBody(draft, bookedQuotes))));
 }
 
 export function requestAddendumConformeUseCase(eventId: string, addendumId: string) {

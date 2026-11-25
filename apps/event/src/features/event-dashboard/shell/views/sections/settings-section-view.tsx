@@ -33,6 +33,7 @@ export function EventDashboardSettingsSectionView() {
     setEventModules,
     complianceRules,
     createComplianceRule,
+    updateComplianceRule,
     busy,
   } = useEventDashboardLoadedRouteViewModel();
   const accounts = useAccountAdminViewModel({ onAccountsChanged: () => refresh() });
@@ -61,7 +62,7 @@ export function EventDashboardSettingsSectionView() {
         <Link href="/dashboard/notifications#notification-settings" className="text-sm font-medium text-primary hover:underline">Notification settings</Link>
       </div>
       <section id={`settings-panel-${tab}`} role="tabpanel" className="space-y-5">
-        {tab === "rules" ? <EventRulesPanel rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} /> : null}
+        {tab === "rules" ? <EventRulesPanel rules={complianceRules} busy={Boolean(busy)} onCreateRule={createComplianceRule} onUpdateRule={updateComplianceRule} /> : null}
         {tab === "templates" ? <PlanningTemplatesSettings /> : null}
         {tab === "people" ? <AccountAdminPanel users={reference.users} viewerRole={session.role} vm={accounts} /> : null}
         {tab === "integrations" ? <CanvaConnectionCard /> : null}

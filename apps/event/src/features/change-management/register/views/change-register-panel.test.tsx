@@ -44,7 +44,7 @@ function exception(overrides: Partial<PrismEventFreezeException> = {}): PrismEve
 
 describe("ChangeRegisterPanel", () => {
   it("requires a rejection reason before a pending freeze exception can be rejected", async () => {
-    load.mockResolvedValue({ addenda: [], exceptions: [exception()] });
+    load.mockResolvedValue({ addenda: [], exceptions: [exception()], documents: [], bookedQuotes: [] });
     decideException.mockResolvedValue(exception({ status: "rejected" }));
     render(<ChangeRegisterPanel eventId="evt_1" frozen />);
 
@@ -59,7 +59,7 @@ describe("ChangeRegisterPanel", () => {
   });
 
   it("approves a pending exception on a frozen event without offering to freeze again", async () => {
-    load.mockResolvedValue({ addenda: [], exceptions: [exception()] });
+    load.mockResolvedValue({ addenda: [], exceptions: [exception()], documents: [], bookedQuotes: [] });
     decideException.mockResolvedValue(exception({ status: "approved" }));
     render(<ChangeRegisterPanel eventId="evt_1" frozen />);
 
@@ -70,7 +70,7 @@ describe("ChangeRegisterPanel", () => {
   });
 
   it("keeps the cancel-or-postpone decision closed and unchosen until PMCM opens it and picks one", async () => {
-    load.mockResolvedValue({ addenda: [], exceptions: [] });
+    load.mockResolvedValue({ addenda: [], exceptions: [], documents: [], bookedQuotes: [] });
     render(<ChangeRegisterPanel eventId="evt_1" frozen={false} />);
 
     const summary = await screen.findByText("Cancel or postpone this event");
@@ -82,14 +82,14 @@ describe("ChangeRegisterPanel", () => {
   });
 
   it("starts the recorded risk level empty when none has been recorded", async () => {
-    load.mockResolvedValue({ addenda: [], exceptions: [] });
+    load.mockResolvedValue({ addenda: [], exceptions: [], documents: [], bookedQuotes: [] });
     render(<ChangeRegisterPanel eventId="evt_1" frozen={false} />);
 
     expect(((await screen.findByLabelText("Recorded level")) as HTMLSelectElement).value).toBe("");
   });
 
   it("freezes an open event with a reason and offers no exception request until the freeze exists", async () => {
-    load.mockResolvedValue({ addenda: [], exceptions: [] });
+    load.mockResolvedValue({ addenda: [], exceptions: [], documents: [], bookedQuotes: [] });
     freeze.mockResolvedValue({ eventId: "evt_1", freezeStatus: "frozen" });
     render(<ChangeRegisterPanel eventId="evt_1" frozen={false} />);
 
@@ -105,7 +105,7 @@ describe("ChangeRegisterPanel", () => {
   });
 
   it("requests a freeze exception with both the change and its reason on a frozen event", async () => {
-    load.mockResolvedValue({ addenda: [], exceptions: [] });
+    load.mockResolvedValue({ addenda: [], exceptions: [], documents: [], bookedQuotes: [] });
     requestException.mockResolvedValue(exception());
     render(<ChangeRegisterPanel eventId="evt_1" frozen />);
 

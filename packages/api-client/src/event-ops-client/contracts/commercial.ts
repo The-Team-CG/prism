@@ -98,6 +98,7 @@ import type {
   ReversePaymentReceiptInput,
   VerifyPaymentReceiptInput,
   RequestSupplierQuotesInput,
+  AddSupplierQuoteInput,
   SupplierAvailabilityInput,
   UpdateSupplierInput,
   VerifySupplierStatusInput,
@@ -156,6 +157,8 @@ export interface EventOpsCommercialContract {
     addSupplierReliabilityNote(supplierId: string, input: CreateSupplierReliabilityNoteInput, actor?: EventOpsActorQuery): Promise<PrismSupplier>;
     addSupplierReview(supplierId: string, input: CreateSupplierReviewInput, actor?: EventOpsActorQuery): Promise<PrismSupplier>;
     setSupplierAvailability(supplierId: string, input: SupplierAvailabilityInput, actor?: EventOpsActorQuery): Promise<{ id: string }>;
+    /** A quote PMCM received outside the portal (phone, email), usually tied to the request it answers. */
+    addSupplierQuote(eventId: string, input: AddSupplierQuoteInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuote>;
     requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRequest[]>;
     withdrawQuoteRequest(eventId: string, requestId: string, actor?: EventOpsActorQuery): Promise<{ ok: boolean }>;
     compareQuoteRound(eventId: string, roundId: string, actor?: EventOpsActorQuery): Promise<PrismSupplierQuoteRoundComparison>;

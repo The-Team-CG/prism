@@ -34,6 +34,17 @@ export function toCreateComplianceRuleInput(draft: ComplianceRuleDraft) {
   };
 }
 
+/** An existing rule in the form's terms, so editing starts from what the rule says now. */
+export function complianceRuleDraft(rule: PrismComplianceRule): ComplianceRuleDraft {
+  const severity = COMPLIANCE_RULE_SEVERITIES.some(([value]) => value === rule.severity) ? rule.severity : "must_fix";
+  return { title: rule.title, conditionKey: rule.conditionKey, phase: rule.phase || "planning", severity, note: rule.note ?? "" };
+}
+
+/** Workspace rules PMCM turned off: kept, so they can be turned back on, but no longer checked. */
+export function inactiveWorkspaceRules(rules: PrismComplianceRule[]) {
+  return rules.filter((rule) => !rule.active && !rule.eventId).sort((a, b) => a.title.localeCompare(b.title));
+}
+
 /** Workspace-wide rules first, ordered by phase then title. */
 export function activeWorkspaceRules(rules: PrismComplianceRule[]) {
   const phaseOrder = new Map<string, number>(COMPLIANCE_RULE_PHASES.map(([value], index) => [value, index]));

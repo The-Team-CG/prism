@@ -10,6 +10,7 @@ import { ScopeChangeReviewPanel } from "../../scope-review";
 import { RiskAssessmentPanel } from "../../risk-assessment";
 import { RiskRegisterPanel } from "@/features/change-management/risk-register/views/risk-register-panel";
 import { RecordDecisionForm } from "./record-decision-form";
+import { IssueAddendumForm } from "./issue-addendum-form";
 import { LoadingState } from "@prism/ui/components/loading-state";
 
 /** `decisionClosedReason` says why the event can no longer be cancelled or postponed; null keeps the decision form. */
@@ -59,6 +60,15 @@ export function ChangeRegisterPanel({ eventId, frozen, decisionClosedReason = nu
               : <RecordDecisionForm eventId={eventId} frozen={frozen} approvedExceptions={vm.approvedExceptions} busy={vm.busy} onSubmit={(draft) => vm.recordDecision(draft)} />}
           </RegisterGroup>
           <RegisterGroup title="Addenda">
+            <IssueAddendumForm
+              documents={vm.documents}
+              bookedQuotes={vm.bookedQuotes}
+              approvedExceptions={vm.approvedExceptions}
+              pendingAddendum={vm.pendingAddendum}
+              frozen={frozen}
+              busy={vm.busy}
+              onIssue={(draft) => vm.issueAddendum(draft)}
+            />
             <PmcmAddendaStatus
               addenda={vm.addenda}
               busy={vm.busy}

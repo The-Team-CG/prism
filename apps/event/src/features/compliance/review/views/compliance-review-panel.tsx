@@ -5,6 +5,7 @@ import { RISK_RATINGS, riskSeverityFromRatings, type CreateComplianceRiskInput, 
 import { complianceReadinessReport } from "../model/compliance-readiness-report";
 import { complianceRunSummary } from "../model/compliance-run-summary";
 import { useComplianceReviewViewModel } from "../view-models/use-compliance-review-view-model";
+import { ComplianceRiskEditor } from "./compliance-risk-editor";
 import { ComplianceAdvisory } from "@/features/ai-advisory/views/ai-advisory-panels";
 import { Button } from "@prism/ui/components/button";
 import { Field, FieldLabel } from "@prism/ui/components/field";
@@ -93,6 +94,7 @@ export function ComplianceReviewPanel({ eventId }: { eventId: string }) {
                 {RISK_SEVERITY[risk.severity] ?? risk.severity}{ratingsText(risk)} · {RISK_STATUS[risk.status] ?? risk.status} · Owner: {risk.owner || "Unassigned"}
               </p>
               {risk.mitigation ? <p className="mt-1 text-muted-foreground">{risk.mitigation}</p> : null}
+              <ComplianceRiskEditor key={risk.updatedAt} risk={risk} busy={vm.busy} onSave={vm.updateRisk} />
             </li>
           ))}
         </ul>

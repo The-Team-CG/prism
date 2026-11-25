@@ -9,15 +9,22 @@ import type {
   PrismEventFreezeException,
   RequestFreezeExceptionInput,
   WithdrawAddendumInput,
+  IssueAddendumInput,
+  PrismDocument,
+  PrismSupplierQuote,
 } from "@prism/types";
 
 export const changeRegisterRepository = {
-  async load(eventId: string): Promise<{ addenda: PrismAddendum[]; exceptions: PrismEventFreezeException[] }> {
-    const [addenda, exceptions] = await Promise.all([
+  async load(eventId: string): Promise<{ addenda: PrismAddendum[]; exceptions: PrismEventFreezeException[]; documents: PrismDocument[]; bookedQuotes: PrismSupplierQuote[] }> {
+    const [addenda, exceptions, workspace] = await Promise.all([
       eventApi.events.addenda(eventId),
       eventApi.events.freezeExceptions(eventId),
+      eventApi.pmcm.eventWorkspace(eventId),
     ]);
-    return { addenda, exceptions };
+    return { addenda, exceptions, documents: workspace.documents, bookedQuotes: workspace.supplierQuotes.filter((quote) => quote.status === "selected") };
+  },
+  issueAddendum(eventId: string, input: IssueAddendumInput): Promise<PrismAddendum> {
+    return eventApi.events.issueAddendum(eventId, input);
   },
   freeze(eventId: string, input: FreezeEventInput) {
     return eventApi.events.freeze(eventId, input);

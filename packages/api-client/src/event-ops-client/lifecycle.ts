@@ -111,6 +111,8 @@ export function createLifecycleClient(options: EventOpsClientOptions): Pick<Even
       listRules: (actor = {}) => prismRequest<PrismComplianceRule[]>(actorPath("/compliance/rules", actor), withBase(options)),
       createRule: (input, actor = {}) =>
         prismRequest<PrismComplianceRule>(actorPath("/compliance/rules", actor), withBase(options, { method: "POST", body: input })),
+      updateRule: (ruleId, input, actor = {}) =>
+        prismRequest<PrismComplianceRule>(actorPath(`/compliance/rules/${encodeURIComponent(ruleId)}`, actor), withBase(options, { method: "PATCH", body: input })),
       resolve: (eventId, checkId, input, actor = {}) =>
         prismRequest<PrismComplianceCheck>(actorPath(event(eventId, `/compliance/${checkId}`), actor), withBase(options, { method: "PATCH", body: input })),
       run: (eventId, input, actor = {}) =>
@@ -127,6 +129,8 @@ export function createLifecycleClient(options: EventOpsClientOptions): Pick<Even
         prismRequest<PrismAccreditationRequirement>(actorPath(event(eventId, `/accreditation/${requirementId}`), actor), withBase(options, { method: "PATCH", body: input })),
       createRisk: (eventId, input, actor = {}) =>
         prismRequest<PrismComplianceRisk>(actorPath(event(eventId, "/compliance/risks"), actor), withBase(options, { method: "POST", body: input })),
+      updateRisk: (eventId, riskId, input, actor = {}) =>
+        prismRequest<PrismComplianceRisk>(actorPath(event(eventId, `/compliance/risks/${encodeURIComponent(riskId)}`), actor), withBase(options, { method: "PATCH", body: input })),
     },
     floorplans: {
       createDraft: (eventId, input, actor = {}) =>

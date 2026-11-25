@@ -17,6 +17,8 @@ import {
   EMPTY_COMPLIANCE_RULE_DRAFT,
   activeWorkspaceRules,
   builtInComplianceChecks,
+  complianceRuleDraft,
+  inactiveWorkspaceRules,
   complianceOptionLabel,
   compliancePhasesLabel,
   toCreateComplianceRuleInput,
@@ -29,25 +31,49 @@ export function ComplianceRulesSettings({
   catalog,
   busy,
   onCreateRule,
+  onUpdateRule,
 }: {
   rules: PrismComplianceRule[];
   /** Every rule the checks run, built-in ones included, once loaded. */
   catalog?: PrismComplianceRule[];
   busy: boolean;
   onCreateRule: (input: ReturnType<typeof toCreateComplianceRuleInput>) => Promise<void>;
+  /** Saves changes to a workspace rule, including turning it off (`active: false`) or back on. */
+  onUpdateRule: (ruleId: string, input: Partial<ReturnType<typeof toCreateComplianceRuleInput>> & { active?: boolean }) => Promise<void>;
 }) {
   const [draft, setDraft] = useState<ComplianceRuleDraft>(EMPTY_COMPLIANCE_RULE_DRAFT);
   const [adding, setAdding] = useState(false);
+  /** The rule being edited; null while adding a new one. */
+  const [editing, setEditing] = useState<PrismComplianceRule | null>(null);
   const active = activeWorkspaceRules(rules);
+  const inactive = inactiveWorkspaceRules(rules);
   const builtIns = catalog ? builtInComplianceChecks(catalog) : [];
   const ready = draft.title.trim().length > 0 && draft.conditionKey.trim().length > 0;
   const set = (patch: Partial<ComplianceRuleDraft>) => setDraft((current) => ({ ...current, ...patch }));
 
+  function close() {
+    setDraft(EMPTY_COMPLIANCE_RULE_DRAFT);
+    setEditing(null);
+    setAdding(false);
+  }
+
+  function startEdit(rule: PrismComplianceRule) {
+    setEditing(rule);
+    setDraft(complianceRuleDraft(rule));
+    setAdding(true);
+  }
+
   async function submit() {
     if (!ready) return;
-    await onCreateRule(toCreateComplianceRuleInput(draft));
-    setDraft(EMPTY_COMPLIANCE_RULE_DRAFT);
-    setAdding(false);
+    if (editing) await onUpdateRule(editing.id, toCreateComplianceRuleInput(draft));
+    else await onCreateRule(toCreateComplianceRuleInput(draft));
+    close();
+  }
+
+  async function turnOff() {
+    if (!editing) return;
+    await onUpdateRule(editing.id, { active: false });
+    close();
   }
 
   return (
@@ -82,12 +108,26 @@ export function ComplianceRulesSettings({
                         {rule.note ? ` · ${rule.note}` : ""}
                       </ItemDescription>
                     </ItemContent>
+                    <Button type="button" size="sm" variant="ghost" aria-label={`Edit ${rule.title}`} onClick={() => startEdit(rule)}>Edit</Button>
                   </Item>
                 </li>
               ))}
             </ul>
           )}
         </section>
+        {inactive.length ? (
+          <section aria-label="Turned-off rules" className="grid content-start gap-2">
+            <h3 className="text-sm font-semibold text-foreground">Turned off <span className="font-normal tabular-nums text-muted-foreground">{inactive.length}</span></h3>
+            <ul className="grid gap-2">
+              {inactive.map((rule) => (
+                <li key={rule.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border px-4 py-2.5 text-sm">
+                  <span className="min-w-0 flex-1 text-muted-foreground">{rule.title}</span>
+                  <Button type="button" size="sm" variant="outline" disabled={busy} aria-label={`Turn on ${rule.title}`} onClick={() => void onUpdateRule(rule.id, { active: true })}>Turn on</Button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
         {builtIns.length ? (
           <details className="group rounded-lg border border-border">
             <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
@@ -105,14 +145,14 @@ export function ComplianceRulesSettings({
           </details>
         ) : null}
       </CardContent>
-      <Sheet open={adding} onOpenChange={setAdding}>
+      <Sheet open={adding} onOpenChange={(open) => { if (!open) close(); }}>
         <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle>Add a rule</SheetTitle>
-            <SheetDescription>It runs for every event at its phase, beside the built-in checks.</SheetDescription>
+            <SheetTitle>{editing ? "Edit rule" : "Add a rule"}</SheetTitle>
+            <SheetDescription>{editing ? "Changes apply to the next compliance run on every event." : "It runs for every event at its phase, beside the built-in checks."}</SheetDescription>
           </SheetHeader>
         <form
-          aria-label="Add a rule"
+          aria-label={editing ? "Edit rule" : "Add a rule"}
           className="grid content-start gap-4 px-4 pb-6"
           onSubmit={(event) => {
             event.preventDefault();
@@ -158,10 +198,11 @@ export function ComplianceRulesSettings({
             </Field>
           </FieldGroup>
           <Field>
-            <div>
+            <div className="flex flex-wrap gap-2">
               <Button type="submit" disabled={busy || !ready}>
                 Save rule
               </Button>
+              {editing ? <Button type="button" variant="outline" disabled={busy} onClick={() => void turnOff()}>Turn off rule</Button> : null}
             </div>
             {ready ? null : <FieldDescription>Add a rule title and a check identifier to save the rule.</FieldDescription>}
           </Field>

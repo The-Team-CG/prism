@@ -12,6 +12,7 @@ import type {
   StartEventDayResult,
   ClientTestimonialModerationInput,
   CreateComplianceRiskInput,
+  UpdateComplianceRiskInput,
   PrismArchiveComparisonRow,
   PrismCancellationSummary,
   PrismClientCloseoutResponse,
@@ -26,6 +27,7 @@ import type {
   RecordLogisticsCompletionInput,
   ResolveVenueConfirmationInput,
   CreateComplianceRuleInput,
+  UpdateComplianceRuleInput,
   PrismEvent,
   PrismPmcmOcularVisit,
   RecordActualEventEndInput,
@@ -97,11 +99,13 @@ export interface EventOpsLifecycleContract {
     /** PMCM's own rules and the built-in checks (the built-ins carry createdAt 1970-01-01). */
     listRules(actor?: EventOpsActorQuery): Promise<PrismComplianceRule[]>;
     createRule(input: CreateComplianceRuleInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRule>;
+    updateRule(ruleId: string, input: UpdateComplianceRuleInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRule>;
     resolve(eventId: string, checkId: string, input: ResolveComplianceInput, actor?: EventOpsActorQuery): Promise<PrismComplianceCheck>;
     run(eventId: string, input: RunComplianceInput, actor?: EventOpsActorQuery): Promise<PrismComplianceCheck[]>;
     runs(eventId: string, actor?: EventOpsActorQuery): Promise<PrismComplianceRun[]>;
     risks(eventId: string, actor?: EventOpsActorQuery): Promise<PrismComplianceRisk[]>;
     createRisk(eventId: string, input: CreateComplianceRiskInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRisk>;
+    updateRisk(eventId: string, riskId: string, input: UpdateComplianceRiskInput, actor?: EventOpsActorQuery): Promise<PrismComplianceRisk>;
     accreditationRequirements(eventId: string, actor?: EventOpsActorQuery): Promise<PrismAccreditationRequirement[]>;
     createAccreditationRequirement(eventId: string, input: CreateAccreditationRequirementInput, actor?: EventOpsActorQuery): Promise<PrismAccreditationRequirement>;
     updateAccreditationRequirement(eventId: string, requirementId: string, input: UpdateAccreditationRequirementInput, actor?: EventOpsActorQuery): Promise<PrismAccreditationRequirement>;
