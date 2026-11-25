@@ -91,7 +91,7 @@ const TEXT_COPY = {
 
 function AudienceTextControls({ state, roundKey, text, busy, onSubmit }: ControlsInput & { text: TextSpec }) {
   const copy = TEXT_COPY[text.mode];
-  const approvedNote = text.templateId === "presenter-deck" ? "Approved answers appear on screen as they are accepted." : "Approved answers appear when the host pauses.";
+  const approvedNote = text.mode === "word-cloud" ? "Approved answers appear on screen as they are accepted." : "Approved answers appear when the host pauses.";
   return (
     <section className={`${GAME_PANEL} grid gap-4`} aria-label={copy.title}>
       {state.participant.hasSubmitted

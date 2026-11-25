@@ -38,10 +38,12 @@ const MODERATED_RESPONSE_KINDS = new Set(['split-the-room', 'word-cloud', 'open-
 
 type HostRound = NonNullable<ReturnType<typeof currentRoundFor>>;
 
-/** Approved moderated text shows while paused; Presenter Deck word-cloud answers are auto-approved and also show live. */
+/** Word clouds show approved responses as they arrive. Other moderated answers wait until the round is paused. */
 function approvedResponsesVisible(kind: string, status: string, round: HostRound | null): boolean {
   if (!round || !MODERATED_RESPONSE_KINDS.has(kind)) return false;
-  return kind === 'presenter-deck' ? status === 'live' || status === 'paused' : status === 'paused';
+  return kind === 'presenter-deck' || kind === 'word-cloud'
+    ? status === 'live' || status === 'paused'
+    : status === 'paused';
 }
 
 /** Puzzles a guest plays alone, and verified Bingo claims: their own result can show as soon as they answer. */

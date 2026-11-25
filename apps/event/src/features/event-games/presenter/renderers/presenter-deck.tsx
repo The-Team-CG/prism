@@ -1,6 +1,7 @@
 import type { PrismGameHostState } from "@prism/types";
 import { answersClosedForRoom, type PresenterRenderer } from "../presenter-types";
-import { PresenterSection, PresenterVoteBars, PresenterWordCloud } from "../presenter-blocks";
+import { PresenterSection, PresenterVoteBars } from "../presenter-blocks";
+import { PresenterWordCloud } from "../presenter-word-cloud";
 import { AudienceSlide } from "./audience-slide";
 
 type Totals = NonNullable<PrismGameHostState["aggregateResults"]>;

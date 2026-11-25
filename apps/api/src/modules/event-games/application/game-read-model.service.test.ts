@@ -431,7 +431,7 @@ describe('GameReadModelService', () => {
     }, tx);
   });
 
-  it.each(['word-cloud', 'open-qa'])('keeps approved %s text hidden from live participants until a pause', async (kind) => {
+  it.each([['word-cloud', true], ['open-qa', false]])('shows approved %s text to live participants when appropriate', async (kind, visible) => {
     const context = {
       eventId: 'event-1', sessionId: 'session-1', gameId: 'game-1', title: 'Moderated', kind,
       status: 'live', configSnapshot: { configuration: {} }, startedAt: new Date('2026-10-16T11:00:00Z'),
@@ -442,8 +442,12 @@ describe('GameReadModelService', () => {
 
     const state = await live.service.getParticipantState('session-1', credential);
 
-    expect(state).not.toHaveProperty('approvedResponses');
-    expect(live.actionStore.getApprovedRoundResponses).not.toHaveBeenCalled();
+    if (visible) {
+      expect(state.approvedResponses).toEqual(['Approved']);
+    } else {
+      expect(state).not.toHaveProperty('approvedResponses');
+      expect(live.actionStore.getApprovedRoundResponses).not.toHaveBeenCalled();
+    }
   });
 
   it('returns pending Split the Room text only in the authorized host read model', async () => {
@@ -472,7 +476,7 @@ describe('GameReadModelService', () => {
     }, tx);
   });
 
-  it('gives the host the same approved moderated text participants see, only while paused', async () => {
+  it('shows approved word-cloud responses live and paused while keeping pending text private', async () => {
     const hostContext = {
       kind: 'word-cloud', status: 'paused', configSnapshot: { configuration: {
         kind: 'word-cloud', rounds: [{ key: 'round-1', prompt: 'One word', maxResponseLength: 30, durationSeconds: 30 }],
@@ -492,9 +496,12 @@ describe('GameReadModelService', () => {
 
     const live = setup({ currentRound: { key: 'round-1', number: 1, total: 1, prompt: 'One word', deadlineAt: null } });
     live.sessions.getHostReadContext.mockResolvedValue({ ...hostContext, status: 'live', pausedAt: null });
+    live.actionStore.getApprovedRoundResponses.mockResolvedValue(['Bright', 'Calm']);
     const liveState = await live.service.getHostState('event-1', 'session-1', actor);
-    expect(liveState.currentRound).not.toHaveProperty('approvedResponses');
-    expect(live.actionStore.getApprovedRoundResponses).not.toHaveBeenCalled();
+    expect(liveState.currentRound?.approvedResponses).toEqual(['Bright', 'Calm']);
+    expect(live.actionStore.getApprovedRoundResponses).toHaveBeenCalledWith({
+      eventId: 'event-1', sessionId: 'session-1', roundKey: 'round-1',
+    }, tx);
 
     const trivia = setup();
     trivia.sessions.getHostReadContext.mockResolvedValue({ ...hostContext, kind: 'live-trivia', configSnapshot: {} });

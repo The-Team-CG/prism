@@ -595,7 +595,7 @@ describe("event games guest repository", () => {
     expect(live).not.toHaveProperty("approvedResponses");
   });
 
-  it("passes poll options and word cloud limits through, shows approved answers only once paused, and drops malformed data", async () => {
+  it("passes poll options and word cloud limits through, shows approved answers, and drops malformed data", async () => {
     savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
       eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
     });
@@ -658,12 +658,12 @@ describe("event games guest repository", () => {
     expect((await eventGamesGuestRepository.getParticipantState("session-a1")).participant).not.toHaveProperty("gameData");
   });
 
-  it("shows Presenter Deck approved word-cloud answers while live as well as paused", async () => {
+  it.each(["presenter-deck", "word-cloud"])("shows approved %s words while live as well as paused", async (kind) => {
     savePrismSession(PRISM_SESSION_STORAGE_KEYS.gameParticipant, {
       eventId: "event-a", currentSessionId: "session-a1", participantCredential: "A".repeat(43),
     });
     const deck = (status: string) => ({
-      ...participantState, status, game: { title: "Presenter Deck", kind: "presenter-deck" },
+      ...participantState, status, game: { title: "Word cloud", kind },
       approvedResponses: ["Inspiring"],
     });
     api.getParticipantState.mockResolvedValueOnce(deck("live")).mockResolvedValueOnce(deck("scheduled"));

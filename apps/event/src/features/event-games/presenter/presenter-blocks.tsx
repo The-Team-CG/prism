@@ -157,33 +157,3 @@ export function wordCloudTerms(responses: readonly string[]): Array<{ text: stri
   }
   return [...terms.values()].sort((a, b) => b.count - a.count || a.text.localeCompare(b.text));
 }
-
-const CLOUD_COLOURS = ["#ffffff", "#f2b134", "#7fc8e8", "#ff8fb8", "#8fe0c8"];
-
-/** Biggest words in the middle, smaller ones fanning out to both sides. */
-function centreOut<T>(items: readonly T[]): T[] {
-  const ordered: T[] = [];
-  items.forEach((item, index) => { if (index % 2 === 0) ordered.push(item); else ordered.unshift(item); });
-  return ordered;
-}
-
-export function PresenterWordCloud({ responses, title = "Word cloud" }: { responses: readonly string[]; title?: string }) {
-  const terms = wordCloudTerms(responses);
-  const max = Math.max(1, ...terms.map(({ count }) => count));
-  return (
-    <PresenterSection title={title}>
-      <ul className="flex flex-wrap items-center justify-center gap-x-10 gap-y-5 py-6">
-        {centreOut(terms.map((term, index) => ({ ...term, colour: CLOUD_COLOURS[index % CLOUD_COLOURS.length] }))).map(({ text, count, colour }) => (
-          <li
-            key={text}
-            className="font-bold leading-none"
-            style={{ fontSize: `${1.75 + (count / max) * 4.5}rem`, opacity: 0.6 + (count / max) * 0.4, color: colour }}
-            title={`${count} ${count === 1 ? "response" : "responses"}`}
-          >
-            {text}
-          </li>
-        ))}
-      </ul>
-    </PresenterSection>
-  );
-}

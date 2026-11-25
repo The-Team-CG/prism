@@ -104,7 +104,9 @@ describe.each(cases)("$name presenter renderer", (game) => {
   const { Renderer } = game;
 
   it("shows the prompt, room size and phone instruction while live", () => {
-    render(<Renderer state={hostState(game, "live")} />);
+    const state = hostState(game, "live");
+    if (state.currentRound) state.currentRound.approvedResponses = [];
+    render(<Renderer state={state} />);
 
     expect(screen.getByText(game.prompt)).toBeTruthy();
     expect(screen.getByText("14")).toBeTruthy();
@@ -114,9 +116,10 @@ describe.each(cases)("$name presenter renderer", (game) => {
   it("hides totals, approved answers and pending text while live", () => {
     render(<Renderer state={hostState(game, "live")} />);
 
-    for (const text of game.pausedText) {
+    for (const text of game.kind === "word-cloud" ? [] : game.pausedText) {
       expect(screen.queryByText(text)).toBeNull();
     }
+    if (game.kind === "word-cloud") expect(screen.getByText("Hopeful")).toBeTruthy();
     expect(screen.queryByText(/Unreviewed secret/)).toBeNull();
   });
 

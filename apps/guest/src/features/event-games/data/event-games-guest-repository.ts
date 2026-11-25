@@ -467,8 +467,9 @@ function sanitizeApprovedResponses(
   kind: PrismGamePublicState["game"]["kind"],
   status: PrismGamePublicState["status"],
 ): readonly string[] | undefined {
-  // Presenter Deck word-cloud answers are auto-approved and show while live as well as paused (matches the API read model).
-  const visible = kind === "presenter-deck" ? status === "live" || status === "paused" : status === "paused";
+  const visible = kind === "presenter-deck" || kind === "word-cloud"
+    ? status === "live" || status === "paused"
+    : status === "paused";
   if (!["split-the-room", "word-cloud", "open-qa", "presenter-deck"].includes(kind) || !visible || !Array.isArray(value)) return undefined;
   return value.slice(0, 100).flatMap((response) =>
     typeof response === "string" && response.trim().length > 0 && response.length <= 500
