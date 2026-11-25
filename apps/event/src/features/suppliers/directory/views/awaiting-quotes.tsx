@@ -1,68 +1,102 @@
 "use client";
 
 import { useState } from "react";
+import { PhoneIncoming } from "lucide-react";
 import type { AddSupplierQuoteInput } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
+import { Field, FieldDescription, FieldLabel } from "@prism/ui/components/field";
+import { Input } from "@prism/ui/components/input";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@prism/ui/components/sheet";
+import { Textarea } from "@prism/ui/components/textarea";
 import { formatPortalDate } from "@prism/ui/format-date";
 import type { SupplierQuoteRequestRow, SupplierQuoteRow } from "@/features/pmcm-kit";
 import { requestsAwaitingQuote, type LoggedQuoteDraft } from "../model/suppliers-directory-rules";
 import { loggedSupplierQuote } from "../use-cases/log-supplier-quote";
 
 const EMPTY: LoggedQuoteDraft = { amount: "", inclusions: "", paymentTerms: "", notes: "" };
-const FIELD = "mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm";
 
 /**
  * Suppliers asked for a quote who have not sent one through their link. When one answers by phone or email, PMCM logs
- * the quote here so it joins the comparison like any other.
+ * the quote here and it joins the comparison like any other.
  */
 export function AwaitingQuotes({ requests, quotes, busy, onLogQuote }: { requests: readonly SupplierQuoteRequestRow[]; quotes: readonly SupplierQuoteRow[]; busy: boolean; onLogQuote: (input: AddSupplierQuoteInput) => Promise<boolean> }) {
   const waiting = requestsAwaitingQuote(requests, quotes);
+  const [logging, setLogging] = useState<SupplierQuoteRequestRow | null>(null);
   if (!waiting.length) return null;
   return (
-    <section aria-labelledby="awaiting-quotes-title" className="rounded-lg border border-border bg-card p-4">
-      <h3 id="awaiting-quotes-title" className="text-sm font-semibold text-foreground">Waiting for quotes <span className="font-normal text-muted-foreground">{waiting.length}</span></h3>
-      <ul className="mt-2 divide-y divide-border">
-        {waiting.map((request) => <AwaitingRow key={request.id} request={request} busy={busy} onLogQuote={onLogQuote} />)}
+    <section aria-labelledby="awaiting-quotes-title" className="rounded-lg border border-border bg-card">
+      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-4 py-3">
+        <h3 id="awaiting-quotes-title" className="text-sm font-semibold text-foreground">Waiting for quotes <span className="font-normal tabular-nums text-muted-foreground">{waiting.length}</span></h3>
+        <p className="text-xs text-muted-foreground">Answered by phone or email? Log it so it joins the comparison.</p>
+      </header>
+      <ul className="divide-y divide-border">
+        {waiting.map((request) => (
+          <li key={request.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5 text-sm">
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium text-foreground">{request.supplierName}</span>
+              <span className="block text-xs text-muted-foreground">Asked {formatPortalDate(request.createdAt)} · {request.dueDate ? `due ${formatPortalDate(request.dueDate)}` : "no deadline"}</span>
+            </span>
+            <Button type="button" size="sm" variant="outline" onClick={() => setLogging(request)} aria-label={`Log a quote from ${request.supplierName}`}>
+              <PhoneIncoming aria-hidden /> Log a quote
+            </Button>
+          </li>
+        ))}
       </ul>
+      <LogQuoteSheet request={logging} busy={busy} onClose={() => setLogging(null)} onLogQuote={onLogQuote} />
     </section>
   );
 }
 
-function AwaitingRow({ request, busy, onLogQuote }: { request: SupplierQuoteRequestRow; busy: boolean; onLogQuote: (input: AddSupplierQuoteInput) => Promise<boolean> }) {
-  const [open, setOpen] = useState(false);
+function LogQuoteSheet({ request, busy, onClose, onLogQuote }: { request: SupplierQuoteRequestRow | null; busy: boolean; onClose: () => void; onLogQuote: (input: AddSupplierQuoteInput) => Promise<boolean> }) {
   const [draft, setDraft] = useState<LoggedQuoteDraft>(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const set = (key: keyof LoggedQuoteDraft, value: string) => setDraft((current) => ({ ...current, [key]: value }));
+  function close() {
+    setDraft(EMPTY);
+    setError(null);
+    onClose();
+  }
   async function save() {
+    if (!request) return;
     try {
       setError(null);
-      if (await onLogQuote(loggedSupplierQuote(request, draft))) { setOpen(false); setDraft(EMPTY); }
+      if (await onLogQuote(loggedSupplierQuote(request, draft))) close();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "The quote could not be logged.");
     }
   }
   return (
-    <li className="py-2.5 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="min-w-0 flex-1">
-          <span className="block truncate font-medium text-foreground">{request.supplierName}</span>
-          <span className="block text-xs text-muted-foreground">{request.dueDate ? `Due ${formatPortalDate(request.dueDate)}` : "No deadline"}</span>
-        </span>
-        {open ? null : <Button type="button" size="sm" variant="outline" onClick={() => setOpen(true)} aria-label={`Log a quote from ${request.supplierName}`}>Log a quote</Button>}
-      </div>
-      {open ? (
-        <div role="group" aria-label={`Quote from ${request.supplierName}`} className="mt-2 grid gap-2 sm:grid-cols-2">
-          <label className="block">Amount (PHP)<input inputMode="numeric" value={draft.amount} onChange={(event) => set("amount", event.target.value)} className={FIELD} /></label>
-          <label className="block">Payment terms<input value={draft.paymentTerms} onChange={(event) => set("paymentTerms", event.target.value)} className={FIELD} /></label>
-          <label className="block sm:col-span-2">Inclusions, one per line<textarea rows={2} value={draft.inclusions} onChange={(event) => set("inclusions", event.target.value)} className={FIELD} /></label>
-          <label className="block sm:col-span-2">How it arrived (optional)<input value={draft.notes} onChange={(event) => set("notes", event.target.value)} placeholder="Emailed by the supplier on Nov 20" className={FIELD} /></label>
-          {error ? <p role="alert" className="text-sm text-destructive sm:col-span-2">{error}</p> : null}
-          <div className="flex gap-2 sm:col-span-2">
-            <Button type="button" size="sm" disabled={busy || !draft.amount.trim()} onClick={() => void save()}>Save quote</Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+    <Sheet open={Boolean(request)} onOpenChange={(open) => { if (!open) close(); }}>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Log a quote</SheetTitle>
+          <SheetDescription>{request ? `${request.supplierName} · ${request.category}` : ""}</SheetDescription>
+        </SheetHeader>
+        <form aria-label={request ? `Quote from ${request.supplierName}` : "Log a quote"} className="grid min-w-0 content-start gap-4 px-4 pb-6" onSubmit={(event) => { event.preventDefault(); void save(); }}>
+          <Field>
+            <FieldLabel htmlFor="logged-quote-amount">Amount (PHP)</FieldLabel>
+            <Input id="logged-quote-amount" inputMode="numeric" value={draft.amount} onChange={(event) => set("amount", event.target.value)} placeholder="45,000" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="logged-quote-inclusions">Inclusions, one per line</FieldLabel>
+            <Textarea id="logged-quote-inclusions" rows={3} value={draft.inclusions} onChange={(event) => set("inclusions", event.target.value)} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="logged-quote-terms">Payment terms</FieldLabel>
+            <Input id="logged-quote-terms" value={draft.paymentTerms} onChange={(event) => set("paymentTerms", event.target.value)} placeholder="50% down payment" />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="logged-quote-notes">How it arrived (optional)</FieldLabel>
+            <Input id="logged-quote-notes" value={draft.notes} onChange={(event) => set("notes", event.target.value)} placeholder="Emailed by the supplier on Nov 20" />
+            <FieldDescription>Kept with the quote so the comparison shows where it came from.</FieldDescription>
+          </Field>
+          {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={busy || !draft.amount.trim()}>Save quote</Button>
+            <Button type="button" variant="ghost" onClick={close}>Cancel</Button>
           </div>
-        </div>
-      ) : null}
-    </li>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }

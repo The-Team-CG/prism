@@ -11,6 +11,7 @@ export function useChangeRegisterViewModel(eventId: string, options: { frozen: b
   const [exceptions, setExceptions] = useState<PrismEventFreezeException[]>([]);
   const [documents, setDocuments] = useState<PrismDocument[]>([]);
   const [bookedQuotes, setBookedQuotes] = useState<PrismSupplierQuote[]>([]);
+  const [contractTotal, setContractTotal] = useState<number | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -27,6 +28,7 @@ export function useChangeRegisterViewModel(eventId: string, options: { frozen: b
       setExceptions(next.exceptions);
       setDocuments(next.documents);
       setBookedQuotes(next.bookedQuotes);
+      setContractTotal(next.contractTotal);
       setStatus("ready");
     } catch (cause) {
       if (requestVersion.current !== version) return;
@@ -64,6 +66,7 @@ export function useChangeRegisterViewModel(eventId: string, options: { frozen: b
     exceptions,
     documents,
     bookedQuotes,
+    contractTotal,
     pendingAddendum: addenda.find((addendum) => addendum.status === "pending") ?? null,
     reload,
     freezeScope: (reason: string, deadline?: string) => run(() => freezeScopeUseCase(eventId, { reason, deadline })),

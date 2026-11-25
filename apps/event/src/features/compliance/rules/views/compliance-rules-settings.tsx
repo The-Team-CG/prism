@@ -166,7 +166,8 @@ export function ComplianceRulesSettings({
             </Field>
             <Field>
               <FieldLabel htmlFor="compliance-rule-key">Check identifier</FieldLabel>
-              <Input id="compliance-rule-key" value={draft.conditionKey} onChange={(event) => set({ conditionKey: event.target.value })} placeholder="e.g. venue_power_capacity" />
+              <Input id="compliance-rule-key" value={draft.conditionKey} onChange={(event) => set({ conditionKey: event.target.value })} placeholder="e.g. venue_power_capacity" readOnly={Boolean(editing)} />
+              {editing ? <FieldDescription>Results are recorded against it, so it stays as created.</FieldDescription> : null}
             </Field>
             <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
               <Field>

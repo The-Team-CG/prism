@@ -63,8 +63,8 @@ describe("ComplianceReviewPanel risks", () => {
     render(<ComplianceReviewPanel eventId="evt_1" />);
 
     fireEvent.click(screen.getByRole("button", { name: "Update Generator failure" }));
-    const editor = screen.getByRole("group", { name: "Update Generator failure" });
-    chooseSelectOption(within(editor).getByLabelText("Status"), "Mitigated");
+    const editor = screen.getByRole("form", { name: "Update Generator failure" });
+    fireEvent.click(within(editor).getByRole("radio", { name: "Mitigated" }));
     fireEvent.change(within(editor).getByLabelText("Owner"), { target: { value: "Site lead" } });
     fireEvent.change(within(editor).getByLabelText("Why it changed (optional)"), { target: { value: "Backup generator on site" } });
     fireEvent.click(within(editor).getByRole("button", { name: "Save risk" }));

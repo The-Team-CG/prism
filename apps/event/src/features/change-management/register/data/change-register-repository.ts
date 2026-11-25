@@ -15,13 +15,20 @@ import type {
 } from "@prism/types";
 
 export const changeRegisterRepository = {
-  async load(eventId: string): Promise<{ addenda: PrismAddendum[]; exceptions: PrismEventFreezeException[]; documents: PrismDocument[]; bookedQuotes: PrismSupplierQuote[] }> {
+  async load(eventId: string): Promise<{ addenda: PrismAddendum[]; exceptions: PrismEventFreezeException[]; documents: PrismDocument[]; bookedQuotes: PrismSupplierQuote[]; contractTotal: number | null }> {
     const [addenda, exceptions, workspace] = await Promise.all([
       eventApi.events.addenda(eventId),
       eventApi.events.freezeExceptions(eventId),
       eventApi.pmcm.eventWorkspace(eventId),
     ]);
-    return { addenda, exceptions, documents: workspace.documents, bookedQuotes: workspace.supplierQuotes.filter((quote) => quote.status === "selected") };
+    const approvedSources = workspace.billingSources.filter((source) => source.status === "approved");
+    return {
+      addenda,
+      exceptions,
+      documents: workspace.documents,
+      bookedQuotes: workspace.supplierQuotes.filter((quote) => quote.status === "selected"),
+      contractTotal: approvedSources.length ? approvedSources.reduce((sum, source) => sum + source.totalAmount, 0) : null,
+    };
   },
   issueAddendum(eventId: string, input: IssueAddendumInput): Promise<PrismAddendum> {
     return eventApi.events.issueAddendum(eventId, input);
