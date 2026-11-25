@@ -49,6 +49,9 @@ export const eventGamesHostRepository = {
   getHostState(eventId: string, sessionId: string): Promise<PrismGameHostState> {
     return eventApi.eventGames.getHostState(eventId, sessionId);
   },
+  getHostMediaUrl(eventId: string, sessionId: string, objectId: string): Promise<string> {
+    return eventApi.eventGames.getHostMediaAuthorization(eventId, sessionId, objectId).then(({ downloadUrl }) => downloadUrl);
+  },
   getAnalytics(eventId: string): Promise<PrismEventGameAnalytics> {
     return eventApi.eventGames.getEventAnalytics(eventId);
   },

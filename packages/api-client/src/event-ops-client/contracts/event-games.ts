@@ -41,6 +41,8 @@ export interface EventOpsEventGamesContract {
     createHostSession(eventId: string, gameId: string, input: PrismCreateGameSessionInput): Promise<PrismGameHostSession>;
     executeHostCommand(eventId: string, sessionId: string, input: PrismGameHostCommandInput): Promise<PrismGameHostCommandResult>;
     getHostState(eventId: string, sessionId: string): Promise<PrismGameHostState>;
+    /** Signed read for one of the session's configured pictures, for the room screen. */
+    getHostMediaAuthorization(eventId: string, sessionId: string, objectId: string): Promise<PrismEventGameMediaAuthorization>;
     getEventAnalytics(eventId: string): Promise<PrismEventGameAnalytics>;
     ensureLobby(eventId: string): Promise<{ eventSlug: string }>;
     getLobbyBranding(eventId: string): Promise<PrismEventGameHostLobbyBranding>;

@@ -5,7 +5,7 @@ import type { PrismCreateGameSessionInput, PrismGameHostCommandInput, PrismVerif
 import { GAME_AUDIT, type GameAuditPort } from '../contracts/game-audit.port';
 import { GAME_EVENT_ACCESS, type GameEventAccessPort } from '../contracts/game-event-access.port';
 import { GAME_ACTION_CLOCK } from '../contracts/game-action-store.port';
-import { GAME_RULES, type GameRuleRegistryPort } from '../contracts/game-rule.port';
+import { GAME_RULES, type GameRuleCurrentRound, type GameRuleRegistryPort } from '../contracts/game-rule.port';
 import { GAME_SCHEDULER, type GameSchedulerPort } from '../contracts/game-scheduler.port';
 import { GAME_SESSION_STORE, type GameSessionStorePort } from '../contracts/game-session-store.port';
 import { EventGamesHostCommandService } from './event-games-host-command.service';
@@ -20,6 +20,17 @@ const HOST_COMMAND_ACTIONS = {
   'disable-joins': 'disable_joins',
   'enable-joins': 'enable_joins',
 } as const;
+
+/**
+ * Where "next round" goes: a question followed by a results window advances to that window first, so the room
+ * always sees the answer; from the results window (or a round without one) it goes to the start of the next round.
+ * Null when there is nowhere to go (an untimed round, or the last round's end).
+ */
+function advanceTarget(round: GameRuleCurrentRound): Date | null {
+  if (!round.deadlineAt) return null;
+  if (round.endsAt !== undefined && round.resultsOpen === false) return round.deadlineAt;
+  return round.number < round.total ? round.endsAt ?? round.deadlineAt : null;
+}
 
 function roundAdvanceDetails(
   context: NonNullable<Awaited<ReturnType<GameSessionStorePort['getHostReadContext']>>>,
@@ -38,16 +49,9 @@ function roundAdvanceDetails(
     startedAt: effectiveStart,
     now: roundTime,
   });
-  if (!round || round.key !== requestedRoundKey || !round.deadlineAt) {
-    throw new ConflictException('Game round is not available to advance');
-  }
-  // A question followed by a results window advances to that window first, so the room always sees the answer;
-  // from the results window (or a round without one) it advances to the start of the next round.
-  const toResults = round.endsAt !== undefined && round.resultsOpen === false;
-  if (!toResults && round.number >= round.total) {
-    throw new ConflictException('Game round is not available to advance');
-  }
-  const advanceByMs = (toResults ? round.deadlineAt : round.endsAt ?? round.deadlineAt).getTime() - roundTime.getTime();
+  const target = round && round.key === requestedRoundKey ? advanceTarget(round) : null;
+  if (!round || !target) throw new ConflictException('Game round is not available to advance');
+  const advanceByMs = target.getTime() - roundTime.getTime();
   if (!Number.isSafeInteger(advanceByMs) || advanceByMs <= 0) {
     throw new ConflictException('Game round is not available to advance');
   }

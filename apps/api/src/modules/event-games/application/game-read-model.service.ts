@@ -164,28 +164,25 @@ function publicParticipantState(
   };
 }
 
+function familyFeudBoard(configSnapshot: Readonly<Record<string, unknown>>, round: HostRound) {
+  const parsed = eventGameTemplateConfigurationSchema.safeParse(configSnapshot.configuration);
+  if (!parsed.success || parsed.data.kind !== 'family-feud') return undefined;
+  return parsed.data.rounds.find(({ key }) => key === round.key)?.answers
+    .map(({ answer, alternatives, points }) => ({ answer, alternatives, points }));
+}
+
+/** The host sees what guests see once answers close, plus the Family Feud board it needs to score live answers. */
 function hostRoundReveal(
   context: GameHostReadContext,
   status: PrismGameHostState['status'],
   round: HostRound,
 ): Pick<NonNullable<PrismGameHostState['currentRound']>, 'revealedAnswer' | 'answerBoard'> {
-  if (!answersClosed(status, round) && context.kind !== 'family-feud') return {};
-  const parsed = eventGameTemplateConfigurationSchema.safeParse(context.configSnapshot.configuration);
-  if (!parsed.success) return {};
-  if (context.kind === 'live-trivia' && parsed.data.kind === 'live-trivia') {
-    const revealedAnswer = parsed.data.rounds.find(({ key }) => key === round.key)?.correctAnswer;
-    return revealedAnswer ? { revealedAnswer } : {};
-  }
-  if (context.kind === 'family-feud' && parsed.data.kind === 'family-feud') {
-    const answerBoard = parsed.data.rounds.find(({ key }) => key === round.key)?.answers
-      .map(({ answer, alternatives, points }) => ({ answer, alternatives, points }));
+  if (context.kind === 'family-feud') {
+    const answerBoard = familyFeudBoard(context.configSnapshot, round);
     return answerBoard ? { answerBoard } : {};
   }
-  if (context.kind === 'guess-picture' && parsed.data.kind === 'guess-picture') {
-    const revealedAnswer = parsed.data.acceptedAnswers[0];
-    return revealedAnswer ? { revealedAnswer } : {};
-  }
-  return {};
+  const revealedAnswer = publicRevealedAnswer(context.kind, status, context.configSnapshot, round);
+  return revealedAnswer ? { revealedAnswer } : {};
 }
 
 /** What the room screen needs to mirror the guests' phones: their choices, Bingo calls, or the picture. */
