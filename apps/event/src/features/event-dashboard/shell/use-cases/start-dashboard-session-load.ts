@@ -1,5 +1,4 @@
 import type {
-  PrismCoordinatorWorkspace,
   PrismPmcmCommandInbox,
   PrismApprovalRequest,
 } from "@prism/types";
@@ -8,11 +7,7 @@ import type { EventSession } from "@/app/lib/session";
 import { readStoredEventSession } from "@/app/lib/session";
 import { getCachedApprovalRequests, loadApprovalRequests } from "@/features/event-workspace/shell/use-cases/load-event-workspace";
 import { getCachedCommandInbox, loadCommandInbox } from "@/features/command-inbox/list/use-cases/load-command-inbox";
-import {
-  getCachedCoordinatorWorkspace,
-  isDashboardCacheFresh,
-  loadCoordinatorWorkspace,
-} from "./load-dashboard-workspace";
+import { isDashboardCacheFresh } from "./load-dashboard-workspace";
 import {
   COORDINATOR_HOME_PATH,
   coordinatorLocationRedirect,
@@ -29,7 +24,6 @@ export type DashboardSessionLoadSetters = {
   setSession: (session: EventSession) => void;
   setError: (error: string | null) => void;
   setReference: (reference: null) => void;
-  setCoordinatorState: (state: PrismCoordinatorWorkspace | null) => void;
   setApprovalRequests: (requests: PrismApprovalRequest[]) => void;
   setCommandInbox: (inbox: PrismPmcmCommandInbox) => void;
   setCommandInboxLoadFailed: (failed: boolean) => void;
@@ -60,42 +54,11 @@ function resolveInbox(
   return Promise.resolve().then(() => loadCommandInbox(!cached));
 }
 
-function loadCoordinatorDashboard(
-  current: EventSession,
-  isCancelled: () => boolean,
-  setters: DashboardSessionLoadSetters,
-) {
-  const cached = getCachedCoordinatorWorkspace(current);
-  if (cached) {
-    setters.setCoordinatorState(cached.value);
-    setters.setReference(null);
-    if (isDashboardCacheFresh(cached.loadedAt)) {
-      setters.setStatus("ready");
-      return;
-    }
-  }
-
-  loadCoordinatorWorkspace(current, !cached)
-    .then((next) => {
-      if (isCancelled()) return;
-      setters.setCoordinatorState(next);
-      setters.setReference(null);
-      setters.setStatus("ready");
-      setters.setError(null);
-    })
-    .catch((err) => {
-      if (isCancelled()) return;
-      setters.setStatus("error");
-      setters.setError(portalLoadError(err));
-    });
-}
-
 function loadPmcmDashboard(isCancelled: () => boolean, setters: DashboardSessionLoadSetters) {
   const cachedApprovals = getCachedApprovalRequests();
   const cachedInbox = getCachedCommandInbox();
 
   setters.setReference(null);
-  setters.setCoordinatorState(null);
   if (cachedApprovals) setters.setApprovalRequests(cachedApprovals.value);
   if (cachedInbox) setters.setCommandInbox(cachedInbox.value);
 
@@ -115,7 +78,6 @@ function loadPmcmDashboard(isCancelled: () => boolean, setters: DashboardSession
       setters.setApprovalRequests(requests);
       setters.setCommandInbox(inboxResult);
       setters.setCommandInboxLoadFailed(false);
-      setters.setCoordinatorState(null);
       setters.setStatus("ready");
       setters.setError(null);
     })
@@ -128,8 +90,8 @@ function loadPmcmDashboard(isCancelled: () => boolean, setters: DashboardSession
 }
 
 /**
- * A coordinator on a PMCM URL is sent home before any data loads. The decision uses only the URL and the stored
- * session, so no PMCM read is started for a page the coordinator cannot see.
+ * A coordinator on a PMCM URL is sent to the coordinator portal before any data loads. The decision uses only the URL
+ * and the stored session, so no PMCM read is started for a page the coordinator cannot see.
  */
 function redirectCoordinatorOffPmcmPath(router: DashboardSessionLoadSetters["router"]) {
   // The browser path carries the hosting prefix (/event in service mode); the coordinator routes are app paths.
@@ -157,8 +119,8 @@ export function startDashboardSessionLoad(setters: DashboardSessionLoadSetters) 
   setters.setError(null);
 
   if (current.role === "coordinator") {
+    // Coordinators have their own portal; none of the PMCM dashboard's data is read for them.
     redirectCoordinatorOffPmcmPath(setters.router);
-    loadCoordinatorDashboard(current, isCancelled, setters);
     return () => {
       cancelled = true;
     };

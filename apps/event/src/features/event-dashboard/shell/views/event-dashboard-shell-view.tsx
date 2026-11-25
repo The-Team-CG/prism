@@ -9,7 +9,6 @@ import { sectionNeedsPmcmReference, type EventDashboardClientProps } from "../mo
 import type { EventDashboardShellViewModel } from "../view-models/use-event-dashboard-shell-view-model";
 import { EventWrongPortalView } from "./sections/event-wrong-portal-view";
 import { EventDashboardEditorScreen } from "./sections/event-dashboard-editor-screen";
-import { EventCoordinatorShell } from "./sections/event-coordinator-shell";
 import { EventPmcmLoadingShell, EventPmcmReadyShell } from "./sections/event-pmcm-shells";
 export type { EventDashboardClientProps };
 
@@ -38,15 +37,8 @@ export function EventDashboardShellView({ viewModel, children }: EventDashboardS
     );
   }
   if (session.role === "coordinator") {
-    return (
-      <EventCoordinatorShell
-        session={session}
-        coordinatorState={viewModel.coordinatorState}
-        error={viewModel.error}
-        refresh={viewModel.refresh}
-        signOut={viewModel.signOut}
-      />
-    );
+    // Coordinators work in their own portal at /coordinator; the session load sends them there.
+    return <EventDashboardSessionSkeleton />;
   }
   // Gate on the section this page renders, not the in-flight sidebar selection: the sidebar updates
   // `section` before the router swaps pages, and the outgoing page's content still needs its data.

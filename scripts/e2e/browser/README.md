@@ -82,7 +82,7 @@ The mobile and tablet projects record horizontal overflow by page (`document.doc
 
 The `tablet` project (iPad Mini, 768px) runs only the route sweep. 768px is the narrowest width that keeps the sidebar, so it leaves pages the least room. Pull requests and the nightly run add it to the mobile job; manual timing comparisons leave it out. Phones and tablets run on Chromium. `BROWSER_WEBKIT=1` runs them on WebKit as an iPhone 14 and an iPad Mini, after `npx playwright install webkit`; no project emulates a notch, so safe-area padding is checked only on a device.
 
-The coordinator's one `/dashboard` route is checked separately across its supported `?view=` pages using the seeded Marco actor, since the shared PMCM route sweep signs in as PMCM. The desk opens the coordinator's current event on its own. The mobile coordinator test uses the same navigation, tap-through and overflow reporting.
+The coordinator portal's one `/coordinator` route is checked separately across its supported `?view=` pages using the seeded Marco actor, since the shared PMCM route sweep signs in as PMCM. The desk opens the coordinator's current event on its own. The mobile coordinator test uses the same navigation, tap-through and overflow reporting.
 
 To inspect route screenshots at a narrower phone width, set `BROWSER_PHONE_WIDTH` to an integer from 320 to 767. For example, PowerShell: `$env:BROWSER_PHONE_WIDTH='390'; $env:BROWSER_SCREENSHOTS='1'; npm run test:browser -- --project=mobile --grep "all registered pages"`.
 

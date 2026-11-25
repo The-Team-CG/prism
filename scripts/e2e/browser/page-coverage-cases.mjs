@@ -18,7 +18,8 @@ export function pageCoverageCases(app, fixture) {
   const add = (template, path, state = 'ready') => cases.push({ template, path, state });
   for (const template of templates) {
     if (!template.includes('[')) {
-      add(template, template, /activate|conforme/.test(template) ? 'link-or-access-state' : 'ready');
+      // PMCM opening the coordinator portal is sent to its own dashboard; the coordinator phone test covers the portal.
+      add(template, template, /activate|conforme/.test(template) ? 'link-or-access-state' : template === '/coordinator' ? 'other-role-redirect' : 'ready');
       continue;
     }
     if (app === 'client' && /\[(approvalView|billingView|calendarView|fileView|messageView)\]/.test(template)) {

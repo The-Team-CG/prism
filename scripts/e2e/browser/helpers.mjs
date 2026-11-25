@@ -75,9 +75,10 @@ export async function fillStable(locator, value) {
   }).toPass({ timeout: 20_000 });
 }
 export async function privacyIfNeeded(page) {
-  await page.waitForURL(/\/privacy|\/dashboard/, { timeout: 30_000 });
+  // Coordinators land in their own portal at /coordinator; everyone else on /dashboard.
+  await page.waitForURL(/\/privacy|\/dashboard|\/coordinator/, { timeout: 30_000 });
   if (page.url().includes('/privacy')) await page.getByRole('button', { name: "I've read this notice" }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page).toHaveURL(/\/dashboard|\/coordinator/);
 }
 export async function signInPmcm(page, email = 'approver@pmcm.test') {
   await page.goto(`${origins.event}/sign-in`);
@@ -87,7 +88,7 @@ export async function signInPmcm(page, email = 'approver@pmcm.test') {
   const code = page.getByLabel('Authenticator code');
   const sessionFile = join(process.env.BROWSER_RUN_DIRECTORY, `${email === 'marco@pmcm.test' ? 'coordinator' : 'pmcm'}-session.json`);
   // PMCM admins must use MFA; coordinators sign straight in. Wait for whichever screen this account gets.
-  await expect.poll(async () => (await code.isVisible()) || /\/(privacy|dashboard)/.test(page.url()), { timeout: 20_000 }).toBe(true);
+  await expect.poll(async () => (await code.isVisible()) || /\/(privacy|dashboard|coordinator)/.test(page.url()), { timeout: 20_000 }).toBe(true);
   if (!(await code.isVisible())) {
     await privacyIfNeeded(page);
     await page.context().storageState({ path: sessionFile });

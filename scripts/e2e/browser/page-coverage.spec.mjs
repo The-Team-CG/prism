@@ -340,16 +340,16 @@ test('coordinator phone route coverage', async ({ browser }, info) => {
     const phoneWidth = phoneViewport(process.env.BROWSER_PHONE_WIDTH);
     if (phoneWidth) await page.setViewportSize(phoneWidth);
     for (const view of views) {
-      const path = `/dashboard?view=${view}`;
+      const path = `/coordinator?view=${view}`;
       await page.goto(`${origins.event}${path}`, { waitUntil: 'domcontentloaded' });
       await expect(page.locator('main')).toBeVisible();
       await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
-      expect(new URL(page.url()).pathname).toBe('/dashboard');
+      expect(new URL(page.url()).pathname).toBe('/coordinator');
       if (view === 'shift') await expect(page.getByRole('button', { name: /switch event/i }), 'The coordinator desk must open an assigned event on its own').toBeVisible();
       const dimensions = await pageWidths(page);
       const overflow = phoneOverflowReport(path, dimensions.scrollWidth, dimensions.viewportWidth, dimensions.culprits);
       if (overflow) overflowPages.push(overflow);
-      const navigation = await assertPhoneNavigation(page, 'coordinator', view === 'shift' ? '/dashboard' : path);
+      const navigation = await assertPhoneNavigation(page, 'coordinator', view === 'shift' ? '/coordinator' : path);
       checks.push({ view, navigation: !navigation.applicable ? 'not-applicable' : navigation.missingDestinations.length ? 'failed' : 'passed', missingDestinations: navigation.missingDestinations, overflow: overflow ? { scrollWidth: overflow.scrollWidth, viewportWidth: overflow.viewportWidth, pixels: overflow.overflow } : null });
       expect(navigation.missingDestinations, `Coordinator ${view} sidebar destinations must be reachable on a phone`).toEqual([]);
       if (view === 'shift') checks.at(-1).tapped = await tapPhoneBar(page, 'coordinator', `${origins.event}${path}`);

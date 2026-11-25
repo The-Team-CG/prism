@@ -18,7 +18,7 @@ test('a coordinator reports an issue on event day, PMCM resolves it in live ops,
   const contexts = [coordinator.context, pmcm.context];
   const note = `Projector at stage left has no signal (${info.project.name})`;
   try {
-    await coordinator.page.goto(`${origins.event}/dashboard?event=${event.eventId}&view=issues`);
+    await coordinator.page.goto(`${origins.event}/coordinator?event=${event.eventId}&view=issues`);
     await coordinator.page.getByRole('button', { name: 'Report an issue' }).first().click();
     const sheet = coordinator.page.getByRole('dialog', { name: 'Report an issue' });
     await sheet.getByRole('group', { name: 'Kind of problem' }).getByText('Equipment', { exact: true }).click();
