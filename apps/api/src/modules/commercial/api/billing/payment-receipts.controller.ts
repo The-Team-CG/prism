@@ -1,20 +1,10 @@
-import { Body, Controller, ForbiddenException, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Controller, ForbiddenException, UseGuards } from '@nestjs/common';
 import { EventAccessPolicyService } from '@prism/kernel/access-control';
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { EventSessionGuard, VerifiedEventActor } from '@prism/kernel/event-session';
-import { zodBody, zodQuery } from '@prism/kernel/shared';
+import { Endpoint, RouteBody, RouteParam, RouteQuery } from '@prism/kernel/shared';
 import {
-  allocatePaymentReceiptSchema,
-  attachPaymentReceiptEvidenceSchema,
-  earmarkPaymentReceiptSchema,
-  listPaymentAllocationTargetsQuerySchema,
-  listPaymentReceiptsQuerySchema,
-  recordPaymentReceiptSchema,
-  recordPaymentRefundSchema,
-  rejectPaymentReceiptSchema,
-  reversePaymentAllocationSchema,
-  reversePaymentReceiptSchema,
-  verifyPaymentReceiptSchema,
+  paymentReceiptRoutes as routes,
   type AllocatePaymentReceiptInput,
   type AttachPaymentReceiptEvidenceInput,
   type EarmarkPaymentReceiptInput,
@@ -32,9 +22,10 @@ import { PaymentReceiptService } from '../../application/billing/payment-receipt
 
 /**
  * Money that arrived outside P.R.I.S.M. A receipt is not tied to one event: it is recorded first and applied to
- * milestones afterwards, so every route here is PMCM finance only and takes no event scope.
+ * milestones afterwards, so every route here is PMCM finance only and takes no event scope. Paths, methods, statuses
+ * and response shapes come from `paymentReceiptRoutes` in `@prism/types` (ADR-0011).
  */
-@Controller('payment-receipts')
+@Controller()
 @UseGuards(EventSessionGuard)
 export class PaymentReceiptsController {
   constructor(
@@ -42,110 +33,95 @@ export class PaymentReceiptsController {
     private readonly eventAccessPolicyService: EventAccessPolicyService,
   ) {}
 
-  @Get()
-  async list(@Query(zodQuery(listPaymentReceiptsQuerySchema)) query: ListPaymentReceiptsQuery, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+  @Endpoint(routes.list)
+  async list(@RouteQuery(routes.list) query: ListPaymentReceiptsQuery, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     await this.requireFinanceActor(verifiedActor, 'payment receipts');
     return this.receipts.listReceipts(query);
   }
 
-  // Declared before ':receiptId' so the static path is not read as a receipt id.
-  @Get('allocation-targets')
+  // Declared before the ':receiptId' routes so the static path is not read as a receipt id.
+  @Endpoint(routes.allocationTargets)
   async allocationTargets(
-    @Query(zodQuery(listPaymentAllocationTargetsQuerySchema)) query: ListPaymentAllocationTargetsQuery,
+    @RouteQuery(routes.allocationTargets) query: ListPaymentAllocationTargetsQuery,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     await this.requireFinanceActor(verifiedActor, 'payment allocation targets');
     return this.receipts.listAllocationTargets(query.eventId);
   }
 
-  @Get(':receiptId')
-  async get(@Param('receiptId') receiptId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    await this.requireFinanceActor(verifiedActor, 'payment receipt');
-    return this.receipts.getReceipt(receiptId);
-  }
-
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  async record(@Body(zodBody(recordPaymentReceiptSchema)) dto: RecordPaymentReceiptInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
+  @Endpoint(routes.record)
+  async record(@RouteBody(routes.record) dto: RecordPaymentReceiptInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
     return this.receipts.recordReceipt(dto, await this.requireFinanceActor(verifiedActor, 'payment receipt recording'));
   }
 
-  @Post(':receiptId/allocations')
-  @HttpCode(HttpStatus.CREATED)
+  @Endpoint(routes.allocate)
   async allocate(
-    @Param('receiptId') receiptId: string,
-    @Body(zodBody(allocatePaymentReceiptSchema)) dto: AllocatePaymentReceiptInput,
+    @RouteParam(routes.allocate, 'receiptId') receiptId: string,
+    @RouteBody(routes.allocate) dto: AllocatePaymentReceiptInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.receipts.allocate(receiptId, dto, await this.requireFinanceActor(verifiedActor, 'payment receipt allocation'));
   }
 
-  @Post(':receiptId/allocations/:recordId/reverse')
-  @HttpCode(HttpStatus.OK)
+  @Endpoint(routes.reverseAllocation)
   async reverseAllocation(
-    @Param('receiptId') receiptId: string,
-    @Param('recordId') recordId: string,
-    @Body(zodBody(reversePaymentAllocationSchema)) dto: ReversePaymentAllocationInput,
+    @RouteParam(routes.reverseAllocation, 'receiptId') receiptId: string,
+    @RouteParam(routes.reverseAllocation, 'recordId') recordId: string,
+    @RouteBody(routes.reverseAllocation) dto: ReversePaymentAllocationInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.receipts.reverseAllocation(receiptId, recordId, dto, await this.requireFinanceActor(verifiedActor, 'payment allocation reversal'));
   }
 
-  @Post(':receiptId/evidence')
-  @HttpCode(HttpStatus.OK)
+  @Endpoint(routes.attachEvidence)
   async attachEvidence(
-    @Param('receiptId') receiptId: string,
-    @Body(zodBody(attachPaymentReceiptEvidenceSchema)) dto: AttachPaymentReceiptEvidenceInput,
+    @RouteParam(routes.attachEvidence, 'receiptId') receiptId: string,
+    @RouteBody(routes.attachEvidence) dto: AttachPaymentReceiptEvidenceInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.receipts.attachEvidence(receiptId, dto, await this.requireFinanceActor(verifiedActor, 'payment receipt evidence'));
   }
 
-  @Post(':receiptId/event')
-  @HttpCode(HttpStatus.OK)
+  @Endpoint(routes.earmark)
   async earmark(
-    @Param('receiptId') receiptId: string,
-    @Body(zodBody(earmarkPaymentReceiptSchema)) dto: EarmarkPaymentReceiptInput,
+    @RouteParam(routes.earmark, 'receiptId') receiptId: string,
+    @RouteBody(routes.earmark) dto: EarmarkPaymentReceiptInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.receipts.earmark(receiptId, dto, await this.requireFinanceActor(verifiedActor, 'payment receipt event assignment'));
   }
 
-  @Post(':receiptId/verify')
-  @HttpCode(HttpStatus.OK)
+  @Endpoint(routes.verify)
   async verify(
-    @Param('receiptId') receiptId: string,
-    @Body(zodBody(verifyPaymentReceiptSchema)) dto: VerifyPaymentReceiptInput,
+    @RouteParam(routes.verify, 'receiptId') receiptId: string,
+    @RouteBody(routes.verify) dto: VerifyPaymentReceiptInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.receipts.verify(receiptId, dto, await this.requireFinanceActor(verifiedActor, 'payment receipt verification'));
   }
 
-  @Post(':receiptId/reject')
-  @HttpCode(HttpStatus.OK)
+  @Endpoint(routes.reject)
   async reject(
-    @Param('receiptId') receiptId: string,
-    @Body(zodBody(rejectPaymentReceiptSchema)) dto: RejectPaymentReceiptInput,
+    @RouteParam(routes.reject, 'receiptId') receiptId: string,
+    @RouteBody(routes.reject) dto: RejectPaymentReceiptInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.receipts.reject(receiptId, dto, await this.requireFinanceActor(verifiedActor, 'payment receipt rejection'));
   }
 
-  @Post(':receiptId/reverse')
-  @HttpCode(HttpStatus.OK)
+  @Endpoint(routes.reverse)
   async reverse(
-    @Param('receiptId') receiptId: string,
-    @Body(zodBody(reversePaymentReceiptSchema)) dto: ReversePaymentReceiptInput,
+    @RouteParam(routes.reverse, 'receiptId') receiptId: string,
+    @RouteBody(routes.reverse) dto: ReversePaymentReceiptInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.receipts.reverseReceipt(receiptId, dto, await this.requireFinanceActor(verifiedActor, 'payment receipt reversal'));
   }
 
-  @Post(':receiptId/refunds')
-  @HttpCode(HttpStatus.CREATED)
+  @Endpoint(routes.refund)
   async refund(
-    @Param('receiptId') receiptId: string,
-    @Body(zodBody(recordPaymentRefundSchema)) dto: RecordPaymentRefundInput,
+    @RouteParam(routes.refund, 'receiptId') receiptId: string,
+    @RouteBody(routes.refund) dto: RecordPaymentRefundInput,
     @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
   ) {
     return this.receipts.recordRefund(receiptId, dto, await this.requireFinanceActor(verifiedActor, 'payment refund recording'));

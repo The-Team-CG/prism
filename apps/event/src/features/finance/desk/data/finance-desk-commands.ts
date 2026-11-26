@@ -1,9 +1,9 @@
 import { PRISM_SESSION_STORAGE_KEYS, type VerifyPaymentReceiptInput } from "@prism/types";
-import { eventApi } from "@/lib/prism-api";
+import { eventApi, pmcmApi } from "@/lib/prism-api";
 
 /** What the desk can do without leaving the page: verify a client's payment and remind a client about one that is late. */
 export const financeDeskCommands = {
-  verify: (receiptId: string, input: VerifyPaymentReceiptInput) => eventApi.commercial.verifyPaymentReceipt(receiptId, input),
+  verify: (receiptId: string, input: VerifyPaymentReceiptInput) => pmcmApi.paymentReceipts.verify({ params: { receiptId }, body: input }),
   remind: (eventId: string, milestoneId: string) => eventApi.commercial.remindClientPayment(eventId, milestoneId),
 };
 

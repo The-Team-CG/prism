@@ -10,6 +10,7 @@
 * [ADR-0008: One PostgreSQL schema per owning domain](adr-0008-domain-owned-postgres-schemas.md) - one write owner and target schema per domain; same-domain foreign keys are allowed, cross-domain foreign keys are not.
 * [ADR-0009: Privacy legal-hold scope and authority](adr-0009-privacy-legal-hold-scope-and-authority.md) - subject/event scope, PMCM-admin control, fail-closed redaction, and retained release evidence.
 * [ADR-0010: Floor plan editor on Pascal](adr-0010-floorplan-editor-on-pascal.md) - pinned Pascal packages, the `prism:event-layout` plugin, scenes stored through the API, and no browser source of truth.
+* [ADR-0011: Shared route contracts](adr-0011-shared-route-contracts.md) - each route written once in `@prism/types`, mounted by the API, called by role clients, with every response parsed.
 
 ADR status is current unless an accepted successor explicitly supersedes the
 record. Each record includes its source paths and verification commands.

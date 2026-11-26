@@ -39,9 +39,7 @@ import type {
   PrismBillingSource,
   PrismBillingStatement,
   PrismEventFinancialSummary,
-  PrismPaymentAllocationTarget,
   PrismPaymentMilestone,
-  PrismPaymentReceipt,
   PrismSupplier,
   PrismSupplierQuote,
   PrismSupplierQuoteRequest,
@@ -54,7 +52,6 @@ import { withBase } from "./shared";
 export function createCommercialClient(options: EventOpsClientOptions): Pick<EventOpsClient, "commercial"> {
   const event = (eventId: string, rest: string) => `/events/${eventId}${rest}`;
   const supplier = (supplierId: string, rest = "") => `/suppliers/${encodeURIComponent(supplierId)}${rest}`;
-  const receipt = (receiptId: string, rest = "") => `/payment-receipts/${encodeURIComponent(receiptId)}${rest}`;
   /** `?a=b` for a non-empty query, nothing otherwise. */
   const search = (values: object) => {
     const text = toQueryString(values as Record<string, string | number | boolean | null | undefined>);
@@ -100,32 +97,8 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismPaymentMilestone>(event(eventId, `/payments/${milestoneId}`), withBase(options, { method: "PATCH", body: input })),
       financeDesk: (init = {}) =>
         prismRequest<PrismFinanceDesk>("/finance/desk", withBase(options, { signal: init.signal })),
-      listPaymentReceipts: (query, init = {}) =>
-        prismRequest<PrismPaymentReceipt[]>(`/payment-receipts${search(query)}`, withBase(options, { signal: init.signal })),
       eventFinancialSummary: (eventId, init = {}) =>
         prismRequest<PrismEventFinancialSummary>(event(eventId, "/financial-summary"), withBase(options, { signal: init.signal })),
-      paymentReceipt: (receiptId, init = {}) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId), withBase(options, { signal: init.signal })),
-      paymentAllocationTargets: (query, init = {}) =>
-        prismRequest<PrismPaymentAllocationTarget[]>(`/payment-receipts/allocation-targets${search(query)}`, withBase(options, { signal: init.signal })),
-      recordPaymentReceipt: (input) =>
-        prismRequest<PrismPaymentReceipt>("/payment-receipts", withBase(options, { method: "POST", body: input })),
-      allocatePaymentReceipt: (receiptId, input) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId, "/allocations"), withBase(options, { method: "POST", body: input })),
-      attachPaymentReceiptEvidence: (receiptId, input) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId, "/evidence"), withBase(options, { method: "POST", body: input })),
-      earmarkPaymentReceipt: (receiptId, input) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId, "/event"), withBase(options, { method: "POST", body: input })),
-      reversePaymentAllocation: (receiptId, recordId, input) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId, `/allocations/${encodeURIComponent(recordId)}/reverse`), withBase(options, { method: "POST", body: input })),
-      verifyPaymentReceipt: (receiptId, input) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId, "/verify"), withBase(options, { method: "POST", body: input })),
-      rejectPaymentReceipt: (receiptId, input) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId, "/reject"), withBase(options, { method: "POST", body: input })),
-      reversePaymentReceipt: (receiptId, input) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId, "/reverse"), withBase(options, { method: "POST", body: input })),
-      recordPaymentRefund: (receiptId, input) =>
-        prismRequest<PrismPaymentReceipt>(receipt(receiptId, "/refunds"), withBase(options, { method: "POST", body: input })),
       createSupplier: (input) =>
         prismRequest<PrismSupplier>("/suppliers", withBase(options, { method: "POST", body: input })),
       updateSupplier: (supplierId, input) =>
