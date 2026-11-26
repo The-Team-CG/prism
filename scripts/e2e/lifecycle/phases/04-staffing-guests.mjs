@@ -65,19 +65,19 @@ export async function run(ctx) {
     status(await call("GET", `/events/${A}/staffing/coordinator-suggestions?role=Wizard`, s.admin), 400);
     status(await call("GET", `/events/${A}/staffing/coordinator-suggestions?role=Usher`, s.marco), 403);
   });
-  await step("PMCM sets and reads coordinator coverage requirements", async () => {
+  await step("PMCM sets coordinator coverage and reads it back in the event workspace", async () => {
     const set = await call("POST", `/events/${A}/staffing/coverage`, s.admin, { role: "Registration Staff", required: 1, requiredSkills: [] });
     status(set, 200, 201);
-    const get = expectStatus(await call("GET", `/events/${A}/staffing/coverage`, s.admin), 200);
-    expect(JSON.stringify(get).includes("Registration Staff"), "saved coverage requirement is not in the coverage read");
-    return `coverage keys=${Object.keys(Array.isArray(get) ? get[0] ?? {} : get).slice(0, 6).join(",")}`;
+    const { coordinatorCoverage: get } = expectStatus(await call("GET", `/pmcm/events/${A}/workspace`, s.admin), 200);
+    expect((get ?? []).some((row) => row.role === "Registration Staff"), "saved coverage requirement is not in the workspace coverage");
+    return `coverage keys=${Object.keys(get[0] ?? {}).slice(0, 6).join(",")}`;
   });
   await step("coverage rejects an invalid role/negative count (400) and non-PMCM roles (403/401)", async () => {
     status(await call("POST", `/events/${A}/staffing/coverage`, s.admin, { role: "Wizard", required: 1 }), 400);
     status(await call("POST", `/events/${A}/staffing/coverage`, s.admin, { role: "Usher", required: -1 }), 400);
     status(await call("POST", `/events/${A}/staffing/coverage`, s.marco, { role: "Usher", required: 1 }), 403);
-    status(await call("GET", `/events/${A}/staffing/coverage`, s.supplier), 403);
-    status(await call("GET", `/events/${A}/staffing/coverage`), 401);
+    status(await call("GET", `/pmcm/events/${A}/workspace`, s.supplier), 403);
+    status(await call("GET", `/pmcm/events/${A}/workspace`), 401);
   });
 
   // ---------------------------------------------------------------- availability
@@ -193,7 +193,7 @@ export async function run(ctx) {
     return `isDesignatedOperator=${mine.body.isDesignatedOperator}`;
   });
   await step("coordinator cannot read PMCM-only data of an unassigned event", async () => {
-    for (const p of [`/events/${D}/handoffs`, `/events/${D}/operator-designation`, `/events/${D}/staffing/coverage`, `/events/${D}/guest-privacy`, `/events/${D}/registration-platform`]) {
+    for (const p of [`/events/${D}/handoffs`, `/events/${D}/operator-designation`, `/pmcm/events/${D}/workspace`, `/events/${D}/guest-privacy`, `/events/${D}/registration-platform`]) {
       const r = await call("GET", p, s.marco);
       expect(r.status === 403, `${p} -> ${r.status}: ${msg(r)}`);
     }
