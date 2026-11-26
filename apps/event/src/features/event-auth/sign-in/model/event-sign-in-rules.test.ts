@@ -27,6 +27,8 @@ describe("event-sign-in-rules", () => {
   it("resolves safe post-login paths", () => {
     expect(resolveEventPostSignInPath("/dashboard/tasks")).toBe("/dashboard/tasks");
     expect(resolveEventPostSignInPath("/dashboard?tab=files")).toBe("/dashboard?tab=files");
+    expect(resolveEventPostSignInPath(null, "coordinator")).toBe("/coordinator");
+    expect(resolveEventPostSignInPath("/coordinator?view=tasks", "coordinator")).toBe("/coordinator?view=tasks");
     for (const unsafe of ["//evil.example", "/\\evil.example", "https://evil.example", "javascript:alert(1)", "%2F%2Fevil.example"]) {
       expect(resolveEventPostSignInPath(unsafe)).toBe("/dashboard");
     }

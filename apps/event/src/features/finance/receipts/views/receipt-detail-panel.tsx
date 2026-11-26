@@ -163,6 +163,7 @@ export function ReceiptDetailPanel({ vm }: { vm: PaymentReceiptsViewModel }) {
     <aside aria-label="Receipt details" className="space-y-5 rounded-lg border border-border bg-card p-5">
       <DetailHeader receipt={receipt} />
       <Balances receipt={receipt} />
+      {receipt.status === "verified" && receipt.unapplied > 0 ? <p className="text-sm font-medium text-foreground">Verified · awaiting allocation. Apply the remaining money to a milestone to update the balance.</p> : null}
       <Notes receipt={receipt} />
       <Evidence receipt={receipt} onView={() => void vm.openEvidence()} />
       <Actions receipt={receipt} onOpen={vm.openDialog} />

@@ -37,12 +37,12 @@ export function RiskRegisterPanel({ eventId }: { eventId: string }) {
           </div>
         );
       })}
-      <form className="mt-4 grid gap-2 md:grid-cols-6" onSubmit={(event) => { event.preventDefault(); void vm.create(draft).then((ok) => { if (ok) setDraft({ ...draft, title: "", mitigation: "", owner: "" }); }); }}>
+      <form aria-label="Add a risk" className="mt-4 grid gap-2 md:grid-cols-6" onSubmit={(event) => { event.preventDefault(); void vm.create(draft).then((ok) => { if (ok) setDraft({ ...draft, title: "", mitigation: "", owner: "" }); }); }}>
         <Select value={draft.phase} onValueChange={(value) => { const phase = EVENT_RISK_PHASES.find((candidate) => candidate === value); if (phase) setDraft({ ...draft, phase }); }}>
           <SelectTrigger aria-label="Phase" className={`${FIELD} w-full min-w-0`}><SelectValue /></SelectTrigger>
           <SelectContent>{EVENT_RISK_PHASES.map((phase) => <SelectItem key={phase} value={phase}>{PHASE_LABELS[phase]}</SelectItem>)}</SelectContent>
         </Select>
-        <input aria-label="Risk" placeholder="Risk" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className={`${FIELD} md:col-span-2`} />
+        <input aria-label="Risk" placeholder="Risk" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} className={`${FIELD} md:col-span-3`} />
         <Select value={String(draft.likelihood)} onValueChange={(value) => setDraft({ ...draft, likelihood: Number(value) })}>
           <SelectTrigger aria-label="Likelihood" className={`${FIELD} w-full min-w-0`}><SelectValue /></SelectTrigger>
           <SelectContent>{RATINGS.map((value) => <SelectItem key={value} value={String(value)}>Likelihood {value}</SelectItem>)}</SelectContent>
@@ -51,9 +51,11 @@ export function RiskRegisterPanel({ eventId }: { eventId: string }) {
           <SelectTrigger aria-label="Impact" className={`${FIELD} w-full min-w-0`}><SelectValue /></SelectTrigger>
           <SelectContent>{RATINGS.map((value) => <SelectItem key={value} value={String(value)}>Impact {value}</SelectItem>)}</SelectContent>
         </Select>
-        <button type="submit" disabled={vm.busy || !draft.title.trim()} className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">Add risk</button>
         <input aria-label="Mitigation" placeholder="Mitigation" value={draft.mitigation} onChange={(event) => setDraft({ ...draft, mitigation: event.target.value })} className={`${FIELD} md:col-span-4`} />
         <input aria-label="Owner" placeholder="Owner" value={draft.owner} onChange={(event) => setDraft({ ...draft, owner: event.target.value })} className={`${FIELD} md:col-span-2`} />
+        <div className="md:col-span-6 md:flex md:justify-end">
+          <button type="submit" disabled={vm.busy || !draft.title.trim()} className="min-h-10 w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 md:w-auto">Add risk</button>
+        </div>
       </form>
     </section>
   );
@@ -62,7 +64,11 @@ export function RiskRegisterPanel({ eventId }: { eventId: string }) {
 function RiskRow({ risk, busy, onUpdate }: { risk: PrismEventRisk; busy: boolean; onUpdate: (riskId: string, input: { likelihood?: number; impact?: number; status?: PrismEventRisk["status"] }) => Promise<boolean> }) {
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-md border border-border p-2 text-sm">
-      <span className="mr-auto"><span className="font-semibold">{risk.title}</span>{risk.mitigation ? <span className="block text-xs text-muted-foreground">{risk.mitigation}</span> : null}</span>
+      <div className="mr-auto min-w-0 break-words">
+        <p className="font-semibold">{risk.title}</p>
+        {risk.mitigation ? <p className="text-xs text-muted-foreground">{risk.mitigation}</p> : null}
+        {risk.owner ? <p className="text-xs text-muted-foreground">Owner: {risk.owner}</p> : null}
+      </div>
       <span className="text-xs font-semibold">Score {risk.score}</span>
       <Select disabled={busy} value={String(risk.likelihood)} onValueChange={(value) => void onUpdate(risk.id, { likelihood: Number(value) })}>
         <SelectTrigger aria-label={`Likelihood of ${risk.title}`} className={`${FIELD} w-auto min-w-20`}><SelectValue /></SelectTrigger>

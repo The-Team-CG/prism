@@ -51,6 +51,21 @@ describe("findBoundaryViolations", () => {
     }
   });
 
+  it("keeps PMCM-only event features out of the coordinator portal", () => {
+    const allowed = findBoundaryViolations(Object.fromEntries([
+      ["apps/event/src/features/coordinators/desk/views/coordinator-view.tsx", 'import { EventMessagesWorkspace } from "@/features/event-dashboard/messages/views/event-messages-workspace";\nimport { LiveOpsRunSheet } from "@/features/live-ops/schedule";'],
+      ["apps/event/src/app/(coordinator)/layout.tsx", 'import { EventPortalQueryProvider } from "@/features/event-dashboard/shell/views/event-portal-query-provider";'],
+      ["apps/event/src/features/coordinators/portal/views/coordinator-portal-view.tsx", 'import type { PrismEvent } from "@prism/types";\nimport type { RouteState } from "@/features/event-dashboard/shell";'],
+    ]));
+    assert.deepEqual(allowed, []);
+    const blocked = findBoundaryViolations(Object.fromEntries([
+      ["apps/event/src/features/coordinators/desk/views/coordinator-view.tsx", 'import { FinanceDeskView } from "@/features/finance/desk/views/finance-desk-view";'],
+      ["apps/event/src/app/(coordinator)/coordinator/page.tsx", 'const Shell = dynamic(() => import("@/features/event-dashboard/shell/views/event-dashboard-shell-view"));'],
+    ]));
+    assert.equal(blocked.length, 2);
+    assert.match(blocked[0], /the coordinator portal must not import PMCM-only event features/);
+  });
+
   it("blocks role app imports across app boundaries", () => {
     const violations = findBoundaryViolations({
       "apps/client/src/app/page.tsx": 'import { EventShell } from "@prism/event";',

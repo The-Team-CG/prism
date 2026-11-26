@@ -1,4 +1,4 @@
-import type { PrismCoordinatorWorkspace, PrismPmcmReference } from "@prism/types";
+import type { PrismPmcmReference } from "@prism/types";
 import type { EventSession } from "@/app/lib/session";
 import { eventApi } from "@/lib/prism-api";
 
@@ -8,8 +8,6 @@ const EVENT_DASHBOARD_CACHE_MS = 30_000;
 
 let pmcmReferenceCache: TimedCache<PrismPmcmReference> | null = null;
 let pmcmReferenceRequest: Promise<PrismPmcmReference> | null = null;
-const coordinatorWorkspaceCache = new Map<string, TimedCache<PrismCoordinatorWorkspace>>();
-const coordinatorWorkspaceRequests = new Map<string, Promise<PrismCoordinatorWorkspace>>();
 
 function isFresh(loadedAt: number, ttl = EVENT_DASHBOARD_CACHE_MS) {
   return Date.now() - loadedAt < ttl;
@@ -51,29 +49,5 @@ export const pmcmDashboardRepository = {
     return pmcmReferenceRequest;
   },
 
-  getCachedCoordinatorWorkspace(session: EventSession) {
-    return coordinatorWorkspaceCache.get(sessionCacheKey(session));
-  },
 
-  loadCoordinatorWorkspace(session: EventSession, force = false): Promise<PrismCoordinatorWorkspace> {
-    const key = sessionCacheKey(session);
-    const cached = coordinatorWorkspaceCache.get(key);
-    if (!force && cached && isFresh(cached.loadedAt)) return Promise.resolve(cached.value);
-
-    const existing = coordinatorWorkspaceRequests.get(key);
-    if (!force && existing) return existing;
-
-    const request = eventApi.coordinator
-      .workspace()
-      .then((next) => {
-        coordinatorWorkspaceCache.set(key, { value: next, loadedAt: Date.now() });
-        return next;
-      })
-      .finally(() => {
-        coordinatorWorkspaceRequests.delete(key);
-      });
-
-    coordinatorWorkspaceRequests.set(key, request);
-    return request;
-  },
 };

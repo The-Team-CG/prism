@@ -699,6 +699,16 @@ function RosterEmpty({ filtered }: { filtered: boolean }) {
   );
 }
 
+/** Tells staff a guest was flagged for verification, until they check in. */
+function VerificationFlagNote({ row }: { row: PrismGuestRosterEntry }) {
+  if (!row.verificationFlaggedAt || row.checkedInAt) return null;
+  return (
+    <p className="text-xs font-medium text-attention">
+      Flagged for verification{row.verificationFlaggedBy ? ` by ${row.verificationFlaggedBy}` : ""}
+    </p>
+  );
+}
+
 function RosterRow({
   row,
   busy,
@@ -723,6 +733,7 @@ function RosterRow({
           ) : null}
           {row.withdrawnAt ? <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">Withdrawn</span> : null}
         </p>
+        <VerificationFlagNote row={row} />
         <p className="truncate text-xs text-muted-foreground">{rosterDetails(row)}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:justify-end">

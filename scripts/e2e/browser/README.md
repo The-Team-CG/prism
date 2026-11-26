@@ -4,7 +4,34 @@ Run `npx playwright install chromium` once, then `npm run test:browser` from the
 
 The runner creates a new uniquely named `prism_browser_*` database, applies migrations, seeds synthetic accounts/UAT scenarios, starts the API on 4300, portals on 3301–3304, and Mailpit on 58025. Busy ports cause refusal; existing servers are never reused or stopped. The four portals use separate `.next-acceptance` output so ordinary development builds remain available. Production mode builds each portal serially and runs `next start` with the same public URLs and fixture environment. The API and seed commands retain their established synthetic development environment. The run uses real API responses and rendered browser controls, with no business API interception or browser-local fixture state. Prerequisites are prepared through the API/guarded fixture CLI.
 
-Desktop Chromium and mobile Chromium run each journey with separate browser sessions and no retries. Coverage: public inquiry and calendar, PMCM MFA/acceptance, client email activation/password reset/sign-in, supplier emailed quote submission, guest code/consent/check-in, signed-out dashboard guards, refusal of client credentials in PMCM/supplier workspaces, and one cross-role lifecycle journey (inquiry, conforme, proposal and billing statement, supplier quote and readiness, coordinator assignment, official plan approval, event day, closeout and archive). The [API lifecycle suite](../lifecycle/README.md) remains the broader workflow and permission layer. Route checks cover every registered page as described below; additional actions such as uploads, payments and floorplan editing gestures still need their own journeys.
+Desktop Chromium and mobile Chromium run each journey with separate browser sessions and no retries. Coverage: public inquiry and calendar, PMCM MFA/acceptance, client email activation/password reset/sign-in, supplier emailed quote submission, guest code/consent/check-in, signed-out dashboard guards, refusal of client credentials in PMCM/supplier workspaces, and one cross-role lifecycle journey (inquiry, conforme, proposal and billing statement, supplier quote and readiness, coordinator assignment, official plan approval, event day, closeout and archive). The [API lifecycle suite](../lifecycle/README.md) remains the broader workflow and permission layer. Route checks cover every registered page as described below.
+
+Operational journeys use synthetic prerequisites prepared through the API and drive the workflow through rendered controls:
+
+| Spec | Handoff |
+| --- | --- |
+| `messages.spec.mjs` | PMCM starts a conversation; the client replies; PMCM reads it. |
+| `client-money.spec.mjs` | Client reports a payment with proof; PMCM verifies it on the finance desk; the client sees it accepted. |
+| `files.spec.mjs` | PMCM adds a client file requirement; the client uploads; PMCM rejects with a reason; the client replaces it; PMCM approves. |
+| `supplier-delivery.spec.mjs` | PMCM assigns a deliverable; the supplier uploads its contract, acknowledges the schedule and submits work; PMCM accepts both and releases a payout; the supplier confirms it; both exchange messages. |
+| `change-control.spec.mjs` | Client requests a scope change; PMCM reviews and approves it with a response the client reads. |
+| `venue-options.spec.mjs` | PMCM issues a venue option; the client approves it; PMCM sees the decision. |
+| `ocular-visit.spec.mjs` | Client asks for a venue visit; PMCM schedules it and marks it complete. |
+| `floorplan-review.spec.mjs` | Client annotates the submitted official layout and asks for a revision; PMCM resubmits; the client approves; PMCM approves officially. |
+| `coordinator-issues.spec.mjs` | A coordinator reports an event-day issue; PMCM resolves it in live ops; the coordinator sees it resolved. |
+| `event-games.spec.mjs` | A guest joins a live poll with the host PIN and votes; the host dashboard shows the vote. |
+| `post-event-feedback.spec.mjs` | After the recorded end, a guest sends feedback and the client a testimonial; PMCM approves both. |
+| `privacy-requests.spec.mjs` | Client asks for a copy of its data; PMCM approves; the client sees it in progress. |
+| `pmcm-records.spec.mjs` | PMCM issues an addendum that the client signs and PMCM countersigns; moves a compliance risk to mitigated with a reason; logs a quote given by phone and selects it; edits, turns off and turns back on a workspace rule. |
+| `client-planning.spec.mjs` | The client prefers one of PMCM's shortlisted venues; adds and confirms its own supplier and reads a risk PMCM raises; finds a sent statement in its notification inbox and marks all read. |
+| `planning-operations.spec.mjs` | PMCM creates, previews and applies a planning template, completes a task, and confirms reapplying cannot duplicate it. PMCM previews and records a postponement, the client and booked supplier see the new date, and plan sync moves the eligible task while preserving completed work, bookings and payment milestones. |
+| `run-sheet.spec.mjs` | PMCM authors a schedule day and segment. The PMCM printable run sheet and the assigned coordinator's run sheet show the programme. |
+| `walk-in.spec.mjs` | PMCM opens walk-ins for a private event. A guest submits their arrival and an assigned registration coordinator registers and flags a second walk-in. PMCM verifies and checks both in, and the coordinator sees their arrivals. |
+| `operational-records.spec.mjs` | PMCM requests and accepts an accreditation document with its own deadline, and records, rescores and mitigates a pre-event risk. |
+| `floorplan-editor.spec.mjs` | PMCM places a registration desk in the 2D editor and reopens the saved draft. Desktop only because phones open the editor view-only. |
+| `qr-pass.spec.mjs` | A guest opens their personal pass and staff check them in using its displayed code. The camera flow is also exercised with a simulated stream and decoded QR value. |
+
+The supplier delivery and live-poll journeys prepare the supplier ingress/egress schedule and poll configuration through the API. The walk-in journey activates the seeded registration coordinator through a captured synthetic invitation. The camera test simulates QR decoding and does not verify a physical camera or the browser's native decoder.
 
 The normal manual-test database is never reset. Owned test processes and the temporary inbox/database are removed after the run. Private logs, env files, synthetic MFA secrets and failure traces stay in the ignored `.local-dev/browser/<run-id>/` directory. Inspect a failed HTML report with `npx playwright show-report <report-directory>`. Traces may contain synthetic credentials and email tokens; CI uploads only failure reports/results for seven days, never environment, actor or API log files. A cancelled runner/job still needs its normal process/container teardown; do not kill unrelated Node processes.
 
@@ -61,7 +88,7 @@ The mobile and tablet projects record horizontal overflow by page (`document.doc
 
 The `tablet` project (iPad Mini, 768px) runs only the route sweep. 768px is the narrowest width that keeps the sidebar, so it leaves pages the least room. Pull requests and the nightly run add it to the mobile job; manual timing comparisons leave it out. Phones and tablets run on Chromium. `BROWSER_WEBKIT=1` runs them on WebKit as an iPhone 14 and an iPad Mini, after `npx playwright install webkit`; no project emulates a notch, so safe-area padding is checked only on a device.
 
-The coordinator's one `/dashboard` route is checked separately across its supported `?view=` pages using the seeded Marco actor, since the shared PMCM route sweep signs in as PMCM. The desk opens the coordinator's current event on its own. The mobile coordinator test uses the same navigation, tap-through and overflow reporting.
+The coordinator portal's one `/coordinator` route is checked separately across its supported `?view=` pages using the seeded Marco actor, since the shared PMCM route sweep signs in as PMCM. The desk opens the coordinator's current event on its own. The mobile coordinator test uses the same navigation, tap-through and overflow reporting.
 
 To inspect route screenshots at a narrower phone width, set `BROWSER_PHONE_WIDTH` to an integer from 320 to 767. For example, PowerShell: `$env:BROWSER_PHONE_WIDTH='390'; $env:BROWSER_SCREENSHOTS='1'; npm run test:browser -- --project=mobile --grep "all registered pages"`.
 

@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { CreateComplianceRiskInput, PrismComplianceRisk, PrismComplianceRun } from "@prism/types";
+import type { CreateComplianceRiskInput, PrismComplianceRisk, PrismComplianceRun, UpdateComplianceRiskInput } from "@prism/types";
 import { complianceReviewRepository } from "../data/compliance-review-repository";
 import { createComplianceRisk } from "../use-cases/create-compliance-risk";
+import { updateComplianceRisk } from "../use-cases/update-compliance-risk";
 
 export function useComplianceReviewViewModel(eventId: string) {
   const [runs, setRuns] = useState<PrismComplianceRun[]>([]);
@@ -23,5 +24,11 @@ export function useComplianceReviewViewModel(eventId: string) {
     catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to save compliance risk."); }
     finally { setBusy(false); }
   }, [eventId, reload]);
-  return { runs, risks, error, busy, reload, addRisk, latestRun: runs[0] ?? null };
+  const updateRisk = useCallback(async (riskId: string, input: UpdateComplianceRiskInput) => {
+    setBusy(true);
+    try { await updateComplianceRisk(eventId, riskId, input); await reload(); return true; }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Unable to update the risk."); return false; }
+    finally { setBusy(false); }
+  }, [eventId, reload]);
+  return { runs, risks, error, busy, reload, addRisk, updateRisk, latestRun: runs[0] ?? null };
 }

@@ -31,7 +31,7 @@ vi.mock("@prism/ui", () => ({
   ),
   useIsMobile: () => false,
 }));
-const navigation = vi.hoisted(() => ({ pathname: "/dashboard" as string | null, replace: vi.fn() }));
+const navigation = vi.hoisted(() => ({ pathname: "/coordinator" as string | null, replace: vi.fn() }));
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
   useRouter: () => ({ replace: navigation.replace }),
@@ -47,7 +47,7 @@ const render: typeof renderTest = ((ui: Parameters<typeof renderTest>[0]) => ren
 afterEach(() => {
   cleanup();
   window.history.replaceState(null, "", "/");
-  navigation.pathname = "/dashboard";
+  navigation.pathname = "/coordinator";
   navigation.replace.mockClear();
 });
 
@@ -127,11 +127,11 @@ it("keeps the chosen event and work view in the URL", async () => {
 
 it("gives each sidebar view a real link to its readable URL", () => {
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
-  expect(screen.getByRole("link", { name: "Issues" }).getAttribute("href")).toBe("/dashboard?view=issues&event=evt_current");
+  expect(screen.getByRole("link", { name: "Issues" }).getAttribute("href")).toBe("/coordinator?view=issues&event=evt_current");
 });
 
 it("keeps a non-registration coordinator on Now when opening a registration bookmark", () => {
-  window.history.replaceState(null, "", "/dashboard?view=registration&event=evt_current");
+  window.history.replaceState(null, "", "/coordinator?view=registration&event=evt_current");
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
   expect(screen.queryByRole("link", { name: "Registration" })).toBeNull();
   expect(document.title).toBe("Now · P.R.I.S.M");
@@ -143,12 +143,12 @@ it("sends a PMCM or unknown path home with a notice that can be dismissed", asyn
   navigation.pathname = "/dashboard/events/evt_current/billing";
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
 
-  expect(navigation.replace).toHaveBeenCalledWith("/dashboard?view=shift&notice=outside-portal");
+  expect(navigation.replace).toHaveBeenCalledWith("/coordinator?view=shift&notice=outside-portal");
 
   // The redirect lands on the home URL carrying the notice; dismissing it removes the notice from the URL.
   cleanup();
-  navigation.pathname = "/dashboard";
-  window.history.replaceState(null, "", "/dashboard?view=shift&notice=outside-portal");
+  navigation.pathname = "/coordinator";
+  window.history.replaceState(null, "", "/coordinator?view=shift&notice=outside-portal");
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
   expect(screen.getByText("That page isn't part of the coordinator portal.")).toBeTruthy();
 
@@ -161,12 +161,12 @@ it("titles the tab after the view on screen, including a coordinator redirected 
   navigation.pathname = "/dashboard/suppliers";
   window.history.replaceState(null, "", "/dashboard/suppliers");
   const { unmount } = render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
-  expect(navigation.replace).toHaveBeenCalledWith("/dashboard?view=shift&notice=outside-portal");
+  expect(navigation.replace).toHaveBeenCalledWith("/coordinator?view=shift&notice=outside-portal");
   expect(document.title).toBe("Now · P.R.I.S.M");
   unmount();
 
-  navigation.pathname = "/dashboard";
-  window.history.replaceState(null, "", "/dashboard?view=tasks&event=evt_current");
+  navigation.pathname = "/coordinator";
+  window.history.replaceState(null, "", "/coordinator?view=tasks&event=evt_current");
   render(<CoordinatorView session={session} state={{ events, assignments } as never} onRefresh={async () => {}} />);
   expect(document.title).toBe("Tasks · P.R.I.S.M");
 });

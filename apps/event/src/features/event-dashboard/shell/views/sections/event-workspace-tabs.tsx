@@ -10,6 +10,7 @@ import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@prism/ui/components/empty";
 import { PAREPanel } from "@/features/pare/panel";
 import { CLOSURE_TABS, Phase4Workspace, type CloseGateDestination, type ClosureStep, type ClosureTabId } from "@/features/closure/phase4";
+import { ComplianceReviewPanel } from "@/features/compliance/review";
 import { useListFilter } from "@/features/pmcm-kit";
 import { CoordinatorAssignmentDesk } from "@/features/coordinators/desk";
 import { PostponementImpactPanel } from "@/features/event-decisions/postponement-impact";
@@ -310,6 +311,7 @@ export function EventWorkspaceBriefingTab() {
           <PlanningPart id="changes">
             <ChangeRegisterPanel eventId={selectedEvent.id} frozen={isScopeFrozen(selectedEvent.freezeStatus)} decisionClosedReason={eventDecisionClosedReason(selectedEvent)} />
           </PlanningPart>
+          {admin && !selectedEvent.archived ? <ComplianceReviewPanel eventId={selectedEvent.id} phase="planning" /> : null}
           {admin ? <PlanningPart id="date-change"><DateImpactPanel eventId={selectedEvent.id} /></PlanningPart> : null}
         </div>
       ),
@@ -375,6 +377,7 @@ export function EventWorkspaceSuppliersTab() {
           requests={vm.quoteRequests}
           quotes={vm.quotes}
           onRequestQuotes={vm.requestSupplierQuotes}
+          onLogQuote={vm.logSupplierQuote}
           onSelectQuote={vm.selectSupplierQuote}
           onCompareRound={vm.compareSupplierQuoteRound}
           onSetAvailability={vm.setSupplierAvailability}

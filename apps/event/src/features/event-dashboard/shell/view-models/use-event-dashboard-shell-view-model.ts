@@ -102,7 +102,6 @@ export function useEventDashboardShellViewModel({
   });
   const {
     session,
-    coordinatorState,
     error,
     setError,
     approvalRequests,
@@ -128,7 +127,6 @@ export function useEventDashboardShellViewModel({
     reference,
     commandReferenceLoading,
     loadCommandReference,
-    setCoordinatorState,
     setLiveOps,
     setStatusFeed,
     setDefenseReadiness,
@@ -393,7 +391,6 @@ export function useEventDashboardShellViewModel({
     routeState,
     session,
     reference,
-    coordinatorState,
     screen,
     error,
     selectedEventId,
@@ -484,7 +481,6 @@ export function useEventDashboardShellViewModel({
     setSelectedClientId,
     setError,
     setReference,
-    setCoordinatorState,
     setLiveOps,
     setStatusFeed,
     setDefenseReadiness,
@@ -507,6 +503,7 @@ export function useEventDashboardShellViewModel({
       ? runWithSuccess("supplier private review", () => commands.addSupplierReview(supplierId, { ...input, eventId: selectedEvent?.id }))
       : Promise.resolve(false),
     addSupplierCertification: (supplierId: string, input: Parameters<typeof commands.addSupplierCertification>[1]) => run("supplier certification", () => commands.addSupplierCertification(supplierId, input)),
+    logSupplierQuote: (input: Parameters<typeof commands.addSupplierQuote>[1]) => selectedEvent ? runAsBoolean("log supplier quote", () => commands.addSupplierQuote(selectedEvent.id, input)) : Promise.resolve(false),
     requestSupplierQuotes: (input: Parameters<typeof commands.requestSupplierQuotes>[1]) => selectedEvent ? run("request supplier quotes", () => commands.requestSupplierQuotes(selectedEvent.id, input)) : Promise.resolve(),
     compareSupplierQuoteRound: (roundId: string) => selectedEvent ? commands.compareSupplierQuoteRound(selectedEvent.id, roundId) : Promise.reject(new Error("No event selected")),
     setSupplierAvailability: (supplierId: string, input: Parameters<typeof commands.setSupplierAvailability>[1]) => runForResult("supplier availability", () => commands.setSupplierAvailability(supplierId, input)),
@@ -515,6 +512,7 @@ export function useEventDashboardShellViewModel({
     markPayment: (milestoneId: string, input: Parameters<typeof commands.markPayment>[2]) => selectedEvent ? run("update payment risk", () => commands.markPayment(selectedEvent.id, milestoneId, input)) : Promise.resolve(),
     sendBillingStatement: (billingId: string) => selectedEvent ? run("send billing statement", () => commands.sendBillingStatement(selectedEvent.id, billingId)) : Promise.resolve(),
     createComplianceRule: (input: Parameters<typeof commands.createComplianceRule>[0]) => run("create compliance rule", () => commands.createComplianceRule(input)),
+    updateComplianceRule: (ruleId: string, input: Parameters<typeof commands.updateComplianceRule>[1]) => run("update compliance rule", () => commands.updateComplianceRule(ruleId, input)),
     runComplianceChecks: (phase: string) => selectedEvent ? run("run compliance", () => commands.runCompliance(selectedEvent.id, phase)) : Promise.resolve(),
     resolveComplianceCheck: (checkId: string) => selectedEvent ? run("resolve compliance", () => commands.resolveCompliance(selectedEvent.id, checkId, { action: "resolve", note: "Resolved during PMCM review." })) : Promise.resolve(),
     overrideComplianceCheck: (checkId: string, reason: string) => selectedEvent ? run("override compliance", () => commands.resolveCompliance(selectedEvent.id, checkId, { action: "override", overrideReason: reason,  })) : Promise.resolve(),

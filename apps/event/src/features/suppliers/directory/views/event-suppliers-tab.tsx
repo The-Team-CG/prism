@@ -1,6 +1,6 @@
 import { Truck } from "lucide-react";
 
-import type { PrismSupplier, PrismSupplierCategory, PrismSupplierQuoteRoundComparison, SupplierAvailabilityInput } from "@prism/types";
+import type { AddSupplierQuoteInput, PrismSupplier, PrismSupplierCategory, PrismSupplierQuoteRoundComparison, SupplierAvailabilityInput } from "@prism/types";
 import { SupplierQuotePlanner } from "./supplier-quote-planner";
 import type { SupplierQuoteRequestRow, SupplierQuoteRow, SupplierQuoteSelectHandler, SupplierRequestHandler } from "@/features/pmcm-kit";
 import { Panel } from "@/features/pmcm-kit";
@@ -13,6 +13,7 @@ export function EventSuppliersTab({
   busy,
   onRequestQuotes,
   onSelectQuote,
+  onLogQuote,
   onCompareRound,
   onSetAvailability,
 }: {
@@ -23,6 +24,7 @@ export function EventSuppliersTab({
   busy: boolean;
   onRequestQuotes: SupplierRequestHandler;
   onSelectQuote: SupplierQuoteSelectHandler;
+  onLogQuote: (input: AddSupplierQuoteInput) => Promise<boolean>;
   onCompareRound: (roundId: string) => Promise<PrismSupplierQuoteRoundComparison>;
   onSetAvailability: (supplierId: string, input: SupplierAvailabilityInput) => Promise<unknown>;
 }) {
@@ -35,6 +37,7 @@ export function EventSuppliersTab({
         quotes={quotes}
         onRequestQuotes={onRequestQuotes}
         onSelectQuote={onSelectQuote}
+        onLogQuote={onLogQuote}
         onCompareRound={onCompareRound}
         onSetAvailability={onSetAvailability}
         busy={busy}

@@ -8,8 +8,20 @@ import { totp } from '../lifecycle/lib.mjs';
 export const origins = { client: 'http://127.0.0.1:3301', supplier: 'http://127.0.0.1:3302', guest: 'http://127.0.0.1:3303', event: 'http://127.0.0.1:3304' };
 export const adminToken = JSON.parse(readFileSync(join(process.env.BROWSER_RUN_DIRECTORY, 'actors.json'), 'utf8')).adminToken;
 export const password = process.env.PRISM_SEED_PASSWORD_CLIENT;
+// Public submissions (every fixture inquiry) are limited to 10 a minute per address. The suite creates them faster than
+// that late in a run, so a throttled request waits out the API's Retry-After instead of failing the test.
+const THROTTLE_RETRIES = 2;
+async function waitForRetryAfter(response) {
+  const seconds = Number(response.headers.get('retry-after'));
+  await new Promise(resolve => setTimeout(resolve, (seconds > 0 ? Math.min(seconds, 60) : 5) * 1000));
+}
 export async function api(method, path, body, token = adminToken) {
-  const response = await fetch(`${process.env.E2E_API_URL}${path}`, { method, signal: AbortSignal.timeout(30_000), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+  let response;
+  for (let attempt = 0; attempt <= THROTTLE_RETRIES; attempt += 1) {
+    response = await fetch(`${process.env.E2E_API_URL}${path}`, { method, signal: AbortSignal.timeout(30_000), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+    if (response.status !== 429 || attempt === THROTTLE_RETRIES) break;
+    await waitForRetryAfter(response);
+  }
   if (!response.ok) throw new Error(`Browser fixture ${method} ${path.split('?')[0]} failed (${response.status}).`);
   const text = await response.text();
   const json = text ? JSON.parse(text) : undefined;
@@ -40,21 +52,21 @@ export function mailLink(message, pathPart, origin) {
   if (!link || new URL(link).origin !== origin) throw new Error('Test email did not contain the intended local portal link.');
   return link;
 }
-export async function createInquiry(label = 'Browser acceptance') {
+export async function createInquiry(label = 'Browser acceptance', { daysAhead = 180 } = {}) {
   const id = randomUUID();
   const email = `browser-${id}@example.test`;
-  const eventDate = new Date(Date.now() + 180 * 86_400_000).toISOString().slice(0, 10);
+  const eventDate = new Date(Date.now() + daysAhead * 86_400_000).toISOString().slice(0, 10);
   const inquiry = await api('POST', '/inquiries', { clientName: 'Browser Test Client', companyName: 'Synthetic Browser Tests', email, eventName: `${label} ${id}`, eventType: 'Conference', eventDate, clientType: 'Corporate', source: 'P.R.I.S.M Website', message: 'Phone: 0917 123 4567\nExpected guests: 120', privacyConsentAccepted: true, privacyNoticeVersion: PRISM_PRIVACY_NOTICE_VERSION }, null);
   return { ...inquiry, email, eventDate };
 }
-export async function acceptedClient() {
-  const inquiry = await createInquiry();
+export async function acceptedClient(label, options) {
+  const inquiry = await createInquiry(label, options);
   await api('PATCH', `/inquiries/${inquiry.id}/status`, { status: 'accepted' });
   const mail = await inbox(inquiry.email, '/activate');
   return { inquiry, activation: mailLink(mail, '/activate', origins.client), mail };
 }
-export async function freshEvent() {
-  const { inquiry, activation } = await acceptedClient();
+export async function freshEvent(label, options) {
+  const { inquiry, activation } = await acceptedClient(label, options);
   await api('POST', '/auth/activate', { token: new URL(activation).searchParams.get('token'), password }, null);
   const client = await api('POST', '/auth/login', { email: inquiry.email, password }, null);
   if (client.privacyNoticeRequired) await api('POST', '/auth/privacy-notice/acknowledge', { version: PRISM_PRIVACY_NOTICE_VERSION }, client.accessToken);
@@ -75,9 +87,10 @@ export async function fillStable(locator, value) {
   }).toPass({ timeout: 20_000 });
 }
 export async function privacyIfNeeded(page) {
-  await page.waitForURL(/\/privacy|\/dashboard/, { timeout: 30_000 });
+  // Coordinators land in their own portal at /coordinator; everyone else on /dashboard.
+  await page.waitForURL(/\/privacy|\/dashboard|\/coordinator/, { timeout: 30_000 });
   if (page.url().includes('/privacy')) await page.getByRole('button', { name: "I've read this notice" }).click();
-  await expect(page).toHaveURL(/\/dashboard/);
+  await expect(page).toHaveURL(/\/dashboard|\/coordinator/, { timeout: 60_000 });
 }
 export async function signInPmcm(page, email = 'approver@pmcm.test') {
   await page.goto(`${origins.event}/sign-in`);
@@ -87,7 +100,7 @@ export async function signInPmcm(page, email = 'approver@pmcm.test') {
   const code = page.getByLabel('Authenticator code');
   const sessionFile = join(process.env.BROWSER_RUN_DIRECTORY, `${email === 'marco@pmcm.test' ? 'coordinator' : 'pmcm'}-session.json`);
   // PMCM admins must use MFA; coordinators sign straight in. Wait for whichever screen this account gets.
-  await expect.poll(async () => (await code.isVisible()) || /\/(privacy|dashboard)/.test(page.url()), { timeout: 20_000 }).toBe(true);
+  await expect.poll(async () => (await code.isVisible()) || /\/(privacy|dashboard|coordinator)/.test(page.url()), { timeout: 20_000 }).toBe(true);
   if (!(await code.isVisible())) {
     await privacyIfNeeded(page);
     await page.context().storageState({ path: sessionFile });

@@ -5,6 +5,7 @@ import { RISK_RATINGS, riskSeverityFromRatings, type CreateComplianceRiskInput, 
 import { complianceReadinessReport } from "../model/compliance-readiness-report";
 import { complianceRunSummary } from "../model/compliance-run-summary";
 import { useComplianceReviewViewModel } from "../view-models/use-compliance-review-view-model";
+import { ComplianceRiskUpdate } from "./compliance-risk-editor";
 import { ComplianceAdvisory } from "@/features/ai-advisory/views/ai-advisory-panels";
 import { Button } from "@prism/ui/components/button";
 import { Field, FieldLabel } from "@prism/ui/components/field";
@@ -24,7 +25,7 @@ function ratingsText(risk: { likelihood?: string | null; impact?: string | null 
 }
 
 /** Run history as one summary line, plus PMCM-recorded risks for this event. */
-export function ComplianceReviewPanel({ eventId }: { eventId: string }) {
+export function ComplianceReviewPanel({ eventId, phase = "closure" }: { eventId: string; phase?: CreateComplianceRiskInput["phase"] }) {
   const vm = useComplianceReviewViewModel(eventId);
   const readiness = complianceReadinessReport(vm.runs, vm.risks);
   const [riskTitle, setRiskTitle] = useState("");
@@ -33,7 +34,7 @@ export function ComplianceReviewPanel({ eventId }: { eventId: string }) {
   const [impact, setImpact] = useState<RiskRating>("medium");
   const saveRisk = async () => {
     // Severity is left to the API, which derives it from the two ratings.
-    const input: CreateComplianceRiskInput = { phase: "closure", title: riskTitle, mitigation: riskMitigation, likelihood, impact, owner: "PMCM", status: "open" };
+    const input: CreateComplianceRiskInput = { phase, title: riskTitle, mitigation: riskMitigation, likelihood, impact, owner: "PMCM", status: "open" };
     await vm.addRisk(input);
     setRiskTitle("");
     setRiskMitigation("");
@@ -87,12 +88,15 @@ export function ComplianceReviewPanel({ eventId }: { eventId: string }) {
       ) : (
         <ul className="mt-2 divide-y divide-border rounded-md border border-border">
           {vm.risks.map((risk) => (
-            <li key={risk.id} className="px-4 py-2.5 text-sm">
-              <p className="font-medium text-foreground">{risk.title}</p>
-              <p className="text-xs text-muted-foreground">
-                {RISK_SEVERITY[risk.severity] ?? risk.severity}{ratingsText(risk)} · {RISK_STATUS[risk.status] ?? risk.status} · Owner: {risk.owner || "Unassigned"}
-              </p>
-              {risk.mitigation ? <p className="mt-1 text-muted-foreground">{risk.mitigation}</p> : null}
+            <li key={risk.id} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 px-4 py-2.5 text-sm">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-foreground">{risk.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {RISK_SEVERITY[risk.severity] ?? risk.severity}{ratingsText(risk)} · {RISK_STATUS[risk.status] ?? risk.status} · Owner: {risk.owner || "Unassigned"}
+                </p>
+                {risk.mitigation ? <p className="mt-1 text-muted-foreground">{risk.mitigation}</p> : null}
+              </div>
+              <ComplianceRiskUpdate risk={risk} busy={vm.busy} onSave={vm.updateRisk} />
             </li>
           ))}
         </ul>

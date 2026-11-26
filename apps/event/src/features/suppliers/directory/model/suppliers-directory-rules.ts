@@ -180,3 +180,28 @@ export function inclusionCountLabel(count: number) {
 export function supplierContactFallback(supplier: { email?: string | null; phone?: string | null }) {
   return supplier.email || supplier.phone || "No contact on file";
 }
+
+/** Requests a supplier has not answered yet: still open, with no quote on them. PMCM can log a reply for these. */
+export function requestsAwaitingQuote<R extends { id: string; status: string }>(requests: readonly R[], quotes: readonly { requestId?: string }[]): R[] {
+  const answered = new Set(quotes.map((quote) => quote.requestId).filter(Boolean));
+  return requests.filter((request) => request.status === "open" && !answered.has(request.id));
+}
+
+export type LoggedQuoteDraft = { amount: string; inclusions: string; paymentTerms: string; notes: string };
+
+/** A quote PMCM received by phone or email, tied to the request it answers. Amount is typed whole pesos. */
+export function loggedQuoteInput(request: { id: string; supplierId?: string; categoryId?: string; supplierName: string; category: string }, draft: LoggedQuoteDraft) {
+  const amount = Number(draft.amount.replace(/[₱,\s]/g, ""));
+  return {
+    requestId: request.id,
+    supplierId: request.supplierId,
+    categoryId: request.categoryId,
+    supplierName: request.supplierName,
+    category: request.category,
+    amount: Number.isInteger(amount) && amount > 0 ? amount : Number.NaN,
+    inclusions: draft.inclusions.split("\n").map((line) => line.trim()).filter(Boolean),
+    paymentTerms: draft.paymentTerms.trim() || undefined,
+    notes: draft.notes.trim() || undefined,
+    status: "received" as const,
+  };
+}

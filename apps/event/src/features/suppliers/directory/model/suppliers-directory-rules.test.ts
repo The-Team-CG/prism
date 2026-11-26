@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   isQuoteClosed,
+  loggedQuoteInput,
+  requestsAwaitingQuote,
   isQuoteRequestReady,
   isSupplierCreateDraftValid,
   normalizeSupplierName,
@@ -78,5 +80,25 @@ describe("suppliers-directory-rules", () => {
       badge: "10 - 20",
     });
     expect(quoteAcceptableRangeCopy({ acceptableMin: 0, acceptableMax: 20 }, String).summary).toBe("Acceptable range not set");
+  });
+});
+
+describe("quotes PMCM logs by hand", () => {
+  const requests = [
+    { id: "req_open", status: "open", supplierId: "sup_a", categoryId: "cat_av", supplierName: "Lights Co", category: "AV" },
+    { id: "req_answered", status: "open", supplierName: "Sound Co", category: "AV" },
+    { id: "req_closed", status: "closed", supplierName: "Old Co", category: "AV" },
+  ];
+
+  it("offers only open requests that have no quote yet", () => {
+    expect(requestsAwaitingQuote(requests, [{ requestId: "req_answered" }, {}]).map((request) => request.id)).toEqual(["req_open"]);
+  });
+
+  it("ties the quote to its request and supplier, reads pesos and lists one inclusion per line", () => {
+    expect(loggedQuoteInput(requests[0], { amount: "₱45,000", inclusions: "Two kiosks\n\n On-site tech ", paymentTerms: " 50% down ", notes: "" })).toEqual({
+      requestId: "req_open", supplierId: "sup_a", categoryId: "cat_av", supplierName: "Lights Co", category: "AV",
+      amount: 45000, inclusions: ["Two kiosks", "On-site tech"], paymentTerms: "50% down", notes: undefined, status: "received",
+    });
+    expect(loggedQuoteInput(requests[0], { amount: "about 40k", inclusions: "", paymentTerms: "", notes: "" }).amount).toBeNaN();
   });
 });

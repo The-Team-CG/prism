@@ -3,19 +3,7 @@ import { projectDevice } from './browser-devices.mjs';
 import { api, origins, password, inbox, mailLink, persona, privacyIfNeeded, fillStable } from './helpers.mjs';
 import { submitPublicInquiry } from './inquiry-actions.mjs';
 import { oneTableScene } from '../floorplan-fixture.mjs';
-
-// Each supplier booking is a card; its title opens the booking's checklist in a side panel named after the event.
-async function openBooking(page, eventName) {
-  const panel = page.getByRole('dialog', { name: eventName });
-  const title = page.getByRole('link', { name: eventName, exact: true }).first();
-  // After a reload the page reopens the booking its address names; while that panel is open the cards behind it are
-  // hidden from the accessibility tree, so wait for whichever appears and open the card only when the panel did not.
-  await expect(panel.or(title)).toBeVisible();
-  await panel.waitFor({ state: 'visible', timeout: 2_000 }).catch(() => undefined);
-  if (!(await panel.isVisible())) await title.click();
-  await expect(panel).toBeVisible();
-  return panel;
-}
+import { openBooking } from './journey-fixtures.mjs';
 
 test('client, PMCM, supplier, coordinator and guest complete an event lifecycle', async ({ browser, page: client }, info) => {
   test.setTimeout(12 * 60_000);
@@ -239,7 +227,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await coordinatorRow.getByRole('button', { name: /^General Coordinator/ }).click();
       if (doubleBooked) await pmcm.page.getByRole('button', { name: 'Override and assign anyway', exact: true }).click();
       coordinator = await persona(browser, 'coordinator', device); contexts.push(coordinator.context);
-      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}`);
+      await coordinator.page.goto(`${origins.event}/coordinator?event=${eventId}`);
       await coordinator.page.getByRole('button', { name: /Acknowledge role|Confirm assignment/ }).first().click();
       await expect.poll(async () => (await api('GET', `/pmcm/events/${eventId}/workspace`)).coordinatorAssignments.some(item => item.coordinatorId === 'coord_marco' && item.status === 'acknowledged')).toBe(true);
     });
@@ -266,7 +254,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       const booking = await openBooking(supplierActor.page, inquiry.eventName);
       await booking.getByRole('button', { name: /^Arrived/ }).click();
       await booking.getByRole('button', { name: /^Set up and ready/ }).click();
-      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
+      await coordinator.page.goto(`${origins.event}/coordinator?event=${eventId}&view=tasks`);
       // Log a task opens its form in a panel, which closes once the task is saved.
       await coordinator.page.getByRole('button', { name: 'Log a task', exact: true }).click();
       const logTask = coordinator.page.getByRole('dialog', { name: 'Log a task' });
@@ -369,7 +357,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await expect(client.getByText(inquiry.eventName, { exact: false }).first()).toBeVisible();
       await expect(client.getByText('This event is archived. What you confirmed and wrote stays here to read.', { exact: true })).toBeVisible();
       await expect(client.getByRole('region', { name: 'Your feedback' }).getByRole('button', { name: 'Update feedback', exact: true })).toBeDisabled();
-      await coordinator.page.goto(`${origins.event}/dashboard?event=${eventId}&view=tasks`);
+      await coordinator.page.goto(`${origins.event}/coordinator?event=${eventId}&view=tasks`);
       await expect(coordinator.page.getByText('Archived event: operational records are read-only.', { exact: true })).toBeVisible();
     });
   } catch (error) {

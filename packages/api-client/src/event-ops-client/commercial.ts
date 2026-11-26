@@ -142,6 +142,8 @@ export function createCommercialClient(options: EventOpsClientOptions): Pick<Eve
         prismRequest<PrismSupplier>(actorPath(supplier(supplierId, "/reviews"), actor), withBase(options, { method: "POST", body: input })),
       setSupplierAvailability: (supplierId, input, actor = {}) =>
         prismRequest<{ id: string }>(actorPath(supplier(supplierId, "/availability"), actor), withBase(options, { method: "POST", body: input })),
+      addSupplierQuote: (eventId, input, actor = {}) =>
+        prismRequest<PrismSupplierQuote>(actorPath(event(eventId, "/supplier-quotes"), actor), withBase(options, { method: "POST", body: input })),
       requestSupplierQuotes: (eventId, input, actor = {}) =>
         prismRequest<PrismSupplierQuoteRequest[]>(actorPath(event(eventId, "/quote-requests"), actor), withBase(options, { method: "POST", body: input })),
       withdrawQuoteRequest: (eventId, requestId, actor = {}) =>

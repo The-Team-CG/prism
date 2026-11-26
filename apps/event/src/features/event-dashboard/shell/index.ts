@@ -56,9 +56,5 @@ export {
   selectUnreviewedInquiryCount,
   type EventClientRecord,
 } from "./model/event-dashboard-selectors";
-export {
-  getCachedCoordinatorWorkspace,
-  isDashboardCacheFresh,
-  loadCoordinatorWorkspace,
-} from "./use-cases/load-dashboard-workspace";
+export { isDashboardCacheFresh } from "./use-cases/load-dashboard-workspace";
 export { pmcmDashboardRepository } from "./data/pmcm-dashboard-repository";

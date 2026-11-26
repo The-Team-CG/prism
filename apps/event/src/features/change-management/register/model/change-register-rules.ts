@@ -1,4 +1,4 @@
-import { derivePrismLifecycleStage, isBeforePrismEventDay, type PrismAddendum, type PrismEventFreezeException, type PrismLifecycleStageFacts, type RecordEventDecisionInput } from "@prism/types";
+import { derivePrismLifecycleStage, isBeforePrismEventDay, type PrismAddendum, type PrismEventFreezeException, type PrismLifecycleStageFacts, type PrismSupplierQuote, type RecordEventDecisionInput } from "@prism/types";
 
 /** The decision form works in pesos; the API stores the cancellation fee in minor units (centavos). */
 export type RecordDecisionDraft = Omit<RecordEventDecisionInput, "cancellationFeeAmount"> & { cancellationFeePesos: string };
@@ -82,3 +82,62 @@ export function canRecordDecision(draft: {
   return !draft.frozen || draft.freezeExceptionId.length > 0;
 }
 
+
+/** What PMCM fills in to issue an addendum. Amounts are typed pesos; contract terms are one per line. */
+export type IssueAddendumDraft = {
+  title: string;
+  summary: string;
+  documentId: string;
+  contractTerms: string;
+  financialDeltaPesos: string;
+  /** Agreed supplier amounts by quote id, as typed; a quote left out keeps its current amount. */
+  quoteAmounts: Record<string, string>;
+  freezeExceptionId: string;
+};
+
+export const emptyIssueAddendumDraft: IssueAddendumDraft = { title: "", summary: "", documentId: "", contractTerms: "", financialDeltaPesos: "", quoteAmounts: {}, freezeExceptionId: "" };
+
+/** Like `wholePesos`, but an addendum may also take money off the contract: "-5,000" is -5000. */
+export function signedWholePesos(value: string): number {
+  const trimmed = value.trim();
+  const negative = trimmed.startsWith("-");
+  const amount = wholePesos(negative ? trimmed.slice(1) : trimmed);
+  return negative ? -amount : amount;
+}
+
+type AddendumQuote = Pick<PrismSupplierQuote, "id" | "supplierName" | "category" | "amount">;
+
+/**
+ * The addendum body the API expects. Each snapshot is the full state after this addendum: every contract term, and
+ * every booked supplier's amount. The server compares them with the last effective addendum to show what changed and
+ * applies a changed supplier amount only once PMCM countersigns.
+ */
+export function issueAddendumBody(draft: IssueAddendumDraft, bookedQuotes: readonly AddendumQuote[]) {
+  const terms = [...new Set(draft.contractTerms.split("\n").map((line) => line.trim()).filter(Boolean))];
+  return {
+    title: draft.title.trim(),
+    summary: draft.summary.trim() || undefined,
+    documentId: draft.documentId,
+    contractSnapshot: terms.map((term) => ({ key: term })),
+    quoteSnapshot: bookedQuotes.map((quote) => ({
+      id: quote.id,
+      supplierName: quote.supplierName,
+      category: quote.category,
+      amount: draft.quoteAmounts[quote.id]?.trim() ? wholePesos(draft.quoteAmounts[quote.id]) : quote.amount,
+    })),
+    financialDelta: signedWholePesos(draft.financialDeltaPesos),
+    freezeExceptionId: draft.freezeExceptionId || undefined,
+  };
+}
+
+/** Which amounts in the draft cannot be sent, in words PMCM can act on; empty when the draft can be issued. */
+export function issueAddendumProblems(draft: IssueAddendumDraft, bookedQuotes: readonly AddendumQuote[], frozen: boolean): string[] {
+  const body = issueAddendumBody(draft, bookedQuotes);
+  return [
+    !body.title ? "Give the addendum a title." : "",
+    !body.documentId ? "Choose the addendum document." : "",
+    Number.isNaN(body.financialDelta) ? "Enter the contract change in whole pesos, for example 12,500 or -5,000." : "",
+    ...body.quoteSnapshot.filter((entry) => Number.isNaN(entry.amount)).map((entry) => `Enter ${entry.supplierName}'s amount in whole pesos.`),
+    frozen && !body.freezeExceptionId ? "Scope is frozen: choose the approved freeze exception this addendum uses." : "",
+  ].filter(Boolean);
+}

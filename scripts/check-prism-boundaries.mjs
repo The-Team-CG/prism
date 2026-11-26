@@ -49,6 +49,27 @@ const directFetchPattern = /\b(?:await|return)\s+fetch\s*\(|=\s*fetch\s*\(/;
 const aiProviderImportExceptionPattern =
   /^apps\/api\/src\/modules\/platform-ops\/infrastructure\/ai-governance\//;
 
+/** The coordinator portal: its route group and its own feature folder. */
+const coordinatorPortalPattern = /^apps\/event\/src\/(?:app\/\(coordinator\)\/|features\/coordinators\/).*\.tsx?$/;
+/**
+ * What coordinator code may import from the rest of the event app: the event-day features coordinators share with
+ * PMCM, their own account and notices, messages, and the shared kit. Every other feature, including any new one, is
+ * PMCM's and stays out of the coordinator portal.
+ */
+const coordinatorSharedFeatures = new Set([
+  "coordinators", "live-ops", "event-games", "registration", "account", "account-notifications", "ai-advisory", "pmcm-kit",
+  "event-dashboard/messages", "event-dashboard/shell/views/event-portal-query-provider",
+]);
+
+function coordinatorImportsPmcmFeature(source) {
+  for (const match of source.matchAll(/(?:import|export)\s(?!type\s)[^"']*?from\s+["']@\/features\/([^"']+)["']|import\(\s*["']@\/features\/([^"']+)["']\s*\)/g)) {
+    const target = match[1] ?? match[2];
+    const allowed = [...coordinatorSharedFeatures].some((feature) => target === feature || target.startsWith(`${feature}/`));
+    if (!allowed) return true;
+  }
+  return false;
+}
+
 function contextOf(normalized) {
   return normalized.match(/^apps\/api\/src\/modules\/([^/]+)\//)?.[1] ?? null;
 }
@@ -227,6 +248,14 @@ export const boundaryRules = [
     check(normalized, source) {
       if (!rawQueryPattern.test(source)) return false;
       return !normalized.includes("/application/queries/") || !source.includes("Query budget:");
+    },
+  },
+  {
+    name: "the coordinator portal must not import PMCM-only event features",
+    filePattern: coordinatorPortalPattern,
+    check(normalized, source) {
+      if (testFilePattern.test(normalized)) return false;
+      return coordinatorImportsPmcmFeature(source);
     },
   },
   {

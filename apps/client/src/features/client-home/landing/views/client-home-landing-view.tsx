@@ -126,7 +126,7 @@ function BrandMark({ tone = "dark" }: { tone?: "dark" | "light" }) {
     <PrismBrandLogo
       detail="Client Portal"
       dark={tone === "light"}
-      markClassName="size-12 bg-transparent ring-0"
+      markClassName="size-12"
     />
   );
 }
