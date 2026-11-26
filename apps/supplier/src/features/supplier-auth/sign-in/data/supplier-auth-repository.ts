@@ -83,6 +83,16 @@ export const supplierAuthRepository = {
     );
   },
 
+  /** Emails a six-digit sign-in code; the answer is the same whether or not the email has an account. */
+  requestEmailCode(email: string): Promise<{ message: string }> {
+    return runSupplierAuthRequest(() => supplierAuthClient.auth.requestEmailSignInCode(email), "Could not send a sign-in code");
+  },
+
+  /** A session from an emailed code, or the authenticator step when the account has two-step sign-in on. */
+  verifyEmailCode(email: string, code: string): Promise<PrismAuthResponse> {
+    return runSupplierAuthRequest(() => supplierAuthClient.auth.verifyEmailSignInCode({ email, code }), "Supplier sign in failed");
+  },
+
   /** Finishes a two-step sign-in with the code from the authenticator app. */
   verifyTwoStep(token: string, code: string): Promise<PrismSignInSession> {
     return runSupplierAuthRequest(

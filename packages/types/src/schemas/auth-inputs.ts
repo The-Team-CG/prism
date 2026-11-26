@@ -50,6 +50,20 @@ export type EnableOwnTwoFactorInput = z.infer<typeof enableOwnTwoFactorSchema>;
 export const requestPasswordResetSchema = z.object({ email: z.string().trim().email() });
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
 
+/** How long an emailed sign-in code works, and how many wrong tries it allows before a new one is needed. */
+export const EMAIL_SIGN_IN_CODE_TTL_MINUTES = 10;
+export const EMAIL_SIGN_IN_CODE_MAX_ATTEMPTS = 5;
+
+/** Clients and suppliers can sign in with a code emailed to them instead of a password; PMCM staff cannot. */
+export const requestEmailSignInCodeSchema = z.object({ email: z.string().trim().email() });
+export type RequestEmailSignInCodeInput = z.infer<typeof requestEmailSignInCodeSchema>;
+
+export const verifyEmailSignInCodeSchema = z.object({
+  email: z.string().trim().email(),
+  code: z.string().trim().regex(/^\d{6}$/, "Enter the six-digit code from the email"),
+});
+export type VerifyEmailSignInCodeInput = z.infer<typeof verifyEmailSignInCodeSchema>;
+
 export const consumePasswordResetSchema = z.object({
   token: z.string().trim().min(32),
   password: passwordSchema,

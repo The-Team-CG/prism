@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from '@playwright/test';
 import { PRISM_PRIVACY_NOTICE_VERSION } from '@prism/types';
-import { api, freshEvent, origins, password, fillStable, privacyIfNeeded } from './helpers.mjs';
+import { api, freshEvent, origins, password, fillStable, usePasswordSignIn, privacyIfNeeded } from './helpers.mjs';
 import { oneTableScene } from '../floorplan-fixture.mjs';
 
 export const supplierAccount = { email: 'ops@xperto.test', supplierId: 'sup_xperto', category: 'supcat_digital_registration' };
@@ -21,6 +21,7 @@ export async function signedIn(browser, device, origin, email, secret) {
   await page.goto(`${origin}/sign-in`);
   await page.waitForLoadState('networkidle');
   await fillStable(page.getByLabel('Email address'), email);
+  await usePasswordSignIn(page);
   await fillStable(page.getByLabel('Password', { exact: true }), secret);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await privacyIfNeeded(page);

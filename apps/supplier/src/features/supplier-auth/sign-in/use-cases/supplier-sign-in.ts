@@ -2,6 +2,8 @@ import { supplierAuthRepository } from "../data/supplier-auth-repository";
 import {
   loginSchema,
   parseContract,
+  requestEmailSignInCodeSchema,
+  verifyEmailSignInCodeSchema,
   privacyNoticePath,
   type PrismAuthenticatedSession,
   type PrismSignInSession,
@@ -41,6 +43,21 @@ export async function signInSupplier(input: {
   const authResponse = await supplierAuthRepository.login(credentials);
   if (!("kind" in authResponse)) return finishSignIn(authResponse, input.nextPath);
   // Only PMCM admins are asked to set two-step sign-in up while signing in, and they belong in the event portal.
+  if (authResponse.kind === "two_factor_setup_required") throw new Error(mapWrongPortalMessage("pmcm-admin"));
+  return { twoStepToken: authResponse.token };
+}
+
+/** Emails a sign-in code; unknown emails look sent, so only a refused request is an error. */
+export async function requestSupplierEmailCode(email: string): Promise<void> {
+  const input = parseContract(requestEmailSignInCodeSchema, { email }, "Sign-in code request");
+  await supplierAuthRepository.requestEmailCode(input.email);
+}
+
+/** Signs in with the emailed code; an account with two-step sign-in on still gets its authenticator step. */
+export async function signInSupplierWithEmailCode(input: { email: string; code: string; nextPath?: string | null }): Promise<SupplierSignInResult> {
+  const parsed = parseContract(verifyEmailSignInCodeSchema, { email: input.email, code: input.code }, "Sign-in code");
+  const authResponse = await supplierAuthRepository.verifyEmailCode(parsed.email, parsed.code);
+  if (!("kind" in authResponse)) return finishSignIn(authResponse, input.nextPath);
   if (authResponse.kind === "two_factor_setup_required") throw new Error(mapWrongPortalMessage("pmcm-admin"));
   return { twoStepToken: authResponse.token };
 }

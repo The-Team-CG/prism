@@ -83,6 +83,16 @@ export function createAuthClient(
           "/auth/password-reset/request",
           withBase(authOptions, { method: "POST", body: { email } }),
         ),
+      requestEmailSignInCode: (email) =>
+        prismRequest(
+          "/auth/email-code/request",
+          withBase(authOptions, { method: "POST", body: { email } }),
+        ),
+      verifyEmailSignInCode: (input) =>
+        prismRequest(
+          "/auth/email-code/verify",
+          withBase(authOptions, { method: "POST", body: input }),
+        ),
       consumePasswordReset: (token, password) =>
         prismRequest(
           "/auth/password-reset/consume",

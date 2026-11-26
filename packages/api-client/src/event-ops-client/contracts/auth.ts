@@ -25,6 +25,7 @@ import type {
   PrismTwoFactorQr,
   RequestApprovalInput,
   VerifyTwoFactorInput,
+  VerifyEmailSignInCodeInput,
 } from "@prism/types";
 
 export interface EventOpsAuthContract {
@@ -69,6 +70,10 @@ export interface EventOpsAuthContract {
     requestPasswordReset(
       email: string,
     ): Promise<{ message: string }>;
+    /** Emails a client or supplier a six-digit sign-in code; answers the same whether or not the email exists. */
+    requestEmailSignInCode(email: string): Promise<{ message: string }>;
+    /** A session, or the authenticator step for an account that turned two-step sign-in on. */
+    verifyEmailSignInCode(input: VerifyEmailSignInCodeInput): Promise<PrismAuthResponse>;
     consumePasswordReset(
       token: string,
       password: string,

@@ -14,6 +14,8 @@ import { AccountInvitationService } from '../../application/auth/account-invitat
 import { OwnSessionsService } from '../../application/auth/own-sessions.service';
 import { OwnTwoFactorService } from '../../application/auth/own-two-factor.service';
 import { EmailChangeService } from '../../application/auth/email-change.service';
+import { EmailSignInService } from '../../application/auth/email-sign-in.service';
+import { requestEmailSignInCodeSchema, verifyEmailSignInCodeSchema, type RequestEmailSignInCodeInput, type VerifyEmailSignInCodeInput } from '@prism/types';
 
 @Controller('auth')
 export class OpsAuthController {
@@ -26,6 +28,7 @@ export class OpsAuthController {
     private readonly ownSessions: OwnSessionsService,
     private readonly ownTwoFactor: OwnTwoFactorService,
     private readonly emailChange: EmailChangeService,
+    private readonly emailSignIn: EmailSignInService,
   ) {}
 
   private async requireAdmin(actor: PrismVerifiedEventActor): Promise<ResolvedEventOpsActor> {
@@ -56,6 +59,24 @@ export class OpsAuthController {
     const clientIp = request.ip;
     if (!clientIp) throw new InternalServerErrorException('Client address is unavailable for password reset rate limiting');
     return this.passwordResetService.request(dto.email, clientIp);
+  }
+
+  /** Sign-in redesign: a client or supplier asks for a six-digit code by email instead of typing a password. */
+  @Post('email-code/request')
+  @PublicRateLimit('accountRequest')
+  @HttpCode(HttpStatus.ACCEPTED)
+  requestEmailSignInCode(@Req() request: Request, @Body(zodBody(requestEmailSignInCodeSchema)) dto: RequestEmailSignInCodeInput) {
+    const clientIp = request.ip;
+    if (!clientIp) throw new InternalServerErrorException('Client address is unavailable for sign-in code rate limiting');
+    return this.emailSignIn.request(dto.email, clientIp);
+  }
+
+  /** Answers like a password sign-in: a session, or the authenticator step for an account that turned it on. */
+  @Post('email-code/verify')
+  @PublicRateLimit('authentication')
+  @HttpCode(HttpStatus.OK)
+  verifyEmailSignInCode(@Body(zodBody(verifyEmailSignInCodeSchema)) dto: VerifyEmailSignInCodeInput, @Headers('user-agent') userAgent?: string) {
+    return this.emailSignIn.verify(dto.email, dto.code, userAgent);
   }
 
   @Post('password-reset/consume')

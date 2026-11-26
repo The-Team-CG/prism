@@ -8,6 +8,7 @@ import { Button } from "./components/ui/button";
 import { Field } from "./components/ui/field";
 import { Input } from "./components/ui/input";
 import { Label } from "./components/ui/label";
+import { AuthenticatorCodeInput } from "./authenticator-code-input";
 
 /**
  * The pieces every portal's sign-in is built from, so the client, supplier and PMCM portals look and read the same.
@@ -138,6 +139,44 @@ export function PrismAuthLinks({ primary, secondary }: { primary?: { href: strin
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
       {primary ? <a href={primary.href} className="text-primary transition-colors hover:text-primary/80">{primary.label}</a> : <span />}
       {secondary ? <a href={secondary.href} className="text-muted-foreground transition-colors hover:text-foreground">{secondary.label}</a> : null}
+    </div>
+  );
+}
+
+/**
+ * The step after asking for an emailed sign-in code: the six boxes, how long the code works, a resend that waits out
+ * its countdown, and a way back to a different email.
+ */
+export function PrismEmailCodeStep({ email, code, onCodeChange, busy, invalid, errorId, resendIn, onResend, onChangeEmail, ttlMinutes }: {
+  email: string;
+  code: string;
+  onCodeChange: (code: string) => void;
+  busy: boolean;
+  invalid: boolean;
+  errorId: string;
+  /** Seconds until another code can be asked for; 0 shows the resend button. */
+  resendIn: number;
+  onResend: () => void;
+  onChangeEmail: () => void;
+  ttlMinutes: number;
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="space-y-1">
+        <p className="text-base font-semibold text-foreground">Check your email</p>
+        <p className="text-sm text-muted-foreground">
+          We sent a six-digit code to <span className="font-medium text-foreground">{email}</span>. It works for {ttlMinutes} minutes.
+        </p>
+      </div>
+      <AuthenticatorCodeInput value={code} onChange={onCodeChange} disabled={busy} invalid={invalid} errorId={errorId} />
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
+        {resendIn > 0 ? (
+          <span className="text-muted-foreground" aria-live="polite">Send a new code in {Math.floor(resendIn / 60)}:{String(resendIn % 60).padStart(2, "0")}</span>
+        ) : (
+          <button type="button" onClick={onResend} disabled={busy} className="text-primary hover:text-primary/80 disabled:opacity-50">Send a new code</button>
+        )}
+        <button type="button" onClick={onChangeEmail} className="text-muted-foreground hover:text-foreground">Use a different email</button>
+      </div>
     </div>
   );
 }

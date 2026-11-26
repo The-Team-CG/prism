@@ -7,7 +7,7 @@ import {
   resolvePostSignInPath,
 } from "../model/sign-in-rules";
 import type { SignInDraft } from "../model/sign-in-types";
-import { privacyNoticePath, type PrismSignInSession, type PrismUser } from "@prism/types";
+import { privacyNoticePath, requestEmailSignInCodeSchema, type PrismSignInSession, type PrismUser } from "@prism/types";
 import { signInCodeProblem } from "@prism/ui/sign-in-code-step";
 
 export type SignInResult =
@@ -39,6 +39,30 @@ export async function signInClient(input: {
     return { kind: "two_step", token: response.token };
   } catch (err) {
     return { kind: "error", error: mapSignInFailure({ message: mapSignInError(err) }) };
+  }
+}
+
+/** Asks for an emailed sign-in code. Only a refused request (network, rate limit) is an error; unknown emails look sent. */
+export async function requestClientEmailCode(email: string): Promise<{ kind: "sent" } | { kind: "error"; error: string }> {
+  const parsed = requestEmailSignInCodeSchema.safeParse({ email });
+  if (!parsed.success) return { kind: "error", error: "Enter the email address PMCM has for you." };
+  try {
+    await clientAuthRepository.requestEmailCode(parsed.data.email);
+    return { kind: "sent" };
+  } catch (err) {
+    return { kind: "error", error: mapSignInFailure({ message: mapSignInError(err) }) };
+  }
+}
+
+/** Signs in with the emailed code; an account with two-step sign-in on still gets its authenticator step. */
+export async function signInClientWithEmailCode(input: { email: string; code: string; nextPath?: string | null }): Promise<SignInResult> {
+  try {
+    const response = await clientAuthRepository.verifyEmailCode(input.email, input.code);
+    if (!("kind" in response)) return finishSignIn(response, input.nextPath);
+    if (response.kind === "two_factor_setup_required") return { kind: "error", error: portalMessage("pmcm-admin") };
+    return { kind: "two_step", token: response.token };
+  } catch (err) {
+    return { kind: "error", error: mapSignInError(err) };
   }
 }
 

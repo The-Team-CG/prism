@@ -27,6 +27,16 @@ export const clientAuthRepository = {
     return clientApi.auth.login(input);
   },
 
+  /** Emails a six-digit sign-in code; the answer is the same whether or not the email has an account. */
+  requestEmailCode(email: string): Promise<{ message: string }> {
+    return clientApi.auth.requestEmailSignInCode(email);
+  },
+
+  /** A session from an emailed code, or the authenticator step when the account has two-step sign-in on. */
+  verifyEmailCode(email: string, code: string): Promise<PrismAuthResponse> {
+    return clientApi.auth.verifyEmailSignInCode({ email, code });
+  },
+
   /** Finishes a two-step sign-in with the code from the authenticator app. */
   verifyTwoStep(token: string, code: string): Promise<PrismSignInSession> {
     return clientApi.auth.verifyTwoFactor({ token, code });

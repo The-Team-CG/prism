@@ -98,6 +98,31 @@ export class AuthOperationsService {
     return this.issueLoginSession(updated, browser);
   }
 
+  /**
+   * Signs in an account whose emailed code was just verified (clients and suppliers). The same lock, approval, audit
+   * and second-step rules apply as for a password; only the proof of identity differs.
+   */
+  async signInWithVerifiedEmail(userId: string, device?: string) {
+    const user = await this.prisma.opsUser.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException(INVALID_CREDENTIALS);
+    const now = new Date();
+    if (user.permanentLockout) {
+      await this.authAudit.handleForbiddenAccess(user, user.email, 'Permanent lockout');
+      throw new ForbiddenException('This account is permanently locked and requires PMCM Admin intervention');
+    }
+    if (user.lockedUntil && user.lockedUntil > now) {
+      await this.authAudit.handleForbiddenAccess(user, user.email, 'Temporary lockout');
+      throw new ForbiddenException('This account is temporarily locked after repeated failed login attempts');
+    }
+    if (user.approvalStatus !== 'approved') {
+      await this.authAudit.handleForbiddenAccess(user, user.email, 'Account waiting for approval');
+      throw new ForbiddenException('This account is waiting for admin approval');
+    }
+    const browser = deviceName(device);
+    const updated = await this.recordAcceptedSignIn(user, user.email, null, browser);
+    return this.issueLoginSession(updated, browser);
+  }
+
   private async rejectUnknownLogin(normalizedEmail: string) {
     await this.authAudit.recordLoginHistory(null, normalizedEmail, 'failed', 'Unknown email');
     await this.authAudit.recordAuthenticationAudit({
@@ -140,14 +165,15 @@ export class AuthOperationsService {
     }
   }
 
-  private async recordAcceptedSignIn(user: OpsUser, normalizedEmail: string, password: string, device?: string) {
+  /** `password` is null for an emailed-code sign-in, which has no password to rehash. */
+  private async recordAcceptedSignIn(user: OpsUser, normalizedEmail: string, password: string | null, device?: string) {
     // Anyone with a second step still to pass has their lock counters reset only when a session is issued
     // (see verifyTwoFactor). Everyone else's counters reset here.
     const requiresTwoFactor = needsSecondStep(user);
     const updated = await this.prisma.opsUser.update({
       where: { id: user.id },
       data: {
-        ...(AuthSecurityService.needsRehash(user.password)
+        ...(password !== null && AuthSecurityService.needsRehash(user.password)
           ? { password: await AuthSecurityService.hashPassword(password) }
           : {}),
         ...(requiresTwoFactor
