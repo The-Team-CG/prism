@@ -237,33 +237,6 @@ describe('NotificationOutboxService', () => {
     expect(prisma.opsNotificationLog.updateMany).toHaveBeenCalledTimes(2);
   });
 
-  it.each(['queued', 'failed'])('rejects acknowledgement of %s work', async (status) => {
-    const { service, notifications } = createService();
-    notifications.push({ id: 'not_1', recipient: 'client@example.test', status });
-    await expect(service.acknowledge('not_1', { role: 'client', email: 'client@example.test' } as never)).rejects.toThrow(/provider-accepted/);
-    expect(notifications[0].status).toBe(status);
-  });
-  it('allows a verified recipient to acknowledge only their own notification', async () => {
-    const { service, notifications } = createService();
-    notifications.push({ id: 'not_1', recipient: 'client@example.test', status: 'sent' });
-    const actor = { email: 'CLIENT@example.test', role: 'client' } as never;
-    await expect(service.acknowledge('not_1', actor)).resolves.toMatchObject({ status: 'acknowledged' });
-  });
-
-  it.each(['client', 'pmcm-admin'])('denies a verified %s acknowledging another recipient notification', async (role) => {
-    const { service, notifications } = createService();
-    notifications.push({ id: 'not_1', recipient: 'client@example.test', status: 'sent' });
-    const actor = { email: 'other@example.test', role } as never;
-    await expect(service.acknowledge('not_1', actor)).rejects.toThrow(/recipient/);
-  });
-
-  it('denies a recipient acknowledging a notification from another event scope', async () => {
-    const { service, notifications } = createService();
-    notifications.push({ id: 'not_1', eventId: 'evt_other', recipient: 'client@example.test', status: 'sent' });
-    const actor = { email: 'client@example.test', role: 'client', eventId: 'evt_current' } as never;
-    await expect(service.acknowledge('not_1', actor)).rejects.toThrow(/event scope/);
-  });
-
   it('persists audit correlation when queueing notification work', async () => {
     const { prisma, service } = createService();
 

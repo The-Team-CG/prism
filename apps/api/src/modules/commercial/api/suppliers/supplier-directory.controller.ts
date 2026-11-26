@@ -25,18 +25,4 @@ export class OpsSupplierDirectoryController {
     );
     return this.suppliersService.listSupplierCategories();
   }
-
-  @Get()
-  @UseGuards(EventSessionGuard)
-  async list(
-    @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor,
-  ) {
-    const actor = this.eventAccessPolicyService.resolveActor({}, verifiedActor);
-    await this.eventAccessPolicyService.requireActorRole(
-      actor,
-      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
-      'supplier directory',
-    );
-    return this.suppliersService.listSuppliers();
-  }
 }

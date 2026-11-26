@@ -12,18 +12,14 @@ describe('OpsSupplierDirectoryController', () => {
     expect(controllerPath(OpsSupplierDirectoryController)).toBe('suppliers');
   });
 
-  it.each([
-    ['listCategories', OpsSupplierDirectoryController.prototype.listCategories],
-    ['list', OpsSupplierDirectoryController.prototype.list],
-  ])('requires a verified session actor for %s', (_name, handler) => {
-    const guards = Reflect.getMetadata('__guards__', handler);
+  it('requires a verified session actor for listCategories', () => {
+    const guards = Reflect.getMetadata('__guards__', OpsSupplierDirectoryController.prototype.listCategories);
     expect(guards).toContain(EventSessionGuard);
   });
 
-  it('serves supplier directory reads using the verified session actor', async () => {
+  it('serves supplier categories using the verified session actor', async () => {
     const suppliersService = {
       listSupplierCategories: vi.fn(async () => [{ id: 'cat_food' }]),
-      listSuppliers: vi.fn(async () => [{ id: 'sup_1' }]),
     };
     const eventAccessPolicyService = {
       resolveActor: vi.fn((_input, verifiedActor) => ({
@@ -39,31 +35,15 @@ describe('OpsSupplierDirectoryController', () => {
       actorName: 'SonicLine',
       actorEmail: 'sonicline@example.test',
     };
-    const adminActor = {
-      actorId: 'user_maxine',
-      actorRole: 'pmcm-admin',
-      actorName: 'Maxine',
-      actorEmail: 'maxine@pmcm.test',
-    };
 
     await expect(controller.listCategories(supplierActor as any)).resolves.toEqual([{ id: 'cat_food' }]);
-    await expect(controller.list(adminActor as any)).resolves.toEqual([{ id: 'sup_1' }]);
 
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenNthCalledWith(1, {}, supplierActor);
-    expect(eventAccessPolicyService.resolveActor).toHaveBeenNthCalledWith(2, {}, adminActor);
-    expect(eventAccessPolicyService.requireActorRole).toHaveBeenNthCalledWith(
-      1,
+    expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, supplierActor);
+    expect(eventAccessPolicyService.requireActorRole).toHaveBeenCalledWith(
       { role: 'supplier', name: 'SonicLine' },
       ['pmcm-admin', 'system', 'supplier'],
       'supplier categories',
     );
-    expect(eventAccessPolicyService.requireActorRole).toHaveBeenNthCalledWith(
-      2,
-      { role: 'pmcm-admin', name: 'Maxine' },
-      ['pmcm-admin', 'system'],
-      'supplier directory',
-    );
     expect(suppliersService.listSupplierCategories).toHaveBeenCalledTimes(1);
-    expect(suppliersService.listSuppliers).toHaveBeenCalledTimes(1);
   });
 });
