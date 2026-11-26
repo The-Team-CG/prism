@@ -135,7 +135,7 @@ export async function startConversation(page, eventId, subject, email) {
   await page.goto(`${origins.event}/dashboard/events/${eventId}/messages`);
   await page.getByRole('button', { name: 'New conversation' }).first().click();
   await page.getByLabel('Topic', { exact: true }).fill(subject);
-  await page.getByRole('checkbox', { name: new RegExp(email.replace(/[.+]/g, '\\$&')) }).check({ force: true });
+  await page.getByRole('checkbox', { name: email }).check({ force: true });
   await page.getByRole('button', { name: 'Start conversation', exact: true }).click();
   // A new conversation has no message list until its first message.
   await expect(page.getByText('Say hello to start the conversation.')).toBeVisible();

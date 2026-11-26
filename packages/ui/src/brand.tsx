@@ -5,7 +5,7 @@ import { portalHref } from "./portal-path";
 import type * as React from "react";
 import { cn } from "./utils";
 
-const PRISM_LOGO_SRC = new URL("../assets/images/prism-logo.png", import.meta.url).toString();
+const PRISM_MARK_SRC = new URL("../assets/images/prism-mark.svg", import.meta.url).toString();
 
 export interface PrismBrandLogoProps {
   href?: string;
@@ -28,15 +28,8 @@ function PrismBrandLogoContent({
 }: Omit<PrismBrandLogoProps, "href" | "className">) {
   return (
     <>
-      <span
-        className={cn(
-          "grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-card",
-          dark ? "ring-1 ring-white/14" : "ring-1 ring-primary/12",
-          compact && "size-9",
-          markClassName,
-        )}
-      >
-        <img src={PRISM_LOGO_SRC} alt="" aria-hidden="true" className="size-full object-contain p-0.5" />
+      <span className={cn("grid size-10 shrink-0 place-items-center", compact && "size-9", markClassName)}>
+        <img src={PRISM_MARK_SRC} alt="" aria-hidden="true" className="size-full object-contain" />
       </span>
       <span className={cn("min-w-0", compact && "sr-only", textClassName)}>
         <span

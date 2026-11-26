@@ -20,7 +20,7 @@ import { PrismBrandLogo } from "@prism/ui";
 
 function BrandMark() {
   return (
-    <PrismBrandLogo href="/" detail="Guest Portal" markClassName="size-12 bg-transparent ring-0" />
+    <PrismBrandLogo href="/" detail="Guest Portal" markClassName="size-12" />
   );
 }
 

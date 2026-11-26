@@ -30,7 +30,7 @@ function cx(...classes: Array<string | false | undefined>) {
 }
 function PublicBrand({ label }: { label?: string }) {
   return (
-    <PrismBrandLogo href="/" detail={label ?? "Event Command"} markClassName="size-12 bg-transparent ring-0" />
+    <PrismBrandLogo href="/" detail={label ?? "Event Command"} markClassName="size-12" />
   );
 }
 

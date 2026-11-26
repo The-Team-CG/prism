@@ -8,8 +8,20 @@ import { totp } from '../lifecycle/lib.mjs';
 export const origins = { client: 'http://127.0.0.1:3301', supplier: 'http://127.0.0.1:3302', guest: 'http://127.0.0.1:3303', event: 'http://127.0.0.1:3304' };
 export const adminToken = JSON.parse(readFileSync(join(process.env.BROWSER_RUN_DIRECTORY, 'actors.json'), 'utf8')).adminToken;
 export const password = process.env.PRISM_SEED_PASSWORD_CLIENT;
+// Public submissions (every fixture inquiry) are limited to 10 a minute per address. The suite creates them faster than
+// that late in a run, so a throttled request waits out the API's Retry-After instead of failing the test.
+const THROTTLE_RETRIES = 2;
+async function waitForRetryAfter(response) {
+  const seconds = Number(response.headers.get('retry-after'));
+  await new Promise(resolve => setTimeout(resolve, (seconds > 0 ? Math.min(seconds, 60) : 5) * 1000));
+}
 export async function api(method, path, body, token = adminToken) {
-  const response = await fetch(`${process.env.E2E_API_URL}${path}`, { method, signal: AbortSignal.timeout(30_000), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+  let response;
+  for (let attempt = 0; attempt <= THROTTLE_RETRIES; attempt += 1) {
+    response = await fetch(`${process.env.E2E_API_URL}${path}`, { method, signal: AbortSignal.timeout(30_000), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+    if (response.status !== 429 || attempt === THROTTLE_RETRIES) break;
+    await waitForRetryAfter(response);
+  }
   if (!response.ok) throw new Error(`Browser fixture ${method} ${path.split('?')[0]} failed (${response.status}).`);
   const text = await response.text();
   const json = text ? JSON.parse(text) : undefined;
