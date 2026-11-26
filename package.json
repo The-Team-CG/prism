@@ -69,7 +69,7 @@
     "benchmark:typecheck": "node scripts/benchmark-typecheck.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.65.0",
+    "@playwright/test": "1.65.1",
     "@types/blob-stream": "^0.1.33",
     "@types/pdfkit": "^0.17.7",
     "@typescript/native": "npm:typescript@7.0.2",
