@@ -28,6 +28,7 @@ function useVerify(onDone: () => void) {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [verifiedReceiptId, setVerifiedReceiptId] = useState<string | null>(null);
 
   async function submit() {
     const parsed = verifyPaymentReceiptSchema.safeParse({ notes: note });
@@ -37,6 +38,7 @@ function useVerify(onDone: () => void) {
     setBusy(false);
     const failed = results.filter((result) => result.status === "rejected").length;
     const verified = results.length - failed;
+    setVerifiedReceiptId(targets.length === 1 && verified === 1 ? targets[0]?.receiptId ?? null : null);
     if (verified) toast.success(verified === 1 ? "Payment verified. The client has been told." : `${verified} payments verified. Each client has been told.`);
     if (failed) toast.error(failed === 1 ? "One payment could not be verified. Open it to see why." : `${failed} payments could not be verified. Open them to see why.`);
     setTargets([]);
@@ -54,6 +56,7 @@ function useVerify(onDone: () => void) {
     setNote,
     error,
     busy,
+    verifiedReceiptId,
     submit,
   };
 }

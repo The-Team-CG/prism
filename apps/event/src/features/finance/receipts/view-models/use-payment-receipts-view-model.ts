@@ -56,6 +56,7 @@ export function usePaymentReceiptsViewModel() {
   const [dialog, setDialog] = useState<ReceiptDialog | null>(null);
   // A link from the finance desk, the inbox or an event's billing opens straight on one receipt.
   const [linkedReceipt] = useListFilter("receipt", "");
+  const [applyOnOpen] = useListFilter("apply", "");
   useEffect(() => {
     if (!linkedReceipt) return;
     setFilter("all");
@@ -68,6 +69,12 @@ export function usePaymentReceiptsViewModel() {
 
   const receipts = useMemo(() => list.data ?? [], [list.data]);
   const selected = latest?.id === selectedId ? latest : receipts.find((receipt) => receipt.id === selectedId) ?? null;
+  const [openedLinkedAllocation, setOpenedLinkedAllocation] = useState(false);
+  useEffect(() => {
+    if (applyOnOpen !== "1" || openedLinkedAllocation || !selected || selected.id !== linkedReceipt || selected.unapplied <= 0) return;
+    setOpenedLinkedAllocation(true);
+    setDialog({ kind: "allocate" });
+  }, [applyOnOpen, linkedReceipt, openedLinkedAllocation, selected]);
 
   const select = useCallback((id: string | null) => {
     setSelectedId(id);

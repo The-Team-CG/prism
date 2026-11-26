@@ -57,23 +57,19 @@ test('PMCM issues an addendum, the client signs it, and PMCM countersigns so it 
 
 test('PMCM records a compliance risk and moves it to mitigated with its reason', async ({ browser }, info) => {
   const device = projectDevice(info.project.name);
-  // Compliance review opens on the Closure page once the event has ended.
   const event = await freshEvent('Browser compliance risk');
-  await approvedOfficialPlan(event);
-  await approvedProposal(event);
-  await api('POST', `/events/${event.eventId}/start-event-day`, {});
-  await api('POST', `/events/${event.eventId}/actual-end`, { actualEndedAt: new Date(Date.now() - 60 * 60_000).toISOString() });
   const pmcm = await persona(browser, 'pmcm', device);
   const contexts = [pmcm.context];
   const risk = `Venue power may trip (${info.project.name})`;
   try {
-    await pmcm.page.goto(`${origins.event}/dashboard/events/${event.eventId}/closure`);
-    await pmcm.page.getByRole('tab', { name: 'Compliance', exact: true }).click();
-    await pmcm.page.getByText('Record a risk', { exact: true }).click();
-    await pmcm.page.getByLabel('Risk', { exact: true }).fill(risk);
-    await pmcm.page.getByLabel('Mitigation', { exact: true }).fill('Ask the venue for the load sheet.');
-    await pmcm.page.getByRole('button', { name: 'Record risk', exact: true }).click();
-    await pmcm.page.getByRole('button', { name: `Update ${risk}` }).click();
+    await pmcm.page.goto(`${origins.event}/dashboard/events/${event.eventId}/briefing`);
+    await pmcm.page.getByRole('tab', { name: 'Changes', exact: true }).click();
+    const review = pmcm.page.getByRole('region', { name: 'History and risks' });
+    await review.getByText('Record a risk', { exact: true }).click();
+    await review.getByLabel('Risk', { exact: true }).fill(risk);
+    await review.getByLabel('Mitigation', { exact: true }).fill('Ask the venue for the load sheet.');
+    await review.getByRole('button', { name: 'Record risk', exact: true }).click();
+    await review.getByRole('button', { name: `Update ${risk}` }).click();
     const editor = pmcm.page.getByRole('form', { name: `Update ${risk}` });
     await editor.getByRole('radio', { name: 'Mitigated', exact: true }).click();
     await editor.getByLabel('Owner', { exact: true }).fill('Site lead');
@@ -81,6 +77,13 @@ test('PMCM records a compliance risk and moves it to mitigated with its reason',
     await editor.getByRole('button', { name: 'Save risk', exact: true }).click();
     await expect.poll(async () => (await api('GET', `/events/${event.eventId}/compliance/risks`)).find(item => item.title === risk)?.status).toBe('mitigated');
     await expect(pmcm.page.getByText(/Mitigated · Owner: Site lead/)).toBeVisible();
+    await approvedOfficialPlan(event);
+    await approvedProposal(event);
+    await api('POST', `/events/${event.eventId}/start-event-day`, {});
+    await api('POST', `/events/${event.eventId}/actual-end`, { actualEndedAt: new Date(Date.now() - 60 * 60_000).toISOString() });
+    await pmcm.page.goto(`${origins.event}/dashboard/events/${event.eventId}/closure`);
+    await pmcm.page.getByRole('tab', { name: 'Compliance', exact: true }).click();
+    await expect(pmcm.page.getByText(risk, { exact: true })).toBeVisible();
   } finally { await closeAll(contexts); }
 });
 

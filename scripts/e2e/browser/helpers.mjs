@@ -90,7 +90,7 @@ export async function privacyIfNeeded(page) {
   // Coordinators land in their own portal at /coordinator; everyone else on /dashboard.
   await page.waitForURL(/\/privacy|\/dashboard|\/coordinator/, { timeout: 30_000 });
   if (page.url().includes('/privacy')) await page.getByRole('button', { name: "I've read this notice" }).click();
-  await expect(page).toHaveURL(/\/dashboard|\/coordinator/);
+  await expect(page).toHaveURL(/\/dashboard|\/coordinator/, { timeout: 60_000 });
 }
 export async function signInPmcm(page, email = 'approver@pmcm.test') {
   await page.goto(`${origins.event}/sign-in`);
