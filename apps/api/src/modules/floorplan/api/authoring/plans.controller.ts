@@ -29,12 +29,4 @@ export class PlansController {
   ) {
     return this.plansService.updatePlan(planId, dto, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
   }
-
-  @Get(':planId/export')
-  @UseGuards(EventSessionGuard)
-  async exportPlan(@Param('planId') planId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor, @Res() res: Response) {
-    const plan = await this.plansService.getPlan(planId, this.eventAccessPolicyService.resolveActor({}, verifiedActor));
-    res.setHeader('Content-Disposition', `attachment; filename=plan-${plan.id}.json`);
-    res.json(plan);
-  }
 }

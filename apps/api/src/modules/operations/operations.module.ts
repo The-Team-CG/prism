@@ -13,7 +13,6 @@ import { RegistrationSupplierReferenceModule } from '@prism/contexts/commercial/
 import { GuestEventProjectionModule } from '@prism/contexts/read-models/guest-events';
 import { OpsCoordinatorWorkspaceController } from './api/staffing/coordinator-workspace.controller';
 import { OpsEventCoordinatorAssignmentsController } from './api/staffing/event-coordinator-assignments.controller';
-import { OpsCoordinatorsController } from './api/staffing/coordinators.controller';
 import { OpsCoordinatorCapacityController } from './api/staffing/coordinator-capacity.controller';
 import { OpsGuestController } from './api/guest/guest.controller';
 import { OpsRegistrationPlatformController } from './api/guest/registration-platform.controller';
@@ -45,7 +44,7 @@ import { OPERATIONS_PRIVACY_REDACTOR } from './contracts/privacy-redaction.port'
 
 @Module({
   imports: [DatabaseModule, AccessControlModule, EventCoreModule, PlatformOpsModule, FloorplanModule, EventSessionModule, OperationsEventReferenceModule, CoordinatorAccountReferenceModule, RegistrationSupplierReferenceModule, GuestEventProjectionModule],
-  controllers: [OpsCoordinatorsController, OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController, CoordinatorRoleBriefController, CoordinatorReplacementRecommendationsController, GuestQrPassController],
+  controllers: [OpsCoordinatorWorkspaceController, OpsEventCoordinatorAssignmentsController, OpsCoordinatorCapacityController, OpsGuestController, OpsRegistrationPlatformController, WalkInPolicyController, GuestPrivacyClassificationController, CoordinatorRoleBriefController, CoordinatorReplacementRecommendationsController, GuestQrPassController],
   providers: [
     OperationsAccountEmailRelinkerService,
     { provide: OPERATIONS_ACCOUNT_EMAIL_RELINKER, useExisting: OperationsAccountEmailRelinkerService },

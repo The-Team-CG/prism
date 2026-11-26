@@ -10,7 +10,6 @@ import { OperationsModule } from '../operations/operations.module';
 import { CLIENT_ONBOARDING_COMMANDS, INQUIRY_COMMANDS } from './contracts/inquiry-onboarding.tokens';
 import { OpsEventBriefingController } from './api/onboarding/event-briefing.controller';
 import { OpsInquiriesController } from './api/onboarding/inquiries.controller';
-import { OpsOnboardingController } from './api/onboarding/onboarding.controller';
 import { ClientOnboardingWorkflowService } from './application/onboarding/client-onboarding-workflow.service';
 import { InquiriesService } from './application/onboarding/inquiries.service';
 import { InquiryConformeReminderScheduler } from './application/onboarding/inquiry-conforme-reminder.scheduler';
@@ -115,7 +114,6 @@ import { EventDayStartService } from './application/onboarding/event-day-start.s
   ],
   controllers: [
     OpsInquiriesController,
-    OpsOnboardingController,
     OpsEventBriefingController,
     OpsComplianceController,
     OpsEventComplianceController,

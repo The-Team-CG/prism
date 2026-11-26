@@ -21,9 +21,8 @@ describe('floorplan authoring session boundaries', () => {
     expect(guardsFor(PlansController, 'update')).toContain(EventSessionGuard);
   });
 
-  it('requires a verified PMCM session for global event/template inventory reads', () => {
+  it('requires a verified PMCM session for the global template inventory read', () => {
     expect(guardsFor(TemplatesController, 'list')).toContain(EventSessionGuard);
-    expect(guardsFor(TemplatesController, 'getOne')).toContain(EventSessionGuard);
   });
 
   it('attributes new templates to the verified PMCM actor', async () => {

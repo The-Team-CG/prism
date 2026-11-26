@@ -34,7 +34,6 @@ export interface EventOpsEventGamesContract {
   eventGames: {
     listForEvent(eventId: string): Promise<PrismEventGameDefinition[]>;
     createDraft(eventId: string, input: PrismCreateEventGameInput): Promise<PrismEventGameDefinition>;
-    getForEvent(eventId: string, gameId: string): Promise<PrismEventGameDefinition>;
     updateDraft(eventId: string, gameId: string, input: PrismUpdateEventGameInput): Promise<PrismEventGameDefinition>;
     removeUnstartedGame(eventId: string, gameId: string): Promise<PrismEventGameDefinition>;
     publishDraft(eventId: string, gameId: string): Promise<PrismEventGameDefinition>;

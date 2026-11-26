@@ -29,7 +29,6 @@ function createService() {
     allowedAdminRoles: [OpsUserRole.PmcmAdmin, OpsUserRole.System],
     mapInquiry: vi.fn((inquiry) => inquiry),
     mapDocument: vi.fn((document) => document),
-    mapEvent: vi.fn((event) => event),
   };
   return { service: new InquiryWorkflowService(prisma as any), prisma, context };
 }
@@ -59,21 +58,6 @@ describe('InquiryWorkflowService', () => {
     await expect(service.createInquiry({} as any, context as any)).resolves.toEqual({ id: 'inq_new', status: 'new' });
     expect(publicReceipt).toHaveBeenCalledWith({ id: 'inq_new', duplicateOfInquiryId: 'inq_x' });
     expect(context.mapInquiry).not.toHaveBeenCalled();
-  });
-
-  it('denies anonymous actors from non-public onboarding reads', async () => {
-    const { service, prisma, context } = createService();
-
-    await expect(service.listOnboarding({}, context as any)).rejects.toBeInstanceOf(ForbiddenException);
-
-    expect(context.requireActorRole).toHaveBeenCalledWith(
-      { role: undefined, name: 'anonymous' },
-      [OpsUserRole.PmcmAdmin, OpsUserRole.System],
-      'onboarding',
-    );
-    expect(prisma.opsInquiry.findMany).not.toHaveBeenCalled();
-    expect(prisma.opsEvent.findMany).not.toHaveBeenCalled();
-    expect(prisma.opsDocument.findMany).not.toHaveBeenCalled();
   });
 
   it('denies non-PMCM actors before logging inquiries on behalf of clients', async () => {

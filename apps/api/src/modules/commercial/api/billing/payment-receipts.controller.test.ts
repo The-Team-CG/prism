@@ -40,7 +40,6 @@ const dto = {} as never;
 const calls: Array<[string, (controller: Controller, actor: never) => Promise<unknown>, keyof ReturnType<typeof createController>['service']]> = [
   ['list', (c, a) => c.list(dto, a), 'listReceipts'],
   ['allocationTargets', (c, a) => c.allocationTargets({ eventId: 'evt_1' }, a), 'listAllocationTargets'],
-  ['get', (c, a) => c.get('prcp_1', a), 'getReceipt'],
   ['record', (c, a) => c.record(dto, a), 'recordReceipt'],
   ['allocate', (c, a) => c.allocate('prcp_1', dto, a), 'allocate'],
   ['reverseAllocation', (c, a) => c.reverseAllocation('prcp_1', 'payrec_1', dto, a), 'reverseAllocation'],

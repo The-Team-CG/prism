@@ -58,12 +58,6 @@ export class PaymentReceiptsController {
     return this.receipts.listAllocationTargets(query.eventId);
   }
 
-  @Get(':receiptId')
-  async get(@Param('receiptId') receiptId: string, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
-    await this.requireFinanceActor(verifiedActor, 'payment receipt');
-    return this.receipts.getReceipt(receiptId);
-  }
-
   @Post()
   @HttpCode(HttpStatus.CREATED)
   async record(@Body(zodBody(recordPaymentReceiptSchema)) dto: RecordPaymentReceiptInput, @VerifiedEventActor() verifiedActor: PrismVerifiedEventActor) {
