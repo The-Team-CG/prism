@@ -32,7 +32,7 @@ test('a guest joins a live poll with the host PIN and votes; the host sees the v
     await guest.getByRole('button', { name: 'Join game' }).click();
     await expect(guest).toHaveURL(/\/games\/session\/[^/]+$/);
     await guest.getByRole('button', { name: 'Dancing Queen', exact: true }).click();
-    await expect(guest.getByText('results show on the big screen', { exact: false })).toBeVisible();
+    await expect(guest.getByText('Vote recorded.', { exact: false })).toBeVisible();
 
     await hostCommand(event.eventId, sessionId, 'pause');
     await pmcm.page.goto(`${origins.event}/dashboard/events/${event.eventId}/registration?part=games`);

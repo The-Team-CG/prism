@@ -3,9 +3,12 @@ import { projectDevice } from './browser-devices.mjs';
 import { api, freshEvent, origins, persona } from './helpers.mjs';
 import { oneTableScene } from '../floorplan-fixture.mjs';
 
-test('PMCM adds a piece to a floorplan and finds it after reopening', async ({ browser }, info) => {
+test('PMCM adds a piece to a floorplan and finds it after reopening', async ({ playwright }, info) => {
   test.skip(info.project.name === 'mobile', 'Floorplan editing is view-only on phones');
   test.setTimeout(180_000);
+  // The editor renders WebGL in software. On the shared browser its GPU work outlived the test and starved animation
+  // frames for the next spec, so a click waiting to be "stable" timed out. Its own browser takes that load with it.
+  const browser = await playwright.chromium.launch();
   const event = await freshEvent('Browser floorplan editing');
   await api('POST', `/events/${event.eventId}/ocular-visit/waive`, { reason: 'Synthetic browser venue' });
   const template = await api('POST', '/templates', { name: `Browser editor ${event.eventId}`, venue: 'Browser venue', pax: 120, scene: oneTableScene('Browser editor venue') });
@@ -31,5 +34,8 @@ test('PMCM adds a piece to a floorplan and finds it after reopening', async ({ b
     await pmcm.page.getByRole('button', { name: 'Open / Edit', exact: true }).first().click();
     await expect(pmcm.page.getByRole('button', { name: 'Back to floor plans' })).toBeVisible();
     expect(Object.values((await plan()).scene.nodes).some(node => node.type === 'prism-registration')).toBe(true);
-  } finally { await pmcm.context.close(); }
+  } finally {
+    await pmcm.context.close();
+    await browser.close();
+  }
 });
