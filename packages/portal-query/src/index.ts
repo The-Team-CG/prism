@@ -4,6 +4,7 @@ export {
   useFetchResource,
   useInvalidate,
   usePrefetch,
+  useRefreshWhenChanged,
   useResource,
   type Resource,
   type ResourceState,
