@@ -35,6 +35,17 @@ function AddProof({ submission, busy, onAdd }: { submission: PrismPaymentSubmiss
  * Payments the client should hear about: ones PMCM is still checking, ones PMCM did not accept (with the reason and a
  * way to send them again), and ones the client reported that PMCM accepted.
  */
+/** The state label; a verified payment that is not fully applied yet also says how much is waiting. */
+function SubmissionStatus({ submission, label }: { submission: PrismPaymentSubmission; label: string }) {
+  const awaitingApplication = submission.state === "accepted" && submission.unapplied > 0;
+  return (
+    <>
+      <p className="text-sm font-semibold text-foreground">{awaitingApplication ? "Verified · awaiting application" : label}</p>
+      {awaitingApplication ? <p className="text-xs text-muted-foreground">{formatPeso(submission.unapplied)} is waiting to be applied to a payment.</p> : null}
+    </>
+  );
+}
+
 export function PaymentsYouSent({
   submissions,
   proofBusyId,
@@ -58,8 +69,7 @@ export function PaymentsYouSent({
             <li key={submission.id} className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-start gap-x-3 px-4 py-3">
               <span aria-hidden className={cn("grid size-8 place-items-center rounded-full", look.tone)}><Icon className="size-4" /></span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">{submission.state === "accepted" && submission.unapplied > 0 ? "Verified · awaiting application" : look.label}</p>
-                {submission.state === "accepted" && submission.unapplied > 0 ? <p className="text-xs text-muted-foreground">{formatPeso(submission.unapplied)} is waiting to be applied to a payment.</p> : null}
+                <SubmissionStatus submission={submission} label={look.label} />
                 <p className="truncate text-xs text-muted-foreground">{detailLine(submission)}</p>
                 {submission.reason ? <p className="mt-1 rounded-md bg-danger-soft px-2 py-1 text-xs text-danger">PMCM: {submission.reason}</p> : null}
                 <div className="mt-1 flex flex-wrap items-center gap-3">
