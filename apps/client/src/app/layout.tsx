@@ -6,7 +6,7 @@ import "./globals.css";
 // No title here: the tab title belongs to the page, rendered through DocumentTitleProvider.
 export const metadata: Metadata = {
   description:
-    "P.R.I.S.M connects event inquiries, approvals, floorplans, suppliers, guests, billing, compliance, and closure into one operating system.",
+    "P.R.I.S.M connects event inquiries, approvals, floorplans, suppliers, guests, billing, compliance, and post-event into one operating system.",
 };
 
 export default function RootLayout({

@@ -90,54 +90,21 @@ export async function run(ctx) {
     expect(r.token, r.error);
     s.client = r.token;
   });
-  await step("client sees no event before the conforme is signed", async () => {
+  await step("accepting the inquiry opens the client's event for briefing and proposal only", async () => {
     if (!s.client) blocked("client not signed in");
     const r = expectStatus(await http("GET", "/events", { token: s.client }), 200);
-    expect((r.items ?? r).length === 0, `client already sees ${(r.items ?? r).length} event(s)`);
-  });
-  await step("client cannot create an event or briefing before the conforme", async () => {
-    if (!s.client) blocked("client not signed in");
-    const r = await http("POST", "/events/evt_does_not_exist/briefing", { token: s.client, body: { venue: "x", guestCount: 1, budgetRange: "x", serviceRequirements: [], notes: "x" } });
-    expect([403, 404].includes(r.status), `expected 403/404, got ${r.status}`);
-  });
-
-  await step("PMCM creates the conforme for the client to sign", async () => {
-    if (!s.inquiry) blocked("no inquiry");
-    s.execution = expectStatus(await http("POST", `/inquiries/${s.inquiry.id}/conforme-executions`, { token: s.admin, body: {
-      templateVersion: 1, templateContent: "P.R.I.S.M conforme: the client agrees to PMCM's event management terms, scope and payment schedule for this event.",
-    } }), 201);
-    return s.execution.status;
-  });
-  await step("client reads the conforme and signs it", async () => {
-    if (!s.client || !s.execution) blocked("no client session or conforme");
-    const current = expectStatus(await http("GET", "/client/conforme-execution", { token: s.client }), 200);
-    const ex = current.executions.find((e) => e.id === s.execution.id);
-    expect(ex, "conforme is not visible to the client");
-    s.sign = { executionId: ex.id, templateVersion: ex.templateVersion, documentSha256: ex.documentSha256, consentAccepted: true };
-    const wrong = await http("POST", "/client/conforme-execution/sign", { token: s.client, body: { ...s.sign, documentSha256: "0".repeat(64) } });
-    expect(wrong.status >= 400, "signing with a wrong document hash was accepted");
-    const signed = expectStatus(await http("POST", "/client/conforme-execution/sign", { token: s.client, body: s.sign }), 200);
-    return signed.status;
-  });
-  await step("no event exists until PMCM counter-signs", async () => {
-    if (!s.client) blocked("no client session");
-    const r = expectStatus(await http("GET", "/events", { token: s.client }), 200);
-    expect((r.items ?? r).length === 0, "an event was created before the PMCM signature");
-  });
-  await step("PMCM counter-signs and the event is created", async () => {
-    if (!s.sign) blocked("client has not signed");
-    const done = expectStatus(await http("POST", `/inquiries/${s.inquiry.id}/conforme-executions/${s.execution.id}/sign`, { token: s.admin, body: s.sign }), 200);
-    expect(done.eventId, "signed by both parties but no event id was returned");
-    s.eventId = done.eventId;
+    const events = r.items ?? r;
+    expect(events.length === 1, `client sees ${events.length} event(s) after acceptance`);
+    expect(events[0].clientPortalStatus === "limited", `portal status is ${events[0].clientPortalStatus}`);
+    s.eventId = events[0].id;
     return s.eventId;
   });
-  await step("client portal unlocks with the event in the briefing stage", async () => {
-    if (!s.eventId) blocked("no event");
-    const r = expectStatus(await http("GET", "/events", { token: s.client }), 200);
-    const ev = (r.items ?? r).find((e) => e.id === s.eventId);
-    expect(ev, "event is not visible to its client");
-    expect(ev.clientPortalStatus === "unlocked", `portal status is ${ev.clientPortalStatus}`);
-    return `status=${ev.status}, readiness="${ev.readiness}"`;
+  await step("the conforme cannot be prepared before the client approves the proposal", async () => {
+    if (!s.inquiry) blocked("no inquiry");
+    const r = await http("POST", `/inquiries/${s.inquiry.id}/conforme-executions`, { token: s.admin, body: {
+      templateVersion: 1, templateContent: "P.R.I.S.M conforme: the client agrees to PMCM's event management terms, scope and payment schedule for this event.",
+    } });
+    expect(r.status === 409, `expected 409 before proposal approval, got ${r.status}: ${msg(r)}`);
   });
   await step("another client cannot see this event", async () => {
     if (!s.eventId) blocked("no event");
@@ -159,6 +126,44 @@ export async function run(ctx) {
       r = asPmcm;
     }
     s.briefing = expectStatus(r, 200, 201);
+  });
+  await step("PMCM issues the proposal and the client approves it", async () => {
+    if (!s.eventId || !s.client) blocked("no event or client session");
+    await ctx.issueMinimalProposal(s.eventId);
+    expectStatus(await http("PATCH", `/events/${s.eventId}/proposal/review`, { token: s.client, body: { action: "approve" } }), 200);
+  });
+  await step("PMCM creates the conforme for the client to sign", async () => {
+    if (!s.inquiry) blocked("no inquiry");
+    s.execution = expectStatus(await http("POST", `/inquiries/${s.inquiry.id}/conforme-executions`, { token: s.admin, body: {
+      templateVersion: 1, templateContent: "P.R.I.S.M conforme: the client agrees to PMCM's event management terms, scope and payment schedule for this event.",
+    } }), 201);
+    return s.execution.status;
+  });
+  await step("client reads the conforme and signs it", async () => {
+    if (!s.client || !s.execution) blocked("no client session or conforme");
+    const current = expectStatus(await http("GET", "/client/conforme-execution", { token: s.client }), 200);
+    const ex = current.executions.find((e) => e.id === s.execution.id);
+    expect(ex, "conforme is not visible to the client");
+    s.sign = { executionId: ex.id, templateVersion: ex.templateVersion, documentSha256: ex.documentSha256, consentAccepted: true };
+    const wrong = await http("POST", "/client/conforme-execution/sign", { token: s.client, body: { ...s.sign, documentSha256: "0".repeat(64) } });
+    expect(wrong.status >= 400, "signing with a wrong document hash was accepted");
+    const signed = expectStatus(await http("POST", "/client/conforme-execution/sign", { token: s.client, body: s.sign }), 200);
+    return signed.status;
+  });
+  await step("the portal stays limited until PMCM counter-signs", async () => {
+    if (!s.client) blocked("no client session");
+    const r = expectStatus(await http("GET", "/events", { token: s.client }), 200);
+    const ev = (r.items ?? r).find((e) => e.id === s.eventId);
+    expect(ev?.clientPortalStatus === "limited", `portal status is ${ev?.clientPortalStatus}`);
+  });
+  await step("PMCM counter-signs and the full portal opens on the same event", async () => {
+    if (!s.sign) blocked("client has not signed");
+    const done = expectStatus(await http("POST", `/inquiries/${s.inquiry.id}/conforme-executions/${s.execution.id}/sign`, { token: s.admin, body: s.sign }), 200);
+    expect(done.eventId === s.eventId, `the conforme activated ${done.eventId}, not the accepted event ${s.eventId}`);
+    const r = expectStatus(await http("GET", "/events", { token: s.client }), 200);
+    const ev = (r.items ?? r).find((e) => e.id === s.eventId);
+    expect(ev?.clientPortalStatus === "unlocked", `portal status is ${ev?.clientPortalStatus}`);
+    return `status=${ev.status}, readiness="${ev.readiness}"`;
   });
   await step("PMCM command inbox lists the new event's work", async () => {
     const r = await http("GET", "/pmcm/command-inbox", { token: s.admin });

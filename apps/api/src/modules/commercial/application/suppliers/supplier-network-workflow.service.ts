@@ -13,6 +13,7 @@ import {
 import { AUDIT_WRITER, type AuditWriter, writeAudit } from '@prism/kernel/access-control';
 import { EventAccessPolicyService, type ResolvedEventOpsActor } from '@prism/kernel/access-control';
 import { DOCUMENT_VAULT, type DocumentVault, type ValidatedUploadMetadata } from '@prism/contexts/event-lifecycle';
+import type { SupplierReplacementReferral } from '@prism/types';
 import {
   type ChangeSupplierTierInput,
   type CreateSupplierCertificationInput,
@@ -72,7 +73,7 @@ const SUPPLIER_EVENT_STATUS_LABELS: Record<string, string> = {
 };
 
 /**
- * Supplier-reported event-day status moves forward one step at a time. Any
+ * Supplier-reported onsite status moves forward one step at a time. Any
  * unreported state (not_started, planned, or the automatic late flag) counts
  * as "before arrived". A repeat of the current status is handled by the caller.
  */
@@ -83,11 +84,11 @@ function assertSupplierEventStatusStep(current: string, next: string): void {
   const expected = SUPPLIER_EVENT_STATUS_ORDER[currentIndex + 1];
   const nextLabel = SUPPLIER_EVENT_STATUS_LABELS[next] ?? next;
   if (!expected) {
-    throw new BadRequestException(`Event-day status is already complete and cannot move back to "${nextLabel}".`);
+    throw new BadRequestException(`Onsite status is already complete and cannot move back to "${nextLabel}".`);
   }
   const expectedLabel = SUPPLIER_EVENT_STATUS_LABELS[expected];
   const direction = nextIndex < currentIndex ? 'cannot move backward to' : 'cannot skip ahead to';
-  throw new BadRequestException(`Event-day status ${direction} "${nextLabel}". Report "${expectedLabel}" next, in order: arrived, set-up ready, done leaving.`);
+  throw new BadRequestException(`Onsite status ${direction} "${nextLabel}". Report "${expectedLabel}" next, in order: arrived, set-up ready, done leaving.`);
 }
 
 /** True when a schedule already holds exactly these times, location and notes, so posting them again changes nothing. */
@@ -256,7 +257,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
     return mapSupplierQuoteRequestForSupplier(updated);
   }
 
-  async withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor, eventId?: string) {
+  async withdrawSupplier(requestId: string, reason: string, actor: ResolvedEventOpsActor, eventId?: string, referral?: SupplierReplacementReferral) {
     let request: OpsSupplierQuoteRequest | null = null;
     let expectedAssignmentStatus = '';
     let expectedEventId = '';
@@ -313,7 +314,10 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       },
       sideEffects: async (result, transactionContext) => {
         if (!request) return;
-        await writeAudit(this.auditWriter, request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}`, {
+        const referralText = referral
+          ? `Referred replacement: ${referral.supplierName} (${referral.contact}), ${referral.sameRate ? 'at the same rate' : 'rate to be agreed'}`
+          : 'No replacement referred yet';
+        await writeAudit(this.auditWriter, request.eventId, actor.name, `Supplier withdrawn: ${request.supplierName}. Reason: ${reason}. ${referralText}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -333,11 +337,12 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
             id: `reliability_${randomUUID()}`,
             supplierId: request.supplierId!,
             eventId: request.eventId,
-            note: `Withdrawn from ${event?.eventName ?? 'an event'} (${request.category}) after being assigned${reason?.trim() ? `: ${reason.trim()}` : ' (no reason recorded)'}`,
+            note: `Withdrawn from ${event?.eventName ?? 'an event'} (${request.category}) after being assigned${reason?.trim() ? `: ${reason.trim()}` : ' (no reason recorded)'}. ${referralText}`,
             createdBy: actor.name,
             idempotencyKey: noteKey,
           },
         });
+        await this.notifyWithdrawal(result.request, event?.eventName ?? 'the event', reason, referralText, referral, transactionContext);
         await this.pareDispatchWriter.queue({
           eventId: request.eventId,
           requestId: request.id,
@@ -347,6 +352,31 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       },
     });
     return mapSupplierQuoteRequest(result.request);
+  }
+
+  /**
+   * UAT 7.8 and 8.9: PMCM is alerted to every withdrawal, and the withdrawing supplier is asked to refer an equivalent
+   * replacement at the same rate, or thanked for the one they referred.
+   */
+  private async notifyWithdrawal(
+    request: OpsSupplierQuoteRequest & { supplier?: { email?: string | null } | null },
+    eventName: string,
+    reason: string,
+    referralText: string,
+    referral: SupplierReplacementReferral | undefined,
+    transactionContext?: Parameters<NotificationOutboxWriter['write']>[1],
+  ) {
+    await writeNotification(this.notificationOutboxWriter, request.eventId, 'PMCM Admin',
+      `${request.supplierName} withdrew from ${eventName} (${request.category}). Reason: ${reason}. ${referralText}. PARE is drafting a replacement for your approval.`,
+      'email', { idempotencyKey: `supplier-withdrawn:${request.id}:pmcm` }, transactionContext);
+    const supplierEmail = request.supplier?.email?.trim().toLowerCase();
+    if (!supplierEmail?.includes('@')) return;
+    const ask = referral
+      ? `Thank you for referring ${referral.supplierName}. PMCM will contact them${referral.sameRate ? ' at the rate you had agreed' : ''}.`
+      : 'Please refer an equivalent replacement who can serve the event at the same rate: reply to PMCM with their name and contact details.';
+    await writeNotification(this.notificationOutboxWriter, request.eventId, supplierEmail,
+      `PMCM recorded your withdrawal from ${eventName} (${request.category}). ${ask}`,
+      'email', { idempotencyKey: `supplier-withdrawn:${request.id}:supplier` }, transactionContext);
   }
 
   pareGetPendingApprovals(eventId?: string) {
@@ -424,7 +454,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
   }
 
   /**
-   * On-site report of a supplier's event-day status by the ingress coordinator, a designated operator or PMCM.
+   * On-site report of a supplier's onsite status by the ingress coordinator, a designated operator or PMCM.
    * It follows the supplier's forward-only order, so a coordinator cannot rewind a status; PMCM corrections
    * stay on the reasoned correction path. The caller has already checked the coordinator's role for the event.
    */
@@ -470,7 +500,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       validatePermission: async () => {
         request = await params.loadRequest();
         if (request.status !== 'selected' || request.assignmentStatus !== 'confirmed' || request.readinessStatus !== 'confirmed') {
-          throw new BadRequestException('Supplier event-day status requires confirmed assignment and readiness');
+          throw new BadRequestException('Supplier onsite status requires confirmed assignment and readiness');
         }
         if (input.storedObjectId) {
           if (!request.supplierId) throw new NotFoundException('Supplier quote request not found');
@@ -483,12 +513,12 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       },
       validateState: async () => {
         const allowed = ['arrived', 'set_up_ready', 'done_leaving'];
-        if (!allowed.includes(input.status)) throw new BadRequestException('Unsupported supplier event-day status');
+        if (!allowed.includes(input.status)) throw new BadRequestException('Unsupported supplier onsite status');
         if (!request) throw new NotFoundException('Supplier quote request not found');
         // The day's status belongs to an event that is on: not archived or cancelled, and no arrival or setup once it
         // has ended (packing up and leaving after the end is expected).
         const event = await this.eventReferences.findOperationsEvent(request.eventId);
-        if (!event || event.archived || event.status === 'cancelled') throw new BadRequestException('This event is closed, so its event-day status cannot change');
+        if (!event || event.archived || event.status === 'cancelled') throw new BadRequestException('This event is closed, so its onsite status cannot change');
         if (event.actualEndedAt && input.status !== 'done_leaving') throw new BadRequestException('This event has ended; only leaving can be reported now');
         previousStatus = request.eventDayStatus;
         replay = previousStatus === input.status;
@@ -533,7 +563,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
   }
 
   /**
-   * PMCM-only correction path for a supplier's event-day status. Unlike the supplier's own forward-only updates it
+   * PMCM-only correction path for a supplier's onsite status. Unlike the supplier's own forward-only updates it
    * may move the status in any direction, but needs a reason; the supplier then continues from the corrected status.
    */
   async correctSupplierEventStatus(
@@ -551,14 +581,14 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       name: 'correct_supplier_event_status',
       sideEffectMode: 'same_tx',
       eventId,
-      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier event-day status correction', eventId),
+      validatePermission: () => this.requireSupplierAdmin(actor, 'supplier onsite status correction', eventId),
       validateState: async () => {
         if (!reason) throw new BadRequestException('A reason is required to correct a supplier status');
         request = await this.prisma.opsSupplierQuoteRequest.findUnique({ where: { id: requestId } });
         if (request?.eventId !== eventId) request = null;
         if (!request) throw new NotFoundException('Supplier quote request not found');
         if (request.status !== 'selected') {
-          throw new BadRequestException('Only a selected supplier assignment has an event-day status to correct');
+          throw new BadRequestException('Only a selected supplier assignment has an onsite status to correct');
         }
         previousStatus = request.eventDayStatus;
         replay = previousStatus === input.status;
@@ -580,7 +610,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
       sideEffects: async (saved, transactionContext) => {
         if (!request || replay) return;
         const key = `supplier-event-status-correction:${request.id}:${saved.eventDayStatusAt?.getTime() ?? Date.now()}`;
-        await writeAudit(this.auditWriter, request.eventId, actor.name, `Corrected supplier event-day status: ${request.supplierName}, ${previousStatus} to ${input.status}`, {
+        await writeAudit(this.auditWriter, request.eventId, actor.name, `Corrected supplier onsite status: ${request.supplierName}, ${previousStatus} to ${input.status}`, {
           actorRole: actor.role,
           actorEmail: actor.email,
           actionType: AuditActionType.Update,
@@ -597,7 +627,7 @@ export class SupplierNetworkWorkflowService implements SupplierCommands {
           this.notificationOutboxWriter,
           request.eventId,
           supplier?.email.trim() || request.supplierName,
-          `PMCM corrected your event-day status to "${SUPPLIER_EVENT_STATUS_LABELS[input.status] ?? input.status.replace(/_/g, ' ')}". Reason: ${reason}`,
+          `PMCM corrected your onsite status to "${SUPPLIER_EVENT_STATUS_LABELS[input.status] ?? input.status.replace(/_/g, ' ')}". Reason: ${reason}`,
           'email',
           { idempotencyKey: key },
           transactionContext,

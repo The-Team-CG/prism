@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EVENT_PAGE_READS } from "../data/event-page-reads";
 import type { CoordinatorRole, FloorplanSceneDocument, PrismConformeExecution, PrismEvent, PrismEventPrivacy, PrismFloorPlanDraft, PrismFloorplanSeatingGuest, PrismFloorplanSupplier, PrismInquiry, PrismSupplier, SetEventModulesInput } from "@prism/types";
-import { derivePrismLifecycleStage } from "@prism/types";
+import { derivePrismLifecycleStage, type SupplierWithdrawalInput } from "@prism/types";
 import { type FloorPlanTemplate } from "@prism/floorplan-canvas";
 import { isPmcmAdmin } from "@/app/lib/role-guards";
 import { opensReadOnly } from "@/features/floorplan/editor/model/editor-access";
@@ -494,7 +494,7 @@ export function useEventDashboardShellViewModel({
     setBusy,
     setFloorPlanTemplates,
     acceptInquiry: (inquiry: PrismInquiry) => run("accept inquiry", () => commands.acceptInquiry(inquiry.id)),
-    startEventDay: () => selectedEvent ? run("start event day", () => commands.startEventDay(selectedEvent.id)) : Promise.resolve(false),
+    startEventDay: () => selectedEvent ? run("start onsite", () => commands.startEventDay(selectedEvent.id)) : Promise.resolve(false),
     pendInquiry: (inquiry: PrismInquiry) => run("pend inquiry", () => commands.pendInquiry(inquiry.id)),
     declineInquiry: (inquiry: PrismInquiry, reason?: string) => run("decline inquiry", () => commands.declineInquiry(inquiry.id, reason)),
     mergeInquiry: (primary: PrismInquiry, input: { sourceInquiryId: string; reason: string }) =>
@@ -536,7 +536,7 @@ export function useEventDashboardShellViewModel({
       ? runAsBoolean("event privacy", () => commands.setEventPrivacy(selectedEvent.id, { privacy }))
       : Promise.resolve(false),
     toggleClientEventDayView: (enabled: boolean) => selectedEvent && session && isPmcmAdmin(session.role)
-      ? runAsBoolean("client event-day view", () => commands.setClientEventDayView(selectedEvent.id, { enabled }))
+      ? runAsBoolean("client onsite view", () => commands.setClientEventDayView(selectedEvent.id, { enabled }))
       : Promise.resolve(false),
     scheduleOcularVisit: (input: Parameters<typeof commands.scheduleOcularVisit>[1]) => selectedEvent && session && isPmcmAdmin(session.role)
       ? run("schedule ocular visit", () => commands.scheduleOcularVisit(selectedEvent.id, input))
@@ -616,7 +616,7 @@ export function useEventDashboardShellViewModel({
     submitFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("submit draft", () => commands.submitFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
     approveFloorPlanDraft: (draft: PrismFloorPlanDraft) => selectedEvent ? run("approve draft", () => commands.approveFloorPlanDraft(selectedEvent.id, draft.id)) : Promise.resolve(),
     reopenClientPreference: (draft: PrismFloorPlanDraft) => selectedEvent ? run("reopen preference", () => commands.reopenClientPreference(selectedEvent.id, draft.id)) : Promise.resolve(),
-    withdrawSupplier: (requestId: string) => selectedEvent ? run("withdraw supplier", () => commands.withdrawSupplier(selectedEvent.id, requestId)) : Promise.resolve(),
+    withdrawSupplier: (requestId: string, input: SupplierWithdrawalInput) => selectedEvent ? run("withdraw supplier", () => commands.withdrawSupplier(selectedEvent.id, requestId, input)) : Promise.resolve(),
     upsertRegistrationPlatform: (input: Parameters<typeof commands.upsertRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.upsertRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
     updateRegistrationPlatform: (input: Parameters<typeof commands.updateRegistrationPlatform>[1]) => selectedEvent ? run("registration platform", () => commands.updateRegistrationPlatform(selectedEvent.id, input)) : Promise.resolve(),
     updateRegistrationPlatformSetup: (input: Parameters<typeof commands.updateRegistrationPlatformSetup>[1]) => selectedEvent ? run("registration platform setup", () => commands.updateRegistrationPlatformSetup(selectedEvent.id, input)) : Promise.resolve(),

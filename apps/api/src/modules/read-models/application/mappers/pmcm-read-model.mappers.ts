@@ -86,7 +86,7 @@ export function mapEvent(event: EventWithDrafts, dependencies: EventReadModelMap
     walkInPolicy: event.walkInPolicy as 'closed' | 'open' | 'threshold',
     walkInThreshold: event.walkInThreshold,
     status: event.status,
-    clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
+    clientPortalStatus: event.clientPortalStatus as 'locked' | 'limited' | 'unlocked',
     clientEventDayViewEnabled: event.clientEventDayViewEnabled,
     disabledModules: event.disabledModules as PrismEvent['disabledModules'],
     privacy: event.privacy as 'private' | 'public',

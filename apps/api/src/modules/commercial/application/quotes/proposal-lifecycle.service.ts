@@ -5,7 +5,7 @@ import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type Resolved
 import { OpsUserRole } from '@prism/kernel/event-core';
 import { DOCUMENT_VAULT, PROPOSAL_REVIEW_OWNER, type DocumentVault, type ProposalReviewOwner } from '@prism/contexts/event-lifecycle';
 import { OPERATIONS_EVENT_REFERENCE_READER, type OperationsEventReferenceReader } from '@prism/contexts/event-lifecycle/operations-reference';
-import { proposalPackageLimit, type CreateCostEstimateInput, type IssueProposalVersionInput, type PrismCostEstimate, type PrismEstimateLineSource, type PrismEventProposalResponse, type PrismPreviousCostEstimate, type PrismProposalVersion, type PrismVerifiedEventActor } from '@prism/types';
+import { isClientPortalOpen, proposalPackageLimit, type CreateCostEstimateInput, type IssueProposalVersionInput, type PrismCostEstimate, type PrismEstimateLineSource, type PrismEventProposalResponse, type PrismPreviousCostEstimate, type PrismProposalVersion, type PrismVerifiedEventActor } from '@prism/types';
 import { StorageObjectService } from '@prism/contexts/platform-ops';
 import { createHash, randomUUID } from 'node:crypto';
 import type { PrismTransactionContext } from '@prism/kernel/shared-kernel';
@@ -100,7 +100,7 @@ export class ProposalLifecycleService {
     const event = await this.prisma.opsEvent.findUnique({ where: { id: eventId }, include: { inquiry: { select: { email: true } } } });
     if (!event) throw new NotFoundException('Event not found');
     await this.access.requireCanReadEvent(actor, event, 'proposal');
-    if (actor.role === OpsUserRole.Client && event.clientPortalStatus !== 'unlocked') return { proposal: null };
+    if (actor.role === OpsUserRole.Client && !isClientPortalOpen(event.clientPortalStatus)) return { proposal: null };
     const version = await this.prisma.opsProposalVersion.findFirst({ where: { eventId, status: 'issued' }, orderBy: { versionNumber: 'desc' } });
     if (!version?.issuedAt) return { proposal: null };
     const decider = { name: event.clientName, isYou: isPrimaryClientContact(actor.email, event.inquiry.email) };

@@ -3,6 +3,8 @@ import { PlatformAccountEmailRelinkerService } from './application/trust/platfor
 import { PLATFORM_ACCOUNT_EMAIL_RELINKER } from './contracts/account-email-relinker.port';
 import { NotificationInboxController, NotificationProviderOutcomeController } from './api/notifications/notification-inbox.controller';
 import { NotificationInboxService } from './application/notifications/notification-inbox.service';
+import { EndOfDayRecapService } from './application/notifications/end-of-day-recap.service';
+import { EndOfDayRecapScheduler } from './application/notifications/end-of-day-recap.scheduler';
 import { NotificationProviderOutcomeService } from './application/notifications/notification-provider-outcome.service';
 import { NotificationEscalationService } from './application/notifications/notification-escalation.service';
 import { EMAIL_OUTCOME_READER } from './contracts/notifications/email-outcome-reader.port';
@@ -226,6 +228,8 @@ export function createAiProviderAdapters(
     StorageValidationService,
     StorageObjectService,
     AbandonedUploadCleanupScheduler,
+    EndOfDayRecapService,
+    EndOfDayRecapScheduler,
     { provide: STORED_SUPPLIER_UPLOAD_READER, useExisting: StorageObjectService },
     { provide: STORED_REQUIREMENT_UPLOAD_READER, useExisting: StorageObjectService },
     { provide: STORED_RECEIPT_EVIDENCE_READER, useExisting: StorageObjectService },

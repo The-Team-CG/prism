@@ -48,7 +48,7 @@ function teamArea(summary: Summary): AreaState {
 }
 
 function liveOpsArea(summary: Summary): AreaState {
-  return summary?.openLiveOpsItems ? { status: plural(summary.openLiveOpsItems, "open item"), tone: "attention" } : { status: "Nothing open on the event-day desk", tone: "idle" };
+  return summary?.openLiveOpsItems ? { status: plural(summary.openLiveOpsItems, "open item"), tone: "attention" } : { status: "Nothing open on the onsite desk", tone: "idle" };
 }
 
 function billingArea(summary: Summary, overdue: number | undefined): AreaState {
@@ -118,7 +118,7 @@ export function overviewGlanceFacts({
     { tab: "floorplans", label: "Floor plan", ...floorplanArea(activeDraft, draftCount) },
   ];
   if (!preEvent) {
-    facts.push({ tab: "live-ops", label: "Event day", ...liveOpsArea(summary) }, { tab: "closure", label: "Closure", ...closureArea(summary, openCheckCount, preEvent) });
+    facts.push({ tab: "live-ops", label: "Onsite", ...liveOpsArea(summary) }, { tab: "closure", label: "Post-event", ...closureArea(summary, openCheckCount, preEvent) });
   }
   return facts;
 }
@@ -144,7 +144,7 @@ export function overviewNextStep({ eventDay, lines, visitBlocksFloorplan, pendin
   visitBlocksFloorplan: boolean;
   pending: PrismDefenseReadinessAction[];
 }): OverviewNextStep | null {
-  if (eventDay) return { title: "Event day is here", detail: "Start live operations when the team is on site.", actionLabel: "Start event day", startEventDay: true };
+  if (eventDay) return { title: "Event day is here", detail: "Start live operations when the team is on site.", actionLabel: "Start onsite", startEventDay: true };
   const closeOut = lines.find((line) => line.id === "close-out");
   if (closeOut) return { title: closeOut.text, detail: closeOut.detail, href: closeOut.href, actionLabel: "Start close-out" };
   const blocker = lines.find((line) => line.severity === "critical");
@@ -164,7 +164,7 @@ export function overviewNextStep({ eventDay, lines, visitBlocksFloorplan, pendin
 const CLOSE_OUT_ACTION: PrismDefenseReadinessAction = {
   key: "close-out",
   label: "This event has ended — close it out",
-  detail: "Work through the closure checks and deliverables, then archive the event.",
+  detail: "Work through the post-event checks and deliverables, then archive the event.",
   status: "attention",
   targetTab: "closure",
 };

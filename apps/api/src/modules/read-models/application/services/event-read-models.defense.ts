@@ -92,7 +92,7 @@ function coordinatorAction(input: DefenseInputs): DefenseAction {
     key: "coordinators",
     label: "Coordinator readiness",
     detail: blocked
-      ? "Assign event-day roles before the live run."
+      ? "Assign onsite roles before the live run."
       : attention
         ? `${input.pendingCoordinatorCount} coordinator assignment(s) still need acknowledgment.`
         : "Coordinator assignments are acknowledged.",
@@ -121,7 +121,7 @@ function liveOpsAction(input: DefenseInputs): DefenseAction {
   const openItems = input.openTaskCount + input.openIssueCount;
   return {
     key: "live-ops",
-    label: "Event-day operations",
+    label: "Onsite operations",
     detail:
       openItems > 0
         ? `${input.openTaskCount} open task(s) and ${input.openIssueCount} urgent issue(s) need attention.`
@@ -134,7 +134,7 @@ function liveOpsAction(input: DefenseInputs): DefenseAction {
 function closureAction(input: DefenseInputs): DefenseAction {
   return {
     key: "closure",
-    label: "Closure and archive",
+    label: "Post-event and archive",
     detail: input.closeGates.ready
       ? "Close gates are complete; archive can proceed."
       : `Close gate(s) still open: ${input.closeGates.missingKeys.join(", ") || "none"}.`,

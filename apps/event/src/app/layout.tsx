@@ -6,7 +6,7 @@ import { DocumentTitleProvider } from "./components/document-title";
 // No title here: the tab title belongs to the page, rendered through DocumentTitleProvider.
 export const metadata: Metadata = {
   description:
-    "Coordinator-facing event-day command portal for assignments, readiness, supplier status, and urgent issue handling.",
+    "Coordinator-facing onsite command portal for assignments, readiness, supplier status, and urgent issue handling.",
 };
 
 export default function RootLayout({

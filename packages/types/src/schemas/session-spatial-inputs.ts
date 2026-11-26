@@ -1,8 +1,18 @@
 import { z } from "zod";
 import { floorplanSceneDocumentSchema } from "./floorplan-scene.js";
 
+/** UAT 7.8: the equivalent replacement a withdrawing supplier referred, at the rate they had agreed. */
+export const supplierReplacementReferralSchema = z.object({
+  supplierName: z.string().trim().min(1).max(160),
+  contact: z.string().trim().min(1).max(200),
+  sameRate: z.boolean(),
+});
+export type SupplierReplacementReferral = z.infer<typeof supplierReplacementReferralSchema>;
+
+/** UAT 8.9: a withdrawal always records why; the referral is added when the supplier has given one. */
 export const supplierWithdrawalSchema = z.object({
-  reason: z.string().trim().min(1).max(500).optional(),
+  reason: z.string().trim().min(1, "Give the reason for the withdrawal").max(500),
+  referral: supplierReplacementReferralSchema.optional(),
 });
 export type SupplierWithdrawalInput = z.infer<typeof supplierWithdrawalSchema>;
 export const createEventFromTemplateSchema = z.object({ templateId: z.string().trim().min(1), name: z.string().trim().min(2).max(120), startsAt: z.string().datetime() });

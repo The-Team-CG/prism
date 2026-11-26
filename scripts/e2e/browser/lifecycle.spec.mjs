@@ -42,21 +42,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await privacyIfNeeded(client);
     });
 
-    await test.step('PMCM prepares the immutable conforme; client signs; PMCM countersigns to create the event', async () => {
-      await pmcm.page.goto(`${origins.event}/dashboard/inquiries`);
-      await pmcm.page.getByRole('tab', { name: /^Waiting for conforme/ }).click();
-      await pmcm.page.getByRole('article', { name: `Onboarding ${inquiry.eventName}`, exact: true }).getByRole('button', { name: 'Upload signed conforme', exact: true }).click();
-      const modal = pmcm.page.getByRole('dialog', { name: 'Upload signed conforme', exact: true });
-      await modal.getByRole('button', { name: 'Prepare in-app conforme', exact: true }).click();
-      await expect(modal.getByText('Status: awaiting client', { exact: true })).toBeVisible();
-      await client.goto(`${origins.client}/conforme`);
-      await client.getByRole('checkbox').check();
-      await client.getByRole('button', { name: 'Acknowledge conforme', exact: true }).click();
-      await expect(client.getByText('Your acknowledgment is recorded. The workspace will open after PMCM countersigns.', { exact: true })).toBeVisible();
-      await modal.getByRole('button', { name: 'Refresh signing status', exact: true }).click();
-      await modal.getByRole('checkbox', { name: 'I reviewed this exact version and approve the in-app record.' }).check();
-      await modal.getByRole('button', { name: 'Countersign and activate', exact: true }).click();
-      await expect(modal.getByText('Both acknowledgments are recorded; the client workspace is active.', { exact: true })).toBeVisible();
+    await test.step('Accepting the inquiry opens the event for briefing and proposal (UAT 4.1)', async () => {
       const list = await api('GET', '/events');
       eventId = list.items.find(event => event.inquiryId === inquiry.id)?.id;
       expect(eventId).toBeTruthy();
@@ -130,6 +116,23 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await client.getByRole('button', { name: 'Approve proposal', exact: true }).click();
       await client.getByRole('dialog').getByRole('button', { name: 'Approve proposal', exact: true }).click();
       await expect(client.getByText('Approved', { exact: true }).first()).toBeVisible();
+    });
+
+    await test.step('After the approved proposal, PMCM prepares the conforme from the briefing; client signs; PMCM countersigns to open the full portal', async () => {
+      await pmcm.page.goto(`${origins.event}/dashboard/inquiries`);
+      await pmcm.page.getByRole('tab', { name: /^Waiting for conforme/ }).click();
+      await pmcm.page.getByRole('article', { name: `Onboarding ${inquiry.eventName}`, exact: true }).getByRole('button', { name: 'Upload signed conforme', exact: true }).click();
+      const modal = pmcm.page.getByRole('dialog', { name: 'Upload signed conforme', exact: true });
+      await modal.getByRole('button', { name: 'Prepare in-app conforme', exact: true }).click();
+      await expect(modal.getByText('Status: awaiting client', { exact: true })).toBeVisible();
+      await client.goto(`${origins.client}/conforme`);
+      await client.getByRole('checkbox').check();
+      await client.getByRole('button', { name: 'Acknowledge conforme', exact: true }).click();
+      await expect(client.getByText('Your acknowledgment is recorded. The workspace will open after PMCM countersigns.', { exact: true })).toBeVisible();
+      await modal.getByRole('button', { name: 'Refresh signing status', exact: true }).click();
+      await modal.getByRole('checkbox', { name: 'I reviewed this exact version and approve the in-app record.' }).check();
+      await modal.getByRole('button', { name: 'Countersign and activate', exact: true }).click();
+      await expect(modal.getByText('Both acknowledgments are recorded; the client workspace is active.', { exact: true })).toBeVisible();
     });
 
     await test.step('Supplier applies; PMCM reviews the application and the supplier activates its account', async () => {
@@ -245,7 +248,7 @@ test('client, PMCM, supplier, coordinator and guest complete an event lifecycle'
       await pmcm.page.getByRole('button', { name: 'Approve', exact: true }).click();
       await expect.poll(async () => (await api('GET', `/pmcm/events/${eventId}/workspace`)).floorPlanDrafts.some(draft => draft.status === 'approved')).toBe(true);
       await pmcm.page.goto(path('overview'));
-      await pmcm.page.getByRole('button', { name: 'Start event day', exact: true }).click();
+      await pmcm.page.getByRole('button', { name: 'Start onsite', exact: true }).click();
       await expect.poll(async () => (await api('GET', `/events/${eventId}`)).status).toBe('event_day');
     });
 

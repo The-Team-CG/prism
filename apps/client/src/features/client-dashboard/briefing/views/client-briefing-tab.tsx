@@ -144,11 +144,11 @@ function BriefingOnFile({ briefing, onEdit }: { briefing: PrismBriefing; onEdit:
         <Fact label="Budget range">{briefing.budgetRange}</Fact>
         <Fact label="Styling budget">{briefing.stylingBudget == null ? "Not set" : money.format(briefing.stylingBudget)}</Fact>
         <Fact label="Date">{briefing.confirmedDate ? formatPortalDate(briefing.confirmedDate) : "Not confirmed yet"}</Fact>
-        <Fact label="Time">{time ?? "Not confirmed yet"}</Fact>
+        <Fact label="Program time">{time ?? "Not confirmed yet"}</Fact>
         <Fact label="Services you need" wide>
           {briefing.serviceRequirements.length ? briefing.serviceRequirements.join(" · ") : "None listed"}
         </Fact>
-        {briefing.moodAndStyling ? <Fact label="Mood and styling" wide>{briefing.moodAndStyling}</Fact> : null}
+        {briefing.moodAndStyling ? <Fact label="Event theme" wide>{briefing.moodAndStyling}</Fact> : null}
         {briefing.notes ? <Fact label="Notes for PMCM" wide>{briefing.notes}</Fact> : null}
       </dl>
     </PrismSection>
@@ -175,7 +175,7 @@ function BriefingForm({ briefing, busy, values, onChange, onSubmit, onCancel }: 
     >
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
-          <BriefingField label="Venue preference" required value={values.venue} onChange={(venue) => onChange({ venue })} />
+          <BriefingField label="Venue preferences" required value={values.venue} onChange={(venue) => onChange({ venue })} />
           <Field>
             <FieldLabel htmlFor="briefing-venue-type">Venue type</FieldLabel>
             <Select value={values.venueType || NOT_DECIDED} onValueChange={(value) => onChange({ venueType: value === NOT_DECIDED ? "" : value })}>
@@ -196,12 +196,12 @@ function BriefingForm({ briefing, busy, values, onChange, onSubmit, onCancel }: 
           </Field>
           <BriefingField label="Styling budget" type="number" min={0} value={values.stylingBudget} onChange={(stylingBudget) => onChange({ stylingBudget })} />
           <Field>
-            <FieldLabel htmlFor="confirmed-start-time">Start time</FieldLabel>
-            <TimePicker id="confirmed-start-time" aria-label="Start time" value={values.confirmedStartTime} onValueChange={(confirmedStartTime) => onChange({ confirmedStartTime })} scrollTo="18:00" />
+            <FieldLabel htmlFor="confirmed-start-time">Program start time</FieldLabel>
+            <TimePicker id="confirmed-start-time" aria-label="Program start time" value={values.confirmedStartTime} onValueChange={(confirmedStartTime) => onChange({ confirmedStartTime })} scrollTo="18:00" />
           </Field>
           <Field>
-            <FieldLabel htmlFor="confirmed-end-time">End time</FieldLabel>
-            <TimePicker id="confirmed-end-time" aria-label="End time" value={values.confirmedEndTime} onValueChange={(confirmedEndTime) => onChange({ confirmedEndTime })} min={values.confirmedStartTime || undefined} scrollTo={values.confirmedStartTime || "22:00"} />
+            <FieldLabel htmlFor="confirmed-end-time">Program end time</FieldLabel>
+            <TimePicker id="confirmed-end-time" aria-label="Program end time" value={values.confirmedEndTime} onValueChange={(confirmedEndTime) => onChange({ confirmedEndTime })} min={values.confirmedStartTime || undefined} scrollTo={values.confirmedStartTime || "22:00"} />
           </Field>
         </div>
         <Field>
@@ -209,8 +209,8 @@ function BriefingForm({ briefing, busy, values, onChange, onSubmit, onCancel }: 
           <Textarea id="briefing-service-requirements" required value={values.serviceRequirements} onChange={(event) => onChange({ serviceRequirements: event.target.value })} placeholder="One per line, such as catering or lights and sound" />
         </Field>
         <Field>
-          <FieldLabel htmlFor="briefing-mood">Mood and styling</FieldLabel>
-          <Textarea id="briefing-mood" value={values.moodAndStyling} onChange={(event) => onChange({ moodAndStyling: event.target.value })} placeholder="Describe the look or atmosphere you have in mind" />
+          <FieldLabel htmlFor="briefing-mood">Event theme</FieldLabel>
+          <Textarea id="briefing-mood" value={values.moodAndStyling} onChange={(event) => onChange({ moodAndStyling: event.target.value })} placeholder="The theme, look or atmosphere you have in mind" />
         </Field>
         <Field>
           <FieldLabel htmlFor="briefing-notes">Notes for PMCM *</FieldLabel>

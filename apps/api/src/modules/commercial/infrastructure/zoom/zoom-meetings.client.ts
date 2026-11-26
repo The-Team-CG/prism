@@ -15,7 +15,7 @@ export class ZoomMeetingsClient implements ZoomMeetings {
   constructor(private readonly config: ZoomConfig, private readonly fetchImpl: FetchLike = fetch as unknown as FetchLike, private readonly now: () => number = Date.now) {}
 
   async create(input: { topic: string; startsAt: Date; durationMinutes: number }) {
-    const response = await this.request('POST', '/users/me/meetings', {
+    const response = await this.request('POST', `/users/${encodeURIComponent(this.config.hostUser)}/meetings`, {
       topic: input.topic.slice(0, 200), type: 2, start_time: input.startsAt.toISOString().replace(/\.\d{3}Z$/, 'Z'),
       duration: input.durationMinutes, timezone: 'Asia/Manila', settings: { join_before_host: false, waiting_room: true },
     });

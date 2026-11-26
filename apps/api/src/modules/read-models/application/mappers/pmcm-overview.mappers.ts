@@ -100,7 +100,7 @@ function eventAndScheduleDayItems(facts: CalendarFacts, nameOf: (eventId: string
     if (eventDates.get(day.eventId) === date) {
       eventDayScheduleIds.set(day.eventId, day.id);
     } else {
-      items.push({ id: `day:${day.id}`, kind: 'schedule_day', eventId: day.eventId, eventName: nameOf(day.eventId), date, detail: day.label || 'Event-day schedule', scheduleDayId: day.id });
+      items.push({ id: `day:${day.id}`, kind: 'schedule_day', eventId: day.eventId, eventName: nameOf(day.eventId), date, detail: day.label || 'Onsite schedule', scheduleDayId: day.id });
     }
   }
 

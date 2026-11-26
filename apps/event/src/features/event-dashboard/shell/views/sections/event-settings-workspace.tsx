@@ -116,17 +116,17 @@ export function EventSettingsWorkspace({
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p id="client-event-day-view-label" className="text-sm font-semibold text-foreground">
-                    Client event-day view
+                    Client onsite view
                   </p>
                   <p id="client-event-day-view-description" className="mt-1 text-xs text-muted-foreground">
-                    Show a general event-day status on the client timeline.
+                    Show a general onsite status on the client timeline.
                   </p>
                 </div>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={clientEventDayViewEnabled}
-                  aria-label="Client event-day view"
+                  aria-label="Client onsite view"
                   aria-describedby="client-event-day-view-description"
                   data-checked={clientEventDayViewEnabled ? "true" : "false"}
                   disabled={savingClientEventDayView}
@@ -149,7 +149,7 @@ export function EventSettingsWorkspace({
               </p>
               {clientEventDayViewSaveFailed && (
                 <p role="alert" className="mt-2 text-xs text-destructive">
-                  Could not save the client event-day view. Try again.
+                  Could not save the client onsite view. Try again.
                 </p>
               )}
             </div>

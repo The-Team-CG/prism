@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { PrismCoordinatorAssignment, PrismEventOperatorDesignation } from "@prism/types";
+import { coordinatorRoleLabel } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Card, CardContent, CardHeader } from "@prism/ui/components/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
@@ -63,17 +64,17 @@ export function OperatorDesignationCard({ eventId, candidates, busy, onLoadOpera
 
   return (
     <Card>
-      <CardHeader><h2 className="text-sm font-semibold text-foreground">Event Day System Operator</h2></CardHeader>
+      <CardHeader><h2 className="text-sm font-semibold text-foreground">Onsite System Operator</h2></CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">Choose the coordinator working this event who will control delegated attendance and operator actions. Designating someone replaces the current operator.</p>
         <p role="status" className="text-sm font-semibold text-foreground">{loadError ? "Could not load the current operator. Reload the page to try again." : currentOperatorText(current)}</p>
         {departed ? <p className="text-xs font-semibold text-attention">{departed.coordinatorName ?? "The designated coordinator"} is no longer assigned to this event. Designate a new operator.</p> : null}
         <Select value={selected} onValueChange={setSelected}>
-          <SelectTrigger aria-label="Event Day System Operator" className="w-full min-w-0">
+          <SelectTrigger aria-label="Onsite System Operator" className="w-full min-w-0">
             <SelectValue placeholder="Select a coordinator" />
           </SelectTrigger>
           <SelectContent>
-            {options.map((item) => item.coordinatorId ? <SelectItem key={item.id} value={item.coordinatorId}>{item.coordinatorName} · {item.role}</SelectItem> : null)}
+            {options.map((item) => item.coordinatorId ? <SelectItem key={item.id} value={item.coordinatorId}>{item.coordinatorName} · {coordinatorRoleLabel(item.role)}</SelectItem> : null)}
           </SelectContent>
         </Select>
         {options.length === 0 ? <p className="text-xs text-muted-foreground">Assign a coordinator to this event before designating an operator.</p> : null}

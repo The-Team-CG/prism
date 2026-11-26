@@ -9,7 +9,7 @@ import type { CoordinatorViewId } from "../model/coordinator-portal-routes";
 const KINDS: Record<CoordinatorCalendarKind, PortalCalendarKind> = {
   event: { label: "Event day", chip: "bg-primary/10 text-primary hover:bg-primary/15", dot: "bg-primary" },
   task: { label: "Task due", chip: "bg-attention-soft text-attention hover:bg-attention/15", dot: "bg-attention" },
-  schedule_day: { label: "Event-day schedule", chip: "bg-accent text-accent-foreground hover:bg-accent/80", dot: "bg-accent-foreground" },
+  schedule_day: { label: "Onsite schedule", chip: "bg-accent text-accent-foreground hover:bg-accent/80", dot: "bg-accent-foreground" },
 };
 
 const ACTIONS: Record<CoordinatorCalendarKind, string> = {

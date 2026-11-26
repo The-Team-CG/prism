@@ -10,7 +10,7 @@ export class ProposalReviewOwnerService implements ProposalReviewOwner {
         id: input.eventId,
         proposalClientStatus: { not: 'approved' },
         proposalRevisionCount: input.expectedRevisionCount,
-        clientPortalStatus: 'unlocked',
+        clientPortalStatus: { in: ['limited', 'unlocked'] },
         archived: false,
       },
       data: {

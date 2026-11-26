@@ -107,11 +107,11 @@ export class LiveOpsTaskIssueCommandService {
         }),
       sideEffects: async (task) => {
         await Promise.all([
-          recordEventDayLog(this.prisma, eventId, 'task_created', actor, `Created event-day task: ${title}`, 'event_day_task', task.id, {
+          recordEventDayLog(this.prisma, eventId, 'task_created', actor, `Created onsite task: ${title}`, 'event_day_task', task.id, {
             assignedRole: task.assignedRole,
             priority: task.priority,
           }),
-          writeAudit(auditWriter, eventId, actor.name, `Created event-day task: ${title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Created onsite task: ${title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Create,
@@ -137,20 +137,20 @@ export class LiveOpsTaskIssueCommandService {
       validateState: async () => {
         current = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
         if (current?.eventId !== eventId) current = null;
-        if (!current) throw new NotFoundException('Event-day task not found');
+        if (!current) throw new NotFoundException('Onsite task not found');
         status = input.status?.trim();
         if (status && !isOpsConstantValue(EventDayTaskStatus, status)) {
-          throw new BadRequestException('Unsupported event-day task status');
+          throw new BadRequestException('Unsupported onsite task status');
         }
         if (status === EventDayTaskStatus.Blocked) {
-          throw new BadRequestException('Use the block action to mark an event-day task blocked with a reason');
+          throw new BadRequestException('Use the block action to mark an onsite task blocked with a reason');
         }
         if (status && current.status === EventDayTaskStatus.Blocked) {
-          throw new BadRequestException('Use the unblock action before changing a blocked event-day task status');
+          throw new BadRequestException('Use the unblock action before changing a blocked onsite task status');
         }
       },
       write: () => {
-        if (!current) throw new NotFoundException('Event-day task not found');
+        if (!current) throw new NotFoundException('Onsite task not found');
         return prisma.opsEventDayTask.update({
           where: { id: taskId },
           data: {
@@ -164,10 +164,10 @@ export class LiveOpsTaskIssueCommandService {
       },
       sideEffects: async (task) => {
         await Promise.all([
-          recordEventDayLog(this.prisma, eventId, 'task_updated', actor, `Updated event-day task: ${task.title}`, 'event_day_task', task.id, {
+          recordEventDayLog(this.prisma, eventId, 'task_updated', actor, `Updated onsite task: ${task.title}`, 'event_day_task', task.id, {
             status: task.status,
           }),
-          writeAudit(auditWriter, eventId, actor.name, `Updated event-day task: ${task.title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Updated onsite task: ${task.title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -193,14 +193,14 @@ export class LiveOpsTaskIssueCommandService {
       validateState: async () => {
         current = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
         if (current?.eventId !== eventId) current = null;
-        if (!current) throw new NotFoundException('Event-day task not found');
-        if (current.status === EventDayTaskStatus.Blocked) throw new BadRequestException('Event-day task is already blocked');
+        if (!current) throw new NotFoundException('Onsite task not found');
+        if (current.status === EventDayTaskStatus.Blocked) throw new BadRequestException('Onsite task is already blocked');
         if (current.status === EventDayTaskStatus.Done || current.status === 'cancelled') {
-          throw new BadRequestException('Done or cancelled event-day tasks cannot be blocked');
+          throw new BadRequestException('Done or cancelled onsite tasks cannot be blocked');
         }
       },
       write: () => {
-        if (!current) throw new NotFoundException('Event-day task not found');
+        if (!current) throw new NotFoundException('Onsite task not found');
         return prisma.opsEventDayTask.update({
           where: { id: taskId },
           data: {
@@ -213,10 +213,10 @@ export class LiveOpsTaskIssueCommandService {
       },
       sideEffects: async (task) => {
         await Promise.all([
-          recordEventDayLog(this.prisma, eventId, 'task_blocked', actor, `Blocked event-day task: ${task.title}`, 'event_day_task', task.id, {
+          recordEventDayLog(this.prisma, eventId, 'task_blocked', actor, `Blocked onsite task: ${task.title}`, 'event_day_task', task.id, {
             reason: input.reason,
           }),
-          writeAudit(auditWriter, eventId, actor.name, `Blocked event-day task: ${task.title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Blocked onsite task: ${task.title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -243,11 +243,11 @@ export class LiveOpsTaskIssueCommandService {
       validateState: async () => {
         current = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
         if (current?.eventId !== eventId) current = null;
-        if (!current) throw new NotFoundException('Event-day task not found');
-        if (current.status !== EventDayTaskStatus.Blocked) throw new BadRequestException('Event-day task is not blocked');
+        if (!current) throw new NotFoundException('Onsite task not found');
+        if (current.status !== EventDayTaskStatus.Blocked) throw new BadRequestException('Onsite task is not blocked');
       },
       write: () => {
-        if (!current) throw new NotFoundException('Event-day task not found');
+        if (!current) throw new NotFoundException('Onsite task not found');
         return prisma.opsEventDayTask.update({
           where: { id: taskId },
           data: { status: EventDayTaskStatus.Open, blockedReason: null, blockedAt: null, blockedBy: null },
@@ -255,10 +255,10 @@ export class LiveOpsTaskIssueCommandService {
       },
       sideEffects: async (task) => {
         await Promise.all([
-          recordEventDayLog(this.prisma, eventId, 'task_unblocked', actor, `Unblocked event-day task: ${task.title}`, 'event_day_task', task.id, {
+          recordEventDayLog(this.prisma, eventId, 'task_unblocked', actor, `Unblocked onsite task: ${task.title}`, 'event_day_task', task.id, {
             status: task.status,
           }),
-          writeAudit(auditWriter, eventId, actor.name, `Unblocked event-day task: ${task.title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Unblocked onsite task: ${task.title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -293,7 +293,7 @@ export class LiveOpsTaskIssueCommandService {
       validateState: async () => {
         task = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
         if (task?.eventId !== eventId) task = null;
-        if (!task) throw new NotFoundException('Event-day task not found');
+        if (!task) throw new NotFoundException('Onsite task not found');
         toOwnerRole = input.toOwnerRole.trim();
         toOwnerName = input.toOwnerName?.trim() ?? '';
         reason = input.reason.trim();
@@ -301,7 +301,7 @@ export class LiveOpsTaskIssueCommandService {
         if (!reason) throw new BadRequestException('A reassignment reason is required');
       },
       write: () => {
-        if (!task) throw new NotFoundException('Event-day task not found');
+        if (!task) throw new NotFoundException('Onsite task not found');
         const now = new Date();
         return prisma.opsEventTaskReassignmentRequest.create({
           data: {
@@ -523,10 +523,10 @@ export class LiveOpsTaskIssueCommandService {
         if (!notes) throw new BadRequestException('Escalation notes are required');
         current = await prisma.opsEventDayTask.findUnique({ where: { id: taskId } });
         if (current?.eventId !== eventId) current = null;
-        if (!current) throw new NotFoundException('Event-day task not found');
+        if (!current) throw new NotFoundException('Onsite task not found');
       },
       write: () => {
-        if (!current) throw new NotFoundException('Event-day task not found');
+        if (!current) throw new NotFoundException('Onsite task not found');
         return prisma.opsEventDayTask.update({
           where: { id: taskId },
           data: {
@@ -543,13 +543,13 @@ export class LiveOpsTaskIssueCommandService {
       sideEffects: async (task) => {
         const recipient = input.ownerName?.trim() || task.ownerName || task.assignedRole || 'PMCM Live Ops';
         await Promise.all([
-          recordEventDayLog(this.prisma, eventId, 'task_escalated', actor, `Escalated event-day task: ${task.title}`, 'event_day_task', task.id, {
+          recordEventDayLog(this.prisma, eventId, 'task_escalated', actor, `Escalated onsite task: ${task.title}`, 'event_day_task', task.id, {
             escalationLevel,
             notes,
             ownerRole: input.ownerRole ?? task.assignedRole,
             ownerName: input.ownerName ?? task.ownerName,
           }),
-          writeAudit(auditWriter, eventId, actor.name, `Escalated event-day task: ${task.title}`, {
+          writeAudit(auditWriter, eventId, actor.name, `Escalated onsite task: ${task.title}`, {
             actorRole: actor.role,
             actorEmail: actor.email,
             actionType: AuditActionType.Update,
@@ -560,7 +560,7 @@ export class LiveOpsTaskIssueCommandService {
             severity: escalationLevel === LiveOpsEscalationLevel.Critical ? 'critical' : 'warning',
             metadata: { escalationLevel, notes, ownerRole: input.ownerRole ?? task.assignedRole, ownerName: input.ownerName ?? task.ownerName },
           }),
-          writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(recipient)) ?? 'PMCM Admin', `Event-day task escalated: ${task.title}`, 'viber', { action: eventSectionAction(eventId, 'live_ops') }),
+          writeNotification(notificationOutboxWriter, eventId, (await this.resolveUserEmailByName(recipient)) ?? 'PMCM Admin', `Onsite task escalated: ${task.title}`, 'viber', { action: eventSectionAction(eventId, 'live_ops') }),
         ]);
       },
     });

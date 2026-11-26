@@ -124,7 +124,7 @@ export function fileRequirementCounts(matrix: PrismFileRequirementsMatrix | null
 
 const FILE_WORKFLOW_LABELS: Record<string, string> = {
   custom: "Custom requirement",
-  closure: "Closure",
+  closure: "Post-event",
   floorplans: "Floorplans",
   client_onboarding: "Client onboarding",
   commercial: "Commercial",

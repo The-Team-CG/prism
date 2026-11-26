@@ -147,7 +147,7 @@ describe('PMCM command inbox', () => {
 
     expect(items).toContainEqual(expect.objectContaining({
       id: 'live-ops:task:task_42',
-      label: 'Event-day task blocked',
+      label: 'Onsite task blocked',
       description: 'Confirm venue power for Founders gala is blocked. Owner: Technical Coordinator (Morgan Lee). Blocker: Waiting for the venue power map.',
       dueAt: '2026-11-08T09:00:00.000Z',
       href: '/dashboard/events/evt_gala/live-ops#event-day-task-task_42',

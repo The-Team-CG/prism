@@ -4,10 +4,10 @@ import { Button } from "@prism/ui/components/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@prism/ui/components/empty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@prism/ui/components/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@prism/ui/components/tooltip";
-import type { PmcmSupplierDirectoryQuery, PrismPmcmSupplierDirectoryPage, PrismPmcmSupplierNextBooking, PrismSupplierCategory } from "@prism/types";
+import { supplierStandingLabel, type PmcmSupplierDirectoryQuery, type PrismPmcmSupplierDirectoryPage, type PrismPmcmSupplierNextBooking, type PrismSupplierCategory } from "@prism/types";
 import { formatPortalDate } from "@prism/ui/format-date";
 import { cx } from "@/features/pmcm-kit";
-import { BNI_TITLE, supplierTierLabel } from "./supplier-visuals";
+import { BNI_TITLE } from "./supplier-visuals";
 
 type SupplierRow = PrismPmcmSupplierDirectoryPage["items"][number];
 type QueryChange = (patch: Partial<PmcmSupplierDirectoryQuery>) => void;
@@ -93,9 +93,9 @@ export function SupplierDirectoryCards(props: SupplierDirectoryTableProps) {
 
 function SupplierDirectoryFilters({ categories, query, searchDraft, onSearch, onQueryChange }: SupplierDirectoryTableProps) {
   const tierOptions: Array<[Tier, string]> = [
-    ["tier_1", "Tier 1"],
-    ["tier_2", "Tier 2"],
-    ["pending_first_event", "First event pending"],
+    ["tier_1", "Preferred"],
+    ["tier_2", "BNI / Non-BNI Preferred"],
+    ["pending_first_event", "New supplier"],
   ];
   const ratingOptions: Array<[PmcmSupplierDirectoryQuery["rating"], string]> = [
     ["all", "Any rating"],
@@ -114,11 +114,11 @@ function SupplierDirectoryFilters({ categories, query, searchDraft, onSearch, on
           <input value={searchDraft} onChange={(event) => onSearch(event.target.value)} placeholder="Search suppliers" className="h-9 w-full rounded-md border border-border bg-card pl-9 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/35" />
         </label>
         <Select value={query.tier ?? ALL} onValueChange={(value) => onQueryChange({ tier: value === ALL ? undefined : tierOptions.find(([option]) => option === value)?.[0], page: 0 })}>
-          <SelectTrigger id="supplier-tier-filter" aria-label="Tier" className="h-9 w-full min-w-0 text-sm sm:w-36">
+          <SelectTrigger id="supplier-tier-filter" aria-label="Standing" className="h-9 w-full min-w-0 text-sm sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ALL}>All tiers</SelectItem>
+            <SelectItem value={ALL}>All standings</SelectItem>
             {tierOptions.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
           </SelectContent>
         </Select>
@@ -174,7 +174,7 @@ function SupplierCard({ supplier, next, selected, onSelect }: { supplier: Suppli
           <button type="button" onClick={(event) => onSelect(supplier.id, event.currentTarget)} className="block max-w-full truncate text-left text-base font-semibold text-foreground outline-none after:absolute after:inset-0">
             {supplier.name}
           </button>
-          <p className="truncate text-sm text-muted-foreground">{[supplier.categoryName, supplierTierLabel(supplier.tier)].join(" · ")}</p>
+          <p className="truncate text-sm text-muted-foreground">{[supplier.categoryName, supplierStandingLabel(supplier.tier, supplier.bniMember)].join(" · ")}</p>
         </div>
         {supplier.bniMember ? <Tooltip><TooltipTrigger asChild><span className="relative z-[1] shrink-0 rounded bg-info-soft px-1.5 py-0.5 text-xs font-medium text-info">BNI</span></TooltipTrigger><TooltipContent>{BNI_TITLE}</TooltipContent></Tooltip> : null}
       </div>

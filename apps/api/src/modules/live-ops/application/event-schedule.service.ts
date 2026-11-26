@@ -183,7 +183,7 @@ export class EventScheduleService {
   }
 
   async designateOperator(eventId: string, input: CreateEventOperatorDesignationInput, actor: ResolvedEventOpsActor) {
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'event day system operator designation', eventId);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'onsite system operator designation', eventId);
     return this.prisma.$transaction(async (tx) => {
       // QUERY_AUDIT_RAW_SQL: serialize designation and revocation for the same event.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"live-ops-operator:" + eventId}, 0))`;
@@ -194,7 +194,7 @@ export class EventScheduleService {
         this.eventTransactionContext(tx, actor, 'operator-designation:' + eventId),
       );
       if (!assignment?.coordinatorId) {
-        throw new BadRequestException('The Event Day System Operator must be an active coordinator assigned to this event');
+        throw new BadRequestException('The Onsite System Operator must be an active coordinator assigned to this event');
       }
       await tx.opsEventOperatorDesignation.updateMany({
         where: { eventId, revokedAt: null },
@@ -212,7 +212,7 @@ export class EventScheduleService {
         this.auditWriter,
         eventId,
         actor.name,
-        'Designated event day system operator: ' + assignment.coordinatorName,
+        'Designated onsite system operator: ' + assignment.coordinatorName,
         { actorRole: actor.role, actorEmail: actor.email, actionType: 'assign', category: 'live_ops', affectedType: 'event_operator_designation', affectedId: created.id },
         { prisma: tx, actorId: actor.id, correlationId: 'operator-designation:' + created.id },
       );
@@ -221,7 +221,7 @@ export class EventScheduleService {
   }
 
   async revokeOperator(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventOperatorDesignation> {
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'event day system operator designation', eventId);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin], 'onsite system operator designation', eventId);
     await this.prisma.$transaction(async (tx) => {
       // QUERY_AUDIT_RAW_SQL: serialize designation and revocation for the same event.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${"live-ops-operator:" + eventId}, 0))`;
@@ -230,7 +230,7 @@ export class EventScheduleService {
         where: { eventId, revokedAt: null },
         data: { revokedAt: this.clock.now(), revokedBy: actor.id ?? actor.name },
       });
-      if (revoked.count) await writeAudit(this.auditWriter, eventId, actor.name, 'Revoked event day system operator', {
+      if (revoked.count) await writeAudit(this.auditWriter, eventId, actor.name, 'Revoked onsite system operator', {
         actorRole: actor.role, actorEmail: actor.email, actionType: 'update', category: 'live_ops', affectedType: 'event_operator_designation', affectedId: eventId,
       }, { prisma: tx, actorId: actor.id, correlationId: 'operator-revoke:' + eventId });
     });
@@ -238,7 +238,7 @@ export class EventScheduleService {
   }
 
   async getOperatorDesignation(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismEventOperatorDesignation> {
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'event day system operator designation', eventId);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'onsite system operator designation', eventId);
     const current = await this.prisma.opsEventOperatorDesignation.findFirst({
       where: { eventId, revokedAt: null },
       select: { coordinatorId: true, designatedAt: true },
@@ -413,7 +413,7 @@ export class EventScheduleService {
   }
 
   private async requireEventDayAuthority(eventId: string, actor: ResolvedEventOpsActor, assignmentId?: string) {
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'event day handoff/report', eventId);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Coordinator], 'onsite handoff/report', eventId);
     if (actor.role === OpsUserRole.Coordinator) {
       const assignment = await this.staffingReader.findAssignmentForEventActor(eventId, actor);
       if (!assignment) throw new ForbiddenException('Coordinator may only act for their own assignment');
@@ -430,7 +430,7 @@ export class EventScheduleService {
     const assignment = await this.staffingReader.findAssignmentForEventActor(eventId, actor);
     if (!assignment?.coordinatorId) throw new ForbiddenException('Coordinator is not assigned to this event');
     const designation = await this.prisma.opsEventOperatorDesignation.findFirst({ where: { eventId, coordinatorId: assignment.coordinatorId, revokedAt: null } });
-    if (!designation) throw new ForbiddenException('Only the designated Event Day System Operator may author this schedule');
+    if (!designation) throw new ForbiddenException('Only the designated Onsite System Operator may author this schedule');
   }
 }
 

@@ -236,7 +236,7 @@ export function buildEventWorkflowTabs({
     { id: "live-ops", label: "Live ops", icon: Radio },
     { id: "games", label: "Games", icon: Gamepad2 },
     { id: "billing", label: "Finance", icon: ReceiptText, badge: paymentsCount || undefined },
-    { id: "closure", label: "Closure", icon: Archive, badge: openChecksCount || undefined },
+    { id: "closure", label: "Post-event", icon: Archive, badge: openChecksCount || undefined },
     { id: "decisions", label: "Decision log", icon: Gavel },
     { id: "messages", label: "Messages", icon: MessageSquareText },
   ];
@@ -380,7 +380,7 @@ export function DefenseControlPanel({
     },
     {
       key: "closure",
-      label: "Closure",
+      label: "Post-event",
       detail: defenseReadiness.summary.closureReady ? "Close gates are ready." : "Resolve close gates or document override reason.",
       ready: defenseReadiness.summary.closureReady,
       tab: "closure" as PmcmDetailTab,
@@ -469,7 +469,7 @@ export function DefenseControlPanel({
         ))}
         {defenseReadiness.nextActions.length === 0 && (
           <div className="rounded-lg border border-dashed border-border bg-secondary/35 p-4 text-sm text-muted-foreground md:col-span-2 xl:col-span-4">
-            No open readiness actions. Keep this event selected and review the briefing, floorplan, finance, and closure tabs.
+            No open readiness actions. Keep this event selected and review the briefing, floorplan, finance, and post-event tabs.
           </div>
         )}
       </div>
@@ -498,7 +498,7 @@ export function SelectedEventStatusSummary({
         { id: "supplier-quotes", label: "Supplier quotes", value: quoteCount, icon: Truck, detail: `${quoteRequestCount} request batch(es).` },
         {
           id: "open-checks",
-          label: "Closure checks",
+          label: "Post-event checks",
           value: openCheckCount,
           icon: ShieldCheck,
           status: openCheckCount > 0 ? "open" : "completed",

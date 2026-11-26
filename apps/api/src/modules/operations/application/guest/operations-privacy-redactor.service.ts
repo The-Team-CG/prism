@@ -151,6 +151,7 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
         normalizedName: 'redacted guest',
         email: '',
         phone: '',
+        company: '',
       },
     });
   }
@@ -219,7 +220,7 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
     const rosterEntries = await transaction.opsGuestRosterEntry.findMany({
         where: { eventId: input.eventId, guestName },
         select: {
-          id: true, guestName: true, email: true, phone: true, category: true, table: true, eligibility: true,
+          id: true, guestName: true, email: true, phone: true, company: true, category: true, table: true, eligibility: true,
           verificationStatus: true, privacyConsentAccepted: true, privacyNoticeVersion: true, checkedInAt: true, withdrawnAt: true,
         },
     });
@@ -247,6 +248,7 @@ export class OperationsPrivacyRedactorService implements OperationsPrivacyRedact
           guestName: entry.guestName,
           email: entry.email,
           phone: entry.phone,
+          company: entry.company,
           category: entry.category,
           table: entry.table,
           eligibility: entry.eligibility,

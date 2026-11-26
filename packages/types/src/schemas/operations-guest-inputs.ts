@@ -133,6 +133,7 @@ export const importGuestRosterSchema = z.object({
     guestName: nonEmptyStringSchema,
     email: optionalTrimmedStringSchema,
     phone: optionalTrimmedStringSchema,
+    company: optionalTrimmedStringSchema,
     category: optionalTrimmedStringSchema,
     table: optionalTrimmedStringSchema,
     eligibility: z.enum(["eligible", "ineligible"]).optional(),

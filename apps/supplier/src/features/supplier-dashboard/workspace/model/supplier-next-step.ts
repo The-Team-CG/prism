@@ -55,8 +55,8 @@ export function supplierNextStep(item: PrismSupplierReadinessItem, hasQuote: boo
   if (item.contractStatus === "missing") return { kind: "contract" as const, title: "Upload your signed contract", detail: "PMCM needs your signed contract for review.", action: "Open booking documents", owner: "Your next step" };
   if (item.schedule && !item.schedule.acknowledged) return { kind: "schedule" as const, title: "Acknowledge your schedule", detail: "Review the latest arrival, departure and location details.", action: "Review schedule", owner: "Your next step" };
   if (item.readinessStatus !== "confirmed") return { kind: "readiness" as const, title: "Confirm your readiness", detail: "Check the booking requirements and tell PMCM when your preparation is complete.", action: "Review preparation", owner: "Your next step" };
-  if (item.contractStatus === "submitted") return { kind: "contract-review" as const, title: "Contract awaiting review", detail: "PMCM is reviewing your contract. Your schedule and event-day controls remain in the booking.", action: "View booking", owner: WAITING_FOR_PMCM };
-  return { kind: "updates" as const, title: "Keep PMCM updated", detail: "Review the schedule and report arrival, setup or departure as it happens.", action: "Open booking", owner: "Event-day updates" };
+  if (item.contractStatus === "submitted") return { kind: "contract-review" as const, title: "Contract awaiting review", detail: "PMCM is reviewing your contract. Your schedule and onsite controls remain in the booking.", action: "View booking", owner: WAITING_FOR_PMCM };
+  return { kind: "updates" as const, title: "Keep PMCM updated", detail: "Review the schedule and report arrival, setup or departure as it happens.", action: "Open booking", owner: "Onsite updates" };
 }
 
 function quoteDeadlineFigure(dueAt: string, due: number, now: Date): { value: string; label: string } {

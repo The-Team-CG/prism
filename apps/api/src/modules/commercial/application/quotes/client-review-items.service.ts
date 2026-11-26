@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import { createHash, randomUUID } from 'node:crypto';
 import type { Prisma } from '@prisma/client';
 import type { OpsClientReviewDecision, OpsClientReviewItem } from '@prisma/client';
-import type { CreateClientReviewItemInput, DecideClientReviewItemInput } from '@prism/types';
+import { isClientPortalOpen, type CreateClientReviewItemInput, type DecideClientReviewItemInput } from '@prism/types';
 import { PrismaService, toPrismaJson } from '@prism/kernel/database';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
@@ -106,7 +106,7 @@ export class ClientReviewItemsService {
     if (!event) throw new NotFoundException('Event not found');
     if (!access || event.archived) throw new BadRequestException('Client review items require an unlocked, active event');
     // FR-43: PMCM prepares options in an open bid's workspace; the client sees them once the conforme unlocks the portal.
-    if (access.clientPortalStatus !== 'unlocked' && !(await this.lifecycleEventReferences.isOpenBidWorkspace(eventId, context))) {
+    if (!isClientPortalOpen(access.clientPortalStatus) && !(await this.lifecycleEventReferences.isOpenBidWorkspace(eventId, context))) {
       throw new BadRequestException('Client review items require an unlocked, active event');
     }
   }
@@ -173,7 +173,7 @@ export class ClientReviewItemsService {
     if (!event || !access) throw new NotFoundException('Event not found');
     await this.eventAccessPolicyService.requireCanReadEvent(actor, { ...access, inquiry: { email: access.inquiry?.email ?? '' } }, 'venue or styling decision');
     if (!isPrimaryClientContact(actor.email ?? '', access.inquiry?.email ?? '')) throw new ForbiddenException('Only the primary client contact can review venue and styling options');
-    if (event.archived || access.clientPortalStatus !== 'unlocked') throw new BadRequestException('Client decisions are locked for this event');
+    if (event.archived || !isClientPortalOpen(access.clientPortalStatus)) throw new BadRequestException('Client decisions are locked for this event');
   }
 
   private requireDecisionReplay(decision: OpsClientReviewDecision, eventId: string, actorId: string, payloadHash: string) {

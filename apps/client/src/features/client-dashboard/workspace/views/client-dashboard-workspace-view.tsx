@@ -58,6 +58,7 @@ import {
   findClientEventNavItem,
   CLIENT_ACCOUNT_MENU_ITEMS,
   CLIENT_EVENT_MOBILE_BAR,
+  CLIENT_LIMITED_EVENT_MOBILE_BAR,
   CLIENT_PORTAL_MOBILE_BAR,
   findClientSidebarLink,
   portalViewFromLink,
@@ -208,7 +209,7 @@ function clientEventChrome({ inEventWorkspace, selectedEvent, events, onSwitch, 
   if (!selectedEvent) return { mobileBar: CLIENT_EVENT_MOBILE_BAR };
   const switcher = { events: events.filter((event) => !event.archived), selected: selectedEvent, onSwitch, onAllEvents };
   return {
-    mobileBar: CLIENT_EVENT_MOBILE_BAR,
+    mobileBar: selectedEvent.clientPortalStatus === "limited" ? CLIENT_LIMITED_EVENT_MOBILE_BAR : CLIENT_EVENT_MOBILE_BAR,
     mobileTitle: <ClientPhoneEventSwitcher {...switcher} onHome={onHome} />,
     sidebarContext: <ClientEventSwitcher {...switcher} />,
   };

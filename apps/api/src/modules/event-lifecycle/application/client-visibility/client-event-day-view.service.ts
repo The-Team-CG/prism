@@ -35,7 +35,7 @@ export class ClientEventDayViewService {
         this.eventAccessPolicyService.requireActorRole(
           actor,
           [OpsUserRole.PmcmAdmin],
-          'client event-day visibility',
+          'client onsite visibility',
           eventId,
         ),
       validateState: async () => {
@@ -65,7 +65,7 @@ export class ClientEventDayViewService {
           this.auditWriter,
           eventId,
           actor.name,
-          'Updated client event-day visibility',
+          'Updated client onsite visibility',
           {
             actorRole: actor.role,
             actorEmail: actor.email,
@@ -73,7 +73,7 @@ export class ClientEventDayViewService {
             actionType: AuditActionType.Update,
             affectedType: 'event',
             affectedId: eventId,
-            affectedLabel: 'Client event-day view',
+            affectedLabel: 'Client onsite view',
             metadata: {
               previousEnabled,
               enabled: event.clientEventDayViewEnabled,

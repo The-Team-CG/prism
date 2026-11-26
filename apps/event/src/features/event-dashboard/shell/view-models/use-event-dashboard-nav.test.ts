@@ -19,7 +19,7 @@ describe("PMCM phone bar", () => {
 
     expect(labels(bar.tabs)).toEqual(["Overview", "Planning", "Suppliers", "Live"]);
     expect(bar.header.map((item) => item.id)).toEqual(["event-messages"]);
-    expect(bar.more.map((item) => item.label)).toEqual(["Floorplans", "Team & roles", "Billing", "Files", "Registration & games", "Closure", "All events", "Inbox"]);
+    expect(bar.more.map((item) => item.label)).toEqual(["Floorplans", "Team & roles", "Billing", "Files", "Registration & games", "Post-event", "All events", "Inbox"]);
   });
 });
 

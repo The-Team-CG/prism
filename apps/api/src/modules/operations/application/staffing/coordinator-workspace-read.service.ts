@@ -53,7 +53,7 @@ export class CoordinatorWorkspaceReadService {
       eventDate: isoDate(event.eventDate),
       venue: event.briefings?.[0]?.venue,
       status: event.status,
-      clientPortalStatus: event.clientPortalStatus as 'locked' | 'unlocked',
+      clientPortalStatus: event.clientPortalStatus as 'locked' | 'limited' | 'unlocked',
       readiness: event.readiness,
       archived: event.archived,
       floorPlanStatus: event.floorPlanStatus,

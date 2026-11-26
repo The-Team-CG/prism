@@ -37,7 +37,7 @@ describe('EventClosureService actual end', () => {
 
     const started = harness(null, new Date(Date.UTC(2026, 8, 7, 1)));
     // Before the date and more than 12 hours before Start was pressed: not a time the event ran.
-    await expect(started.service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-04T12:00:00.000Z' }, actor)).rejects.toThrow('before event day started');
+    await expect(started.service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-04T12:00:00.000Z' }, actor)).rejects.toThrow('before onsite started');
     expect(started.tx.opsEvent.update).not.toHaveBeenCalled();
     // Start pressed late, after the event had begun: an end a few hours earlier is still accepted.
     await expect(started.service.recordActualEventEnd('evt_1', { actualEndedAt: '2026-09-06T22:00:00.000Z' }, actor)).resolves.toBeDefined();

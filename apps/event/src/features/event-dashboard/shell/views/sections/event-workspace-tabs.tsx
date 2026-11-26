@@ -151,7 +151,7 @@ function briefingFacts(briefing: PrismBriefing) {
     { label: "Venue", value: briefing.venue || "Not set" },
     { label: "Guests", value: briefing.guestCount ? briefing.guestCount.toLocaleString("en-PH") : "Not set" },
     { label: "Budget", value: briefing.budgetRange || "Not set" },
-    { label: "Confirmed schedule", value: schedule || "Not confirmed" },
+    { label: "Date and program time", value: schedule || "Not confirmed" },
   ];
 }
 
@@ -216,7 +216,7 @@ function BriefingSummary({ briefing }: { briefing?: PrismBriefing | null }) {
         ))}
       </dl>
       <BriefingServices services={briefing.serviceRequirements} />
-      <BriefingNotes entries={[{ label: "Mood and styling", text: briefing.moodAndStyling }, { label: "Notes", text: briefing.notes }]} />
+      <BriefingNotes entries={[{ label: "Event theme", text: briefing.moodAndStyling }, { label: "Notes", text: briefing.notes }]} />
     </section>
   );
 }
@@ -562,7 +562,7 @@ export function EventWorkspaceClosureTab() {
     return (
       <div className="space-y-5">
         <section aria-labelledby="closure-not-yet" className="rounded-xl border border-border bg-card px-5 py-4">
-          <h2 id="closure-not-yet" className="text-base font-semibold text-foreground">Closure opens after {formatPortalDate(event.eventDate)}</h2>
+          <h2 id="closure-not-yet" className="text-base font-semibold text-foreground">Post-event opens after {formatPortalDate(event.eventDate)}</h2>
           <p className="mt-0.5 text-sm text-muted-foreground">The close gates, wrap-up, feedback and archive start once the event has ended.</p>
         </section>
         {vm.postEventDocuments.length ? <PostEventDeliverablesPanel eventId={event.id} documents={vm.postEventDocuments} archived={event.archived} actualEndedAt={event.actualEndedAt ?? null} /> : null}
@@ -623,7 +623,7 @@ export function EventWorkspaceClosureTab() {
     archive: { render: () => closureStep("archive") },
   };
   const tabs: WorkspaceSubTab[] = CLOSURE_TABS.map((tab) => ({ id: tab.id, label: tab.label, ...panels[tab.id] }));
-  return <WorkspaceSubTabs label="Closure steps" tabs={tabs} selectedId={closurePart} onSelect={setClosurePart} />;
+  return <WorkspaceSubTabs label="Post-event steps" tabs={tabs} selectedId={closurePart} onSelect={setClosurePart} />;
 }
 
 /** PMCM-only (FL-019). Other roles get no panel here, and the API refuses them independently. */

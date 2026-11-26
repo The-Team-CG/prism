@@ -22,10 +22,12 @@ export function formatLabel(value?: string) {
 }
 
 export function portalStatusLabel(status: PrismEvent["clientPortalStatus"]) {
+  if (status === "limited") return "Briefing & proposal";
   return status === "unlocked" ? "Conforme signed" : "Portal locked";
 }
 
 export function portalBadgeStatus(status: PrismEvent["clientPortalStatus"]) {
+  if (status === "limited") return "pending";
   return status === "unlocked" ? "approved" : "locked";
 }
 

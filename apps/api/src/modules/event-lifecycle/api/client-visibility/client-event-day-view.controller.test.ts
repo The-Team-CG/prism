@@ -57,7 +57,7 @@ describe('ClientEventDayViewController', () => {
     expect(policy.requireActorRole).toHaveBeenCalledWith(
       actor,
       [OpsUserRole.PmcmAdmin],
-      'client event-day visibility',
+      'client onsite visibility',
       eventId,
     );
     expect(service.setClientEventDayView).toHaveBeenCalledWith(eventId, { enabled: true }, actor);

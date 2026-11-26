@@ -107,6 +107,23 @@ export const CLIENT_EVENT_MOBILE_BAR: PrismMobileBar = {
   header: ["event-messages"],
 };
 
+/**
+ * Before the conforme the client portal is limited (UAT 4.1, 5.3): the client answers the briefing, reviews the
+ * proposal and messages PMCM. The rest of the workspace opens once the signed conforme activates the portal.
+ */
+export const LIMITED_PORTAL_ROUTES: readonly ClientDashboardRoute[] = ["overview", "briefing", "proposal", "messages"];
+
+/** Whether an event's portal shows this route; a limited portal shows only the briefing-and-proposal pages. */
+export function isClientRouteOpen(route: ClientDashboardRoute, event?: Partial<Pick<PrismEvent, "clientPortalStatus">> | null): boolean {
+  return event?.clientPortalStatus !== "limited" || LIMITED_PORTAL_ROUTES.includes(route);
+}
+
+/** The phone bar inside an event whose portal is still limited to the briefing and proposal. */
+export const CLIENT_LIMITED_EVENT_MOBILE_BAR: PrismMobileBar = {
+  tabs: ["event-overview", "event-briefing", "event-proposal"],
+  header: ["event-messages"],
+};
+
 export const EVENT_WORKSPACE_NAV_ITEMS: ClientSidebarSubItem[] = [
   { id: "event-overview", label: "Overview", route: "overview", requiresEvent: true, eventScoped: true },
   { id: "event-progress", label: "Planning", route: "progress", requiresEvent: true, eventScoped: true },
@@ -138,10 +155,11 @@ const EVENT_NAV_ICONS: Record<string, LucideIcon> = {
  * row of tabs. The event switcher above names the event and carries the way back to all events, so
  * the pages sit in the unlabelled portal group.
  */
-export function clientEventSidebarItems(eventId?: string, event?: Pick<PrismEvent, "actualEndedAt" | "archived">) {
+export function clientEventSidebarItems(eventId?: string, event?: Pick<PrismEvent, "actualEndedAt" | "archived"> & Partial<Pick<PrismEvent, "clientPortalStatus">>) {
   const closeoutAvailable = Boolean(event?.actualEndedAt || event?.archived);
   const eventItems = EVENT_WORKSPACE_NAV_ITEMS.filter((item) =>
-    event?.archived ? item.route === "summary" : item.route !== "summary" || closeoutAvailable,
+    (event?.archived ? item.route === "summary" : item.route !== "summary" || closeoutAvailable)
+    && (!item.route || isClientRouteOpen(item.route, event)),
   );
   return eventItems.map((item) => ({
     id: item.id,

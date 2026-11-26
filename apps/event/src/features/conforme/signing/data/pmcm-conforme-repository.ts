@@ -5,7 +5,7 @@ import {
 } from "@prism/types";
 import { apiUrl, eventApi, storedEventAccessToken } from "@/lib/prism-api";
 
-const DEFAULT_CONFORME_TEMPLATE = `CONFORME — {{eventName}}\n\nClient: {{clientName}}\nCompany: {{companyName}}\nEvent type: {{eventType}}\nEvent date: {{eventDate}}\n\nPlease review the event details above. By acknowledging this conforme, you confirm that you have reviewed this version and agree to proceed with the arrangements described by PMCM. This in-app acknowledgment is recorded against this document version; PMCM must countersign before the client event workspace opens.`;
+const DEFAULT_CONFORME_TEMPLATE = `CONFORME — {{eventName}}\n\nClient: {{clientName}}\nCompany: {{companyName}}\nEvent type: {{eventType}}\nEvent date: {{eventDate}}\nProgram time: {{programTime}}\nVenue: {{venue}}\nExpected guests: {{guestCount}}\nEvent theme: {{eventTheme}}\n\nPlease review the event details above. By acknowledging this conforme, you confirm that you have reviewed this version and agree to proceed with the arrangements described by PMCM. This in-app acknowledgment is recorded against this document version; PMCM must countersign before the client event workspace opens.`;
 
 export const pmcmConformeRepository = {
   latest(inquiryId: string): Promise<PrismConformeExecution> {

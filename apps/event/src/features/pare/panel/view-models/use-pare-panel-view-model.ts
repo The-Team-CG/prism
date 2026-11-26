@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { PAREApprovalRecord } from "@prism/types";
+import type { PAREApprovalRecord, SupplierWithdrawalInput } from "@prism/types";
 import { createPareRepository } from "../data/pare-repository";
 import { selectEventPareApprovals } from "../model/pare-panel-rules";
 
@@ -10,7 +10,7 @@ export function useParePanelViewModel({
   onWithdraw,
 }: {
   eventId: string;
-  onWithdraw: (requestId: string) => Promise<void>;
+  onWithdraw: (requestId: string, input: SupplierWithdrawalInput) => Promise<void>;
 }) {
   const repository = useMemo(() => createPareRepository(), []);
   const [approvals, setApprovals] = useState<PAREApprovalRecord[]>([]);
@@ -39,11 +39,11 @@ export function useParePanelViewModel({
     void fetchApprovals();
   }, [fetchApprovals]);
 
-  const handleWithdraw = useCallback(async (requestId: string) => {
+  const handleWithdraw = useCallback(async (requestId: string, input: SupplierWithdrawalInput) => {
     setWithdrawingId(requestId);
     setError(null);
     try {
-      await onWithdraw(requestId);
+      await onWithdraw(requestId, input);
       await new Promise((resolve) => setTimeout(resolve, 800));
       await fetchApprovals();
     } catch (err) {

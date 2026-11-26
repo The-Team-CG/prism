@@ -75,7 +75,7 @@ describe("PMCM events as cards", () => {
     const briefing = { ...events[1], id: "evt_d", eventName: "Dela Cruz Debut", clientPortalStatus: "unlocked" } as PrismEvent;
     const planning = { ...events[1], clientPortalStatus: "unlocked", proposalClientStatus: "approved" } as PrismEvent;
     render(<EventRegister events={[planning, briefing]} onOpenEvent={() => undefined} />);
-    fireEvent.click(screen.getByRole("button", { name: /Planning\s*1/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Pre-planning\s*1/ }));
     expect(screen.getByRole("link", { name: "Bonifacio Gala" })).toBeTruthy();
     expect(screen.queryByRole("link", { name: "Dela Cruz Debut" })).toBeNull();
   });

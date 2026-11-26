@@ -1,4 +1,5 @@
 import { eventApi as eventOpsClient } from "@/lib/prism-api";
+import { parseContract, supplierWithdrawalSchema, type SupplierWithdrawalInput } from "@prism/types";
 import type {
   ChangeSupplierTierInput,
   CreateBillingSourceInput,
@@ -39,5 +40,5 @@ selectSupplierQuote: (eventId: string, quoteId: string) => eventOpsClient.commer
 sendBillingStatement: (eventId: string, billingId: string) => eventOpsClient.commercial.sendBillingStatement(eventId, billingId),
 updateSupplier: (supplierId: string, input: UpdateSupplierInput) => eventOpsClient.commercial.updateSupplier(supplierId, input),
 promoteSupplier: (supplierId: string, input: PromoteSupplierInput) => eventOpsClient.commercial.promoteSupplier(supplierId, input),
-withdrawSupplier: (eventId: string, requestId: string) => eventOpsClient.commercial.withdrawQuoteRequest(eventId, requestId),
+withdrawSupplier: (eventId: string, requestId: string, input: SupplierWithdrawalInput) => eventOpsClient.commercial.withdrawQuoteRequest(eventId, requestId, parseContract(supplierWithdrawalSchema, input, "Supplier withdrawal")),
 };

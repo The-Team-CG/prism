@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EVENT_RISK_PHASES, type EventRiskPhase, type PrismEventRisk } from "@prism/types";
 import { useRiskRegister } from "../view-models/use-risk-register";
 
-const PHASE_LABELS: Record<EventRiskPhase, string> = { planning: "Planning", pre_event: "Pre-event", event_day: "Event day", post_event: "Post-event" };
+const PHASE_LABELS: Record<EventRiskPhase, string> = { planning: "Planning", pre_event: "Pre-event", event_day: "Onsite", post_event: "Post-event" };
 const FIELD = "rounded-md border border-border bg-background px-2 py-1 text-sm";
 const RATINGS = [1, 2, 3, 4, 5];
 const RISK_STATUS_OPTIONS = [

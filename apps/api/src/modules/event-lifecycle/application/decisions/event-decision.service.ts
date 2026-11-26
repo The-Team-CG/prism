@@ -63,7 +63,7 @@ export class EventDecisionService {
     };
   }
 
-  /** FR-96: what cancelling would cost, so PMCM sets the fee from the contract rather than typing it blind. */
+  /** FR-96: what cancelling would cost, so PMCM sets the fee from the contract rather than typing it blind. The standard fee is 15% of the gross project amount (UAT 7.8); PMCM may go down to 10%. */
   async cancellationSummary(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismCancellationSummary> {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System], 'cancellation summary', eventId);
     return this.buildCancellationSummary(eventId, this.prisma);
@@ -75,7 +75,7 @@ export class EventDecisionService {
     const facts = await this.commercialFacts.getCancellationFacts(eventId, db);
     const conformeSigned = Boolean(event.inquiry?.conformeSignedAt);
     const bounds = cancellationFeeBounds(facts.contractAmount, conformeSigned);
-    return { eventId, conformeSigned, ...facts, feeMinimum: bounds.minimum, feeMaximum: bounds.maximum, suggestedFee: bounds.minimum };
+    return { eventId, conformeSigned, ...facts, feeMinimum: bounds.minimum, feeMaximum: bounds.maximum, suggestedFee: bounds.maximum };
   }
 
   private async assertCancellationFee(eventId: string, input: EventDecisionInput, tx: Prisma.TransactionClient) {
@@ -178,7 +178,7 @@ export class EventDecisionService {
   private async validateEventState(tx: Prisma.TransactionClient, event: Awaited<ReturnType<EventDecisionService['requireEvent']>>, input: EventDecisionInput) {
     const { status, eventDate } = event;
     if (event.archived || TERMINAL_STATUSES.has(status)) throw new BadRequestException(`Event is already ${event.archived ? 'archived' : status}`);
-    if (!isBeforePrismEventDay(derivePrismLifecycleStage(event))) throw new BadRequestException('Decisions cannot be recorded once event day has started');
+    if (!isBeforePrismEventDay(derivePrismLifecycleStage(event))) throw new BadRequestException('Decisions cannot be recorded once onsite has started');
     const nextDate = input.decision === 'postponed' && input.newEventDate ? new Date(input.newEventDate) : eventDate;
     if (Number.isNaN(nextDate.getTime())) throw new BadRequestException('New event date is invalid');
     return { status, eventDate: eventDate.toISOString(), nextDate, nextStatus: await this.nextStatus(tx, event, input) };

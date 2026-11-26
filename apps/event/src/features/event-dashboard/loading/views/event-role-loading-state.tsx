@@ -6,9 +6,9 @@ export function EventRoleLoadingState({ role }: { role: "pmcm-admin" | "coordina
   const isCoordinator = role === "coordinator";
   const title = `Loading ${isCoordinator ? "coordinator" : "PMCM"} command data`;
   const description = isCoordinator
-    ? "Role-safe assignments, attendance state, and event-day queues are being prepared."
+    ? "Role-safe assignments, attendance state, and onsite queues are being prepared."
     : "Events, finance, close gates, and local notification queue are being prepared.";
-  const skeletonItems = isCoordinator ? ["Assignment", "Assigned to you", "Issues"] : ["Events", "Finance", "Closure"];
+  const skeletonItems = isCoordinator ? ["Assignment", "Assigned to you", "Issues"] : ["Events", "Finance", "Post-event"];
 
   return (
     <Card className="min-h-[420px] rounded-lg border-border bg-card p-6" aria-live="polite">

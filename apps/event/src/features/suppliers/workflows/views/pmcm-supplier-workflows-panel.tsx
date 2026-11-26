@@ -90,7 +90,7 @@ export function PmcmSupplierWorkflowsPanel({ eventId, eventDate, requests, quote
                 <ContractSection contracts={open.contracts} vm={vm} />
                 <DeliverablesSection row={open} vm={vm} />
                 <PayablesSection row={open} quote={quoteFor(open)} vm={vm} />
-                {eventDayReached ? <StatusCorrection row={open} vm={vm} /> : <p className="py-4 text-xs text-muted-foreground">Event-day status corrections open on the event day.</p>}
+                {eventDayReached ? <StatusCorrection row={open} vm={vm} /> : <p className="py-4 text-xs text-muted-foreground">Onsite status corrections open on the event day.</p>}
               </div>
             </>
           ) : null}
@@ -157,9 +157,9 @@ function StatusCorrection({ row, vm }: { row: WorkflowRow; vm: WorkflowViewModel
   const status = vm.value(key, "status");
   const reason = vm.value(key, "reason");
   return (
-    <Part title="Correct event-day status" summary="When the supplier's own status on the day is wrong.">
+    <Part title="Correct onsite status" summary="When the supplier's own status on the day is wrong.">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={status || NO_STATUS} onValueChange={(next) => vm.setValue(key, "status", next === NO_STATUS ? "" : next)}><SelectTrigger aria-label="Corrected event-day status" className="h-8 w-44 min-w-0 rounded-lg bg-background text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={NO_STATUS}>Choose status</SelectItem>{EVENT_DAY_STATUSES.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
+        <Select value={status || NO_STATUS} onValueChange={(next) => vm.setValue(key, "status", next === NO_STATUS ? "" : next)}><SelectTrigger aria-label="Corrected onsite status" className="h-8 w-44 min-w-0 rounded-lg bg-background text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={NO_STATUS}>Choose status</SelectItem>{EVENT_DAY_STATUSES.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>
         <Input className="h-8 max-w-xs" aria-label="Status correction reason" placeholder="Reason for correction" value={reason} onChange={(e) => vm.setValue(key, "reason", e.target.value)} />
         <Button size="sm" variant="outline" disabled={vm.busy || !status || !reason.trim()} onClick={() => void vm.correctStatus(row.requestId)}>Correct status</Button>
       </div>

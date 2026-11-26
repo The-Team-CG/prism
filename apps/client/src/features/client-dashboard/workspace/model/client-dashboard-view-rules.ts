@@ -70,10 +70,12 @@ export function formatEventDate(date?: string | null) {
 }
 
 export function portalBadgeStatus(status?: PrismEvent["clientPortalStatus"]) {
+  if (status === "limited") return "pending";
   return status === "unlocked" ? "approved" : "locked";
 }
 
 export function portalBadgeLabel(status?: PrismEvent["clientPortalStatus"]) {
+  if (status === "limited") return "Briefing & proposal";
   return status === "unlocked" ? "Conforme signed" : "Portal locked";
 }
 

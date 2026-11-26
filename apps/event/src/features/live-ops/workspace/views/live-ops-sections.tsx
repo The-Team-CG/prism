@@ -6,7 +6,7 @@ import { PrismHero } from "@prism/ui/page-blocks";
 import { useState, type ReactNode } from "react";
 import { formatPortalDate, formatPortalDateTime, formatPortalTime } from "@prism/ui/format-date";
 import { liveNowNext } from "../model/live-now-next";
-import { COORDINATOR_ROLES, decideEventTaskReassignmentSchema, parseContract } from "@prism/types";
+import { COORDINATOR_ROLES, decideEventTaskReassignmentSchema, parseContract, coordinatorRoleLabel } from "@prism/types";
 
 import type {
   CoordinatorRole,
@@ -156,7 +156,7 @@ function LiveDeskAfter({ event, liveOps, metrics }: { event: PrismEvent; liveOps
   return (
     <PrismHero label={`Ended ${formatPortalDate(event.eventDate)}`} title="How the day went" meta={meta}>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p role="status" className="text-sm text-ink-foreground/70">Live entry is closed; the record below is kept for closure.</p>
+        <p role="status" className="text-sm text-ink-foreground/70">Live entry is closed; the record below is kept for post-event.</p>
         <Link href={`/dashboard/events/${encodeURIComponent(event.id)}/closure`} className="rounded-md bg-ink-foreground px-3 py-2 text-sm font-semibold text-ink hover:opacity-90">Go to closure</Link>
       </div>
     </PrismHero>
@@ -316,9 +316,9 @@ export function LiveOpsDesk({
         </Disclosure>
       ) : null}
 
-      <Disclosure title="Event-day log" summary={`${liveOps.eventDayLogs.length} entries`}>
+      <Disclosure title="Onsite log" summary={`${liveOps.eventDayLogs.length} entries`}>
         <div className="grid gap-3 md:grid-cols-2">
-          {liveOps.eventDayLogs.length === 0 ? <LiveOpsEmpty label="No event-day log entries yet." /> : null}
+          {liveOps.eventDayLogs.length === 0 ? <LiveOpsEmpty label="No onsite log entries yet." /> : null}
           {liveOps.eventDayLogs.map((entry) => (
             <div key={entry.id} className="rounded-md border border-border bg-background p-3 text-sm">
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -379,7 +379,7 @@ function LiveOpsSetupDisclosure({
           <h3 className="text-base font-semibold">Supplier setup</h3>
           <p className="text-xs text-muted-foreground">Self-reported status and PMCM verification.</p>
           <div className="mt-3 space-y-3">
-            {liveOps.supplierStatuses.length === 0 ? <LiveOpsEmpty label="No supplier event-day statuses yet." /> : null}
+            {liveOps.supplierStatuses.length === 0 ? <LiveOpsEmpty label="No supplier onsite statuses yet." /> : null}
             {liveOps.supplierStatuses.map((request) => (
               <SupplierRow
                 key={request.id}
@@ -543,7 +543,7 @@ function LiveOpsIssuesPanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {COORDINATOR_ROLES.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                {COORDINATOR_ROLES.map((role) => <SelectItem key={role} value={role}>{coordinatorRoleLabel(role)}</SelectItem>)}
               </SelectContent>
             </Select>
           </label>
@@ -580,14 +580,14 @@ function LiveOpsTasksPanel({
 }) {
   useEventDayTaskTarget();
   return (
-    <section className="rounded-lg border border-border bg-card p-4 sm:p-5" aria-label="Event-day tasks">
+    <section className="rounded-lg border border-border bg-card p-4 sm:p-5" aria-label="Onsite tasks">
       <Header
-        title="Event-day tasks"
+        title="Onsite tasks"
         count={liveOps.tasks.filter((task) => task.status !== "done").length}
         action={readOnly ? null : <FormToggle open={vm.taskFormOpen} controls="live-ops-task-form" label="Add task" onToggle={vm.toggleTaskForm} quiet />}
       />
       <div className="mt-3 space-y-3">
-        {liveOps.tasks.length === 0 ? <LiveOpsEmpty label="No event-day tasks yet." /> : null}
+        {liveOps.tasks.length === 0 ? <LiveOpsEmpty label="No onsite tasks yet." /> : null}
         {liveOps.tasks.map((task) => (
           <div key={task.id} id={`event-day-task-${task.id}`} className="scroll-mt-6">
             <TaskRow
@@ -621,7 +621,7 @@ function LiveOpsTasksPanel({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {COORDINATOR_ROLES.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                {COORDINATOR_ROLES.map((role) => <SelectItem key={role} value={role}>{coordinatorRoleLabel(role)}</SelectItem>)}
               </SelectContent>
             </Select>
           </label>
@@ -704,7 +704,7 @@ function CoordinatorReplacement({ vm, busy }: { vm: CoordinatorRowVm; busy: bool
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                {vm.replacementRoleOptions.map((role) => <SelectItem key={role} value={role}>{role}</SelectItem>)}
+                {vm.replacementRoleOptions.map((role) => <SelectItem key={role} value={role}>{coordinatorRoleLabel(role)}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -775,7 +775,7 @@ function CoordinatorRow({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-semibold">{assignment.coordinatorName}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{assignment.role} - {label(assignment.status)}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{coordinatorRoleLabel(assignment.role)} - {label(assignment.status)}</p>
           {assignment.replacementReason ? <p className="mt-1 text-xs text-muted-foreground">Replacement: {assignment.replacementReason}</p> : null}
         </div>
         <Pill value={vm.attendanceStatus} />
@@ -849,7 +849,7 @@ function TaskRow({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-semibold">{task.title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{task.assignedRole} - {task.ownerName || "No owner named"}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{coordinatorRoleLabel(task.assignedRole)} - {task.ownerName || "No owner named"}</p>
           <SlaLine slaStatus={task.slaStatus} slaDueAt={task.slaDueAt} escalationLevel={task.escalationLevel} escalatedBy={task.escalatedBy} />
         </div>
         <Pill value={task.status} />

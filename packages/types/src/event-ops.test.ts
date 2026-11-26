@@ -7,6 +7,8 @@ import {
   canClientAccessPortal,
   canCreateEventWorkspace,
   derivePrismLifecycleStage,
+  isClientPortalOpen,
+  supplierStandingLabel,
   prismCalendarDateKey,
   isWithinCoordinatorAttendanceWindow,
   hasEventDatePassed,
@@ -23,11 +25,11 @@ import {
 } from "./index.js";
 
 describe("P.R.I.S.M lifecycle contract", () => {
-  it("keeps the accepted inquiry plus signed conforme gate explicit", () => {
+  it("runs briefing & proposal before the conforme, as PMCM works (UAT 4.1)", () => {
     expect(PRISM_LIFECYCLE_STAGES).toEqual([
       "inquiry",
-      "conforme",
       "briefing_proposal",
+      "conforme",
       "planning",
       "event_day",
       "closure_archive",
@@ -38,14 +40,20 @@ describe("P.R.I.S.M lifecycle contract", () => {
   });
 
   it("publishes lifecycle transition rules for role apps and API services", () => {
-    expect(PRISM_LIFECYCLE_TRANSITIONS.inquiry).toEqual(["conforme"]);
+    expect(PRISM_LIFECYCLE_TRANSITIONS.inquiry).toEqual(["briefing_proposal"]);
+    expect(PRISM_LIFECYCLE_TRANSITIONS.briefing_proposal).toEqual(["conforme"]);
+    expect(PRISM_LIFECYCLE_TRANSITIONS.conforme).toEqual(["planning"]);
     expect(PRISM_LIFECYCLE_TRANSITIONS.event_day).toEqual(["closure_archive"]);
     expect(nextPrismLifecycleStages("closure_archive")).toEqual([]);
   });
 
   it("derives one display stage from event facts so every portal agrees", () => {
     const signed = { status: "briefing", clientPortalStatus: "unlocked" };
-    expect(derivePrismLifecycleStage({ status: "briefing", clientPortalStatus: "locked" })).toBe("conforme");
+    // A pre-conforme record PMCM opened before accepting the inquiry.
+    expect(derivePrismLifecycleStage({ status: "inquiry", clientPortalStatus: "locked" })).toBe("inquiry");
+    // Accepting the inquiry opens briefing & proposal; the client's approval moves the event to the conforme.
+    expect(derivePrismLifecycleStage({ status: "briefing", clientPortalStatus: "limited", proposalClientStatus: "pending" })).toBe("briefing_proposal");
+    expect(derivePrismLifecycleStage({ status: "planning", clientPortalStatus: "limited", proposalClientStatus: "approved" })).toBe("conforme");
     // An approved floorplan alone does not skip briefing: this was the PMCM/client disagreement.
     expect(derivePrismLifecycleStage({ ...signed, proposalClientStatus: "pending" })).toBe("briefing_proposal");
     expect(derivePrismLifecycleStage({ ...signed, proposalClientStatus: "approved" })).toBe("planning");
@@ -56,6 +64,19 @@ describe("P.R.I.S.M lifecycle contract", () => {
     expect(derivePrismLifecycleStage({ ...signed, archived: true })).toBe("closure_archive");
     expect(isBeforePrismEventDay("planning")).toBe(true);
     expect(isBeforePrismEventDay("event_day")).toBe(false);
+  });
+
+  it("opens the client portal for the briefing and proposal before the conforme, and fully after", () => {
+    expect(isClientPortalOpen("locked")).toBe(false);
+    expect(isClientPortalOpen("limited")).toBe(true);
+    expect(isClientPortalOpen("unlocked")).toBe(true);
+  });
+
+  it("labels PMCM's internal supplier standing from the tier and BNI flag (UAT 8.1)", () => {
+    expect(supplierStandingLabel("tier_1", true)).toBe("Preferred");
+    expect(supplierStandingLabel("tier_2", true)).toBe("BNI Preferred");
+    expect(supplierStandingLabel("tier_2", false)).toBe("Non-BNI Preferred");
+    expect(supplierStandingLabel("pending_first_event")).toBe("New supplier");
   });
 
   it("opens a coordinator on their next upcoming event, or the latest past one, by Philippine date", () => {

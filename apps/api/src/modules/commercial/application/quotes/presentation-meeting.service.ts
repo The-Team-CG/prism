@@ -48,7 +48,7 @@ export class PresentationMeetingService {
     await this.access.requireActorRole(actor, [OpsUserRole.Client, OpsUserRole.PmcmAdmin], 'presentation meetings', eventId);
     if (actor.role === OpsUserRole.Client) await this.requirePrimaryClient(eventId, actor);
     const rows = await this.prisma.opsPresentationMeeting.findMany({ where: { eventId, status: { not: 'superseded' } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 20 });
-    return { meetings: rows.map(mapMeeting), atRisk: presentationAtRisk(rows) };
+    return { meetings: rows.map(mapMeeting), atRisk: presentationAtRisk(rows), ...(actor.role === OpsUserRole.PmcmAdmin ? { zoomAvailable: Boolean(this.zoom) } : {}) };
   }
 
   /** Proposing again (to reschedule) replaces any meeting still waiting for a slot or held. */
@@ -87,6 +87,7 @@ export class PresentationMeetingService {
         ...(zoom ? { meetingLink: zoom.joinUrl, zoomMeetingId: zoom.meetingId } : {}),
       } });
       await this.audit(eventId, actor, `Client chose a presentation time: ${slot.startsAt}`, row.id);
+      await this.notifyBooked(eventId, row.id, meeting.title, slot, row.meetingLink);
       return mapMeeting(row);
     } catch (error) {
       // The booking did not save, so the Zoom meeting made for it would be orphaned.
@@ -101,6 +102,19 @@ export class PresentationMeetingService {
     const row = await this.prisma.opsPresentationMeeting.update({ where: { id: meetingId }, data: { status: input.outcome } });
     await this.audit(eventId, actor, input.outcome === 'no_show' ? 'Client did not attend the presentation' : 'Presentation held', row.id);
     return mapMeeting(row);
+  }
+
+  /** UAT 7.6: both sides get the booked time and the join link by email; the client also has it in the portal. */
+  private async notifyBooked(eventId: string, meetingId: string, title: string, slot: Slot, link: string | null) {
+    const when = new Date(slot.startsAt).toLocaleString('en-PH', { timeZone: 'Asia/Manila', dateStyle: 'medium', timeStyle: 'short' });
+    const join = link ? ` Join: ${link}` : ' PMCM will send the meeting link.';
+    const event = await this.events.findEventReadAccess(eventId);
+    const sends = [{ to: 'pmcm', recipient: 'PMCM Admin', message: `The client booked "${title}" for ${when} (Philippine time).${join}` }];
+    if (event?.inquiry?.email) sends.push({ to: 'client', recipient: event.inquiry.email, message: `Your presentation "${title}" is booked for ${when} (Philippine time).${join}` });
+    // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: at most two notices, PMCM and the client.
+    for (const send of sends) {
+      await writeNotification(this.notifications, eventId, send.recipient, send.message, 'email', { idempotencyKey: `presentation-booked:${meetingId}:${send.to}` });
+    }
   }
 
   private async createZoomMeeting(meeting: OpsPresentationMeeting, slot: Slot) {

@@ -32,12 +32,14 @@ function workspace(overrides: Partial<PrismClientWorkspace> = {}): PrismClientWo
 }
 
 describe("event-progress-rules", () => {
-  it("uses the shared stage: Planning only once the client approves the proposal", () => {
-    expect(deriveLifecycleIndex({ ...event, status: "briefing" })).toBe(2);
+  it("uses the shared stage: briefing & proposal, then the conforme, then pre-planning", () => {
+    expect(deriveLifecycleIndex({ ...event, status: "briefing" })).toBe(1);
     expect(deriveLifecycleIndex({ ...event, status: "briefing", proposalClientStatus: "approved" })).toBe(3);
-    // The fixture's operational status is "planning" (briefing submitted); that alone is not Planning.
-    expect(deriveLifecycleIndex(event)).toBe(2);
-    expect(deriveLifecycleIndex({ ...event, clientPortalStatus: "locked" })).toBe(1);
+    // The fixture's operational status is "planning" (briefing submitted); that alone is not pre-planning.
+    expect(deriveLifecycleIndex(event)).toBe(1);
+    // An approved proposal on a limited portal waits for the conforme.
+    expect(deriveLifecycleIndex({ ...event, clientPortalStatus: "limited", proposalClientStatus: "approved" })).toBe(2);
+    expect(deriveLifecycleIndex({ ...event, clientPortalStatus: "locked" })).toBe(0);
   });
 
   it("lists every milestone once, in order, with the first unfinished one next and a passed due date late", () => {
@@ -59,9 +61,9 @@ describe("event-progress-rules", () => {
     } as Partial<PrismClientWorkspace>), "2026-07-20");
 
     expect(milestones.map((m) => [m.kind, m.state, m.date])).toEqual([
-      ["conforme", "done", "2026-06-01"],
       ["briefing", "done", "2026-06-03T07:40:45.687Z"],
       ["proposal", "next", null],
+      ["conforme", "done", "2026-06-01"],
       ["floorplan", "upcoming", null],
       ["suppliers", "upcoming", null],
       ["payment", "late", "2026-07-15"],
@@ -93,7 +95,7 @@ describe("event-progress-rules", () => {
       "2026-07-01",
     );
 
-    expect(enabledDuringEvent.clientEventDayStatus).toBe("Event day is in progress.");
+    expect(enabledDuringEvent.clientEventDayStatus).toBe("Onsite is in progress.");
     expect(disabledDuringEvent.clientEventDayStatus).toBeNull();
     expect(enabledBeforeEvent.clientEventDayStatus).toBeNull();
   });

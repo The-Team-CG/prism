@@ -100,7 +100,7 @@ export function SupplierDirectoryList({
           <p className="text-sm text-muted-foreground">Supplier Directory</p>
           <h2 className="mt-2 text-2xl font-semibold">PMCM supplier database</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Eight configurable categories, tier tags, BNI auto-trust, reviews, and reliability history.
+            Eight configurable categories, standing tags, BNI auto-trust, reviews, and reliability history.
           </p>
         </div>
         <div className="rounded-md border border-border bg-secondary px-3 py-2 text-sm font-semibold">
@@ -145,14 +145,14 @@ export function SupplierDirectoryList({
           </SelectContent>
         </Select>
         <Select value={tier} onValueChange={onTier}>
-          <SelectTrigger aria-label="Tier" className="h-10 w-40 min-w-0 bg-white text-sm">
+          <SelectTrigger aria-label="Standing" className="h-10 w-52 min-w-0 bg-white text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All tiers</SelectItem>
-            <SelectItem value="tier_1">Tier 1</SelectItem>
-            <SelectItem value="tier_2">Tier 2</SelectItem>
-            <SelectItem value="pending_first_event">Pending First Event</SelectItem>
+            <SelectItem value="all">All standings</SelectItem>
+            <SelectItem value="tier_1">Preferred</SelectItem>
+            <SelectItem value="tier_2">BNI / Non-BNI Preferred</SelectItem>
+            <SelectItem value="pending_first_event">New supplier</SelectItem>
           </SelectContent>
         </Select>
         <Select value={rating} onValueChange={onRating}>
@@ -173,7 +173,7 @@ export function SupplierDirectoryList({
           <div className="grid min-w-[1040px] grid-cols-[minmax(260px,1.6fr)_minmax(160px,1fr)_9rem_7rem_10rem_8rem] gap-4 border-b border-border bg-secondary/45 px-4 py-3 text-xs font-medium text-muted-foreground">
             <span>Name</span>
             <span>Category</span>
-            <span>Tier</span>
+            <span>Standing</span>
             <span title={BNI_TITLE}>BNI</span>
             <span>Aggregate Rating</span>
             <span>Last Event</span>
@@ -229,13 +229,13 @@ function SupplierCreateFormFields({
           </SelectContent>
         </Select>
         <Select value={createForm.tier} onValueChange={(tier) => onCreateForm({ tier: tier as SupplierCreateForm["tier"] })}>
-          <SelectTrigger aria-label="New supplier tier" className="h-10 min-w-0 bg-white text-sm">
+          <SelectTrigger aria-label="New supplier standing" className="h-10 min-w-0 bg-white text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pending_first_event">Pending First Event</SelectItem>
-            <SelectItem value="tier_1">Tier 1</SelectItem>
-            <SelectItem value="tier_2">Tier 2</SelectItem>
+            <SelectItem value="pending_first_event">New supplier</SelectItem>
+            <SelectItem value="tier_1">Preferred</SelectItem>
+            <SelectItem value="tier_2">BNI / Non-BNI Preferred</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -274,7 +274,7 @@ function SupplierDirectoryRow({
       </span>
       <span className="truncate font-medium text-muted-foreground">{supplier.categoryName}</span>
       <span>
-        <SupplierTierBadge tier={supplier.tier} />
+        <SupplierTierBadge tier={supplier.tier} bniMember={supplier.bniMember} />
       </span>
       <span>
         {supplier.bniMember ? (
@@ -388,7 +388,7 @@ function SupplierProfileHeader({ supplier, onBack }: { supplier: PrismSupplier; 
         </button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        <SupplierTierBadge tier={supplier.tier} />
+        <SupplierTierBadge tier={supplier.tier} bniMember={supplier.bniMember} />
         <Badge variant="outline" className="rounded-full bg-secondary">{supplier.categoryName}</Badge>
         {supplier.autoTrust && (
           <Badge variant="outline" className="rounded-full border-brand-orange/30 bg-accent text-attention">Auto-Trust</Badge>
@@ -474,16 +474,16 @@ function SupplierTierChangeForm({
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted p-4">
-      <p className="text-sm text-muted-foreground">Tier Change</p>
+      <p className="text-sm text-muted-foreground">Standing change</p>
       <div className="mt-3 grid gap-2">
         <Select value={tierForm.tier} onValueChange={(tier) => onTierForm({ tier: tier as SupplierTierForm["tier"] })}>
-          <SelectTrigger aria-label="New tier" className="h-10 min-w-0 bg-white text-sm">
+          <SelectTrigger aria-label="New standing" className="h-10 min-w-0 bg-white text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="tier_1">Tier 1</SelectItem>
-            <SelectItem value="tier_2">Tier 2</SelectItem>
-            <SelectItem value="pending_first_event">Pending First Event</SelectItem>
+            <SelectItem value="tier_1">Preferred</SelectItem>
+            <SelectItem value="tier_2">BNI / Non-BNI Preferred</SelectItem>
+            <SelectItem value="pending_first_event">New supplier</SelectItem>
           </SelectContent>
         </Select>
         <textarea value={tierForm.reason} onChange={(event) => onTierForm({ reason: event.target.value })} className="min-h-16 rounded-md border border-border bg-white px-3 py-2 text-sm" placeholder="Required reason for audit trail" />

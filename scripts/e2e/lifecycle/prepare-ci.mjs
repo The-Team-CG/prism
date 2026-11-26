@@ -16,7 +16,7 @@ export function createCIEnvironment(databaseUrl, root) {
     PRISM_STORAGE_PROVIDER: "local", PRISM_STORAGE_LOCAL_DIRECTORY: join(root, ".local-dev/lifecycle-ci-storage"),
     PRISM_CLIENT_PORTAL_URL: "http://localhost:3001", PRISM_SUPPLIER_PORTAL_URL: "http://localhost:3002",
     PRISM_EVENT_PORTAL_URL: "http://localhost:3004", PARE_MODE: "mock",
-    PRISM_DISABLE_CONFORME_REMINDER_JOB: "true", E2E_API_URL: "http://localhost:4100/api", E2E_STRICT: "1",
+    PRISM_DISABLE_CONFORME_REMINDER_JOB: "true", PRISM_DISABLE_CONFORME_BILLING_JOB: "true", PRISM_DISABLE_END_OF_DAY_RECAP_JOB: "true", E2E_API_URL: "http://localhost:4100/api", E2E_STRICT: "1",
     E2E_API_LOG: join(root, ".local-dev/lifecycle-ci-api.log"), E2E_SECRETS_FILE: join(root, ".local-dev/lifecycle-ci-secrets.json"),
   };
   for (const actor of ["ADMIN", "CLIENT", "COORDINATOR", "SUPPLIER"]) env[`PRISM_SEED_PASSWORD_${actor}`] = randomBytes(24).toString("hex");

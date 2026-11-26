@@ -1,6 +1,6 @@
 import { ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common';
 import type { OpsEvent } from '@prisma/client';
-import type { PrismEventOpsActorContext, PrismVerifiedEventActor } from '@prism/types';
+import { isClientPortalOpen, type PrismEventOpsActorContext, type PrismVerifiedEventActor } from '@prism/types';
 import { AuditActionType, AuditCategory, OpsUserRole, type OpsUserRole as OpsUserRoleValue } from '@prism/kernel/event-core';
 import { AUDIT_WRITER } from '../ports/access-control.tokens';
 import type { AuditWriter } from '../ports/audit-writer.port';
@@ -104,7 +104,8 @@ export class EventAccessPolicyService {
   canReadEvent(actor: ResolvedEventOpsActor, event: ReadableEvent, scope: EventAccessScope = {}) {
     if (actor.role === OpsUserRole.PmcmAdmin || actor.role === OpsUserRole.System) return true;
     if (actor.role === OpsUserRole.Client) {
-      return event.clientPortalStatus === 'unlocked' && this.clientOwnsEvent(actor, event);
+      // A limited portal (accepted inquiry, before the conforme) is readable; its routes allow only briefing and proposal work.
+      return isClientPortalOpen(event.clientPortalStatus) && this.clientOwnsEvent(actor, event);
     }
     if (actor.role === OpsUserRole.Coordinator) return this.coordinatorCanReadEvent(actor, event, scope);
     if (actor.role === OpsUserRole.Supplier) return this.supplierCanReadEvent(actor, event, scope);

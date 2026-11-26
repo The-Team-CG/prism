@@ -14,7 +14,7 @@ type Stage = { icon: LucideIcon; title: string; body: string; section: SupplierD
 const STAGES: Stage[] = [
   { icon: ReceiptText, title: "Quote", body: "PMCM sends a request. Price it before the deadline; you can revise once.", section: "requests", link: "Requests & quotes" },
   { icon: BadgeCheck, title: "Booking", body: "If PMCM selects your quote, confirm the booking, upload your signed contract and confirm readiness.", section: "bookings", link: "Bookings" },
-  { icon: Truck, title: "Event day", body: "Mark Arrived, Set up and ready, and Done and leaving from the booking as each happens.", section: "bookings", link: "Bookings" },
+  { icon: Truck, title: "Onsite", body: "Mark Arrived, Set up and ready, and Done and leaving from the booking as each happens.", section: "bookings", link: "Bookings" },
   { icon: Wallet, title: "Payment", body: "PMCM pays on the schedule it sets for the booking. Confirm each payout and send your official receipt.", section: "payments", link: "Payments" },
 ];
 

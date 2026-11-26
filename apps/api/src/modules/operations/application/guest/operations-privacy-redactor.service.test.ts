@@ -26,7 +26,7 @@ describe('OperationsPrivacyRedactorService', () => {
     expect(rosterUpdate).toHaveBeenCalledWith({
       where: { id: 'roster_1' },
       data: {
-        sourceKey: 'privacy-redacted:roster_1', guestName: 'Redacted guest', normalizedName: 'redacted guest', email: '', phone: '',
+        sourceKey: 'privacy-redacted:roster_1', guestName: 'Redacted guest', normalizedName: 'redacted guest', email: '', phone: '', company: '',
       },
     });
     expect(transaction.opsGuestCheckIn.updateMany).toHaveBeenCalledWith({

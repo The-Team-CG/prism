@@ -193,7 +193,8 @@ describe("inquiryNextStep", () => {
     [{ ...base, status: "new" }, "Review inquiry"],
     [{ ...base, status: "pending" }, "Review inquiry"],
     [{ ...base, status: "declined" }, "Declined"],
-    [base, "Send conforme"],
+    // Briefing and proposal come before the conforme (UAT 4.1).
+    [base, "Briefing & proposal in Events"],
     [{ ...base, conformeSentAt: "2026-10-01" }, "Waiting for signed conforme"],
     [{ ...base, conformeSentAt: "2026-10-01", conformeSignedAt: "2026-10-03" }, "Send client invitation"],
     [{ ...base, conformeSignedAt: "2026-10-03", portalInvitationStatus: "sent" }, "Waiting for client to activate"],

@@ -5,7 +5,7 @@ import { PrismaService } from '@prism/kernel/database';
 import { AUDIT_WRITER, EventAccessPolicyService, type AuditWriter, type ResolvedEventOpsActor, writeAudit } from '@prism/kernel/access-control';
 import { AuditActionType, AuditCategory, OpsUserRole } from '@prism/kernel/event-core';
 import { NOTIFICATION_OUTBOX_WRITER, type NotificationOutboxWriter, eventSectionAction, writeNotification } from '@prism/contexts/platform-ops';
-import type { CreateProposalCommentInput, PrismProposalComment } from '@prism/types';
+import { isClientPortalOpen, type CreateProposalCommentInput, type PrismProposalComment } from '@prism/types';
 
 const COMMENT_PAGE_LIMIT = 500;
 const commentInclude = { proposalVersion: { select: { versionNumber: true } } } as const;
@@ -44,7 +44,7 @@ export class ProposalCommentsService {
   async list(eventId: string, actor: ResolvedEventOpsActor): Promise<PrismProposalComment[]> {
     await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.System, OpsUserRole.Client], 'proposal comments', eventId);
     const event = await this.readableEvent(this.prisma, eventId, actor, 'proposal comments');
-    if (actor.role === OpsUserRole.Client && event.clientPortalStatus !== 'unlocked') return [];
+    if (actor.role === OpsUserRole.Client && !isClientPortalOpen(event.clientPortalStatus)) return [];
     // QUERY_AUDIT_ALLOW_UNBOUNDED: capped at COMMENT_PAGE_LIMIT; one event's proposal thread is short.
     const rows = await this.prisma.opsProposalComment.findMany({
       where: { eventId },
@@ -66,7 +66,7 @@ export class ProposalCommentsService {
   private async requireCommentableVersion(tx: Prisma.TransactionClient, eventId: string, actor: ResolvedEventOpsActor) {
     const event = await this.readableEvent(tx, eventId, actor, 'proposal comment');
     if (event.archived) throw new BadRequestException('Archived events cannot take proposal comments');
-    if (actor.role === OpsUserRole.Client && event.clientPortalStatus !== 'unlocked') throw new ForbiddenException('The client portal is locked for this event');
+    if (actor.role === OpsUserRole.Client && !isClientPortalOpen(event.clientPortalStatus)) throw new ForbiddenException('The client portal is locked for this event');
     const version = await tx.opsProposalVersion.findFirst({ where: { eventId, status: 'issued' }, orderBy: { versionNumber: 'desc' } });
     if (!version?.issuedAt) throw new BadRequestException('No issued proposal is available to comment on');
     return { event, version };

@@ -245,7 +245,7 @@ describe("CoordinatorAssignmentDesk Event Day System Operator", () => {
     const props = renderDesk({ onLoadOperator });
     expect(await screen.findByText("Current operator: Jordan Lee.")).toBeTruthy();
 
-    const select = screen.getByLabelText("Event Day System Operator");
+    const select = screen.getByLabelText("Onsite System Operator");
     openSelect(select);
     expect(within(screen.getByRole("listbox")).getAllByRole("option").map((option) => option.textContent)).toEqual([
       "Jordan Lee · Floor Director",
@@ -262,7 +262,7 @@ describe("CoordinatorAssignmentDesk Event Day System Operator", () => {
     const props = renderDesk({ onDesignateOperator: vi.fn(async () => false) });
     await screen.findByText("No operator designated yet.");
 
-    chooseSelectOption(screen.getByLabelText("Event Day System Operator"), "Sam Cruz · Stage Director");
+    chooseSelectOption(screen.getByLabelText("Onsite System Operator"), "Sam Cruz · Stage Director");
     fireEvent.click(screen.getByRole("button", { name: "Designate operator" }));
 
     expect(await screen.findByText(/operator was not changed/i)).toBeTruthy();
@@ -274,7 +274,7 @@ describe("CoordinatorAssignmentDesk Event Day System Operator", () => {
 
     expect(await screen.findByText(/could not load the current operator/i)).toBeTruthy();
     expect(screen.queryByText("No operator designated yet.")).toBeNull();
-    chooseSelectOption(screen.getByLabelText("Event Day System Operator"), "Sam Cruz · Stage Director");
+    chooseSelectOption(screen.getByLabelText("Onsite System Operator"), "Sam Cruz · Stage Director");
     expect((screen.getByRole("button", { name: "Designate operator" }) as HTMLButtonElement).disabled).toBe(true);
     expect(props.onDesignateOperator).not.toHaveBeenCalled();
   });

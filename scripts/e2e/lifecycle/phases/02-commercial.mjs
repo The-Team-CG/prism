@@ -35,8 +35,8 @@ export async function run(ctx) {
   // ---------- setup ----------
   await step("setup: PMCM, supplier, coordinator sign in and two onboarded events exist", async () => {
     T.admin = await ctx.as("admin"); T.admin2 = await ctx.as("admin2"); T.supplier = await ctx.as("supplier"); T.coordinator = await ctx.as("coordinator");
-    s.ev = await ctx.newEvent({ label: "Commercial Golden" });
-    s.other = await ctx.newEvent({ label: "Commercial Other" });
+    s.ev = await ctx.newEvent({ label: "Commercial Golden", signConforme: false });
+    s.other = await ctx.newEvent({ label: "Commercial Other", signConforme: false });
     T.client = await s.ev.as(); T.otherClient = await s.other.as();
     return `golden ${s.ev.eventId}`;
   });
@@ -239,7 +239,7 @@ export async function run(ctx) {
   });
   await step("a fourth revision request is refused once the cap of 3 is reached, with a clear message", async () => {
     need("ev");
-    const cap = await ctx.newEvent({ label: "Commercial Cap" });
+    const cap = await ctx.newEvent({ label: "Commercial Cap", signConforme: false });
     const capClient = await cap.as();
     const est = expectStatus(await pmcm("POST", `/events/${cap.eventId}/cost-estimates`, estimateBody(400000)), 201);
     let last;

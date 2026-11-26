@@ -138,14 +138,14 @@ describe("Phase4ComplianceSection evidence", () => {
     const { unmount } = render(
       <Phase4ComplianceSection phase="planning" checks={[complianceCheck(dateCheck)]} rules={[]} openChecks={[]} busy={false} onPhase={vi.fn()} onRunCompliance={vi.fn()} onResolveCompliance={vi.fn()} onOverrideCompliance={vi.fn()} />,
     );
-    expect(screen.getByRole("link", { name: "Open Closure" }).getAttribute("href")).toBe("/dashboard/events/evt_1/closure");
+    expect(screen.getByRole("link", { name: "Open Post-event" }).getAttribute("href")).toBe("/dashboard/events/evt_1/closure");
     expect(screen.getByRole("link", { name: "Record a postponement" }).getAttribute("href")).toBe("/dashboard/events/evt_1/briefing?part=changes");
     unmount();
 
     render(
       <Phase4ComplianceSection phase="planning" checks={[complianceCheck({ ...dateCheck, status: "resolved" }), complianceCheck({ id: "chk_other", title: "Venue permit" })]} rules={[]} openChecks={[]} busy={false} onPhase={vi.fn()} onRunCompliance={vi.fn()} onResolveCompliance={vi.fn()} onOverrideCompliance={vi.fn()} />,
     );
-    expect(screen.queryByRole("link", { name: "Open Closure" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Open Post-event" })).toBeNull();
     expect(screen.queryByRole("link", { name: "Record a postponement" })).toBeNull();
   });
 

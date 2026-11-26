@@ -1,15 +1,9 @@
 import { Star } from "lucide-react";
+import { supplierStandingLabel } from "@prism/types";
 import styles from "./supplier-workspace.module.css";
 
 /** What the BNI badge means, for the tooltip and screen readers. */
 export const BNI_TITLE = "BNI: Business Network International member";
-
-export function supplierTierLabel(tier: string) {
-  if (tier === "tier_1") return "Tier 1";
-  if (tier === "tier_2") return "Tier 2";
-  if (tier === "pending_first_event") return "First event pending";
-  return tier.replaceAll("_", " ");
-}
 
 export function SupplierAvatar({ name, identity = false }: { name: string; identity?: boolean }) {
   const initials = name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -19,7 +13,7 @@ export function SupplierAvatar({ name, identity = false }: { name: string; ident
 export function SupplierTags({ category, tier, bniMember = false }: { category?: string; tier?: string; bniMember?: boolean }) {
   return <div className="flex flex-wrap items-center gap-1.5">
     {category ? <span title={category} className={styles.tag}>{category}</span> : null}
-    {tier ? <span title={supplierTierLabel(tier)} className={`${styles.tag} ${tier === "pending_first_event" ? styles.pending : styles.tier}`}>{supplierTierLabel(tier)}</span> : null}
+    {tier ? <span title={supplierStandingLabel(tier, bniMember)} className={`${styles.tag} ${tier === "pending_first_event" ? styles.pending : styles.tier}`}>{supplierStandingLabel(tier, bniMember)}</span> : null}
     {bniMember ? <span className={`${styles.tag} ${styles.network}`}>BNI member</span> : null}
   </div>;
 }

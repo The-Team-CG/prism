@@ -137,12 +137,12 @@ function assignedEventsWhere(hasIdentity: boolean, assignedEventIds: string[]): 
   return hasIdentity ? { archived: false, id: { in: assignedEventIds } } : { id: { in: [] } };
 }
 
-/** Clients see their own unlocked events; archived history is a separate read-only list. */
+/** Clients see their own open events (limited before the conforme, unlocked after); archived history is a separate read-only list. */
 function clientVisibleEventsWhere(actor: ResolvedEventOpsActor, archived = false): Prisma.OpsEventWhereInput {
   if (actor.email?.trim()) {
     return {
       archived,
-      clientPortalStatus: 'unlocked',
+      clientPortalStatus: { in: ['limited', 'unlocked'] },
       inquiry: {
         is: { email: { equals: actor.email.trim(), mode: 'insensitive' } },
       },
@@ -152,7 +152,7 @@ function clientVisibleEventsWhere(actor: ResolvedEventOpsActor, archived = false
   if (actor.clientName?.trim()) {
     return {
       archived,
-      clientPortalStatus: 'unlocked',
+      clientPortalStatus: { in: ['limited', 'unlocked'] },
       clientName: { equals: actor.clientName.trim(), mode: 'insensitive' },
     };
   }
@@ -1231,7 +1231,7 @@ export class EventReadModelQueries {
     const addendumCutoff = new Date(now.getTime() - CLIENT_MESSAGE_TRIGGER_POLICY.addendumUnsignedDays * 86_400_000);
     const [openEvents, unsignedAddenda] = await Promise.all([
       this.prisma.opsEvent.findMany({
-        where: { archived: false, clientPortalStatus: 'unlocked', proposalClientStatus: { in: ['pending', 'revision_requested'] } },
+        where: { archived: false, clientPortalStatus: { in: ['limited', 'unlocked'] }, proposalClientStatus: { in: ['pending', 'revision_requested'] } },
         select: { id: true, proposalClientStatus: true, proposalReviewedAt: true },
         orderBy: [{ id: 'asc' }],
         take: MAX_PMCM_CLIENT_DECISION_ROWS,

@@ -43,6 +43,7 @@ function eventFixture(): OpsEvent & { floorPlanDrafts: OpsFloorPlanDraft[] } {
     walkInThreshold: 200,
     guestPrivacyClassification: 'unclassified',
     actualStartedAt: null,
+    billingRequestedAt: null,
     actualEndedAt: null,
     actualEndedBy: null,
     archivedAt: null,

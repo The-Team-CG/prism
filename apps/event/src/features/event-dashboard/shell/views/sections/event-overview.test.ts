@@ -16,7 +16,7 @@ describe("event workspace stage signals", () => {
     const counts = { inEventWorkspace: true, closeoutCount: 11 };
     const planning = eventPortalNavItems({ ...counts, eventStage: "briefing_proposal" });
     const closure = planning.find((item) => item.id === "event-report");
-    expect(closure).toMatchObject({ section: "Event day & after", badge: undefined });
+    expect(closure).toMatchObject({ section: "Onsite & post-event", badge: undefined });
     expect(planning.find((item) => item.id === "event-overview")?.section).toBe("Prepare");
 
     const live = eventPortalNavItems({ ...counts, eventStage: "event_day" });

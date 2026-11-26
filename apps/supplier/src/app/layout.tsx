@@ -5,7 +5,7 @@ import "./globals.css";
 // No title here: the tab title belongs to the page, rendered through DocumentTitleProvider.
 export const metadata: Metadata = {
   description:
-    "Supplier-facing P.R.I.S.M portal preview for quote requests, assignment confirmation, readiness checks, and event-day status updates.",
+    "Supplier-facing P.R.I.S.M portal preview for quote requests, assignment confirmation, readiness checks, and onsite status updates.",
 };
 
 export default function RootLayout({

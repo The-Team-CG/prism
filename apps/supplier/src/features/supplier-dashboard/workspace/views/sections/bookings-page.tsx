@@ -188,7 +188,7 @@ function EventDayStep({ req, note, busy, onStatusNoteChange, onUpdateStatus }: {
           Late arrival: your planned arrival time has passed.{canReport ? " Report your status below." : " Confirm your assignment and readiness to report your status."}
         </p>
       ) : null}
-      <BookingStepPanel title="Event day status" state={canReport ? "current" : "locked"} summary={canReport ? "Report each stage as it happens onsite." : "Confirm your assignment and readiness first."}>
+      <BookingStepPanel title="Onsite status" state={canReport ? "current" : "locked"} summary={canReport ? "Report each stage as it happens onsite." : "Confirm your assignment and readiness first."}>
         <label className="grid gap-1.5 text-sm font-medium text-foreground">
           Status note
           <Input value={note ?? req.eventDayNotes ?? ""} onChange={(e) => onStatusNoteChange(req.id, e.target.value)} className="h-11 rounded-md" placeholder="Optional note for PMCM" />

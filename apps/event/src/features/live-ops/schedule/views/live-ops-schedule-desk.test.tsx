@@ -114,17 +114,17 @@ describe("LiveOpsScheduleDesk", () => {
   it("lets PMCM start event day and reflects the saved event status", async () => {
     repository.getEvent.mockResolvedValueOnce({ status: "planning" }).mockResolvedValue({ status: "event_day" });
     render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canStartEventDay canManageSchedule canReplyToReports canSubmitReports={false} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Start event day" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Start onsite" }));
     await waitFor(() => expect(repository.startEventDay).toHaveBeenCalledWith("evt_1"));
-    expect(await screen.findByText("Event day is active")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Start event day" })).toBeNull();
+    expect(await screen.findByText("Onsite is active")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Start onsite" })).toBeNull();
   });
 
   it("does not offer event-day start to a coordinator who can manage the schedule", async () => {
     repository.getEvent.mockResolvedValue({ status: "planning" });
     render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule canReplyToReports={false} canSubmitReports />);
     await screen.findByText("Doors open");
-    expect(screen.queryByRole("button", { name: "Start event day" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Start onsite" })).toBeNull();
   });
   it("lets the designated operator add a day and a timed schedule segment", async () => {
     render(<LiveOpsScheduleDesk eventId="evt_1" assignments={assignments} canManageSchedule canReplyToReports={false} canSubmitReports />);

@@ -28,7 +28,7 @@ export class ClientEventDayViewController {
     await this.eventAccessPolicyService.requireActorRole(
       actor,
       [OpsUserRole.PmcmAdmin],
-      'client event-day visibility',
+      'client onsite visibility',
       eventId,
     );
     return this.clientEventDayViewService.setClientEventDayView(eventId, input, actor);

@@ -594,8 +594,8 @@ export class GuestWorkflowService implements GuestCommands {
           // QUERY_AUDIT_ALLOW_BOUNDED_LOOP: each chunk is sliced to at most 100 input rows.
           (row) => tx.opsGuestRosterEntry.upsert({
             where: { eventId_sourceKey: { eventId, sourceKey: row.sourceKey } },
-            create: { id: `gre_${randomUUID()}`, eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', rsvp: row.rsvp ?? 'pending', dietary: row.dietary ?? '', verificationStatus: 'pending', source: input.source, importBatchId: batchId, withdrawnAt: null },
-            update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', ...rosterReplyUpdate(row), source: input.source, importBatchId: batchId, withdrawnAt: null },
+            create: { id: `gre_${randomUUID()}`, eventId, sourceKey: row.sourceKey, guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', company: row.company ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', rsvp: row.rsvp ?? 'pending', dietary: row.dietary ?? '', verificationStatus: 'pending', source: input.source, importBatchId: batchId, withdrawnAt: null },
+            update: { guestName: row.guestName.trim(), normalizedName: row.guestName.trim().toLowerCase(), email: row.email ?? '', phone: row.phone ?? '', company: row.company ?? '', category: row.category ?? '', table: row.table ?? '', eligibility: row.eligibility ?? 'eligible', ...rosterReplyUpdate(row), source: input.source, importBatchId: batchId, withdrawnAt: null },
           }))));
       }
       await tx.opsGuestRosterEntry.updateMany({ where: { eventId, source: input.source, sourceKey: { notIn: keys }, withdrawnAt: null }, data: { withdrawnAt: new Date() } });
@@ -950,7 +950,7 @@ export class GuestWorkflowService implements GuestCommands {
   }
 
   private mapGuestRosterEntry(entry: {
-    id: string; eventId: string; sourceKey: string; guestName: string; email: string; phone: string;
+    id: string; eventId: string; sourceKey: string; guestName: string; email: string; phone: string; company: string;
     category: string; table: string; eligibility: string; rsvp: string; dietary: string; verificationStatus: string; source: string;
     importBatchId: string | null; checkedInAt: Date | null; withdrawnAt: Date | null; createdAt: Date; updatedAt: Date;
     verificationFlaggedAt: Date | null; verificationFlaggedBy: string | null;
@@ -962,6 +962,7 @@ export class GuestWorkflowService implements GuestCommands {
       guestName: entry.guestName,
       email: entry.email,
       phone: entry.phone,
+      company: entry.company,
       category: entry.category,
       table: entry.table,
       eligibility: entry.eligibility,

@@ -23,9 +23,9 @@ function CancellationSummaryNote({ summary, error, onUseSuggested }: {
   const peso = (amount: number) => `PHP ${amount.toLocaleString("en-PH")}`;
   return (
     <span className="mt-2 block rounded-md border border-border bg-background p-2 text-xs text-muted-foreground">
-      Contract {peso(summary.contractAmount)} · received {peso(summary.paidAmount)} · supplier commitments {peso(summary.committedSupplierAmount)}.{" "}
+      Gross project amount {peso(summary.contractAmount)} · received {peso(summary.paidAmount)} · supplier commitments {peso(summary.committedSupplierAmount)}.{" "}
       {summary.conformeSigned
-        ? <>Fee {peso(summary.feeMinimum)} to {peso(summary.feeMaximum)} (10 to 15 percent of the contract). <button type="button" className="font-semibold text-foreground underline-offset-2 hover:underline" onClick={() => onUseSuggested(summary.suggestedFee)}>Use {peso(summary.suggestedFee)}</button></>
+        ? <>Cancellation fee {peso(summary.suggestedFee)}: 15% of the gross project amount (PMCM may reduce it to {peso(summary.feeMinimum)}, 10%). <button type="button" className="font-semibold text-foreground underline-offset-2 hover:underline" onClick={() => onUseSuggested(summary.suggestedFee)}>Use {peso(summary.suggestedFee)}</button></>
         : "No fee applies: the conforme is not signed."}
     </span>
   );

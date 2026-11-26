@@ -27,10 +27,10 @@ export function SignInView() {
       points={CLIENT_PORTAL_POINTS}
       homeHref="/"
       title="Sign in to the client portal"
-      description="Access opens after your inquiry is accepted and your conforme is signed."
+      description="Access opens when PMCM accepts your inquiry: first your briefing and proposal, then the full portal once your conforme is signed."
       footer={
         <>
-          <p>Approved clients only. Access requires a signed conforme.</p>
+          <p>Clients whose inquiry PMCM has accepted.</p>
           <PrismAccountHelp contact={pmcmSupportContactFromEnvironment()} topic="client portal access" />
         </>
       }

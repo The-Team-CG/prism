@@ -6,11 +6,11 @@ describe("roster spreadsheet import", () => {
   it("reads the downloadable template into the shared import payload", () => {
     const preview = previewRosterSpreadsheet(buildRosterTemplateCsv());
     // Operators see readable headers, never API field names.
-    expect(preview.headers).toEqual(["Guest name", "Category", "Table", "Guest ID", "Email", "Phone", "Eligibility", "RSVP", "Dietary needs"]);
+    expect(preview.headers).toEqual(["Guest name", "Category", "Table", "Guest ID", "Email", "Mobile number", "Company name", "Eligibility", "RSVP", "Dietary needs"]);
     expect(preview).toMatchObject({ headerErrors: [], validCount: 2, errorCount: 0 });
     const payload = buildRosterImportPayload("spreadsheet", preview);
     expect(importGuestRosterSchema.safeParse(payload).success).toBe(true);
-    expect(payload?.rows[0]).toEqual({ guestName: "Ada Lovelace", category: "VIP", table: "T1", sourceKey: "A-001", email: "ada@example.com", eligibility: "eligible", rsvp: "confirmed", dietary: "Vegetarian" });
+    expect(payload?.rows[0]).toEqual({ guestName: "Ada Lovelace", category: "VIP", table: "T1", sourceKey: "A-001", email: "ada@example.com", phone: "09171234567", company: "Analytical Engines Inc.", eligibility: "eligible", rsvp: "confirmed", dietary: "Vegetarian" });
   });
 
   it("reads RSVP and dietary needs from a pasted sheet, so a declined guest is not left pending", () => {

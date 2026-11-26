@@ -147,12 +147,12 @@ export class AiAdvisoryService {
   /** FR-AI-07: PMCM or the event's designated operator. Advice only; the operator acts in the live operations board. */
   async eventDayCopilot(eventId: string, verifiedActor: PrismVerifiedEventActor, now = new Date()): Promise<PrismEventDayCopilot> {
     const actor = this.access.resolveActor({}, verifiedActor);
-    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator], 'event-day copilot', eventId);
+    await this.access.requireActorRole(actor, [OpsUserRole.PmcmAdmin, OpsUserRole.Coordinator], 'onsite copilot', eventId);
     const facts = await this.references.findEventDayCopilotFacts(eventId, now);
     if (!facts) throw new NotFoundException('Event not found');
     if (actor.role === OpsUserRole.Coordinator && (!actor.coordinatorId || !facts.operatorCoordinatorIds.includes(actor.coordinatorId))) {
-      await this.access.recordForbiddenAccess(actor, 'event-day copilot', eventId);
-      throw new ForbiddenException('Only PMCM or the designated event-day operator can use the copilot');
+      await this.access.recordForbiddenAccess(actor, 'onsite copilot', eventId);
+      throw new ForbiddenException('Only PMCM or the designated onsite operator can use the copilot');
     }
     const input = buildEventDayCopilotInput(facts, now);
     const digest = digestJson(input);

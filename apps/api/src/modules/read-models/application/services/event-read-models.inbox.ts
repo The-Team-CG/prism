@@ -1087,8 +1087,8 @@ function liveOpsTaskInboxItem(
   };
 }
 
-const OVERDUE_LIVE_OPS_TASK_STATE = { severity: 'critical', label: 'Event-day task overdue', status: 'overdue' } as const;
-const BLOCKED_LIVE_OPS_TASK_STATE = { severity: 'warning', label: 'Event-day task blocked', status: 'blocked' } as const;
+const OVERDUE_LIVE_OPS_TASK_STATE = { severity: 'critical', label: 'Onsite task overdue', status: 'overdue' } as const;
+const BLOCKED_LIVE_OPS_TASK_STATE = { severity: 'warning', label: 'Onsite task blocked', status: 'blocked' } as const;
 
 function collectLiveOpsIssueInboxItems(issues: PmcmInboxUrgentIssue[], eventsById: Map<string, EventRef>) {
   const items: PrismCommandInboxItem[] = [];

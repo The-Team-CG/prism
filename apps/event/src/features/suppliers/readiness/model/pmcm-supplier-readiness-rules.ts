@@ -95,7 +95,7 @@ export function setupStatusLabel(status: PrismSupplierReadinessSetupStatus) {
 const CONCERN_LABELS: Record<PrismSupplierReadinessConcernKind, string> = {
   schedule_change_request: "Schedule change requested",
   contract_correction: "Contract correction",
-  event_day_note: "Event-day note",
+  event_day_note: "Onsite note",
 };
 
 export function concernLabel(kind: PrismSupplierReadinessConcernKind) {

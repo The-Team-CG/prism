@@ -336,7 +336,7 @@ describe("EventCalendarWorkspace", () => {
       </PortalQueryProvider>,
     );
     fireEvent.click(within(document.querySelector<HTMLElement>('[data-date="2026-11-10"]') as HTMLElement).getByRole("button", { name: /^Gala/ }));
-    expect(within(screen.getByRole("dialog")).getByText(/Planning/)).toBeTruthy();
+    expect(within(screen.getByRole("dialog")).getByText(/Pre-planning/)).toBeTruthy();
   });
 
   it("fits a one-hour block's title on one line with its time and event under it", () => {

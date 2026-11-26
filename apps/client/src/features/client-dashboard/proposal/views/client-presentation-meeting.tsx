@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CalendarClock } from "lucide-react";
 import { formatPortalDateTime } from "@prism/ui/format-date";
-import { presentationMeetingIcs, type PrismPresentationMeeting } from "@prism/types";
+import { PRESENTATION_MEETING_PLATFORM_LABELS, presentationMeetingIcs, presentationMeetingPlatform, type PrismPresentationMeeting } from "@prism/types";
 import { Button } from "@prism/ui/components/button";
 import { Card, CardBody, CardHeader } from "../../shared/tab-ui";
 import { presentationMeetingsRepository } from "../data/presentation-meetings-repository";
@@ -49,7 +49,7 @@ export function ClientPresentationMeeting({ eventId }: { eventId: string }) {
             <p>Booked for <span className="font-semibold">{formatPortalDateTime(meeting.chosen.startsAt)}</span>.</p>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => downloadIcs(meeting)}>Add to calendar</Button>
-              {meeting.meetingLink ? <a href={meeting.meetingLink} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg border border-border px-3 text-sm font-semibold">Join link</a> : null}
+              {meeting.meetingLink ? <a href={meeting.meetingLink} target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg border border-border px-3 text-sm font-semibold">{presentationMeetingPlatform(meeting) ? `Join on ${PRESENTATION_MEETING_PLATFORM_LABELS[presentationMeetingPlatform(meeting)!]}` : "Join link"}</a> : null}
             </div>
           </div>
         ) : (

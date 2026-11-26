@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { PrismCoordinatorReplacementRecommendation } from "@prism/types";
+import { coordinatorRoleLabel } from "@prism/types";
 import { useCoordinatorReplacements } from "../view-models/use-coordinator-replacements";
 
 /** FR-AI-04 PARE coordinator mode: an emergency withdrawal raises a package here; nothing is assigned until PMCM approves. */
@@ -29,7 +30,7 @@ function RecommendationCard({ item, busy, onDecide }: {
   const pending = item.status === "pending";
   return (
     <article className={`rounded-md border p-4 text-sm ${item.riskLevel === "critical" ? "border-destructive/40" : "border-border"}`}>
-      <p className="font-semibold">{item.role}: {item.withdrawnCoordinatorName} withdrew · {item.hoursToEvent} hours to the event · {item.riskLevel} risk</p>
+      <p className="font-semibold">{coordinatorRoleLabel(item.role)}: {item.withdrawnCoordinatorName} withdrew · {item.hoursToEvent} hours to the event · {item.riskLevel} risk</p>
       <p className="mt-1 text-muted-foreground">{item.riskSummary}</p>
       {item.candidates.length ? (
         <fieldset className="mt-3 space-y-1" disabled={!pending || busy}>

@@ -62,8 +62,8 @@ export const supplierImpactOptions = [
 /** Mirrors the API: an event is cancelled or postponed only before event day, and never once cancelled or archived. */
 export function eventDecisionClosedReason(event: PrismLifecycleStageFacts): string | null {
   if (event.archived || event.status === "archived") return "This event is archived, so it can no longer be cancelled or postponed.";
-  if (event.status === "cancelled") return "This event is cancelled. Close it out and archive it from Closure.";
-  if (!isBeforePrismEventDay(derivePrismLifecycleStage(event))) return "Event day has started, so the event can no longer be cancelled or postponed.";
+  if (event.status === "cancelled") return "This event is cancelled. Close it out and archive it from Post-event.";
+  if (!isBeforePrismEventDay(derivePrismLifecycleStage(event))) return "Onsite has started, so the event can no longer be cancelled or postponed.";
   return null;
 }
 

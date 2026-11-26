@@ -87,7 +87,7 @@ function SupplierActionBoard() {
           <div className="mt-4 rounded-md border border-border bg-background p-4">
             <div className="mb-3 flex items-center gap-3">
               <Radio className="size-5 text-primary" />
-              <p className="font-black text-foreground">Event-day status</p>
+              <p className="font-black text-foreground">Onsite status</p>
             </div>
             <div className="grid gap-3 md:grid-cols-3">
               {[
@@ -134,7 +134,7 @@ export function SupplierHomeLandingView() {
                 ["Quotes", "#quotes"],
                 ["Assignments", "#assignments"],
                 ["Readiness", "#readiness"],
-                ["Event day", "#event-day"],
+                ["Onsite", "#event-day"],
               ].map(([label, href]) => (
                 <a key={label} href={href} className="rounded-md px-2 py-2 transition hover:text-primary">{label}</a>
               ))}
@@ -266,12 +266,12 @@ export function SupplierHomeLandingView() {
       <section id="event-day" className="px-5 py-16 sm:px-8 lg:px-10">
         <div className="mx-auto grid max-w-[1320px] gap-8 rounded-lg border border-primary/10 bg-primary/5 p-8 lg:grid-cols-[0.32fr_0.34fr_0.34fr] lg:items-center">
           <div>
-            <p className="text-sm text-muted-foreground">Mobile event day</p>
+            <p className="text-sm text-muted-foreground">Mobile onsite</p>
             <h2 className="mt-4 prism-serif text-4xl font-black leading-[0.98] text-ink sm:text-5xl">Mobile-ready on event day</h2>
             <p className="mt-4 text-lg leading-8 text-muted-foreground">Arrival, setup, and completion states are sized for phone use when teams are already onsite.</p>
           </div>
           <div className="mx-auto w-full max-w-[260px] rounded-[2rem] border-8 border-ink bg-card p-4 shadow-[0_28px_80px_rgba(23,18,22,0.22)]">
-            <p className="text-center text-sm font-black text-foreground">Event-day status</p>
+            <p className="text-center text-sm font-black text-foreground">Onsite status</p>
             <div className="mt-5 grid gap-3">
               {[
                 [CheckCircle2, "Arrived", "Confirm onsite"],
@@ -296,7 +296,7 @@ export function SupplierHomeLandingView() {
               ["Arrived onsite", "May 14, 7:25 AM"],
               ["Setup in progress", "May 14, 8:10 AM"],
               ["Setup completed", "May 14, 11:45 AM"],
-              ["Event day complete", ""],
+              ["Onsite complete", ""],
             ].map(([title, time], index) => (
               <div key={title} className="flex gap-4 py-4">
                 <span className={index < 3 ? "mt-1 size-3 rounded-full bg-success" : "mt-1 size-3 rounded-full border border-border"} />
@@ -336,7 +336,7 @@ export function SupplierHomeLandingView() {
         <div className="mx-auto max-w-[1320px] rounded-lg border border-primary/12 bg-ink p-8 text-ink-foreground shadow-[0_24px_80px_rgba(23,18,22,0.08)] sm:p-10 lg:flex lg:items-center lg:justify-between">
           <div>
             <h2 className="max-w-2xl prism-serif text-4xl font-black leading-tight">Return to your supplier workspace</h2>
-            <p className="mt-3 text-sidebar-foreground/70">Sign in to view assignments, deadlines, contracts, and event-day updates.</p>
+            <p className="mt-3 text-sidebar-foreground/70">Sign in to view assignments, deadlines, contracts, and onsite updates.</p>
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0">
             <a href={portalHref("/sign-in")} className="inline-flex h-12 items-center justify-center rounded-md bg-primary px-6 font-black text-primary-foreground">Supplier sign in</a>
@@ -348,7 +348,7 @@ export function SupplierHomeLandingView() {
         <div className="mx-auto grid max-w-[1320px] gap-8 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <BrandMark />
           {[
-            ["Portal", "Quotes", "Assignments", "Readiness", "Event day"],
+            ["Portal", "Quotes", "Assignments", "Readiness", "Onsite"],
             ["Support", "Help center", "Contact coordinator", "Resources"],
             ["Company", "About PMCM", "Careers", "Privacy"],
           ].map(([title, ...items]) => (

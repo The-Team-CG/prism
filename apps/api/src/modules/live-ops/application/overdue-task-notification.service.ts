@@ -65,7 +65,7 @@ export class LiveOpsOverdueTaskNotificationService {
           await this.notificationOutboxWriter.write({
             eventId: task.eventId,
             recipient,
-            message: `Overdue event-day task: ${task.title} (${task.assignedRole}). Review it in the PMCM command inbox.`,
+            message: `Overdue onsite task: ${task.title} (${task.assignedRole}). Review it in the PMCM command inbox.`,
             channel: 'email',
             correlationId: idempotencyKey,
             idempotencyKey,

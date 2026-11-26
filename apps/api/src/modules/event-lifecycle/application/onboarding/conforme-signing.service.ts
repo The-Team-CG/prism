@@ -41,6 +41,7 @@ export class ConformeSigningService {
       }
       if (inquiry.status !== 'accepted') throw new ConflictException('Only accepted inquiries can receive a conforme');
       if (inquiry.conformeSignedAt) throw new ConflictException('This inquiry already has a signed conforme');
+      const { briefing } = await this.inquiriesService.requireConformeReady(tx, inquiryId);
       const latest = await tx.opsConformeExecution.findFirst({ where: { inquiryId }, orderBy: { templateVersion: 'desc' } });
       await this.supersedeUnsignedExecution(tx, latest, input.templateVersion, actor);
       if (latest && input.templateVersion <= latest.templateVersion) throw new ConflictException('Conforme template versions must increase');
@@ -52,7 +53,11 @@ export class ConformeSigningService {
         email: inquiry.email,
         eventName: inquiry.eventName,
         eventType: inquiry.eventType,
-        eventDate: inquiry.eventDate.toISOString().slice(0, 10),
+        eventDate: (briefing?.confirmedDate ?? inquiry.eventDate).toISOString().slice(0, 10),
+        venue: briefing?.venue ?? '',
+        guestCount: briefing ? String(briefing.guestCount) : '',
+        programTime: [briefing?.confirmedStartTime, briefing?.confirmedEndTime].filter(Boolean).join(' – '),
+        eventTheme: briefing?.moodAndStyling ?? '',
       });
       const execution = await tx.opsConformeExecution.create({
         data: {
@@ -62,6 +67,8 @@ export class ConformeSigningService {
         },
         include: { signatures: true },
       });
+      // The conforme reminder clock starts when the conforme is first sent, after the proposal (UAT 5.x).
+      if (!inquiry.conformeSentAt) await tx.opsInquiry.update({ where: { id: inquiryId }, data: { conformeSentAt: new Date() } });
       await writeAudit(this.auditWriter, undefined, actor.actorName, 'Prepared in-app conforme for client acknowledgment', {
         actorRole: actor.actorRole, actorEmail: actor.actorEmail, actionType: AuditActionType.Create,
         category: AuditCategory.Documents, affectedType: 'conforme_execution', affectedId: execution.id,
@@ -138,6 +145,7 @@ export class ConformeSigningService {
         return this.toPublicExecution(execution);
       }
       this.assertSigningEligibility(execution, role);
+      await this.inquiriesService.requireConformeReady(tx, execution.inquiryId);
 
       await tx.opsConformeSignature.create({
         data: {

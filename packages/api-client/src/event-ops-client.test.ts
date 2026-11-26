@@ -673,7 +673,7 @@ describe("prismRequest", () => {
     await commercial.addSupplierReview("s1", any);
     await commercial.setSupplierAvailability("s1", any);
     await commercial.requestSupplierQuotes("e1", any);
-    await commercial.withdrawQuoteRequest("e1", "r1");
+    await commercial.withdrawQuoteRequest("e1", "r1", { reason: "Double-booked" });
     await commercial.compareQuoteRound("e1", "round 1");
     await commercial.selectSupplierQuote("e1", "q1");
 

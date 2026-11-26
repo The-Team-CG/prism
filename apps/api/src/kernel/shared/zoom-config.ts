@@ -6,7 +6,10 @@ import type { EnvProblem, EnvReader } from '../mail/mail-config';
  */
 export const ZOOM_ENV = ['ZOOM_ACCOUNT_ID', 'ZOOM_CLIENT_ID', 'ZOOM_CLIENT_SECRET'] as const;
 
-export type ZoomConfig = { accountId: string; clientId: string; clientSecret: string };
+/** Optional: the Zoom user (email or ID) who hosts the meetings. Unset, the meetings are hosted by the app's owner ("me"). */
+export const ZOOM_HOST_USER_ENV = 'ZOOM_HOST_USER';
+
+export type ZoomConfig = { accountId: string; clientId: string; clientSecret: string; hostUser: string };
 
 export function zoomConfigProblems(read: EnvReader): EnvProblem[] {
   const values = ZOOM_ENV.map((name) => read(name)?.trim() ?? '');
@@ -18,5 +21,5 @@ export function resolveZoomConfig(read: EnvReader): ZoomConfig | null {
   const problems = zoomConfigProblems(read);
   if (problems.length > 0) throw new Error(problems.map((problem) => `${problem.name} ${problem.message}`).join('; '));
   const [accountId, clientId, clientSecret] = ZOOM_ENV.map((name) => read(name)?.trim() ?? '');
-  return accountId && clientId && clientSecret ? { accountId, clientId, clientSecret } : null;
+  return accountId && clientId && clientSecret ? { accountId, clientId, clientSecret, hostUser: read(ZOOM_HOST_USER_ENV)?.trim() || 'me' } : null;
 }

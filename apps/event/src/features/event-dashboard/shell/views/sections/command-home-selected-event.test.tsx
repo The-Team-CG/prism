@@ -22,7 +22,7 @@ describe("CommandHomeSelectedEvent", () => {
 
     expect(screen.getByText("Ayala Gala")).toBeTruthy();
     expect(screen.getByText("Official layout")).toBeTruthy();
-    expect(screen.getByText("Closure checks")).toBeTruthy();
+    expect(screen.getByText("Post-event checks")).toBeTruthy();
     expect(screen.queryByText("Active events")).toBeNull();
     const open = screen.getByRole("link", { name: /Open workspace/ });
     // A real address, so PMCM can open the workspace in a new tab or copy its link.

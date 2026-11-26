@@ -50,17 +50,13 @@ describe('OpsEventSupplierWithdrawalController', () => {
     expect(guards).toContain(EventSessionGuard);
   });
 
-  it('delegates supplier withdrawal with the default reason', async () => {
+  it('delegates the withdrawal reason and the referred replacement (UAT 7.8, 8.9)', async () => {
     const { actor, controller, eventAccessPolicyService, supplierNetworkWorkflowService } = createController();
-    await controller.withdrawSupplier('evt_sample', 'qr_sample', {}, verifiedActor);
+    const referral = { supplierName: 'Lumina Lights', contact: '0917 555 0101', sameRate: true };
+    await controller.withdrawSupplier('evt_sample', 'qr_sample', { reason: 'Double-booked', referral }, verifiedActor);
 
     expect(eventAccessPolicyService.resolveActor).toHaveBeenCalledWith({}, verifiedActor);
-    expect(supplierNetworkWorkflowService.withdrawSupplier).toHaveBeenCalledWith(
-      'qr_sample',
-      'Withdrawn by PMCM Admin',
-      actor,
-      'evt_sample',
-    );
+    expect(supplierNetworkWorkflowService.withdrawSupplier).toHaveBeenCalledWith('qr_sample', 'Double-booked', actor, 'evt_sample', referral);
   });
 
   it('delegates supplier withdrawal with a custom reason', async () => {
@@ -78,6 +74,7 @@ describe('OpsEventSupplierWithdrawalController', () => {
       'Supplier unavailable',
       actor,
       'evt_sample',
+      undefined,
     );
   });
 

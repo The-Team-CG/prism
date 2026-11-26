@@ -1,4 +1,5 @@
 import type {
+  SupplierWithdrawalInput,
   ChoosePresentationSlotInput,
   ChooseVenueScoutingPreferenceInput,
   CreateClientOwnedSupplierInput,
@@ -136,7 +137,7 @@ export interface EventOpsCommercialContract {
     /** A quote PMCM received outside the portal (phone, email), usually tied to the request it answers. */
     addSupplierQuote(eventId: string, input: AddSupplierQuoteInput): Promise<PrismSupplierQuote>;
     requestSupplierQuotes(eventId: string, input: RequestSupplierQuotesInput): Promise<PrismSupplierQuoteRequest[]>;
-    withdrawQuoteRequest(eventId: string, requestId: string): Promise<{ ok: boolean }>;
+    withdrawQuoteRequest(eventId: string, requestId: string, input: SupplierWithdrawalInput): Promise<{ ok: boolean }>;
     compareQuoteRound(eventId: string, roundId: string): Promise<PrismSupplierQuoteRoundComparison>;
     verifySupplierStatus(eventId: string, requestId: string, input: VerifySupplierStatusInput): Promise<PrismSupplierQuoteRequest>;
     selectSupplierQuote(eventId: string, quoteId: string): Promise<PrismSupplierQuote>;
