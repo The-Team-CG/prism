@@ -22,6 +22,7 @@
     "./document-title": "./src/document-title.tsx",
     "./portal-status-pages": "./src/portal-status-pages.tsx",
     "./auth-shell": "./src/auth-shell.tsx",
+    "./auth-form": "./src/auth-form.tsx",
     "./portal-path": "./src/portal-path.ts",
     "./privacy-notice": "./src/privacy-notice.tsx",
     "./privacy-requests": "./src/privacy-requests.tsx",

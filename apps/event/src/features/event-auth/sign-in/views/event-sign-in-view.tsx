@@ -2,14 +2,12 @@
 
 import { PrismAccountHelp } from "@prism/ui/account-help";
 import { portalHref } from "@prism/ui/portal-path";
-import { PRISM_AUTH_INPUT_CLASS_NAME, PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { PrismAuthShell, prismAuthSubmitClassName } from "@prism/ui/auth-shell";
+import { PrismAuthEmailField, PrismAuthError, PrismAuthPasswordField } from "@prism/ui/auth-form";
 import { FormEvent, useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { Alert, AlertDescription } from "@prism/ui/components/alert";
 import { Button } from "@prism/ui/components/button";
 import { Field } from "@prism/ui/components/field";
-import { Input } from "@prism/ui/components/input";
 import { Label } from "@prism/ui/components/label";
 import { EVENT_PORTAL_POINTS, EVENT_PORTAL_STATEMENT } from "../model/event-portal-copy";
 import { signInSubmitLabel, twoFactorCopy } from "../model/event-sign-in-copy";
@@ -71,48 +69,19 @@ function SetupSecretBox({ secret, otpauthUri }: { secret: string; otpauthUri: st
 type SignInVm = ReturnType<typeof useEventSignInViewModel>;
 
 function PasswordFields({ vm, active }: { vm: SignInVm; active: boolean }) {
+  const errorId = vm.error ? "event-sign-in-error" : undefined;
   return (
     <div hidden={!active} className="flex flex-col gap-5">
-      <Field>
-        <Label htmlFor="email">Email address</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="username"
-          required={active}
-          value={vm.email}
-          onChange={(e) => vm.setEmail(e.target.value)}
-          placeholder="name@company.com"
-          className={`h-12 rounded-lg bg-card text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-        />
-      </Field>
-
-      <Field>
-        <Label htmlFor="password">Password</Label>
-        <div className="relative">
-          <Input
-            id="password"
-            type={vm.showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            required={active}
-            value={vm.password}
-            onChange={(e) => vm.setPassword(e.target.value)}
-            placeholder="Enter your password"
-            className={`h-12 rounded-lg bg-card pr-12 text-base ${PRISM_AUTH_INPUT_CLASS_NAME}`}
-          />
-          <button
-            type="button"
-            onClick={() => vm.setShowPassword(!vm.showPassword)}
-            className="absolute right-1 top-1/2 grid size-10 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-            aria-label={vm.showPassword ? "Hide password" : "Show password"}
-          >
-            {vm.showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
-          </button>
-        </div>
-        <a href={portalHref("/password-reset")} className="self-end text-sm text-primary transition-colors hover:text-primary/80">
-          Forgot password?
-        </a>
-      </Field>
+      <PrismAuthEmailField value={vm.email} onChange={vm.setEmail} required={active} errorId={errorId} />
+      <PrismAuthPasswordField
+        value={vm.password}
+        onChange={vm.setPassword}
+        shown={vm.showPassword}
+        onToggleShown={() => vm.setShowPassword(!vm.showPassword)}
+        forgotHref={portalHref("/password-reset")}
+        required={active}
+        errorId={errorId}
+      />
     </div>
   );
 }
@@ -181,11 +150,7 @@ export function EventSignInView() {
 
         {passwordPhase ? null : <TwoFactorStep vm={vm} title={copy.title} />}
 
-        {vm.error ? (
-          <Alert id="event-sign-in-error" variant="destructive" role="alert">
-            <AlertDescription>{vm.error}</AlertDescription>
-          </Alert>
-        ) : null}
+        <PrismAuthError id="event-sign-in-error" message={vm.error} />
 
         <Button type="submit" disabled={vm.busy || (!passwordPhase && vm.code.length !== 6)} className={prismAuthSubmitClassName("event")}>
           {signInSubmitLabel(vm.busy, vm.phase)}
