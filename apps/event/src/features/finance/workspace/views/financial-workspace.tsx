@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ReceiptText } from "lucide-react";
-import { useInvalidate, useResource } from "@prism/portal-query";
+import { useRefreshWhenChanged, useResource } from "@prism/portal-query";
 import type { MarkPaymentInput, PrismBillingStatement, PrismEvent, PrismInquiry, PrismNotificationLog, PrismPaymentMilestone } from "@prism/types";
 import { toast } from "@prism/ui/components/sonner";
 import { manilaDateKey } from "@prism/ui/format-date";
@@ -81,11 +81,8 @@ export function FinancialWorkspace({
   const paymentAtRisk = active.some((payment) => payment.status === "at_risk");
   // The statement of account is its own read, so it is read again whenever the statement or a payment changes here:
   // otherwise a statement just issued, sent or paid would not show until the page is reloaded.
-  const invalidate = useInvalidate();
   const changes = [statement?.id, statement?.sentAt, ...active.map((payment) => `${payment.id}:${payment.status}:${payment.amountPaid}`)].join("|");
-  useEffect(() => {
-    void invalidate(eventStatementOfAccount, event.id);
-  }, [changes, event.id, invalidate]);
+  useRefreshWhenChanged(eventStatementOfAccount, event.id, changes);
 
   if (!soa?.available) {
     return (

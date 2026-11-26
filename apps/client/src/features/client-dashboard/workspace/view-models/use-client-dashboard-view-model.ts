@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { usePrefetch } from "@prism/portal-query";
 import { clientEventAddendaResource } from "../../addenda";
 import { clientEventChangeRequestsResource } from "../../change-requests";
+import { clientStatementOfAccount } from "../../billing";
+import { clientEventFileRequirements, clientEventStoredFiles } from "../../files";
+import { clientUnreadMessages } from "../../messages";
 import type { PrismClientActionCenter, PrismClientWorkspace, PrismUser } from "@prism/types";
 import { dashboardHref } from "../model/client-dashboard-navigation";
 import type { ClientDashboardRoute, ClientPortalView, ClientSession } from "../model/client-dashboard-types";
@@ -96,12 +99,21 @@ export function useClientDashboardViewModel({
   const router = useRouter();
   const prefetch = usePrefetch();
 
-  // The overview's change requests and addenda only need the route's event id: start them with the
-  // workspace instead of after it, when their panels would otherwise mount.
+  // An event page's own reads only need the route's event id: start them with the workspace instead of after it,
+  // when their panels would otherwise mount. Each uses the same params as its reader.
   useEffect(() => {
-    if (route !== "overview" || !eventId || readClientSession()?.role !== "client") return;
-    prefetch(clientEventChangeRequestsResource, eventId);
-    prefetch(clientEventAddendaResource, eventId);
+    if (!eventId || readClientSession()?.role !== "client") return;
+    prefetch(clientUnreadMessages, { eventId });
+    if (route === "overview") {
+      prefetch(clientEventChangeRequestsResource, eventId);
+      prefetch(clientEventAddendaResource, eventId);
+      prefetch(clientEventStoredFiles, eventId);
+    }
+    if (route === "billing") prefetch(clientStatementOfAccount, eventId);
+    if (route === "documents") {
+      prefetch(clientEventStoredFiles, eventId);
+      prefetch(clientEventFileRequirements, eventId);
+    }
   }, [eventId, prefetch, route]);
   const [session, setSession] = useState<ClientSession | null>(null);
   const [actionCenter, setActionCenter] = useState<PrismClientActionCenter | null>(null);

@@ -1,8 +1,8 @@
 /** @vitest-environment jsdom */
-import { StrictMode, type ReactNode } from "react";
+import { StrictMode, useEffect, type ReactNode } from "react";
 import { act, cleanup, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PortalQueryProvider, defineResource, useInvalidate, usePrefetch, useResource } from "./portal-query";
+import { PortalQueryProvider, defineResource, useFetchResource, useInvalidate, usePrefetch, useRefreshWhenChanged, useResource } from "./portal-query";
 
 afterEach(cleanup);
 
@@ -41,6 +41,49 @@ describe("portal query", () => {
     rerender({ id: "evt_2" });
     await waitFor(() => expect(result.current.state.status).toBe("ready"));
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a loader that keeps its own state reuse a prefetched answer, and ask again when told to", async () => {
+    const { fetch, resource, wrapper } = setup();
+    const { result } = renderHook(() => ({ prefetch: usePrefetch(), load: useFetchResource() }), { wrapper });
+    act(() => result.current.prefetch(resource, "evt_3"));
+    // The loader joins the request the prefetch started instead of making a second one.
+    await expect(result.current.load(resource, "evt_3")).resolves.toMatchObject({ eventId: "evt_3" });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    // After a command the loader asks the API again.
+    await expect(result.current.load(resource, "evt_3", { fresh: true })).resolves.toMatchObject({ loadedAt: 2 });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads again when the page's records change, including across a remount, but not on a first mount after a prefetch", async () => {
+    const { fetch, resource, wrapper } = setup();
+    function Statement({ signature }: { signature: string }) {
+      useRefreshWhenChanged(resource, "evt_4", signature);
+      const state = useResource(resource, "evt_4");
+      return <p>{state.status === "ready" ? `read ${state.data.loadedAt}` : state.status}</p>;
+    }
+    function Page({ open, signature }: { open: boolean; signature: string }) {
+      const prefetch = usePrefetch();
+      // The route starts the read once, as the shell does.
+      useEffect(() => prefetch(resource, "evt_4"), [prefetch]);
+      return open ? <Statement signature={signature} /> : <p>closed</p>;
+    }
+    const view = render(<Page open signature="stmt_1" />, { wrapper });
+    await waitFor(() => expect(screen.getByText("read 1")).toBeTruthy());
+    // The first mount uses the prefetched read; it does not ask again.
+    expect(fetch).toHaveBeenCalledTimes(1);
+
+    // The screen closes, a statement is sent elsewhere, and the screen opens again: it reads again.
+    view.rerender(<Page open={false} signature="stmt_1" />);
+    view.rerender(<Page open signature="stmt_1|sent" />);
+    await waitFor(() => expect(fetch.mock.calls.length).toBeGreaterThan(1));
+    await waitFor(() => expect(screen.getByText(/^read [2-9]/)).toBeTruthy());
+    const afterChange = fetch.mock.calls.length;
+    // Reopening with nothing changed does not.
+    view.rerender(<Page open={false} signature="stmt_1|sent" />);
+    view.rerender(<Page open signature="stmt_1|sent" />);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(fetch).toHaveBeenCalledTimes(afterChange);
   });
 
   it("refetches mounted readers after invalidation", async () => {

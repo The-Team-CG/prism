@@ -1,8 +1,10 @@
 export {
   PortalQueryProvider,
   defineResource,
+  useFetchResource,
   useInvalidate,
   usePrefetch,
+  useRefreshWhenChanged,
   useResource,
   type Resource,
   type ResourceState,

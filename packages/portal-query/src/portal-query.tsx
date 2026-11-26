@@ -80,6 +80,45 @@ export function usePrefetch() {
   );
 }
 
+/**
+ * Loads a resource through the cache for code that holds its own state (a view-model with drafts, say): the answer a
+ * prefetch already started or finished is reused instead of asking again. `{ fresh: true }` always asks the API, for
+ * a reload after a command; the cache keeps that answer too.
+ */
+export function useFetchResource() {
+  const client = useQueryClient();
+  return useCallback(
+    <Params, Data>(resource: Resource<Params, Data>, params: Params, options: { fresh?: boolean } = {}): Promise<Data> =>
+      client.fetchQuery({
+        queryKey: resourceKey(resource, params),
+        queryFn: ({ signal }) => resource.fetch(params, signal),
+        staleTime: options.fresh ? 0 : resource.staleMs,
+      }),
+    [client],
+  );
+}
+
+const SIGNATURE_KEY = "portal-query:changed-signature";
+
+/**
+ * Reads a resource again when `signature` (the records elsewhere on the page that can make it out of date) differs
+ * from the one last seen for the same read. The signature is kept in the cache beside the data, not in the component,
+ * so a screen that remounts after a change still refreshes, while a first mount after a prefetch does not ask twice.
+ */
+export function useRefreshWhenChanged<Params, Data>(resource: Resource<Params, Data>, params: Params | null, signature: string) {
+  const client = useQueryClient();
+  const paramsKey = params === null ? null : JSON.stringify(params);
+  useEffect(() => {
+    if (params === null) return;
+    client.setQueryDefaults([SIGNATURE_KEY], { gcTime: Infinity });
+    const key = [SIGNATURE_KEY, ...resourceKey(resource, params)];
+    const seen = client.getQueryData<string>(key);
+    client.setQueryData(key, signature);
+    if (seen !== undefined && seen !== signature) void client.invalidateQueries({ queryKey: resourceKey(resource, params) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- paramsKey stands for params, which callers often rebuild each render
+  }, [client, resource, paramsKey, signature]);
+}
+
 /** Marks a resource stale after a command; mounted readers refetch in parallel and the promise settles after. */
 export function useInvalidate() {
   const client = useQueryClient();

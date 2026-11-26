@@ -1,20 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useFetchResource } from "@prism/portal-query";
 import type { PrismPmcmSupplierWorkflowWorkspace, PrismSupplierQuote, PrismSupplierSchedule } from "@prism/types";
 import {
   assignSupplierCreativeTask,
   correctSupplierEventStatus,
   createSupplierPayable,
   downloadPmcmSupplierFile,
-  loadPmcmSupplierWorkflows,
-  loadPmcmSupplierScheduleWindows,
   publishSupplierSchedule,
   recordSupplierPayout,
   reviewSupplierContract,
   reviewSupplierCreativeTask,
   reverseSupplierPayout,
 } from "../use-cases/pmcm-supplier-workflow-actions";
+import { pmcmSupplierScheduleWindows, pmcmSupplierWorkflows } from "../data/pmcm-supplier-workflow-resources";
 
 type Drafts = Record<string, Record<string, string>>;
 
@@ -31,14 +31,16 @@ export function usePmcmSupplierWorkflows(eventId: string) {
   const eventIdRef = useRef(eventId);
   const loadSequence = useRef(0);
   eventIdRef.current = eventId;
+  const fetchResource = useFetchResource();
 
-  const load = useCallback(async () => {
+  // The first load reuses what the route prefetched; a reload after a command asks the API again.
+  const load = useCallback(async (fresh = false) => {
     const requestedEventId = eventId;
     const sequence = ++loadSequence.current;
     try {
       const [rows, schedules] = await Promise.all([
-        loadPmcmSupplierWorkflows(requestedEventId),
-        loadPmcmSupplierScheduleWindows(requestedEventId),
+        fetchResource(pmcmSupplierWorkflows, requestedEventId, { fresh }),
+        fetchResource(pmcmSupplierScheduleWindows, requestedEventId, { fresh }),
       ]);
       if (eventIdRef.current === requestedEventId && loadSequence.current === sequence) {
         setLoaded({ eventId: requestedEventId, rows, schedules });
@@ -51,7 +53,10 @@ export function usePmcmSupplierWorkflows(eventId: string) {
       }
       throw cause;
     }
-  }, [eventId]);
+  }, [eventId, fetchResource]);
+
+  /** The panel's "Reload" asks the API, never the cache. */
+  const reload = useCallback(() => load(true), [load]);
 
   useEffect(() => {
     setLoaded(null);
@@ -70,7 +75,7 @@ export function usePmcmSupplierWorkflows(eventId: string) {
     try {
       await action();
       try {
-        await load();
+        await load(true);
       } catch {
         if (eventIdRef.current === eventId) setError(`${label} was saved, but the updated supplier workflow could not be loaded. Reload before retrying.`);
         return false;
@@ -238,7 +243,7 @@ export function usePmcmSupplierWorkflows(eventId: string) {
     busy,
     value,
     setValue,
-    load,
+    load: reload,
     publishSchedule,
     decideContract,
     correctStatus,

@@ -233,7 +233,8 @@ export function ClientDashboardWorkspaceView({
   // The account's Messages item counts every conversation; the event workspace's Messages item counts that event's.
   const unreadMessages = useClientUnreadMessages();
   const unreadNotices = useClientUnreadNotices();
-  const eventUnreadMessages = useClientUnreadMessages({ eventId: selectedEventId ?? undefined });
+  // Keyed on the route's event first, so the count starts before the workspace says which event is selected.
+  const eventUnreadMessages = useClientUnreadMessages({ eventId: eventId ?? selectedEventId ?? undefined });
   const [screen, setScreen] = useState<Screen>({ name: "dashboard" });
   const [form, setForm] = useState<PreferenceForm>(initialPreference);
   const [requestForm, setRequestForm] = useState<ClientRequestForm>(initialRequestForm);
