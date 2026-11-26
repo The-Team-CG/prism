@@ -10,6 +10,7 @@ and the project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- PMCM can delete a file it shared by mistake from the event's file library: open the file, choose Delete, then confirm. The client stops seeing it. Client and supplier files keep going through review, and the current event cover has to be removed as the cover first. `@prism/api-client` exports `deleteStorageObject`.
 - Event games feel more like a live show. The room screen shows answers coming in ("12 of 30 answered", then "Everyone's in!") and the host's reveal button stands out once everyone has answered (`currentRound.answeredCount`). Results bars grow in with their counts ticking up, and a finished game ends on a podium that builds third, second, then first. On phones, a right answer bursts confetti and counts its points up, and the reveal shows the guest's place, how far they moved and a streak (`roundOutcome.streak`). Bingo says when a line is one call away and lights up the claim button once the marks win (`winPattern` in Bingo's game data). A finished game's final results survive a reload.
 - Approved Word Cloud responses now form a spatial cloud on the presenter screen while guests are answering.
 

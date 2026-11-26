@@ -195,6 +195,15 @@ export function setStorageObjectExpiry(objectId: string, input: SetStorageObject
   });
 }
 
+/** Deletes a stored file. PMCM only; supplier workflow evidence cannot be deleted. */
+export function deleteStorageObject(objectId: string, options: StorageClientOptions = {}): Promise<PrismStoredObject> {
+  return prismRequest<PrismStoredObject>(`/storage/objects/${encodeURIComponent(objectId)}`, {
+    method: "DELETE",
+    authToken: options.authToken,
+    baseUrl: resolvePrismApiBaseUrl(options.baseUrl),
+  });
+}
+
 /** The signed-in client's stored files across all of their events, matching a file name; an empty query lists the newest. */
 export function searchClientStoredFiles(query: string, options: StorageClientOptions & { signal?: AbortSignal } = {}): Promise<PrismStoredObject[]> {
   const search = new URLSearchParams({ query });
